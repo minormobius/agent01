@@ -5188,6 +5188,23 @@
         "interactive",
         "generative"
       ]
+    },
+    {
+      "n": "which critters bzip thinks are alike",
+      "u": "https://henderhead.mino.mobi/bzip/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-19",
+      "b": "2026-10-19",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "Squeeze every sprite in a dex with bzip2, then squeeze every pair glued together: if two pictures compress better together than apart, the compressor has found something they share, and the normalized compression distance turns that into a number. His version ran on Pokémon and found an evolution 8% of the time against 1% by chance. This one runs on 151 monsters of our own drawing — the real sprites are Nintendo's — whose evolution lines are known exactly, through a real bzip2 written in Rust and compiled to a 47 KB WebAssembly module that produces the reference binary's output byte for byte. It finds a relative four times as often as chance, and one critter everybody picks. The knobs test his explanation, that bzip is mostly matching size and how much is drawn in: it is, its pick sits at the 14th percentile by ink, and drawing every evolution at the same size takes the hit rate from 4% to over 20%. Cropping to fit afterwards does not, because to a compressor that only sees runs of bytes, size is the shape. Draw your own and see who it looks like.",
+      "tags": [
+        "rust",
+        "wasm",
+        "compression"
+      ]
     }
   ],
   "notListed": [
@@ -5902,5 +5919,27 @@
       "reason": "polis's city-engine toy (blocks, plots, buildings), linked from the cascade page"
     }
   ],
-  "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."
+  "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate.",
+  "sections": [
+    {
+      "before": 0,
+      "label": "bluesky"
+    },
+    {
+      "before": 74,
+      "label": "work"
+    },
+    {
+      "before": 84,
+      "label": "data"
+    },
+    {
+      "before": 147,
+      "label": "tools"
+    },
+    {
+      "before": 218,
+      "label": "games"
+    }
+  ]
 }
