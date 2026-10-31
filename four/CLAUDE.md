@@ -273,6 +273,8 @@ for games, and this is a modelling programme with publications to come. The game
   white dwarfs (full density → nickel, Arnett; spread 30–100× → the observed split).
   `nuclei.mjs starmix` (seconds; reads `js/mainseqdata.js`): steps 2–3 from the computed main sequence, per G and proton size:
   a Sun-long star's core, what stars finishing within 5–20 Gyr give back, and the Eddington-limit star's life.
+  `nuclei.mjs cores` (seconds): which stars explode at each G from the main sequence's stirred cores (`mainseq.js`
+  `convectiveCore`; growth ×1–2, winds 3–30% declared), when the first does, and the iron / rock row / ash shares.
   `js/mainseq.js` (no DOM) is the main sequence in any d: shooting from centre and surface to a fitting mass (Newton on
   ln P_c, ln T_c, ln R, ln L), Fermi–Dirac electrons (burning.js, tabulated), light u/d, convection at ∇_ad = 2/(d+2), the
   photosphere at τ = 2/3, our opacity (scattering + Kramers) and 4D's (electron scattering through the lens vacuum,
