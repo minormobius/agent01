@@ -1,0 +1,33 @@
+{
+ "group": "ms2-3",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs run 1e-17 1 0.5",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 168
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs run 1e-17 1 2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 112
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs run 1e-20 1 0.5",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 210
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs run 1e-20 1 2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 216
+  }
+ ]
+}
