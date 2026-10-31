@@ -473,6 +473,28 @@
       "surface": "rite"
     },
     {
+      "n": "spooky",
+      "u": "https://rite.mino.mobi/spooky/",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-01",
+      "b": "2026-10-01",
+      "p": "rite",
+      "surface": "rite"
+    },
+    {
+      "n": "pumpkin",
+      "u": "https://rite.mino.mobi/pumpkin/",
+      "c": "bluesky",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-10-23",
+      "b": "2026-10-23",
+      "p": "rite",
+      "surface": "rite"
+    },
+    {
       "n": "atmosphere",
       "u": "https://b.mino.mobi",
       "c": "bluesky",
@@ -5382,6 +5404,11 @@
       "glob": "mega/sprite/**",
       "kind": "content",
       "reason": "in-game routes of the mega sprite demos"
+    },
+    {
+      "glob": "rite/pumpkin/live",
+      "kind": "content",
+      "reason": "the pumpkin patch's live/vtuber stage, a page of the listed /pumpkin site"
     },
     {
       "glob": "mega/bees/**",
