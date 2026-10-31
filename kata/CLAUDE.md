@@ -41,6 +41,10 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
     `parts()`/`sdf()`, the shapes the shader's `sdBike()` draws, line for line. Keep the part count ≤ 24 (the shader's
     capsule array) and inside `BOUND`; `test/bike.selftest.mjs` checks both. Riding moves the camera, not the walking
     body, so the basin's closure proof is untouched; stepping off goes back through `walk()`.
+  - **The dynamics** are `js/dyn.js` (no DOM): the benchmark Whipple bicycle (Meijaard et al. 2007) built from its
+    parameters, two copies for 4D (y as given, w with each body's spread in y swapped for its spread in w), LQR riders,
+    pure pursuit, and the `Bike` the page steps. The page draws it through `bike.js`'s `parts()`. `test/dyn.selftest.mjs`
+    holds the matrices to the published ones; never loosen that check to pass a change.
   - IRIS⁴'s march fixes reach Lean only by hand. After a change to `four/iris/js/world.js`'s `march()` or the shader's,
     port it here and run both selftests.
 
@@ -54,6 +58,7 @@ and y lateral; translate when writing prose.
 ```bash
 node kata/lean/test/lean.selftest.mjs   # ~2 s
 node kata/lean/test/bike.selftest.mjs   # < 1 s
+node kata/lean/test/dyn.selftest.mjs    # ~2 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
@@ -67,6 +72,5 @@ record exists, `wrangler deploy` uploads, and the run fails unless `kata.mino.mo
 
 ## Next
 
-The bike's dynamics: a 4D Whipple model (both mechanisms) whose selftest, with w switched off, reproduces the
-benchmark's eigenvalues (Meijaard et al. 2007), and a controller that reaches the kinematic calibration. The track may
-need scaling up once people try to ride it. Then the w-cycle.
+Riding it by hand (phone tilt asks for a lean): see how people do, and scale the track if needed. The second-order 4D
+couplings the linear model drops, and a twist actuator with dynamics for one-axis steering. Then the w-cycle.

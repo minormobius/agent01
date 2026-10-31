@@ -42,7 +42,54 @@ slide along cliffs). Cut down to the tesseract grid, with no foams and no rainbo
   (a vehicle, later), you can only reach a cell next to one you stood on. That's what lets the selftest prove the basin
   closed.
 
-## The autopilot bicycle (`js/bike.js`)
+## The bicycle's dynamics (`js/dyn.js`)
+
+The bike on the page is now a dynamic one. `bike.js` below is still the steady-turn calibration it is checked against, and the shapes it is drawn with.
+
+- **Our world, exactly.** The linearized Whipple bicycle of Meijaard, Papadopoulos, Ruina & Schwab (2007, *Proc. R. Soc.
+  A* 463:1955): M q̈ + v C1 q̇ + (g K0 + v² K2) q = (0, T), q = (lean, steer). `matrices()` builds M, C1, K0, K2 from the
+  benchmark's parameters by the paper's appendix formulas. The selftest holds them to the published values (to 10⁻¹⁴),
+  the standstill eigenvalues to ±5.5309 and ±3.1316, and the self-stable range to 4.2924–6.0243 m/s.
+- **Four dimensions.** Near upright and straight, a 4D bicycle is two of these, one leaning into y and one into w. The
+  wheels spin in (x, z), and the rotation algebra pairs (x, z) with (z, y) into (x, y) and with (z, w) into (x, w), so
+  each lean keeps its own steer. The copies differ only in inertia: a body's roll into w is Σm(w² + z²) where into y it
+  is Σm(y² + z²). So the w copy swaps each body's spread in y (Σmy² = (Ixx + Izz − Iyy)/2) for its spread in w.
+  - A bike **built round** (as wide in w as in y) is the benchmark both ways.
+  - A bike **built flat** (ours, which is the default) is 0.503 kg m² lighter to roll into w, so it falls slightly
+    faster that way, and it balances itself into w only above 4.304 m/s (4.292 into y).
+- **The calibration from the equations of motion.** The steady turn of the linear model is exactly
+  φ = (v²κ/g)(1 + S_T/(−m_T z_T)) + (S_A/(m_T z_T)) δ: the calibration v²κ/g, plus 1.48% for the wheels' spin, minus
+  1.35% for the front's weight off the steering axis. On the benchmark bike those two nearly cancel, leaving 0.13% at
+  5 m/s.
+- **The rider.** One LQR per steering copy, on (φ, δ, φ̇, δ̇) with the steer torque as input, about the steady turn for
+  the lean asked for. It is stable from 1 to 9 m/s in both copies.
+- **The autopilot.** Pure pursuit: aim at the point 2.5 + 0.8v metres ahead on the track and ask for the lean of the
+  circle through it. At 3, 5 and 7 m/s it rides two laps within 0.1, 0.2 and 0.3 m of the centreline, its lean within
+  4–8% of its own path's v²κ/g (the lean leads the turn it makes).
+- **One-axis steering, dynamically.** With the steer locked, a fall into the frame's w grows as e^(3.14 t) at every
+  speed, so no steering can catch it: the frame must twist. Here the frame twists so its one steering axis stays along
+  the steer, and reports the rate and the torque. Nothing on the ground can supply that torque, since the contact force
+  acts through the contact point, so it's internal: the rider against a flywheel, or their own body. If the steer swings
+  round faster than the frame can twist (6 rad/s, for more than 0.15 s), it falls. On the track the twist peaks near
+  1.2 rad/s at 5 m/s. Swap a lean in y for one in w all at once, and one-axis falls while two-axis rides it out.
+
+## Riding it yourself
+
+**🚲 ride** (or R) cycles through walk → follow the bend → no twist → **you ride**. When you ride, you ask for a **lean**,
+and the rider in the machine balances and steers to get it. That's what a cyclist does with their body, and it's
+learnable. Commanding the handlebar's angle directly is not: the bike falls in about a third of a second.
+
+- **Phone:** roll it left and right to lean in your slice; tip its top away from you to lean kata, toward you for ana.
+  ±26° of tilt asks for ±0.5 rad (29°), with a 2° dead zone, zeroed where you hold it when you start riding. iOS asks
+  for permission to read the motion sensors the first time.
+- **Keyboard:** ← → lean in your slice, ↑ ana, ↓ kata.
+- **The gauge** (bottom of the view): across is your slice, up is ana. The ring is the lean you're asking for, the gold
+  dot the lean the bike has.
+
+The camera rides in the non-twisting frame, so "across" and "ana" stay put while the bike's own frame twists under you.
+If it falls, or reaches the rim, it's put back on the track.
+
+## The autopilot's calibration (`js/bike.js`)
 
 A bicycle rides the centreline at a set speed (5 m/s by default; the slider goes from 1 to 9), kinematically, in the
 **steady-turn calibration**. The physics is our world's, done with vectors. In a steady turn the line from the contact
@@ -125,8 +172,19 @@ node kata/lean/test/bike.selftest.mjs   # < 1 s
 - the steer is atan(wκ/cos λ) toward the bend; the front wheel stays on the track; both tyres rest on it, to the
   tyre-width correction r(1 − cos φ); the shader's bounding ball holds every part.
 
+## Checks: the dynamics
+
+```bash
+node kata/lean/test/dyn.selftest.mjs   # ~2 s
+```
+
+The published matrices, eigenvalues, weave and capsize speeds; the 4D copies (round = ours, flat differs by Σmy²);
+the locked-steer pendulum; the steady turn's exact decomposition; the LQR stable from 1 to 9 m/s; a requested lean
+reached; both mechanisms riding two laps at three speeds; the one-axis fall on an instant swap.
+
 ## Next
 
-The dynamics: a 4D Whipple model whose selftest reproduces the benchmark's eigenvalues with w switched off, and a
-controller that has to reach this calibration. Then other vehicles: the w-cycle (a tricycle stable in your slice, balanced in w), then the bicycle. They want `walk()`'s
+What a person can actually ride (the track may need scaling up). The 4D terms the linearization drops: a lean in y
+and in w at once couples at second order, and a big lean isn't small. A twist actuator with real dynamics (a flywheel).
+Then other vehicles: the w-cycle (a tricycle stable in your slice, balanced in w), then the bicycle. They want `walk()`'s
 substepping, the track's Frenet frame and the basin as they are.
