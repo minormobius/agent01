@@ -79,16 +79,25 @@ The bike on the page is now a dynamic one. `bike.js` below is still the steady-t
 
 ## Riding it yourself
 
-**🚲 ride** (or R) cycles through walk → follow the bend → no twist → **you ride**. When you ride, you ask for a **lean**,
-and the rider in the machine balances and steers to get it. That's what a cyclist does with their body, and it's
-learnable. Commanding the handlebar's angle directly is not: the bike falls in about a third of a second.
+**🚲 ride** (or R) cycles through walk → follow the bend → no twist → **you ride**. Riding it yourself, there are two ways
+to hold it (**✋ / 🤝**, or H):
 
-- **Phone:** roll it left and right to lean in your slice; tip its top away from you to lean kata, toward you for ana.
-  ±26° of tilt asks for ±0.5 rad (29°), with a 2° dead zone, zeroed where you hold it when you start riding. iOS asks
-  for permission to read the motion sensors the first time.
-- **Keyboard:** ← → lean in your slice, ↑ ana, ↓ kata.
-- **The gauge** (bottom of the view): across is your slice, up is ana. The ring is the lean you're asking for, the gold
-  dot the lean the bike has.
+- **✋ Hands on** is the default and is full control. Your tilt is the **handlebar's torque**, up to 2.5 N m on each
+  copy, and nothing balances the bike but the bike itself. The physics makes that rideable: between its weave and
+  capsize speeds (4.3–6.0 m/s) this bicycle rights itself hands off, in both copies, so at 5 m/s you can let go and it
+  rides straight. You steer it the way a real bike steers, which includes the surprise that holding a turn takes a
+  push the other way. Slower than 4.3 m/s it falls unless you balance it; faster than 6 m/s it slowly capsizes. The
+  **speed** button (or the slider) cycles 5, 6, 7, 3, 4 m/s.
+- **🤝 Assisted:** your tilt asks for a **lean**, and the LQR rider in the machine balances and steers to get it.
+
+The controls:
+
+- **Phone:** roll it left and right for your slice; tip its top away from you for kata, toward you for ana. ±26°
+  is full scale, with a 2° dead zone, zeroed where you hold it when you start riding. iOS asks for permission to read
+  the motion sensors the first time.
+- **Keyboard:** ← → in your slice, ↑ ana, ↓ kata.
+- **The gauge** (bottom of the view): across is your slice, up is ana. The gold dot is the bike's lean. The ring is
+  your push on the bars when hands on (orange), or the lean you asked for when assisted (blue).
 
 The camera rides in the non-twisting frame, so "across" and "ana" stay put while the bike's own frame twists under you.
 If it falls, or reaches the rim, it's put back on the track.
@@ -183,7 +192,7 @@ node kata/lean/test/dyn.selftest.mjs   # ~2 s
 ```
 
 The published matrices, eigenvalues, weave and capsize speeds; the 4D copies (round = ours, flat differs by Σmy²);
-the locked-steer pendulum; the steady turn's exact decomposition; the LQR stable from 1 to 9 m/s; a requested lean
+the locked-steer pendulum; the steady turn's exact decomposition; hands off it rights itself at 5 m/s and falls at 3; a steady torque holds the steady turn; the LQR stable from 1 to 9 m/s; a requested lean
 reached; both mechanisms riding two laps at three speeds; the one-axis fall on an instant swap.
 
 ## Next

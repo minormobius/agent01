@@ -211,16 +211,18 @@ export class Bike {
   get steer() { return v3.add(v3.sc(this.c, this.qa[1]), this.d, this.qb[1]); }
   get curvature() { return v3.sc(this.steer, Math.cos(this.P.lambda) / this.P.w); }
   place(pos, T, c) { this.pos = pos.slice(); this.T = v3.unit(T); this.c = v3.unit(v3.add(c, this.T, -v3.dot(c, this.T))); this.d = [this.T[1] * this.c[2] - this.T[2] * this.c[1], this.T[2] * this.c[0] - this.T[0] * this.c[2], this.T[0] * this.c[1] - this.T[1] * this.c[0]]; this.qa = [0, 0, 0, 0]; this.qb = [0, 0, 0, 0]; this.alpha = this.alphaDot = 0; this.overTwist = 0; this.crashed = false; this.why = ""; }
-  /* one step. want: the lean asked for, a ground vector across the heading (its size the angle) */
-  step(dt, want) {
+  /* one step. want: the lean asked for, a ground vector across the heading (its size the angle), held by the LQR rider.
+     Or hands on: hands = the steer torques (N m) on the two copies, along c and d, and no rider at all: the bike's own
+     dynamics, which balance it by themselves between the weave and capsize speeds, and nowhere else */
+  step(dt, want, hands = null) {
     const P = this.P, v = this.v, g = this.g, n = Math.max(1, Math.ceil(dt / (1 / 480))), h = dt / n;
     for (let k = 0; k < n; k++) {
       const a = this.a, b = this.b;
       const one = this.mech === "one-axis", a2 = one ? this.c : this.a, b2 = one ? this.d : this.b, mb = one ? this.my : this.mw, Kb = one ? this.Ka : this.Kb;
       // each steering copy: the steady turn for the lean asked for, held by LQR about it
       const ctl = (m, K, q, phiWant) => { const s = steadyFromLean(m, P, v, phiWant), e = [q[0] - s.phi, q[1] - s.delta, q[2], q[3]]; return s.T - (K[0] * e[0] + K[1] * e[1] + K[2] * e[2] + K[3] * e[3]); };
-      const Ta = ctl(this.my, this.Ka, this.qa, v3.dot(want, a2));
-      const Tb = ctl(mb, Kb, this.qb, v3.dot(want, b2));
+      const Ta = hands ? hands[0] : ctl(this.my, this.Ka, this.qa, v3.dot(want, a2));
+      const Tb = hands ? hands[1] : ctl(mb, Kb, this.qb, v3.dot(want, b2));
       this.torque = [Ta, Tb];
       const sa = accel(this.my, v, g, this.qa, Ta), sb = accel(mb, v, g, this.qb, Tb);
       // semi-implicit Euler: rates first, then angles

@@ -54,6 +54,19 @@ const { BENCH, PUBLISHED } = D, m = D.matrices(BENCH);
   ok(e < 0.005 && !b.crashed, `asked for a lean of 0.15 rad into y and 0.10 into w, it gets there (off by ${e.toFixed(4)} rad after 5 s)`);
 }
 
+/* hands on (no rider): between the weave and capsize speeds the bicycle balances itself, both copies (a bike built flat
+   weaves into w up to 4.304 m/s); below, it falls; a steady steer torque holds a steady turn, the one the equations say */
+{
+  const ride = (v, secs, hands) => { const b = new D.Bike({ v }); b.place([0, 0, 0], [1, 0, 0], [0, 1, 0]); b.qa[2] = 0.3; b.qb[2] = -0.3;
+    for (let i = 0; i < secs * 60 && !b.crashed; i++) b.step(1 / 60, [0, 0, 0], hands); return b; };
+  const free = ride(5, 10, [0, 0]), slow = ride(3, 10, [0, 0]);
+  ok(!free.crashed && Math.hypot(free.qa[0], free.qb[0]) < 0.01, `hands off at 5 m/s, knocked sideways into y and w at once, it rights itself (lean ${Math.hypot(free.qa[0], free.qb[0]).toFixed(4)} rad after 10 s)`);
+  ok(slow.crashed, "hands off at 3 m/s it falls: below the weave speed you have to balance it");
+  const st = D.steady(m, BENCH, 5, 0.05), b = new D.Bike({ v: 5 }); b.place([0, 0, 0], [1, 0, 0], [0, 1, 0]);
+  for (let i = 0; i < 1200; i++) b.step(1 / 60, [0, 0, 0], [st.T, 0]);
+  ok(Math.abs(b.qa[0] - st.phi) < 1e-3 && Math.abs(b.qa[1] - st.delta) < 1e-3, `hold a steady steer torque of ${st.T.toFixed(3)} N m and it settles into the steady turn: lean ${b.qa[0].toFixed(3)} (equations ${st.phi.toFixed(3)}), steer ${b.qa[1].toFixed(3)} (${st.delta.toFixed(3)}): note the sign, it takes a push the other way to hold a turn`);
+}
+
 /* both mechanisms ride the track: the autopilot (pure pursuit, leaning for the curvature it wants) */
 {
   const g3 = (v) => [v[0], v[2], v[3]];

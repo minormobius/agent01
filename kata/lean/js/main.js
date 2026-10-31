@@ -119,7 +119,8 @@ function resetBike(i) {
   if (ride !== "you ride") bike.settle(followLean(bike, aheadPt(i, lookahead(bike.v))));
 }
 resetBike(80); // a few metres ahead of where you start
-const human = { lc: 0, ld: 0, tilt: null, zero: null, perm: false };
+const human = { lc: 0, ld: 0, tilt: null, zero: null, perm: false, hands: true }; // hands on: you steer, nobody balances for you
+const T_MAX = 2.5; // N m of steer torque at full tilt
 addEventListener("deviceorientation", (e) => { if (e.beta == null) return; human.tilt = { beta: e.beta, gamma: e.gamma }; });
 function setRide(m) {
   if (ride !== "walk" && m === "walk") { const p = me.p.slice(); p[1] = ground(p) + EYE; me.p = p; me.pitch = -0.12; tidy(); }
@@ -128,13 +129,18 @@ function setRide(m) {
   ride = m; $("ride").textContent = m === "walk" ? "🚲 ride" : `🚲 ${m}`; $("ride").classList.toggle("on", m !== "walk");
 }
 function setMech(m) { bike.setMech(m); $("mech").textContent = `steer: ${m}`; }
+function setHands(on) { human.hands = on; $("hands").textContent = on ? "✋ hands on" : "🤝 assisted"; $("hands").classList.toggle("on", on); }
+$("hands").onclick = () => setHands(!human.hands);
+const SPEEDS = [5, 6, 7, 3, 4];
+function setSpeed(v) { bike.setSpeed(v); $("spd").value = v; $("spdV").textContent = `${v.toFixed(1)} m/s`; $("spdb").textContent = `${v} m/s`; }
+$("spdb").onclick = () => setSpeed(SPEEDS[(SPEEDS.indexOf(bike.v) + 1) % SPEEDS.length] || 5);
 $("ride").onclick = () => setRide(RIDES[(RIDES.indexOf(ride) + 1) % RIDES.length]);
 $("mech").onclick = () => setMech(MECHS[(MECHS.indexOf(bike.mech) + 1) % MECHS.length]);
 const arrows = new Set();
-document.addEventListener("keydown", (e) => { const k = e.key.toLowerCase(), t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; if (k === "r") $("ride").onclick(); if (k === "m") $("mech").onclick(); if (e.key.startsWith("Arrow")) { e.preventDefault(); arrows.add(e.key); } });
+document.addEventListener("keydown", (e) => { const k = e.key.toLowerCase(), t = e.target; if (e.ctrlKey || e.metaKey || e.altKey || (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return; if (k === "r") $("ride").onclick(); if (k === "m") $("mech").onclick(); if (k === "h") $("hands").onclick(); if (e.key.startsWith("Arrow")) { e.preventDefault(); arrows.add(e.key); } });
 document.addEventListener("keyup", (e) => arrows.delete(e.key));
-{ const sl = $("spd"), lab = () => { $("spdV").textContent = `${(+sl.value).toFixed(1)} m/s`; }; sl.oninput = lab; sl.onchange = () => { bike.setSpeed(+sl.value); lab(); }; lab(); }
-setRide("walk"); setMech("two-axis");
+{ const sl = $("spd"), lab = () => { $("spdV").textContent = `${(+sl.value).toFixed(1)} m/s`; }; sl.oninput = lab; sl.onchange = () => setSpeed(+sl.value); lab(); }
+setRide("walk"); setMech("two-axis"); setHands(true);
 /* the lean you ask for, in your riding frame (across your slice, and into w: ana up, kata down; radians), from the tilt or the keys */
 function humanLean(dt) {
   const MAX = 0.5, k = 1 - Math.exp(-dt * 6);
@@ -147,7 +153,7 @@ function humanLean(dt) {
     tc = cl(dz(roll - human.zero.roll) / 26) * MAX; td = cl(dz(tip - human.zero.tip) / 26) * MAX; // tip the top away: kata
   }
   if (arrows.size) { tc = ((arrows.has("ArrowRight") ? 1 : 0) - (arrows.has("ArrowLeft") ? 1 : 0)) * MAX * 0.8; td = ((arrows.has("ArrowUp") ? 1 : 0) - (arrows.has("ArrowDown") ? 1 : 0)) * MAX * 0.8; }
-  human.lc += (tc - human.lc) * k; human.ld += (td - human.ld) * k;
+  const kk = human.hands ? 1 - Math.exp(-dt * 25) : k; human.lc += (tc - human.lc) * kk; human.ld += (td - human.ld) * kk;
   const f = rideFrame(); // in the frame you ride in: across your slice, and ana (+N) or kata (−N)
   return [0, 2, 3].map((j) => f.R[j] * human.lc + f.N[j] * human.ld);
 }
@@ -172,7 +178,7 @@ function bikeRead(st, want) {
   const mech = bike.mech === "two-axis"
     ? `Two-axis steering: both copies steer, the frame never twists (round this track it comes home turned ${deg(HOLONOMY)}°), steer torques <b>${bike.torque[0].toFixed(1)}</b> and <b>${bike.torque[1].toFixed(1)}</b> N m.`
     : `One-axis steering: its one steering axis must lie along the steer, so the frame twists, <b>${bike.alphaDot.toFixed(2)}</b> rad/s now, a twisting torque of <b>${bike.twistTorque.toFixed(1)}</b> N m from the rider (nothing on the ground can supply it). Steer torque <b>${Math.hypot(...bike.torque).toFixed(1)}</b> N m.`;
-  const who = ride === "you ride" ? `You ask for a lean of ${deg(Math.hypot(human.lc, human.ld))}°.` : `The autopilot asks for ${deg(Math.hypot(...want))}°.`;
+  const who = ride === "you ride" ? (human.hands ? `Hands on: you push the bars with <b>${(Math.hypot(human.lc, human.ld) * T_MAX / 0.5).toFixed(2)}</b> N m, and nothing balances it but the bike itself${bike.v >= 4.31 && bike.v <= 6.02 ? " (at this speed it does, in both copies)" : " (at this speed it can't: that's on you)"}.` : `You ask for a lean of ${deg(Math.hypot(human.lc, human.ld))}°, and the rider in the machine steers to get it.`) : `The autopilot asks for ${deg(Math.hypot(...want))}°.`;
   const txt = `<b>The bike</b> (the dynamics: the linearized Whipple bicycle in two copies, an LQR rider) at ${bike.v.toFixed(1)} m/s: lean <b>${deg(st.phi)}°</b>, <b>${intoW}%</b> of it into the direction you can't see; ` +
     `steer <b>${deg(st.delta)}°</b>, a turn of radius ${kap > 1e-3 ? (1 / kap).toFixed(1) + " m" : "∞"}, for which the calibration says ${deg(cal)}°. ${who} ${mech}`;
   if (txt !== bikeRead.txt) { bikeRead.txt = txt; $("bread").innerHTML = txt; }
@@ -185,7 +191,8 @@ function gauge(g, w, h, st, want) {
   g.beginPath(); g.moveTo(cx - R, cy); g.lineTo(cx + R, cy); g.moveTo(cx, cy - R); g.lineTo(cx, cy + R); g.stroke();
   g.font = "9px ui-monospace, Menlo, monospace"; g.fillStyle = "rgba(255,255,255,0.6)"; g.textAlign = "center"; g.fillText("ana", cx, cy - R - 4); g.fillText("kata", cx, cy + R + 10);
   const L = st.lean.map((x) => x * st.phi), W4 = to4g(want);
-  g.strokeStyle = "#6fe0ff"; g.lineWidth = 1.6; g.beginPath(); g.arc(X(W4), Y(W4), 6, 0, 2 * Math.PI); g.stroke();
+  g.strokeStyle = human.hands && ride === "you ride" ? "#ff8a6a" : "#6fe0ff"; g.lineWidth = 1.6; g.beginPath(); g.arc(X(W4), Y(W4), 6, 0, 2 * Math.PI); g.stroke();
+  if (ride === "you ride") g.fillText(human.hands ? "your push on the bars" : "the lean you ask for", cx, cy + R + 21);
   g.fillStyle = "#ffd27a"; g.beginPath(); g.arc(X(L), Y(L), 4.5, 0, 2 * Math.PI); g.fill();
 }
 
@@ -313,7 +320,9 @@ function step(now) {
   // the bike: who asks for its lean, one step of its dynamics, and back on the track if it falls or reaches the rim
   const nb = nearIdx(bike.pos, bhint, ride === "you ride" ? 160 : 60); bhint = nb.i;
   const want = ride === "you ride" ? humanLean(dt) : followLean(bike, aheadPt(nb.i, lookahead(bike.v)));
-  bike.step(dt, want);
+  // hands on, what you tilt is the handlebar's torque (the same tilt that asks for a lean when assisted, ×T_MAX/0.5)
+  const hands = ride === "you ride" && human.hands ? [dot(want, bike.c) * (T_MAX / 0.5), dot(want, bike.d) * (T_MAX / 0.5)] : null;
+  bike.step(dt, want, hands);
   if (bike.crashed || basinE(...bike.pos) > 0.95) { const n2 = nearIdx(bike.pos, bhint, NS / 2); fellWhy = bike.why; resetBike(n2.i); fellAt = now; }
   const st = bikePose();
   if (ride !== "walk") {
