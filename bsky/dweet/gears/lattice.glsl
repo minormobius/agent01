@@ -1,0 +1,1 @@
+vec2 u=FC/r.y*5.+t*.1,c,p;float g=0.,k;for(int j=0;j<9;j++){c=floor(u)+vec2(j%3-1,j/3-1);p=u-c-.5;float s=mod(c.x+c.y,2.)*2.-1.,l=length(p);if(l>.08&&l<.5+.06*clamp(2.*sin(12.*atan(p.y,p.x)-s*t*2.),-1.,1.))g=1.,k=s;}o=vec4(g*(.6+.3*k),g*.5,g*(.6-.3*k),1);

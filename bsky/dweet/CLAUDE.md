@@ -19,7 +19,7 @@ stored to remember one.
 | Endpoint | **`bsky.mino.mobi/dweet/`** — a path, not a subdomain (see below) |
 | Dir | `bsky/dweet/` |
 | Worker | **`bsky`** — a second `custom_domain` route, *not* a second worker |
-| Owning branch | `claude/dwitter-animation-feed-rufn9o` |
+| Owning branch | `claude/dweet-gear-systems-5e28b4` (since 2026-09-25) |
 | Deploy | [`deploy-bsky.yml`](../../.github/workflows/deploy-bsky.yml) |
 | Lexicon | [`../lexicons/com.minomobi.dweet.dweet.json`](../lexicons/com.minomobi.dweet.dweet.json) |
 | Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone. **LIVE** since 2026-09-22 (ceiling 87; a real PAR accepted) |
@@ -295,8 +295,12 @@ contract than picking a unit.
 | `video.selftest.mjs` | codec selection, the MP4 box walker, the job state machine, polling |
 | `event.js` | one place that knows the Jetstream wire shape |
 | `event.selftest.mjs` | pinned to a payload captured off the live firehose |
+| `repo.js` | history and profiles, read from each poster's own PDS |
+| `repo.selftest.mjs` | identity resolution, `listRecords` paging, the shared validation gate |
+| `scopes.js` | what sharing asks the authorization server for, grant coverage, the loop breaker |
+| `scopes.selftest.mjs` | every rule that decides whether the page redirects |
 | `SKILL.md` · `llms.txt` | the agent's way in — served, and a Claude Code skill |
-| `agent/*.mjs` | the headless tools: `check`, `render`, `link`, `feed` |
+| `agent/*.mjs` | the headless tools: `check`, `render`, `link`, `feed`, `publish` |
 | `agent/agent.selftest.mjs` | their exit-code contract, the trust rule, the skill's own claims |
 | `seeds.js` | the house set, shown when the wire is quiet |
 | `index.html` | shell, styles, and the two sheets |
@@ -330,9 +334,10 @@ an edge anywhere.
   before Enter otherwise lands afterwards and drops its menu over the sheet,
   where it silently intercepts the taps meant for the button underneath. That
   bug was live on the AppView until a click test caught it.
-- **The feed starts empty and that is correct.** A brand-new lexicon has no
-  volume. `app.js` asks for the full 36h replay window and falls back to the
-  house set after four seconds of silence. Seeds are marked `local: true`,
+- **The feed paints from repos first.** Known posters' recent dweets come
+  from their PDSes in well under a second; the firehose adds live and newly
+  discovered work (see *"Disconnected", again*). The house set appears only if
+  nothing from any source arrives in four seconds, and real work replaces it. Seeds are marked `local: true`,
   carry no `at://` URI, and cannot be remixed onto — nothing should ever imply
   they are records.
 - **Only visible dweets run**, with no `rootMargin` — see the watchdog note. A
@@ -439,7 +444,7 @@ has no way to say that, and silence reads as failure. So it says it:
 
 | | |
 |---|---|
-| connected, nothing seen | `live · tailing com.minomobi.dweet.dweet — nothing posted yet` |
+| connected, nothing seen | `live · waiting for the next dweet` |
 | connected, events flowing | `live · N dweets seen` (counted per delivered event) |
 | dropped, inside the grace | *nothing changes on screen* |
 | dropped, past the grace | `reconnecting…` |
@@ -476,6 +481,62 @@ its card and its iframe** leaving exactly one behind, and there are no page
 errors. A deliberately broken shader in that run rendered
 `compile: ERROR: 0:2: 'S' : no matching overloaded function found` inside its
 own frame, which is the fault path working.
+
+## "Disconnected", again — and why the feed no longer waits on the firehose
+
+Reported 2026-09-25, after the socket fixes above had shipped. Two causes, and
+neither was in the socket code.
+
+**The AppView's service worker was serving dweet one deploy late.** `sw.js`
+registers at scope `/`, which covers `/dweet/`, and it served every
+same-origin script stale-while-revalidate. So a reader who had visited while
+the socket was broken got the broken `app.js` first, even after the fix had
+shipped, and that build's status line said *"disconnected — retrying"*. That
+phrase no longer exists anywhere in the current code, which is how it was
+traced. The same worker also cached *every* navigation as `/index.html`, so
+opening `/dweet/` overwrote the AppView's offline shell with this page.
+`sw.js` rule 4 now leaves `/dweet/` alone, only the shell document is cached
+as the shell, and `VERSION` went to `v2` to purge both. `lib/sw.selftest.mjs`
+asserts both. Verified in Chromium: with the worker controlling the page,
+0 of 9 `/dweet/` responses came from it.
+
+**The 36h replay made the page silent for 42 seconds.** For a sparse
+collection the server scans the whole network's traffic for the window before
+it sends a byte. Measured: a 2h cursor delivered the five house dweets in 3s,
+and a 36h cursor delivered the same five after **42s**. An idle-socket reaper
+anywhere on the path (a carrier, a proxy, a phone radio) kills a socket that
+quiet. A reconnect that never received an event restarts the scan from the
+same cursor, so on such a network the page could never catch up. So the feed
+now has three sources, and only one of them reports status:
+
+| source | what it is for |
+|---|---|
+| **repos** (`repo.js`) | history. `listRecords` on each known poster's PDS: the house account plus every poster this browser has seen (localStorage, capped at 40). Paints in well under a second |
+| **live socket**, no cursor | the status line. Opens at the tip, so it is live at once |
+| **replay socket**, 36h | discovery of posters we have never seen. Silent, and its cursor advances after its first event, so a reconnect resumes rather than rescans |
+
+Cards from all three pass the same `dweetFromEvent` gate (a `listRecords` row
+is dressed as a create event), dedupe on `at://`, and insert by `createdAt`.
+
+**This sandbox cannot test a real browser's WebSocket.** Its proxy does not
+pass WebSocket upgrades, so Chromium here gets `426` on every attempt and
+looks exactly like a broken site. Node reaches Jetstream by another route: a
+handshake with a real browser's `Origin`, extensions and subprotocol gets
+`101` from both hosts. The feed path was verified in Chromium with
+`routeWebSocket`.
+
+## Profiles: any poster's dweets, from their own repo
+
+`?at=<handle|did>`. Also reached by tapping any card's author, or from the
+*find a poster* box (with the AppView's typeahead). It resolves the handle,
+reads the DID document for the PDS, and pages `listRecords` 25 at a time with
+a **more** button. So a profile shows everything the poster ever made, not
+the firehose's last 36 hours. Every PDS tried sends
+`access-control-allow-origin: *`, so there is no relay. A slow page for a
+poster you have already left cannot paint over the next one (`profileSeq`).
+Leaving a profile destroys its frames rather than pausing them, because a
+paused worker still holds a thread. `repo.selftest.mjs` covers resolution,
+paging and the gate.
 
 ## Sharing a dweet — and why it is not a GIF
 
@@ -791,6 +852,55 @@ needs — before anything is spent, rather than between an upload and the record
 A redirect in that gap would leave an orphan blob, burn a video quota slot and
 lose the author's text.
 
+## The sign-in loop on "post to Bluesky" (2026-09-25)
+
+Reported as *"infinite auth loop, it won't keep the auth"*. Three bugs, read
+out of the atproto and social-app sources rather than guessed. `scopes.js`
+has the long version and `scopes.selftest.mjs` pins it.
+
+1. **The moving post asked for a scope that cannot exist.**
+   `rpc:com.atproto.server.getServiceAuth` has no `aud`, and `RpcPermission`
+   requires one. The parser returns null, the server leaves it out of the
+   grant, `hasScope` sees it missing and escalates again. Every tap was a
+   round trip to the consent screen.
+2. **It named the wrong method anyway.** The PDS's `getServiceAuth` checks
+   `assertRpc({aud, lxm})` for the token being minted, so the scopes are
+   `rpc:app.bsky.video.getUploadLimits?aud=*` and
+   `rpc:com.atproto.repo.uploadBlob?aud=*`. They use `aud=*` because a scope's
+   `aud` must be `*` or `did#service`, and it is compared exactly with the
+   token's bare-DID `aud`.
+3. **The upload token had the wrong audience.** It was minted for the video
+   service. The official client mints it for the reader's own PDS
+   (`did:web:<pds host>`), because the video service spends it writing the
+   blob into the reader's repo.
+
+The page now:
+
+- **checks the live ceiling** before offering a moving post. Its two rpc
+  scopes are not in `workers/auth`'s ceiling yet, so the toggle is off and
+  says so, and the still posts.
+- **reads the grant semantically.** Merged `lxm` lists and `blob?accept=…`
+  forms count as covered.
+- **breaks the loop.** One escalation per need per ten minutes, recorded in
+  sessionStorage across the redirect. Coming back still short gets a sentence
+  naming what was refused, not another redirect.
+
+Verified in Chromium against a stubbed auth worker and the **live** ceiling:
+one `/oauth/start` and then an explanation, not a second; a deliberate retry
+goes again; a grant in merged form posts with zero redirects
+(`uploadBlob` then `createRecord`); the moving toggle is switched off with
+both missing scopes named.
+
+**Unblocked 2026-09-25:** `workers/auth`'s owner added both rpc scopes, and
+`rpc:app.bsky.feed.getFeedSkeleton?aud=*` for the AppView. That was
+deploy-auth run #56 (`b9879d56`), taking the published list from 95 to 98
+tokens with none removed. The moving toggle turns itself back on from the
+live list; checked in Chromium against it. The AppView's `SCOPE` and
+`lib/feedgen.js` moved to the getFeedSkeleton scope in the same pass, since
+they had the same ungrantable token. **Not verified:** a real moving post end
+to end. This Chromium has no H.264 encoder, and nothing here can complete a
+real OAuth round trip.
+
 ## Posting: shipped
 
 `com.minomobi.dweet.dweet` went live on 2026-09-22 — the auth owner
@@ -935,10 +1045,25 @@ would want `check` and `link` (both pure) but could not offer `render`
 (Chromium) or `publish` (a browser sign-in), which is most of the value. Worth
 doing when there is a second consumer.
 
-**No headless publish, deliberately.** Writing needs a browser sign-in. A
-script holding a PDS credential is exactly what the shared OAuth worker
-exists to avoid, and a dweet is 256 characters — the cost of pasting one into
-the composer is not the bottleneck.
+**Headless publish — for the house account, through CI.** This section used
+to say there was none, deliberately: a script holding a PDS credential is what
+the OAuth worker exists to avoid. That reasoning is right for a *reader's*
+credential and wrong for a service account's, which is already a GitHub secret
+that half a dozen `seed-*`/`publish-*` workflows use. The principal asked for
+it on 2026-09-25, and the shape is the one those workflows already have:
+
+| | |
+|---|---|
+| `agent/publish.mjs <manifest> [--dry]` | validates every entry with `validate()`, then `createRecord`s the ones not already there |
+| `<dir>/publish.json` | `{ dweets: [ { file, title?, captureTime?, remixOf?, lang? } ] }`, sources resolved beside it |
+| `.github/workflows/publish-dweet.yml` | on push to `claude/dweet-*` touching `bsky/dweet/**/publish.json`, or dispatch; maps `BLUESKY_MORPHYX_*` → `DWEET_HANDLE`/`DWEET_PASSWORD` |
+
+What keeps it safe to leave wired: the credential only exists inside the
+Actions job; the whole batch validates before the first write, so a bad entry
+stops it rather than half-publishing; and it is **idempotent** — the author's
+existing dweets are listed first and any identical `src` + `lang` is skipped,
+because a push re-triggers it and a double post is public. The browser path
+for people is unchanged.
 
 ## Moderation
 
