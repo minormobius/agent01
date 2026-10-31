@@ -312,6 +312,34 @@ def NU_exrow(m):
 def NU_exours(f):
   v=[o for o in NU_EX.get('ours',[]) if o['f']==f]
   return (100*min(o['nickel'] for o in v),100*max(o['nickel'] for o in v),100*min(o['si'] for o in v),100*max(o['si'] for o in v)) if v else (0,0,0,0)
+NU_SM=NU.get('starmix') or []
+def NU_smG(g): return [r for r in NU_SM if abs(r['Grel']/g-1)<1e-6]
+def NU_smrow(g):
+  rs=NU_smG(g)
+  if not rs: return ''
+  T=rs[0]['sunT']
+  if T:
+    mk={}
+    for r in rs:
+      for x in r['sun'] or []:
+        tot=sum(v for z,v in x['mix'].items() if z!='he') or 1
+        for z,v in x['mix'].items():
+          if z!='he': mk.setdefault(int(z),[]).append(100*v/tot)
+    core=f"{T/1e6:.0f} million K: " + ", ".join(f"{NU_GBNAME.get(z,str(z))} {min(v):.0f}–{max(v):.0f}%" for z,v in sorted(mk.items()) if max(v)>15)
+  else: core="none in the window"
+  ch=[c for r in rs for c in r['choices'] if c['tgal']==1e10 and not c.get('none')]
+  if ch:
+    zs={}
+    for c in ch:
+      for z,v in c['mix'].items(): zs.setdefault(int(z),[]).append(100*v)
+    back=", ".join(f"{NU_GBNAME.get(z,str(z))} {min(v+[0]*(len(ch)-len(v))):.0f}–{max(v):.0f}%" for z,v in sorted(zs.items()) if max(v)>10)
+    rat=[c['mix'].get('9',0)/max(c['mix'].get('10',0),1e-9) for c in ch]
+    ratio=f"{min(rat):.2f}–{max(rat):.2f}"
+  else:
+    e=min(r['edd']['life'] for r in rs)
+    back=f"nothing: the first stars to finish take {NU_sci(min(c['first'] for r in rs for c in r['choices'] if c.get('none')))} years, and even the heaviest light can hold (about {rs[0]['edd']['m']:.0f} M_Ch) {NU_sci(e)} years"
+    ratio="—"
+  return f"<tr><td>10<sup>{int(round(__import__('math').log10(g)))}</sup></td><td>{core}</td><td>{back}</td><td>{ratio}</td></tr>"
 NU_QA=[r['Q'] for _,r in NU_RCROWS] if 'NU_RCROWS' in globals() else []
 
 # the proton flow (nuclei.mjs protonflow): a proton against a helium-4 onto a ladder nucleus, per nucleus in unburnt gas
@@ -458,7 +486,10 @@ nuclei=f'''<section id="declared">
   <p>A star's lifetime sets its core's temperature (the pace above), and so what its core turns into. The gas the next stars and their planets form from carries back the cores of stars that have finished. <span class="tag choice">choice</span> Those that finish before a Sun-like star forms (burning faster than our Sun's centre, as our galaxy was about as old as that when ours formed), down to 10³ or 10⁴ times faster (ours give back over about 3 million to 10 billion years); each giving back a fixed share of its mass as core ash; as many stars of each mass as ours (the slope 2.35) or a top-heavy mix (1.9); lifetime falling with mass as M<sup>−2</sup> to M<sup>−3</sup> (ours about M<sup>−2.5</sup>). Each core's make-up from the network above, averaged over those lifetimes. <span class="tag computed">computed</span> The elements past helium in the gas that comes back (over the twelve cases and eight choices):</p>
   <table class="sys"><tr><th>Z</th><th>4D name</th><th>its place</th><th>share given back</th></tr>{"".join(NU_gbrow(z) for z in range(8,16))}</table>
   <p><b>The gas comes back rich in gluorine, oeon and pxygen</b>, 4D's fluorine, neon and oxygen, with oitrogen at {NU_gbr(9)[0]:.0f}–{NU_gbr(9)[1]:.0f}%, todium (4D's sodium) at up to {NU_gbr(13)[1]:.0f}% and the heavier metals at a few percent at most. The protons' nuclear size in proton + proton's barrier splits it again. At 1 fm the noble gas leads ({NU_gbp(12,1)[0]:.0f}–{NU_gbp(12,1)[1]:.0f}%) and gluorine is the commonest element that bonds ({NU_gbp(11,1)[0]:.0f}–{NU_gbp(11,1)[1]:.0f}%, pxygen {NU_gbp(10,1)[0]:.0f}–{NU_gbp(10,1)[1]:.0f}%); at 4 fm pxygen leads ({NU_gbp(10,4)[0]:.0f}–{NU_gbp(10,4)[1]:.0f}%), gluorine next ({NU_gbp(11,4)[0]:.0f}–{NU_gbp(11,4)[1]:.0f}%). <b>Pxygen outnumbers oitrogen in every case</b>: oitrogen comes to {NU_GB4[0]:.2f}–{NU_GB4[1]:.2f} of pxygen at 4 fm and to almost nothing at 1 fm. The stars that have given back by the time a Sun-like one forms burn hotter than it, past oitrogen's band; oitrogen is made mostly in stars still burning. <span class="tag follows">follows</span> So on abundance Xater's element leads XH₃'s, by at least {1/NU_GB4[1] if NU_GB4[1] else 0:.1f} times, against XH₃'s 9% lead in the bond. And a third water turns up: gluorine makes hydrogen gluoride, the counterpart of our hydrogen fluoride (a liquid from −83 to 20 °C), and gluorine is as common as pxygen or more in half the cases.</p>
-  <p><span class="tag open">open</span> Rock. Past todium, the metals and tilicon are nearly absent from this ash. Most of our rock's elements (magnesium, silicon, iron) come from later stages, burning in massive stars after their helium is gone and exploding white dwarfs, and their 4D counterparts aren't followed here. On this ash alone a 4D planet would be pxygen, gluorine and hydrogen compounds, ices and liquids with little rock. The later stages are the next section.</p>
+  <p><span class="tag computed">computed</span> <b>With the main sequence solved</b> (<a href="stars.html#mainseq">chapter 16</a>) the declared lifetime slope goes: each star's own core temperature and lifetime at each G, its core what the zone makes at that temperature (with the zone's proton + proton size matched to the star's). The core of a star as long-lived as our Sun, and what the gas gets back from the stars that finish within ten billion years (<span class="tag choice">choice</span> our mass function or a top-heavy one; both proton sizes, both draws, three strengths):</p>
+  <table class="sys"><tr><th>G</th><th>a Sun-long star's core, and what it makes</th><th>the gas gets back within 10 billion years</th><th>oitrogen ÷ pxygen</th></tr>{"".join(NU_smrow(g) for g in (1e-14,1e-17,1e-20,1e-23,1e-26))}</table>
+  <p><b>G now decides the mix.</b> The stronger the gravity, the more massive and hotter the stars that have finished, and the further up the table their cores went: at 10<sup>−14</sup> some todium and nagnesium come back with the pxygen, gluorine and oeon; by 10<sup>−20</sup> it's mostly two of pxygen, gluorine and oeon, which two turning on the nuclear inputs. Pxygen stays ahead of oitrogen everywhere. <span class="tag follows">follows</span> <b>Below about 10<sup>−22</sup> of our gravity a galaxy gives back nothing for tens of billions of years</b>: every star it can make, up to the heaviest light holds together, still burns, and the gas stays hydrogen and helium, with nothing to build rock or water from. The stars set a floor on G, before any planet does.</p>
+  <p><span class="tag open">open</span> Rock. Tilicon is absent from this ash, and the metals come back only where gravity is strong enough for hot, massive stars to have finished (todium and nagnesium at tens of percent at 10<sup>−14</sup>–10<sup>−17</sup>). Most of our rock's elements (magnesium, silicon, iron) come from later stages, burning in massive stars after their helium is gone and exploding white dwarfs, and their 4D counterparts aren't followed here. On this ash alone a 4D planet would be pxygen, gluorine and hydrogen compounds, ices and liquids with little rock. The later stages are the next section.</p>
 </section>
 <section id="tableend">
   

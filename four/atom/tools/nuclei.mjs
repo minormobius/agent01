@@ -47,6 +47,8 @@
                                                                  ours (carbon) the check; each stage's energy per nucleon (minute)
      node four/atom/tools/nuclei.mjs explode                      how far an exploding core burns: iron, rock row and unburnt shares,
                                                                  our white dwarfs the check and the expansion's calibration (minutes)
+     node four/atom/tools/nuclei.mjs starmix                      steps 2–3 from the computed main sequence: what each G's stars
+                                                                 give back, and a Sun-long star's core (seconds; reads mainseqdata.js)
      node four/atom/tools/nuclei.mjs bake                        → js/nucleidata.js
    The three-nucleon force is W Σ_cyclic e^(−(r_ij² + r_ik²)/b²); fit gives c = W π³ b⁶/2 (its Hartree energy per nucleon
    in our matter is c ρ²), so W = 2c/(π³ b⁶) for each b, and in 4D the same W and b give c₄ = c π b². */
@@ -273,7 +275,7 @@ if (cmd === "fit") {
   const N = (await import("../js/nucleidata.js")).NUCLEI; let n = 0; const w = (f, o) => { if (!o || existsSync(path.join(DIR, f))) return; writeFileSync(path.join(DIR, f), JSON.stringify(o)); n++; };
   for (const [F, pre] of [["MT", ""], ["MN", "MN-"]]) { const fc = N.forces[F]; w(`${pre}fit.json`, fc.fit); w(`${pre}cluster.json`, fc.cluster); w(`${pre}capture.json`, fc.capture);
     for (const x of fc.matter ?? []) w(`${pre}matter-${x.d}-${tag(x.s)}-${x.kind}.json`, x); for (const x of fc.he ?? []) w(`${pre}he-${x.d}-${tag(x.s)}-${x.b}-${x.A}.json`, x); for (const x of fc.ladder ?? []) w(`${pre}ladder-${x.d}-${tag(x.s)}-${x.N}.json`, x); }
-  w("burning.json", N.burning); w("rungcap.json", N.rungcap?.MT); w("MN-rungcap.json", N.rungcap?.MN); w("MN-protonflow.json", N.protonflow); w("MN-protonflow-c.json", N.protonflowc); w("hburn.json", N.hburn); w("giveback.json", N.giveback); w("heavy.json", N.heavy); w("runaway.json", N.runaway); w("explode.json", N.explode);
+  w("burning.json", N.burning); w("rungcap.json", N.rungcap?.MT); w("MN-rungcap.json", N.rungcap?.MN); w("MN-protonflow.json", N.protonflow); w("MN-protonflow-c.json", N.protonflowc); w("hburn.json", N.hburn); w("giveback.json", N.giveback); w("heavy.json", N.heavy); w("runaway.json", N.runaway); w("explode.json", N.explode); w("starmix.json", N.starmix);
   for (const x of N.mass5 ?? []) w(`mass5-${x.d}-${tag(x.s)}-${tag(x.b)}.json`, x); for (const x of N.brink ?? []) w(`brink-${x.d}-${tag(x.s)}-${tag(x.b)}-${x.N}.json`, x); for (const x of N.plusone ?? []) w(`plusone-${x.d}-${tag(x.s)}-${x.k}-${x.Z}-${x.ndir}${x.compact ? "-c" : ""}.json`, x);
   console.log(`restored ${n} files into ${DIR}`);
 } else if (cmd === "hburn") {
@@ -421,6 +423,38 @@ function layers(d, c, { Q, A, mue = 2, Tign, cuts, f = 1 }) { const P = PLd[d], 
         rows.push({ Z: r.Z, m, f, iron: [lo[0], hi[0]], rock: [hi[1], lo[1]], unburnt: [hi[2], lo[2]] });
         console.log(`element ${r.Z} ash, core ${m}, ÷${f}: iron ${(100 * lo[0]).toFixed(0)}–${(100 * hi[0]).toFixed(0)}%, rock row ${(100 * Math.min(hi[1], lo[1])).toFixed(0)}–${(100 * Math.max(hi[1], lo[1])).toFixed(0)}%`); } } }
   save("explode.json", { ours, rows });
+} else if (cmd === "starmix") {
+  // steps 2–3 from the computed main sequence (js/mainseqdata.js) instead of a declared lifetime slope: each star of each
+  // mass has its core temperature and lifetime at gravity G; its core becomes what hburn's zone makes at that temperature
+  // (the zone's make-up log-interpolated in T, with hburn's own proton + proton size matched to the star's); the gas gets
+  // back the cores of every star that finishes before a Sun-like one forms (life ≤ t_gal: 5, 10 or 20 billion years,
+  // declared), each giving back a fixed share of its mass, as many of each mass as ours (2.35) or top-heavy (1.9).
+  // Also what the core of a star as long-lived as our Sun turns into, now from its computed core temperature
+  const MSQ = (await import("../js/mainseqdata.js")).MAINSEQ, sigmaLensF = (await import("../js/mainseq.js")).sigmaLens, hb = load("hburn.json"), cfgs = new Map();
+  for (const r of hb.rows) { const k = `${r.compact}|${r.s}|${r.rnp}`; if (!cfgs.has(k)) cfgs.set(k, []); cfgs.get(k).push(r); }
+  for (const v of cfgs.values()) v.sort((a, b) => a.T - b.T);
+  const mixAt = (rs, T) => { const Tc = Math.min(Math.max(T, rs[0].T), rs.at(-1).T); let i = rs.findIndex((r) => r.T >= Tc); if (i <= 0) i = 1; const a = rs[i - 1], b = rs[i], f = Math.log(Tc / a.T) / Math.log(b.T / a.T), out = { he: a.he * (1 - f) + b.he * f };
+    for (const z of new Set([...Object.keys(a.mass), ...Object.keys(b.mass)])) out[z] = (a.mass[z] ?? 0) * (1 - f) + (b.mass[z] ?? 0) * f; return out; };
+  const lerpLog = (rows, key, val, want) => { for (let i = 1; i < rows.length; i++) { const a = rows[i - 1], b = rows[i]; if ((Math.log(a[key]) - Math.log(val)) * (Math.log(b[key]) - Math.log(val)) <= 0) { const f = (Math.log(val) - Math.log(a[key])) / (Math.log(b[key]) - Math.log(a[key])); return Math.exp(Math.log(a[want]) * (1 - f) + Math.log(b[want]) * f); } } return null; };
+  const out = [];
+  for (const run of MSQ.runs.filter((r) => (r.ff ?? 0) === 1)) { const rows = run.rows.slice().sort((a, b) => a.m - b.m), mine = [...cfgs.entries()].filter(([k]) => k.endsWith(`|${run.rnp}`));
+    const sunT = lerpLog(rows, "life", 1e10, "Tc"), sun = sunT ? mine.map(([k, rs]) => ({ k, mix: mixAt(rs, sunT) })) : null;
+    const choices = [];
+    for (const tgal of [5e9, 1e10, 2e10]) for (const alpha of [2.35, 1.9]) {
+      const back = rows.filter((r) => r.life <= tgal); if (back.length < 2) { choices.push({ tgal, alpha, none: true, first: Math.min(...rows.map((r) => r.life)) }); continue; }
+      const mmin = lerpLog(rows, "life", tgal, "m") ?? back[0].m, pts = [{ m: mmin, Tc: lerpLog(rows, "m", mmin, "Tc") ?? back[0].Tc }, ...back.filter((r) => r.m > mmin).map((r) => ({ m: r.m, Tc: r.Tc }))];
+      for (const [k, rs] of mine) { const mix = {}; let W = 0;
+        for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], n = 8; for (let j = 0; j < n; j++) { const t = (j + 0.5) / n, m = Math.exp(Math.log(a.m) * (1 - t) + Math.log(b.m) * t), T = Math.exp(Math.log(a.Tc) * (1 - t) + Math.log(b.Tc) * t), w = m ** (2 - alpha) * (Math.log(b.m / a.m) / n), x = mixAt(rs, T);
+          const heavy = Object.entries(x).filter(([z]) => z !== "he"), tot = heavy.reduce((u, [, v]) => u + v, 0); if (tot <= 0) continue; for (const [z, v] of heavy) mix[z] = (mix[z] ?? 0) + (w * v) / tot; W += w; } }
+        for (const z in mix) mix[z] /= W; choices.push({ tgal, alpha, k, mmin, Tlo: pts[0].Tc, Thi: pts.at(-1).Tc, mix }); } }
+    // the heaviest star light can hold (4D Eddington: L_Edd = 2π² c G M R/κ, scattering at the surface, a floor on L/L_Edd),
+    // extrapolated from the top of the sequence (L ∝ M^p against L_Edd ∝ M), and its life
+    const top = rows.at(-1), lo3 = rows.at(-3), kap = sigmaLensF(top.Teff) * (1.75 / 2) / 1.66053906660e-27, LE = 2 * Math.PI ** 2 * 2.99792458e8 * 6.6743e-11 * run.Grel * top.M * top.R / kap;
+    const p = Math.log(top.L / lo3.L) / Math.log(top.m / lo3.m), q = Math.log(top.life / lo3.life) / Math.log(top.m / lo3.m), mEdd = top.m * (LE / top.L) ** (1 / (p - 1)), edd = { ratio: top.L / LE, m: mEdd, life: top.life * (mEdd / top.m) ** q };
+    out.push({ Grel: run.Grel, rnp: run.rnp, sunT, sun, choices, edd });
+    const ex = choices.find((c) => c.tgal === 1e10 && c.alpha === 2.35 && !c.none);
+    console.log(`G ${run.Grel} p–p ${run.rnp} fm: Sun-long core ${sunT ? (sunT / 1e6).toFixed(1) + " MK" : "none"}; given back by 10 Gyr ${ex ? `from ${ex.mmin.toFixed(2)} M_Ch (cores ${(ex.Tlo / 1e6).toFixed(0)}–${(ex.Thi / 1e6).toFixed(0)} MK): ${Object.entries(ex.mix).filter(([, v]) => v > 0.03).map(([z, v]) => `${z} ${(100 * v).toFixed(0)}%`).join(", ")}` : "nothing (the first stars finish after " + (choices.find((c) => c.none)?.first ?? 0).toExponential(1) + " years)"}`); }
+  save("starmix.json", out);
 } else if (cmd === "bake") {
   const files = readdirSync(DIR), get = (re) => files.filter((f) => re.test(f)).map(load), cf4 = coulombFactor(4, 300), e2 = 1.43996;
   // the 4D liquid drop for each force, strength and range: bulk from the matter, Coulomb exact, the neutron excess from neutron
@@ -445,7 +479,7 @@ function layers(d, c, { Q, A, mue = 2, Tign, cuts, f = 1 }) { const P = PLd[d], 
   { const AMU = 931.494, op = (d, k, r0) => { const A2 = 4 * k; return { Z1: 2, Z2: 2 * k, mu: ((4 * A2) / (4 + A2)) * AMU, rn: r0 * (Math.pow(4, 1 / d) + Math.pow(A2, 1 / d)), d }; };
     const target = logRate(2e8, op(3, 3, 1.2)), Tfor = (d, k, r0) => { let lo = 1e6, hi = 1e12; for (let i = 0; i < 70; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, op(d, k, r0)) < target) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
     out.rungs = Array.from({ length: 20 }, (_, i) => ({ Z: 2 * (i + 1), ours: Tfor(3, i + 1, 1.2), d4: Tfor(4, i + 1, 1.0) })); }
-  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/); out.burning = load("burning.json"); out.rungcap = { MT: load("rungcap.json"), MN: load("MN-rungcap.json") }; out.plusone = get(/^plusone-/); out.protonflow = load("MN-protonflow.json"); out.protonflowc = load("MN-protonflow-c.json"); out.hburn = load("hburn.json"); out.giveback = load("giveback.json"); out.heavy = load("heavy.json"); out.runaway = load("runaway.json"); out.explode = load("explode.json");
+  out.brink = get(/^brink-/); out.mass5 = get(/^mass5-/); out.burning = load("burning.json"); out.rungcap = { MT: load("rungcap.json"), MN: load("MN-rungcap.json") }; out.plusone = get(/^plusone-/); out.protonflow = load("MN-protonflow.json"); out.protonflowc = load("MN-protonflow-c.json"); out.hburn = load("hburn.json"); out.giveback = load("giveback.json"); out.heavy = load("heavy.json"); out.runaway = load("runaway.json"); out.explode = load("explode.json"); out.starmix = load("starmix.json");
   // the first minutes: ours as the check (Y), and 4D at each strength over the baryons per photon and the clock
   out.bbn = { ours: BB.firstMinutes({ d: 3, B: 2.2246 }), etas: [1e-10, 6.1e-10, 1e-8, 1e-6], t1s: [0.01, 0.1, 1.32], grid: [] };
   for (const [name, FCx] of Object.entries(FORCES)) { const cap = load(`${FCx.pre}capture.json`); if (!cap?.rows?.[0]?.table) continue;
