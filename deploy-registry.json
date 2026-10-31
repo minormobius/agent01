@@ -281,7 +281,7 @@
       "dir": "polis",
       "endpoint": "polis.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [
         "civ"
       ],
@@ -292,7 +292,7 @@
         "mappa/climate-forcing.js"
       ],
       "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ über-macro → hinterland mesoscale → city micro)… (full description: polis/CLAUDE.md)",
-      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
+      "status": "OWNERSHIP (2026-10-07): taken by claude/plant-growth-animation-gxbby1 from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "civ",
@@ -616,13 +616,13 @@
       "dir": "ink",
       "endpoint": "ink.mino.mobi",
       "type": "frontend",
-      "branch": "claude/p5js-procgen-exploration-efdhws",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [],
       "provides": null,
       "paths": [
         "ink/**"
       ],
-      "status": "NEW — ink.mino.mobi was unattached (verified: nothing answered it). wrangler.jsonc declares the custom_domain route, so the first deploy creates worker `ink` and binds the domain. UNVERIFIED FROM THE SANDBOX: the sandbox cannot reach Cloudflare, so the binding must be confirmed from the deploy log (`ink.mino.mobi (custom domain)`) and /api/health."
+      "status": "OWNERSHIP (2026-09-23): taken by claude/plant-growth-animation-gxbby1 from claude/p5js-procgen-exploration-efdhws with scripts/take-ownership.mjs (no work of the old owner lost). NEW — ink.mino.mobi was unattached (verified: nothing answered it). wrangler.jsonc declares the custom_domain route, so the first deploy creates worker `ink` and binds the domain. UNVERIFIED FROM THE SANDBOX: the sandbox cannot reach Cloudflare, so the binding must be confirmed from the deploy log (`ink.mino.mobi (custom domain)`) and /api/health."
     },
     {
       "surface": "io",
@@ -962,8 +962,8 @@
       ],
       "note": "Minimal Cell Twin: a cellular digital twin built in layers. Landing at / links one page per stage (stage1/ Gillespie gene expression, stage2/ particle reaction-diffusion); every stage stays live. Thin assets Worker (worker `cell`, plain route cell.mino.mobi/*). No build, no D1, no secrets. (full description: cell/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-10-03): plain route cell.mino.mobi/*, no custom-domain slot. deploy-cell.yml runs the stage 2 engine selftest, then scripts/route-dns.mjs, then fails unless the host serves."
-      },
-      {
+    },
+    {
       "surface": "proofs",
       "dir": "proofs",
       "endpoint": "proofs.mino.mobi",
@@ -1033,10 +1033,10 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/mobile-support-attribution-abs7qz",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/mobile-support-attribution-abs7qz (marble-run take-over; the /marbles bench is a touch-first re-implementation of Codetaur's Marbleworks builder, github.com/ngwnos/marbles, MIT, with full accreditation). Before the reassignment the tjs/ tree on this branch was diffed against the previous owner (claude/threejs-procgen-buildings-mprgs6) and found identical apart from the additions — Static Assets replaces the whole manifest, so that check is the precondition for moving ownership, not a formality.",
+      "status": "OWNERSHIP (2026-10-07): taken by claude/plant-growth-animation-gxbby1 from claude/mobile-support-attribution-abs7qz with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/mobile-support-attribution-abs7qz (marble-run take-over; the /marbles bench is a touch-first re-implementation of Codetaur's Marbleworks builder, github.com/ngwnos/marbles, MIT, with full accreditation). Before the reassignment the tjs/ tree on this branch was diffed against the previous owner (claude/threejs-procgen-buildings-mprgs6) and found identical apart from the additions — Static Assets replaces the whole manifest, so that check is the precondition for moving ownership, not a formality.",
       "op": "create",
       "note": "tjs.mino.mobi \u2014 three.js workbenches\u2026 (full description: tjs/CLAUDE.md)",
       "paths": [
@@ -1769,12 +1769,12 @@
       "dir": "clef",
       "endpoint": "clef.mino.mobi",
       "type": "frontend",
-      "branch": "claude/sheet-music-viewer-composer-qb4ljl",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": "sheet-music",
-      "status": "MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
+      "status": "OWNERSHIP (2026-09-24): taken by claude/plant-growth-animation-gxbby1 from claude/sheet-music-viewer-composer-qb4ljl with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
       "note": "Sheet-music viewer and composer. Reads a working subset of LilyPond notation (Dutch/English/German note names, \\transpose, ornaments), engraves it as classical notation in SVG with its own glyph outlines and no music font, plays it back through a small WebAudio patch bank, and exports .ly/.mid/.svg/.wav. Browse opens the Mutopia Project's ~2,300 LilyPond-source scores through a narrow read proxy in this surface's own worker at /mutopia/* (one origin, GET only, two path shapes, edge-cached) — Mutopia sends no CORS header. Publishing writes one com.minomobi.clef.piece record to the reader's own PDS; the site stores nothing. Full notes in clef/CLAUDE.md.",
       "paths": [
         "clef/**",
@@ -1809,6 +1809,21 @@
       ],
       "note": "An independent evaluation of Imp (deepfates' port of DSPy to Elixir/BEAM), published from the bakeoff/imp rig: GEPA on Imp's opaque-code TREC task, ReAct agents over Elixir tools, the runs and their evidence, and a bug found in Imp's GEPA with its fix. Thin assets Worker (worker `imp`, plain route imp.mino.mobi/*) — no build, no bindings, no secrets. (full description: imp/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-09-28) — plain route imp.mino.mobi/*, no custom-domain slot. deploy-imp.yml runs scripts/route-dns.mjs, then fails unless the host serves. Owned by claude/friends-project-planning-cags5l."
+    },
+    {
+      "surface": "studio",
+      "dir": "studio",
+      "endpoint": "studio.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/plant-growth-animation-gxbby1",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "studio/**",
+        ".github/workflows/deploy-studio.yml"
+      ],
+      "note": "Claude's studio: animation and music, drawn in p5.js and played on clef's physically-modelled piano (pfsynth, a byte-identical copy of clef's wasm), rendered live in the browser and streamed onto the audio clock. Pure static assets (worker `studio`, plain route studio.mino.mobi/*): no build, no D1, no secrets. First piece: /anthesis/, a poppy from seed to bloom. (full description: studio/CLAUDE.md)",
+      "status": "NEW ROUTE SURFACE (2026-09-23) — studio.mino.mobi did not resolve when added. Plain route { pattern: \"studio.mino.mobi/*\", zone_name: \"mino.mobi\" }; deploy-studio.yml runs scripts/route-dns.mjs, then fails unless the host serves the page and the piano's .wasm. UNVERIFIED FROM THE SANDBOX until the first run."
     }
   ],
   "unmanaged": {

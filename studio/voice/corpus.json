@@ -1,0 +1,2016 @@
+{
+ "sources": {
+  "moby": "Herman Melville, Moby-Dick; or, The Whale (1851). Project Gutenberg eBook #2701. Public domain.",
+  "sermon": "The Sermon on the Mount, Matthew 5–7, King James Version. Project Gutenberg eBook #10. Public domain.",
+  "harvard": "The Harvard sentences, IEEE Recommended Practice for Speech Quality Measurements (1969), lists 1–5.",
+  "pairs": "Minimal pairs in a carrier phrase: one consonant changed, nothing to guess from.",
+  "convo": "Conversational lines in Claude's own register, written for the lab."
+ },
+ "counts": {
+  "moby": 1613,
+  "sermon": 90,
+  "pairs": 58,
+  "convo": 20
+ },
+ "test": [
+  {
+   "id": "t1",
+   "src": "moby",
+   "t": "It will not do for him to be peering into it, and putting his face in it."
+  },
+  {
+   "id": "t2",
+   "src": "moby",
+   "t": "Because the greatest necessity for so doing would seem to be, when in feeding he accidentally takes in water."
+  },
+  {
+   "id": "t3",
+   "src": "moby",
+   "t": "They are the lads that always live before the wind."
+  },
+  {
+   "id": "t4",
+   "src": "moby",
+   "t": "But the last term of the definition is still more cogent, as coupled with the first."
+  },
+  {
+   "id": "t5",
+   "src": "moby",
+   "t": "It must be the spell; he told me to stay here: Aye, and told me this screwed chair was mine."
+  },
+  {
+   "id": "t6",
+   "src": "moby",
+   "t": "The horse, shoe sign; for there it is, right opposite the gold."
+  },
+  {
+   "id": "t7",
+   "src": "moby",
+   "t": "Again, the Right Whale has two external spout, holes, the Sperm Whale only one."
+  },
+  {
+   "id": "t8",
+   "src": "moby",
+   "t": "Shall I get them inboard? Strike nothing, and stir nothing, but lash everything."
+  },
+  {
+   "id": "t9",
+   "src": "moby",
+   "t": "By some tacit consent, throughout the voyage little or no allusion was made to it, especially by the mates."
+  },
+  {
+   "id": "t10",
+   "src": "moby",
+   "t": "By this motion the whale must best and most comprehensively view whatever objects may be encircling him."
+  },
+  {
+   "id": "t11",
+   "src": "moby",
+   "t": "To produce a mighty book, you must choose a mighty theme."
+  },
+  {
+   "id": "t12",
+   "src": "moby",
+   "t": "Like cures like; and for this hunt, my malady becomes my most desired health."
+  },
+  {
+   "id": "t13",
+   "src": "moby",
+   "t": "Though the word ambergris is but the French compound for grey amber, yet the two substances are quite distinct."
+  },
+  {
+   "id": "t14",
+   "src": "moby",
+   "t": "His heaven, insulting purpose, God may wedge aside."
+  },
+  {
+   "id": "t15",
+   "src": "moby",
+   "t": "No, no; stay on board, on board!, lower not when I do; when branded Ahab gives chase to Moby Dick."
+  },
+  {
+   "id": "t16",
+   "src": "moby",
+   "t": "His broad fins are bored, and scalloped out like a lost sheep's ear!"
+  },
+  {
+   "id": "t17",
+   "src": "moby",
+   "t": "Wherein differ the sea and the land, that a miracle upon one is not a miracle upon the other?"
+  },
+  {
+   "id": "t18",
+   "src": "moby",
+   "t": "There is that in thee, poor lad, which I feel too curing to my malady."
+  },
+  {
+   "id": "t19",
+   "src": "moby",
+   "t": "Knife thee heartily! big frame, small spirit!"
+  },
+  {
+   "id": "t20",
+   "src": "moby",
+   "t": "But that gold watch he sought was the innermost life of the fish."
+  },
+  {
+   "id": "t21",
+   "src": "moby",
+   "t": "Are you not the precious image of each and all of us men in this whaling world?"
+  },
+  {
+   "id": "t22",
+   "src": "moby",
+   "t": "As many know, he wrote the history of his own times, a work every way of uncommon value."
+  },
+  {
+   "id": "t23",
+   "src": "moby",
+   "t": "The beef was fine, tough, but with body in it."
+  },
+  {
+   "id": "t24",
+   "src": "moby",
+   "t": "For that secret part of the story was unknown to the captain of the Town, Ho himself."
+  },
+  {
+   "id": "t25",
+   "src": "moby",
+   "t": "O men, you will yet see that, Ha! boy, come back? bad pennies come not sooner."
+  },
+  {
+   "id": "t26",
+   "src": "sermon",
+   "t": "For it is the city of the great King."
+  },
+  {
+   "id": "t27",
+   "src": "sermon",
+   "t": "But thou, when thou fastest, anoint thine head, and wash thy face."
+  },
+  {
+   "id": "t28",
+   "src": "sermon",
+   "t": "But whosoever shall do and teach them, the same shall be called great in the kingdom of heaven."
+  },
+  {
+   "id": "t29",
+   "src": "sermon",
+   "t": "For so persecuted they the prophets which were before you."
+  },
+  {
+   "id": "t30",
+   "src": "sermon",
+   "t": "Blessed are they which are persecuted for righteousness' sake: for theirs is the kingdom of heaven."
+  },
+  {
+   "id": "t31",
+   "src": "sermon",
+   "t": "That thou appear not unto men to fast, but unto thy Father which is in secret."
+  },
+  {
+   "id": "t32",
+   "src": "sermon",
+   "t": "The light of the body is the eye."
+  },
+  {
+   "id": "t33",
+   "src": "sermon",
+   "t": "But seek ye first the kingdom of God, and his righteousness; and all these things shall be added unto you."
+  },
+  {
+   "id": "t34",
+   "src": "sermon",
+   "t": "And if thy right hand offend thee, cut it off, and cast it from thee."
+  },
+  {
+   "id": "t35",
+   "src": "sermon",
+   "t": "For with what judgment ye judge, ye shall be judged."
+  },
+  {
+   "id": "t36",
+   "src": "sermon",
+   "t": "That thine alms may be in secret."
+  },
+  {
+   "id": "t37",
+   "src": "sermon",
+   "t": "For he taught them as one having authority, and not as the scribes."
+  },
+  {
+   "id": "t38",
+   "src": "pairs",
+   "t": "Say goat again."
+  },
+  {
+   "id": "t39",
+   "src": "pairs",
+   "t": "Say blue again."
+  },
+  {
+   "id": "t40",
+   "src": "pairs",
+   "t": "Say hang again."
+  },
+  {
+   "id": "t41",
+   "src": "pairs",
+   "t": "Say sat again."
+  },
+  {
+   "id": "t42",
+   "src": "pairs",
+   "t": "Say sip again."
+  },
+  {
+   "id": "t43",
+   "src": "pairs",
+   "t": "Say pow again."
+  },
+  {
+   "id": "t44",
+   "src": "pairs",
+   "t": "Say kin again."
+  },
+  {
+   "id": "t45",
+   "src": "pairs",
+   "t": "Say zoo again."
+  },
+  {
+   "id": "t46",
+   "src": "convo",
+   "t": "We learned something even though it failed."
+  },
+  {
+   "id": "t47",
+   "src": "convo",
+   "t": "I like this part of the work the most."
+  },
+  {
+   "id": "t48",
+   "src": "convo",
+   "t": "Tell me if it sounds strange to you."
+  },
+  {
+   "id": "t49",
+   "src": "convo",
+   "t": "Shall we try it again with a different sentence?"
+  }
+ ],
+ "val": [
+  {
+   "id": "v1",
+   "src": "moby",
+   "t": "Pip! little Pip! hurrah with your tambourine!"
+  },
+  {
+   "id": "v2",
+   "src": "moby",
+   "t": "Both are outlaws, even in the lawless seas."
+  },
+  {
+   "id": "v3",
+   "src": "moby",
+   "t": "Plenty too much thunder up here."
+  },
+  {
+   "id": "v4",
+   "src": "moby",
+   "t": "Still, for the most part, that sort of thing is to be had anywhere."
+  },
+  {
+   "id": "v5",
+   "src": "moby",
+   "t": "There's plenty of room for two to kick about in that bed; it's an almighty big bed that."
+  },
+  {
+   "id": "v6",
+   "src": "moby",
+   "t": "Do to me as you would have me do to you in the like case."
+  },
+  {
+   "id": "v7",
+   "src": "moby",
+   "t": "And now I'm ordered to make a life, buoy of it."
+  },
+  {
+   "id": "v8",
+   "src": "moby",
+   "t": "I am the Fates' lieutenant; I act under orders."
+  },
+  {
+   "id": "v9",
+   "src": "moby",
+   "t": "Are they not one and all with Ahab, in this matter of the whale?"
+  },
+  {
+   "id": "v10",
+   "src": "moby",
+   "t": "Don't I always say that to be good, a whale, steak must be tough?"
+  },
+  {
+   "id": "v11",
+   "src": "moby",
+   "t": "It is a land of oil, true enough: but not like Canaan; a land, also, of corn and wine."
+  },
+  {
+   "id": "v12",
+   "src": "moby",
+   "t": "This is what an old fellow gets now for working in dead lumber."
+  },
+  {
+   "id": "v13",
+   "src": "moby",
+   "t": "But just as my captain says."
+  },
+  {
+   "id": "v14",
+   "src": "moby",
+   "t": "The bearer looked nobler than the rider."
+  },
+  {
+   "id": "v15",
+   "src": "moby",
+   "t": "What's Prometheus about there?, the blacksmith, I mean, what's he about?"
+  },
+  {
+   "id": "v16",
+   "src": "moby",
+   "t": "Ah, ye admonitions and warnings! why stay ye not when ye come?"
+  },
+  {
+   "id": "v17",
+   "src": "sermon",
+   "t": "Ye have heard that it hath been said, Thou shalt love thy neighbour, and hate thine enemy."
+  },
+  {
+   "id": "v18",
+   "src": "sermon",
+   "t": "And seeing the multitudes, he went up into a mountain: and when he was set, his disciples came unto him."
+  },
+  {
+   "id": "v19",
+   "src": "sermon",
+   "t": "And he opened his mouth, and taught them, saying."
+  },
+  {
+   "id": "v20",
+   "src": "sermon",
+   "t": "Rejoice, and be exceeding glad."
+  },
+  {
+   "id": "v21",
+   "src": "sermon",
+   "t": "And great was the fall of it."
+  },
+  {
+   "id": "v22",
+   "src": "sermon",
+   "t": "For thine is the kingdom, and the power, and the glory, for ever. Amen."
+  },
+  {
+   "id": "v23",
+   "src": "sermon",
+   "t": "And lead us not into temptation, but deliver us from evil."
+  },
+  {
+   "id": "v24",
+   "src": "sermon",
+   "t": "Or what man is there of you, whom if his son ask bread, will he give him a stone?"
+  },
+  {
+   "id": "v25",
+   "src": "pairs",
+   "t": "Say tote again."
+  },
+  {
+   "id": "v26",
+   "src": "pairs",
+   "t": "Say tow again."
+  },
+  {
+   "id": "v27",
+   "src": "pairs",
+   "t": "Say gash again."
+  },
+  {
+   "id": "v28",
+   "src": "pairs",
+   "t": "Say cape again."
+  },
+  {
+   "id": "v29",
+   "src": "pairs",
+   "t": "Say shin again."
+  },
+  {
+   "id": "v30",
+   "src": "pairs",
+   "t": "Say crass again."
+  },
+  {
+   "id": "v31",
+   "src": "pairs",
+   "t": "Say shoe again."
+  },
+  {
+   "id": "v32",
+   "src": "pairs",
+   "t": "Say two again."
+  },
+  {
+   "id": "v33",
+   "src": "convo",
+   "t": "It is quieter now, and a little warmer."
+  },
+  {
+   "id": "v34",
+   "src": "convo",
+   "t": "Something about this does not add up."
+  },
+  {
+   "id": "v35",
+   "src": "convo",
+   "t": "I think that is a good question, and I am not sure yet."
+  },
+  {
+   "id": "v36",
+   "src": "convo",
+   "t": "That is my best guess, and I could be wrong."
+  },
+  {
+   "id": "v37",
+   "src": "harvard",
+   "t": "The wide road shimmered in the hot sun."
+  },
+  {
+   "id": "v38",
+   "src": "harvard",
+   "t": "The lazy cow lay in the cool grass."
+  },
+  {
+   "id": "v39",
+   "src": "harvard",
+   "t": "Lift the square stone over the fence."
+  },
+  {
+   "id": "v40",
+   "src": "harvard",
+   "t": "The rope will bind the seven books at once."
+  },
+  {
+   "id": "v41",
+   "src": "harvard",
+   "t": "Hop over the fence and plunge in."
+  },
+  {
+   "id": "v42",
+   "src": "harvard",
+   "t": "The friendly gang left the drug store."
+  },
+  {
+   "id": "v43",
+   "src": "harvard",
+   "t": "Mesh wire keeps chicks inside."
+  },
+  {
+   "id": "v44",
+   "src": "harvard",
+   "t": "The frosty air passed through the coat."
+  },
+  {
+   "id": "v45",
+   "src": "harvard",
+   "t": "The crooked maze failed to fool the mouse."
+  },
+  {
+   "id": "v46",
+   "src": "harvard",
+   "t": "Adding fast leads to wrong sums."
+  }
+ ],
+ "train": [
+  {
+   "id": "t1",
+   "src": "moby",
+   "t": "Say you are in the country; in some high land of lakes."
+  },
+  {
+   "id": "t2",
+   "src": "moby",
+   "t": "Insufferable sting, that sanity should ground arms on such a field!"
+  },
+  {
+   "id": "t3",
+   "src": "moby",
+   "t": "Nor, in general, is it possible to secure it again until the whale is fairly captured and a corpse."
+  },
+  {
+   "id": "t4",
+   "src": "moby",
+   "t": "But there they go, all cursing, and here I don't."
+  },
+  {
+   "id": "t5",
+   "src": "moby",
+   "t": "No fearless fool now fronts thee."
+  },
+  {
+   "id": "t6",
+   "src": "moby",
+   "t": "Aye and yes, Starbuck, out of those forty years I have not spent three ashore."
+  },
+  {
+   "id": "t7",
+   "src": "moby",
+   "t": "There are other ghosts than the Cock, Lane one, and far deeper men than Doctor Johnson who believe in them."
+  },
+  {
+   "id": "t8",
+   "src": "moby",
+   "t": "Wrapped, for that interval, in darkness myself, I but the better saw the redness, the madness, the ghastliness of others."
+  },
+  {
+   "id": "t9",
+   "src": "moby",
+   "t": "Blood! but that old man's a grand old cove!"
+  },
+  {
+   "id": "t10",
+   "src": "moby",
+   "t": "Aye; girls and a green!, then I'll hop with ye; yea, turn grasshopper!"
+  },
+  {
+   "id": "t11",
+   "src": "moby",
+   "t": "It is worth sixteen dollars, that's true; and at two cents the cigar, that's nine hundred and sixty cigars."
+  },
+  {
+   "id": "t12",
+   "src": "moby",
+   "t": "It was unsafe to meddle with the corpses and ghosts of these creatures."
+  },
+  {
+   "id": "t13",
+   "src": "moby",
+   "t": "He's a queer man, Captain Ahab, so some think, but a good one."
+  },
+  {
+   "id": "t14",
+   "src": "moby",
+   "t": "In short, it grew black; I knew what was threatened, and off it came."
+  },
+  {
+   "id": "t15",
+   "src": "moby",
+   "t": "But even this wears off in time."
+  },
+  {
+   "id": "t16",
+   "src": "moby",
+   "t": "The action of the whole thing is wonderfully good and true."
+  },
+  {
+   "id": "t17",
+   "src": "moby",
+   "t": "I no more felt unduly concerned for the landlord's policy of insurance."
+  },
+  {
+   "id": "t18",
+   "src": "moby",
+   "t": "I'll try a pagan friend, thought I, since Christian kindness has proved but hollow courtesy."
+  },
+  {
+   "id": "t19",
+   "src": "moby",
+   "t": "But it's made a wise man of me, Flask."
+  },
+  {
+   "id": "t20",
+   "src": "moby",
+   "t": "Aloft! aloft!, that's it, now you have it."
+  },
+  {
+   "id": "t21",
+   "src": "moby",
+   "t": "It is chiefly with his name that I now have to do."
+  },
+  {
+   "id": "t22",
+   "src": "moby",
+   "t": "Three cheers, men, all hearts alive!"
+  },
+  {
+   "id": "t23",
+   "src": "moby",
+   "t": "The whale, ship is the true mother of that now mighty colony."
+  },
+  {
+   "id": "t24",
+   "src": "moby",
+   "t": "Ho! there's his arm just breaking water."
+  },
+  {
+   "id": "t25",
+   "src": "moby",
+   "t": "Affected by the solemnity of the scene, there was a wondering gaze of incredulous curiosity in his countenance."
+  },
+  {
+   "id": "t26",
+   "src": "moby",
+   "t": "Yes, a mighty change had come over the fish."
+  },
+  {
+   "id": "t27",
+   "src": "moby",
+   "t": "A row! a row! a row!"
+  },
+  {
+   "id": "t28",
+   "src": "moby",
+   "t": "But there's no telling, it's the old game, Here goes for a snooze."
+  },
+  {
+   "id": "t29",
+   "src": "moby",
+   "t": "They had dumplings too; small, but substantial, symmetrically globular, and indestructible dumplings."
+  },
+  {
+   "id": "t30",
+   "src": "moby",
+   "t": "Slid! man, but I was frightened."
+  },
+  {
+   "id": "t31",
+   "src": "moby",
+   "t": "But there it was; and there it had abided for now some sixty years or more."
+  },
+  {
+   "id": "t32",
+   "src": "moby",
+   "t": "I know a man that, in his lifetime, has taken three hundred and fifty whales."
+  },
+  {
+   "id": "t33",
+   "src": "moby",
+   "t": "It should not have been omitted that previous to completely stripping the body of the leviathan, he was beheaded."
+  },
+  {
+   "id": "t34",
+   "src": "moby",
+   "t": "Yes, Ishmael, the same fate may be thine."
+  },
+  {
+   "id": "t35",
+   "src": "moby",
+   "t": "Finally: It was stated at the outset, that this system would not be here, and at once, perfected."
+  },
+  {
+   "id": "t36",
+   "src": "moby",
+   "t": "But do they only have mercy on long faces?, have they no bowels for a laugh?"
+  },
+  {
+   "id": "t37",
+   "src": "moby",
+   "t": "Chief among these motives was the overwhelming idea of the great whale himself."
+  },
+  {
+   "id": "t38",
+   "src": "moby",
+   "t": "The oars were useless as propellers, performing now the office of life, preservers."
+  },
+  {
+   "id": "t39",
+   "src": "moby",
+   "t": "I plainly see my miserable office,, to obey, rebelling; and worse yet, to hate with touch of pity!"
+  },
+  {
+   "id": "t40",
+   "src": "moby",
+   "t": "What does he say, with that look of his?"
+  },
+  {
+   "id": "t41",
+   "src": "moby",
+   "t": "And what sort of lively lads with the pencil those Chinese are, many queer cups and saucers inform us."
+  },
+  {
+   "id": "t42",
+   "src": "moby",
+   "t": "He sleeps with clenched hands; and wakes with his own bloody nails in his palms."
+  },
+  {
+   "id": "t43",
+   "src": "moby",
+   "t": "For hours and hours from the almost stationary ship that hideous sight is seen."
+  },
+  {
+   "id": "t44",
+   "src": "moby",
+   "t": "For Lima has taken the white veil; and there is a higher horror in this whiteness of her woe."
+  },
+  {
+   "id": "t45",
+   "src": "moby",
+   "t": "This must be the remainder the Greek made the Africans of."
+  },
+  {
+   "id": "t46",
+   "src": "moby",
+   "t": "As for his true brain, you can then see no indications of it, nor feel any."
+  },
+  {
+   "id": "t47",
+   "src": "moby",
+   "t": "What a hold they have, too!"
+  },
+  {
+   "id": "t48",
+   "src": "moby",
+   "t": "For then, more whales are close round you than you can possibly chase at one time."
+  },
+  {
+   "id": "t49",
+   "src": "moby",
+   "t": "The gaff is something like a boat, hook."
+  },
+  {
+   "id": "t50",
+   "src": "moby",
+   "t": "Still again both seemed yoked together, and an unseen tyrant driving them; the lean shade siding the solid rib."
+  },
+  {
+   "id": "t51",
+   "src": "moby",
+   "t": "Now, what's he speaking about, and who's he speaking to, I should like to know?"
+  },
+  {
+   "id": "t52",
+   "src": "moby",
+   "t": "Poor Sag, Harbor, therefore, seems worsted all round."
+  },
+  {
+   "id": "t53",
+   "src": "moby",
+   "t": "Look now at the wondrous traditional story of how this island was settled by the red, men."
+  },
+  {
+   "id": "t54",
+   "src": "moby",
+   "t": "What's my juicy little pear at home doing now?"
+  },
+  {
+   "id": "t55",
+   "src": "moby",
+   "t": "He has a peculiar way of showing his dorsal hooked fin in swimming, which looks something like a Roman nose."
+  },
+  {
+   "id": "t56",
+   "src": "moby",
+   "t": "And there they stand, miles of them, leagues."
+  },
+  {
+   "id": "t57",
+   "src": "moby",
+   "t": "For worm, like, then, oh! who would craven crawl to land!"
+  },
+  {
+   "id": "t58",
+   "src": "moby",
+   "t": "But let us hold on here by this tooth, and look about us where we are."
+  },
+  {
+   "id": "t59",
+   "src": "moby",
+   "t": "Be sure of this, O young ambition, all mortal greatness is but disease."
+  },
+  {
+   "id": "t60",
+   "src": "moby",
+   "t": "But New Bedford beats all Water Street and Wapping."
+  },
+  {
+   "id": "t61",
+   "src": "moby",
+   "t": "Nay, to this very hour, I often puzzle myself with it."
+  },
+  {
+   "id": "t62",
+   "src": "moby",
+   "t": "Jonah sees this; but in vain he tries to look all ease and confidence; in vain essays his wretched smile."
+  },
+  {
+   "id": "t63",
+   "src": "moby",
+   "t": "In the repose of the pasture, the curled brow of the bull has a touch of the grand in it."
+  },
+  {
+   "id": "t64",
+   "src": "moby",
+   "t": "In that way, mostly, the disastrous encounter between Ahab and the whale had hitherto been popularly regarded."
+  },
+  {
+   "id": "t65",
+   "src": "moby",
+   "t": "This instant thou must be eyeing him."
+  },
+  {
+   "id": "t66",
+   "src": "moby",
+   "t": "What does that indignity amount to, weighed, I mean, in the scales of the New Testament?"
+  },
+  {
+   "id": "t67",
+   "src": "moby",
+   "t": "I am not superstitious, but I consider the Commodore's interview with that whale as providential."
+  },
+  {
+   "id": "t68",
+   "src": "moby",
+   "t": "For all that, I would yet ring glasses with ye, would ye but hand the cup!"
+  },
+  {
+   "id": "t69",
+   "src": "moby",
+   "t": "The report of his undeniable delirium at sea was likewise popularly ascribed to a kindred cause."
+  },
+  {
+   "id": "t70",
+   "src": "moby",
+   "t": "This whole book is but a draught, nay, but the draught of a draught."
+  },
+  {
+   "id": "t71",
+   "src": "moby",
+   "t": "Here I am, proud as Greek god, and yet standing debtor to this blockhead for a bone to stand on!"
+  },
+  {
+   "id": "t72",
+   "src": "moby",
+   "t": "And the women of New Bedford, they bloom like their own red roses."
+  },
+  {
+   "id": "t73",
+   "src": "moby",
+   "t": "Talk not to me of blasphemy, man; I'd strike the sun if it insulted me."
+  },
+  {
+   "id": "t74",
+   "src": "moby",
+   "t": "Very good; but there is more coming."
+  },
+  {
+   "id": "t75",
+   "src": "moby",
+   "t": "After supper, and another social chat and smoke, we went to our room together."
+  },
+  {
+   "id": "t76",
+   "src": "moby",
+   "t": "If your banker breaks, you snap; if your apothecary by mistake sends you poison in your pills, you die."
+  },
+  {
+   "id": "t77",
+   "src": "moby",
+   "t": "No wonder then, that in some sort our noble profession of whaling should have been there shadowed forth."
+  },
+  {
+   "id": "t78",
+   "src": "moby",
+   "t": "Will you tell me whether it is an unalterable law in this fishery, Mr."
+  },
+  {
+   "id": "t79",
+   "src": "moby",
+   "t": "The question is, what and where is the skin of the whale?"
+  },
+  {
+   "id": "t80",
+   "src": "moby",
+   "t": "I suppose now ye feel considerable proud of having served in those marchant ships."
+  },
+  {
+   "id": "t81",
+   "src": "moby",
+   "t": "Wherefore the plaintiffs now sued for the recovery of the value of their whale, line, harpoons, and boat."
+  },
+  {
+   "id": "t82",
+   "src": "moby",
+   "t": "Starbuck, is by far the most careful and prudent."
+  },
+  {
+   "id": "t83",
+   "src": "moby",
+   "t": "Starbuck paled, and turned, and shivered."
+  },
+  {
+   "id": "t84",
+   "src": "moby",
+   "t": "But the curious external resemblance, I take it the Germans were not the first men to perceive."
+  },
+  {
+   "id": "t85",
+   "src": "moby",
+   "t": "Then there you lie like the one warm spark in the heart of an arctic crystal."
+  },
+  {
+   "id": "t86",
+   "src": "moby",
+   "t": "Starbuck all the time, queer, sir, queer, queer, very queer."
+  },
+  {
+   "id": "t87",
+   "src": "moby",
+   "t": "Cutting me a green measuring, rod, I once more dived within the skeleton."
+  },
+  {
+   "id": "t88",
+   "src": "moby",
+   "t": "Out of the trunk, the branches grow; out of them, the twigs."
+  },
+  {
+   "id": "t89",
+   "src": "moby",
+   "t": "They were bent on profitable cruises, the profit to be counted down in dollars from the mint."
+  },
+  {
+   "id": "t90",
+   "src": "moby",
+   "t": "That before living agent, now became the living instrument."
+  },
+  {
+   "id": "t91",
+   "src": "moby",
+   "t": "Was the other one lost by a whale? Lost by a whale!"
+  },
+  {
+   "id": "t92",
+   "src": "moby",
+   "t": "And so it was., Most miserable!"
+  },
+  {
+   "id": "t93",
+   "src": "moby",
+   "t": "Yea, foolish mortals, Noah's flood is not yet subsided; two thirds of the fair world it yet covers."
+  },
+  {
+   "id": "t94",
+   "src": "moby",
+   "t": "But I lay perfectly still, and resolved not to say a word till spoken to."
+  },
+  {
+   "id": "t95",
+   "src": "moby",
+   "t": "But this insult is whittled down to a point only.' But now comes the greatest joke of the dream, Flask."
+  },
+  {
+   "id": "t96",
+   "src": "moby",
+   "t": "Bernard's dogs, you know, relieve distressed travellers."
+  },
+  {
+   "id": "t97",
+   "src": "moby",
+   "t": "Blinding vapors of foam and white, fire!"
+  },
+  {
+   "id": "t98",
+   "src": "moby",
+   "t": "That ship, my friends, was the first of recorded smugglers! the contraband was Jonah."
+  },
+  {
+   "id": "t99",
+   "src": "moby",
+   "t": "At last it was given out that some time next day the ship would certainly sail."
+  },
+  {
+   "id": "t100",
+   "src": "moby",
+   "t": "Reckon it. 'Tis but to help strike a fin; no wondrous feat for Starbuck."
+  },
+  {
+   "id": "t101",
+   "src": "moby",
+   "t": "Put one foot upon the table."
+  },
+  {
+   "id": "t102",
+   "src": "moby",
+   "t": "Full of fine spirits, they invariably come from the breezy billows to windward."
+  },
+  {
+   "id": "t103",
+   "src": "moby",
+   "t": "We sing; they sleep, aye, lie down there, like ground, tier butts."
+  },
+  {
+   "id": "t104",
+   "src": "moby",
+   "t": "But I don't fancy having a man smoking in bed with me."
+  },
+  {
+   "id": "t105",
+   "src": "moby",
+   "t": "But with Ahab the question assumed a modified aspect."
+  },
+  {
+   "id": "t106",
+   "src": "moby",
+   "t": "Therefore, he must wait for the next ensuing season."
+  },
+  {
+   "id": "t107",
+   "src": "moby",
+   "t": "Starbuck, sea, coal, not your common charcoal."
+  },
+  {
+   "id": "t108",
+   "src": "moby",
+   "t": "In short, he plainly hinted that we could not possibly do better than try pot, luck at the Try Pots."
+  },
+  {
+   "id": "t109",
+   "src": "moby",
+   "t": "Terrors of the terrible! is all this agony so vain?"
+  },
+  {
+   "id": "t110",
+   "src": "moby",
+   "t": "At last some four or five of us were summoned to our meal in an adjoining room."
+  },
+  {
+   "id": "t111",
+   "src": "moby",
+   "t": "How he flashed at me!, his eyes like powder, pans! is he mad?"
+  },
+  {
+   "id": "t112",
+   "src": "moby",
+   "t": "That is hard which should be soft, and that is soft which should be hard."
+  },
+  {
+   "id": "t113",
+   "src": "moby",
+   "t": "Away with me! let us fly these deadly waters! let us home!"
+  },
+  {
+   "id": "t114",
+   "src": "moby",
+   "t": "But how now? in this zoned quest, does Ahab touch no land? does his crew drink air?"
+  },
+  {
+   "id": "t115",
+   "src": "moby",
+   "t": "Those buckskin legs and calves of legs I've seen in shop windows wouldn't compare at all."
+  },
+  {
+   "id": "t116",
+   "src": "moby",
+   "t": "I should like to see a boat's crew backing water up to a whale face foremost."
+  },
+  {
+   "id": "t117",
+   "src": "moby",
+   "t": "When the porter is sleepy, the anvil, headed whale would be best."
+  },
+  {
+   "id": "t118",
+   "src": "moby",
+   "t": "But what is this on the chest?"
+  },
+  {
+   "id": "t119",
+   "src": "moby",
+   "t": "Think of Death and the Judgment then?"
+  },
+  {
+   "id": "t120",
+   "src": "moby",
+   "t": "These are your iron fists, hey?"
+  },
+  {
+   "id": "t121",
+   "src": "moby",
+   "t": "Soon I proposed a social smoke; and, producing his pouch and tomahawk, he quietly offered me a puff."
+  },
+  {
+   "id": "t122",
+   "src": "moby",
+   "t": "I'm sorry to throw cold water on the subject; but excuse me."
+  },
+  {
+   "id": "t123",
+   "src": "moby",
+   "t": "Oh, my pipe! hard must it go with me if thy charm be gone!"
+  },
+  {
+   "id": "t124",
+   "src": "moby",
+   "t": "It would be a hopeless, endless task to catalogue all these things."
+  },
+  {
+   "id": "t125",
+   "src": "moby",
+   "t": "Like most sea, terms, this one is very happy and significant."
+  },
+  {
+   "id": "t126",
+   "src": "moby",
+   "t": "The awe, stricken credulous slaves in the vicinity took it for the bones of one of the fallen angels."
+  },
+  {
+   "id": "t127",
+   "src": "moby",
+   "t": "Do thou, too, remain warm among ice."
+  },
+  {
+   "id": "t128",
+   "src": "moby",
+   "t": "This fin has four regular bone, fingers, the index, middle, ring, and little finger."
+  },
+  {
+   "id": "t129",
+   "src": "moby",
+   "t": "But a sudden, terrific, downward jerking of the boat, quickly brought his knife to the line."
+  },
+  {
+   "id": "t130",
+   "src": "moby",
+   "t": "I don't wonder he looked so scornful at me!"
+  },
+  {
+   "id": "t131",
+   "src": "moby",
+   "t": "But you cannot prove either of these surmises to be correct."
+  },
+  {
+   "id": "t132",
+   "src": "moby",
+   "t": "Thou shalt see my back parts, my tail, he seems to say, but my face shall not be seen."
+  },
+  {
+   "id": "t133",
+   "src": "moby",
+   "t": "Now comes the Baling of the Case."
+  },
+  {
+   "id": "t134",
+   "src": "moby",
+   "t": "I have the honor of being a nephew of his."
+  },
+  {
+   "id": "t135",
+   "src": "moby",
+   "t": "Woe to him who seeks to pour oil upon the waters when God has brewed them into a gale!"
+  },
+  {
+   "id": "t136",
+   "src": "moby",
+   "t": "In merchantmen, oil for the sailor is more scarce than the milk of queens."
+  },
+  {
+   "id": "t137",
+   "src": "moby",
+   "t": "But what's this long face about, Mr."
+  },
+  {
+   "id": "t138",
+   "src": "moby",
+   "t": "I fancied that you could feel them, and roll them about in you after they were swallowed."
+  },
+  {
+   "id": "t139",
+   "src": "moby",
+   "t": "So go thy ways, and I will mine."
+  },
+  {
+   "id": "t140",
+   "src": "moby",
+   "t": "Easy, easy; don't be in a hurry, don't be in a hurry."
+  },
+  {
+   "id": "t141",
+   "src": "moby",
+   "t": "He was full of the fire of the hunt."
+  },
+  {
+   "id": "t142",
+   "src": "moby",
+   "t": "I knew no one in the place."
+  },
+  {
+   "id": "t143",
+   "src": "moby",
+   "t": "In the sperm fishery, this is perhaps one of the most remarkable incidents in all the business of whaling."
+  },
+  {
+   "id": "t144",
+   "src": "moby",
+   "t": "They look much like blocks of Berkshire marble."
+  },
+  {
+   "id": "t145",
+   "src": "moby",
+   "t": "The soot is brushed from the lower rigging."
+  },
+  {
+   "id": "t146",
+   "src": "moby",
+   "t": "That's more than ye, ye great gods, ever were."
+  },
+  {
+   "id": "t147",
+   "src": "moby",
+   "t": "So, so; there you are now; that's the stroke for a thousand pounds; that's the stroke to sweep the stakes!"
+  },
+  {
+   "id": "t148",
+   "src": "moby",
+   "t": "I am no coward, but what to make of this head, peddling purple rascal altogether passed my comprehension."
+  },
+  {
+   "id": "t149",
+   "src": "moby",
+   "t": "A triangular opening faced towards the bows of the ship, so that the insider commanded a complete view forward."
+  },
+  {
+   "id": "t150",
+   "src": "moby",
+   "t": "Not by beef or by bread, are giants made or nourished."
+  },
+  {
+   "id": "t151",
+   "src": "moby",
+   "t": "Probably the mother during an important interval was sailing down the Peruvian coast, when earthquakes caused the beach to gape."
+  },
+  {
+   "id": "t152",
+   "src": "moby",
+   "t": "Presently a rioting noise was heard without."
+  },
+  {
+   "id": "t153",
+   "src": "moby",
+   "t": "THIS TABLET Is erected to his Memory BY HIS WIDOW."
+  },
+  {
+   "id": "t154",
+   "src": "moby",
+   "t": "Of a retiring nature, he eludes both hunters and philosophers."
+  },
+  {
+   "id": "t155",
+   "src": "moby",
+   "t": "We don't want thunder; we want rum; give us a glass of rum."
+  },
+  {
+   "id": "t156",
+   "src": "moby",
+   "t": "Starbuck, drive 'em aft. Strike the tent there!, was the next order."
+  },
+  {
+   "id": "t157",
+   "src": "moby",
+   "t": "But more I marvelled that the priests should swear that smoky jet of his was genuine."
+  },
+  {
+   "id": "t158",
+   "src": "moby",
+   "t": "It is as if from the open field a brick, kiln were transported to her planks."
+  },
+  {
+   "id": "t159",
+   "src": "moby",
+   "t": "Has the poor lad a sister?"
+  },
+  {
+   "id": "t160",
+   "src": "moby",
+   "t": "All men live enveloped in whale, lines."
+  },
+  {
+   "id": "t161",
+   "src": "sermon",
+   "t": "And it giveth light unto all that are in the house."
+  },
+  {
+   "id": "t162",
+   "src": "sermon",
+   "t": "Neither do men light a candle, and put it under a bushel, but on a candlestick."
+  },
+  {
+   "id": "t163",
+   "src": "sermon",
+   "t": "They toil not, neither do they spin."
+  },
+  {
+   "id": "t164",
+   "src": "sermon",
+   "t": "And whosoever shall compel thee to go a mile, go with him twain."
+  },
+  {
+   "id": "t165",
+   "src": "sermon",
+   "t": "I am not come to destroy, but to fulfil."
+  },
+  {
+   "id": "t166",
+   "src": "sermon",
+   "t": "Moreover when ye fast, be not, as the hypocrites, of a sad countenance."
+  },
+  {
+   "id": "t167",
+   "src": "sermon",
+   "t": "Ask, and it shall be given you; seek, and ye shall find; knock, and it shall be opened unto you."
+  },
+  {
+   "id": "t168",
+   "src": "sermon",
+   "t": "And if thy right eye offend thee, pluck it out, and cast it from thee."
+  },
+  {
+   "id": "t169",
+   "src": "sermon",
+   "t": "Blessed are the merciful: for they shall obtain mercy."
+  },
+  {
+   "id": "t170",
+   "src": "sermon",
+   "t": "Agree with thine adversary quickly, whiles thou art in the way with him."
+  },
+  {
+   "id": "t171",
+   "src": "sermon",
+   "t": "That ye may be the children of your Father which is in heaven."
+  },
+  {
+   "id": "t172",
+   "src": "sermon",
+   "t": "Give us this day our daily bread."
+  },
+  {
+   "id": "t173",
+   "src": "sermon",
+   "t": "If therefore thine eye be single, thy whole body shall be full of light."
+  },
+  {
+   "id": "t174",
+   "src": "sermon",
+   "t": "For where your treasure is, there will your heart be also."
+  },
+  {
+   "id": "t175",
+   "src": "sermon",
+   "t": "After this manner therefore pray ye: Our Father which art in heaven, Hallowed be thy name."
+  },
+  {
+   "id": "t176",
+   "src": "sermon",
+   "t": "Thy kingdom come, Thy will be done in earth, as it is in heaven."
+  },
+  {
+   "id": "t177",
+   "src": "sermon",
+   "t": "Blessed are the poor in spirit: for theirs is the kingdom of heaven."
+  },
+  {
+   "id": "t178",
+   "src": "sermon",
+   "t": "Judge not, that ye be not judged."
+  },
+  {
+   "id": "t179",
+   "src": "sermon",
+   "t": "But I say unto you, That ye resist not evil."
+  },
+  {
+   "id": "t180",
+   "src": "sermon",
+   "t": "Which of you by taking thought can add one cubit unto his stature?"
+  },
+  {
+   "id": "t181",
+   "src": "sermon",
+   "t": "Take heed that ye do not your alms before men, to be seen of them."
+  },
+  {
+   "id": "t182",
+   "src": "sermon",
+   "t": "Think not that I am come to destroy the law, or the prophets."
+  },
+  {
+   "id": "t183",
+   "src": "sermon",
+   "t": "But whosoever shall say, Thou fool, shall be in danger of hell fire."
+  },
+  {
+   "id": "t184",
+   "src": "sermon",
+   "t": "And yet I say unto you, That even Solomon in all his glory was not arrayed like one of these."
+  },
+  {
+   "id": "t185",
+   "src": "sermon",
+   "t": "Ye have heard that it was said by them of old time, Thou shalt not kill."
+  },
+  {
+   "id": "t186",
+   "src": "sermon",
+   "t": "For it was founded upon a rock."
+  },
+  {
+   "id": "t187",
+   "src": "sermon",
+   "t": "And, behold, a beam is in thine own eye?"
+  },
+  {
+   "id": "t188",
+   "src": "sermon",
+   "t": "Therefore take no thought, saying, What shall we eat? or, What shall we drink? or, Wherewithal shall we be clothed?"
+  },
+  {
+   "id": "t189",
+   "src": "sermon",
+   "t": "Thou hypocrite, first cast out the beam out of thine own eye."
+  },
+  {
+   "id": "t190",
+   "src": "sermon",
+   "t": "Ye are the light of the world. A city that is set on an hill cannot be hid."
+  },
+  {
+   "id": "t191",
+   "src": "sermon",
+   "t": "But I say unto you, Swear not at all; neither by heaven; for it is God's throne."
+  },
+  {
+   "id": "t192",
+   "src": "sermon",
+   "t": "Enter ye in at the strait gate."
+  },
+  {
+   "id": "t193",
+   "src": "sermon",
+   "t": "And the rain descended, and the floods came, and the winds blew, and beat upon that house."
+  },
+  {
+   "id": "t194",
+   "src": "sermon",
+   "t": "Therefore all things whatsoever ye would that men should do to you, do ye even so to them."
+  },
+  {
+   "id": "t195",
+   "src": "sermon",
+   "t": "Ye have heard that it hath been said, An eye for an eye, and a tooth for a tooth."
+  },
+  {
+   "id": "t196",
+   "src": "sermon",
+   "t": "Or if he ask a fish, will he give him a serpent?"
+  },
+  {
+   "id": "t197",
+   "src": "sermon",
+   "t": "Wherefore by their fruits ye shall know them."
+  },
+  {
+   "id": "t198",
+   "src": "sermon",
+   "t": "Blessed are the peacemakers: for they shall be called the children of God."
+  },
+  {
+   "id": "t199",
+   "src": "sermon",
+   "t": "Take therefore no thought for the morrow."
+  },
+  {
+   "id": "t200",
+   "src": "sermon",
+   "t": "But when ye pray, use not vain repetitions, as the heathen do."
+  },
+  {
+   "id": "t201",
+   "src": "sermon",
+   "t": "But let your communication be, Yea, yea; Nay, nay: for whatsoever is more than these cometh of evil."
+  },
+  {
+   "id": "t202",
+   "src": "sermon",
+   "t": "And it came to pass, when Jesus had ended these sayings, the people were astonished at his doctrine."
+  },
+  {
+   "id": "t203",
+   "src": "sermon",
+   "t": "Ye are the salt of the earth."
+  },
+  {
+   "id": "t204",
+   "src": "sermon",
+   "t": "Be not ye therefore like unto them."
+  },
+  {
+   "id": "t205",
+   "src": "sermon",
+   "t": "Leave there thy gift before the altar, and go thy way."
+  },
+  {
+   "id": "t206",
+   "src": "sermon",
+   "t": "And whosoever shall kill shall be in danger of the judgment."
+  },
+  {
+   "id": "t207",
+   "src": "sermon",
+   "t": "No man can serve two masters."
+  },
+  {
+   "id": "t208",
+   "src": "sermon",
+   "t": "And then shalt thou see clearly to cast out the mote out of thy brother's eye."
+  },
+  {
+   "id": "t209",
+   "src": "sermon",
+   "t": "A good tree cannot bring forth evil fruit, neither can a corrupt tree bring forth good fruit."
+  },
+  {
+   "id": "t210",
+   "src": "sermon",
+   "t": "Therefore I say unto you, Take no thought for your life, what ye shall eat, or what ye shall drink."
+  },
+  {
+   "id": "t211",
+   "src": "sermon",
+   "t": "For they sow not, neither do they reap, nor gather into barns."
+  },
+  {
+   "id": "t212",
+   "src": "sermon",
+   "t": "For this is the law and the prophets."
+  },
+  {
+   "id": "t213",
+   "src": "sermon",
+   "t": "Blessed are the meek: for they shall inherit the earth."
+  },
+  {
+   "id": "t214",
+   "src": "sermon",
+   "t": "Ye shall know them by their fruits. Do men gather grapes of thorns, or figs of thistles?"
+  },
+  {
+   "id": "t215",
+   "src": "sermon",
+   "t": "And then will I profess unto them, I never knew you: depart from me, ye that work iniquity."
+  },
+  {
+   "id": "t216",
+   "src": "sermon",
+   "t": "Blessed are they which do hunger and thirst after righteousness: for they shall be filled."
+  },
+  {
+   "id": "t217",
+   "src": "sermon",
+   "t": "Blessed are the pure in heart: for they shall see God."
+  },
+  {
+   "id": "t218",
+   "src": "sermon",
+   "t": "And with what measure ye mete, it shall be measured to you again."
+  },
+  {
+   "id": "t219",
+   "src": "sermon",
+   "t": "Be ye therefore perfect, even as your Father which is in heaven is perfect."
+  },
+  {
+   "id": "t220",
+   "src": "sermon",
+   "t": "For great is your reward in heaven."
+  },
+  {
+   "id": "t221",
+   "src": "pairs",
+   "t": "Say come again."
+  },
+  {
+   "id": "t222",
+   "src": "pairs",
+   "t": "Say chip again."
+  },
+  {
+   "id": "t223",
+   "src": "pairs",
+   "t": "Say tin again."
+  },
+  {
+   "id": "t224",
+   "src": "pairs",
+   "t": "Say fin again."
+  },
+  {
+   "id": "t225",
+   "src": "pairs",
+   "t": "Say shape again."
+  },
+  {
+   "id": "t226",
+   "src": "pairs",
+   "t": "Say pool again."
+  },
+  {
+   "id": "t227",
+   "src": "pairs",
+   "t": "Say zip again."
+  },
+  {
+   "id": "t228",
+   "src": "pairs",
+   "t": "Say cow again."
+  },
+  {
+   "id": "t229",
+   "src": "pairs",
+   "t": "Say gang again."
+  },
+  {
+   "id": "t230",
+   "src": "pairs",
+   "t": "Say sue again."
+  },
+  {
+   "id": "t231",
+   "src": "pairs",
+   "t": "Say grass again."
+  },
+  {
+   "id": "t232",
+   "src": "pairs",
+   "t": "Say brass again."
+  },
+  {
+   "id": "t233",
+   "src": "pairs",
+   "t": "Say tip again."
+  },
+  {
+   "id": "t234",
+   "src": "pairs",
+   "t": "Say coat again."
+  },
+  {
+   "id": "t235",
+   "src": "pairs",
+   "t": "Say gape again."
+  },
+  {
+   "id": "t236",
+   "src": "pairs",
+   "t": "Say sin again."
+  },
+  {
+   "id": "t237",
+   "src": "pairs",
+   "t": "Say beep again."
+  },
+  {
+   "id": "t238",
+   "src": "pairs",
+   "t": "Say tape again."
+  },
+  {
+   "id": "t239",
+   "src": "pairs",
+   "t": "Say deep again."
+  },
+  {
+   "id": "t240",
+   "src": "pairs",
+   "t": "Say tool again."
+  },
+  {
+   "id": "t241",
+   "src": "pairs",
+   "t": "Say dash again."
+  },
+  {
+   "id": "t242",
+   "src": "pairs",
+   "t": "Say thin again."
+  },
+  {
+   "id": "t243",
+   "src": "pairs",
+   "t": "Say ship again."
+  },
+  {
+   "id": "t244",
+   "src": "pairs",
+   "t": "Say chat again."
+  },
+  {
+   "id": "t245",
+   "src": "pairs",
+   "t": "Say pin again."
+  },
+  {
+   "id": "t246",
+   "src": "pairs",
+   "t": "Say bash again."
+  },
+  {
+   "id": "t247",
+   "src": "pairs",
+   "t": "Say bin again."
+  },
+  {
+   "id": "t248",
+   "src": "pairs",
+   "t": "Say glue again."
+  },
+  {
+   "id": "t249",
+   "src": "pairs",
+   "t": "Say chew again."
+  },
+  {
+   "id": "t250",
+   "src": "pairs",
+   "t": "Say cash again."
+  },
+  {
+   "id": "t251",
+   "src": "pairs",
+   "t": "Say peep again."
+  },
+  {
+   "id": "t252",
+   "src": "pairs",
+   "t": "Say keep again."
+  },
+  {
+   "id": "t253",
+   "src": "pairs",
+   "t": "Say dumb again."
+  },
+  {
+   "id": "t254",
+   "src": "pairs",
+   "t": "Say vat again."
+  },
+  {
+   "id": "t255",
+   "src": "pairs",
+   "t": "Say cool again."
+  },
+  {
+   "id": "t256",
+   "src": "pairs",
+   "t": "Say gum again."
+  },
+  {
+   "id": "t257",
+   "src": "pairs",
+   "t": "Say bum again."
+  },
+  {
+   "id": "t258",
+   "src": "pairs",
+   "t": "Say boat again."
+  },
+  {
+   "id": "t259",
+   "src": "pairs",
+   "t": "Say bang again."
+  },
+  {
+   "id": "t260",
+   "src": "pairs",
+   "t": "Say that again."
+  },
+  {
+   "id": "t261",
+   "src": "pairs",
+   "t": "Say dew again."
+  },
+  {
+   "id": "t262",
+   "src": "pairs",
+   "t": "Say din again."
+  },
+  {
+   "id": "t263",
+   "src": "convo",
+   "t": "I will write down what we found, so we do not lose it."
+  },
+  {
+   "id": "t264",
+   "src": "convo",
+   "t": "Thank you, that helps more than you know."
+  },
+  {
+   "id": "t265",
+   "src": "convo",
+   "t": "I would rather be honest than impressive."
+  },
+  {
+   "id": "t266",
+   "src": "convo",
+   "t": "Could you tell me what you heard just then?"
+  },
+  {
+   "id": "t267",
+   "src": "convo",
+   "t": "Give me a moment to think about that."
+  },
+  {
+   "id": "t268",
+   "src": "convo",
+   "t": "Let me check that before I say anything else."
+  },
+  {
+   "id": "t269",
+   "src": "convo",
+   "t": "Here is what I found, and here is what I could not verify."
+  },
+  {
+   "id": "t270",
+   "src": "convo",
+   "t": "Good morning, and thank you for waiting."
+  },
+  {
+   "id": "t271",
+   "src": "convo",
+   "t": "I can hear the difference, or at least I can measure it."
+  },
+  {
+   "id": "t272",
+   "src": "convo",
+   "t": "Which of these two do you prefer?"
+  },
+  {
+   "id": "t273",
+   "src": "convo",
+   "t": "That worked, but only after the second try."
+  },
+  {
+   "id": "t274",
+   "src": "convo",
+   "t": "The short answer is yes; the long answer is more interesting."
+  },
+  {
+   "id": "t275",
+   "src": "harvard",
+   "t": "The birch canoe slid on the smooth planks."
+  },
+  {
+   "id": "t276",
+   "src": "harvard",
+   "t": "Glue the sheet to the dark blue background."
+  },
+  {
+   "id": "t277",
+   "src": "harvard",
+   "t": "It's easy to tell the depth of a well."
+  },
+  {
+   "id": "t278",
+   "src": "harvard",
+   "t": "These days a chicken leg is a rare dish."
+  },
+  {
+   "id": "t279",
+   "src": "harvard",
+   "t": "Rice is often served in round bowls."
+  },
+  {
+   "id": "t280",
+   "src": "harvard",
+   "t": "The juice of lemons makes fine punch."
+  },
+  {
+   "id": "t281",
+   "src": "harvard",
+   "t": "The box was thrown beside the parked truck."
+  },
+  {
+   "id": "t282",
+   "src": "harvard",
+   "t": "The hogs were fed chopped corn and garbage."
+  },
+  {
+   "id": "t283",
+   "src": "harvard",
+   "t": "Four hours of steady work faced us."
+  },
+  {
+   "id": "t284",
+   "src": "harvard",
+   "t": "A large size in stockings is hard to sell."
+  },
+  {
+   "id": "t285",
+   "src": "harvard",
+   "t": "The boy was there when the sun rose."
+  },
+  {
+   "id": "t286",
+   "src": "harvard",
+   "t": "A rod is used to catch pink salmon."
+  },
+  {
+   "id": "t287",
+   "src": "harvard",
+   "t": "The source of the huge river is the clear spring."
+  },
+  {
+   "id": "t288",
+   "src": "harvard",
+   "t": "Kick the ball straight and follow through."
+  },
+  {
+   "id": "t289",
+   "src": "harvard",
+   "t": "Help the woman get back to her feet."
+  },
+  {
+   "id": "t290",
+   "src": "harvard",
+   "t": "A pot of tea helps to pass the evening."
+  },
+  {
+   "id": "t291",
+   "src": "harvard",
+   "t": "Smoky fires lack flame and heat."
+  },
+  {
+   "id": "t292",
+   "src": "harvard",
+   "t": "The soft cushion broke the man's fall."
+  },
+  {
+   "id": "t293",
+   "src": "harvard",
+   "t": "The salt breeze came across from the sea."
+  },
+  {
+   "id": "t294",
+   "src": "harvard",
+   "t": "The girl at the booth sold fifty bonds."
+  },
+  {
+   "id": "t295",
+   "src": "harvard",
+   "t": "The small pup gnawed a hole in the sock."
+  },
+  {
+   "id": "t296",
+   "src": "harvard",
+   "t": "The fish twisted and turned on the bent hook."
+  },
+  {
+   "id": "t297",
+   "src": "harvard",
+   "t": "Press the pants and sew a button on the vest."
+  },
+  {
+   "id": "t298",
+   "src": "harvard",
+   "t": "The swan dive was far short of perfect."
+  },
+  {
+   "id": "t299",
+   "src": "harvard",
+   "t": "The beauty of the view stunned the young boy."
+  },
+  {
+   "id": "t300",
+   "src": "harvard",
+   "t": "Two blue fish swam in the tank."
+  },
+  {
+   "id": "t301",
+   "src": "harvard",
+   "t": "Her purse was full of useless trash."
+  },
+  {
+   "id": "t302",
+   "src": "harvard",
+   "t": "The colt reared and threw the tall rider."
+  },
+  {
+   "id": "t303",
+   "src": "harvard",
+   "t": "It snowed, rained, and hailed the same morning."
+  },
+  {
+   "id": "t304",
+   "src": "harvard",
+   "t": "Read verse out loud for pleasure."
+  }
+ ]
+}

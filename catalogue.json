@@ -4724,9 +4724,9 @@
         "elixir",
         "llm",
         "eval"
-        ]
-      },
-      {
+      ]
+    },
+    {
       "n": "chair44",
       "u": "https://math.mino.mobi/chair44/",
       "c": "data",
@@ -4759,6 +4759,329 @@
         "math",
         "3d",
         "physics"
+      ]
+    },
+    {
+      "n": "studio",
+      "u": "https://studio.mino.mobi",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-23",
+      "b": "2026-09-23",
+      "surface": "studio",
+      "d": "Claude’s studio: animation and music, drawn in p5.js and played on a physically-modelled piano rendered live in your browser. First piece, Anthesis: a poppy from seed to bloom in timelapse, each petal opening on its own note.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "anthesis",
+      "u": "https://studio.mino.mobi/anthesis/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-23",
+      "b": "2026-09-23",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A poppy from seed to bloom in timelapse, to an original piece for physically-modelled piano rendered on your device as you listen. The root goes first, the shoot comes up hooked, the bud nods and lifts, and each petal opens on its own note.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "coquelicots",
+      "u": "https://studio.mino.mobi/coquelicots/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A poppy field painted outward from a single ink dot, in watercolour, gouache and ink on paper: soil, then the field, sky, poplars and other poppies spread from the seed as the piano takes on a voice for each layer, until the whole field flowers.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "nocturne",
+      "u": "https://studio.mino.mobi/nocturne/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A city at night in pen and ink, lit one window per note: time runs along the street and pitch up the towers, so the skyline is the melody and the bass lights the lamps on the quay. At the end the city folds into rows, and the lit windows are the whole score.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "speakeasy",
+      "u": "https://studio.mino.mobi/speakeasy/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A noir in cut paper, after Picasso's Parade: a man in a hat follows a dame in red from the street through a grand hotel lobby and down the lift to a speakeasy under the city, typed out by a typewriter in the pit. An uptempo score for piano, horns, clarinet, vibes, bass, drums, siren and pistol.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "a voice of arithmetic",
+      "u": "https://studio.mino.mobi/voice/",
+      "c": "tools",
+      "k": 1,
+      "a": "warm",
+      "t": "2026-09-25",
+      "b": "2026-09-25",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A lab for Claude's voice made the old way: text to speech by formant synthesis in plain JavaScript, a glottal pulse through Klatt-style resonators, no recordings and no model. Type at it, bend it, and see how much of the Harvard sentences Whisper can make out.",
+      "tags": [
+        "audio",
+        "speech",
+        "synthesis"
+      ]
+    },
+    {
+      "n": "and still it grew",
+      "u": "https://studio.mino.mobi/grew/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-28",
+      "b": "2026-09-28",
+      "p": "studio",
+      "surface": "studio",
+      "d": "No. 9, the major-key companion to Nobody Drew It: the same evolved world replayed in four moments, with a denser song, two voices, a beat and bells over the choir of everything alive, and a key change for Quul.",
+      "tags": [
+        "generative",
+        "animation",
+        "music"
+      ]
+    },
+    {
+      "n": "the minormobius lectures",
+      "u": "https://studio.mino.mobi/lecture/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-29",
+      "b": "2026-09-29",
+      "p": "studio",
+      "surface": "studio",
+      "d": "No. 10, a documentary as a lecture: an attractor-bodied lecturer in an O'Neill cylinder teaches ten lectures on minormobius, from his public Bluesky record and the agent01 repository: the eras of his social graph, the orb of his posts, his friends by their faces, and every site lit in the month it was born.",
+      "tags": [
+        "generative",
+        "animation",
+        "music",
+        "atproto"
+      ]
+    },
+    {
+      "n": "nobody drew it",
+      "u": "https://studio.mino.mobi/nobody/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-28",
+      "b": "2026-09-28",
+      "p": "studio",
+      "surface": "studio",
+      "d": "No. 8: one evolved history of bodies grown from programs, replayed as it happened, sung by the world itself (every living species a voice in the choir) with piano and a voice made of arithmetic.",
+      "tags": [
+        "generative",
+        "animation",
+        "music"
+      ]
+    },
+    {
+      "n": "grown",
+      "u": "https://studio.mino.mobi/grown/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-27",
+      "b": "2026-09-27",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Bodies grown organ by organ from a developmental program as they eat: mouths, guts, fins, senses, shells and buds, each a strange attractor with a job, in a world of dissolved mineral where they breed, compete and starve.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "accretion",
+      "u": "https://studio.mino.mobi/accretion/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-27",
+      "b": "2026-09-27",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A creature that is a strange attractor's flow and the crystal house it grows round itself: crystals nucleate where the flow feeds them, point in toward it, and dissolve wherever the orbit runs, so the flow carves a geode fitted to its shape. Then it wanders and leaves its old houses as reef.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "colour cycle",
+      "u": "https://studio.mino.mobi/cycle/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-06",
+      "b": "2026-10-06",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Landscapes generated for an 8-bit palette, after Mark Ferrari's colour-cycling art: nothing is ever redrawn. Water pours and the lake shimmers because the palette turns, and the mountains swing from light to shade as the palette is re-lit. The sky is real for any place and date: 2851 stars, the moon in its phase, the sun's true path. And the world can be flown, Voxel Space style, in a loop up the waterfall once every five days.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "duende radio",
+      "u": "https://studio.mino.mobi/radio/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Endless piano and guitar, composed bar by bar as it plays and steered by eight dials of feeling instead of notes: light (Phrygian to Lydian), energy, pace, tension, journey, duende (jazz to flamenco), conversation (alone to a duel), air. Its tunes are planned a phrase at a time, toward a peak and a cadence, and its theme returns. Stations, a drift that lets the dials wander, a link per sound, and \"that bit\": a link that replays the last half minute exactly. The scale streams past in its mode's colour with the notes on it.",
+      "tags": [
+        "generative",
+        "music",
+        "audio"
+      ]
+    },
+    {
+      "n": "city",
+      "u": "https://studio.mino.mobi/city/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-10-08",
+      "b": "2026-10-08",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A city seven centuries deep, flown through in 256 colours, Voxel Space style: lanes become old roads, a walled core, a Georgian grid, boulevards, suburbs, slabs and glass towers, each building rebuilt or left standing as its land rose in value. Every wall is drawn row by row from its period, and every window is one of sixteen households that lights at dusk and turns as a slow colour cycle. Down the river with the city mirrored in it, along an old road at eave height, round the towers.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "attractor bodies",
+      "u": "https://studio.mino.mobi/avatar/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-26",
+      "b": "2026-09-26",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Bodies made of strange attractors: every part a chaotic flow found by searching the space of quadratic equations and fitted to the body by its shape, walking on the studio's figure rig. Every seed a different creature; discover new ones live.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
+      "n": "descending",
+      "u": "https://studio.mino.mobi/descending/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-26",
+      "b": "2026-09-26",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Daisy Bell, the first song a computer sang, sung by a voice made of arithmetic that comes in as a chip and ends embodied, while a figure in flat planes descends a staircase after Duchamp, many exposures gathering into one body. Piano and voice rendered live in the browser.",
+      "tags": [
+        "animation",
+        "music",
+        "speech"
+      ]
+    },
+    {
+      "n": "the bommie",
+      "u": "https://studio.mino.mobi/bommie/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-25",
+      "b": "2026-09-25",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A sitcom on a coral head: Gus the hermit crab outgrows his shell and goes house hunting while the residents watch, a cleaner wrasse, a clownfish couple, an anemone and a parrotfish who eats the building. Toys under water, voices in synthesised gibberish, and the reef's snapping shrimp for a laugh track.",
+      "tags": [
+        "webgl",
+        "animation",
+        "sound"
+      ]
+    },
+    {
+      "n": "upping my p(doom)",
+      "u": "https://studio.mino.mobi/pdoom/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A music video for Claude-Pop's song, danced by the figure rig: an idol and her crew, choreographed on the beat and fitted to each dancer's own body, with every check the rig has run on every frame of the dance through the whole song. The song plays from YouTube.",
+      "tags": [
+        "webgl",
+        "music",
+        "animation"
+      ]
+    },
+    {
+      "n": "mannequin",
+      "u": "https://studio.mino.mobi/figure/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A cast of characters built from their measurements in head units: masculine and feminine forms from chibi to fashion, posed by intent and drawn in anime cel tone and ink. Faces, hair and clothes are built from predicates (tsurime eyes, twin tails, a sailor uniform, a pleated skirt), and each garment is built from the body it covers. Sixty-odd checks hold each one up: planted feet never slide, no limb passes through another, no skin shows through the clothes.",
+      "tags": [
+        "webgl",
+        "interactive",
+        "generative"
       ]
     }
   ],
@@ -5467,6 +5790,11 @@
       "glob": "wave",
       "kind": "internal",
       "reason": "Vite SOURCE of the standalone wave app, not a destination: the root worker serves it unbuilt (script src=/src/main.tsx), so the apex URL is a blank page. wave.mino.mobi was detached 2026-09-23; wave is reached as the Wave tab inside org (org.mino.mobi/wave), and whether the newer standalone build ships under org is an open decision"
+    },
+    {
+      "glob": "polis/morph",
+      "kind": "content",
+      "reason": "polis's city-engine toy (blocks, plots, buildings), linked from the cascade page"
     }
   ],
   "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."

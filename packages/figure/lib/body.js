@@ -1,0 +1,366 @@
+// body.js — the figure's volumes, hung on a solved pose.
+//
+// The body is a signed distance field built from two primitives: ROUND CONES
+// (a sphere swept to another sphere of a different radius — every limb is a
+// chain of them following a thickness profile) and ELLIPSOIDS (the ribcage,
+// belly, pelvis, skull, hands, feet). Within one GROUP the primitives melt into
+// each other (a smooth minimum, radius k), which is what makes a shoulder flow
+// into an arm; BETWEEN groups the union is hard, which is what keeps an arm
+// that rests against the hip from fusing to it, and what draws the line where
+// a forearm crosses the chest.
+//
+// The same list feeds the GPU (pack → a float texture) and this file's `sdf`,
+// which the checks use in node: one body, measured and drawn.
+
+import { add, sub, scale, dot, cross, norm, len, dist, apply, madd, lerp3, rotate as rotateV } from './vec.js';
+import { buildHair } from './hair.js';
+import { buildClothes } from './clothes.js';
+import { buildHand } from './hand.js';
+
+export const GROUPS = ['torso', 'head', 'arm_l', 'arm_r', 'leg_l', 'leg_r', 'hair', 'hair_back', 'tail_l', 'tail_r', 'top', 'bottom', 'legwear', 'shoes', 'accent', 'collar'];
+export const HAIR_GROUPS = new Set([6, 7, 8, 9]);
+export const GARMENT_GROUPS = new Set([10, 11, 12, 13, 14, 15]);
+const G = Object.fromEntries(GROUPS.map((g, i) => [g, i]));
+export const CONE = 0, ELLIPSOID = 1, CAPPED = 2, SKIRT = 3, RIBBON = 4;   // CAPPED: an ellipsoid cut by a plane (the hairline); SKIRT: a flared, pleated cone; RIBBON: a round cone flattened across n (a lock of hair)
+
+// `side` (+1 left, −1 right, 0 centre): within a group the centre parts blend
+// first, then each side blends onto the centre on its own, and the two are
+// united. A smooth minimum is not associative, so blending the parts in one
+// list order would make the left shoulder differ from the right.
+const sideOf = (name) => /_l\d*$/.test(name) ? 1 : /_r\d*$/.test(name) ? -1 : 0;
+const cone = (group, a, b, ra, rb, k, name) => ({ type: CONE, group: G[group], side: group === 'torso' || group === 'head' ? sideOf(name) : 0, a, b, ra, rb, k, name });
+// a ribbon: a round cone squashed to `flat` of its thickness along `n` (a lock lies flat to the head)
+const ribbon = (group, a, b, ra, rb, n, flat, k, name) => ({ type: RIBBON, group: G[group], side: 0, a, b, ra, rb, F: { x: n, y: [0, 1, 0], z: [0, 0, 1] }, r: [flat, 1, 1], k, name });
+const ell = (group, c, F, r, k, name) => ({ type: ELLIPSOID, group: G[group], side: group === 'torso' || group === 'head' ? sideOf(name) : 0, a: c, F, r, k, name });
+
+/** A limb segment from A to B, following a profile [[t, radius, offset?]...]. */
+function chain(out, group, A, B, profile, k, name, offDir) {
+  const pts = profile.map(([t, r, o = 0]) => [offDir && o ? madd(lerp3(A, B, t), offDir, o) : lerp3(A, B, t), r]);
+  for (let i = 0; i < pts.length - 1; i++) out.push(cone(group, pts[i][0], pts[i + 1][0], pts[i][1], pts[i + 1][1], k, `${name}${i}`));
+}
+
+/** Every primitive of the body in pose `P` (from rig.solve). */
+/**
+ * The body's primitives. `hands`: 'full' or 'block' (hand.js). `hair: false` and
+ * `clothes: false` leave those out, for the solvers in settle.js that ignore them (hair is
+ * soft to every one of them; the centre of mass and an arm's clearance ignore clothes).
+ */
+export function buildBody(P, { hands = 'full', hair = true, clothes = true } = {}) {
+  const { J, F, rig } = P;
+  const m = rig.m, R = m.radii, kk = m.k;
+  const out = [];
+  const perp = (d, axis) => norm(sub(d, scale(axis, dot(d, axis))));
+
+  // ---- torso
+  const pelvisPrim = ell('torso', add(J.pelvis, apply(F.pelvis, [0, 0.05 * kk - (m.pelvis.drop || 0), -0.03 * kk])), F.pelvis, m.pelvis.r, (m.pelvis.blend ?? 0.2) * kk, 'pelvis');
+  pelvisPrim.hk = HIP_BLEND * kk;            // the hips melt into the thighs by this much (see sdf)
+  out.push(pelvisPrim);
+  out.push(ell('torso', add(J.waist, apply(F.waist, [0, 0.05 * kk, 0])), F.waist, m.belly.r, 0.28 * kk, 'belly'));
+  out.push(ell('torso', add(J.chest, apply(F.chest, [0, 0.06 * kk, 0.02 * kk])), F.chest, m.chest.r, 0.28 * kk, 'chest'));
+  out.push(cone('torso', J.neck, J.headPivot, R.neck * 1.25, R.neck, 0.12 * kk, 'neck'));
+  // the Adam's apple, on the front of a man's neck
+  const mjaw = (1 - (m.spec.femme || 0)) * Math.min(1, Math.max(0, (m.H - 3.5) / 2));
+  if (mjaw > 0.3) {
+    const nf = lerp3(J.neck, J.headPivot, 0.42);
+    out.push(ell('torso', add(nf, apply(F.neck, [0, 0, R.neck * 0.92])), F.neck, [0.035 * mjaw, 0.05 * mjaw, 0.03 * mjaw], 0.04 * kk, 'adamsApple'));
+  }
+  for (const s of ['l', 'r']) {
+    const sg = s === 'l' ? 1 : -1;
+    // the glutes, behind and below the hip joints
+    const G = m.glutes;
+    // it sits out of the hip blend (sdf): under the cheek the thigh meets it in a fold.
+    // A flexed hip (a crouch, a seat, a knee raised) carries it up and back round the
+    // joint, so it rides over the thigh instead of hanging under it
+    const hipJ = J[`hip_${s}`], th = norm(sub(J[`knee_${s}`], hipJ));
+    const flex = Math.atan2(dot(th, F.pelvis.z), -dot(th, F.pelvis.y));
+    const ride = 0.5 * Math.max(0, flex - 0.3);
+    const gc0 = add(J.pelvis, apply(F.pelvis, [sg * G.x, -0.17 * kk - (m.pelvis.drop || 0), -0.27 * kk]));
+    const gc = add(hipJ, rotateV(sub(gc0, hipJ), F.pelvis.x, ride));
+    const Fg = ride ? { x: F.pelvis.x, y: rotateV(F.pelvis.y, F.pelvis.x, ride), z: rotateV(F.pelvis.z, F.pelvis.x, ride) } : F.pelvis;
+    out.push(Object.assign(ell('torso', gc, Fg, [G.r, G.r * 1.15 * (1 - 0.12 * Math.min(1, ride)), G.r * 0.88], 0.1 * kk, `glute_${s}`), { noHip: true }));
+    // the breasts: on the front of the ribcage, turned a little outward (by `set`) and
+    // down; a low `lift` sits them lower and fills the lower pole (a second, lower mass)
+    if (m.bust) {
+      const b = m.bust, F0 = F.chest;
+      const turn = (v) => rotateV(rotateV(v, F0.y, sg * b.yaw), F0.x, 0.12 + 0.2 * b.teardrop);
+      const Fb = { x: turn(F0.x), y: turn(F0.y), z: turn(F0.z) };
+      const base = add(J.chest, apply(F0, [sg * b.x, (m.shoulderY - rig.chestY) - b.drop - 0.12 * kk, m.chest.r[2] * 0.62]));
+      const c = add(base, scale(Fb.z, b.proj * 0.55));
+      out.push(ell('torso', c, Fb, [b.w, b.w * 0.95, b.proj * 0.9 + 0.04 * kk], 0.1 * kk, `breast_${s}`));
+      if (b.teardrop > 0.05) out.push(ell('torso', add(c, add(scale(Fb.y, -b.w * 0.35), scale(Fb.z, b.proj * 0.1))), Fb, [b.w * 0.85, b.w * 0.6, b.proj * 0.75], 0.12 * kk, `breastlow_${s}`));
+    }
+    // the trapezius: from the base of the neck (at its back and side, not up by the jaw)
+    // sloping down to the point of the shoulder, so a neck shows above it
+    out.push(cone('torso', add(J.neck, apply(F.chest, [sg * 0.07 * m.wide, -0.04 * kk, -0.1])), madd(J[`shoulder_${s}`], F.chest.x, -sg * 0.08), R.neck * 0.62, R.deltoid * 0.5, 0.12 * kk, `trap_${s}`));
+    const dTop = madd(J[`shoulder_${s}`], F.chest.y, -0.04 * kk);
+    out.push(cone('torso', dTop, madd(dTop, norm(sub(J[`elbow_${s}`], J[`shoulder_${s}`])), 0.18 * kk), R.deltoid, R.deltoid * 0.9, 0.16 * kk, `deltoid_${s}`));
+    // the hip: from the joint a way down the thigh, so the torso's outline runs on into the leg
+    // (with wide hips it is the widest point of the figure, at the height of the joints)
+    const hipsW = m.spec.hips || 0;
+    out.push(cone('torso', J[`hip_${s}`], madd(J[`hip_${s}`], norm(sub(J[`knee_${s}`], J[`hip_${s}`])), (0.25 + 0.4 * hipsW) * kk), R.thigh[0][1] * (0.98 + 0.06 * hipsW), R.thigh[0][1] * (0.95 - 0.02 * hipsW), (0.2 + 0.16 * hipsW) * kk, `hipcap_${s}`));
+  }
+
+  // the collarbones: a ridge from the notch at the base of the throat out to the point of
+  // each shoulder, laid ON the chest's surface (found by marching in to it), so it shows as
+  // a line of light and shade across the top of the chest, not a bar floating in front of it
+  {
+    const torsoNow = out.slice();
+    const onChest = (p) => {
+      let q = madd(p, F.chest.z, 0.8 * kk);
+      for (let i = 0; i < 40; i++) { const d = sdf(torsoNow, q); if (Math.abs(d) < 1e-4) break; q = madd(q, F.chest.z, -d); }
+      return q;
+    };
+    const rc = 0.03 * kk, proud = 0.028 * kk;
+    for (const s of ['l', 'r']) {
+      const sg = s === 'l' ? 1 : -1;
+      const inner = add(J.neck, apply(F.chest, [sg * 0.075 * m.wide, -0.075 * kk, 0]));
+      const outer = madd(madd(J[`shoulder_${s}`], F.chest.x, -sg * 0.1 * kk), F.chest.y, -0.01 * kk);
+      const pts = [0, 0.33, 0.66, 1].map((f) => madd(onChest(lerp3(inner, outer, f)), F.chest.z, proud - rc * (1 + 0.3 * f)));
+      for (let i = 0; i < 3; i++) out.push(cone('torso', pts[i], pts[i + 1], rc * (1 - 0.1 * i), rc * (0.9 - 0.1 * i), 0.012 * kk, `clavicle_${s}${i}`));
+    }
+  }
+
+  // ---- head: the skull, and the jaw tapering to the chin
+  const w = m.head.width;
+  out.push(ell('head', add(J.headPivot, apply(F.head, m.head.cranium.c)), F.head, [w / 2, 0.44, 0.47], 0.1, 'cranium'));
+  const jw = m.head.jaw;
+  out.push(cone('head', add(J.headPivot, apply(F.head, jw.top)), add(J.headPivot, apply(F.head, jw.chin)), jw.rt * w / 0.8, jw.rc, 0.22, 'jaw'));
+  // the cheeks: fill between the skull and the jaw, so the face's outline runs clean to the chin
+  out.push(ell('head', add(J.headPivot, apply(F.head, [0, 0.2, 0.02])), F.head, [0.34 * w / 0.8, 0.2, 0.3], 0.16, 'cheeks'));
+  // the nose, a small wedge on the front of the face: it makes the profile, and the face draws the rest
+  const skull = out.slice(-3);
+  const frontZ = (y) => {                                   // where the face's front is, at height y (head frame)
+    let z = 0.8;
+    for (let i = 0; i < 60; i++) {
+      const p = add(J.headPivot, apply(F.head, [0, y, z]));
+      const d = smin(smin(primDist(skull[0], p), primDist(skull[1], p), 0.22), primDist(skull[2], p), 0.16);
+      if (Math.abs(d) < 1e-5) break;
+      z -= d;
+    }
+    return z;
+  };
+  const nv = (P.face?.noseV ?? 0.26) - m.head.pivotUp;
+  const zf = frontZ(nv);
+  out.push(cone('head', add(J.headPivot, apply(F.head, [0, nv + 0.05, zf - 0.02])), add(J.headPivot, apply(F.head, [0, nv - 0.004, zf + 0.018])), 0.016, 0.011, 0.05, 'nose'));
+  // ears, at the eye line on the sides of the head
+  for (const [s, sg] of [['l', 1], ['r', -1]]) {
+    out.push(ell('head', add(J.headPivot, apply(F.head, [sg * (w / 2 - 0.035), (P.face?.eyeLine ?? 0.42) - m.head.pivotUp - 0.03, -0.06])), F.head, [0.035, 0.1, 0.06], 0.035, `ear_${s}`));
+  }
+
+  // ---- arms
+  for (const s of ['l', 'r']) {
+    const sg = s === 'l' ? 1 : -1, g = `arm_${s}`;
+    const S = J[`shoulder_${s}`], E = J[`elbow_${s}`], W = J[`wrist_${s}`];
+    chain(out, g, S, E, R.upperArm, 0.03 * kk, `upper_${s}`);
+    chain(out, g, E, W, R.foreArm, 0.03 * kk, `fore_${s}`);
+    // the point of the elbow: behind the joint, away from the bend, so a bent arm has a
+    // corner where it folds and not a hose's round turn (straight, it still faces back)
+    const up = norm(sub(S, E)), fo = norm(sub(W, E)), bis = add(up, fo), bend = len(bis);
+    const behind = perp(scale(F.chest.z, -1), fo), bk = norm(add(scale(bis, -Math.min(1, bend * 3) / Math.max(bend, 1e-6)), scale(behind, 1 - Math.min(1, bend * 3))));
+    const oc = madd(E, bk, R.foreArm[0][1] * 0.72);
+    out.push(cone(g, oc, madd(oc, fo, 0.07 * kk), 0.05 * kk, 0.038 * kk, 0.04 * kk, `olecranon_${s}`));
+    // the hand: built last (buildHand, below), so a placed hand can lie on what it rests on
+  }
+
+  // ---- legs
+  for (const s of ['l', 'r']) {
+    const g = `leg_${s}`;
+    const H = J[`hip_${s}`], K = J[`knee_${s}`], A = J[`ankle_${s}`], FF = F[`foot_${s}`];
+    const thighDir = norm(sub(K, H)), shinDir = norm(sub(A, K));
+    const front = perp(FF.z, shinDir);                   // the shin's front: toward the toes
+    // the thigh's mass sits inside the hip joint (toward the midline), which is what
+    // closes the gap at the crotch
+    const inward = norm(sub(J.pelvis, H)), tf = perp(FF.z, thighDir);
+    const th = R.thigh;
+    const t0 = add(H, scale(perp(inward, thighDir), 0.1 * m.wide)), t1 = add(lerp3(H, K, th[1][0]), add(scale(tf, 0.012 * kk), scale(perp(inward, thighDir), 0.03 * m.wide)));
+    // (a limb's segments barely blend: round cones sharing a sphere already meet smoothly,
+    // and a smooth union bulges at every joint: that was the greebling)
+    out.push(cone(g, t0, t1, th[0][1], th[1][1], 0.03 * kk, `thigh_${s}0`));
+    out.push(cone(g, t1, K, th[1][1], th[2][1], 0, `thigh_${s}1`));
+    out.push(cone(g, madd(K, front, 0.012 * kk), madd(K, front, 0.012 * kk), 0.1 * m.thick, 0.1 * m.thick, 0.06 * kk, `kneecap_${s}`));
+    chain(out, g, K, A, R.shin.map(([t, r], i) => [t, r, i === 1 ? -0.03 * kk : 0]), 0, `shin_${s}`, front);
+    // the foot: heel to ball, a flattened ellipsoid, and the toes
+    const rf = R.foot;
+    // (lifted a hair: the smooth blend between the foot's parts bulges below each part)
+    const heelC = add(J[`heel_${s}`], scale(FF.y, rf * 1.1)), ballC = add(J[`ball_${s}`], scale(FF.y, rf * 0.92));
+    out.push(cone(g, A, heelC, 0.085 * m.thick, rf, 0.03 * kk, `ankle_${s}`));
+    out.push(ell(g, lerp3(heelC, ballC, 0.5), FF, [0.15 * m.wide, rf * 0.88, dist(heelC, ballC) / 2 + rf * 0.7], 0.03 * kk, `foot_${s}`));
+    out.push(cone(g, ballC, add(J[`toe_${s}`], scale(FF.y, rf * 0.55)), rf * 0.95, rf * 0.55, 0.03 * kk, `toes_${s}`));
+  }
+  // ---- clothes: the body it covers, inflated and cut (clothes.js)
+  if (P.outfit && clothes) {
+    // `surface`: the point on the body's front along `dir` from `pt`, lifted by `lift` (for things laid on the chest)
+    const bodyNow = out.slice();
+    const surface = (pt, dir, lift) => {
+      let p = add(pt, scale(dir, 1));
+      for (let i = 0; i < 60; i++) { const d = sdf(bodyNow, p); if (Math.abs(d) < 1e-4) break; p = add(p, scale(dir, -d)); }
+      return add(p, scale(dir, lift));
+    };
+    const clothes = buildClothes(P, bodyNow, P.outfit, { ellipsoid: ell, cone, surface, roundCone: sdRoundCone });
+    for (const q of clothes) {
+      if (typeof q.group === 'string') q.group = G[q.group];
+      const base = q.name.includes(':') ? q.name.split(':')[1] : q.name;
+      if (q.side === undefined || q.name.includes(':')) q.side = sideOf(base);
+    }
+    out.push(...clothes);
+  }
+  // ---- hands (hand.js): a placed hand's fingers rest on the body and the clothes, not in them
+  for (const s of ['l', 'r']) {
+    const own = G[`arm_${s}`];
+    // (only what is within the hand's reach: the rest cannot touch it, and the solver asks often)
+    const reach = add(J[`wrist_${s}`], scale(F[`hand_${s}`].z, 0.5 * m.hand)), rr = 0.9 * m.hand;
+    const near = (q) => { const [c, r] = boundOf(q); return dist(c, reach) < r + rr + 0.2 * kk; };
+    const scene = P.hands?.[s]?.placed ? ((rest) => (p) => sdf(rest, p))(solidified(out.filter((q) => notOwnArm(s)(q) && near(q)))) : null;
+    out.push(...buildHand(P, s, { ellipsoid: ell, cone }, { scene, detail: hands }));
+  }
+  // ---- hair: built last, on the body, so its locks can be kept off it (and off the clothes)
+  if (P.hair && hair) {
+    const skin = out.filter((q) => q.group === G.head || q.group === G.torso || q.group === G.top || q.group === G.accent || q.group === G.collar);
+    const capped = (group, c, F, r, n, d, k, name) => ({ type: CAPPED, group: G[group], side: 0, a: c, F, r, b: n, rb: d, k, name });
+    const hp = buildHair(P, P.hair, skin, { sdf, ellipsoid: ell, cone, ribbon, cappedEllipsoid: capped, accel: P.hairAccel || [0, 0, 0] });
+    out.push(...hp.prims);
+  }
+  // grouped, centre parts first within a group, then the left parts, then the right
+  const rank = (q) => q.group * 3 + (q.side === 0 ? 0 : q.side === 1 ? 1 : 2);
+  out.sort((a, b) => rank(a) - rank(b));
+  return out;
+}
+
+// ---- distance functions: kept line for line with the GLSL in shader.js ------------
+
+export function sdRoundCone(p, a, b, r1, r2) {
+  const ba = sub(b, a), l2 = dot(ba, ba);
+  if (l2 < 1e-10) return len(sub(p, a)) - r1;
+  const rr = r1 - r2, a2 = l2 - rr * rr, il2 = 1 / l2;
+  const pa = sub(p, a), y = dot(pa, ba), z = y - l2;
+  const xv = sub(scale(pa, l2), scale(ba, y)), x2 = dot(xv, xv), y2 = y * y * l2, z2 = z * z * l2;
+  const k = Math.sign(rr) * rr * rr * x2;
+  if (Math.sign(z) * a2 * z2 > k) return Math.sqrt(x2 + z2) * il2 - r2;
+  if (Math.sign(y) * a2 * y2 < k) return Math.sqrt(x2 + y2) * il2 - r1;
+  return (Math.sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
+}
+/** A ribbon: the round cone in a space stretched by 1/s along n, scaled back (a lower bound, so marching stays safe). */
+export function sdRibbon(p, a, b, ra, rb, n, s) {
+  const k = 1 / s - 1;
+  const pp = madd(p, n, k * dot(sub(p, a), n)), bb = madd(b, n, k * dot(sub(b, a), n));
+  return sdRoundCone(pp, a, bb, ra, rb) * s;
+}
+export function sdEllipsoid(p, c, F, r) {
+  const d = sub(p, c), q = [dot(d, F.x), dot(d, F.y), dot(d, F.z)];
+  const k0 = Math.hypot(q[0] / r[0], q[1] / r[1], q[2] / r[2]);
+  const k1 = Math.hypot(q[0] / (r[0] * r[0]), q[1] / (r[1] * r[1]), q[2] / (r[2] * r[2]));
+  return k1 > 1e-9 ? (k0 * (k0 - 1)) / k1 : -Math.min(...r);
+}
+export function smin(a, b, k) {
+  if (k <= 0 || !Number.isFinite(a)) return Math.min(a, b);
+  const h = Math.max(k - Math.abs(a - b), 0) / k;
+  return Math.min(a, b) - h * h * k * 0.25;
+}
+function rawDist(q, p) {
+  if (q.type === CONE) return sdRoundCone(p, q.a, q.b, q.ra, q.rb);
+  if (q.type === RIBBON) return sdRibbon(p, q.a, q.b, q.ra, q.rb, q.F.x, q.r[0]);
+  if (q.type === CAPPED) return Math.max(sdEllipsoid(p, q.a, q.F, q.r), dot(sub(p, q.a), q.b) - q.rb);
+  if (q.type === SKIRT) {
+    // an oval, not a circle: shallower front to back than side to side (depth), measured
+    // in a space stretched along the skirt's front, scaled back (a lower bound, like a ribbon)
+    const dp = q.depth ?? 1, pp = dp < 1 ? madd(p, q.F.z, (1 / dp - 1) * dot(sub(p, q.a), q.F.z)) : p;
+    let d = sdRoundCone(pp, q.a, q.b, q.ra, q.rb) * dp;
+    if (q.r[0] > 0.5) {
+      // pleats: folds round the hem, growing from nothing at the waist (shader.js, the same)
+      const ax = sub(q.b, q.a), L = len(ax), rel = sub(p, q.a);
+      const h = Math.max(0, Math.min(1, dot(rel, ax) / (L * L)));
+      const th = Math.atan2(dot(rel, q.F.z), dot(rel, q.F.x));
+      d -= q.r[1] * h * (0.5 + 0.5 * Math.cos(q.r[0] * th));
+    }
+    // a shell, not a solid: open at the hem, so a skirt seen from above shows its inside
+    // and the legs in it, not a lid (r[2] is the cloth's thickness)
+    if (q.r[2] > 0) d = Math.max(d, -d - q.r[2]);
+    return d;
+  }
+  return sdEllipsoid(p, q.a, q.F, q.r);
+}
+/** A primitive's distance, cut by its clip planes (keep n·x ≤ d). */
+export const primDist = (q, p) => {
+  let d = rawDist(q, p);
+  if (q.clips) for (const c of q.clips) if (c) d = Math.max(d, c[0] * p[0] + c[1] * p[1] + c[2] * p[2] - c[3]);
+  return d;
+};
+
+/** A sphere that contains the primitive: the renderer skips a primitive the ray is far from. */
+export function boundOf(q) {
+  if (q.type === CONE || q.type === SKIRT || q.type === RIBBON) { const c = lerp3(q.a, q.b, 0.5); return [c, dist(q.a, q.b) / 2 + Math.max(q.ra, q.rb)]; }
+  return [q.a, Math.max(...q.r)];
+}
+
+/** Distance to each group, and the body. */
+export function groupDists(prims, p) {
+  const c = new Array(GROUPS.length).fill(Infinity), l = [...c], r = [...c], hasSide = new Array(GROUPS.length).fill(false);
+  let hl = Infinity, hr = Infinity;   // the torso without its noHip parts (the glutes), for the hip blend
+  for (const q of prims) {
+    const d = primDist(q, p), gi = q.group;
+    if (q.side === 0) { c[gi] = smin(c[gi], d, q.k); l[gi] = c[gi]; r[gi] = c[gi]; if (gi === 0) hl = hr = c[0]; }
+    else {
+      hasSide[gi] = true;
+      if (q.side > 0) l[gi] = smin(l[gi], d, q.k); else r[gi] = smin(r[gi], d, q.k);
+      if (gi === 0 && !q.noHip) { if (q.side > 0) hl = smin(hl, d, q.k); else hr = smin(hr, d, q.k); }
+    }
+  }
+  const out = c.map((v, gi) => hasSide[gi] ? Math.min(l[gi], r[gi]) : v);
+  out.hip = Math.min(hl, hr);
+  return out;
+}
+/**
+ * The body's distance. Groups meet hard, with one exception: the torso and each
+ * leg blend at the hip (by the pelvis's `hk`), so a hip runs into its thigh the
+ * way a person's does, and not like the hem of a pair of shorts. The glutes sit
+ * out of it (`noHip`): under the cheek the thigh meets them in a fold.
+ */
+export const HIP_BLEND = 0.09;
+export function sdf(prims, p) {
+  const g = groupDists(prims, p);
+  let d = Math.min(...g);
+  const hk = prims.hk ?? (prims.hk = (prims.find((q) => q.hk)?.hk ?? 0));
+  if (hk > 0 && Number.isFinite(g.hip)) for (const leg of [4, 5]) if (Number.isFinite(g[leg])) d = Math.min(d, smin(g.hip, g[leg], hk));
+  return d;
+}
+
+/**
+ * The same primitives with every skirt made solid again. A skirt is drawn as a shell (open
+ * at the hem), but anything resting on it meets its cloth, not the hollow inside: a
+ * hand on the hip of a skirt lands on the skirt.
+ */
+export const solidified = (prims) => prims.map((q) => (q.type === SKIRT && q.r?.[2] ? { ...q, r: [q.r[0], q.r[1], 0] } : q));
+
+/** Not part of arm `s`: neither the arm itself nor the sleeve over it (a hand is not pushed out of its own cuff). */
+export const notOwnArm = (s) => { const own = G[`arm_${s}`], sleeve = new RegExp(`:(upper|fore)_${s}\\d$`); return (q) => q.group !== own && !sleeve.test(q.name); };
+
+/** Pack for the GPU: 9 texels (RGBA32F) per primitive; the 7th is its bounding sphere, the 8th and 9th its clip planes. */
+export const TEXELS = 9;
+export function pack(prims) {
+  const f = new Float32Array(prims.length * TEXELS * 4);
+  prims.forEach((q, i) => {
+    const o = i * TEXELS * 4;
+    const b = q.b || q.a, F = q.F || { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, r = q.r || [1, 1, 1];
+    const Fy = q.type === SKIRT ? [q.depth ?? 1, 0, 0] : F.y;    // a skirt has no use for its y axis: it carries its depth
+    const [bc, br] = boundOf(q);
+    const c1 = q.clips?.[0] || [0, 0, 0, 0], c2 = q.clips?.[1] || [0, 0, 0, 0];
+    f.set([...q.a, q.ra ?? 0, ...b, q.rb ?? 0, q.type, q.group, q.noHip ? -q.k : q.k, q.side || 0, ...F.x, r[0], ...Fy, r[1], ...F.z, r[2], ...bc, br, ...c1, ...c2], o);
+  });
+  return f;
+}
+
+/** A bounding sphere per group, for the renderer to skip whole limbs. */
+export function groupBounds(prims) {
+  return GROUPS.map((_, gi) => {
+    const qs = prims.filter((q) => q.group === gi);
+    if (!qs.length) return null;
+    const pts = [];
+    for (const q of qs) {
+      const rad = q.type === CONE || q.type === SKIRT || q.type === RIBBON ? Math.max(q.ra, q.rb) + (q.type === SKIRT ? q.r[1] : 0) : Math.max(...q.r);
+      pts.push([q.a, rad]); if (q.b && (q.type === CONE || q.type === SKIRT || q.type === RIBBON)) pts.push([q.b, rad]);
+    }
+    const c = scale(pts.reduce((s, [p]) => add(s, p), [0, 0, 0]), 1 / pts.length);
+    const r = Math.max(...pts.map(([p, rad]) => dist(p, c) + rad)) + Math.max(...qs.map((q) => q.k));
+    return { c, r, start: prims.indexOf(qs[0]), end: prims.indexOf(qs[qs.length - 1]) + 1 };
+  });
+}

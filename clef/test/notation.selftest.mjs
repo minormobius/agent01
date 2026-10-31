@@ -25,7 +25,7 @@ import { scoreToNotes, performance as buildPerformance, patchForInstrument } fro
 import { writeMidi } from '../src/midi.js';
 import { LIBRARY } from '../src/library.js';
 import {
-  WHOLE, PPQ, ticksOf, noteValue, midiOf, staffPos, fifthsOf,
+  WHOLE, PPQ, ticksOf, noteValue, midiOf, staffPos, fifthsOf, clefDef,
   keySignaturePositions, beatGroups, pitchFromDiatonic,
 } from '../src/model.js';
 
@@ -431,7 +431,7 @@ const midiList = (score, staff = 0, voice = 0) =>
 // bar checks — a transcription whose bars do not add up is a bug in the
 // transcription, and `|` is what finds it.
 {
-  eq(LIBRARY.length, 9, 'the library has nine pieces');
+  eq(LIBRARY.length, 11, 'the library has eleven pieces');
   for (const piece of LIBRARY) {
     const score = parseLily(piece.source);
     eq(score.diagnostics.length, 0,
@@ -674,6 +674,150 @@ const midiList = (score, staff = 0, voice = 0) =>
     // is silent: the WAV writer clamps it to zero and you hear a gap.
     ok(finite, 'pfsynth: every sample is finite — no NaN from an unstable loop');
   }
+}
+
+// ------------------------------------------- 10b. the physical guitar --
+//
+// pfguitar.wasm is pfsynth's classical guitar (core/pf_pluck + host/pf_guitar, vendored
+// unmodified) behind our host. Like the piano's it is a committed binary, so it is loaded and
+// run here; and the step that fits a piano score to six strings is checked, because a score
+// silently losing notes would sound exactly like the model being broken.
+{
+  const { packGuitar, renderDry } = await import('../src/pfguitar.js');
+  let G = null;
+  try {
+    const mod = new WebAssembly.Module(readFileSync(new URL('../vendor/pfsynth/pfguitar.wasm', import.meta.url)));
+    eq(WebAssembly.Module.imports(mod).length, 0, 'pfguitar: the module imports nothing, so it loads in a plain browser');
+    G = new WebAssembly.Instance(mod, {}).exports;
+  } catch (err) {
+    ok(false, `pfguitar: the committed module loads — ${err.message}`);
+  }
+  if (G) {
+    eq(G.pgw_note_bytes(), 48, 'pfguitar: a note is upstream\'s 48-byte pf_note');
+    // an E minor arpeggio, then a seven-note chord with a doubled C and a note below the low E
+    const ev = [40, 47, 52, 55, 59, 64].map((m, i) => ({ at: i * 0.25, dur: 0.5, midi: m, velocity: 0.7 }))
+      .concat([36, 48, 52, 55, 60, 60, 64, 67].map((m) => ({ at: 2, dur: 1, midi: m, velocity: 0.8 })));
+    const pk = packGuitar({ events: ev });
+    const chord = [];
+    for (let i = 0; i < pk.count; i++) if (pk.notes[i * 4] === 2) chord.push(pk.notes[i * 4 + 2]);
+    ok(chord.length === 6 && Math.min(...chord) >= 40 && pk.folded === 1 && pk.dropped === 2,
+      `pfguitar: a chord is fitted to six strings in range (${chord.join(' ')}; folded ${pk.folded}, left out ${pk.dropped})`);
+    const dry = await renderDry(G, pk, 22050, { yieldEvery: 1e9 });
+    let peak = 0, finite = true, first = 0;
+    for (let i = 0; i < dry.length; i++) { const a = Math.abs(dry[i]); if (!Number.isFinite(dry[i])) finite = false; if (a > peak) peak = a; if (i < 2205 && a > first) first = a; }
+    const rms = (a, b) => { let e = 0; for (let i = Math.round(a * 22050); i < b * 22050; i++) e += dry[i] * dry[i]; return Math.sqrt(e / ((b - a) * 22050)); };
+    ok(finite && dry.length === Math.round(pk.duration * 22050), `pfguitar: renders the whole score, every sample finite (${(dry.length / 22050).toFixed(1)} s)`);
+    ok(first > 0.001 && rms(2, 2.5) > 2 * rms(1.9, 1.99), `pfguitar: the first pluck sounds at once, and the chord sounds when it is played (peak ${peak.toFixed(3)})`);
+    ok(rms(pk.duration - 0.5, pk.duration) < rms(2, 2.5) / 10, 'pfguitar: and the strings ring down by the end');
+    // Safari refuses a convolver buffer at another rate than its context (a phone runs at
+    // 48 kHz; the measured body is 44.1): the body is resampled, and must stay in tune
+    const { resample } = await import('../src/pfguitar.js');
+    const sine = Float32Array.from({ length: 4410 }, (_, i) => Math.sin(2 * Math.PI * 1000 * i / 44100));
+    const up = resample(sine, 44100, 48000);
+    let rerr = 0; for (let i = 200; i < up.length - 200; i++) rerr = Math.max(rerr, Math.abs(up[i] - Math.sin(2 * Math.PI * 1000 * i / 48000)));
+    ok(up.length === 4800 && rerr < 2e-3 && resample(sine, 44100, 44100) === sine, `pfguitar: the body is resampled to the device's rate (44.1 → 48 kHz, error ${rerr.toExponential(1)})`);
+    // the body and room are plain arithmetic (FFT convolution), the same on every browser:
+    // Safari's own convolver played silence on an iPhone
+    const { dress, parseWav, convolve } = await import('../src/pfguitar.js');
+    const bodyBytes = readFileSync(new URL('../vendor/pfsynth/bodies/g34.wav', import.meta.url));
+    const body = parseWav(bodyBytes.buffer.slice(bodyBytes.byteOffset, bodyBytes.byteOffset + bodyBytes.byteLength));
+    const cx = Float32Array.from({ length: 5000 }, (_, i) => Math.sin(i * 0.37) * Math.exp(-i / 900)), chk = convolve(cx, body.x.subarray(0, 300));
+    let direct = 0; for (let k = 0; k < 300; k++) direct += cx[2000 - k] * body.x[k];
+    const wet = await dress(dry.subarray(0, 22050), 22050, { body });
+    let wpk = 0, wfin = true, side = 0; for (let i = 0; i < wet.length; i += 2) { wpk = Math.max(wpk, Math.abs(wet[i]), Math.abs(wet[i + 1])); wfin = wfin && Number.isFinite(wet[i]) && Number.isFinite(wet[i + 1]); side += Math.abs(wet[i] - wet[i + 1]); }
+    ok(Math.abs(chk[2000] - direct) < 1e-5 && wfin && Math.abs(wpk - 0.89) < 1e-3 && side > 0,
+      `pfguitar: body and room by FFT convolution: exact, finite, stereo, peak at −1 dBFS (${wpk.toFixed(3)})`);
+    // a part written FOR the guitar keeps its strings, frets and techniques (packTab)
+    const { packTab } = await import('../src/pfguitar.js');
+    const tab = packTab([{ at: 0, end: 1, string: 6, fret: 3, velocity: 100 }, { at: 0.5, end: 1, string: 3, fret: 0, velocity: 90, art: 'harmonic', artParam: 7 },
+      { at: 0.6, end: 1, string: 3, fret: 2, velocity: 80, art: 'hammer' }]);
+    ok([...tab.notes.filter((_, i) => i % 4 === 2)].join(' ') === '43 74 57' && tab.tech[2] === 0 && tab.tech[7] === 4 && tab.tech[8] === 7 && tab.tech[12] === 1,
+      'pfguitar: tab keeps string and fret (G2 on the 6th), a 7th-fret harmonic sounds a twelfth up, a hammer-on stays a hammer-on');
+    const tdry = await renderDry(G, tab, 22050, { yieldEvery: 1e9 });
+    ok(tdry.every(Number.isFinite) && Math.max(...tdry.subarray(0, 4410).map(Math.abs)) > 0.001, 'pfguitar: and it renders');
+  }
+}
+
+// ------------------------------------------- 10c. reading guitar --
+//
+// LilyPond's guitar marks (string numbers, \harmonic, slurs, \glissando, \deadNote), the
+// TabStaff drawn from them, the octave clef read LilyPond's way, and the one answer the tab
+// and the guitar model share (guitar.js).
+{
+  const { scoreToNotes: toNotes, performance: perfOf } = await import('../src/audio.js');
+  const { packScore } = await import('../src/pfguitar.js');
+  const frets = (src, staff = 0) => parseLily(src).staves[staff].voices[0].filter((e) => e.kind === 'note')
+    .map((e) => e.pitches.map((p) => `${p.string}:${p.fret}${p.art ? '/' + p.art : ''}${p.slideTo != null ? '>' + p.slideTo : ''}`).join(','));
+  // chords written as notes come out in the open-position shapes a chord book draws
+  eq(frets("\\new TabStaff { <g, b, d g d' g'>4 <c e g c' e'> }").join(' '), '6:3,5:2,4:0,3:0,2:3,1:3 5:3,4:2,3:0,2:1,1:0',
+    'guitar: a G chord is 320033 and a C chord x32010, from the lowest-fret rule');
+  eq(frets("\\new TabStaff { d'4\\3 e''\\1\\harmonic <a\\4 e'\\2>4 }").join(' '), '3:7 1:12/harmonic 4:7,2:5',
+    'guitar: a string number places the note, on a single note and inside a chord; a harmonic shows its touched fret');
+  eq(frets("\\new TabStaff { a8( b) c'4\\glissando e' a8( g) }").join(' '), '3:2 3:4/hammer 2:1>5 2:5/slide 3:2 3:0/pull',
+    'guitar: a slur stays on one string (a hammer-on up, a pull-off down), a glissando slides along it');
+  eq(frets("\\new TabStaff { \\deadNote e,4 \\palmMuteOn a,4 \\palmMuteOff a,4 }").join(' '), '6:0/muted 5:0/muted 5:0',
+    'guitar: \\deadNote mutes one note, \\palmMuteOn every note until \\palmMuteOff');
+  // the octave clef: a LilyPond pitch is what sounds; treble_8 only draws it an octave higher
+  const c8 = parseLily("{ \\clef \"treble_8\" c'4 }");
+  eq(toNotes(c8).notes[0].midi, 60, "treble_8: c' sounds as middle C (it was played an octave low)");
+  eq(clefDef('treble_8').middleDia - clefDef('treble').middleDia, -7, 'treble_8: and is drawn an octave higher than on a treble staff');
+  // a staff and a tab staff showing the same music play it once, with the tab's strings
+  const pair = parseLily("m = { <g, b, d g d' g'>4 a8( b) }\n\\score { << \\new Staff { \\clef \"treble_8\" \\m } \\new TabStaff \\m >> }");
+  const played = toNotes(pair).notes;
+  ok(played.length === 8 && played.every((n) => n.string), `guitar: notation plus tab plays once, with strings (${played.length} notes)`);
+  // the tab staff is drawn: six lines, TAB, fret numbers; a click on it writes nothing
+  const lay = engrave(pair);
+  const tabRegion = lay.regions.find((r) => r.tab);
+  ok(tabRegion && /cf-tabclef/.test(lay.svg) && (lay.svg.match(/class="cf-tabfret/g) || []).length === 8,
+    'guitar: the tab staff is engraved with TAB and one fret number per note, and is not a click target');
+  // the library piece: written for guitar, played as written, nothing fitted
+  const gp = LIBRARY.find((p) => p.id === 'guitar');
+  const gs = parseLily(gp.source), gperf = perfOf(toNotes(gs), gs.tempo), gpk = packScore(gperf);
+  ok(gs.diagnostics.length === 0 && gs.staves.some((s) => s.tab) && gpk.count === gperf.events.length && gpk.folded === 0 && gpk.dropped === 0,
+    `guitar: Open Strings parses clean, ${gpk.count} notes all played from their tab`);
+}
+
+// ------------------------------------------- 10d. the duo --
+//
+// A piano-and-guitar score plays each staff on its own model (duo.js), and the library's
+// duet is a real 55-bar score in 12/8 that every bar check and every guitar fret agrees with.
+{
+  const { isDuo, mixDuo } = await import('../src/duo.js');
+  const { scoreToNotes: toNotes, performance: perfOf } = await import('../src/audio.js');
+  const d = LIBRARY.find((p) => p.id === 'duende');
+  const ds = parseLily(d.source), dl = engrave(ds), dperf = perfOf(toNotes(ds), ds.tempo);
+  const frets = ds.staves.filter((s) => s.guitar).flatMap((s) => s.voices.flat()).filter((e) => e.kind === 'note').flatMap((e) => e.pitches);
+  ok(ds.diagnostics.length === 0 && dl.warnings.length === 0 && dl.measures === 55 && frets.every((p) => p.fret != null),
+    `duende: 55 bars, no diagnostics, every bar check holds, all ${frets.length} guitar notes on a string and fret`);
+  ok(isDuo(dperf) && dperf.events.filter((e) => e.gtr).length > 1500 && dperf.events.filter((e) => !e.gtr).length > 900,
+    'duende: plays as a duo, the guitar staves on the guitar, the piano staves on the piano');
+  // the mix: the guitar brought to the piano's loudness, each placed to its side, −1 dBFS
+  const tone = (f, a, n) => Float32Array.from({ length: n * 2 }, (_, i) => a * Math.sin((Math.floor(i / 2) * f * 2 * Math.PI) / 44100));
+  const m = mixDuo(tone(220, 0.5, 4410), tone(330, 0.05, 2205));
+  let pk = 0; for (const v of m) pk = Math.max(pk, Math.abs(v));
+  ok(m.length === 8820 && Math.abs(pk - 0.89) < 1e-6 && !isDuo({ events: [{ gtr: true }] }), 'duo: the mix is as long as the longer part, balanced and peak-normalised; one instrument is not a duo');
+}
+
+// ------------------------------------- 10e. playing what is marked --
+//
+// Duende changes tempo nine times, and leans on hairpins and accents; playback once took the
+// first \tempo for the whole piece and heard only written dynamics, so all of that was silent.
+{
+  const { scoreToNotes: toNotes, performance: perfOf } = await import('../src/audio.js');
+  const play = (src, bpm) => { const s = parseLily(src); return perfOf(toNotes(s), bpm ? { ...s.tempo, bpm } : s.tempo); };
+  const t = play(`{ \\time 4/4 \\tempo 4 = 60 c'4 d' \\tempo 4 = 120 e' f' }`);
+  const t2 = play(`{ \\time 4/4 \\tempo 4 = 60 c'4 d' \\tempo 4 = 120 e' f' }`, 120);
+  ok(t.events.map((e) => e.at).join() === '0,1,2,2.5' && t.duration === 3 && t2.events.map((e) => e.at).join() === '0,0.5,1,1.25',
+    'tempo: a second \\tempo changes the speed from its bar; the slider scales the whole map');
+  const h = play(`{ c'4\\p\\< d' e' f'\\f g'\\sfz a' b'2\\> c''4 d''\\pp }`).events.map((e) => +e.velocity.toFixed(3));
+  ok(h[0] === 0.42 && h[1] > 0.42 && h[2] > h[1] && h[3] === 0.82 && h[4] === 0.98 && h[5] === 0.82 && h[6] === 0.82 && h[7] < 0.82 && h[7] > 0.3 && h[8] === 0.3,
+    `hairpins: a crescendo climbs to the next dynamic, a sforzando is one note's, a diminuendo falls (${h.join(' ')})`);
+  const a = play(`{ c'4\\mf d'-> e'-. f' }`).events;
+  ok(a[1].velocity > a[0].velocity && Math.abs(a[2].dur - a[0].dur / 2) < 1e-9 && a[3].velocity === a[0].velocity, 'an accent leans on its note; staccato halves it');
+  const { packScore } = await import('../src/pfguitar.js');
+  const g = packScore(play(`\\new TabStaff { <e\\4 g\\3 b\\2>4\\upbow <e\\4 g\\3 b\\2>4 }`));
+  const order = (k) => [0, 1, 2].map((i) => [g.notes[(k + i) * 4], g.tech[(k + i) * 5]]).sort((x, y) => x[0] - y[0]).map((x) => x[1]).join('');
+  ok(order(0) === '234' && order(3) === '432', 'guitar: an up-stroke (\\upbow) strums high to low, a plain chord low to high');
 }
 
 // -------------------------------------------- 11. scaled durations --

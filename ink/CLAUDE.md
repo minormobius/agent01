@@ -18,7 +18,7 @@ fluoddity's own interestingness rubric ever reach the paper.
 | Dir | `ink/` |
 | Endpoint | `ink.mino.mobi` |
 | Type | frontend (static, no build, no D1, no AI, no secrets) |
-| Owning branch | `claude/p5js-procgen-exploration-efdhws` |
+| Owning branch | `claude/plant-growth-animation-gxbby1` (taken over 2026-09-23 from `claude/p5js-procgen-exploration-efdhws`, whose tree was identical on `ink/**`; it shares the branch with `studio/`) |
 | Deploy | [`.github/workflows/deploy-ink.yml`](../.github/workflows/deploy-ink.yml) |
 | Uses | — (the Fluoddity rule is ported, not imported: see below) |
 | Provides | — |

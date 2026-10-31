@@ -33,6 +33,24 @@ const CONSUMERS = ["wormhole"];
  *  one: it would sign people in through last month's protocol handling on a
  *  domain full of agent-written pages. */
 const EXTRA = [
+  // the city engine (packages/morph: districts → blocks → plots → buildings) is served by polis's
+  // demo toy, polis.mino.mobi/morph/, which imports it from its own asset root
+  ["packages/morph/geom.js", "polis/morph/geom.js"],
+  ["packages/morph/morph.js", "polis/morph/morph.js"],
+  ["packages/morph/ground.js", "polis/morph/ground.js"],
+  ["packages/morph/rand.js", "polis/morph/rand.js"],
+  ["packages/morph/mobility.js", "polis/morph/mobility.js"],
+  ["packages/morph/motion.js", "polis/morph/motion.js"],
+  // …and by studio's colour-cycle flight, which flies through one (studio.mino.mobi/cycle/, cityworld.js)
+  ["packages/morph/geom.js", "studio/cycle/vendor/morph/geom.js"],
+  ["packages/morph/morph.js", "studio/cycle/vendor/morph/morph.js"],
+  ["packages/morph/ground.js", "studio/cycle/vendor/morph/ground.js"],
+  ["packages/morph/rand.js", "studio/cycle/vendor/morph/rand.js"],
+  ["packages/morph/mobility.js", "studio/cycle/vendor/morph/mobility.js"],
+  ["packages/morph/motion.js", "studio/cycle/vendor/morph/motion.js"],
+  // brut through the centuries: the period shells the city's model view and elevations draw
+  ["tjs/brut/period.js", "polis/morph/brut/period.js"],
+  ["tjs/brut/rand.js", "polis/morph/brut/rand.js"],
   ["packages/oauth-client/auth.js", "lab/_kit/auth.js"],
   // handle typeahead on every handle field, through the cad gateway
   ["packages/oauth-client/typeahead.js", "packages/cad/vendor/typeahead.js"],
@@ -69,6 +87,14 @@ const EXTRA = [
   // cad.mino.mobi/SKILL.md, so an agent that never clones this repo can read
   // it; Claude Code loads skills from .claude/skills/, so that copy follows.
   ["packages/cad/SKILL.md", ".claude/skills/cad/SKILL.md"],
+  // The figure rig (packages/figure) is drawn live by the studio's mannequin page
+  // (studio.mino.mobi/figure/), which serves a copy from its own asset root. Its
+  // skill follows the cad skill's pattern: written beside the code, loaded from
+  // .claude/skills/.
+  ...["vec.js", "proportion.js", "rig.js", "body.js", "gait.js", "poses.js", "settle.js", "check.js", "shader.js", "face.js", "hair.js", "clothes.js", "ansur2.js", "hand.js", "handref.js", "choreo.js", "liveface.js"].map((f) => [`packages/figure/lib/${f}`, `studio/vendor/figure/lib/${f}`]),
+  ["packages/figure/SKILL.md", ".claude/skills/figure/SKILL.md"],
+  // the attractor bodies (packages/attractor) are drawn live by studio.mino.mobi/avatar/, from a copy
+  ...["space.js", "bestiary.js", "avatar.js", "draw.js", "plans.js", "shell.js", "organism.js", "evolved.js"].map((f) => [`packages/attractor/lib/${f}`, `studio/vendor/attractor/lib/${f}`]),
   ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],
