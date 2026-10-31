@@ -431,6 +431,29 @@ function drawNebula() {
 }
 if ($("cNebula")) import("./nebuladata.js").then(({ NEBULA }) => { NEB = NEBULA; drawNebula(); import("./nebulaviz.js").then((m) => m.buildNebula(NEBULA)); });
 
+/* the stars chapter's main sequence (js/mainseqdata.js, from js/mainseq.js): ours, and 4D at three strengths of gravity
+   (G an ordered quantity, so one ice hue stepped light to dark as G falls; proton + proton at 1 fm), each curve labelled */
+let MSQ = null;
+const MSQ_C = { "1e-14": "#e2f8ff", "1e-20": "#4cc6e8", "1e-26": "#1f7896" }, lg10 = Math.log10;
+function drawMainSeq() {
+  if (!MSQ) return;
+  const runs = Object.keys(MSQ_C).map((g) => ({ g, run: MSQ.runs.find((r) => r.Grel === +g && r.rnp === 1) })).filter((x) => x.run), ours = MSQ.ours;
+  const all = [...ours, ...runs.flatMap((x) => x.run.rows)], T = [Math.min(...all.map((r) => r.Teff)) * 0.8, Math.max(...all.map((r) => r.Teff)) * 1.2];
+  // a label at a curve's end (right-aligned) or start (left-aligned), just above it
+  const lab = (o, pts, text, c, start) => { const g = $(o.id).getContext("2d"), [x, y] = start ? pts[0] : pts.at(-1); g.font = "11px ui-monospace, Menlo, monospace"; g.fillStyle = c; g.textAlign = start ? "left" : "right"; g.textBaseline = "bottom"; g.fillText(text, o.X(x) + (start ? 4 : -4), o.Y(y) - 3); };
+  const gname = (g) => `G 10${String(Math.log10(+g)).replace("-", "⁻").replace(/\d/g, (d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d])}`;
+  for (const [id, key, yl, val, yr, extra] of [["cMainSeq", "kMainSeq", "log₁₀ brightness (W)", (r) => lg10(r.L), null, null], ["cMainLife", "kMainLife", "log₁₀ lifetime (years)", (r) => lg10(r.life), null, 10]]) {
+    if (!$(id)) continue;
+    const series = [{ pts: ours.map((r) => [r.Teff, val(r)]), c: C3, label: "ours, 0.5–30 M☉" }, ...runs.map((x) => ({ pts: x.run.rows.map((r) => [r.Teff, val(r)]), c: MSQ_C[x.g], label: `4D, ${gname(x.g)} × ours` }))];
+    if (extra) series.push({ pts: [[T[0], extra], [T[1], extra]], c: DIM, dash: [4, 4], label: "our Sun's life" });
+    const ys = series.flatMap((s) => s.pts.map((p) => p[1])), y = yr || [Math.floor(Math.min(...ys)) - 1, Math.ceil(Math.max(...ys)) + 1];
+    const o = chart($(id), { key, x: T, logx: true, y, xl: "surface temperature (K)", yl, series }); o.id = id;
+    // on the lifetime chart the curves cross our Sun's line near their hot ends, so the cooler ones are labelled at their start
+    lab(o, series[0].pts, "ours", C3, !!extra); for (const [k, x] of runs.entries()) lab(o, series[k + 1].pts, gname(x.g), MSQ_C[x.g], !!extra && x.g !== "1e-14");
+  }
+}
+if ($("cMainSeq")) import("./mainseqdata.js").then(({ MAINSEQ }) => { MSQ = MAINSEQ; drawMainSeq(); });
+
 /* the force chapter: atoms don't collapse, their energies grow as Thomas–Fermi's Z^(5/2) in 4D, Z^(7/3) in 3D */
 function energySlope(d, a, b) {
   const xs = [], ys = []; for (const el of TABLE[d]) if (el.Z >= a && el.Z <= b) { xs.push(Math.log(el.Z)); ys.push(Math.log(-el.E)); }
@@ -441,7 +464,7 @@ function drawScaling() { $("rScaling").innerHTML = `The solver's total energies,
 
 /* ------------------------------------------------------------- wiring: each chapter draws what it has */
 if ($("dimSel")) $("dimSel").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; dim = +b.dataset.d; for (const x of $("dimSel").children) x.classList.toggle("on", x === b); drawTable(); });
-const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbitNudge], ["cOrbitTurn", drawOrbitTurn], ["cNebula", drawNebula], ["cMagnet", drawMagnet]];
+const DRAW = [["cGeoSpread", drawGeometry], ["cPin", drawPin], ["cLevels", drawLevels], ["cSpec", drawSpec], ["pt", drawTable], ["cIon", drawTrends], ["chemText", drawChem], ["routes", drawRoutes], ["cShell", drawShell], ["cScreen", drawScreen], ["cCompact", drawCompact], ["skies", drawSky], ["fineTab", drawFine], ["nobleForces", drawForces], ["wellTab", drawWells], ["rScaling", drawScaling], ["dispTab", drawDisp], ["xaterTab", drawXater], ["censusTab", drawCensus], ["cGasSpeeds", drawGasSpeeds], ["cGasB2", drawGasB2], ["cGasFar", drawGasFar], ["cGasFridge", drawGasFridge], ["gasTab", drawGasTab], ["cCoexist", drawCoexist], ["cStarProfile", drawStars], ["cOrbitNudge", drawOrbitNudge], ["cOrbitTurn", drawOrbitTurn], ["cNebula", drawNebula], ["cMainSeq", drawMainSeq], ["cMagnet", drawMagnet]];
 function drawAll() { for (const [id, f] of DRAW) if ($(id)) f(); }
 let rt = 0; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { drawAll(); [...tiles, ...turnTiles].forEach((t) => t.draw()); }, 120); });
 /* links into the old one-page version land on the chapter that holds them now */
