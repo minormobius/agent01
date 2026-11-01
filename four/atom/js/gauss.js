@@ -251,36 +251,54 @@ export function hartreeFock(atoms, shells, d, { nAlpha, nBeta, maxIter = 200, to
    form (SCS: 6/5 and 1/3) comes free. (ia|jb) by a four-index transform: one pass over the unique integrals turns the
    first index for every active occupied orbital at once, then the other three, one (i, a) at a time. Nothing in it
    depends on the dimension: that lives in the integrals. */
-export function mp2(r, ERI, { frozen = 0 } = {}) {
-  if (r.nAlpha !== r.nBeta) throw new Error("mp2: closed shells only");
-  const { n, m, Ca: C, epsA: eps } = r, nocc = r.nAlpha, o = nocc - frozen, v = m - nocc, np = (n * (n + 1)) / 2;
+/* (ia|jb) = Σ C^A_μi C^A_νa C^B_λj C^B_σb (μν|λσ), i, a over orbital set A's occupied (past the frozen) and virtual
+   orbitals, j, b over set B's (A = B for a closed shell; α and β for an open one); as K[((i·vA + a)·oB + j)·vB + b] */
+function ovov(ERI, n, m, CA, occA, CB, occB, frozen) {
+  const oA = occA - frozen, vA = m - occA, oB = occB - frozen, vB = m - occB, np = (n * (n + 1)) / 2;
   const I = new Int32Array(np), Jn = new Int32Array(np); for (let i = 0, c = 0; i < n; i++) for (let j = 0; j <= i; j++, c++) { I[c] = i; Jn[c] = j; }
   // X[ν][λσ][i] = Σ_μ C_μi (μν|λσ), every unique integral standing for its eight orderings
-  const Co = new Float64Array(n * o); for (let mu = 0; mu < n; mu++) for (let i = 0; i < o; i++) Co[mu * o + i] = C[mu * m + frozen + i];
-  const X = new Float64Array(n * np * o), add = (nu, kl, mu, val) => { const x = (nu * np + kl) * o, c = mu * o; for (let i = 0; i < o; i++) X[x + i] += Co[c + i] * val; };
+  const Co = new Float64Array(n * oA); for (let mu = 0; mu < n; mu++) for (let i = 0; i < oA; i++) Co[mu * oA + i] = CA[mu * m + frozen + i];
+  const X = new Float64Array(n * np * oA), add = (nu, kl, mu, val) => { const x = (nu * np + kl) * oA, c = mu * oA; for (let i = 0; i < oA; i++) X[x + i] += Co[c + i] * val; };
   let q = 0;
   for (let ij = 0; ij < np; ij++) {
     const p = I[ij], pq = Jn[ij];
     for (let kl = 0; kl <= ij; kl++, q++) {
       const val = ERI[q]; if (val === 0) continue;
       add(pq, kl, p, val); if (p !== pq) add(p, kl, pq, val);
-      if (kl !== ij) { const r_ = I[kl], s = Jn[kl]; add(s, ij, r_, val); if (r_ !== s) add(r_, ij, s, val); }
+      if (kl !== ij) { const r_ = I[kl], s_ = Jn[kl]; add(s_, ij, r_, val); if (r_ !== s_) add(r_, ij, s_, val); }
     }
   }
-  // (ia|jb) for one i at a time: K[a][j][b]
-  const K = new Float64Array(o * v * o * v), Y = new Float64Array(np), M = new Float64Array(n * n), T = new Float64Array(o * n);
-  for (let i = 0; i < o; i++) for (let a = 0; a < v; a++) {
-    Y.fill(0); for (let nu = 0; nu < n; nu++) { const c = C[nu * m + nocc + a]; if (!c) continue; for (let kl = 0, x = nu * np * o + i; kl < np; kl++, x += o) Y[kl] += c * X[x]; }
+  // for one i and a at a time: Y[λσ] = Σ_ν C_νa X[ν][λσ][i], then (ia|jb)
+  const K = new Float64Array(oA * vA * oB * vB), Y = new Float64Array(np), M = new Float64Array(n * n), T = new Float64Array(oB * n);
+  for (let i = 0; i < oA; i++) for (let a = 0; a < vA; a++) {
+    Y.fill(0); for (let nu = 0; nu < n; nu++) { const c = CA[nu * m + occA + a]; if (!c) continue; for (let kl = 0, x = nu * np * oA + i; kl < np; kl++, x += oA) Y[kl] += c * X[x]; }
     for (let kl = 0; kl < np; kl++) { const k = I[kl], l = Jn[kl]; M[k * n + l] = M[l * n + k] = Y[kl]; }
-    T.fill(0); for (let la = 0; la < n; la++) for (let j = 0; j < o; j++) { const c = C[la * m + frozen + j]; if (c) for (let s = 0; s < n; s++) T[j * n + s] += c * M[la * n + s]; }
-    for (let j = 0; j < o; j++) for (let b = 0; b < v; b++) { let t = 0; for (let s = 0; s < n; s++) t += T[j * n + s] * C[s * m + nocc + b]; K[((i * v + a) * o + j) * v + b] = t; }
+    T.fill(0); for (let la = 0; la < n; la++) for (let j = 0; j < oB; j++) { const c = CB[la * m + frozen + j]; if (c) for (let s_ = 0; s_ < n; s_++) T[j * n + s_] += c * M[la * n + s_]; }
+    for (let j = 0; j < oB; j++) for (let b = 0; b < vB; b++) { let t = 0; for (let s_ = 0; s_ < n; s_++) t += T[j * n + s_] * CB[s_ * m + occB + b]; K[((i * vA + a) * oB + j) * vB + b] = t; }
   }
+  return { K, oA, vA, oB, vB };
+}
+export function mp2(r, ERI, { frozen = 0 } = {}) {
+  if (r.nAlpha !== r.nBeta) throw new Error("mp2: closed shells only (ump2 for open ones)");
+  const { n, m, Ca: C, epsA: eps } = r, nocc = r.nAlpha, { K, oA: o, vA: v } = ovov(ERI, n, m, C, nocc, C, nocc, frozen);
   let os = 0, ss = 0;
   for (let i = 0; i < o; i++) for (let j = 0; j < o; j++) for (let a = 0; a < v; a++) for (let b = 0; b < v; b++) {
     const iajb = K[((i * v + a) * o + j) * v + b], ibja = K[((i * v + b) * o + j) * v + a], D = eps[frozen + i] + eps[frozen + j] - eps[nocc + a] - eps[nocc + b];
     os += (iajb * iajb) / D; ss += (iajb * (iajb - ibja)) / D;
   }
   return { E2: os + ss, os, ss, scs: 1.2 * os + ss / 3 };
+}
+/* unrestricted MP2 on an unrestricted Hartree–Fock result (open shells: atoms with unpaired electrons, triplets):
+   same-spin pairs ½ Σ (ia|jb)[(ia|jb) − (ib|ja)]/D for each spin, opposite-spin Σ (ia|jb)²/D with i, a α and j, b β.
+   On a closed shell it is mp2's to rounding (the selftest's check). The lowest `frozen` of each spin are left out */
+export function ump2(r, ERI, { frozen = 0 } = {}) {
+  const { n, m, Ca, Cb, epsA, epsB, nAlpha: na, nBeta: nb } = r;
+  const same = (C, eps, nocc) => { const { K, oA: o, vA: v } = ovov(ERI, n, m, C, nocc, C, nocc, frozen); let e = 0;
+    for (let i = 0; i < o; i++) for (let j = 0; j < o; j++) for (let a = 0; a < v; a++) for (let b = 0; b < v; b++) { const iajb = K[((i * v + a) * o + j) * v + b], ibja = K[((i * v + b) * o + j) * v + a]; e += (0.5 * iajb * (iajb - ibja)) / (eps[frozen + i] + eps[frozen + j] - eps[nocc + a] - eps[nocc + b]); }
+    return e; };
+  const ssA = same(Ca, epsA, na), ssB = nb > frozen ? same(Cb, epsB, nb) : 0, { K, oA, vA, oB, vB } = ovov(ERI, n, m, Ca, na, Cb, nb, frozen); let os = 0;
+  for (let i = 0; i < oA; i++) for (let a = 0; a < vA; a++) for (let j = 0; j < oB; j++) for (let b = 0; b < vB; b++) { const x = K[((i * vA + a) * oB + j) * vB + b]; os += (x * x) / (epsA[frozen + i] + epsB[frozen + j] - epsA[na + a] - epsB[nb + b]); }
+  return { E2: os + ssA + ssB, os, ss: ssA + ssB };
 }
 
 /* ---------------------------------------------------------------- bases: even-tempered, the same recipe in any dimension */

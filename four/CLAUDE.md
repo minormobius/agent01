@@ -160,7 +160,13 @@ for games, and this is a modelling programme with publications to come. The game
   cloud's potential isn't short-ranged off 3D). It's checked against
   Madelung constants (3D, and 4D's 1.8393991 by Evjen) and NIST's SPC/E
   reference (`test/fixtures/nist-spce-1.txt`).
-  `gauss.js`'s `mp2` adds MP2 (closed shells, cores frozen) on a Hartree–Fock result; selftest 43 holds it to PySCF.
+  `gauss.js`'s `mp2` adds MP2 (closed shells, cores frozen) on a Hartree–Fock result; selftest 43 holds it to PySCF. `ump2` is
+  unrestricted MP2 for open shells (selftest 59: closed-shell MP2 exactly on a closed shell). `hartreeFock` reports `converged`
+  only when an iteration met both tests, with `iterations`, `dE` and `commutator` (before the audit an exhausted budget read
+  as converged; selftest 58). `atom/tools/reconverge.mjs` re-runs saved pair energies under the fixed test (runner; `bake` →
+  **generated** `js/reconverge.js`). `atom/tools/diatomic.mjs` (`mol <F2|O2|Gl2|Px2>`): heavy-atom diatomics by Hartree–Fock
+  and (U)MP2, counterpoise, three starts per point (bare nuclei, atoms parallel, antiparallel; the lowest kept), our F₂ and
+  O₂ the checks; `bake` → **generated** `js/diatomicdata.js`; cache `$TMPDIR/atom4-diatomic`.
   `atom/tools/correlation.mjs` re-scores the best pairs with it (`pair <key> [plus] [shift]`, counterpoise-corrected;
   `plus` grows `census.mjs`'s `basisFor` recipe: D diffuse, d a second d, p hydrogen's second p, f an f, F two f, h a d on hydrogen, g a g) and `bake`s
   **generated** `js/correlation.js` for the census chapter's correlation section; `atom/tools/correlation-ref.py`
@@ -292,7 +298,7 @@ for games, and this is a modelling programme with publications to come. The game
   trading volume and molecules), Ewald per box (real space to L/2, α = 2.6/rc, |nᵢ| ≤ 6, the structure factor updated
   move by move), the short-range tail past rc as a uniform fluid's. Selftest 57 (its energy is md.js's Ewald on NIST's
   SPC/E configuration). `atom/tools/liquid.mjs`: `run <spce|w3|x4|w3L|x4L> <T>` one temperature on the runner
-  (resumable); `probe <w3|x4> <round>` pairs from the field's own liquid, Hartree–Fock on each, the field's error before
+  (resumable; `--seed=S` for independent repeats, the liquid taken block-wise); `probe <w3|x4|n4> <round>` pairs from the field's own liquid, Hartree–Fock on each, the field's error before
   a refit sees them, then the refit (**generated** `js/liquidff.js`, every probe pair kept); `check <model>` a damped
   shifted force against Ewald (3D: 0.34 kcal/mol a molecule; 4D: 42, because the pinned 1/r charges a polarization wave
   as 1/k, so 4D liquids need the full sum); `bake` → **generated** `js/liquiddata.js` (critical point, vapour line,

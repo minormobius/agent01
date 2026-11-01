@@ -1059,5 +1059,17 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(res.every(Boolean) && jump < 0.005, `the audit's contracts: a one-iteration Hartree–Fock run reports no convergence in 3D and 4D, the full one converges; the stellar electron pressure moves at most ${(100 * jump).toFixed(2)}% across the table's dense and cold edges`);
 }
 
+/* 59 · unrestricted MP2 (js/gauss.js ump2, for open shells: atoms with unpaired electrons, triplet molecules): on a
+   closed shell it must be closed-shell MP2 exactly, in 3D and 4D, and on an open shell it must lower the energy */
+{
+  const GA = await import(path.join(here, "../js/gauss.js")), diffs = []; let lower = true;
+  for (const d of [3, 4]) { const z = Array(d).fill(0), R = d === 3 ? 1.733 : 2.8, atoms = [{ Z: 9, at: z }, { Z: 1, at: [R, ...z.slice(1)] }], basis = (Z) => (Z === 1 ? [[0, [13.0, 1.96, 0.44, 0.122]], [1, [0.8]]] : [[0, [1200, 180, 41, 11.6, 3.7, 1.2, 0.4, 0.13]], [1, [17, 3.9, 1.1, 0.3]], [2, [1.2]]]);
+    const sh = atoms.flatMap((a, k) => GA.shellsFor(a, basis(a.Z)).map((x) => ({ ...x, atom: k }))), one = GA.oneElectron(sh, atoms, d), ERI = GA.twoElectron(sh, d, one.F), r = GA.hartreeFock(atoms, sh, d, { nAlpha: 5, nBeta: 5, ints: { one, ERI } });
+    diffs.push(Math.abs(GA.mp2(r, ERI, { frozen: 1 }).E2 - GA.ump2(r, ERI, { frozen: 1 }).E2));
+    const at = [atoms[0]], sa = GA.shellsFor(at[0], basis(9)).map((x) => ({ ...x, atom: 0 })), o1 = GA.oneElectron(sa, at, d), E1 = GA.twoElectron(sa, d, o1.F), ra = GA.hartreeFock(at, sa, d, { nAlpha: 5, nBeta: 4, ints: { one: o1, ERI: E1 } });
+    lower = lower && ra.converged && GA.ump2(ra, E1, { frozen: 1 }).E2 < 0; }
+  ok(Math.max(...diffs) < 1e-12 && lower, `unrestricted MP2: on a closed shell it is closed-shell MP2 to ${Math.max(...diffs).toExponential(0)} hartree in both worlds, and it lowers an open-shell atom's energy`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
