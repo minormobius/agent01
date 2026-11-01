@@ -1,40 +1,33 @@
 {
- "run": "mainseq-4",
- "why": "The 4D main sequence again with each star's stirred core recorded (the ash core it leaves, for which stars grow a core to the Chandrasekhar mass and explode), free–free at its classical value, proton + proton 1 or 4 fm, at G 10⁻⁸ to 10⁻²⁶ of ours (10⁻⁸ and 10⁻¹¹ new, for where a star as long-lived as our Sun stops existing).",
- "minutes": 180,
+ "run": "liquid-1",
+ "why": "Liquid–vapour coexistence by Gibbs-ensemble Monte Carlo with the full Ewald sum (tools/liquid.mjs, js/gibbs.js): SPC/E water, whose critical point is published (about 640 K), as the method's check; our water on the book's Hartree–Fock force field, for the recipe's calibration.",
+ "minutes": 300,
  "groups": [
   {
-   "name": "ms4-0",
+   "name": "spce-a",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-8 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-8 4 1",
-    "node four/atom/tools/mainseq.mjs run 1e-11 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-11 4 1"
+    "node four/atom/tools/liquid.mjs run spce 450 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run spce 500 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run spce 550 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run spce 580 --cycles=10000 --minutes=290"
    ]
   },
   {
-   "name": "ms4-1",
+   "name": "spce-b",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-14 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-14 4 1",
-    "node four/atom/tools/mainseq.mjs run 1e-17 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-17 4 1"
+    "node four/atom/tools/liquid.mjs run spce 600 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run spce 620 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run w3 260 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run w3 300 --cycles=10000 --minutes=290"
    ]
   },
   {
-   "name": "ms4-2",
+   "name": "w3-a",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-20 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-20 4 1",
-    "node four/atom/tools/mainseq.mjs run 1e-23 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-23 4 1"
-   ]
-  },
-  {
-   "name": "ms4-3",
-   "cmds": [
-    "node four/atom/tools/mainseq.mjs run 1e-26 1 1",
-    "node four/atom/tools/mainseq.mjs run 1e-26 4 1"
+    "node four/atom/tools/liquid.mjs run w3 340 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run w3 380 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run w3 420 --cycles=10000 --minutes=290",
+    "node four/atom/tools/liquid.mjs run w3 460 --cycles=10000 --minutes=290"
    ]
   }
  ]

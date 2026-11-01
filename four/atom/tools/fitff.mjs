@@ -29,10 +29,13 @@ function solve(M, b) { const n = b.length, A = M.map((r, i) => [...r, b[i]]); fo
    pair's overlap falls with the sum of the two, I being each atom's ionization energy (js/table.js) */
 import { TABLE } from "../js/table.js";
 import { expOf } from "../js/ffmodel.js";
+export { logitB };
 export const bornMayer = (d, Za, Zb) => Math.sqrt(2 * TABLE[d][Za - 1].ion) + Math.sqrt(2 * TABLE[d][Zb - 1].ion);
-const logitB = (b) => -Math.log(3.2 / (b - 0.8) - 1); // expOf's inverse
-export function fit(key, start, free = start.map(() => true)) {
-  const pts = FFDATA[key].points.filter((p) => p.ok && p.E < CAP), w = pts.map((p) => Math.exp(-Math.min(p.E, 0) / W) / (1 + Math.max(p.E, 0) / W));
+function logitB(b) { return -Math.log(3.2 / (b - 0.8) - 1); } // expOf's inverse
+export function fit(key, start, free = start.map(() => true), { extra = [], wExtra = 1 } = {}) {
+  // extra: further points (tools/liquid.mjs's liquid probes), each weighted wExtra whatever its energy
+  const base = FFDATA[key].points.filter((p) => p.ok && p.E < CAP), more = extra.filter((p) => p.ok && p.E < CAP), pts = [...base, ...more];
+  const w = [...base.map((p) => Math.exp(-Math.min(p.E, 0) / W) / (1 + Math.max(p.E, 0) / W)), ...more.map(() => wExtra)];
   const resid = (p) => pts.map((pt, i) => Math.sqrt(w[i]) * (modelEnergy(p, pt.A, pt.B) - pt.E));
   let p = start.slice(), r = resid(p), cost = r.reduce((s, x) => s + x * x, 0), lam = 1e-3;
   for (let it = 0; it < 300; it++) {
