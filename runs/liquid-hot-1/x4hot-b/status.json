@@ -1,0 +1,33 @@
+{
+ "group": "x4hot-b",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run x4 5000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 12179
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run x4 6000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 12023
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run x4 8000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 10916
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run x4 10000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 11495
+  }
+ ]
+}

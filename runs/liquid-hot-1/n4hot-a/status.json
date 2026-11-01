@@ -1,0 +1,33 @@
+{
+ "group": "n4hot-a",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run n4 2000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 9887
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run n4 4000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 9890
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run n4 6000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 11086
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run n4 8000 --cycles=8000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 10750
+  }
+ ]
+}
