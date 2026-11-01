@@ -10,7 +10,7 @@
    Calibration: the same recipe on our water gives a critical point to set against our water's real 647 K.
    `check` keeps the reason the charges need Ewald's full sum in 4D: a slab run on the damped shifted force (Fennell and
    Gezelter's truncated sum, good in 3D) drifts into order the full sum charges heavily for.
-   Cache $TMPDIR/atom4-liquid/<model>_<T>.json */
+   Cache $TMPDIR/atom4-liquid/<model>_<T>_g<generation>.json */
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -22,6 +22,8 @@ import { FORCEFIELDS } from "../js/forcefields.js";
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-liquid"); mkdirSync(DIR, { recursive: true });
 const here = path.dirname(new URL(import.meta.url).pathname), [cmd, ...args] = process.argv.slice(2);
 const amu = 1822.888486, KB = 3.166811563e-6, fs = 41.341374, ANG = 1.8897261, KCAL = 627.5095;
+/* the generation of the run files: liquid-1's (no melt, no hard core) are kept on atom4-data but never resumed or baked */
+const GEN = 2;
 const opt = (k, def) => { const a = args.find((s) => s.startsWith(`--${k}=`)); return a ? +a.split("=")[1] : def; };
 const pad = (v, d) => [...v, ...new Array(d - v.length).fill(0)];
 
@@ -43,10 +45,12 @@ function kindOf(d, mX, qX, qH, R, th) {
   return { sites: [{ m: mX * amu, q: qX, t: "X", at: pad([0, 0], d) }, { m: 1.008 * amu, q: qH, t: "H", at: pad([R * Math.cos(th / 2), R * Math.sin(th / 2)], d) }, { m: 1.008 * amu, q: qH, t: "H", at: pad([R * Math.cos(th / 2), -R * Math.sin(th / 2)], d) }], constraints: [[0, 1], [0, 2], [1, 2]] };
 }
 
-/* a Gibbs pair of boxes for model m: half the molecules at about the liquid's density (one per sp^d), half at a fifth */
+/* a Gibbs pair of boxes for model m: nearly every molecule in a box at about the liquid's density (one per sp^d), a
+   twentieth in a box twice its volume, so the vapour starts dilute and fills by transfers (a droplet left in the vapour
+   box can take longer to drain than a run lasts, when only one insertion in a thousand succeeds) */
 export function gibbsOf(m, seed = 1) {
-  const n0 = Math.round(m.Ng / 2), v0 = m.sp ** m.d;
-  return new Gibbs({ d: m.d, kind: m.kind, pairs: m.pairs, N: [n0, m.Ng - n0], V: [n0 * v0, 5 * (m.Ng - n0) * v0], seed });
+  const nv = Math.round(m.Ng / 20), nl = m.Ng - nv, v0 = m.sp ** m.d;
+  return new Gibbs({ d: m.d, kind: m.kind, pairs: m.pairs, N: [nl, nv], V: [nl * v0, 2 * nl * v0], seed });
 }
 /* the slab system (now only for `check`): md.js's System with a long box (Lx along axis 0, L across), every site pair tabulated in r²
    (short-range term plus DSF charges), cell lists, and the heavy atoms' pull past rc from the profile */
@@ -158,10 +162,10 @@ const MAIN = !!process.argv[1] && import.meta.url.endsWith("/" + path.basename(p
 if (!MAIN) {
   // imported (the bench, the selftest): no command
 } else if (cmd === "run") {
-  /* one temperature: equilibrate (steps tuned) for a fifth of the cycles, then record both boxes' densities and
+  /* one temperature: melt the start in place (400 cycles), equilibrate (steps tuned) to a fifth of the cycles, then record both boxes' densities and
      energies every cycle, in blocks of 200 cycles */
-  const name = args[0], T = +args[1], m = model(name), cycles = opt("cycles", 8000), minutes = opt("minutes", 330), ntr = opt("transfers", Math.round(m.Ng / 5)), block = 200;
-  const file = path.join(DIR, `${name}_${T}.json`), kT = T * KB, t0 = Date.now();
+  const name = args[0], T = +args[1], m = model(name), cycles = opt("cycles", 8000), minutes = opt("minutes", 330), ntr = opt("transfers", m.Ng), block = 200;
+  const file = path.join(DIR, `${name}_${T}_g${GEN}.json`), kT = T * KB, t0 = Date.now();
   let st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
   const g = gibbsOf(m, 17 + Math.round(T) + (st ? st.cycle : 0));
   if (st) g.load(st.state); else st = { model: name, d: m.d, T, N: m.Ng, mass: m.mass, cycles, eq: Math.round(cycles / 5), cycle: 0, blocks: [], cur: null };
@@ -169,7 +173,8 @@ if (!MAIN) {
   const save = () => { st.state = g.dump(); writeFileSync(file, JSON.stringify(st)); };
   let lastSave = Date.now();
   while (st.cycle < cycles) {
-    g.cycle(kT, ntr); st.cycle++;
+    const melt = st.cycle < Math.min(400, st.eq / 2); // the start melts in place first: no transfers or volume moves
+    g.cycle(kT, melt ? 0 : ntr, { volume: !melt }); st.cycle++;
     if (st.cycle <= st.eq && st.cycle % 10 === 0) g.tune();
     if (st.cycle % 50 === 0) { const drift = [0, 1].map((b) => g.check(b)); if (drift.some((x) => Math.abs(x) > 1e-6 * (1 + Math.abs(g.box[0].E)))) console.log(`drift ${drift.map((x) => x.toExponential(2)).join(" ")}`); }
     if (st.cycle > st.eq) {
@@ -214,7 +219,7 @@ if (!MAIN) {
       // the field's own liquid: a short Gibbs run, frames of the denser box every 40 cycles after the first 120
       const m = model(key, p), g = gibbsOf(m, 3 + round + T), kT = T * KB, per = Math.ceil(n / (Ts.length * 6)), ns = m.kind.sites.length;
       for (let c = 1; c <= 360; c++) {
-        g.cycle(kT, 40); if (c <= 120 && c % 10 === 0) g.tune();
+        g.cycle(kT, c <= 60 ? 0 : 40, { volume: c > 60 }); if (c <= 120 && c % 10 === 0) g.tune();
         if (c <= 120 || c % 40) continue;
         const li = g.density(0) >= g.density(1) ? 0 : 1, B = g.box[li], L = B.L;
         console.log(`${key} round ${round}, T ${T}: cycle ${c}, liquid ${B.mols.length} at ${g.density(li).toExponential(3)}, U ${((B.E / B.mols.length) * KCAL).toFixed(2)} kcal/mol a molecule`);
@@ -262,7 +267,7 @@ export const LIQUIDFF = ${JSON.stringify(out)};
      other tried too; ρ_c by the rectilinear diameter) from points that clearly split, the vapour's pressure as an ideal
      gas, ln(ρ_v T) against 1/T (Clausius–Clapeyron), and a boiling point by corresponding states: where the vapour
      reaches the share of the critical density our water's has at its boiling point (0.598 / 322 kg/m³) */
-  const runs = readdirSync(DIR).filter((f) => /^(spce|w3L?|x4L?)_[\d.]+\.json$/.test(f)).map((f) => JSON.parse(readFileSync(path.join(DIR, f), "utf8")));
+  const runs = readdirSync(DIR).filter((f) => new RegExp(`^(spce|w3L?|x4L?)_[\\d.]+_g${GEN}\\.json$`).test(f)).map((f) => JSON.parse(readFileSync(path.join(DIR, f), "utf8")));
   const out = {}, kgm3 = (m, r) => (r * m * 1.66053907e-27) / 5.29177211e-11 ** 3, line = (xs, ys) => { const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n, sxy = xs.reduce((t, x, i) => t + (x - mx) * (ys[i] - my), 0), sxx = xs.reduce((t, x) => t + (x - mx) ** 2, 0); return [sxy / sxx, my - (sxy / sxx) * mx]; };
   const stat = (v) => { const n = v.length, m = v.reduce((a, b) => a + b, 0) / n; return [m, n > 1 ? Math.sqrt(v.reduce((t, x) => t + (x - m) ** 2, 0) / (n - 1) / n) : NaN]; };
   for (const r of runs) { if (r.blocks.length < 3) continue; const [l, el] = stat(r.blocks.map((b) => b.l)), [v, ev] = stat(r.blocks.map((b) => b.v)), [u] = stat(r.blocks.map((b) => b.el));
@@ -295,5 +300,5 @@ export const LIQUID = ${JSON.stringify(out)};
 export const LIQUIDCHECK = ${JSON.stringify(checks)};
 `);
 } else {
-  console.error("usage: liquid.mjs run <spce|w3|x4|w3L|x4L> <T K> [--steps=S] [--minutes=M] | check <model> [T] | probe <w3|x4> <round> [n] | bake"); process.exit(1);
+  console.error("usage: liquid.mjs run <spce|w3|x4|w3L|x4L> <T K> [--cycles=C] [--minutes=M] | check <model> [T] | probe <w3|x4> <round> [n] | bake"); process.exit(1);
 }

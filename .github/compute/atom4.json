@@ -1,33 +1,33 @@
 {
- "run": "liquid-1",
- "why": "Liquid–vapour coexistence by Gibbs-ensemble Monte Carlo with the full Ewald sum (tools/liquid.mjs, js/gibbs.js): SPC/E water, whose critical point is published (about 640 K), as the method's check; our water on the book's Hartree–Fock force field, for the recipe's calibration.",
- "minutes": 300,
+ "run": "liquid-2",
+ "why": "Gibbs liquid–vapour again with the start melted in place before transfers (liquid-1's vapour boxes kept a droplet they couldn't drain) and a hard core between opposite charges (the book's field let a Monte Carlo jump drop a hydrogen into a heavy atom): SPC/E as the method's check, our water on the book's field lower down (it was supercritical from 260 K).",
+ "minutes": 330,
  "groups": [
   {
    "name": "spce-a",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run spce 450 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run spce 500 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run spce 550 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run spce 580 --cycles=10000 --minutes=290"
+    "node four/atom/tools/liquid.mjs run spce 450 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 500 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 550 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 575 --cycles=15000 --minutes=320"
    ]
   },
   {
    "name": "spce-b",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run spce 600 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run spce 620 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run w3 260 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run w3 300 --cycles=10000 --minutes=290"
+    "node four/atom/tools/liquid.mjs run spce 600 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 630 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run w3 130 --cycles=15000 --minutes=320"
    ]
   },
   {
    "name": "w3-a",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run w3 340 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run w3 380 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run w3 420 --cycles=10000 --minutes=290",
-    "node four/atom/tools/liquid.mjs run w3 460 --cycles=10000 --minutes=290"
+    "node four/atom/tools/liquid.mjs run w3 160 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run w3 190 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run w3 220 --cycles=15000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run w3 250 --cycles=15000 --minutes=320"
    ]
   }
  ]

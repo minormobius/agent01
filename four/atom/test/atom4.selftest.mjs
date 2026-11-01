@@ -1022,7 +1022,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 }
 
 /* 57 · liquid and vapour by Gibbs-ensemble Monte Carlo (js/gibbs.js, the liquids): a box's energy is md.js's Ewald sum
-   plus the short-range pairs and their uniform tail, checked on NIST's SPC/E reference configuration; and after
+   plus the short-range pairs, the hard core between opposite charges and the pairs' uniform tail, checked on NIST's SPC/E reference configuration; and after
    displacements, turns, transfers and volume moves in 3D and 4D, the running energies equal a fresh sum */
 {
   const GB = await import(path.join(here, "../js/gibbs.js")), MD = await import(path.join(here, "../js/md.js")), A = 1.8897261, q = 0.4238, th = (109.47 * Math.PI) / 180;
@@ -1034,7 +1034,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   g.box[0].mols = Array.from({ length: M }, (_, m) => ({ c: Float64Array.from(xs[3 * m]), off: [0, 1, 2].map((s) => Float64Array.from(xs[3 * m + s], (v, k) => { const u = v - xs[3 * m][k]; return u - L * Math.round(u / L); })) })); g.setup(0); // unwrapped: the file wraps some hydrogens
   const B = g.box[0], X = Float64Array.from(xs.flat()), Q = Float64Array.from(xs.map((_, i) => (i % 3 ? q : -2 * q))), exs = []; for (let m = 0; m < M; m++) exs.push([3 * m, 3 * m + 1], [3 * m, 3 * m + 2], [3 * m + 1, 3 * m + 2]);
   let E = new MD.Ewald(3, L, { alpha: B.al, rc: B.rc, nmax: 6 }).compute(X, Q, new Float64Array(9 * M), exs).E;
-  for (let a = 0; a < M; a++) for (let b = a + 1; b < M; b++) { const r = xs[3 * a].map((v, k) => { const u = v - xs[3 * b][k]; return u - L * Math.round(u / L); }); const r2 = r.reduce((t, v) => t + v * v, 0); if (r2 < B.rc ** 2) E += MD.shortPair(pairs["X|X"], r2)[0]; }
+  for (let a = 0; a < M; a++) for (let b = a + 1; b < M; b++) { const r = xs[3 * a].map((v, k) => { const u = v - xs[3 * b][k]; return u - L * Math.round(u / L); }); const r2 = r.reduce((t, v) => t + v * v, 0); if (r2 < B.rc ** 2) E += MD.shortPair(pairs["X|X"], r2)[0]; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { if ((i === 0) === (j === 0)) continue; const u = xs[3 * a + i].map((v, k) => { const w = v - xs[3 * b + j][k]; return w - L * Math.round(w / L); }), s2 = u.reduce((t, v) => t + v * v, 0); if (s2 < B.rc ** 2) E += 0.01 * (2.25 / s2) ** 6; } } // and the hard core between opposite charges
   let I = 0; for (let k = 0, h = (40 * B.rc - B.rc) / 200000; k <= 200000; k++) { const r = B.rc + k * h; I += (k === 0 || k === 200000 ? 0.5 : 1) * MD.shortPair(pairs["X|X"], r * r)[0] * 4 * Math.PI * r * r * h; }
   E += (M * M * I) / (2 * L ** 3);
   const Eg = B.E; let drift = 0, moved = 0;
