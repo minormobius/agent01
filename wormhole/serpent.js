@@ -509,7 +509,7 @@
           if (cfg.plane != null) for (i = 0; i < N - (hd ? 6 : 0); i++) X[i * 3 + 2] += (cfg.plane - X[i * 3 + 2]) * 0.5;
           // the neck: hold the head up, beside the text, looking in
           if (hd) {
-            var pins = [[N - 1, 0, 0.7], [N - 2, 1, 0.6], [N - 3, 2, 0.35], [N - 4, 3, 0.15]];
+            var pins = [[N - 1, 0, 0.65], [N - 2, 1, 0.55], [N - 3, 2, 0.12]]; // only the head is posed; the neck finds its own curve
             for (var pi = 0; pi < pins.length; pi++) {
               var pk = pins[pi][0] * 3, back = pins[pi][1] * DS, kp = pins[pi][2];
               X[pk] += (hd.x - hd.dx / hdl * back - X[pk]) * kp; X[pk + 1] += (hd.y - hd.dy / hdl * back - X[pk + 1]) * kp; X[pk + 2] += (hd.z - X[pk + 2]) * kp;
@@ -544,6 +544,8 @@
       for (i = 0; i < D.length; i++) { if (i) s += Math.hypot(D[i][0] - D[i - 1][0], D[i][1] - D[i - 1][1]); smp.push({ x: D[i][0], y: D[i][1], z: D[i][2], s: s }); }
       var Ltot = s;
       if (Ltot < W0 * 12) return false;
+      // the head's heading and crown (screen up, relative to the way it faces) — drawHead uses the same rule
+      var hA = headAngle(smp), hf = Math.cos(hA) < 0 ? -1 : 1, crown = [hf * Math.sin(hA), -hf * Math.cos(hA)];
       for (i = 0; i < smp.length; i++) {
         var a = smp[Math.max(0, i - 2)], c = smp[Math.min(smp.length - 1, i + 2)], q = smp[i];
         q.ang = Math.atan2(c.y - a.y, c.x - a.x);
@@ -562,7 +564,15 @@
             }
           }
         }
+        // approaching the head the body rolls onto its side (back toward the top of the page),
+        // so it meets the profile head without a twist
         var nx = -Math.sin(q.ang), ny = Math.cos(q.ang);
+        var nk = Math.max(0, Math.min(1, (q.s - (Ltot - W0 * 8)) / (W0 * 6)));
+        if (nk > 0) {
+          // roll toward the head's crown: whichever side of the body faces the crown direction
+          var sg = (nx * crown[0] + ny * crown[1]) >= 0 ? 1 : -1, du = [nx * sg, ny * sg, 0];
+          dd = norm3([dd[0] * (1 - nk) + du[0] * nk, dd[1] * (1 - nk) + du[1] * nk, dd[2] * (1 - nk) + du[2] * nk]);
+        }
         q.bc = dd[2]; q.bs = dd[0] * nx + dd[1] * ny; // the back's direction in the (viewer, screen-normal) plane
       }
       // smooth the facing along the body so the pattern rolls, never jumps
@@ -579,6 +589,12 @@
       var tp = [0, 0];
       for (i = 0; i < smp.length; i++) { tp[0] = smp[i].x; tp[1] = smp[i].y; pushOut(tp, smp[i].w); smp[i].x = tp[0]; smp[i].y = tp[1]; }
       return { smp: smp, L: Ltot };
+    }
+    // the head's heading: along the last vertebra
+    function headAngle(smp) {
+      var e = smp[smp.length - 1], k = smp.length - 1;
+      while (k > 0 && Math.hypot(smp[k].x - e.x, smp[k].y - e.y) < DS * 0.8) k--;
+      return Math.atan2(e.y - smp[k].y, e.x - smp[k].x);
     }
     function at(B, u) {
       var smp = B.smp, lo = 0, hi = smp.length - 1;
@@ -619,10 +635,10 @@
         for (var zi = cuts[c]; zi <= cuts[c + 1]; zi++) { zMean += smp[zi].z; nz++; }
         zMean /= nz;
         var out = "", Lp = [], Rp = [];
-        for (var u = Math.max(0, u0 - 1.5); u <= Math.min(Ltot, u1 + 1.5); u += 3) { var q = at(B, u); Lp.push([q.x + q.nx * q.w, q.y + q.ny * q.w]); Rp.push([q.x - q.nx * q.w, q.y - q.ny * q.w]); }
+        for (var u = Math.max(0, u0 - 0.6); u <= Math.min(Ltot, u1 + 0.6) + 0.01; u = u < u1 + 0.6 && u + 3 > u1 + 0.6 ? u1 + 0.6 : u + 3) { var q = at(B, Math.min(Ltot, u)); Lp.push([q.x + q.nx * q.w, q.y + q.ny * q.w]); Rp.push([q.x - q.nx * q.w, q.y - q.ny * q.w]); }
         if (Lp.length < 2) continue;
         var tube = smooth(Lp.concat(Rp.slice().reverse()), true);
-        out += '<path d="' + tube + '" fill="' + K.gap + '" stroke="' + K.gap + '" stroke-width="1.2"/>';
+        var under = '<path d="' + tube + '" fill="' + K.gap + '"/>'; // laid for the whole serpent first, so it never paints over a neighbour's scales
         var buckets = {};
         for (var iu = Math.ceil(u0 / half); iu <= Math.floor(u1 / half); iu++) {
           var uc = iu * half, q0 = at(B, uc);
@@ -633,14 +649,16 @@
             var vp = -2 + (j + 0.5) * rowV;            // body coordinate: 0 the spine of the back, ±2 the belly line
             var v = vp + bn; v = ((v + 2) % 4 + 4) % 4 - 2;   // where that row shows on screen
             if (Math.abs(v) >= 1) continue;
-            var belly = Math.abs(vp) > 1.12;
-            if (!belly && (iu + j) % 2) continue;
-            if (belly && iu % 2) continue;
+            if (Math.abs(vp) > 1.12) continue; // the belly is plated below, not latticed
+            if ((iu + j) % 2) continue;
+            var belly = false;
             // light from the 3D normal of this point on the round body
             var al = v * Math.PI / 2, N3 = [Math.sin(al) * nrm[0], Math.sin(al) * nrm[1], Math.cos(al)];
             var dif = Math.max(0, N3[0] * L3[0] + N3[1] * L3[1] + N3[2] * L3[2]);
             var pc = belly ? [4, 0] : pat(uc, vp);
-            var lit = 0.3 + 0.95 * dif + pc[1] - (zMean < 0 ? 0.22 : 0);
+            // occlusion deepens smoothly as the body goes round behind the bark
+            var ao = 0.28 * Math.max(0, Math.min(1, -q0.z / (RB + W0)));
+            var lit = 0.3 + 0.95 * dif + pc[1] - ao;
             var lvl = Math.max(0, Math.min(7, Math.round(lit * 4)));
             var p1, p2, p3, p4;
             if (belly) { // ventral plates: wide, transverse, overlapping into one band
@@ -654,64 +672,138 @@
             (buckets[key] = buckets[key] || []).push("M" + pt(p1) + "l" + n1(p2[0] - p1[0]) + "," + n1(p2[1] - p1[1]) + "l" + n1(p3[0] - p2[0]) + "," + n1(p3[1] - p2[1]) + "l" + n1(p4[0] - p3[0]) + "," + n1(p4[1] - p3[1]) + "z");
           }
         }
+        var seams = [];
+        // ventral plates: one smooth band per plate across whatever of the belly is in view
+        for (var ib = Math.ceil(u0 / du); ib <= Math.floor(u1 / du); ib++) {
+          var ub = ib * du, qb0 = at(B, ub);
+          if (qb0.w < 0.8) continue;
+          var bnb = qb0.beta / (Math.PI / 2), cb = (((2 + bnb) + 2) % 4 + 4) % 4 - 2;
+          [cb - 4, cb, cb + 4].forEach(function (cc) {
+            var va = Math.max(-1, cc - 0.86), vb = Math.min(1, cc + 0.86);
+            if (vb - va < 0.04) return;
+            var qa3 = at(B, ub - du * 0.52), qb3 = at(B, ub + du * 0.52), edgeA = [], edgeB = [];
+            for (var k3 = 0; k3 <= 4; k3++) { var vv = va + (vb - va) * k3 / 4; edgeA.push(wpt(qa3, vv)); edgeB.push(wpt(qb3, vv)); }
+            var vm = (va + vb) / 2, alb = vm * Math.PI / 2, Nb = [Math.sin(alb) * qb0.nx, Math.sin(alb) * qb0.ny, Math.cos(alb)];
+            var litb = 0.35 + 0.85 * Math.max(0, Nb[0] * L3[0] + Nb[1] * L3[1] + Nb[2] * L3[2]) - 0.28 * Math.max(0, Math.min(1, -qb0.z / (RB + W0)));
+            var keyb = "4:" + Math.max(0, Math.min(7, Math.round(litb * 4)));
+            (buckets[keyb] = buckets[keyb] || []).push("M" + edgeA.map(pt).join("L") + "L" + edgeB.slice().reverse().map(pt).join("L") + "z");
+            seams.push("M" + edgeB.map(pt).join("L"));
+          });
+        }
         Object.keys(buckets).forEach(function (key) {
           var kk = key.split(":"), col = shade(+kk[0], +kk[1]);
           out += '<path d="' + buckets[key].join("") + '" fill="' + col + '" stroke="' + col + '" stroke-width=".35" stroke-linejoin="round"/>';
         });
+        if (seams.length) out += '<path d="' + seams.join("") + '" fill="none" stroke="' + mix(BELLY, K.gap, 0.55) + '" stroke-width=".5" stroke-opacity=".8"/>';
         // the specular streak, where the round body mirrors the light
         var sh = [];
         for (var u2 = u0; u2 <= u1; u2 += 4) { var qq = at(B, u2), hs = H3[0] * qq.nx + H3[1] * qq.ny; sh.push(wpt(qq, Math.atan2(hs, H3[2]) / (Math.PI / 2))); }
         if (sh.length > 1) {
           var wm = at(B, (u0 + u1) / 2).w, so = zMean < 0 ? 0.5 : 1;
-          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.14 * g.sheen * so) + '" stroke-width="' + n1(Math.max(0.6, wm * 0.5)) + '" stroke-linecap="round"/>';
-          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.5 * g.sheen * so) + '" stroke-width="' + n1(Math.max(0.4, wm * 0.12)) + '" stroke-linecap="round"/>';
+          // a broad soft sheen, not a stripe
+          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.09 * g.sheen) + '" stroke-width="' + n1(Math.max(0.8, wm * 0.8)) + '" stroke-linecap="round"/>';
+          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.13 * g.sheen) + '" stroke-width="' + n1(Math.max(0.6, wm * 0.38)) + '" stroke-linecap="round"/>';
         }
-        out += '<path d="' + smooth(Lp, false) + smooth(Rp, false) + '" fill="none" stroke="' + K.gap + '" stroke-width=".8" stroke-opacity=".9"/>';
-        chunks.push({ z: zMean, svg: out });
+        out += '<path d="' + smooth(Lp, false) + smooth(Rp, false) + '" fill="none" stroke="' + K.gap + '" stroke-width=".6" stroke-opacity=".75"/>';
+        chunks.push({ z: zMean, svg: out, under: under });
       }
       var head = drawHead(B);
       chunks.push({ z: 1e9, svg: head });
       // painter's algorithm: behind the bark → its own layer, in front → over the leaves; each by depth
       chunks.sort(function (A2, B2) { return A2.z - B2.z; });
       var y0 = Math.min.apply(null, smp.map(function (q) { return q.y; }));
-      var back = chunks.filter(function (k) { return k.z < 0; }).map(function (k) { return k.svg; }).join("");
-      var front = chunks.filter(function (k) { return k.z >= 0; }).map(function (k) { return k.svg; }).join("");
+      function group(sel) { var ks = chunks.filter(sel); return ks.map(function (k) { return k.under || ""; }).join("") + ks.map(function (k) { return k.svg; }).join(""); }
+      var back = group(function (k) { return k.z < 0; });
+      var front = group(function (k) { return k.z >= 0; });
       if (back) add("snakeBack", y0, back);
       add("snake", y0, front);
       for (var k2 = 0; k2 < smp.length; k2 += 2) place(smp[k2].x, smp[k2].y, smp[k2].w, "serpent", 1);
       snakeCount++;
     }
 
+    // ---- the head, in profile: the body is seen from the side, so is the head ----
+    // Local frame: x forward along the head, y down toward the chin. The body's last
+    // stretch has already rolled onto its side (see body()), so the head's crown is
+    // the dorsal line, the lip line the flank, the chin the belly — and the scales
+    // carry straight on over it: a clipped lattice in the pattern's own colours, the
+    // big crown and lip plates drawn over that, then the eye, mouth and tongue.
     function drawHead(B) {
-      var q = at(B, B.L), pq = at(B, Math.max(0, B.L - DS * 1.5));
-      var ang = Math.atan2(q.y - pq.y, q.x - pq.x) * DEG;
-      // foreshorten when the head tips toward or away from the viewer
-      var flat = Math.hypot(q.x - pq.x, q.y - pq.y) / (Math.hypot(q.x - pq.x, q.y - pq.y, q.z - pq.z) || 1), fs = Math.max(0.6, flat);
-      var hw = W0 * (g.viper ? 1.3 : 1.0), s = "";
-      var pts = g.viper
-        ? [[-W0 * 0.4, W0 * 0.66], [LH * 0.1, hw * 0.92], [LH * 0.3, hw], [LH * 0.55, hw * 0.8], [LH * 0.82, hw * 0.42], [LH, hw * 0.12], [LH, -hw * 0.12], [LH * 0.82, -hw * 0.42], [LH * 0.55, -hw * 0.8], [LH * 0.3, -hw], [LH * 0.1, -hw * 0.92], [-W0 * 0.4, -W0 * 0.66]]
-        : [[-W0 * 0.4, W0 * 0.68], [LH * 0.16, hw * 0.84], [LH * 0.42, hw * 0.92], [LH * 0.72, hw * 0.74], [LH * 0.93, hw * 0.38], [LH, 0], [LH * 0.93, -hw * 0.38], [LH * 0.72, -hw * 0.74], [LH * 0.42, -hw * 0.92], [LH * 0.16, -hw * 0.84], [-W0 * 0.4, -W0 * 0.68]];
-      var headFill = lin("hd" + snakeCount, mix(K.c[0], K.gap, 0.35), K.c[0], mix(K.c[0], "#fff", 0.25), true);
-      s += '<path d="' + smooth(pts, true) + '" fill="' + headFill + '" stroke="' + K.gap + '" stroke-width=".9"/>';
-      s += '<path d="M' + n1(LH * 0.02) + "," + n1(-hw * 0.62) + " L" + n1(LH * 0.5) + ",0 L" + n1(LH * 0.02) + "," + n1(hw * 0.62) + " L" + n1(LH * 0.16) + ',0z" fill="' + K.c[1] + '" fill-opacity=".85"/>';
-      s += '<path d="M' + n1(LH * 0.5) + ",0 L" + n1(LH * 0.9) + ',0" stroke="' + K.gap + '" stroke-width=".45" stroke-opacity=".5"/>';
-      s += '<ellipse cx="' + n1(LH * 0.45) + '" cy="' + n1(-hw * 0.32) + '" rx="' + n1(LH * 0.24) + '" ry="' + n1(hw * 0.12) + '" fill="#fff" fill-opacity="' + n1(0.35 * g.sheen) + '"/>';
-      [-1, 1].forEach(function (sd) {
-        var ex = LH * 0.62, ey = sd * hw * 0.6, er = W0 * 0.26;
-        s += '<circle cx="' + n1(ex) + '" cy="' + n1(ey) + '" r="' + n1(er * 1.18) + '" fill="' + K.gap + '"/>';
-        s += '<circle cx="' + n1(ex) + '" cy="' + n1(ey) + '" r="' + n1(er) + '" fill="' + IRIS + '"/>';
-        s += '<ellipse cx="' + n1(ex) + '" cy="' + n1(ey) + '" rx="' + n1(er * 0.16) + '" ry="' + n1(er * 0.82) + '" fill="#050505"/>';
-        s += '<circle cx="' + n1(ex - er * 0.35) + '" cy="' + n1(ey - er * 0.35) + '" r="' + n1(er * 0.22) + '" fill="#fff" fill-opacity=".9"/>';
-        s += '<path d="M' + n1(ex - er * 1.3) + "," + n1(ey - sd * er * 0.2) + "Q" + n1(ex) + "," + n1(ey - sd * er * 1.5) + " " + n1(ex + er * 1.3) + "," + n1(ey - sd * er * 0.4) + '" fill="none" stroke="' + K.gap + '" stroke-width="' + n1(Math.max(0.6, W0 * 0.16)) + '" stroke-linecap="round"/>';
-        s += '<circle cx="' + n1(LH * 0.93) + '" cy="' + n1(sd * hw * 0.18) + '" r="' + n1(Math.max(0.4, W0 * 0.07)) + '" fill="' + K.gap + '"/>';
+      var q = at(B, B.L), pq = at(B, Math.max(0, B.L - DS * 0.8));
+      var ang = headAngle(B.smp) * DEG;
+      var flat = Math.hypot(q.x - pq.x, q.y - pq.y) / (Math.hypot(q.x - pq.x, q.y - pq.y, q.z - pq.z) || 1), fs = Math.max(0.65, flat);
+      var flip = Math.cos(ang / DEG) < 0 ? -1 : 1;          // keep the crown up whichever way it faces
+      var hn = widthAt(1), h = W0 * (g.viper ? 1.25 : 1.08), Lh = LH * 1.05, id = pfx + "hc" + snakeCount;
+      var pat = makePattern(g, P, 991 + snakeCount), s = "";
+      var outline = g.viper
+        ? [[-W0 * 0.6, -hn], [Lh * 0.12, -h * 0.84], [Lh * 0.38, -h * 0.96], [Lh * 0.66, -h * 0.86], [Lh * 0.88, -h * 0.6], [Lh, -h * 0.22], [Lh * 0.99, h * 0.1], [Lh * 0.86, h * 0.3], [Lh * 0.55, h * 0.56], [Lh * 0.2, h * 0.86], [Lh * 0.02, h * 0.72], [-W0 * 0.6, hn]]
+        : [[-W0 * 0.6, -hn], [Lh * 0.14, -h * 0.8], [Lh * 0.42, -h * 0.92], [Lh * 0.7, -h * 0.8], [Lh * 0.9, -h * 0.5], [Lh, -h * 0.12], [Lh * 0.97, h * 0.14], [Lh * 0.84, h * 0.3], [Lh * 0.55, h * 0.48], [Lh * 0.24, h * 0.64], [Lh * 0.04, h * 0.6], [-W0 * 0.6, hn]];
+      var od = smooth(outline, true);
+      defs.push('<clipPath id="' + id + '"><path d="' + od + '"/></clipPath>');
+      s += '<path d="' + od + '" fill="' + K.gap + '"/>';
+      // the mouth line: snout to the angle of the jaw, with a slight upward curl at the end
+      var m0 = [Lh * 0.96, h * 0.06], m1 = [Lh * 0.55, h * 0.3], m2 = [Lh * 0.2, h * 0.3], m3 = [Lh * 0.13, h * 0.2];
+      function mouthY(x) { // y of the mouth line at x (piecewise linear through the knots)
+        var k = [m3, m2, m1, m0];
+        if (x <= k[0][0]) return k[0][1];
+        for (var i = 0; i < 3; i++) if (x <= k[i + 1][0]) { var t = (x - k[i][0]) / (k[i + 1][0] - k[i][0]); return k[i][1] + (k[i + 1][1] - k[i][1]) * t; }
+        return k[3][1];
+      }
+      // the lattice, carried on from the body: u continues past the neck; vp 0 at the crown → 2 at the chin
+      var cs = W0 * 0.3, buckets = {}; // the body's scale size, carried on
+      for (var gx = -2, ix = 0; gx * cs < Lh + cs; gx++, ix++) {
+        for (var gy = -Math.ceil(h / cs) - 1, iy = 0; gy * cs < h + cs; gy++, iy++) {
+          if ((gx + gy) & 1) continue;
+          var x = gx * cs, y = gy * cs * 0.85, belly = y > mouthY(x);
+          var vp = belly ? 2 : Math.max(0, (y + h) / (h + mouthY(x))) * 1.1;
+          var pc = belly ? [4, 0] : pat(B.L + x, vp);
+          var lit = 0.92 - 0.55 * (y + h) / (2 * h) + (belly ? -0.05 : 0) + pc[1];
+          var lvl = Math.max(0, Math.min(7, Math.round(lit * 4))), key = pc[0] + ":" + lvl, d = cs * 0.9;
+          (buckets[key] = buckets[key] || []).push("M" + n1(x - d) + "," + n1(y) + "l" + n1(d) + "," + n1(-d * 0.85) + "l" + n1(d) + "," + n1(d * 0.85) + "l" + n1(-d) + "," + n1(d * 0.85) + "z");
+        }
+      }
+      var lat = "";
+      Object.keys(buckets).forEach(function (key) { var kk = key.split(":"), col = shade(+kk[0], +kk[1]); lat += '<path d="' + buckets[key].join("") + '" fill="' + col + '" stroke="' + col + '" stroke-width=".3"/>'; });
+      s += '<g clip-path="url(#' + id + ')">' + lat;
+      // the big plates: crown shields along the top, labials along both lips — outlined, so the lattice shows the pattern through them
+      var plate = "";
+      var crown = [[Lh * 0.12, Lh * 0.34], [Lh * 0.34, Lh * 0.54], [Lh * 0.54, Lh * 0.76], [Lh * 0.76, Lh * 0.95]];
+      crown.forEach(function (c, i) {
+        var y0 = -h * 1.1, y1 = -h * (0.42 - i * 0.04);
+        plate += "M" + n1(c[0]) + "," + n1(y0) + "L" + n1(c[0] + 0.5) + "," + n1(y1) + "Q" + n1((c[0] + c[1]) / 2) + "," + n1(y1 + h * 0.08) + " " + n1(c[1]) + "," + n1(y1) + "L" + n1(c[1]) + "," + n1(y0);
       });
-      var T = TONGUE;
-      var tongue = '<g class="tongue" style="--d:' + n1(r.range(0, 4)) + 's"><path d="M' + n1(LH * 0.96) + ",0 L" + n1(LH + T * 0.62) + ",0 M" + n1(LH + T * 0.62) + ",0 l" + n1(T * 0.38) + "," + n1(-T * 0.2) + " M" + n1(LH + T * 0.62) + ",0 l" + n1(T * 0.38) + "," + n1(T * 0.2) +
-        '" fill="none" stroke="#b8102c" stroke-width="' + n1(Math.max(0.5, W0 * 0.13)) + '" stroke-linecap="round"/></g>';
-      var a = ang / DEG, reachH = LH * fs;
-      place(q.x + Math.cos(a) * reachH * 0.5, q.y + Math.sin(a) * reachH * 0.5, Math.max(reachH * 0.62, hw * 1.05), "head", 1);
-      place(q.x + Math.cos(a) * (reachH + T * 0.6 * fs), q.y + Math.sin(a) * (reachH + T * 0.6 * fs), T * 0.55, "tongue", 0.2);
-      return '<g transform="translate(' + n1(q.x) + " " + n1(q.y) + ") rotate(" + n1(ang) + ")" + (fs < 0.99 ? " scale(" + n1(fs) + " 1)" : "") + '">' + tongue + s + "</g>";
+      // supralabials: a row of tall plates whose upper edge is one smooth curve, divided by short ticks
+      var labTop = [], nl = 6;
+      for (var li = 0; li <= nl; li++) { var xa = Lh * (0.22 + li * 0.12); labTop.push([xa, mouthY(xa) - h * 0.24]); }
+      plate += "M" + labTop.map(pt).join("L");
+      labTop.forEach(function (p, i) { if (i && i < nl) plate += "M" + pt(p) + "L" + n1(p[0] + Lh * 0.01) + "," + n1(mouthY(p[0]) - 0.3); });
+      // infralabials: ticks below the lip
+      for (var lj = 1; lj < 6; lj++) { var xc = Lh * (0.24 + lj * 0.12); plate += "M" + n1(xc) + "," + n1(mouthY(xc) + 0.6) + "L" + n1(xc - Lh * 0.02) + "," + n1(mouthY(xc) + h * 0.22); }
+      s += '<path d="' + plate + '" fill="none" stroke="' + K.gap + '" stroke-width="' + n1(Math.max(0.5, W0 * 0.07)) + '" stroke-opacity=".85" stroke-linecap="round"/>';
+      // the eye stripe: from behind the eye back to the jaw, where the pattern has one
+      if (/diamond|zigzag|stripe|saddle|ocelli|bands/.test(g.pattern)) s += '<path d="M' + n1(Lh * 0.6) + "," + n1(-h * 0.2) + "Q" + n1(Lh * 0.35) + "," + n1(h * 0.02) + " " + n1(Lh * 0.12) + "," + n1(h * 0.18) + '" fill="none" stroke="' + K.c[1] + '" stroke-width="' + n1(h * 0.26) + '" stroke-opacity=".75" stroke-linecap="round"/>';
+      // the same light as the body: lit crown, shadowed throat
+      var sh = lin("hs" + snakeCount, "#ffffff", "#ffffff", "#000000", true);
+      defs.push('<linearGradient id="' + pfx + "hl" + snakeCount + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".32"/><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".7" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient>');
+      s += '<rect x="' + n1(-W0) + '" y="' + n1(-h * 1.1) + '" width="' + n1(Lh + W0 * 2) + '" height="' + n1(h * 2.2) + '" fill="url(#' + pfx + "hl" + snakeCount + ')"/>';
+      s += "</g>";
+      // the mouth, a little smile at the corner
+      s += '<path d="M' + pt(m0) + "C" + n1(Lh * 0.8) + "," + n1(h * 0.26) + " " + n1(Lh * 0.45) + "," + n1(h * 0.34) + " " + pt(m2) + "Q" + n1(Lh * 0.15) + "," + n1(h * 0.28) + " " + pt(m3) + '" fill="none" stroke="' + K.gap + '" stroke-width="' + n1(Math.max(0.6, W0 * 0.09)) + '" stroke-linecap="round"/>';
+      // nostril, eye with brow shield, slit pupil and glint
+      s += '<ellipse cx="' + n1(Lh * 0.9) + '" cy="' + n1(-h * 0.24) + '" rx="' + n1(W0 * 0.09) + '" ry="' + n1(W0 * 0.06) + '" fill="' + K.gap + '"/>';
+      var ex = Lh * 0.62, ey = -h * 0.24, er = h * 0.27;
+      s += '<circle cx="' + n1(ex) + '" cy="' + n1(ey) + '" r="' + n1(er * 1.22) + '" fill="' + K.gap + '"/>';
+      s += '<circle cx="' + n1(ex) + '" cy="' + n1(ey) + '" r="' + n1(er) + '" fill="' + IRIS + '"/>';
+      s += '<ellipse cx="' + n1(ex + er * 0.05) + '" cy="' + n1(ey) + '" rx="' + n1(er * 0.17) + '" ry="' + n1(er * 0.86) + '" fill="#050505"/>';
+      s += '<circle cx="' + n1(ex - er * 0.38) + '" cy="' + n1(ey - er * 0.38) + '" r="' + n1(er * 0.22) + '" fill="#fff" fill-opacity=".9"/>';
+      s += '<path d="M' + n1(ex - er * 1.35) + "," + n1(ey - er * 0.55) + "Q" + n1(ex) + "," + n1(ey - er * 1.75) + " " + n1(ex + er * 1.4) + "," + n1(ey - er * 0.75) + '" fill="none" stroke="' + K.gap + '" stroke-width="' + n1(Math.max(0.6, W0 * 0.12)) + '" stroke-linecap="round"/>';
+      s += '<path d="' + od + '" fill="none" stroke="' + K.gap + '" stroke-width=".7" stroke-opacity=".8"/>';
+      var T = TONGUE, tx0 = Lh * 0.97, ty0 = h * 0.1;
+      var tongue = '<g class="tongue" style="--d:' + n1(r.range(0, 4)) + 's"><path d="M' + n1(tx0) + "," + n1(ty0) + " L" + n1(tx0 + T * 0.62) + "," + n1(ty0) + " M" + n1(tx0 + T * 0.62) + "," + n1(ty0) + " l" + n1(T * 0.38) + "," + n1(-T * 0.2) + " M" + n1(tx0 + T * 0.62) + "," + n1(ty0) + " l" + n1(T * 0.38) + "," + n1(T * 0.2) +
+        '" fill="none" stroke="#b8102c" stroke-width="' + n1(Math.max(0.5, W0 * 0.12)) + '" stroke-linecap="round"/></g>';
+      var a = ang / DEG, reachH = Lh * fs;
+      place(q.x + Math.cos(a) * reachH * 0.5, q.y + Math.sin(a) * reachH * 0.5, Math.max(reachH * 0.62, h * 1.05), "head", 1);
+      place(q.x + Math.cos(a) * (reachH + T * 0.6 * fs), q.y + Math.sin(a) * (reachH + T * 0.6 * fs), T * 0.6, "tongue", 0.2);
+      return '<g transform="translate(' + n1(q.x) + " " + n1(q.y) + ") rotate(" + n1(ang) + ") scale(" + n1(fs) + " " + flip + ')">' + tongue + s + "</g>";
     }
 
     // where a head comes to rest: just off the text edge (side ±1) or below it (side 0)
@@ -738,10 +830,12 @@
     }
     // a rough first pose; the simulation does the rest
     function approach(from, hd) {
-      var pts = [], mid = [(from[0] + hd.x) / 2 - hd.dx * W0 * 3, (from[1] + hd.y) / 2 - W0 * 4, (from[2] + hd.z) / 2 + W0];
-      for (var i = 1; i <= 24; i++) {
-        var t = i / 24, u = 1 - t;
-        pts.push([u * u * from[0] + 2 * u * t * mid[0] + t * t * hd.x, u * u * from[1] + 2 * u * t * mid[1] + t * t * hd.y, u * u * from[2] + 2 * u * t * mid[2] + t * t * hd.z]);
+      // a cubic with slack: up off the body, then a swan's curve into the head's heading
+      var hl = Math.hypot(hd.dx, hd.dy) || 1, dx = hd.dx / hl, dy = hd.dy / hl;
+      var c1 = [from[0] - dx * W0 * 2, from[1] - W0 * 5, from[2] + W0 * 2], c2 = [hd.x - dx * W0 * 6, hd.y - dy * W0 * 6 + W0 * 3.5, hd.z], pts = [];
+      for (var i = 1; i <= 30; i++) {
+        var t = i / 30, u = 1 - t, A = u * u * u, Bq = 3 * u * u * t, Cq = 3 * u * t * t, D = t * t * t;
+        pts.push([A * from[0] + Bq * c1[0] + Cq * c2[0] + D * hd.x, A * from[1] + Bq * c1[1] + Cq * c2[1] + D * hd.y, A * from[2] + Bq * c1[2] + Cq * c2[2] + D * hd.z]);
       }
       return pts;
     }

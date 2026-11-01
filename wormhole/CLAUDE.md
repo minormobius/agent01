@@ -128,10 +128,23 @@ a big emphasis on the patterning of the scales"). It borrows flora's geometry co
   bark → `snakeBack`, in front → `snake`, the head last; each serpent is one band entry so
   its own crossings sort correctly.
 - **Pattern & shading**: `makePattern()` (u, vp) → (palette index, lightness); one `<path>`
-  per colour per chunk; a hairline on the flanks only (never across chunk ends — that seams
-  the body). Head: top-down outline (viper = broad), crown arrowhead, gold iris with a slit
-  pupil and glint, brow ridges, nostrils, foreshortened when it tips in depth; the tongue is
-  `<g class="tongue">`, which CSS flicks (`paper.css` / `flora.html`; off under reduced-motion).
+  per colour per chunk. **Joins** (operator close-up, 2026-11-01: "lines sloppy, intersect in
+  odd ways"): no stroke on chunk underlays, and each serpent lays *all* its dark underlays
+  before any scales (per depth group), so a chunk never paints over its neighbour's scales —
+  that was the collar at every joint. A fine silhouette line runs on the flanks only.
+  **Belly**: real ventral plates — one smooth band per plate across the visible belly arc,
+  contiguous, with a thin seam line — instead of latticed squares. **Light**: occlusion deepens
+  continuously as z goes behind the bark (no step at the cut); the specular is a broad soft
+  sheen, not a stripe.
+- **Neck & head**: only the head (last two vertebrae, a little of the third) is pinned; the
+  neck's initial pose is a slack cubic — up off the body, a swan's curve into the head's heading
+  — and the skeleton settles it, so it rises rather than shooting out. Over its last ~8 body-
+  widths the back's facing **rolls onto its side** toward the head's crown, so the body meets a
+  **profile head** without a twist. `drawHead()` draws the head *from the side*: outline clipped
+  over a scale lattice in the pattern's own colours (scale size = the body's), belly colour below
+  the mouth line, supralabial/infralabial plates, crown shields, an eye stripe for patterned
+  skins, the same top-lit/throat-shadow light, nostril, brow, gold slit-pupil eye, the tongue from
+  the mouth; flipped so the crown is always up, foreshortened if it tips in depth.
 - **Text safety**: walls inside the simulation, then `pushOut()` on every rendered sample
   (smallest on-page move); footprints for every body sample, head and tongue are checked by
   `serpent.selftest.mjs` on four page shapes (in the deploy workflow; ~18 s).
