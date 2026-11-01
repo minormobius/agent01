@@ -288,6 +288,17 @@ for games, and this is a modelling programme with publications to come. The game
   `atom/tools/mainseq.mjs` (`ours` the check: our zero-age sequence 0.5–30 M☉; `run <G> <rnp> [ff]`, on the runner: 4D from
   0.13 to 5 M_Ch at G × ours; `bake` → **generated** `js/mainseqdata.js`, with each star's life, where a 288 K planet sits
   and its year). Cache `$TMPDIR/atom4-mainseq`. Selftest 56.
+  `js/gibbs.js` (no DOM) is liquid against vapour for rigid molecules in any d: Gibbs-ensemble Monte Carlo (two boxes
+  trading volume and molecules), Ewald per box (real space to L/2, α = 2.6/rc, |nᵢ| ≤ 6, the structure factor updated
+  move by move), the short-range tail past rc as a uniform fluid's. Selftest 57 (its energy is md.js's Ewald on NIST's
+  SPC/E configuration). `atom/tools/liquid.mjs`: `run <spce|w3|x4|w3L|x4L> <T>` one temperature on the runner
+  (resumable); `probe <w3|x4> <round>` pairs from the field's own liquid, Hartree–Fock on each, the field's error before
+  a refit sees them, then the refit (**generated** `js/liquidff.js`, every probe pair kept); `check <model>` a damped
+  shifted force against Ewald (3D: 0.34 kcal/mol a molecule; 4D: 42, because the pinned 1/r charges a polarization wave
+  as 1/k, so 4D liquids need the full sum); `bake` → **generated** `js/liquiddata.js` (critical point, vapour line,
+  boiling point by corresponding states, Xater calibrated by our water). Cache `$TMPDIR/atom4-liquid`. First finding:
+  the book's Xater field matches Hartree–Fock on its liquid's close pairs (sum within 1%), and its liquid is far denser
+  than the pair's spacing suggests, but half its cohesion is the fitted 1/r⁶ term past 9 bohr, which nothing tested.
   **What's computed in a sandbox lives only in the cache and the bake**: if `$TMPDIR/atom4-nuclei` is lost (a container
   restart wipes /tmp), `nuclei.mjs restore` writes it back from `js/nucleidata.js` (a bake from it reproduces the file
   byte for byte); then add the runner's files from atom4-data.
