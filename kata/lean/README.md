@@ -40,6 +40,9 @@ slide along cliffs). Cut down to the tesseract grid, with no foams and no rainbo
 - **The track** is marked on that floor wherever the centreline is within 3 m: a closed loop of tarmac with nothing
   in its way. The polyline has 1536 segments, so the distance is exact to its 6 cm chords. Only the cells near it
   are kept (`trackCells()`, sparse: a few hundred thousand of the world's 13 million).
+- **Kerbs that point.** Each kerb is coloured by which way the track runs out of your slice there: teal ana, rose
+  kata, white in it. The shader gets each track cell's place along the course (a second texture) and the course's
+  direction at each place (a table), and dots it with your unseen direction.
 - **Materials.** A cell's byte holds its height in bits 0–5 and its material in bits 6–7: ground, tarmac, the centre
   line (within 12 cm of the centreline, a thin tube, so in your slice it's a line or a dot), and kerbs (the outer 25 cm).
 - **Walking in substeps.** `walk()` cuts every move into substeps of under a cell along each axis. However fast you go

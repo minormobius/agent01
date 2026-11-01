@@ -8,7 +8,7 @@
    The readout is the track's own geometry where you stand, in your frame: its curvature vector κN (which way, and how
    hard, the centreline bends) split into the part in your slice (along R and F) and the part into w you can't see
    (along N), and its torsion τ, how fast the plane of the bend turns. A road on our ground has no torsion. */
-import { DIM, ATLAS_C, VS, terrain, blocks, groundAt, walk, EYE, frenet, nearestTrack, LAP, PTS, NS, S, start, BASIN, R_TRACK, basinE, OVAL } from "./world.js";
+import { DIM, ATLAS_C, VS, terrain, trackCells, trackBins, binTangents, OVAL_COURSE, blocks, groundAt, walk, EYE, frenet, nearestTrack, LAP, PTS, NS, S, start, BASIN, R_TRACK, basinE, OVAL } from "./world.js";
 import { Renderer } from "./render.js";
 import { parts as bikeParts, BOUND, V, G, HOLONOMY, MECHS, BIKE, GROUND_Y } from "./bike.js";
 import { Bike, followLean, lookahead } from "./dyn.js";
@@ -22,8 +22,8 @@ try { Rd = new Renderer(glc); } catch (e) { $("intro").innerHTML = `<h1>LEAN</h1
 
 /* ------------------------------------------------------------- the world */
 timing.shader = Math.round(performance.now() - T0);
-const H = terrain(1), M = blocks(H); timing.land = Math.round(performance.now() - T0);
-Rd.load(H, M, DIM, ATLAS_C); timing.upload = Math.round(performance.now() - T0);
+const TC = trackCells(), H = terrain(1, TC), M = blocks(H); timing.land = Math.round(performance.now() - T0);
+Rd.load(H, M, DIM, ATLAS_C); Rd.aux(trackBins(TC), binTangents(OVAL_COURSE), DIM, ATLAS_C); timing.upload = Math.round(performance.now() - T0);
 const ground = (q) => groundAt(H, q);
 
 /* ------------------------------------------------------------- you: where, and how you're turned */
@@ -387,7 +387,7 @@ function step(now) {
     Rd.cat(P, cf.O, cf.M, bc, CAT_BOUND, CAT_K);
   } else { Rd.bike(bikeParts(st), add(add(st.p, st.T, BIKE.WB / 2), st.u, 0.8), BOUND, COL[bike.mech]); Rd.cat(null); }
   const cp = Math.cos(me.pitch), sp = Math.sin(me.pitch), F = add(me.fr.F.map((v) => v * cp), UP, sp), U = add(UP.map((v) => v * cp), me.fr.F, -sp);
-  Rd.draw({ eye: me.p.map((v) => v / VS), R: me.fr.R, U, F, sun: SUN, time: now / 1000, fae: opt.fae ? 1 : 0, tan: TAN, far: 440, vs: VS }, resolution(dt));
+  Rd.draw({ eye: me.p.map((v) => v / VS), R: me.fr.R, U, F, sun: SUN, time: now / 1000, fae: opt.fae ? 1 : 0, tan: TAN, far: 440, vs: VS, N: me.fr.N }, resolution(dt));
   const r = trackRead(), br = bikeRead(st, want); readout(r); mapDraw(st);
   if (mode === "ride") { const hud = now - fellAt < 2000 ? (fellWhy === "twist" ? "it fell: the frame couldn't twist fast enough" : "it fell: back on the track") : `${{ easy: "easy", hands: "hands on", assisted: "assisted", autopilot: "autopilot" }[pilot]} · ${cam} · lean <b>${(st.phiTrue * 180 / Math.PI).toFixed(0)}°</b>${st.phiTrue > SILLY ? " ⚠ non-physical" : ""}, ${br.intoW}% into w · ${(bike.dist / LAP).toFixed(1)} laps`; if (hud !== readout.hud) { readout.hud = hud; $("hudT").innerHTML = hud; } }
   const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1); if (ov.width !== Math.round(ov.clientWidth * dpr)) { ov.width = Math.round(ov.clientWidth * dpr); ov.height = Math.round(ov.clientHeight * dpr); }

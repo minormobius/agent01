@@ -3686,6 +3686,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-tailspin",
+   "name": "kata-tailspin",
+   "url": "https://kata.mino.mobi/tailspin/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

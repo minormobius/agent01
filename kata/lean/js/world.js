@@ -80,34 +80,47 @@ function hash(x, z, w, s) {
   n ^= n >>> 15; n = Math.imul(n, 0x2c1b3c6d) >>> 0; n ^= n >>> 12; n = Math.imul(n, 0x297a2d39) >>> 0; n ^= n >>> 15;
   return (n >>> 0) / 4294967296;
 }
-/* the cells near the centreline (within R_TRACK + SHOULDER) and their distances to it, kept sparse (the world has 13
-   million cells and the track touches a few hundred thousand): blocks far from every sample are skipped, and each
-   near block's cells test only the segments near it. Scalar and allocation-free in the inner loop */
-const SEG = (() => { const a = new Float64Array(NS * 7); for (let i = 0; i < NS; i++) { const p = PTS[i], q = PTS[(i + 1) % NS], ex = q[0] - p[0], ez = q[1] - p[1], ew = q[2] - p[2]; a.set([p[0], p[1], p[2], ex, ez, ew, 1 / (ex * ex + ez * ez + ew * ew)], 7 * i); } return a; })();
-function segD2(x, z, w, i) {
-  const k = 7 * i, ox = x - SEG[k], oz = z - SEG[k + 1], ow = w - SEG[k + 2], ex = SEG[k + 3], ez = SEG[k + 4], ew = SEG[k + 5];
-  let u = (ox * ex + oz * ez + ow * ew) * SEG[k + 6]; u = u < 0 ? 0 : u > 1 ? 1 : u;
-  const rx = ox - u * ex, rz = oz - u * ez, rw = ow - u * ew; return rx * rx + rz * rz + rw * rw;
+/* ------------------------------------------------------------------ courses
+   A course is a polyline over the ground (x, z, w), closed (Lean's oval) or open (a level, start to finish), and a
+   radius: the track is every point of the ground within it. course(pts, closed, R) makes one; OVAL_COURSE is Lean's. */
+export function course(pts, closed = true, R = R_TRACK) {
+  const n = pts.length, segs = closed ? n : n - 1, S = [0], SEG = new Float64Array(segs * 7);
+  for (let i = 0; i < segs; i++) {
+    const p = pts[i], q = pts[(i + 1) % n], ex = q[0] - p[0], ez = q[1] - p[1], ew = q[2] - p[2];
+    SEG.set([p[0], p[1], p[2], ex, ez, ew, 1 / (ex * ex + ez * ez + ew * ew)], 7 * i); S.push(S[i] + Math.hypot(ex, ez, ew));
+  }
+  return { pts, closed, R, n, segs, S, len: S[segs], SEG };
 }
-export function trackCells() {
-  const [X, Z, W] = DIM, reach = R_TRACK + SHOULDER, BS = B * VS, half = (Math.sqrt(3) * BS) / 2;
-  const nearR2 = (reach + half + 0.1) ** 2, reach2 = reach * reach, near = new Int32Array(NS), idx = [], dist = [];
+export const OVAL_COURSE = course(PTS, true);
+/* squared distance from (x, z, w) to segment i of a course, and how far along it (0..1) */
+function segD2(C, x, z, w, i) {
+  const k = 7 * i, A = C.SEG, ox = x - A[k], oz = z - A[k + 1], ow = w - A[k + 2], ex = A[k + 3], ez = A[k + 4], ew = A[k + 5];
+  let u = (ox * ex + oz * ez + ow * ew) * A[k + 6]; u = u < 0 ? 0 : u > 1 ? 1 : u;
+  const rx = ox - u * ex, rz = oz - u * ez, rw = ow - u * ew; segU = u; return rx * rx + rz * rz + rw * rw;
+}
+let segU = 0;
+/* the cells near a course's centreline (within R + SHOULDER), kept sparse (the world has 13 million cells and a track
+   touches a few hundred thousand): each cell's index, distance to the centreline and how far along it (s, metres).
+   Blocks far from every segment are skipped, and each near block's cells test only the segments near it */
+export function trackCells(C = OVAL_COURSE) {
+  const [X, Z, W] = DIM, reach = C.R + SHOULDER, BS = B * VS, half = (Math.sqrt(3) * BS) / 2;
+  const nearR2 = (reach + half + 0.1) ** 2, reach2 = reach * reach, near = new Int32Array(C.segs), idx = [], dist = [], along = [];
   for (let bw = 0; bw < W / B; bw++) for (let bz = 0; bz < Z / B; bz++) for (let bx = 0; bx < X / B; bx++) {
     let nn = 0; const cx = (bx + 0.5) * BS, cz = (bz + 0.5) * BS, cw = (bw + 0.5) * BS;
-    for (let i = 0; i < NS; i++) if (segD2(cx, cz, cw, i) < nearR2) near[nn++] = i;
+    for (let i = 0; i < C.segs; i++) if (segD2(C, cx, cz, cw, i) < nearR2) near[nn++] = i;
     if (!nn) continue;
     for (let w = bw * B; w < (bw + 1) * B; w++) for (let z = bz * B; z < (bz + 1) * B; z++) for (let x = bx * B; x < (bx + 1) * B; x++) {
-      const gx = (x + 0.5) * VS, gz = (z + 0.5) * VS, gw = (w + 0.5) * VS; let d = Infinity;
-      for (let j = 0; j < nn; j++) { const s = segD2(gx, gz, gw, near[j]); if (s < d) d = s; }
-      if (d < reach2) { idx.push(x + X * (z + Z * w)); dist.push(Math.sqrt(d)); }
+      const gx = (x + 0.5) * VS, gz = (z + 0.5) * VS, gw = (w + 0.5) * VS; let d = Infinity, sa = 0;
+      for (let j = 0; j < nn; j++) { const q = segD2(C, gx, gz, gw, near[j]); if (q < d) { d = q; sa = C.S[near[j]] + segU * (C.S[near[j] + 1] - C.S[near[j]]); } }
+      if (d < reach2) { idx.push(x + X * (z + Z * w)); dist.push(Math.sqrt(d)); along.push(sa); }
     }
   }
-  return { idx: Int32Array.from(idx), d: Float32Array.from(dist) };
+  return { idx: Int32Array.from(idx), d: Float32Array.from(dist), s: Float32Array.from(along), R: C.R, len: C.len, closed: C.closed };
 }
 /* the same as a dense field over every cell (Infinity far from the track), for the selftest */
 export function denseDistance(T) { const D = new Float32Array(DIM[0] * DIM[1] * DIM[2]).fill(Infinity); T.idx.forEach((i, k) => { D[i] = T.d[k]; }); return D; }
-/* the heights and materials: the rim, and inside it a flat floor at the track's height with the track marked on it */
-export function terrain(seed = 1, T = trackCells()) {
+/* the heights: the rim, and inside it a flat floor at the track's height */
+export function rimTerrain(seed = 1) {
   const [X, Z, W] = DIM, H = new Uint8Array(X * Z * W), nb = DIM.map((v) => v / B);
   // the rim: at least RIM_MIN, broken up block by block (8 cells) and a little column by column, for something to see
   const blockUp = new Uint8Array(nb[0] * nb[1] * nb[2]); for (let i = 0; i < blockUp.length; i++) blockUp[i] = Math.floor(hash(i, 3, 5, seed) * 9);
@@ -117,9 +130,37 @@ export function terrain(seed = 1, T = trackCells()) {
     const bi = (x >> 3) + nb[0] * ((z >> 3) + nb[1] * (w >> 3));
     H[i] = Math.min(HMASK, RIM_MIN + blockUp[bi] + Math.floor(hash(x, z, w, seed + 1) * 2.2));
   }
-  // the track, marked on the floor: tarmac, the centre line, the kerbs
-  for (let k = 0; k < T.idx.length; k++) { const d = T.d[k]; if (d >= R_TRACK) continue; const mat = d < LINE ? MAT.line : d > R_TRACK - KERB ? MAT.kerb : MAT.track; H[T.idx[k]] = TRACK_H | (mat << MSHIFT); }
   return H;
+}
+/* the track, marked on the floor: tarmac, the centre line, the kerbs; on an open course a band of the line's white
+   across it at the start and the finish. unmarkTrack puts the floor back (a level switch changes only materials, so
+   the blocks and heights stand) */
+export function markTrack(H, T) {
+  for (let k = 0; k < T.idx.length; k++) {
+    const d = T.d[k]; if (d >= T.R) continue;
+    const ends = !T.closed && (T.s[k] < 0.5 || T.s[k] > T.len - 0.5);
+    const mat = d < LINE || ends ? MAT.line : d > T.R - KERB ? MAT.kerb : MAT.track; H[T.idx[k]] = TRACK_H | (mat << MSHIFT);
+  }
+  return H;
+}
+export function unmarkTrack(H, T) { for (let k = 0; k < T.idx.length; k++) H[T.idx[k]] = TRACK_H; return H; }
+export function terrain(seed = 1, T = trackCells()) { return markTrack(rimTerrain(seed), T); }
+/* which way the track runs where it is: each track cell gets the bin (1 to BINS) of its distance along the course,
+   and binTangents gives the course's unit tangent (4D, y = 0) at each bin's middle, for the shader to colour the kerbs
+   by where the track goes out of your slice */
+export const BINS = 255;
+export function trackBins(T) {
+  const A = new Uint8Array(DIM[0] * DIM[1] * DIM[2]);
+  for (let k = 0; k < T.idx.length; k++) if (T.d[k] < T.R) A[T.idx[k]] = 1 + Math.min(BINS - 1, Math.floor((T.s[k] / T.len) * BINS));
+  return A;
+}
+export function binTangents(C) {
+  const out = new Float32Array((BINS + 1) * 4);
+  for (let b = 1; b <= BINS; b++) {
+    const s = ((b - 0.5) / BINS) * C.len; let i = 0; while (i < C.segs - 1 && C.S[i + 1] < s) i++;
+    const k = 7 * i, e = [C.SEG[k + 3], C.SEG[k + 4], C.SEG[k + 5]], m = Math.hypot(...e); out.set([e[0] / m, 0, e[1] / m, e[2] / m], 4 * b);
+  }
+  return out;
 }
 export const height = (H, x, z, w) => H[wrap(x, DIM[0]) + DIM[0] * (wrap(z, DIM[1]) + DIM[1] * wrap(w, DIM[2]))] & HMASK;
 export const material = (H, x, z, w) => H[wrap(x, DIM[0]) + DIM[0] * (wrap(z, DIM[1]) + DIM[1] * wrap(w, DIM[2]))] >> MSHIFT;

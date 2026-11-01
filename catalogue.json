@@ -5738,6 +5738,23 @@
       ]
     },
     {
+      "n": "kata-tailspin",
+      "u": "https://kata.mino.mobi/tailspin/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-01",
+      "b": "2026-11-01",
+      "p": "kata",
+      "surface": "kata",
+      "d": "The Cheshire cat rides a bicycle through four dimensions, and ten levels teach you to lean into w. The stick is the lean: right turns right, up leans ana, down kata, into the direction you can't see, and the kerbs turn teal or rose where the track leaves your slice. Each level is ridden first by an oracle with a reaction delay, and scored out of 10 for timing, out-of-plane bending, twist and lean, every level harder than the last; made courses for any seed, and today's.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

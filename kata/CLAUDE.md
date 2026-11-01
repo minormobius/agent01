@@ -26,6 +26,13 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
 - **the landing at `/`**: `index.html`, self-contained (inline CSS). The premise, a card per demo (live, next, then),
   and what we think we know about a 4D bicycle. When a demo ships, its card goes live; when a claim is settled by a
   simulation, its bullet changes.
+- **TAILSPIN at `/tailspin/`**: the level series. The Cheshire cat, its one-axis bike, easy mode, no autopilot.
+  Courses are segment lists integrated in the rider's non-twisting frame (`js/course.js`, a segment's `dir` is where
+  the stick goes); an oracle rides each with a reaction delay (`js/oracle.js`), and the difficulty /10 is its timing
+  plus the out-of-plane, twist and lean demands; ten hand-made levels (`js/levels.js`, scores stored, held to the
+  oracle and to rising by the selftest); a seeded generator (`js/gen.js`). It imports Lean's engine from `../lean/js/`
+  (same site: not a copy), so **a change to Lean's world, shader, dynamics or cat runs TAILSPIN's selftest too**. See
+  [`tailspin/README.md`](tailspin/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -57,6 +64,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
     `test/catbike.selftest.mjs` fails on any drift. The shader's `catSD` is the cat lab's `cat()`, formula for formula;
     after a change to the lab's shader joins or materials, port it here. The cat bike is the benchmark × 0.4, one-axis
     only, and the tail carries the twist (I_body/I_tail from the posed parts).
+  - **Courses and kerbs.** `world.js` takes any course (`course(pts, closed, R)`; Lean's is `OVAL_COURSE`):
+    `trackCells` keeps each track cell's distance and place along it, `markTrack`/`unmarkTrack` put a course on the
+    floor and take it off (heights never change, so the blocks stand), and `trackBins`/`binTangents` give the shader
+    the course's direction at every track cell. The kerbs are coloured by where the track goes out of your slice
+    (teal ana, rose kata), which needs `v.N` (your unseen direction) passed to `Renderer.draw`.
   - IRIS⁴'s march fixes reach Lean only by hand. After a change to `four/iris/js/world.js`'s `march()` or the shader's,
     port it here and run both selftests.
 
@@ -72,6 +84,7 @@ node kata/lean/test/lean.selftest.mjs   # ~2 s
 node kata/lean/test/bike.selftest.mjs   # < 1 s
 node kata/lean/test/dyn.selftest.mjs    # ~2 s
 node kata/lean/test/catbike.selftest.mjs # ~1 s
+node kata/tailspin/test/tailspin.selftest.mjs # ~50 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

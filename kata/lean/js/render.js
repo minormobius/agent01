@@ -11,7 +11,7 @@ const VSRC = `#version 300 es
 in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
 const FS = `#version 300 es
 precision highp float; precision highp int; precision highp usampler2D;
-uniform usampler2D uH, uM;
+uniform usampler2D uH, uM, uAux; uniform sampler2D uBinT; uniform int uHasAux; uniform vec4 uN; // uAux: each track cell's bin along the course; uBinT: the course's tangent at each bin; uN: the direction your slice can't see
 uniform vec4 uEye, uR, uU, uF, uSun;
 uniform vec2 uRes;
 uniform float uTan, uTime, uFae, uFar, uVS;
@@ -30,6 +30,7 @@ const int AC = 12; // the atlas: w-slices 12 across
 int wr(int v, int n) { return v - n * int(floor(float(v) / float(n))); }
 uint raw(ivec3 c) { int x = wr(c.x, DIM.x), z = wr(c.y, DIM.y), w = wr(c.z, DIM.z); return texelFetch(uH, ivec2(x + (w - (w / AC) * AC) * DIM.x, z + (w / AC) * DIM.y), 0).r; }
 float col(ivec3 c) { return float(raw(c) & 63u); }
+uint aux(ivec3 c) { int x = wr(c.x, DIM.x), z = wr(c.y, DIM.y), w = wr(c.z, DIM.z); return texelFetch(uAux, ivec2(x + (w - (w / AC) * AC) * DIM.x, z + (w / AC) * DIM.y), 0).r; }
 float blk(ivec3 b) { return float(texelFetch(uM, ivec2(wr(b.x, NB.x) + wr(b.z, NB.z) * NB.x, wr(b.y, NB.y)), 0).r); }
 bool march(vec4 ro, vec4 rd, out float tHit, out vec4 n, out ivec3 cell) {
   vec3 p = ro.xzw, v = rd.xzw; float py = ro.y, vy = rd.y;
@@ -175,7 +176,15 @@ void main() {
     if (top && mat > 0) { // the track: tarmac, the centre line, red-and-white kerbs
       base = mix(vec3(0.17, 0.17, 0.19), vec3(0.23, 0.23, 0.25), g);
       if (mat == 2) base = vec3(0.92, 0.92, 0.88);
-      if (mat == 3) base = mod(float(cell.x + cell.y + cell.z), 4.0) < 2.0 ? vec3(0.85, 0.16, 0.14) : vec3(0.93, 0.93, 0.9);
+      if (mat == 3) {
+        bool stripe = mod(float(cell.x + cell.y + cell.z), 4.0) < 2.0;
+        base = stripe ? vec3(0.85, 0.16, 0.14) : vec3(0.93, 0.93, 0.9);
+        if (uHasAux == 1) { // the kerbs say where the track goes out of your slice: teal ana, rose kata, white in it
+          uint bi = aux(cell); vec4 tg = texelFetch(uBinT, ivec2(int(bi), 0), 0); float tn = dot(tg, uN), a = clamp(abs(tn) * 4.0, 0.0, 1.0);
+          vec3 inPlane = stripe ? vec3(0.9, 0.9, 0.86) : vec3(0.55, 0.55, 0.58), way = tn > 0.0 ? vec3(0.22, 0.95, 0.88) : vec3(1.0, 0.4, 0.72);
+          base = mix(inPlane, way * (stripe ? 1.0 : 0.7), a);
+        }
+      }
     }
     float seam;
     if (n.y > 0.5) seam = min(min(min(f.x, 1.0 - f.x), min(f.z, 1.0 - f.z)), min(f.w, 1.0 - f.w));
@@ -204,10 +213,10 @@ export class Renderer {
     gl.useProgram(p); this.p = p;
     const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
+    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uAux", "uBinT", "uHasAux", "uN", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
   }
   tex(unit, w, h, data) {
-    const gl = this.gl, t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
+    const gl = this.gl; this.texs = this.texs || {}; if (this.texs[unit]) gl.deleteTexture(this.texs[unit]); const t = (this.texs[unit] = gl.createTexture()); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
     for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, w, h, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, data);
   }
@@ -221,6 +230,24 @@ export class Renderer {
     for (let w = 0; w < nb[2]; w++) for (let z = 0; z < nb[1]; z++) for (let x = 0; x < nb[0]; x++) m[z * nb[0] * nb[2] + x + w * nb[0]] = M[x + nb[0] * (z + nb[1] * w)];
     this.tex(1, nb[0] * nb[2], nb[1], m);
     const gl = this.gl; gl.uniform1i(this.u.uH, 0); gl.uniform1i(this.u.uM, 1);
+  }
+  /* the land again (a level's track changes only materials), and the track's direction bins and tangents (world.js
+     trackBins, binTangents); aux null turns the kerbs' direction colours off */
+  reload(H, dims, cols = 12) { this.atlas(0, H, dims, cols); this.gl.uniform1i(this.u.uH, 0); }
+  atlas(unit, H, dims, cols) {
+    const [X, Z, W] = dims, rows = Math.ceil(W / cols), a = new Uint8Array(X * cols * Z * rows);
+    for (let w = 0; w < W; w++) for (let z = 0; z < Z; z++) { const src = X * (z + Z * w), row = (z + Math.floor(w / cols) * Z) * X * cols + (w % cols) * X; a.set(H.subarray(src, src + X), row); }
+    this.tex(unit, X * cols, Z * rows, a);
+  }
+  aux(A, table, dims, cols = 12) {
+    const gl = this.gl, u = this.u;
+    if (!A) { gl.uniform1i(u.uHasAux, 0); return; }
+    this.atlas(3, A, dims, cols); gl.uniform1i(u.uAux, 3);
+    this.texs = this.texs || {}; if (this.texs[4]) gl.deleteTexture(this.texs[4]);
+    const t = (this.texs[4] = gl.createTexture()); gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, t);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, table.length / 4, 1, 0, gl.RGBA, gl.FLOAT, table);
+    gl.uniform1i(u.uBinT, 4); gl.uniform1i(u.uHasAux, 1);
   }
   /* the bike: bike.js's parts() (metres), the middle and radius of a ball holding it, and the frame's colour; null hides it */
   bike(P, mid, rad, col) {
@@ -253,7 +280,7 @@ export class Renderer {
     const w = Math.max(1, Math.round(c.clientWidth * scale)), h = Math.max(1, Math.round(c.clientHeight * scale));
     if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
     gl.viewport(0, 0, w, h);
-    gl.uniform4fv(u.uEye, v.eye); gl.uniform4fv(u.uR, v.R); gl.uniform4fv(u.uU, v.U); gl.uniform4fv(u.uF, v.F); gl.uniform4fv(u.uSun, v.sun);
+    gl.uniform4fv(u.uEye, v.eye); gl.uniform4fv(u.uN, v.N || [0, 0, 0, 1]); gl.uniform4fv(u.uR, v.R); gl.uniform4fv(u.uU, v.U); gl.uniform4fv(u.uF, v.F); gl.uniform4fv(u.uSun, v.sun);
     gl.uniform2f(u.uRes, w, h); gl.uniform1f(u.uTan, v.tan); gl.uniform1f(u.uTime, v.time); gl.uniform1f(u.uFae, v.fae); gl.uniform1f(u.uFar, v.far); gl.uniform1f(u.uVS, v.vs);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
