@@ -228,7 +228,7 @@ if (!MAIN) {
           for (const M of B.mols) if (M !== A) near.push([Math.hypot(...M.c.map((v, k) => img(v - A.c[k]))), M]);
           near.sort((u, v) => u[0] - v[0]); const M = near[t % 2 ? Math.floor(rnd() * 6) : 6 + Math.floor(rnd() * Math.min(34, near.length - 7))][1], // half from the first six neighbours, half from the next 34 (the far pull)
             sh = M.c.map((v, k) => img(v - A.c[k]) - (v - A.c[k])), XB = g.sites(M).map((x) => x.map((v, k) => v + sh[k]));
-          const rel = (X) => X.map((x, s) => ({ Z: s ? 1 : m.Z, at: x.map((v, k) => +(v - A.c[k]).toFixed(6)) }));
+          const rel = (X) => X.map((x, s) => ({ Z: s ? 1 : m.Z, at: Array.from(x, (v, k) => +(v - A.c[k]).toFixed(6)) }));
           picked.push([rel(XA), rel(XB)]);
         }
       }
