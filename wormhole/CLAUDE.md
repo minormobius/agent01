@@ -147,6 +147,18 @@ a big emphasis on the patterning of the scales"). It borrows flora's geometry co
   self-crossings sort, but the groups share one lattice, so their boundaries are invisible.
   The two lowest flank rows take a `LATERAL` colour (body ↔ belly mix), so the pattern fades into
   the belly instead of stopping; light is quantised to 12 levels.
+- **Maximum curvature** (operator: "the two bends closest to the head… hard angles… impose max
+  curvature?"). `limitCurvature()` runs on every simulated skeleton *after* the simulation, so
+  neither the head pin nor the walls can leave a kink: no vertebra may turn more than
+  `MAXTURN = DS/(1.7·W0)` (~27°, a bend radius of 1.7 body widths) **as seen on the page**;
+  over-bent joints are eased toward their neighbours (in 3D), spacing restored, and the text/page
+  walls applied inside the same loop (else the final `pushOut()` snaps a kink back in). Joints
+  whose segments are foreshortened below half a vertebra are pointing at the viewer — perspective
+  cusps, not bends — and are skipped. Where the hard angles came from: the head stub (the head
+  outline began 0.6 W0 behind the neck end — it now starts flush), a slithering body that climbed
+  past the head's rest and doubled back (the undulation now stops 7 W0 below it), and heads posed
+  2.5 W0 toward the viewer above a flat body (a fold hidden in a perspective cusp — slithering
+  heads now sit at body height). The head end stays fixed through the limiter (its rest was chosen to clear the text); the foot coil sits low and tight with its head resting off to one side, so its neck has room to arc. The selftest asserts no neck joint over 45°; measured worst ~34°.
 - **Neck & head**: only the head (last two vertebrae, a little of the third) is pinned; the
   neck's initial pose is a slack cubic — up off the body, a swan's curve into the head's heading
   — and the skeleton settles it, so it rises rather than shooting out. Over its last ~8 body-

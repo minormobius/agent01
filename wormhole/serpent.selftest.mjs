@@ -59,6 +59,26 @@ for (const [name, page] of Object.entries(PAGES)) {
   ok(out.tiles[0].svg.includes("<defs>") && out.tiles.slice(1).every((t) => !t.svg.includes("<defs>")), "defs live in tile 0 only");
 }
 
+// the spine's maximum curvature: no neck joint may turn sharply (operator: "hard angles up there")
+{
+  let worstNeck = 0;
+  for (let i = 0; i < 16; i++) {
+    globalThis.__SERP_DEBUG = [];
+    Z.grow(Z.genome(`${i}.r${i}`, String(i)), PAGES.desktop);
+    for (const P of globalThis.__SERP_DEBUG) {
+      const n = P.length, ds = Math.hypot(P[1][0] - P[0][0], P[1][1] - P[0][1], P[1][2] - P[0][2]);
+      for (let k = Math.floor(n * 0.7); k < n - 1; k++) {
+        const a = [P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]], b = [P[k + 1][0] - P[k][0], P[k + 1][1] - P[k][1]];
+        const la = Math.hypot(...a), lb = Math.hypot(...b);
+        if (la < ds / 2 || lb < ds / 2) continue; // foreshortened toward the viewer: perspective, not a bend
+        worstNeck = Math.max(worstNeck, Math.acos(Math.max(-1, Math.min(1, (a[0] * b[0] + a[1] * b[1]) / la / lb))) * 180 / Math.PI);
+      }
+    }
+  }
+  delete globalThis.__SERP_DEBUG;
+  ok(worstNeck < 45, `no hard angle in any neck (worst joint ${worstNeck.toFixed(0)}°, limit ~27°/vertebra)`);
+}
+
 const sk = new Set(), pa = new Set(), ha = new Set(), kinds = { flora: 0, serpent: 0 };
 for (let i = 0; i < 400; i++) {
   const g = Z.genome(`${i}.f`, String(i)); sk.add(g.skin.id); pa.add(g.pattern); ha.add(g.habit);

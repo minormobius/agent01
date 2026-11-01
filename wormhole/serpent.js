@@ -525,7 +525,47 @@
       }
       var out = [];
       for (i = 0; i < N; i++) out.push([X[i * 3], X[i * 3 + 1], X[i * 3 + 2]]);
-      return out;
+      var lim = limitCurvature(out); if (globalThis.__SERP_DEBUG) globalThis.__SERP_DEBUG.push(lim); return lim;
+    }
+
+    // ---- the spine's hard limit: maximum curvature ----
+    // A vertebra may turn at most MAXTURN from the one before (a minimum bend radius of
+    // ~1.7 body widths, about what a real snake's spine allows), measured on the curve as it
+    // is SEEN (the page plane). Applied after the simulation, so nothing — not the head pin,
+    // not the walls — can leave a kink: over-bent joints are eased toward their neighbours'
+    // midpoint, segment lengths are restored, and that repeats until no joint is over the limit.
+    var MAXTURN = DS / (W0 * 1.7);
+    function limitCurvature(P) {
+      var N = P.length, head = P[N - 1].slice(); // the head's rest was chosen to clear the text: it stays put
+      for (var pass = 0; pass < 300; pass++) {
+        var worst = 0;
+        for (var i = 1; i < N - 1; i++) {
+          var ax = P[i][0] - P[i - 1][0], ay = P[i][1] - P[i - 1][1], bx = P[i + 1][0] - P[i][0], by = P[i + 1][1] - P[i][1];
+          var la = Math.hypot(ax, ay), lb = Math.hypot(bx, by);
+          if (la < DS * 0.5 || lb < DS * 0.5) continue; // pointing at the viewer: a perspective cusp, not a bend
+          var turn = Math.acos(Math.max(-1, Math.min(1, (ax * bx + ay * by) / (la * lb))));
+          if (turn > worst) worst = turn;
+          if (turn <= MAXTURN) continue;
+          var f = Math.min(0.5, 0.6 * (1 - MAXTURN / turn)), mx = (P[i - 1][0] + P[i + 1][0]) / 2, my = (P[i - 1][1] + P[i + 1][1]) / 2, mz = (P[i - 1][2] + P[i + 1][2]) / 2;
+          // ease this joint (in 3D: a neck tipping toward the viewer looks short on the page, and
+          // easing only x,y fights the 3D spacing for ever), and spread a little to its neighbours
+          P[i][0] += (mx - P[i][0]) * f; P[i][1] += (my - P[i][1]) * f; P[i][2] += (mz - P[i][2]) * f;
+          if (i > 1) { P[i - 1][0] -= (mx - P[i][0]) * f * 0.15; P[i - 1][1] -= (my - P[i][1]) * f * 0.15; }
+          if (i < N - 2) { P[i + 1][0] -= (mx - P[i][0]) * f * 0.15; P[i + 1][1] -= (my - P[i][1]) * f * 0.15; }
+        }
+        // restore vertebra spacing (in 3D)
+        for (var it = 0; it < 3; it++) for (var k = 0; k < N - 1; k++) {
+          var dx = P[k + 1][0] - P[k][0], dy = P[k + 1][1] - P[k][1], dz = P[k + 1][2] - P[k][2], L = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6, c = (L - DS) / L * 0.5;
+          P[k][0] += dx * c; P[k][1] += dy * c; P[k][2] += dz * c; P[k + 1][0] -= dx * c; P[k + 1][1] -= dy * c; P[k + 1][2] -= dz * c;
+        }
+        P[N - 1][0] = head[0]; P[N - 1][1] = head[1]; P[N - 1][2] = head[2];
+        // the walls (text, page edge) inside the same loop, so the curve that satisfies the
+        // limit also already clears them — the final pushOut in body() then has nothing to snap
+        var walled = false;
+        for (var w = 0; w < N; w++) { var ww = widthAt(w / (N - 1)), tp = [P[w][0], P[w][1]]; pushOut(tp, ww); if (tp[0] !== P[w][0] || tp[1] !== P[w][1]) { walled = true; P[w][0] = tp[0]; P[w][1] = tp[1]; } }
+        if (worst <= MAXTURN * 1.05 && !walled) break;
+      }
+      return P;
     }
 
     // ---- from bones to a dense spine with depth and the back's facing ----
@@ -740,8 +780,10 @@
       var hn = widthAt(1), h = W0 * (g.viper ? 1.25 : 1.08), Lh = LH * 1.05, id = pfx + "hc" + snakeCount;
       var pat = makePattern(g, P, 991 + snakeCount), s = "";
       var outline = g.viper
-        ? [[-W0 * 0.6, -hn], [Lh * 0.12, -h * 0.84], [Lh * 0.38, -h * 0.96], [Lh * 0.66, -h * 0.86], [Lh * 0.88, -h * 0.6], [Lh, -h * 0.22], [Lh * 0.99, h * 0.1], [Lh * 0.86, h * 0.3], [Lh * 0.55, h * 0.56], [Lh * 0.2, h * 0.86], [Lh * 0.02, h * 0.72], [-W0 * 0.6, hn]]
-        : [[-W0 * 0.6, -hn], [Lh * 0.14, -h * 0.8], [Lh * 0.42, -h * 0.92], [Lh * 0.7, -h * 0.8], [Lh * 0.9, -h * 0.5], [Lh, -h * 0.12], [Lh * 0.97, h * 0.14], [Lh * 0.84, h * 0.3], [Lh * 0.55, h * 0.48], [Lh * 0.24, h * 0.64], [Lh * 0.04, h * 0.6], [-W0 * 0.6, hn]];
+        ? [[-W0 * 0.05, -hn * 0.98], [Lh * 0.12, -h * 0.84], [Lh * 0.38, -h * 0.96], [Lh * 0.66, -h * 0.86], [Lh * 0.88, -h * 0.6], [Lh, -h * 0.22], [Lh * 0.99, h * 0.1], [Lh * 0.86, h * 0.3], [Lh * 0.55, h * 0.56], [Lh * 0.2, h * 0.86], [Lh * 0.02, h * 0.72], [-W0 * 0.05, hn * 0.98]]
+        : [[-W0 * 0.05, -hn * 0.98], [Lh * 0.14, -h * 0.8], [Lh * 0.42, -h * 0.92], [Lh * 0.7, -h * 0.8], [Lh * 0.9, -h * 0.5], [Lh, -h * 0.12], [Lh * 0.97, h * 0.14], [Lh * 0.84, h * 0.3], [Lh * 0.55, h * 0.48], [Lh * 0.24, h * 0.64], [Lh * 0.04, h * 0.6], [-W0 * 0.05, hn * 0.98]];
+      // the head begins exactly where the neck ends (flush, same width), so nothing of it sticks
+      // out behind when the neck curves into it
       var od = smooth(outline, true);
       defs.push('<clipPath id="' + id + '"><path d="' + od + '"/></clipPath>');
       s += '<path d="' + od + '" fill="' + K.gap + '"/>';
@@ -816,7 +858,7 @@
       var reach = LH + TONGUE + 4;
       if (side === 0) return { x: xNear, y: box.y1 + gap + reach, z: W0 * 2.5, dx: 0, dy: -1 };
       var x = side < 0 ? box.x0 - gap - reach : box.x1 + gap + reach;
-      var y = Math.max(mT * 0.5 + W0 * 2, Math.min(H - mB * 0.5 - W0 * 2, yNear));
+      var y = Math.max(Math.max(mT * 0.5, W0 * 2) + W0 * 3, Math.min(H - Math.max(mB * 0.5, W0 * 2) - W0 * 3, yNear)); // room for the neck to curve
       x = Math.max(W0 * 2, Math.min(W - W0 * 2, x));
       return { x: x, y: y, z: W0 * 2.5, dx: side < 0 ? 1 : -1, dy: r.range(-0.25, 0.1) };
     }
@@ -882,12 +924,14 @@
       var zf = trunks.length ? RB + W0 + 2 : 0, lam = W0 * r.range(13, 18);
       var a = Math.min(0.85, (mW * 0.5 - W0 * 1.3) * 2 * Math.PI / lam), Ls = W0 * r.range(42, 60);
       if (a < 0.2) a = 0.2;
-      var yStart = Math.min(yB, yA + Ls * 0.8), x = cx0, y = yStart, pose = [[x, y, zf]], ph = r.range(0, 6.28);
-      for (var sArc = 0; sArc < Ls; sArc += 3) {
+      // the head's rest first; the undulation stops well below it so the neck rises into it
+      var hd = headTarget(side, yA + W0 * 4), yStop = hd.y + W0 * 7;
+      hd.z = zf; // a slithering snake's head is at its body's height, not lifted toward the viewer
+      var yStart = Math.max(yStop + W0 * 12, Math.min(yB, yStop + Ls * 0.8)), x = cx0, y = yStart, pose = [[x, y, zf]], ph = r.range(0, 6.28);
+      for (var sArc = 0; sArc < Ls && y > yStop; sArc += 3) {
         var t = sArc / Ls, th = -Math.PI / 2 + a * Math.sin(sArc / lam * 6.2832 + ph) * Math.min(1, t / 0.15 + 0.3);
         x += Math.cos(th) * 3; y += Math.sin(th) * 3; pose.push([x, y, zf]);
       }
-      var hd = headTarget(side, Math.min(y - W0 * 2, yA + W0 * 4));
       var bones = simulate({ pose: vertebrae(pose.concat(approach(pose[pose.length - 1], hd))), plane: zf, head: hd, gravity: 0, stiff: 0 });
       var B = body(bones, null);
       if (B) drawSnake(B, salt++);
@@ -897,6 +941,7 @@
       var pose = [], R1 = W0 * 1.4, turns = Math.max(1.3, Math.min(3, (R0 - R1) / (W0 * 2))), dir = r.sign(), a0 = r.range(0, 6.28), n = Math.round(turns * 6.28 * R0 / 3);
       for (var i = 0; i <= n; i++) { var t = i / n, th = a0 + dir * t * turns * 6.28, rr = R0 - (R0 - R1) * t; pose.push([cx + Math.cos(th) * rr, cy + Math.sin(th) * rr * 0.7, t * W0 * 0.8]); }
       var vb = vertebrae(pose), nCoil = vb.length;
+      hd.z = W0 * 1.2; // raised a little off the coil, not pointed out of the page
       var bones = simulate({ pose: vertebrae(pose.concat(approach(pose[pose.length - 1], hd))), head: hd, gravity: 0, plane: null, stiff: 0.01, center: { x: cx, y: cy, k: 0.01, n: Math.max(0, nCoil - 4) } });
       var B = body(bones, null);
       if (B) drawSnake(B, salt++);
@@ -922,7 +967,9 @@
     // the serpent at the root: a resting coil in a deep foot margin, rising to the text
     if (mB > W0 * 9) {
       var fcx = r.range(box.x0 + W0 * 8, box.x1 - W0 * 8);
-      restingCoil(fcx, box.y1 + mB * 0.62, Math.min(mB * 0.32, W0 * 5.5), headTarget(0, 0, fcx + r.range(-W0 * 4, W0 * 4)));
+      // the coil sits low and tight; the head rests off to one side so the neck can arc up and round to it
+      var fR = Math.min(mB * 0.22, W0 * 4), fside = fcx < (box.x0 + box.x1) / 2 ? 1 : -1;
+      restingCoil(fcx, box.y1 + mB * 0.68, fR, headTarget(0, 0, fcx + fside * (fR + W0 * 4)));
     }
 
     // ---- the fill: leaves, fruit, blossom into what's left ----
