@@ -2,7 +2,7 @@ name: Deploy wormhole (academic wormhole roulette)
 
 on:
   push:
-    branches: ['claude/academic-wormhole-roulette-lpuqfq']
+    branches: ['claude/wormhole-marginalia']
     paths:
       - 'wormhole/**'
       - 'packages/dataviz/**'
@@ -37,6 +37,8 @@ jobs:
         run: node analysis.selftest.mjs
       - name: Paper-engine selftest (determinism + reference coherence + figures + flow)
         run: node paper.selftest.mjs
+      - name: Flora selftest (marginalia stay out of the text; determinism; range)
+        run: node flora.selftest.mjs
       - name: Worker import order (the deploy fails at upload if this is wrong)
         run: node worker-imports.selftest.mjs
       - name: Install wrangler

@@ -1347,13 +1347,14 @@
       "dir": "wormhole",
       "endpoint": "wormhole.mino.mobi",
       "type": "frontend",
-      "branch": "claude/academic-wormhole-roulette-lpuqfq",
+      "branch": "claude/wormhole-marginalia",
       "uses": [],
       "provides": null,
       "paths": [
         "wormhole/**"
       ],
-      "note": "Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) \u2014 no build, no D1, no AI, no secrets\u2026 (full description: wormhole/CLAUDE.md)"
+      "note": "Academic Wormhole Roulette. Thin assets Worker (worker `wormhole`, custom_domain wormhole.mino.mobi) \u2014 no build, no D1, no AI, no secrets\u2026 (full description: wormhole/CLAUDE.md)",
+      "status": "OWNERSHIP (2026-11-01): taken by claude/wormhole-marginalia from claude/academic-wormhole-roulette-lpuqfq with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "bismuth",

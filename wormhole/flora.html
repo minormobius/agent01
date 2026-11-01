@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Herbarium — marginalia of the Wormhole</title>
+<meta name="description" content="Watercolour gardens grown in the margins of generated papers. One seed, one margin, for ever: a procedural engine of inks, growth habits, species, fauna and ornaments. Part of the Academic Wormhole Roulette.">
+<meta property="og:title" content="The Herbarium — margins that grow">
+<meta property="og:description" content="A procedural engine of watercolour marginalia: inks × habits × species × fauna. Every paper in the wormhole wears its own.">
+<style>
+:root{
+  --viewer:#54595d; --ink:#1b1b1b; --soft:#555; --accent:#6b5a8a;
+  --serif:"Latin Modern Roman","Computer Modern","TeX Gyre Termes","Times New Roman",Times,serif;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}html,body{margin:0}
+body{background:var(--viewer);color:var(--ink);font-family:var(--serif)}
+.toolbar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#3c4043;color:#eee;padding:8px 12px;font-family:var(--sans);font-size:13px;box-shadow:0 1px 6px rgba(0,0,0,.35)}
+.toolbar .grow{flex:1 1 auto}
+.toolbar a,.toolbar button,.toolbar select{font-family:var(--sans);font-size:13px;cursor:pointer;background:#52565b;color:#f3f3f3;border:1px solid #6a6f75;border-radius:7px;padding:6px 10px;text-decoration:none}
+.toolbar a:hover,.toolbar button:hover{background:#61666c}
+.toolbar .brand a{background:none;border:none;padding:0;color:#fff;font-weight:700}
+.toolbar button.primary{background:var(--accent);border-color:#8a78ad}
+.layout{max-width:1240px;margin:20px auto 60px;padding:0 12px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+.sheet{position:relative;z-index:0;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.4);aspect-ratio:8.5/11;padding:9% 13% 10%;overflow:hidden;font-size:clamp(11px,1.4vw,14px);line-height:1.42}
+.sheet svg.flora{position:absolute;left:0;top:0;z-index:-1;pointer-events:none}
+.sheet .kick{font-family:var(--sans);font-size:.72em;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);text-align:center}
+.sheet h1{font-size:1.55em;text-align:center;margin:.5em 0 .2em;line-height:1.2}
+.sheet .latin{text-align:center;font-style:italic;font-size:1.15em;margin:.1em 0 .8em}
+.sheet .cols{columns:2;column-gap:1.6em;text-align:justify;hyphens:auto}
+.sheet .cols p{margin:0 0 .5em;text-indent:1.1em}.sheet .cols p:first-child{text-indent:0}
+.sheet table{width:100%;border-collapse:collapse;font-size:.9em;margin:.6em 0;break-inside:avoid}
+.sheet td{padding:2px 4px;vertical-align:top;border-bottom:.5px solid #ddd}.sheet td:first-child{font-variant:small-caps;width:34%}
+.sheet a{color:#7a2c1a}
+svg.flora.growing .fb,svg.flora.growing .fs{transform-box:fill-box;transform-origin:center;animation:bloom .9s cubic-bezier(.2,.8,.3,1.2) both;animation-delay:calc(var(--o,0)*2.2s)}
+svg.flora.growing .fs{animation:wash 1.2s ease-out both}
+@keyframes bloom{from{opacity:0;transform:scale(.15) rotate(-25deg)}to{opacity:1;transform:none}}
+@keyframes wash{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){svg.flora .fb,svg.flora .fs{animation:none!important}}
+aside{font-family:var(--sans);color:#eee;font-size:13px}
+aside h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#cfc6e4;margin:0 0 8px}
+.thumbs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.thumb{position:relative;z-index:0;background:#fff;aspect-ratio:8.5/11;cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.4);overflow:hidden;border:2px solid transparent}
+.thumb:hover{border-color:#b7a6dc}
+.thumb svg{position:absolute;left:0;top:0;z-index:-1}
+.thumb .lines{position:absolute;left:13%;right:13%;top:9%;bottom:10%;background:repeating-linear-gradient(#fff 0 5px,#d9d9d9 5px 6px)}
+.thumb .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.88);color:#333;font:italic 11px var(--serif);text-align:center;padding:3px 2px}
+.note{color:#bbb;line-height:1.5;margin-top:14px}
+.note a{color:#d9c9ff}
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <span class="brand"><a href="/">⌇ wormhole</a></span>
+  <a href="/p/1.f">a paper</a>
+  <span class="grow"></span>
+  <select id="palette" title="ink"><option value="">any ink</option></select>
+  <select id="habit" title="growth habit"><option value="">any habit</option></select>
+  <button id="sibling" title="Another paper from the same field: same biome, new specimen">↬ same field</button>
+  <button id="spin" class="primary" title="A new field, a new biome">❀ new specimen</button>
+</div>
+
+<div class="layout">
+  <article class="sheet" id="sheet"></article>
+  <aside>
+    <h2>Neighbouring specimens</h2>
+    <div class="thumbs" id="thumbs"></div>
+    <p class="note">Every paper in the wormhole grows a margin from its own id: the <b>field</b> is the biome (inks and the species pool) and the <b>paper</b> is the specimen (habit, arrangement, fauna). Same id, same garden, for ever. Prune them with <b>❀ margins</b> on any paper.<br><br>
+    The engine is <code>flora.js</code>: a genome of inks × habits × species × leaf forms × fauna × ornaments, laid out along stems that never enter the text block, painted as watercolour with the wash baked into the geometry. Inspired by <a href="https://flora.alpacasoft.dev/" rel="noopener">tikz-flora</a>. Generated fiction, like everything here.</p>
+  </aside>
+</div>
+
+<script src="/engine.js"></script>
+<script src="/flora.js"></script>
+<script>
+(function () {
+  "use strict";
+  var FL = window.WORMHOLE_FLORA, WH = window.WORMHOLE;
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]; }); }
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  FL.PALETTES.forEach(function (p) { $("palette").insertAdjacentHTML("beforeend", '<option value="' + p.id + '">' + esc(p.name) + "</option>"); });
+  Object.keys(FL.HABITS).forEach(function (h) { $("habit").insertAdjacentHTML("beforeend", '<option value="' + h + '">' + esc(FL.HABITS[h].label) + "</option>"); });
+
+  // state lives in the hash: #<paperId>  (e.g. #42.r3), dials as ?ink=&habit=
+  function rnd() { return String(Math.floor(Math.random() * 9e8) + 1); }
+  function parse() {
+    var h = decodeURIComponent(location.hash.slice(1));
+    if (!h) return null;
+    var dot = h.indexOf(".");
+    return dot < 0 ? { field: h, id: h + ".f" } : { field: h.slice(0, dot), id: h };
+  }
+  function dials() { return { palette: $("palette").value || null, habit: $("habit").value || null }; }
+  function growInto(el, g, animate, prefix) {
+    var old = el.querySelector("svg.flora"); if (old) old.remove();
+    var thumb = el.classList.contains("thumb"), cs = getComputedStyle(el);
+    // thumbnails grow on a full Letter page and are shown scaled down, so they
+    // preview what a real page wears rather than a cramped miniature
+    var W = thumb ? 816 : el.clientWidth, H = thumb ? 1056 : el.clientHeight;
+    var box = thumb
+      ? { x0: W * 0.13, y0: H * 0.09, x1: W * 0.87, y1: H * 0.9 }
+      : { x0: parseFloat(cs.paddingLeft), y0: parseFloat(cs.paddingTop), x1: W - parseFloat(cs.paddingRight), y1: H - parseFloat(cs.paddingBottom) };
+    var out = FL.grow(g, { width: W, height: H, box: box }, { animate: animate && !reduceMotion, idPrefix: prefix });
+    el.insertAdjacentHTML("afterbegin", out.svg);
+    if (thumb) { var sv = el.querySelector("svg.flora"); sv.setAttribute("width", "100%"); sv.setAttribute("height", "100%"); }
+    if (animate && !reduceMotion) { var s = el.querySelector("svg.flora"); s.classList.add("growing"); setTimeout(function () { s.classList.remove("growing"); }, 3600); }
+    return out;
+  }
+
+  var cur = null;
+  function show(spec, animate) {
+    cur = spec;
+    var g = FL.genome(spec.id, spec.field, dials()), d = FL.describe(g);
+    var f = WH.generate(spec.field);
+    $("sheet").innerHTML =
+      '<div class="kick">Herbarium sheet · specimen ' + esc(spec.id) + " · " + esc(f.field.name) + "</div>" +
+      "<h1>" + esc(d.palette) + "</h1>" +
+      '<div class="latin">' + esc(d.name) + "</div>" +
+      '<div class="cols"><table>' +
+      "<tr><td>Ink</td><td>" + esc(d.palette) + "</td></tr>" +
+      "<tr><td>Habit</td><td>" + esc(d.habit) + "</td></tr>" +
+      "<tr><td>Blooms</td><td>" + esc(d.species.join(", ")) + "</td></tr>" +
+      "<tr><td>Leaves</td><td>" + esc(d.leaves.join(", ")) + "</td></tr>" +
+      "<tr><td>Fauna</td><td>" + esc(d.fauna.join(", ") || "none observed") + "</td></tr>" +
+      "<tr><td>Collected from</td><td><a href=\"/p/" + encodeURIComponent(spec.id) + "\">paper " + esc(spec.id) + "</a> (" + esc(f.field.name) + ")</td></tr>" +
+      "</table><p>" + esc(f.paper.abstract) + "</p><p>" + esc(f.field.studies) + ". " +
+      "The specimen was recovered from the margins of the field's literature, where it had been growing undisturbed since " + f.field.founded + ". " +
+      "Its habit is characteristic of the " + esc(f.field.discipline.toLowerCase()) + " margin; its inks are not.</p></div>";
+    growInto($("sheet"), g, animate, "h");
+    if (location.hash.slice(1) !== spec.id) history.replaceState(null, "", "#" + spec.id);
+    document.title = d.name + " — Herbarium";
+    thumbs();
+  }
+  function thumbs() {
+    var t = $("thumbs"); t.innerHTML = "";
+    var specs = [];
+    for (var k = 1; k <= 3; k++) specs.push({ field: cur.field, id: cur.field + ".r" + (k + (parseInt(cur.id.split(".r")[1], 10) || 0)) });
+    for (var j = 0; j < 3; j++) { var fs = rnd(); specs.push({ field: fs, id: fs + ".f" }); }
+    specs.forEach(function (sp, i) {
+      var g = FL.genome(sp.id, sp.field, dials());
+      var el = document.createElement("div");
+      el.className = "thumb"; el.title = g.name + (i < 3 ? " — same field" : " — another field");
+      el.innerHTML = '<div class="lines"></div><div class="cap">' + esc(g.name) + "</div>";
+      t.appendChild(el);
+      growInto(el, g, false, "t" + i);
+      el.addEventListener("click", function () { show(sp, true); window.scrollTo(0, 0); });
+    });
+  }
+
+  $("spin").addEventListener("click", function () { var f = rnd(); show({ field: f, id: f + ".f" }, true); });
+  $("sibling").addEventListener("click", function () { show({ field: cur.field, id: cur.field + ".r" + (1 + Math.floor(Math.random() * 40)) }, true); });
+  $("palette").addEventListener("change", function () { show(cur, true); });
+  $("habit").addEventListener("change", function () { show(cur, true); });
+  window.addEventListener("hashchange", function () { var p = parse(); if (p && (!cur || p.id !== cur.id)) show(p, true); });
+  var rt; window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { show(cur, false); }, 200); });
+
+  show(parse() || (function () { var f = rnd(); return { field: f, id: f + ".f" }; })(), true);
+})();
+</script>
+</body>
+</html>

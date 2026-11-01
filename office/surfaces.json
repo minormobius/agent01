@@ -7074,6 +7074,16 @@
    "discovered": true
   },
   {
+   "id": "wormhole/flora.html",
+   "name": "flora",
+   "url": "https://wormhole.mino.mobi/flora.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "wormhole",
+   "discovered": true
+  },
+  {
    "id": "wormhole/lab.html",
    "name": "lab",
    "url": "https://wormhole.mino.mobi/lab.html",

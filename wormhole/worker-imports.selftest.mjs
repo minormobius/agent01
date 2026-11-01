@@ -41,7 +41,7 @@ for (const [i, file] of imports.entries()) {
 // The globals the pages and the worker actually read off the namespace.
 const REQUIRED = [
   'WORMHOLE', 'WORMHOLE_STATS', 'WORMHOLE_CHARTS',
-  'WORMHOLE_DATA', 'WORMHOLE_GENOME', 'WORMHOLE_ANALYSIS', 'WORMHOLE_PAPER',
+  'WORMHOLE_DATA', 'WORMHOLE_GENOME', 'WORMHOLE_ANALYSIS', 'WORMHOLE_PAPER', 'WORMHOLE_FLORA',
 ];
 const absent = REQUIRED.filter((g) => !globalThis[g]);
 if (absent.length) {

@@ -43,14 +43,29 @@ body {
 
 /* ---------- the sheet ---------- */
 .sheet {
+  position: relative; z-index: 0;   /* own stacking context: the flora sits behind the text */
   background: var(--sheet);
-  max-width: 780px;
+  max-width: 900px;
   margin: 24px auto 60px;
-  padding: 62px 66px 72px;
+  padding: 70px 112px 84px;
   box-shadow: 0 2px 10px rgba(0,0,0,.4);
   line-height: 1.34;
   font-size: 15px;
 }
+
+/* ---------- marginalia (flora.js) ---------- */
+svg.flora { position: absolute; left: 0; top: 0; z-index: -1; pointer-events: none; overflow: visible; }
+.print-frame { display: none; }
+.toolbar button#flora.on { background: #6b5a8a; border-color: #8a78ad; }
+svg.flora.growing .fb, svg.flora.growing .fs {
+  transform-box: fill-box; transform-origin: center;
+  animation: bloom 0.9s cubic-bezier(.2,.8,.3,1.2) both;
+  animation-delay: calc(var(--o, 0) * 2.6s);
+}
+svg.flora.growing .fs { animation: wash 1.4s ease-out both; }
+@keyframes bloom { from { opacity: 0; transform: scale(.15) rotate(-25deg); } to { opacity: 1; transform: none; } }
+@keyframes wash { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { svg.flora .fb, svg.flora .fs { animation: none !important; } }
 
 /* header (spans full width) */
 .p-venue { font-family: var(--sans); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-soft); text-align: center; margin-bottom: 14px; }
@@ -135,7 +150,7 @@ table.booktabs tbody tr:last-child td { border-bottom: 1.4px solid var(--ink); }
 
 /* ---------- responsive: collapse columns on phones ---------- */
 @media (max-width: 640px) {
-  .sheet { padding: 30px 22px 40px; margin: 10px 8px 40px; font-size: 15px; }
+  .sheet { padding: 34px 34px 44px; margin: 10px 4px 40px; font-size: 15px; }
   .p-body, .p-refs { column-count: 1; }
   .p-abstract, .p-keywords { margin-left: 6px; margin-right: 6px; }
   .p-title { font-size: 20px; max-width: 100%; }
@@ -148,4 +163,10 @@ table.booktabs tbody tr:last-child td { border-bottom: 1.4px solid var(--ink); }
   .sheet { box-shadow: none; margin: 0 auto; max-width: 100%; padding: 0; }
   a.cite, a.paperlink { color: #000 !important; text-decoration: none !important; }
   @page { size: letter; margin: 20mm 16mm; }
+  .sheet svg.flora { display: none; }
+  /* with flora on, the side margins belong to the garden: the page box goes
+     edge to edge horizontally and a fixed frame repeats on every page */
+  body.has-flora .sheet { padding: 0 104px; background: transparent; }
+  body.has-flora .print-frame { display: block; position: fixed; left: 0; top: 0; width: 816px; height: 950px; z-index: -1; }
+  body.has-flora .print-frame svg { width: 816px; height: 950px; }
 }

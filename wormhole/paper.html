@@ -17,11 +17,14 @@
   <button id="tunnel" title="Open a random paper">↯ tunnel</button>
   <button id="share">🔗 link</button>
   <span class="copied" id="copied" hidden>copied</span>
+  <button id="flora" title="Grow (or prune) the marginalia">❀ margins</button>
+  <a id="herbarium" href="/flora" title="Explore the space of margins">herbarium</a>
   <button id="pdf" title="Save as PDF via your browser's print dialog">⤓ PDF</button>
   <span class="warn">generated fiction — cite nothing</span>
 </div>
 
 <article class="sheet" id="sheet" aria-live="polite"></article>
+<div class="print-frame" id="printFrame" aria-hidden="true"></div>
 
 <script src="/engine.js"></script>
 <script src="/stats.js"></script>
@@ -30,6 +33,7 @@
 <script src="/genome.js"></script>
 <script src="/analysis.js"></script>
 <script src="/paper.js"></script>
+<script src="/flora.js"></script>
 <script>
 (function () {
   "use strict";
@@ -117,6 +121,8 @@
       "Paper id <code>" + esc(p.id) + "</code>. Field: " + esc(p.field.name) + ". Same id → same paper, for ever.</div>";
 
     $("sheet").innerHTML = html;
+    current = p;
+    growMargins(true);
     $("field").setAttribute("href", "/f/" + encodeURIComponent(p.fieldSeed));
     $("field").textContent = "↩ " + p.field.name;
     document.title = h.title + " — Wormhole";
@@ -126,6 +132,55 @@
     }
     window.scrollTo(0, 0);
   }
+
+  // ---- the marginalia: a seeded garden in the margins (flora.js) ----
+  // biome = the field, so a field's papers share inks and species;
+  // specimen = the paper id, so each paper is its own arrangement, for ever.
+  var FL = window.WORMHOLE_FLORA, current = null, lastDims = "";
+  var floraOn = (function () { try { return localStorage.getItem("wormhole-flora") !== "off"; } catch (e) { return true; } })();
+  var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function floraGenome(p) { return FL.genome(p.id, p.fieldSeed); }
+  function growMargins(animate) {
+    var sheet = $("sheet"), old = sheet.querySelector("svg.flora");
+    if (old) old.remove();
+    $("flora").classList.toggle("on", floraOn);
+    var on = !!(FL && current && floraOn);
+    document.body.classList.toggle("has-flora", on);
+    // @page can't be conditioned on a class, so swap the rule itself
+    var pr = $("pageRule") || document.head.appendChild(Object.assign(document.createElement("style"), { id: "pageRule" }));
+    pr.textContent = on ? "@media print { @page { size: letter; margin: 14mm 0; } }" : "";
+    if (!on) { $("printFrame").innerHTML = ""; lastDims = ""; return; }
+    var cs = getComputedStyle(sheet), W = sheet.offsetWidth, H = sheet.offsetHeight;
+    var box = { x0: parseFloat(cs.paddingLeft), y0: parseFloat(cs.paddingTop),
+      x1: W - parseFloat(cs.paddingRight), y1: H - parseFloat(cs.paddingBottom) };
+    var g = floraGenome(current);
+    var out = FL.grow(g, { width: W, height: H, box: box }, { animate: animate && !reduceMotion, idPrefix: "s" });
+    sheet.insertAdjacentHTML("afterbegin", out.svg);
+    lastDims = W + "x" + H;
+    var svg = sheet.querySelector("svg.flora");
+    svg.setAttribute("data-name", out.genome.name);
+    if (animate && !reduceMotion) { svg.classList.add("growing"); setTimeout(function () { svg.classList.remove("growing"); }, 4200); }
+    // the print frame: one Letter page's worth of margin, repeated on every
+    // printed page (position:fixed repeats per page in print)
+    var pw = 816, ph = 1056 - 2 * 53, side = 104;
+    $("printFrame").innerHTML = FL.grow(g, { width: pw, height: ph, box: { x0: side, y0: -20, x1: pw - side, y1: ph + 20 } },
+      { animate: false, idPrefix: "pr" }).svg;
+  }
+  if (window.ResizeObserver) {
+    var rt = null;
+    new ResizeObserver(function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () {
+        var s = $("sheet");
+        if (floraOn && current && lastDims && lastDims !== s.offsetWidth + "x" + s.offsetHeight) growMargins(false);
+      }, 180);
+    }).observe($("sheet"));
+  }
+  $("flora").addEventListener("click", function () {
+    floraOn = !floraOn;
+    try { localStorage.setItem("wormhole-flora", floraOn ? "on" : "off"); } catch (e) {}
+    growMargins(true);
+  });
 
   function keywords(p) {
     // pull a few field terms for a keywords line
