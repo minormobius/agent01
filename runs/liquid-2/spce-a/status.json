@@ -1,0 +1,33 @@
+{
+ "group": "spce-a",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run spce 450 --cycles=15000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 10116
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run spce 500 --cycles=15000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 10270
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run spce 550 --cycles=15000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 10109
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run spce 575 --cycles=15000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 9898
+  }
+ ]
+}
