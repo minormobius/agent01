@@ -1,0 +1,14 @@
+$ node four/atom/tools/manybody.mjs run 71
+trimer 71: 174 functions, integrals in 69 s
+trimer 71 012: -228.13493501 (converged, 43 s)
+trimer 71 01: -152.08957552 (converged, 43 s)
+trimer 71 02: -152.09474752 (converged, 42 s)
+trimer 71 12: -152.08871748 (converged, 40 s)
+trimer 71 0: -76.04596114 (converged, 39 s)
+trimer 71 1: -76.04597311 (converged, 39 s)
+trimer 71 2: -76.04565731 (converged, 25 s)
+{"i":71,"label":"our water's liquid (SPC/E, 450 K) #3","pairs":{"12":1.8278969338781783,"01":1.4801297347614986,"02":-1.96351888261598},"three":0.32250232238701076,"total":1.6670101084107076}
+(node:2555) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

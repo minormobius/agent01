@@ -1,0 +1,33 @@
+{
+ "group": "x4tri-7",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 48",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 570
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 49",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 589
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 50",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 578
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 51",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 560
+  }
+ ]
+}
