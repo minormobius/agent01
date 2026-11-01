@@ -99,10 +99,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   } else if (cmd === "bake") {
     // what's done, Hartree–Fock only (the chapters compute the force fields' side from the current fields, so a refit
     // shows at once): each trimer's parts with its label and atoms, and each crystal shell's pairs
-    const set = readSet(), out = { trimers: [], shells: [] };
+    const set = readSet(), out = { trimers: [], shells: [], liquids: set.liquids || [] };
     for (const [i, t] of set.trimers.entries()) {
       const f = path.join(CACHE, `${i}.json`); if (!existsSync(f)) continue; const st = JSON.parse(readFileSync(f, "utf8")); if (Object.keys(st.E).length < 7) continue;
-      const pp = parts(st.E); out.trimers.push({ i, key: t.key, label: t.label, ok: st.ok !== false, pairs: [pp.pairs["01"], pp.pairs["02"], pp.pairs["12"]].map((v) => +v.toFixed(4)), three: +pp.three.toFixed(4), total: +pp.total.toFixed(4), mols: t.mols.map((m) => m.map((a) => a.at)) });
+      const pp = parts(st.E); out.trimers.push({ i, key: t.key, label: t.label, ok: st.ok !== false, pairs: [pp.pairs["01"], pp.pairs["02"], pp.pairs["12"]].map((v) => +v.toFixed(4)), three: +pp.three.toFixed(4), total: +pp.total.toFixed(4), ...(t.liquid ? { liquid: t.liquid, rXX: t.rXX } : {}), mols: t.mols.map((m) => m.map((a) => a.at)) });
     }
     for (const [c, cr] of (set.crystals || []).entries()) for (const R of [10]) {
       const { pairs, Z } = await shellPairs(c, R), got = pairs.map((p, k) => { const f = path.join(CACHE, `shell_${c}_${R}_${k}.json`); return existsSync(f) ? { ...JSON.parse(readFileSync(f, "utf8")), A: p.A, B: p.B } : null; });

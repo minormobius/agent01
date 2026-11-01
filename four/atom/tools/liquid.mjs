@@ -17,6 +17,7 @@ import os from "node:os";
 import { System, shortPair, erfc, sphereArea, Ewald } from "../js/md.js";
 import { termsOf } from "../js/ffmodel.js";
 import { Gibbs } from "../js/gibbs.js";
+import { hydrideAtoms } from "./census.mjs";
 import { FORCEFIELDS } from "../js/forcefields.js";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-liquid"); mkdirSync(DIR, { recursive: true });
@@ -29,17 +30,21 @@ const pad = (v, d) => [...v, ...new Array(d - v.length).fill(0)];
 
 /* the models: a molecule (sites, constraints), its pairs between molecules, the liquid's rough spacing (bohr), the
    slab's size (molecules across, layers deep), cutoff, DSF damping, time step, sampling */
+/* each model's force-field key in js/forcefields.js */
+const FFKEY = { w3: "3", x4: "4", n4: "4.9" }, keyOf = (name) => FFKEY[name.replace(/L$/, "")];
 let LIQFF = {}; try { LIQFF = (await import("../js/liquidff.js")).LIQUIDFF; } catch { /* not yet fitted */ }
 export function model(name, p = null) {
   if (name === "spce") {
     const d = 3, R = 1.0 * ANG, th = (109.47 * Math.PI) / 180, q = 0.4238;
     return { name, d, mass: 18.015, kind: kindOf(d, 15.9994, -2 * q, q, R, th), pairs: { "X|X": { lj: [0.6502 / 2625.4996, 3.166 * ANG] } }, Ng: 300, sp: 3.1 * ANG, side: 7, layers: 8, rc: 18, alpha: 0.12, dt: 2, R0: 2.75 * ANG };
   }
-  // w3, x4: the book's force fields; w3L, x4L: the same refitted with the liquid's own pairs (js/liquidff.js)
-  const d = name.startsWith("w3") ? 3 : 4, ff = FORCEFIELDS[d], pp = p ?? (name.endsWith("L") ? LIQFF[d].p : ff.p), { q, pairs } = termsOf(pp), th = (ff.param * Math.PI) / 180;
-  return d === 3
-    ? { name, d, mass: 18.015, kind: kindOf(d, 16, -2 * q, q, ff.R, th), pairs, p: pp, Z: ff.Z, Ng: 300, sp: 3.1 * ANG, side: 7, layers: 8, rc: 18, alpha: 0.12, dt: 2, R0: 2.75 * ANG }
-    : { name, d, mass: 22.016, kind: kindOf(d, 20, -2 * q, q, ff.R, th), pairs, p: pp, Z: ff.Z, Ng: 300, sp: 6.3, side: 5, layers: 6, rc: 14, alpha: 0.16, dt: 1.5, R0: 6.5 };
+  // w3, x4, n4: the book's force fields (our water, Xater H₂X, XH₃); w3L, x4L, n4L: the same refitted on pairs from their
+  // own liquid (js/liquidff.js). The molecule is the census's (tools/census.mjs hydrideAtoms), q on each hydrogen
+  const k = keyOf(name), ff = FORCEFIELDS[k], d = ff.d, pp = p ?? (name.endsWith("L") ? LIQFF[k].p : ff.p), { q, pairs } = termsOf(pp);
+  const atoms = hydrideAtoms(ff.Z, d, ff.R, ff.param), nH = atoms.length - 1, mX = d === 3 ? 16 : 2 * ff.Z;
+  const kind = { sites: atoms.map((a, i) => ({ m: (i ? 1.008 : mX) * amu, q: i ? q : -nH * q, t: i ? "H" : "X", at: a.at })), constraints: atoms.flatMap((_, i) => atoms.slice(i + 1).map((__, j) => [i, i + 1 + j])) };
+  const base = { name, d, key: k, mass: mX + 1.008 * nH, kind, pairs, p: pp, Z: ff.Z, Ng: 300 };
+  return d === 3 ? { ...base, sp: 3.1 * ANG, side: 7, layers: 8, rc: 18, alpha: 0.12, dt: 2, R0: 2.75 * ANG } : { ...base, sp: 6.3, side: 5, layers: 6, rc: 14, alpha: 0.16, dt: 1.5, R0: 6.5 };
 }
 function kindOf(d, mX, qX, qH, R, th) {
   return { sites: [{ m: mX * amu, q: qX, t: "X", at: pad([0, 0], d) }, { m: 1.008 * amu, q: qH, t: "H", at: pad([R * Math.cos(th / 2), R * Math.sin(th / 2)], d) }, { m: 1.008 * amu, q: qH, t: "H", at: pad([R * Math.cos(th / 2), -R * Math.sin(th / 2)], d) }], constraints: [[0, 1], [0, 2], [1, 2]] };
@@ -208,9 +213,9 @@ if (!MAIN) {
      run as a small slab at two temperatures, pairs of neighbouring molecules picked from its frames, Hartree–Fock on
      each (tools/forcefield.mjs hpoint, four at a time, cached), the field's error on them printed before any refit sees
      them (the honest test), then the field refitted on every round so far */
-  const key = args[0], round = +args[1], n = +(args[2] || 96), d = key === "w3" ? 3 : 4, fieldFile = path.join(DIR, `field_${key}.json`);
+  const key = args[0], round = +args[1], n = +(args[2] || 96), fk = keyOf(key), d = FORCEFIELDS[fk].d, fieldFile = path.join(DIR, `field_${key}.json`);
   const fields = existsSync(fieldFile) ? JSON.parse(readFileSync(fieldFile, "utf8")) : { rounds: [] };
-  const p = round === 0 ? FORCEFIELDS[d].p : fields.rounds.find((r) => r.round === round - 1)?.next;
+  const p = round === 0 ? FORCEFIELDS[fk].p : fields.rounds.find((r) => r.round === round - 1)?.next;
   if (!p) throw new Error(`no field for round ${round}: run round ${round - 1} first`);
   const pairFile = path.join(DIR, `probe_${key}_${round}.json`), Ts = d === 3 ? [300, 450] : [450, 750];
   if (!existsSync(pairFile)) {
@@ -247,20 +252,42 @@ if (!MAIN) {
   console.log(`round ${round}, the field before seeing these pairs: rms ${test.rms.toFixed(2)}, bias ${test.bias.toFixed(2)} kcal/mol over ${test.n} pairs; their sum HF ${sumHF.toFixed(1)}, field ${sumM.toFixed(1)} kcal/mol`);
   // refit on every round so far, the exponents held at Born–Mayer's as the book's fit holds them
   const all = []; for (let r = 0; r <= round; r++) for (let i = 0; existsSync(path.join(DIR, `hf_${key}_${r}_${i}.json`)); i++) { const h = JSON.parse(readFileSync(path.join(DIR, `hf_${key}_${r}_${i}.json`), "utf8")); all.push({ ...h, k: 20000 + 1000 * r + i }); }
-  const Z = FORCEFIELDS[d].Z, start = [...p]; start[2] = logitB(bornMayer(d, Z, Z)); start[5] = logitB(bornMayer(d, Z, 1)); start[7] = logitB(bornMayer(d, 1, 1));
-  const res = fit(String(d), start, [true, true, false, true, true, false, true, false], { extra: all, wExtra: 1 });
+  const Z = FORCEFIELDS[fk].Z, start = [...p]; start[2] = logitB(bornMayer(d, Z, Z)); start[5] = logitB(bornMayer(d, Z, 1)); start[7] = logitB(bornMayer(d, 1, 1));
+  const res = fit(fk, start, [true, true, false, true, true, false, true, false], { extra: all, wExtra: 1 });
   const errAll = all.filter((r) => r.ok && r.E < 40 / KCAL).map((r) => (modelEnergy(res.p, r.A, r.B) - r.E) * KCAL);
   test.next = res.p; test.fitRms = res.rms * KCAL; test.liquidRms = Math.sqrt(errAll.reduce((t, e) => t + e * e, 0) / errAll.length);
   console.log(`refit on rounds 0–${round} (${all.length} liquid pairs): the book's pairs rms ${test.fitRms.toFixed(2)}, the liquid's ${test.liquidRms.toFixed(2)} kcal/mol; field`, res.p.map((v) => +v.toFixed(4)).join(" "));
   fields.rounds = fields.rounds.filter((r) => r.round !== round).concat([test]).sort((a, b) => a.round - b.round);
   writeFileSync(fieldFile, JSON.stringify(fields));
-  const out = { ...LIQFF }; out[d] = { d, Z, R: FORCEFIELDS[d].R, param: FORCEFIELDS[d].param, p: res.p.map((v) => +v.toPrecision(10)), rounds: fields.rounds.map(({ next: _n, ...r }) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === "number" ? +v.toFixed(3) : v]))), points: all.map((r) => ({ k: r.k, A: r.A, B: r.B, E: r.E, ok: r.ok })) };
+  const out = { ...LIQFF }; out[fk] = { d, Z, R: FORCEFIELDS[fk].R, param: FORCEFIELDS[fk].param, p: res.p.map((v) => +v.toPrecision(10)), rounds: fields.rounds.map(({ next: _n, ...r }) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === "number" ? +v.toFixed(3) : v]))), points: all.map((r) => ({ k: r.k, A: r.A, B: r.B, E: r.E, ok: r.ok })) };
   writeFileSync(path.join(here, "../js/liquidff.js"), `/* Generated by tools/liquid.mjs probe; do not edit. Per world, the rigid H₂X force field refitted with pairs taken from
    its own liquid (Hartree–Fock on each), round by round, and each round's test: the field's error on that round's pairs
    before it saw them (rms, bias, the pairs' summed energy by Hartree–Fock and by the field), kcal/mol; and every probe
    pair (sites in bohr, heavy atom first; E in hartree, k = 20000 + 1000·round + i). */
 export const LIQUIDFF = ${JSON.stringify(out)};
 `);
+} else if (cmd === "trimers") {
+  /* trimers cut from a liquid for tools/manybody.mjs (Hartree–Fock, all seven energies, the three-body part): from a run
+     file's denser box, centred triples (a molecule and two of its neighbours within the first shell R1, heavy atoms)
+     drawn uniformly, each with its multiplicity (how many of its molecules have the other two within R1, so a triangle
+     counts once), and the liquid's number of centred triples per molecule. The three-body energy per molecule is then
+     (triples per molecule) × mean(E₃ / multiplicity). */
+  const m = model(args[0]), st = JSON.parse(readFileSync(args[1], "utf8")), n = +args[2], label = args[3], R1 = m.d === 3 ? 6.2 : 5.6;
+  const g = gibbsOf(m, 1); g.load(st.state); const li = g.density(0) >= g.density(1) ? 0 : 1, B = g.box[li], L = B.L, N = B.mols.length, img = (v) => v - L * Math.round(v / L);
+  const dist = (a, b) => Math.hypot(...a.c.map((v, k) => img(v - b.c[k]))), nb = B.mols.map((a) => B.mols.filter((b) => b !== a && dist(a, b) < R1));
+  const w = nb.map((x) => (x.length * (x.length - 1)) / 2), W = w.reduce((t, x) => t + x, 0);
+  let sd = 4242; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  const { readSet } = await import("./manybody.mjs"), set = readSet(), Z = m.Z ?? 8, first = set.trimers.length;
+  for (let t = 0; t < n; t++) {
+    let r = rnd() * W, a = 0; while (r > w[a]) r -= w[a++];
+    const i = Math.floor(rnd() * nb[a].length); let j = Math.floor(rnd() * (nb[a].length - 1)); if (j >= i) j++;
+    const A = B.mols[a], tri = [A, nb[a][i], nb[a][j]], mult = tri.filter((x, u) => tri.every((y, v) => u === v || dist(x, y) < R1)).length;
+    const mols = tri.map((M) => { const sh = M.c.map((v, k) => img(v - A.c[k]) - (v - A.c[k])); return g.sites(M).map((x, s2) => ({ Z: s2 ? 1 : Z, at: Array.from(x, (v, k) => +(v + sh[k] - A.c[k]).toFixed(6)) })); });
+    set.trimers.push({ key: m.key ?? "3", d: m.d, label: `${label} #${t}`, liquid: { model: m.name, T: st.T, mult }, rXX: [dist(A, tri[1]), dist(A, tri[2]), dist(tri[1], tri[2])].map((v) => +v.toFixed(3)), mols });
+  }
+  (set.liquids ||= []).push({ label, model: m.name, T: st.T, N, rho: +g.density(li).toExponential(4), R1, triplesPerMol: +(W / N).toFixed(3), trimers: [first, set.trimers.length - 1] });
+  writeFileSync(path.join(here, "manybody-set.json"), JSON.stringify(set) + "\n");
+  console.log(`${n} trimers (${first}–${set.trimers.length - 1}) from ${m.name} at ${st.T} K: ${N} molecules, ${(W / N).toFixed(1)} centred triples a molecule within ${R1} bohr`);
 } else if (cmd === "bake") {
   /* every run: the blocks' mean liquid and vapour densities (molecules per bohr^d) and their errors (block spread / √n);
      per model, the critical point as the coexist bake fits it (ρ_l − ρ_v ∝ (Tc − T)^β, β 0.326 in 3D, ½ in 4D, the

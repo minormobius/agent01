@@ -1,33 +1,141 @@
 {
- "run": "liquid-2",
- "why": "Gibbs liquid–vapour again with the start melted in place before transfers (liquid-1's vapour boxes kept a droplet they couldn't drain) and a hard core between opposite charges (the book's field let a Monte Carlo jump drop a hydrogen into a heavy atom): SPC/E as the method's check, our water on the book's field lower down (it was supercritical from 260 K).",
- "minutes": 330,
+ "run": "trimers-liquid-1",
+ "why": "Does Xater stay a molecule when it condenses? Hartree–Fock on trimers cut from its simulated liquid (the book's field under the full Ewald sum, 1000 K, heavy atoms 4.3 bohr apart, 94 first-shell triples a molecule): the three-body energy a pair field can't see. Our water's liquid (SPC/E, 450 K) as the reference.",
+ "minutes": 240,
  "groups": [
   {
-   "name": "spce-a",
+   "name": "x4tri-0",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run spce 450 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run spce 500 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run spce 550 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run spce 575 --cycles=15000 --minutes=320"
+    "node four/atom/tools/manybody.mjs run 20",
+    "node four/atom/tools/manybody.mjs run 21",
+    "node four/atom/tools/manybody.mjs run 22",
+    "node four/atom/tools/manybody.mjs run 23"
    ]
   },
   {
-   "name": "spce-b",
+   "name": "x4tri-1",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run spce 600 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run spce 630 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run w3 130 --cycles=15000 --minutes=320"
+    "node four/atom/tools/manybody.mjs run 24",
+    "node four/atom/tools/manybody.mjs run 25",
+    "node four/atom/tools/manybody.mjs run 26",
+    "node four/atom/tools/manybody.mjs run 27"
    ]
   },
   {
-   "name": "w3-a",
+   "name": "x4tri-2",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run w3 160 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run w3 190 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run w3 220 --cycles=15000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run w3 250 --cycles=15000 --minutes=320"
+    "node four/atom/tools/manybody.mjs run 28",
+    "node four/atom/tools/manybody.mjs run 29",
+    "node four/atom/tools/manybody.mjs run 30",
+    "node four/atom/tools/manybody.mjs run 31"
+   ]
+  },
+  {
+   "name": "x4tri-3",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 32",
+    "node four/atom/tools/manybody.mjs run 33",
+    "node four/atom/tools/manybody.mjs run 34",
+    "node four/atom/tools/manybody.mjs run 35"
+   ]
+  },
+  {
+   "name": "x4tri-4",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 36",
+    "node four/atom/tools/manybody.mjs run 37",
+    "node four/atom/tools/manybody.mjs run 38",
+    "node four/atom/tools/manybody.mjs run 39"
+   ]
+  },
+  {
+   "name": "x4tri-5",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 40",
+    "node four/atom/tools/manybody.mjs run 41",
+    "node four/atom/tools/manybody.mjs run 42",
+    "node four/atom/tools/manybody.mjs run 43"
+   ]
+  },
+  {
+   "name": "x4tri-6",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 44",
+    "node four/atom/tools/manybody.mjs run 45",
+    "node four/atom/tools/manybody.mjs run 46",
+    "node four/atom/tools/manybody.mjs run 47"
+   ]
+  },
+  {
+   "name": "x4tri-7",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 48",
+    "node four/atom/tools/manybody.mjs run 49",
+    "node four/atom/tools/manybody.mjs run 50",
+    "node four/atom/tools/manybody.mjs run 51"
+   ]
+  },
+  {
+   "name": "x4tri-8",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 52",
+    "node four/atom/tools/manybody.mjs run 53",
+    "node four/atom/tools/manybody.mjs run 54",
+    "node four/atom/tools/manybody.mjs run 55"
+   ]
+  },
+  {
+   "name": "x4tri-9",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 56",
+    "node four/atom/tools/manybody.mjs run 57",
+    "node four/atom/tools/manybody.mjs run 58",
+    "node four/atom/tools/manybody.mjs run 59"
+   ]
+  },
+  {
+   "name": "x4tri-10",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 60",
+    "node four/atom/tools/manybody.mjs run 61",
+    "node four/atom/tools/manybody.mjs run 62",
+    "node four/atom/tools/manybody.mjs run 63"
+   ]
+  },
+  {
+   "name": "x4tri-11",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 64",
+    "node four/atom/tools/manybody.mjs run 65",
+    "node four/atom/tools/manybody.mjs run 66",
+    "node four/atom/tools/manybody.mjs run 67"
+   ]
+  },
+  {
+   "name": "w3tri-0",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 68",
+    "node four/atom/tools/manybody.mjs run 69",
+    "node four/atom/tools/manybody.mjs run 70",
+    "node four/atom/tools/manybody.mjs run 71"
+   ]
+  },
+  {
+   "name": "w3tri-1",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 72",
+    "node four/atom/tools/manybody.mjs run 73",
+    "node four/atom/tools/manybody.mjs run 74",
+    "node four/atom/tools/manybody.mjs run 75"
+   ]
+  },
+  {
+   "name": "w3tri-2",
+   "cmds": [
+    "node four/atom/tools/manybody.mjs run 76",
+    "node four/atom/tools/manybody.mjs run 77",
+    "node four/atom/tools/manybody.mjs run 78",
+    "node four/atom/tools/manybody.mjs run 79"
    ]
   }
  ]
