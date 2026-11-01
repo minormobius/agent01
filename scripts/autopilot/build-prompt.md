@@ -33,10 +33,10 @@ _Regenerated 2026-11-01 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-01, 100 members / 227 posts):
+**Neighborhood spark** (bisk 2026-11-01, 100 members / 225 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, inference, qwen
-- Top post: "Helping the people of San Francisco today by offering them grass to touch" — @cameron.stream
+- Distinctive words: ppl, idk, inference
+- Top post: "My" — @moultano.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
