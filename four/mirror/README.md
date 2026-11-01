@@ -15,6 +15,7 @@ How each method works, what checks it and its limits: [four.mino.mobi/atom/metho
 | `atom/js/kernel.js` | the 1/r kernel averaged over a 3-sphere (4D has no shell theorem) |
 | `atom/js/gauss.js` | Hartree–Fock on Gaussians in any d (McMurchie–Davidson, with Boys's F_n generalized to G_n), and MP2 on top of it |
 | `atom/js/md.js` | molecular dynamics: rigid molecules, a thermostat, an Ewald sum for 1/r in any d |
+| `atom/js/gibbs.js` | liquid and vapour of rigid molecules side by side: Gibbs-ensemble Monte Carlo with a per-box Ewald sum in any d |
 | `atom/js/landscape.js` | poses of rigid molecules, BFGS, descents for pairs and clusters |
 | `atom/js/ffmodel.js`, `forces.js` | force fields between molecules |
 | `atom/js/gas.js` | virial coefficients, lattice sums |
