@@ -136,6 +136,17 @@ a big emphasis on the patterning of the scales"). It borrows flora's geometry co
   contiguous, with a thin seam line — instead of latticed squares. **Light**: occlusion deepens
   continuously as z goes behind the bark (no step at the cut); the specular is a broad soft
   sheen, not a stripe.
+- **One continuous skin** (operator, 2026-11-01: "boundaries too severe… continuous and smooth
+  from the patterning perspective, no seam visible"). `drawSnake()` no longer cuts the body into
+  rendered pieces: one underlay for the whole body, the belly plates and the scale lattice swept
+  over the whole length in body coordinates, sheen + silhouette as one stroke per depth run (butt
+  caps). Depth only decides **occlusion**: the stretches with z<0 are covered by repainting the
+  trunk's own bark (`tr.barkSvg`, captured by `barkPath()`) on top, clipped to exactly those
+  stretches' outline. (The old cut at z=0 fell on the *outside* of each coil, against the white
+  paper — that was the hard edge at every turn.) Scales still go into ~40px depth groups so
+  self-crossings sort, but the groups share one lattice, so their boundaries are invisible.
+  The two lowest flank rows take a `LATERAL` colour (body ↔ belly mix), so the pattern fades into
+  the belly instead of stopping; light is quantised to 12 levels.
 - **Neck & head**: only the head (last two vertebrae, a little of the third) is pinned; the
   neck's initial pose is a slack cubic — up off the body, a swan's curve into the head's heading
   — and the skeleton settles it, so it rises rather than shooting out. Over its last ~8 body-

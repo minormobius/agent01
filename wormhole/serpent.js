@@ -335,16 +335,20 @@
       return dense(ctrl, 10);
     }
     function barkPath(sm, w0, w1, y) {
+      var svg = "", add0 = add;
+      add = function (l, yy, piece) { svg += piece; add0(l, yy, piece); };
       add("tree", y, '<path d="' + C.ribbon(sm, w0, w1) + '" fill="' + g.bark + '"/>');
       // fissures and a highlight: bark, not a tube
       add("tree", y, '<path d="' + smooth(sm.filter(function (_, i) { return i % 2 === 0; }).map(function (q) { return [q.x + Math.sin(q.ang) * w0 * 0.22, q.y - Math.cos(q.ang) * w0 * 0.22]; }), false) + '" fill="none" stroke="' + mix(g.bark, "#000", 0.45) + '" stroke-width="' + n1(Math.max(0.4, w0 * 0.1)) + '" stroke-dasharray="' + n1(w0 * 1.6) + " " + n1(w0 * 0.7) + '"/>');
       add("tree", y, '<path d="' + smooth(sm.filter(function (_, i) { return i % 2 === 0; }).map(function (q) { return [q.x - Math.sin(q.ang) * w0 * 0.28, q.y + Math.cos(q.ang) * w0 * 0.28]; }), false) + '" fill="none" stroke="' + mix(g.bark, "#fff", 0.35) + '" stroke-opacity=".5" stroke-width="' + n1(Math.max(0.4, w0 * 0.14)) + '"/>');
+      add = add0;
+      return svg;
     }
     if (g.habit !== "slither" || r.chance(0.5)) {
       [-1, 1].forEach(function (side) {
         if ((side < 0 ? mL : mR) < 20) return;
         var t = trunk(side); trunks.push({ side: side, sm: t });
-        barkPath(t, barkW, barkW * 0.7, 0);
+        trunks[trunks.length - 1].barkSvg = barkPath(t, barkW, barkW * 0.7, 0);
         t.forEach(function (q, i) { if (i % 2 === 0) place(q.x, q.y, barkW * 0.5, "stem"); });
       });
     }
@@ -588,7 +592,7 @@
       // final guarantee for the prose
       var tp = [0, 0];
       for (i = 0; i < smp.length; i++) { tp[0] = smp[i].x; tp[1] = smp[i].y; pushOut(tp, smp[i].w); smp[i].x = tp[0]; smp[i].y = tp[1]; }
-      return { smp: smp, L: Ltot };
+      return { smp: smp, L: Ltot, trunk: trunk };
     }
     // the head's heading: along the last vertebra
     function headAngle(smp) {
@@ -611,112 +615,113 @@
     function shade(i, lvl) {
       var key = i + ":" + lvl;
       if (!shadeCache[key]) {
-        var base = i === 4 ? BELLY : K.c[i], l = (lvl - 4) / 4;
+        var base = i === 4 ? BELLY : i === 5 ? LATERAL : K.c[i], l = (lvl - 6) / 6;
         shadeCache[key] = l < 0 ? mix(base, K.gap, -l * 0.85) : mix(base, "#ffffff", l * 0.5);
       }
       return shadeCache[key];
     }
-    var BELLY = mix(K.c[2], "#f2e6cc", 0.55);
+    var BELLY = mix(K.c[2], "#f2e6cc", 0.55), LATERAL = mix(K.c[0], BELLY, 0.5);
 
     function drawSnake(B, salt) {
+      // ONE continuous skin. The lattice, the belly plates, the sheen and the silhouette are laid
+      // over the whole body in body coordinates, so nothing in the pattern ever restarts. Depth
+      // decides only what is hidden: the parts behind the trunk are covered by repainting the bark
+      // over them, clipped to their own outline, instead of cutting the skin into pieces.
       var pat = makePattern(g, P, salt);
       var R = g.rows, rowV = 2 / R, du = (2 * W0 / R) * 1.6, half = du / 2;
-      var smp = B.smp, Ltot = B.L, chunks = [];
-      // chunks ~40px, cut where the body crosses the bark's plane, sorted by depth
-      var cuts = [0];
-      for (var i = 1; i < smp.length; i++) {
-        if ((smp[i].z > 0) !== (smp[i - 1].z > 0) || smp[i].s - smp[cuts[cuts.length - 1]].s > 40) cuts.push(i);
+      var smp = B.smp, Ltot = B.L, tr = B.trunk;
+      function edges(u0, u1) {
+        var Lp = [], Rp = [];
+        for (var u = u0; ; u += 3) { var uu = Math.min(u, u1), q = at(B, uu); Lp.push([q.x + q.nx * q.w, q.y + q.ny * q.w]); Rp.push([q.x - q.nx * q.w, q.y - q.ny * q.w]); if (uu >= u1) break; }
+        return [Lp, Rp];
       }
-      cuts.push(smp.length - 1);
-      for (var c = 0; c < cuts.length - 1; c++) {
-        var a = smp[cuts[c]], b = smp[cuts[c + 1]], u0 = a.s, u1 = b.s;
-        if (u1 - u0 < 0.5) continue;
-        var zMean = 0, nz = 0;
-        for (var zi = cuts[c]; zi <= cuts[c + 1]; zi++) { zMean += smp[zi].z; nz++; }
-        zMean /= nz;
-        var out = "", Lp = [], Rp = [];
-        for (var u = Math.max(0, u0 - 0.6); u <= Math.min(Ltot, u1 + 0.6) + 0.01; u = u < u1 + 0.6 && u + 3 > u1 + 0.6 ? u1 + 0.6 : u + 3) { var q = at(B, Math.min(Ltot, u)); Lp.push([q.x + q.nx * q.w, q.y + q.ny * q.w]); Rp.push([q.x - q.nx * q.w, q.y - q.ny * q.w]); }
-        if (Lp.length < 2) continue;
-        var tube = smooth(Lp.concat(Rp.slice().reverse()), true);
-        var under = '<path d="' + tube + '" fill="' + K.gap + '"/>'; // laid for the whole serpent first, so it never paints over a neighbour's scales
-        var buckets = {};
-        for (var iu = Math.ceil(u0 / half); iu <= Math.floor(u1 / half); iu++) {
-          var uc = iu * half, q0 = at(B, uc);
-          if (q0.w < 0.6) continue;
-          var bn = q0.beta / (Math.PI / 2), du2 = half * 0.86, qa = at(B, uc - du2), qb = at(B, uc + du2);
-          var nrm = [q0.nx, q0.ny];
-          for (var j = 0; j < 2 * R; j++) {
-            var vp = -2 + (j + 0.5) * rowV;            // body coordinate: 0 the spine of the back, ±2 the belly line
-            var v = vp + bn; v = ((v + 2) % 4 + 4) % 4 - 2;   // where that row shows on screen
-            if (Math.abs(v) >= 1) continue;
-            if (Math.abs(vp) > 1.12) continue; // the belly is plated below, not latticed
-            if ((iu + j) % 2) continue;
-            var belly = false;
-            // light from the 3D normal of this point on the round body
-            var al = v * Math.PI / 2, N3 = [Math.sin(al) * nrm[0], Math.sin(al) * nrm[1], Math.cos(al)];
-            var dif = Math.max(0, N3[0] * L3[0] + N3[1] * L3[1] + N3[2] * L3[2]);
-            var pc = belly ? [4, 0] : pat(uc, vp);
-            // occlusion deepens smoothly as the body goes round behind the bark
-            var ao = 0.28 * Math.max(0, Math.min(1, -q0.z / (RB + W0)));
-            var lit = 0.3 + 0.95 * dif + pc[1] - ao;
-            var lvl = Math.max(0, Math.min(7, Math.round(lit * 4)));
-            var p1, p2, p3, p4;
-            if (belly) { // ventral plates: wide, transverse, overlapping into one band
-              var qa2 = at(B, uc - du * 0.44), qb2 = at(B, uc + du * 0.44);
-              p1 = wpt(qa2, v - rowV * 0.55); p2 = wpt(qb2, v - rowV * 0.55); p3 = wpt(qb2, v + rowV * 0.55); p4 = wpt(qa2, v + rowV * 0.55);
-            } else {
-              var dv = rowV * 0.86;
-              p1 = wpt(qa, v); p2 = wpt(q0, v - dv); p3 = wpt(qb, v); p4 = wpt(q0, v + dv);
-            }
-            var key = pc[0] + ":" + lvl;
-            (buckets[key] = buckets[key] || []).push("M" + pt(p1) + "l" + n1(p2[0] - p1[0]) + "," + n1(p2[1] - p1[1]) + "l" + n1(p3[0] - p2[0]) + "," + n1(p3[1] - p2[1]) + "l" + n1(p4[0] - p3[0]) + "," + n1(p4[1] - p3[1]) + "z");
-          }
-        }
-        var seams = [];
-        // ventral plates: one smooth band per plate across whatever of the belly is in view
-        for (var ib = Math.ceil(u0 / du); ib <= Math.floor(u1 / du); ib++) {
-          var ub = ib * du, qb0 = at(B, ub);
-          if (qb0.w < 0.8) continue;
-          var bnb = qb0.beta / (Math.PI / 2), cb = (((2 + bnb) + 2) % 4 + 4) % 4 - 2;
-          [cb - 4, cb, cb + 4].forEach(function (cc) {
-            var va = Math.max(-1, cc - 0.86), vb = Math.min(1, cc + 0.86);
-            if (vb - va < 0.04) return;
-            var qa3 = at(B, ub - du * 0.52), qb3 = at(B, ub + du * 0.52), edgeA = [], edgeB = [];
-            for (var k3 = 0; k3 <= 4; k3++) { var vv = va + (vb - va) * k3 / 4; edgeA.push(wpt(qa3, vv)); edgeB.push(wpt(qb3, vv)); }
-            var vm = (va + vb) / 2, alb = vm * Math.PI / 2, Nb = [Math.sin(alb) * qb0.nx, Math.sin(alb) * qb0.ny, Math.cos(alb)];
-            var litb = 0.35 + 0.85 * Math.max(0, Nb[0] * L3[0] + Nb[1] * L3[1] + Nb[2] * L3[2]) - 0.28 * Math.max(0, Math.min(1, -qb0.z / (RB + W0)));
-            var keyb = "4:" + Math.max(0, Math.min(7, Math.round(litb * 4)));
-            (buckets[keyb] = buckets[keyb] || []).push("M" + edgeA.map(pt).join("L") + "L" + edgeB.slice().reverse().map(pt).join("L") + "z");
-            seams.push("M" + edgeB.map(pt).join("L"));
-          });
-        }
-        Object.keys(buckets).forEach(function (key) {
-          var kk = key.split(":"), col = shade(+kk[0], +kk[1]);
-          out += '<path d="' + buckets[key].join("") + '" fill="' + col + '" stroke="' + col + '" stroke-width=".35" stroke-linejoin="round"/>';
+      function tubeOf(e) { return smooth(e[0].concat(e[1].slice().reverse()), true); }
+      // runs of the body behind (z<0) and in front of the bark, by arc length
+      var runs = [], cur = null;
+      for (var i = 0; i < smp.length; i++) {
+        var back = !!tr && smp[i].z < 0;
+        if (!cur || cur.back !== back) { if (cur) cur.u1 = smp[i].s; cur = { back: back, u0: smp[i].s }; runs.push(cur); }
+      }
+      cur.u1 = Ltot;
+      // depth groups for scales: ~40px buckets, by the depth of each scale's own centre
+      var groups = {};
+      function grp(u, z) { var k = Math.floor(u / 40); var gk = (z < 0 && tr ? "b" : "f") + k; return groups[gk] = groups[gk] || { back: z < 0 && !!tr, z: z, plates: {}, scales: {}, seams: [] }; }
+      function push(bk, key, d) { (bk[key] = bk[key] || []).push(d); }
+      var LV = 12;
+      function level(lit) { return Math.max(0, Math.min(LV - 1, Math.round(lit * LV / 2))); }
+      // belly plates (drawn first, so the flank scales overlap their edge in a natural scallop)
+      for (var ib = 0; ib <= Math.floor(Ltot / du); ib++) {
+        var ub = ib * du, qb0 = at(B, ub);
+        if (qb0.w < 0.8) continue;
+        var bnb = qb0.beta / (Math.PI / 2), cb = (((2 + bnb) + 2) % 4 + 4) % 4 - 2, G = grp(ub, qb0.z);
+        [cb - 4, cb, cb + 4].forEach(function (cc) {
+          var va = Math.max(-1, cc - 0.9), vb = Math.min(1, cc + 0.9);
+          if (vb - va < 0.04) return;
+          var qa3 = at(B, ub - du * 0.52), qb3 = at(B, ub + du * 0.52), eA = [], eB = [];
+          for (var k3 = 0; k3 <= 5; k3++) { var vv = va + (vb - va) * k3 / 5; eA.push(wpt(qa3, vv)); eB.push(wpt(qb3, vv)); }
+          var alb = (va + vb) / 2 * Math.PI / 2, Nb = [Math.sin(alb) * qb0.nx, Math.sin(alb) * qb0.ny, Math.cos(alb)];
+          var litb = 0.35 + 0.85 * Math.max(0, Nb[0] * L3[0] + Nb[1] * L3[1] + Nb[2] * L3[2]) - 0.28 * Math.max(0, Math.min(1, -qb0.z / (RB + W0)));
+          push(G.plates, "4:" + level(litb), "M" + eA.map(pt).join("L") + "L" + eB.slice().reverse().map(pt).join("L") + "z");
+          G.seams.push("M" + eB.map(pt).join("L"));
         });
-        if (seams.length) out += '<path d="' + seams.join("") + '" fill="none" stroke="' + mix(BELLY, K.gap, 0.55) + '" stroke-width=".5" stroke-opacity=".8"/>';
-        // the specular streak, where the round body mirrors the light
-        var sh = [];
-        for (var u2 = u0; u2 <= u1; u2 += 4) { var qq = at(B, u2), hs = H3[0] * qq.nx + H3[1] * qq.ny; sh.push(wpt(qq, Math.atan2(hs, H3[2]) / (Math.PI / 2))); }
-        if (sh.length > 1) {
-          var wm = at(B, (u0 + u1) / 2).w, so = zMean < 0 ? 0.5 : 1;
-          // a broad soft sheen, not a stripe
-          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.09 * g.sheen) + '" stroke-width="' + n1(Math.max(0.8, wm * 0.8)) + '" stroke-linecap="round"/>';
-          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.13 * g.sheen) + '" stroke-width="' + n1(Math.max(0.6, wm * 0.38)) + '" stroke-linecap="round"/>';
-        }
-        out += '<path d="' + smooth(Lp, false) + smooth(Rp, false) + '" fill="none" stroke="' + K.gap + '" stroke-width=".6" stroke-opacity=".75"/>';
-        chunks.push({ z: zMean, svg: out, under: under });
       }
-      var head = drawHead(B);
-      chunks.push({ z: 1e9, svg: head });
-      // painter's algorithm: behind the bark → its own layer, in front → over the leaves; each by depth
-      chunks.sort(function (A2, B2) { return A2.z - B2.z; });
+      // the lattice, one sweep down the whole body
+      for (var iu = 0; iu <= Math.floor(Ltot / half); iu++) {
+        var uc = iu * half, q0 = at(B, uc);
+        if (q0.w < 0.6) continue;
+        var bn = q0.beta / (Math.PI / 2), du2 = half * 0.95, qa = at(B, uc - du2), qb = at(B, uc + du2), Gs = grp(uc, q0.z);
+        var ao = 0.28 * Math.max(0, Math.min(1, -q0.z / (RB + W0)));
+        for (var j = 0; j < 2 * R; j++) {
+          var vp = -2 + (j + 0.5) * rowV;
+          if (Math.abs(vp) > 1.32 || (iu + j) % 2) continue;
+          var v = vp + bn; v = ((v + 2) % 4 + 4) % 4 - 2;
+          if (Math.abs(v) >= 1) continue;
+          var al = v * Math.PI / 2, N3 = [Math.sin(al) * q0.nx, Math.sin(al) * q0.ny, Math.cos(al)];
+          var dif = Math.max(0, N3[0] * L3[0] + N3[1] * L3[1] + N3[2] * L3[2]);
+          var pc = pat(uc, vp);
+          // the lowest flank rows shade toward the belly: the pattern fades out, it doesn't stop
+          var ci = Math.abs(vp) > 1.05 ? 5 : pc[0];
+          var lit = 0.3 + 0.95 * dif + pc[1] - ao, dv = rowV * 0.95;
+          var p1 = wpt(qa, v), p2 = wpt(q0, v - dv), p3 = wpt(qb, v), p4 = wpt(q0, v + dv);
+          push(Gs.scales, ci + ":" + level(lit), "M" + pt(p1) + "l" + n1(p2[0] - p1[0]) + "," + n1(p2[1] - p1[1]) + "l" + n1(p3[0] - p2[0]) + "," + n1(p3[1] - p2[1]) + "l" + n1(p4[0] - p3[0]) + "," + n1(p4[1] - p3[1]) + "z");
+        }
+      }
+      function paint(G) {
+        var o = "";
+        Object.keys(G.plates).forEach(function (key) { var kk = key.split(":"), col = shade(+kk[0], +kk[1]); o += '<path d="' + G.plates[key].join("") + '" fill="' + col + '" stroke="' + col + '" stroke-width=".35"/>'; });
+        if (G.seams.length) o += '<path d="' + G.seams.join("") + '" fill="none" stroke="' + mix(BELLY, K.gap, 0.5) + '" stroke-width=".4" stroke-opacity=".35"/>';
+        Object.keys(G.scales).forEach(function (key) { var kk = key.split(":"), col = shade(+kk[0], +kk[1]); o += '<path d="' + G.scales[key].join("") + '" fill="' + col + '" stroke="' + col + '" stroke-width=".35" stroke-linejoin="round"/>'; });
+        return o;
+      }
+      // sheen and silhouette: one continuous stroke per run (butt caps, so runs meet without a dot)
+      function finish(run) {
+        var o = "", sh = [], e = edges(run.u0, run.u1);
+        for (var u2 = run.u0; ; u2 += 4) { var uu = Math.min(u2, run.u1), qq = at(B, uu), hs = H3[0] * qq.nx + H3[1] * qq.ny; sh.push(wpt(qq, Math.atan2(hs, H3[2]) / (Math.PI / 2))); if (uu >= run.u1) break; }
+        if (sh.length > 1) {
+          var wm = W0;
+          o += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.09 * g.sheen) + '" stroke-width="' + n1(Math.max(0.8, wm * 0.8)) + '"/>';
+          o += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.13 * g.sheen) + '" stroke-width="' + n1(Math.max(0.6, wm * 0.38)) + '"/>';
+        }
+        o += '<path d="' + smooth(e[0], false) + smooth(e[1], false) + '" fill="none" stroke="' + K.gap + '" stroke-width=".6" stroke-opacity=".75"/>';
+        return o;
+      }
+      var gl = Object.keys(groups).map(function (k) { return groups[k]; }).sort(function (a, b) { return a.z - b.z; });
+      var whole = edges(0, Ltot);
+      var out = '<path d="' + tubeOf(whole) + '" fill="' + K.gap + '"/>';
+      out += gl.filter(function (G) { return G.back; }).map(paint).join("");
+      out += runs.filter(function (rn) { return rn.back; }).map(finish).join("");
+      // the bark, repainted over what is behind it, clipped to exactly those stretches of body
+      var backRuns = runs.filter(function (rn) { return rn.back && rn.u1 - rn.u0 > 0.5; });
+      if (backRuns.length && tr && tr.barkSvg) {
+        var cid = pfx + "occ" + snakeCount;
+        defs.push('<clipPath id="' + cid + '">' + backRuns.map(function (rn) { return '<path d="' + tubeOf(edges(Math.max(0, rn.u0 - 1), Math.min(Ltot, rn.u1 + 1))) + '"/>'; }).join("") + "</clipPath>");
+        out += '<g clip-path="url(#' + cid + ')">' + tr.barkSvg + "</g>";
+      }
+      out += gl.filter(function (G) { return !G.back; }).map(paint).join("");
+      out += runs.filter(function (rn) { return !rn.back; }).map(finish).join("");
+      out += drawHead(B);
       var y0 = Math.min.apply(null, smp.map(function (q) { return q.y; }));
-      function group(sel) { var ks = chunks.filter(sel); return ks.map(function (k) { return k.under || ""; }).join("") + ks.map(function (k) { return k.svg; }).join(""); }
-      var back = group(function (k) { return k.z < 0; });
-      var front = group(function (k) { return k.z >= 0; });
-      if (back) add("snakeBack", y0, back);
-      add("snake", y0, front);
+      add("snake", y0, out);
       for (var k2 = 0; k2 < smp.length; k2 += 2) place(smp[k2].x, smp[k2].y, smp[k2].w, "serpent", 1);
       snakeCount++;
     }
@@ -757,7 +762,7 @@
           var vp = belly ? 2 : Math.max(0, (y + h) / (h + mouthY(x))) * 1.1;
           var pc = belly ? [4, 0] : pat(B.L + x, vp);
           var lit = 0.92 - 0.55 * (y + h) / (2 * h) + (belly ? -0.05 : 0) + pc[1];
-          var lvl = Math.max(0, Math.min(7, Math.round(lit * 4))), key = pc[0] + ":" + lvl, d = cs * 0.9;
+          var lvl = Math.max(0, Math.min(11, Math.round(lit * 6))), key = pc[0] + ":" + lvl, d = cs * 0.9;
           (buckets[key] = buckets[key] || []).push("M" + n1(x - d) + "," + n1(y) + "l" + n1(d) + "," + n1(-d * 0.85) + "l" + n1(d) + "," + n1(d * 0.85) + "l" + n1(-d) + "," + n1(d * 0.85) + "z");
         }
       }
