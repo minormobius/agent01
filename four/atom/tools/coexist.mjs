@@ -2,7 +2,7 @@
    trade volume and atoms but never touch, so there's no surface between them to simulate. At a temperature below
    the critical point one box ends up liquid and the other vapour, and their densities are the coexisting ones.
    Built to run on the compute runner (.github/compute/), one temperature per command, resumable from its file.
-     node four/atom/tools/coexist.mjs <system> <T> [--n=N] [--cycles=C] [--minutes=M]
+     node four/atom/tools/coexist.mjs <system> <T> [--n=N] [--cycles=C] [--minutes=M] [--seed=S]
      node four/atom/tools/coexist.mjs bake      # the finished runs, and each system's critical point, into js/coexist.js
    systems: lj3 (Lennard-Jones in 3D, the known answer: critical point 1.31 ε/k), lj4 (Lennard-Jones in 4D),
             ne, ar, kr (our noble gases, the computed pairs) and ie, oe, bg (4D's elements 2, 12 and 22).
@@ -27,30 +27,45 @@ const arg = (k, def) => { const a = process.argv.find((s) => s.startsWith(`--${k
    denser than at the next warmer point means the "liquid" box froze, and Gibbs swaps into a solid can't be trusted).
    ρ_c from the mean of the two densities, a straight line in T (the rectilinear diameter). */
 if (process.argv[2] === "bake") {
-  const { readdirSync } = await import("node:fs"), dir = path.join(tmpdir(), "atom4-coexist"), runs = {}, all = [];
-  for (const f of readdirSync(dir).filter((f) => f.endsWith(".json"))) { const r = JSON.parse(readFileSync(path.join(dir, f), "utf8")), k = `${r.sys}@${r.T}`; all.push(r); if (!runs[k] || runs[k].N < r.N) runs[k] = r; }
-  const out = {};
-  for (const r of Object.values(runs)) (out[r.sys] ??= { d: r.d, epsK: r.epsK, R: r.R, points: [] }).points.push({ T: r.T, N: r.N, cycles: r.summary.cycles, l: +(r.summary.rhoL * r.summary.Rd).toFixed(4), v: +(r.summary.rhoV * r.summary.Rd).toFixed(4), el: +(r.summary.eL * r.summary.Rd).toFixed(4), ev: +(r.summary.eV * r.summary.Rd).toFixed(4) });
-  // the box-size checks: the same temperature run at two sizes
-  for (const [k, r] of Object.entries(runs)) { const same = all.filter((q) => `${q.sys}@${q.T}` === k); if (same.length > 1) (out[r.sys].sizes ??= []).push({ T: r.T, runs: same.map((q) => ({ N: q.N, l: +(q.summary.rhoL * q.summary.Rd).toFixed(4), v: +(q.summary.rhoV * q.summary.Rd).toFixed(4) })) }); }
+  /* (after the independent audit, F04) each run is re-summarized from its stored densities: the second half in ten
+     blocks, the liquid being the denser box of each block's means (sorting every cycle opened a gap from fluctuations
+     alone near the critical point); runs of one system, temperature and size with different seeds are pooled, the
+     error then the seeds' spread; Tc's error is a bootstrap over the seeds (each temperature's run drawn at random) */
+  const { readdirSync } = await import("node:fs"), dir = path.join(tmpdir(), "atom4-coexist"), mean = (v) => v.reduce((a, b) => a + b, 0) / v.length, sem = (v) => (v.length > 1 ? Math.sqrt(v.reduce((a, b) => a + (b - mean(v)) ** 2, 0) / (v.length - 1) / v.length) : 0);
+  const summ = (r) => { const n = r.rho[0].length, from = Math.floor(n / 2), k = 10, m = Math.floor((n - from) / k), L = [], V = [], Rd = r.R ** r.d;
+    for (let j = 0; j < k; j++) { const a = mean(r.rho[0].slice(from + j * m, from + (j + 1) * m)), b = mean(r.rho[1].slice(from + j * m, from + (j + 1) * m)); L.push(Math.max(a, b) * Rd); V.push(Math.min(a, b) * Rd); }
+    return { l: mean(L), el: sem(L), v: mean(V), ev: sem(V) }; };
+  const all = readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => { const r = JSON.parse(readFileSync(path.join(dir, f), "utf8")); return { ...r, s: summ(r), seedIx: +(f.match(/_s(\d+)\.json$/)?.[1] ?? 0) }; });
+  const out = {}, groups = {};
+  for (const r of all) (groups[`${r.sys}@${r.T}@${r.N}`] ??= []).push(r);
+  const pool = (rs) => rs.length > 1 ? { l: mean(rs.map((r) => r.s.l)), el: Math.max(sem(rs.map((r) => r.s.l)), mean(rs.map((r) => r.s.el)) / Math.sqrt(rs.length)), v: mean(rs.map((r) => r.s.v)), ev: Math.max(sem(rs.map((r) => r.s.v)), mean(rs.map((r) => r.s.ev)) / Math.sqrt(rs.length)) } : { ...rs[0].s };
+  const byT = {}; for (const [k, rs] of Object.entries(groups)) { const [sys, T] = k.split("@"), key = `${sys}@${T}`; if (!byT[key] || byT[key][0].N < rs[0].N) byT[key] = rs; }
+  for (const rs of Object.values(byT)) { const r = rs[0], P = pool(rs); (out[r.sys] ??= { d: r.d, epsK: r.epsK, R: r.R, points: [] }).points.push({ T: r.T, N: r.N, seeds: rs.length, cycles: Math.min(...rs.map((q) => q.rho[0].length)), l: +P.l.toFixed(4), v: +P.v.toFixed(4), el: +P.el.toFixed(4), ev: +P.ev.toFixed(4), runs: rs }); }
+  // the box-size checks: one temperature at two sizes
+  for (const [key, rs] of Object.entries(byT)) { const [sys, T] = key.split("@"), sizes = Object.entries(groups).filter(([k]) => k.startsWith(key + "@")); if (sizes.length > 1) (out[sys].sizes ??= []).push({ T: +T, runs: sizes.map(([, q]) => { const P = pool(q); return { N: q[0].N, seeds: q.length, l: +P.l.toFixed(4), v: +P.v.toFixed(4) }; }) }); }
   const line = (xs, ys) => { const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n, sxy = xs.reduce((t, x, i) => t + (x - mx) * (ys[i] - my), 0), sxx = xs.reduce((t, x) => t + (x - mx) ** 2, 0); const a = sxy / sxx; return [a, my - a * mx]; };
+  let sd = 12345; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
   for (const s of Object.values(out)) {
     s.points.sort((a, b) => a.T - b.T);
     const used = s.points.filter((p, i) => p.l - p.v >= 0.3 && !(s.points[i + 1] && p.v > s.points[i + 1].v + 3 * (p.ev + s.points[i + 1].ev)));
     s.used = used.map((p) => p.T);
-    const fit = (beta) => { const [a, b] = line(used.map((p) => p.T), used.map((p) => (p.l - p.v) ** (1 / beta))); return -b / a; };
-    const own = s.d === 3 ? 0.326 : 0.5, other = s.d === 3 ? 0.5 : 0.326, [ad, bd] = line(used.map((p) => p.T), used.map((p) => (p.l + p.v) / 2));
-    s.Tc = +fit(own).toFixed(3); s.TcOther = +fit(other).toFixed(3); s.beta = own; s.rhoc = +(ad * s.Tc + bd).toFixed(3);
+    const own = s.d === 3 ? 0.326 : 0.5, other = s.d === 3 ? 0.5 : 0.326, fit = (pts, beta) => { const [a, b] = line(pts.map((p) => p.T), pts.map((p) => Math.max(0, p.l - p.v) ** (1 / beta))); return -b / a; };
+    s.Tc = +fit(used, own).toFixed(3); s.TcOther = +fit(used, other).toFixed(3); s.beta = own; const [ad, bd] = line(used.map((p) => p.T), used.map((p) => (p.l + p.v) / 2)); s.rhoc = +(ad * s.Tc + bd).toFixed(3);
+    s.dof = used.length - 2; s.seedsMin = Math.min(...used.map((p) => p.seeds));
+    if (s.seedsMin > 1) { const tcs = []; for (let b = 0; b < 400; b++) { const pts = used.map((p) => { const q = p.runs[Math.floor(rnd() * p.runs.length)].s; return { T: p.T, l: q.l, v: q.v }; }); tcs.push(fit(pts, own)); } s.TcErr = +Math.sqrt(tcs.reduce((a, x) => a + (x - mean(tcs)) ** 2, 0) / (tcs.length - 1)).toFixed(3); }
     s.lastSplit = Math.max(...used.map((p) => p.T)); s.firstUnsplit = s.points.find((p) => p.T > s.lastSplit && p.l - p.v < 0.3)?.T ?? null;
+    for (const p of s.points) delete p.runs;
   }
   writeFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "../js/coexist.js"), `/* Generated by tools/coexist.mjs bake from the Gibbs-ensemble runs on the compute runner; do not edit. Per system:
    dimension, the pair's well depth in kelvin (for the computed pairs, as computed: ÷1.8 for the other end of the range),
-   its distance R (bohr; σ·2^(1/6) for Lennard-Jones), and the runs: temperature T in ε/k, atoms N, cycles, and the
-   two boxes' densities × R^d with their errors. Fitted: Tc (ε/k) with the dimension's own exponent β and with the other
-   one, ρ_c × R^d, the points used, and the warmest that split and the coolest after it that didn't. */
+   its distance R (bohr; σ·2^(1/6) for Lennard-Jones), and the runs: temperature T in ε/k, atoms N, seeds pooled, cycles,
+   and the two boxes' densities × R^d with their errors (liquid the denser box of each block's means; with several seeds
+   the error is their spread). Fitted: Tc (ε/k) with the dimension's own exponent β and with the other one, its
+   bootstrap error over seeds where every point has several (TcErr), the fit's residual degrees of freedom (dof), ρ_c ×
+   R^d, the points used, and the warmest that split and the coolest after it that didn't. */
 export const COEXIST = ${JSON.stringify(out)};
 `);
-  for (const [k, s] of Object.entries(out)) console.log(k, "Tc", s.Tc, "(other β", s.TcOther + ")", "ρc", s.rhoc, "used", s.used.join(","), "split to", s.lastSplit, "not at", s.firstUnsplit, s.epsK ? `→ ${(s.Tc * s.epsK / 1.8).toFixed(0)}–${(s.Tc * s.epsK).toFixed(0)} K` : "");
+  for (const [k, s] of Object.entries(out)) console.log(k, "Tc", s.Tc, s.TcErr ? `± ${s.TcErr}` : "", "(other β", s.TcOther + ")", "ρc", s.rhoc, "used", s.used.join(","), `dof ${s.dof}, seeds ≥ ${s.seedsMin}`, s.epsK ? `→ ${(s.Tc * s.epsK / 1.8).toFixed(0)}–${(s.Tc * s.epsK).toFixed(0)} K` : "");
   process.exit(0);
 }
 const sys = process.argv[2], Tred = +process.argv[3];
@@ -85,10 +100,11 @@ const tailE = (N, V) => { const L = V ** (1 / d); return ((N * N) / (2 * V)) * S
 /* the state: two boxes, each N atoms in a cube of side L, coordinates in [0, L) */
 const OUT = path.join(tmpdir(), "atom4-coexist"); mkdirSync(OUT, { recursive: true });
 
-let seed = (Math.round(Tred * 1000) * 7919 + sys.length * 104729) | 0;
+const SEED = arg("seed", 0); // independent repeats (after the audit): each its own file, _s<seed>
+let seed = (Math.round(Tred * 1000) * 7919 + sys.length * 104729 + SEED * 15485863) | 0;
 const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const Ntot = arg("n", d === 3 ? 500 : 800), CYCLES = arg("cycles", 20000);
-const file = path.join(OUT, `${sys}_${Tred}_n${Ntot}.json`);
+const file = path.join(OUT, `${sys}_${Tred}_n${Ntot}${SEED ? `_s${SEED}` : ""}.json`);
 let st;
 if (existsSync(file)) { st = JSON.parse(readFileSync(file, "utf8")); seed = st.seed; }
 else {

@@ -1,7 +1,7 @@
 {
- "run": "reconverge-1",
- "why": "The independent audit's F01: Hartree–Fock reported an exhausted iteration budget as convergence, so every saved result's ok flag said nothing. Re-run the saved pair energies (the force fields' pairs, the liquid probes, the census's hydrogen-bonded pairs) with the fixed convergence test, and record which fail and how far their energies move.",
- "minutes": 200,
+ "run": "audit-1",
+ "why": "After the independent audit: F01, re-run the saved Hartree–Fock pair energies with the fixed convergence test; F04, argon's and element 2's critical points with six temperatures each, three independent seeds and a doubled box, and SPC/E with two more seeds, so each critical temperature carries residual degrees of freedom and a seed-to-seed error.",
+ "minutes": 330,
  "groups": [
   {
    "name": "rc-3d",
@@ -55,6 +55,121 @@
     "node four/atom/tools/reconverge.mjs run liq4 5/8",
     "node four/atom/tools/reconverge.mjs run liq4 6/8",
     "node four/atom/tools/reconverge.mjs run liq4 7/8"
+   ]
+  },
+  {
+   "name": "f04-0",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ar 0.8 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.8 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.8 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.85 --seed=1 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-1",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ar 0.85 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.85 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.9 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.9 --seed=2 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-2",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ar 0.9 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.95 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.95 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 0.95 --seed=3 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-3",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ar 1.0 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 1.0 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 1.0 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 1.03 --seed=1 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-4",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ar 1.03 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ar 1.03 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 4 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 4 --seed=2 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-5",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ie 4 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 5 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 5 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 5 --seed=3 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-6",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ie 6 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 6 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 6 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 6.5 --seed=1 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-7",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ie 6.5 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 6.5 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 7 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 7 --seed=2 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-8",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ie 7 --seed=3 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 7.5 --seed=1 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 7.5 --seed=2 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 7.5 --seed=3 --minutes=300"
+   ]
+  },
+  {
+   "name": "f04-9",
+   "cmds": [
+    "node four/atom/tools/coexist.mjs ar 0.95 --seed=1 --n=1000 --minutes=300",
+    "node four/atom/tools/coexist.mjs ie 6.5 --seed=1 --n=2400 --minutes=300",
+    "node four/atom/tools/liquid.mjs run spce 450 --cycles=15000 --seed=1 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 450 --cycles=15000 --seed=2 --minutes=320"
+   ]
+  },
+  {
+   "name": "f04-10",
+   "cmds": [
+    "node four/atom/tools/liquid.mjs run spce 500 --cycles=15000 --seed=1 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 500 --cycles=15000 --seed=2 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 550 --cycles=15000 --seed=1 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 550 --cycles=15000 --seed=2 --minutes=320"
+   ]
+  },
+  {
+   "name": "f04-11",
+   "cmds": [
+    "node four/atom/tools/liquid.mjs run spce 575 --cycles=15000 --seed=1 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 575 --cycles=15000 --seed=2 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 600 --cycles=15000 --seed=1 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 600 --cycles=15000 --seed=2 --minutes=320"
+   ]
+  },
+  {
+   "name": "f04-12",
+   "cmds": [
+    "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --seed=1 --minutes=320",
+    "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --seed=2 --minutes=320"
    ]
   }
  ]

@@ -170,9 +170,9 @@ if (!MAIN) {
   /* one temperature: melt the start in place (400 cycles), equilibrate (steps tuned) to a fifth of the cycles, then record both boxes' densities and
      energies every cycle, in blocks of 200 cycles */
   const name = args[0], T = +args[1], m = model(name), cycles = opt("cycles", 8000), minutes = opt("minutes", 330), ntr = opt("transfers", m.Ng), block = 200;
-  const file = path.join(DIR, `${name}_${T}_g${GEN}.json`), kT = T * KB, t0 = Date.now();
+  const SEED = opt("seed", 0), file = path.join(DIR, `${name}_${T}_g${GEN}${SEED ? `_s${SEED}` : ""}.json`), kT = T * KB, t0 = Date.now(); // seeds: independent repeats (after the audit, F04)
   let st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
-  const g = gibbsOf(m, 17 + Math.round(T) + (st ? st.cycle : 0));
+  const g = gibbsOf(m, 17 + Math.round(T) + 7919 * SEED + (st ? st.cycle : 0));
   if (st) g.load(st.state); else st = { model: name, d: m.d, T, N: m.Ng, mass: m.mass, cycles, eq: Math.round(cycles / 5), cycle: 0, blocks: [], cur: null };
   console.log(`${name} T=${T} K: ${m.Ng} molecules, from cycle ${st.cycle} to ${cycles}; boxes ${g.box.map((B) => `${B.mols.length} in L ${B.L.toFixed(1)}`).join(", ")}`);
   const save = () => { st.state = g.dump(); writeFileSync(file, JSON.stringify(st)); };
@@ -183,10 +183,12 @@ if (!MAIN) {
     if (st.cycle <= st.eq && st.cycle % 10 === 0) g.tune();
     if (st.cycle % 50 === 0) { const drift = [0, 1].map((b) => g.check(b)); if (drift.some((x) => Math.abs(x) > 1e-6 * (1 + Math.abs(g.box[0].E)))) console.log(`drift ${drift.map((x) => x.toExponential(2)).join(" ")}`); }
     if (st.cycle > st.eq) {
-      const r = [0, 1].map((b) => g.density(b)), e = [0, 1].map((b) => (g.box[b].mols.length ? g.box[b].E / g.box[b].mols.length : 0)), li = r[0] >= r[1] ? 0 : 1;
-      st.cur ??= { from: st.cycle, n: 0, l: 0, v: 0, el: 0, ev: 0, nl: 0 };
-      const c = st.cur; c.n++; c.l += r[li]; c.v += r[1 - li]; c.el += e[li]; c.ev += e[1 - li]; c.nl += g.box[li].mols.length;
-      if (c.n === block) { st.blocks.push({ from: c.from, to: st.cycle, l: c.l / c.n, v: c.v / c.n, el: c.el / c.n, ev: c.ev / c.n, nl: c.nl / c.n }); st.cur = null; }
+      // each box's means over the block; the liquid is the denser box of the block, not of each cycle (sorting every
+      // cycle opens a gap from fluctuations alone near the critical point: the audit's F04)
+      const r = [0, 1].map((b) => g.density(b)), e = [0, 1].map((b) => (g.box[b].mols.length ? g.box[b].E / g.box[b].mols.length : 0));
+      st.cur ??= { from: st.cycle, n: 0, r: [0, 0], e: [0, 0], nm: [0, 0] };
+      const c = st.cur; if (!c.r) Object.assign(c, { r: [0, 0], e: [0, 0], nm: [0, 0] }); c.n++; for (const b of [0, 1]) { c.r[b] += r[b]; c.e[b] += e[b]; c.nm[b] += g.box[b].mols.length; }
+      if (c.n === block) { const li = c.r[0] >= c.r[1] ? 0 : 1; st.blocks.push({ from: c.from, to: st.cycle, l: c.r[li] / c.n, v: c.r[1 - li] / c.n, el: c.e[li] / c.n, ev: c.e[1 - li] / c.n, nl: c.nm[li] / c.n, perBlock: true }); st.cur = null; }
     }
     if (st.cycle % 100 === 0) console.log(`cycle ${st.cycle}: ${g.box.map((B, b) => `${B.mols.length} at ${g.density(b).toExponential(3)}, U ${((B.E / Math.max(1, B.mols.length)) * KCAL).toFixed(2)}`).join(" | ")} kcal/mol; moved ${g.moved || 0}/${g.tries || 0}, steps ${g.step.map((x) => `${x.dx.toFixed(2)}/${x.dth.toFixed(2)}`).join(" ")}, dlnV ${g.dlnV.toFixed(3)} (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
     if (Date.now() - lastSave > 60000) { save(); lastSave = Date.now(); }
@@ -319,18 +321,25 @@ export const LIQUIDFF = ${JSON.stringify(out)};
      other tried too; ρ_c by the rectilinear diameter) from points that clearly split, the vapour's pressure as an ideal
      gas, ln(ρ_v T) against 1/T (Clausius–Clapeyron), and a boiling point by corresponding states: where the vapour
      reaches the share of the critical density our water's has at its boiling point (0.598 / 322 kg/m³) */
-  const runs = readdirSync(DIR).filter((f) => new RegExp(`^(spce|w3L?|x4L?)_[\\d.]+_g${GEN}\\.json$`).test(f)).map((f) => JSON.parse(readFileSync(path.join(DIR, f), "utf8")));
+  const runs = readdirSync(DIR).filter((f) => new RegExp(`^(spce|w3L?|x4L?|n4L?)_[\\d.]+_g${GEN}(_s\\d+)?\\.json$`).test(f)).map((f) => JSON.parse(readFileSync(path.join(DIR, f), "utf8")));
   const out = {}, kgm3 = (m, r) => (r * m * 1.66053907e-27) / 5.29177211e-11 ** 3, line = (xs, ys) => { const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n, sxy = xs.reduce((t, x, i) => t + (x - mx) * (ys[i] - my), 0), sxx = xs.reduce((t, x) => t + (x - mx) ** 2, 0); return [sxy / sxx, my - (sxy / sxx) * mx]; };
   const stat = (v) => { const n = v.length, m = v.reduce((a, b) => a + b, 0) / n; return [m, n > 1 ? Math.sqrt(v.reduce((t, x) => t + (x - m) ** 2, 0) / (n - 1) / n) : NaN]; };
-  for (const r of runs) { if (r.blocks.length < 3) continue; const [l, el] = stat(r.blocks.map((b) => b.l)), [v, ev] = stat(r.blocks.map((b) => b.v)), [u] = stat(r.blocks.map((b) => b.el));
-    (out[r.model] ??= { d: r.d, mass: r.mass, points: [] }).points.push({ T: r.T, cycles: r.cycle, blocks: r.blocks.length, l, v, el, ev, ul: u * KCAL }); }
+  // runs of one model and temperature with different seeds are pooled: their mean, the error their spread
+  const byT = {}; for (const r of runs) { if (r.blocks.length < 3) continue; (byT[`${r.model}@${r.T}`] ??= []).push(r); }
+  for (const rs of Object.values(byT)) { const each = rs.map((r) => { const [l, el] = stat(r.blocks.map((b) => b.l)), [v, ev] = stat(r.blocks.map((b) => b.v)), [u] = stat(r.blocks.map((b) => b.el)); return { l, el, v, ev, u }; });
+    const pool = (k, ek) => (each.length > 1 ? [stat(each.map((x) => x[k]))[0], Math.max(stat(each.map((x) => x[k]))[1], each.reduce((t, x) => t + x[ek], 0) / each.length / Math.sqrt(each.length))] : [each[0][k], each[0][ek]]);
+    const [l, el] = pool("l", "el"), [v, ev] = pool("v", "ev"), r = rs[0];
+    (out[r.model] ??= { d: r.d, mass: r.mass, points: [] }).points.push({ T: r.T, seeds: rs.length, cycles: Math.min(...rs.map((q) => q.cycle)), blocks: r.blocks.length, perBlock: r.blocks.every((b) => b.perBlock), l, v, el, ev, ul: stat(each.map((x) => x.u))[0] * KCAL, each: each.map(({ l: a, v: b }) => ({ l: a, v: b })) }); }
   const RATIO = 0.598 / 322;
   for (const [k, M] of Object.entries(out)) {
     M.points.sort((a, b) => a.T - b.T); const used = M.points.filter((p) => (p.l - p.v) / (p.l + p.v) > 0.3);
     M.used = used.map((p) => p.T);
     if (used.length >= 2) {
       const fit = (beta) => { const [a, b] = line(used.map((p) => p.T), used.map((p) => (p.l - p.v) ** (1 / beta))); return -b / a; }, own = M.d === 3 ? 0.326 : 0.5, other = M.d === 3 ? 0.5 : 0.326;
-      M.Tc = fit(own); M.TcOther = fit(other); const [ad, bd] = line(used.map((p) => p.T), used.map((p) => (p.l + p.v) / 2)); M.rhoc = ad * M.Tc + bd;
+      M.Tc = fit(own); M.TcOther = fit(other); M.dof = used.length - 2; M.seedsMin = Math.min(...used.map((p) => p.seeds));
+      if (M.seedsMin > 1) { let sd2 = 777; const rr = () => ((sd2 = (sd2 * 16807) % 2147483647) / 2147483647), tcs = [];
+        for (let b = 0; b < 400; b++) { const pts = used.map((p) => p.each[Math.floor(rr() * p.each.length)]), [a2, b2] = line(used.map((p) => p.T), pts.map((q) => Math.max(0, q.l - q.v) ** (1 / own))); tcs.push(-b2 / a2); }
+        const mu = tcs.reduce((a, b) => a + b, 0) / tcs.length; M.TcErr = Math.sqrt(tcs.reduce((a, x) => a + (x - mu) ** 2, 0) / (tcs.length - 1)); } const [ad, bd] = line(used.map((p) => p.T), used.map((p) => (p.l + p.v) / 2)); M.rhoc = ad * M.Tc + bd;
       const vap = used.filter((p) => p.v > 0), [cs, ci] = vap.length >= 2 ? line(vap.map((p) => 1 / p.T), vap.map((p) => Math.log(p.v * p.T))) : [NaN, NaN];
       M.cc = [cs, ci]; // the boiling point: ln(RATIO ρ_c T) = ci + cs/T, by iteration
       let T = 0.6 * M.Tc; for (let it = 0; it < 50; it++) T = cs / (Math.log(RATIO * M.rhoc * T) - ci); M.Tb = T;
@@ -338,7 +347,7 @@ export const LIQUIDFF = ${JSON.stringify(out)};
     }
     if (M.d === 3) for (const p of M.points) { p.lkg = kgm3(M.mass, p.l); p.vkg = kgm3(M.mass, p.v); }
     console.log(k, M.points.map((p) => `${p.T} K: ${p.l.toExponential(3)}/${p.v.toExponential(3)}${p.lkg ? ` (${p.lkg.toFixed(0)}/${p.vkg.toFixed(1)} kg/m³)` : ""} U ${p.ul.toFixed(2)}`).join("; "));
-    if (M.Tc) console.log(`  Tc ${M.Tc.toFixed(0)} K (other β ${M.TcOther.toFixed(0)}), ρc ${M.rhoc.toExponential(3)}${M.d === 3 ? ` = ${kgm3(M.mass, M.rhoc).toFixed(0)} kg/m³` : ""}, boils (corresponding states) ${M.Tb.toFixed(0)} K, ΔH_vap ${M.hvap.toFixed(1)} kcal/mol; used ${M.used.join(", ")}`);
+    if (M.Tc) console.log(`  Tc ${M.Tc.toFixed(0)}${M.TcErr ? ` ± ${M.TcErr.toFixed(0)}` : ""} K, ${M.dof} residual dof, seeds ≥ ${M.seedsMin} (other β ${M.TcOther.toFixed(0)}), ρc ${M.rhoc.toExponential(3)}${M.d === 3 ? ` = ${kgm3(M.mass, M.rhoc).toFixed(0)} kg/m³` : ""}, boils (corresponding states) ${M.Tb.toFixed(0)} K, ΔH_vap ${M.hvap.toFixed(1)} kcal/mol; used ${M.used.join(", ")}`);
   }
   // the calibration: our water's real critical point over the recipe's, applied to Xater's
   for (const [x, w] of [["x4", "w3"], ["x4L", "w3L"]]) if (out[x]?.Tc && out[w]?.Tc) { const f = 647.1 / out[w].Tc; out[x].cal = { from: w, f, Tc: out[x].Tc * f, Tb: out[x].Tb * f }; console.log(`${x} calibrated by ${w} (×${f.toFixed(2)}): Tc ${out[x].cal.Tc.toFixed(0)} K, boils ${out[x].cal.Tb.toFixed(0)} K`); }
