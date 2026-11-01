@@ -56,3 +56,8 @@ body.phone #intro:not([hidden]) ~ #act { display: none; }
 body:not(.riding) #act .r, body:not(.riding) #act .c, body.riding #act .w, body.riding:not(.cfg) #act .c { display: none; }
 #act #mode { border-color: var(--gold); color: var(--gold); }
 body.cfg #cfg { border-color: var(--ice); color: var(--ice); }
+/* holding a finger down (on the stick, the view or a button) must not select text, pop up the copy/lookup callout or
+   magnify: nothing here is text you'd want to copy mid-ride */
+html, body, button, canvas, #view, #panel { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button, canvas { touch-action: manipulation; }
+#gl { touch-action: none; }

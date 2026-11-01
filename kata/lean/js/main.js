@@ -399,3 +399,5 @@ function step(now) {
 }
 requestAnimationFrame(step);
 window.LEAN = { timing, me, get bike() { return bike; }, human, setRider, TAIL, setMode, setCam, setPilot, setMech, resetBike, get mode() { return mode; }, squareUp, faceTrack, get frames() { return frames; }, rot: (i, j, t) => { rotFr(i, j, t); tidy(); }, opt, track: () => trackRead(), lap };
+/* no text selection, long-press menu or callout from a held finger (iOS ignores some of the CSS on its own) */
+for (const ev of ["contextmenu", "selectstart"]) document.addEventListener(ev, (e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); });

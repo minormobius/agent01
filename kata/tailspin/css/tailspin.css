@@ -34,3 +34,8 @@ button.primary { font: 800 15px var(--mono) !important; letter-spacing: 0.12em; 
 #levels .n { color: var(--dim); min-width: 1.6em; } #levels .nm { flex: 1; font-weight: 700; } #levels .sc { color: var(--dim); } #levels .md { min-width: 1.4em; text-align: right; }
 .made { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .foot { font: 11px/1.6 var(--mono); color: var(--dim); margin-top: 16px; max-width: 540px; } .foot a { color: var(--text); }
+/* holding a finger down (on the stick, the view or a button) must not select text, pop up the copy/lookup callout or
+   magnify: nothing here is text you'd want to copy mid-ride */
+html, body, button, canvas, #view, #panel { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button, canvas { touch-action: manipulation; }
+#gl { touch-action: none; }

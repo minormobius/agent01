@@ -203,3 +203,5 @@ else if (q.get("level")) openLevel(Math.max(0, Math.min(LEVELS.length - 1, +q.ge
 else { openLevel(0); menu(); } // the first level's course behind the menu
 requestAnimationFrame(step);
 window.TAILSPIN = { game, human, openLevel, openMade, menu, LEVELS, placeAt };
+/* no text selection, long-press menu or callout from a held finger (iOS ignores some of the CSS on its own) */
+for (const ev of ["contextmenu", "selectstart"]) document.addEventListener(ev, (e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); });
