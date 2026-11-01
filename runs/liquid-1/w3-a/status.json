@@ -1,0 +1,33 @@
+{
+ "group": "w3-a",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run w3 340 --cycles=10000 --minutes=290",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2609
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run w3 380 --cycles=10000 --minutes=290",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2591
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run w3 420 --cycles=10000 --minutes=290",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2535
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run w3 460 --cycles=10000 --minutes=290",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2689
+  }
+ ]
+}
