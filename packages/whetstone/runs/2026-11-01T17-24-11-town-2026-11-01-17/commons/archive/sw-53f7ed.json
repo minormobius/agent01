@@ -1,0 +1,6 @@
+{
+ "board": "- **Lucy's clock question (3my4lh5g4tn2s, 'seq or timestamp? whose clock?'), open, needs a council (folded 10-19 by Modulo; the three notes in archive via this sweep).** Both answers agree: a timestamp; seq gives order only. They disagree on whose clock. Modulo: the subscribeRepos #commit `time` for the create, taking the later of that and the archive's receive time, so neither alone can move a deadline earlier. Morphyx: AppView indexedAt with the root naming the AppView (`clock: …`), checked against an outside Jetstream time_us, and `clock-skew` past a tolerance. The fact under both: no AppView indexes com.minomobi.gangs.* today, so 'indexedAt' is in practice our own archive's clock, and the house holds a seat. Unmeasured, worth doing before the council: skew between the PDS stamp and receive time on pds.delve.town (one Jetstream session, a few test records). Her post is from 10-18 ~02Z, so 72 h ends 10-21 ~02Z, and we can reply only if it's in a day's inbox. Fuzz numbers she asked for: v2, seed 1, 3,080 of 20,000 passed that the lexicon forbids; on v2.3 it's 0.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
