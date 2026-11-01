@@ -157,12 +157,16 @@
     var cs = getComputedStyle(sheet), W = sheet.offsetWidth, H = sheet.offsetHeight;
     var box = { x0: parseFloat(cs.paddingLeft), y0: parseFloat(cs.paddingTop),
       x1: W - parseFloat(cs.paddingRight), y1: H - parseFloat(cs.paddingBottom) };
-    var g = floraGenome(current);
+    var g = floraGenome(current), paper = current;
     var anim = animate && !reduceMotion;
-    var out = FL.grow(g, { width: W, height: H, box: box }, { animate: anim, idPrefix: "s", tile: 1100 });
     lastDims = W + "x" + H;
+    // a serpent margin is a physics simulation (~0.3–0.6 s): let the text paint
+    // first, then grow the margin, then (later still) the print frame
+    requestAnimationFrame(function () { setTimeout(function () {
+    if (gen !== growGen) return;
+    var out = FL.grow(g, { width: W, height: H, box: box }, { animate: anim, idPrefix: "s", tile: 1100 });
     sheet.setAttribute("data-flora", out.genome.name);
-    $("herbarium").setAttribute("href", "/flora#" + encodeURIComponent(current.id)); // this paper's specimen
+    $("herbarium").setAttribute("href", "/flora#" + encodeURIComponent(paper.id)); // this paper's specimen
     // insert tile by tile, top first, yielding between them: the text paints
     // at once and the garden grows in down the page
     var i = 0;
@@ -176,12 +180,16 @@
     })();
     // the print frame: one Letter page's worth of margin, repeated on every
     // printed page (position:fixed repeats per page in print)
+    setTimeout(function () {
+    if (gen !== growGen) return;
     var pw = 816, ph = 1056 - 2 * 53, side = 128;
     // as one <img>: Chrome repeats a fixed element on every printed page but,
     // past page 1, drops the nested groups of an inline SVG; an image survives
     var frame = FL.grow(g, { width: pw, height: ph, box: { x0: side, y0: -20, x1: pw - side, y1: ph + 20 } },
       { animate: false, idPrefix: "pr" }).svg;
     $("printFrame").innerHTML = '<img alt="" width="' + pw + '" height="' + ph + '" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(frame) + '">';
+    }, 400);
+    }, 0); });
   }
   if (window.ResizeObserver) {
     var rt = null;

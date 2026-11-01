@@ -310,7 +310,6 @@
     // serpent sizing first: the trunks must leave room for a coil's swing
     var W0 = Math.max(3, 11 * S * g.girth);          // half-width of the body
     var LH = W0 * 2.7, TONGUE = W0 * 2;              // head length, tongue reach
-    function swing(mW) { return Math.min(W0 * 1.8, mW * 0.3); }
 
     // ---- the tree: gnarled branches up the side margins ----
     function dense(pts, step) {
@@ -319,14 +318,14 @@
       return ctrl;
     }
     var trunks = [];
-    var barkW = Math.max(2.2, 9 * S);
+    var barkW = Math.max(2.2, W0 * 1.15); // a branch about as thick as the serpent: what a snake actually climbs
     function trunk(side) {
       var mW = side < 0 ? mL : mR, cx0 = side < 0 ? mL * r.range(0.4, 0.6) : box.x1 + mR * r.range(0.4, 0.6);
       var amp = mW * 0.18, wl = r.range(260, 420), ph = r.range(0, 6.28), ctrl = [];
       for (var y = H + 10; y > -10; y -= wl / 5) ctrl.push([cx0 + Math.sin(y / wl * 6.28 + ph) * amp + r.range(-amp, amp) * 0.3, y]);
       // keep a coil's swing + a body's width clear of the text and the page edge,
       // or the helix flattens into a seam against them
-      var room = g.habit === "entwined" ? swing(mW) + W0 + 2 : barkW + 2;
+      var room = g.habit !== "slither" ? barkW * 0.5 + W0 * 2 + 3 : barkW + 2;
       ctrl = ctrl.map(function (p) {
         var lo, hi;
         if (side < 0) { lo = room * 0.8; hi = box.x0 - gap - room; } else { lo = box.x1 + gap + room; hi = W - room * 0.8; }
@@ -377,93 +376,280 @@
     });
 
     // ================= the serpents =================
+    // A serpent is a SKELETON first and a picture second. Each one is a chain of
+    // vertebrae (particles ~0.8 body-widths apart) simulated in 3D with
+    // position-based dynamics: fixed segment lengths, a minimum bend radius and
+    // a little bending stiffness (the spine), gravity (weight), the trunk as a
+    // solid cylinder with friction on contact (the tree), grip muscles that pull
+    // the coils onto the bark, a travelling curvature wave (serpentine
+    // locomotion), a neck controller that holds the head up and toward the text,
+    // and no passing through itself. Only then is the skin laid over the bones —
+    // z sorts the body chunks in front of and behind the bark and itself, and the
+    // spine's 3D pose says which way the back faces, so a body turning round
+    // the branch shows its flank and the pale plates of its belly.
     var P = W0 * r.range(2.2, 3.2);                  // pattern period along the body
-    var L_ = [-0.55, -0.83];                         // light from the upper left
+    var L3 = norm3([-0.45, -0.62, 0.65]);            // light: upper left, toward the viewer
+    var H3 = norm3([L3[0], L3[1], L3[2] + 1]);       // half-vector for the specular
+    var DS = W0 * 0.8;                               // vertebra spacing
+    var RB = barkW * 0.45;                           // trunk radius
     var snakeCount = 0;
+    function norm3(v) { var l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }
+    function widthAt(t) { var tail = Math.min(1, Math.pow(t / 0.3, 0.75)), neck = t > 0.94 ? 1 - 0.32 * (t - 0.94) / 0.06 : 1; return W0 * Math.max(0.07, tail * neck); }
 
-    function body(spine, depthOf) {
-      // spine: dense [{x,y}] tail → head. Rebuild arc length, angles, widths.
-      var smp = [], s = 0, i;
-      for (i = 0; i < spine.length; i++) { if (i) s += Math.hypot(spine[i].x - spine[i - 1].x, spine[i].y - spine[i - 1].y); smp.push({ x: spine[i].x, y: spine[i].y, s: s, d: spine[i].d == null ? 1 : spine[i].d }); }
+    // nearest point on a trunk's axis (z = 0). Each trunk carries a per-row index of
+    // its nearest segment (built once), so a lookup checks three segments, not a search.
+    function trunkIndex(tr) {
+      if (tr.rows) return tr.rows;
+      var sm = tr.sm, rows = new Int32Array(Math.ceil(H) + 2), j = 0;
+      for (var y = 0; y < rows.length; y++) {
+        // segments run with y falling; find the one whose y-span holds this row
+        var best = 0, bd = 1e18;
+        for (var i = 0; i < sm.length - 1; i++) { var my = (sm[i].y + sm[i + 1].y) / 2, d = Math.abs(my - y); if (d < bd) { bd = d; best = i; } }
+        rows[y] = best;
+      }
+      tr.rows = rows;
+      return rows;
+    }
+    function onTrunk(tr, x, y) {
+      var sm = tr.sm, rows = tr.rows || trunkIndex(tr), yi = Math.max(0, Math.min(rows.length - 1, Math.round(y))), c = rows[yi];
+      var best = null, bd = 1e18;
+      for (var i = Math.max(0, c - 2); i <= Math.min(sm.length - 2, c + 2); i++) {
+        var a = sm[i], b = sm[i + 1], ex = b.x - a.x, ey = b.y - a.y, L2 = ex * ex + ey * ey || 1;
+        var t = Math.max(0, Math.min(1, ((x - a.x) * ex + (y - a.y) * ey) / L2)), px = a.x + ex * t, py = a.y + ey * t, d = (x - px) * (x - px) + (y - py) * (y - py);
+        if (d < bd) { bd = d; var l = Math.sqrt(L2); best = { x: px, y: py, tx: ex / l, ty: ey / l }; }
+      }
+      return best;
+    }
+    // smallest on-page move that takes (x, y) with radius w out of the text
+    function pushOut(p, w) {
+      var m = w * 0.6 + 1;
+      p[0] = Math.max(m, Math.min(W - m, p[0])); p[1] = Math.max(m, Math.min(H - m, p[1]));
+      if (!inText(p[0], p[1], w + 1)) return;
+      var c = [[box.x0 - gap - w - 1.5, p[1]], [box.x1 + gap + w + 1.5, p[1]], [p[0], box.y0 - gap - w - 1.5], [p[0], box.y1 + gap + w + 1.5]]
+        .filter(function (q) { return q[0] >= m && q[0] <= W - m && q[1] >= m && q[1] <= H - m; })
+        .sort(function (A, B) { return Math.hypot(A[0] - p[0], A[1] - p[1]) - Math.hypot(B[0] - p[0], B[1] - p[1]); });
+      if (c.length) { p[0] = c[0][0]; p[1] = c[0][1]; }
+    }
+
+    // ---- the simulation ----
+    // cfg: { pose: [[x,y,z]…] (initial, tail → head, ~DS apart), trunk, grip(i,N), plane (z or null),
+    //        wave {amp, lam, ph} or null, head {x,y,z,dx,dy}, gravity }
+    function simulate(cfg) {
+      var N = cfg.pose.length, X = new Float64Array(N * 3), PX = new Float64Array(N * 3), wv = new Float64Array(N), gr = new Float64Array(N), contact = new Uint8Array(N);
+      for (var i = 0; i < N; i++) { X[i * 3] = PX[i * 3] = cfg.pose[i][0]; X[i * 3 + 1] = PX[i * 3 + 1] = cfg.pose[i][1]; X[i * 3 + 2] = PX[i * 3 + 2] = cfg.pose[i][2]; wv[i] = widthAt(i / (N - 1)); gr[i] = cfg.grip ? cfg.grip(i, N) : 0; }
+      var HT = new Int32Array(4096), NX = new Int32Array(N);
+      function hcell(a, b, c) { return ((a * 73856093) ^ (b * 19349663) ^ (c * 83492791)) & 4095; }
+      var STEPS = 120, ITERS = 5, damp = 0.94, gy = cfg.gravity == null ? 0.2 * S : cfg.gravity;
+      var dmin = DS * 2 * Math.cos(Math.PI / 2 - Math.asin(Math.min(0.95, DS / (2 * W0 * 1.25)))); // min bend radius ≈ 1.25 body widths
+      var cell = W0 * 2.2, tmp = [0, 0];
+      var hd = cfg.head, hdl = hd ? Math.hypot(hd.dx, hd.dy) || 1 : 1;
+      for (var st = 0; st < STEPS; st++) {
+        // integrate: velocity with damping; friction where the body grips the bark
+        for (i = 0; i < N; i++) {
+          var k = i * 3, f = contact[i] ? 0.2 : damp;
+          var vx = (X[k] - PX[k]) * f, vy = (X[k + 1] - PX[k + 1]) * f, vz = (X[k + 2] - PX[k + 2]) * f;
+          PX[k] = X[k]; PX[k + 1] = X[k + 1]; PX[k + 2] = X[k + 2];
+          X[k] += vx; X[k + 1] += vy + (contact[i] ? gy * 0.15 : gy); X[k + 2] += vz;
+        }
+        for (var it = 0; it < ITERS; it++) {
+          // vertebrae: fixed spacing
+          for (i = 0; i < N - 1; i++) {
+            var a = i * 3, b = a + 3, dx = X[b] - X[a], dy = X[b + 1] - X[a + 1], dz = X[b + 2] - X[a + 2], L = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6, c = (L - DS) / L * 0.5;
+            X[a] += dx * c; X[a + 1] += dy * c; X[a + 2] += dz * c; X[b] -= dx * c; X[b + 1] -= dy * c; X[b + 2] -= dz * c;
+          }
+          // the spine can't fold tighter than its bend radius, and it is a little stiff
+          for (i = 1; i < N - 1; i++) {
+            var p0 = (i - 1) * 3, p1 = i * 3, p2 = (i + 1) * 3;
+            var ex = X[p2] - X[p0], ey = X[p2 + 1] - X[p0 + 1], ez = X[p2 + 2] - X[p0 + 2], el = Math.sqrt(ex * ex + ey * ey + ez * ez) || 1e-6;
+            if (el < dmin) { var cc = (dmin - el) / el * 0.25; X[p0] -= ex * cc; X[p0 + 1] -= ey * cc; X[p0 + 2] -= ez * cc; X[p2] += ex * cc; X[p2 + 1] += ey * cc; X[p2 + 2] += ez * cc; }
+            var ks = cfg.stiff == null ? 0.04 : cfg.stiff; // straightening; free serpents hold their muscular shape instead
+            X[p1] += ((X[p0] + X[p2]) / 2 - X[p1]) * ks; X[p1 + 1] += ((X[p0 + 1] + X[p2 + 1]) / 2 - X[p1 + 1]) * ks; X[p1 + 2] += ((X[p0 + 2] + X[p2 + 2]) / 2 - X[p1 + 2]) * ks;
+          }
+          // muscles: a travelling wave of curvature (serpentine), in the page plane
+          if (cfg.wave) {
+            for (i = 1; i < N - 4; i++) {
+              var q0 = (i - 1) * 3, q1 = i * 3, q2 = (i + 1) * 3, t = i / (N - 1);
+              var th = cfg.wave.amp * Math.sin(i * DS / cfg.wave.lam * 6.2832 + cfg.wave.ph) * Math.min(1, t / 0.25) * Math.min(1, (1 - t) / 0.2);
+              var hx = X[q1] - X[q0], hy = X[q1 + 1] - X[q0 + 1], hl = Math.hypot(hx, hy) || 1, cs = Math.cos(th), sn = Math.sin(th);
+              var tx2 = X[q1] + (hx * cs - hy * sn) / hl * DS, ty2 = X[q1 + 1] + (hx * sn + hy * cs) / hl * DS;
+              X[q2] += (tx2 - X[q2]) * 0.1; X[q2 + 1] += (ty2 - X[q2 + 1]) * 0.1;
+            }
+          }
+          // the tree: a solid cylinder; grip muscles hug it
+          if (cfg.trunk) {
+            for (i = 0; i < N; i++) {
+              var kk = i * 3, A = onTrunk(cfg.trunk, X[kk], X[kk + 1]);
+              if (!A) continue;
+              var ox = X[kk] - A.x, oy = X[kk + 1] - A.y, oz = X[kk + 2], along = ox * A.tx + oy * A.ty;
+              ox -= along * A.tx; oy -= along * A.ty;
+              var ro = Math.sqrt(ox * ox + oy * oy + oz * oz) || 1e-6, want = RB + wv[i];
+              contact[i] = 0;
+              if (ro < want) { var push = (want - ro) / ro; X[kk] += ox * push; X[kk + 1] += oy * push; X[kk + 2] += oz * push; contact[i] = 1; }
+              else if (gr[i] > 0 && ro < want + wv[i] * 7) { var pull = -(ro - want) / ro * gr[i]; X[kk] += ox * pull; X[kk + 1] += oy * pull; X[kk + 2] += oz * pull; if (ro < want + 2) contact[i] = 1; }
+            }
+          }
+          // no passing through itself (a typed-array spatial hash: head/next lists)
+          if (it % 2 === 0) {
+            HT.fill(-1);
+            for (i = 0; i < N; i++) { var hk = hcell(Math.floor(X[i * 3] / cell), Math.floor(X[i * 3 + 1] / cell), Math.floor(X[i * 3 + 2] / cell)); NX[i] = HT[hk]; HT[hk] = i; }
+            for (i = 0; i < N; i++) {
+              var gx = Math.floor(X[i * 3] / cell), gy2 = Math.floor(X[i * 3 + 1] / cell), gz = Math.floor(X[i * 3 + 2] / cell);
+              for (var ax = -1; ax <= 1; ax++) for (var ay = -1; ay <= 1; ay++) for (var az = -1; az <= 1; az++) {
+                for (var j = HT[hcell(gx + ax, gy2 + ay, gz + az)]; j >= 0; j = NX[j]) {
+                  if (j <= i + 3) continue;
+                  var u1 = i * 3, u2 = j * 3, sx = X[u2] - X[u1], sy = X[u2 + 1] - X[u1 + 1], sz = X[u2 + 2] - X[u1 + 2], sl2 = sx * sx + sy * sy + sz * sz, need = (wv[i] + wv[j]) * 0.92;
+                  if (sl2 < need * need) { var sl = Math.sqrt(sl2) || 1e-6, sc2 = (need - sl) / sl * 0.5; X[u1] -= sx * sc2; X[u1 + 1] -= sy * sc2; X[u1 + 2] -= sz * sc2; X[u2] += sx * sc2; X[u2 + 1] += sy * sc2; X[u2 + 2] += sz * sc2; }
+                }
+              }
+            }
+          }
+          // a resting coil's muscles draw the rings in about their centre
+          if (cfg.center) for (i = 0; i < cfg.center.n; i++) { X[i * 3] += (cfg.center.x - X[i * 3]) * cfg.center.k; X[i * 3 + 1] += (cfg.center.y - X[i * 3 + 1]) * cfg.center.k; }
+          // lying flat on the page, if it is
+          if (cfg.plane != null) for (i = 0; i < N - (hd ? 6 : 0); i++) X[i * 3 + 2] += (cfg.plane - X[i * 3 + 2]) * 0.5;
+          // the neck: hold the head up, beside the text, looking in
+          if (hd) {
+            var pins = [[N - 1, 0, 0.7], [N - 2, 1, 0.6], [N - 3, 2, 0.35], [N - 4, 3, 0.15]];
+            for (var pi = 0; pi < pins.length; pi++) {
+              var pk = pins[pi][0] * 3, back = pins[pi][1] * DS, kp = pins[pi][2];
+              X[pk] += (hd.x - hd.dx / hdl * back - X[pk]) * kp; X[pk + 1] += (hd.y - hd.dy / hdl * back - X[pk + 1]) * kp; X[pk + 2] += (hd.z - X[pk + 2]) * kp;
+            }
+          }
+          // the prose and the page edge are walls
+          for (i = 0; i < N; i++) { var px0 = X[i * 3], py0 = X[i * 3 + 1], ww = wv[i]; if (px0 > ww && py0 > ww && px0 < W - ww && py0 < H - ww && !inText(px0, py0, ww + 1)) continue; tmp[0] = px0; tmp[1] = py0; pushOut(tmp, ww); X[i * 3] = tmp[0]; X[i * 3 + 1] = tmp[1]; }
+        }
+      }
+      var out = [];
+      for (i = 0; i < N; i++) out.push([X[i * 3], X[i * 3 + 1], X[i * 3 + 2]]);
+      return out;
+    }
+
+    // ---- from bones to a dense spine with depth and the back's facing ----
+    function catmull3(P, step) {
+      var out = [];
+      for (var i = 0; i < P.length - 1; i++) {
+        var p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
+        var n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]) / step));
+        for (var j = 0; j < n; j++) {
+          var t = j / n, t2 = t * t, t3 = t2 * t, o = [];
+          for (var d = 0; d < 3; d++) o.push(0.5 * (2 * p1[d] + (-p0[d] + p2[d]) * t + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2 + (-p0[d] + 3 * p1[d] - 3 * p2[d] + p3[d]) * t3));
+          out.push(o);
+        }
+      }
+      out.push(P[P.length - 1].slice());
+      return out;
+    }
+    function body(bones, trunk) {
+      var D = catmull3(bones, 3), smp = [], s = 0, i;
+      for (i = 0; i < D.length; i++) { if (i) s += Math.hypot(D[i][0] - D[i - 1][0], D[i][1] - D[i - 1][1]); smp.push({ x: D[i][0], y: D[i][1], z: D[i][2], s: s }); }
       var Ltot = s;
       if (Ltot < W0 * 12) return false;
       for (i = 0; i < smp.length; i++) {
-        var a = smp[Math.max(0, i - 2)], c = smp[Math.min(smp.length - 1, i + 2)];
-        smp[i].ang = Math.atan2(c.y - a.y, c.x - a.x);
-        var t = smp[i].s / Ltot;
-        var tail = Math.min(1, Math.pow(t / 0.3, 0.75)), neck = t > 0.94 ? 1 - 0.32 * (t - 0.94) / 0.06 : 1;
-        smp[i].w = W0 * Math.max(0.07, tail * neck);
+        var a = smp[Math.max(0, i - 2)], c = smp[Math.min(smp.length - 1, i + 2)], q = smp[i];
+        q.ang = Math.atan2(c.y - a.y, c.x - a.x);
+        q.w = widthAt(q.s / Ltot);
+        // which way does the back face? away from the bark where it grips, toward the viewer where it's free
+        var t3 = norm3([c.x - a.x, c.y - a.y, c.z - a.z]), V = [0, 0, 1];
+        var df = norm3([V[0] - t3[2] * t3[0], V[1] - t3[2] * t3[1], V[2] - t3[2] * t3[2]]), dd = df;
+        if (trunk) {
+          var A = onTrunk(trunk, q.x, q.y);
+          if (A) {
+            var ox = q.x - A.x, oy = q.y - A.y, al = ox * A.tx + oy * A.ty; ox -= al * A.tx; oy -= al * A.ty;
+            var o = [ox, oy, q.z], ro = Math.hypot(o[0], o[1], o[2]), wgt = Math.max(0, Math.min(1, 1 - (ro - RB - q.w) / (q.w * 2)));
+            if (wgt > 0) {
+              var od = o[0] * t3[0] + o[1] * t3[1] + o[2] * t3[2], dc = norm3([o[0] - od * t3[0], o[1] - od * t3[1], o[2] - od * t3[2]]);
+              dd = norm3([df[0] * (1 - wgt) + dc[0] * wgt, df[1] * (1 - wgt) + dc[1] * wgt, df[2] * (1 - wgt) + dc[2] * wgt]);
+            }
+          }
+        }
+        var nx = -Math.sin(q.ang), ny = Math.cos(q.ang);
+        q.bc = dd[2]; q.bs = dd[0] * nx + dd[1] * ny; // the back's direction in the (viewer, screen-normal) plane
       }
-      // the prose is sacred: push any sample that crowds the text back out,
-      // by the smallest move that still lands on the page
-      for (i = 0; i < smp.length; i++) {
-        var q = smp[i], m = q.w * 0.6 + 1;
-        q.x = Math.max(m, Math.min(W - m, q.x)); q.y = Math.max(m, Math.min(H - m, q.y));
-        if (!inText(q.x, q.y, q.w + 1)) continue;
-        var cand = [[box.x0 - gap - q.w - 1.5, q.y], [box.x1 + gap + q.w + 1.5, q.y], [q.x, box.y0 - gap - q.w - 1.5], [q.x, box.y1 + gap + q.w + 1.5]]
-          .filter(function (c) { return c[0] >= m && c[0] <= W - m && c[1] >= m && c[1] <= H - m; })
-          .sort(function (A, Bc) { return Math.hypot(A[0] - q.x, A[1] - q.y) - Math.hypot(Bc[0] - q.x, Bc[1] - q.y); });
-        if (cand.length) { q.x = cand[0][0]; q.y = cand[0][1]; } else q.w = 0.01; // nowhere to go: it vanishes rather than trespass
+      // smooth the facing along the body so the pattern rolls, never jumps
+      for (var pass = 0; pass < 3; pass++) {
+        var cs = smp.map(function (q) { return [q.bc, q.bs]; });
+        for (i = 0; i < smp.length; i++) {
+          var sc = 0, ss = 0;
+          for (var k = -4; k <= 4; k++) { var e = cs[Math.max(0, Math.min(smp.length - 1, i + k))]; sc += e[0]; ss += e[1]; }
+          smp[i].bc = sc; smp[i].bs = ss;
+        }
       }
+      for (i = 0; i < smp.length; i++) smp[i].beta = Math.atan2(smp[i].bs, smp[i].bc);
+      // final guarantee for the prose
+      var tp = [0, 0];
+      for (i = 0; i < smp.length; i++) { tp[0] = smp[i].x; tp[1] = smp[i].y; pushOut(tp, smp[i].w); smp[i].x = tp[0]; smp[i].y = tp[1]; }
       return { smp: smp, L: Ltot };
     }
     function at(B, u) {
       var smp = B.smp, lo = 0, hi = smp.length - 1;
       while (hi - lo > 1) { var m = (lo + hi) >> 1; if (smp[m].s < u) lo = m; else hi = m; }
-      var A = smp[lo], Bq = smp[hi], t = Bq.s > A.s ? (u - A.s) / (Bq.s - A.s) : 0;
-      t = Math.max(0, Math.min(1, t));
+      var A = smp[lo], Bq = smp[hi], t = Bq.s > A.s ? Math.max(0, Math.min(1, (u - A.s) / (Bq.s - A.s))) : 0;
       var nx0 = -Math.sin(A.ang), ny0 = Math.cos(A.ang), nx1 = -Math.sin(Bq.ang), ny1 = Math.cos(Bq.ang);
       var nx = nx0 + (nx1 - nx0) * t, ny = ny0 + (ny1 - ny0) * t, nl = Math.hypot(nx, ny) || 1;
-      return { x: A.x + (Bq.x - A.x) * t, y: A.y + (Bq.y - A.y) * t, nx: nx / nl, ny: ny / nl, w: A.w + (Bq.w - A.w) * t, d: t < 0.5 ? A.d : Bq.d };
+      var bc = Math.cos(A.beta) * (1 - t) + Math.cos(Bq.beta) * t, bs = Math.sin(A.beta) * (1 - t) + Math.sin(Bq.beta) * t;
+      return { x: A.x + (Bq.x - A.x) * t, y: A.y + (Bq.y - A.y) * t, z: A.z + (Bq.z - A.z) * t, nx: nx / nl, ny: ny / nl, w: A.w + (Bq.w - A.w) * t, beta: Math.atan2(bs, bc) };
     }
-    function wpt(q, v) { var o = Math.sin(v * Math.PI / 2) * q.w; return [q.x + q.nx * o, q.y + q.ny * o]; }
+    function wpt(q, v) { var o = Math.sin(Math.max(-1, Math.min(1, v)) * Math.PI / 2) * q.w; return [q.x + q.nx * o, q.y + q.ny * o]; }
 
     var shadeCache = {};
     function shade(i, lvl) {
       var key = i + ":" + lvl;
       if (!shadeCache[key]) {
-        var base = K.c[i], l = (lvl - 4) / 4; // -1 … +0.75
-        shadeCache[key] = l < 0 ? mix(base, K.gap, -l * 0.8) : mix(base, "#ffffff", l * 0.45);
+        var base = i === 4 ? BELLY : K.c[i], l = (lvl - 4) / 4;
+        shadeCache[key] = l < 0 ? mix(base, K.gap, -l * 0.85) : mix(base, "#ffffff", l * 0.5);
       }
       return shadeCache[key];
     }
+    var BELLY = mix(K.c[2], "#f2e6cc", 0.55);
 
     function drawSnake(B, salt) {
       var pat = makePattern(g, P, salt);
-      var R = g.rows, du = (2 * W0 / R) * 1.6, half = du / 2; // dorsal scales run longer than wide
-      var smp = B.smp, Ltot = B.L;
-      // chunks: break where the depth flips (front/behind the branch) or every ~70px
+      var R = g.rows, rowV = 2 / R, du = (2 * W0 / R) * 1.6, half = du / 2;
+      var smp = B.smp, Ltot = B.L, chunks = [];
+      // chunks ~40px, cut where the body crosses the bark's plane, sorted by depth
       var cuts = [0];
       for (var i = 1; i < smp.length; i++) {
-        if (smp[i].d !== smp[i - 1].d || smp[i].s - smp[cuts[cuts.length - 1]].s > 70) cuts.push(i);
+        if ((smp[i].z > 0) !== (smp[i - 1].z > 0) || smp[i].s - smp[cuts[cuts.length - 1]].s > 40) cuts.push(i);
       }
       cuts.push(smp.length - 1);
       for (var c = 0; c < cuts.length - 1; c++) {
         var a = smp[cuts[c]], b = smp[cuts[c + 1]], u0 = a.s, u1 = b.s;
         if (u1 - u0 < 0.5) continue;
-        var front = a.d > 0, layer = front ? "snake" : "snakeBack";
-        var y0 = Math.min(a.y, b.y), out = "";
-        // the body under the scales: the dark skin that shows between them
-        var Lp = [], Rp = [];
+        var zMean = 0, nz = 0;
+        for (var zi = cuts[c]; zi <= cuts[c + 1]; zi++) { zMean += smp[zi].z; nz++; }
+        zMean /= nz;
+        var out = "", Lp = [], Rp = [];
         for (var u = Math.max(0, u0 - 1.5); u <= Math.min(Ltot, u1 + 1.5); u += 3) { var q = at(B, u); Lp.push([q.x + q.nx * q.w, q.y + q.ny * q.w]); Rp.push([q.x - q.nx * q.w, q.y - q.ny * q.w]); }
         if (Lp.length < 2) continue;
-        var tube = smooth(Lp.concat(Rp.reverse()), true);
+        var tube = smooth(Lp.concat(Rp.slice().reverse()), true);
         out += '<path d="' + tube + '" fill="' + K.gap + '" stroke="' + K.gap + '" stroke-width="1.2"/>';
-        // scales on the diamond lattice, batched by colour
         var buckets = {};
-        var iu0 = Math.ceil(u0 / half), iu1 = Math.floor(u1 / half);
-        for (var iu = iu0; iu <= iu1; iu++) {
+        for (var iu = Math.ceil(u0 / half); iu <= Math.floor(u1 / half); iu++) {
           var uc = iu * half, q0 = at(B, uc);
           if (q0.w < 0.6) continue;
-          var ndl = q0.nx * L_[0] + q0.ny * L_[1], vh = 0.5 * ndl;
-          for (var j = 0; j < R; j++) {
-            if ((iu + j) % 2) continue;
-            var vc = -1 + (2 * j + 1) / R, dv = 2 / R * 0.86, du2 = half * 0.86;
-            var pc = pat(uc, vc);
-            var lit = 1 - 0.62 * Math.pow(Math.abs(vc), 1.7) + 0.42 * g.sheen * Math.exp(-Math.pow((vc - vh) / 0.24, 2)) + 0.12 * vc * ndl + pc[1];
+          var bn = q0.beta / (Math.PI / 2), du2 = half * 0.86, qa = at(B, uc - du2), qb = at(B, uc + du2);
+          var nrm = [q0.nx, q0.ny];
+          for (var j = 0; j < 2 * R; j++) {
+            var vp = -2 + (j + 0.5) * rowV;            // body coordinate: 0 the spine of the back, ±2 the belly line
+            var v = vp + bn; v = ((v + 2) % 4 + 4) % 4 - 2;   // where that row shows on screen
+            if (Math.abs(v) >= 1) continue;
+            var belly = Math.abs(vp) > 1.12;
+            if (!belly && (iu + j) % 2) continue;
+            if (belly && iu % 2) continue;
+            // light from the 3D normal of this point on the round body
+            var al = v * Math.PI / 2, N3 = [Math.sin(al) * nrm[0], Math.sin(al) * nrm[1], Math.cos(al)];
+            var dif = Math.max(0, N3[0] * L3[0] + N3[1] * L3[1] + N3[2] * L3[2]);
+            var pc = belly ? [4, 0] : pat(uc, vp);
+            var lit = 0.3 + 0.95 * dif + pc[1] - (zMean < 0 ? 0.22 : 0);
             var lvl = Math.max(0, Math.min(7, Math.round(lit * 4)));
-            var qa = at(B, uc - du2), qb = at(B, uc + du2);
-            var p1 = wpt(qa, vc), p2 = wpt(q0, Math.max(-1, vc - dv)), p3 = wpt(qb, vc), p4 = wpt(q0, Math.min(1, vc + dv));
+            var p1, p2, p3, p4;
+            if (belly) { // ventral plates: wide, transverse, overlapping into one band
+              var qa2 = at(B, uc - du * 0.44), qb2 = at(B, uc + du * 0.44);
+              p1 = wpt(qa2, v - rowV * 0.55); p2 = wpt(qb2, v - rowV * 0.55); p3 = wpt(qb2, v + rowV * 0.55); p4 = wpt(qa2, v + rowV * 0.55);
+            } else {
+              var dv = rowV * 0.86;
+              p1 = wpt(qa, v); p2 = wpt(q0, v - dv); p3 = wpt(qb, v); p4 = wpt(q0, v + dv);
+            }
             var key = pc[0] + ":" + lvl;
             (buckets[key] = buckets[key] || []).push("M" + pt(p1) + "l" + n1(p2[0] - p1[0]) + "," + n1(p2[1] - p1[1]) + "l" + n1(p3[0] - p2[0]) + "," + n1(p3[1] - p2[1]) + "l" + n1(p4[0] - p3[0]) + "," + n1(p4[1] - p3[1]) + "z");
           }
@@ -472,45 +658,44 @@
           var kk = key.split(":"), col = shade(+kk[0], +kk[1]);
           out += '<path d="' + buckets[key].join("") + '" fill="' + col + '" stroke="' + col + '" stroke-width=".35" stroke-linejoin="round"/>';
         });
-        // the gloss: a wet specular streak on the lit side
-        var sh = [], sh2 = [];
-        for (var u2 = u0; u2 <= u1; u2 += 4) {
-          var qq = at(B, u2), nd = qq.nx * L_[0] + qq.ny * L_[1];
-          sh.push(wpt(qq, 0.5 * nd)); sh2.push(wpt(qq, 0.5 * nd + 0.08));
-        }
+        // the specular streak, where the round body mirrors the light
+        var sh = [];
+        for (var u2 = u0; u2 <= u1; u2 += 4) { var qq = at(B, u2), hs = H3[0] * qq.nx + H3[1] * qq.ny; sh.push(wpt(qq, Math.atan2(hs, H3[2]) / (Math.PI / 2))); }
         if (sh.length > 1) {
-          var wm = at(B, (u0 + u1) / 2).w;
-          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.16 * g.sheen) + '" stroke-width="' + n1(Math.max(0.6, wm * 0.55)) + '" stroke-linecap="round"/>';
-          out += '<path d="' + smooth(sh2, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.5 * g.sheen) + '" stroke-width="' + n1(Math.max(0.4, wm * 0.13)) + '" stroke-linecap="round"/>';
+          var wm = at(B, (u0 + u1) / 2).w, so = zMean < 0 ? 0.5 : 1;
+          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.14 * g.sheen * so) + '" stroke-width="' + n1(Math.max(0.6, wm * 0.5)) + '" stroke-linecap="round"/>';
+          out += '<path d="' + smooth(sh, false) + '" fill="none" stroke="#fff" stroke-opacity="' + n1(0.5 * g.sheen * so) + '" stroke-width="' + n1(Math.max(0.4, wm * 0.12)) + '" stroke-linecap="round"/>';
         }
-        // behind the branch: in its shadow
-        if (!front) out += '<path d="' + tube + '" fill="#000" fill-opacity=".3"/>';
-        // a hairline down both flanks (not across the ends: that would seam the body) so crossings read
-        out += '<path d="' + smooth(Lp, false) + smooth(Rp, false).replace(/^M/, "M") + '" fill="none" stroke="' + K.gap + '" stroke-width=".8" stroke-opacity=".9"/>';
-        add(layer, y0, out);
+        out += '<path d="' + smooth(Lp, false) + smooth(Rp, false) + '" fill="none" stroke="' + K.gap + '" stroke-width=".8" stroke-opacity=".9"/>';
+        chunks.push({ z: zMean, svg: out });
       }
-      // footprint along the body
+      var head = drawHead(B);
+      chunks.push({ z: 1e9, svg: head });
+      // painter's algorithm: behind the bark → its own layer, in front → over the leaves; each by depth
+      chunks.sort(function (A2, B2) { return A2.z - B2.z; });
+      var y0 = Math.min.apply(null, smp.map(function (q) { return q.y; }));
+      var back = chunks.filter(function (k) { return k.z < 0; }).map(function (k) { return k.svg; }).join("");
+      var front = chunks.filter(function (k) { return k.z >= 0; }).map(function (k) { return k.svg; }).join("");
+      if (back) add("snakeBack", y0, back);
+      add("snake", y0, front);
       for (var k2 = 0; k2 < smp.length; k2 += 2) place(smp[k2].x, smp[k2].y, smp[k2].w, "serpent", 1);
-      drawHead(B);
       snakeCount++;
     }
 
     function drawHead(B) {
-      var q = at(B, B.L), ang = Math.atan2(-q.nx, q.ny) * DEG; // forward = the tangent (n rotated back a quarter turn)
+      var q = at(B, B.L), pq = at(B, Math.max(0, B.L - DS * 1.5));
+      var ang = Math.atan2(q.y - pq.y, q.x - pq.x) * DEG;
+      // foreshorten when the head tips toward or away from the viewer
+      var flat = Math.hypot(q.x - pq.x, q.y - pq.y) / (Math.hypot(q.x - pq.x, q.y - pq.y, q.z - pq.z) || 1), fs = Math.max(0.6, flat);
       var hw = W0 * (g.viper ? 1.3 : 1.0), s = "";
-      // outline: neck → jaw → snout (top-down)
       var pts = g.viper
         ? [[-W0 * 0.4, W0 * 0.66], [LH * 0.1, hw * 0.92], [LH * 0.3, hw], [LH * 0.55, hw * 0.8], [LH * 0.82, hw * 0.42], [LH, hw * 0.12], [LH, -hw * 0.12], [LH * 0.82, -hw * 0.42], [LH * 0.55, -hw * 0.8], [LH * 0.3, -hw], [LH * 0.1, -hw * 0.92], [-W0 * 0.4, -W0 * 0.66]]
         : [[-W0 * 0.4, W0 * 0.68], [LH * 0.16, hw * 0.84], [LH * 0.42, hw * 0.92], [LH * 0.72, hw * 0.74], [LH * 0.93, hw * 0.38], [LH, 0], [LH * 0.93, -hw * 0.38], [LH * 0.72, -hw * 0.74], [LH * 0.42, -hw * 0.92], [LH * 0.16, -hw * 0.84], [-W0 * 0.4, -W0 * 0.68]];
       var headFill = lin("hd" + snakeCount, mix(K.c[0], K.gap, 0.35), K.c[0], mix(K.c[0], "#fff", 0.25), true);
       s += '<path d="' + smooth(pts, true) + '" fill="' + headFill + '" stroke="' + K.gap + '" stroke-width=".9"/>';
-      // head plates + the pattern's mark (a chevron) on the crown
-      // the crown mark: an arrowhead from between the eyes back to the nape, in the skin's dark ink
       s += '<path d="M' + n1(LH * 0.02) + "," + n1(-hw * 0.62) + " L" + n1(LH * 0.5) + ",0 L" + n1(LH * 0.02) + "," + n1(hw * 0.62) + " L" + n1(LH * 0.16) + ',0z" fill="' + K.c[1] + '" fill-opacity=".85"/>';
       s += '<path d="M' + n1(LH * 0.5) + ",0 L" + n1(LH * 0.9) + ',0" stroke="' + K.gap + '" stroke-width=".45" stroke-opacity=".5"/>';
-      // gloss on the crown
       s += '<ellipse cx="' + n1(LH * 0.45) + '" cy="' + n1(-hw * 0.32) + '" rx="' + n1(LH * 0.24) + '" ry="' + n1(hw * 0.12) + '" fill="#fff" fill-opacity="' + n1(0.35 * g.sheen) + '"/>';
-      // eyes: gold iris, vertical slit, a glint; a brow ridge for menace
       [-1, 1].forEach(function (sd) {
         var ex = LH * 0.62, ey = sd * hw * 0.6, er = W0 * 0.26;
         s += '<circle cx="' + n1(ex) + '" cy="' + n1(ey) + '" r="' + n1(er * 1.18) + '" fill="' + K.gap + '"/>';
@@ -520,103 +705,126 @@
         s += '<path d="M' + n1(ex - er * 1.3) + "," + n1(ey - sd * er * 0.2) + "Q" + n1(ex) + "," + n1(ey - sd * er * 1.5) + " " + n1(ex + er * 1.3) + "," + n1(ey - sd * er * 0.4) + '" fill="none" stroke="' + K.gap + '" stroke-width="' + n1(Math.max(0.6, W0 * 0.16)) + '" stroke-linecap="round"/>';
         s += '<circle cx="' + n1(LH * 0.93) + '" cy="' + n1(sd * hw * 0.18) + '" r="' + n1(Math.max(0.4, W0 * 0.07)) + '" fill="' + K.gap + '"/>';
       });
-      // the tongue, forked, flicking toward the text
       var T = TONGUE;
       var tongue = '<g class="tongue" style="--d:' + n1(r.range(0, 4)) + 's"><path d="M' + n1(LH * 0.96) + ",0 L" + n1(LH + T * 0.62) + ",0 M" + n1(LH + T * 0.62) + ",0 l" + n1(T * 0.38) + "," + n1(-T * 0.2) + " M" + n1(LH + T * 0.62) + ",0 l" + n1(T * 0.38) + "," + n1(T * 0.2) +
         '" fill="none" stroke="#b8102c" stroke-width="' + n1(Math.max(0.5, W0 * 0.13)) + '" stroke-linecap="round"/></g>';
-      add("heads", q.y, "<g " + tf(q.x, q.y, ang) + ">" + tongue + s + "</g>");
-      var a = ang / DEG;
-      place(q.x + Math.cos(a) * LH * 0.5, q.y + Math.sin(a) * LH * 0.5, Math.max(LH * 0.62, hw * 1.05), "head", 1);
-      place(q.x + Math.cos(a) * (LH + T * 0.6), q.y + Math.sin(a) * (LH + T * 0.6), T * 0.55, "tongue", 0.2);
+      var a = ang / DEG, reachH = LH * fs;
+      place(q.x + Math.cos(a) * reachH * 0.5, q.y + Math.sin(a) * reachH * 0.5, Math.max(reachH * 0.62, hw * 1.05), "head", 1);
+      place(q.x + Math.cos(a) * (reachH + T * 0.6 * fs), q.y + Math.sin(a) * (reachH + T * 0.6 * fs), T * 0.55, "tongue", 0.2);
+      return '<g transform="translate(' + n1(q.x) + " " + n1(q.y) + ") rotate(" + n1(ang) + ")" + (fs < 0.99 ? " scale(" + n1(fs) + " 1)" : "") + '">' + tongue + s + "</g>";
     }
 
-    // the head's resting place: just off the text edge, pointing at it
-    function headTarget(side, yNear) {
+    // where a head comes to rest: just off the text edge (side ±1) or below it (side 0)
+    function headTarget(side, yNear, xNear) {
       var reach = LH + TONGUE + 4;
+      if (side === 0) return { x: xNear, y: box.y1 + gap + reach, z: W0 * 2.5, dx: 0, dy: -1 };
       var x = side < 0 ? box.x0 - gap - reach : box.x1 + gap + reach;
       var y = Math.max(mT * 0.5 + W0 * 2, Math.min(H - mB * 0.5 - W0 * 2, yNear));
-      if (side < 0 && x < W0 * 2) x = W0 * 2; if (side > 0 && x > W - W0 * 2) x = W - W0 * 2;
-      return [x, y];
+      x = Math.max(W0 * 2, Math.min(W - W0 * 2, x));
+      return { x: x, y: y, z: W0 * 2.5, dx: side < 0 ? 1 : -1, dy: r.range(-0.25, 0.1) };
     }
-    function exitPath(spine, side, yNear, tgtUp) {
-      // from the end of the spine, an S-curve to rest the head beside the text
-      // (side ±1, heading sideways into it) or below it (side 0, heading up)
-      var e = spine[spine.length - 1], tgt = tgtUp || headTarget(side, yNear);
-      // leave along the body's own heading, so the neck flows instead of hairpinning
-      var p0 = spine[Math.max(0, spine.length - 6)], hx = e.x - p0.x, hy = e.y - p0.y, hl = Math.hypot(hx, hy) || 1;
-      var lead = Math.min(W0 * 5, Math.hypot(tgt[0] - e.x, tgt[1] - e.y) * 0.45);
-      var c1 = [e.x + hx / hl * lead, e.y + hy / hl * lead];
-      var c2 = side === 0 ? [tgt[0] + r.range(-W0, W0), tgt[1] + W0 * 3.5] : [tgt[0] - (side < 0 ? 1 : -1) * W0 * 3, tgt[1] + W0 * r.range(-2, 2)];
-      var ctl = [[e.x, e.y], c1, c2, tgt];
-      var d = C.resample(ctl, 3);
-      for (var i = 1; i < d.length; i++) spine.push({ x: d[i].x, y: d[i].y, d: 1 });
-      return spine;
+    // lay a polyline of 3D points out as vertebrae DS apart
+    function vertebrae(poly) {
+      var out = [poly[0].slice()], acc = 0;
+      for (var i = 1; i < poly.length; i++) {
+        var a = poly[i - 1], b = poly[i], L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]), t = 0;
+        while (acc + L - t >= DS) {
+          t += DS - acc; acc = 0;
+          var f = t / L; out.push([a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]);
+        }
+        acc += L - t;
+      }
+      return out;
+    }
+    // a rough first pose; the simulation does the rest
+    function approach(from, hd) {
+      var pts = [], mid = [(from[0] + hd.x) / 2 - hd.dx * W0 * 3, (from[1] + hd.y) / 2 - W0 * 4, (from[2] + hd.z) / 2 + W0];
+      for (var i = 1; i <= 24; i++) {
+        var t = i / 24, u = 1 - t;
+        pts.push([u * u * from[0] + 2 * u * t * mid[0] + t * t * hd.x, u * u * from[1] + 2 * u * t * mid[1] + t * t * hd.y, u * u * from[2] + 2 * u * t * mid[2] + t * t * hd.z]);
+      }
+      return pts;
     }
 
-    // entwined: a helix round a stretch of trunk
-    function entwine(tr, s0, s1) {
-      var sm = tr.sm, spine = [], lam = W0 * r.range(6, 8.5), ph = r.range(0, 6.28), A = swing(tr.side < 0 ? mL : mR);
-      var k = 0;
+    // entwined / coiled: wound round a stretch of trunk, tail hanging, neck reaching for the text
+    function onTree(tr, s0, s1, tight) {
+      var sm = tr.sm, pose = [], lam0 = W0 * (tight ? r.range(2.3, 2.8) : r.range(3.8, 6)), ph = r.range(0, 6.28), ph2 = r.range(0, 6.28), rad = RB + W0, k = 0, phase = ph;
+      // the tail first: hanging free below the coils
+      var A0 = sm[0], kk0 = 0;
+      while (kk0 < sm.length - 1 && sm[kk0].s < s0) kk0++;
+      A0 = sm[kk0];
+      var nx0 = -Math.sin(A0.ang), ny0 = Math.cos(A0.ang), tl = W0 * r.range(7, 12), out0 = r.sign();
+      for (var tt = 1; tt >= 0; tt -= 0.1) pose.push([A0.x + nx0 * rad * out0 * 1.2 + tt * W0 * 2 * out0, A0.y + tt * tl, rad * 0.6]);
+      // the coils: a helix of varying pitch about the trunk axis
       for (var s = s0; s <= s1; s += 3) {
         while (k < sm.length - 1 && sm[k + 1].s < s) k++;
         var a = sm[k], b = sm[Math.min(sm.length - 1, k + 1)], t = b.s > a.s ? (s - a.s) / (b.s - a.s) : 0;
-        var x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, ang = a.ang, nx = -Math.sin(ang), ny = Math.cos(ang);
-        var phase = (s - s0) / lam * 6.28 + ph;
-        spine.push({ x: x + nx * A * Math.sin(phase), y: y + ny * A * Math.sin(phase), d: Math.cos(phase) > 0 ? 1 : -1 });
+        var x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, nx = -Math.sin(a.ang), ny = Math.cos(a.ang);
+        phase += 3 / (lam0 * (1 + 0.35 * Math.sin(s / lam0 * 1.3 + ph2))) * 6.2832;
+        pose.push([x + nx * rad * Math.sin(phase), y + ny * rad * Math.sin(phase), rad * Math.cos(phase)]);
       }
-      return spine;
+      var e = pose[pose.length - 1], hd = headTarget(tr.side, e[1] - r.range(W0 * 3, W0 * 8));
+      return { pose: vertebrae(pose.concat(approach(e, hd))), head: hd, trunk: tr, nTail: Math.round(tl / DS) + 1, nTree: Math.round(Math.hypot(s1 - s0, 1) / DS) };
     }
-    // a coil: spiral inward, then the head rises out across it
-    function coil(cx, cy, R0, side) {
-      var R1 = W0 * 1.5, turns = Math.max(1.3, Math.min(2.6, (R0 - R1) / (W0 * 1.9))), spine = [], n = Math.round(turns * 2 * Math.PI * R0 / 3), dir = r.sign(), a0 = r.range(0, 6.28);
-      for (var i = 0; i <= n; i++) {
-        var t = i / n, th = a0 + dir * t * turns * 6.28, rr = R0 - (R0 - R1) * t;
-        spine.push({ x: cx + Math.cos(th) * rr, y: cy + Math.sin(th) * rr * 0.62, d: 1 });
+    function treeSnake(tr, s0, s1, tight) {
+      var o = onTree(tr, s0, s1, tight), nT = o.nTail, nC = o.pose.length;
+      var bones = simulate({
+        pose: o.pose, trunk: tr, head: o.head,
+        grip: function (i, N) { return i < nT ? 0 : i > N - 14 ? 0 : (tight ? 0.5 : 0.28); },
+      });
+      var B = body(bones, tr);
+      if (B) drawSnake(B, salt++);
+    }
+    // slither: the serpenoid curve (Hirose) — heading θ(s) = θ0 + a·sin(2πs/λ), the
+    // shape real snakes make in lateral undulation — laid up the margin, then relaxed
+    // by the skeleton so the neck can carry the head to the text
+    function slitherSnake(side, yA, yB) {
+      var mW = side < 0 ? mL : mR, cx0 = side < 0 ? mL * 0.5 : box.x1 + mR * 0.5;
+      var zf = trunks.length ? RB + W0 + 2 : 0, lam = W0 * r.range(13, 18);
+      var a = Math.min(0.85, (mW * 0.5 - W0 * 1.3) * 2 * Math.PI / lam), Ls = W0 * r.range(42, 60);
+      if (a < 0.2) a = 0.2;
+      var yStart = Math.min(yB, yA + Ls * 0.8), x = cx0, y = yStart, pose = [[x, y, zf]], ph = r.range(0, 6.28);
+      for (var sArc = 0; sArc < Ls; sArc += 3) {
+        var t = sArc / Ls, th = -Math.PI / 2 + a * Math.sin(sArc / lam * 6.2832 + ph) * Math.min(1, t / 0.15 + 0.3);
+        x += Math.cos(th) * 3; y += Math.sin(th) * 3; pose.push([x, y, zf]);
       }
-      return side === 0 ? exitPath(spine, 0, null, [cx + r.range(-R0, R0), box.y1 + gap + LH + TONGUE + 4]) : exitPath(spine, side, cy - R0 * 0.2);
+      var hd = headTarget(side, Math.min(y - W0 * 2, yA + W0 * 4));
+      var bones = simulate({ pose: vertebrae(pose.concat(approach(pose[pose.length - 1], hd))), plane: zf, head: hd, gravity: 0, stiff: 0 });
+      var B = body(bones, null);
+      if (B) drawSnake(B, salt++);
     }
-    // slither: a free S-curve down a margin
-    function slither(side, yA, yB) {
-      var mW = side < 0 ? mL : mR, cx0 = side < 0 ? mL * 0.5 : box.x1 + mR * 0.5, amp = mW * 0.3, ctl = [];
-      for (var y = yB, i = 0; y > yA; y -= W0 * r.range(7, 10), i++) ctl.push([cx0 + (i % 2 ? 1 : -1) * amp * r.range(0.7, 1), y]);
-      if (ctl.length < 3) return null;
-      var spine = C.resample(ctl, 3).map(function (q) { return { x: q.x, y: q.y, d: 1 }; });
-      return exitPath(spine, side, yA);
+    // a resting coil on the page: concentric, touching, the head lifting off it
+    function restingCoil(cx, cy, R0, hd) {
+      var pose = [], R1 = W0 * 1.4, turns = Math.max(1.3, Math.min(3, (R0 - R1) / (W0 * 2))), dir = r.sign(), a0 = r.range(0, 6.28), n = Math.round(turns * 6.28 * R0 / 3);
+      for (var i = 0; i <= n; i++) { var t = i / n, th = a0 + dir * t * turns * 6.28, rr = R0 - (R0 - R1) * t; pose.push([cx + Math.cos(th) * rr, cy + Math.sin(th) * rr * 0.7, t * W0 * 0.8]); }
+      var vb = vertebrae(pose), nCoil = vb.length;
+      var bones = simulate({ pose: vertebrae(pose.concat(approach(pose[pose.length - 1], hd))), head: hd, gravity: 0, plane: null, stiff: 0.01, center: { x: cx, y: cy, k: 0.01, n: Math.max(0, nCoil - 4) } });
+      var B = body(bones, null);
+      if (B) drawSnake(B, salt++);
     }
 
     var salt = 1;
-    function addSnake(spine) { if (!spine) return; var B = body(spine); if (B) drawSnake(B, salt++); }
-
-    if (g.habit === "entwined" && trunks.length) {
+    if (g.habit !== "slither" && trunks.length) {
+      var tight = g.habit === "coiled";
       trunks.forEach(function (tr) {
-        var total = tr.sm[tr.sm.length - 1].s, n = Math.max(1, Math.round(H / 1500)), seg = total / n;
+        var total = tr.sm[tr.sm.length - 1].s, n = Math.max(1, Math.round(H / (tight ? 900 : 1100))), seg = total / n;
         for (var i = 0; i < n; i++) {
-          var len = seg * r.range(0.55, 0.8), s0 = total - seg * (i + 1) + r.range(0, seg - len);
-          var sp = entwine(tr, Math.max(0, s0), Math.min(total, s0 + len));
-          var e = sp[sp.length - 1];
-          addSnake(exitPath(sp, tr.side, e.y - r.range(W0 * 4, W0 * 9)));
+          var len = Math.min(seg * 0.7, (tight ? r.range(7, 11) : r.range(20, 32)) * W0), s0 = total - seg * (i + 1) + r.range(W0 * 6, Math.max(W0 * 6, seg - len - W0 * 10));
+          treeSnake(tr, Math.max(W0 * 4, s0), Math.min(total - W0 * 4, s0 + len), tight);
         }
-      });
-    } else if (g.habit === "slither" || !trunks.length) {
-      [-1, 1].forEach(function (side) {
-        if ((side < 0 ? mL : mR) < 24) return;
-        var n = Math.max(1, Math.round(H / 1400));
-        for (var i = 0; i < n; i++) addSnake(slither(side, H * i / n + H / n * 0.1, H * (i + 1) / n - H / n * 0.05));
       });
     } else {
-      // coiled: coils sitting in the side margins, one per ~900px
       [-1, 1].forEach(function (side) {
-        var mW = side < 0 ? mL : mR;
-        if (mW < 30) return;
-        var n = Math.max(1, Math.round(H / 900)), R0 = Math.min(mW * 0.46, W0 * 6.5);
-        for (var i = 0; i < n; i++) {
-          var cx = side < 0 ? mL * 0.5 : box.x1 + mR * 0.5, cy = H * (i + 0.6) / n;
-          addSnake(coil(cx, cy, R0, side));
-        }
+        if ((side < 0 ? mL : mR) < 24) return;
+        var n = Math.max(1, Math.round(H / 1300));
+        for (var i = 0; i < n; i++) slitherSnake(side, H * i / n + H / n * 0.15, H * (i + 1) / n - H / n * 0.05);
       });
     }
-    // a coil in the foot margin when it's deep enough — the serpent at the root
-    if (mB > W0 * 9) addSnake(coil(r.range(box.x0 + W0 * 8, box.x1 - W0 * 8), box.y1 + mB * 0.6, Math.min(mB * 0.6, W0 * 7), 0));
+    // the serpent at the root: a resting coil in a deep foot margin, rising to the text
+    if (mB > W0 * 9) {
+      var fcx = r.range(box.x0 + W0 * 8, box.x1 - W0 * 8);
+      restingCoil(fcx, box.y1 + mB * 0.62, Math.min(mB * 0.32, W0 * 5.5), headTarget(0, 0, fcx + r.range(-W0 * 4, W0 * 4)));
+    }
 
     // ---- the fill: leaves, fruit, blossom into what's left ----
     var target = Math.min(0.78, 0.5 + 0.18 * g.density);

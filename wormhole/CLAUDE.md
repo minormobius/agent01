@@ -100,24 +100,44 @@ a big emphasis on the patterning of the scales"). It borrows flora's geometry co
   iridescent), rows (7/9), viper/slender head, habit (entwined / coiled / slithering),
   sheen, girth. Binomial e.g. `Jadeophis reticulatus var. spiralis`.
 - **The tree**: gnarled trunks up both side margins (bark ribbon + dashed fissures +
-  highlight), twigs with leaves, hanging fruit, blossom; the trunks keep a coil's swing
-  + a body's width clear of text and page edge (else the helix flattens into a seam).
-- **The skin is the point**: scales on a diamond lattice in body coords (u along, v
-  across), mapped with round foreshortening `sin(v·π/2)`, coloured by `makePattern()`
-  (u,v) → (palette index, lightness), shaded per scale (rim dark, specular band on the lit
-  side — light from upper left — quantised to 8 levels), and **batched: one `<path>` per
-  colour per ~70px body chunk**. Then a wet specular streak, and a hairline on the flanks
-  only (never across chunk ends — that seams the body).
-- **Entwined**: the spine is a helix about a stretch of trunk; chunks split where the
-  depth flips and go to `snakeBack` (shadowed, under the bark) or `snake` (over it).
-  Every serpent ends with `exitPath()`: it leaves along its own heading and comes to rest
-  just off the text edge pointing *into* it (or below it, heading up, for the foot coil),
-  tongue out. Head: top-down outline (viper = broad), crown arrowhead, gold iris with a
-  slit pupil and glint, brow ridges, nostrils; the tongue is `<g class="tongue">`, which
-  CSS flicks (`paper.css` / `flora.html`; off under reduced-motion).
-- **Text safety**: body samples crowding the text are pushed out by the smallest move
-  that stays on the page; footprints for every body sample, head and tongue are checked by
-  `serpent.selftest.mjs` on four page shapes (in the deploy workflow).
+  highlight; about as thick as the serpent), twigs with leaves, hanging fruit, blossom; the
+  trunks keep a coil's reach (`RB + 2·W0`) clear of text and page edge.
+- **Bones before skin** (operator, 2026-11-01: "get a snake skeleton and wrap it around a
+  tree. Like forces and muscles"). Every serpent is `simulate()`d: a chain of vertebrae
+  `DS = 0.8·W0` apart in **3D**, position-based dynamics, 120 steps × 5 iterations —
+  fixed segment lengths; a minimum bend radius (~1.25 body widths); optional straightening
+  stiffness (`cfg.stiff`; **0 for page-bound serpents**, which hold their muscular shape —
+  straightening with nothing opposing it is what flattened them); gravity; the trunk as a
+  solid cylinder (`onTrunk()`, a per-row segment index) with **friction** on contact;
+  **grip** muscles pulling coils onto the bark; no passing through itself (typed-array
+  spatial hash); a **neck controller** pinning the last four vertebrae to a head pose just
+  off the text, lifted toward the viewer; the text and page edge as walls. Habits:
+  *entwined* (helix of varying pitch round 20–32 body-widths of trunk, tail hanging free,
+  loose grip), *coiled* (tight, touching coils, strong grip), *slithering* (pose = the
+  **serpenoid curve**, heading θ(s)=θ0+a·sin(2πs/λ) — the shape of lateral undulation —
+  then relaxed), plus a *resting coil* in a deep foot margin (a compaction muscle holds the
+  rings). A wave-muscle term exists in `simulate()` (`cfg.wave`) but knotted bodies — the
+  serpenoid pose replaced it for slithering.
+- **Skin from the pose**: `body()` Catmull-resamples the bones, and works out **which way the
+  back faces** — away from the trunk axis where the body grips, toward the viewer where it's
+  free — smoothed along the body. The scale lattice lives in body coordinates round the
+  *whole* circumference (vp ∈ [−2,2]: 0 the spine, ±1 the flanks, beyond ±1.12 the belly),
+  so where the body rolls round the branch the pattern rolls with it and the pale
+  **ventral plates** come into view. Lighting from the 3D normal of each scale; specular
+  streak at the half-vector. Body chunks (~40px) are **painter-sorted by depth z**: behind the
+  bark → `snakeBack`, in front → `snake`, the head last; each serpent is one band entry so
+  its own crossings sort correctly.
+- **Pattern & shading**: `makePattern()` (u, vp) → (palette index, lightness); one `<path>`
+  per colour per chunk; a hairline on the flanks only (never across chunk ends — that seams
+  the body). Head: top-down outline (viper = broad), crown arrowhead, gold iris with a slit
+  pupil and glint, brow ridges, nostrils, foreshortened when it tips in depth; the tongue is
+  `<g class="tongue">`, which CSS flicks (`paper.css` / `flora.html`; off under reduced-motion).
+- **Text safety**: walls inside the simulation, then `pushOut()` on every rendered sample
+  (smallest on-page move); footprints for every body sample, head and tongue are checked by
+  `serpent.selftest.mjs` on four page shapes (in the deploy workflow; ~18 s).
+- **Cost**: ~0.3 s (node) to ~0.55 s (browser) per tall page, almost all simulation.
+  `paper.html` therefore grows the margin after the text has painted (rAF + timeout) and the
+  print frame later still; the herbarium grows thumbnails one at a time.
 - Weight: ~1–2 MB of SVG for a long paper, but it is generated in the browser (parse
   ~80 ms) — only `/api/flora` ships it over the wire.
 

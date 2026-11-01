@@ -175,18 +175,21 @@ aside h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#cfc
     document.title = d.name + " — Herbarium";
     thumbs();
   }
+  var thumbGen = 0;
   function thumbs() {
     var t = $("thumbs"); t.innerHTML = "";
     var specs = [];
     for (var k = 1; k <= 3; k++) specs.push({ field: cur.field, id: cur.field + ".r" + (k + (parseInt(cur.id.split(".r")[1], 10) || 0)) });
     for (var j = 0; j < 3; j++) { var fs = rnd(); specs.push({ field: fs, id: fs + ".f" }); }
+    var tg = ++thumbGen;
     specs.forEach(function (sp, i) {
       var g = genomeFor(sp, false);
       var el = document.createElement("div");
       el.className = "thumb"; el.title = g.name + (i < 3 ? " — same field" : " — another field");
       el.innerHTML = '<div class="lines"></div><div class="cap">' + esc(g.name) + "</div>";
       t.appendChild(el);
-      growInto(el, g, false, "t" + i);
+      // one at a time, after the main sheet: serpent thumbnails are simulations
+      setTimeout(function () { if (tg === thumbGen) growInto(el, g, false, "t" + i); }, 60 + i * 30);
       el.addEventListener("click", function () { show(sp, true); window.scrollTo(0, 0); });
     });
   }
