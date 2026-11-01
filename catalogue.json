@@ -5755,6 +5755,23 @@
       ]
     },
     {
+      "n": "kata-fallline",
+      "u": "https://kata.mino.mobi/fallline/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-01",
+      "b": "2026-11-01",
+      "p": "kata",
+      "surface": "kata",
+      "d": "Mountain biking in four dimensions: the Cheshire cat rides down a hill whose ground runs in x, z and w, on marked trails benched into the slope, its speed set by the grade and its lean by your stick. From the fourth of eight hills there is more than one way to the bottom; an oracle rides every way down, par is its quickest, and each hill is scored out of 10 for timing, out-of-plane bending, lean and speed. Made hills for any seed; the ground painted with Kelvin's foam in 4D or the tesseract grid.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

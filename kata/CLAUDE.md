@@ -33,6 +33,14 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   oracle and to rising by the selftest); a seeded generator (`js/gen.js`). It imports Lean's engine from `../lean/js/`
   (same site: not a copy), so **a change to Lean's world, shader, dynamics or cat runs TAILSPIN's selftest too**. See
   [`tailspin/README.md`](tailspin/README.md).
+- **FALL LINE at `/fallline/`**: downhill. A height map over the 3D ground (x, z, w), a tree of benched trails down
+  it (more than one way to the bottom), speed from the slope (`js/trails.js`), an oracle that rides every way down
+  (`js/descent.js`, par = the fastest), eight levels and a seeded generator. Drawn by Lean's shader in **hill mode**
+  (`Renderer.hill(H, F, …)`: a smooth heightfield in an R16F 3D texture and the trails' field in RG16F, one sample a
+  metre, ray-marched with a global slope bound `L`, then bisection). Its Kelvin grain uses `js/foam.js`, a
+  **byte-identical copy** of `games/foam4/js/foam.js` (edit the lab's, copy it over; the selftest fails on drift). The
+  hill mode lives in `lean/js/render.js` beside the voxel march; keep Lean's path untouched by it (`uHillMode` 0).
+  See [`fallline/README.md`](fallline/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -85,6 +93,7 @@ node kata/lean/test/bike.selftest.mjs   # < 1 s
 node kata/lean/test/dyn.selftest.mjs    # ~2 s
 node kata/lean/test/catbike.selftest.mjs # ~1 s
 node kata/tailspin/test/tailspin.selftest.mjs # ~50 s
+node kata/fallline/test/fallline.selftest.mjs # ~40 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

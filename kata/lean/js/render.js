@@ -15,6 +15,11 @@ uniform usampler2D uH, uM, uAux; uniform sampler2D uBinT; uniform int uHasAux; u
 uniform vec4 uEye, uR, uU, uF, uSun;
 uniform vec2 uRes;
 uniform float uTan, uTime, uFae, uFar, uVS;
+// the hill (Fall Line): a smooth height over the ground (x, z, w) in a 3D texture, one sample a metre, and the trails'
+// field beside it (distance to the nearest trail's centreline, and which trail + how far along it); ray-marched
+// directly instead of the voxels. Grain: Kelvin's foam (A₄*) or the tesseract grid painted on it
+uniform int uHillMode, uGrain, uNRel; uniform highp sampler3D uHillT, uTrailT; uniform vec3 uHN; uniform float uHL, uTrailR;
+uniform mat4 uBm, uBinv; uniform vec4 uRel[30];
 // the bike (bike.js's parts(), in metres): two tyres (centre, the wheel's plane, radii) and capsules (ends, radius, part)
 uniform int uBike, uNCap;
 uniform vec4 uTor[6]; uniform vec2 uTorR[2]; // per tyre: centre, e1, e2; and (R, r)
@@ -136,12 +141,50 @@ bool marchBike(vec4 ro, vec4 rd, float tMax, out float tHit, out int m) {
   }
   return false;
 }
+
+// ---- the hill
+float gH(vec3 g) { return texture(uHillT, (g + 0.5) / uHN).r; }
+vec2 gTrail(vec3 g) { return texture(uTrailT, (g + 0.5) / uHN).rg; }
+vec3 gGrad(vec3 g) { const float e = 0.5; return vec3(gH(g + vec3(e, 0, 0)) - gH(g - vec3(e, 0, 0)), gH(g + vec3(0, e, 0)) - gH(g - vec3(0, e, 0)), gH(g + vec3(0, 0, e)) - gH(g - vec3(0, 0, e))) / (2.0 * e); }
+// march a ray (metres) to the ground: steps no longer than the gap over the steepest the hill gets allows, then bisection
+bool marchHill(vec4 ro, vec4 rd, out float tHit, out vec4 n) {
+  float far = uFar * uVS, t = 0.0, tPrev = 0.0, dh = length(rd.xzw), rate = max(-rd.y, 0.0) + uHL * dh + 1e-3;
+  for (int i = 0; i < 260; i++) {
+    vec4 p = ro + rd * t; float f = p.y - gH(p.xzw);
+    if (f < 0.0) {
+      float a = tPrev, b = t; for (int k = 0; k < 10; k++) { float m = 0.5 * (a + b); vec4 q = ro + rd * m; if (q.y - gH(q.xzw) < 0.0) b = m; else a = m; }
+      tHit = b; vec3 gr = gGrad((ro + rd * b).xzw); n = normalize(vec4(-gr.x, 1.0, -gr.y, -gr.z)); return true;
+    }
+    tPrev = t; t += clamp(0.85 * f / rate, 0.02, 6.0);
+    if (t > far) break;
+  }
+  return false;
+}
+// Kelvin's foam: the seed of the cell holding p (round in basis coordinates, walk down the relevant vectors), IRIS⁴'s
+vec4 nearestS(vec4 p) {
+  vec4 s = uBm * floor(uBinv * p + 0.5);
+  for (int it = 0; it < 8; it++) {
+    vec4 o = p - s; float bg = 1e-9; int bj = -1;
+    for (int j = 0; j < 30; j++) { if (j >= uNRel) break; float g = dot(o, uRel[j]) - 0.5 * dot(uRel[j], uRel[j]); if (g > bg) { bg = g; bj = j; } }
+    if (bj < 0) break; s += uRel[bj];
+  }
+  return s;
+}
+// how close p is to the edge of its cell (0 at a facet): Kelvin's foam, or the tesseract grid
+float grainSeam(vec4 p) {
+  if (uGrain == 1) { vec4 sd = nearestS(p), o = p - sd; float m1 = 1e9;
+    for (int r = 0; r < 30; r++) { if (r >= uNRel) break; float l = length(uRel[r]), m = (0.5 * l * l - dot(o, uRel[r])) / l; m1 = min(m1, m); }
+    return m1; }
+  if (uGrain == 2) { vec3 f = fract(p.xzw); vec3 e = min(f, 1.0 - f); return min(min(e.x, e.y), e.z); }
+  return 1e9;
+}
 float hash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 94.673))) * 43758.5453); }
 void main() {
   vec2 uv = (2.0 * gl_FragCoord.xy - uRes) / uRes.y;
   vec4 d = normalize(uF + uv.x * uTan * uR + uv.y * uTan * uU);
   float t; vec4 n; ivec3 cell; vec3 c;
-  bool hit = march(uEye, d, t, n, cell);
+  bool hit; float tHill = 0.0;
+  if (uHillMode == 1) { hit = marchHill(uEye * uVS, d, tHill, n); t = tHill / uVS; } else hit = march(uEye, d, t, n, cell);
   float tb; int bm; bool bike = uBike == 1 && marchBike(uEye * uVS, d, hit ? t * uVS : uFar * uVS, tb, bm);
   if (bike) { // the bike: its parts' colours, lit as the land is, tinted by w as the land is
     vec4 q = uEye * uVS + d * tb; int mm; float E = uCat == 1 ? 0.0006 : 0.002;
@@ -165,6 +208,32 @@ void main() {
     c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 150.0));
   }
   else if (!hit) c = sky(d);
+  else if (uHillMode == 1) { // the hill: grass going to rock with the slope, the trails' dirt tread, their centre line and their
+    // kerbs (coloured by where the trail runs out of your slice: teal ana, rose kata), contour lines every metre (bolder
+    // every five), and the grain
+    vec4 p = uEye * uVS + d * tHill; vec3 g = p.xzw; vec2 tr = gTrail(g); float dist = tr.x, h = p.y, steep = 1.0 - n.y;
+    float hs = hash(vec4(floor(g * 2.0), 3.0));
+    vec3 base = mix(mix(vec3(0.3, 0.52, 0.22), vec3(0.45, 0.6, 0.25), hs), vec3(0.5, 0.48, 0.45), smoothstep(0.25, 0.5, steep));
+    if (dist < uTrailR) {
+      base = mix(vec3(0.52, 0.4, 0.28), vec3(0.6, 0.47, 0.33), hs);
+      if (dist < 0.18) base = vec3(0.92, 0.9, 0.84);
+      if (dist > uTrailR - 0.5) {
+        int id = int(floor(tr.y + 1e-3)); int bi = 1 + int(min(254.0, floor(fract(tr.y + 1e-3) * 255.0)));
+        vec4 tg = texelFetch(uBinT, ivec2(bi, id), 0); float tn = dot(tg, uN), a = clamp(abs(tn) * 4.0, 0.0, 1.0);
+        bool stripe = mod(floor(dot(g, vec3(1.0)) * 1.5), 2.0) < 1.0;
+        vec3 inPlane = stripe ? vec3(0.92, 0.92, 0.88) : vec3(0.6, 0.6, 0.62), way = tn > 0.0 ? vec3(0.22, 0.95, 0.88) : vec3(1.0, 0.4, 0.72);
+        base = mix(inPlane, way * (stripe ? 1.0 : 0.7), a);
+      }
+    }
+    float fw = max(fwidth(h), 1e-4), c1 = abs(fract(h + 0.5) - 0.5), c5 = abs(fract(h / 5.0 + 0.5) - 0.5) * 5.0;
+    float contour = max(1.0 - smoothstep(0.0, fw * 1.2, c1), (1.0 - smoothstep(0.0, fw * 2.2, c5)) * 1.0);
+    base *= 1.0 - 0.35 * contour * (dist < uTrailR ? 0.4 : 1.0);
+    float seam = grainSeam(p), edge = smoothstep(0.0, 0.03 + 0.002 * tHill, seam);
+    float lam = max(dot(n, uSun), 0.0);
+    if (uBike == 1) { float ts; int sm; if (marchBike(p + n * 0.01, uSun, 4.0, ts, sm)) lam *= 0.25; } // the bike's shadow
+    c = base * (vec3(0.4, 0.46, 0.62) * (0.8 + 0.25 * n.y) + vec3(1.0, 0.85, 0.64) * lam) * mix(0.82, 1.0, edge);
+    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tHill / 150.0));
+  }
   else {
     vec4 p = uEye + d * t, f = fract(p);
     uint r = raw(cell); float h = float(r & 63u); int mat = int(r >> 6u);
@@ -213,7 +282,20 @@ export class Renderer {
     gl.useProgram(p); this.p = p;
     const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uAux", "uBinT", "uHasAux", "uN", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
+    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uAux", "uBinT", "uHasAux", "uN", "uHillMode", "uGrain", "uNRel", "uHillT", "uTrailT", "uHN", "uHL", "uTrailR", "uBm", "uBinv", "uRel", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
+    /* every sampler on its own unit from the start, each with a one-texel placeholder of its own type. A sampler never
+       set defaults to unit 0, and WebGL refuses a draw (silently: a black view) where two samplers of different types
+       share a unit; Lean and TAILSPIN never call hill(), so without this its 3D samplers sat on the voxel atlas's unit */
+    this.texs = {};
+    const one = (unit, target, fmt, f, ty, data) => {
+      const t = (this.texs[unit] = gl.createTexture()); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(target, t);
+      gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      if (target === gl.TEXTURE_3D) gl.texImage3D(target, 0, fmt, 1, 1, 1, 0, f, ty, data); else gl.texImage2D(target, 0, fmt, 1, 1, 0, f, ty, data);
+    };
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    for (const [unit, name] of [[0, "uH"], [1, "uM"], [3, "uAux"]]) { one(unit, gl.TEXTURE_2D, gl.R8UI, gl.RED_INTEGER, gl.UNSIGNED_BYTE, new Uint8Array(1)); gl.uniform1i(this.u[name], unit); }
+    one(4, gl.TEXTURE_2D, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4)); gl.uniform1i(this.u.uBinT, 4);
+    for (const [unit, name] of [[5, "uHillT"], [6, "uTrailT"]]) { one(unit, gl.TEXTURE_3D, gl.R8, gl.RED, gl.UNSIGNED_BYTE, new Uint8Array(1)); gl.uniform1i(this.u[name], unit); }
   }
   tex(unit, w, h, data) {
     const gl = this.gl; this.texs = this.texs || {}; if (this.texs[unit]) gl.deleteTexture(this.texs[unit]); const t = (this.texs[unit] = gl.createTexture()); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
@@ -248,6 +330,36 @@ export class Renderer {
     for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, table.length / 4, 1, 0, gl.RGBA, gl.FLOAT, table);
     gl.uniform1i(u.uBinT, 4); gl.uniform1i(u.uHasAux, 1);
+  }
+  /* the hill (Fall Line): heights and the trails' field (distance, trail id + how far along), both n[0] × n[1] × n[2]
+     samples a metre apart over (x, z, w) laid out x fastest; L the steepest slope; R the trails' radius; tangents a
+     table of each trail's direction along it (rows: trails, BINS + 1 columns). null goes back to the voxels */
+  hill(H, Tr, n, L, R, tangents, rows) {
+    const gl = this.gl, u = this.u; this.texs = this.texs || {};
+    if (!H) { gl.uniform1i(u.uHillMode, 0); return; }
+    const tex3 = (unit, fmt, base, data) => {
+      if (this.texs[unit]) gl.deleteTexture(this.texs[unit]);
+      const t = (this.texs[unit] = gl.createTexture()); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_3D, t);
+      for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_3D, k, v);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.texImage3D(gl.TEXTURE_3D, 0, fmt, n[0], n[1], n[2], 0, base, gl.FLOAT, data);
+    };
+    tex3(5, gl.R16F, gl.RED, H); tex3(6, gl.RG16F, gl.RG, Tr);
+    if (this.texs[4]) gl.deleteTexture(this.texs[4]);
+    const t = (this.texs[4] = gl.createTexture()); gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, t);
+    for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, tangents.length / 4 / rows, rows, 0, gl.RGBA, gl.FLOAT, tangents);
+    gl.uniform1i(u.uHillT, 5); gl.uniform1i(u.uTrailT, 6); gl.uniform1i(u.uBinT, 4); gl.uniform3f(u.uHN, n[0], n[1], n[2]);
+    gl.uniform1f(u.uHL, L); gl.uniform1f(u.uTrailR, R); gl.uniform1i(u.uHillMode, 1);
+  }
+  /* the grain painted on the hill: null (none), "grid" (the tesseract grid) or a lattice ({ B, Binv, rel }, metres) */
+  grain(L) {
+    const gl = this.gl, u = this.u;
+    if (!L) { gl.uniform1i(u.uGrain, 0); return; }
+    if (L === "grid") { gl.uniform1i(u.uGrain, 2); return; }
+    const binv = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) binv[j * 4 + i] = L.Binv[i][j];
+    gl.uniformMatrix4fv(u.uBm, false, new Float32Array(L.B.flat())); gl.uniformMatrix4fv(u.uBinv, false, binv);
+    const rel = new Float32Array(30 * 4); L.rel.forEach((v, i) => rel.set(v, 4 * i));
+    gl.uniform4fv(u.uRel, rel); gl.uniform1i(u.uNRel, L.rel.length); gl.uniform1i(u.uGrain, 1);
   }
   /* the bike: bike.js's parts() (metres), the middle and radius of a ball holding it, and the frame's colour; null hides it */
   bike(P, mid, rad, col) {
