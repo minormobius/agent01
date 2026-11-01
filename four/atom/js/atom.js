@@ -132,12 +132,14 @@ function exchangeEnergy(occ, qs, d) {
    occ: electrons per subshell (same order as subshells(d)). Returns orbital energies, the total energy, and charges.
    exchange: add local exchange (above). shellTheorem: a counterfactual, for 4D: the clouds' potential as if Newton's
    shell theorem held (the 3D kernel) */
-export function scf(Z, occ, d, { iters = 80, mix = 0.4, tol = 1e-7, start = null, shellTheorem = false, exchange = false } = {}) {
+export function scf(Z, occ, d, { iters = 80, mix = 0.4, tol = 1e-7, start = null, shellTheorem = false, exchange = false, vext = null } = {}) {
   const sh = subshells(d), K = kernel(shellTheorem ? 3 : d);
   const live = sh.map((s, i) => i).filter((i) => occ[i] > 0);
   let qs = start ? start.map((q) => q && q.slice()) : sh.map(() => null), es = sh.map(() => 0), E = 0, prevE = Infinity, converged = false;
   for (let it = 0; it < iters; it++) {
     const Vs = potentials(Z, occ, qs, d, { exchange, shellTheorem }), next = sh.map(() => null);
+    // an outside potential on every electron (vext[j] at grid point j): a Watson sphere, standing in for a crystal's ions
+    if (vext) for (const i of live) { const v = Float64Array.from(Vs[i]); for (let j = 0; j < N; j++) v[j] += vext[j]; Vs[i] = v; }
     for (const i of live) { const r = solve(Vs[i], sh[i].l, sh[i].n - sh[i].l - 1, d); es[i] = r.e; next[i] = r.q; }
     for (const i of live) { if (!qs[i]) qs[i] = next[i]; else for (let j = 0; j < N; j++) qs[i][j] = mix * next[i][j] + (1 - mix) * qs[i][j]; }
     // the total energy: Σ o ε − ½ Σ o o' J + ½ Σ o J_self (no electron meets itself), and with exchange

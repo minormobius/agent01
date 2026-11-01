@@ -94,7 +94,10 @@ TSUN, R_EARTH = 5772, 215 # our Sun's surface temperature, and Earth's distance 
 LT=json.loads(subprocess.run(['node','--input-type=module','-e','import * as O from "'+ATOM+'js/orbits.js"; console.log(JSON.stringify({ a4: O.absorbShare(4), t3: O.planetT(3, 5772, 215), t4: O.planetT(4, 5772, 215), r4: O.radiusFor(4, 5772, O.planetT(3, 5772, 215)), b3: (373 / 273) ** (-1 / O.tempPower(3)), b4: (373 / 273) ** (-1 / O.tempPower(4)) }));'],capture_output=True,text=True,check=True).stdout)
 ABS4, T3E, T4E, R4WARM, BAND3, BAND4 = LT['a4'], LT['t3'], LT['t4'], LT['r4'], LT['b3'], LT['b4']
 # what sets G (js/gscale.js): Chandrasekhar's mass, the Earth-like planet's G for a range of rock densities, and planets at any G
-GS=json.loads(subprocess.run(['node','--input-type=module','-e','import * as G from "'+ATOM+'js/gscale.js"; const c3 = G.chandrasekhar(3), c4 = G.chandrasekhar(4), lo = G.earthLike(8e12), hi = G.earthLike(6e13); const rows = [1, 1e-8, 1e-12, 3e-17].map((f) => ({ f, ...G.planetsAt(G.SI.G * f, 2.3e13) })); console.log(JSON.stringify({ m3: c3.mass() / G.SI.Msun, c4: c4.cd, gLo: Math.min(lo.ratio, hi.ratio), gHi: Math.max(lo.ratio, hi.ratio), pLo: Math.min(lo.planetOverStar, hi.planetOverStar), pHi: Math.max(lo.planetOverStar, hi.planetOverStar), rhoLo: 8e12, rhoHi: 6e13, rows }));'],capture_output=True,text=True,check=True).stdout)
+# the rock, computed (tools/salt.mjs bake → js/saltdata.js): 4D's rock salts' densities, ours the check
+SLT=json.loads(subprocess.run(['node','--input-type=module','-e','import { SALT } from "'+ATOM+'js/saltdata.js"; console.log(JSON.stringify(SALT));'],capture_output=True,text=True,check=True).stdout)
+RHO_LO=min(SLT['ToG']['density'],SLT['NgPx']['density']); RHO_HI=max(SLT['ToG']['density'],SLT['NgPx']['density'])
+GS=json.loads(subprocess.run(['node','--input-type=module','-e','import * as G from "'+ATOM+'js/gscale.js"; const c3 = G.chandrasekhar(3), c4 = G.chandrasekhar(4), lo = G.earthLike('+str(RHO_LO)+'), hi = G.earthLike('+str(2*RHO_HI)+'), rk = [G.earthLike('+str(RHO_LO)+'), G.earthLike('+str(RHO_HI)+')]; const rows = [1, 1e-8, 1e-12, 3e-17].map((f) => ({ f, ...G.planetsAt(G.SI.G * f, '+str(RHO_HI)+') })); console.log(JSON.stringify({ m3: c3.mass() / G.SI.Msun, c4: c4.cd, gLo: Math.min(lo.ratio, hi.ratio), gHi: Math.max(lo.ratio, hi.ratio), pLo: Math.min(lo.planetOverStar, hi.planetOverStar), pHi: Math.max(lo.planetOverStar, hi.planetOverStar), rhoLo: '+str(RHO_LO)+', rhoHi: '+str(2*RHO_HI)+', rkLo: Math.min(rk[0].ratio, rk[1].ratio), rkHi: Math.max(rk[0].ratio, rk[1].ratio), rows }));'],capture_output=True,text=True,check=True).stdout)
 def _gl(x): return '1 km' if False else (f"{x/1000:.0f} km" if x>=2000 else f"{x:.0f} m")
 def _gg(g): return f"{g:,.0f} m/s² ({g/9.81:,.0f} g)" if g>=20 else f"{g:.1f} m/s²"
 SUP=str.maketrans('-0123456789','⁻⁰¹²³⁴⁵⁶⁷⁸⁹')
@@ -102,7 +105,20 @@ def sci(x):
     e=math.floor(math.log10(abs(x))); m=x/10**e
     if round(m)==10: m,e=1,e+1
     return (f'10{str(e).translate(SUP)}' if round(m)==1 else f'{round(m):.0f} × 10{str(e).translate(SUP)}')
+def sci1(x):
+    e=math.floor(math.log10(abs(x))); return f'{x/10**e:.1f} × 10{str(e).translate(SUP)}'
 def _gf(f): return 'ours' if f==1 else sci(f)+' of ours'
+def MS_atG(G):
+  # a Sun-long star at gravity G (× ours), log-interpolated between the computed sequences that bracket it
+  import math
+  rs=sorted([r for r in MSQ.get('runs',[]) if r['rnp']==1 and r.get('ff',0)==1],key=lambda r:r['Grel'])
+  for a,b in zip(rs,rs[1:]):
+    if a['Grel']<=G<=b['Grel']:
+      x=MS_at(a['rows'],'life',1e10); y=MS_at(b['rows'],'life',1e10)
+      if not x or not y: return None
+      f=math.log(G/a['Grel'])/math.log(b['Grel']/a['Grel'])
+      return {k:math.exp(math.log(x[k])*(1-f)+math.log(y[k])*f) for k in ('m','Teff','Tc','a288','year')}
+  return None
 GS['rows']=''.join(f"<tr><td>{_gf(r['f'])}</td><td>{_gl(r['airR'])}</td><td>{_gg(r['airG'])}</td><td>{_gl(r['darkR'])}</td></tr>" for r in GS['rows'])
 # the nebulae (js/nebuladata.js, tools/nebula.mjs on the runner) and how a random spin's two rates compare (js/nebula.js)
 TDN=json.loads(subprocess.run(['node',ATOM+'tools/tidenumbers.mjs'],capture_output=True,text=True,check=True).stdout)  # tides (js/tides.js)
@@ -187,7 +203,7 @@ stars=f'''<section id="hold">
   <p>Nothing in physics fixes Newton's G, in our world or this one. Gravity pinned through the lens keeps the force's units, so G could be ours. It can't be, for this reason: <b>4D matter is far denser per 4-volume than ours is per 3-volume</b> (a rock's atoms, a few ångströms apart, give about 2 × 10¹³ kg/m⁴), and a ball's surface gravity grows as G ρ R². With our G:</p>
   <table class="sys"><tr><th>G</th><th>smallest planet that holds air</th><th>its surface gravity</th><th>a ball of rock is a dark star past</th></tr>{GS['rows']}</table>
   <p class="read">"Holds air": its gravity holds a molecule of 30 nucleons at 300 K with 50 kT to spare. "Dark star": 2GM/R reaches c², whatever gravity's relativistic form turns out to be. Rock at 2.3 × 10¹³ kg/m⁴.</p>
-  <p><b>At our G, a world that holds air crushes everything at fifty thousand g, and a world with gentle gravity can't hold air.</b> Something has to give, and it's G. Escape speed obeys v² = 2gR in any dimension, so a planet with Earth's gravity and Earth's hold on its air has Earth's radius in 4D too, and that fixes G ρ₄ = 2g/π²R². For rock between {sci(GS['rhoLo'])} and {sci(GS['rhoHi'])} kg/m⁴, <b>G is {sci(GS['gLo'])} to {sci(GS['gHi'])} of ours</b>. With that G the stars come out Sun-sized, and a planet weighs {sci(GS['pLo'])} to {sci(GS['pHi'])} of a Chandrasekhar star (Earth weighs 3 × 10⁻⁶ of our Sun). So <b>G is a choice, made by a requirement</b>: that there be planets like ours. What 4D rock is made of, and so how dense it is, waits on <a href="nuclei.html">chapter 14</a>'s question of which elements stars make.</p>
+  <p><b>At our G, a world that holds air crushes everything at fifty thousand g, and a world with gentle gravity can't hold air.</b> Something has to give, and it's G. Escape speed obeys v² = 2gR in any dimension, so a planet with Earth's gravity and Earth's hold on its air has Earth's radius in 4D too, and that fixes G ρ₄ = 2g/π²R². <span class="tag computed">computed</span> <b>The rock, now computed</b> (<a href="gas.html">chapter 14</a>'s salts, with the elements the stars give back, <a href="nuclei.html#heavy">chapter 15</a>): nagnesium pxide, Ng²⁺Px²⁻, our magnesia's counterpart, and todium gluoride, To⁺G⁻, our sodium fluoride's, come out {RHO_LO/10**math.floor(math.log10(RHO_HI)):.1f}–{sci1(RHO_HI)} kg/m⁴ (checked: our sodium fluoride {SLT['NaF']['density']/1000:.2f} g/cm³ against 2.56 measured, our magnesia {SLT['MgO']['density']/1000:.2f} against 3.58). For a planet of that rock, <b>G is {sci1(GS['rkLo'])} to {sci1(GS['rkHi'])} of ours</b>; with a core of the stars' iron, up to twice as dense overall as Earth is over its rock, as low as {sci1(GS['gLo'])}. With that G the stars come out Sun-sized, and a planet weighs {sci(GS['pLo'])} to {sci(GS['pHi'])} of a Chandrasekhar star (Earth weighs 3 × 10⁻⁶ of our Sun). So <b>G is a choice, made by a requirement</b>: that there be planets like ours. {(lambda q: f'<span class="tag follows">follows</span> <b>And at that G the main sequence above says what kind of sun it gets</b>: a star as long-lived as ours is {q["m"]:.1f} times the Chandrasekhar mass, {q["Teff"]:,.0f} K at its surface, blue-white, with a core at {q["Tc"]/1e6:.0f} million K; a planet warm enough for liquid water sits {sci1(q["a288"])} m out and its year lasts {q["year"]:.1f} of ours. It falls well inside the stars\' window for G, above the floor where nothing heavier than helium is made in time.' if q else '')(MS_atG((GS['rkLo']*GS['rkHi'])**0.5))}</p>
 </section>
 <section id="fuel">
   <h3>The fuel: the weak force, added</h3>

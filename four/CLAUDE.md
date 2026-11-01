@@ -181,7 +181,9 @@ for games, and this is a modelling programme with publications to come. The game
   Beside it, for the gases chapter's crystals and salts: `atom/tools/crystals.mjs` (candidate lattices by lattice sum;
   fcc must win for our noble gases), `atom/tools/salt.mjs` (closed-shell ions from the solver, Gordon–Kim between
   charged clouds, the alternating lattice by Evjen cubes; in 4D past 14 bohr the exact far field from the clouds'
-  moments, since a numerical tail would diverge over 4D's r³ shells; sodium fluoride is the check),
+  moments, since a numerical tail would diverge over 4D's r³ shells; sodium fluoride is the check; `salt.mjs bake` → **generated**
+  `js/saltdata.js`, adding magnesia and nagnesium pxide with Watson-held anions and the densities, which the stars chapter's
+  "What sets G" turns into G; without `bake` it prints the baked JSON),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
   liquid–vapour runs, one temperature per command, for the runner; `coexist.mjs bake` fits each system's critical
   point, both exponents, into **generated** `js/coexist.js`). `atom/tools/audit.mjs bake` writes **generated**
