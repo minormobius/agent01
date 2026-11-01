@@ -20,8 +20,9 @@ import * as G from "../js/gas.js";
 const KB = 3.166811563e-6;
 const arg = (k, def) => { const a = process.argv.find((s) => s.startsWith(`--${k}=`)); return a ? +a.split("=")[1] : def; };
 /* bake: every finished run in $TMPDIR/atom4-coexist into js/coexist.js, with each system's critical point fitted.
-   Below Tc the gap closes as ρ_l − ρ_v ∝ (Tc − T)^β: β = 0.326 in 3D (Ising), and in 4D, the upper critical dimension,
-   mean field's 1/2 (with logarithmic corrections, left out). Both are tried, and the spread is part of the answer.
+   Below Tc the gap closes as ρ_l − ρ_v ∝ (Tc − T)^β: β = 0.326 in 3D (Ising), and in 4D mean field's 1/2 — for these
+   atoms' long-range −B/r⁵ tail (σ = 1) because the upper critical dimension is 2σ = 2 (Fisher, Ma and Nickel), not
+   because 4D is short-range forces' upper critical dimension, as this said before the audit. Both are tried, and the spread is part of the answer.
    Used: points whose boxes clearly split (gap ≥ 0.3 in ρR^d) and whose vapour rises with temperature (a vapour
    denser than at the next warmer point means the "liquid" box froze, and Gibbs swaps into a solid can't be trusted).
    ρ_c from the mean of the two densities, a straight line in T (the rectilinear diameter). */

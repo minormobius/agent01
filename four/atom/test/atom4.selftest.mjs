@@ -1046,5 +1046,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(Math.abs(Eg / E - 1) < 1e-6 && drift < 1e-9 && moved > 0, `Gibbs Monte Carlo: NIST's SPC/E configuration's energy as md.js's Ewald sum plus pairs and tail (${(Eg / E - 1).toExponential(1)}), and the running energies after ${moved} transfers and every other move equal a fresh sum (${drift.toExponential(1)})`);
 }
 
+/* 58 · the independent audit's failure contracts (four.mino.mobi audit, report 01): a Hartree–Fock run cut off after one
+   iteration must say it didn't converge (it used to report its exhausted budget as convergence); the main sequence's
+   tabulated electron pressure must not jump at the table's edges (it used to fall to an ideal gas past the dense edge,
+   losing 99.9% of the pressure at 10⁶ K) */
+{
+  const GA = await import(path.join(here, "../js/gauss.js")), MS = await import(path.join(here, "../js/mainseq.js")), res = [];
+  for (const d of [3, 4]) { const R = d === 3 ? 1.4 : 3.0, z = Array(d).fill(0), atoms = [{ Z: 1, at: z }, { Z: 1, at: [R, ...z.slice(1)] }], basis = [[0, [13.0, 1.96, 0.44, 0.122]], [1, [0.8]]];
+    const sh = atoms.flatMap((a, k) => GA.shellsFor(a, basis).map((x) => ({ ...x, atom: k }))), one = GA.hartreeFock(atoms, sh, d, { nAlpha: 1, nBeta: 1, maxIter: 1 }), full = GA.hartreeFock(atoms, sh, d, { nAlpha: 1, nBeta: 1 });
+    res.push(!one.converged && full.converged); }
+  const jump = Math.max(...[[3, 1e36, 1e6], [4, 1e50, 1e6], [3, 1e30, 1e3], [4, 1e40, 1e3]].map(([d, ne, T], i) => i < 2 ? Math.abs(MS.electronP(d, ne * 1.0002, T) / MS.electronP(d, ne * 0.9998, T) - 1) : Math.abs(MS.electronP(d, ne, T * 0.9998) / MS.electronP(d, ne, T * 1.0002) - 1)));
+  ok(res.every(Boolean) && jump < 0.005, `the audit's contracts: a one-iteration Hartree–Fock run reports no convergence in 3D and 4D, the full one converges; the stellar electron pressure moves at most ${(100 * jump).toFixed(2)}% across the table's dense and cold edges`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

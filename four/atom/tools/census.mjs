@@ -132,7 +132,7 @@ export function pairEnergy(A, B, d, { mp2 = false, plus = "", f32 = false } = {}
   const eAB = G.hartreeFock(all, shells, d, { nAlpha: 2 * n, nBeta: 2 * n, ints: { one, ERI } });
   const eA = G.hartreeFock(A, shells, d, { nAlpha: n, nBeta: n, ints: { one: G.oneElectron(shells, A, d), ERI } });
   const eB = G.hartreeFock(B, shells, d, { nAlpha: n, nBeta: n, ints: { one: G.oneElectron(shells, B, d), ERI } });
-  const out = { E: eAB.E - eA.E - eB.E, ok: eAB.converged && eA.converged && eB.converged };
+  const out = { E: eAB.E - eA.E - eB.E, ok: eAB.converged && eA.converged && eB.converged, iterations: Math.max(eAB.iterations, eA.iterations, eB.iterations) };
   if (!mp2) return out;
   const [cAB, cA, cB] = [[eAB, all], [eA, A], [eB, B]].map(([r, at]) => G.mp2(r, ERI, { frozen: frozenOf(at, d) }));
   const dif = (k) => cAB[k] - cA[k] - cB[k];

@@ -217,7 +217,9 @@ export function hartreeFock(atoms, shells, d, { nAlpha, nBeta, maxIter = 200, to
   const density = (C, k) => { const P = new Float64Array(n * n); for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { let s = 0; for (let o = 0; o < k; o++) s += C[i * m + o] * C[j * m + o]; P[i * n + j] = s; } return P; };
   let Pa, Pb; if (guess) { Pa = guess.Pa; Pb = guess.Pb; } else { const g = diagFock(H); Pa = density(g.C, nAlpha); Pb = density(g.C, nBeta); }
   const hist = [], errs = []; let E = 0, prevE = Infinity, res = null;
+  let converged = false, iterations = 0, maxErr = Infinity;
   for (let it = 0; it < maxIter; it++) {
+    iterations = it + 1;
     const { J, Ks } = coulombExchange(ERI, [Pa, Pb], n), Fa = Float64Array.from(H, (h, k) => h + J[k] - Ks[0][k]), Fb = Float64Array.from(H, (h, k) => h + J[k] - Ks[1][k]);
     E = Enuc; for (let k = 0; k < n * n; k++) E += 0.5 * (Pa[k] * (H[k] + Fa[k]) + Pb[k] * (H[k] + Fb[k]));
     // DIIS on the commutators FPS − SPF of both spins
@@ -231,12 +233,14 @@ export function hartreeFock(atoms, shells, d, { nAlpha, nBeta, maxIter = 200, to
     }
     const ga = diagFock(Fua), gb = diagFock(Fub);
     Pa = density(ga.C, nAlpha); Pb = density(gb.C, nBeta); res = { epsA: ga.eps, epsB: gb.eps, Ca: ga.C, Cb: gb.C };
-    let maxErr = 0; for (const x of err) if (Math.abs(x) > maxErr) maxErr = Math.abs(x); // a loop: spread, 2n² numbers overflow the stack past n ≈ 250
-    if (Math.abs(E - prevE) < tol && maxErr < 1e-5) break;
+    maxErr = 0; for (const x of err) if (Math.abs(x) > maxErr) maxErr = Math.abs(x); // a loop: spread, 2n² numbers overflow the stack past n ≈ 250
+    // converged only when this iteration met both tests; running out of iterations is not convergence (an earlier
+    // version set prevE = E before testing, so an exhausted budget always read as converged)
+    if (Math.abs(E - prevE) < tol && maxErr < 1e-5) { converged = true; break; }
     prevE = E;
   }
   const dip = Array.from({ length: d }, (_, k) => { let s = 0; for (const a of atoms) s += a.Z * a.at[k]; for (let q = 0; q < n * n; q++) s -= (Pa[q] + Pb[q]) * M[k][q]; return s; });
-  return { E, epsA: res.epsA, epsB: res.epsB, Pa, Pb, Ca: res.Ca, Cb: res.Cb, m, nAlpha, nBeta, dipole: dip, n, converged: Math.abs(E - prevE) < 1e-6 };
+  return { E, epsA: res.epsA, epsB: res.epsB, Pa, Pb, Ca: res.Ca, Cb: res.Cb, m, nAlpha, nBeta, dipole: dip, n, converged, iterations, dE: Math.abs(E - prevE), commutator: maxErr };
 }
 
 /* ---------------------------------------------------------------- MP2: the correlation Hartree–Fock leaves out */

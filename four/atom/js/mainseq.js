@@ -22,14 +22,19 @@ export const sigmaSB = (d) => SI.c * aRad(d) * (d === 3 ? 0.25 : 2 / (3 * Math.P
 export const muOf = ({ X, Y, Z }) => 1 / (2 * X + 0.75 * Y + 0.5 * Z);
 export const gradAd = (d) => 2 / (d + 2);
 
-// the electrons' pressure, tabulated in ln n_e and ln T (bilinear in the logs; outside the table, ideal)
+// the electrons' pressure, tabulated in ln n_e and ln T (bilinear in the logs; outside the table, computed directly)
 const EOS = {};
+export const eosExcursions = {};
 function peTable(d) {
   if (EOS[d]) return EOS[d];
   const lx = d === 3 ? [Math.log(1e24), Math.log(1e36)] : [Math.log(1e30), Math.log(1e50)], ly = [Math.log(1e3), Math.log(3e9)], NI = 140, NJ = 80, tab = [];
   for (let i = 0; i <= NI; i++) { const ne = Math.exp(lx[0] + ((lx[1] - lx[0]) * i) / NI), row = []; for (let j = 0; j <= NJ; j++) row.push(Math.log(electronPressure(d, ne, Math.exp(ly[0] + ((ly[1] - ly[0]) * j) / NJ)))); tab.push(row); }
   return (EOS[d] = (ne, T) => { const x = ((Math.log(ne) - lx[0]) / (lx[1] - lx[0])) * NI, y = ((Math.log(T) - ly[0]) / (ly[1] - ly[0])) * NJ;
-    if (x < 0 || x >= NI || y < 0 || y >= NJ) return ne * SI.k * T; const i = Math.floor(x), j = Math.floor(y), u = x - i, v = y - j;
+    // outside the table: denser or colder than it, where degeneracy can matter, the direct Fermi–Dirac pressure (an ideal
+    // gas there dropped 99.9% of the pressure just past the dense edge at 10⁶ K, a cliff); thinner or hotter, where the gas
+    // is nondegenerate, ideal. Each excursion is counted (eosExcursions)
+    if (x >= NI || y < 0) { eosExcursions[d] = (eosExcursions[d] || 0) + 1; return electronPressure(d, ne, T); }
+    if (x < 0 || y >= NJ) return ne * SI.k * T; const i = Math.floor(x), j = Math.floor(y), u = x - i, v = y - j;
     return Math.exp(tab[i][j] * (1 - u) * (1 - v) + tab[i + 1][j] * u * (1 - v) + tab[i][j + 1] * (1 - u) * v + tab[i + 1][j + 1] * u * v); });
 }
 export const electronP = (d, ne, T) => peTable(d)(ne, T);
@@ -131,7 +136,8 @@ export function toPinned(opts, s0) {
     const wt = Math.min(1, w + dw), fp = pinnedF(s.prof), fw = (m) => 1 - wt + wt * fp(m), t = star({ ...opts, f: fw }, s.p);
     if (!t.ok) { dw /= 2; if (dw < 0.004) return { ...s, ok: false, why: `pinned blend stalled at ${w.toFixed(3)}` }; continue; }
     const dL = Math.abs(Math.log(t.L / s.L)); s = t; f = fw; w = wt; dw = Math.min(0.25, dw * 1.5);
-    if (w === 1 && (++settle > 20 || dL < 1e-3)) return { ...s, f, dL };
+    if (w === 1 && dL < 1e-3) return { ...s, f, dL };
+    if (w === 1 && ++settle > 20) return { ...s, f, dL, ok: false, why: `pinned gravity didn't settle (last change in ln L ${dL.toExponential(1)})` };
   }
   return { ...s, ok: false, why: "pinned blend ran out" };
 }
