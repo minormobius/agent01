@@ -5789,6 +5789,23 @@
       ]
     },
     {
+      "n": "kata-wavelab",
+      "u": "https://kata.mino.mobi/wavelab/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-01",
+      "b": "2026-11-01",
+      "p": "kata",
+      "surface": "kata",
+      "d": "Water waves in four dimensions, solved exactly: every plane wave on a 3D water surface turned at its own frequency (the same ω² = g k tanh(k h) as ours), an inverse 3D FFT each frame. Two views: the water in your slice, and the whole 3D surface with your slice through it. A pebble's ring is a sphere and fades faster than ours; one dropped out of your slice appears from nowhere; in shallow water the pulse leaves flat water behind it (Huygens' principle); swell from ana looks too fast for its length; and the standing waves of a round pond are the orbitals.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

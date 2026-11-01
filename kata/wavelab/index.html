@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="WAVELAB — water waves in four dimensions, solved exactly. Drop pebbles on a 3D water surface and watch your slice: rings that appear from nowhere, shells with nothing behind them, swell from ana, and standing waves shaped like orbitals." />
+<title>WAVELAB — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/wavelab.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Left or top: the water in your 3D slice. Right or bottom: the whole 3D water surface, crests teal, troughs rose, your slice the bright plane through it"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="bar">
+    <b>WAVELAB</b>
+    <div id="exps">
+      <button type="button" data-x="pebble">pebble</button>
+      <button type="button" data-x="out">out of the slice</button>
+      <button type="button" data-x="shallow">shallow</button>
+      <button type="button" data-x="swell">swell from ana</button>
+      <button type="button" data-x="s">s</button><button type="button" data-x="p">p</button><button type="button" data-x="d">d</button>
+      <button type="button" data-x="rain" id="rainB">rain</button>
+      <button type="button" data-x="clear">clear</button>
+      <button type="button" id="gearB" aria-label="settings">⚙</button>
+    </div>
+  </div>
+  <div id="cap"></div>
+  <div id="panel" hidden>
+    <label>slice tilt into w <input type="range" id="tilt" min="0" max="90" step="1" value="0" /><span id="tiltV">0°</span></label>
+    <label>slice offset, ana <input type="range" id="off" min="-12" max="12" step="0.25" value="0" /><span id="offV">0 m</span></label>
+    <label>depth <input type="range" id="depth" min="0" max="3" step="1" value="0" /><span id="depthV">deep</span></label>
+    <label>speed <input type="range" id="speed" min="0" max="4" step="1" value="2" /><span id="speedV">1×</span></label>
+    <p class="foot">tap the water (left/top) to drop a pebble · drag either view to look round · <a href="./README.md">how it's solved</a> · <a href="../">kata</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
