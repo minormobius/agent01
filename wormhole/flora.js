@@ -302,6 +302,7 @@
     var pfx = (opts.idPrefix || "fl") + xmur3(g.seed + "|" + g.biome)().toString(36).slice(0, 5);
     var r = Rand("flora-layout:" + g.seed + ":" + Math.round(W) + "x" + Math.round(H));
     var P = g.palette;
+    var leafBloom = P.id === "sepia" ? 0.15 : 0.38;
 
     var mL = box.x0, mR = W - box.x1, mT = box.y0, mB = H - box.y1;
     var mSide = Math.min(mL, mR);
@@ -329,7 +330,6 @@
       }
       return false;
     }
-    function place(x, y, rad, kind) { items.push({ x: x, y: y, r: rad, kind: kind }); counts[kind] = (counts[kind] || 0) + 1; }
     function order(y) { return Math.max(0, Math.min(1, y / H)); }
     function wrap(layer, y, inner, cls) {
       layers[layer].push(animated
@@ -344,6 +344,8 @@
     // ---- gradient defs ----
     var defs = [];
     function lin(id, stops) {
+      // opts.flat: no gradients, for the same kind of consumer — the middle stop stands in
+      if (opts.flat) return stops[Math.floor(stops.length / 2)][1];
       defs.push('<linearGradient id="' + pfx + id + '" x1="0" y1="0" x2="1" y2="0">' +
         stops.map(function (s) { return '<stop offset="' + s[0] + '" stop-color="' + s[1] + '"' + (s[2] != null ? ' stop-opacity="' + s[2] + '"' : "") + "/>"; }).join("") +
         "</linearGradient>");
@@ -361,33 +363,33 @@
       return { ink: k, out: lin("l" + i, [[0, k[0]], [0.5, k[1]], [1, k[2]]]), inn: lin("li" + i, [[0, k[1]], [0.6, k[2]], [1, k[1]]]) };
     });
 
-    // ---- the blade library: wobbled prototype outlines, instanced by <use> ----
-    // Each (profile, variant) is drawn once at unit size 100×100 into <defs>;
-    // a leaf or petal is then a <use> scaled to its length × width. Eight
-    // wobbles per form plus rotation and scale keep the hand-made look while
-    // cutting the markup by an order of magnitude.
+    // ---- the blade library: wobbled prototype outlines ----
+    // Each (profile, variant) outline is drawn once at unit size and reused,
+    // scaled, by every leaf and petal of that form. Blades are written out as
+    // real paths (not nested <use>): whole flowers are themselves instanced
+    // below, and a <use> inside a <use> makes the browser clone shadow trees
+    // by the tens of thousands — that cost a 1.5 s first paint.
     var pr = Rand("flora-protos:" + g.seed), protos = {}, VARIANTS = 8;
     function proto(form, steps, v) {
       var key = form + (steps || 9) + "_" + v;
       if (!protos[key]) {
-        var id = pfx + "p" + Object.keys(protos).length;
         var pts = blade(pr, 100, 100, PROFILES[form], 2.2, steps || 9);
-        defs.push('<path id="' + id + '" d="' + blob(pts) + '" vector-effect="non-scaling-stroke"/>');
-        var inner = scalePts(pts, 0.62, 0.42, 18);
-        defs.push('<path id="' + id + 'i" d="' + blob(inner) + '"/>');
-        protos[key] = id;
+        var fl = [];
+        for (var f = 0; f < 6; f++) { var tx = pr.range(15, 85); fl.push([tx, pr.range(-0.6, 0.6) * PROFILES[form](tx / 100) * 50]); }
+        protos[key] = { pts: pts, inner: scalePts(pts, 0.62, 0.42, 18), flecks: fl };
       }
       return protos[key];
     }
     function sc(v) { return Math.round(v * 1000) / 1000; }
-    // a watercolour blade by instance: wash + pooled edge, inner streak, vein
+    // a watercolour blade: wash + pooled edge, inner streak, granulation, vein
     function blade2(form, L, Wd, fill, ink, o) {
       o = o || {};
-      var id = proto(form, o.steps, r.int(0, VARIANTS - 1));
-      var t = 'transform="scale(' + sc(L / 100) + " " + sc(Wd / 100) + ')"';
-      var s = '<use href="#' + id + '" ' + t + ' fill="' + fill + '" fill-opacity="' + (o.op || 0.86) + '"' +
+      var p = proto(form, o.steps, r.int(0, VARIANTS - 1)), sx = L / 100, sy = Wd / 100;
+      function S2(pts) { return pts.map(function (q) { return [q[0] * sx, q[1] * sy]; }); }
+      var s = '<path d="' + blob(S2(p.pts)) + '" fill="' + fill + '" fill-opacity="' + (o.op || 0.86) + '"' +
         (o.edge === 0 ? "" : ' stroke="' + ink[0] + '" stroke-width="' + (o.edge || 0.55) + '" stroke-opacity="0.42"') + "/>";
-      if (o.streak !== false && L > 7) s += '<use href="#' + id + 'i" ' + t + ' fill="' + ink[2] + '" fill-opacity="0.32"/>';
+      if (o.streak !== false && L > 7) s += '<path d="' + blob(S2(p.inner)) + '" fill="' + ink[2] + '" fill-opacity="0.32"/>';
+      if (o.speck && L > 9) s += '<path d="' + S2(p.flecks).map(function (q) { return "M" + pt(q) + "h0"; }).join("") + '" stroke="#fff" stroke-linecap="round" stroke-width="' + n1(Math.max(0.5, L * 0.035)) + '" stroke-opacity="0.7"/>';
       if (o.vein) s += '<path d="M0,0Q' + n1(L * 0.5) + "," + n1(o.bend || 0) + " " + n1(L * 0.9) + ',0" fill="none" stroke="' + ink[2] + '" stroke-width="0.5" stroke-opacity="0.6"/>';
       return s;
     }
@@ -408,10 +410,11 @@
 
     function leaf(x, y, deg, L, form) {
       form = form || r.pick(g.leaves);
-      var k = r.pick(gL);
-      var Wd = L * (form === "willow" ? 0.34 : form === "round" ? 0.62 : form === "oak" ? 0.58 : 0.42);
+      // like the reference, foliage borrows the flowers' inks a good third of the time
+      var k = r.chance(leafBloom) ? r.pick(gB) : r.pick(gL);
+      var Wd = L * (form === "willow" ? 0.34 : form === "round" ? 0.62 : form === "oak" ? 0.58 : 0.44);
       var fill = r.chance(0.75) ? k.out : k.inn;
-      return "<g " + tf(x, y, deg) + ">" + blade2(form, L, Wd, fill, k.ink, { steps: form === "oak" || form === "serrate" ? 14 : 9, vein: true, bend: r.range(-1.5, 1.5) }) + "</g>";
+      return "<g " + tf(x, y, deg) + ">" + blade2(form, L, Wd, fill, k.ink, { steps: form === "oak" || form === "serrate" ? 14 : 9, vein: true, bend: r.range(-1.5, 1.5), op: 0.93, speck: true }) + "</g>";
     }
 
     function petalRing(n, L, Wd, profile, kset, mode, spin, wob) {
@@ -706,219 +709,403 @@
       stems.push(frameStem());
     }
 
-    // paint stems + walk them
-    var stemW = Math.max(1.1, 3.4 * S) * (g.habit === "twining" ? 0.6 : 1);
-    stems.forEach(function (sm, si) {
-      var fill = P.stem;
-      var w1 = habit === "frame" ? stemW * 0.8 : stemW * 0.35;
-      layers.stems.push('<path class="fs" d="' + ribbon(sm, stemW, w1) + '" fill="' + fill + '" fill-opacity="0.82"/>');
-      // a pale highlight line down the stem: the wet-edge of the brush
-      layers.stems.push('<path class="fs" d="' + smooth(sm.filter(function (_, i) { return i % 2 === 0; }).map(function (q) {
-        return [q.x - Math.sin(q.ang) * stemW * 0.18, q.y + Math.cos(q.ang) * stemW * 0.18];
-      }), false) + '" fill="none" stroke="#fff" stroke-opacity="0.28" stroke-width="' + n1(Math.max(0.4, stemW * 0.22)) + '"/>');
-      sm.forEach(function (q, i) { if (i % 3 === 0) place(q.x, q.y, stemW, "stem"); });
-    });
+    // ======================= the thicket =======================
+    // Everything below draws by INSTANCE: each species/leaf/spray is built a
+    // handful of times as a prototype in <defs> and then stamped with <use>.
+    // That is what lets a margin carry thousands of things for ~100 bytes each.
+    var LIB = {}, libR = Rand("flora-lib:" + g.seed + ":" + g.biome), U = 20;
+    function lib(kind, nVar, build) {
+      var key = kind + "#" + r.int(0, nVar - 1);
+      if (!LIB[key]) {
+        var save = r; r = libR;
+        var svg = build();
+        r = save;
+        var id = pfx + "k" + Object.keys(LIB).length;
+        defs.push('<g id="' + id + '">' + svg + "</g>");
+        LIB[key] = id; LIBSVG[id] = svg;
+      }
+      return LIB[key];
+    }
+    // opts.inline writes each instance out in full instead of <use> — for
+    // consumers that can't resolve references (some SVG→raster tools)
+    var LIBSVG = {};
+    function use(id, x, y, deg, s) {
+      return opts.inline ? "<g " + tf(x, y, deg, s) + ">" + LIBSVG[id] + "</g>" : '<use href="#' + id + '" ' + tf(x, y, deg, s) + "/>";
+    }
 
-    var spacing = 24 / g.density / Math.max(0.6, S);
-    var showy = g.species.filter(function (s) { return s === "rosette" || s === "cosmos"; });
-    var minor = g.species.filter(function (s) { return s !== "rosette" && s !== "cosmos"; });
-    if (!minor.length) minor = ["bud"];
-    function pickSpecies() { return r.chance(0.18) ? r.pick(showy.length ? showy : minor) : r.pick(minor); }
+    // bands: each layer is cut into horizontal bands that fade in top-down
+    var BAND = 140, bands = { back: {}, stems: {}, leaves: {}, blooms: {}, fauna: {} };
+    function add(layer, y, svg) {
+      var b = Math.max(0, Math.floor(y / BAND));
+      (bands[layer][b] = bands[layer][b] || []).push(svg);
+    }
 
-    stems.forEach(function (sm, si) {
-      var total = sm[sm.length - 1].s;
-      var sideFlip = r.sign();
-      for (var s = r.range(4, spacing); s < total - 6; s += spacing * r.range(0.6, 1.4)) {
-        var q = sm[0], k;
-        for (k = 0; k < sm.length && sm[k].s < s; k++) q = sm[k];
-        sideFlip = -sideFlip;
-        var tdeg = q.ang * DEG; // stems run base → tip
-        var act = r.pickw([["leaf", 4], ["pair", 2], ["branch", 3.2], ["direct", 0.8]]);
-        if (act === "leaf" || act === "pair") {
-          var L = r.range(11, 22) * S;
-          var sides = act === "pair" ? [1, -1] : [sideFlip];
-          sides.forEach(function (sd) {
-            var a = tdeg + sd * r.range(35, 70);
-            var ex = q.x + Math.cos(a / DEG) * L * 0.6, ey = q.y + Math.sin(a / DEG) * L * 0.6;
-            if (!fits(ex, ey, L * 0.45)) { a = tdeg - sd * r.range(35, 70); ex = q.x + Math.cos(a / DEG) * L * 0.6; ey = q.y + Math.sin(a / DEG) * L * 0.6; }
-            if (!fits(ex, ey, L * 0.45)) return;
-            wrap("leaves", q.y, leaf(q.x, q.y, a, L));
-            place(ex, ey, L * 0.4, "leaf");
-          });
-        } else {
-          var sp = act === "direct" ? pickSpecies() : pickSpecies();
-          var size = (sp === "rosette" || sp === "cosmos" ? r.range(10, 16) : r.range(9, 15)) * S;
-          var blen = act === "direct" ? 0 : r.range(14, 40) * S;
-          var tries = [sideFlip, -sideFlip], done = false;
-          for (var ti = 0; ti < tries.length && !done; ti++) {
-            var bdeg = tdeg + tries[ti] * r.range(30, 70);
-            var bx = q.x + Math.cos(bdeg / DEG) * blen, by = q.y + Math.sin(bdeg / DEG) * blen;
-            var probe = bloomAt(bx, by, bdeg, size, sp); // consumes rnd, but deterministic either way
-            var rc = reach(probe, bx, by, bdeg, size);
-            if (!fits(rc.x, rc.y, rc.r) || !fits(bx, by, 2) || crowded(rc.x, rc.y, rc.r, ["bloom", "hero", "fauna"], 0.8)) continue;
-            if (blen > 0) {
-              var mid = [q.x + Math.cos((bdeg - tries[ti] * 18) / DEG) * blen * 0.5, q.y + Math.sin((bdeg - tries[ti] * 18) / DEG) * blen * 0.5];
-              var bs = resample([[q.x, q.y], mid, [bx, by]], 7);
-              wrap("stems", q.y, '<path d="' + ribbon(bs, Math.max(0.6, stemW * 0.45), Math.max(0.4, stemW * 0.2)) + '" fill="' + P.stem + '" fill-opacity="0.8"/>');
-              if (r.chance(0.55)) {
-                var lm = bs[Math.floor(bs.length * 0.5)], la = lm.ang * DEG + r.sign() * r.range(40, 70), LL = r.range(8, 15) * S;
-                if (fits(lm.x + Math.cos(la / DEG) * LL * 0.6, lm.y + Math.sin(la / DEG) * LL * 0.6, LL * 0.4)) wrap("leaves", lm.y, leaf(lm.x, lm.y, la, LL));
-              }
-            }
-            wrap(probe.layer, by, probe.svg);
-            place(rc.x, rc.y, rc.r, "bloom");
-            done = true;
-          }
+    // per-kind spatial lists (only heroes/fauna/plates ever ask "is it crowded?")
+    var byKind = {};
+    function place(x, y, rad, kind, solid) {
+      var it = { x: x, y: y, r: rad, kind: kind };
+      items.push(it); (byKind[kind] = byKind[kind] || []).push(it);
+      counts[kind] = (counts[kind] || 0) + 1;
+      mark(x, y, rad * (solid == null ? 1 : solid)); // wiry things paint less than their footprint
+    }
+    function crowdedK(x, y, rad, kinds, slack) {
+      for (var k = 0; k < kinds.length; k++) {
+        var L = byKind[kinds[k]] || [];
+        for (var i = 0; i < L.length; i++) if (Math.hypot(L[i].x - x, L[i].y - y) < (L[i].r + rad) * (slack || 1)) return true;
+      }
+      return false;
+    }
+
+    // coverage grid over the margins: the fill pass plants until it is painted
+    var CELL = 9, gw = Math.ceil(W / CELL), gh = Math.ceil(H / CELL), cov = new Uint8Array(gw * gh);
+    var marginCells = [];
+    for (var cy = 0; cy < gh; cy++) for (var cx = 0; cx < gw; cx++) {
+      var px = (cx + 0.5) * CELL, py = (cy + 0.5) * CELL;
+      if (!inText(px, py, CELL * 0.5) && px < W && py < H) marginCells.push(cy * gw + cx);
+    }
+    function mark(x, y, rad) {
+      var rr = rad * 0.72, x0 = Math.max(0, Math.floor((x - rr) / CELL)), x1 = Math.min(gw - 1, Math.floor((x + rr) / CELL));
+      var y0 = Math.max(0, Math.floor((y - rr) / CELL)), y1 = Math.min(gh - 1, Math.floor((y + rr) / CELL));
+      for (var j = y0; j <= y1; j++) for (var i = x0; i <= x1; i++)
+        if (Math.hypot((i + 0.5) * CELL - x, (j + 0.5) * CELL - y) <= rr + CELL * 0.5) cov[j * gw + i] = 1;
+    }
+    function coverage() { var c = 0; for (var i = 0; i < marginCells.length; i++) c += cov[marginCells[i]]; return marginCells.length ? c / marginCells.length : 1; }
+
+    // ---- extra prototypes the thicket needs ----
+    // wiry stalks fanning out, ending in dense clusters of dot-flowers
+    function dotspray() {
+      var s = "", n = r.int(2, 4), col = r.chance(0.7) ? P.small : r.pick(gB).ink[1], spread = r.range(50, 110);
+      for (var i = 0; i < n; i++) {
+        var a = (-spread / 2 + spread * (n === 1 ? 0.5 : i / (n - 1)) + r.range(-8, 8)) / DEG;
+        var L = U * r.range(0.6, 1.05), ex = Math.cos(a) * L, ey = Math.sin(a) * L, bend = r.range(-3, 3);
+        s += '<path d="M0,0Q' + n1(ex * 0.5 - Math.sin(a) * bend) + "," + n1(ey * 0.5 + Math.cos(a) * bend) + " " + n1(ex) + "," + n1(ey) + '" fill="none" stroke="' + P.stem + '" stroke-width="0.45" stroke-opacity="0.85"/>';
+        var m = r.int(4, 9);
+        for (var j = 0; j < m; j++) {
+          var t = r.range(0.55, 1.1), qx = ex * t + r.range(-2.2, 2.2), qy = ey * t + r.range(-2.2, 2.2);
+          s += r.chance(0.3) ? tinyFlower(qx, qy, r.range(0.7, 1.1), col, P.accent)
+            : '<circle cx="' + n1(qx) + '" cy="' + n1(qy) + '" r="' + n1(r.range(0.55, 1.15)) + '" fill="' + col + '" fill-opacity="' + n1(r.range(0.55, 0.95)) + '"/>';
         }
       }
-    });
+      return s;
+    }
+    // a stalk with alternating leaves — a sprig of foliage
+    function leafspray() {
+      var s = '<path d="M0,0Q' + n1(U * 0.5) + "," + n1(r.range(-2, 2)) + " " + n1(U) + ',0" fill="none" stroke="' + P.stem + '" stroke-width="0.7"/>';
+      var n = r.int(3, 6);
+      for (var i = 0; i < n; i++) {
+        var t = 0.2 + 0.8 * i / n, sd = i % 2 ? 1 : -1;
+        s += leaf(U * t, 0, sd * r.range(30, 60), U * r.range(0.32, 0.5) * (1 - t * 0.35));
+      }
+      return s + leaf(U, 0, r.range(-10, 10), U * 0.4);
+    }
 
-    // ---- heroes: the big showy blossoms, a few per tall margin ----
-    function freeSpot(x0, x1, y0, y1, rad, tries, kinds, slack) {
-      for (var t = 0; t < (tries || 30); t++) {
-        var x = r.range(x0, x1), y = r.range(y0, y1);
-        if (fits(x, y, rad) && !crowded(x, y, rad, kinds, slack)) return [x, y];
+    // species → {proto builder, footprint radius at size U, tip-anchored?, layer}
+    var SP = {
+      rosette: { b: function () { return rosette(0, 0, U); }, r: 1.05, tip: false, layer: "blooms" },
+      cosmos: { b: function () { return cosmos(0, 0, U * 0.95); }, r: 1, tip: false, layer: "blooms" },
+      bell: { b: function () { return bell(0, 0, 0, U * 0.85); }, r: 0.6, tip: true, layer: "blooms" },
+      bud: { b: function () { return bud(0, 0, 0, U * 0.7); }, r: 0.42, tip: true, layer: "blooms" },
+      umbel: { b: function () { return umbel(0, 0, 0, U * 0.9); }, r: 0.65, tip: true, layer: "blooms" },
+      forgetmenot: { b: function () { return forgetmenot(0, 0, 0, U * 1.1); }, r: 0.7, tip: true, layer: "blooms" },
+      globe: { b: function () { return globe(0, 0, U * 0.42); }, r: 0.45, tip: false, layer: "blooms" },
+      berries: { b: function () { return berries(0, 0, 0, U * 0.7); }, r: 0.5, tip: true, layer: "blooms" },
+      fern: { b: function () { return fern(0, 0, 0, U * 1.3); }, r: 0.75, tip: true, layer: "leaves" },
+      tendril: { b: function () { return tendril(0, 0, r.range(-50, 50), U * 1.1) + bud(0, 0, 0, U * 0.6); }, r: 0.55, tip: true, layer: "blooms" },
+      dotspray: { b: dotspray, r: 0.62, tip: true, layer: "blooms" },
+      leafspray: { b: leafspray, r: 0.62, tip: true, layer: "leaves" },
+    };
+    // how much of its footprint each thing actually paints (for the coverage grid)
+    var SOLID = { dotspray: 0.35, umbel: 0.35, forgetmenot: 0.4, tendril: 0.35, leafspray: 0.5, fern: 0.5, berries: 0.5, bell: 0.6, bud: 0.55, globe: 0.9, rosette: 0.9, cosmos: 0.85 };
+    LEAVES.forEach(function (f) {
+      SP["leaf:" + f] = { b: function () { return leaf(0, 0, 0, U, f); }, r: 0.5, tip: true, layer: "leaves" };
+    });
+    // footprint of an instance: tip-anchored things reach out along their angle
+    function foot(sp, x, y, deg, size) {
+      var d = SP[sp], rad = d.r * size;
+      if (!d.tip) return { x: x, y: y, r: rad };
+      var a = deg / DEG;
+      return { x: x + Math.cos(a) * rad * 0.95, y: y + Math.sin(a) * rad * 0.95, r: rad };
+    }
+    // try to set a thing down; shrinks to fit the margin; returns its footprint or null
+    function put(sp, x, y, deg, size, kind, layer, allowEdge) {
+      for (var k = 0; k < 4; k++) {
+        var f = foot(sp, x, y, deg, size);
+        var ok = allowEdge ? !inText(f.x, f.y, f.r) && f.x > -f.r * 0.4 && f.x < W + f.r * 0.4 && f.y > -f.r * 0.4 && f.y < H + f.r * 0.4
+          : fits(f.x, f.y, f.r);
+        if (ok && !inText(x, y, 1)) {
+          var nv = sp.indexOf("leaf") === 0 || sp === "dotspray" || sp === "leafspray" ? 8 : 6;
+          add(layer || SP[sp].layer, y, use(lib(sp, nv, SP[sp].b), x, y, deg, size / U));
+          place(f.x, f.y, f.r, kind || "bloom", SOLID[sp] || (sp.indexOf("leaf:") === 0 ? 0.6 : 0.8));
+          return f;
+        }
+        size *= 0.75;
+        if (size < 3) break;
       }
       return null;
     }
+
+    // taste: who appears how often
+    var showy = g.species.filter(function (s) { return s === "rosette" || s === "cosmos"; });
+    var minor = g.species.filter(function (s) { return s !== "rosette" && s !== "cosmos"; });
+    if (!minor.length) minor = ["bud"];
     var heroSp = showy.length ? showy : ["rosette"];
-    var heroSize = Math.max(7, Math.min(mSide * 0.4, 46 * S));
-    [[0, mL], [box.x1, W]].forEach(function (span, side) {
-      if (span[1] - span[0] < 18) return;
-      var n = Math.max(1, Math.round(H / 1300 * g.density + r.range(-0.3, 0.6)));
+    function leafSp() { return "leaf:" + r.pick(g.leaves); }
+    function smallBloom() { return r.chance(0.07) ? r.pick(heroSp) : r.pick(minor); }
+    function anyThing() {
+      return r.pickw([[leafSp(), 3.4], ["dotspray", 3.4], [smallBloom(), 1.6], ["leafspray", 1.4], ["forgetmenot", 1], ["umbel", 0.8]]);
+    }
+
+    // ---- stems: the habit's main vines, plus companions so no stem is alone ----
+    if (habit !== "scatter" && habit !== "frame") {
+      // a thinner companion vine on each side, out of phase
+      stems.push(sideStem(-1, phase + 2.1, 0.8, r.range(0.35, 0.65)));
+      stems.push(sideStem(1, phase + 4.2, 0.8, r.range(0.35, 0.65)));
+    } else if (habit === "frame") {
+      stems.push(sideStem(-1, phase + 1.3, 1.1, 0.55));
+      stems.push(sideStem(1, phase + 2.9, 1.1, 0.45));
+    } else {
+      // scatter: no vine, but a ground of low stems along the foot
+    }
+    var stemW = Math.max(1.3, 4.2 * S);
+    stems.forEach(function (sm, si) {
+      var main = si < (habit === "twining" ? 4 : habit === "frame" ? 1 : 2);
+      var w0 = main ? stemW : stemW * 0.55, w1 = habit === "frame" && si === 0 ? w0 * 0.8 : w0 * 0.35;
+      add("stems", 0, '<path d="' + ribbon(sm, w0, w1) + '" fill="' + P.stem + '" fill-opacity="0.85"/>');
+      // the brush's second pass: a darker hairline beside the wash, and a wet highlight
+      add("stems", 0, '<path d="' + smooth(sm.filter(function (_, i) { return i % 3 === 0; }).map(function (q) {
+        return [q.x + Math.sin(q.ang) * w0 * 0.5, q.y - Math.cos(q.ang) * w0 * 0.5];
+      }), false) + '" fill="none" stroke="' + P.stem + '" stroke-opacity="0.55" stroke-width="' + n1(Math.max(0.4, w0 * 0.18)) + '"/>');
+      add("stems", 0, '<path d="' + smooth(sm.filter(function (_, i) { return i % 3 === 0; }).map(function (q) {
+        return [q.x - Math.sin(q.ang) * w0 * 0.15, q.y + Math.cos(q.ang) * w0 * 0.15];
+      }), false) + '" fill="none" stroke="#fff" stroke-opacity="0.3" stroke-width="' + n1(Math.max(0.4, w0 * 0.2)) + '"/>');
+      sm.forEach(function (q, i) { if (i % 2 === 0) place(q.x, q.y, w0 * 0.6, "stem"); });
+    });
+
+    // a branch: a curved stalk carrying leaves and blooms, which may branch again
+    function branch(x, y, deg, len, depth) {
+      var a = deg / DEG, bend = r.range(-0.35, 0.35);
+      var ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
+      var mx = x + Math.cos(a + bend) * len * 0.55, my = y + Math.sin(a + bend) * len * 0.55;
+      if (!fits(ex, ey, 2) || !fits(mx, my, 2)) {
+        len *= 0.55; ex = x + Math.cos(a) * len; ey = y + Math.sin(a) * len;
+        mx = x + Math.cos(a + bend) * len * 0.55; my = y + Math.sin(a + bend) * len * 0.55;
+        if (!fits(ex, ey, 2) || !fits(mx, my, 2)) return false;
+      }
+      var w = Math.max(0.5, stemW * (depth === 0 ? 0.42 : 0.26));
+      add("stems", y, '<path d="M' + n1(x) + "," + n1(y) + "Q" + n1(mx) + "," + n1(my) + " " + n1(ex) + "," + n1(ey) + '" fill="none" stroke="' + P.stem + '" stroke-width="' + n1(w) + '" stroke-linecap="round" stroke-opacity="0.85"/>');
+      place(mx, my, 1, "stem"); place(ex, ey, 1, "stem");
+      // things along the branch
+      var along = r.int(1, 3);
+      for (var i = 0; i < along; i++) {
+        var t = r.range(0.25, 0.85), qx = (1 - t) * (1 - t) * x + 2 * t * (1 - t) * mx + t * t * ex, qy = (1 - t) * (1 - t) * y + 2 * t * (1 - t) * my + t * t * ey;
+        var ad = deg + r.sign() * r.range(35, 75);
+        if (r.chance(0.6)) put(leafSp(), qx, qy, ad, r.range(16, 34) * S, "leaf");
+        else put(r.chance(0.6) ? "dotspray" : smallBloom(), qx, qy, ad, r.range(12, 22) * S);
+      }
+      // the tip
+      var tipDeg = deg + bend * DEG * 0.8;
+      if (depth < 2 && r.chance(0.55)) {
+        branch(ex, ey, tipDeg + r.sign() * r.range(25, 50), len * r.range(0.5, 0.75), depth + 1);
+        if (r.chance(0.5)) branch(ex, ey, tipDeg - r.sign() * r.range(25, 50), len * r.range(0.45, 0.7), depth + 1);
+      } else {
+        var sp = r.chance(0.1) ? r.pick(heroSp) : smallBloom();
+        put(sp, ex, ey, tipDeg, (sp === "rosette" || sp === "cosmos" ? r.range(13, 22) : r.range(14, 24)) * S);
+      }
+      return true;
+    }
+
+    // walk every stem by arc length, emitting something every few pixels
+    var spacing = 11 / g.density / Math.max(0.7, S);
+    stems.forEach(function (sm) {
+      var total = sm[sm.length - 1].s, k = 0, side = r.sign();
+      for (var s = r.range(2, spacing); s < total - 4; s += spacing * r.range(0.6, 1.4)) {
+        while (k < sm.length - 1 && sm[k].s < s) k++;
+        var q = sm[k], tdeg = q.ang * DEG;
+        side = r.chance(0.7) ? -side : side;
+        var ad = tdeg + side * r.range(30, 72);
+        var act = r.pickw([["leaf", 4.2], ["branch", 2.2], ["spray", 2], ["bloom", 1.2], ["pair", 1]]);
+        if (act === "leaf") put(leafSp(), q.x, q.y, ad, r.range(20, 44) * S, "leaf") || put(leafSp(), q.x, q.y, tdeg - side * r.range(30, 72), r.range(18, 36) * S, "leaf");
+        else if (act === "pair") { put(leafSp(), q.x, q.y, tdeg + 50, r.range(16, 30) * S, "leaf"); put(leafSp(), q.x, q.y, tdeg - 50, r.range(16, 30) * S, "leaf"); }
+        else if (act === "branch") branch(q.x, q.y, ad, r.range(22, 64) * S, 0) || branch(q.x, q.y, tdeg - side * r.range(30, 72), r.range(18, 44) * S, 0);
+        else if (act === "spray") put(r.chance(0.7) ? "dotspray" : "leafspray", q.x, q.y, ad, r.range(16, 30) * S);
+        else put(smallBloom(), q.x, q.y, ad, r.range(13, 22) * S);
+      }
+    });
+
+    // ---- heroes: big showy blossoms with their own leaves, allowed to spill off the page edge ----
+    var heroBase = Math.max(9, Math.min(Math.max(mL, mR) * 0.5, 62 * S));
+    function hero(x, y, sz) {
+      var sp = r.pick(heroSp);
+      // leaves behind first, fanned around
+      var nl = r.int(3, 5), a0 = r.range(0, 360);
+      for (var j = 0; j < nl; j++) put(leafSp(), x, y, a0 + j * 360 / nl + r.range(-20, 20), sz * r.range(1.1, 1.6), "leaf", "leaves", true);
+      put("bud", x, y, r.range(0, 360), sz * 0.8, "bloom", "blooms", true);
+      add("blooms", y, use(lib(sp, 6, SP[sp].b), x, y, r.range(0, 360), sz / U));
+      place(x, y, sz, "hero");
+    }
+    [[0, mL, -1], [box.x1, W, 1]].forEach(function (span) {
+      var mW = span[1] - span[0];
+      if (mW < 18) return;
+      var n = Math.max(1, Math.round(H / 520 * g.density));
       for (var i = 0; i < n; i++) {
-        var band0 = H * i / n, band1 = H * (i + 1) / n;
-        var sz = heroSize * r.range(0.82, 1.05), sp = r.pick(heroSp);
-        var spot = freeSpot(span[0] + sz * 0.6, span[1] - sz * 0.6, band0 + sz, band1 - sz, sz * 1.02, 40, ["hero", "fauna"], 1.2);
-        if (!spot) continue;
-        wrap("blooms", spot[1], sp === "cosmos" ? cosmos(spot[0], spot[1], sz) : rosette(spot[0], spot[1], sz));
-        place(spot[0], spot[1], sz, "hero");
-        // a leaf or two tucked behind the hero
-        for (var j = 0; j < 2; j++) {
-          var a = r.range(0, 360), L = sz * r.range(0.8, 1.1);
-          var lx = spot[0] + Math.cos(a / DEG) * L * 0.55, ly = spot[1] + Math.sin(a / DEG) * L * 0.55;
-          if (fits(lx, ly, L * 0.35)) layers.leaves.push((animated ? '<g class="fb" style="--o:' + order(spot[1]).toFixed(3) + '">' : "<g>") + leaf(spot[0], spot[1], a, L) + "</g>");
+        var sz = heroBase * r.range(0.7, 1.05);
+        for (var t = 0; t < 30; t++) {
+          // centre may sit past the outer page edge by a third of the bloom
+          var x = span[2] < 0 ? r.range(-sz * 0.3, mW - sz - gap) : r.range(box.x1 + gap + sz, W + sz * 0.3);
+          var y = r.range(H * i / n, H * (i + 1) / n);
+          if (inText(x, y, sz) || y < -sz * 0.3 || y > H + sz * 0.3 || crowdedK(x, y, sz, ["hero"], 1.05) || crowdedK(x, y, sz, ["fauna"], 1)) continue;
+          hero(x, y, sz); break;
+        }
+      }
+    });
+    // and a couple for the head and foot strips, when they are deep enough
+    [[0, mT], [box.y1, H]].forEach(function (span) {
+      var mH = span[1] - span[0];
+      if (mH < 50) return;
+      var n = Math.max(1, Math.round((box.x1 - box.x0) / 260 * g.density));
+      for (var i = 0; i < n; i++) {
+        var sz = Math.min(heroBase, mH * 0.42) * r.range(0.7, 1);
+        for (var t = 0; t < 20; t++) {
+          var x = r.range(box.x0 + (box.x1 - box.x0) * i / n, box.x0 + (box.x1 - box.x0) * (i + 1) / n), y = r.range(span[0], span[1]);
+          if (!fits(x, y, sz * 1.02) || crowdedK(x, y, sz, ["hero"], 1.05)) continue;
+          hero(x, y, sz); break;
         }
       }
     });
 
-    // ---- sprigs: free-standing little plants (all of scatter; edges of the rest) ----
-    var lush = g.habit === "scatter"; // with no main stem the sprigs carry the page
-    function sprig(x, y, deg) {
-      var len = r.range(18, 44) * S * (lush ? 1.25 : 1);
-      var sp = lush && r.chance(0.3) && showy.length ? r.pick(showy) : pickSpecies();
-      var size = r.range(8, 13) * S * (lush ? 1.25 : 1);
-      var a = deg / DEG, ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
-      var b = bloomAt(ex, ey, deg, size, sp), rc = reach(b, ex, ey, deg, size);
-      if (!fits(x, y, 2) || !fits(ex, ey, 2) || !fits(rc.x, rc.y, rc.r) || crowded(rc.x, rc.y, rc.r, ["bloom", "hero", "fauna", "sprig"], 0.9)) return false;
-      var mid = [x + Math.cos(a + r.range(-0.4, 0.4)) * len * 0.5, y + Math.sin(a + r.range(-0.4, 0.4)) * len * 0.5];
-      var bs = resample([[x, y], mid, [ex, ey]], 7);
-      var s = '<path d="' + ribbon(bs, Math.max(0.7, (lush ? 2.2 : 1.6) * S), 0.5) + '" fill="' + P.stem + '" fill-opacity="0.8"/>';
-      var nl = lush ? r.int(1, 3) : 1;
-      for (var li = 0; li < nl; li++) {
-        var lm = bs[Math.floor(bs.length * (0.25 + 0.5 * li / nl))], la = lm.ang * DEG + (li % 2 ? -1 : 1) * r.range(35, 65), LL = r.range(8, 14) * S * (lush ? 1.2 : 1);
-        if (fits(lm.x + Math.cos(la / DEG) * LL * 0.6, lm.y + Math.sin(la / DEG) * LL * 0.6, LL * 0.4)) s += leaf(lm.x, lm.y, la, LL);
+    // ---- the foot garden: plants rising from the bottom edge (and, smaller, hanging from the top) ----
+    if (mB > 40) {
+      for (var gx = r.range(10, 40); gx < W - 10; gx += r.range(34, 70) * Math.max(0.7, S)) {
+        branch(gx, H - r.range(2, mB * 0.2), -90 + r.range(-35, 35), Math.min(mB * r.range(0.55, 0.95), 120 * S), 0);
       }
-      wrap("leaves", y, s);
-      wrap(b.layer, ey, b.svg);
-      place(rc.x, rc.y, rc.r, "sprig");
-      return true;
     }
-    var regions = [
-      { x0: 0, x1: mL, y0: 0, y1: H, dir: function () { return -90 + r.range(-40, 40); } },
-      { x0: box.x1, x1: W, y0: 0, y1: H, dir: function () { return -90 + r.range(-40, 40); } },
-      { x0: mL, x1: box.x1, y0: 0, y1: mT, dir: function () { return r.chance(0.5) ? r.range(-20, 20) : 180 + r.range(-20, 20); } },
-      { x0: mL, x1: box.x1, y0: box.y1, y1: H, dir: function () { return -90 + r.range(-50, 50); } },
-    ];
-    regions.forEach(function (rg) {
-      var area = Math.max(0, rg.x1 - rg.x0) * Math.max(0, rg.y1 - rg.y0);
-      var want = g.habit === "scatter" ? area / (1500 / g.density) / Math.max(0.5, S * S) : area / 9000 * g.density;
-      if (rg.y1 - rg.y0 < 14 || rg.x1 - rg.x0 < 14) return;
-      for (var i = 0, got = 0; i < want * 3 && got < want; i++) {
-        var x = r.range(rg.x0, rg.x1), y = r.range(rg.y0, rg.y1);
-        if (sprig(x, y, rg.dir())) got++;
+    if (mT > 50) {
+      for (var tx = r.range(20, 60); tx < W - 20; tx += r.range(60, 120) * Math.max(0.7, S)) {
+        branch(tx, r.range(2, mT * 0.25), 90 + r.range(-50, 50), mT * r.range(0.4, 0.7), 1);
       }
-    });
-
-    // ---- forget-me-not dust + sparkles in the gaps ----
-    var dust = Math.round((2 * H * Math.max(mL, 10) + 2 * W * Math.max(mT, 10)) / 2600 * g.density);
-    for (var di = 0, dg = 0; di < dust * 3 && dg < dust; di++) {
-      var spt = freeSpot(0, W, 0, H, 3 * S, 1, ["bloom", "hero", "fauna", "dust", "sprig"], 1);
-      if (!spt) continue;
-      var dot = Math.max(0.9, 2.1 * S);
-      wrap("blooms", spt[1], tinyFlower(spt[0], spt[1], dot, P.small, P.accent));
-      place(spt[0], spt[1], dot * 2, "dust"); dg++;
+    }
+    // scatter has no vine: sprigs rise all down the side margins instead
+    if (habit === "scatter") {
+      [[0, mL], [box.x1, W]].forEach(function (span) {
+        for (var y = r.range(10, 40); y < H; y += r.range(26, 48) * Math.max(0.7, S)) {
+          branch(r.range(span[0] + 4, span[1] - 4), y, -90 + r.range(-55, 55), r.range(20, 50) * S, 0);
+        }
+      });
     }
 
-    // ---- fauna ----
-    function faunaCount(per) { return Math.max(1, Math.round(H / per)); }
+    // ---- fauna, before the fill so the fill tucks in around them ----
     if (g.fauna.bird && mSide > 26) {
-      var nb = faunaCount(1700), placedB = 0;
-      for (var bi = 0; bi < 60 && placedB < nb; bi++) {
-        var sm = stems.length ? r.pick(stems) : null, bx, by;
-        if (sm) { var qq = sm[r.int(0, sm.length - 1)]; bx = qq.x; by = qq.y - 9 * S; }
-        else { var fs = freeSpot(0, W, 0, H, 14 * S, 1); if (!fs) continue; bx = fs[0]; by = fs[1]; }
-        var bsz = Math.min(26 * S, mSide * 0.42);
-        if (!fits(bx, by, bsz * 0.7) || crowded(bx, by, bsz * 0.8, ["hero", "fauna"], 1)) continue;
-        wrap("fauna", by, bird(bx, by, (bx < W / 2) ? 1 : -1, bsz));
+      var nb = Math.max(1, Math.round(H / 1000)), placedB = 0;
+      for (var bi = 0; bi < 80 && placedB < nb; bi++) {
+        var bsz = Math.min(30 * S, mSide * 0.48), bx, by;
+        if (stems.length) { var sm = r.pick(stems), qq = sm[r.int(0, sm.length - 1)]; bx = qq.x; by = qq.y - bsz * 0.36; }
+        else { bx = r.range(0, W); by = r.range(0, H); }
+        if (!fits(bx, by, bsz * 0.75) || crowdedK(bx, by, bsz * 0.8, ["hero", "fauna"], 1)) continue;
+        add("fauna", by, bird(bx, by, bx < W / 2 ? 1 : -1, bsz));
         place(bx, by, bsz * 0.8, "fauna"); placedB++;
       }
     }
-    [["butterfly", 1100, false], ["moth", 2200, true]].forEach(function (f) {
+    [["butterfly", 520, false], ["moth", 1300, true]].forEach(function (f) {
       if (!g.fauna[f[0]] || mSide < 22) return;
-      var nf = faunaCount(f[1]), got = 0;
-      for (var i = 0; i < 80 && got < nf; i++) {
-        var fsz = Math.min(15 * S, mSide * 0.25) * r.range(0.8, 1.15);
-        var sp2 = freeSpot(0, W, 0, H, fsz * 1.1, 1, ["hero", "fauna", "bloom"], 1);
-        if (!sp2) continue;
-        wrap("fauna", sp2[1], butterfly(sp2[0], sp2[1], r.range(-35, 35), fsz, f[2]));
-        place(sp2[0], sp2[1], fsz * 1.1, "fauna"); got++;
+      var nf = Math.max(1, Math.round(H / f[1])), got = 0;
+      for (var i = 0; i < 120 && got < nf; i++) {
+        var fsz = Math.min(17 * S, mSide * 0.28) * r.range(0.8, 1.2), x = r.range(0, W), y = r.range(0, H);
+        if (!fits(x, y, fsz * 1.1) || crowdedK(x, y, fsz * 1.1, ["hero", "fauna"], 1)) continue;
+        add("fauna", y, butterfly(x, y, r.range(-35, 35), fsz, f[2]));
+        place(x, y, fsz * 1.1, "fauna"); got++;
       }
     });
+    if (g.ornaments.plates && mSide > 34) {
+      var npl = Math.max(1, Math.round(H / 1100));
+      counts.plate = 0;
+      for (var pi = 0; pi < 60 && counts.plate < npl; pi++) {
+        var pw = Math.min(24 * S, mSide * 0.3), x = r.range(0, W), y = r.range(0, H);
+        if (!fits(x, y, pw) || crowdedK(x, y, pw, ["hero", "fauna", "plate"], 1.2)) continue;
+        add("fauna", y, plate(x, y, pw));
+        place(x, y, pw, "plate");
+      }
+    }
 
-    // ---- ornaments ----
+    // ---- the fill: keep planting into bare margin until it is painted ----
+    // not wall-to-wall: the paper should still breathe between the sprays
+    var target = Math.min(0.85, 0.6 + 0.14 * g.density);
+    var order2 = marginCells.slice();
+    for (var oi = order2.length - 1; oi > 0; oi--) { var oj = Math.floor(r.f() * (oi + 1)), tmp = order2[oi]; order2[oi] = order2[oj]; order2[oj] = tmp; }
+    var covered = Math.round(coverage() * marginCells.length), want2 = target * marginCells.length;
+    for (var pass = 0; pass < 1; pass++) {
+      for (var ci = 0; ci < order2.length && covered < want2; ci++) {
+        var cell = order2[ci];
+        if (cov[cell]) continue;
+        if (ci % 40 === 0) covered = Math.round(coverage() * marginCells.length);
+        var fx = (cell % gw + r.range(0.1, 0.9)) * CELL, fy = (Math.floor(cell / gw) + r.range(0.1, 0.9)) * CELL;
+        var sp2 = anyThing();
+        var sz2 = (sp2.indexOf("leaf:") === 0 ? r.range(14, 32) : r.range(12, 26)) * Math.max(0.6, S);
+        // anchor slightly behind the bare cell so the thing reaches into it
+        var dg = r.range(0, 360);
+        if (!put(sp2, fx - Math.cos(dg / DEG) * sz2 * 0.4, fy - Math.sin(dg / DEG) * sz2 * 0.4, dg, sz2, "fill")) {
+          if (!put("dotspray", fx, fy, dg, sz2 * 0.7, "fill")) cov[cell] = 1; // too tight for anything: leave it to the paper
+        }
+      }
+    }
+
+    // ---- ornaments on top of nothing: gilt sparkles, guide rules ----
     if (g.ornaments.guide && mSide > 30) {
       [3.5, W - 3.5].forEach(function (gx) {
-        layers.back.push('<line x1="' + gx + '" y1="' + n1(mT * 0.6) + '" x2="' + gx + '" y2="' + n1(H - mB * 0.6) + '" stroke="' + P.accent + '" stroke-width="0.5" stroke-dasharray="1 3" stroke-opacity="0.8"/>');
-        for (var y = mT + r.range(40, 140); y < H - mB; y += r.range(120, 260)) {
-          layers.back.push(r.chance(0.5)
-            ? '<path d="M' + gx + "," + n1(y - 5) + " L" + n1(gx + 2.6) + "," + n1(y) + " L" + gx + "," + n1(y + 5) + " L" + n1(gx - 2.6) + "," + n1(y) + 'Z" fill="none" stroke="' + P.accent + '" stroke-width="0.7"/>'
+        add("back", 0, '<line x1="' + gx + '" y1="' + n1(Math.max(4, mT * 0.4)) + '" x2="' + gx + '" y2="' + n1(H - Math.max(4, mB * 0.4)) + '" stroke="' + P.accent + '" stroke-width="0.5" stroke-dasharray="1 3" stroke-opacity="0.8"/>');
+        for (var y = r.range(40, 140); y < H - 20; y += r.range(110, 220)) {
+          add("back", y, r.chance(0.5)
+            ? '<path d="M' + gx + "," + n1(y - 5) + " L" + n1(gx + 2.6) + "," + n1(y) + " L" + gx + "," + n1(y + 5) + " L" + n1(gx - 2.6) + "," + n1(y) + 'Z" fill="#fff" stroke="' + P.accent + '" stroke-width="0.7"/>'
             : '<path d="M' + gx + "," + n1(y - 5) + " L" + gx + "," + n1(y + 5) + " M" + n1(gx - 2.5) + "," + n1(y - 1.5) + " L" + n1(gx + 2.5) + "," + n1(y - 1.5) + '" stroke="' + P.accent + '" stroke-width="0.6"/>');
         }
       });
     }
     if (g.ornaments.sparkles) {
-      var ns = Math.round(H / 60 * g.density);
-      for (var si2 = 0; si2 < ns * 2; si2++) {
-        var ss = r.range(1.6, 4.2) * Math.max(0.6, S);
-        var sp3 = freeSpot(0, W, 0, H, ss, 1, ["hero", "fauna", "bloom"], 1);
-        if (!sp3) continue;
-        layers.back.push(sparkle(sp3[0], sp3[1], ss, P.accent));
-        if (si2 > ns) break;
-      }
-    }
-    if (g.ornaments.plates && mSide > 34) {
-      counts.plate = 0;
-      var npl = Math.max(1, Math.round(H / 2600));
-      for (var pi = 0; pi < 40 && counts.plate < npl * 2; pi++) {
-        var pw = Math.min(22 * S, mSide * 0.3);
-        var spp = freeSpot(0, W, 0, H, pw, 1, ["hero", "fauna", "bloom", "plate"], 1.2);
-        if (!spp) continue;
-        layers.fauna.push(plate(spp[0], spp[1], pw));
-        place(spp[0], spp[1], pw, "plate");
+      var ns = Math.round(marginCells.length * CELL * CELL / 2400 * g.density);
+      for (var k2 = 0; k2 < ns; k2++) {
+        var c2 = marginCells[r.int(0, marginCells.length - 1)], sx = (c2 % gw + r.f()) * CELL, sy = (Math.floor(c2 / gw) + r.f()) * CELL, ss = r.range(1.4, 4.2) * Math.max(0.6, S);
+        if (!fits(sx, sy, ss)) continue;
+        add("fauna", sy, r.chance(0.75) ? sparkle(sx, sy, ss, P.accent) : '<circle cx="' + n1(sx) + '" cy="' + n1(sy) + '" r="' + n1(ss * 0.3) + '" fill="' + P.accent + '"/>');
       }
     }
 
+    // ---- assemble ----
+    function layer(name, off) {
+      var keys = Object.keys(bands[name]).map(Number).sort(function (a, b) { return a - b; });
+      return '<g class="f-' + name + '">' + keys.map(function (b) {
+        var inner = bands[name][b].join("");
+        return animated ? '<g class="fb" style="--o:' + Math.min(1, b * BAND / H + off).toFixed(3) + '">' + inner + "</g>" : inner;
+      }).join("") + "</g>";
+    }
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" class="flora" viewBox="0 0 ' + n1(W) + " " + n1(H) + '" width="' + n1(W) + '" height="' + n1(H) + '" aria-hidden="true">' +
       "<defs>" + defs.join("") + "</defs>" +
-      '<g class="f-back">' + layers.back.join("") + "</g>" +
-      '<g class="f-stems">' + layers.stems.join("") + "</g>" +
-      '<g class="f-leaves">' + layers.leaves.join("") + "</g>" +
-      '<g class="f-blooms">' + layers.blooms.join("") + "</g>" +
-      '<g class="f-fauna">' + layers.fauna.join("") + "</g>" +
+      layer("back", 0) + layer("stems", 0) + layer("leaves", 0.03) + layer("blooms", 0.06) + layer("fauna", 0.09) +
       "</svg>";
-    return { svg: svg, items: items, counts: counts, genome: g, scale: S };
+    // tiles (opts.tile = px): the same garden cut into horizontal SVGs, so a
+    // page can insert them one at a time and paint its text first. Tile 0
+    // carries the <defs> and the whole-length vines (it overflows visibly);
+    // every band lives in the tile its top falls in.
+    var tiles = null;
+    if (opts.tile) {
+      var T = Math.max(BAND, Math.round(opts.tile / BAND) * BAND), nT = Math.ceil(H / T);
+      tiles = [];
+      for (var ti = 0; ti < nT; ti++) {
+        var y0 = ti * T, h0 = Math.min(T, H - y0), parts = "";
+        ["back", "stems", "leaves", "blooms", "fauna"].forEach(function (name, li) {
+          var off = [0, 0, 0.03, 0.06, 0.09][li], inner = "";
+          Object.keys(bands[name]).map(Number).sort(function (a, b) { return a - b; }).forEach(function (b) {
+            if (b * BAND < y0 || b * BAND >= y0 + T) return;
+            var body = bands[name][b].join("");
+            inner += animated ? '<g class="fb" style="--o:' + Math.min(1, b * BAND / H + off).toFixed(3) + '">' + body + "</g>" : body;
+          });
+          if (inner) parts += '<g class="f-' + name + '">' + inner + "</g>";
+        });
+        tiles.push({ y: y0, h: h0, svg: '<svg xmlns="http://www.w3.org/2000/svg" class="flora tile" viewBox="0 ' + n1(y0) + " " + n1(W) + " " + n1(h0) + '" width="' + n1(W) + '" height="' + n1(h0) + '" overflow="visible" style="top:' + n1(y0) + 'px" aria-hidden="true">' +
+          (ti === 0 ? "<defs>" + defs.join("") + "</defs>" : "") + parts + "</svg>" });
+      }
+    }
+    return { svg: svg, tiles: tiles, items: items, counts: counts, genome: g, scale: S, coverage: coverage() };
   }
+
 
   F.PALETTES = PALETTES;
   F.HABITS = HABITS;

@@ -52,6 +52,17 @@ for (const [name, page] of Object.entries(PAGES)) {
   }
 }
 
+// tiles: the same garden cut into page-sized SVGs; defs only in tile 0
+{
+  const page = PAGES.monograph, out = F.grow(F.genome("9.r2", "9"), page, { tile: 1100 });
+  ok(out.tiles && out.tiles.length === Math.ceil(page.height / 1120), `tiles cover a monograph (${out.tiles && out.tiles.length})`);
+  ok(out.tiles[0].svg.includes("<defs>") && out.tiles.slice(1).every((t) => !t.svg.includes("<defs>")), "defs live in tile 0 only");
+  const uses = (s) => (s.match(/<use /g) || []).length;
+  ok(out.tiles.reduce((n, t) => n + uses(t.svg), 0) === uses(out.svg), "tiles carry every instance exactly once");
+  const flat = F.grow(F.genome("9.r2", "9"), PAGES.print, { inline: true, flat: true }).svg;
+  ok(!/<use |url\(#/.test(flat), "inline+flat output has no references");
+}
+
 // 4. range
 const pal = new Set(), hab = new Set(), sp = new Set();
 for (let i = 0; i < 400; i++) { const g = F.genome(`${i}.f`, String(i)); pal.add(g.palette.id); hab.add(g.habit); g.species.forEach((s) => sp.add(s)); }

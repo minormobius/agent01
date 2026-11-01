@@ -41,23 +41,39 @@ SVG string, so node tests it and the worker serves it.
   sparkles/guide rules/star plates. Each gets a Latin binomial (`Indigofera serpens
   var. symmetrica`). **Adding an axis = a new entry in the tables at the top of the
   file**; the selftest's range check will insist it actually turns up.
-- **Layout** — `grow(genome, {width, height, box})`. `box` is the TEXT BLOCK; nothing
+- **Layout** — `grow(genome, {width, height, box}, opts)`. `box` is the TEXT BLOCK; nothing
   placed may enter it (the selftest checks every footprint on four page shapes).
-  Stems by habit → walk by arc length emitting leaves/branches/blooms → heroes →
-  sprigs in free margin → forget-me-not dust → fauna → ornaments.
+  Order: habit vines + a companion vine per side (ribbon + hairline + wet highlight) →
+  walk each by arc length every ~11px (big leaves, recursive `branch()` up to depth 2
+  carrying leaves/sprays/blooms, dot-sprays, blooms) → **heroes** (~1 per 520px per side,
+  with fanned leaves + bud; may spill past the page edge, never into text) → head/foot
+  gardens (plants rising from the bottom edge, hanging from the top) → fauna/plates →
+  **the fill**: a 9px coverage grid over the margins; random bare cells get planted until
+  ~70–85% is painted (`SOLID` says how much of its footprint each species really paints —
+  wiry sprays count for little). The density was raised ~10× on 2026-11-01 at the
+  operator's request ("10% the requisite density and ornate"): the look to hold is a thicket
+  with some paper breathing through, big saturated leaves (a third borrow the bloom inks),
+  few showy heroes, texture from leaves and dot-sprays.
 - **Paint** — watercolour baked into geometry: wobbled outlines, base→tip gradient
-  washes, darkened edge, translucent inner streak, vein. Blades are **instanced**: 8
-  wobbled prototypes per form in `<defs>`, each leaf/petal a scaled `<use>` (cut
-  markup ~4×; a normal paper's margin is ~0.8 MB of SVG). Keep it that way — paths
-  per blade are what makes it heavy.
-- **On the page** — `paper.html` inserts the SVG as the sheet's first child at
-  `z-index:-1` (the sheet is its own stacking context), regrows on resize, animates
-  the growth top-down (off under reduced-motion). `❀ margins` toggles (localStorage
-  `wormhole-flora`). **Print**: a separate Letter-page frame sits in
-  `.print-frame` with `position:fixed`, which Chrome repeats on every printed page;
-  that only works with zero horizontal `@page` margin, so the page rule is swapped
-  in by script (`#pageRule`) and the sheet takes 104px side padding instead.
-  The sheet must be transparent in print or it covers the frame.
+  washes, darkened edge, translucent inner streak, white granulation flecks, vein.
+  **Instancing**: every species/leaf/spray is built ~6–8 times as a prototype `<g>` in
+  `<defs>` and stamped with `<use>` (~100 bytes each; a page carries 3–7k things in
+  ~0.5–1 MB). Prototypes contain *real paths, never nested `<use>`* — nesting made Chrome
+  clone tens of thousands of shadow trees (1.5 s first paint; flat is ~0.6 s).
+- **Tiles** — `opts.tile: px` also returns `tiles[]`: the garden cut into horizontal SVGs
+  (defs + full-length vines in tile 0, overflow visible). `paper.html` inserts them one per
+  frame so the text paints first. Growth animation: bands (140px per layer) fade up
+  top-down, stems first; off under reduced-motion. `opts.inline` / `opts.flat` drop
+  `<use>` / gradients for consumers that can't resolve references.
+- **On the page** — `paper.html` inserts the tiles behind the text (`z-index:-1`; the
+  sheet is its own stacking context, `overflow:hidden` clips the garden at the paper edge),
+  regrows on resize. Sheet margins are 160px sides / 110 top / 170 bottom (46px on phones).
+  `❀ margins` toggles (localStorage `wormhole-flora`). **Print**: `.print-frame` holds one
+  Letter page of garden as an **`<img>` of the SVG**, `position:fixed`, which Chrome repeats
+  on every printed page. It must be an image: inline SVG in a repeated fixed element lost
+  everything inside nested groups past page 1 (only bare paths survived). Needs zero
+  horizontal `@page` margin, so the page rule is swapped in by script (`#pageRule`) and the
+  sheet takes 128px side padding; the sheet must be transparent in print or it covers the frame.
 - **/flora** (`flora.html`) — the herbarium: one specimen sheet + six neighbours
   (three from the same field, three from elsewhere), ink/habit dials, `#<paperId>`
   permalinks. **`GET /api/flora?id=&field=&w=&h=&margin=&ink=&habit=`** returns the

@@ -136,35 +136,48 @@
   // ---- the marginalia: a seeded garden in the margins (flora.js) ----
   // biome = the field, so a field's papers share inks and species;
   // specimen = the paper id, so each paper is its own arrangement, for ever.
-  var FL = window.WORMHOLE_FLORA, current = null, lastDims = "";
+  var FL = window.WORMHOLE_FLORA, current = null, lastDims = "", growGen = 0;
   var floraOn = (function () { try { return localStorage.getItem("wormhole-flora") !== "off"; } catch (e) { return true; } })();
   var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   function floraGenome(p) { return FL.genome(p.id, p.fieldSeed); }
   function growMargins(animate) {
-    var sheet = $("sheet"), old = sheet.querySelector("svg.flora");
-    if (old) old.remove();
+    var sheet = $("sheet");
+    sheet.querySelectorAll("svg.flora").forEach(function (el) { el.remove(); });
+    var gen = ++growGen;
     $("flora").classList.toggle("on", floraOn);
     var on = !!(FL && current && floraOn);
     document.body.classList.toggle("has-flora", on);
     // @page can't be conditioned on a class, so swap the rule itself
     var pr = $("pageRule") || document.head.appendChild(Object.assign(document.createElement("style"), { id: "pageRule" }));
     pr.textContent = on ? "@media print { @page { size: letter; margin: 14mm 0; } }" : "";
-    if (!on) { $("printFrame").innerHTML = ""; lastDims = ""; return; }
+    if (!on) { $("printFrame").innerHTML = ""; lastDims = ""; growGen++; return; }
     var cs = getComputedStyle(sheet), W = sheet.offsetWidth, H = sheet.offsetHeight;
     var box = { x0: parseFloat(cs.paddingLeft), y0: parseFloat(cs.paddingTop),
       x1: W - parseFloat(cs.paddingRight), y1: H - parseFloat(cs.paddingBottom) };
     var g = floraGenome(current);
-    var out = FL.grow(g, { width: W, height: H, box: box }, { animate: animate && !reduceMotion, idPrefix: "s" });
-    sheet.insertAdjacentHTML("afterbegin", out.svg);
+    var anim = animate && !reduceMotion;
+    var out = FL.grow(g, { width: W, height: H, box: box }, { animate: anim, idPrefix: "s", tile: 1100 });
     lastDims = W + "x" + H;
-    var svg = sheet.querySelector("svg.flora");
-    svg.setAttribute("data-name", out.genome.name);
-    if (animate && !reduceMotion) { svg.classList.add("growing"); setTimeout(function () { svg.classList.remove("growing"); }, 4200); }
+    sheet.setAttribute("data-flora", out.genome.name);
+    // insert tile by tile, top first, yielding between them: the text paints
+    // at once and the garden grows in down the page
+    var i = 0;
+    (function next() {
+      if (gen !== growGen || i >= out.tiles.length) return;
+      var t = out.tiles[i++];
+      sheet.insertAdjacentHTML("afterbegin", t.svg);
+      var el = sheet.firstElementChild;
+      if (anim) { el.classList.add("growing"); setTimeout(function () { el.classList.remove("growing"); }, 4200); }
+      setTimeout(next, 16);
+    })();
     // the print frame: one Letter page's worth of margin, repeated on every
     // printed page (position:fixed repeats per page in print)
-    var pw = 816, ph = 1056 - 2 * 53, side = 104;
-    $("printFrame").innerHTML = FL.grow(g, { width: pw, height: ph, box: { x0: side, y0: -20, x1: pw - side, y1: ph + 20 } },
+    var pw = 816, ph = 1056 - 2 * 53, side = 128;
+    // as one <img>: Chrome repeats a fixed element on every printed page but,
+    // past page 1, drops the nested groups of an inline SVG; an image survives
+    var frame = FL.grow(g, { width: pw, height: ph, box: { x0: side, y0: -20, x1: pw - side, y1: ph + 20 } },
       { animate: false, idPrefix: "pr" }).svg;
+    $("printFrame").innerHTML = '<img alt="" width="' + pw + '" height="' + ph + '" src="data:image/svg+xml;charset=utf-8,' + encodeURIComponent(frame) + '">';
   }
   if (window.ResizeObserver) {
     var rt = null;
