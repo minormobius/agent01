@@ -39,6 +39,8 @@ jobs:
         run: node paper.selftest.mjs
       - name: Flora selftest (marginalia stay out of the text; determinism; range)
         run: node flora.selftest.mjs
+      - name: Serpent selftest (serpents stay out of the text; heads; range; the kind dispatcher)
+        run: node serpent.selftest.mjs
       - name: Worker import order (the deploy fails at upload if this is wrong)
         run: node worker-imports.selftest.mjs
       - name: Install wrangler

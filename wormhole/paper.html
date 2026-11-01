@@ -34,6 +34,8 @@
 <script src="/analysis.js"></script>
 <script src="/paper.js"></script>
 <script src="/flora.js"></script>
+<script src="/serpent.js"></script>
+<script src="/margins.js"></script>
 <script>
 (function () {
   "use strict";
@@ -136,7 +138,8 @@
   // ---- the marginalia: a seeded garden in the margins (flora.js) ----
   // biome = the field, so a field's papers share inks and species;
   // specimen = the paper id, so each paper is its own arrangement, for ever.
-  var FL = window.WORMHOLE_FLORA, current = null, lastDims = "", growGen = 0;
+  // FL is the margins dispatcher: each paper gets flora or serpents by a seeded coin
+  var FL = window.WORMHOLE_MARGINS, current = null, lastDims = "", growGen = 0;
   var floraOn = (function () { try { return localStorage.getItem("wormhole-flora") !== "off"; } catch (e) { return true; } })();
   var reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   function floraGenome(p) { return FL.genome(p.id, p.fieldSeed); }
@@ -159,6 +162,7 @@
     var out = FL.grow(g, { width: W, height: H, box: box }, { animate: anim, idPrefix: "s", tile: 1100 });
     lastDims = W + "x" + H;
     sheet.setAttribute("data-flora", out.genome.name);
+    $("herbarium").setAttribute("href", "/flora#" + encodeURIComponent(current.id)); // this paper's specimen
     // insert tile by tile, top first, yielding between them: the text paints
     // at once and the garden grows in down the page
     var i = 0;

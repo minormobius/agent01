@@ -1113,4 +1113,8 @@
   F.genome = genome;
   F.describe = describe;
   F.grow = grow;
+  F.kind = "flora";
+  // the geometry core, shared with the other margin engines (serpent.js)
+  F.core = { Rand: Rand, xmur3: xmur3, n1: n1, pt: pt, smooth: smooth, blob: blob, blade: blade,
+    scalePts: scalePts, resample: resample, ribbon: ribbon, PROFILES: PROFILES };
 })();

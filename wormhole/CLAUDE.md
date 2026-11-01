@@ -76,9 +76,50 @@ SVG string, so node tests it and the worker serves it.
   sheet takes 128px side padding; the sheet must be transparent in print or it covers the frame.
 - **/flora** (`flora.html`) — the herbarium: one specimen sheet + six neighbours
   (three from the same field, three from elsewhere), ink/habit dials, `#<paperId>`
-  permalinks. **`GET /api/flora?id=&field=&w=&h=&margin=&ink=&habit=`** returns the
-  SVG (`&format=json` → the description).
+  permalinks; a kind dial (flora / serpents) and dials that follow the kind showing.
+  **`GET /api/flora?id=&field=&kind=&w=&h=&margin=&ink=&pattern=&habit=`** returns the
+  SVG for the paper's own kind unless `kind` forces one (`&format=json` → the description).
 - Gate: `node flora.selftest.mjs` (in the deploy workflow).
+
+## Marginalia — `serpent.js` (the second engine) and `margins.js` (the dispatcher)
+
+**`margins.js`** picks each paper's margin kind by a seeded coin on the paper id
+(`kindOf(id)`, 50/50 today) and owns the shared contract: `genome(id, field, overrides,
+kind?)` stamps `g.kind`; `engine(g)`, `grow`, `describe` dispatch. `paper.html`, the
+herbarium and `/api/flora` all go through it. A third engine = a file with the same
+contract + one entry in `ENGINES`/`KINDS`. Load order: flora.js → serpent.js → margins.js.
+
+**`serpent.js`** — the Garden after the fall (operator's brief, 2026-11-01: "beguiling
+and, dare I say, sexy… the content of the paper is the fruit of the forbidden tree…
+a big emphasis on the patterning of the scales"). It borrows flora's geometry core
+(`WORMHOLE_FLORA.core`).
+- **Genome**: biome (field) → skin (8: emerald, coral, obsidian*, golden python, sand
+  viper, rose, midnight*, jade & gold; *iridescent-capable), fruit (apples, golden apples,
+  pomegranates, figs), leaf ink, bark; specimen (paper) → scale pattern (8: diamondback,
+  tricolour bands, reticulated net, saddles, stripes, dorsal zigzag, eyespots,
+  iridescent), rows (7/9), viper/slender head, habit (entwined / coiled / slithering),
+  sheen, girth. Binomial e.g. `Jadeophis reticulatus var. spiralis`.
+- **The tree**: gnarled trunks up both side margins (bark ribbon + dashed fissures +
+  highlight), twigs with leaves, hanging fruit, blossom; the trunks keep a coil's swing
+  + a body's width clear of text and page edge (else the helix flattens into a seam).
+- **The skin is the point**: scales on a diamond lattice in body coords (u along, v
+  across), mapped with round foreshortening `sin(v·π/2)`, coloured by `makePattern()`
+  (u,v) → (palette index, lightness), shaded per scale (rim dark, specular band on the lit
+  side — light from upper left — quantised to 8 levels), and **batched: one `<path>` per
+  colour per ~70px body chunk**. Then a wet specular streak, and a hairline on the flanks
+  only (never across chunk ends — that seams the body).
+- **Entwined**: the spine is a helix about a stretch of trunk; chunks split where the
+  depth flips and go to `snakeBack` (shadowed, under the bark) or `snake` (over it).
+  Every serpent ends with `exitPath()`: it leaves along its own heading and comes to rest
+  just off the text edge pointing *into* it (or below it, heading up, for the foot coil),
+  tongue out. Head: top-down outline (viper = broad), crown arrowhead, gold iris with a
+  slit pupil and glint, brow ridges, nostrils; the tongue is `<g class="tongue">`, which
+  CSS flicks (`paper.css` / `flora.html`; off under reduced-motion).
+- **Text safety**: body samples crowding the text are pushed out by the smallest move
+  that stays on the page; footprints for every body sample, head and tongue are checked by
+  `serpent.selftest.mjs` on four page shapes (in the deploy workflow).
+- Weight: ~1–2 MB of SVG for a long paper, but it is generated in the browser (parse
+  ~80 ms) — only `/api/flora` ships it over the wire.
 
 ## Deploying
 

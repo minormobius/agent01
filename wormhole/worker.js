@@ -22,10 +22,12 @@ import "./genome.js";
 import "./analysis.js";
 import "./paper.js";
 import "./flora.js";
+import "./serpent.js";
+import "./margins.js";
 const W = globalThis.WORMHOLE;
 const PAPER = globalThis.WORMHOLE_PAPER;
 const GENOME = globalThis.WORMHOLE_GENOME;
-const FLORA = globalThis.WORMHOLE_FLORA;
+const MARGINS = globalThis.WORMHOLE_MARGINS;
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -86,9 +88,11 @@ export default {
       const clamp = (v, lo, hi, d) => { const n = v == null || v === "" ? NaN : Number(v); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : d; };
       const w = clamp(url.searchParams.get("w"), 200, 4000, 816), h = clamp(url.searchParams.get("h"), 200, 12000, 1056);
       const m = clamp(url.searchParams.get("margin"), 20, Math.min(w, h) / 3, Math.round(w * 0.16));
-      const g = FLORA.genome(id, field, { palette: url.searchParams.get("ink"), habit: url.searchParams.get("habit") });
-      if (url.searchParams.get("format") === "json") return json({ ...FLORA.describe(g), id, field });
-      const out = FLORA.grow(g, { width: w, height: h, box: { x0: m, y0: m * 0.8, x1: w - m, y1: h - m * 0.8 } }, { animate: false, idPrefix: "a" });
+      // the paper's own kind (flora or serpent) unless &kind= forces one
+      const ink = url.searchParams.get("ink");
+      const g = MARGINS.genome(id, field, { kind: url.searchParams.get("kind") || undefined, palette: ink, skin: ink, pattern: url.searchParams.get("pattern"), habit: url.searchParams.get("habit") });
+      if (url.searchParams.get("format") === "json") return json({ ...MARGINS.describe(g), kind: g.kind, id, field });
+      const out = MARGINS.grow(g, { width: w, height: h, box: { x0: m, y0: m * 0.8, x1: w - m, y1: h - m * 0.8 } }, { animate: false, idPrefix: "a" });
       return new Response(out.svg, { headers: { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400", ...CORS } });
     }
 
