@@ -288,6 +288,31 @@ export const LIQUIDFF = ${JSON.stringify(out)};
   (set.liquids ||= []).push({ label, model: m.name, T: st.T, N, rho: +g.density(li).toExponential(4), R1, triplesPerMol: +(W / N).toFixed(3), trimers: [first, set.trimers.length - 1] });
   writeFileSync(path.join(here, "manybody-set.json"), JSON.stringify(set) + "\n");
   console.log(`${n} trimers (${first}–${set.trimers.length - 1}) from ${m.name} at ${st.T} K: ${N} molecules, ${(W / N).toFixed(1)} centred triples a molecule within ${R1} bohr`);
+} else if (cmd === "shuttle") {
+  /* does a hydrogen stay home? One probe pair (Hartree–Fock already done, hf_<key>_<round>_<i>.json): the hydrogen of
+     either molecule that points most nearly at the other's heavy atom walks in a straight line from where it sits towards
+     the other heavy atom, until it is one bond length from it (proton transfer: an X H₃⁺ / X H⁻ pair at the end; in a
+     crowd the heavy atoms can be closer than two bond lengths, so the line between them is no path), and the whole pair's Hartree–Fock energy (every electron,
+     both molecules' basis) is computed at each step, relative to the start. A low or absent barrier with the far end not
+     much higher says protons are shared in such a crowd; a steep climb says the molecules stay molecules. */
+  const [key, round, idx] = [args[0], +args[1], +args[2]], steps = +(args[3] || 9), h = JSON.parse(readFileSync(path.join(DIR, `hf_${key}_${round}_${idx}.json`), "utf8"));
+  const fk = keyOf(key), ff = FORCEFIELDS[fk], d = ff.d, Z = ff.Z, G = await import("../js/gauss.js"), { basisFor } = await import("./census.mjs");
+  const sub = (a, b) => a.map((v, k) => v - b[k]), len = (v) => Math.hypot(...v);
+  let best = null; for (const [D, Acc] of [[h.A, h.B], [h.B, h.A]]) for (let s2 = 1; s2 < D.length; s2++) { const u = sub(D[s2], D[0]), w = sub(Acc[0], D[0]), c = u.reduce((t, v, k) => t + v * w[k], 0) / (len(u) * len(w)); if (!best || c > best.c) best = { c, D, Acc, s: s2 }; }
+  const { D, Acc, s: hs } = best, X0 = D[0], dXX = len(sub(Acc[0], X0)), R = len(sub(D[hs], X0)), P0 = D[hs], toH = sub(P0, Acc[0]), dHA = len(toH), P1 = Acc[0].map((v, k) => v + (R * toH[k]) / dHA);
+    const atoms = (t) => [...D.map((at, s3) => ({ Z: s3 ? 1 : Z, at: s3 === hs ? P0.map((v, k) => v + t * (P1[k] - v)) : at })), ...Acc.map((at, s3) => ({ Z: s3 ? 1 : Z, at }))];
+  const file = path.join(DIR, `shuttle_${key}_${round}_${idx}.json`), out = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { key, round, idx, dXX, R, dHA, cos: best.c, pts: [] };
+  const ref = atoms(0), shells = ref.flatMap((a, k) => G.shellsFor(a, basisFor(a.Z, d)).map((sh) => ({ ...sh, atom: k })));
+  console.log(`${key} pair ${round}/${idx}: heavy atoms ${dXX.toFixed(2)} bohr apart, hydrogen ${R.toFixed(2)} from home and ${dHA.toFixed(2)} from the other, aimed within ${(Math.acos(Math.min(1, best.c)) * 180 / Math.PI).toFixed(0)}°`);
+  for (let k = 0; k < steps; k++) {
+    const t = k / (steps - 1); if (out.pts.some((p2) => Math.abs(p2.t - t) < 1e-9)) continue;
+    // the basis functions ride with their atoms: the moving hydrogen's go where it goes
+    const at = atoms(t), sh = shells.map((x) => ({ ...x, at: at[x.atom].at, center: at[x.atom].at })), one = G.oneElectron(sh, at, d), ERI = G.twoElectron(sh, d, one.F), ne = at.reduce((t, a) => t + a.Z, 0) / 2;
+    const res = G.hartreeFock(at, sh, d, { nAlpha: ne, nBeta: ne, ints: { one, ERI } });
+    const H = at[hs].at, home = len(sub(H, X0)), other = len(sub(H, Acc[0]));
+    out.pts.push({ t, home: +home.toFixed(4), other: +other.toFixed(4), E: res.E, ok: res.converged }); out.pts.sort((a, b) => a.t - b.t); writeFileSync(file, JSON.stringify(out));
+    console.log(`  hydrogen ${home.toFixed(2)} bohr from home, ${other.toFixed(2)} from the other: ${((res.E - out.pts[0].E) * KCAL).toFixed(2)} kcal/mol${res.converged ? "" : " (not converged)"}`);
+  }
 } else if (cmd === "bake") {
   /* every run: the blocks' mean liquid and vapour densities (molecules per bohr^d) and their errors (block spread / √n);
      per model, the critical point as the coexist bake fits it (ρ_l − ρ_v ∝ (Tc − T)^β, β 0.326 in 3D, ½ in 4D, the
@@ -317,14 +342,18 @@ export const LIQUIDFF = ${JSON.stringify(out)};
   }
   // the calibration: our water's real critical point over the recipe's, applied to Xater's
   for (const [x, w] of [["x4", "w3"], ["x4L", "w3L"]]) if (out[x]?.Tc && out[w]?.Tc) { const f = 647.1 / out[w].Tc; out[x].cal = { from: w, f, Tc: out[x].Tc * f, Tb: out[x].Tb * f }; console.log(`${x} calibrated by ${w} (×${f.toFixed(2)}): Tc ${out[x].cal.Tc.toFixed(0)} K, boils ${out[x].cal.Tb.toFixed(0)} K`); }
+  const shuttles = readdirSync(DIR).filter((f) => f.startsWith("shuttle_")).map((f) => { const r = JSON.parse(readFileSync(path.join(DIR, f), "utf8")); return { ...r, pts: r.pts.map((q) => ({ t: q.t, home: q.home, other: q.other, dE: +((q.E - r.pts[0].E) * KCAL).toFixed(3), ok: q.ok })) }; });
   const checks = Object.fromEntries(readdirSync(DIR).filter((f) => f.startsWith("check_")).map((f) => { const c = JSON.parse(readFileSync(path.join(DIR, f), "utf8")); return [c.model, c]; }));
   writeFileSync(path.join(here, "../js/liquiddata.js"), `/* Generated by tools/liquid.mjs bake from the Gibbs-ensemble runs; do not edit. Per model: dimension, molecular mass,
    each temperature's liquid and vapour densities (molecules per bohr^d) with errors and the liquid's energy (kcal/mol);
    fitted: Tc (K), with the other exponent, ρc, the Clausius–Clapeyron line [slope, intercept] of ln(ρ_v T) on 1/T,
    the corresponding-states boiling point Tb, ΔH_vap; Xater's calibration by our water's real 647.1 K; and the
-   truncated-charge checks (kcal/mol a molecule, damped shifted force against Ewald). */
+   truncated-charge checks (kcal/mol a molecule, damped shifted force against Ewald); and the shuttles, a hydrogen walked
+   from its own heavy atom to a bond length from its neighbour's in a pair from the liquid (distances in bohr, the whole
+   pair's Hartree–Fock energy relative to the start in kcal/mol). */
 export const LIQUID = ${JSON.stringify(out)};
 export const LIQUIDCHECK = ${JSON.stringify(checks)};
+export const LIQUIDSHUTTLE = ${JSON.stringify(shuttles)};
 `);
 } else {
   console.error("usage: liquid.mjs run <spce|w3|x4|w3L|x4L> <T K> [--cycles=C] [--minutes=M] | check <model> [T] | probe <w3|x4> <round> [n] | bake"); process.exit(1);
