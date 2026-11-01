@@ -59,7 +59,17 @@ function openMade(tier, seed) {
   loadLevel({ segs: m.segs, R: m.R, lesson: `A made course, seed ${seed}: ${m.segs.filter((g) => g.r).length} bends, the track ${m.R} m in radius.` }, tier === "today" ? "Today's" : `Made · ${tier}`, `seed ${seed} · difficulty …`);
   setTimeout(() => { const d = difficulty(game.C, { step: 0.1 }); if (game.state === "ready") $("cardKicker").textContent = `seed ${seed} · difficulty ${d.score.toFixed(1)}`; }, 30); // the oracle rides it (coarsely: a 0.1 s grid)
 }
-for (const b of document.querySelectorAll(".made button")) b.onclick = () => { const t = b.dataset.t; if (t === "today") openMade("today", todaySeed()); else openMade(t, Math.floor(Math.random() * 1e9)); };
+/* a random course: one tap from anywhere (🎲 in the corner, on every card, at the top of the menu; N on a keyboard), at
+   the tier last picked (medium to begin with) */
+let tierPick = (() => { try { return localStorage.getItem("tailspin.tier") || "medium"; } catch (e) { return "medium"; } })();
+const markTier = () => { for (const b of document.querySelectorAll(".made button")) b.classList.toggle("on", b.dataset.t === tierPick); };
+function dice() { openMade(tierPick, Math.floor(Math.random() * 1e9)); }
+for (const b of document.querySelectorAll(".made button")) b.onclick = () => {
+  const t = b.dataset.t; if (t === "today") { openMade("today", todaySeed()); return; }
+  tierPick = t; try { localStorage.setItem("tailspin.tier", t); } catch (e) { /* private */ } markTier(); dice();
+};
+markTier();
+for (const id of ["diceB", "cardDice", "menuDice"]) $(id).onclick = dice;
 $("cardGo").onclick = () => { if (game.state === "done") restart(); game.state = "play"; $("card").hidden = true; };
 $("cardMenu").onclick = menu; $("menuB").onclick = menu;
 $("cardNext").onclick = () => openLevel(Math.min(LEVELS.length - 1, game.index + 1));
@@ -72,6 +82,7 @@ document.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if ((k === "enter" || k === " ") && !$("card").hidden) { e.preventDefault(); $("cardGo").onclick(); return; }
   if (k === "r") { $("retryB").onclick(); return; }
+  if (k === "n") { dice(); return; }
   if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k)) { e.preventDefault(); keys.add(k); }
 });
 document.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));

@@ -15,7 +15,7 @@
   <canvas id="ov" aria-hidden="true"></canvas>
   <div id="hud"><b id="hudName">TAILSPIN</b><span id="hudInfo"></span></div>
   <div id="bar"><div id="barFill"></div></div>
-  <div id="btns"><button type="button" id="menuB" aria-label="levels">☰</button><button type="button" id="retryB" aria-label="start again">↺</button><button type="button" id="hintB" class="on">hint</button></div>
+  <div id="btns"><button type="button" id="diceB" aria-label="a random course">🎲</button><button type="button" id="menuB" aria-label="levels">☰</button><button type="button" id="retryB" aria-label="start again">↺</button><button type="button" id="hintB" class="on">hint</button></div>
   <canvas id="map" aria-label="The course in x, z and w, and the cat on it"></canvas>
   <div id="stick" aria-hidden="true"><div id="knob"></div></div>
   <div id="card" hidden>
@@ -23,15 +23,16 @@
     <h1 id="cardTitle"></h1>
     <p id="cardText"></p>
     <p id="cardStats" class="stats"></p>
-    <div class="row"><button type="button" id="cardGo" class="primary">RIDE</button><button type="button" id="cardNext" hidden>next ›</button><button type="button" id="cardMenu">levels</button></div>
+    <div class="row"><button type="button" id="cardGo" class="primary">RIDE</button><button type="button" id="cardNext" hidden>next ›</button><button type="button" id="cardDice">🎲 random</button><button type="button" id="cardMenu">levels</button></div>
   </div>
   <div id="menu" hidden>
     <h2>kata.mino.mobi</h2>
     <h1>TAILSPIN</h1>
     <p class="intro">The Cheshire cat rides a bicycle through four dimensions. The stick is the lean: right turns right, up leans <b>ana</b>, down <b>kata</b>, into the direction you can't see. Kerbs turn <b style="color:#38f2e0">teal</b> where the track leaves your slice ana and <b style="color:#ff66b8">rose</b> where it leaves kata. Stay on the track to the finish.</p>
+    <div class="dice"><button type="button" id="menuDice" class="primary">🎲 RANDOM COURSE</button></div>
+    <div class="made"><span>tier</span><button type="button" data-t="easy">easy</button><button type="button" data-t="medium">medium</button><button type="button" data-t="hard">hard</button><button type="button" data-t="today">today's</button></div>
+    <h3>the ten</h3>
     <ol id="levels"></ol>
-    <h3>made</h3>
-    <div class="made"><button type="button" data-t="easy">easy</button><button type="button" data-t="medium">medium</button><button type="button" data-t="hard">hard</button><button type="button" data-t="today">today's</button></div>
     <p class="foot">difficulty /10: timing, out of plane, twist and lean, from the oracle (<a href="./README.md">how</a>) · <a href="../">kata</a> · <a href="../lean/">Lean</a>, the track it's built on</p>
   </div>
 </div>

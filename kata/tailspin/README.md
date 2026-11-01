@@ -46,7 +46,9 @@ w. Every level is the cat, on its one-axis bike, in easy mode. The stick is the 
 - **Made levels (`js/gen.js`).** A seed and a tier (easy, medium, hard, or today's: the date, medium) make a course,
   the same every time. The tier sets how many bends, how tight, which ways (left and right, then ana and kata, then
   diagonals, then any angle), how often and how fast they twist, and how narrow the track is. A draw that doesn't
-  fit or that the oracle can't ride is thrown away. URLs: `?level=3`, `?seed=123&tier=hard`.
+  fit or that the oracle can't ride is thrown away. A random course is one tap from anywhere: 🎲 in the corner
+  while riding (or N), 🎲 on every card, and **🎲 RANDOM COURSE** at the top of the menu, at the tier last picked
+  (remembered; medium to begin with). URLs: `?level=3`, `?seed=123&tier=hard`.
 
 TAILSPIN imports Lean's engine (`../lean/js/`: the stadium, the shader, the dynamics, the cat), which is the same
 site, so it isn't a copy. A level switch changes only the floor's markings (`markTrack` / `unmarkTrack`), so the

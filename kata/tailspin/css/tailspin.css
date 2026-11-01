@@ -39,3 +39,5 @@ button.primary { font: 800 15px var(--mono) !important; letter-spacing: 0.12em; 
 html, body, button, canvas, #view, #panel { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 button, canvas { touch-action: manipulation; }
 #gl { touch-action: none; }
+.dice { margin: 4px 0 8px; } .made span { font: 11px var(--mono); color: var(--dim); align-self: center; text-transform: uppercase; letter-spacing: 0.1em; }
+.made button.on { border-color: var(--gold); color: var(--gold); }
