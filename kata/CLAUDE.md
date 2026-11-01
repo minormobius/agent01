@@ -41,6 +41,13 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   **byte-identical copy** of `games/foam4/js/foam.js` (edit the lab's, copy it over; the selftest fails on drift). The
   hill mode lives in `lean/js/render.js` beside the voxel march; keep Lean's path untouched by it (`uHillMode` 0).
   See [`fallline/README.md`](fallline/README.md).
+- **WAKE at `/wake/`**: the boat. A lake (Fall Line's heightfield, analytic in `js/lake.js`, flooded to y = 0), a
+  boat whose hulls are 4D capsules (`js/boat.js`: hydrostatics with a 2×2 metacentric matrix, so a boat heels two ways;
+  the triad, the tender catamaran, the skiff that can't float upright), a Bishop-frame rudder on the stick, Kelvin's
+  wake as a cone (`js/wake.js`), an oracle that helms each course (`js/oracle.js`), eight courses and a generator.
+  Drawn by Lean's shader in hill mode **with water on** (`Renderer.water(y)`, `.wake(shells)`, `.buoys(list)`; off
+  unless a page turns it on, so Lean, TAILSPIN and Fall Line draw as before). The boat is drawn through the bike's
+  capsule array (`Renderer.bike`, two dummy tyres far away). See [`wake/README.md`](wake/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -94,6 +101,7 @@ node kata/lean/test/dyn.selftest.mjs    # ~2 s
 node kata/lean/test/catbike.selftest.mjs # ~1 s
 node kata/tailspin/test/tailspin.selftest.mjs # ~50 s
 node kata/fallline/test/fallline.selftest.mjs # ~40 s
+node kata/wake/test/wake.selftest.mjs # ~3 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
@@ -107,5 +115,6 @@ record exists, `wrangler deploy` uploads, and the run fails unless `kata.mino.mo
 
 ## Next
 
-Riding it by hand (phone tilt asks for a lean): see how people do, and scale the track if needed. The second-order 4D
+Sailing (WAKE's next): a sail is a 3D slab with one normal, so a keel resists drift in one direction across and a 4D
+sailboat needs two keels crossed; the angles you can't sail into the wind make a cone. Riding it by hand (phone tilt asks for a lean): see how people do, and scale the track if needed. The second-order 4D
 couplings the linear model drops, and a twist actuator with dynamics for one-axis steering. Then the w-cycle.

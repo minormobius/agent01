@@ -3704,6 +3704,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-wake",
+   "name": "kata-wake",
+   "url": "https://kata.mino.mobi/wake/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

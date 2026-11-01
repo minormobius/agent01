@@ -5772,6 +5772,23 @@
       ]
     },
     {
+      "n": "kata-wake",
+      "u": "https://kata.mino.mobi/wake/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-01",
+      "b": "2026-11-01",
+      "p": "kata",
+      "surface": "kata",
+      "d": "A boat on a four-dimensional lake, helmed by the Cheshire cat. The stick is the rudder and a turn can go ana as easily as right; a boat heels two ways, so its righting is a 2×2 matrix: three hulls in a triangle are steady every way, a catamaran is tender in w, and an ordinary one-hulled boat capsizes at once. Kelvin's 19.47° wake becomes a cone your slice cuts. Eight courses round buoys and islands, each ridden by an oracle for par and a difficulty out of 10; made courses for any seed.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

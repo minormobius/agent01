@@ -20,6 +20,9 @@ uniform float uTan, uTime, uFae, uFar, uVS;
 // directly instead of the voxels. Grain: Kelvin's foam (A₄*) or the tesseract grid painted on it
 uniform int uHillMode, uGrain, uNRel; uniform highp sampler3D uHillT, uTrailT; uniform vec3 uHN; uniform float uHL, uTrailR;
 uniform mat4 uBm, uBinv; uniform vec4 uRel[30];
+// water (WAKE): the surface y = uWaterY over the whole ground, its swell, a boat's wake (the spheres of Kelvin's
+// construction, wake.js: centre x z w, radius; their crests' heights four to a vec4) and the buoys (x z w, state)
+uniform int uWater, uNWk, uNBuoy; uniform float uWaterY; uniform vec4 uWk[32], uWkT[32], uBuoy[12]; // uWkT: the heading then, and the crest's height
 // the bike (bike.js's parts(), in metres): two tyres (centre, the wheel's plane, radii) and capsules (ends, radius, part)
 uniform int uBike, uNCap;
 uniform vec4 uTor[6]; uniform vec2 uTorR[2]; // per tyre: centre, e1, e2; and (R, r)
@@ -179,11 +182,29 @@ float grainSeam(vec4 p) {
   return 1e9;
 }
 float hash(vec4 p) { return fract(sin(dot(p, vec4(12.9898, 78.233, 37.719, 94.673))) * 43758.5453); }
+// the water's height over g (x, z, w) and its gradient: four swells (deep water: ω² = g k) and the wake's crests, a
+// ridge (and its trough) along each of Kelvin's spheres; foam where the crests stand high
+float waveH(vec3 g, out vec3 gr, out float foam) {
+  float h = 0.0; gr = vec3(0.0); foam = 0.0;
+  vec4 sw[4] = vec4[4](vec4(0.83, 0.33, 0.45, 9.0), vec4(-0.3, 0.9, -0.31, 6.0), vec4(0.2, -0.45, 0.87, 13.0), vec4(-0.7, -0.2, 0.69, 4.5));
+  for (int i = 0; i < 4; i++) { vec3 D = normalize(sw[i].xyz); float k = 6.2832 / sw[i].w, a = 0.01 * sw[i].w, ph = k * dot(D, g) - sqrt(9.81 * k) * uTime; h += a * sin(ph); gr += a * k * cos(ph) * D; }
+  for (int i = 0; i < 32; i++) {
+    if (i >= uNWk) break;
+    vec3 o = g - uWk[i].xyz; float L = length(o) + 1e-4, x = L - uWk[i].w, s = 0.4 + 0.1 * uWk[i].w;
+    if (abs(x) > 3.0 * s) continue;
+    // strongest where the sphere touches Kelvin's cone (cos ψ = 1/3 from the heading: the cusp), weaker behind (the
+    // transverse waves), nothing ahead
+    float cp = dot(o / L, uWkT[i].xyz), A = uWkT[i].w * (exp(-pow((cp - 0.333) / 0.2, 2.0)) + 0.3 * smoothstep(-0.2, -0.8, cp));
+    float e = exp(-x * x / (s * s)), q = 2.4 / s, cr = cos(q * x);
+    h += A * e * cr; gr += A * e * (-2.0 * x / (s * s) * cr - q * sin(q * x)) * o / L; foam += A * e * max(cr, 0.0);
+  }
+  return h;
+}
 void main() {
   vec2 uv = (2.0 * gl_FragCoord.xy - uRes) / uRes.y;
   vec4 d = normalize(uF + uv.x * uTan * uR + uv.y * uTan * uU);
   float t; vec4 n; ivec3 cell; vec3 c;
-  bool hit; float tHill = 0.0;
+  bool hit; float tHill = 0.0, tc = 1e9;
   if (uHillMode == 1) { hit = marchHill(uEye * uVS, d, tHill, n); t = tHill / uVS; } else hit = march(uEye, d, t, n, cell);
   float tb; int bm; bool bike = uBike == 1 && marchBike(uEye * uVS, d, hit ? t * uVS : uFar * uVS, tb, bm);
   if (bike) { // the bike: its parts' colours, lit as the land is, tinted by w as the land is
@@ -205,7 +226,7 @@ void main() {
     base = mix(base, mix(base, fae(dw * 0.22 + 0.5), 0.6) * 1.1, k);
     float lam = max(dot(nb, uSun), 0.0), spec = pow(max(dot(reflect(d, nb), uSun), 0.0), 24.0);
     c = base * (vec3(0.42, 0.47, 0.62) * (0.75 + 0.25 * nb.y) + vec3(1.0, 0.85, 0.64) * lam) + vec3(0.35) * spec * (bm == 1 ? 1.0 : 0.3);
-    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 150.0));
+    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tb / 150.0)); tc = tb;
   }
   else if (!hit) c = sky(d);
   else if (uHillMode == 1) { // the hill: grass going to rock with the slope, the trails' dirt tread, their centre line and their
@@ -214,6 +235,7 @@ void main() {
     vec4 p = uEye * uVS + d * tHill; vec3 g = p.xzw; vec2 tr = gTrail(g); float dist = tr.x, h = p.y, steep = 1.0 - n.y;
     float hs = hash(vec4(floor(g * 2.0), 3.0));
     vec3 base = mix(mix(vec3(0.3, 0.52, 0.22), vec3(0.45, 0.6, 0.25), hs), vec3(0.5, 0.48, 0.45), smoothstep(0.25, 0.5, steep));
+    if (uWater == 1) { float bh = h - uWaterY; base = mix(mix(vec3(0.62, 0.55, 0.4), vec3(0.8, 0.72, 0.52), smoothstep(-2.0, 0.0, bh)), base, smoothstep(0.35, 0.9, bh)); } // sand at the waterline, silt under it
     if (dist < uTrailR) {
       base = mix(vec3(0.52, 0.4, 0.28), vec3(0.6, 0.47, 0.33), hs);
       if (dist < 0.18) base = vec3(0.92, 0.9, 0.84);
@@ -232,7 +254,7 @@ void main() {
     float lam = max(dot(n, uSun), 0.0);
     if (uBike == 1) { float ts; int sm; if (marchBike(p + n * 0.01, uSun, 4.0, ts, sm)) lam *= 0.25; } // the bike's shadow
     c = base * (vec3(0.4, 0.46, 0.62) * (0.8 + 0.25 * n.y) + vec3(1.0, 0.85, 0.64) * lam) * mix(0.82, 1.0, edge);
-    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tHill / 150.0));
+    c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tHill / 150.0)); tc = tHill;
   }
   else {
     vec4 p = uEye + d * t, f = fract(p);
@@ -266,7 +288,36 @@ void main() {
     if (uBike == 1) { float ts; int sm; if (marchBike(p * uVS + n * 0.01, uSun, 4.0, ts, sm)) lam *= 0.25; } // the bike's shadow
     c = base * (vec3(0.4, 0.46, 0.62) * (0.8 + 0.25 * n.y) + vec3(1.0, 0.85, 0.64) * lam) * mix(0.7, 1.0, edge);
     float fog = 1.0 - exp(-t * uVS / 150.0);
-    c = mix(c, sky(d) * 0.9 + 0.08, fog);
+    c = mix(c, sky(d) * 0.9 + 0.08, fog); tc = t * uVS;
+  }
+  if (uWater == 1) {
+    vec4 E = uEye * uVS; const float BR = 0.9;
+    for (int i = 0; i < 12; i++) { // the buoys: 4D balls riding the water, cut by your slice (only those within BR of it show)
+      if (i >= uNBuoy) break;
+      vec4 C = vec4(uBuoy[i].x, uWaterY + 0.3, uBuoy[i].y, uBuoy[i].z); float del = dot(C - E, uN);
+      if (abs(del) >= BR) continue;
+      float rho = sqrt(BR * BR - del * del); vec4 oc = E - (C - del * uN); float b = dot(oc, d), cc = dot(oc, oc) - rho * rho, hh = b * b - cc;
+      if (hh < 0.0) continue;
+      float tt = -b - sqrt(hh); if (tt <= 0.0 || tt >= tc) continue;
+      vec4 nb = normalize(E + d * tt - C); float st = uBuoy[i].w;
+      vec3 base = st < 1.5 ? vec3(1.0, 0.74, 0.18) : st < 2.5 ? vec3(0.95, 0.32, 0.16) : vec3(0.55, 0.57, 0.6);
+      if (st < 2.5 && abs((E + d * tt).y - C.y - 0.15) < 0.12) base = vec3(0.95);
+      float lam = max(dot(nb, uSun), 0.0);
+      c = base * (vec3(0.42, 0.47, 0.62) * (0.75 + 0.25 * nb.y) + vec3(1.0, 0.85, 0.64) * lam) + (st < 1.5 ? base * 0.25 : vec3(0.0));
+      c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tt / 150.0)); tc = tt;
+    }
+    if (d.y < 0.0 && E.y > uWaterY) {
+      float tw = (uWaterY - E.y) / d.y;
+      if (tw < tc) {
+        vec4 pw = E + d * tw; vec3 gr; float fo; waveH(pw.xzw, gr, fo);
+        vec4 nw = normalize(vec4(-gr.x, 1.0, -gr.y, -gr.z));
+        float fr = 0.02 + 0.98 * pow(1.0 - max(dot(-d, nw), 0.0), 5.0);
+        vec3 deep = vec3(0.02, 0.14, 0.19), under = mix(c * vec3(0.7, 0.92, 0.95), deep, 1.0 - exp(-min(tc - tw, 80.0) * 0.22));
+        vec3 col = mix(under, sky(reflect(d, nw)), fr) + vec3(1.0, 0.9, 0.7) * pow(max(dot(reflect(d, nw), uSun), 0.0), 160.0) * 1.6;
+        col = mix(col, vec3(0.9, 0.95, 1.0), clamp(fo * 6.0 - 0.15, 0.0, 0.6));
+        c = mix(col, sky(d) * 0.9 + 0.08, 1.0 - exp(-tw / 150.0)); tc = tw;
+      }
+    }
   }
   o = vec4(c / (1.0 + 0.12 * c), 1.0);
 }`;
@@ -282,7 +333,7 @@ export class Renderer {
     gl.useProgram(p); this.p = p;
     const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uAux", "uBinT", "uHasAux", "uN", "uHillMode", "uGrain", "uNRel", "uHillT", "uTrailT", "uHN", "uHL", "uTrailR", "uBm", "uBinv", "uRel", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
+    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uAux", "uBinT", "uHasAux", "uN", "uHillMode", "uWater", "uNWk", "uNBuoy", "uWaterY", "uWk", "uWkT", "uBuoy", "uGrain", "uNRel", "uHillT", "uTrailT", "uHN", "uHL", "uTrailR", "uBm", "uBinv", "uRel", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
     /* every sampler on its own unit from the start, each with a one-texel placeholder of its own type. A sampler never
        set defaults to unit 0, and WebGL refuses a draw (silently: a black view) where two samplers of different types
        share a unit; Lean and TAILSPIN never call hill(), so without this its 3D samplers sat on the voxel atlas's unit */
@@ -360,6 +411,20 @@ export class Renderer {
     gl.uniformMatrix4fv(u.uBm, false, new Float32Array(L.B.flat())); gl.uniformMatrix4fv(u.uBinv, false, binv);
     const rel = new Float32Array(30 * 4); L.rel.forEach((v, i) => rel.set(v, 4 * i));
     gl.uniform4fv(u.uRel, rel); gl.uniform1i(u.uNRel, L.rel.length); gl.uniform1i(u.uGrain, 1);
+  }
+  /* water (WAKE): the surface's height, or null for none */
+  water(y) { const gl = this.gl, u = this.u; if (y == null) { gl.uniform1i(u.uWater, 0); return; } gl.uniform1i(u.uWater, 1); gl.uniform1f(u.uWaterY, y); }
+  /* the wake: wake.js shells() ({ c: [x, z, w], r, T, A }), at most 32 */
+  wake(S) {
+    const gl = this.gl, u = this.u, n = Math.min(32, S.length), a = new Float32Array(128), b = new Float32Array(128);
+    for (let i = 0; i < n; i++) { const s = S[S.length - n + i]; a.set([s.c[0], s.c[1], s.c[2], s.r], 4 * i); b.set([s.T[0], s.T[1], s.T[2], s.A], 4 * i); }
+    gl.uniform4fv(u.uWk, a); gl.uniform4fv(u.uWkT, b); gl.uniform1i(u.uNWk, n);
+  }
+  /* the buoys: [x, z, w] and a state each (1 next, 2 to come, 3 rounded), at most 12 */
+  buoys(Bs) {
+    const gl = this.gl, u = this.u, n = Math.min(12, Bs.length), a = new Float32Array(48);
+    for (let i = 0; i < n; i++) a.set([...Bs[i].p, Bs[i].s], 4 * i);
+    gl.uniform4fv(u.uBuoy, a); gl.uniform1i(u.uNBuoy, n);
   }
   /* the bike: bike.js's parts() (metres), the middle and radius of a ball holding it, and the frame's colour; null hides it */
   bike(P, mid, rad, col) {
