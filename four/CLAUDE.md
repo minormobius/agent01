@@ -184,6 +184,8 @@ for games, and this is a modelling programme with publications to come. The game
   moments, since a numerical tail would diverge over 4D's r³ shells; sodium fluoride is the check; `salt.mjs bake` → **generated**
   `js/saltdata.js`, adding magnesia and nagnesium pxide with Watson-held anions and the densities, which the stars chapter's
   "What sets G" turns into G; without `bake` it prints the baked JSON),
+  `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
+  weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
   liquid–vapour runs, one temperature per command, for the runner; `coexist.mjs bake` fits each system's critical
   point, both exponents, into **generated** `js/coexist.js`). `atom/tools/audit.mjs bake` writes **generated**
