@@ -1,6 +1,6 @@
 {
- "run": "audit-1",
- "why": "After the independent audit: F01, re-run the saved Hartree–Fock pair energies with the fixed convergence test; F04, argon's and element 2's critical points with six temperatures each, three independent seeds and a doubled box, and SPC/E with two more seeds, so each critical temperature carries residual degrees of freedom and a seed-to-seed error.",
+ "run": "audit-1-rods",
+ "why": "After the independent audit: F01, re-run the saved Hartree–Fock pair energies with the fixed convergence test; F04, argon's and element 2's critical points with six temperatures each, three independent seeds and a doubled box, and SPC/E with two more seeds, so each critical temperature carries residual degrees of freedom and a seed-to-seed error. And the pull between two Gl₂ molecules (4D's commonest bonding element's diatomic) with MP2 over four orientations, our F₂ as the check, for whether Gl₂ is a liquid at habitable temperatures.",
  "minutes": 330,
  "groups": [
   {
@@ -170,6 +170,141 @@
    "cmds": [
     "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --seed=1 --minutes=320",
     "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --seed=2 --minutes=320"
+   ]
+  },
+  {
+   "name": "rods-0",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 6 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 6 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 6 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 6 L"
+   ]
+  },
+  {
+   "name": "rods-1",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 L"
+   ]
+  },
+  {
+   "name": "rods-2",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 7 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 7 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 7 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 7 L"
+   ]
+  },
+  {
+   "name": "rods-3",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 L"
+   ]
+  },
+  {
+   "name": "rods-4",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 8 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 8 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 8 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 8 L"
+   ]
+  },
+  {
+   "name": "rods-5",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 9 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 9 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 9 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 9 L"
+   ]
+  },
+  {
+   "name": "rods-6",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 L"
+   ]
+  },
+  {
+   "name": "rods-7",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair Gl2 12 H",
+    "node four/atom/tools/diatomic.mjs pair Gl2 12 X",
+    "node four/atom/tools/diatomic.mjs pair Gl2 12 T",
+    "node four/atom/tools/diatomic.mjs pair Gl2 12 L"
+   ]
+  },
+  {
+   "name": "rods-8",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair F2 5.5 H",
+    "node four/atom/tools/diatomic.mjs pair F2 5.5 X",
+    "node four/atom/tools/diatomic.mjs pair F2 5.5 T",
+    "node four/atom/tools/diatomic.mjs pair F2 5.5 L"
+   ]
+  },
+  {
+   "name": "rods-9",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair F2 6 H",
+    "node four/atom/tools/diatomic.mjs pair F2 6 X",
+    "node four/atom/tools/diatomic.mjs pair F2 6 T",
+    "node four/atom/tools/diatomic.mjs pair F2 6 L"
+   ]
+  },
+  {
+   "name": "rods-10",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair F2 6.5 H",
+    "node four/atom/tools/diatomic.mjs pair F2 6.5 X",
+    "node four/atom/tools/diatomic.mjs pair F2 6.5 T",
+    "node four/atom/tools/diatomic.mjs pair F2 6.5 L"
+   ]
+  },
+  {
+   "name": "rods-11",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair F2 7 H",
+    "node four/atom/tools/diatomic.mjs pair F2 7 X",
+    "node four/atom/tools/diatomic.mjs pair F2 7 T",
+    "node four/atom/tools/diatomic.mjs pair F2 7 L"
+   ]
+  },
+  {
+   "name": "rods-12",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair F2 7.5 H",
+    "node four/atom/tools/diatomic.mjs pair F2 7.5 X",
+    "node four/atom/tools/diatomic.mjs pair F2 7.5 T",
+    "node four/atom/tools/diatomic.mjs pair F2 7.5 L"
+   ]
+  },
+  {
+   "name": "rods-13",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair F2 8.5 H",
+    "node four/atom/tools/diatomic.mjs pair F2 8.5 X",
+    "node four/atom/tools/diatomic.mjs pair F2 8.5 T",
+    "node four/atom/tools/diatomic.mjs pair F2 8.5 L"
+   ]
+  },
+  {
+   "name": "rods-14",
+   "cmds": [
+    "node four/atom/tools/diatomic.mjs pair F2 10 H",
+    "node four/atom/tools/diatomic.mjs pair F2 10 X",
+    "node four/atom/tools/diatomic.mjs pair F2 10 T",
+    "node four/atom/tools/diatomic.mjs pair F2 10 L"
    ]
   }
  ]

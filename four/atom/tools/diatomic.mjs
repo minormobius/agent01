@@ -1,6 +1,7 @@
 /* Molecules without hydrogen: a heavy atom's diatomic, bond length and strength by Hartree–Fock and MP2 (unrestricted
    where it has unpaired electrons, js/gauss.js ump2), our F₂ and O₂ as the checks.
      node four/atom/tools/diatomic.mjs mol <F2|O2|Gl2|Px2> [plus] [--spins=2S,…]   the curve over R, the atoms, the bond
+     node four/atom/tools/diatomic.mjs pair <F2|Gl2> <R> <H|X|T|L>   two molecules R apart, MP2, counterpoise (one point)
      node four/atom/tools/diatomic.mjs bake                          → js/diatomicdata.js
    4D's p shell holds 8 (2(l+1)²), so gluorine (element 11) lacks one electron, like fluorine, and pxygen (element 10)
    two, like oxygen. Gl₂ fills σ²π⁶π*⁶ (three π, not two): a single bond, closed-shell. Px₂ puts four electrons in the
@@ -13,7 +14,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 
 import path from "node:path";
 import os from "node:os";
 import * as G from "../js/gauss.js";
-import { basisFor } from "./census.mjs";
+import { basisFor, pairEnergy } from "./census.mjs";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-diatomic"); mkdirSync(DIR, { recursive: true });
 const here = path.dirname(new URL(import.meta.url).pathname), [cmd, name, plusArg] = process.argv.slice(2), EV = 27.211386;
@@ -54,6 +55,16 @@ if (cmd === "mol") {
   } }
   for (const spin of M.spins) { const rows = st.rows.filter((r) => r.spin === spin).sort((a, b) => a.R - b.R), m = minimum(rows.map((r) => ({ R: r.R, e: -r.De })), "e"), mh = minimum(rows.map((r) => ({ R: r.R, e: -r.DeHF })), "e");
     console.log(`${name} 2S=${spin}: MP2 minimum ${m.at ? "at the grid's edge " : ""}${m.R.toFixed(3)} bohr, bound by ${Math.max(...rows.map((r) => r.De)).toFixed(3)} eV; Hartree–Fock ${mh.at ? "at the edge " : ""}${mh.R.toFixed(3)} bohr, ${Math.max(...rows.map((r) => r.DeHF)).toFixed(3)} eV${M.measured ? `; measured ${M.measured.R} bohr, ${M.measured.De} eV` : ""}`); }
+} else if (cmd === "pair") {
+  /* two molecules at their MP2 bond length, centres R apart along x: H both along y, X along y and z, T along y and x,
+     L both along x (as tools/air.mjs's H₂ pairs); MP2 with the census's pair energy (counterpoise), basis "Dd"
+     (diffuse s and p, a second d) for the pull between them. In K, as the air chapter's. One point a command */
+  const M = MOLS[name], R = +process.argv[4], o = process.argv[5], b = { F2: 2.704, Gl2: 3.111 }[name] / 2, d = M.d, z = (v) => [...v, ...Array(d - v.length).fill(0)];
+  const A = o === "L" ? [[-b], [b]] : [[0, -b], [0, b]], B = { H: [[R, -b], [R, b]], X: [[R, 0, -b], [R, 0, b]], T: [[R - b], [R + b]], L: [[R - b], [R + b]] }[o];
+  const file = path.join(DIR, `pair-${name}-${R}-${o}.json`);
+  if (!existsSync(file)) { const t0 = Date.now(), e = pairEnergy(A.map((p) => ({ Z: M.Z, at: z(p) })), B.map((p) => ({ Z: M.Z, at: z(p) })), d, { mp2: true, plus: "Dd" });
+    writeFileSync(file, JSON.stringify({ name, d, R, o, hf: e.E * 315775.02, mp2: (e.E + e.E2) * 315775.02, ok: e.ok, n: e.n, s: (Date.now() - t0) / 1000 })); }
+  console.log(readFileSync(file, "utf8"));
 } else if (cmd === "bake") {
   const out = {};
   for (const f of readdirSync(DIR).filter((f) => f.endsWith(".json"))) { const st = JSON.parse(readFileSync(path.join(DIR, f), "utf8")), M = MOLS[st.name];
