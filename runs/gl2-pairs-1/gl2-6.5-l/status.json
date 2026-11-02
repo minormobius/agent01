@@ -1,0 +1,12 @@
+{
+ "group": "gl2-6.5-l",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/diatomic.mjs pair Gl2 6.5 L",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 520
+  }
+ ]
+}
