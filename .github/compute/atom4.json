@@ -1,359 +1,54 @@
 {
- "run": "gl2-inner-ice-probe-tri1500-tablefix",
- "why": "Gl₂'s side-on and crossed pair wells were still deepening at 5 bohr (−6400 K), so 4 and 4.5 bohr for those two; Xater's crystal search in cells of 4 found its lowest minimum only once in 3000 starts, so 9000 more; and the first Hartree–Fock check of Xater's field at the crystals' own closest pairs (24 pairs from the lowest minima), which decides whether the crystal's energies can be trusted. And 128 trimers cut from Xater's 1500 K liquid, Hartree–Fock on each (all seven energies): the crowd's three-body share was −10 ± 19 kcal/mol a molecule from 48, too loose to say whether Xater's liquid is held more or less than its pairs say. And seven elements of the table to 140 (88, 101–103, 105–107) searched again, seeded from their neighbours' configurations: their first search landed on unsettled fields with impossible energies.",
+ "run": "of2-basis",
+ "why": "Our OF₂'s liquid never formed on its MP2-fitted field (one phase at a third of liquid density from 120 to 260 K; it boils at 128 K), and the deepest of its 80 pair placements is only −0.20 kcal/mol in the D basis. Is the basis missing the dispersion? The four deepest placements again with the heavy atoms' d split (Dd) and with an f added (Ddf), economy as before, one per runner.",
  "minutes": 330,
  "groups": [
   {
-   "name": "gl2-4-h",
+   "name": "of2basis-dd-54",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 4 H"
+    "node four/atom/tools/molpair.mjs basis OF2 54 Dd"
    ]
   },
   {
-   "name": "gl2-4-x",
+   "name": "of2basis-dd-28",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 4 X"
+    "node four/atom/tools/molpair.mjs basis OF2 28 Dd"
    ]
   },
   {
-   "name": "gl2-4.5-h",
+   "name": "of2basis-dd-2",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 4.5 H"
+    "node four/atom/tools/molpair.mjs basis OF2 2 Dd"
    ]
   },
   {
-   "name": "gl2-4.5-x",
+   "name": "of2basis-dd-37",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 4.5 X"
+    "node four/atom/tools/molpair.mjs basis OF2 37 Dd"
    ]
   },
   {
-   "name": "ice4z4-0",
+   "name": "of2basis-ddf-54",
    "cmds": [
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 0/8",
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 1/8",
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 2/8",
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 3/8"
+    "node four/atom/tools/molpair.mjs basis OF2 54 Ddf"
    ]
   },
   {
-   "name": "ice4z4-1",
+   "name": "of2basis-ddf-28",
    "cmds": [
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 4/8",
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 5/8",
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 6/8",
-    "node four/atom/tools/ice.mjs 4 4 12000 --shard 7/8"
+    "node four/atom/tools/molpair.mjs basis OF2 28 Ddf"
    ]
   },
   {
-   "name": "ice4-probe",
+   "name": "of2basis-ddf-2",
    "cmds": [
-    "node four/atom/tools/ice.mjs probe 4 1 24"
+    "node four/atom/tools/molpair.mjs basis OF2 2 Ddf"
    ]
   },
   {
-   "name": "tri1500-0",
+   "name": "of2basis-ddf-37",
    "cmds": [
-    "node four/atom/tools/manybody.mjs run 80",
-    "node four/atom/tools/manybody.mjs run 81",
-    "node four/atom/tools/manybody.mjs run 82",
-    "node four/atom/tools/manybody.mjs run 83"
-   ]
-  },
-  {
-   "name": "tri1500-1",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 84",
-    "node four/atom/tools/manybody.mjs run 85",
-    "node four/atom/tools/manybody.mjs run 86",
-    "node four/atom/tools/manybody.mjs run 87"
-   ]
-  },
-  {
-   "name": "tri1500-2",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 88",
-    "node four/atom/tools/manybody.mjs run 89",
-    "node four/atom/tools/manybody.mjs run 90",
-    "node four/atom/tools/manybody.mjs run 91"
-   ]
-  },
-  {
-   "name": "tri1500-3",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 92",
-    "node four/atom/tools/manybody.mjs run 93",
-    "node four/atom/tools/manybody.mjs run 94",
-    "node four/atom/tools/manybody.mjs run 95"
-   ]
-  },
-  {
-   "name": "tri1500-4",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 96",
-    "node four/atom/tools/manybody.mjs run 97",
-    "node four/atom/tools/manybody.mjs run 98",
-    "node four/atom/tools/manybody.mjs run 99"
-   ]
-  },
-  {
-   "name": "tri1500-5",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 100",
-    "node four/atom/tools/manybody.mjs run 101",
-    "node four/atom/tools/manybody.mjs run 102",
-    "node four/atom/tools/manybody.mjs run 103"
-   ]
-  },
-  {
-   "name": "tri1500-6",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 104",
-    "node four/atom/tools/manybody.mjs run 105",
-    "node four/atom/tools/manybody.mjs run 106",
-    "node four/atom/tools/manybody.mjs run 107"
-   ]
-  },
-  {
-   "name": "tri1500-7",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 108",
-    "node four/atom/tools/manybody.mjs run 109",
-    "node four/atom/tools/manybody.mjs run 110",
-    "node four/atom/tools/manybody.mjs run 111"
-   ]
-  },
-  {
-   "name": "tri1500-8",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 112",
-    "node four/atom/tools/manybody.mjs run 113",
-    "node four/atom/tools/manybody.mjs run 114",
-    "node four/atom/tools/manybody.mjs run 115"
-   ]
-  },
-  {
-   "name": "tri1500-9",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 116",
-    "node four/atom/tools/manybody.mjs run 117",
-    "node four/atom/tools/manybody.mjs run 118",
-    "node four/atom/tools/manybody.mjs run 119"
-   ]
-  },
-  {
-   "name": "tri1500-10",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 120",
-    "node four/atom/tools/manybody.mjs run 121",
-    "node four/atom/tools/manybody.mjs run 122",
-    "node four/atom/tools/manybody.mjs run 123"
-   ]
-  },
-  {
-   "name": "tri1500-11",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 124",
-    "node four/atom/tools/manybody.mjs run 125",
-    "node four/atom/tools/manybody.mjs run 126",
-    "node four/atom/tools/manybody.mjs run 127"
-   ]
-  },
-  {
-   "name": "tri1500-12",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 128",
-    "node four/atom/tools/manybody.mjs run 129",
-    "node four/atom/tools/manybody.mjs run 130",
-    "node four/atom/tools/manybody.mjs run 131"
-   ]
-  },
-  {
-   "name": "tri1500-13",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 132",
-    "node four/atom/tools/manybody.mjs run 133",
-    "node four/atom/tools/manybody.mjs run 134",
-    "node four/atom/tools/manybody.mjs run 135"
-   ]
-  },
-  {
-   "name": "tri1500-14",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 136",
-    "node four/atom/tools/manybody.mjs run 137",
-    "node four/atom/tools/manybody.mjs run 138",
-    "node four/atom/tools/manybody.mjs run 139"
-   ]
-  },
-  {
-   "name": "tri1500-15",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 140",
-    "node four/atom/tools/manybody.mjs run 141",
-    "node four/atom/tools/manybody.mjs run 142",
-    "node four/atom/tools/manybody.mjs run 143"
-   ]
-  },
-  {
-   "name": "tri1500-16",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 144",
-    "node four/atom/tools/manybody.mjs run 145",
-    "node four/atom/tools/manybody.mjs run 146",
-    "node four/atom/tools/manybody.mjs run 147"
-   ]
-  },
-  {
-   "name": "tri1500-17",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 148",
-    "node four/atom/tools/manybody.mjs run 149",
-    "node four/atom/tools/manybody.mjs run 150",
-    "node four/atom/tools/manybody.mjs run 151"
-   ]
-  },
-  {
-   "name": "tri1500-18",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 152",
-    "node four/atom/tools/manybody.mjs run 153",
-    "node four/atom/tools/manybody.mjs run 154",
-    "node four/atom/tools/manybody.mjs run 155"
-   ]
-  },
-  {
-   "name": "tri1500-19",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 156",
-    "node four/atom/tools/manybody.mjs run 157",
-    "node four/atom/tools/manybody.mjs run 158",
-    "node four/atom/tools/manybody.mjs run 159"
-   ]
-  },
-  {
-   "name": "tri1500-20",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 160",
-    "node four/atom/tools/manybody.mjs run 161",
-    "node four/atom/tools/manybody.mjs run 162",
-    "node four/atom/tools/manybody.mjs run 163"
-   ]
-  },
-  {
-   "name": "tri1500-21",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 164",
-    "node four/atom/tools/manybody.mjs run 165",
-    "node four/atom/tools/manybody.mjs run 166",
-    "node four/atom/tools/manybody.mjs run 167"
-   ]
-  },
-  {
-   "name": "tri1500-22",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 168",
-    "node four/atom/tools/manybody.mjs run 169",
-    "node four/atom/tools/manybody.mjs run 170",
-    "node four/atom/tools/manybody.mjs run 171"
-   ]
-  },
-  {
-   "name": "tri1500-23",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 172",
-    "node four/atom/tools/manybody.mjs run 173",
-    "node four/atom/tools/manybody.mjs run 174",
-    "node four/atom/tools/manybody.mjs run 175"
-   ]
-  },
-  {
-   "name": "tri1500-24",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 176",
-    "node four/atom/tools/manybody.mjs run 177",
-    "node four/atom/tools/manybody.mjs run 178",
-    "node four/atom/tools/manybody.mjs run 179"
-   ]
-  },
-  {
-   "name": "tri1500-25",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 180",
-    "node four/atom/tools/manybody.mjs run 181",
-    "node four/atom/tools/manybody.mjs run 182",
-    "node four/atom/tools/manybody.mjs run 183"
-   ]
-  },
-  {
-   "name": "tri1500-26",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 184",
-    "node four/atom/tools/manybody.mjs run 185",
-    "node four/atom/tools/manybody.mjs run 186",
-    "node four/atom/tools/manybody.mjs run 187"
-   ]
-  },
-  {
-   "name": "tri1500-27",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 188",
-    "node four/atom/tools/manybody.mjs run 189",
-    "node four/atom/tools/manybody.mjs run 190",
-    "node four/atom/tools/manybody.mjs run 191"
-   ]
-  },
-  {
-   "name": "tri1500-28",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 192",
-    "node four/atom/tools/manybody.mjs run 193",
-    "node four/atom/tools/manybody.mjs run 194",
-    "node four/atom/tools/manybody.mjs run 195"
-   ]
-  },
-  {
-   "name": "tri1500-29",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 196",
-    "node four/atom/tools/manybody.mjs run 197",
-    "node four/atom/tools/manybody.mjs run 198",
-    "node four/atom/tools/manybody.mjs run 199"
-   ]
-  },
-  {
-   "name": "tri1500-30",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 200",
-    "node four/atom/tools/manybody.mjs run 201",
-    "node four/atom/tools/manybody.mjs run 202",
-    "node four/atom/tools/manybody.mjs run 203"
-   ]
-  },
-  {
-   "name": "tri1500-31",
-   "cmds": [
-    "node four/atom/tools/manybody.mjs run 204",
-    "node four/atom/tools/manybody.mjs run 205",
-    "node four/atom/tools/manybody.mjs run 206",
-    "node four/atom/tools/manybody.mjs run 207"
-   ]
-  },
-  {
-   "name": "tablefix-0",
-   "cmds": [
-    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=101",
-    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=102",
-    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=103",
-    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=105"
-   ]
-  },
-  {
-   "name": "tablefix-1",
-   "cmds": [
-    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=106",
-    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=107",
-    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=88"
+    "node four/atom/tools/molpair.mjs basis OF2 37 Ddf"
    ]
   }
  ]

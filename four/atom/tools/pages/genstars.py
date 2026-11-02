@@ -219,7 +219,7 @@ stars=f'''<section id="hold">
   <table class="sys"><tr><th>stage</th><th>ours</th><th>4D</th></tr>
   <tr><td>hydrogen (and, in 4D, helium) to ash</td><td>6.7, to helium</td><td>{STr(STE.get('ash',[]))}, to elements 10–12 (Brink's pxygen-20: {STr(STBR)})</td></tr>
   <tr><td>the next stage</td><td>0.6–0.9, helium to carbon and oxygen</td><td>{STr(STE.get('rock',[]))}, the ash fusing (the heaviest cores only)</td></tr>
-  <tr><td>to the most bound nucleus</td><td>8.8 in all, at iron</td><td>{STr(STE.get('peak',[]))} in all, at element 103–137</td></tr></table>
+  <tr><td>to the most bound nucleus</td><td>8.8 in all, at iron</td><td>{STr(STE.get('peak',[]))} in all, at element 103–137; equilibrium, solved, ends at 101–136 (<a href="nuclei.html#heavy">chapter 15</a>)</td></tr></table>
   <p><b>A 4D star gets about three times our energy from each unit of hydrogen</b>, less a MeV or so to neutrinos for the protons it turns into neutrons. <span class="tag follows">follows</span> What that does:</p>
   <ul class="open">
     <li><b>Its core runs about as hot.</b> A core runs as hot as its reactions need to get through their barriers; what each reaction pays barely enters. The burning goes as about T<sup>{STr(STE.get('nu',[]))}</sup> here (our proton chain about T⁴, our carbon cycle T¹⁸), so needing a third as many reactions cools the core by about a tenth: a star as long-lived as our Sun burns at 15–21 million K.</li>

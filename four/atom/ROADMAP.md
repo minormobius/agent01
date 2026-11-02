@@ -51,7 +51,14 @@ What step 5 has found so far, put together (2026-11-02; each piece first-estimat
   search has **not** converged: cells of 4 reach −170.6 kcal/mol a molecule and cells of 6 −168.6, each lowest found
   once (an earlier note here said it was converging on −168.8; run 45 showed otherwise). Our water's field on the same
   method condenses at 250 K against 647 measured, so the 9000 K could be low by up to that factor, or not (Xater's
-  correlation weakens its pair): an MP2-fitted Xater field is the test.
+  correlation weakens its pair). Run 50: three-body from 176 liquid triples is −9 ± 12 / −10 ± 19 kcal/mol a
+  molecule (a few percent); 12000 crystal starts in cells of 4 found 1084 minima, the lowest once; Hartree–Fock on the
+  crystals' closest pairs says the field overbinds them (−59 vs −8 summed over 24), while in the liquid it is unbiased.
+  So the liquid stands to the field's rms; the crystal energies don't.
+- **It's a hydrogen problem.** Bonds without hydrogen match ours (0.99–1.08); heavy-atom molecules bond to each other
+  (Gl₂ crossed −0.85 eV at 4 bohr and falling; PxGl₂ pairs bound down to Gl–Gl 3.7 bohr). Their condensed phases are
+  likely networks. The MP2-pair → field → liquid chain FAILED its OF₂ check (no liquid at 120 K): basis test queued.
+- **Deep burning ends at element 101–136** (NSE, trusted drops; ours, checked, at Ti-44 vs measured Ni-56).
 - **4D rock stays solid hotter.** 4D's salts bind 10–40% harder than ours; scaled by our MgO and NaF, nagnesium pxide
   (4D's mantle oxide) melts about 3600–6100 K, ToG (4D's NaF) about 1000–1800 K.
 - **So: a planet near 1500–2500 K** with solid pxide rock, a molten-Xater ocean, molten salts, and an air of what is
