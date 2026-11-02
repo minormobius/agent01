@@ -1,98 +1,67 @@
 {
- "run": "gl2-inner-flow-cold-ice",
- "why": "Gl₂'s pair well was still deepening at 6 bohr (−3400 K side-on): the points at 5 and 5.5 bohr find its bottom. And Xater cooled from its 1500 K liquid to 1000, 750 and 500 K, for where it stops flowing (a freezing indicator; a supercooled liquid can flow below its true freezing point). And Xater's crystal: random cells of 4 and 6 molecules (3000 and 2000 starts) on the field shown faithful to Hartree–Fock in its dense liquid, each relaxed with its cell.",
+ "run": "table140-nse-ice",
+ "why": "The periodic table extended to element 140 (non-relativistic first pass: 6s, 4f, 5d, 6p, a noble gas expected at 138), cached element by element; nuclear statistical equilibrium for 4D (where deep burning ends, element by element, on the trusted drops); and more random starts for Xater's crystal in cells of 2 and 3 molecules.",
  "minutes": 330,
  "groups": [
   {
-   "name": "gl2-5-h",
+   "name": "table-0",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5 H"
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=0/6"
    ]
   },
   {
-   "name": "gl2-5-x",
+   "name": "table-1",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5 X"
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=1/6"
    ]
   },
   {
-   "name": "gl2-5-t",
+   "name": "table-2",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5 T"
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=2/6"
    ]
   },
   {
-   "name": "gl2-5-l",
+   "name": "table-3",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5 L"
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=3/6"
    ]
   },
   {
-   "name": "gl2-5.5-h",
+   "name": "table-4",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5.5 H"
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=4/6"
    ]
   },
   {
-   "name": "gl2-5.5-x",
+   "name": "table-5",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5.5 X"
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=5/6"
    ]
   },
   {
-   "name": "gl2-5.5-t",
+   "name": "nse-four",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5.5 T"
+    "node four/atom/tools/nse.mjs four",
+    "node four/atom/tools/nse.mjs ours"
    ]
   },
   {
-   "name": "gl2-5.5-l",
+   "name": "ice-small-0",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 5.5 L"
+    "node four/atom/tools/ice.mjs 4 2 2000 --shard 0/4",
+    "node four/atom/tools/ice.mjs 4 2 2000 --shard 1/4",
+    "node four/atom/tools/ice.mjs 4 2 2000 --shard 2/4",
+    "node four/atom/tools/ice.mjs 4 2 2000 --shard 3/4"
    ]
   },
   {
-   "name": "flow-cold",
+   "name": "ice-small-1",
    "cmds": [
-    "node four/atom/tools/liquid.mjs flow x4 1000 --from=x4_1500_g2.json --minutes=320",
-    "node four/atom/tools/liquid.mjs flow x4 750 --from=x4_1500_g2.json --minutes=320",
-    "node four/atom/tools/liquid.mjs flow x4 500 --from=x4_1500_g2.json --minutes=320"
-   ]
-  },
-  {
-   "name": "ice4-0",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 0/8",
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 1/8",
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 2/8",
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 3/8"
-   ]
-  },
-  {
-   "name": "ice4-1",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 4/8",
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 5/8",
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 6/8",
-    "node four/atom/tools/ice.mjs 4 4 3000 --shard 7/8"
-   ]
-  },
-  {
-   "name": "ice4-2",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 0/8",
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 1/8",
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 2/8",
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 3/8"
-   ]
-  },
-  {
-   "name": "ice4-3",
-   "cmds": [
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 4/8",
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 5/8",
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 6/8",
-    "node four/atom/tools/ice.mjs 4 6 2000 --shard 7/8"
+    "node four/atom/tools/ice.mjs 4 3 1600 --shard 0/4",
+    "node four/atom/tools/ice.mjs 4 3 1600 --shard 1/4",
+    "node four/atom/tools/ice.mjs 4 3 1600 --shard 2/4",
+    "node four/atom/tools/ice.mjs 4 3 1600 --shard 3/4"
    ]
   }
  ]
