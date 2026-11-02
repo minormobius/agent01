@@ -1,0 +1,19 @@
+{
+ "group": "of2well-3",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/molpair.mjs well OF2 6 --plus=Dd",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1230
+  },
+  {
+   "cmd": "node four/atom/tools/molpair.mjs well OF2 7 --plus=Dd",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1219
+  }
+ ]
+}
