@@ -91,6 +91,12 @@ for games, and this is a modelling programme with publications to come. The game
   flows periodic in x, y, each field wave along the other directions separately (pseudo-spectral, RK4, Strang-split
   decay, F = dA so closed); `atom/tools/dynamo.mjs scan <case>` (~5 min each, sandbox-sized) and `bake` → **generated**
   `js/dynamodata.js`. Result: 4D's Roberts cells grow fields faster than ours at Rm 1–14, planar flows never do.
+- **drift golf at `/drift/`**: a game on the plasma physics (`drift/drift.js` draws and aims; the physics and the course
+  are `atom/js/drift.js`, no DOM, selftest 64, mirrored): a charge with dv/dt = E + F v − γv on tiles of 4D fields (rough,
+  soft, back, highway = one plane z–w so the green is its free sheet, slant = x–z + y–w which drifts the ball into z and w,
+  left), pushed for `PUSH_T` and coasting to rest; holed in the cup with z, w near zero, lost past `OFF`. Each hole carries
+  `proof`, a way round in par found by `solvable` (beam search) and replayed by the selftest: retune a hole, rerun
+  `solvable` and update its proof. The page's aim preview runs the stroke as if the field stayed the ball's tile.
 - **the orrery at `/orrery/`**: a 4D planetary system run live, full screen (the view on the top two thirds, controls
   below; side by side on wide screens, as IRIS⁴). `orrery/orrery.js` draws it with its own 4D camera on `atom/js/tile.js`'s
   maths (turn, apply, the w colours): the whole of it (w by perspective) or a 3D slice with the rest as ghosts marked

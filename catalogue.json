@@ -5768,6 +5768,22 @@
       ]
     },
     {
+      "n": "four-drift",
+      "u": "https://four.mino.mobi/drift/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-03",
+      "b": "2026-11-03",
+      "p": "four",
+      "surface": "four",
+      "d": "Drift golf: putt a charged ball through four-dimensional magnetic fields. You can only push it, and the field turns every push sideways by its two planes' stiffness: ride a one-plane highway, cross a slant that tips the ball off the green into z and w, and sink seven holes in par.",
+      "tags": [
+        "canvas",
+        "game"
+      ]
+    },
+    {
       "n": "four-orrery",
       "u": "https://four.mino.mobi/orrery/",
       "c": "data",

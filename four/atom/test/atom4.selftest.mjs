@@ -1146,5 +1146,22 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `kinematic dynamos: free decay at η|k|³ in 4D (${none4.toFixed(4)} against ${exact4.toFixed(4)}) and ηk² in ours; Roberts's cells grow a field (ours ${rob3.toFixed(3)}, 4D ${rob4.toFixed(3)} at Rm 5), a planar flow doesn't (${flat4.toFixed(3)})`);
 }
 
+/* 64 · a charge in 4D fields (js/drift.js, drift golf): unpushed in a field of two planes it stays within 2|v|/b of where it
+   started (a perfect bottle: no field lines to leave along); pushed, it drifts at −F⁻¹E; in a one-plane field a push along
+   the free sheet runs away as E t; and every hole of the course can be played in par (its recorded way round, replayed) */
+{
+  const D = await import(path.join(here, "../js/drift.js"));
+  const F = D.bivector({ xy: 2, zw: 0.7 }), v0 = [0.3, -0.5, 0.8, 0.4]; let st = { x: [0, 0, 0, 0], v: v0 }, mx = 0;
+  for (let i = 0; i < 40000; i++) { st = D.step(st, () => F, [0, 0, 0, 0], 0, 0.005); mx = Math.max(mx, Math.hypot(...st.x)); }
+  const bound = (2 * Math.hypot(...v0)) / 0.7, kept = Math.abs(Math.hypot(...st.v) / Math.hypot(...v0) - 1);
+  const E = [0.5, 0.2, 0, 0]; st = { x: [0, 0, 0, 0], v: [0, 0, 0, 0] }; for (let t = 0; t < 200; t += 0.005) st = D.step(st, () => F, E, 0, 0.005);
+  const vd = D.driftVelocity(F, E, 0), dErr = Math.max(...st.x.map((x, i) => Math.abs(x / 200 - vd[i])));
+  const S = D.bivector({ zw: 3 }); st = { x: [0, 0, 0, 0], v: [0, 0, 0, 0] }; for (let t = 0; t < 10; t += 0.005) st = D.step(st, () => S, E, 0, 0.005);
+  const run = Math.abs(Math.hypot(...st.v) / (Math.hypot(...E) * 10) - 1);
+  const holes = D.HOLES.map((h) => { let x = [...h.tee, 0, 0]; for (const [deg, s] of h.proof) { const r = D.stroke(h, x, (deg * Math.PI) / 180, s, { every: 1000 }); if (r.holed) return true; if (r.off) return false; x = r.end; } return false; });
+  ok(mx < bound && kept < 1e-6 && dErr < 3e-3 && D.driftVelocity(S, E, 0) === null && run < 1e-3 && holes.every(Boolean) && D.HOLES.every((h) => h.proof.length <= h.par),
+    `a charge in 4D fields: trapped by two planes within ${mx.toFixed(2)} of a ${bound.toFixed(2)} bound, its speed kept to ${kept.toExponential(0)}; drift −F⁻¹E to ${dErr.toExponential(0)}; a one-plane field's free sheet runs away as E t; all ${D.HOLES.length} drift-golf holes played in par`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

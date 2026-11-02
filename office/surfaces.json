@@ -3704,6 +3704,15 @@
    "parent": "four"
   },
   {
+   "id": "four-drift",
+   "name": "four-drift",
+   "url": "https://four.mino.mobi/drift/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "four"
+  },
+  {
    "id": "four-orrery",
    "name": "four-orrery",
    "url": "https://four.mino.mobi/orrery/",

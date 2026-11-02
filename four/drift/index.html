@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="Drift golf: putt a charged ball through four-dimensional magnetic fields. You can only push; the field turns every push sideways, by how stiff each of its two planes is. Ride one-plane highways, cross slants that tip the ball off the green into z and w, and learn a bivector by feel." />
+<title>Four · drift golf</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section { max-width: 920px; }
+  .step { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 26px; }
+  .game { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 12px 0 8px; }
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font: 12px var(--mono); color: var(--dim); }
+  .top b { color: var(--text); } .top .hole { font: 700 15px var(--mono); color: var(--text); }
+  canvas.course { width: 100%; display: block; border-radius: 8px; background: #0b0d13; touch-action: none; cursor: crosshair; margin: 8px 0 4px; }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; } @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+  .gauges { display: flex; gap: 10px; font: 11px var(--mono); color: var(--dim); }
+  .gauge { width: 54px; } .gauge .bar { position: relative; height: 90px; border: 1px solid var(--border); border-radius: 6px; background: #0b0d13; }
+  .gauge .mid { position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed rgba(255,255,255,0.25); }
+  .gauge .cup { position: absolute; left: 0; right: 0; background: rgba(125,255,176,0.12); }
+  .gauge .dot { position: absolute; left: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; }
+  .gauge .lab { text-align: center; margin-top: 3px; }
+  .note { font: 13px/1.6 var(--sans); color: #c9c3b8; margin: 6px 0; min-height: 2.6em; }
+  .msg { font: 600 13px var(--mono); min-height: 1.4em; margin: 4px 0; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .btns button, .holes button { font: 600 12px var(--mono); background: none; color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .btns button.go { color: var(--d4); border-color: var(--d4); }
+  .holes { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 2px; } .holes button.on { border-color: var(--d4); color: var(--d4); } .holes button small { color: var(--dim); font-weight: 400; margin-left: 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 11px var(--mono); color: var(--dim); margin: 4px 0; } .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  .more { font: 12px var(--mono); } .more a { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../start/">where we are</a><a href="../fields/">fields</a><a href="../plasma/">plasma</a><a href="./" class="here">drift golf</a><a href="../atom/">ATOM⁴</a></nav>
+  <h2>four.mino.mobi · drift golf</h2>
+  <h1 class="ch">Drift golf</h1>
+  <p class="lede">Your ball is a charge on a green in four dimensions, and the green is threaded with magnetic fields. You can't hit it. You can only <b>push</b> it, with an electric field, for a moment, and the magnetic field <b>turns every push sideways</b>: by how much, and which way, depends on the field's two planes (<a href="../plasma/#anatomy">what a 4D field is</a>). The green is the plane x–y. The ball can also drift off it, into z and w, which you can't see except on the gauges: drift too far and it's lost.</p>
+</header>
+
+<section>
+  <div class="game">
+    <div class="top"><span class="hole" id="hName"></span><span>par <b id="hPar"></b></span><span>strokes <b id="hStrokes">0</b></span><span>total <b id="hTotal"></b></span></div>
+    <div class="row">
+      <div><canvas class="course" id="course"></canvas>
+        <div class="legend" id="legend"></div></div>
+      <div class="gauges"><div class="gauge"><div class="bar" id="gz"><div class="cup"></div><div class="mid"></div><div class="dot" style="background:#ff8fa3"></div></div><div class="lab">z</div></div>
+        <div class="gauge"><div class="bar" id="gw"><div class="cup"></div><div class="mid"></div><div class="dot" style="background:#c79bff"></div></div><div class="lab">w</div></div></div>
+    </div>
+    <p class="msg" id="msg"></p>
+    <p class="note" id="note"></p>
+    <div class="btns"><button type="button" id="retry">start the hole again</button><button type="button" id="next" class="go">next hole →</button></div>
+    <div class="holes" id="holes"></div>
+  </div>
+  <p class="read"><b>How to play.</b> Drag from anywhere on the green: the direction is the push, the length its strength. The white arrow is your push; the blue one is where the field will actually send the ball during it, worked out from the tile under the ball (it can't see the tiles ahead). Let go to push. The ball drifts, then coasts to rest against the gas. To sink it, stop it in the cup on the green, z and w both near zero (the green band on the gauges).</p>
+</section>
+
+<section class="step" id="physics">
+  <h3>What the ball is doing</h3>
+  <p>A charge pushed by a steady electric field E through a magnetic field F, slowed by the gas, settles to a steady drift v = −(F − γ)⁻¹E: in each of the field's two planes, turned nearly a right angle from the push, at the push's strength over that plane's rate. A stiff plane barely lets it move; a weak one lets it slide (the <b>rough</b> and <b>soft rough</b>). A field turning the other way turns the drift the other way (<b>back rough</b>).</p>
+  <p>The <b>highway</b> is a field of one plane, z–w, which turns nothing in the green: the green is its free sheet, and a push there goes straight, as if there were no field at all. The <b>slant</b> is a field of two planes, x–z and y–w, each half in the green and half out of it: a push along the green drifts the ball out of it, into z and w. Come back by drifting the other way. The <b>left</b> field turns both its planes at the same rate (<a href="../plasma/#anatomy">all left</a>).</p>
+  <p><span class="tag computed">computed</span> And one fact our world doesn't have: with no push, a charge in a field of two planes can't go anywhere. It circles in both planes and stays within 2|v|/b of where it was, for ever, since there's no field line to run along. In ours a magnetic bottle leaks out of its ends, which is half of why fusion is hard; a uniform 4D magnet of two planes holds a charge perfectly (on its own: a hot crowd of charges and its own fields are another matter). The selftest checks it, and the drift, and the highway's run-away when there's no gas.</p>
+  <p class="more">The physics: <a href="../plasma/">plasma</a> (a field's two planes, frozen-in flux, dynamos) · <a href="../fields/#cyclotron">fields</a> (a charge turning in two planes) · <a href="../">four</a></p>
+</section>
+<script type="module" src="drift.js"></script>
+</body>
+</html>
