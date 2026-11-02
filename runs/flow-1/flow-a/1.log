@@ -1,0 +1,27 @@
+$ node four/atom/tools/liquid.mjs flow x4 1500 --minutes=320
+x4 flow at 1500 K: 300 molecules at 2.622e-3 per bohr^4 (box 18.4), from step 0 to 20000
+step 1000: T 1435 K (241 s)
+step 2000: T 1528 K, 0 ps, MSD 0.00 bohr² (478 s)
+step 3000: T 1461 K, 1.5 ps, MSD 5.38 bohr² (716 s)
+step 4000: T 1479 K, 3 ps, MSD 9.75 bohr² (955 s)
+step 5000: T 1444 K, 4.5 ps, MSD 13.58 bohr² (1193 s)
+step 6000: T 1512 K, 6 ps, MSD 18.12 bohr² (1434 s)
+step 7000: T 1509 K, 7.5 ps, MSD 22.57 bohr² (1671 s)
+step 8000: T 1502 K, 9 ps, MSD 27.81 bohr² (1907 s)
+step 9000: T 1515 K, 10.5 ps, MSD 33.86 bohr² (2148 s)
+step 10000: T 1488 K, 12 ps, MSD 40.28 bohr² (2377 s)
+step 11000: T 1476 K, 13.5 ps, MSD 45.18 bohr² (2613 s)
+step 12000: T 1493 K, 15 ps, MSD 51.66 bohr² (2844 s)
+step 13000: T 1529 K, 16.5 ps, MSD 55.40 bohr² (3078 s)
+step 14000: T 1502 K, 18 ps, MSD 61.60 bohr² (3312 s)
+step 15000: T 1492 K, 19.5 ps, MSD 69.05 bohr² (3545 s)
+step 16000: T 1507 K, 21 ps, MSD 75.06 bohr² (3778 s)
+step 17000: T 1467 K, 22.5 ps, MSD 78.54 bohr² (3993 s)
+step 18000: T 1495 K, 24 ps, MSD 82.09 bohr² (4158 s)
+step 19000: T 1512 K, 25.5 ps, MSD 86.78 bohr² (4331 s)
+step 20000: T 1520 K, 27 ps, MSD 91.75 bohr² (4503 s)
+D = 1.22e-9 m²/s (MSD slope 3.495 bohr²/ps over the second half)
+(node:2316) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/md.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

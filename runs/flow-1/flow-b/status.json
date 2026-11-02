@@ -1,0 +1,26 @@
+{
+ "group": "flow-b",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs flow x4 4000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5306
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs flow x4 5000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5483
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs flow x4 6000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4795
+  }
+ ]
+}
