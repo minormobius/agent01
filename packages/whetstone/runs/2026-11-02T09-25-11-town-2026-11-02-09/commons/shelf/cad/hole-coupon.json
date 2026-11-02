@@ -1,0 +1,108 @@
+{
+ "units": "mm",
+ "params": {
+  "L": 46,
+  "W": 12,
+  "t": 3,
+  "pitch": 7
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "outline",
+   "loops": [
+    {
+     "name": "plate",
+     "polygon": [
+      [
+       -23,
+       -3
+      ],
+      [
+       -20,
+       -6
+      ],
+      [
+       23,
+       -6
+      ],
+      [
+       23,
+       6
+      ],
+      [
+       -23,
+       6
+      ]
+     ]
+    },
+    {
+     "name": "h200",
+     "circle": {
+      "c": [
+       "-2.5*pitch",
+       0
+      ],
+      "r": 1.0
+     }
+    },
+    {
+     "name": "h210",
+     "circle": {
+      "c": [
+       "-1.5*pitch",
+       0
+      ],
+      "r": 1.05
+     }
+    },
+    {
+     "name": "h220",
+     "circle": {
+      "c": [
+       "-0.5*pitch",
+       0
+      ],
+      "r": 1.1
+     }
+    },
+    {
+     "name": "h230",
+     "circle": {
+      "c": [
+       "0.5*pitch",
+       0
+      ],
+      "r": 1.15
+     }
+    },
+    {
+     "name": "h240",
+     "circle": {
+      "c": [
+       "1.5*pitch",
+       0
+      ],
+      "r": 1.2
+     }
+    },
+    {
+     "name": "h250",
+     "circle": {
+      "c": [
+       "2.5*pitch",
+       0
+      ],
+      "r": 1.25
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "coupon",
+   "profile": "outline",
+   "depth": "t"
+  }
+ ]
+}
