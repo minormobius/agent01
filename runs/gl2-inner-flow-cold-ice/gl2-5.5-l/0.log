@@ -1,0 +1,6 @@
+$ node four/atom/tools/diatomic.mjs pair Gl2 5.5 L
+{"name":"Gl2","d":4,"R":5.5,"o":"L","hf":131283.55224336436,"mp2":110746.31462589905,"ok":true,"n":288,"s":541.991}
+(node:2548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

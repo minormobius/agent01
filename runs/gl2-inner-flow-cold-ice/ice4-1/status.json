@@ -1,0 +1,33 @@
+{
+ "group": "ice4-1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 4 3000 --shard 4/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1550
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 4 3000 --shard 5/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1529
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 4 3000 --shard 6/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1548
+  },
+  {
+   "cmd": "node four/atom/tools/ice.mjs 4 4 3000 --shard 7/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1532
+  }
+ ]
+}

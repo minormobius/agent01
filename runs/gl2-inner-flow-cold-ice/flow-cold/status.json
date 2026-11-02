@@ -1,0 +1,26 @@
+{
+ "group": "flow-cold",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs flow x4 1000 --from=x4_1500_g2.json --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5172
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs flow x4 750 --from=x4_1500_g2.json --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5661
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs flow x4 500 --from=x4_1500_g2.json --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5156
+  }
+ ]
+}
