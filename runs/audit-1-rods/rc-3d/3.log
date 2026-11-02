@@ -1,0 +1,10 @@
+$ node four/atom/tools/reconverge.mjs run census 1/2
+census 308: converged in 12, -4.3474 kcal/mol (saved -4.3474, moved -1.75e-5), 22 s
+census 408: converged in 15, -10.8425 kcal/mol (saved -10.8427, moved 2.85e-4), 109 s
+census 410: converged in 14, -13.2813 kcal/mol (saved -13.2812, moved -2.40e-5), 39 s
+census 418: converged in 15, -8.0509 kcal/mol (saved -8.0509, moved 4.58e-5), 113 s
+census 420: converged in 13, -8.9650 kcal/mol (saved -8.9652, moved 2.72e-4), 40 s
+(node:2343) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

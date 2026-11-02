@@ -1,0 +1,33 @@
+{
+ "group": "f04-6",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 6 --seed=1 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1888
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 6 --seed=2 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1901
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 6 --seed=3 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1875
+  },
+  {
+   "cmd": "node four/atom/tools/coexist.mjs ie 6.5 --seed=1 --minutes=300",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1765
+  }
+ ]
+}

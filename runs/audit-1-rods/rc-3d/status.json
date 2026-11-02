@@ -1,0 +1,33 @@
+{
+ "group": "rc-3d",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run ff3 0/1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1275
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run liq3 0/1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 630
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run census 0/2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 214
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run census 1/2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 324
+  }
+ ]
+}

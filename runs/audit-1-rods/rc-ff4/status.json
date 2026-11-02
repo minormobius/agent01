@@ -1,0 +1,33 @@
+{
+ "group": "rc-ff4",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run ff4 0/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2894
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run ff4 1/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2861
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run ff4 2/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2872
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run ff4 3/4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2880
+  }
+ ]
+}

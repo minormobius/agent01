@@ -1,0 +1,27 @@
+$ node four/atom/tools/reconverge.mjs run ff49 3/4
+ff49 3: converged in 15, -5.4736 kcal/mol (saved -5.4736, moved 5.61e-6), 151 s
+ff49 7: converged in 15, -7.6166 kcal/mol (saved -7.6166, moved -2.13e-7), 148 s
+ff49 11: converged in 15, -1.3150 kcal/mol (saved -1.3150, moved -2.78e-6), 122 s
+ff49 15: converged in 15, -7.7582 kcal/mol (saved -7.7582, moved -1.28e-6), 153 s
+ff49 19: converged in 14, -1.2416 kcal/mol (saved -1.2416, moved -2.34e-6), 118 s
+ff49 23: converged in 15, -3.4586 kcal/mol (saved -3.4587, moved 8.27e-7), 130 s
+ff49 27: converged in 15, 7.3153 kcal/mol (saved 7.3153, moved 4.82e-6), 153 s
+ff49 31: converged in 14, -3.9599 kcal/mol (saved -3.9599, moved 9.35e-7), 123 s
+ff49 35: converged in 15, -5.8390 kcal/mol (saved -5.8390, moved 3.72e-6), 132 s
+ff49 39: converged in 15, -1.0556 kcal/mol (saved -1.0556, moved -3.15e-6), 121 s
+ff49 43: converged in 15, -2.3854 kcal/mol (saved -2.3854, moved -5.42e-7), 122 s
+ff49 47: converged in 15, -8.6377 kcal/mol (saved -8.6377, moved -2.33e-6), 157 s
+ff49 51: converged in 15, -2.0985 kcal/mol (saved -2.0985, moved -2.15e-6), 125 s
+ff49 55: converged in 15, -0.2475 kcal/mol (saved -0.2475, moved 3.19e-6), 155 s
+ff49 59: converged in 15, -12.7140 kcal/mol (saved -12.7140, moved 3.72e-6), 104 s
+ff49 63: converged in 18, 47.8225 kcal/mol (saved 47.8225, moved 1.39e-6), 172 s
+ff49 67: converged in 17, 18.7260 kcal/mol (saved 18.7260, moved -7.82e-7), 166 s
+ff49 71: converged in 15, 4.1878 kcal/mol (saved 4.1878, moved -2.77e-6), 159 s
+ff49 75: converged in 17, 20.3485 kcal/mol (saved 20.3485, moved 2.71e-6), 168 s
+ff49 10100: converged in 14, 3.8186 kcal/mol (saved 3.8186, moved 2.99e-6), 161 s
+ff49 10104: converged in 15, 4.1770 kcal/mol (saved 4.1770, moved -1.53e-6), 163 s
+ff49 10108: converged in 15, 3.9273 kcal/mol (saved 3.9273, moved 1.24e-6), 90 s
+(node:2613) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

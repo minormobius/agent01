@@ -1,0 +1,19 @@
+{
+ "group": "f04-12",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --seed=1 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5205
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run spce 615 --cycles=15000 --seed=2 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5939
+  }
+ ]
+}

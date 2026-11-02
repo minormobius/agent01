@@ -1,0 +1,29 @@
+$ node four/atom/tools/reconverge.mjs run liq49 0/4
+liq49 20000: converged in 15, 1.4257 kcal/mol (saved 1.4257, moved -2.49e-6), 174 s
+liq49 20004: converged in 15, -1.3851 kcal/mol (saved -1.3851, moved 1.58e-7), 159 s
+liq49 20008: converged in 15, -1.4846 kcal/mol (saved -1.4846, moved 1.60e-6), 160 s
+liq49 20012: converged in 15, 0.9111 kcal/mol (saved 0.9111, moved 2.10e-6), 192 s
+liq49 20016: converged in 15, -0.7142 kcal/mol (saved -0.7142, moved 7.69e-7), 177 s
+liq49 20020: converged in 15, 0.0791 kcal/mol (saved 0.0791, moved -1.45e-7), 164 s
+liq49 20024: converged in 15, -3.1611 kcal/mol (saved -3.1611, moved 2.65e-6), 191 s
+liq49 20028: converged in 15, -7.5990 kcal/mol (saved -7.5990, moved -2.89e-6), 192 s
+liq49 20032: converged in 15, -1.4403 kcal/mol (saved -1.4403, moved 3.11e-6), 165 s
+liq49 20036: converged in 15, -1.4400 kcal/mol (saved -1.4400, moved -5.42e-7), 167 s
+liq49 20040: converged in 15, -0.5127 kcal/mol (saved -0.5127, moved -4.76e-7), 195 s
+liq49 20044: converged in 15, -9.2121 kcal/mol (saved -9.2121, moved 1.66e-6), 188 s
+liq49 20048: converged in 15, -2.0337 kcal/mol (saved -2.0337, moved -2.99e-6), 155 s
+liq49 20052: converged in 15, -0.3208 kcal/mol (saved -0.3208, moved -7.13e-7), 178 s
+liq49 20056: converged in 15, -1.0066 kcal/mol (saved -1.0066, moved -2.37e-6), 171 s
+liq49 20060: converged in 15, -2.8558 kcal/mol (saved -2.8558, moved -1.31e-6), 178 s
+liq49 20064: converged in 15, 0.1646 kcal/mol (saved 0.1646, moved 2.49e-6), 167 s
+liq49 20068: converged in 15, -10.7110 kcal/mol (saved -10.7110, moved 1.15e-6), 187 s
+liq49 20072: converged in 15, -3.5241 kcal/mol (saved -3.5241, moved 2.82e-7), 169 s
+liq49 20076: converged in 15, -8.5213 kcal/mol (saved -8.5213, moved -2.29e-6), 182 s
+liq49 20080: converged in 15, -4.4226 kcal/mol (saved -4.4226, moved -2.87e-6), 194 s
+liq49 20084: converged in 15, -0.1337 kcal/mol (saved -0.1337, moved -1.16e-6), 160 s
+liq49 20088: converged in 15, 6.9601 kcal/mol (saved 6.9601, moved 1.40e-6), 196 s
+liq49 20092: converged in 15, 4.4188 kcal/mol (saved 4.4188, moved 1.69e-6), 168 s
+(node:2528) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

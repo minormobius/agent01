@@ -1,0 +1,33 @@
+{
+ "group": "rods-12",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/diatomic.mjs pair F2 7.5 H",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 323
+  },
+  {
+   "cmd": "node four/atom/tools/diatomic.mjs pair F2 7.5 X",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 400
+  },
+  {
+   "cmd": "node four/atom/tools/diatomic.mjs pair F2 7.5 T",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 319
+  },
+  {
+   "cmd": "node four/atom/tools/diatomic.mjs pair F2 7.5 L",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 231
+  }
+ ]
+}

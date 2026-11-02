@@ -1,0 +1,33 @@
+{
+ "group": "rc-liq4-1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run liq4 4/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2737
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run liq4 5/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2852
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run liq4 6/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2743
+  },
+  {
+   "cmd": "node four/atom/tools/reconverge.mjs run liq4 7/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2841
+  }
+ ]
+}
