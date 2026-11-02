@@ -18,17 +18,17 @@ export const NAMES = ["q", "lnA_XX", "lnA_XL", "lnA_LL", "C_XX", "C_XL", "C_LL",
 /* in 4D each site also carries a cloud term (js/polmodel.js's): a round cloud's own potential once the shell theorem
    fails, c/r³, so charge–cloud q c/r³ and cloud–cloud −3cc′/r⁵, Tang–Toennies-damped at the pair's Born–Mayer exponent:
    the permanent pull between neutral 4D clouds, which a 3D-style field can only fake with its 1/r⁶ */
-const ttd = (n, x) => { let t = 1, s = 1; for (let k = 1; k <= n; k++) { t *= x / k; s += t; } return 1 - Math.exp(-x) * s; };
 /* the field's pair terms for md.js / gibbs.js, given its parameters and molecule */
 export function termsOf(p, M) {
-  const [q, aXX, aXL, aLL, cXX, cXL, cLL] = p, B = (a, b) => bornMayer(M.d, a, b);
-  return { q, pairs: { "X|X": { tt: [Math.exp(aXX), B(M.X, M.X), cXX] }, "X|L": { tt: [Math.exp(aXL), B(M.X, M.L), cXL] }, "L|L": { tt: [Math.exp(aLL), B(M.L, M.L), cLL] } } };
+  const [q, aXX, aXL, aLL, cXX, cXL, cLL] = p, B = (a, b) => bornMayer(M.d, a, b), qs = { X: -2 * q, L: q };
+  const cl = M.d === 4 && p.length > 7 ? { X: p[7], L: p[8] } : null;
+  const one = (s, t, lnA, C) => { const b = B(M[s], M[t]), tt = { tt: [Math.exp(lnA), b, C] }; if (!cl) return tt;
+    return { sum: [tt, { ttr: [3, b, qs[s] * cl[t] + cl[s] * qs[t], 3] }, { ttr: [5, b, -3 * cl[s] * cl[t], 5] }] }; };
+  return { q, pairs: { "X|X": one("X", "X", aXX, cXX), "X|L": one("X", "L", aXL, cXL), "L|L": one("L", "L", aLL, cLL) } };
 }
 export function modelEnergy(p, M, A, B) {
   const { q, pairs } = termsOf(p, M), t = (i) => (i ? "L" : "X"), qq = (i) => (i ? q : -2 * q); let E = 0;
-  const cl = (i) => (M.d === 4 && p.length > 7 ? (i ? p[8] : p[7]) : 0);
-  A.forEach((a, i) => B.forEach((b, j) => { const r2 = a.reduce((s, x, k) => s + (x - b[k]) ** 2, 0), key = t(i) === t(j) ? `${t(i)}|${t(i)}` : "X|L"; E += (qq(i) * qq(j)) / Math.sqrt(r2) + shortPair(pairs[key], r2)[0];
-    if (cl(i) || cl(j)) { const r = Math.sqrt(r2), x = pairs[key].tt[1] * r; E += (ttd(3, x) * (qq(i) * cl(j) + cl(i) * qq(j))) / r ** 3 - (ttd(5, x) * 3 * cl(i) * cl(j)) / r ** 5; } }));
+  A.forEach((a, i) => B.forEach((b, j) => { const r2 = a.reduce((s, x, k) => s + (x - b[k]) ** 2, 0), key = t(i) === t(j) ? `${t(i)}|${t(i)}` : "X|L"; E += (qq(i) * qq(j)) / Math.sqrt(r2) + shortPair(pairs[key], r2)[0]; }));
   return E;
 }
 function solve(M, b) { const n = b.length, A = M.map((r, i) => [...r, b[i]]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; for (let r = c + 1; r < n; r++) { const f = A[r][c] / A[c][c]; for (let k = c; k <= n; k++) A[r][k] -= f * A[c][k]; } } const x = new Array(n); for (let r = n - 1; r >= 0; r--) { let s = A[r][n]; for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x; }

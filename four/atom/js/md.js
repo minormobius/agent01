@@ -91,6 +91,10 @@ export class Ewald {
    { sum: [terms] }. Returns [u, −du/dr / r] */
 export function shortPair(p, r2) {
   if (p.sum) { let u = 0, f = 0; for (const q of p.sum) { const [a, b] = shortPair(q, r2); u += a; f += b; } return [u, f]; } // several terms at once
+  if (p.ttr) { // C f_n(Br)/r^k, Tang–Toennies-damped at order n: 4D's cloud terms (charge–cloud k = 3, cloud–cloud k = 5)
+    const [n, B, C, k] = p.ttr, r = Math.sqrt(r2), x = B * r, e = Math.exp(-x); let t = 1, sum = 1; for (let j = 1; j <= n; j++) { t *= x / j; sum += t; }
+    const f = 1 - e * sum, df = e * t, rk = r ** k, U = (C * f) / rk; return [U, -((C * B * df) / rk - (k * U) / r) / r];
+  }
   if (p.core) { const [A, s] = p.core, x = (s * s / r2) ** 6; return [A * x, (12 * A * x) / r2]; } // a hard core A (s/r)¹²
   if (p.lj) { const [e, s] = p.lj, s6 = (s * s / r2) ** 3; return [4 * e * (s6 * s6 - s6), (24 * e * (2 * s6 * s6 - s6)) / r2]; }
   if (p.tt) {

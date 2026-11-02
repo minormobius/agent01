@@ -46,7 +46,7 @@ export function model(name, p = null) {
     const key = name === "of3" ? "OF2" : "PxGl2", F = MOLFF[key]; if (!F) throw new Error(`no fitted field for ${key} yet (tools/molff.mjs fit ${key})`);
     const M = MPMOLS[key], { q, pairs } = mfTerms(F.p, M), atoms = mpAtoms(M), d = M.d, mass = (Z) => (d === 3 ? { 8: 15.999, 9: 18.998 }[Z] : 2 * Z);
     const kind = { sites: atoms.map((a, i) => ({ m: mass(a.Z) * amu, q: i ? q : -2 * q, t: i ? "L" : "X", at: a.at })), constraints: [[0, 1], [0, 2], [1, 2]] };
-    return { name, d, key, mass: mass(M.X) + 2 * mass(M.L), kind, pairs, p: F.p, Ng: 300, sp: d === 3 ? 7.4 : 8.5, side: 5, layers: 6, rc: 14, alpha: 0.16, dt: d === 3 ? 2 : 2, R0: d === 3 ? 6 : 7 };
+    return { name, d, key, mass: mass(M.X) + 2 * mass(M.L), kind, pairs, p: F.p, group: d === 4 && F.p.length > 7, /* 4D's charge–cloud terms: cut by molecule */ Ng: 300, sp: d === 3 ? 7.4 : 8.5, side: 5, layers: 6, rc: 14, alpha: 0.16, dt: d === 3 ? 2 : 2, R0: d === 3 ? 6 : 7 };
   }
   // w3, x4, n4: the book's force fields (our water, Xater H₂X, XH₃); w3L, x4L, n4L: the same refitted on pairs from their
   // own liquid (js/liquidff.js). The molecule is the census's (tools/census.mjs hydrideAtoms), q on each hydrogen
@@ -65,7 +65,7 @@ function kindOf(d, mX, qX, qH, R, th) {
    box can take longer to drain than a run lasts, when only one insertion in a thousand succeeds) */
 export function gibbsOf(m, seed = 1) {
   const nv = Math.round(m.Ng / 20), nl = m.Ng - nv, v0 = m.sp ** m.d;
-  return new Gibbs({ d: m.d, kind: m.kind, pairs: m.pairs, N: [nl, nv], V: [nl * v0, 2 * nl * v0], seed });
+  return new Gibbs({ d: m.d, kind: m.kind, pairs: m.pairs, N: [nl, nv], V: [nl * v0, 2 * nl * v0], seed, group: !!m.group });
 }
 /* the slab system (now only for `check`): md.js's System with a long box (Lx along axis 0, L across), every site pair tabulated in r²
    (short-range term plus DSF charges), cell lists, and the heavy atoms' pull past rc from the profile */

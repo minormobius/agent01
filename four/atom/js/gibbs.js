@@ -27,10 +27,10 @@ export function erfc(x) {
 }
 /* kind: { sites: [{ q, t, at }] } (site 0 the heavy atom, the turning centre); pairs: { "a|b": term } */
 export class Gibbs {
-  constructor({ d, kind, pairs, N, V, seed = 1, A = 2.6, nmax = 6, core = [0.01, 1.5] }) {
+  constructor({ d, kind, pairs, N, V, seed = 1, A = 2.6, nmax = 6, core = [0.01, 1.5], group = false }) {
     let s = seed >>> 0; this.rnd = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
     this.normal = () => Math.sqrt(-2 * Math.log(this.rnd() + 1e-300)) * Math.cos(2 * Math.PI * this.rnd());
-    Object.assign(this, { d, kind, A, nmax, core, ns: kind.sites.length });
+    Object.assign(this, { d, kind, A, nmax, core, group, ns: kind.sites.length });
     this.q = kind.sites.map((x) => x.q); this.t = kind.sites.map((x) => x.t);
     this.pair = (a, b) => pairs[`${a}|${b}`] || pairs[`${b}|${a}`] || null;
     this.pp = this.t.map((a) => this.t.map((b) => this.pair(a, b)));
@@ -70,12 +70,16 @@ export class Gibbs {
     for (let k = 0; k < nk; k++) { const sr = B.Sr[k] + dr[k], si = B.Si[k] + di[k]; dE += B.w[k] * (sr * sr + si * si - B.Sr[k] * B.Sr[k] - B.Si[k] * B.Si[k]); }
     return { dE, dr, di };
   }
-  /* one molecule's real-space energy (sites X) with every other molecule of the box but skip */
+  /* one molecule's real-space energy (sites X) with every other molecule of the box but skip. With group, the short-range
+     terms are cut by molecule (first sites' distance, every site pair at that one image) rather than by site: needed when a
+     short-range term is a charge times something (4D's charge–cloud q c/r³), which a site cut-off leaves un-neutral */
   realOne(B, X, skip) {
-    const { d, ns, q, core } = this, rc2 = B.rc * B.rc, L = B.L, al = B.al; let E = 0;
-    for (const m of B.mols) { if (m === skip) continue; const Y = this.sites(m);
+    const { d, ns, q, core, group } = this, rc2 = B.rc * B.rc, L = B.L, al = B.al, sh = new Float64Array(d); let E = 0;
+    for (const m of B.mols) { if (m === skip) continue; const Y = this.sites(m); let inG = false;
+      if (group) { let r2 = 0; for (let a = 0; a < d; a++) { const v = X[0][a] - Y[0][a]; sh[a] = L * Math.round(v / L); r2 += (v - sh[a]) ** 2; } inG = r2 < rc2;
+        if (inG) for (let i = 0; i < ns; i++) for (let j = 0; j < ns; j++) { const p = this.pp[i][j]; if (!p) continue; let r2 = 0; for (let a = 0; a < d; a++) r2 += (X[i][a] - Y[j][a] - sh[a]) ** 2; E += shortPair(p, r2)[0]; } }
       for (let i = 0; i < ns; i++) for (let j = 0; j < ns; j++) { let r2 = 0; for (let a = 0; a < d; a++) { let v = X[i][a] - Y[j][a]; v -= L * Math.round(v / L); r2 += v * v; } if (r2 >= rc2) continue;
-        const p = this.pp[i][j]; if (p) E += shortPair(p, r2)[0]; if (q[i] && q[j]) { const r = Math.sqrt(r2); E += (q[i] * q[j] * erfc(al * r)) / r; if (core && q[i] * q[j] < 0) E += core[0] * (core[1] * core[1] / r2) ** 6; } } }
+        const p = this.pp[i][j]; if (p && !group) E += shortPair(p, r2)[0]; if (q[i] && q[j]) { const r = Math.sqrt(r2); E += (q[i] * q[j] * erfc(al * r)) / r; if (core && q[i] * q[j] < 0) E += core[0] * (core[1] * core[1] / r2) ** 6; } } }
     return E;
   }
   rec(B) { let E = 0; for (let k = 0; k < B.w.length; k++) E += B.w[k] * (B.Sr[k] * B.Sr[k] + B.Si[k] * B.Si[k]); return E; }

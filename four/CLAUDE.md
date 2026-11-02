@@ -305,7 +305,10 @@ for games, and this is a modelling programme with publications to come. The game
   `js/gibbs.js` (no DOM) is liquid against vapour for rigid molecules in any d: Gibbs-ensemble Monte Carlo (two boxes
   trading volume and molecules), Ewald per box (real space to L/2, α = 2.6/rc, |nᵢ| ≤ 6, the structure factor updated
   move by move), the short-range tail past rc as a uniform fluid's. Selftest 57 (its energy is md.js's Ewald on NIST's
-  SPC/E configuration). `atom/tools/liquid.mjs`: `run <spce|w3|x4|w3L|x4L> <T>` one temperature on the runner
+  SPC/E configuration). `group: true` cuts the short-range terms by molecule (first sites' distance, every site pair at
+  that image) instead of by site: on for `pg4`, whose 4D charge–cloud terms q c/r³ (md.js `{ttr:[n, B, C, k]}`, a
+  Tang–Toennies-damped C/r^k; `tools/molff.mjs termsOf` now emits them in its pairs) only cancel molecule by molecule.
+  Selftest 61. `atom/tools/liquid.mjs`: `run <spce|w3|x4|w3L|x4L> <T>` one temperature on the runner
   (resumable; `--seed=S` for independent repeats, the liquid taken block-wise); `probe <w3|x4|n4> <round>` pairs from the field's own liquid, Hartree–Fock on each, the field's error before
   a refit sees them, then the refit (**generated** `js/liquidff.js`, every probe pair kept); `check <model>` a damped
   shifted force against Ewald (3D: 0.34 kcal/mol a molecule; 4D: 42, because the pinned 1/r charges a polarization wave

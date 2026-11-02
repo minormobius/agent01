@@ -1091,5 +1091,22 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(e3 < 1e-4 && e4 < 5e-3, `plasma ion sphere: ours −0.9 Z²/a to ${e3.toExponential(0)}; 4D ${PL.ionSphereCoef(4).toFixed(4)} against a Monte Carlo ${mc4.toFixed(4)}`);
 }
 
+/* 61 · 4D's cloud terms in the liquid tools: md.js's damped C f_n(Br)/r^k pair (its force against a finite difference),
+   tools/molff.mjs's fitted field carrying them (against the terms written out: q c/r³ and −3cc′/r⁵ per site pair), and
+   gibbs.js cutting short-range terms by molecule (its running energy against a fresh sum after moves) */
+{
+  const MD = await import(path.join(here, "../js/md.js")), MF = await import(path.join(here, "../tools/molff.mjs")), { MOLS } = await import(path.join(here, "../tools/molpair.mjs")), { Gibbs } = await import(path.join(here, "../js/gibbs.js"));
+  let fe = 0; for (const [n, k] of [[3, 3], [5, 5]]) for (const r of [2, 4, 9]) { const p = { ttr: [n, 1.3, -0.7, k] }, h = 1e-5, f = MD.shortPair(p, r * r)[1] * r, fd = -(MD.shortPair(p, (r + h) ** 2)[0] - MD.shortPair(p, (r - h) ** 2)[0]) / (2 * h); fe = Math.max(fe, Math.abs(f / fd - 1)); }
+  const M = MOLS.PxGl2, P = [-0.3, 5, 4.5, 4, 20, 30, 40, -2, 1.5], ttd = (n, x) => { let t = 1, s = 1; for (let k = 1; k <= n; k++) { t *= x / k; s += t; } return 1 - Math.exp(-x) * s; };
+  const { pairs } = MF.termsOf(P, M), qq = (i) => (i ? P[0] : -2 * P[0]), cl = (i) => (i ? P[8] : P[7]), key = (i, j) => (i && j ? "L|L" : !i && !j ? "X|X" : "X|L");
+  let rnd = 7; const u = () => ((rnd = (rnd * 16807) % 2147483647) / 2147483647) * 6 - 3, A = [0, 1, 2].map(() => [u(), u(), u(), u()]), Bm = [0, 1, 2].map(() => [u() + 8, u(), u(), u()]); let Ex = 0;
+  A.forEach((a, i) => Bm.forEach((b, j) => { const r = Math.hypot(...a.map((x, k) => x - b[k])), tt = (pairs[key(i, j)].sum ?? [pairs[key(i, j)]])[0], bb = tt.tt[1]; Ex += (qq(i) * qq(j)) / r + MD.shortPair(tt, r * r)[0] + (ttd(3, bb * r) * (qq(i) * cl(j) + cl(i) * qq(j))) / r ** 3 - (ttd(5, bb * r) * 3 * cl(i) * cl(j)) / r ** 5; }));
+  const de = Math.abs(MF.modelEnergy(P, M, A, Bm) / Ex - 1);
+  const kind = { sites: [{ m: 1, q: -0.6, t: "X", at: [0, 0, 0, 0] }, { m: 1, q: 0.3, t: "L", at: [2, 1, 0, 0] }, { m: 1, q: 0.3, t: "L", at: [-2, 1, 0, 0] }], constraints: [[0, 1], [0, 2], [1, 2]] };
+  const g = new Gibbs({ d: 4, kind, pairs, N: [40, 4], V: [40 * 9 ** 4, 80 * 9 ** 4], seed: 3, group: true }); for (let c = 0; c < 3; c++) g.cycle(0.01, 20, { volume: true });
+  const drift = Math.max(Math.abs(g.check(0)), Math.abs(g.check(1)));
+  ok(fe < 1e-6 && de < 1e-12 && drift < 1e-9, `4D cloud terms: damped C f_n/r^k force to ${fe.toExponential(0)}; the fitted field's pairs equal the written-out terms to ${de.toExponential(0)}; Gibbs with a molecule cut-off keeps its running energy to ${drift.toExponential(0)} hartree`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
