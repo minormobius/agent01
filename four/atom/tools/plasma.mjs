@@ -19,6 +19,7 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { rhoOf, SI } from "../js/mainseq.js";
+import { screeningH, screeningLength, transportCross, diffusivity } from "../js/plasma.js";
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 const BOHR = 5.29177210903e-11, AUT = 2.4188843265857e-17, HARTREE_K = 315775.02, C = 137.035999;
@@ -26,14 +27,13 @@ const toAU = { n: (perM, d) => perM * BOHR ** d, L: (m) => m / BOHR, T: (K) => K
 export function plasma(d, { rho, T, X, Y, Rstar, v }) {
   const n_e = toAU.n((rho * (X + Y / 2)) / SI.mu, d), n_p = toAU.n((rho * X) / SI.mu, d), n_a = toAU.n((rho * Y) / (4 * SI.mu), d), kT = toAU.T(T);
   const kAll = (n_e + n_p + 4 * n_a) / kT, kIons = (n_p + 4 * n_a) / kT;
-  const H = (Z1Z2, k) => (d === 3 ? (Z1Z2 * Math.sqrt(4 * Math.PI * k)) / kT : (Z1Z2 * (4 * Math.PI ** 2) ** (4 / 3) * Math.cbrt(k)) / (12 * Math.sqrt(3) * Math.PI * kT));
+  const H = (Z1Z2, k) => screeningH(d, Z1Z2, k, kT);
   // the electrons' Fermi energy against kT (a free gas of spin ½ in d dims): n = 2 V_d k_F^d/(2π)^d
   const Vd = d === 3 ? (4 * Math.PI) / 3 : Math.PI ** 2 / 2, kF = Math.pow((n_e * (2 * Math.PI) ** d) / (2 * Vd), 1 / d), degeneracy = (kF * kF) / 2 / kT;
   // screening length, collision rate, conductivity (electrons at the thermal speed √(d kT))
-  const lam = d === 3 ? 1 / Math.sqrt(4 * Math.PI * kAll) : Math.pow(4 * Math.PI ** 2 * kAll, -1 / 3), vth = Math.sqrt(d * kT);
-  const nuOf = (Z, nI) => { const b0 = Z / vth ** 2, str = d === 3 ? 4 * Math.PI * b0 * b0 * Math.max(1, Math.log(lam / b0)) : 8 * Math.PI * b0 * b0 * Math.max(lam, b0); return nI * vth * str; };
+  const lam = screeningLength(d, kAll), vth = Math.sqrt(d * kT), nuOf = (Z, nI) => nI * vth * transportCross(d, Z, vth, lam);
   const nu = nuOf(1, n_p) + nuOf(2, n_a), sigma = n_e / nu, L = toAU.L(Rstar);
-  const eta = d === 3 ? (C * C) / (4 * Math.PI * sigma) : (C * C) / (4 * Math.PI ** 2 * sigma * L); // bohr²/au time
+  const eta = diffusivity(d, sigma, L); // bohr²/au time
   const etaSI = (eta * BOHR * BOHR) / AUT, decayYears = (Rstar * Rstar) / etaSI / 3.156e7, Rm = (v * Rstar) / etaSI;
   return { n_e, kT, degeneracy, lam: lam * BOHR, H: { pp: [H(1, kIons), H(1, kAll)], aa: [H(4, kIons), H(4, kAll)], heavy100: [H(100, kIons), H(100, kAll)] }, sigma, etaSI, decayYears, Rm };
 }

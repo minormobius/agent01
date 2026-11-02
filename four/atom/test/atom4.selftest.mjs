@@ -1071,5 +1071,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(Math.max(...diffs) < 1e-12 && lower, `unrestricted MP2: on a closed shell it is closed-shell MP2 to ${Math.max(...diffs).toExponential(0)} hartree in both worlds, and it lowers an open-shell atom's energy`);
 }
 
+/* 60 · a stellar plasma under the lens vacuum (js/plasma.js, the stars chapter): the screening cloud's potential at a
+   nucleus, −q∫d^dk/(2π)^d G²κ/(1 + Gκ), against its closed forms (ours Debye's √(4πκ), 4D (4π²)^{4/3}κ^{1/3}/12√3π),
+   by quadrature in both worlds */
+{
+  const PL = await import(path.join(here, "../js/plasma.js")), errs = [];
+  for (const d of [3, 4]) for (const kappa of [1e-4, 0.03, 2]) {
+    const c = PL.kernelC(d), S = d === 3 ? 4 * Math.PI : 2 * Math.PI ** 2, f = (k) => { const G = c / k ** (d - 1); return (k ** (d - 1) * G * G * kappa) / (1 + G * kappa); };
+    const scale = PL.screeningLength(d, kappa), M = 400000; let I = 0; for (let i = 0; i < M; i++) { const t = (i + 0.5) / M, k = (t / (1 - t)) / scale; I += f(k) / (scale * (1 - t) ** 2); } I /= M; // k = x/(1−x) over (0, ∞)
+    errs.push(Math.abs((-S * I) / (2 * Math.PI) ** d / PL.inducedPotential(d, kappa) - 1));
+  }
+  ok(Math.max(...errs) < 1e-4, `plasma screening: the cloud's potential at a nucleus matches Debye's √(4πκ) in ours and (4π²)^{4/3}κ^{1/3}/12√3π in 4D, by quadrature, to ${Math.max(...errs).toExponential(1)}`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
