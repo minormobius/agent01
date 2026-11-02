@@ -1,0 +1,33 @@
+{
+ "group": "of3d-1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run of3d 180 --cycles=12000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 7310
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run of3d 205 --cycles=12000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 7174
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run of3d 225 --cycles=12000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 7297
+  },
+  {
+   "cmd": "node four/atom/tools/liquid.mjs run of3d 240 --cycles=12000 --minutes=320",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 7358
+  }
+ ]
+}
