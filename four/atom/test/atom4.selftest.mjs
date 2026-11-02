@@ -1134,5 +1134,17 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `4D field anatomy and frozen flux: two planes at |l| ± |r| rebuild every bivector to ${rebuilt.toExponential(0)}; ℒ_v F = d(i_v F) to ${cartan.toExponential(0)}; along a parcel F∧F/ρ held to ${drift.toExponential(0)} while the field grew ×${grew.toFixed(0)}, and a simple field's second rate stayed under ${stays.toExponential(0)}`);
 }
 
+/* 63 · kinematic dynamos (js/dynamo.js, the plasma page): with no flow a field decays at exactly ηk² in ours and η|k|³ in
+   4D under the lens; a planar flow can't make one (Zeldovich's theorem); Roberts's helical cells can, in both worlds */
+{
+  const D = await import(path.join(here, "../js/dynamo.js"));
+  const none4 = D.growth({ d: 4, flow: D.FLOWS.none, kz: 0.5, kw: 0.5, eta: 0.2, N: 8, T: 30 }).rate, exact4 = -0.2 * Math.pow(0.5, 1.5);
+  const none3 = D.growth({ d: 3, flow: D.FLOWS.none, kz: 0.5, eta: 0.4, N: 8, T: 30 }).rate, exact3 = -0.4 * 0.25;
+  const rob3 = D.growth({ d: 3, flow: D.FLOWS.roberts, kz: 0.45, eta: 0.2, N: 16, T: 24 }).rate, rob4 = D.growth({ d: 4, flow: D.FLOWS.roberts, kz: 0.45, eta: 0.2, N: 16, T: 24 }).rate;
+  const flat4 = D.growth({ d: 4, flow: D.FLOWS.planar, kz: 0.45, kw: 0.3, eta: 0.2, N: 16, T: 24 }).rate;
+  ok(Math.abs(none4 / exact4 - 1) < 0.02 && Math.abs(none3 / exact3 - 1) < 0.02 && rob3 > 0.1 && rob4 > rob3 && flat4 < 0,
+    `kinematic dynamos: free decay at η|k|³ in 4D (${none4.toFixed(4)} against ${exact4.toFixed(4)}) and ηk² in ours; Roberts's cells grow a field (ours ${rob3.toFixed(3)}, 4D ${rob4.toFixed(3)} at Rm 5), a planar flow doesn't (${flat4.toFixed(3)})`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

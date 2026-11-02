@@ -86,8 +86,11 @@ for games, and this is a modelling programme with publications to come. The game
   the canonical two planes at rates |l| ± |r| from its left and right halves, a point turned by it in a draggable 4D view,
   F∧F = 2ab), and the frozen-in theorem run rather than assumed (`carry`: a parcel's field and density integrated through
   `FLOWS.cells` / `FLOWS.swirl`, F∧F/ρ held while the field grows ×100; a simple field stays simple), and why helicity has
-  no 4D counterpart. The stars chapter's plasma section links here. Next on this page: a kinematic dynamo with the lens's
-  resistive decay.
+  no 4D counterpart. The stars chapter's plasma section links here. Section 4 is a kinematic dynamo: `atom/js/dynamo.js`
+  (no DOM, selftest 63, mirrored) solves ∂F/∂t = −d(i_v F) with decay ηk² (ours) or η|k|³ (4D lens) for Roberts-type
+  flows periodic in x, y, each field wave along the other directions separately (pseudo-spectral, RK4, Strang-split
+  decay, F = dA so closed); `atom/tools/dynamo.mjs scan <case>` (~5 min each, sandbox-sized) and `bake` → **generated**
+  `js/dynamodata.js`. Result: 4D's Roberts cells grow fields faster than ours at Rm 1–14, planar flows never do.
 - **the orrery at `/orrery/`**: a 4D planetary system run live, full screen (the view on the top two thirds, controls
   below; side by side on wide screens, as IRIS⁴). `orrery/orrery.js` draws it with its own 4D camera on `atom/js/tile.js`'s
   maths (turn, apply, the w colours): the whole of it (w by perspective) or a 3D slice with the rest as ghosts marked

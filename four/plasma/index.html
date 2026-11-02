@@ -31,6 +31,7 @@
   .badge { display: inline-block; font: 600 11px var(--mono); border-radius: 999px; padding: 2px 9px; border: 1px solid currentColor; }
   .eq { text-align: center; font: 14px/1.9 var(--mono); color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin: 10px 0; overflow-x: auto; }
   .more { font: 12px var(--mono); } .more a { color: var(--text); }
+  .leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 11px var(--mono); color: var(--text); margin: 2px 0 4px; } .leg i { display: inline-block; width: 18px; margin-right: 6px; vertical-align: middle; }
 </style>
 </head>
 <body>
@@ -83,9 +84,16 @@
   <p>What 4D has instead is section 2's local number, F∧F/ρ in every parcel, and with it a whole family of conserved totals, ∫ρ f(F∧F/ρ) dV for any function f. <span class="tag open">open</span> Whether those do helicity's jobs. Taylor's relaxation and the dynamo theory built on helicity have to be rebuilt.</p>
 </section>
 
-<section class="step" id="next">
-  <h3>4 · Next: can a 4D star make a field?</h3>
-  <p>Our anti-dynamo theorems say a field can't be kept alive by a flow that's too symmetric. Our stars get round them with flows that twist, and the twist is helicity's business. <span class="tag open">open</span> The test is the textbook one: a fixed flow, the induction equation with 4D's resistance (a field of size L decays at c²/4π²σL³, not c²/4πσL²), and whether any field grows. That's the next computation here.</p>
+<section class="step" id="dynamo">
+  <h3>4 · Can a 4D star make a field?</h3>
+  <p>A field frozen into a star for 10<sup>25</sup> years can be a fossil from the star's birth. Or the star can make it: its turning, churning gas stretching and folding a weak field faster than resistance unmakes it, a <b>dynamo</b>, as our Sun's does every eleven years. Our textbooks warn that it isn't easy: a flow that's too symmetric can't do it (Cowling's and Zeldovich's anti-dynamo theorems), and the flows that can are twisted, with the helicity section 3 says 4D lacks.</p>
+  <p><span class="tag computed">computed</span> <b>The textbook test.</b> G. O. Roberts's (1972): a fixed flow of cells, periodic in x and y, and the question whether any field grows. The field follows ∂F/∂t = −d(i<sub>v</sub>F) minus its resistive decay, ηk² for each wave in ours and <b>η|k|³ in 4D</b> (the lens: <a href="../atom/stars.html#plasma">the stars chapter</a>), solved pseudo-spectrally for each of the field's wavelengths along the directions the flow doesn't vary in, and the fastest growth kept. The magnetic Reynolds number Rm = 1/η measures how much faster the flow moves the field than resistance smooths it. The checks: with no flow every field decays at exactly ηk² or η|k|³; our Roberts flow grows a field with an optimal wavelength, as Roberts found; a flow confined to a plane never does (Zeldovich).</p>
+  <div class="toy">
+    <canvas class="chart" id="cDyn"></canvas><div class="leg" id="legDyn"></div><div class="cap" id="capDyn">the fastest-growing field's growth rate against Rm · above zero, the flow makes a field · hover for values</div>
+    <p class="read" id="rDyn"></p>
+  </div>
+  <p><b>Yes: on the textbook test 4D makes fields, and more easily than ours.</b> Roberts's helical cells grow a field in 4D at every Rm tried, from 1 to 14, about a fifth to three-fifths faster than in ours, because the lens's resistance is weaker on large scales (|k|³ against k²), and a dynamo of this kind works on scales larger than its cells. A flow in a plane still can't: Zeldovich's theorem holds in 4D. And there's a new direction to fail in: a field that varies only along w, where the Roberts flow doesn't move, never grows; the two-helix flow, its flow along w in a different pattern from the one along z, grows such fields only above Rm ≈ 5.</p>
+  <p><span class="tag open">open</span> Roberts's flows vary along two directions only, so in 4D they're 3D-like flows with room around them. A 4D star's convection turns in two planes and varies along all four; whether the missing helicity matters there, and how a 4D star's dynamo saturates once its field pushes back on the gas, are the next questions. And the magnetized wind: how fast a 4D star spins down.</p>
   <p class="more">The working: <a href="../atom/stars.html#plasma">the stars chapter's plasma</a> (screening, frozen fields) · <a href="../fields/">fields</a> (B made of planes, a charge turning in two) · <a href="../atom/motion.html">motion and spin</a> (rotations in planes, the left and right halves) · <a href="../">four</a></p>
 </section>
 <script type="module" src="plasma.js"></script>

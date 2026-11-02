@@ -1,6 +1,7 @@
 /* Magnetic fields in plasma in four dimensions, as toys. The physics is ../atom/js/mhd.js (a bivector's canonical form
    and halves, a parcel carried by a flow), which ATOM⁴'s selftest checks; this file only draws. */
 import { fromSix, canonical, halves, turn, carry, FLOWS } from "../atom/js/mhd.js";
+import { DYNAMO } from "../atom/js/dynamodata.js";
 
 const $ = (id) => document.getElementById(id);
 const CA = "#6fe0ff", CB = "#c79bff", CL = "#7dffb0", CR = "#ff8fa3", DIM = "#9a958c", TXT = "#e9e4da";
@@ -127,10 +128,45 @@ function frozen() {
     : `A simple field: the larger rate ranged ×${amin.toFixed(2)}–${amax.toFixed(1)} of its start, but <b>the second plane never woke</b>: |b| stayed under ${Math.max(bmax, 1e-16).toExponential(0)} of a, the integration's own error. The field stayed a single plane, its sheet carried with the gas.`;
 }
 
+/* ---------------------------------------------------------------- 4 · dynamos */
+const C3 = "#ffb46b";
+function dynSeries() {
+  const best = (n, pick = () => true) => { const c = DYNAMO[n]; if (!c) return []; const etas = [...new Set(c.runs.map((r) => r.eta))].sort((a, b) => b - a);
+    return etas.map((eta) => { const rs = c.runs.filter((r) => r.eta === eta && pick(r)); const b = rs.reduce((x, y) => (y.rate > x.rate ? y : x)); return [1 / eta, b.rate, b]; }); };
+  return [
+    { pts: best("roberts3"), c: C3, label: "ours: Roberts's cells" },
+    { pts: best("roberts4"), c: CA, label: "4D: Roberts's cells" },
+    { pts: best("twohelix4", (r) => r.kz === 0), c: CB, label: "4D: two-helix, fields along w" },
+    { pts: best("planar3"), c: C3, dash: [5, 4], w: 1.5, label: "ours: flow in a plane" },
+    { pts: best("planar4"), c: CA, dash: [5, 4], w: 1.5, label: "4D: flow in a plane" },
+  ];
+}
+let dynHover = null;
+function dynamo() {
+  const cv = $("cDyn"), { g, w, h } = sizeCanvas(cv), L = 46, R = 12, T = 12, B = 30, x0 = 1, x1 = 15, y0 = -0.1, y1 = 0.22, S = dynSeries();
+  const X = (v) => L + ((w - L - R) * Math.log(v / x0)) / Math.log(x1 / x0), Y = (v) => h - B - ((h - B - T) * (v - y0)) / (y1 - y0);
+  g.font = "10px ui-monospace, monospace"; g.fillStyle = DIM; g.strokeStyle = "rgba(255,255,255,0.18)";
+  g.beginPath(); g.moveTo(L, T); g.lineTo(L, h - B); g.lineTo(w - R, h - B); g.stroke();
+  g.strokeStyle = "rgba(255,255,255,0.35)"; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(L, Y(0)); g.lineTo(w - R, Y(0)); g.stroke(); g.setLineDash([]);
+  for (const v of [-0.1, 0, 0.1, 0.2]) g.fillText(v.toFixed(1).replace("-", "−"), 8, Y(v) + 3);
+  for (const v of [1, 2, 5, 10]) g.fillText(String(v), X(v) - 3, h - B + 14);
+  g.fillText("Rm", w - R - 14, h - 4); g.fillText("growth", L + 6, T + 2);
+  for (const s of S) { g.strokeStyle = s.c; g.lineWidth = s.w ?? 2; g.setLineDash(s.dash ?? []); g.beginPath(); s.pts.forEach(([a, b], i) => (i ? g.lineTo(X(a), Y(b)) : g.moveTo(X(a), Y(b)))); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+    for (const [a, b] of s.pts) { g.fillStyle = s.c; g.beginPath(); g.arc(X(a), Y(b), s.dash ? 2 : 3, 0, 2 * Math.PI); g.fill(); }
+  }
+  $("legDyn").innerHTML = S.map((s) => `<span><i style="border-top: ${s.w ?? 2}px ${s.dash ? "dashed" : "solid"} ${s.c}"></i>${s.label}</span>`).join("");
+  if (dynHover != null) { const rm = dynHover; g.strokeStyle = "rgba(255,255,255,0.3)"; g.beginPath(); g.moveTo(X(rm), T); g.lineTo(X(rm), h - B); g.stroke();
+    $("rDyn").innerHTML = `At Rm ${rm.toFixed(1)}: ` + S.map((s) => { const p = s.pts.find(([a]) => Math.abs(a - rm) < 1e-6); return p ? `${s.label} <b>${p[1].toFixed(3).replace("-", "−")}</b> (k<sub>z</sub> ${p[2].kz}${s.label.startsWith("4D") ? `, k<sub>w</sub> ${p[2].kw}` : ""})` : ""; }).filter(Boolean).join(" · ");
+  } else { const a = S[0].pts.at(-1), b = S[1].pts.at(-1); $("rDyn").innerHTML = `At Rm ${a[0].toFixed(0)} the fastest field grows at <b>${a[1].toFixed(3)}</b> in ours and <b>${b[1].toFixed(3)}</b> in 4D (per unit time, the flow's speed and cell size 1); at Rm 1, ${S[0].pts[0][1].toFixed(3)} and ${S[1].pts[0][1].toFixed(3)}.`; }
+  cv.onpointermove = (e) => { const r = cv.getBoundingClientRect(), xv = x0 * Math.exp(((e.clientX - r.left - L) / (r.width - L - R)) * Math.log(x1 / x0)), pts = S[0].pts.map(([a]) => a), near = pts.reduce((p, q) => (Math.abs(Math.log(q / xv)) < Math.abs(Math.log(p / xv)) ? q : p)); if (near !== dynHover) { dynHover = near; dynamo(); } };
+  cv.onpointerleave = () => { dynHover = null; dynamo(); };
+}
+
 /* ---------------------------------------------------------------- wiring */
 buildControls(); bindDrag(); anatomy();
 for (const id of ["flow", "start", "comp"]) $(id).addEventListener("input", frozen);
 frozen();
 new IntersectionObserver((es) => { onScreen = es.some((e) => e.isIntersecting); }).observe($("cView"));
-addEventListener("resize", () => { anatomy(); frozen(); });
+addEventListener("resize", () => { anatomy(); frozen(); dynamo(); });
+dynamo();
 requestAnimationFrame(loop);
