@@ -124,7 +124,7 @@ export function hybrids(d, n = 2) {
 }
 /* a mixture's radial numbers, as state() gives a single state's: P(r) = Σ c² P_i(r), its peak, mean and 99.5% reach */
 export function radial(parts) {
-  const d = parts[0].st.d, rMax = Math.max(...parts.map((p) => p.st.r99)) * 2.5, N = 6000, h = rMax / N, P = (r) => parts.reduce((s, p) => s + p.c * p.c * pr(p.st, r), 0);
+  const d = parts[0].st.d, rMax = Math.max(...parts.map((p) => p.st.r99)) * 2.5, N = 6000, h = rMax / N, w2 = (c) => (typeof c === "number" ? c * c : c.re * c.re + c.im * c.im), P = (r) => parts.reduce((s, p) => s + w2(p.c) * pr(p.st, r), 0);
   let best = 0, rMost = 0, mean = 0, cum = 0, r99 = rMax;
   for (let i = 0; i <= N; i++) { const r = i * h, v = P(r); if (v > best) { best = v; rMost = r; } mean += r * v * h; cum += v * h; if (cum < 0.995) r99 = r; }
   return { d, P, rMost, rMean: mean / cum, r99 };
@@ -142,3 +142,44 @@ export function mixSampler(parts, rng = Math.random) {
     return draws[0]();
   };
 }
+
+/* ------------------------------------------------------------------ time */
+/* A STATE IN TIME: parts { st, h, c } with complex c = { re, im }, each turning at its own e^{−iEt}. Only the
+   differences between energies show (a phase common to all is unobservable), so the clock here turns each part by
+   e^{−i(E_k − E_0)t}: a single stationary state stands still, a superposition of different energies beats at ΔE. */
+const cx = (c) => (typeof c === "number" ? { re: c, im: 0 } : c);
+export function coeffsAt(parts, t) { const E0 = parts[0].st.E; return parts.map((p) => { const c = cx(p.c), a = -(p.st.E - E0) * t, co = Math.cos(a), si = Math.sin(a); return { re: c.re * co - c.im * si, im: c.re * si + c.im * co }; }); }
+/* ψ(x, t) as [re, im] */
+export function psiT(parts, x, t, cs = coeffsAt(parts, t)) { let re = 0, im = 0; parts.forEach((p, k) => { const v = psi(p.st, p.h, x); re += cs[k].re * v; im += cs[k].im * v; }); return [re, im]; }
+/* the probability current j = Im(ψ* ∇ψ) (ħ = m = 1), by central differences */
+export function current(parts, x, t, h = 1e-3) {
+  const cs = coeffsAt(parts, t), [re, im] = psiT(parts, x, t, cs);
+  return x.map((_, k) => { const a = x.slice(), b = x.slice(); a[k] += h; b[k] -= h; const pa = psiT(parts, a, t, cs), pb = psiT(parts, b, t, cs); return re * ((pa[1] - pb[1]) / (2 * h)) - im * ((pa[0] - pb[0]) / (2 * h)); });
+}
+/* electrons from |ψ(x, t)|²: as mixSampler, the bound by |c_k| (Cauchy–Schwarz holds for any phases) */
+export function timeSampler(parts, rng = Math.random) {
+  const ab = parts.map((p) => Math.hypot(cx(p.c).re, cx(p.c).im)), sum = ab.reduce((s, v) => s + v, 0), w = ab.map((v) => v / sum), K = sum * sum, draws = parts.map((p) => sampler(p.st, p.h, rng));
+  return (t) => {
+    const cs = coeffsAt(parts, t);
+    for (let k = 0; k < 100000; k++) {
+      let u = rng(), i = 0; while (i < w.length - 1 && u > w[i]) { u -= w[i]; i++; }
+      const x = draws[i](), q = parts.reduce((s, p, j) => s + w[j] * psi(p.st, p.h, x) ** 2, 0), [re, im] = psiT(parts, x, t, cs);
+      if (rng() * K * q <= re * re + im * im) return x;
+    }
+    return draws[0]();
+  };
+}
+/* the presets, in d dimensions (4: kata's; 3: ours, where there's a counterpart) */
+export function timePreset(d, name) {
+  const s2 = 1 / Math.SQRT2, H1 = harmonics(d, 1), H2 = harmonics(d, 2), p = (ax) => H1[["x", "y", "z", "w"].indexOf(ax)], dd = (nm) => H2.find((h) => h.name === nm);
+  const s1 = { st: state(d, 1, 0), h: harmonics(d, 0)[0] }, two = state(d, 2, 1), three = state(d, 3, 2);
+  if (name === "beat w" || name === "beat x") { const ax = name === "beat x" ? "x" : d === 4 ? "w" : "z"; return [{ ...s1, c: s2 }, { st: two, h: p(ax), c: s2 }]; }
+  if (name === "turn xy") return [{ st: two, h: p("x"), c: s2 }, { st: two, h: p("y"), c: { re: 0, im: s2 } }];
+  if (d !== 4) return null; // the double rotations need w
+  // (x + iy)(z ± iw) = xz ∓ yw + i(yz ± xw): four plane-kind d orbitals, a half each
+  const sg = name === "two planes" ? 1 : -1;
+  if (name === "two planes" || name === "two planes, other way") return [{ st: three, h: dd("xz"), c: 0.5 }, { st: three, h: dd("yw"), c: -0.5 * sg }, { st: three, h: dd("yz"), c: { re: 0, im: 0.5 } }, { st: three, h: dd("xw"), c: { re: 0, im: 0.5 * sg } }];
+  return null;
+}
+export const TIME_PRESETS = ["beat w", "beat x", "turn xy", "two planes", "two planes, other way"];
+export const AU_FS = 0.02418884; // one atomic unit of time, in femtoseconds

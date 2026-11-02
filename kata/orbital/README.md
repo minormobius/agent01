@@ -58,6 +58,25 @@ along the same line) or **all five**. All five are drawn in their own colours, e
 dominates there. Arrows run from the nucleus toward each corner: their length is the part in your slice, and the label
 says how far the rest leans ana or kata.
 
+## Time
+
+**time** lets the clock run. A state is a sum of eigenstates with complex coefficients, each turning at e^(−iEt). Only
+differences of energy show, so the page turns each part by e^(−i(E − E₀)t): a single stationary state stands still. The
+colour is now the phase, round a wheel (teal 0, gold π/2, rose π, violet −π/2), so a real orbital is still teal and
+rose. White arrows are the probability current j = Im(ψ*∇ψ), divided by the density, so they show the local velocity:
+the arrow is its part in your slice, and a tick its part ana (teal) or kata (rose). The electrons are the latest 2500
+drawn from |ψ(t)|², so the dots move with the cloud.
+
+| preset | what it shows |
+|---|---|
+| **beat ana–kata** | 1s + 2p_w, half and half. The parts' phases turn at different rates, so the electron **swings ana and kata** once every 1.069 fs (ours, 1s + 2p_z, every 0.405). In your slice it can't be seen to move: the cloud brightens and dims. A swinging charge like this is what an atom emitting light is doing. |
+| **beat along x** | the same along x, where you can see it swing |
+| **turning in xy** | 2p (x + iy): a stationary state whose density stands still, yet the electron goes round, one unit of angular momentum at every point. The phase winds once round the ring. |
+| **two planes at once** | 3d (x + iy)(z + iw): one unit of angular momentum in the xy-plane **and** one in the zw-plane, at every point. Every classical orbit under a 1/r force lies in one plane, so no planet can do this. All its turning is in one of 4D rotation's two halves (ATOM⁴'s left). |
+| **two planes, other way** | (x + iy)(z − iw): the other half (right). The ticks reverse. |
+
+The clock shows femtoseconds; a beat is shown every five seconds, and ours runs on the same atomic clock.
+
 ## r
 
 Three numbers say where the electron is, and they disagree.
@@ -98,6 +117,9 @@ node kata/orbital/test/orbital.selftest.mjs   # ~3 s
 ```
 
 It checks:
+- time: 1s + 2p_w obeys i∂ψ/∂t = Hψ; its average w swings from +1.39 to −1.41 bohr in half a beat while x, y and z
+  stay put; 2p (x + iy) has one unit of angular momentum in xy at every point; the double rotations have one in xy
+  and ±1 in zw at every point;
 - the full 4D Schrödinger equation, −½∇²ψ − ψ/r = Eψ by a finite-difference Laplacian, for every orbital with n ≤ 4
   (the 16 f's included) and both hybrid sets, 60 in all;
 - the five hybrids: orthonormal, 104.48° apart, each one's electrons leaning toward its own corner, and the four not

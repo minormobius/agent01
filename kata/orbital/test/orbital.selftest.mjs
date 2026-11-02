@@ -89,5 +89,30 @@ let seed = 12345; const rng = () => ((seed = (Math.imul(seed, 1664525) + 1013904
   const proj = D.slice(0, 4).map((v) => { const p = v.slice(0, 3), mm = Math.hypot(...p); return p.map((c) => c / mm); }), pc = proj[0].reduce((s2, v, k) => s2 + v * proj[1][k], 0);
   ok(align > 0.99 && Math.abs(pc + 1 / 3) < 1e-12 && D[4][3] === 1, `each hybrid's electrons lean toward its own corner (worst alignment ${align.toFixed(3)}); one points straight along w, and the other four, seen in x y z, are our tetrahedron (cos ${pc.toFixed(4)} = −1/3), each tipped ${(Math.asin(0.25) * 180 / Math.PI).toFixed(2)}° kata`);
 }
+/* time: superpositions obey the time-dependent equation; 1s + 2p_w swings ana and kata at ΔE; the currents of the
+   turning states: one unit of angular momentum in the xy-plane, and in the double rotations in xy and zw at once */
+{
+  const B = H.timePreset(4, "beat w"), E0 = B[0].st.E; let worst = 0, scale = 0; const h = 2e-3, dt = 1e-3;
+  for (let i = 0; i < 40; i++) {
+    const x = [0, 1, 2, 3].map(() => 8 * rng() - 4), t = 30 * rng(); if (Math.hypot(...x) < 0.4) continue;
+    const at = (y, tt) => H.psiT(B, y, tt), [re, im] = at(x, t), [rp, ip] = at(x, t + dt), [rm, im2] = at(x, t - dt);
+    let lr = 0, li = 0; for (let k = 0; k < 4; k++) { const a = x.slice(), b = x.slice(); a[k] += h; b[k] -= h; const pa = at(a, t), pb = at(b, t); lr += (pa[0] - 2 * re + pb[0]) / (h * h); li += (pa[1] - 2 * im + pb[1]) / (h * h); }
+    const r = Math.hypot(...x), Hr = -0.5 * lr - re / r - E0 * re, Hi = -0.5 * li - im / r - E0 * im; // (H − E0)ψ
+    const dre = (rp - rm) / (2 * dt), dim = (ip - im2) / (2 * dt); // i ∂ψ/∂t = −∂im/∂t + i ∂re/∂t
+    worst = Math.max(worst, Math.abs(Hr + dim), Math.abs(Hi - dre)); scale = Math.max(scale, Math.hypot(re, im));
+  }
+  ok(worst / scale < 1e-4, `1s + 2p_w obeys the time-dependent equation i∂ψ/∂t = Hψ (worst ${(worst / scale).toExponential(1)} of its size)`);
+  const T = (2 * Math.PI) / (B[1].st.E - B[0].st.E), draw = H.timeSampler(B, rng), mean = (t) => { const m = [0, 0, 0, 0]; for (let i = 0; i < 20000; i++) H.timeSampler && draw(t).forEach((v, k) => (m[k] += v / 20000)); return m; };
+  const m0 = mean(0), mh = mean(T / 2), mq = mean(T / 4);
+  ok(m0[3] > 1 && mh[3] < -1 && Math.abs(mq[3]) < 0.25 * m0[3] && Math.max(...[0, 1, 2].map((k) => Math.abs(m0[k]))) < 0.2, `1s + 2p_w beats: the electron's average w is ${m0[3].toFixed(2)} bohr, then ${mh[3].toFixed(2)} half a beat later (${(T * H.AU_FS / 2).toFixed(3)} fs), swinging ana and kata while x, y, z stay put; the beat is ${(T * H.AU_FS).toFixed(3)} fs (ours, along z: ${((2 * Math.PI) / (H.timePreset(3, "beat w")[1].st.E - H.timePreset(3, "beat w")[0].st.E) * H.AU_FS).toFixed(3)})`);
+  const L = (P, x, t, a, b) => { const [re, im] = H.psiT(P, x, t), j = H.current(P, x, t); return (x[a] * j[b] - x[b] * j[a]) / (re * re + im * im); };
+  const Tx = H.timePreset(4, "turn xy"), D1 = H.timePreset(4, "two planes"), D2 = H.timePreset(4, "two planes, other way");
+  let e1 = 0, e2 = 0, e3 = 0, rad = 0;
+  for (let i = 0; i < 40; i++) { const x = [0, 1, 2, 3].map(() => 10 * rng() - 5), t = 20 * rng(), j = H.current(Tx, x, t), [re, im] = H.psiT(Tx, x, t), n2 = re * re + im * im;
+    e1 = Math.max(e1, Math.abs(L(Tx, x, t, 0, 1) - 1)); rad = Math.max(rad, Math.abs(j[2]) / Math.sqrt(n2) + Math.abs(j[3]) / Math.sqrt(n2) + Math.abs(j.reduce((s2, v, k) => s2 + v * x[k], 0)) / n2);
+    e2 = Math.max(e2, Math.abs(L(D1, x, t, 0, 1) - 1), Math.abs(L(D1, x, t, 2, 3) - 1)); e3 = Math.max(e3, Math.abs(L(D2, x, t, 0, 1) - 1), Math.abs(L(D2, x, t, 2, 3) + 1)); }
+  ok(e1 < 1e-5 && rad < 1e-5, `2p (x + iy): the current goes round in the xy-plane only, one unit of angular momentum at every point (worst ${e1.toExponential(1)})`);
+  ok(e2 < 1e-5 && e3 < 1e-5, `3d (x + iy)(z ± iw): one unit of angular momentum in the xy-plane AND one in the zw-plane at every point, the second plane's sense set by the sign (worst ${Math.max(e2, e3).toExponential(1)}): a motion no classical 1/r orbit has, every one of them lying in a single plane`);
+}
 console.log(`\n${checks - fails}/${checks} checks passed`);
 if (fails) process.exit(1);

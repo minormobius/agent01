@@ -4,7 +4,7 @@
      OURS: the same orbital in our 3D atom, when there is one, whole;
      THE DARTBOARD: electrons thrown at both clouds (drawn from |ψ|²), counted by how far out they land, against the
        exact P(r) = r^{d−1} R². */
-import { state, harmonics, twin, sampler, hybrids, radial, mixSampler, psiOf } from "./hydrogen.js";
+import { state, harmonics, twin, sampler, hybrids, radial, mixSampler, psiOf, timePreset, TIME_PRESETS, coeffsAt, psiT, current, timeSampler, AU_FS } from "./hydrogen.js";
 const $ = (id) => document.getElementById(id), glc = $("gl"), ov = $("ov");
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -20,7 +20,10 @@ uniform vec4 uVP, uO, uE0, uE1, uE2, uPoly, uB; uniform mat4 uQ; uniform vec3 uE
 uniform float uTan, uBox, uK, uNorm, uC0, uDmax, uGain;
 // a second radial part, for the odd (p) piece of a mix (a hybrid: ns + np); and the hybrids, all at once (uHyb)
 uniform vec4 uPoly2; uniform float uNorm2; uniform int uHyb, uNH; uniform vec4 uDir[5]; uniform vec3 uHC[5];
-uniform mat4 uM3[4]; uniform int uHasC3; // f: the cubic as Σ_i x_i · xᵀ M_i x (each monomial x_i x_j x_k, i ≤ j ≤ k, in M_i)
+uniform mat4 uM3[4]; uniform int uHasC3;
+// time: up to six parts, each its own state (κ, radial polynomial, norm) and direction (c0, b, Q), times a complex
+// coefficient already turned to the moment (uTCre, uTCim)
+uniform int uTimeMode, uNT, uTHasQ[6]; uniform float uTK[6], uTNorm[6], uTC0[6], uTCre[6], uTCim[6]; uniform vec4 uTPoly[6], uTB[6]; uniform mat4 uTQ[6]; // f: the cubic as Σ_i x_i · xᵀ M_i x (each monomial x_i x_j x_k, i ≤ j ≤ k, in M_i)
 out vec4 o;
 // the two radial parts at r (same n, so the same κ): norm e^{−κr} L(2κr), the even piece's and the odd piece's
 vec2 radial2(vec4 p) {
@@ -30,6 +33,17 @@ vec2 radial2(vec4 p) {
 // ψ: the even piece times c0 + xᵀQx, plus the odd piece times b·x
 float cubic(vec4 p) { if (uHasC3 == 0) return 0.0; return p.x * dot(p, uM3[0] * p) + p.y * dot(p, uM3[1] * p) + p.z * dot(p, uM3[2] * p) + p.w * dot(p, uM3[3] * p); }
 float psi(vec4 p) { vec2 q = radial2(p); return q.x * (uC0 + dot(p, uQ * p)) + q.y * (dot(uB, p) + cubic(p)); }
+vec2 psiT(vec4 p) {
+  float r = length(p); vec2 s = vec2(0.0);
+  for (int k = 0; k < 6; k++) { if (k >= uNT) break; float rho = 2.0 * uTK[k] * r, L = uTPoly[k].x + rho * (uTPoly[k].y + rho * (uTPoly[k].z + rho * uTPoly[k].w));
+    s += uTNorm[k] * exp(-uTK[k] * r) * L * (uTC0[k] + dot(uTB[k], p) + (uTHasQ[k] == 1 ? dot(p, uTQ[k] * p) : 0.0)) * vec2(uTCre[k], uTCim[k]); } // (Q only for the d parts)
+  return s;
+}
+// phase as colour, round a wheel: 0 teal, π/2 gold, π rose, −π/2 violet (so a real orbital is teal and rose, as before)
+vec3 phaseCol(float a) {
+  vec3 c0 = vec3(0.3, 1.0, 0.88), c1 = vec3(1.0, 0.82, 0.35), c2 = vec3(1.0, 0.42, 0.7), c3 = vec3(0.62, 0.5, 1.0); float u = a / 1.5707963;
+  return u >= 0.0 ? (u < 1.0 ? mix(c0, c1, u) : mix(c1, c2, u - 1.0)) : (u > -1.0 ? mix(c0, c3, -u) : mix(c3, c2, -u - 1.0));
+}
 void main() {
   vec2 q = (2.0 * (gl_FragCoord.xy - uVP.xy) - uVP.zw) / uVP.w;
   vec3 d = normalize(uCF + q.x * uTan * uCR + q.y * uTan * uCU), bg = vec3(0.025, 0.03, 0.045) + 0.025 * q.y, inv = 1.0 / d;
@@ -37,10 +51,12 @@ void main() {
   float t0 = max(max(tmin.x, tmin.y), max(tmin.z, 0.0)), t1 = min(min(tmax.x, tmax.y), tmax.z);
   vec3 c = bg;
   if (t1 > t0) {
-    const int S = 150; float dt = (t1 - t0) / float(S), A = 0.0; vec3 acc = vec3(0.0);
+    int S = uTimeMode == 1 ? 110 : 150; float dt = (t1 - t0) / float(S), A = 0.0; vec3 acc = vec3(0.0);
     for (int i = 0; i < S; i++) {
       vec3 P = uEye + d * (t0 + (float(i) + 0.5) * dt); vec4 X = uO + P.x * uE0 + P.y * uE1 + P.z * uE2; float dens; vec3 col;
-      if (uHyb == 0) { float v = psi(X); dens = v * v / uDmax; col = (v > 0.0 ? vec3(0.3, 1.0, 0.88) : vec3(1.0, 0.42, 0.7)) * (0.55 + 0.9 * sqrt(dens)); }
+      // time: phase as colour; the density taken to a gentler power, so a dense 1s core doesn't drown the moving cloud round it
+      if (uTimeMode == 1) { vec2 sv = psiT(X); dens = pow(dot(sv, sv) / uDmax, 0.6); col = phaseCol(atan(sv.y, sv.x)) * (0.55 + 0.9 * sqrt(dens)); }
+      else if (uHyb == 0) { float v = psi(X); dens = v * v / uDmax; col = (v > 0.0 ? vec3(0.3, 1.0, 0.88) : vec3(1.0, 0.42, 0.7)) * (0.55 + 0.9 * sqrt(dens)); }
       else { // every hybrid at once, each its own colour (its small back lobe darker)
         vec2 q = radial2(X); float tot = 0.0; vec3 cc = vec3(0.0);
         float w3 = 0.0; for (int k = 0; k < 5; k++) { if (k >= uNH) break; float v = q.x * uC0 + q.y * dot(uDir[k], X), dn = v * v / uDmax, s3 = dn * dn * dn; tot += dn; w3 += s3; cc += s3 * uHC[k] * (v > 0.0 ? 1.0 : 0.4); }
@@ -59,7 +75,7 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aPos = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-const U = {}; for (const n of ["uVP", "uO", "uE0", "uE1", "uE2", "uPoly", "uB", "uQ", "uEye", "uCR", "uCU", "uCF", "uTan", "uBox", "uK", "uNorm", "uC0", "uDmax", "uGain", "uPoly2", "uNorm2", "uHyb", "uNH", "uDir", "uHC", "uM3", "uHasC3"]) U[n] = gl.getUniformLocation(prog, n);
+const U = {}; for (const n of ["uVP", "uO", "uE0", "uE1", "uE2", "uPoly", "uB", "uQ", "uEye", "uCR", "uCU", "uCF", "uTan", "uBox", "uK", "uNorm", "uC0", "uDmax", "uGain", "uPoly2", "uNorm2", "uHyb", "uNH", "uDir", "uHC", "uM3", "uHasC3", "uTimeMode", "uNT", "uTHasQ", "uTK", "uTNorm", "uTC0", "uTCre", "uTCim", "uTPoly", "uTB", "uTQ"]) U[n] = gl.getUniformLocation(prog, n);
 
 /* ------------------------------------------------------------------ the orbital */
 /* an orbital here is a list of parts { st, h, c } (one part for s, p, d; two for a hybrid, ns and np), with its radial
@@ -72,7 +88,21 @@ function orbital(parts, all = null) {
   const o = { d, parts, all, ...rad, E: parts[0].st.E, nr: parts.length === 1 ? parts[0].st.nr : 0, draw };
   o.dmax = densest((x) => psiOf(parts, x) ** 2, o.r99, d); return o;
 }
-function upload(o) { // the orbital's numbers as the shader wants them (3D ones padded with w = 0)
+/* a state in time: its parts (complex coefficients), radial numbers, a sampler at any moment, the beat if it beats */
+function orbitalT(parts) {
+  const rad = radial(parts), d = parts[0].st.d, Es = parts.map((p) => p.st.E), dE = Math.max(...Es) - Math.min(...Es), T = dE > 1e-9 ? (2 * Math.PI) / dE : 0;
+  const o = { d, parts, time: true, ...rad, E: parts[0].st.E, nr: 0, T, drawT: timeSampler(parts) };
+  let m = 0; for (const t of T ? [0, T / 4, T / 2] : [0]) m = Math.max(m, densest((x) => { const [a, b] = psiT(parts, x, t); return a * a + b * b; }, o.r99, d, d === 4 ? 16 : 40));
+  o.dmax = m; return o;
+}
+function uploadT(o, t) {
+  const n = o.parts.length, cs = coeffsAt(o.parts, t), K = new Float32Array(6), Nm = new Float32Array(6), C0 = new Float32Array(6), Cr = new Float32Array(6), Ci = new Float32Array(6), Pl = new Float32Array(24), Bv = new Float32Array(24), Qm = new Float32Array(96);
+  o.parts.forEach((p, k) => { K[k] = p.st.kappa; Nm[k] = p.st.norm; C0[k] = p.h.c0; Cr[k] = cs[k].re; Ci[k] = cs[k].im; Pl.set(pad4(p.st.poly), 4 * k); Bv.set(pad4(p.h.b), 4 * k); for (let i = 0; i < p.h.Q.length; i++) for (let j = 0; j < p.h.Q.length; j++) Qm[16 * k + j * 4 + i] = p.h.Q[i][j]; });
+  gl.uniform1i(U.uTimeMode, 1); gl.uniform1i(U.uNT, n); gl.uniform1iv(U.uTHasQ, new Int32Array([0, 1, 2, 3, 4, 5].map((k) => (o.parts[k] && o.parts[k].h.Q.some((r) => r.some((v) => v)) ? 1 : 0)))); gl.uniform1fv(U.uTK, K); gl.uniform1fv(U.uTNorm, Nm); gl.uniform1fv(U.uTC0, C0); gl.uniform1fv(U.uTCre, Cr); gl.uniform1fv(U.uTCim, Ci);
+  gl.uniform4fv(U.uTPoly, Pl); gl.uniform4fv(U.uTB, Bv); gl.uniformMatrix4fv(U.uTQ, false, Qm); gl.uniform1i(U.uHyb, 0);
+}
+function upload(o) {
+  gl.uniform1i(U.uTimeMode, 0); // the orbital's numbers as the shader wants them (3D ones padded with w = 0)
   let even = null, odd = null; for (const p of o.parts) { if (p.h.b.some((v) => v) || (p.h.cubic && p.h.cubic.some((v) => v))) odd = p; else even = p; }
   const Q = new Float32Array(16); if (even) for (let i = 0; i < even.h.Q.length; i++) for (let j = 0; j < even.h.Q.length; j++) Q[j * 4 + i] = even.h.Q[i][j];
   gl.uniform1f(U.uK, o.parts[0].st.kappa); gl.uniformMatrix4fv(U.uQ, false, Q);
@@ -83,18 +113,22 @@ function upload(o) { // the orbital's numbers as the shader wants them (3D ones 
   gl.uniform1i(U.uHyb, o.all ? 1 : 0);
   if (o.all) { const D = new Float32Array(20), C = new Float32Array(15); o.all.forEach((q, k) => { D.set(pad4(q.parts[1].h.b), 4 * k); C.set(HC[k], 3 * k); }); gl.uniform4fv(U.uDir, D); gl.uniform3fv(U.uHC, C); gl.uniform1i(U.uNH, o.all.length); }
 }
-function densest(f, B, d) { // the largest |ψ|² anywhere (a coarse grid over the cloud): the brightness scale
-  const n = d === 4 ? 22 : 48, x = new Array(d).fill(0); let m = 0;
+function densest(f, B, d, grid) { // the largest |ψ|² anywhere (a coarse grid over the cloud): the brightness scale
+  const n = grid || (d === 4 ? 22 : 48), x = new Array(d).fill(0); let m = 0;
   const rec = (k) => { if (k === d) { const p = f(x); if (p > m) m = p; return; } for (let i = 0; i <= n; i++) { x[k] = -B + (2 * B * i) / n; rec(k + 1); } };
   rec(0); return Math.max(m, 1e-12);
 }
 const sel = { n: 2, l: 1, name: "w" };
 let cur = null;
-const HYB = 4; // l = 4 here means the sp⁴ hybrids (3 is f)
+const HYB = 4, TIME = 5; // l = 4 here means the sp⁴ hybrids (3 is f), 5 a state in time
 function choose(n, l, name) {
-  l = Math.max(0, Math.min(4, l)); n = Math.max(l === HYB ? 2 : l + 1, Math.min(4, n));
+  l = Math.max(0, Math.min(5, l)); n = Math.max(l === HYB ? 2 : l === TIME ? 1 : l + 1, Math.min(4, n));
   let o, tw = null;
-  if (l === HYB) {
+  if (l === TIME) {
+    if (!TIME_PRESETS.includes(name)) name = TIME_PRESETS[0];
+    o = orbitalT(timePreset(4, name)); const t3 = timePreset(3, name);
+    if (t3) { tw = orbitalT(t3); tw.label = { "beat w": "1s + 2p_z", "beat x": "1s + 2p_x", "turn xy": "2p (x + iy)" }[name]; }
+  } else if (l === HYB) {
     const hs = hybrids(4, n), h3 = hybrids(3, n); if (name !== "all" && !hs.find((h) => h.name === name)) name = "all";
     if (name === "all") { o = orbital(hs[0].parts, hs); tw = orbital(h3[0].parts, h3); }
     else { const k = hs.findIndex((h) => h.name === name); o = orbital(hs[k].parts); tw = orbital(h3[Math.min(k, 3)].parts); tw.label = k === 4 ? "sp³ h4 (ours has only four)" : `sp³ ${h3[k].name}`; }
@@ -105,14 +139,17 @@ function choose(n, l, name) {
     o = orbital([{ st, h, c: 1 }]); if (t) { tw = orbital([{ st: t.st, h: t.h, c: 1 }]); tw.label = `${n}${"spdf"[l]} ${l ? name : ""}`; }
   }
   Object.assign(sel, { n, l, name });
-  const ref = tw || orbital([{ st: state(3, n, Math.min(l, 3)), h: harmonics(3, Math.min(l, 3))[0], c: 1 }]); // the dartboard's comparison: the twin, or our atom's same n, l
-  cur = { orb: o, tw, ref, dots: [], tdots: [] };
+  const rs = o.time ? o.parts[0].st : { n, l: Math.min(l, 3) }; // the dartboard's comparison: the twin, or our atom's same n, l
+  const ref = tw || orbital([{ st: state(3, rs.n, rs.l), h: harmonics(3, rs.l)[0], c: 1 }]);
+  cur = { orb: o, tw, ref, dots: [], tdots: [], t: 0 };
   for (const b of document.querySelectorAll("#exps button[data-n]")) b.classList.toggle("on", +b.dataset.n === n);
   for (const b of document.querySelectorAll("#exps button[data-l]")) b.classList.toggle("on", +b.dataset.l === l);
   picks(); caption(); history.replaceState(null, "", `?n=${n}&l=${l}&o=${encodeURIComponent(name)}`);
 }
+const TLAB = { "beat w": "beat ana–kata", "beat x": "beat along x", "turn xy": "turning in xy", "two planes": "two planes at once", "two planes, other way": "two planes, other way" };
 function picks() { // the orbitals of this l: for d, the six of the plane kind, then the three of the axis kind; the hybrids, one at a time or all
-  if (sel.l === HYB) { const names = ["h1", "h2", "h3", "h4", "h5", "all"]; $("picks").innerHTML = names.map((nm, i) => `${i === 5 ? '<span class="sep"></span>' : ""}<button type="button" data-o="${nm}" class="${nm === sel.name ? "on" : ""}"${i < 5 ? ` style="color:rgb(${HC[i].map((c) => Math.round(255 * c)).join(",")})"` : ""}>${nm === "all" ? "all five" : nm}</button>`).join(""); }
+  if (sel.l === TIME) $("picks").innerHTML = TIME_PRESETS.map((nm) => `<button type="button" data-o="${nm}" class="${nm === sel.name ? "on" : ""}">${TLAB[nm]}</button>`).join("");
+  else if (sel.l === HYB) { const names = ["h1", "h2", "h3", "h4", "h5", "all"]; $("picks").innerHTML = names.map((nm, i) => `${i === 5 ? '<span class="sep"></span>' : ""}<button type="button" data-o="${nm}" class="${nm === sel.name ? "on" : ""}"${i < 5 ? ` style="color:rgb(${HC[i].map((c) => Math.round(255 * c)).join(",")})"` : ""}>${nm === "all" ? "all five" : nm}</button>`).join(""); }
   else { const hs = harmonics(4, sel.l), lab = (h) => (sel.l === 0 ? `${sel.n}s` : `${"spdf"[sel.l]}${sub(h.name)}`), cut = sel.l === 2 ? [6] : sel.l === 3 ? [4, 12] : [];
     $("picks").innerHTML = hs.map((h, i) => `${cut.includes(i) ? '<span class="sep"></span>' : ""}<button type="button" data-o="${h.name}" class="${h.name === sel.name ? "on" : ""}">${lab(h)}</button>`).join(""); }
   for (const b of document.querySelectorAll("#picks button")) b.onclick = () => choose(sel.n, sel.l, b.dataset.o);
@@ -126,6 +163,15 @@ function caption() {
   const r = `Most likely <b>${st.rMost.toFixed(2)} bohr</b> out, ${st.rMean.toFixed(2)} on average (ours: ${s3.rMost.toFixed(2)}, ${s3.rMean.toFixed(2)}); bound by ${(-st.E * 27.2114).toFixed(2)} eV (ours ${(-s3.E * 27.2114).toFixed(2)}).`;
   const nodes = st.nr ? ` It has ${st.nr} radial node${st.nr > 1 ? "s" : ""}: ${st.nr + 1} shells, alternating teal and rose.` : "";
   let t;
+  if (sel.l === TIME) {
+    const T = (x) => (x * AU_FS).toFixed(3), wheel = " Colour is phase, round a wheel: teal, gold, rose, violet.";
+    t = nm === "beat w" ? `<b>1s + 2p_w</b>, half and half. The two parts' phases turn at different rates, so they reinforce first on one side and then on the other: the electron <b>swings ana and kata</b>, once every <b>${T(st.T)} fs</b>. In your slice you can't see it go: the cloud just brightens and dims as it passes through w (push the lever ana to meet it). Ours (beside) swings along z, faster: ${T(cur.tw.T)} fs. A charge swinging like this is what an atom giving out light is doing.${wheel}`
+      : nm === "beat x" ? `<b>1s + 2p_x</b>, half and half: the same beat, but along x, where you can see it: the electron swings side to side once every <b>${T(st.T)} fs</b> (ours: ${T(cur.tw.T)} fs).${wheel}`
+      : nm === "turn xy" ? `<b>2p (x + iy)</b>: a stationary state, its density standing still, yet the electron is going round: the arrows are its probability current, round the xy-plane, one unit of angular momentum at every point. The phase winds once round the ring.${wheel}`
+      : nm === "two planes" ? `<b>3d (x + iy)(z + iw)</b>: going round in the <b>xy-plane and the zw-plane at once</b>, one unit of angular momentum in each, at every point. The arrows are the part of the current in your slice, the ticks the part ana (teal) or kata (rose). Every classical orbit under a 1/r force lies in a single plane: no planet can do this. All its turning is in one of 4D's two halves of rotation (ATOM⁴'s left).${wheel} Ours has no counterpart.`
+      : `<b>3d (x + iy)(z − iw)</b>: the same, but round the zw-plane the other way, so its turning is all in the other half of 4D rotation (ATOM⁴'s right). Compare the ticks with "two planes at once": they're reversed.${wheel} Ours has no counterpart.`;
+    $("cap").innerHTML = t; return;
+  }
   if (sel.l === HYB) {
     const k = nm === "all" ? -1 : +nm.slice(1) - 1;
     t = k < 0 ? `<b>All five sp⁴ hybrids</b>, each its own colour: ${n}s mixed with the four ${n}p, one fifth s and four fifths p each, every one a single big lobe pointing at a corner of the <b>5-cell</b>, 4D's tetrahedron, <b>104.48°</b> apart (ours, sp³: four at 109.47°). Squared up, four of them make <b>our tetrahedron</b> in your slice, each tipped 14.48° kata, and the fifth points straight <b>ana</b>, out of sight. Twist into w and it swings into view. They're stationary states, not just shapes: ${n}s and ${n}p have the same energy. ${r}`
@@ -210,19 +256,22 @@ function draw(now) {
   requestAnimationFrame(draw);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   steer(dt);
-  if (dotsOn && cur.dots.length < MAXDOTS) for (let i = 0; i < 40; i++) { cur.dots.push(cur.orb.draw()); cur.tdots.push(cur.ref.draw()); }
+  if (cur.orb.time) {
+    cur.t += dt * (cur.orb.T ? cur.orb.T / 5 : 2); // a beat every five seconds; ours keeps the same atomic clock
+    if (dotsOn) { for (let i = 0; i < 30; i++) { cur.dots.push(cur.orb.drawT(cur.t)); if (cur.tw) cur.tdots.push(cur.tw.drawT(cur.t)); } if (cur.dots.length > 2500) cur.dots.splice(0, cur.dots.length - 2500); if (cur.tdots.length > 2500) cur.tdots.splice(0, cur.tdots.length - 2500); } // the latest electrons only: the cloud moves
+  } else if (dotsOn && cur.dots.length < MAXDOTS) for (let i = 0; i < 40; i++) { cur.dots.push(cur.orb.draw()); cur.tdots.push(cur.ref.draw()); }
   const dpr = Math.min(1.5, devicePixelRatio || 1); if (!res) res = dpr * (matchMedia("(pointer: coarse)").matches ? 0.55 : 0.8);
   const cw = Math.round(glc.clientWidth * res), chh = Math.round(glc.clientHeight * res); if (glc.width !== cw || glc.height !== chh) { glc.width = cw; glc.height = chh; }
   const Lo = layout(), vp = (r) => [Math.round(r.x * res), Math.round(chh - (r.y + r.h) * res), Math.round(r.w * res), Math.round(r.h * res)];
   gl.uniform1f(U.uTan, TAN); gl.uniform1f(U.uGain, 1);
   // your slice of the 4D atom
   { const B = cur.orb.r99, cam = camera(B * 2.5), v = vp(Lo.sl); gl.viewport(...v); gl.uniform4f(U.uVP, ...v);
-    upload(cur.orb); gl.uniform1f(U.uDmax, cur.orb.dmax); gl.uniform1f(U.uBox, B);
+    if (cur.orb.time) uploadT(cur.orb, cur.t); else upload(cur.orb); gl.uniform1f(U.uDmax, cur.orb.dmax); gl.uniform1f(U.uBox, B);
     gl.uniform4fv(U.uO, O4()); gl.uniform4fv(U.uE0, frame.E[0]); gl.uniform4fv(U.uE1, frame.E[1]); gl.uniform4fv(U.uE2, frame.E[2]);
     gl.uniform3fv(U.uEye, cam.eye); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F); gl.drawArrays(gl.TRIANGLES, 0, 3); }
   // ours, whole
   { const v = vp(Lo.tw); gl.viewport(...v); gl.uniform4f(U.uVP, ...v);
-    if (cur.tw) { const B = cur.tw.r99, cam = camera(B * 2.5); upload(cur.tw); gl.uniform1f(U.uDmax, cur.tw.dmax); gl.uniform1f(U.uBox, B);
+    if (cur.tw) { const B = cur.tw.r99, cam = camera(B * 2.5); if (cur.tw.time) uploadT(cur.tw, cur.t); else upload(cur.tw); gl.uniform1f(U.uDmax, cur.tw.dmax); gl.uniform1f(U.uBox, B);
       gl.uniform4fv(U.uO, [0, 0, 0, 0]); gl.uniform4fv(U.uE0, [1, 0, 0, 0]); gl.uniform4fv(U.uE1, [0, 1, 0, 0]); gl.uniform4fv(U.uE2, [0, 0, 1, 0]);
       gl.uniform3fv(U.uEye, cam.eye); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F); }
     else gl.uniform1f(U.uBox, 0);
@@ -250,6 +299,23 @@ function overlay(Lo) {
       g.beginPath(); g.moveTo(...p0); g.lineTo(...p1); g.stroke(); g.setLineDash([]); g.beginPath(); g.arc(p1[0], p1[1], 3, 0, 2 * Math.PI); g.fill();
       g.fillText(`h${k + 1}${Math.abs(ang) < 0.5 ? "" : ` ${Math.abs(ang).toFixed(0)}° ${ang > 0 ? "ana" : "kata"}`}`, p1[0] + 5, p1[1] - 4);
     }
+  }
+  // time: the probability current as arrows (its part in your slice) and ticks (its part ana, teal, or kata, rose),
+  // at points of your slice where the electron is; and the clock
+  if (cur.orb.time) {
+    const P = cur.orb.parts, O = O4(), n = 7, pts = []; let vmax = 0;
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) for (let c = 0; c < n; c++) {
+      const sl3 = [a, b, c].map((i) => (-0.7 + (1.4 * i) / (n - 1)) * B), x = add(O, frame.E.reduce((s2, e, k) => add(s2, e, sl3[k]), [0, 0, 0, 0]));
+      const [re, im] = psiT(P, x, cur.t), d2 = re * re + im * im; if (d2 < 0.04 * cur.orb.dmax) continue;
+      const j = current(P, x, cur.t, 1e-3 * B), v = j.map((q) => q / d2); vmax = Math.max(vmax, Math.hypot(...v)); pts.push({ sl3, v });
+    }
+    for (const q of pts) {
+      const vin = frame.E.map((e) => dot(q.v, e)), vn = dot(q.v, frame.N), k = (0.09 * B) / Math.max(vmax, 1e-9), p0 = proj(sl, cam, q.sl3), p1 = proj(sl, cam, add(q.sl3, vin, k)); if (!p0 || !p1) continue;
+      g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 1.3; g.beginPath(); g.moveTo(...p0); g.lineTo(...p1); g.stroke();
+      const ang = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]); g.beginPath(); g.moveTo(...p1); g.lineTo(p1[0] - 5 * Math.cos(ang - 0.4), p1[1] - 5 * Math.sin(ang - 0.4)); g.moveTo(...p1); g.lineTo(p1[0] - 5 * Math.cos(ang + 0.4), p1[1] - 5 * Math.sin(ang + 0.4)); g.stroke();
+      const tk = Math.max(-14, Math.min(14, (vn / Math.max(vmax, 1e-9)) * 14)); if (Math.abs(tk) > 1) { g.strokeStyle = vn > 0 ? "#38f2e0" : "#ff66b8"; g.lineWidth = 3; g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p0[0], p0[1] - tk); g.stroke(); }
+    }
+    g.fillStyle = "rgba(255,210,122,0.95)"; g.fillText(`t = ${(cur.t * AU_FS).toFixed(3)} fs${cur.orb.T ? ` · beat ${(cur.orb.T * AU_FS).toFixed(3)} fs${cur.tw && cur.tw.T ? ` (ours ${(cur.tw.T * AU_FS).toFixed(3)})` : ""} · shown 1 beat per 5 s` : " · stationary: the density stands still"}`, sl.x + 10, sl.y + sl.h - 186);
   }
   const nOff = -frame.off; // the nucleus sits this far ana of your slice
   if (dotsOn) {

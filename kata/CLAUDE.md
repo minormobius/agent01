@@ -57,7 +57,10 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   1/√r, swell's apparent speed, standing orbitals, Airy's velocity and cork orbits, the walls' and edges' conditions, the seiche). See [`wavelab/README.md`](wavelab/README.md).
 - **ORBITAL at `/orbital/`**: hydrogen's electron cloud in 4D, exactly, on ATOM⁴'s terms (the force pinned at 1/r;
   `js/hydrogen.js`, no DOM: R = r^l e^{−κr} L(2κr), κ = Z/(n + ½), harmonics as c0 + b·x + xᵀQx plus a cubic, for s, p, d, f; 1, 4, 9, 16
-  of them; the sp⁴ hybrids, five lobes at the 5-cell's corners, as mixtures with an exact rejection sampler). A slice of it volume-rendered (teal ψ > 0, rose ψ < 0) with WAVELAB's twist pad and ana/kata lever, our
+  of them; the sp⁴ hybrids, five lobes at the 5-cell's corners, as mixtures with an exact rejection sampler; **time**: complex
+  superpositions turning at e^{−i(E−E₀)t}, phase as colour, the probability current as arrows, presets for the beat
+  ana–kata and the double rotation in two planes). The shader's time path loops over up to six parts: keep shader
+  comments off the ends of statement lines (a `//` there once swallowed an `else`). A slice of it volume-rendered (teal ψ > 0, rose ψ < 0) with WAVELAB's twist pad and ana/kata lever, our
   3D atom beside it, and a dartboard of sampled electrons against P(r). See [`orbital/README.md`](orbital/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
