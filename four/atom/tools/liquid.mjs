@@ -42,9 +42,10 @@ export function model(name, p = null) {
     return { name, d, mass: 18.015, kind: kindOf(d, 15.9994, -2 * q, q, R, th), pairs: { "X|X": { lj: [0.6502 / 2625.4996, 3.166 * ANG] } }, Ng: 300, sp: 3.1 * ANG, side: 7, layers: 8, rc: 18, alpha: 0.12, dt: 2, R0: 2.75 * ANG };
   }
   // of3, pg4: XL₂ molecules without hydrogen (our OF₂, 4D's PxGl₂) on tools/molff.mjs's MP2-fitted fields (js/molffdata.js)
-  if (name === "of3" || name === "pg4") {
-    const key = name === "of3" ? "OF2" : "PxGl2", F = MOLFF[key]; if (!F) throw new Error(`no fitted field for ${key} yet (tools/molff.mjs fit ${key})`);
-    const M = MPMOLS[key], { q, pairs } = mfTerms(F.p, M), atoms = mpAtoms(M), d = M.d, mass = (Z) => (d === 3 ? { 8: 15.999, 9: 18.998 }[Z] : 2 * Z);
+  // of3d: our OF₂ on the field fitted in the grown basis (Dd), the check rerun
+  if (name === "of3" || name === "of3d" || name === "pg4") {
+    const key = name === "of3" ? "OF2" : name === "of3d" ? "OF2@Dd" : "PxGl2", F = MOLFF[key]; if (!F) throw new Error(`no fitted field for ${key} yet (tools/molff.mjs fit ${key})`);
+    const M = MPMOLS[key.split("@")[0]], { q, pairs } = mfTerms(F.p, M), atoms = mpAtoms(M), d = M.d, mass = (Z) => (d === 3 ? { 8: 15.999, 9: 18.998 }[Z] : 2 * Z);
     const kind = { sites: atoms.map((a, i) => ({ m: mass(a.Z) * amu, q: i ? q : -2 * q, t: i ? "L" : "X", at: a.at })), constraints: [[0, 1], [0, 2], [1, 2]] };
     return { name, d, key, mass: mass(M.X) + 2 * mass(M.L), kind, pairs, p: F.p, group: d === 4 && F.p.length > 7, /* 4D's charge–cloud terms: cut by molecule */ Ng: 300, sp: d === 3 ? 7.4 : 8.5, side: 5, layers: 6, rc: 14, alpha: 0.16, dt: d === 3 ? 2 : 2, R0: d === 3 ? 6 : 7 };
   }
@@ -366,7 +367,7 @@ export const LIQUIDFF = ${JSON.stringify(out)};
      other tried too; ρ_c by the rectilinear diameter) from points that clearly split, the vapour's pressure as an ideal
      gas, ln(ρ_v T) against 1/T (Clausius–Clapeyron), and a boiling point by corresponding states: where the vapour
      reaches the share of the critical density our water's has at its boiling point (0.598 / 322 kg/m³) */
-  const runs = readdirSync(DIR).filter((f) => new RegExp(`^(spce|w3L?|x4L?|n4L?|of3|pg4)_[\\d.]+_g${GEN}(_s\\d+)?\\.json$`).test(f)).map((f) => JSON.parse(readFileSync(path.join(DIR, f), "utf8")));
+  const runs = readdirSync(DIR).filter((f) => new RegExp(`^(spce|w3L?|x4L?|n4L?|of3d?|pg4)_[\\d.]+_g${GEN}(_s\\d+)?\\.json$`).test(f)).map((f) => JSON.parse(readFileSync(path.join(DIR, f), "utf8")));
   const out = {}, kgm3 = (m, r) => (r * m * 1.66053907e-27) / 5.29177211e-11 ** 3, line = (xs, ys) => { const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n, sxy = xs.reduce((t, x, i) => t + (x - mx) * (ys[i] - my), 0), sxx = xs.reduce((t, x) => t + (x - mx) ** 2, 0); return [sxy / sxx, my - (sxy / sxx) * mx]; };
   const stat = (v) => { const n = v.length, m = v.reduce((a, b) => a + b, 0) / n; return [m, n > 1 ? Math.sqrt(v.reduce((t, x) => t + (x - m) ** 2, 0) / (n - 1) / n) : NaN]; };
   // runs of one model and temperature with different seeds are pooled: their mean, the error their spread

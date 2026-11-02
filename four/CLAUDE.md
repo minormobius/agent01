@@ -188,7 +188,9 @@ for games, and this is a modelling programme with publications to come. The game
   `check` against the full basis, `pair <name> <k>` one random placement a runner command (MP2, counterpoise); `bake` →
   **generated** `js/molpairdata.js`. `atom/tools/molff.mjs fit <name>`: an XL₂ force field (charges, Born–Mayer repulsions,
   damped dispersion) fitted to those MP2 pairs, a fifth held out → **generated** `js/molffdata.js`; `liquid.mjs` models
-  `of3` and `pg4` run on it.
+  `of3` and `pg4` run on it. The OF₂ check FAILED in the default basis (no liquid at 120 K; `basis <name> <k> <plus>` showed the
+  split d deepens pairs 1.1–2.2×, an f adds ~1%): `pair … --plus=Dd` caches `pairDd-…` (baked under `grown`), `molff.mjs fit
+  OF2 --plus=Dd` stores `OF2@Dd`, and the `of3d` liquid model runs on it.
   `atom/tools/correlation.mjs` re-scores the best pairs with it (`pair <key> [plus] [shift]`, counterpoise-corrected;
   `plus` grows `census.mjs`'s `basisFor` recipe: D diffuse, d a second d, p hydrogen's second p, f an f, F two f, h a d on hydrogen, g a g) and `bake`s
   **generated** `js/correlation.js` for the census chapter's correlation section; `atom/tools/correlation-ref.py`
