@@ -51,8 +51,9 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
 - **WAVELAB at `/wavelab/`**: water waves in 4D, solved exactly (linear theory: every plane wave turned at
   ω² = g k tanh(k h); `js/waves.js`, a 64³ periodic surface, inverse 3D FFT in `js/fft.js`, run in a Web Worker,
   `js/worker.js`). Its own small shader, not Lean's: your slice as a height field, the whole 3D surface as a volume.
-  The selftest holds the page's claims (Huygens on a 3D surface, 1/r against 1/√r, swell's apparent speed, standing
-  orbitals). See [`wavelab/README.md`](wavelab/README.md).
+  Your slice is a free frame (twist pad, ana/kata lever, keys). Corks are pushed by the slope, a = −g∇η, in all three
+  directions, so they bob out of your slice. The selftest holds the page's claims (Huygens on a 3D surface, 1/r against
+  1/√r, swell's apparent speed, standing orbitals, Airy's velocity and cork orbits). See [`wavelab/README.md`](wavelab/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -107,7 +108,7 @@ node kata/lean/test/catbike.selftest.mjs # ~1 s
 node kata/tailspin/test/tailspin.selftest.mjs # ~50 s
 node kata/fallline/test/fallline.selftest.mjs # ~40 s
 node kata/wake/test/wake.selftest.mjs # ~3 s
-node kata/wavelab/test/wavelab.selftest.mjs # ~1 s
+node kata/wavelab/test/wavelab.selftest.mjs # ~15 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

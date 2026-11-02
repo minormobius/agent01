@@ -15,6 +15,22 @@ import { makeGridFFT } from "./fft.js";
 export const G = 9.81;
 export function omega(k, h = Infinity) { return Math.sqrt(G * k * (Number.isFinite(h) ? Math.tanh(k * h) : 1)); }
 
+/* A FLOATING CORK. In linear theory the water at the surface is pushed along the surface by its slope alone: the
+   pressure there is the air's, so the only horizontal force left is gravity's, down the slope,
+       du/dt = −g ∇η,
+   in all the surface's directions, w among them. A small cork goes where the water at its place goes. Its state is its
+   rest place x0, how far it has been carried (ξ) and its velocity (v); it starts at rest, and a slow damping (DAMP)
+   lets a cork forget any error in the velocity it starts with (it's given the water's own: Pond.velocity). The slope is taken at the cork's REST
+   place, as linear theory has it (Airy's orbits): taking it where the cork has got to adds part of the second-order
+   motion (the start of Stokes drift) without the rest of it. */
+export const DAMP = 0.05;
+export function corkStep(c, pond, dt, damp = DAMP) {
+  const at = c.x0, F = pond.slope(at).map((s) => -G * s), k = Math.exp(-damp * dt);
+  c.F = F; c.v = c.v.map((v, d) => (v + F[d] * dt) * k); c.xi = c.xi.map((x, d) => x + c.v[d] * dt); c.eta = pond.at(at);
+  return c;
+}
+export function cork(x0) { return { x0: x0.slice(), xi: x0.map(() => 0), v: x0.map(() => 0), F: x0.map(() => 0), eta: 0 }; }
+
 export class Pond {
   /* D: 2 (our water) or 3 (kata's), N per side, dx metres; h the depth (Infinity: deep) */
   constructor(D, N, dx, h = Infinity) {
@@ -41,9 +57,20 @@ export class Pond {
     }
   }
   /* a travelling plane wave: n the wave's integer index along each axis (k = 2π n / L), a its height */
-  swell(n, a = 0.15) {
+  swell(n, a = 0.15, phase = 0) {
     const { N, D } = this; let i = 0; for (let d = D - 1; d >= 0; d--) i = i * N + ((n[d] % N) + N) % N;
-    this.Zr[i] += a * this.M; return i;
+    this.Zr[i] += a * this.M * Math.cos(phase); this.Zi[i] += a * this.M * Math.sin(phase); return i;
+  }
+  /* a rough sea: count plane waves from directions spread over the whole sphere of them, 4 to 16 m long, random phases;
+     each a × (λ / 10 m) high (longer waves taller, as at sea) */
+  sea(count, a, seed = 1) {
+    let s = seed >>> 0; const r = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+    for (let j = 0; j < count; j++) {
+      const z = 2 * r() - 1, ph = 2 * Math.PI * r(), q = Math.sqrt(1 - z * z), dir = this.D === 3 ? [q * Math.cos(ph), q * Math.sin(ph), z] : [Math.cos(ph), Math.sin(ph)];
+      const lam = 4 + 12 * r(), m = this.L / lam, n = dir.map((x) => Math.round(x * m));
+      if (n.every((x) => x === 0)) continue;
+      this.swell(n, a * (this.L / Math.hypot(...n)) / 10, 2 * Math.PI * r());
+    }
   }
   /* a standing wave of one frequency: every wave with |k| near k0, weighted by a real spherical harmonic of its direction
    (l = 0, 1, 2 about the axis), centred at c. In space it's j_l(k0 r) Y_l: the shape of an s, p or d orbital */
@@ -95,5 +122,20 @@ export class Pond {
     }
     return r;
   }
+  /* the water's velocity along the surface at x, now: each plane wave carries the surface along its direction at
+     (g |k| / ω) times its height there (Airy: a ω / tanh(k h), the same thing). Summed over every wave: slow, so only
+     for placing a cork */
+  velocity(x) {
+    const { D, M, kv, k, w, t, Zr, Zi } = this, u = new Array(D).fill(0);
+    for (let i = 0; i < M; i++) {
+      if (k[i] < 1e-9 || (Zr[i] === 0 && Zi[i] === 0)) continue;
+      let kx = 0; for (let d = 0; d < D; d++) kx += kv[i * D + d] * x[d];
+      const ph = kx - w[i] * t, re = (Zr[i] * Math.cos(ph) - Zi[i] * Math.sin(ph)) / M, f = (G * re) / w[i];
+      for (let d = 0; d < D; d++) u[d] += (f * kv[i * D + d]);
+    }
+    return u;
+  }
+  /* the slope of the surface at x (central differences over half a sample), from the last field() */
+  slope(x) { const h = this.dx / 2; return x.map((_, d) => { const a = x.slice(), b = x.slice(); a[d] += h; b[d] -= h; return (this.at(a) - this.at(b)) / (2 * h); }); }
   energy() { let e = 0; for (let i = 0; i < this.M; i++) e += this.Zr[i] ** 2 + this.Zi[i] ** 2; return e; }
 }

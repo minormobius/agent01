@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const { makeFFT, makeGridFFT } = await import(path.join(here, "../js/fft.js"));
-const { Pond, omega, G } = await import(path.join(here, "../js/waves.js"));
+const { Pond, omega, G, cork, corkStep } = await import(path.join(here, "../js/waves.js"));
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } else console.log("ok   " + msg); };
 
@@ -76,6 +76,25 @@ const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg)
     if (l === 1) { P.t = 0; P.field(); const u = P.at([27, 24, 27]), d = P.at([21, 24, 21]); extra = `, its lobes opposite (${u.toFixed(3)} / ${d.toFixed(3)})`; if (!(u * d < 0 && Math.abs(u + d) < 1e-6)) fails++, checks++; }
     ok(corr < -0.97 && Math.abs(mx - 0.25) < 1e-3, `the ${"spd"[l]} orbital stands: half a period on it's itself upside down (correlation ${corr.toFixed(3)}), its crest ${mx.toFixed(3)} m${extra}`);
   }
+}
+/* corks: the water's velocity is Airy's; pushed by −g∇η a cork rides Airy's orbit (in deep water a circle of the wave's
+   height, along the wave's direction, so partly into w); in a rough sea they stay near home */
+{
+  const P = new Pond(3, 64, 0.75); P.decay = 0; const n = [3, 0, 4], k = n.map((x) => (2 * Math.PI * x) / P.L), kk = Math.hypot(...k), w = omega(kk), a = 0.1, kh = k.map((x) => x / kk);
+  P.swell(n, a); P.t = 0.37; P.field(); const x0 = [10, 20, 30], th = k.reduce((s, x, i) => s + x * x0[i], 0) - w * P.t, u = P.velocity(x0);
+  ok(Math.hypot(...u.map((v, i) => v - kh[i] * a * w * Math.cos(th))) < 1e-9, "the water's velocity at the surface is Airy's: (g k / ω) η along the wave's direction");
+  const c = cork(x0); c.v = u; const T = (2 * Math.PI) / w, dt = 1 / 120, rows = [];
+  for (let t = 0.37; t < 0.37 + 2 * T; t += dt) { P.t = t; P.field(); corkStep(c, P, dt, 0); const e1 = [0, 1, 0], e2 = [kh[2], 0, -kh[0]]; rows.push([t + dt, c.xi.reduce((s, x, i) => s + x * kh[i], 0), c.xi.reduce((s, x, i) => s + x * e1[i], 0), c.xi.reduce((s, x, i) => s + x * e2[i], 0)]); }
+  // fit the motion along the wave: A sin ωt + B cos ωt + C + D t (C, D: where it started, and the slow drift a 2.5% slope error leaves)
+  const fitCol = (col) => { const M = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], y = [0, 0, 0, 0];
+    for (const r of rows) { const t = r[0], v = r[col], f = [Math.sin(w * t), Math.cos(w * t), 1, t]; for (let i = 0; i < 4; i++) { y[i] += f[i] * v; for (let j = 0; j < 4; j++) M[i][j] += f[i] * f[j]; } }
+    for (let i = 0; i < 4; i++) { let p = i; for (let r = i + 1; r < 4; r++) if (Math.abs(M[r][i]) > Math.abs(M[p][i])) p = r; [M[i], M[p]] = [M[p], M[i]]; [y[i], y[p]] = [y[p], y[i]]; for (let r = 0; r < 4; r++) if (r !== i) { const f = M[r][i] / M[i][i]; for (let j = 0; j < 4; j++) M[r][j] -= f * M[i][j]; y[r] -= f * y[i]; } }
+    return y.map((v, i) => v / M[i][i]); };
+  const fit = fitCol(1), amp = Math.hypot(fit[0], fit[1]), across = Math.max(...[2, 3].map((cI) => { const f = fitCol(cI); return Math.hypot(f[0], f[1]); }));
+  ok(Math.abs(amp / a - 1) < 0.05 && across < 0.05 * a, `a cork in deep-water swell rides a circle the wave's height: ${amp.toFixed(4)} m for ${a} m, along the wave (its swing across ${(across / a * 100).toFixed(1)}% of that), so ${(100 * Math.abs(kh[2])).toFixed(0)}% of it into w`);
+  const Sp = new Pond(3, 64, 0.75); Sp.decay = 0; Sp.sea(60, 0.035, 7); Sp.t = 3; Sp.field(); const cs = [0, 1, 2].map((j) => { const x = [6 + 12 * j, 24, 24], q = cork(x); q.v = Sp.velocity(x); return q; });
+  let far = 0; for (let t = 3; t < 13; t += 0.05) { Sp.t = t; Sp.field(); for (const q of cs) { corkStep(q, Sp, 0.05); far = Math.max(far, Math.hypot(...q.xi)); } }
+  ok(far < 1, `in a rough sea, corks started with the water's velocity stay near home (the furthest ${far.toFixed(2)} m in 10 s): orbits, not drift`);
 }
 console.log(`\n${checks - fails}/${checks} checks passed`);
 if (fails) process.exit(1);

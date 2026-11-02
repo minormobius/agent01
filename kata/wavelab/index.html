@@ -21,18 +21,21 @@
       <button type="button" data-x="shallow">shallow</button>
       <button type="button" data-x="swell">swell from ana</button>
       <button type="button" data-x="s">s</button><button type="button" data-x="p">p</button><button type="button" data-x="d">d</button>
+      <button type="button" data-x="sea">sea</button>
+      <button type="button" data-x="corks" id="corkB">corks</button>
       <button type="button" data-x="rain" id="rainB">rain</button>
       <button type="button" data-x="clear">clear</button>
+      <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
       <button type="button" id="gearB" aria-label="settings">⚙</button>
     </div>
   </div>
   <div id="cap"></div>
+  <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+  <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
   <div id="panel" hidden>
-    <label>slice tilt into w <input type="range" id="tilt" min="0" max="90" step="1" value="0" /><span id="tiltV">0°</span></label>
-    <label>slice offset, ana <input type="range" id="off" min="-12" max="12" step="0.25" value="0" /><span id="offV">0 m</span></label>
     <label>depth <input type="range" id="depth" min="0" max="3" step="1" value="0" /><span id="depthV">deep</span></label>
     <label>speed <input type="range" id="speed" min="0" max="4" step="1" value="2" /><span id="speedV">1×</span></label>
-    <p class="foot">tap the water (left/top) to drop a pebble · drag either view to look round · <a href="./README.md">how it's solved</a> · <a href="../">kata</a></p>
+    <p class="foot">tap the water to drop a pebble · drag either view to look round · the pad twists your slice into w (keys J L, I K), the lever moves it ana and kata (R F), W A S D slide it, Z or ⊞ squares it up · <a href="./README.md">how it's solved</a> · <a href="../">kata</a></p>
   </div>
 </div>
 <script type="module" src="js/main.js"></script>

@@ -4,11 +4,54 @@ Water waves in four dimensions, solved exactly. Kata's water surface is three-di
 kata page shares): a height η(x, z, w, t) that moves. Drop pebbles on it and watch two views of the same water:
 
 - **your slice**: the water as you'd see it standing in a 3D slice of the 4D world. That's a 2D surface: the slice's
-  plane through the 3D water surface. ⚙ tilts it into w and moves it ana or kata. Tap the water to drop a pebble.
+  plane through the 3D water surface. Tap the water to drop a pebble.
 - **the whole surface**: the 3D water surface itself, one period of it (48 m a side, x and z across, w drawn up).
   Crests are teal, troughs rose, and your slice is the bright plane through its middle.
 
 A chart compares the latest pebble on kata's water with the same pebble on ours (a 2D surface), along a ray from it.
+
+## Moving your slice
+
+Your slice is a free frame in the 3D water surface: A (right) and B (forward) span it, N (ana) is the way it can't
+see, O is its origin.
+
+| control | keys | does |
+|---|---|---|
+| **the pad** (bottom left) | J L, I K | twists your slice into w: right tips A toward ana, up tips B toward ana, up to 35°/s |
+| **the lever** (bottom right) | R F (or E Q) | moves your slice ana or kata along N, up to 3 m/s |
+| | W A S D | slides it along A and B, 6 m/s |
+| **⊞** | Z | squares it up: x right, z forward, w ana, back at the middle |
+
+Both controls spring back when you let go. The readout gives N in (x, z, w), how far N has turned from w, and how far
+ana of the middle the slice is. On the whole surface the bright plane is your slice, wherever you've moved it. The box
+stays one period round the middle, and the slice is drawn over everything so it shows even in a rough sea. A tap on the
+caption folds it to a line.
+
+## Corks
+
+**corks** drops 24 corks across your slice as it is; tap it again to lift them out. **sea** puts them on a rough sea.
+
+A cork goes where the water at the surface goes. In linear theory the pressure at the surface is the air's, so the
+only push along the surface is gravity's, down the slope:
+
+    du/dt = −g ∇η
+
+That push acts in all three of the surface's directions, w among them. Each cork's push is drawn in your slice as a
+gold arrow (the part along your slice) and a tick (the part ana, teal, or kata, rose). The arrows and dots on the whole
+surface are the same corks and the same pushes.
+
+A cork is a 4D ball, so your slice cuts it in a ball that shrinks as it's carried out of the slice. It's tinted teal or
+rose by the way it's going, and gone once it's more than its radius away. A dashed ring marks one that's just out of
+view. That's the bobbing in and out.
+
+The physics behind that:
+- A cork starts with the water's own velocity, Airy's (g |k| / ω) η along each wave's direction, summed over every
+  wave. It feels the slope at its rest place, as linear theory has it.
+- In a plane wave it rides Airy's orbit: in deep water, a circle the wave's height across. For swell coming in from
+  ana, part of that circle is in w.
+- A slow damping (5% a second) takes out the drift a 2.5% slope error from the grid would leave.
+- Its motion is drawn scaled by the same factor as the heights. Linear theory has no preferred size, so that's the
+  same motion as bigger waves.
 
 ## The experiments
 
@@ -20,6 +63,8 @@ A chart compares the latest pebble on kata's water with the same pebble on ours 
 | **swell from ana** | A plane wave 53° out of your slice. In the slice its crests look 16 m apart and sweep at 6.45 m/s, faster than a 16 m wave travels (5.0 m/s). |
 | **s, p, d** | Standing waves of one frequency, weighted by a spherical harmonic of their direction: the shapes a round 4D pond sloshes in, which are the orbitals' shapes. |
 | **rain** | Drops all over the surface. Most land out of your slice, and their rings appear from nothing. |
+| **sea** | Sixty plane waves, 4–16 m long, from every direction on the sphere of them, at random phases. The corks are tossed into w as much as across your slice, so they come and go. |
+| **corks** | 24 corks on your slice, each pushed down the water's slope in all three directions. |
 
 ## How it's solved (`js/waves.js`, `js/fft.js`, `js/worker.js`)
 
@@ -61,7 +106,7 @@ the clock on, solves, and returns the surface as a 3D texture.
 ## Testing
 
 ```bash
-node kata/wavelab/test/wavelab.selftest.mjs   # ~1 s
+node kata/wavelab/test/wavelab.selftest.mjs   # ~15 s
 ```
 
 It checks:
@@ -72,4 +117,7 @@ It checks:
 - Huygens: behind its front in shallow water, kata's pulse leaves 2% of its height and ours 28%;
 - spreading: as the front's radius doubles, kata's pulse falls as r^−1.1 and ours as r^−0.53;
 - the swell's apparent speed along the slice;
-- the orbitals standing: half a period on, each is itself upside down, and the p orbital's lobes are opposite.
+- the orbitals standing: half a period on, each is itself upside down, and the p orbital's lobes are opposite;
+- the water's velocity matching Airy's;
+- a cork riding Airy's orbit, the wave's height across, along the wave (its swing across is 1.2% of that);
+- corks in a rough sea staying near home.
