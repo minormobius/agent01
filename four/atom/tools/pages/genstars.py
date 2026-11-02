@@ -110,7 +110,48 @@ def sci1(x):
 def _gf(f): return 'ours' if f==1 else sci(f)+' of ours'
 PLS=json.loads(subprocess.run(['node','--input-type=module','-e','import("'+ATOM+'js/plasmadata.js").then((m) => console.log(JSON.stringify(m.PLASMA))).catch(() => console.log("null"));'],capture_output=True,text=True,check=True).stdout)
 def PL_f(H): return f"×{math.exp(H[0]):.2f}–{math.exp(H[1]):.2f}"
-def PL_row(o,label): return f"<tr><td>{label}</td><td>{PL_f(o['H']['pp'])}</td><td>{PL_f(o['H']['aa'])}</td><td>{o['H']['heavy100'][0]:.1f}–{o['H']['heavy100'][1]:.1f} weak, {o['strong']['heavy100']:.1f} ion sphere: ×{MS_sci(math.exp(o['adopt']['heavy100']))}</td><td>{o['degeneracy']:.2f}</td><td>{MS_sci(o['decayYears'])} years</td><td>{MS_sci(o['Rm'])}</td></tr>"
+# the plasma table as a heatmap: one number per cell (the adopted screening factor; the rest as computed), each column
+# shaded on its own log scale along one blue ramp (dark surface: least recedes to dark, most is bright)
+PL_RAMP=['#0d366b','#104281','#184f95','#1c5cab','#256abf','#2a78d6','#3987e5','#5598e7','#6da7ec','#86b6ef','#9ec5f4','#b7d3f6']
+def PL_mix(t):
+  t=max(0,min(1,t))*(len(PL_RAMP)-1); i=min(int(t),len(PL_RAMP)-2); f=t-i
+  a=[int(PL_RAMP[i][k:k+2],16) for k in (1,3,5)]; b=[int(PL_RAMP[i+1][k:k+2],16) for k in (1,3,5)]
+  c=[round(a[k]+(b[k]-a[k])*f) for k in range(3)]
+  lum=sum(w*((v/255)**2.2) for w,v in zip((0.2126,0.7152,0.0722),c))
+  return '#%02x%02x%02x'%tuple(c), ('#07101f' if lum>0.28 else '#eef4fb')
+def PL_sci(x,unit=''):
+  if x<1000: return (f"{x:.2f}" if x<10 else f"{x:.0f}")+unit
+  e=int(math.floor(math.log10(x))); m=x/10**e
+  return (f"{m:.1f}×" if round(m,1)!=1 else "")+f"10<sup>{e}</sup>"+unit
+def PL_fac(H): return "×"+PL_sci(math.exp(H))
+PL_COLS=[ # header, value for the colour (log10 of it), the cell's text, its tooltip
+ ("proton + proton", lambda o: o['adopt']['pp'], lambda o: PL_fac(o['adopt']['pp']), lambda o: f"weak: ×{math.exp(o['H']['pp'][0]):.3f} (electrons left out) to ×{math.exp(o['H']['pp'][1]):.3f} (counted); ion sphere ×{math.exp(o['strong']['pp']):.3f}; the smaller adopted"),
+ ("helium-4 + helium-4", lambda o: o['adopt']['aa'], lambda o: PL_fac(o['adopt']['aa']), lambda o: f"weak: ×{math.exp(o['H']['aa'][0]):.2f} to ×{math.exp(o['H']['aa'][1]):.2f}; ion sphere ×{math.exp(o['strong']['aa']):.2f}; the smaller adopted"),
+ ("element 10 + element 10", lambda o: o['adopt']['heavy100'], lambda o: PL_fac(o['adopt']['heavy100']), lambda o: f"weak: H = {o['H']['heavy100'][0]:.1f} to {o['H']['heavy100'][1]:.1f} (past H ≈ 1 it fails); ion sphere H = {o['strong']['heavy100']:.1f}; the smaller adopted"),
+ ("electrons squeezed (E<sub>F</sub>/kT)", lambda o: o['degeneracy'], lambda o: f"{o['degeneracy']:.2f}", lambda o: "the electrons' Fermi energy over kT: above 1 they're degenerate and screen less"),
+ ("a field lasts (years)", lambda o: o['decayYears'], lambda o: PL_sci(o['decayYears']), lambda o: f"resistive decay at the star's own size; magnetic diffusivity {o['etaSI']:.1e} m²/s"),
+ ("magnetic Reynolds number", lambda o: o['Rm'], lambda o: PL_sci(o['Rm']), lambda o: "at 100 m/s over the star's radius: far above 1, the field is frozen into the gas"),
+]
+def PL_heat():
+  if not PLS: return ""
+  rows=[("ours, the check",[(PLS['ours'],"our Sun's centre · 15.7 MK")])]
+  for G in (1e-14,1e-17,1e-20):
+    rs=[(o,f"{lab} · {o['m']:.2f} M<sub>Ch</sub> · {o['Tc']/1e6:.0f} MK") for lab in ("Sun-long","lightest","heaviest") for o in [PL_four(G,lab)] if o]
+    if rs: rows.append((f"4D, G = {MS_g(G)} of ours",rs))
+  allo=[o for _,rs in rows for o,_ in rs]
+  rng=[(min(math.log10(max(c[1](o),1e-9)) for o in allo),max(math.log10(max(c[1](o),1e-9)) for o in allo)) for c in PL_COLS]
+  h='<div class="heatwrap"><table class="heat"><thead><tr><th></th>'+''.join(f'<th>{c[0]}</th>' for c in PL_COLS)+'</tr></thead><tbody>'
+  for grp,rs in rows:
+    h+=f'<tr class="grp"><th colspan="{len(PL_COLS)+1}">{grp}</th></tr>'
+    for o,lab in rs:
+      h+=f'<tr><th>{lab}</th>'
+      for c,(lo,hi) in zip(PL_COLS,rng):
+        v=math.log10(max(c[1](o),1e-9)); bg,fg=PL_mix((v-lo)/(hi-lo) if hi>lo else 0.5)
+        h+=f'<td style="background:{bg};color:{fg}" title="{c[3](o)}">{c[2](o)}</td>'
+      h+='</tr>'
+  h+='</tbody></table></div>'
+  h+=f'<div class="heatkey"><span>least</span><i style="background:linear-gradient(90deg,{",".join(PL_RAMP)})"></i><span>most</span><span class="note">each column on its own log scale · hover a cell for its ranges</span></div>'
+  return h
 def PL_four(G,label): return next((o for o in (PLS or {{}}).get('four',[]) if abs(o['G']/G-1)<1e-6 and o['label']==label),None)
 def MS_atG(G):
   # a Sun-long star at gravity G (× ours), log-interpolated between the computed sequences that bracket it
@@ -242,8 +283,8 @@ stars=f'''<section id="hold">
   <h3>The plasma: screening and frozen fields</h3>
   <p>A star's core is a plasma, and the lens vacuum (<a href="light.html">chapter 3</a>) changes two things about it: how much the free charges help nuclei fuse, and how long a magnetic field lasts.</p>
   <p><span class="tag computed">computed</span> <b>Screening.</b> Each nucleus gathers a cloud of opposite charge, which lowers the barrier two nuclei must tunnel through by the potential the cloud makes at the nucleus: a rate gains e<sup>H</sup> (Salpeter's screening). In ours that potential is Debye's, √(4πκ) per unit charge, κ = Σ n q²/kT. With 4D's pinned kernel, 4π²/|k|³ in place of 4π/k², the same calculation gives (4π²)<sup>4/3</sup> κ<sup>1/3</sup>/12√3π: finite, though the screened potential keeps a power-law tail (the |k|³ isn't smooth, so the cut-off isn't exponential), and growing as the density's cube root rather than its square root. Our Sun's centre, the check, gains ×1.04–1.05 for proton + proton, the textbook value.</p>
-  <table class="sys"><tr><th>core</th><th>proton + proton</th><th>helium-4 + helium-4</th><th>Z₁Z₂ = 100: H, and the adopted factor</th><th>electrons' E<sub>F</sub>/kT</th><th>a field decays in</th><th>magnetic Reynolds number (100 m/s)</th></tr>{PL_row(PLS['ours'],"our Sun's centre") if PLS else ""}{"".join(PL_row(o,f"4D, G {MS_g(G)}, {lab} ({o['m']:.2f} M<sub>Ch</sub>, {o['Tc']/1e6:.0f} MK)") for G in (1e-14,1e-17,1e-20) for lab in ("Sun-long","lightest","heaviest") for o in [PL_four(G,lab)] if o)}</table>
-  <p class="read">Each range runs from the electrons left out (fully degenerate, they don't screen) to counted in full. Weak screening is the first term of a series in H: past H ≈ 1 it fails, and heavy nuclei (Z₁Z₂ = 100: element 10 with element 10) are past it in nearly every core.</p>
+  {PL_heat()}
+  <p class="read">How much faster each pair fuses than its bare rate, and how the core's magnetic field fares. The screening factors are the adopted ones: weak screening with the electrons counted, or the ion spheres of the next paragraph, whichever is smaller. Each cell's tooltip gives the range from the electrons left out (fully degenerate, they don't screen) to counted in full. Weak screening is the first term of a series in H: past H ≈ 1 it fails, and heavy nuclei (element 10 with element 10) are past it in nearly every core.</p>
   <p><span class="tag computed">computed</span> <b>Strong screening.</b> Past H ≈ 1 the cloud isn't a small correction. Each nucleus sits in its own sphere of electrons, just enough to cancel its charge, and two fusing nuclei merge their spheres, gaining the difference in the spheres' electrostatic energies (Salpeter's ion spheres). In ours a sphere's energy is −0.9 Z²/a, the textbook value and the check. In 4D there's no shell theorem, so the electron ball's energy with itself has to be added up shell by shell with the pinned potential: −0.816 Z²/a (checked against a Monte Carlo of the 4-ball), with the sphere's radius a growing as Z<sup>1/4</sup>, so the energy grows as Z<sup>7/4</sup> where ours grows as Z<sup>5/3</sup>. The adopted factor is the smaller of the two exponents, weak (electrons counted) and strong, the usual bridge: each overestimates outside its own regime.</p>
   <p><b>Ordinary 4D stars burn a few percent faster than their bare rates for protons, and up to a third faster for helium-4 pairs; the lightest, densest, most degenerate cores up to 1.8 times as fast for protons and up to seven times for helium-4</b> (the ion spheres cap the weak formula's fourteen). <b>Heavy nuclei gain a few times in the hot, massive cores that can burn them</b> (×2.3 for element 10 with element 10 in the heaviest stars, ×30–500 in Sun-long ones, against ×27 in our Sun), and 10<sup>10</sup>–10<sup>14</sup> in the lightest stars, which never get hot enough to burn them. So screening speeds up 4D's deep burning by factors, not powers of ten. <span class="tag open">open</span> These are main-sequence cores; the hotter, denser cores of the later burning stages (<a href="nuclei.html">chapter 14</a>) aren't modelled yet, and between H ≈ 1 and the ion spheres' regime the bridge is rough (ours uses fitted intermediate formulas; 4D has none).</p>
   <p><span class="tag computed">computed</span> <b>Frozen fields.</b> The lens vacuum's μ = μ₀/ℓk makes a current's field pinned like the charges' (its vector potential 4π²J/c²|k|³), so with Ohm's law a field of size L decays at a rate c²k³/4π²σ where ours decays at c²k²/4πσ: the magnetic Reynolds number grows as L² instead of L. And the electrons' collisions that set σ change: a small-angle Coulomb deflection is 2b₀/b in both worlds, but in 4D the impact parameters fill a three-dimensional plane, so the momentum lost grows linearly out to the screening length instead of as Spitzer's logarithm. Our Sun's centre, the check, gives a magnetic diffusivity of 6.6×10⁻³ m²/s, Spitzer's value.</p>

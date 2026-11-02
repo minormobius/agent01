@@ -157,3 +157,14 @@ table.ledger td:nth-child(3), table.ledger td:nth-child(4) { text-align: right; 
 .smapkey span { display: inline-flex; align-items: center; gap: 6px; }
 .smapkey i { width: 14px; height: 14px; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; font-style: normal; font-size: 9px; }
 .smapkey i.out { border: 1px solid var(--border); }
+/* heatmap tables (the stars chapter's plasma): one number per cell, each column shaded on its own log scale */
+.heatwrap { overflow-x: auto; max-width: 100%; margin: 12px 0 4px; }
+table.heat { border-collapse: separate; border-spacing: 2px; font: 13px var(--mono); min-width: max-content; }
+table.heat thead th { font: 600 11px var(--mono); color: var(--dim); text-align: center; vertical-align: bottom; padding: 0 4px 6px; max-width: 8em; white-space: normal; line-height: 1.3; }
+table.heat tbody th { font: 12px var(--sans); color: #c9c3b8; text-align: left; padding: 6px 8px 6px 0; white-space: nowrap; font-weight: 400; }
+table.heat tr.grp th { font: 600 11px var(--mono); color: var(--text); letter-spacing: 0.04em; padding: 12px 0 4px; border-bottom: 1px solid var(--border); }
+table.heat td { text-align: center; padding: 7px 6px; border-radius: 4px; font-weight: 600; min-width: 5em; cursor: default; font-variant-numeric: tabular-nums; }
+table.heat td sup { font-size: 0.72em; }
+.heatkey { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font: 11px var(--mono); color: var(--dim); margin: 0 0 14px; }
+.heatkey i { display: inline-block; width: 140px; height: 8px; border-radius: 4px; }
+.heatkey .note { flex-basis: 100%; }
