@@ -1,0 +1,19 @@
+{
+ "group": "of2dd-3",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair OF2 6 --plus=Dd",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 901
+  },
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair OF2 7 --plus=Dd",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1014
+  }
+ ]
+}
