@@ -39,7 +39,7 @@ if (process.argv[2] === "bake") {
   const out = {}, groups = {};
   for (const r of all) (groups[`${r.sys}@${r.T}@${r.N}`] ??= []).push(r);
   const pool = (rs) => rs.length > 1 ? { l: mean(rs.map((r) => r.s.l)), el: Math.max(sem(rs.map((r) => r.s.l)), mean(rs.map((r) => r.s.el)) / Math.sqrt(rs.length)), v: mean(rs.map((r) => r.s.v)), ev: Math.max(sem(rs.map((r) => r.s.v)), mean(rs.map((r) => r.s.ev)) / Math.sqrt(rs.length)) } : { ...rs[0].s };
-  const byT = {}; for (const [k, rs] of Object.entries(groups)) { const [sys, T] = k.split("@"), key = `${sys}@${T}`; if (!byT[key] || byT[key][0].N < rs[0].N) byT[key] = rs; }
+  const byT = {}; for (const [k, rs] of Object.entries(groups)) { const [sys, T] = k.split("@"), key = `${sys}@${T}`; if (!byT[key] || byT[key].length < rs.length || (byT[key].length === rs.length && byT[key][0].N < rs[0].N)) byT[key] = rs; } // the size with the most seeds (the other sizes are the size check)
   for (const rs of Object.values(byT)) { const r = rs[0], P = pool(rs); (out[r.sys] ??= { d: r.d, epsK: r.epsK, R: r.R, points: [] }).points.push({ T: r.T, N: r.N, seeds: rs.length, cycles: Math.min(...rs.map((q) => q.rho[0].length)), l: +P.l.toFixed(4), v: +P.v.toFixed(4), el: +P.el.toFixed(4), ev: +P.ev.toFixed(4), runs: rs }); }
   // the box-size checks: one temperature at two sizes
   for (const [key, rs] of Object.entries(byT)) { const [sys, T] = key.split("@"), sizes = Object.entries(groups).filter(([k]) => k.startsWith(key + "@")); if (sizes.length > 1) (out[sys].sizes ??= []).push({ T: +T, runs: sizes.map(([, q]) => { const P = pool(q); return { N: q[0].N, seeds: q.length, l: +P.l.toFixed(4), v: +P.v.toFixed(4) }; }) }); }

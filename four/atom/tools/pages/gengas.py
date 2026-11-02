@@ -3,6 +3,9 @@
 GN=json.loads(subprocess.run(['node',ATOM+'tools/gasnumbers.mjs'],capture_output=True,text=True,check=True).stdout)
 def gr(d,Z): return next(r for r in GN['rows'] if r['d']==d and r['Z']==Z)
 def K(x): return f"{round(x,-1):,.0f}" if x<1000 else f"{round(x,-2):,.0f}" if x<10000 else f"{round(x,-3):,.0f}"
+def COEXIST_ERR(k):
+  e=CX.get(k,{}).get('TcErr')
+  return f"±{e:.3f}" if e is not None else 'unknown'
 def KR(a,b=None):
     if b is None: a,b=a
     return f"{K(a)} to {K(b)}"
@@ -88,7 +91,7 @@ gas=f'''<section id="ideal">
   <h4>Simulated</h4>
   <p>So we simulated it. Liquid and vapour sit side by side in two boxes that trade atoms and volume until they agree (Gibbs-ensemble Monte Carlo), at a ladder of temperatures, on the compute runner. Below the critical point one box ends up liquid and the other vapour. Above it they can't be told apart. The gap between them closes as (T_c − T)^β, with β = 0.326 in 3D and, in 4D, mean field's ½. Not because 4D is the upper critical dimension, as this chapter first said: that holds for short-range forces. These atoms keep a −B/r⁵ pull, a long-range one, and for a pull falling as r^−(d+σ) the upper critical dimension is 2σ (Fisher, Ma and Nickel), here 2, so 4D sits above it and ½ stands, for that reason (an independent audit's correction). Both exponents are fitted, and the spread is part of each answer, though not the whole of it.</p>
   <p><b>The checks.</b> Lennard-Jones atoms in our world condense below <b>{ER('lj3')}</b> ε/k: the published value is 1.31. Our argon's computed pair condenses below <b>{KR(ARS)} K</b>, holding the measured 150.9. Doubling element 12's boxes moves its densities by {SZD:.1f}%.</p>
-  <p><b>How far to trust these critical points.</b> They are exploratory. Argon's and element 2's each rest on two temperatures, so a line through them has nothing left over to measure its own error. Each cycle calls the denser box "liquid", so near the critical point fluctuations alone open a gap. And no run has been repeated with a different seed, a third box size, or another treatment of the tail past the cutoff. Until those are done, the kelvin quoted below carry the spread shown and an unmeasured error on top of it.</p>
+  <p><b>How far to trust these critical points.</b> After an independent audit they were rerun: argon and element 2 at six temperatures each through the critical region, three independent seeds at every one, the liquid taken as the denser box of each block's averages (sorting every cycle opened a gap from fluctuations alone), and box sizes of 800 to 2,400 atoms (element 2's densities agree to 0.1%). The seeds put Tc's own error at {COEXIST_ERR('ar')} and {COEXIST_ERR('ie')} of the well depth. Larger, and still unmeasured as an error bar, are the exponent (the two columns differ by 5–10%), the treatment of the pull past the cutoff, and the pair itself (the ÷1.8 range). Lennard-Jones and element 12's points have not been rerun this way yet.</p>
   <canvas class="chart tall" id="cCoexist"></canvas>
   <p class="read" id="kCoexist"></p>
   <p><b>Element 12 condenses below {KR(OES)} K, simulated.</b> The crowd's rules said {KR(OEC)} K, and the well's said {KR(OE['tcWell'])}. <b>The crowd was right, and the well-depth rule was off by a factor of {OES[0]/OE['tcWell'][0]:.0f}.</b> Dimension alone does part of it. Lennard-Jones atoms, whose pull is short, condense below {ER('lj4',1)} ε/k in 4D, against {ER('lj3')} in ours, since each atom has more neighbours (that 4D value is extrapolated from {CX['lj4']['lastSplit']} ε/k down). Element 12's far pull takes it to {ER('oe',1)} ε/k. Element 22, by the crowd's rules, would condense below about {KR(BGC)} K.</p>
