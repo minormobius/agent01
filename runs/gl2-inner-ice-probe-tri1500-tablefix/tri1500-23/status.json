@@ -1,0 +1,33 @@
+{
+ "group": "tri1500-23",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 172",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 597
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 173",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 607
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 174",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 571
+  },
+  {
+   "cmd": "node four/atom/tools/manybody.mjs run 175",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 608
+  }
+ ]
+}
