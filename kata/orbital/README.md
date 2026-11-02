@@ -32,6 +32,28 @@ What stands out:
 - **x²+y²−z²−w²**: positive all round the xy-plane and negative all round the zw-plane. Those two planes are
   completely perpendicular and meet only at the nucleus. Nothing in 3D can do that.
 
+## sp⁴ hybrids
+
+**sp⁴** mixes ns with the four np into five hybrids:
+
+    h_k = ∓(1/√5) ns + √(4/5) np·d_k
+
+Each is one fifth s and four fifths p. Each has one big lobe pointing at a corner d_k of the **5-cell**, 4D's
+tetrahedron, and every pair of corners is at cos = −1/4, **104.48°** apart. Our sp³ has four at 109.47°.
+
+They're stationary states, not just shapes: energy depends only on n, so ns and np have the same energy and any mix of
+them is an exact solution too. The selftest checks the full 4D equation for each.
+
+The sign on ns is a convention: (−1)^(n−1), so the big lobe points along d_k and not away from it. The corners are
+taken in a natural frame:
+- **h5 points straight along w, ana.** Through the nucleus your slice sees only a small rose core.
+- **h1 to h4 make our tetrahedron in x, y, z**, each tipped 14.48° kata.
+
+So squared up, sp⁴ looks like our sp³ plus one you can't see. Pick them one at a time (ours, beside it, is the sp³ lobe
+along the same line) or **all five**. All five are drawn in their own colours, each point coloured by the hybrid that
+dominates there. Arrows run from the nucleus toward each corner: their length is the part in your slice, and the label
+says how far the rest leans ana or kata.
+
 ## r
 
 Three numbers say where the electron is, and they disagree.
@@ -70,6 +92,10 @@ node kata/orbital/test/orbital.selftest.mjs   # ~3 s
 ```
 
 It checks:
+- the full 4D Schrödinger equation, −½∇²ψ − ψ/r = Eψ by a finite-difference Laplacian, for every s, p and d with
+  n ≤ 3 and both hybrid sets;
+- the five hybrids: orthonormal, 104.48° apart, each one's electrons leaning toward its own corner, and the four not
+  along w making our tetrahedron;
 - every state with n ≤ 4 and l ≤ 2, in 3D and 4D, solves its radial equation at its energy, and the energies are
   ATOM⁴'s and Bohr's;
 - the 6.05 eV ground state;

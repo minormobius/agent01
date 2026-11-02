@@ -63,5 +63,29 @@ let seed = 12345; const rng = () => ((seed = (Math.imul(seed, 1664525) + 1013904
   const onXY = [0, 1, 2, 3].map((k) => H.psi(st2, cl, [3 * Math.cos(k), 3 * Math.sin(k), 0, 0])), onZW = [0, 1, 2, 3].map((k) => H.psi(st2, cl, [0, 0, 3 * Math.cos(k), 3 * Math.sin(k)]));
   ok(onXY.every((v) => v > 0) && onZW.every((v) => v < 0) && Math.abs(onXY[0] + onZW[0]) < 1e-12, "x²+y²−z²−w²: positive all round the xy-plane, negative all round the zw-plane, the two planes meeting only at the nucleus");
 }
+/* the whole equation: every orbital, and every hybrid, satisfies −½∇²ψ − ψ/r = Eψ in four dimensions (a finite-
+   difference Laplacian at random points), not just its radial part */
+{
+  let worst = 0, count = 0; const h = 2e-3;
+  const lap = (f, x) => { let s2 = 0; for (let k = 0; k < 4; k++) { const a = x.slice(), b = x.slice(); a[k] += h; b[k] -= h; s2 += (f(a) - 2 * f(x) + f(b)) / (h * h); } return s2; };
+  const check = (f, E, R) => { let scale = 0, res = 0; for (let i = 0; i < 60; i++) { const x = [0, 1, 2, 3].map(() => (2 * rng() - 1) * R); if (Math.hypot(...x) < 0.4) continue; const v = f(x); scale = Math.max(scale, Math.abs(v)); res = Math.max(res, Math.abs(-0.5 * lap(f, x) - v / Math.hypot(...x) - E * v)); } count++; return res / scale; };
+  for (let n = 1; n <= 3; n++) for (let l = 0; l < n; l++) { const st = H.state(4, n, l); for (const hh of H.harmonics(4, l)) worst = Math.max(worst, check((x) => H.psi(st, hh, x), st.E, st.r99 * 0.6)); }
+  for (const n of [2, 3]) for (const hy of H.hybrids(4, n)) worst = Math.max(worst, check((x) => H.psiOf(hy.parts, x), hy.parts[0].st.E, hy.parts[0].st.r99 * 0.6));
+  ok(worst < 2e-4, `all ${count} orbitals (every s, p and d with n ≤ 3, and the sp⁴ hybrids of n = 2 and 3) satisfy the full 4D Schrödinger equation −½∇²ψ − ψ/r = Eψ (worst residual ${worst.toExponential(1)} of the orbital's size)`);
+}
+
+/* sp⁴: five hybrids, orthonormal, pointing at the 5-cell's corners, 104.48° apart (ours, sp³: four at 109.47°); sliced
+   straight, the four that aren't along w make our tetrahedron */
+{
+  const hy = H.hybrids(4), D = hy.map((q) => q.dir), cosA = D[0].reduce((s2, v, k) => s2 + v * D[1][k], 0), t3 = H.simplex(3), cos3 = t3[0].reduce((s2, v, k) => s2 + v * t3[1][k], 0);
+  // orthonormality by importance sampling: q = (1/5) Σ |h_i|² (each drawn by its own sampler), ⟨h_i|h_j⟩ = E_q[h_i h_j / q]
+  const draws = hy.map((q) => H.mixSampler(q.parts, rng)), G = hy.map(() => hy.map(() => 0)), M = 30000;
+  for (let m = 0; m < M; m++) { const x = draws[m % 5](), v = hy.map((q) => H.psiOf(q.parts, x)), qd = v.reduce((s2, a) => s2 + a * a, 0) / 5; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) G[i][j] += (v[i] * v[j]) / qd / M; }
+  let off = 0, diag = 0; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) { if (i === j) diag = Math.max(diag, Math.abs(G[i][i] - 1)); else off = Math.max(off, Math.abs(G[i][j])); }
+  ok(Math.abs(cosA + 0.25) < 1e-12 && Math.abs(cos3 + 1 / 3) < 1e-12 && diag < 0.03 && off < 0.03, `five sp⁴ hybrids, orthonormal (by 30k electrons: ${diag.toFixed(3)}, ${off.toFixed(3)}), ${(Math.acos(cosA) * 180 / Math.PI).toFixed(2)}° apart, the 5-cell's corners; ours, sp³, four at ${(Math.acos(cos3) * 180 / Math.PI).toFixed(2)}°`);
+  let align = 1; for (const q of hy) { const dr = H.mixSampler(q.parts, rng), m = [0, 0, 0, 0]; for (let i = 0; i < 6000; i++) { const x = dr(), r = Math.hypot(...x); x.forEach((v, k) => (m[k] += v / r)); } align = Math.min(align, m.reduce((s2, v, k) => s2 + v * q.dir[k], 0) / Math.hypot(...m)); }
+  const proj = D.slice(0, 4).map((v) => { const p = v.slice(0, 3), mm = Math.hypot(...p); return p.map((c) => c / mm); }), pc = proj[0].reduce((s2, v, k) => s2 + v * proj[1][k], 0);
+  ok(align > 0.99 && Math.abs(pc + 1 / 3) < 1e-12 && D[4][3] === 1, `each hybrid's electrons lean toward its own corner (worst alignment ${align.toFixed(3)}); one points straight along w, and the other four, seen in x y z, are our tetrahedron (cos ${pc.toFixed(4)} = −1/3), each tipped ${(Math.asin(0.25) * 180 / Math.PI).toFixed(2)}° kata`);
+}
 console.log(`\n${checks - fails}/${checks} checks passed`);
 if (fails) process.exit(1);

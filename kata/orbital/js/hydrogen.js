@@ -67,3 +67,46 @@ export function sampler(st, h, rng = Math.random) {
 }
 /* the same orbital in our 3D atom, when there is one (same n, l and the same name); else null */
 export function twin(name, n, l) { const h = harmonics(3, l).find((q) => q.name === name); return h ? { st: state(3, n, l), h } : null; }
+
+/* ------------------------------------------------------------------ hybrids */
+/* MIXTURES. Energy depends on n alone, so any mix of states with one n is a stationary state too: a combination
+   ψ = Σ c_i ψ_i (the ψ_i orthonormal, Σ c_i² = 1). Its radial distribution is Σ c_i² P_i(r) when the parts' directions
+   are orthogonal (s against p: the cross terms vanish over the sphere). */
+export function psiOf(parts, x) { let s = 0; for (const p of parts) s += p.c * psi(p.st, p.h, x); return s; }
+/* a p orbital along any unit direction u: the same normalisation as p_x (rotations keep it) */
+export function pAlong(d, u) { const m = Math.hypot(...u), k = Math.sqrt(d / AREA[d]); return { name: "p·u", kind: "axis", c0: 0, b: u.map((v) => (v / m) * k), Q: Array.from({ length: d }, () => new Array(d).fill(0)) }; }
+/* the d + 1 directions of the regular simplex in d dimensions (the tetrahedron's corners in 3D, the 5-cell's in 4D),
+   unit vectors with every pair at cos = −1/d. In 4D: one straight along w, the other four a tetrahedron in x y z
+   tipped toward kata by asin(1/4) = 14.48° */
+export function simplex(d) {
+  const tet = [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]].map((v) => v.map((c) => c / Math.sqrt(3)));
+  if (d === 3) return tet;
+  const a = Math.sqrt(15) / 4; return [...tet.map((v) => [...v.map((c) => c * a), -0.25]), [0, 0, 0, 1]];
+}
+/* the sp^d hybrids of shell n: h_k = −(1/√(d+1)) ns + √(d/(d+1)) np·d_k, each one big lobe pointing at a corner of the
+   simplex. (ns is positive at the nucleus and negative outside its last node, where most of the electron is; its sign
+   is a convention, taken so the big lobe points along d_k rather than away) */
+export function hybrids(d, n = 2) {
+  const s = state(d, n, 0), p = state(d, n, 1), Hs = harmonics(d, 0)[0], cs = (n % 2 ? 1 : -1) / Math.sqrt(d + 1), cp = Math.sqrt(d / (d + 1));
+  return simplex(d).map((u, k) => ({ name: `h${k + 1}`, dir: u, parts: [{ st: s, h: Hs, c: cs }, { st: p, h: pAlong(d, u), c: cp }] }));
+}
+/* a mixture's radial numbers, as state() gives a single state's: P(r) = Σ c² P_i(r), its peak, mean and 99.5% reach */
+export function radial(parts) {
+  const d = parts[0].st.d, rMax = Math.max(...parts.map((p) => p.st.r99)) * 2.5, N = 6000, h = rMax / N, P = (r) => parts.reduce((s, p) => s + p.c * p.c * pr(p.st, r), 0);
+  let best = 0, rMost = 0, mean = 0, cum = 0, r99 = rMax;
+  for (let i = 0; i <= N; i++) { const r = i * h, v = P(r); if (v > best) { best = v; rMost = r; } mean += r * v * h; cum += v * h; if (cum < 0.995) r99 = r; }
+  return { d, P, rMost, rMean: mean / cum, r99 };
+}
+/* electrons from a mixture's |ψ|²: propose from q = Σ w_i |ψ_i|² (w_i = |c_i| / Σ|c_j|, each part's own sampler), keep
+   with chance |ψ|² / (K q), K = (Σ|c_i|)²; by Cauchy–Schwarz |Σ c_i ψ_i|² ≤ K q, so that's exact */
+export function mixSampler(parts, rng = Math.random) {
+  const sum = parts.reduce((s, p) => s + Math.abs(p.c), 0), w = parts.map((p) => Math.abs(p.c) / sum), K = sum * sum, draws = parts.map((p) => sampler(p.st, p.h, rng));
+  return () => {
+    for (let k = 0; k < 100000; k++) {
+      let u = rng(), i = 0; while (i < w.length - 1 && u > w[i]) { u -= w[i]; i++; }
+      const x = draws[i](), q = parts.reduce((s, p, j) => s + w[j] * psi(p.st, p.h, x) ** 2, 0), f = psiOf(parts, x) ** 2;
+      if (rng() * K * q <= f) return x;
+    }
+    return draws[0]();
+  };
+}

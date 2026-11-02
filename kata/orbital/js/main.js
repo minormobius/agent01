@@ -4,7 +4,7 @@
      OURS: the same orbital in our 3D atom, when there is one, whole;
      THE DARTBOARD: electrons thrown at both clouds (drawn from |ψ|²), counted by how far out they land, against the
        exact P(r) = r^{d−1} R². */
-import { state, harmonics, twin, sampler, pr } from "./hydrogen.js";
+import { state, harmonics, twin, sampler, hybrids, radial, mixSampler, psiOf } from "./hydrogen.js";
 const $ = (id) => document.getElementById(id), glc = $("gl"), ov = $("ov");
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -18,12 +18,16 @@ const FS = `#version 300 es
 precision highp float;
 uniform vec4 uVP, uO, uE0, uE1, uE2, uPoly, uB; uniform mat4 uQ; uniform vec3 uEye, uCR, uCU, uCF;
 uniform float uTan, uBox, uK, uNorm, uC0, uDmax, uGain;
+// a second radial part, for the odd (p) piece of a mix (a hybrid: ns + np); and the hybrids, all at once (uHyb)
+uniform vec4 uPoly2; uniform float uNorm2; uniform int uHyb, uNH; uniform vec4 uDir[5]; uniform vec3 uHC[5];
 out vec4 o;
-// ψ at a 4D point: R(r)/r^l = norm e^{−κr} L(2κr), times the direction's polynomial c0 + b·x + xᵀQx
-float psi(vec4 p) {
-  float r = length(p), rho = 2.0 * uK * r, L = uPoly.x + rho * (uPoly.y + rho * (uPoly.z + rho * uPoly.w));
-  return uNorm * exp(-uK * r) * L * (uC0 + dot(uB, p) + dot(p, uQ * p));
+// the two radial parts at r (same n, so the same κ): norm e^{−κr} L(2κr), the even piece's and the odd piece's
+vec2 radial2(vec4 p) {
+  float r = length(p), rho = 2.0 * uK * r, e = exp(-uK * r);
+  return vec2(uNorm * e * (uPoly.x + rho * (uPoly.y + rho * (uPoly.z + rho * uPoly.w))), uNorm2 * e * (uPoly2.x + rho * (uPoly2.y + rho * (uPoly2.z + rho * uPoly2.w))));
 }
+// ψ: the even piece times c0 + xᵀQx, plus the odd piece times b·x
+float psi(vec4 p) { vec2 q = radial2(p); return q.x * (uC0 + dot(p, uQ * p)) + q.y * dot(uB, p); }
 void main() {
   vec2 q = (2.0 * (gl_FragCoord.xy - uVP.xy) - uVP.zw) / uVP.w;
   vec3 d = normalize(uCF + q.x * uTan * uCR + q.y * uTan * uCU), bg = vec3(0.025, 0.03, 0.045) + 0.025 * q.y, inv = 1.0 / d;
@@ -33,9 +37,14 @@ void main() {
   if (t1 > t0) {
     const int S = 150; float dt = (t1 - t0) / float(S), A = 0.0; vec3 acc = vec3(0.0);
     for (int i = 0; i < S; i++) {
-      vec3 P = uEye + d * (t0 + (float(i) + 0.5) * dt); float v = psi(uO + P.x * uE0 + P.y * uE1 + P.z * uE2), dens = v * v / uDmax;
+      vec3 P = uEye + d * (t0 + (float(i) + 0.5) * dt); vec4 X = uO + P.x * uE0 + P.y * uE1 + P.z * uE2; float dens; vec3 col;
+      if (uHyb == 0) { float v = psi(X); dens = v * v / uDmax; col = (v > 0.0 ? vec3(0.3, 1.0, 0.88) : vec3(1.0, 0.42, 0.7)) * (0.55 + 0.9 * sqrt(dens)); }
+      else { // every hybrid at once, each its own colour (its small back lobe darker)
+        vec2 q = radial2(X); float tot = 0.0; vec3 cc = vec3(0.0);
+        float w3 = 0.0; for (int k = 0; k < 5; k++) { if (k >= uNH) break; float v = q.x * uC0 + q.y * dot(uDir[k], X), dn = v * v / uDmax, s3 = dn * dn * dn; tot += dn; w3 += s3; cc += s3 * uHC[k] * (v > 0.0 ? 1.0 : 0.4); }
+        dens = tot; col = cc / max(w3, 1e-30) * (0.55 + 0.9 * sqrt(tot)); // coloured by whichever hybrid dominates there
+      }
       float a = 1.0 - exp(-dens * uGain * dt / uBox * 9.0);
-      vec3 col = (v > 0.0 ? vec3(0.3, 1.0, 0.88) : vec3(1.0, 0.42, 0.7)) * (0.55 + 0.9 * sqrt(dens));
       acc += (1.0 - A) * a * col; A += (1.0 - A) * a; if (A > 0.98) break;
     }
     c = acc + (1.0 - A) * bg;
@@ -48,35 +57,60 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aPos = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-const U = {}; for (const n of ["uVP", "uO", "uE0", "uE1", "uE2", "uPoly", "uB", "uQ", "uEye", "uCR", "uCU", "uCF", "uTan", "uBox", "uK", "uNorm", "uC0", "uDmax", "uGain"]) U[n] = gl.getUniformLocation(prog, n);
+const U = {}; for (const n of ["uVP", "uO", "uE0", "uE1", "uE2", "uPoly", "uB", "uQ", "uEye", "uCR", "uCU", "uCF", "uTan", "uBox", "uK", "uNorm", "uC0", "uDmax", "uGain", "uPoly2", "uNorm2", "uHyb", "uNH", "uDir", "uHC"]) U[n] = gl.getUniformLocation(prog, n);
 
 /* ------------------------------------------------------------------ the orbital */
+/* an orbital here is a list of parts { st, h, c } (one part for s, p, d; two for a hybrid, ns and np), with its radial
+   numbers, its electron sampler, and, for "all the hybrids", the list of them */
 const pad4 = (v) => [...v, 0, 0, 0, 0].slice(0, 4);
-function upload(st, h) { // the state and direction's numbers, as the shader wants them (3D ones padded with w = 0)
-  const Q = new Float32Array(16); for (let i = 0; i < h.Q.length; i++) for (let j = 0; j < h.Q.length; j++) Q[j * 4 + i] = h.Q[i][j];
-  gl.uniform4fv(U.uPoly, pad4(st.poly)); gl.uniform4fv(U.uB, pad4(h.b)); gl.uniformMatrix4fv(U.uQ, false, Q);
-  gl.uniform1f(U.uK, st.kappa); gl.uniform1f(U.uNorm, st.norm); gl.uniform1f(U.uC0, h.c0);
+const HC = [[0.3, 1, 0.88], [1, 0.82, 0.35], [1, 0.42, 0.7], [0.68, 0.52, 1], [0.6, 1, 0.4]];
+function orbital(parts, all = null) {
+  const rad = radial(parts), d = parts[0].st.d;
+  const draw = all ? (() => { const ds = all.map((q) => mixSampler(q.parts)); return () => { const k = Math.floor(Math.random() * ds.length), x = ds[k](); x.k = k; return x; }; })() : parts.length === 1 ? sampler(parts[0].st, parts[0].h) : mixSampler(parts);
+  const o = { d, parts, all, ...rad, E: parts[0].st.E, nr: parts.length === 1 ? parts[0].st.nr : 0, draw };
+  o.dmax = densest((x) => psiOf(parts, x) ** 2, o.r99, d); return o;
 }
-function densest(st, h) { // the largest |ψ|² anywhere (a coarse grid over the cloud, then the nucleus): the brightness scale
-  const B = st.r99, n = st.d === 4 ? 22 : 48, d = st.d; let m = 0; const x = new Array(d).fill(0);
-  const rec = (k) => { if (k === d) { const r = Math.hypot(...x), p = (st.norm * Math.exp(-st.kappa * r) * st.poly.reduce((s, c, i) => s + c * (2 * st.kappa * r) ** i, 0) * (h.c0 + h.b.reduce((s, b, i) => s + b * x[i], 0) + h.Q.reduce((s, row, i) => s + row.reduce((t, q, j) => t + q * x[i] * x[j], 0), 0))) ** 2; if (p > m) m = p; return; } for (let i = 0; i <= n; i++) { x[k] = -B + (2 * B * i) / n; rec(k + 1); } };
+function upload(o) { // the orbital's numbers as the shader wants them (3D ones padded with w = 0)
+  let even = null, odd = null; for (const p of o.parts) { if (p.h.b.some((v) => v)) odd = p; else even = p; }
+  const Q = new Float32Array(16); if (even) for (let i = 0; i < even.h.Q.length; i++) for (let j = 0; j < even.h.Q.length; j++) Q[j * 4 + i] = even.h.Q[i][j];
+  gl.uniform1f(U.uK, o.parts[0].st.kappa); gl.uniformMatrix4fv(U.uQ, false, Q);
+  gl.uniform4fv(U.uPoly, pad4(even ? even.st.poly : [])); gl.uniform1f(U.uNorm, even ? even.c * even.st.norm : 0); gl.uniform1f(U.uC0, even ? even.h.c0 : 0);
+  gl.uniform4fv(U.uPoly2, pad4(odd ? odd.st.poly : [])); gl.uniform1f(U.uNorm2, odd ? odd.c * odd.st.norm : 0); gl.uniform4fv(U.uB, pad4(odd ? odd.h.b : []));
+  gl.uniform1i(U.uHyb, o.all ? 1 : 0);
+  if (o.all) { const D = new Float32Array(20), C = new Float32Array(15); o.all.forEach((q, k) => { D.set(pad4(q.parts[1].h.b), 4 * k); C.set(HC[k], 3 * k); }); gl.uniform4fv(U.uDir, D); gl.uniform3fv(U.uHC, C); gl.uniform1i(U.uNH, o.all.length); }
+}
+function densest(f, B, d) { // the largest |ψ|² anywhere (a coarse grid over the cloud): the brightness scale
+  const n = d === 4 ? 22 : 48, x = new Array(d).fill(0); let m = 0;
+  const rec = (k) => { if (k === d) { const p = f(x); if (p > m) m = p; return; } for (let i = 0; i <= n; i++) { x[k] = -B + (2 * B * i) / n; rec(k + 1); } };
   rec(0); return Math.max(m, 1e-12);
 }
 const sel = { n: 2, l: 1, name: "w" };
 let cur = null;
+const HYB = 3; // l = 3 here means the sp⁴ hybrids
 function choose(n, l, name) {
-  l = Math.max(0, Math.min(2, l)); n = Math.max(l + 1, Math.min(4, n));
-  const hs = harmonics(4, l); if (!hs.find((h) => h.name === name)) name = hs[0].name;
+  l = Math.max(0, Math.min(3, l)); n = Math.max(l === HYB ? 2 : l + 1, Math.min(4, n));
+  let o, tw = null;
+  if (l === HYB) {
+    const hs = hybrids(4, n), h3 = hybrids(3, n); if (name !== "all" && !hs.find((h) => h.name === name)) name = "all";
+    if (name === "all") { o = orbital(hs[0].parts, hs); tw = orbital(h3[0].parts, h3); }
+    else { const k = hs.findIndex((h) => h.name === name); o = orbital(hs[k].parts); tw = orbital(h3[Math.min(k, 3)].parts); tw.label = k === 4 ? "sp³ h4 (ours has only four)" : `sp³ ${h3[k].name}`; }
+    o.hyb = hs; tw.label = tw.label || "sp³, all four";
+  } else {
+    const hs = harmonics(4, l); if (!hs.find((h) => h.name === name)) name = hs[0].name;
+    const st = state(4, n, l), h = hs.find((q) => q.name === name), t = twin(name, n, l);
+    o = orbital([{ st, h, c: 1 }]); if (t) { tw = orbital([{ st: t.st, h: t.h, c: 1 }]); tw.label = `${n}${"spd"[l]} ${l ? name : ""}`; }
+  }
   Object.assign(sel, { n, l, name });
-  const st = state(4, n, l), h = hs.find((q) => q.name === name), tw = twin(name, n, l);
-  cur = { st, h, dmax: densest(st, h), tw, twMax: tw ? densest(tw.st, tw.h) : 1, draw: sampler(st, h), drawTw: tw ? sampler(tw.st, tw.h) : sampler(state(3, n, l), harmonics(3, l)[0]), dots: [], tdots: [], hist4: [], hist3: [] };
+  const ref = tw || orbital([{ st: state(3, n, Math.min(l, 2)), h: harmonics(3, Math.min(l, 2))[0], c: 1 }]); // the dartboard's comparison: the twin, or our atom's same n, l
+  cur = { orb: o, tw, ref, dots: [], tdots: [] };
   for (const b of document.querySelectorAll("#exps button[data-n]")) b.classList.toggle("on", +b.dataset.n === n);
-  for (const b of document.querySelectorAll("#exps button[data-l]")) { b.classList.toggle("on", +b.dataset.l === l); b.disabled = +b.dataset.l > n - 1 && false; }
+  for (const b of document.querySelectorAll("#exps button[data-l]")) b.classList.toggle("on", +b.dataset.l === l);
   picks(); caption(); history.replaceState(null, "", `?n=${n}&l=${l}&o=${encodeURIComponent(name)}`);
 }
-function picks() { // the orbitals of this l: for d, the six of the plane kind, then the three of the axis kind
-  const hs = harmonics(4, sel.l), lab = (h) => (sel.l === 0 ? `${sel.n}s` : sel.l === 1 ? `p${sub(h.name)}` : `d${sub(h.name)}`);
-  $("picks").innerHTML = hs.map((h, i) => `${sel.l === 2 && i === 6 ? '<span class="sep"></span>' : ""}<button type="button" data-o="${h.name}" class="${h.name === sel.name ? "on" : ""}">${lab(h)}</button>`).join("");
+function picks() { // the orbitals of this l: for d, the six of the plane kind, then the three of the axis kind; the hybrids, one at a time or all
+  if (sel.l === HYB) { const names = ["h1", "h2", "h3", "h4", "h5", "all"]; $("picks").innerHTML = names.map((nm, i) => `${i === 5 ? '<span class="sep"></span>' : ""}<button type="button" data-o="${nm}" class="${nm === sel.name ? "on" : ""}"${i < 5 ? ` style="color:rgb(${HC[i].map((c) => Math.round(255 * c)).join(",")})"` : ""}>${nm === "all" ? "all five" : nm}</button>`).join(""); }
+  else { const hs = harmonics(4, sel.l), lab = (h) => (sel.l === 0 ? `${sel.n}s` : sel.l === 1 ? `p${sub(h.name)}` : `d${sub(h.name)}`);
+    $("picks").innerHTML = hs.map((h, i) => `${sel.l === 2 && i === 6 ? '<span class="sep"></span>' : ""}<button type="button" data-o="${h.name}" class="${h.name === sel.name ? "on" : ""}">${lab(h)}</button>`).join(""); }
   for (const b of document.querySelectorAll("#picks button")) b.onclick = () => choose(sel.n, sel.l, b.dataset.o);
 }
 const SUB = { x: "ₓ", y: "ᵧ", z: "_z", w: "_w" };
@@ -84,11 +118,17 @@ const sub = (s) => (s.length <= 2 && /^[xyzw]+$/.test(s) ? "_" + s : " " + s);
 
 /* ------------------------------------------------------------------ what each one is */
 function caption() {
-  const { st } = cur, n = sel.n, nm = sel.name, s3 = state(3, n, sel.l), hasW = nm.includes("w");
+  const st = cur.orb, n = sel.n, nm = sel.name, s3 = cur.ref, hasW = nm.includes("w");
   const r = `Most likely <b>${st.rMost.toFixed(2)} bohr</b> out, ${st.rMean.toFixed(2)} on average (ours: ${s3.rMost.toFixed(2)}, ${s3.rMean.toFixed(2)}); bound by ${(-st.E * 27.2114).toFixed(2)} eV (ours ${(-s3.E * 27.2114).toFixed(2)}).`;
   const nodes = st.nr ? ` It has ${st.nr} radial node${st.nr > 1 ? "s" : ""}: ${st.nr + 1} shells, alternating teal and rose.` : "";
   let t;
-  if (sel.l === 0) t = n === 1 ? `<b>1s</b>, the ground state: a ball, densest at the nucleus. Yet the electron is most likely found <b>${st.rMost.toFixed(2)} bohr</b> out, because a shell at radius r holds r³ worth of space in 4D (r² in ours): the dartboard shows it. ${r}` : `<b>${n}s</b>: still a ball.${nodes} ${r}`;
+  if (sel.l === HYB) {
+    const k = nm === "all" ? -1 : +nm.slice(1) - 1;
+    t = k < 0 ? `<b>All five sp⁴ hybrids</b>, each its own colour: ${n}s mixed with the four ${n}p, one fifth s and four fifths p each, every one a single big lobe pointing at a corner of the <b>5-cell</b>, 4D's tetrahedron, <b>104.48°</b> apart (ours, sp³: four at 109.47°). Squared up, four of them make <b>our tetrahedron</b> in your slice, each tipped 14.48° kata, and the fifth points straight <b>ana</b>, out of sight. Twist into w and it swings into view. They're stationary states, not just shapes: ${n}s and ${n}p have the same energy. ${r}`
+      : k === 4 ? `<b>sp⁴ h5</b>: one fifth ${n}s, four fifths ${n}p, its big lobe pointing straight along <b>w</b>, ana. Through the nucleus your slice sees only a small <b>rose core</b> (its ns part, negative there); the big lobe is ana, out of sight. Push the lever ana and it swells in. ${r}`
+      : `<b>sp⁴ h${k + 1}</b>: one fifth ${n}s, four fifths ${n}p, its big lobe pointing at a corner of the 5-cell: in your slice along ${["(+,+,+)", "(+,−,−)", "(−,+,−)", "(−,−,+)"][k]}, a direction of our tetrahedron, but tipped <b>14.48° kata</b>, so it's brighter a little kata of your slice. Ours (beside it) is the sp³ lobe along the same line. ${r}`;
+  }
+  else if (sel.l === 0) t = n === 1 ? `<b>1s</b>, the ground state: a ball, densest at the nucleus. Yet the electron is most likely found <b>${st.rMost.toFixed(2)} bohr</b> out, because a shell at radius r holds r³ worth of space in 4D (r² in ours): the dartboard shows it. ${r}` : `<b>${n}s</b>: still a ball.${nodes} ${r}`;
   else if (sel.l === 1) t = nm === "w" ? `<b>p_w</b>: two lobes along w, opposite in phase. Your slice, through the nucleus, is exactly its node: <b>nothing</b>. Push the lever ana and a teal lobe swells into view; kata, a rose one. In 4D there are four p orbitals, x, y, z <i>and w</i>.${nodes} ${r}` : `<b>p_${nm}</b>: two lobes along ${nm}, opposite in phase, as ours. 4D has four of these (x, y, z and w); twist your slice and this one turns into a mix you'd call p_w.${nodes} ${r}`;
   else if (nm === "x²+y²−z²−w²") t = `<b>Two rings.</b> Positive all round the xy-plane, negative all round the zw-plane: two planes completely perpendicular, meeting only at the nucleus. Nothing in 3D can do that. Your slice (x, y, z) catches the teal ring whole and the rose one as a pair of lobes along z; move ana and the rose ring's other half comes through. Nine d orbitals here, against our five.${nodes} ${r}`;
   else if (nm === "z²−w²") t = `<b>d z²−w²</b>: teal lobes along z, rose along w. Through the nucleus you see a teal dumbbell along z; ana or kata, the rose w² part rises as a disc round its waist.${nodes} ${r}`;
@@ -131,7 +171,7 @@ addEventListener("blur", () => keys.clear());
 function steer(dt) {
   const kv = (a, b) => (keys.has(a) ? 1 : 0) - (keys.has(b) ? 1 : 0), cam = camera(1), tx = pads.tw[0] + kv("l", "j"), ty = pads.tw[1] + kv("i", "k"), an = pads.an + kv("r", "f") + kv("e", "q"), r = (40 * Math.PI) / 180;
   if (tx) twist(cam.R, tx * r * dt); if (ty) twist(cam.U, ty * r * dt); // the screen's right, or up, tipped toward ana
-  if (an) frame.off = Math.max(-cur.st.r99, Math.min(cur.st.r99, frame.off + an * 0.35 * cur.st.r99 * dt));
+  if (an) frame.off = Math.max(-cur.orb.r99, Math.min(cur.orb.r99, frame.off + an * 0.35 * cur.orb.r99 * dt));
 }
 function layout() {
   const w = glc.clientWidth, h = glc.clientHeight;
@@ -157,19 +197,19 @@ function draw(now) {
   requestAnimationFrame(draw);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   steer(dt);
-  if (dotsOn && cur.dots.length < MAXDOTS) for (let i = 0; i < 40; i++) { const x = cur.draw(), y = cur.drawTw(); cur.dots.push(x); cur.tdots.push(y); }
+  if (dotsOn && cur.dots.length < MAXDOTS) for (let i = 0; i < 40; i++) { cur.dots.push(cur.orb.draw()); cur.tdots.push(cur.ref.draw()); }
   const dpr = Math.min(1.5, devicePixelRatio || 1); if (!res) res = dpr * (matchMedia("(pointer: coarse)").matches ? 0.55 : 0.8);
   const cw = Math.round(glc.clientWidth * res), chh = Math.round(glc.clientHeight * res); if (glc.width !== cw || glc.height !== chh) { glc.width = cw; glc.height = chh; }
   const Lo = layout(), vp = (r) => [Math.round(r.x * res), Math.round(chh - (r.y + r.h) * res), Math.round(r.w * res), Math.round(r.h * res)];
   gl.uniform1f(U.uTan, TAN); gl.uniform1f(U.uGain, 1);
   // your slice of the 4D atom
-  { const B = cur.st.r99, cam = camera(B * 2.5), v = vp(Lo.sl); gl.viewport(...v); gl.uniform4f(U.uVP, ...v);
-    upload(cur.st, cur.h); gl.uniform1f(U.uDmax, cur.dmax); gl.uniform1f(U.uBox, B);
+  { const B = cur.orb.r99, cam = camera(B * 2.5), v = vp(Lo.sl); gl.viewport(...v); gl.uniform4f(U.uVP, ...v);
+    upload(cur.orb); gl.uniform1f(U.uDmax, cur.orb.dmax); gl.uniform1f(U.uBox, B);
     gl.uniform4fv(U.uO, O4()); gl.uniform4fv(U.uE0, frame.E[0]); gl.uniform4fv(U.uE1, frame.E[1]); gl.uniform4fv(U.uE2, frame.E[2]);
     gl.uniform3fv(U.uEye, cam.eye); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F); gl.drawArrays(gl.TRIANGLES, 0, 3); }
   // ours, whole
   { const v = vp(Lo.tw); gl.viewport(...v); gl.uniform4f(U.uVP, ...v);
-    if (cur.tw) { const B = cur.tw.st.r99, cam = camera(B * 2.5); upload(cur.tw.st, cur.tw.h); gl.uniform1f(U.uDmax, cur.twMax); gl.uniform1f(U.uBox, B);
+    if (cur.tw) { const B = cur.tw.r99, cam = camera(B * 2.5); upload(cur.tw); gl.uniform1f(U.uDmax, cur.tw.dmax); gl.uniform1f(U.uBox, B);
       gl.uniform4fv(U.uO, [0, 0, 0, 0]); gl.uniform4fv(U.uE0, [1, 0, 0, 0]); gl.uniform4fv(U.uE1, [0, 1, 0, 0]); gl.uniform4fv(U.uE2, [0, 0, 1, 0]);
       gl.uniform3fv(U.uEye, cam.eye); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F); }
     else gl.uniform1f(U.uBox, 0);
@@ -180,41 +220,53 @@ function overlay(Lo) {
   const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1), w = ov.clientWidth, h = ov.clientHeight;
   if (ov.width !== Math.round(w * dpr) || ov.height !== Math.round(h * dpr)) { ov.width = Math.round(w * dpr); ov.height = Math.round(h * dpr); }
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h); g.font = "11px ui-monospace, Menlo, monospace"; g.textAlign = "left";
-  const sl = Lo.sl, tw = Lo.tw, ch = Lo.ch, B = cur.st.r99;
+  const sl = Lo.sl, tw = Lo.tw, ch = Lo.ch, B = cur.orb.r99;
   const proj = (r, cam, p) => { const q = add(p, cam.eye, -1), f = dot(q, cam.F); return f < 0.1 ? null : [r.x + ((dot(q, cam.R) / (f * TAN)) * r.h + r.w) / 2, r.y + (r.h - (dot(q, cam.U) / (f * TAN)) * r.h) / 2]; };
   // your slice: the box's axes (your slice's own), the nucleus, and the electrons within a thin band of it
   const cam = camera(B * 2.5), axes = [["E0", [1, 0, 0]], ["E1", [0, 1, 0]], ["E2", [0, 0, 1]]], nameOf = (v) => { const ax = "xyzw", parts = v.map((c, i) => [c, ax[i]]).filter(([c]) => Math.abs(c) > 0.05); return parts.length === 1 ? (parts[0][0] < 0 ? "−" : "") + parts[0][1] : parts.map(([c, a]) => `${c.toFixed(2)}${a}`).join("+").replace(/\+-/g, "−"); };
   g.lineWidth = 1;
   axes.forEach(([, a], i) => { const p0 = proj(sl, cam, [0, 0, 0]), p1 = proj(sl, cam, a.map((v) => v * B * 0.9)); if (!p0 || !p1) return; g.strokeStyle = "rgba(255,255,255,0.25)"; g.beginPath(); g.moveTo(...p0); g.lineTo(...p1); g.stroke(); g.fillStyle = "rgba(233,228,218,0.75)"; g.fillText(nameOf(frame.E[i]), p1[0] + 3, p1[1]); });
+  // the hybrids' directions: an arrow from the nucleus to each corner, as much of it as lies in your slice; how far the
+  // rest leans out, ana or kata, in degrees
+  if (sel.l === HYB) {
+    const hs = cur.orb.hyb, show = sel.name === "all" ? hs.map((_, k) => k) : [+sel.name.slice(1) - 1];
+    for (const k of show) {
+      const u = hs[k].dir, inS = frame.E.map((e) => dot(u, e)), out = dot(u, frame.N), ang = (Math.asin(Math.max(-1, Math.min(1, out))) * 180) / Math.PI;
+      const p0 = proj(sl, cam, [0, 0, 0]), p1 = proj(sl, cam, inS.map((v) => v * B * 0.75)); if (!p0 || !p1) continue;
+      const col = `rgb(${HC[k].map((c) => Math.round(255 * c)).join(",")})`; g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2; g.setLineDash(Math.abs(ang) > 45 ? [4, 4] : []);
+      g.beginPath(); g.moveTo(...p0); g.lineTo(...p1); g.stroke(); g.setLineDash([]); g.beginPath(); g.arc(p1[0], p1[1], 3, 0, 2 * Math.PI); g.fill();
+      g.fillText(`h${k + 1}${Math.abs(ang) < 0.5 ? "" : ` ${Math.abs(ang).toFixed(0)}° ${ang > 0 ? "ana" : "kata"}`}`, p1[0] + 5, p1[1] - 4);
+    }
+  }
   const nOff = -frame.off; // the nucleus sits this far ana of your slice
   if (dotsOn) {
     const band = 0.04 * B, O = O4();
     for (let i = 0; i < cur.dots.length; i++) {
       const x = add(cur.dots[i], O, -1), dl = dot(x, frame.N); if (Math.abs(dl) > band) continue;
       const p = proj(sl, cam, frame.E.map((e) => dot(x, e))); if (!p || !inR(sl, p[0], p[1])) continue;
-      g.fillStyle = dl > 0 ? "rgba(56,242,224,0.9)" : "rgba(255,102,184,0.9)"; g.fillRect(p[0] - 1, p[1] - 1, 2, 2);
+      g.fillStyle = cur.dots[i].k !== undefined ? `rgba(${HC[cur.dots[i].k].map((c) => Math.round(255 * c)).join(",")},0.95)` : dl > 0 ? "rgba(56,242,224,0.9)" : "rgba(255,102,184,0.9)"; g.fillRect(p[0] - 1, p[1] - 1, 2, 2);
     }
   }
   g.fillStyle = "rgba(233,228,218,0.85)";
   g.fillText(`your slice · ±${B.toFixed(1)} bohr · nucleus ${Math.abs(nOff) < 0.005 ? "in it" : `${Math.abs(nOff).toFixed(2)} ${nOff > 0 ? "ana" : "kata"}`}`, sl.x + 10, sl.y + sl.h - 172);
   g.fillText(`unseen N = ${nameOf(frame.N)}${dotsOn ? ` · dots within ${(0.04 * B).toFixed(2)}` : ""}`, sl.x + 10, sl.y + sl.h - 158);
   // ours
-  g.fillStyle = "rgba(233,228,218,0.85)"; g.fillText(cur.tw ? `ours: the 3D atom, ${sel.n}${"spd"[sel.l]} ${sel.l ? sel.name : ""}, whole · ±${cur.tw.st.r99.toFixed(1)} bohr` : "ours: no twin of this one", tw.x + 10, tw.y + 18);
-  if (cur.tw && dotsOn) { const ct = camera(cur.tw.st.r99 * 2.5); g.fillStyle = "rgba(255,210,122,0.55)"; for (let i = 0; i < Math.min(cur.tdots.length, 1500); i++) { const p = proj(tw, ct, cur.tdots[i]); if (p && inR(tw, p[0], p[1])) g.fillRect(p[0] - 0.75, p[1] - 0.75, 1.5, 1.5); } }
+  g.fillStyle = "rgba(233,228,218,0.85)"; g.fillText(cur.tw ? `ours: the 3D atom, ${cur.tw.label}, whole · ±${cur.tw.r99.toFixed(1)} bohr` : "ours: no twin of this one", tw.x + 10, tw.y + 18);
+  if (cur.tw && dotsOn) { const ct = camera(cur.tw.r99 * 2.5); g.fillStyle = "rgba(255,210,122,0.55)"; for (let i = 0; i < Math.min(cur.tdots.length, 1500); i++) { const p = proj(tw, ct, cur.tdots[i]); if (p && inR(tw, p[0], p[1])) g.fillRect(p[0] - 0.75, p[1] - 0.75, 1.5, 1.5); } }
   // the dartboard: how far out the electrons land, against P(r), kata's and ours
   g.fillStyle = "rgba(7,8,12,0.75)"; g.fillRect(ch.x + 6, ch.y + 6, ch.w - 12, ch.h - 12);
-  const s3 = cur.tw ? cur.tw.st : state(3, sel.n, sel.l), Rm = Math.max(cur.st.r99, s3.r99) * 1.05, nb = 40, bw = Rm / nb, X = (r) => ch.x + 16 + ((ch.w - 32) * r) / Rm;
+  const s3 = cur.ref, K4 = cur.orb, Rm = Math.max(K4.r99, s3.r99) * 1.05, nb = 40, bw = Rm / nb, X = (r) => ch.x + 16 + ((ch.w - 32) * r) / Rm;
   const h4 = new Array(nb).fill(0), h3 = new Array(nb).fill(0); for (const x of cur.dots) { const b = Math.floor(Math.hypot(...x) / bw); if (b < nb) h4[b]++; } for (const x of cur.tdots) { const b = Math.floor(Math.hypot(...x) / bw); if (b < nb) h3[b]++; }
-  let pm = 0; for (let i = 0; i <= 200; i++) { const r = (Rm * i) / 200; pm = Math.max(pm, pr(cur.st, r), pr(s3, r)); }
+  let pm = 0; for (let i = 0; i <= 200; i++) { const r = (Rm * i) / 200; pm = Math.max(pm, K4.P(r), s3.P(r)); }
   const top = ch.y + 52, base = ch.y + ch.h - 30, Y = (p) => base - ((base - top) * p) / pm;
   const bars = (H, n, col) => { if (!n) return; g.fillStyle = col; H.forEach((c, i) => { const p = c / n / bw; g.fillRect(X(i * bw) + 1, Y(p), X(bw) - X(0) - 2, base - Y(p)); }); };
   bars(h3, cur.tdots.length, "rgba(255,210,122,0.25)"); bars(h4, cur.dots.length, "rgba(56,242,224,0.3)");
-  const curve = (st, col) => { g.strokeStyle = col; g.lineWidth = 1.8; g.beginPath(); for (let i = 0; i <= 200; i++) { const r = (Rm * i) / 200, y = Y(pr(st, r)); i ? g.lineTo(X(r), y) : g.moveTo(X(r), y); } g.stroke();
-    g.setLineDash([]); g.beginPath(); g.moveTo(X(st.rMost), base); g.lineTo(X(st.rMost), Y(pr(st, st.rMost))); g.stroke(); g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(st.rMean), base); g.lineTo(X(st.rMean), top); g.stroke(); g.setLineDash([]); };
-  curve(s3, "#ffd27a"); curve(cur.st, "#38f2e0");
+  const curve = (st, col) => { g.strokeStyle = col; g.lineWidth = 1.8; g.beginPath(); for (let i = 0; i <= 200; i++) { const r = (Rm * i) / 200, y = Y(st.P(r)); i ? g.lineTo(X(r), y) : g.moveTo(X(r), y); } g.stroke();
+    g.setLineDash([]); g.beginPath(); g.moveTo(X(st.rMost), base); g.lineTo(X(st.rMost), Y(st.P(st.rMost))); g.stroke(); g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(st.rMean), base); g.lineTo(X(st.rMean), top); g.stroke(); g.setLineDash([]); };
+  curve(s3, "#ffd27a"); curve(K4, "#38f2e0");
   g.strokeStyle = "rgba(255,255,255,0.3)"; g.beginPath(); g.moveTo(X(0), base); g.lineTo(X(Rm), base); g.stroke();
   g.fillStyle = "rgba(233,228,218,0.65)"; for (let r = 0; r <= Rm; r += Rm > 30 ? 10 : Rm > 12 ? 5 : 2) { g.fillText(`${r}`, X(r) - 3, base + 13); }
-  g.fillStyle = "#38f2e0"; g.fillText(`kata ${cur.st.rMost.toFixed(2)} likeliest, ${cur.st.rMean.toFixed(2)} mean`, ch.x + 14, ch.y + 20);
+  g.fillStyle = "#38f2e0"; g.fillText(`kata ${K4.rMost.toFixed(2)} likeliest, ${K4.rMean.toFixed(2)} mean`, ch.x + 14, ch.y + 20);
   g.fillStyle = "#ffd27a"; g.fillText(`ours ${s3.rMost.toFixed(2)}, ${s3.rMean.toFixed(2)}`, ch.x + 14, ch.y + 33);
   g.fillStyle = "rgba(233,228,218,0.6)"; g.textAlign = "right"; g.fillText(`r, bohr`, ch.x + ch.w - 14, base + 13); g.fillText(`${cur.dots.length} electrons`, ch.x + ch.w - 14, ch.y + 46); g.textAlign = "left";
   // the pads sit in the corners of your slice's pane
