@@ -166,7 +166,15 @@ for games, and this is a modelling programme with publications to come. The game
   as converged; selftest 58). `atom/tools/reconverge.mjs` re-runs saved pair energies under the fixed test (runner; `bake` →
   **generated** `js/reconverge.js`). `atom/tools/diatomic.mjs` (`mol <F2|O2|Gl2|Px2>`): heavy-atom diatomics by Hartree–Fock
   and (U)MP2, counterpoise, three starts per point (bare nuclei, atoms parallel, antiparallel; the lowest kept), our F₂ and
-  O₂ the checks; `bake` → **generated** `js/diatomicdata.js`; cache `$TMPDIR/atom4-diatomic`.
+  O₂ the checks; `bake` → **generated** `js/diatomicdata.js`; cache `$TMPDIR/atom4-diatomic`. `atom/tools/bonds.mjs` (`mol <name>`):
+  atomization energies (Hartree–Fock geometry, MP2 energy, atoms by UMP2), hydrogen against gluorine on darbon, pxygen and
+  gluorine, ours as the checks; `bake` → **generated** `js/bondsdata.js` (4D bonds to hydrogen 0.46–0.80 of ours, without
+  hydrogen 0.99–1.08). `atom/tools/molpair.mjs`: pairs of XL₂ molecules too big for the full basis (PxGl₂; our OF₂ the
+  check): the core contracted (each heavy atom's tight s primitives into its 1s) and integrals in single precision,
+  `check` against the full basis, `pair <name> <k>` one random placement a runner command (MP2, counterpoise); `bake` →
+  **generated** `js/molpairdata.js`. `atom/tools/molff.mjs fit <name>`: an XL₂ force field (charges, Born–Mayer repulsions,
+  damped dispersion) fitted to those MP2 pairs, a fifth held out → **generated** `js/molffdata.js`; `liquid.mjs` models
+  `of3` and `pg4` run on it.
   `atom/tools/correlation.mjs` re-scores the best pairs with it (`pair <key> [plus] [shift]`, counterpoise-corrected;
   `plus` grows `census.mjs`'s `basisFor` recipe: D diffuse, d a second d, p hydrogen's second p, f an f, F two f, h a d on hydrogen, g a g) and `bake`s
   **generated** `js/correlation.js` for the census chapter's correlation section; `atom/tools/correlation-ref.py`
