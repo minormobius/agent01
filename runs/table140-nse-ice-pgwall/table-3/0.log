@@ -1,0 +1,51 @@
+$ node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=3/6
+(node:2511) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2511) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2511) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2511) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2511) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+4D 129 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d18 6s1 37s
+4D 123 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d12 6s1 40s
+4D 117 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d5 6s2 47s
+4D 135 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d18 6s2 6p5 50s
+4D 111 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 6s1 73s
+4D 93 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f13 5s2 5p8 6s2 98s
+4D 99 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f19 5s2 5p8 6s2 99s
+4D 87 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f7 5s2 5p8 6s2 127s
+4D 105 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p3 131s
+4D 75 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p5 133s
+4D 81 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8 5d1 6s2 136s
+4D 69 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s1 154s
+4D 51 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s1 159s
+4D 63 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d12 5s1 160s
+4D 57 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d5 5s2 161s
+4D 45 1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p3 178s
+4D 39 1s2 2s2 2p8 3s2 3p8 3d16 4s1 179s
+4D 33 1s2 2s2 2p8 3s2 3p8 3d9 4s2 183s
+3D 33 1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p3 185s
+3D 27 1s2 2s2 2p6 3s2 3p6 3d8 4s1 198s
+4D 27 1s2 2s2 2p8 3s2 3p8 3d3 4s2 199s
+4D 21 1s2 2s2 2p8 3s2 3p7 201s
+3D 21 1s2 2s2 2p6 3s2 3p6 3d1 4s2 201s
+3D 9 1s2 2s2 2p5 210s
+4D 9 1s2 2s2 2p5 211s
+4D 15 1s2 2s2 2p8 3s2 3p1 212s
+3D 15 1s2 2s2 2p6 3s2 3p3 213s
+3D 3 1s2 2s1 213s
+4D 3 1s2 2s1 214s
+cached; 147 elements still to do (3D 1, 3D 2, 3D 4, 3D 5, 3D 6, 3D 7, 3D 8, 3D 10…)

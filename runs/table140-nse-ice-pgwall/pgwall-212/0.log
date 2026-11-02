@@ -1,0 +1,6 @@
+$ node four/atom/tools/molpair.mjs pair PxGl2 212
+PxGl2 212: MP2 -27.697 kcal/mol (-13938 K), HF -22.951, converged, 312 functions, 3502 s
+(node:2829) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/gauss.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

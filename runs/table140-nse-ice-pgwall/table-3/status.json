@@ -1,0 +1,12 @@
+{
+ "group": "table-3",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/bake.mjs --zmax4=140 --cache --shard=3/6",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 214
+  }
+ ]
+}

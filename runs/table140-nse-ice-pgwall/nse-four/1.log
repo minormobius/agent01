@@ -1,0 +1,25 @@
+$ node four/atom/tools/nse.mjs ours
+ours, 1e-7 of saturation, Y_e 0.5
+  kT 0.25 MeV (2.9 billion K): free n 0.000 p 0.000 α 0.000, heavy 1.000, mean Z 22.4, top nucleus Z 22 A 44; by element 22:0.534 24:0.305 20:0.132 26:0.0229 18:0.00515 23:0.00023
+  kT 0.3 MeV (3.5 billion K): free n 0.000 p 0.001 α 0.000, heavy 0.999, mean Z 22.1, top nucleus Z 22 A 44; by element 22:0.503 24:0.249 20:0.202 26:0.024 18:0.0174 23:0.0013
+  kT 0.35 MeV (4.1 billion K): free n 0.000 p 0.004 α 0.000, heavy 0.996, mean Z 21.9, top nucleus Z 22 A 44; by element 22:0.449 20:0.249 24:0.219 18:0.0378 26:0.0298 23:0.00439
+  kT 0.43 MeV (5.0 billion K): free n 0.000 p 0.020 α 0.011, heavy 0.969, mean Z 22.0, top nucleus Z 22 A 44; by element 22:0.365 24:0.234 20:0.224 18:0.0578 26:0.0508 1:0.0198
+  kT 0.5 MeV (5.8 billion K): free n 0.000 p 0.034 α 0.089, heavy 0.877, mean Z 22.0, top nucleus Z 22 A 46; by element 22:0.336 24:0.206 20:0.2 2:0.0891 18:0.0492 26:0.0448
+  kT 0.6 MeV (7.0 billion K): free n 0.001 p 0.028 α 0.547, heavy 0.425, mean Z 21.7, top nucleus Z 2 A 4; by element 2:0.547 22:0.128 20:0.101 24:0.0856 18:0.0437 1:0.0276
+  kT 0.8 MeV (9.3 billion K): free n 0.118 p 0.118 α 0.764, heavy 0.000, mean Z 4.1, top nucleus Z 2 A 4; by element 2:0.764 1:0.118 0:0.118 4:7.08e-7 6:2.29e-8 8:2.96e-9
+ours, 0.000001 of saturation, Y_e 0.5
+  kT 0.25 MeV (2.9 billion K): free n 0.000 p 0.000 α 0.000, heavy 1.000, mean Z 22.6, top nucleus Z 22 A 44; by element 22:0.507 24:0.354 20:0.102 26:0.0323 18:0.00325 28:0.000368
+  kT 0.3 MeV (3.5 billion K): free n 0.000 p 0.000 α 0.000, heavy 1.000, mean Z 22.4, top nucleus Z 22 A 44; by element 22:0.495 24:0.295 20:0.162 26:0.0327 18:0.0114 23:0.000814
+  kT 0.35 MeV (4.1 billion K): free n 0.000 p 0.001 α 0.000, heavy 0.999, mean Z 22.1, top nucleus Z 22 A 44; by element 22:0.465 24:0.251 20:0.216 26:0.0333 18:0.0267 23:0.00258
+  kT 0.43 MeV (5.0 billion K): free n 0.000 p 0.006 α 0.001, heavy 0.992, mean Z 21.8, top nucleus Z 22 A 44; by element 22:0.393 20:0.257 24:0.213 18:0.0598 26:0.0406 23:0.00905
+  kT 0.5 MeV (5.8 billion K): free n 0.000 p 0.017 α 0.013, heavy 0.970, mean Z 21.8, top nucleus Z 22 A 44; by element 22:0.339 20:0.236 24:0.21 18:0.0753 26:0.0514 1:0.0171
+  kT 0.6 MeV (7.0 billion K): free n 0.000 p 0.033 α 0.113, heavy 0.854, mean Z 21.7, top nucleus Z 22 A 46; by element 22:0.287 20:0.207 24:0.174 2:0.113 18:0.0711 26:0.0453
+  kT 0.8 MeV (9.3 billion K): free n 0.019 p 0.025 α 0.889, heavy 0.067, mean Z 20.7, top nucleus Z 2 A 4; by element 2:0.889 1:0.0247 0:0.0192 20:0.0164 22:0.0156 18:0.0102
+ours, 0.00001 of saturation, Y_e 0.5
+  kT 0.25 MeV (2.9 billion K): free n 0.000 p 0.000 α 0.000, heavy 1.000, mean Z 22.8, top nucleus Z 22 A 44; by element 22:0.471 24:0.403 20:0.0777 26:0.045 18:0.00201 28:0.000624
+  kT 0.3 MeV (3.5 billion K): free n 0.000 p 0.000 α 0.000, heavy 1.000, mean Z 22.6, top nucleus Z 22 A 44; by element 22:0.473 24:0.345 20:0.126 26:0.0462 18:0.00721 28:0.0011
+  kT 0.35 MeV (4.1 billion K): free n 0.000 p 0.000 α 0.000, heavy 1.000, mean Z 22.4, top nucleus Z 22 A 44; by element 22:0.458 24:0.298 20:0.174 26:0.0457 18:0.0175 23:0.00194
+  kT 0.43 MeV (5.0 billion K): free n 0.000 p 0.002 α 0.000, heavy 0.998, mean Z 22.0, top nucleus Z 22 A 44; by element 22:0.415 24:0.242 20:0.232 26:0.045 18:0.0444 23:0.00604
+  kT 0.5 MeV (5.8 billion K): free n 0.000 p 0.005 α 0.002, heavy 0.993, mean Z 21.8, top nucleus Z 22 A 44; by element 22:0.366 20:0.254 24:0.21 18:0.0716 26:0.0471 23:0.0121
+  kT 0.6 MeV (7.0 billion K): free n 0.000 p 0.015 α 0.017, heavy 0.968, mean Z 21.6, top nucleus Z 20 A 40; by element 22:0.305 20:0.239 24:0.187 18:0.0948 26:0.0523 23:0.0203
+  kT 0.8 MeV (9.3 billion K): free n 0.000 p 0.033 α 0.249, heavy 0.718, mean Z 21.2, top nucleus Z 2 A 4; by element 2:0.249 22:0.185 20:0.175 24:0.109 18:0.0934 26:0.0356

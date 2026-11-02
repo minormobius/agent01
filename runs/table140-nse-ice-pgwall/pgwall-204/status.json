@@ -1,0 +1,19 @@
+{
+ "group": "pgwall-204",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair PxGl2 204",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2921
+  },
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair PxGl2 205",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2991
+  }
+ ]
+}
