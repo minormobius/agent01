@@ -1,6 +1,6 @@
 {
- "run": "table140-nse-ice",
- "why": "The periodic table extended to element 140 (non-relativistic first pass: 6s, 4f, 5d, 6p, a noble gas expected at 138), cached element by element; nuclear statistical equilibrium for 4D (where deep burning ends, element by element, on the trusted drops); and more random starts for Xater's crystal in cells of 2 and 3 molecules.",
+ "run": "table140-nse-ice-pgwall",
+ "why": "The periodic table extended to element 140 (non-relativistic first pass: 6s, 4f, 5d, 6p, a noble gas expected at 138), cached element by element; nuclear statistical equilibrium for 4D (where deep burning ends, element by element, on the trusted drops); and more random starts for Xater's crystal in cells of 2 and 3 molecules. And 60 PxGl₂ placements against the repulsive wall (k 200–259): all 81 of the first set were bound, so the fitted field had no repulsion to learn. And our OF₂'s liquid on its MP2-fitted field (Gibbs, 120–260 K), the check of the whole chain: OF₂ boils at 128 K, critical near 258 K.",
  "minutes": 330,
  "groups": [
   {
@@ -62,6 +62,234 @@
     "node four/atom/tools/ice.mjs 4 3 1600 --shard 1/4",
     "node four/atom/tools/ice.mjs 4 3 1600 --shard 2/4",
     "node four/atom/tools/ice.mjs 4 3 1600 --shard 3/4"
+   ]
+  },
+  {
+   "name": "pgwall-200",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 200",
+    "node four/atom/tools/molpair.mjs pair PxGl2 201"
+   ]
+  },
+  {
+   "name": "pgwall-202",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 202",
+    "node four/atom/tools/molpair.mjs pair PxGl2 203"
+   ]
+  },
+  {
+   "name": "pgwall-204",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 204",
+    "node four/atom/tools/molpair.mjs pair PxGl2 205"
+   ]
+  },
+  {
+   "name": "pgwall-206",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 206",
+    "node four/atom/tools/molpair.mjs pair PxGl2 207"
+   ]
+  },
+  {
+   "name": "pgwall-208",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 208",
+    "node four/atom/tools/molpair.mjs pair PxGl2 209"
+   ]
+  },
+  {
+   "name": "pgwall-210",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 210",
+    "node four/atom/tools/molpair.mjs pair PxGl2 211"
+   ]
+  },
+  {
+   "name": "pgwall-212",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 212",
+    "node four/atom/tools/molpair.mjs pair PxGl2 213"
+   ]
+  },
+  {
+   "name": "pgwall-214",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 214",
+    "node four/atom/tools/molpair.mjs pair PxGl2 215"
+   ]
+  },
+  {
+   "name": "pgwall-216",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 216",
+    "node four/atom/tools/molpair.mjs pair PxGl2 217"
+   ]
+  },
+  {
+   "name": "pgwall-218",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 218",
+    "node four/atom/tools/molpair.mjs pair PxGl2 219"
+   ]
+  },
+  {
+   "name": "pgwall-220",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 220",
+    "node four/atom/tools/molpair.mjs pair PxGl2 221"
+   ]
+  },
+  {
+   "name": "pgwall-222",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 222",
+    "node four/atom/tools/molpair.mjs pair PxGl2 223"
+   ]
+  },
+  {
+   "name": "pgwall-224",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 224",
+    "node four/atom/tools/molpair.mjs pair PxGl2 225"
+   ]
+  },
+  {
+   "name": "pgwall-226",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 226",
+    "node four/atom/tools/molpair.mjs pair PxGl2 227"
+   ]
+  },
+  {
+   "name": "pgwall-228",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 228",
+    "node four/atom/tools/molpair.mjs pair PxGl2 229"
+   ]
+  },
+  {
+   "name": "pgwall-230",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 230",
+    "node four/atom/tools/molpair.mjs pair PxGl2 231"
+   ]
+  },
+  {
+   "name": "pgwall-232",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 232",
+    "node four/atom/tools/molpair.mjs pair PxGl2 233"
+   ]
+  },
+  {
+   "name": "pgwall-234",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 234",
+    "node four/atom/tools/molpair.mjs pair PxGl2 235"
+   ]
+  },
+  {
+   "name": "pgwall-236",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 236",
+    "node four/atom/tools/molpair.mjs pair PxGl2 237"
+   ]
+  },
+  {
+   "name": "pgwall-238",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 238",
+    "node four/atom/tools/molpair.mjs pair PxGl2 239"
+   ]
+  },
+  {
+   "name": "pgwall-240",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 240",
+    "node four/atom/tools/molpair.mjs pair PxGl2 241"
+   ]
+  },
+  {
+   "name": "pgwall-242",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 242",
+    "node four/atom/tools/molpair.mjs pair PxGl2 243"
+   ]
+  },
+  {
+   "name": "pgwall-244",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 244",
+    "node four/atom/tools/molpair.mjs pair PxGl2 245"
+   ]
+  },
+  {
+   "name": "pgwall-246",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 246",
+    "node four/atom/tools/molpair.mjs pair PxGl2 247"
+   ]
+  },
+  {
+   "name": "pgwall-248",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 248",
+    "node four/atom/tools/molpair.mjs pair PxGl2 249"
+   ]
+  },
+  {
+   "name": "pgwall-250",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 250",
+    "node four/atom/tools/molpair.mjs pair PxGl2 251"
+   ]
+  },
+  {
+   "name": "pgwall-252",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 252",
+    "node four/atom/tools/molpair.mjs pair PxGl2 253"
+   ]
+  },
+  {
+   "name": "pgwall-254",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 254",
+    "node four/atom/tools/molpair.mjs pair PxGl2 255"
+   ]
+  },
+  {
+   "name": "pgwall-256",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 256",
+    "node four/atom/tools/molpair.mjs pair PxGl2 257"
+   ]
+  },
+  {
+   "name": "pgwall-258",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 258",
+    "node four/atom/tools/molpair.mjs pair PxGl2 259"
+   ]
+  },
+  {
+   "name": "of3-0",
+   "cmds": [
+    "node four/atom/tools/liquid.mjs run of3 120 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3 150 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3 180 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3 205 --cycles=12000 --minutes=320"
+   ]
+  },
+  {
+   "name": "of3-1",
+   "cmds": [
+    "node four/atom/tools/liquid.mjs run of3 225 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3 240 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3 250 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3 260 --cycles=12000 --minutes=320"
    ]
   }
  ]

@@ -12,7 +12,8 @@
                                                                 command); --full the whole basis in double (needs the memory)
      node four/atom/tools/molpair.mjs bake                      → js/molpairdata.js
    Placements: B turned at random, its centre a random direction and a distance in [DMIN, DMAX] from A's, no two atoms
-   closer than CLOSE (seeded by k); every 8th placement is drawn tight (DMIN − 1.5 … DMIN) so the repulsion is seen.
+   closer than CLOSE (seeded by k); every 8th placement is drawn tight (DMIN − 1.5 … DMIN) so the repulsion is seen, and
+   k ≥ 200 tighter still (the wall).
    Cache $TMPDIR/atom4-molpair */
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -58,7 +59,9 @@ export function pairEnergy(A, B, d, plus, economy) {
 /* placement k of molecule M: [A, B] */
 export function placement(M, k) {
   let s = 7919 * (k + 1) + M.X; const rnd = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const A = atomsOf(M), d = M.d, tight = k % 8 === 7, lo = tight ? M.DMIN - 1.5 : M.DMIN, hi = tight ? M.DMIN : M.DMAX, close = tight ? M.CLOSE - 0.5 : M.CLOSE;
+  // k ≥ 200: the wall, for molecules that attract even at the first set's tight placements (all 81 PxGl₂ ones bound):
+  // centres 2–0.5 bohr inside DMIN, atoms allowed to 3.6 bohr in 4D (3.0 in ours)
+  const A = atomsOf(M), d = M.d, wall = k >= 200, tight = wall || k % 8 === 7, lo = wall ? M.DMIN - 2 : tight ? M.DMIN - 1.5 : M.DMIN, hi = wall ? M.DMIN + 0.5 : tight ? M.DMIN : M.DMAX, close = wall ? (d === 3 ? 3.0 : 3.6) : tight ? M.CLOSE - 0.5 : M.CLOSE;
   for (;;) {
     const R = randomRotation(d, rnd), g = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), u = Array.from({ length: d }, g), un = Math.hypot(...u), D = lo + (hi - lo) * rnd();
     const B = A.map((a) => ({ Z: a.Z, at: Array.from({ length: d }, (_, i) => (D * u[i]) / un + R[i].reduce((t, r, j) => t + r * a.at[j], 0)) }));
