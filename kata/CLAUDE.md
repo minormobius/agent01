@@ -56,7 +56,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   images (`waves.js` `setSym`/`images`: the half-box [24, 48] m, the other half its mirror), and a seiche. The selftest holds the page's claims (Huygens on a 3D surface, 1/r against
   1/√r, swell's apparent speed, standing orbitals, Airy's velocity and cork orbits, the walls' and edges' conditions, the seiche). See [`wavelab/README.md`](wavelab/README.md).
 - **ORBITAL at `/orbital/`**: hydrogen's electron cloud in 4D, exactly, on ATOM⁴'s terms (the force pinned at 1/r;
-  `js/hydrogen.js`, no DOM: R = r^l e^{−κr} L(2κr), κ = Z/(n + ½), harmonics as c0 + b·x + xᵀQx for s, p, d; 1, 4, 9
+  `js/hydrogen.js`, no DOM: R = r^l e^{−κr} L(2κr), κ = Z/(n + ½), harmonics as c0 + b·x + xᵀQx plus a cubic, for s, p, d, f; 1, 4, 9, 16
   of them; the sp⁴ hybrids, five lobes at the 5-cell's corners, as mixtures with an exact rejection sampler). A slice of it volume-rendered (teal ψ > 0, rose ψ < 0) with WAVELAB's twist pad and ana/kata lever, our
   3D atom beside it, and a dartboard of sampled electrons against P(r). See [`orbital/README.md`](orbital/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid

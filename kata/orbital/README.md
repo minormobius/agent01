@@ -23,12 +23,16 @@ The electron cloud of hydrogen in four dimensions, exactly, on ATOM⁴'s terms
 | s | 1 | 1 |
 | p | 3 (x, y, z) | 4 (x, y, z, w) |
 | d | 5 | 9: six of the plane kind (xy, xz, xw, yz, yw, zw), three of the axis kind (x²−y², z²−w², x²+y²−z²−w²) |
+| f | 7 (xyz; x(y²−z²) ×3; x(5x²−3r²) ×3) | 16: four of three axes (xyz, xyw, xzw, yzw); eight of an axis times a difference of the others' squares (x(y²−z²), x(y²+z²−2w²), …); four of an axis alone (x(2x²−r²), …) |
 
 What stands out:
 - **p_w**: a slice through the nucleus is exactly its node, so you see nothing. Move ana and a teal lobe swells into
   view; kata, a rose one.
 - **d_xw, d_yw, d_zw**: through the nucleus, nothing. Offset ana, each looks exactly like p_x, p_y or p_z; kata, the
   same upside down. A 4D d orbital, sliced, is often a p orbital whose sign says which side of you it is.
+- **f with w as a factor** (xyw, xzw, yzw, w(x²−y²), w(x²+y²−2z²)): through the nucleus, nothing. Ana each slices
+  to a d orbital (f_xyw to d_xy) and kata to the same upside down. **w(2w²−r²)** slices, a distance a ana, to a(a² −
+  ρ²): a ball, teal inside radius a and rose outside it, an s orbital with a node.
 - **x²+y²−z²−w²**: positive all round the xy-plane and negative all round the zw-plane. Those two planes are
   completely perpendicular and meet only at the nucleus. Nothing in 3D can do that.
 
@@ -75,8 +79,10 @@ that there's no ground state. The equation separates into ψ = R(r)·Y, with
 
 In 4D that's E = −Z²/2(n + ½)², ATOM⁴'s spectrum. The radial part is normalised numerically.
 
-**The directions.** Y is a harmonic polynomial of degree l (its Laplacian is zero), written c0 + b·x + xᵀQx, enough
-for s, p and d. It's normalised on the sphere using the sphere's exact moments. The d orbitals of the axis kind are
+**The directions.** Y is a harmonic polynomial of degree l (its Laplacian is zero), written c0 + b·x + xᵀQx for s, p
+and d, plus a cubic for f. It's normalised on the sphere using the sphere's exact moments: the mean of Π x_i^{a_i}
+over the sphere is Π(a_i − 1)!! / [d(d + 2)…(d + Σa − 2)]. The shader evaluates the cubic as Σᵢ xᵢ · xᵀMᵢx, four
+matrices. The d orbitals of the axis kind are
 traceless diagonals, mutually orthogonal.
 
 **The dartboard.** The distance r comes from P(r)'s tabulated cumulative distribution. The direction is drawn uniform
@@ -92,15 +98,15 @@ node kata/orbital/test/orbital.selftest.mjs   # ~3 s
 ```
 
 It checks:
-- the full 4D Schrödinger equation, −½∇²ψ − ψ/r = Eψ by a finite-difference Laplacian, for every s, p and d with
-  n ≤ 3 and both hybrid sets;
+- the full 4D Schrödinger equation, −½∇²ψ − ψ/r = Eψ by a finite-difference Laplacian, for every orbital with n ≤ 4
+  (the 16 f's included) and both hybrid sets, 60 in all;
 - the five hybrids: orthonormal, 104.48° apart, each one's electrons leaning toward its own corner, and the four not
   along w making our tetrahedron;
 - every state with n ≤ 4 and l ≤ 2, in 3D and 4D, solves its radial equation at its energy, and the energies are
   ATOM⁴'s and Bohr's;
 - the 6.05 eV ground state;
 - radial orthogonality;
-- the counts (1, 4, 9 against 1, 3, 5), each direction harmonic and orthonormal on the sphere;
+- the counts (1, 4, 9, 16 against 1, 3, 5, 7), each direction harmonic and all of them orthonormal on the sphere;
 - the radii (2.25 and 3 against 1 and 1.5);
 - the dartboard against P(r) and against Y²;
 - the slice claims: p_w invisible through the nucleus, d_zw p_z-shaped with its sign by side, and the two rings'

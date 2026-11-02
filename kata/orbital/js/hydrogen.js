@@ -9,7 +9,7 @@
 
    THE DIRECTIONS: Y is a harmonic polynomial of degree l (its Laplacian zero), taken on the unit sphere. In d dimensions
    there are C(l + d − 1, d − 1) − C(l + d − 3, d − 1) of them: 2l + 1 for us, (l + 1)² in 4D. They're written here as
-   c0 + b·x + xᵀQx (enough for s, p and d), normalised on the sphere, so ψ = R(r)/r^l · P(x) and ∫|ψ|² = 1. */
+   c0 + b·x + xᵀQx (for s, p and d) plus a cubic (for f), normalised on the sphere, so ψ = R(r)/r^l · P(x) and ∫|ψ|² = 1. */
 export const AREA = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI }; // the unit sphere's area in 3D and 4D
 const fact = (n) => { let f = 1; for (let i = 2; i <= n; i++) f *= i; return f; };
 const binom = (n, k) => (k < 0 || k > n ? 0 : fact(n) / (fact(k) * fact(n - k)));
@@ -40,6 +40,7 @@ export function pr(st, r) { return r ** (st.d - 1) * R(st, r) ** 2; }
 const AX = { 3: ["x", "y", "z"], 4: ["x", "y", "z", "w"] };
 export function harmonics(d, l) {
   const A = AREA[d], ax = AX[d], c = 1 / (d * (d + 2)), out = [], zero = () => Array.from({ length: d }, () => new Array(d).fill(0));
+  if (l === 3) return fHarmonics(d);
   if (l === 0) return [{ name: "s", kind: "s", c0: 1 / Math.sqrt(A), b: new Array(d).fill(0), Q: zero() }];
   if (l === 1) return ax.map((n, i) => { const b = new Array(d).fill(0); b[i] = Math.sqrt(d / A); return { name: n, kind: "axis", c0: 0, b, Q: zero() }; });
   // l = 2: the plane kind, x_i x_j (i < j); then traceless diagonals, mutually orthogonal (⟨(a·x²)(b·x²)⟩ = 2c a·b when Σa = Σb = 0)
@@ -48,7 +49,38 @@ export function harmonics(d, l) {
   for (const [name, a] of diags) { const Q = zero(), k = 1 / Math.sqrt(A * 2 * c * a.reduce((s, v) => s + v * v, 0)); a.forEach((v, i) => (Q[i][i] = v * k)); out.push({ name, kind: "diag", c0: 0, b: new Array(d).fill(0), Q }); }
   return out;
 }
-export function P(h, x) { let s = h.c0; for (let i = 0; i < x.length; i++) { s += h.b[i] * x[i]; for (let j = 0; j < x.length; j++) s += h.Q[i][j] * x[i] * x[j]; } return s; }
+export function P(h, x) {
+  let s = h.c0; for (let i = 0; i < x.length; i++) { s += h.b[i] * x[i]; for (let j = 0; j < x.length; j++) s += h.Q[i][j] * x[i] * x[j]; }
+  if (h.cubic) { let n = 0; for (let i = 0; i < 4; i++) for (let j = i; j < 4; j++) for (let k = j; k < 4; k++, n++) if (h.cubic[n]) s += h.cubic[n] * (x[i] ?? 0) * (x[j] ?? 0) * (x[k] ?? 0); }
+  return s;
+}
+/* f (l = 3): cubic harmonics, as polynomials (terms { c, e: exponents }), normalised by the sphere's exact moments:
+   the mean of Π x_i^{a_i} over the unit sphere is 0 if any a_i is odd, else Π (a_i − 1)!! / [d (d + 2) … (d + Σa − 2)].
+   Three kinds: three different axes (x y z), an axis times a traceless difference of the others' squares (x(y² − z²)),
+   and an axis alone, x(α x² − the others' squares), harmonic when α = 1 in 4D, 2/3 in 3D: x(2x² − r²), x(5x² − 3r²) */
+const dfact = (n) => { let f = 1; for (let k = n; k > 1; k -= 2) f *= k; return f; };
+function sphereMean(e, d) { if (e.some((a) => a % 2)) return 0; const L = e.reduce((s, a) => s + a, 0); let den = 1; for (let m = 0; m < L / 2; m++) den *= d + 2 * m; return e.reduce((s, a) => s * dfact(a - 1), 1) / den; }
+function cubicHarm(d, name, terms) {
+  let m2 = 0; for (const a of terms) for (const b of terms) m2 += a.c * b.c * sphereMean(a.e.map((v, i) => v + b.e[i]), d);
+  const k = 1 / Math.sqrt(AREA[d] * m2), cubic = new Array(20).fill(0);
+  for (const t of terms) { const idx = []; t.e.forEach((a, i) => { for (let q = 0; q < a; q++) idx.push(i); }); let n = 0; for (let i = 0; i < 4; i++) for (let j = i; j < 4; j++) for (let kk = j; kk < 4; kk++, n++) if (i === idx[0] && j === idx[1] && kk === idx[2]) cubic[n] += t.c * k; }
+  return { name, kind: "f", c0: 0, b: new Array(d).fill(0), Q: Array.from({ length: d }, () => new Array(d).fill(0)), cubic };
+}
+function fHarmonics(d) {
+  const ax = AX[d], E = (...pairs) => { const e = new Array(d).fill(0); for (const [i, a] of pairs) e[i] += a; return e; }, out = [];
+  // three different axes
+  for (let i = 0; i < d; i++) for (let j = i + 1; j < d; j++) for (let k = j + 1; k < d; k++) out.push(cubicHarm(d, ax[i] + ax[j] + ax[k], [{ c: 1, e: E([i, 1], [j, 1], [k, 1]) }]));
+  // an axis times traceless differences of the others' squares: in 4D two each (a² − b², a² + b² − 2c²), in 3D one
+  for (let i = 0; i < d; i++) {
+    const o = [...Array(d).keys()].filter((j) => j !== i), [a, b, c] = o;
+    out.push(cubicHarm(d, `${ax[i]}(${ax[a]}²−${ax[b]}²)`, [{ c: 1, e: E([i, 1], [a, 2]) }, { c: -1, e: E([i, 1], [b, 2]) }]));
+    if (d === 4) out.push(cubicHarm(d, `${ax[i]}(${ax[a]}²+${ax[b]}²−2${ax[c]}²)`, [{ c: 1, e: E([i, 1], [a, 2]) }, { c: 1, e: E([i, 1], [b, 2]) }, { c: -2, e: E([i, 1], [c, 2]) }]));
+  }
+  // an axis alone
+  const alpha = d === 4 ? 1 : 2 / 3;
+  for (let i = 0; i < d; i++) out.push(cubicHarm(d, d === 4 ? `${ax[i]}(2${ax[i]}²−r²)` : `${ax[i]}(5${ax[i]}²−3r²)`, [{ c: alpha, e: E([i, 3]) }, ...[...Array(d).keys()].filter((j) => j !== i).map((j) => ({ c: -1, e: E([i, 1], [j, 2]) }))]));
+  return out;
+}
 export function psi(st, h, x) { const r = Math.hypot(...x); return Rl(st, r) * P(h, x); }
 
 /* the dartboard: electron positions drawn from |ψ|² (r from P(r) by its tabulated CDF, the direction uniform on the

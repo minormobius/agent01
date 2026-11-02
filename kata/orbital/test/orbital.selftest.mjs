@@ -12,7 +12,7 @@ let seed = 12345; const rng = () => ((seed = (Math.imul(seed, 1664525) + 1013904
 /* every state solves its radial equation at its energy, and the energies are ATOM⁴'s (4D) and Bohr's (3D) */
 {
   let worst = 0, eWorst = 0, n0 = 0;
-  for (const d of [3, 4]) for (let n = 1; n <= 4; n++) for (let l = 0; l <= Math.min(2, n - 1); l++) {
+  for (const d of [3, 4]) for (let n = 1; n <= 4; n++) for (let l = 0; l <= n - 1; l++) {
     const st = H.state(d, n, l), h = 1e-3; n0++;
     eWorst = Math.max(eWorst, Math.abs(st.E - (d === 4 ? -1 / (2 * (n + 0.5) ** 2) : -1 / (2 * n * n))));
     let scale = 0; for (let r = 0.3; r < st.r99; r += 0.37) scale = Math.max(scale, Math.abs(H.R(st, r)));
@@ -21,7 +21,7 @@ let seed = 12345; const rng = () => ((seed = (Math.imul(seed, 1664525) + 1013904
       worst = Math.max(worst, Math.abs(d2 + ((d - 1) / r) * d1 + (2 * (st.E + 1 / r) - (l * (l + d - 2)) / (r * r)) * R0) / scale);
     }
   }
-  ok(worst < 1e-4 && eWorst < 1e-12, `all ${n0} states (n ≤ 4, l ≤ 2, in 3D and 4D) solve R″ + (d−1)/r R′ + [2(E + 1/r) − l(l+d−2)/r²] R = 0 (worst ${worst.toExponential(1)}), at E = −1/2(n + ½)² in 4D (ATOM⁴'s) and −1/2n² in 3D`);
+  ok(worst < 1e-4 && eWorst < 1e-12, `all ${n0} states (n ≤ 4, every l, in 3D and 4D) solve R″ + (d−1)/r R′ + [2(E + 1/r) − l(l+d−2)/r²] R = 0 (worst ${worst.toExponential(1)}), at E = −1/2(n + ½)² in 4D (ATOM⁴'s) and −1/2n² in 3D`);
   ok(Math.abs(H.state(4, 1, 0).E * 27.211386 + 6.047) < 0.01, `4D hydrogen's ground state is bound by ${(-H.state(4, 1, 0).E * 27.211386).toFixed(2)} eV (ATOM⁴: 6.05), ours by ${(-H.state(3, 1, 0).E * 27.211386).toFixed(2)}`);
   let orth = 0; for (const d of [3, 4]) for (const l of [0, 1]) { const a = H.state(d, l + 1, l), b = H.state(d, l + 3, l); let s = 0; const hh = 0.005; for (let r = hh / 2; r < 120; r += hh) s += H.R(a, r) * H.R(b, r) * r ** (d - 1) * hh; orth = Math.max(orth, Math.abs(s)); }
   ok(orth < 1e-4, `states of one l and different n are orthogonal (worst overlap ${orth.toExponential(1)})`);
@@ -30,13 +30,15 @@ let seed = 12345; const rng = () => ((seed = (Math.imul(seed, 1664525) + 1013904
 /* the directions: (l + 1)² in 4D and 2l + 1 in 3D, each harmonic (Laplacian zero), orthonormal on the sphere */
 {
   for (const d of [3, 4]) {
-    const counts = [0, 1, 2].map((l) => H.harmonics(d, l).length), want = [0, 1, 2].map((l) => (d === 4 ? (l + 1) ** 2 : 2 * l + 1));
+    const counts = [0, 1, 2, 3].map((l) => H.harmonics(d, l).length), want = [0, 1, 2, 3].map((l) => (d === 4 ? (l + 1) ** 2 : 2 * l + 1));
     const traces = H.harmonics(d, 2).map((h) => h.Q.reduce((s, r, i) => s + r[i], 0));
+    // f: harmonic by a finite-difference Laplacian of the cubic
+    let flap = 0; for (const q of H.harmonics(d, 3)) for (let t = 0; t < 10; t++) { const x = Array.from({ length: d }, () => 2 * rng() - 1), e = 1e-3; let L = 0; for (let k = 0; k < d; k++) { const a = x.slice(), b = x.slice(); a[k] += e; b[k] -= e; L += (H.P(q, a) - 2 * H.P(q, x) + H.P(q, b)) / (e * e); } flap = Math.max(flap, Math.abs(L)); } traces.push(flap * 1e-3);
     // orthonormality by Monte Carlo over the sphere (mean of Y_a Y_b × area): 400k directions
-    const all = [0, 1, 2].flatMap((l) => H.harmonics(d, l)), G = all.map(() => all.map(() => 0)), M = 400000;
+    const all = [0, 1, 2, 3].flatMap((l) => H.harmonics(d, l)), G = all.map(() => all.map(() => 0)), M = 400000;
     for (let k = 0; k < M; k++) { const v = Array.from({ length: d }, () => Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng())), m = Math.hypot(...v), x = v.map((c) => c / m), y = all.map((h) => H.P(h, x)); for (let a = 0; a < y.length; a++) for (let b = a; b < y.length; b++) G[a][b] += (y[a] * y[b] * H.AREA[d]) / M; }
     let off = 0, diag = 0; for (let a = 0; a < all.length; a++) for (let b = a; b < all.length; b++) { if (a === b) diag = Math.max(diag, Math.abs(G[a][a] - 1)); else off = Math.max(off, Math.abs(G[a][b])); }
-    ok(counts.join() === want.join() && traces.every((t) => Math.abs(t) < 1e-12) && diag < 0.02 && off < 0.02, `${d}D: ${counts.join(", ")} directions for s, p, d (${d === 4 ? "(l + 1)²" : "2l + 1"}), each harmonic, orthonormal on the sphere (by 400k directions: ${diag.toFixed(3)}, ${off.toFixed(3)})`);
+    ok(counts.join() === want.join() && traces.every((t) => Math.abs(t) < 1e-12) && diag < 0.02 && off < 0.02, `${d}D: ${counts.join(", ")} directions for s, p, d, f (${d === 4 ? "(l + 1)²" : "2l + 1"}), each harmonic, all ${all.length} orthonormal on the sphere (by 400k directions: ${diag.toFixed(3)}, ${off.toFixed(3)})`);
   }
 }
 
@@ -69,9 +71,9 @@ let seed = 12345; const rng = () => ((seed = (Math.imul(seed, 1664525) + 1013904
   let worst = 0, count = 0; const h = 2e-3;
   const lap = (f, x) => { let s2 = 0; for (let k = 0; k < 4; k++) { const a = x.slice(), b = x.slice(); a[k] += h; b[k] -= h; s2 += (f(a) - 2 * f(x) + f(b)) / (h * h); } return s2; };
   const check = (f, E, R) => { let scale = 0, res = 0; for (let i = 0; i < 60; i++) { const x = [0, 1, 2, 3].map(() => (2 * rng() - 1) * R); if (Math.hypot(...x) < 0.4) continue; const v = f(x); scale = Math.max(scale, Math.abs(v)); res = Math.max(res, Math.abs(-0.5 * lap(f, x) - v / Math.hypot(...x) - E * v)); } count++; return res / scale; };
-  for (let n = 1; n <= 3; n++) for (let l = 0; l < n; l++) { const st = H.state(4, n, l); for (const hh of H.harmonics(4, l)) worst = Math.max(worst, check((x) => H.psi(st, hh, x), st.E, st.r99 * 0.6)); }
+  for (let n = 1; n <= 4; n++) for (let l = 0; l < n; l++) { const st = H.state(4, n, l); for (const hh of H.harmonics(4, l)) worst = Math.max(worst, check((x) => H.psi(st, hh, x), st.E, st.r99 * 0.6)); }
   for (const n of [2, 3]) for (const hy of H.hybrids(4, n)) worst = Math.max(worst, check((x) => H.psiOf(hy.parts, x), hy.parts[0].st.E, hy.parts[0].st.r99 * 0.6));
-  ok(worst < 2e-4, `all ${count} orbitals (every s, p and d with n ≤ 3, and the sp⁴ hybrids of n = 2 and 3) satisfy the full 4D Schrödinger equation −½∇²ψ − ψ/r = Eψ (worst residual ${worst.toExponential(1)} of the orbital's size)`);
+  ok(worst < 2e-4, `all ${count} orbitals (every s, p, d and f with n ≤ 4, and the sp⁴ hybrids of n = 2 and 3) satisfy the full 4D Schrödinger equation −½∇²ψ − ψ/r = Eψ (worst residual ${worst.toExponential(1)} of the orbital's size)`);
 }
 
 /* sp⁴: five hybrids, orthonormal, pointing at the 5-cell's corners, 104.48° apart (ours, sp³: four at 109.47°); sliced

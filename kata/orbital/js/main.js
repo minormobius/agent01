@@ -20,6 +20,7 @@ uniform vec4 uVP, uO, uE0, uE1, uE2, uPoly, uB; uniform mat4 uQ; uniform vec3 uE
 uniform float uTan, uBox, uK, uNorm, uC0, uDmax, uGain;
 // a second radial part, for the odd (p) piece of a mix (a hybrid: ns + np); and the hybrids, all at once (uHyb)
 uniform vec4 uPoly2; uniform float uNorm2; uniform int uHyb, uNH; uniform vec4 uDir[5]; uniform vec3 uHC[5];
+uniform mat4 uM3[4]; uniform int uHasC3; // f: the cubic as Σ_i x_i · xᵀ M_i x (each monomial x_i x_j x_k, i ≤ j ≤ k, in M_i)
 out vec4 o;
 // the two radial parts at r (same n, so the same κ): norm e^{−κr} L(2κr), the even piece's and the odd piece's
 vec2 radial2(vec4 p) {
@@ -27,7 +28,8 @@ vec2 radial2(vec4 p) {
   return vec2(uNorm * e * (uPoly.x + rho * (uPoly.y + rho * (uPoly.z + rho * uPoly.w))), uNorm2 * e * (uPoly2.x + rho * (uPoly2.y + rho * (uPoly2.z + rho * uPoly2.w))));
 }
 // ψ: the even piece times c0 + xᵀQx, plus the odd piece times b·x
-float psi(vec4 p) { vec2 q = radial2(p); return q.x * (uC0 + dot(p, uQ * p)) + q.y * dot(uB, p); }
+float cubic(vec4 p) { if (uHasC3 == 0) return 0.0; return p.x * dot(p, uM3[0] * p) + p.y * dot(p, uM3[1] * p) + p.z * dot(p, uM3[2] * p) + p.w * dot(p, uM3[3] * p); }
+float psi(vec4 p) { vec2 q = radial2(p); return q.x * (uC0 + dot(p, uQ * p)) + q.y * (dot(uB, p) + cubic(p)); }
 void main() {
   vec2 q = (2.0 * (gl_FragCoord.xy - uVP.xy) - uVP.zw) / uVP.w;
   vec3 d = normalize(uCF + q.x * uTan * uCR + q.y * uTan * uCU), bg = vec3(0.025, 0.03, 0.045) + 0.025 * q.y, inv = 1.0 / d;
@@ -57,7 +59,7 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aPos = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-const U = {}; for (const n of ["uVP", "uO", "uE0", "uE1", "uE2", "uPoly", "uB", "uQ", "uEye", "uCR", "uCU", "uCF", "uTan", "uBox", "uK", "uNorm", "uC0", "uDmax", "uGain", "uPoly2", "uNorm2", "uHyb", "uNH", "uDir", "uHC"]) U[n] = gl.getUniformLocation(prog, n);
+const U = {}; for (const n of ["uVP", "uO", "uE0", "uE1", "uE2", "uPoly", "uB", "uQ", "uEye", "uCR", "uCU", "uCF", "uTan", "uBox", "uK", "uNorm", "uC0", "uDmax", "uGain", "uPoly2", "uNorm2", "uHyb", "uNH", "uDir", "uHC", "uM3", "uHasC3"]) U[n] = gl.getUniformLocation(prog, n);
 
 /* ------------------------------------------------------------------ the orbital */
 /* an orbital here is a list of parts { st, h, c } (one part for s, p, d; two for a hybrid, ns and np), with its radial
@@ -71,11 +73,13 @@ function orbital(parts, all = null) {
   o.dmax = densest((x) => psiOf(parts, x) ** 2, o.r99, d); return o;
 }
 function upload(o) { // the orbital's numbers as the shader wants them (3D ones padded with w = 0)
-  let even = null, odd = null; for (const p of o.parts) { if (p.h.b.some((v) => v)) odd = p; else even = p; }
+  let even = null, odd = null; for (const p of o.parts) { if (p.h.b.some((v) => v) || (p.h.cubic && p.h.cubic.some((v) => v))) odd = p; else even = p; }
   const Q = new Float32Array(16); if (even) for (let i = 0; i < even.h.Q.length; i++) for (let j = 0; j < even.h.Q.length; j++) Q[j * 4 + i] = even.h.Q[i][j];
   gl.uniform1f(U.uK, o.parts[0].st.kappa); gl.uniformMatrix4fv(U.uQ, false, Q);
   gl.uniform4fv(U.uPoly, pad4(even ? even.st.poly : [])); gl.uniform1f(U.uNorm, even ? even.c * even.st.norm : 0); gl.uniform1f(U.uC0, even ? even.h.c0 : 0);
-  gl.uniform4fv(U.uPoly2, pad4(odd ? odd.st.poly : [])); gl.uniform1f(U.uNorm2, odd ? odd.c * odd.st.norm : 0); gl.uniform4fv(U.uB, pad4(odd ? odd.h.b : []));
+  gl.uniform4fv(U.uPoly2, pad4(odd ? odd.st.poly : [])); gl.uniform1f(U.uNorm2, odd ? odd.c * odd.st.norm : 0); gl.uniform4fv(U.uB, pad4(odd ? odd.h.b : [])); const c3 = odd && odd.h.cubic, M = new Float32Array(64);
+  if (c3) { let n = 0; for (let i = 0; i < 4; i++) for (let j = i; j < 4; j++) for (let k = j; k < 4; k++, n++) { const c = c3[n]; if (!c) continue; if (j === k) M[16 * i + 4 * j + k] += c; else { M[16 * i + 4 * j + k] += c / 2; M[16 * i + 4 * k + j] += c / 2; } } }
+  gl.uniformMatrix4fv(U.uM3, false, M); gl.uniform1i(U.uHasC3, c3 ? 1 : 0);
   gl.uniform1i(U.uHyb, o.all ? 1 : 0);
   if (o.all) { const D = new Float32Array(20), C = new Float32Array(15); o.all.forEach((q, k) => { D.set(pad4(q.parts[1].h.b), 4 * k); C.set(HC[k], 3 * k); }); gl.uniform4fv(U.uDir, D); gl.uniform3fv(U.uHC, C); gl.uniform1i(U.uNH, o.all.length); }
 }
@@ -86,9 +90,9 @@ function densest(f, B, d) { // the largest |ψ|² anywhere (a coarse grid over t
 }
 const sel = { n: 2, l: 1, name: "w" };
 let cur = null;
-const HYB = 3; // l = 3 here means the sp⁴ hybrids
+const HYB = 4; // l = 4 here means the sp⁴ hybrids (3 is f)
 function choose(n, l, name) {
-  l = Math.max(0, Math.min(3, l)); n = Math.max(l === HYB ? 2 : l + 1, Math.min(4, n));
+  l = Math.max(0, Math.min(4, l)); n = Math.max(l === HYB ? 2 : l + 1, Math.min(4, n));
   let o, tw = null;
   if (l === HYB) {
     const hs = hybrids(4, n), h3 = hybrids(3, n); if (name !== "all" && !hs.find((h) => h.name === name)) name = "all";
@@ -98,10 +102,10 @@ function choose(n, l, name) {
   } else {
     const hs = harmonics(4, l); if (!hs.find((h) => h.name === name)) name = hs[0].name;
     const st = state(4, n, l), h = hs.find((q) => q.name === name), t = twin(name, n, l);
-    o = orbital([{ st, h, c: 1 }]); if (t) { tw = orbital([{ st: t.st, h: t.h, c: 1 }]); tw.label = `${n}${"spd"[l]} ${l ? name : ""}`; }
+    o = orbital([{ st, h, c: 1 }]); if (t) { tw = orbital([{ st: t.st, h: t.h, c: 1 }]); tw.label = `${n}${"spdf"[l]} ${l ? name : ""}`; }
   }
   Object.assign(sel, { n, l, name });
-  const ref = tw || orbital([{ st: state(3, n, Math.min(l, 2)), h: harmonics(3, Math.min(l, 2))[0], c: 1 }]); // the dartboard's comparison: the twin, or our atom's same n, l
+  const ref = tw || orbital([{ st: state(3, n, Math.min(l, 3)), h: harmonics(3, Math.min(l, 3))[0], c: 1 }]); // the dartboard's comparison: the twin, or our atom's same n, l
   cur = { orb: o, tw, ref, dots: [], tdots: [] };
   for (const b of document.querySelectorAll("#exps button[data-n]")) b.classList.toggle("on", +b.dataset.n === n);
   for (const b of document.querySelectorAll("#exps button[data-l]")) b.classList.toggle("on", +b.dataset.l === l);
@@ -109,8 +113,8 @@ function choose(n, l, name) {
 }
 function picks() { // the orbitals of this l: for d, the six of the plane kind, then the three of the axis kind; the hybrids, one at a time or all
   if (sel.l === HYB) { const names = ["h1", "h2", "h3", "h4", "h5", "all"]; $("picks").innerHTML = names.map((nm, i) => `${i === 5 ? '<span class="sep"></span>' : ""}<button type="button" data-o="${nm}" class="${nm === sel.name ? "on" : ""}"${i < 5 ? ` style="color:rgb(${HC[i].map((c) => Math.round(255 * c)).join(",")})"` : ""}>${nm === "all" ? "all five" : nm}</button>`).join(""); }
-  else { const hs = harmonics(4, sel.l), lab = (h) => (sel.l === 0 ? `${sel.n}s` : sel.l === 1 ? `p${sub(h.name)}` : `d${sub(h.name)}`);
-    $("picks").innerHTML = hs.map((h, i) => `${sel.l === 2 && i === 6 ? '<span class="sep"></span>' : ""}<button type="button" data-o="${h.name}" class="${h.name === sel.name ? "on" : ""}">${lab(h)}</button>`).join(""); }
+  else { const hs = harmonics(4, sel.l), lab = (h) => (sel.l === 0 ? `${sel.n}s` : `${"spdf"[sel.l]}${sub(h.name)}`), cut = sel.l === 2 ? [6] : sel.l === 3 ? [4, 12] : [];
+    $("picks").innerHTML = hs.map((h, i) => `${cut.includes(i) ? '<span class="sep"></span>' : ""}<button type="button" data-o="${h.name}" class="${h.name === sel.name ? "on" : ""}">${lab(h)}</button>`).join(""); }
   for (const b of document.querySelectorAll("#picks button")) b.onclick = () => choose(sel.n, sel.l, b.dataset.o);
 }
 const SUB = { x: "ₓ", y: "ᵧ", z: "_z", w: "_w" };
@@ -127,6 +131,15 @@ function caption() {
     t = k < 0 ? `<b>All five sp⁴ hybrids</b>, each its own colour: ${n}s mixed with the four ${n}p, one fifth s and four fifths p each, every one a single big lobe pointing at a corner of the <b>5-cell</b>, 4D's tetrahedron, <b>104.48°</b> apart (ours, sp³: four at 109.47°). Squared up, four of them make <b>our tetrahedron</b> in your slice, each tipped 14.48° kata, and the fifth points straight <b>ana</b>, out of sight. Twist into w and it swings into view. They're stationary states, not just shapes: ${n}s and ${n}p have the same energy. ${r}`
       : k === 4 ? `<b>sp⁴ h5</b>: one fifth ${n}s, four fifths ${n}p, its big lobe pointing straight along <b>w</b>, ana. Through the nucleus your slice sees only a small <b>rose core</b> (its ns part, negative there); the big lobe is ana, out of sight. Push the lever ana and it swells in. ${r}`
       : `<b>sp⁴ h${k + 1}</b>: one fifth ${n}s, four fifths ${n}p, its big lobe pointing at a corner of the 5-cell: in your slice along ${["(+,+,+)", "(+,−,−)", "(−,+,−)", "(−,−,+)"][k]}, a direction of our tetrahedron, but tipped <b>14.48° kata</b>, so it's brighter a little kata of your slice. Ours (beside it) is the sp³ lobe along the same line. ${r}`;
+  }
+  else if (sel.l === 3) {
+    const census = ` 4D has <b>sixteen</b> f orbitals: four of three axes (xyz, xyw, xzw, yzw), eight of an axis times a difference of squares, four of an axis alone. Ours has seven (1, 3 and 3).`;
+    const wf = nm.length === 3 && nm.includes("w"), wfac = nm.startsWith("w(");
+    if (wf) { const ab = nm.replace("w", ""); t = `<b>f_${nm}</b>: eight lobes at the corners of a 4D box's face, alternating sign, and w is one of its three axes. Through the nucleus, <b>nothing</b>. Ana it slices to <b>d_${ab}</b>, four leaves in the ${ab} plane; kata, the same with its signs swapped.${census} ${r}`; }
+    else if (nm === "w(2w²−r²)") t = `<b>f w(2w²−r²)</b>: lobes along ±w and a band of the other sign round them. Through the nucleus, nothing. A distance a ana it slices to a(a² − ρ²): a <b>ball</b>, teal inside radius a and rose outside it, an s orbital with a node. Kata, the same with teal and rose swapped.${census} ${r}`;
+    else if (wfac) { const inner = nm.slice(2, -1); t = `<b>f ${nm}</b>: w times ${inner}. Through the nucleus, nothing; ana it slices to the d orbital ${inner}, kata to the same upside down.${census} ${r}`; }
+    else if (nm === "xyz") t = `<b>f_xyz</b>: eight lobes at a cube's corners, alternating sign: ours has it, unchanged in your slice. Its three cousins with w (xyw, xzw, yzw) are invisible through the nucleus and slice to d orbitals ana and kata.${census} ${r}`;
+    else t = `<b>f ${nm}</b>.${cur.tw ? " Ours has it too: through the nucleus your slice shows it unchanged." : " Ours has nothing quite like it: through the nucleus your slice shows only part of its shape; move ana and kata to find the rest."}${census} ${r}`;
   }
   else if (sel.l === 0) t = n === 1 ? `<b>1s</b>, the ground state: a ball, densest at the nucleus. Yet the electron is most likely found <b>${st.rMost.toFixed(2)} bohr</b> out, because a shell at radius r holds r³ worth of space in 4D (r² in ours): the dartboard shows it. ${r}` : `<b>${n}s</b>: still a ball.${nodes} ${r}`;
   else if (sel.l === 1) t = nm === "w" ? `<b>p_w</b>: two lobes along w, opposite in phase. Your slice, through the nucleus, is exactly its node: <b>nothing</b>. Push the lever ana and a teal lobe swells into view; kata, a rose one. In 4D there are four p orbitals, x, y, z <i>and w</i>.${nodes} ${r}` : `<b>p_${nm}</b>: two lobes along ${nm}, opposite in phase, as ours. 4D has four of these (x, y, z and w); twist your slice and this one turns into a mix you'd call p_w.${nodes} ${r}`;
