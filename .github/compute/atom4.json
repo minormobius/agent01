@@ -1,6 +1,6 @@
 {
- "run": "gl2-inner-flow-cold",
- "why": "Gl₂'s pair well was still deepening at 6 bohr (−3400 K side-on): the points at 5 and 5.5 bohr find its bottom. And Xater cooled from its 1500 K liquid to 1000, 750 and 500 K, for where it stops flowing (a freezing indicator; a supercooled liquid can flow below its true freezing point).",
+ "run": "gl2-inner-flow-cold-ice",
+ "why": "Gl₂'s pair well was still deepening at 6 bohr (−3400 K side-on): the points at 5 and 5.5 bohr find its bottom. And Xater cooled from its 1500 K liquid to 1000, 750 and 500 K, for where it stops flowing (a freezing indicator; a supercooled liquid can flow below its true freezing point). And Xater's crystal: random cells of 4 and 6 molecules (3000 and 2000 starts) on the field shown faithful to Hartree–Fock in its dense liquid, each relaxed with its cell.",
  "minutes": 330,
  "groups": [
   {
@@ -57,6 +57,42 @@
     "node four/atom/tools/liquid.mjs flow x4 1000 --from=x4_1500_g2.json --minutes=320",
     "node four/atom/tools/liquid.mjs flow x4 750 --from=x4_1500_g2.json --minutes=320",
     "node four/atom/tools/liquid.mjs flow x4 500 --from=x4_1500_g2.json --minutes=320"
+   ]
+  },
+  {
+   "name": "ice4-0",
+   "cmds": [
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 0/8",
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 1/8",
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 2/8",
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 3/8"
+   ]
+  },
+  {
+   "name": "ice4-1",
+   "cmds": [
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 4/8",
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 5/8",
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 6/8",
+    "node four/atom/tools/ice.mjs 4 4 3000 --shard 7/8"
+   ]
+  },
+  {
+   "name": "ice4-2",
+   "cmds": [
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 0/8",
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 1/8",
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 2/8",
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 3/8"
+   ]
+  },
+  {
+   "name": "ice4-3",
+   "cmds": [
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 4/8",
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 5/8",
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 6/8",
+    "node four/atom/tools/ice.mjs 4 6 2000 --shard 7/8"
    ]
   }
  ]
