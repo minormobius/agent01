@@ -1,0 +1,12 @@
+{
+ "group": "of2basis-dd-28",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/molpair.mjs basis OF2 28 Dd",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 978
+  }
+ ]
+}
