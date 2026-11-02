@@ -1,0 +1,4 @@
+N=50000 walks per seed, 8 seeds (1..8; seed 7 is errorbar.js's), σ=3.4 cm, step 0.7 m, notch 0.5 m
+lcg-double  width 0.3276 ± 0.0002 (seed spread 0.0005)  normals sd 1.0154 [1.0085–1.0178]  lag-1 -0.0080 [-0.0110–-0.0068]
+lcg-exact   width 0.3221 ± 0.0003 (seed spread 0.0008)  normals sd 1.0000 [0.9987–1.0014]  lag-1 0.0000 [-0.0006–0.0012]
+mulberry32  width 0.3219 ± 0.0003 (seed spread 0.0009)  normals sd 1.0005 [0.9996–1.0014]  lag-1 0.0003 [-0.0010–0.0015]
