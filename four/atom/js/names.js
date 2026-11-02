@@ -16,13 +16,16 @@
    our 118. */
 import { layout } from "./periodic.js";
 
-// our elements 1–54: English names (as the shifted names are spelt) and symbols
+// our elements 1–88: English names (as the shifted names are spelt) and symbols
 export const OURS = ("hydrogen H,helium He,lithium Li,beryllium Be,boron B,carbon C,nitrogen N,oxygen O,fluorine F,neon Ne," +
   "sodium Na,magnesium Mg,aluminium Al,silicon Si,phosphorus P,sulfur S,chlorine Cl,argon Ar,potassium K,calcium Ca," +
   "scandium Sc,titanium Ti,vanadium V,chromium Cr,manganese Mn,iron Fe,cobalt Co,nickel Ni,copper Cu,zinc Zn,gallium Ga," +
   "germanium Ge,arsenic As,selenium Se,bromine Br,krypton Kr,rubidium Rb,strontium Sr,yttrium Y,zirconium Zr,niobium Nb," +
   "molybdenum Mo,technetium Tc,ruthenium Ru,rhodium Rh,palladium Pd,silver Ag,cadmium Cd,indium In,tin Sn,antimony Sb," +
-  "tellurium Te,iodine I,xenon Xe").split(",").map((s, i) => { const [name, sym] = s.split(" "); return { Z: i + 1, name, sym }; });
+  "tellurium Te,iodine I,xenon Xe,caesium Cs,barium Ba,lanthanum La,cerium Ce,praseodymium Pr,neodymium Nd,promethium Pm," +
+  "samarium Sm,europium Eu,gadolinium Gd,terbium Tb,dysprosium Dy,holmium Ho,erbium Er,thulium Tm,ytterbium Yb,lutetium Lu," +
+  "hafnium Hf,tantalum Ta,tungsten W,rhenium Re,osmium Os,iridium Ir,platinum Pt,gold Au,mercury Hg,thallium Tl,lead Pb," +
+  "bismuth Bi,polonium Po,astatine At,radon Rn,francium Fr,radium Ra").split(",").map((s, i) => { const [name, sym] = s.split(" "); return { Z: i + 1, name, sym }; });
 
 // every symbol of ours, all 118: a 4D symbol shouldn't read as one of them
 const REAL = new Set(("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo " +
@@ -37,9 +40,17 @@ const KEEP = { hydrogen: "H", carbon: "D", oxygen: "Px", lithium: "Mi" };
    in each block: the Z of our element, or null where there is none */
 function ourAt(row, block, k, len) {
   // ours, by row: s block, d block (rows 4–5), p block (counting the valence shell s + p, 3 to 8)
-  const S = [[1], [3, 4], [11, 12], [19, 20], [37, 38]], D = { 3: [21, 30], 4: [39, 48] }, P = { 1: [5, 10], 2: [13, 18], 3: [31, 36], 4: [49, 54] };
+  // row 5 is our sixth period: lanthanum to ytterbium as its f block (14 places; europium, f⁷, half full), lutetium to
+  // mercury its d, thallium to radon its p; row 6 begins our seventh (francium, radium)
+  const S = [[1], [3, 4], [11, 12], [19, 20], [37, 38], [55, 56], [87, 88]], D = { 3: [21, 30], 4: [39, 48], 5: [71, 80] }, P = { 1: [5, 10], 2: [13, 18], 3: [31, 36], 4: [49, 54], 5: [81, 86] };
   if (row === 0) return k === 0 ? 1 : 2;
-  if (block === "s") return S[row][k];
+  if (block === "s") return S[row]?.[k] ?? null;
+  if (block === "f") { if (row !== 5) return null; const ourLen = 14, half = len / 2, i = k + 1, z0 = 57, z1 = 70;
+    if (i < half) return i < ourLen / 2 ? z0 + i - 1 : null;
+    if (i === half) return z0 + ourLen / 2 - 1;
+    const short = len - i; return short < ourLen / 2 ? z1 - short : null; }
+  if (block === "d" && !D[row]) return null;
+  if (block === "p" && !P[row]) return null;
   // a block of `len` places; ours has `ourLen`. Before the half-full place, count from the left; at it, the half-full
   // one of ours; after it, count back from the full end
   const [z0, z1] = block === "d" ? D[row] : P[row];
@@ -60,7 +71,8 @@ export function names(TABLE, d) {
   const why = (o, block, k, len, row) => {
     if (row === 0) return o === 1 ? "one electron, as hydrogen has" : "its one shell full, as helium's is";
     if (block === "s") return k === 0 ? "one electron outside a full shell, an alkali metal" : "two outside a full shell, an alkaline earth";
-    if (block === "d") { const i = k + 1, half = len / 2; return i < half ? `the ${["first", "second", "third", "fourth"][i - 1]} element of its d block` : i === half ? "its d shell half full" : `${len - i} short of a full d shell`; }
+    if (block === "d") { const i = k + 1, half = len / 2; return i < half ? `the ${["first", "second", "third", "fourth"][i - 1]} element of its d block` : i === half ? "its d shell half full" : i === len ? "its d shell full" : `${len - i} short of a full d shell`; }
+    if (block === "f") { const i = k + 1, half = len / 2, ord = ["first", "second", "third", "fourth", "fifth", "sixth"]; return i < half ? `the ${ord[i - 1]} element of its f block` : i === half ? "its f shell half full" : i === len ? "its f shell full" : `${len - i} short of a full f shell`; }
     const v = k + 3, shell = 2 + len; return v < shell / 2 ? "the first element of its p block" : v === shell / 2 ? `its outer shell half full: ${v} electrons of ${shell}, so ${v} bonds` : v === shell ? "every shell full, a noble gas" : `${shell - v} short of a full shell, so ${shell - v} bond${shell - v > 1 ? "s" : ""}`;
   };
   // the blocks of each row: their places in order
@@ -70,9 +82,9 @@ export function names(TABLE, d) {
     const list = rows.get(`${c.row}:${c.block}`), k = list.indexOf(c), len = c.block === "s" ? 2 : list.length;
     let oz = null, reason;
     if (d === 3) oz = c.el.Z; // our own table: every element is ours
-    else oz = ourAt(c.row, c.block, k, len);
+    else oz = ourAt(c.period ?? c.row, c.block, k, len);
     const o = oz ? OURS[oz - 1] : null;
-    reason = o ? (d === 3 ? null : why(oz, c.block, k, len, c.row)) : c.block === "p" ? `${k + 3 < (2 + len) / 2 ? `${k + 3} electrons in a shell of ${2 + len}: more than our boron, fewer than half` : `${2 + len - (k + 3)} short of a full shell of ${2 + len}`}, which nothing of ours is but carbon, and carbon's place is darbon's` : `${k + 1} electrons in a d shell of ${len}: ours holds only 10`;
+    reason = o ? (d === 3 ? null : why(oz, c.block, k, len, c.row)) : c.block === "p" ? `${k + 3 < (2 + len) / 2 ? `${k + 3} electrons in a shell of ${2 + len}: more than our boron, fewer than half` : `${2 + len - (k + 3)} short of a full shell of ${2 + len}`}, which nothing of ours is but carbon, and carbon's place is darbon's` : c.block === "f" ? `${k + 1} electrons in an f shell of ${len}: ours holds only 14` : `${k + 1} electrons in a d shell of ${len}: ours holds only 10`;
     const name = o ? (d === 3 ? o.name : shiftName(o.name)) : null;
     out.set(c.el.Z, { Z: c.el.Z, row: c.row, col: c.col, block: c.block, noble: c.noble, ours: o, name, why: reason, isNew: !o, W });
   }

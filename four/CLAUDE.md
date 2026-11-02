@@ -93,7 +93,7 @@ for games, and this is a modelling programme with publications to come. The game
   temperatures from `orbits.js` `planetT` round a star declared as hot as our Sun (distances in units of 100 star
   radii). Moons' distances are drawn ×8; the URL keeps the seed. Days and seasons are open (a 4D planet spins in two
   planes), so the planets don't turn.
-- **the big periodic table at `/table/`**: `table/viewer.js` draws all 78 4D elements (`atom/js/table.js`) full width,
+- **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
   and four colourings. The names come from `atom/js/names.js` (no DOM): an element takes our name with its first
@@ -101,8 +101,12 @@ for games, and this is a modelling programme with publications to come. The game
   the half-full one is ours, after it count from the full shell); 24 answer to nothing and are new, elements 6 and 8
   either side of darbon among them. Symbols keep the chapters' H, D, Px and Mi and otherwise avoid all 118 of ours.
   `table/filling.js` (no DOM) draws the filling diagram for both worlds (Madelung's diagonals of n + l; boxes of
-  2(2l + 1) in ours, 2(l + 1)² in 4D, dashed past 78 where the solver hasn't been), filled to the selected element
-  from its solved configuration; selftest 27 checks the order against all 78 solved atoms.
+  2(2l + 1) in ours, 2(l + 1)² in 4D, dashed past 140 where the solver hasn't been), filled to the selected element
+  from its solved configuration; selftest 27 checks the order against all 140 solved atoms (each subshell by when it's half full).
+  The table to 140 was baked on the runner (`bake.mjs --zmax4=140 --cache --shard=i/6`, then `--assemble`); seven
+  elements (88, 101–103, 105–107) first landed on unsettled fields and were redone with `bake.mjs --repair=Z,…`,
+  which seeds `ground()` from the neighbours' configurations ±1, ±2 electrons. Check any new bake's energies for a
+  smooth second difference before committing it. The solver is not relativistic: past ~100 it's a first pass.
 - **ATOM⁴ at `/atom/`**: the **official position on this universe**: four
   dimensions of space with the force between charges pinned at 1/r (Gauss's
   1/r² has no ground state). `index.html` is the position: every conclusion,
@@ -139,7 +143,7 @@ for games, and this is a modelling programme with publications to come. The game
   solver's frozen clouds, electrostatics summed shell by shell so the Z²/R
   cancellation is exact; re-run after `bake.mjs`). The force chapter opens
   with what the universe contains (electrons as fermions, nuclei declared
-  stable to Z = 78, the lens photon, a small fine-structure constant) and why
+  stable to Z = 140, the lens photon, a small fine-structure constant) and why
   matter is stable (argued by scaling). `js/periodic.js` is the layout
   and our real table. `js/table.js` is **generated** by `atom/tools/bake.mjs`
   (~6 min, worker threads; re-run it after any change to `atom.js`, since the

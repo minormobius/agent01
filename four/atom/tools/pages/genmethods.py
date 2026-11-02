@@ -16,7 +16,7 @@ def why(t):
     t=re.sub(r'([Cc])hapter (\d+)',lambda m: (_OLD.get(int(m.group(2)),'a chapter')[0].upper()+_OLD.get(int(m.group(2)),'a chapter')[1:]) if m.group(1)=='C' else _OLD.get(int(m.group(2)),'a chapter'),t or '')
     return html.escape(t.split('. ')[0].rstrip('.')+'.') if t else ''
 M=[
- ("atoms","Atoms: the self-consistent field","Every atom from hydrogen to element 78, in both worlds: its electron configuration, energies, sizes and ionization.",
+ ("atoms","Atoms: the self-consistent field","Every atom from hydrogen to element 140 (ours to 36, the check), in both worlds: its electron configuration, energies, sizes and ionization.",
   "The radial equation in d dimensions has the centrifugal term of l + (d − 3)/2, so one solver serves every dimension. It is solved by Numerov's method on a logarithmic grid, energies found by Sturm bisection on node counts. Many electrons are a self-consistent field: each feels the nucleus, the others' charge through the sphere-averaged kernel (1/max in 3D; k(min/max)/max in 4D, which has no shell theorem), and a local exchange term from the d-dimensional electron gas, with each electron's own share removed and Hund's rule for spins. The ground configuration is searched among candidates, and only converged fields count.",
   (1,2,3,4,5,6,7,8,16),("atom/js/atom.js","atom/tools/bake.mjs"),("hydrogen","table"),"about 6 minutes for both tables, in the sandbox","No correlation; open shells averaged into spheres; non-relativistic. Our world's check gets 32 of 36 configurations right."),
  ("response","Response and dispersion","How easily each atom's cloud is pushed (polarizability at imaginary frequency), and from it the dispersion pull C₆ between two atoms.",

@@ -25,14 +25,21 @@ export function layout(TABLE, d) {
   const els = TABLE[d], periods = []; let cur = [];
   for (const el of els) { cur.push(el); if (isNoble(el, d)) { periods.push(cur); cur = []; } }
   if (cur.length) periods.push(cur);
-  const W = Math.max(...periods.map((p) => p.length)), cells = [];
+  /* a period long enough to hold an f shell (4D's sixth: 2 + 32 + 18 + 8 = 60) has its f block drawn as a band below
+     the table, as ours is: the f elements are the 3rd to (2 + f capacity)th of the period. W is the grid's width:
+     the main table right-aligned to it (s on the left, a gap where the f band belongs), the band from column 1 */
+  const pcap = 2 * orbitals(1, d), dcap = 2 * orbitals(2, d), fcap = 2 * orbitals(3, d), hasF = (p) => p.length > 2 + dcap + pcap;
+  const mainLen = (p) => (hasF(p) ? p.length - fcap : p.length), anyF = periods.some(hasF);
+  const W = Math.max(...periods.map(mainLen), anyF ? fcap : 0), cells = [];
   periods.forEach((p, row) => p.forEach((el, k) => {
-    const v = k + 1, noble = isNoble(el, d), col = noble ? W : v <= 2 ? v : W - (p.length - v);
+    const v = k + 1, noble = isNoble(el, d);
+    if (hasF(p) && v >= 3 && v <= 2 + fcap) { cells.push({ el, row: periods.length + 1, period: row, col: v - 2, noble: false, block: "f" }); return; }
+    const col = noble ? W : v <= 2 ? v : W - (p.length - v);
     const fromRight = W - col; // p-block: the last p-capacity columns
-    const pcap = 2 * orbitals(1, d), block = row === 0 || (col <= 2 && !noble) ? "s" : fromRight < pcap ? "p" : "d";
-    cells.push({ el, row, col, noble, block });
+    const block = row === 0 || (col <= 2 && !noble) ? "s" : fromRight < pcap ? "p" : "d";
+    cells.push({ el, row, period: row, col, noble, block });
   }));
-  return { W, rows: periods.length, cells, periods };
+  return { W, rows: periods.length, bandRow: anyF ? periods.length + 1 : null, cells, periods };
 }
 export function role(el, d, cell) {
   const pcap = 2 * orbitals(1, d);
@@ -41,6 +48,7 @@ export function role(el, d, cell) {
   if (el.Z === 1) return "hydrogen: one electron, half a full shell";
   if (cell.noble) return "a noble gas: every shell full";
   if (cell.block === "d") return "a transition metal: filling an inner d shell";
+  if (cell.block === "f") return `a rare earth: filling an inner f shell of ${2 * orbitals(3, d)} (ours 14)`;
   if (nv === 1) return "an alkali metal: one electron outside a full shell";
   if (nv === 2 && cell.block === "s") return "an alkaline earth: two electrons outside a full shell";
   if (nv === shell - 1) return "halogen-like: one electron short of a full shell";

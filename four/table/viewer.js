@@ -1,4 +1,4 @@
-/* The periodic table of four dimensions, big: all 78 elements as ATOM⁴'s solver found them (../atom/js/table.js),
+/* The periodic table of four dimensions, big: all 140 elements as ATOM⁴'s solver found them (../atom/js/table.js),
    named after ours where they do what one of ours does (../atom/js/names.js), the new ones marked, and our own table
    beside it, linked both ways. */
 import { TABLE, RPLOT } from "../atom/js/table.js";
@@ -19,7 +19,7 @@ function ourCell(Z) {
   const block = r === 0 ? "s" : k < 2 ? "s" : len === 18 && k < 12 ? "d" : "p";
   return { row: r, col, block, noble: k === len - 1 };
 }
-const OUR = OURS.map((o) => ({ ...o, ...ourCell(o.Z), el: TABLE[3][o.Z - 1] ?? null }));
+const OUR = OURS.filter((o) => o.Z <= 54).map((o) => ({ ...o, ...ourCell(o.Z), el: TABLE[3][o.Z - 1] ?? null })); // the grid shows ours to 54; names reach 88
 
 /* the census's hydride and pair for a 4D element, where it was computed */
 const hydride = (Z) => CENSUS[4].find((m) => m.Z === Z);
@@ -29,7 +29,7 @@ let mode = "kin", pinned = 7, hover = null, world = 4;
 const sel = () => hover ?? pinned;
 
 function colourOf(e, el) {
-  if (mode === "block") return { s: "#2b1d38", p: "#13283a", d: "#1d3022" }[e.block];
+  if (mode === "block") return { s: "#2b1d38", p: "#13283a", d: "#1d3022", f: "#3a2a14" }[e.block];
   if (mode === "kin") return e.isNew ? "#3a2c0c" : "#141822";
   if (!el) return "transparent"; // ours past 36: not computed by the solver, so no colour to give
   const v = mode === "ion" ? el.ion * EV / 14 : el.orb.find((o) => o.s === el.top).r / 9; // ionization (eV) or outer radius (bohr)
@@ -51,16 +51,21 @@ function tile(e, el, which) {
   return b;
 }
 
-/* the grids: 4D (28 columns) and ours (18), each with block labels over their columns */
+/* the grids: 4D (32 columns: 28 for the table, the f band below it as wide as its 32) and ours (18), each with block labels over their columns */
 function grids() {
   const g4 = $("pt4"), g3 = $("pt3");
   for (const [g, W] of [[g4, L4.W], [g3, 18]]) { g.innerHTML = ""; g.style.gridTemplateColumns = `20px repeat(${W}, var(--cw))`; }
   // block spans over the widest row: s (2), d, p
-  const spans = (g, W, d) => { const P = d === 4 ? 8 : 6, D = W - 2 - P; [["s", 2, 2], ["d", 3, D], ["p", 3 + D, P]].forEach(([t, c, n]) => {
+  // the d and p blocks right-aligned to the grid, s on the left (the 4D grid is as wide as its f band, 32)
+  const spans = (g, W, d) => { const P = d === 4 ? 8 : 6, D = d === 4 ? 18 : 10; [["s", 1, 2], ["d", W - P - D + 1, D], ["p", W - P + 1, P]].forEach(([t, c, n]) => {
     const s = document.createElement("div"); s.className = `span ${t}`; s.style.gridRow = 1; s.style.gridColumn = `${c + 1} / span ${n}`;
     s.textContent = t === "s" ? "s" : t === "d" ? `d: ${D} places${d === 4 ? " (ours 10)" : ""}` : `p: ${P}${d === 4 ? " (ours 6)" : ""}`; g.appendChild(s); }); };
   spans(g4, L4.W, 4); spans(g3, 18, 3);
-  for (let r = 0; r < 5; r++) for (const g of [g4, g3]) { const l = document.createElement("div"); l.className = "lab"; l.textContent = r + 1; l.style.gridRow = r + 2; l.style.gridColumn = 1; g.appendChild(l); }
+  for (const [g, rows] of [[g4, L4.rows], [g3, 5]]) for (let r = 0; r < rows; r++) { const l = document.createElement("div"); l.className = "lab"; l.textContent = r + 1; l.style.gridRow = r + 2; l.style.gridColumn = 1; g.appendChild(l); }
+  if (L4.bandRow) { // the f band: row 6's f block, drawn below the table as ours is
+    const l = document.createElement("div"); l.className = "lab"; l.textContent = "6f"; l.style.gridRow = L4.bandRow + 2; l.style.gridColumn = 1; g4.appendChild(l);
+    const s = document.createElement("div"); s.className = "span f"; s.style.gridRow = L4.bandRow + 1; s.style.gridColumn = `2 / span 32`; s.textContent = "f: 32 places (ours 14), elements 81–112, drawn below as ours are"; g4.appendChild(s);
+  }
   for (const c of L4.cells) g4.appendChild(tile(N4.get(c.el.Z), c.el, 4));
   for (const o of OUR) g3.appendChild(tile(o, o.el, 3));
   size(); mark(); reveal();
@@ -151,7 +156,7 @@ addEventListener("resize", () => { size(); reveal(); });
 addEventListener("keydown", (ev) => {
   if (ev.target.closest?.("input, textarea, select, [contenteditable]") || ev.ctrlKey || ev.metaKey || ev.altKey) return;
   if (!["ArrowLeft", "ArrowRight"].includes(ev.key) || pinned < 0) return;
-  pinned = Math.max(1, Math.min(78, pinned + (ev.key === "ArrowRight" ? 1 : -1))); hover = null; mark(); detail(); ev.preventDefault();
+  pinned = Math.max(1, Math.min(TABLE[4].length, pinned + (ev.key === "ArrowRight" ? 1 : -1))); hover = null; mark(); detail(); ev.preventDefault();
 });
 const all = [...N4.values()];
 $("count").innerHTML = `<b>${all.length}</b> elements · <b>${all.filter((e) => !e.isNew).length}</b> answer to one of ours · <b class="newt">${all.filter((e) => e.isNew).length}</b> are new`;

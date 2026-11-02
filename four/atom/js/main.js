@@ -72,9 +72,9 @@ const range = (a, b, n, log = false) => Array.from({ length: n }, (_, i) => (log
 /* the motion chapter's magnetic atoms: unpaired electrons by element, Hund's first rule on the solver's configurations */
 function drawMagnet() {
   const pts = (d) => TABLE[d].map((a) => [a.Z, MG.unpaired(a, d)]);
-  chart($("cMagnet"), { key: "kMagnet", x: [0, 78], y: [0, 11], xl: "atomic number Z", yl: "unpaired electrons", series: [
+  chart($("cMagnet"), { key: "kMagnet", x: [0, TABLE[4].length], y: [0, 11], xl: "atomic number Z", yl: "unpaired electrons", series: [
     { pts: pts(3), c: C3, w: 1.5, label: "ours (to Z = 36)" }, { pts: pts(3), c: C3, dots: true },
-    { pts: pts(4), c: C4, w: 1.5, label: "4D (to Z = 78)" }, { pts: pts(4), c: C4, dots: true }] });
+    { pts: pts(4), c: C4, w: 1.5, label: `4D (to Z = ${TABLE[4].length})` }, { pts: pts(4), c: C4, dots: true }] });
 }
 /* ------------------------------------------------------------- 1 · no ground state under 1/r² */
 function drawPin() {
@@ -129,7 +129,7 @@ function drawSpec() {
 let dim = 4, sel = { 3: 6, 4: 7 };
 function drawTable() {
   const { W, rows, cells } = layout(TABLE, dim), pt = $("pt");
-  const cw = W > 20 ? 26 : 30; pt.style.setProperty("--cw", cw + "px");
+  const cw = W > 28 ? 22 : W > 20 ? 26 : 30; pt.style.setProperty("--cw", cw + "px");
   pt.style.gridTemplateColumns = `18px repeat(${W}, ${cw}px)`; pt.innerHTML = "";
   for (let r = 0; r < rows; r++) { const lab = document.createElement("div"); lab.className = "lab"; lab.textContent = r + 1; lab.style.gridRow = r + 1; lab.style.gridColumn = 1; pt.appendChild(lab); }
   for (const c of cells) {
@@ -142,7 +142,7 @@ function drawTable() {
     b.onclick = () => { sel[dim] = el.Z; drawTable(); };
     pt.appendChild(b);
   }
-  const lg = [["s", "#2b1d38", "s block"], ["p", "#13283a", "p block"], ["d", "#1d3022", "d block"]];
+  const lg = [["s", "#2b1d38", "s block"], ["p", "#13283a", "p block"], ["d", "#1d3022", "d block"], ...(cells.some((c) => c.block === "f") ? [["f", "#3a2a14", "f block (row 6's, drawn below)"]] : [])];
   $("ptLegend").innerHTML = lg.map(([, c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join("") + `<span><i style="box-shadow: inset 0 0 0 1px #6fe0ff88"></i>noble gas</span>` + (dim === 3 ? `<span><i style="background:${BAD};border-radius:50%"></i>the solver disagrees with reality</span>` : "");
   drawDetail(cells.find((c) => c.el.Z === sel[dim]));
 }

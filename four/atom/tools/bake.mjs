@@ -13,8 +13,9 @@ import { isNoble } from "../js/periodic.js";
 /* the official solver: Hartree plus local exchange (each electron's own share out, spins by Hund's rule) */
 export const SOLVER = { exchange: true };
 
-// 4D to 78 as baked; ATOM4_ZMAX4=140 bakes further (the extended table, until it is committed with its js/table.js)
-export const ZMAX = { 3: 36, 4: +(process.env.ATOM4_ZMAX4 || 78) };
+// 4D to 140 as baked (sharded on the runner, then --repair for the elements whose first search went wrong: 88,
+// 101–103, 105–107); ATOM4_ZMAX4 or --zmax4 changes it
+export const ZMAX = { 3: 36, 4: +(process.env.ATOM4_ZMAX4 || 140) };
 const RPLOT = Float64Array.from({ length: 121 }, (_, i) => 0.02 * Math.pow(10, i / 40)); // 0.02 … 20 bohr
 
 /* one element, everything the page shows */

@@ -1,8 +1,9 @@
 /* The filling diagram, both worlds: subshells in a grid of n (down) by l (across), filled along the diagonals of
    n + l, each from its highest l down to its s (Madelung's rule). The diagonals are the same in 3D and 4D; what
    changes is how much each subshell holds, 2(2l + 1) in ours and 2(l + 1)² in 4D, so the same order closes its rows
-   at 2, 10, 18, 36, 54 in ours and at 2, 12, 22, 50, 78 in 4D. ATOM⁴'s solver finds this order for every 4D element
-   it solved, to 78 (5p full). Past that the 4D boxes are the rule's, not computed, and drawn dashed. */
+   at 2, 10, 18, 36, 54, 86 in ours and at 2, 12, 22, 50, 78, 138 in 4D. ATOM⁴'s solver finds this order for 4D
+   to 140 (6p full at 138, then 7s), with element-by-element exceptions inside the f and d blocks as ours has. Past
+   that the 4D boxes are the rule's, not computed, and drawn dashed. */
 const L = "spdf", NMAX = 7;
 export const capacity = (l, d) => (d === 3 ? 2 * (2 * l + 1) : 2 * (l + 1) ** 2);
 
@@ -15,15 +16,19 @@ export function order(d) {
   }
   return out;
 }
-// the 4D solver went as far as element 78; ours is known (and measured) all the way
-const COMPUTED_TO = { 3: Infinity, 4: 78 };
+// the 4D solver went as far as element 140; ours is known (and measured) all the way
+const COMPUTED_TO = { 3: Infinity, 4: 140 };
 
-/* our elements' real configurations to 54, as occupancies: Madelung's order with its known exceptions */
+/* our elements' real configurations to 88, as occupancies: Madelung's order with its known exceptions */
 const OUR_EXCEPT = { 24: ["3d", 1], 29: ["3d", 1], 41: ["4d", 1], 42: ["4d", 1], 44: ["4d", 1], 45: ["4d", 1], 46: ["4d", 2], 47: ["4d", 1] };
 export function ourOccupancy(Z) {
   const occ = new Map(); let left = Z;
   for (const s of order(3)) { if (!left) break; const k = Math.min(left, s.cap); occ.set(s.name, k); left -= k; }
   const ex = OUR_EXCEPT[Z]; if (ex) { const sName = `${+ex[0][0] + 1}s`; occ.set(ex[0], occ.get(ex[0]) + ex[1]); occ.set(sName, occ.get(sName) - ex[1]); }
+  // the sixth row's best-known exceptions (lanthanum, cerium and gadolinium put an f electron in 5d; platinum and gold
+  // take one from 6s), moved by hand
+  const MOVE = { 57: [["4f", -1], ["5d", 1]], 58: [["4f", -1], ["5d", 1]], 64: [["4f", -1], ["5d", 1]], 78: [["6s", -1], ["5d", 1]], 79: [["6s", -1], ["5d", 1]] }[Z];
+  if (MOVE) for (const [s, k] of MOVE) { const v = (occ.get(s) ?? 0) + k; if (v) occ.set(s, v); else occ.delete(s); }
   return occ;
 }
 export const parseConfig = (cfg) => new Map(cfg.split(" ").map((t) => [t.match(/^\d+[spdf]/)[0], +t.replace(/^\d+[spdf]/, "")]));

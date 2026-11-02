@@ -105,7 +105,8 @@ for (const d of [3, 4]) {
 /* 7 · the 4D table's shape */
 {
   const n4 = TABLE[4].filter((el) => P.isNoble(el, 4)).map((el) => el.Z), lay = P.layout(TABLE, 4);
-  ok(n4.join() === "2,12,22,50,78" && lay.periods.map((p) => p.length).join() === "2,10,10,28,28", `4D noble gases ${n4.join(", ")}, rows of 2, 10, 10, 28, 28 (s² p⁸ closes a ten-electron shell)`);
+  ok(n4.join() === "2,12,22,50,78,138" && lay.periods.map((p) => p.length).join() === "2,10,10,28,28,60,2" && lay.cells.filter((c) => c.block === "f").map((c) => c.el.Z).join() === Array.from({ length: 32 }, (_, i) => 81 + i).join(),
+    `4D noble gases ${n4.join(", ")}, rows of 2, 10, 10, 28, 28, 60 and the seventh begun (s² p⁸ closes a ten-electron shell), the sixth's f block 81–112 drawn as a band`);
   ok(TABLE[4][6].config === "1s2 2s2 2p3" && /carbon-like/.test(P.role(TABLE[4][6], 4, lay.cells[6])), "element 7 is 4D's carbon: s² p³, five outer electrons, half a shell");
   ok(lay.cells.every((c) => c.col >= 1 && c.col <= lay.W) && new Set(lay.cells.map((c) => c.row * 100 + c.col)).size === lay.cells.length, `4D layout: ${lay.W} columns, no two elements in one cell`);
 }
@@ -504,17 +505,17 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the cluster census covers 3–7 molecules for all three, each with ≥ 300 starts: minima sorted, the looser floor ≤ the count, Chao1 ≥ minima found (${rows.length} searches)`);
 }
 
-/* 26 · the names (js/names.js): the chapters' names where they gave one, 24 new elements, symbols unique and none of ours */
+/* 26 · the names (js/names.js): the chapters' names where they gave one, 52 new elements, symbols unique and none of ours */
 {
   const { names, OURS } = await import(path.join(here, "../js/names.js")), { TABLE } = await import(path.join(here, "../js/table.js"));
   const N = names(TABLE, 4), all = [...N.values()], at = (Z) => N.get(Z);
   const kept = { 1: "iydrogen", 3: "mithium", 7: "darbon", 9: "oitrogen", 10: "pxygen", 13: "todium" };
   const syms = all.filter((e) => e.sym).map((e) => e.sym), ours = new Set(OURS.map((o) => o.sym));
-  ok(Object.entries(kept).every(([Z, n]) => at(+Z).name === n) && at(6).isNew && at(8).isNew && all.filter((e) => e.isNew).length === 24 && all.length === 78
-    && new Set(all.filter((e) => e.ours).map((e) => e.ours.Z)).size === 54 && new Set(syms).size === syms.length
+  ok(Object.entries(kept).every(([Z, n]) => at(+Z).name === n) && at(6).isNew && at(8).isNew && all.filter((e) => e.isNew).length === 52 && all.length === 140
+    && new Set(all.filter((e) => e.ours).map((e) => e.ours.Z)).size === 88 && new Set(syms).size === syms.length
     && syms.filter((s) => ours.has(s)).every((s) => s === "H") && at(7).sym === "D" && at(10).sym === "Px" && at(3).sym === "Mi"
     && [...names(TABLE, 3).values()].every((e) => !e.isNew && e.name === OURS[e.Z - 1].name),
-    `the 4D elements' names: 54 answer to our 54, one each (mithium, darbon, oitrogen, pxygen, todium as the chapters call them), 24 are new, elements 6 and 8 among them; symbols unique, none of ours but iydrogen's H`);
+    `the 4D elements' names: 88 answer to our 88, one each (mithium, darbon, oitrogen, pxygen, todium as the chapters call them), 52 are new, elements 6 and 8 among them; symbols unique, none of ours but iydrogen's H`);
 }
 
 /* 27 · the filling diagram (four/table/filling.js): Madelung's diagonals, with 4D's capacities, are the order the
@@ -524,15 +525,19 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const F = await import(path.join(here, "../../table/filling.js")), { TABLE } = await import(path.join(here, "../js/table.js"));
   const seen = []; for (const el of TABLE[4]) for (const o of el.orb) if (!seen.includes(o.s)) seen.push(o.s);
   const order4 = F.order(4).map((q) => q.name), first = order4.slice(0, seen.length);
-  let lend = 0, onlyD = true;
+  let lend = 0, onlyD = true; const past = [];
+  // the order each subshell first fills to half its capacity (single atoms lending an electron don't move it)
+  const half = new Map(); for (const el of TABLE[4]) for (const [sh, k] of F.parseConfig(el.config)) if (!half.has(sh) && k >= F.capacity("spdf".indexOf(sh.at(-1)), 4) / 2) half.set(sh, el.Z);
+  const byHalf = [...half.keys()].sort((a, b) => half.get(a) - half.get(b));
   for (const el of TABLE[4]) {
     const occ = F.parseConfig(el.config), plain = new Map(); let left = el.Z;
     for (const q of F.order(4)) { if (!left) break; const k = Math.min(left, q.cap); plain.set(q.name, k); left -= k; }
     const diff = [...new Set([...occ.keys(), ...plain.keys()])].filter((sh) => (occ.get(sh) ?? 0) !== (plain.get(sh) ?? 0));
+    if (diff.length && el.Z > 78) { past.push(el.Z); continue; }
     if (diff.length) { lend++; onlyD = onlyD && diff.every((sh) => /[sd]$/.test(sh)) && diff.some((sh) => sh.endsWith("d") && occ.get(sh) > plain.get(sh)); }
   }
-  ok(seen.every((sh, i) => sh === first[i]) && F.nobles(4, 5).join() === "2,12,22,50,78" && F.nobles(3, 5).join() === "2,10,18,36,54" && lend === 20 && onlyD,
-    `4D fills along our diagonals (${seen.join(" ")}), each box holding 2(l + 1)²: rows close at ${F.nobles(4, 5).join(", ")}; the ${lend} atoms off the plain filling are d-block atoms lending s electrons to d`);
+  ok(byHalf.every((sh, i) => sh === order4[i]) && F.nobles(4, 6).join() === "2,12,22,50,78,138" && F.nobles(3, 5).join() === "2,10,18,36,54" && lend === 20 && onlyD,
+    `4D fills along our diagonals (${byHalf.join(" ")}, each by when it's half full), each box holding 2(l + 1)²: rows close at ${F.nobles(4, 6).join(", ")}; to 78 the ${lend} atoms off the plain filling are d-block atoms lending s electrons to d; past it ${past.length} more (${past.join(", ")})`);
 }
 
 /* 28 · the pages outside ATOM⁴'s chapters (where we are, the big table): every element their scripts draw into exists */

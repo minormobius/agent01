@@ -124,9 +124,9 @@ function toy8(Z) {
   const el = TABLE[4][Z - 1], e = N4.get(Z), occ4 = parseConfig(el.config), occ3 = ourOccupancy(Z);
   const last = [...occ3.keys()].filter((k) => occ3.get(k) > 0).at(-1), o = OURS[Z - 1];
   $("f8").innerHTML = `<figure><figcaption class="d3">ours: ${o ? o.name : `element ${Z}`}</figcaption>${fillSvg(3, occ3, last, C3)}</figure><figure><figcaption class="d4">4D: ${e.name ?? `element ${Z}, new`}</figcaption>${fillSvg(4, occ4, el.top, C4)}</figure>`;
-  const n4 = nobles(4, 5), n3 = nobles(3, 6);
+  const n4 = nobles(4, 6), n3 = nobles(3, 6);
   $("z8v").textContent = Z;
-  $("r8").innerHTML = `Element ${Z}. ${n4.includes(Z) ? `<b>A 4D row closes here</b>: ${e.name}, a noble gas.` : ""} ${n3.includes(Z) ? `<b>One of our rows closes here</b>: ${o.name}.` : ""} 4D's rows close at ${n4.join(", ")}; ours at ${n3.slice(0, 5).join(", ")}.${e.isNew ? ` <b class="newt">Element ${Z} is new:</b> nothing of ours does what it does.` : ` It does what our ${e.ours.name} does, so it's ${e.name}.`}`;
+  $("r8").innerHTML = `Element ${Z}. ${n4.includes(Z) ? `<b>A 4D row closes here</b>: ${e.name}, a noble gas.` : ""} ${n3.includes(Z) ? `<b>One of our rows closes here</b>: ${o.name}.` : ""} 4D's rows close at ${n4.join(", ")}; ours at ${n3.join(", ")}.${e.isNew ? ` <b class="newt">Element ${Z} is new:</b> nothing of ours does what it does.` : ` It does what our ${e.ours.name} does, so it's ${e.name}.`}`;
 }
 
 /* 10 · which water: a pair's binding, searched over every pose (Hartree–Fock, counterpoise-corrected) */
@@ -190,7 +190,7 @@ function toy11() {
 }
 
 // wiring
-seg("w1", (v) => { world1 = v; if (v !== "4g") { $("z1").max = v === "3" ? 36 : 78; $("z1").value = z1[v]; } toy1(); });
+seg("w1", (v) => { world1 = v; if (v !== "4g") { $("z1").max = v === "3" ? 36 : TABLE[4].length; $("z1").value = z1[v]; } toy1(); });
 $("g1").addEventListener("input", (e) => { g1 = +e.target.value; toy1(); });
 $("z1").addEventListener("input", (e) => { z1[world1] = +e.target.value; toy1(); });
 $("z8").addEventListener("input", (e) => toy8(+e.target.value));
