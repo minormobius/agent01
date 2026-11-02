@@ -20,13 +20,14 @@ export function omega(k, h = Infinity) { return Math.sqrt(G * k * (Number.isFini
        du/dt = −g ∇η,
    in all the surface's directions, w among them. A small cork goes where the water at its place goes. Its state is its
    rest place x0, how far it has been carried (ξ) and its velocity (v); it starts at rest, and a slow damping (DAMP)
-   lets a cork forget any error in the velocity it starts with (it's given the water's own: Pond.velocity). The slope is taken at the cork's REST
+   lets a cork forget any error in the velocity it starts with (it's given the water's own: Pond.velocity), and a slower
+   mooring (MOOR) pulls it back to its rest place, so the 2.5% the grid's slope falls short doesn't add up to a drift. The slope is taken at the cork's REST
    place, as linear theory has it (Airy's orbits): taking it where the cork has got to adds part of the second-order
    motion (the start of Stokes drift) without the rest of it. */
-export const DAMP = 0.05;
-export function corkStep(c, pond, dt, damp = DAMP) {
-  const at = c.x0, F = pond.slope(at).map((s) => -G * s), k = Math.exp(-damp * dt);
-  c.F = F; c.v = c.v.map((v, d) => (v + F[d] * dt) * k); c.xi = c.xi.map((x, d) => x + c.v[d] * dt); c.eta = pond.at(at);
+export const DAMP = 0.05, MOOR = 25; // MOOR: seconds for a cork's slow pull back to its rest place (far slower than any wave)
+export function corkStep(c, pond, dt, damp = DAMP, moor = MOOR) {
+  const at = c.x0, F = pond.slope(at).map((s) => -G * s), k = Math.exp(-damp * dt), m = Number.isFinite(moor) ? Math.exp(-dt / moor) : 1;
+  c.F = F; c.v = c.v.map((v, d) => (v + F[d] * dt) * k); c.xi = c.xi.map((x, d) => (x + c.v[d] * dt) * m); c.eta = pond.at(at);
   return c;
 }
 export function cork(x0) { return { x0: x0.slice(), xi: x0.map(() => 0), v: x0.map(() => 0), F: x0.map(() => 0), eta: 0 }; }

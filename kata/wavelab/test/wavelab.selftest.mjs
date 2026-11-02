@@ -84,7 +84,7 @@ const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg)
   P.swell(n, a); P.t = 0.37; P.field(); const x0 = [10, 20, 30], th = k.reduce((s, x, i) => s + x * x0[i], 0) - w * P.t, u = P.velocity(x0);
   ok(Math.hypot(...u.map((v, i) => v - kh[i] * a * w * Math.cos(th))) < 1e-9, "the water's velocity at the surface is Airy's: (g k / ω) η along the wave's direction");
   const c = cork(x0); c.v = u; const T = (2 * Math.PI) / w, dt = 1 / 120, rows = [];
-  for (let t = 0.37; t < 0.37 + 2 * T; t += dt) { P.t = t; P.field(); corkStep(c, P, dt, 0); const e1 = [0, 1, 0], e2 = [kh[2], 0, -kh[0]]; rows.push([t + dt, c.xi.reduce((s, x, i) => s + x * kh[i], 0), c.xi.reduce((s, x, i) => s + x * e1[i], 0), c.xi.reduce((s, x, i) => s + x * e2[i], 0)]); }
+  for (let t = 0.37; t < 0.37 + 2 * T; t += dt) { P.t = t; P.field(); corkStep(c, P, dt, 0, Infinity); const e1 = [0, 1, 0], e2 = [kh[2], 0, -kh[0]]; rows.push([t + dt, c.xi.reduce((s, x, i) => s + x * kh[i], 0), c.xi.reduce((s, x, i) => s + x * e1[i], 0), c.xi.reduce((s, x, i) => s + x * e2[i], 0)]); }
   // fit the motion along the wave: A sin ωt + B cos ωt + C + D t (C, D: where it started, and the slow drift a 2.5% slope error leaves)
   const fitCol = (col) => { const M = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], y = [0, 0, 0, 0];
     for (const r of rows) { const t = r[0], v = r[col], f = [Math.sin(w * t), Math.cos(w * t), 1, t]; for (let i = 0; i < 4; i++) { y[i] += f[i] * v; for (let j = 0; j < 4; j++) M[i][j] += f[i] * f[j]; } }

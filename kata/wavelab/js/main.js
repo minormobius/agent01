@@ -159,14 +159,14 @@ function frameText() { const N = frame.N, ang = (Math.acos(Math.min(1, Math.abs(
 /* corks: 24 dropped across your slice as it is, at rest */
 let corksOn = false;
 function scatter() { const s = slice(), xs = []; const r = tank === "periodic" ? 11 : half() - 2; for (let i = 0; i < 24; i++) { const x = add(add(s.O, s.A, -r + 2 * r * Math.random()), s.B, -r + 2 * r * Math.random()); if (tank === "periodic" || x.every((v, j) => Math.abs(v - ctr()[j]) < half() - 1)) xs.push(x); } send({ type: "corks", x: xs }); corksOn = true; $("corkB").classList.add("on"); }
-function setTank(t) { tank = t; send({ type: "tank", sym: TANKS[t] }); corksOn = false; $("corkB").classList.remove("on"); S.corks = []; $("tankB").textContent = `tank: ${t}`; $("tankB").classList.toggle("on", t !== "periodic"); squareUp(); }
+function setTank(t) { tank = t; S.peak = 0; send({ type: "tank", sym: TANKS[t] }); corksOn = false; $("corkB").classList.remove("on"); S.corks = []; $("tankB").textContent = `tank: ${t}`; $("tankB").classList.toggle("on", t !== "periodic"); squareUp(); }
 $("tankB").onclick = () => { const ks = Object.keys(TANKS); setTank(ks[(ks.indexOf(tank) + 1) % ks.length]); exp = "tank"; caption(); };
 function run(x) {
-  if (x === "seiche") { if (tank !== "walls") setTank("walls"); else send({ type: "clear" }); rain = false; $("rainB").classList.remove("on"); exp = "seiche"; seicheDir = slice().B.slice(); send({ type: "seiche", d: seicheDir, a: 0.15 }); for (const b of document.querySelectorAll("#exps button[data-x]")) b.classList.toggle("on", b.dataset.x === x); caption(); return; }
+  if (x === "seiche") { if (tank !== "walls") setTank("walls"); else send({ type: "clear" }); S.peak = 0; S.amp = 0.012; rain = false; $("rainB").classList.remove("on"); exp = "seiche"; seicheDir = slice().B.slice(); send({ type: "seiche", d: seicheDir, a: 0.15 }); for (const b of document.querySelectorAll("#exps button[data-x]")) b.classList.toggle("on", b.dataset.x === x); caption(); return; }
   if (x === "corks") { if (corksOn) { send({ type: "corks", x: [] }); corksOn = false; $("corkB").classList.remove("on"); S.corks = []; } else { scatter(); exp = "corks"; caption(); } return; }
-  if (x === "rain") { rain = !rain; $("rainB").classList.toggle("on", rain); if (rain) { exp = "rain"; caption(); } return; }
+  if (x === "rain") { rain = !rain; $("rainB").classList.toggle("on", rain); exp = rain ? "rain" : corksOn ? "corks" : "clear"; caption(); return; }
   rain = false; $("rainB").classList.remove("on");
-  send({ type: "clear" }); swellN = null; exp = x;
+  send({ type: "clear" }); swellN = null; exp = x; S.peak = 0; S.amp = 0.012;
   const s = slice();
   if (x === "pebble") { setDepth(0); setSlice(0, 0); send({ type: "drop", x: slice().O, a: 0.3, sigma: 1.2, compare: tank === "periodic" }); }
   else if (x === "out") { setDepth(0); setSlice(0, 0); send({ type: "drop", x: add(slice().O, slice().N, 6), a: 0.3, sigma: 1.2, compare: tank === "periodic" }); }
@@ -254,15 +254,19 @@ function draw(now) {
   if (caption.dirty && now - capAt > 250) { caption.dirty = false; capAt = now; caption(); }
   if (rain && S.t > nextRain) { nextRain = S.t + 0.45; send({ type: "drop", x: ctr().map((c) => c + (2 * Math.random() - 1) * (half() - 1)), a: 0.12, sigma: 0.9, compare: false }); }
   // heights drawn to a steady scale: follow the largest wave, slowly
-  const target = Math.max(0.6 * S.max, 0.003); S.amp += (target - S.amp) * (target > S.amp ? 0.2 : 0.03); // 60% of the highest sample: the grid's luckiest crest shouldn't set the scale
+  // the height scale: set by the biggest wave since the last button (60% of the highest sample: the grid's luckiest crest
+  // shouldn't set it). It comes down when waves grow, and never goes back up as they calm, so quiet water looks quiet: a
+  // scale that followed the water down drew millimetre ripples as a storm
+  S.peak = Math.max(S.peak || 0, S.max); const target = Math.max(0.6 * S.peak, 0.012); S.amp += (target - S.amp) * (target > S.amp ? 0.25 : 1);
   const dpr = Math.min(1.5, devicePixelRatio || 1); if (!res) res = dpr * (matchMedia("(pointer: coarse)").matches ? 0.6 : 0.85);
   const cw = Math.round(glc.clientWidth * res), chh = Math.round(glc.clientHeight * res); if (glc.width !== cw || glc.height !== chh) { glc.width = cw; glc.height = chh; }
   const Lo = layout(), s = slice(), k = res, vp = (r) => [Math.round(r.x * k), Math.round(chh - (r.y + r.h) * k), Math.round(r.w * k), Math.round(r.h * k)];
   gl.uniform3fv(U.uO, s.O); gl.uniform3fv(U.uA, s.A); gl.uniform3fv(U.uB, s.B); gl.uniform3fv(U.uN, s.N); gl.uniform1f(U.uAmp, S.amp); gl.uniform1f(U.uTan, TAN);
-  const exag = Math.min(80, Math.max(1, 0.9 / S.amp)); gl.uniform1f(U.uExag, exag);
+  const exag = Math.min(40, Math.max(1, 0.9 / S.amp)); gl.uniform1f(U.uExag, exag); S.exag = exag;
   // the corks, carried as far as the waves carry them (scaled as the heights are: linear theory is the same at any size)
   const ck = new Float32Array(96); corkView = (S.corks || []).slice(0, 24).map((c, i) => {
-    const p = add(c.x0, c.xi, exag), rel = wrapRel(add(p, s.O, -1)), u = dot(rel, s.A), v = dot(rel, s.B), dl = dot(rel, s.N), y = exag * c.eta + 0.15;
+    let p = add(c.x0, c.xi, exag); if (tank !== "periodic") p = p.map((v, j) => Math.max(ctr()[j] - half() + 0.6, Math.min(ctr()[j] + half() - 0.6, v))); // drawn inside the walls
+    const rel = wrapRel(add(p, s.O, -1)), u = dot(rel, s.A), v = dot(rel, s.B), dl = dot(rel, s.N), y = exag * c.eta + 0.15;
     ck.set([u, y, v, dl], 4 * i); return { u, v, y, dl, F: c.F, p };
   });
   gl.uniform1i(U.uNCork, corkView.length); gl.uniform4fv(U.uCork, ck); gl.uniform1i(U.uTank, tank === "periodic" ? 0 : 1); gl.uniform1f(U.uH, half()); gl.uniform3fv(U.uC, ctr());
@@ -334,4 +338,4 @@ const q = new URLSearchParams(location.search);
 send({ type: "dir", d: [1, 0, 0] });
 run(q.get("x") || "pebble");
 requestAnimationFrame(draw);
-window.WAVELAB = { S, view, frame, run, setTank: (t) => setTank(t), setSlice, send, twist, moveO, squareUp, pads };
+window.WAVELAB = { S, view, frame, run, corkView: () => corkView, tank: () => tank, ctr: () => ctr(), half: () => half(), setTank: (t) => setTank(t), setSlice, send, twist, moveO, squareUp, pads };

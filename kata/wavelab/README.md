@@ -75,7 +75,9 @@ The physics behind that:
   wave. It feels the slope at its rest place, as linear theory has it.
 - In a plane wave it rides Airy's orbit: in deep water, a circle the wave's height across. For swell coming in from
   ana, part of that circle is in w.
-- A slow damping (5% a second) takes out the drift a 2.5% slope error from the grid would leave.
+- A slow damping (5% a second) and a slower mooring back to its rest place (over 25 s) take out the drift a 2.5% slope
+  error from the grid would leave. Both are far slower than any wave.
+- In a tank a cork is drawn inside the walls.
 - Its motion is drawn scaled by the same factor as the heights. Linear theory has no preferred size, so that's the
   same motion as bigger waves.
 
@@ -125,7 +127,9 @@ the clock on, solves, and returns the surface as a 3D texture.
 
 **Drawing (`js/main.js`, one shader, two modes):**
 - *your slice*: a height-field ray-march over the slice's plane, heights exaggerated (the factor is shown). The water
-  fades into mist 24 m out, where the tank wraps round.
+  fades into mist 24 m out, where the tank wraps round. The factor is set by the biggest wave since you last pressed a
+  button: it comes down when waves grow and **never goes back up as they calm**. A scale that followed the water down
+  drew millimetre ripples as a storm, and carried the corks' (equally exaggerated) swings through the tank's walls.
 - *the whole surface*: a volume march through one period. Opacity follows the wave's height and colour its sign, and
   the slice is painted where each ray crosses it.
 
