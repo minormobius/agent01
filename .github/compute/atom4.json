@@ -1,198 +1,466 @@
 {
- "run": "gl2-pairs-1",
- "why": "The pull between two Gl₂ molecules (4D's commonest bonding element's diatomic) with MP2 over four orientations, for whether Gl₂ is a liquid at habitable temperatures; one point a runner, since each needs about 8 GB (four to a runner ran out of memory in audit-1-rods). Our F₂'s pair curve, already computed, is the check.",
- "minutes": 330,
+ "run": "pxgl2-pairs-1",
+ "why": "PxGl₂ (4D's OF₂: pxygen holding two gluorines, bonds that don't lean on 4D's weak hydrogen) pair energies by MP2 with counterpoise in the core-contracted, single-precision basis (checked against the full basis on our OF₂ to 0.01–0.03 kcal/mol), 80 random placements two to a runner, and our OF₂'s 80 as the check, for a fitted field and PxGl₂'s liquid range.",
+ "minutes": 300,
  "groups": [
   {
-   "name": "gl2-6-h",
+   "name": "pg-1",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 1",
+    "node four/atom/tools/molpair.mjs pair PxGl2 2"
    ]
   },
   {
-   "name": "gl2-6-x",
+   "name": "pg-3",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 3",
+    "node four/atom/tools/molpair.mjs pair PxGl2 4"
    ]
   },
   {
-   "name": "gl2-6-t",
+   "name": "pg-5",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 5",
+    "node four/atom/tools/molpair.mjs pair PxGl2 6"
    ]
   },
   {
-   "name": "gl2-6-l",
+   "name": "pg-7",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 7",
+    "node four/atom/tools/molpair.mjs pair PxGl2 8"
    ]
   },
   {
-   "name": "gl2-6.5-h",
+   "name": "pg-9",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 9",
+    "node four/atom/tools/molpair.mjs pair PxGl2 10"
    ]
   },
   {
-   "name": "gl2-6.5-x",
+   "name": "pg-11",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 11",
+    "node four/atom/tools/molpair.mjs pair PxGl2 12"
    ]
   },
   {
-   "name": "gl2-6.5-t",
+   "name": "pg-13",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 13",
+    "node four/atom/tools/molpair.mjs pair PxGl2 14"
    ]
   },
   {
-   "name": "gl2-6.5-l",
+   "name": "pg-15",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 6.5 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 15",
+    "node four/atom/tools/molpair.mjs pair PxGl2 16"
    ]
   },
   {
-   "name": "gl2-7-h",
+   "name": "pg-17",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 17",
+    "node four/atom/tools/molpair.mjs pair PxGl2 18"
    ]
   },
   {
-   "name": "gl2-7-x",
+   "name": "pg-19",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 19",
+    "node four/atom/tools/molpair.mjs pair PxGl2 20"
    ]
   },
   {
-   "name": "gl2-7-t",
+   "name": "pg-21",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 21",
+    "node four/atom/tools/molpair.mjs pair PxGl2 22"
    ]
   },
   {
-   "name": "gl2-7-l",
+   "name": "pg-23",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 23",
+    "node four/atom/tools/molpair.mjs pair PxGl2 24"
    ]
   },
   {
-   "name": "gl2-7.5-h",
+   "name": "pg-25",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 25",
+    "node four/atom/tools/molpair.mjs pair PxGl2 26"
    ]
   },
   {
-   "name": "gl2-7.5-x",
+   "name": "pg-27",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 27",
+    "node four/atom/tools/molpair.mjs pair PxGl2 28"
    ]
   },
   {
-   "name": "gl2-7.5-t",
+   "name": "pg-29",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 29",
+    "node four/atom/tools/molpair.mjs pair PxGl2 30"
    ]
   },
   {
-   "name": "gl2-7.5-l",
+   "name": "pg-31",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 7.5 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 31",
+    "node four/atom/tools/molpair.mjs pair PxGl2 32"
    ]
   },
   {
-   "name": "gl2-8-h",
+   "name": "pg-33",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 8 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 33",
+    "node four/atom/tools/molpair.mjs pair PxGl2 34"
    ]
   },
   {
-   "name": "gl2-8-x",
+   "name": "pg-35",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 8 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 35",
+    "node four/atom/tools/molpair.mjs pair PxGl2 36"
    ]
   },
   {
-   "name": "gl2-8-t",
+   "name": "pg-37",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 8 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 37",
+    "node four/atom/tools/molpair.mjs pair PxGl2 38"
    ]
   },
   {
-   "name": "gl2-8-l",
+   "name": "pg-39",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 8 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 39",
+    "node four/atom/tools/molpair.mjs pair PxGl2 40"
    ]
   },
   {
-   "name": "gl2-9-h",
+   "name": "pg-41",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 9 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 41",
+    "node four/atom/tools/molpair.mjs pair PxGl2 42"
    ]
   },
   {
-   "name": "gl2-9-x",
+   "name": "pg-43",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 9 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 43",
+    "node four/atom/tools/molpair.mjs pair PxGl2 44"
    ]
   },
   {
-   "name": "gl2-9-t",
+   "name": "pg-45",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 9 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 45",
+    "node four/atom/tools/molpair.mjs pair PxGl2 46"
    ]
   },
   {
-   "name": "gl2-9-l",
+   "name": "pg-47",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 9 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 47",
+    "node four/atom/tools/molpair.mjs pair PxGl2 48"
    ]
   },
   {
-   "name": "gl2-10.5-h",
+   "name": "pg-49",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 49",
+    "node four/atom/tools/molpair.mjs pair PxGl2 50"
    ]
   },
   {
-   "name": "gl2-10.5-x",
+   "name": "pg-51",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 51",
+    "node four/atom/tools/molpair.mjs pair PxGl2 52"
    ]
   },
   {
-   "name": "gl2-10.5-t",
+   "name": "pg-53",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 53",
+    "node four/atom/tools/molpair.mjs pair PxGl2 54"
    ]
   },
   {
-   "name": "gl2-10.5-l",
+   "name": "pg-55",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 10.5 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 55",
+    "node four/atom/tools/molpair.mjs pair PxGl2 56"
    ]
   },
   {
-   "name": "gl2-12-h",
+   "name": "pg-57",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 12 H"
+    "node four/atom/tools/molpair.mjs pair PxGl2 57",
+    "node four/atom/tools/molpair.mjs pair PxGl2 58"
    ]
   },
   {
-   "name": "gl2-12-x",
+   "name": "pg-59",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 12 X"
+    "node four/atom/tools/molpair.mjs pair PxGl2 59",
+    "node four/atom/tools/molpair.mjs pair PxGl2 60"
    ]
   },
   {
-   "name": "gl2-12-t",
+   "name": "pg-61",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 12 T"
+    "node four/atom/tools/molpair.mjs pair PxGl2 61",
+    "node four/atom/tools/molpair.mjs pair PxGl2 62"
    ]
   },
   {
-   "name": "gl2-12-l",
+   "name": "pg-63",
    "cmds": [
-    "node four/atom/tools/diatomic.mjs pair Gl2 12 L"
+    "node four/atom/tools/molpair.mjs pair PxGl2 63",
+    "node four/atom/tools/molpair.mjs pair PxGl2 64"
+   ]
+  },
+  {
+   "name": "pg-65",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 65",
+    "node four/atom/tools/molpair.mjs pair PxGl2 66"
+   ]
+  },
+  {
+   "name": "pg-67",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 67",
+    "node four/atom/tools/molpair.mjs pair PxGl2 68"
+   ]
+  },
+  {
+   "name": "pg-69",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 69",
+    "node four/atom/tools/molpair.mjs pair PxGl2 70"
+   ]
+  },
+  {
+   "name": "pg-71",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 71",
+    "node four/atom/tools/molpair.mjs pair PxGl2 72"
+   ]
+  },
+  {
+   "name": "pg-73",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 73",
+    "node four/atom/tools/molpair.mjs pair PxGl2 74"
+   ]
+  },
+  {
+   "name": "pg-75",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 75",
+    "node four/atom/tools/molpair.mjs pair PxGl2 76"
+   ]
+  },
+  {
+   "name": "pg-77",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 77",
+    "node four/atom/tools/molpair.mjs pair PxGl2 78"
+   ]
+  },
+  {
+   "name": "pg-79",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair PxGl2 79",
+    "node four/atom/tools/molpair.mjs pair PxGl2 80"
+   ]
+  },
+  {
+   "name": "of-0",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 0",
+    "node four/atom/tools/molpair.mjs pair OF2 1",
+    "node four/atom/tools/molpair.mjs pair OF2 2",
+    "node four/atom/tools/molpair.mjs pair OF2 3"
+   ]
+  },
+  {
+   "name": "of-4",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 4",
+    "node four/atom/tools/molpair.mjs pair OF2 5",
+    "node four/atom/tools/molpair.mjs pair OF2 6",
+    "node four/atom/tools/molpair.mjs pair OF2 7"
+   ]
+  },
+  {
+   "name": "of-8",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 8",
+    "node four/atom/tools/molpair.mjs pair OF2 9",
+    "node four/atom/tools/molpair.mjs pair OF2 10",
+    "node four/atom/tools/molpair.mjs pair OF2 11"
+   ]
+  },
+  {
+   "name": "of-12",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 12",
+    "node four/atom/tools/molpair.mjs pair OF2 13",
+    "node four/atom/tools/molpair.mjs pair OF2 14",
+    "node four/atom/tools/molpair.mjs pair OF2 15"
+   ]
+  },
+  {
+   "name": "of-16",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 16",
+    "node four/atom/tools/molpair.mjs pair OF2 17",
+    "node four/atom/tools/molpair.mjs pair OF2 18",
+    "node four/atom/tools/molpair.mjs pair OF2 19"
+   ]
+  },
+  {
+   "name": "of-20",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 20",
+    "node four/atom/tools/molpair.mjs pair OF2 21",
+    "node four/atom/tools/molpair.mjs pair OF2 22",
+    "node four/atom/tools/molpair.mjs pair OF2 23"
+   ]
+  },
+  {
+   "name": "of-24",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 24",
+    "node four/atom/tools/molpair.mjs pair OF2 25",
+    "node four/atom/tools/molpair.mjs pair OF2 26",
+    "node four/atom/tools/molpair.mjs pair OF2 27"
+   ]
+  },
+  {
+   "name": "of-28",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 28",
+    "node four/atom/tools/molpair.mjs pair OF2 29",
+    "node four/atom/tools/molpair.mjs pair OF2 30",
+    "node four/atom/tools/molpair.mjs pair OF2 31"
+   ]
+  },
+  {
+   "name": "of-32",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 32",
+    "node four/atom/tools/molpair.mjs pair OF2 33",
+    "node four/atom/tools/molpair.mjs pair OF2 34",
+    "node four/atom/tools/molpair.mjs pair OF2 35"
+   ]
+  },
+  {
+   "name": "of-36",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 36",
+    "node four/atom/tools/molpair.mjs pair OF2 37",
+    "node four/atom/tools/molpair.mjs pair OF2 38",
+    "node four/atom/tools/molpair.mjs pair OF2 39"
+   ]
+  },
+  {
+   "name": "of-40",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 40",
+    "node four/atom/tools/molpair.mjs pair OF2 41",
+    "node four/atom/tools/molpair.mjs pair OF2 42",
+    "node four/atom/tools/molpair.mjs pair OF2 43"
+   ]
+  },
+  {
+   "name": "of-44",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 44",
+    "node four/atom/tools/molpair.mjs pair OF2 45",
+    "node four/atom/tools/molpair.mjs pair OF2 46",
+    "node four/atom/tools/molpair.mjs pair OF2 47"
+   ]
+  },
+  {
+   "name": "of-48",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 48",
+    "node four/atom/tools/molpair.mjs pair OF2 49",
+    "node four/atom/tools/molpair.mjs pair OF2 50",
+    "node four/atom/tools/molpair.mjs pair OF2 51"
+   ]
+  },
+  {
+   "name": "of-52",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 52",
+    "node four/atom/tools/molpair.mjs pair OF2 53",
+    "node four/atom/tools/molpair.mjs pair OF2 54",
+    "node four/atom/tools/molpair.mjs pair OF2 55"
+   ]
+  },
+  {
+   "name": "of-56",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 56",
+    "node four/atom/tools/molpair.mjs pair OF2 57",
+    "node four/atom/tools/molpair.mjs pair OF2 58",
+    "node four/atom/tools/molpair.mjs pair OF2 59"
+   ]
+  },
+  {
+   "name": "of-60",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 60",
+    "node four/atom/tools/molpair.mjs pair OF2 61",
+    "node four/atom/tools/molpair.mjs pair OF2 62",
+    "node four/atom/tools/molpair.mjs pair OF2 63"
+   ]
+  },
+  {
+   "name": "of-64",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 64",
+    "node four/atom/tools/molpair.mjs pair OF2 65",
+    "node four/atom/tools/molpair.mjs pair OF2 66",
+    "node four/atom/tools/molpair.mjs pair OF2 67"
+   ]
+  },
+  {
+   "name": "of-68",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 68",
+    "node four/atom/tools/molpair.mjs pair OF2 69",
+    "node four/atom/tools/molpair.mjs pair OF2 70",
+    "node four/atom/tools/molpair.mjs pair OF2 71"
+   ]
+  },
+  {
+   "name": "of-72",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 72",
+    "node four/atom/tools/molpair.mjs pair OF2 73",
+    "node four/atom/tools/molpair.mjs pair OF2 74",
+    "node four/atom/tools/molpair.mjs pair OF2 75"
+   ]
+  },
+  {
+   "name": "of-76",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs pair OF2 76",
+    "node four/atom/tools/molpair.mjs pair OF2 77",
+    "node four/atom/tools/molpair.mjs pair OF2 78",
+    "node four/atom/tools/molpair.mjs pair OF2 79"
    ]
   }
  ]
