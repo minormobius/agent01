@@ -3695,6 +3695,15 @@
    "parent": "four"
   },
   {
+   "id": "four-plasma",
+   "name": "four-plasma",
+   "url": "https://four.mino.mobi/plasma/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "four"
+  },
+  {
    "id": "four-orrery",
    "name": "four-orrery",
    "url": "https://four.mino.mobi/orrery/",

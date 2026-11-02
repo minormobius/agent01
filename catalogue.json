@@ -5752,6 +5752,22 @@
       ]
     },
     {
+      "n": "four-plasma",
+      "u": "https://four.mino.mobi/plasma/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-03",
+      "b": "2026-11-03",
+      "p": "four",
+      "surface": "four",
+      "d": "Magnetic fields in plasma, in four dimensions. Set a field's six numbers and watch it turn out to be two perpendicular planes turning at two rates, its left and right halves as arrows; then follow a parcel of gas through a swirling, squeezing flow and see the field grow a hundredfold while F∧F/ρ, a quantity our world doesn't have, stays put. Why magnetic helicity has nowhere to live in 4D.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-orrery",
       "u": "https://four.mino.mobi/orrery/",
       "c": "data",

@@ -81,6 +81,13 @@ for games, and this is a modelling programme with publications to come. The game
   (`atom/js/magnet.js`: diamagnetism from both halves, the spin's pull from the left half only), and a spinning ball's
   field seen from our slice (`magnet.js` `spinField`: the part within the slice and the part reaching into w, two 3D
   fields drawn as field lines, with a test charge pushed out of the slice; selftest 46 holds it to Biot–Savart).
+- **plasma at `/plasma/`**: magnetic fields carried by plasma, 4D's MHD from its textbook problems (`plasma/plasma.js`,
+  drawing only; the physics is `atom/js/mhd.js`, no DOM, selftest 62, in the mirror). A bivector's anatomy (six sliders:
+  the canonical two planes at rates |l| ± |r| from its left and right halves, a point turned by it in a draggable 4D view,
+  F∧F = 2ab), and the frozen-in theorem run rather than assumed (`carry`: a parcel's field and density integrated through
+  `FLOWS.cells` / `FLOWS.swirl`, F∧F/ρ held while the field grows ×100; a simple field stays simple), and why helicity has
+  no 4D counterpart. The stars chapter's plasma section links here. Next on this page: a kinematic dynamo with the lens's
+  resistive decay.
 - **the orrery at `/orrery/`**: a 4D planetary system run live, full screen (the view on the top two thirds, controls
   below; side by side on wide screens, as IRIS⁴). `orrery/orrery.js` draws it with its own 4D camera on `atom/js/tile.js`'s
   maths (turn, apply, the w colours): the whole of it (w by perspective) or a 3D slice with the rest as ghosts marked

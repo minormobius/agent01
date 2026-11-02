@@ -1113,5 +1113,26 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(fe < 1e-6 && de < 1e-12 && drift < 1e-9, `4D cloud terms: damped C f_n/r^k force to ${fe.toExponential(0)}; the fitted field's pairs equal the written-out terms to ${de.toExponential(0)}; Gibbs with a molecule cut-off keeps its running energy to ${drift.toExponential(0)} hartree`);
 }
 
+/* 62 · magnetic fields in plasma (js/mhd.js, the plasma page): every 4D bivector is two planes at rates |l| ± |r| from its
+   left and right halves (the canonical form rebuilds it); ideal flow carries F as a 2-form, its Lie derivative equal to
+   d(i_v F) for a closed F (Cartan); and along a parcel integrated through a swirling, compressing flow, F∧F/ρ stays put
+   while the field grows, and a simple field stays simple */
+{
+  const M = await import(path.join(here, "../js/mhd.js"));
+  let seed = 11; const u = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1; let rebuilt = 0, rates = 0;
+  for (let t = 0; t < 120; t++) {
+    const c = Array.from({ length: 6 }, u); if (t % 4 === 0) { c[5] = c[0]; c[4] = -c[1]; c[3] = c[2]; } // all left, the degenerate case
+    const F = M.fromSix(c), cf = M.canonical(F), R = [0, 1, 2, 3].map((i) => [0, 1, 2, 3].map((j) => cf.a * (cf.v[i] * cf.u[j] - cf.u[i] * cf.v[j]) + cf.b * (cf.x[i] * cf.w[j] - cf.w[i] * cf.x[j])));
+    rebuilt = Math.max(rebuilt, ...R.flat().map((x, k) => Math.abs(x - F.flat()[k]))); rates = Math.max(rates, Math.abs(cf.a ** 2 + cf.b ** 2 - M.size2(F)), Math.abs(cf.a * cf.b - M.pf(F)));
+  }
+  const A = (x) => [Math.sin(x[1] + 0.3 * x[2]), Math.cos(x[2]) * x[3], Math.sin(x[0] * x[3]), Math.cos(x[0] + x[1])], hh = 1e-4;
+  const Ff = (x) => { const dA = [0, 1, 2, 3].map((k) => { const p = A(x.map((q, i) => q + (i === k ? hh : 0))), m = A(x.map((q, i) => q - (i === k ? hh : 0))); return p.map((z, j) => (z - m[j]) / (2 * hh)); }); return [0, 1, 2, 3].map((i) => [0, 1, 2, 3].map((j) => dA[i][j] - dA[j][i])); };
+  const lc = M.lieAndCartan(Ff, M.FLOWS.cells, 0.4, [0.2, 0.4, -0.3, 0.7], 1e-3), cartan = Math.max(...lc.lie.flat().map((x, k) => Math.abs(x - lc.cartan.flat()[k])));
+  const two = M.carry(M.FLOWS.cells, 0.4, [0.3, -0.5, 0.8, 0.1], M.fromSix([1, 0, 0, 0, 0, 0.4]), 8, 120, 16), one = M.carry(M.FLOWS.swirl, 0.4, [0.3, -0.5, 0.8, 0.1], M.fromSix([0, 0.6, 0.6, 0.2, 0.2, 0]), 8, 120, 16);
+  const drift = Math.max(...two.map((r) => Math.abs(r.s / two[0].s - 1))), grew = Math.max(...two.map((r) => r.a)) / two[0].a, stays = Math.max(...one.map((r) => Math.abs(r.b) / r.a));
+  ok(rebuilt < 1e-12 && rates < 1e-12 && cartan < 1e-5 && drift < 1e-6 && grew > 20 && stays < 1e-9,
+    `4D field anatomy and frozen flux: two planes at |l| ± |r| rebuild every bivector to ${rebuilt.toExponential(0)}; ℒ_v F = d(i_v F) to ${cartan.toExponential(0)}; along a parcel F∧F/ρ held to ${drift.toExponential(0)} while the field grew ×${grew.toFixed(0)}, and a simple field's second rate stayed under ${stays.toExponential(0)}`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="Magnetic fields in plasma, in four dimensions: a 4D magnetic field is a bivector, two perpendicular planes turning at two rates; frozen into a flowing plasma, its two-plane twist F∧F/ρ is carried by every parcel, a conserved quantity our world doesn't have; and magnetic helicity has nowhere to live." />
+<title>Four · plasma</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section { max-width: 860px; }
+  .step { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 30px; }
+  .step h3 { margin: 10px 0 4px; }
+  .toy { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin: 12px 0 8px; }
+  .toy .two { display: grid; grid-template-columns: 3fr 2fr; gap: 12px; } @media (max-width: 680px) { .toy .two { grid-template-columns: 1fr; } }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font: 12px var(--mono); color: var(--dim); margin: 4px 0; }
+  .ctl input[type=range] { flex: 1; min-width: 110px; max-width: 260px; accent-color: var(--d4); }
+  .ctl b { color: var(--text); min-width: 3.2em; display: inline-block; }
+  .ctl select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font: 12px var(--mono); padding: 4px 6px; max-width: 100%; }
+  .six { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; } @media (max-width: 520px) { .six { grid-template-columns: 1fr; } }
+  .six .ctl span.k { width: 2.2em; color: var(--text); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+  .presets button { font: 600 11px var(--mono); background: none; color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .presets button:hover { border-color: var(--d4); color: var(--d4); }
+  canvas.view { width: 100%; aspect-ratio: 1; display: block; border-radius: 8px; background: #0b0d13; touch-action: none; cursor: grab; }
+  canvas.halves { width: 100%; aspect-ratio: 2; display: block; border-radius: 8px; background: #0b0d13; }
+  canvas.chart { width: 100%; height: 260px; display: block; margin: 6px 0; background: #0b0d13; border: none; border-radius: 8px; }
+  .cap { font: 11px var(--mono); color: var(--dim); text-align: center; margin-top: 2px; }
+  .kv { font: 12px/1.7 var(--mono); color: var(--dim); } .kv b, .read b { color: var(--text); }
+  .badge { display: inline-block; font: 600 11px var(--mono); border-radius: 999px; padding: 2px 9px; border: 1px solid currentColor; }
+  .eq { text-align: center; font: 14px/1.9 var(--mono); color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin: 10px 0; overflow-x: auto; }
+  .more { font: 12px var(--mono); } .more a { color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../start/">where we are</a><a href="../table/">the table</a><a href="../fields/">fields</a><a href="./" class="here">plasma</a><a href="../orrery/">orrery</a><a href="../atom/">ATOM⁴</a><a href="../lumen/">Lumen⁴</a></nav>
+  <h2>four.mino.mobi · plasma</h2>
+  <h1 class="ch">Magnetic fields in four dimensions</h1>
+  <p class="lede">A star is plasma, and plasma carries magnetic fields. In our three dimensions a magnetic field is drawn as an arrow at each point. That's a coincidence of three: the field is really a <b>turning in a plane</b>, and in 3D every plane has one direction at right angles to it. In 4D there's no such direction, and the field has to be met as what it is, a <b>bivector</b>: six numbers, one for each plane xy, xz, xw, yz, yw, zw. This page is about what that does to the textbook physics of magnetized gas (<a href="../atom/stars.html#plasma">the stars chapter</a> uses it).</p>
+</header>
+
+<section class="step" id="anatomy">
+  <h3>1 · A 4D field is two planes</h3>
+  <p>Six numbers look like a lot. But every 4D bivector, whatever its six numbers, is <b>two perpendicular planes, each turning at its own rate</b>, a and b. In 3D only one plane fits, so there's only a. The two rates come from the field's two halves, its <b>left</b> and <b>right</b> parts, each a 3D arrow (the same split that divides 4D rotations, and the left half is the one an electron's spin feels: <a href="../fields/#cyclotron">fields</a>): a = |left| + |right| and b = |left| − |right|.</p>
+  <p>Set the six numbers. The left panel shows the two planes as rings and a point being turned by the field, in a 4D view you can drag. The right shows the two halves.</p>
+  <div class="toy">
+    <div class="six" id="six"></div>
+    <div class="presets" id="presets"></div>
+    <div class="two">
+      <div><canvas class="view" id="cView"></canvas><div class="cap">the field's two planes (rings) and a point turned by it · drag to turn the 4D view</div></div>
+      <div><canvas class="halves" id="cHalves"></canvas><div class="cap">its left and right halves, each a 3D arrow</div>
+        <div class="kv" id="kAnat" style="margin-top: 10px"></div></div>
+    </div>
+  </div>
+  <p class="read" id="rAnat"></p>
+  <p>Three kinds of field, then. <b>Simple</b>: one rate is zero, a single plane, the halves equal in size. That's the only kind our world has. <b>Two-plane</b>: both rates non-zero, the point's path winding round a torus. <b>All left or all right</b>: the rates equal, every point turned round a great circle, the circles of Hopf's fibration (<a href="../atom/geometry.html#combing">geometry</a>). The one number that says how far a field is from simple is <b>F∧F = 2ab</b>, the Pfaffian doubled: zero exactly when the field is a single plane.</p>
+</section>
+
+<section class="step" id="frozen">
+  <h3>2 · Frozen in, and what's frozen</h3>
+  <p>In a plasma that conducts perfectly, the gas and the field move together: <b>Alfvén's theorem</b>, the reason the Sun's field is dragged out into the solar wind and wound up by its spin. It holds in 4D too. It needs only Faraday's law, which the lens vacuum leaves alone (it changes how currents make fields, not how fields change), and Ohm's law for a perfect conductor. Then the field is carried by the flow as a bivector:</p>
+  <div class="eq">∂F/∂t = −d(i<sub>v</sub>F) = −ℒ<sub>v</sub>F &nbsp; (dF = 0) &nbsp;⇒&nbsp; along a parcel: F → J⁻ᵀF J⁻¹, ρ → ρ / det J</div>
+  <p>In ours, "frozen in" means <b>field lines are threads</b> the gas carries. In 4D a simple field's "lines" are <b>sheets</b>: through every point runs a whole surface the field turns within, and the gas carries the sheets. A two-plane field has no sheets at all. And now something our world doesn't have: the Pfaffian of J⁻ᵀF J⁻¹ is Pf F / det J, and the density goes as 1/det J too, so</p>
+  <div class="eq"><b>F∧F / ρ is carried unchanged by every parcel of gas</b></div>
+  <p><span class="tag computed">computed</span> The theorem, run rather than assumed: a parcel followed through a swirling, compressing flow, its field integrated as it's carried (dF/dt = −(GᵀF + FG), G the velocity gradient, by Runge–Kutta), never using the formula above.</p>
+  <div class="toy">
+    <div class="ctl">flow <select id="flow"><option value="cells">cells coupling every pair of axes</option><option value="swirl">a double vortex with a strain</option></select>
+      field <select id="start"><option value="two">two planes (a 1, b 0.4)</option><option value="simple">simple: one plane</option><option value="left">all left (a = b)</option></select></div>
+    <div class="ctl">compressing <input id="comp" type="range" min="0" max="0.8" step="0.01" value="0.4" /> <b id="compv"></b></div>
+    <canvas class="chart" id="cFrozen"></canvas><div class="cap" id="capFrozen"></div>
+    <p class="read" id="rFrozen"></p>
+  </div>
+  <p><b>A parcel's field can grow, shrink and turn its planes anywhere, but it can't change whether it has sheets.</b> A simple field stays simple. A two-plane field stays two-plane, and when the flow stretches one of its planes the other starves: a times b is pinned to the density. A tangle of two planes can't be made or undone by moving the gas; only resistance can (or, where a star's field is frozen for 10<sup>25</sup> years and more, the collisionless physics at the smallest scales: <a href="../atom/stars.html#plasma">the stars chapter</a>). In 3D, ideal flow leaves no comparable number in each parcel from the field alone; the nearest thing is helicity, which isn't local, and which 4D doesn't have (below).</p>
+</section>
+
+<section class="step" id="helicity">
+  <h3>3 · Helicity has nowhere to live</h3>
+  <p>Our plasma physics leans on one more conserved quantity, <b>magnetic helicity</b>, ∫A·B over a volume: how much the field lines link and twist round each other. Perfect conduction conserves it exactly, and a little resistance destroys it far more slowly than it destroys the field's energy. That's why a disturbed lab plasma relaxes to a calm twisted state (Taylor's relaxation), why the Sun throws off twisted clouds of field, and how the dynamos that make stars' fields are thought to work.</p>
+  <p><span class="tag follows">follows</span> In 4D it doesn't exist. ∫A·B is really the integral of A∧F, a 3-form, over three-dimensional space. In four dimensions A∧F is still a 3-form, so it can only be integrated over a three-dimensional surface, not over a region of space: there's no helicity of a volume. Its one candidate replacement, F∧F, is a 4-form that can be integrated over space, but it's d(A∧F), a surface term: over a closed region it's only what crosses the boundary.</p>
+  <div class="eq">ours: A∧F (3-form) over 3-space → helicity &nbsp;·&nbsp; 4D: A∧F over 4-space → nothing; F∧F = d(A∧F)</div>
+  <p>What 4D has instead is section 2's local number, F∧F/ρ in every parcel, and with it a whole family of conserved totals, ∫ρ f(F∧F/ρ) dV for any function f. <span class="tag open">open</span> Whether those do helicity's jobs. Taylor's relaxation and the dynamo theory built on helicity have to be rebuilt.</p>
+</section>
+
+<section class="step" id="next">
+  <h3>4 · Next: can a 4D star make a field?</h3>
+  <p>Our anti-dynamo theorems say a field can't be kept alive by a flow that's too symmetric. Our stars get round them with flows that twist, and the twist is helicity's business. <span class="tag open">open</span> The test is the textbook one: a fixed flow, the induction equation with 4D's resistance (a field of size L decays at c²/4π²σL³, not c²/4πσL²), and whether any field grows. That's the next computation here.</p>
+  <p class="more">The working: <a href="../atom/stars.html#plasma">the stars chapter's plasma</a> (screening, frozen fields) · <a href="../fields/">fields</a> (B made of planes, a charge turning in two) · <a href="../atom/motion.html">motion and spin</a> (rotations in planes, the left and right halves) · <a href="../">four</a></p>
+</section>
+<script type="module" src="plasma.js"></script>
+</body>
+</html>
