@@ -246,36 +246,155 @@
     var LG = lin("lf", g.leaf[0], g.leaf[1], g.leaf[2]), FR = FRUITS[g.fruit].c, FG = rad("fr", FR[0], FR[1], FR[2]);
     var IRIS = rad("ir", mix(K.iris, "#000", 0.45), K.iris, mix(K.iris, "#fff", 0.5));
 
-    function leafProto() {
-      var L = U, Wd = U * r.range(0.36, 0.5), pts = blade(r, L, Wd, PROFILES[r.pick(["lanceolate", "ovate", "ovate"])], 0.4, 9);
-      return '<path d="' + blob(pts) + '" fill="' + LG + '" fill-opacity=".93" stroke="' + g.leaf[0] + '" stroke-width=".5" stroke-opacity=".5"/>' +
-        '<path d="' + blob(C.scalePts(pts, 0.62, 0.4, L * 0.18)) + '" fill="' + g.leaf[2] + '" fill-opacity=".28"/>' +
-        '<path d="M0,0Q' + n1(L * 0.5) + "," + n1(r.range(-1, 1)) + " " + n1(L * 0.92) + ',0" fill="none" stroke="' + g.leaf[2] + '" stroke-width=".45" stroke-opacity=".6"/>';
+    // ---- the tree, lit like the serpents: the same light from the upper left (L3) ----
+    var LT = [-0.45, -0.62, 0.65], LTl = Math.hypot(LT[0], LT[1], LT[2]); LT = [LT[0] / LTl, LT[1] / LTl, LT[2] / LTl];
+    var BARK = g.bark, BARK_HI = mix(g.bark, "#efe2cc", 0.42), BARK_LO = mix(g.bark, "#000000", 0.55), BARK_INK = mix(g.bark, "#000000", 0.7);
+    function barkShade(lit) { lit = Math.max(0, Math.min(1.2, lit)); return lit < 0.55 ? mix(BARK_LO, BARK, lit / 0.55) : mix(BARK, BARK_HI, Math.min(1, (lit - 0.55) / 0.6)); }
+
+    // LIMB: a lit, bark-textured cylinder along samples sm (x, y, ang, s). wfn(t) is the
+    // half-width at t ∈ [0,1]. The shading is in bands across the cylinder, lit from the
+    // mean direction of the limb, so it runs unbroken along the whole length; fissures,
+    // ridges and knots live in cylinder coordinates (s along, φ around) and are mapped
+    // through the round cross-section, so they bend over the bark like the serpent's scales.
+    function limb(sm, wfn, o) {
+      o = o || {};
+      var n = sm.length, Lt = sm[n - 1].s || 1, out = "";
+      var dx = sm[n - 1].x - sm[0].x, dy = sm[n - 1].y - sm[0].y, dl = Math.hypot(dx, dy) || 1, mnx = -dy / dl, mny = dx / dl;
+      function E(q, v, wq) { var o2 = Math.sin(Math.max(-1, Math.min(1, v)) * Math.PI / 2) * wq; return [q.x - Math.sin(q.ang) * o2, q.y + Math.cos(q.ang) * o2]; }
+      var W = sm.map(function (q) { return Math.max(0.3, wfn(q.s / Lt)); });
+      // the limb at any arc length, interpolated between samples (knots are smaller than the sample spacing)
+      function atS(ss) {
+        var lo = 0, hi = n - 1; ss = Math.max(0, Math.min(Lt, ss));
+        while (hi - lo > 1) { var m = (lo + hi) >> 1; if (sm[m].s < ss) lo = m; else hi = m; }
+        var A = sm[lo], Bq = sm[hi], t = Bq.s > A.s ? (ss - A.s) / (Bq.s - A.s) : 0;
+        return { q: { x: A.x + (Bq.x - A.x) * t, y: A.y + (Bq.y - A.y) * t, ang: A.ang + (Bq.ang - A.ang) * t }, w: W[lo] + (W[hi] - W[lo]) * t };
+      }
+      var step = Math.max(1, Math.round(n / 220));   // long trunks: thin the samples for the bands
+      var idx = []; for (var i = 0; i < n; i += step) idx.push(i); if (idx[idx.length - 1] !== n - 1) idx.push(n - 1);
+      function band(va, vb) {
+        var A = [], Bb = [];
+        idx.forEach(function (i) { A.push(E(sm[i], va, W[i])); Bb.push(E(sm[i], vb, W[i])); });
+        return "M" + A.map(pt).join("L") + "L" + Bb.reverse().map(pt).join("L") + "z";
+      }
+      // the dark core of the limb, then bands of light across it
+      out += '<path d="' + band(-1, 1) + '" fill="' + BARK_INK + '"/>';
+      var NB = o.bands || 9;
+      for (var b = 0; b < NB; b++) {
+        var va = -1 + 2 * b / NB, vb = -1 + 2 * (b + 1) / NB, vm = (va + vb) / 2, al = vm * Math.PI / 2;
+        var N3 = [Math.sin(al) * mnx, Math.sin(al) * mny, Math.cos(al)];
+        var dif = Math.max(0, N3[0] * LT[0] + N3[1] * LT[1] + N3[2] * LT[2]);
+        var lit = 0.22 + 0.9 * dif + (vm > 0.75 ? 0.12 : 0);              // a little reflected light on the shadow rim
+        var shrink = Math.abs(vm) > 0.85 ? 0.985 : 1;
+        out += '<path d="' + band(va * shrink, vb * shrink) + '" fill="' + barkShade(lit) + '"/>';
+      }
+      if (o.texture !== false) {
+        var tr2 = Rand("bark:" + o.salt), fis = "", ridge = "", wAvg = W[Math.floor(n / 2)];
+        // fissures: lines that wander around the trunk, broken into plates
+        var NF = o.fissures || 9;
+        for (var f = 0; f < NF; f++) {
+          var rOn = false, phi0 = -Math.PI + 2 * Math.PI * (f + tr2.range(0.2, 0.8)) / NF, lam = tr2.range(40, 90) * Math.max(0.6, wAvg / 8), ph = tr2.range(0, 6.28), seg = [], on = tr2.chance(0.7);
+          var next = tr2.range(wAvg * 1.5, wAvg * 5);
+          for (var k = 0; k < n; k += Math.max(1, Math.round(step / 2))) {
+            var q = sm[k], phi = phi0 + 0.22 * Math.sin(q.s / lam + ph) + 0.08 * Math.sin(q.s / (lam * 0.37) + ph * 2), v = phi / (Math.PI / 2);
+            if (q.s > next) { on = !on; rOn = false; next = q.s + (on ? tr2.range(wAvg * 2, wAvg * 7) : tr2.range(wAvg * 0.4, wAvg * 1.4)); if (seg.length > 1) fis += "M" + seg.map(pt).join("L"); seg = []; }
+            if (!on || Math.abs(v) > 0.97) { if (seg.length > 1) fis += "M" + seg.map(pt).join("L"); seg = []; rOn = false; continue; }
+            seg.push(E(q, v, W[k]));
+            if (v < 0.25 && v > -0.95) { ridge += (rOn ? "L" : "M") + pt(E(q, v - 0.07, W[k])); rOn = true; } else rOn = false;
+          }
+          if (seg.length > 1) fis += "M" + seg.map(pt).join("L");
+        }
+        out += '<path d="' + fis + '" fill="none" stroke="' + BARK_INK + '" stroke-width="' + n1(Math.max(0.5, wAvg * 0.09)) + '" stroke-opacity=".8" stroke-linecap="round" stroke-linejoin="round"/>';
+        out += '<path d="' + ridge + '" fill="none" stroke="' + BARK_HI + '" stroke-width="' + n1(Math.max(0.4, wAvg * 0.06)) + '" stroke-opacity=".45" stroke-linecap="round"/>';
+        // knots: an eye of rings in cylinder coordinates
+        var knots = "", kn = Math.floor(Lt / tr2.range(120, 200));
+        for (var kk = 0; kk < kn; kk++) {
+          var s0 = tr2.range(0.08, 0.92) * Lt, v0 = tr2.range(-0.55, 0.45), j0 = 0;
+          while (j0 < n - 1 && sm[j0].s < s0) j0++;
+          [[1, BARK_INK, 0.85], [0.55, BARK_LO, 1], [0.25, BARK_INK, 1]].forEach(function (rg) {
+            var ring = [];
+            for (var t = 0; t < 14; t++) {
+              var th = t / 14 * 6.2832, ss = s0 + Math.cos(th) * wAvg * 0.9 * rg[0], vv = v0 + Math.sin(th) * 0.32 * rg[0], aS = atS(ss);
+              ring.push(E(aS.q, vv, aS.w));
+            }
+            knots += '<path d="' + smooth(ring, true) + '" fill="' + rg[1] + '" fill-opacity="' + rg[2] + '"/>';
+          });
+          var hiR = [];
+          for (var t2 = 0; t2 < 8; t2++) { var th2 = Math.PI * (0.9 + t2 / 7 * 0.9), ss2 = s0 + Math.cos(th2) * wAvg * 0.62, vv2 = v0 + Math.sin(th2) * 0.38, aS2 = atS(ss2); hiR.push(E(aS2.q, vv2, aS2.w)); }
+          knots += '<path d="' + smooth(hiR, false) + '" fill="none" stroke="' + BARK_HI + '" stroke-width="' + n1(Math.max(0.4, wAvg * 0.08)) + '" stroke-opacity=".55" stroke-linecap="round"/>';
+        }
+        out += knots;
+      }
+      // silhouette
+      var eL = [], eR = [];
+      idx.forEach(function (i) { eL.push(E(sm[i], -1, W[i])); eR.push(E(sm[i], 1, W[i])); });
+      out += '<path d="M' + eL.map(pt).join("L") + "M" + eR.map(pt).join("L") + '" fill="none" stroke="' + BARK_INK + '" stroke-width=".6" stroke-opacity=".8"/>';
+      return out;
     }
-    function fruitProto() {
-      var R = U * 0.5, s = "";
-      // hangs from (0,0) downward-ish along +x: stem then fruit
-      s += '<path d="M0,0Q' + n1(R * 0.5) + "," + n1(-R * 0.15) + " " + n1(R * 0.9) + ',0" fill="none" stroke="' + g.bark + '" stroke-width="1.1"/>';
-      var cx = R * 0.9 + R, body;
-      if (g.fruit === "fig") body = '<path d="' + blob(blade(r, R * 2.2, R * 1.7, PROFILES.ovate, 0.2, 10).map(function (q) { return [q[0] + R * 0.8, q[1]]; })) + '" fill="' + FG + '"/>';
-      else {
-        // apple-ish: a circle with a dimple at the stem
-        var pts = [];
-        for (var i = 0; i < 16; i++) { var a = i / 16 * Math.PI * 2, rr = R * (1 - 0.13 * Math.pow(Math.max(0, Math.cos(a + Math.PI)), 6)) * r.range(0.97, 1.03); pts.push([cx + Math.cos(a) * rr * 1.04, Math.sin(a) * rr]); }
-        body = '<path d="' + blob(pts) + '" fill="' + FG + '"/>';
+
+    // the leaf: folded along a curved midrib, the half facing the light lit and the other in
+    // shade, veins sweeping to the tip, a petiole. put() flips each leaf so its lit half faces
+    // the light whatever angle it grows at.
+    var LGt = lin("lft", mix(g.leaf[1], g.leaf[0], 0.15), g.leaf[1], mix(g.leaf[1], g.leaf[2], 0.55));
+    var LGb = lin("lfb", mix(g.leaf[0], "#000", 0.25), g.leaf[0], mix(g.leaf[0], g.leaf[1], 0.6));
+    function leafProto() {
+      var L = U, hw = U * r.range(0.2, 0.27), prof = PROFILES[r.pick(["lanceolate", "ovate", "ovate"])], bend = r.range(-0.07, 0.07) * L, turn = r.range(0.62, 1);
+      var mid = [], top = [], bot = [];
+      for (var i = 0; i <= 12; i++) {
+        var t = i / 12, x = t * L, ym = bend * Math.sin(Math.PI * t) + (t > 0.7 ? Math.pow((t - 0.7) / 0.3, 2) * bend * 0.6 : 0), w = prof(t) * hw * r.range(0.96, 1.04);
+        mid.push([x, ym]); top.push([x, ym - w]); bot.push([x, ym + w * turn]);
       }
-      s += body;
-      s += '<path d="' + blob(blade(r, R * 2.2, R * 1.6, PROFILES.ovate, 0, 8).map(function (q) { return [q[0] + R * 0.85, q[1]]; })) + '" fill="none" stroke="' + FR[0] + '" stroke-width=".6" stroke-opacity=".5"/>';
-      if (g.fruit === "pomegranate") {
-        for (var k = 0; k < 5; k++) { var aa = (k - 2) * 0.32; s += '<path d="M' + n1(cx + R * 0.95) + "," + n1(Math.sin(aa) * R * 0.25) + " l" + n1(R * 0.32) + "," + n1(Math.sin(aa) * R * 0.3 - 0.8) + " l0,1.6z" + '" fill="' + FR[0] + '"/>'; }
-        if (r.chance(0.6)) { s += '<path d="M' + n1(cx - R * 0.1) + "," + n1(-R * 0.35) + " q" + n1(R * 0.5) + "," + n1(R * 0.35) + " 0," + n1(R * 0.75) + " q" + n1(-R * 0.25) + "," + n1(-R * 0.37) + " 0," + n1(-R * 0.75) + 'z" fill="#f4d8c8"/>'; for (var q = 0; q < 6; q++) s += '<circle cx="' + n1(cx + r.range(0, R * 0.25)) + '" cy="' + n1(r.range(-R * 0.28, R * 0.28)) + '" r="' + n1(R * 0.09) + '" fill="#c8102e"/>'; }
+      var s = '<path d="M' + n1(-L * 0.14) + ",0.3Q" + n1(-L * 0.06) + ",0 0,0" + '" fill="none" stroke="' + mix(g.leaf[0], BARK, 0.4) + '" stroke-width="' + n1(L * 0.035) + '" stroke-linecap="round"/>';
+      s += '<path d="' + smooth(top.concat(mid.slice().reverse()), true) + '" fill="' + LGt + '"/>';
+      s += '<path d="' + smooth(bot.concat(mid.slice().reverse()), true) + '" fill="' + LGb + '"/>';
+      var vt = "", vb = "";
+      for (var k = 1; k <= 5; k++) {
+        var t0 = 0.12 + k * 0.14, i0 = Math.round(t0 * 12), p0 = mid[i0], i1 = Math.min(12, i0 + 2);
+        vt += "M" + pt(p0) + "Q" + n1(p0[0] + L * 0.06) + "," + n1(p0[1] - hw * 0.5) + " " + pt([top[i1][0], top[i1][1] + hw * 0.12]);
+        vb += "M" + pt(p0) + "Q" + n1(p0[0] + L * 0.06) + "," + n1(p0[1] + hw * 0.5 * turn) + " " + pt([bot[i1][0], bot[i1][1] - hw * 0.12 * turn]);
       }
-      s += '<ellipse cx="' + n1(cx - R * 0.15) + '" cy="' + n1(-R * 0.4) + '" rx="' + n1(R * 0.28) + '" ry="' + n1(R * 0.14) + '" transform="rotate(-25 ' + n1(cx - R * 0.15) + " " + n1(-R * 0.4) + ')" fill="#fff" fill-opacity=".7"/>';
-      // its leaf
-      var lp = blade(r, R * 1.4, R * 0.6, PROFILES.ovate, 0.2, 7);
-      s += '<path transform="translate(' + n1(R * 0.6) + ' 0) rotate(-60)" d="' + blob(lp) + '" fill="' + LG + '"/>';
+      s += '<path d="' + vt + '" fill="none" stroke="' + g.leaf[0] + '" stroke-width="' + n1(L * 0.012) + '" stroke-opacity=".35"/>';
+      s += '<path d="' + vb + '" fill="none" stroke="' + g.leaf[2] + '" stroke-width="' + n1(L * 0.012) + '" stroke-opacity=".22"/>';
+      s += '<path d="' + smooth(mid, false) + '" fill="none" stroke="' + mix(g.leaf[2], g.leaf[1], 0.3) + '" stroke-width="' + n1(L * 0.022) + '" stroke-opacity=".8"/>';
+      // a soft gloss along the lit half
+      s += '<path d="' + smooth(mid.slice(2, 10).map(function (p, j) { var ii = j + 2; return [p[0], (p[1] + top[ii][1]) / 2]; }), false) + '" fill="none" stroke="#fff" stroke-width="' + n1(hw * 0.35) + '" stroke-opacity=".13" stroke-linecap="round"/>';
+      s += '<path d="' + smooth(top.concat(bot.slice().reverse()), true) + '" fill="none" stroke="' + mix(g.leaf[0], "#000", 0.3) + '" stroke-width="' + n1(L * 0.014) + '" stroke-opacity=".55"/>';
       return s;
     }
+    // fruit: lit from the light's side (in the proto's frame the fruit hangs along +x, so the
+    // light falls on its +y side), with a terminator, a rim of reflected light, the stem cavity,
+    // lenticels and (apples) a streaked blush
+    var FGlit = (function () { var id = "frl"; defs.push('<radialGradient id="' + pfx + id + '" cx=".38" cy=".7" r=".72"><stop offset="0" stop-color="' + FR[2] + '"/><stop offset=".42" stop-color="' + FR[1] + '"/><stop offset=".88" stop-color="' + FR[0] + '"/><stop offset="1" stop-color="' + mix(FR[0], "#000", 0.35) + '"/></radialGradient>'); return "url(#" + pfx + id + ")"; })();
+    function fruitProto() {
+      var R = U * 0.5, s = "", cx = R * 0.9 + R;
+      s += '<path d="M0,0Q' + n1(R * 0.5) + "," + n1(-R * 0.15) + " " + n1(R * 0.95) + ',0" fill="none" stroke="' + BARK + '" stroke-width="' + n1(R * 0.13) + '" stroke-linecap="round"/>';
+      var pts = [];
+      if (g.fruit === "fig") pts = blade(r, R * 2.2, R * 1.7, PROFILES.ovate, 0.2, 14).map(function (q) { return [q[0] + R * 0.8, q[1]]; });
+      else for (var i = 0; i < 20; i++) { var a = i / 20 * Math.PI * 2, rr = R * (1 - 0.14 * Math.pow(Math.max(0, Math.cos(a + Math.PI)), 6)) * r.range(0.98, 1.02); pts.push([cx + Math.cos(a) * rr * 1.04, Math.sin(a) * rr]); }
+      var body = smooth(pts, true);
+      s += '<path d="' + body + '" fill="' + FGlit + '"/>';
+      // blush streaks / fig ribs, running stem → base
+      var st = "";
+      for (var k = 0; k < 7; k++) { var yy = (k - 3) / 3.4 * R * 0.85; st += "M" + n1(cx - R * 0.78) + "," + n1(yy * 0.35) + "Q" + n1(cx) + "," + n1(yy * 1.15) + " " + n1(cx + R * 0.86) + "," + n1(yy * 0.4); }
+      s += '<path d="' + st + '" fill="none" stroke="' + (g.fruit === "fig" ? FR[0] : mix(FR[0], "#000", 0.2)) + '" stroke-width="' + n1(R * 0.07) + '" stroke-opacity="' + (g.fruit === "fig" ? ".35" : ".22") + '"/>';
+      // the terminator: shade on the side away from the light
+      s += '<path d="' + body + '" fill="url(#' + pfx + 'frs)"/>';
+      // reflected light along the shadow rim
+      s += '<path d="M' + n1(cx - R * 0.4) + "," + n1(-R * 0.86) + "Q" + n1(cx + R * 0.7) + "," + n1(-R * 0.98) + " " + n1(cx + R * 0.95) + "," + n1(-R * 0.15) + '" fill="none" stroke="' + FR[2] + '" stroke-width="' + n1(R * 0.08) + '" stroke-opacity=".35" stroke-linecap="round"/>';
+      // lenticels
+      for (var q = 0; q < 9; q++) { var aq = r.range(0, 6.28), dq = R * Math.sqrt(r.f()) * 0.8; s += '<circle cx="' + n1(cx + Math.cos(aq) * dq) + '" cy="' + n1(Math.sin(aq) * dq * 0.95) + '" r="' + n1(R * 0.025) + '" fill="#fff" fill-opacity=".45"/>'; }
+      // the stem cavity
+      s += '<ellipse cx="' + n1(cx - R * 0.8) + '" cy="0" rx="' + n1(R * 0.12) + '" ry="' + n1(R * 0.26) + '" fill="' + mix(FR[0], "#000", 0.4) + '" fill-opacity=".6"/>';
+      if (g.fruit === "pomegranate") {
+        for (var c = 0; c < 5; c++) { var aa = (c - 2) * 0.32; s += '<path d="M' + n1(cx + R * 0.95) + "," + n1(Math.sin(aa) * R * 0.25) + " l" + n1(R * 0.32) + "," + n1(Math.sin(aa) * R * 0.3 - 0.8) + " l0,1.6z" + '" fill="' + FR[0] + '"/>'; }
+      }
+      // the highlight, on the light's side
+      s += '<ellipse cx="' + n1(cx - R * 0.2) + '" cy="' + n1(R * 0.42) + '" rx="' + n1(R * 0.3) + '" ry="' + n1(R * 0.13) + '" transform="rotate(20 ' + n1(cx - R * 0.2) + " " + n1(R * 0.42) + ')" fill="#fff" fill-opacity=".72"/>';
+      s += '<path d="' + body + '" fill="none" stroke="' + mix(FR[0], "#000", 0.35) + '" stroke-width="' + n1(R * 0.04) + '" stroke-opacity=".6"/>';
+      // its leaf, folded like the others
+      s += '<g transform="translate(' + n1(R * 0.55) + ' 0) rotate(-62) scale(' + n1(R * 1.4 / U) + ')">' + leafProto() + "</g>";
+      return s;
+    }
+    defs.push('<radialGradient id="' + pfx + 'frs" cx=".62" cy=".22" r=".75"><stop offset="0" stop-color="#000" stop-opacity=".42"/><stop offset=".55" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>');
     function blossomProto() {
       var s = "", n = 5, col = r.chance(0.6) ? "#fbeef0" : "#f6c8d4";
       for (var i = 0; i < n; i++) {
@@ -297,7 +416,10 @@
       for (var k = 0; k < 3; k++) {
         if (fits(fx, fy, reachR) && !inText(x, y, 1)) {
           var id = lib(kind, kind === "leaf" ? 8 : 5, kind === "leaf" ? leafProto : kind === "fruit" ? fruitProto : blossomProto);
-          add(layer || (kind === "leaf" ? "leaves" : "fruit"), y, use(id, x, y, deg, size / U));
+          var sc4 = size / U, fl4 = 1;
+          if (kind === "leaf") { var th4 = deg / DEG; if (-0.45 * Math.sin(th4) + 0.62 * Math.cos(th4) < 0) fl4 = -1; } // lit half toward the light
+          add(layer || (kind === "leaf" ? "leaves" : "fruit"), y, fl4 === 1 ? use(id, x, y, deg, sc4) :
+            '<use href="#' + id + '" transform="translate(' + n1(x) + " " + n1(y) + ") rotate(" + n1(deg) + ") scale(" + (Math.round(sc4 * 1000) / 1000) + " " + (-Math.round(sc4 * 1000) / 1000) + ')"/>');
           place(fx, fy, reachR, label || kind, SOLID[kind]);
           return true;
         }
@@ -335,20 +457,15 @@
       return dense(ctrl, 10);
     }
     function barkPath(sm, w0, w1, y) {
-      var svg = "", add0 = add;
-      add = function (l, yy, piece) { svg += piece; add0(l, yy, piece); };
-      add("tree", y, '<path d="' + C.ribbon(sm, w0, w1) + '" fill="' + g.bark + '"/>');
-      // fissures and a highlight: bark, not a tube
-      add("tree", y, '<path d="' + smooth(sm.filter(function (_, i) { return i % 2 === 0; }).map(function (q) { return [q.x + Math.sin(q.ang) * w0 * 0.22, q.y - Math.cos(q.ang) * w0 * 0.22]; }), false) + '" fill="none" stroke="' + mix(g.bark, "#000", 0.45) + '" stroke-width="' + n1(Math.max(0.4, w0 * 0.1)) + '" stroke-dasharray="' + n1(w0 * 1.6) + " " + n1(w0 * 0.7) + '"/>');
-      add("tree", y, '<path d="' + smooth(sm.filter(function (_, i) { return i % 2 === 0; }).map(function (q) { return [q.x - Math.sin(q.ang) * w0 * 0.28, q.y + Math.cos(q.ang) * w0 * 0.28]; }), false) + '" fill="none" stroke="' + mix(g.bark, "#fff", 0.35) + '" stroke-opacity=".5" stroke-width="' + n1(Math.max(0.4, w0 * 0.14)) + '"/>');
-      add = add0;
+      var svg = limb(sm, function (t) { return (w0 + (w1 - w0) * t) * (1 + 0.06 * Math.sin(t * 23)); }, { salt: g.seed + ":" + sm[0].x.toFixed(0), fissures: 9 });
+      add("tree", y, svg);
       return svg;
     }
     if (g.habit !== "slither" || r.chance(0.5)) {
       [-1, 1].forEach(function (side) {
         if ((side < 0 ? mL : mR) < 20) return;
         var t = trunk(side); trunks.push({ side: side, sm: t });
-        trunks[trunks.length - 1].barkSvg = barkPath(t, barkW, barkW * 0.7, 0);
+        trunks[trunks.length - 1].barkSvg = barkPath(t, barkW * 0.62, barkW * 0.46, 0); // half-widths: a taper from base to crown
         t.forEach(function (q, i) { if (i % 2 === 0) place(q.x, q.y, barkW * 0.5, "stem"); });
       });
     }
@@ -357,7 +474,8 @@
       var a = deg / DEG, bend = r.range(-0.4, 0.4), ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
       var mx = x + Math.cos(a + bend) * len * 0.55, my = y + Math.sin(a + bend) * len * 0.55;
       if (!fits(ex, ey, 2) || !fits(mx, my, 2)) return;
-      add("tree", y, '<path d="M' + n1(x) + "," + n1(y) + "Q" + n1(mx) + "," + n1(my) + " " + n1(ex) + "," + n1(ey) + '" fill="none" stroke="' + g.bark + '" stroke-width="' + n1(Math.max(0.6, barkW * (depth ? 0.22 : 0.38))) + '" stroke-linecap="round"/>');
+      var tw0 = Math.max(0.6, barkW * (depth ? 0.13 : 0.2)), tw1 = Math.max(0.35, tw0 * 0.35);
+      add("tree", y, limb(C.resample([[x, y], [mx, my], [ex, ey]], 3), function (t) { return (tw0 + (tw1 - tw0) * t) * (1 + 0.7 * Math.max(0, 1 - t / 0.12)); }, { bands: 5, texture: false }));
       place(mx, my, 1, "stem"); place(ex, ey, 1, "stem");
       var nl = r.int(2, 4);
       for (var i = 0; i < nl; i++) {

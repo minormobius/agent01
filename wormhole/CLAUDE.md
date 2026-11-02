@@ -99,9 +99,21 @@ a big emphasis on the patterning of the scales"). It borrows flora's geometry co
   tricolour bands, reticulated net, saddles, stripes, dorsal zigzag, eyespots,
   iridescent), rows (7/9), viper/slender head, habit (entwined / coiled / slithering),
   sheen, girth. Binomial e.g. `Jadeophis reticulatus var. spiralis`.
-- **The tree**: gnarled trunks up both side margins (bark ribbon + dashed fissures +
-  highlight; about as thick as the serpent), twigs with leaves, hanging fruit, blossom; the
-  trunks keep a coil's reach (`RB + 2·W0`) clear of text and page edge.
+- **The tree** (operator, 2026-11-02: "give the same attention to the [tree] it grows on"): it
+  is lit by the serpents' light (upper left). `limb(sm, wfn, o)` paints any branch as a **lit
+  cylinder**: a dark core, then ~9 bands across it shaded from the limb's mean normal (lit flank,
+  core shadow, a rim of reflected light), so the shading runs unbroken along the whole length;
+  **fissures** that wander around the trunk in cylinder coordinates (s along, φ around), broken
+  into bark plates, each with a light ridge on its lit side; **knots** as ringed eyes (interpolated
+  between samples via `atS()` — the trunk is sampled every 10px, smaller than a knot); a silhouette.
+  The trunk tapers base→crown; **twigs** are `limb()`s too (5 bands, no texture) with a swollen
+  collar where they join. `barkPath()` still returns the trunk's SVG for the serpent occluder.
+  **Leaves** fold along a curved midrib — lit half / shaded half (two gradients), veins sweeping
+  to the tip, a gloss, a petiole, a foreshortened lower half — and `put()` mirrors each leaf so its
+  lit half faces the light at any angle. **Fruit** hangs along +x in its proto, so it is lit on its
+  +y side: a radial body gradient from there, blush streaks (ribs on figs), a terminator gradient,
+  reflected rim light, lenticels, the stem cavity, a highlight, and a folded leaf of its own.
+  The trunks keep a coil's reach (`RB + 2·W0`) clear of text and page edge. SVG ~4 MB/tall page.
 - **Bones before skin** (operator, 2026-11-01: "get a snake skeleton and wrap it around a
   tree. Like forces and muscles"). Every serpent is `simulate()`d: a chain of vertebrae
   `DS = 0.8·W0` apart in **3D**, position-based dynamics, 120 steps × 5 iterations —
