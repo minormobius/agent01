@@ -3731,6 +3731,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-squid",
+   "name": "kata-squid",
+   "url": "https://kata.mino.mobi/squid/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

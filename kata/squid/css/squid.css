@@ -1,0 +1,55 @@
+/* SQUID: the view is the whole screen; HUD, buttons, the stick, the lever and the jet float over it; cards cover it. */
+:root { --bg: #07080c; --panel: rgba(14, 16, 23, 0.92); --text: #e9e4da; --dim: #9a958c; --border: #262833; --ice: #6fe0ff; --gold: #ffd27a;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; overscroll-behavior: none; }
+[hidden] { display: none !important; }
+#view { position: fixed; inset: 0; }
+#gl, #ov { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#gl { touch-action: none; } #ov { pointer-events: none; }
+#hud { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; padding: calc(8px + env(safe-area-inset-top)) 120px 4px 12px; font: 12px var(--mono); color: var(--dim); pointer-events: none; background: linear-gradient(rgba(7, 8, 12, 0.7), rgba(7, 8, 12, 0)); }
+#hud b { color: var(--text); letter-spacing: 0.08em; } #hudInfo b { color: var(--gold); } #hudInfo .off { color: #ff7a6a; }
+#bar { position: absolute; left: 12px; right: 12px; top: calc(30px + env(safe-area-inset-top)); height: 3px; background: rgba(255, 255, 255, 0.12); border-radius: 2px; pointer-events: none; }
+#barFill { height: 100%; width: 0; background: var(--gold); border-radius: 2px; }
+#btns { position: absolute; right: 8px; top: calc(6px + env(safe-area-inset-top)); display: flex; gap: 6px; }
+#btns button, .made button, .row button { font: 600 13px var(--mono); background: rgba(7, 8, 12, 0.55); color: var(--text); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+#btns button.on { border-color: var(--ice); color: var(--ice); }
+#map { position: absolute; right: 8px; top: calc(44px + env(safe-area-inset-top)); width: 140px; height: 100px; border-radius: 10px; background: rgba(7, 8, 12, 0.55); border: 1px solid rgba(255, 255, 255, 0.15); pointer-events: none; }
+#stick { position: absolute; left: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 104px; height: 104px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); pointer-events: none; display: none; }
+#stick.live { border-color: rgba(255, 210, 122, 0.7); }
+#knob { position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; margin: -21px 0 0 -21px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); }
+@media (pointer: coarse) { #stick { display: block; } }
+#card, #menu { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 18px; background: rgba(7, 8, 12, 0.78); overflow-y: auto; }
+#menu { justify-content: flex-start; padding-top: calc(28px + env(safe-area-inset-top)); }
+h1 { font: 800 34px/1 var(--mono); letter-spacing: 0.12em; margin: 4px 0 12px; }
+h2 { font: 600 11px var(--mono); color: var(--dim); letter-spacing: 0.1em; margin: 0; text-transform: uppercase; }
+h3 { font: 700 11px var(--mono); color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin: 18px 0 8px; }
+#card p, .intro { max-width: 540px; line-height: 1.55; color: #c9c3b8; margin: 0 0 10px; font-size: 14px; } .intro b { color: var(--text); }
+.stats { font: 12px/1.6 var(--mono) !important; color: var(--dim) !important; } .stats b { color: var(--gold); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+button.primary { font: 800 15px var(--mono) !important; letter-spacing: 0.12em; background: var(--gold) !important; color: #1a1205 !important; border: 0 !important; border-radius: 10px; padding: 11px 28px !important; }
+#levels { list-style: none; padding: 0; margin: 6px 0 0; width: 100%; max-width: 540px; display: grid; gap: 6px; }
+#levels li button { width: 100%; display: flex; gap: 10px; align-items: baseline; text-align: left; font: 13px var(--mono); background: rgba(14, 16, 23, 0.9); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+#levels li button:hover { border-color: var(--gold); }
+#levels .n { color: var(--dim); min-width: 1.6em; } #levels .nm { flex: 1; font-weight: 700; } #levels .sc { color: var(--dim); } #levels .md { min-width: 1.4em; text-align: right; }
+.made { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.foot { font: 11px/1.6 var(--mono); color: var(--dim); margin-top: 16px; max-width: 540px; } .foot a { color: var(--text); }
+/* holding a finger down (on the stick, the view or a button) must not select text, pop up the copy/lookup callout or
+   magnify: nothing here is text you'd want to copy mid-ride */
+html, body, button, canvas, #view, #panel { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+button, canvas { touch-action: manipulation; }
+#gl { touch-action: none; }
+.dice { margin: 4px 0 8px; } .made span { font: 11px var(--mono); color: var(--dim); align-self: center; text-transform: uppercase; letter-spacing: 0.1em; }
+.made button.on { border-color: var(--gold); color: var(--gold); }
+#thr { position: absolute; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 46px; height: 150px; border-radius: 23px; border: 2px solid rgba(255, 255, 255, 0.25); background: rgba(7, 8, 12, 0.4); touch-action: none; cursor: ns-resize; overflow: hidden; }
+#thrFill { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(rgba(111, 224, 255, 0.55), rgba(111, 224, 255, 0.25)); }
+#thrZero { position: absolute; left: 6px; right: 6px; height: 2px; background: rgba(255, 255, 255, 0.5); }
+#thr span { position: absolute; left: 0; right: 0; top: 6px; text-align: center; font: 600 10px var(--mono); color: var(--text); pointer-events: none; }
+.lever { position: absolute; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); width: 46px; height: 132px; border-radius: 23px; border: 2px solid rgba(255, 255, 255, 0.28); background: linear-gradient(rgba(56, 242, 224, 0.2), rgba(7, 8, 12, 0.3) 50%, rgba(255, 102, 184, 0.2)); touch-action: none; }
+.lever.live { border-color: rgba(255, 210, 122, 0.75); }
+#anaKnob { position: absolute; left: 50%; top: 50%; width: 32px; height: 32px; margin: -16px 0 0 -16px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+.lever b, .lever i { position: absolute; left: 0; right: 0; text-align: center; font: 600 10px var(--mono); font-style: normal; pointer-events: none; }
+.lever b { top: -15px; color: #38f2e0; } .lever i { bottom: -15px; color: #ff66b8; }
+#jet { position: absolute; right: 82px; bottom: calc(26px + env(safe-area-inset-bottom)); width: 86px; height: 86px; border-radius: 50%; border: 2px solid rgba(255, 210, 122, 0.6); background: rgba(255, 210, 122, 0.12); color: var(--gold); font: 800 14px var(--mono); letter-spacing: 0.1em; touch-action: none; }
+#jet.live { background: rgba(255, 210, 122, 0.4); color: #1a1205; }
+#stick { display: block; }

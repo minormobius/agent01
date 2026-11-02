@@ -62,6 +62,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   ana–kata and the double rotation in two planes). The shader's time path loops over up to six parts: keep shader
   comments off the ends of statement lines (a `//` there once swallowed an `else`). A slice of it volume-rendered (teal ψ > 0, rose ψ < 0) with WAVELAB's twist pad and ana/kata lever, our
   3D atom beside it, and a dartboard of sampled electrons against P(r). See [`orbital/README.md`](orbital/README.md).
+- **SQUID at `/squid/`**: jet through an open 4D sea with no down (`js/squid.js`, no DOM: a game model, each force
+  the right shape: pulsed thrust along the heading, anisotropic drag, the funnel's 3-vector aim turning the heading,
+  the Munk moment against the arms' weathercocking; the frame turned in the single plane of F and ω, so no roll). Its
+  own shader: your slice from the heading, 200 jellies and 8 axis giants as 4D balls read from a float texture (too
+  many for uniforms on a phone), halos for those within 30 m of the slice. See [`squid/README.md`](squid/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -117,7 +122,8 @@ node kata/tailspin/test/tailspin.selftest.mjs # ~50 s
 node kata/fallline/test/fallline.selftest.mjs # ~40 s
 node kata/wake/test/wake.selftest.mjs # ~3 s
 node kata/wavelab/test/wavelab.selftest.mjs # ~15 s
-node kata/orbital/test/orbital.selftest.mjs # ~3 s
+node kata/orbital/test/orbital.selftest.mjs # ~8 s
+node kata/squid/test/squid.selftest.mjs # < 1 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
