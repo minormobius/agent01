@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ORBITAL — the electron cloud of hydrogen in four dimensions, exactly (ATOM⁴'s 1/r atom). Slice it, twist your slice into w, and throw electrons at a dartboard to see what r means: 1 s, 4 p and 9 d orbitals beside our 1, 3 and 5." />
+<title>ORBITAL — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/orbital.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Left or top: your 3D slice of a 4D hydrogen atom's electron cloud, teal where the wave is positive, rose where negative. Right or bottom: the same orbital in our 3D atom, and the dartboard of electron distances"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="bar">
+    <b>ORBITAL</b>
+    <div id="exps">
+      <button type="button" data-n="1">n 1</button><button type="button" data-n="2">2</button><button type="button" data-n="3">3</button><button type="button" data-n="4">4</button>
+      <button type="button" data-l="0">s</button><button type="button" data-l="1">p</button><button type="button" data-l="2">d</button>
+      <button type="button" id="dotsB" class="on">electrons</button>
+      <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
+      <button type="button" id="gearB" aria-label="help">?</button>
+    </div>
+  </div>
+  <div id="picks"></div>
+  <div id="cap"></div>
+  <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+  <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+  <div id="panel" hidden>
+    <p class="foot">Hydrogen in four dimensions, exactly, on ATOM⁴'s terms (the force pinned at 1/r): <a href="https://four.mino.mobi/atom/hydrogen.html">the hydrogen chapter</a>. Pick n, then s, p or d, then which of its (l + 1)² orbitals. Drag the atom to turn it. The pad twists your slice into w (keys J L, I K: the screen's right and up), the lever moves it ana and kata (R F), ⊞ or Z squares it up. <b>electrons</b> throws electrons at the cloud: the chart counts how far out they land. <a href="./README.md">how it's solved</a> · <a href="../">kata</a> · <a href="../wavelab/">WAVELAB</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

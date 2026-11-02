@@ -5806,6 +5806,23 @@
       ]
     },
     {
+      "n": "kata-orbital",
+      "u": "https://kata.mino.mobi/orbital/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-02",
+      "b": "2026-11-02",
+      "p": "kata",
+      "surface": "kata",
+      "d": "Hydrogen's electron cloud in four dimensions, solved exactly on ATOM⁴'s terms (the force pinned at 1/r): 1 s, 4 p and 9 d orbitals against our 1, 3 and 5, rendered in a 3D slice you twist into w and move ana and kata, beside the same orbital in our atom. p_w is invisible through the nucleus; some d orbitals slice to p's whose sign says which side they're on; one is two rings in perpendicular planes. A dartboard of sampled electrons shows what r means: densest at the nucleus, likeliest 2.25 bohr out.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

@@ -55,6 +55,10 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   directions, so they bob out of your slice. Tanks: periodic, walls (Neumann) or open (Dirichlet) by the method of
   images (`waves.js` `setSym`/`images`: the half-box [24, 48] m, the other half its mirror), and a seiche. The selftest holds the page's claims (Huygens on a 3D surface, 1/r against
   1/√r, swell's apparent speed, standing orbitals, Airy's velocity and cork orbits, the walls' and edges' conditions, the seiche). See [`wavelab/README.md`](wavelab/README.md).
+- **ORBITAL at `/orbital/`**: hydrogen's electron cloud in 4D, exactly, on ATOM⁴'s terms (the force pinned at 1/r;
+  `js/hydrogen.js`, no DOM: R = r^l e^{−κr} L(2κr), κ = Z/(n + ½), harmonics as c0 + b·x + xᵀQx for s, p, d; 1, 4, 9
+  of them). A slice of it volume-rendered (teal ψ > 0, rose ψ < 0) with WAVELAB's twist pad and ana/kata lever, our
+  3D atom beside it, and a dartboard of sampled electrons against P(r). See [`orbital/README.md`](orbital/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -110,6 +114,7 @@ node kata/tailspin/test/tailspin.selftest.mjs # ~50 s
 node kata/fallline/test/fallline.selftest.mjs # ~40 s
 node kata/wake/test/wake.selftest.mjs # ~3 s
 node kata/wavelab/test/wavelab.selftest.mjs # ~15 s
+node kata/orbital/test/orbital.selftest.mjs # ~3 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

@@ -3722,6 +3722,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-orbital",
+   "name": "kata-orbital",
+   "url": "https://kata.mino.mobi/orbital/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",
