@@ -87,8 +87,11 @@ export class Ewald {
 /* ---------------------------------------------------------------- the system and its motion */
 /* a short-range pair term between site types: Lennard-Jones { lj: [ε, σ] }, exp-6 { exp6: [A, B, C] }
    (A e^(−Br) − C/r⁶), or Tang–Toennies { tt: [A, B, C] } (A e^(−Br) − f₆(Br) C/r⁶, f₆ = 1 − e^(−x) Σ₀⁶ xᵏ/k!, which
-   can't collapse at short range as bare −C/r⁶ can). Returns [u, −du/dr / r] */
+   can't collapse at short range as bare −C/r⁶ can), a hard core { core: [A, s] } (A (s/r)¹²), or several at once
+   { sum: [terms] }. Returns [u, −du/dr / r] */
 export function shortPair(p, r2) {
+  if (p.sum) { let u = 0, f = 0; for (const q of p.sum) { const [a, b] = shortPair(q, r2); u += a; f += b; } return [u, f]; } // several terms at once
+  if (p.core) { const [A, s] = p.core, x = (s * s / r2) ** 6; return [A * x, (12 * A * x) / r2]; } // a hard core A (s/r)¹²
   if (p.lj) { const [e, s] = p.lj, s6 = (s * s / r2) ** 3; return [4 * e * (s6 * s6 - s6), (24 * e * (2 * s6 * s6 - s6)) / r2]; }
   if (p.tt) {
     const [A, B, C] = p.tt, r = Math.sqrt(r2), x = B * r, ex = A * Math.exp(-x), r6 = r2 * r2 * r2;

@@ -315,6 +315,41 @@ export const LIQUIDFF = ${JSON.stringify(out)};
     out.pts.push({ t, home: +home.toFixed(4), other: +other.toFixed(4), E: res.E, ok: res.converged }); out.pts.sort((a, b) => a.t - b.t); writeFileSync(file, JSON.stringify(out));
     console.log(`  hydrogen ${home.toFixed(2)} bohr from home, ${other.toFixed(2)} from the other: ${((res.E - out.pts[0].E) * KCAL).toFixed(2)} kcal/mol${res.converged ? "" : " (not converged)"}`);
   }
+} else if (cmd === "flow") {
+  /* does the dense phase flow? Molecular dynamics (js/md.js: rigid molecules, Bussi's thermostat, the full Ewald sum, the
+     hard core between opposite charges) from a Gibbs run's liquid box at its own density (or --rho=, molecules per
+     bohr^d), and the heavy atoms' mean squared displacement against time: a liquid's keeps rising, D = slope/2d; a
+     solid's levels off. SPC/E at room density is the check (published about 2.4–2.5 × 10⁻⁹ m²/s at 298 K).
+       node four/atom/tools/liquid.mjs flow <model> <T> [--from=<gibbs file>] [--rho=ρ] [--steps=S] [--minutes=M] */
+  const { System } = await import("../js/md.js"), name = args[0], T = +args[1], m = model(name), d = m.d, steps = opt("steps", 20000), minutes = opt("minutes", 320), rhoSet = opt("rho", 0), eq = 2000, every = 20;
+  const from = (args.find((a) => a.startsWith("--from=")) ?? "").slice(7) || `${name}_${T}_g${GEN}.json`, file = path.join(DIR, `flow_${name}_${T}${rhoSet ? `_rho${rhoSet}` : ""}.json`), kT = T * KB, dt = m.dt * fs, t0 = Date.now();
+  let st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
+  if (!st) {
+    const gr = JSON.parse(readFileSync(path.join(DIR, from), "utf8")), g = gibbsOf(m, 1); g.load(gr.state); const li = g.density(0) >= g.density(1) ? 0 : 1, B = g.box[li]; let L = B.L, f = 1;
+    if (rhoSet) { f = Math.pow(B.mols.length / L ** d / rhoSet, 1 / d); L *= f; }
+    st = { model: name, d, T, from, rho: B.mols.length / L ** d, L, N: B.mols.length, dt: m.dt, step: 0, x: B.mols.flatMap((M) => g.sites(M).flatMap((x) => Array.from(x, (v, k) => v + (f - 1) * M.c[k])))
+, v: null, x0: null, msd: [] };
+  }
+  const pairs = { ...m.pairs }, core = { core: [0.01, 1.5] }; pairs["X|H"] = pairs["X|H"] ? { sum: [pairs["X|H"], core] } : core;
+  const rc = (st.L / 2) * 0.999, ns = m.kind.sites.length, centres = Array.from({ length: st.N }, (_, a) => st.x.slice(a * ns * d, a * ns * d + d));
+  const sys = new System({ d, L: st.L, kind: m.kind, N: st.N, pairs, rc, ewald: { alpha: 2.6 / rc, nmax: 6 }, seed: 31 + st.step, positions: centres });
+  sys.x.set(st.x); if (st.v) sys.v.set(st.v); sys.forces(); if (!st.v) sys.thermalize(kT);
+  console.log(`${name} flow at ${T} K: ${st.N} molecules at ${st.rho.toExponential(3)} per bohr^${d} (box ${st.L.toFixed(1)}), from step ${st.step} to ${steps}`);
+  const heavy = () => { const h = []; for (let a = 0; a < st.N; a++) h.push(Array.from(sys.x.slice(a * ns * d, a * ns * d + d))); return h; };
+  const save = () => { st.x = Array.from(sys.x); st.v = Array.from(sys.v); writeFileSync(file, JSON.stringify(st)); };
+  let last = Date.now();
+  while (st.step < steps) {
+    sys.step(dt, kT, 500 * fs); st.step++;
+    if (st.step === eq) st.x0 = heavy();
+    if (st.x0 && st.step % every === 0) { const h = heavy(), drift = Array(d).fill(0); h.forEach((p, a) => p.forEach((v, k) => (drift[k] += (v - st.x0[a][k]) / st.N)));
+      let s2 = 0; h.forEach((p, a) => p.forEach((v, k) => (s2 += (v - st.x0[a][k] - drift[k]) ** 2))); st.msd.push([+(((st.step - eq) * m.dt) / 1000).toFixed(4), +(s2 / st.N).toFixed(4)]); }
+    if (st.step % 1000 === 0) { const q = st.msd.at(-1); console.log(`step ${st.step}: T ${(sys.temperature() / KB).toFixed(0)} K${q ? `, ${q[0]} ps, MSD ${q[1].toFixed(2)} bohr²` : ""} (${((Date.now() - t0) / 1000).toFixed(0)} s)`); }
+    if (Date.now() - last > 60000) { save(); last = Date.now(); }
+    if (Date.now() - t0 > minutes * 60000) { console.log("deadline: saved, resume with the same command"); break; }
+  }
+  save();
+  if (st.msd.length > 20) { const half = st.msd.slice(Math.floor(st.msd.length / 2)), n = half.length, mx = half.reduce((a, p) => a + p[0], 0) / n, my = half.reduce((a, p) => a + p[1], 0) / n, sl = half.reduce((a, p) => a + (p[0] - mx) * (p[1] - my), 0) / half.reduce((a, p) => a + (p[0] - mx) ** 2, 0);
+    console.log(`D = ${((sl / (2 * d)) * 2.8002852e-21 / 1e-12).toExponential(2)} m²/s (MSD slope ${sl.toFixed(3)} bohr²/ps over the second half)`); }
 } else if (cmd === "bake") {
   /* every run: the blocks' mean liquid and vapour densities (molecules per bohr^d) and their errors (block spread / √n);
      per model, the critical point as the coexist bake fits it (ρ_l − ρ_v ∝ (Tc − T)^β, β 0.326 in 3D, ½ in 4D, the
