@@ -18,15 +18,15 @@ export const ZMAX = { 3: 36, 4: +(process.env.ATOM4_ZMAX4 || 78) };
 const RPLOT = Float64Array.from({ length: 121 }, (_, i) => 0.02 * Math.pow(10, i / 40)); // 0.02 … 20 bohr
 
 /* one element, everything the page shows */
-export function element(Z, d) {
-  const g = ground(Z, d, SOLVER), sh = subshells(d);
+export function element(Z, d, seeds = null) {
+  const g = ground(Z, d, seeds ? { ...SOLVER, seeds } : SOLVER), sh = subshells(d);
   const live = sh.map((s, i) => i).filter((i) => g.occ[i] > 0);
   // the first ionization energy: the ion's own ground state (it relaxes: ΔSCF, not Koopmans), taking the electron
   // from whichever of the three least-bound subshells leaves the ion lowest
   const cand = live.slice().sort((a, b) => g.es[b] - g.es[a]).slice(0, 3);
   let ion = Infinity, top = cand[0];
   if (Z === 1) ion = -g.E;
-  else for (const i of cand) { const occ = g.occ.slice(); occ[i]--; const e = scf(Z, occ, d, { iters: 60, start: g.qs, ...SOLVER }).E - g.E; if (e < ion) { ion = e; top = i; } }
+  else for (const i of cand) { const occ = g.occ.slice(); occ[i]--; const r = scf(Z, occ, d, { iters: seeds ? 160 : 60, start: g.qs, ...SOLVER }); if (seeds && !r.converged) continue; const e = r.E - g.E; if (e < ion) { ion = e; top = i; } }
   const orb = live.map((i) => {
     let rm = 0, r2 = 0; for (let j = 0; j < N; j++) { rm += g.qs[i][j] * R[j]; r2 += g.qs[i][j] * R[j] * R[j]; }
     return { s: sh[i].name, o: g.occ[i], e: +g.es[i].toFixed(5), r: +rm.toFixed(4), r2: +r2.toFixed(4) };
@@ -58,13 +58,26 @@ if (isMainThread && process.argv[1] === fileURLToPath(import.meta.url)) {
   const cached = (d, Z) => path.join(CACHE_DIR, `${d}-${Z}.json`);
   const jobs = []; for (const d of [3, 4]) for (let Z = 1; Z <= ZMAX[d]; Z++) if (Z % sm === si && !(useCache && existsSync(cached(d, Z)))) jobs.push({ Z, d });
   if (ARG("assemble")) jobs.length = 0;
+  /* --repair=Z,Z,… (4D, from the cache): elements whose search went wrong are searched again, seeded from both
+     neighbours' configurations with one electron added or taken (wherever it fits), and the lowest settled one kept */
+  const repair = (ARG("repair=") ?? "").split("=")[1];
+  if (repair) {
+    jobs.length = 0; const sh = subshells(4), occOf = (cfg) => { const o = sh.map(() => 0); for (const t of cfg.split(" ")) { const m = t.match(/^(\d+[a-z])(\d+)$/); o[sh.findIndex((x) => x.name === m[1])] = +m[2]; } return o; };
+    for (const Z of repair.split(",").map(Number)) {
+      const seeds = [], add = (o) => { if (!seeds.some((x) => x.every((v, i) => v === o[i]))) seeds.push(o); };
+      for (const [Zn, dir] of [[Z - 1, 1], [Z + 1, -1], [Z - 2, 2], [Z + 2, -2]]) { if (!existsSync(cached(4, Zn))) continue; const base = occOf(JSON.parse(readFileSync(cached(4, Zn), "utf8")).config);
+        const k = Math.abs(dir), sgn = Math.sign(dir);
+        for (let i = 0; i < sh.length; i++) { const o = base.slice(); o[i] += sgn * k; if (o[i] >= 0 && o[i] <= sh[i].cap) add(o); } }
+      jobs.push({ Z, d: 4, seeds });
+    }
+  }
   jobs.sort((a, b) => b.Z - a.Z); // the heavy ones first, so the pool finishes together
   const out = { 3: [], 4: [] }, t0 = Date.now();
   const nw = Math.max(1, availableParallelism());
   await Promise.all(Array.from({ length: nw }, () => new Promise((done) => {
     const w = new Worker(new URL(import.meta.url), { workerData: true });
     const next = () => { const j = jobs.shift(); if (!j) { w.terminate(); done(); } else w.postMessage(j); };
-    w.on("message", (m) => { out[m.d][m.Z - 1] = m.el; if (useCache) writeFileSync(cached(m.d, m.Z), JSON.stringify(m.el)); process.stderr.write(`${m.d}D ${m.Z} ${m.el.config} ${((Date.now() - t0) / 1000).toFixed(0)}s\n`); next(); });
+    w.on("message", (m) => { out[m.d][m.Z - 1] = m.el; if (useCache) writeFileSync(cached(m.d, m.Z), JSON.stringify(m.el)); if (repair) process.stderr.write(`repaired: E ${m.el.E}, ion ${(m.el.ion * 27.2114).toFixed(2)} eV, `); process.stderr.write(`${m.d}D ${m.Z} ${m.el.config} ${((Date.now() - t0) / 1000).toFixed(0)}s\n`); next(); });
     next();
   })));
   if (useCache) { // the table from the cache: every element must be there
@@ -80,5 +93,5 @@ if (isMainThread && process.argv[1] === fileURLToPath(import.meta.url)) {
   writeFileSync(new URL("../js/table.js", import.meta.url), body);
   console.log(`baked ${out[3].length} + ${out[4].length} elements in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 } else if (!isMainThread && workerData) {
-  parentPort.on("message", ({ Z, d }) => parentPort.postMessage({ Z, d, el: element(Z, d) }));
+  parentPort.on("message", ({ Z, d, seeds }) => parentPort.postMessage({ Z, d, el: element(Z, d, seeds ?? null) }));
 }

@@ -1,6 +1,6 @@
 {
- "run": "gl2-inner-ice-probe-tri1500",
- "why": "Gl₂'s side-on and crossed pair wells were still deepening at 5 bohr (−6400 K), so 4 and 4.5 bohr for those two; Xater's crystal search in cells of 4 found its lowest minimum only once in 3000 starts, so 9000 more; and the first Hartree–Fock check of Xater's field at the crystals' own closest pairs (24 pairs from the lowest minima), which decides whether the crystal's energies can be trusted. And 128 trimers cut from Xater's 1500 K liquid, Hartree–Fock on each (all seven energies): the crowd's three-body share was −10 ± 19 kcal/mol a molecule from 48, too loose to say whether Xater's liquid is held more or less than its pairs say.",
+ "run": "gl2-inner-ice-probe-tri1500-tablefix",
+ "why": "Gl₂'s side-on and crossed pair wells were still deepening at 5 bohr (−6400 K), so 4 and 4.5 bohr for those two; Xater's crystal search in cells of 4 found its lowest minimum only once in 3000 starts, so 9000 more; and the first Hartree–Fock check of Xater's field at the crystals' own closest pairs (24 pairs from the lowest minima), which decides whether the crystal's energies can be trusted. And 128 trimers cut from Xater's 1500 K liquid, Hartree–Fock on each (all seven energies): the crowd's three-body share was −10 ± 19 kcal/mol a molecule from 48, too loose to say whether Xater's liquid is held more or less than its pairs say. And seven elements of the table to 140 (88, 101–103, 105–107) searched again, seeded from their neighbours' configurations: their first search landed on unsettled fields with impossible energies.",
  "minutes": 330,
  "groups": [
   {
@@ -337,6 +337,23 @@
     "node four/atom/tools/manybody.mjs run 205",
     "node four/atom/tools/manybody.mjs run 206",
     "node four/atom/tools/manybody.mjs run 207"
+   ]
+  },
+  {
+   "name": "tablefix-0",
+   "cmds": [
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=101",
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=102",
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=103",
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=105"
+   ]
+  },
+  {
+   "name": "tablefix-1",
+   "cmds": [
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=106",
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=107",
+    "node four/atom/tools/bake.mjs --zmax4=140 --cache --repair=88"
    ]
   }
  ]

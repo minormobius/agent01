@@ -177,10 +177,14 @@ export function ground(Z, d, opts = {}) {
     if (from === to || occ[from] < k || occ[to] + k > sh[to].cap) continue;
     const c = occ.slice(); c[from] -= k; c[to] += k; cands.push(c);
   }
-  let best = { E: res.E, occ, res };
+  // opts.seeds: more starting configurations (the table's repair pass seeds an element from its neighbours'); with
+  // them, the aufbau's own result counts only if its field settled too
+  if (opts.seeds) for (const c of opts.seeds) if (c.reduce((t, x) => t + x, 0) === Z && c.every((x, i) => x >= 0 && x <= sh[i].cap)) cands.push(c);
+  let best = opts.seeds && !res.converged ? { E: Infinity, occ, res } : { E: res.E, occ, res };
   // a neighbour counts only if its field settled: an unsettled one can report an energy far too low (with exchange, a
   // barely bound orbital can drift for hundreds of iterations)
   for (const c of cands.slice(1)) { const r = scf(Z, c, d, { iters: 80, start: res.qs, ...opts }); if (r.converged && r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; }
+  if (opts.seeds) for (const c of opts.seeds) { const r = scf(Z, c, d, { iters: 160, ...opts }); if (r.converged && r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; } // from scratch too
   return { Z, d, occ: best.occ, E: best.E, es: best.res.es, qs: best.res.qs, config: configString(best.occ, d) };
 }
 /* every subshell's orbital energy in the field of the current cloud (for the aufbau) */
