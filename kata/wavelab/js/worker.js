@@ -13,6 +13,8 @@ onmessage = (e) => {
   else if (m.type === "swell") P3.swell(m.n, m.a);
   else if (m.type === "orbital") P3.orbital(m.l, m.k0, m.axis, m.c, m.peak);
   else if (m.type === "sea") P3.sea(m.count, m.a, m.seed);
+  else if (m.type === "tank") { P3.setSym(m.sym); P2.clear(); compare = false; last = null; corks = []; }
+  else if (m.type === "seiche") P3.seiche(m.d, m.a);
   else if (m.type === "corks") corks = m.x.map((x) => { const c = cork(x); c.v = P3.velocity(x); return c; }); // moving with the water from the start
   else if (m.type === "depth") { P3.setDepth(m.h); P2.setDepth(m.h); }
   else if (m.type === "clear") { P3.clear(); P2.clear(); compare = false; last = null; }

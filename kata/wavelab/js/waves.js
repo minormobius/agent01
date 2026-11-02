@@ -47,20 +47,57 @@ export class Pond {
   }
   setDepth(h) { this.h = h; for (let i = 0; i < this.M; i++) this.w[i] = omega(this.k[i], h); this.phT = undefined; }
   clear() { this.Zr.fill(0); this.Zi.fill(0); }
+  /* THE TANK. The box is periodic; walls are made by the method of images. Along an axis with sym +1 everything put in
+     the water is mirrored about 0 (and so, the box being periodic, about L/2 too): a wall at each, the flow through it
+     zero, ∂η/∂n = 0 (Neumann). With sym −1 it's mirrored with its sign flipped: η = 0 there (Dirichlet), an edge open
+     to a big sea. 0 leaves the axis periodic. The tank is then the half-box [L/2, L] (or [0, L/2], its mirror) along
+     each walled axis, and every wave in it reflects as it should, exactly: the images do the reflecting. */
+  setSym(sym) { this.sym = sym.slice(); this.clear(); }
+  /* the images of a spectrum: out(k) = Σ over the walled axes' flips σ of (Π signs) in(σk) */
+  images(R, I) {
+    const sym = this.sym || [], { N, D, M } = this, axes = [...Array(D).keys()].filter((d) => sym[d]);
+    if (!axes.length) return [R, I];
+    const oR = new Float64Array(M), oI = new Float64Array(M), c = new Array(D);
+    for (let i = 0; i < M; i++) {
+      let r = i; for (let d = 0; d < D; d++) { c[d] = r % N; r = (r - c[d]) / N; }
+      for (let f = 0; f < 1 << axes.length; f++) {
+        let j = 0, sg = 1;
+        for (let d = D - 1; d >= 0; d--) { const a = axes.indexOf(d), flip = a >= 0 && (f >> a) & 1; if (flip) sg *= sym[d]; j = j * N + (flip ? (N - c[d]) % N : c[d]); }
+        oR[i] += sg * R[j]; oI[i] += sg * I[j];
+      }
+    }
+    return [oR, oI];
+  }
   /* a Gaussian bump of height a and width σ at x0, released now */
   drop(x0, a = 0.3, sigma = 1.2) {
     const { D, M, kv, k, w, t, dx } = this, s = a * (2 * Math.PI) ** (D / 2) * sigma ** D / dx ** D;
     for (let i = 0; i < M; i++) {
       let kx = 0; for (let d = 0; d < D; d++) kx += kv[i * D + d] * x0[d];
       const m = s * Math.exp(-0.5 * k[i] * k[i] * sigma * sigma); if (m < 1e-9 * s) continue;
-      const ph = -kx + w[i] * t; this.Zr[i] += m * Math.cos(ph); this.Zi[i] += m * Math.sin(ph);
+      if (!this.sym || !this.sym.some((x) => x)) { const ph = -kx + w[i] * t; this.Zr[i] += m * Math.cos(ph); this.Zi[i] += m * Math.sin(ph); continue; }
+      // with walls: the drop and its images, Π over axes of e^{−ik x} (periodic), 2 cos kx (walls) or −2i sin kx (open)
+      let fr = 1, fi = 0;
+      for (let d = 0; d < D; d++) {
+        const kd = kv[i * D + d], q = kd * x0[d], sd = this.sym[d]; let ar, ai;
+        if (!sd) { ar = Math.cos(q); ai = -Math.sin(q); } else if (sd > 0) { ar = 2 * Math.cos(q); ai = 0; } else { ar = 0; ai = -2 * Math.sin(q); }
+        const nr = fr * ar - fi * ai; fi = fr * ai + fi * ar; fr = nr;
+      }
+      const cr = Math.cos(w[i] * t), ci = Math.sin(w[i] * t); this.Zr[i] += m * (fr * cr - fi * ci); this.Zi[i] += m * (fr * ci + fi * cr);
     }
   }
   /* a travelling plane wave: n the wave's integer index along each axis (k = 2π n / L), a its height */
   swell(n, a = 0.15, phase = 0) {
-    const { N, D } = this; let i = 0; for (let d = D - 1; d >= 0; d--) i = i * N + ((n[d] % N) + N) % N;
-    this.Zr[i] += a * this.M * Math.cos(phase); this.Zi[i] += a * this.M * Math.sin(phase); return i;
+    const { N, D, M } = this; let i = 0; for (let d = D - 1; d >= 0; d--) i = i * N + ((n[d] % N) + N) % N;
+    const walled = (this.sym || []).filter((x) => x).length;
+    if (!walled) { this.Zr[i] += a * M * Math.cos(phase); this.Zi[i] += a * M * Math.sin(phase); return i; }
+    // with walls: the wave and its reflections, a standing wave of height a (each walled axis doubles it: halve it back)
+    const R = new Float64Array(M), I = new Float64Array(M), sc = a * M / 2 ** walled; R[i] = sc * Math.cos(phase); I[i] = sc * Math.sin(phase);
+    const [oR, oI] = this.images(R, I); for (let j = 0; j < M; j++) { if (oR[j] || oI[j]) { this.Zr[j] += oR[j]; this.Zi[j] += oI[j]; } }
+    return i;
   }
+  /* the tank's lowest modes (walls): n = 1 along one axis, a slosh with a wavelength twice the tank. There are D of them
+     at one frequency, so any mix is a mode too: a slosh along any direction d, a = its height at the walls */
+  seiche(d, a = 0.15) { const m = Math.hypot(...d); for (let j = 0; j < this.D; j++) { const n = new Array(this.D).fill(0); n[j] = 1; if (d[j]) this.swell(n, (a * d[j]) / m); } }
   /* a rough sea: count plane waves from directions spread over the whole sphere of them, 4 to 16 m long, random phases;
      each a × (λ / 10 m) high (longer waves taller, as at sea) */
   sea(count, a, seed = 1) {
@@ -84,7 +121,8 @@ export class Pond {
       // i^l keeps the field real (Y(−k) = (−1)^l Y(k)); e^{−ik·c} centres it; e^{iωt} so it peaks now
       const ph = (l * Math.PI) / 2 - kc + w[i] * t; tmpR[i] = g * Y * Math.cos(ph); tmpI[i] = g * Y * Math.sin(ph);
     }
-    // scale so its crest is `peak` high
+    // with walls, its images; then scale so its crest is `peak` high
+    { const [a, b] = this.images(tmpR, tmpI); if (a !== tmpR) { tmpR.set(a); tmpI.set(b); } }
     this.re.set(tmpR); this.im.set(tmpI); for (let i = 0; i < M; i++) { const ph = -w[i] * t, cr = Math.cos(ph), sr = Math.sin(ph), a = this.re[i], b = this.im[i]; this.re[i] = a * cr - b * sr; this.im[i] = a * sr + b * cr; }
     this.fft(this.re, this.im, true); let mx = 0; for (let i = 0; i < M; i++) mx = Math.max(mx, Math.abs(this.re[i]));
     const sc = mx > 0 ? (peak * M) / mx : 0; // (the inverse transform is unscaled: η is it over M)

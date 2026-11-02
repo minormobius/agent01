@@ -52,8 +52,9 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   ω² = g k tanh(k h); `js/waves.js`, a 64³ periodic surface, inverse 3D FFT in `js/fft.js`, run in a Web Worker,
   `js/worker.js`). Its own small shader, not Lean's: your slice as a height field, the whole 3D surface as a volume.
   Your slice is a free frame (twist pad, ana/kata lever, keys). Corks are pushed by the slope, a = −g∇η, in all three
-  directions, so they bob out of your slice. The selftest holds the page's claims (Huygens on a 3D surface, 1/r against
-  1/√r, swell's apparent speed, standing orbitals, Airy's velocity and cork orbits). See [`wavelab/README.md`](wavelab/README.md).
+  directions, so they bob out of your slice. Tanks: periodic, walls (Neumann) or open (Dirichlet) by the method of
+  images (`waves.js` `setSym`/`images`: the half-box [24, 48] m, the other half its mirror), and a seiche. The selftest holds the page's claims (Huygens on a 3D surface, 1/r against
+  1/√r, swell's apparent speed, standing orbitals, Airy's velocity and cork orbits, the walls' and edges' conditions, the seiche). See [`wavelab/README.md`](wavelab/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`

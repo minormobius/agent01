@@ -96,5 +96,21 @@ const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg)
   let far = 0; for (let t = 3; t < 13; t += 0.05) { Sp.t = t; Sp.field(); for (const q of cs) { corkStep(q, Sp, 0.05); far = Math.max(far, Math.hypot(...q.xi)); } }
   ok(far < 1, `in a rough sea, corks started with the water's velocity stay near home (the furthest ${far.toFixed(2)} m in 10 s): orbits, not drift`);
 }
+/* tanks, by the method of images: walls hold the surface level against them (no flow through), open edges hold it at
+   sea level; the seiche is the lowest walled mode, a slosh along any direction, one frequency, standing */
+{
+  for (const [sg, name] of [[1, "walls"], [-1, "open edges"]]) {
+    const P = new Pond(3, 64, 0.75); P.decay = 0; P.setSym([sg, sg, sg]); P.drop([30, 33, 41], 0.3, 1.2); P.t = 4.3; P.field();
+    let mx = 0; for (const e of P.eta) mx = Math.max(mx, Math.abs(e)); let jump = 0, val = 0;
+    for (let j = 0; j < 40; j++) { const u = 24 + 24 * ((j * 0.618) % 1), v = 24 + 24 * ((j * 0.414) % 1); for (const W of [24, 48]) for (let ax = 0; ax < 3; ax++) {
+      const at = (x) => { const q = [u, v, u]; q.splice(ax, 1, x); return P.at(q.slice(0, 3)); }; jump = Math.max(jump, Math.abs(at(W + 0.3) - at(W - 0.3))); val = Math.max(val, Math.abs(at(W))); } }
+    ok(sg > 0 ? jump < 1e-6 * mx && val > 0.05 * mx : val < 1e-6 * mx && jump > 0.05 * mx, sg > 0 ? `walls: a pebble's waves meet every wall level, ∂η/∂n = 0 (the most it differs across one: ${jump.toExponential(1)} m), and reflect` : `open edges: the surface stays at sea level along every edge (at most ${val.toExponential(1)} m), and waves reflect upside down`);
+  }
+  const P = new Pond(3, 64, 0.75); P.decay = 0; P.setSym([1, 1, 1]); const d = [0.3, 0.5, 0.8]; P.seiche(d, 0.15);
+  const a = Float32Array.from(P.field()), g0 = [36, 36, 36], h = 0.5, grad = [0, 1, 2].map((j) => { const p1 = g0.slice(), p2 = g0.slice(); p1[j] += h; p2[j] -= h; return (P.at(p1) - P.at(p2)) / (2 * h); });
+  const cos = Math.abs(grad.reduce((s2, v, i) => s2 + v * d[i], 0)) / Math.hypot(...grad) / Math.hypot(...d), w0 = omega(Math.PI / 24);
+  P.t = Math.PI / w0; const b = P.field(); let ab = 0, aa = 0, bb = 0; for (let i = 0; i < a.length; i++) { ab += a[i] * b[i]; aa += a[i] * a[i]; bb += b[i] * b[i]; }
+  ok(cos > 0.9999 && ab / Math.sqrt(aa * bb) < -0.9999, `a seiche along any direction (here (0.3, 0.5, 0.8)) is one mode: the water tilts along it (cos ${cos.toFixed(5)}) and half a period (${(Math.PI / w0).toFixed(2)} s) on it's tilted the other way (correlation ${(ab / Math.sqrt(aa * bb)).toFixed(5)})`);
+}
 console.log(`\n${checks - fails}/${checks} checks passed`);
 if (fails) process.exit(1);

@@ -8,6 +8,11 @@
    The chart compares a pebble on kata's water with the same pebble on ours (a 2D surface), along a ray from it. */
 import { omega, G } from "./waves.js";
 const N3 = 64, DX = 0.75, L = N3 * DX, C = [L / 2, L / 2, L / 2];
+/* the tank: periodic (the whole 48 m box, wrapping round), walls or open edges (the half-box [24, 48] m along each axis,
+   its far half the images: waves.js setSym). TC is the walled tank's middle */
+const TANKS = { periodic: [0, 0, 0], walls: [1, 1, 1], open: [-1, -1, -1] }, TC = [0.75 * L, 0.75 * L, 0.75 * L];
+let tank = "periodic";
+const ctr = () => (tank === "periodic" ? C : TC), half = () => (tank === "periodic" ? L / 2 : L / 4);
 const $ = (id) => document.getElementById(id), glc = $("gl"), ov = $("ov");
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -21,12 +26,14 @@ const FS = `#version 300 es
 precision highp float; precision highp sampler3D;
 uniform sampler3D uEta; uniform float uL, uExag, uAmp, uTan, uGain; uniform int uMode;
 uniform vec4 uVP; uniform vec3 uO, uA, uB, uN, uC, uEye, uCR, uCU, uCF;
-uniform int uNCork; uniform vec4 uCork[24]; // each cork in your slice's own coordinates: (u, y, v) and δ, how far ana of the slice it is
+uniform int uNCork, uTank; uniform float uH; uniform vec4 uCork[24]; // each cork in your slice's own coordinates: (u, y, v) and δ, how far ana of the slice it is
 out vec4 o;
 // the surface's height at g (x, z, w), periodic: the texture repeats as the water does
 float eta(vec3 g) { return texture(uEta, g / uL + 0.5 / 64.0).r; }
 vec3 sky(vec3 d) { vec3 s = normalize(vec3(0.4, 0.45, -0.75)); return mix(vec3(0.78, 0.83, 0.92), vec3(0.28, 0.46, 0.85), smoothstep(0.0, 0.6, d.y)) + vec3(1.0, 0.88, 0.66) * (pow(max(dot(d, s), 0.0), 600.0) * 4.0 + pow(max(dot(d, s), 0.0), 8.0) * 0.2); }
-float H(vec2 p) { return uExag * eta(uO + p.x * uA + p.y * uB); }
+const float DECK = 1.1; // the stone round a walled tank, above the water
+bool inTank(vec3 g) { if (uTank == 0) return true; vec3 m = mod(g, uL); return all(greaterThan(m, vec3(0.5 * uL))); }
+float H(vec2 p) { vec3 g = uO + p.x * uA + p.y * uB; return inTank(g) ? uExag * eta(g) : DECK; }
 void main() {
   vec2 q = (2.0 * (gl_FragCoord.xy - uVP.xy) - uVP.zw) / uVP.w;
   vec3 d = normalize(uCF + q.x * uTan * uCR + q.y * uTan * uCU), c;
@@ -37,12 +44,14 @@ void main() {
       for (int i = 0; i < 8; i++) { vec3 p = uEye + d * t; t = (H(p.xz) - uEye.y) / d.y; }
       vec3 p = uEye + d * t; const float e = 0.2;
       vec3 n = normalize(vec3(-(H(p.xz + vec2(e, 0.0)) - H(p.xz - vec2(e, 0.0))) / (2.0 * e), 1.0, -(H(p.xz + vec2(0.0, e)) - H(p.xz - vec2(0.0, e))) / (2.0 * e)));
-      float v = eta(uO + p.x * uA + p.z * uB) / max(uAmp, 1e-5), fr = 0.03 + 0.97 * pow(1.0 - max(dot(-d, n), 0.0), 5.0);
+      vec3 gp = uO + p.x * uA + p.z * uB; bool deck = !inTank(gp);
+      float v = eta(gp) / max(uAmp, 1e-5), fr = 0.03 + 0.97 * pow(1.0 - max(dot(-d, n), 0.0), 5.0);
       vec3 base = mix(vec3(0.01, 0.06, 0.11), vec3(0.06, 0.34, 0.4), clamp(0.5 + 0.7 * v, 0.0, 1.0)) + vec3(0.5, 0.95, 0.9) * smoothstep(0.3, 0.8, v) * 0.5 + vec3(0.7, 0.2, 0.45) * smoothstep(0.3, 0.8, -v) * 0.35;
       c = mix(base, sky(reflect(d, n)), fr * 0.6);
+      if (deck) { vec3 m = mod(gp, 2.0); float tile = step(1.0, m.x) + step(1.0, m.y) + step(1.0, m.z); c = mix(vec3(0.5, 0.47, 0.42), vec3(0.58, 0.55, 0.49), mod(tile, 2.0)) * (0.65 + 0.35 * max(dot(n, normalize(vec3(0.4, 0.6, -0.7))), 0.0)); }
       vec2 g = abs(fract(p.xz / 4.0 + 0.5) - 0.5) * 4.0; float fw = max(fwidth(p.x), fwidth(p.z)); // a line every 4 m
       c = mix(c, vec3(0.85), (1.0 - smoothstep(0.0, fw * 1.3, min(g.x, g.y))) * 0.1 * exp(-t / 60.0));
-      c = mix(c, sky(d) * 0.95, max(1.0 - exp(-t / 120.0), smoothstep(17.0, 24.0, length(p.xz)))); // one period shown: the water wraps round 24 m out, so it fades into mist there
+      c = mix(c, sky(d) * 0.95, max(1.0 - exp(-t / 120.0), uTank == 0 ? smoothstep(17.0, 24.0, length(p.xz)) : smoothstep(26.0, 34.0, length(p.xz)))); // one period shown: the water wraps round 24 m out, so it fades into mist there
     }
     // the corks: 4D balls, so your slice cuts each in a ball that shrinks as the cork moves out of it, and is gone when
     // it's more than its radius away; tinted teal or rose by which way it's going
@@ -60,7 +69,7 @@ void main() {
     }
   } else { // the whole surface: a box one period across round the slice's origin; display (X, Y, Z) = (x, w, z)
     // the box is one period round the middle of the water (uC); your slice the plane through uO across uN
-    vec3 bg = vec3(0.03, 0.035, 0.05) + 0.03 * q.y, inv = 1.0 / d, h = vec3(0.5 * uL), t0v = (-h - uEye) * inv, t1v = (h - uEye) * inv;
+    vec3 bg = vec3(0.03, 0.035, 0.05) + 0.03 * q.y, inv = 1.0 / d, h = vec3(uH), t0v = (-h - uEye) * inv, t1v = (h - uEye) * inv;
     vec3 tmin = min(t0v, t1v), tmax = max(t0v, t1v); float t0 = max(max(tmin.x, tmin.y), max(tmin.z, 0.0)), t1 = min(min(tmax.x, tmax.y), tmax.z);
     c = bg;
     if (t1 > t0) {
@@ -86,11 +95,11 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aPos = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-const U = {}; for (const n of ["uC", "uNCork", "uCork", "uGain", "uEta", "uL", "uExag", "uAmp", "uTan", "uMode", "uVP", "uO", "uA", "uB", "uN", "uEye", "uCR", "uCU", "uCF"]) U[n] = gl.getUniformLocation(prog, n);
+const U = {}; for (const n of ["uTank", "uH", "uC", "uNCork", "uCork", "uGain", "uEta", "uL", "uExag", "uAmp", "uTan", "uMode", "uVP", "uO", "uA", "uB", "uN", "uEye", "uCR", "uCU", "uCF"]) U[n] = gl.getUniformLocation(prog, n);
 const tex = gl.createTexture(); gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_3D, tex);
 gl.texImage3D(gl.TEXTURE_3D, 0, gl.R16F, N3, N3, N3, 0, gl.RED, gl.FLOAT, null);
 for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.REPEAT], [gl.TEXTURE_WRAP_T, gl.REPEAT], [gl.TEXTURE_WRAP_R, gl.REPEAT]]) gl.texParameteri(gl.TEXTURE_3D, k, v);
-gl.uniform1i(U.uEta, 0); gl.uniform1f(U.uL, L); gl.uniform3fv(U.uC, C); gl.uniform1f(U.uGain, +new URLSearchParams(location.search).get("gain") || 1);
+gl.uniform1i(U.uEta, 0); gl.uniform1f(U.uL, L);  gl.uniform1f(U.uGain, +new URLSearchParams(location.search).get("gain") || 1);
 
 /* ------------------------------------------------------------------ the water (in the worker) */
 const W = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
@@ -109,7 +118,7 @@ const send = (m) => W.postMessage(m);
 const view = { az: 0.35, el: 0.7, dist: 34, vaz: 0.75, vel: 0.42, vdist: 2.05 * L };
 const frame = { A: [1, 0, 0], B: [0, 1, 0], N: [0, 0, 1], O: C.slice() };
 const slice = () => frame;
-function wrapO() { frame.O = frame.O.map((v, i) => C[i] + ((((v - C[i] + L / 2) % L) + L) % L) - L / 2); }
+function wrapO() { const c = ctr(); frame.O = tank === "periodic" ? frame.O.map((v, i) => c[i] + ((((v - c[i] + L / 2) % L) + L) % L) - L / 2) : frame.O.map((v, i) => Math.max(c[i] - half() + 0.3, Math.min(c[i] + half() - 0.3, v))); } // in a tank, kept inside its walls
 function twist(which, ang) { // turn A (which = "A") or B toward N by ang radians
   const X = frame[which], N = frame.N, c = Math.cos(ang), s = Math.sin(ang);
   frame[which] = add(X.map((v) => v * c), N, s); frame.N = add(N.map((v) => v * c), X, -s);
@@ -117,14 +126,14 @@ function twist(which, ang) { // turn A (which = "A") or B toward N by ang radian
   frame.A = unit(frame.A); frame.B = unit(add(frame.B, frame.A, -dot(frame.B, frame.A))); const n = add(add(frame.N, frame.A, -dot(frame.N, frame.A)), frame.B, -dot(frame.N, frame.B)); frame.N = unit(n);
 }
 function moveO(dA, dB, dN) { frame.O = add(add(add(frame.O, frame.A, dA), frame.B, dB), frame.N, dN); wrapO(); }
-function squareUp() { Object.assign(frame, { A: [1, 0, 0], B: [0, 1, 0], N: [0, 0, 1], O: C.slice() }); }
+function squareUp() { Object.assign(frame, { A: [1, 0, 0], B: [0, 1, 0], N: [0, 0, 1], O: ctr().slice() }); }
 /* the frame as the experiments set it: square, then the forward axis tilted into w, then moved ana */
 function setSlice(tilt, off) { squareUp(); twist("B", (tilt * Math.PI) / 180); moveO(0, 0, off); caption(); }
 function camera(az, el, dist) { const eye = [-dist * Math.cos(el) * Math.sin(az), dist * Math.sin(el), -dist * Math.cos(el) * Math.cos(az)], F = unit(eye.map((x) => -x)), R = unit([F[2], 0, -F[0]]), Up = cross(F, R); return { eye, F, R, U: Up }; }
 
 /* ------------------------------------------------------------------ experiments */
 const DEPTHS = [Infinity, 2, 0.6, 0.25], DEPTH_TXT = ["deep", "2 m", "60 cm", "25 cm"], SPEEDS = [0.25, 0.5, 1, 1.5, 2];
-let exp = null, rain = false, nextRain = 0, swellN = null;
+let exp = null, rain = false, nextRain = 0, swellN = null, seicheDir = null;
 function setDepth(i) { $("depth").value = i; S.h = DEPTHS[i]; send({ type: "depth", h: DEPTHS[i] }); $("depthV").textContent = DEPTH_TXT[i]; }
 const CAPS = {
   pebble: () => "A pebble, in your slice. Here it makes a <b>ring</b>; on the whole surface (the other view) it's a <b>sphere</b>, and your slice is its equator. It fades faster than ours (the chart): its energy spreads over a sphere's area, growing as r², not a circle's, growing as r.",
@@ -135,6 +144,9 @@ const CAPS = {
   s: () => "A <b>standing wave</b> of one frequency: every wave in it has the same length, arriving from every direction alike. In space it's a ball of rings, j₀(kr): the <b>s orbital</b>. The water in a round 4D pond sloshes in these shapes.",
   p: () => "The same, the directions weighted by cos θ about an axis tilted half into w: the <b>p orbital</b>, two lobes, opposite in phase. Your slice cuts it off its axis: move ana with the lever and twist with the pad to find the lobes.",
   d: () => "Weighted by (3cos²θ − 1)/2 about w: the <b>d orbital</b>. Its axis is w itself, so your slice, through its middle, sees only its waist ring; move ana or kata with the lever and the lobes appear.",
+  tank: () => tank === "periodic" ? "<b>Periodic</b>: the water wraps round, 48 m across, a 3-torus. No walls, so nothing reflects and waves may travel for ever." : tank === "walls" ? "<b>Walls</b>: a tank 24 m across in x, z and w. The water can't flow through a wall, so the surface meets it level (∂η/∂n = 0) and every wave reflects. Beyond the walls, stone. Try <b>seiche</b>." : "<b>Open edges</b>: the surface is held at sea level along every edge (η = 0), as at a harbour's mouth onto a big sea. Waves reflect upside down.",
+  seiche: () => { const d = seicheDir || [0, 1, 0], ang = (Math.acos(Math.min(1, Math.abs(d[2]))) * 180) / Math.PI, T = (2 * Math.PI) / omega(Math.PI / (L / 2), S.h);
+    return `<b>A seiche</b>: the tank's lowest mode, the water sloshing end to end, a wave twice the tank long (48 m), once every <b>${T.toFixed(1)} s</b>. It sloshes along your slice's forward direction when you pressed it, here <b>${ang.toFixed(0)}° from w</b>. A tank with walls in x, z and w has three such modes at one frequency, so a slosh can run along any direction on a sphere (ours: a circle). Twist your slice into w with the pad and press seiche again: the slosh runs along a direction you can't see, and your slice just rises and falls.`; },
   sea: () => "A <b>rough sea</b>: sixty plane waves, 4 to 16 m long, from every direction the surface has, a sphere of them. Put the corks in: they're tossed into w as much as across your slice, so they come and go.",
   corks: () => "<b>Corks.</b> Each is pushed the way the water at the surface is: down its slope, <b>a = −g∇η</b>, in all three of the surface's directions. The arrow is the push within your slice, the tick beside it the push <b style='color:#38f2e0'>ana</b> or <b style='color:#ff66b8'>kata</b>. A cork carried out of your slice shrinks and is gone: it's a 4D ball, and you see the ball your slice cuts from it. Rings mark the ones just out of view.",
   rain: () => "Rain across the whole surface. Most drops land out of your slice, so their rings appear in it from nothing, and grow, and go.",
@@ -143,22 +155,25 @@ const CAPS = {
 $("cap").onclick = () => $("cap").classList.toggle("min"); // a tap folds the caption to a line, and back
 function caption() { $("cap").innerHTML = (exp === "swell" && !swellN ? CAPS.clear : CAPS[exp] || CAPS.clear)(); }
 /* where your slice is: its normal (the way it can't see) in x, z, w, how far that's turned from w, and how far ana of the middle its origin is */
-function frameText() { const N = frame.N, ang = (Math.acos(Math.min(1, Math.abs(N[2]))) * 180) / Math.PI, o = dot(add(frame.O, C, -1), N); return `N (${N.map((v) => v.toFixed(2)).join(", ")}) · ${ang.toFixed(0)}° from w · ${o >= 0 ? "+" : ""}${o.toFixed(1)} m ana`; }
+function frameText() { const N = frame.N, ang = (Math.acos(Math.min(1, Math.abs(N[2]))) * 180) / Math.PI, o = dot(add(frame.O, ctr(), -1), N); return `N (${N.map((v) => v.toFixed(2)).join(", ")}) · ${ang.toFixed(0)}° from w · ${o >= 0 ? "+" : ""}${o.toFixed(1)} m ana`; }
 /* corks: 24 dropped across your slice as it is, at rest */
 let corksOn = false;
-function scatter() { const s = slice(), xs = []; for (let i = 0; i < 24; i++) xs.push(add(add(s.O, s.A, -11 + 22 * Math.random()), s.B, -11 + 22 * Math.random())); send({ type: "corks", x: xs }); corksOn = true; $("corkB").classList.add("on"); }
+function scatter() { const s = slice(), xs = []; const r = tank === "periodic" ? 11 : half() - 2; for (let i = 0; i < 24; i++) { const x = add(add(s.O, s.A, -r + 2 * r * Math.random()), s.B, -r + 2 * r * Math.random()); if (tank === "periodic" || x.every((v, j) => Math.abs(v - ctr()[j]) < half() - 1)) xs.push(x); } send({ type: "corks", x: xs }); corksOn = true; $("corkB").classList.add("on"); }
+function setTank(t) { tank = t; send({ type: "tank", sym: TANKS[t] }); corksOn = false; $("corkB").classList.remove("on"); S.corks = []; $("tankB").textContent = `tank: ${t}`; $("tankB").classList.toggle("on", t !== "periodic"); squareUp(); }
+$("tankB").onclick = () => { const ks = Object.keys(TANKS); setTank(ks[(ks.indexOf(tank) + 1) % ks.length]); exp = "tank"; caption(); };
 function run(x) {
+  if (x === "seiche") { if (tank !== "walls") setTank("walls"); else send({ type: "clear" }); rain = false; $("rainB").classList.remove("on"); exp = "seiche"; seicheDir = slice().B.slice(); send({ type: "seiche", d: seicheDir, a: 0.15 }); for (const b of document.querySelectorAll("#exps button[data-x]")) b.classList.toggle("on", b.dataset.x === x); caption(); return; }
   if (x === "corks") { if (corksOn) { send({ type: "corks", x: [] }); corksOn = false; $("corkB").classList.remove("on"); S.corks = []; } else { scatter(); exp = "corks"; caption(); } return; }
   if (x === "rain") { rain = !rain; $("rainB").classList.toggle("on", rain); if (rain) { exp = "rain"; caption(); } return; }
   rain = false; $("rainB").classList.remove("on");
   send({ type: "clear" }); swellN = null; exp = x;
   const s = slice();
-  if (x === "pebble") { setDepth(0); setSlice(0, 0); send({ type: "drop", x: slice().O, a: 0.3, sigma: 1.2, compare: true }); }
-  else if (x === "out") { setDepth(0); setSlice(0, 0); send({ type: "drop", x: add(slice().O, slice().N, 6), a: 0.3, sigma: 1.2, compare: true }); }
-  else if (x === "shallow") { setDepth(3); setSlice(0, 0); send({ type: "drop", x: slice().O, a: 0.3, sigma: 1.2, compare: true }); }
+  if (x === "pebble") { setDepth(0); setSlice(0, 0); send({ type: "drop", x: slice().O, a: 0.3, sigma: 1.2, compare: tank === "periodic" }); }
+  else if (x === "out") { setDepth(0); setSlice(0, 0); send({ type: "drop", x: add(slice().O, slice().N, 6), a: 0.3, sigma: 1.2, compare: tank === "periodic" }); }
+  else if (x === "shallow") { setDepth(3); setSlice(0, 0); send({ type: "drop", x: slice().O, a: 0.3, sigma: 1.2, compare: tank === "periodic" }); }
   else if (x === "swell") { setDepth(0); setSlice(0, 0); swellN = [3, 0, 4]; send({ type: "swell", n: swellN, a: 0.12 }); }
   else if (x === "sea") { setDepth(0); setSlice(0, 0); send({ type: "sea", count: 60, a: 0.035, seed: (Math.random() * 1e9) | 0 }); scatter(); }
-  else if (x === "s" || x === "p" || x === "d") { setDepth(0); setSlice(0, 0); const l = { s: 0, p: 1, d: 2 }[x]; send({ type: "orbital", l, k0: 0.8, axis: l === 1 ? [1, 0, 1] : [0, 0, 1], c: C, peak: 0.25 }); }
+  else if (x === "s" || x === "p" || x === "d") { setDepth(0); setSlice(0, 0); const l = { s: 0, p: 1, d: 2 }[x]; send({ type: "orbital", l, k0: 0.8, axis: l === 1 ? [1, 0, 1] : [0, 0, 1], c: ctr(), peak: 0.25 }); }
   void s;
   for (const b of document.querySelectorAll("#exps button[data-x]")) b.classList.toggle("on", b.dataset.x === x && x !== "clear");
   caption();
@@ -220,8 +235,9 @@ for (const ev of ["pointerup", "pointercancel"]) glc.addEventListener(ev, (e) =>
   const Lo = layout(), r = Lo.sl, cam = camera(view.az, view.el, view.dist), qx = (2 * (g.x - r.x) - r.w) / r.h, qy = -(2 * (g.y - r.y) - r.h) / r.h;
   const d = unit(add(add(cam.F, cam.R, qx * TAN), cam.U, qy * TAN)); if (d[1] >= -0.01) return;
   const t = -cam.eye[1] / d[1], p = add(cam.eye, d, t), s = slice(), x = add(add(s.O, s.A, p[0]), s.B, p[2]);
+  if (tank !== "periodic" && x.some((v, i) => Math.abs(v - ctr()[i]) > half() - 0.5)) return; // that's the deck
   if (exp !== "rain") exp = "pebble";
-  send({ type: "drop", x, a: 0.3, sigma: 1.2, compare: true }); caption();
+  send({ type: "drop", x, a: 0.3, sigma: 1.2, compare: tank === "periodic" }); caption();
 });
 glc.addEventListener("wheel", (e) => { const Lo = layout(), r = glc.getBoundingClientRect(); if (inR(Lo.vo, e.clientX - r.left, e.clientY - r.top)) view.vdist = Math.max(L, Math.min(4 * L, view.vdist * Math.exp(e.deltaY * 0.001))); else view.dist = Math.max(8, Math.min(70, view.dist * Math.exp(e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
 for (const ev of ["contextmenu", "selectstart"]) document.addEventListener(ev, (e) => { if (!(e.target instanceof HTMLInputElement)) e.preventDefault(); });
@@ -236,7 +252,7 @@ function draw(now) {
   const dtR = Math.min(0.1, (now - lastNow) / 1000); lastNow = now;
   tick(); steer(dtR);
   if (caption.dirty && now - capAt > 250) { caption.dirty = false; capAt = now; caption(); }
-  if (rain && S.t > nextRain) { nextRain = S.t + 0.45; send({ type: "drop", x: [Math.random() * L, Math.random() * L, Math.random() * L], a: 0.12, sigma: 0.9, compare: false }); }
+  if (rain && S.t > nextRain) { nextRain = S.t + 0.45; send({ type: "drop", x: ctr().map((c) => c + (2 * Math.random() - 1) * (half() - 1)), a: 0.12, sigma: 0.9, compare: false }); }
   // heights drawn to a steady scale: follow the largest wave, slowly
   const target = Math.max(0.6 * S.max, 0.003); S.amp += (target - S.amp) * (target > S.amp ? 0.2 : 0.03); // 60% of the highest sample: the grid's luckiest crest shouldn't set the scale
   const dpr = Math.min(1.5, devicePixelRatio || 1); if (!res) res = dpr * (matchMedia("(pointer: coarse)").matches ? 0.6 : 0.85);
@@ -249,7 +265,7 @@ function draw(now) {
     const p = add(c.x0, c.xi, exag), rel = wrapRel(add(p, s.O, -1)), u = dot(rel, s.A), v = dot(rel, s.B), dl = dot(rel, s.N), y = exag * c.eta + 0.15;
     ck.set([u, y, v, dl], 4 * i); return { u, v, y, dl, F: c.F, p };
   });
-  gl.uniform1i(U.uNCork, corkView.length); gl.uniform4fv(U.uCork, ck);
+  gl.uniform1i(U.uNCork, corkView.length); gl.uniform4fv(U.uCork, ck); gl.uniform1i(U.uTank, tank === "periodic" ? 0 : 1); gl.uniform1f(U.uH, half()); gl.uniform3fv(U.uC, ctr());
   // the pads sit in the corners of your slice's view
   { const sl = Lo.sl, tw = $("twist"), an = $("ana"); tw.style.left = `${sl.x + 14}px`; tw.style.top = `${sl.y + sl.h - 14 - 104}px`; an.style.left = `${sl.x + sl.w - 14 - 44}px`; an.style.top = `${sl.y + sl.h - 14 - 120}px`; }
   for (const [mode, r, cam] of [[0, Lo.sl, camera(view.az, view.el, view.dist)], [1, Lo.vo, camera(view.vaz, view.vel, view.vdist)]]) {
@@ -272,14 +288,14 @@ function overlay(Lo, exag) {
   g.fillText("the whole surface (x, z, w up) · bright: your slice", vo.x + 10, vo.y + (vo.y > 0 ? 18 : 60));
   // the box's edges and its axes
   const cam = camera(view.vaz, view.vel, view.vdist), P = (p) => { const r = add(p, cam.eye, -1), f = dot(r, cam.F); return [vo.x + ((dot(r, cam.R) / (f * TAN)) * vo.h + vo.w) / 2, vo.y + (vo.h - (dot(r, cam.U) / (f * TAN)) * vo.h) / 2]; };
-  const hL = L / 2, cs = [-hL, hL];
+  const hL = half(), cs = [-hL, hL];
   g.strokeStyle = "rgba(255,255,255,0.22)"; g.lineWidth = 1; g.beginPath();
   for (const a of cs) for (const b of cs) { for (const [p, q] of [[[-hL, a, b], [hL, a, b]], [[a, -hL, b], [a, hL, b]], [[a, b, -hL], [a, b, hL]]]) { const A = P(p), B = P(q); g.moveTo(...A); g.lineTo(...B); } }
   g.stroke();
   g.fillStyle = "rgba(233,228,218,0.7)"; for (const [lab, p] of [["x", [hL + 3, -hL, -hL]], ["z", [-hL, -hL, hL + 3]], ["w", [-hL, hL + 3, -hL]]]) { const q = P(p); g.fillText(lab, q[0], q[1]); }
   // the corks on the whole surface: where they are, which side of your slice, and their push
   for (const c of corkView) {
-    const rel = wrapRel(add(c.p, C, -1)), q = P([rel[0], rel[2], rel[1]]), col = Math.abs(c.dl) < 0.55 ? "#ffd27a" : c.dl > 0 ? "#38f2e0" : "#ff66b8", sc = (exag * 3) / G;
+    const rel = wrapRel(add(c.p, ctr(), -1)), q = P([rel[0], rel[2], rel[1]]), col = Math.abs(c.dl) < 0.55 ? "#ffd27a" : c.dl > 0 ? "#38f2e0" : "#ff66b8", sc = (exag * 3) / G;
     const e = P([rel[0] + c.F[0] * sc, rel[2] + c.F[2] * sc, rel[1] + c.F[1] * sc]);
     g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 1.2; g.beginPath(); g.moveTo(...q); g.lineTo(...e); g.stroke(); g.beginPath(); g.arc(q[0], q[1], 2.5, 0, 2 * Math.PI); g.fill();
   }
@@ -318,4 +334,4 @@ const q = new URLSearchParams(location.search);
 send({ type: "dir", d: [1, 0, 0] });
 run(q.get("x") || "pebble");
 requestAnimationFrame(draw);
-window.WAVELAB = { S, view, frame, run, setSlice, send, twist, moveO, squareUp, pads };
+window.WAVELAB = { S, view, frame, run, setTank: (t) => setTank(t), setSlice, send, twist, moveO, squareUp, pads };

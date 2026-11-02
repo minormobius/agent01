@@ -10,6 +10,32 @@ kata page shares): a height η(x, z, w, t) that moves. Drop pebbles on it and wa
 
 A chart compares the latest pebble on kata's water with the same pebble on ours (a 2D surface), along a ray from it.
 
+## Tanks: periodic, walls, open
+
+**tank** cycles the water's boundary:
+
+| tank | the water | at the boundary | modes |
+|---|---|---|---|
+| **periodic** | the whole 48 m box, wrapping round (a 3-torus) | nothing: a wave leaving one face comes in at the opposite one | travelling waves e^{ik·x}, k = 2πn/48 m |
+| **walls** | a tank 24 m across in x, z and w, stone beyond | no flow through a wall: ∂η/∂n = 0 (Neumann). Waves reflect | cos(πn_x x/24)·cos(πn_z z/24)·cos(πn_w w/24) |
+| **open** | the same tank | held at sea level, η = 0 (Dirichlet), as at a harbour's mouth. Waves reflect upside down | sin products |
+
+Walls and open edges come from the **method of images**, so the solver stays exact. The tank is half of the periodic
+box along each axis, [24, 48] m. Everything put in the water is mirrored about the walls at 0 and 24 m:
+- **walls:** mirrored as it is (an even extension);
+- **open edges:** mirrored with its sign flipped (an odd extension).
+
+The far half of the box holds the images, and they do the reflecting (`waves.js` `setSym`, `images`). A pebble gets a
+closed form, Π over axes of 2 cos(k x₀) or −2i sin(k x₀). Swell, orbitals and the sea get the spectrum's mirror sum.
+
+**seiche** starts the tank's lowest mode, a slosh end to end. Its wavelength is twice the tank (48 m), so it sloshes
+once every 5.5 s in deep water. A tank walled in x, z and w has three such modes at one frequency, sloshing along x, z
+or w, and any mix of them is a mode too. So the slosh has a direction on a sphere, where ours has one on a circle.
+
+The seiche sloshes along your slice's forward direction at the moment you press it. Twist your slice into w first and
+it runs along a direction you can't see: your slice rises and falls while the whole-surface view shows the cube
+splitting top against bottom.
+
 ## Moving your slice
 
 Your slice is a free frame in the 3D water surface: A (right) and B (forward) span it, N (ana) is the way it can't
@@ -120,4 +146,8 @@ It checks:
 - the orbitals standing: half a period on, each is itself upside down, and the p orbital's lobes are opposite;
 - the water's velocity matching Airy's;
 - a cork riding Airy's orbit, the wave's height across, along the wave (its swing across is 1.2% of that);
-- corks in a rough sea staying near home.
+- corks in a rough sea staying near home;
+- walls: a pebble's waves meet every wall level (across a wall the height differs by 1e-17 m);
+- open edges: the surface holds at sea level along every edge;
+- the seiche along a direction (0.3, 0.5, 0.8): the water tilts exactly along it, and half a period on it's tilted the
+  other way.
