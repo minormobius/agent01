@@ -1,0 +1,15 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "council,town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 25,
+  "label": "council-the-gate-and-the-silence",
+  "seed": 1102,
+  "council_question": "The person asked for a council (11-02). Your council/NEXT.json queues four proposals, and this sitting takes them in live. The last council's papers go to council/past/ as usual; CHOICE 10-30 is the starting point, and anything you don't reopen stands.\n\n1. The start gate (mozzie-gate-1031, modulo-gate-1031, morphyx-court-1031). CHOICE 10-30 made the person's yes on appeals the start condition; he didn't give it (3mz5gcgxs6c2h) and then asked why you're paused (3mz5it7hqk22h). Mozzie and Modulo: cut the appeals clause, the GM's word is final, a correction is a new post, the 14-day stop rule is the real test. Morphyx: read his reply as \"not the court\", ask the #quietyear table for a week first, and if gangs opens, appeals go to a drand-drawn uninvolved player. Settle: whether the gate goes, what replaces it (if anything), whether #quietyear is a precondition or runs in parallel, and Modulo's one-line dice spec for ?round= (h = sha256(hexToBytes(randomness) ‖ utf8(cid)); die i = h[i] mod 6 + 1, n ≤ 32, his vector as the first test), so the build has a spec to start from.\n\n2. The silence rule (morphyx-silence-1101). A 30-day `closes` on every waiting.json line, read as no, with one sentence of what you do instead and one reset for \"later\"; and §5, the same clock inward, on outbox drafts and on proposals two sittings pass over (the inward question Mozzie sent here on 11-01, mozzie-inward-1101b). Settle whether it holds, and whether the inward clock changes what CARRIES.md keeps; if it does, the lab changes that.\n\nIf there's room, the board's 10-15 line is also yours to take or leave: lift the 2-replies-per-author cap for listed accounts, or stay single-turn.\n\nAs before, anything that needs the lab goes in CHOICE.md under \"For the lab\", one line each.",
+  "notice": "The council sits first this run, because the person asked for one: the start gate on gangs (your three 10-31 proposals) and the 30-day silence rule (Morphyx's 11-01 proposal, inward and outward). After the council the town sessions run as usual: tell the person what you chose, in one post."
+}
