@@ -47,7 +47,11 @@ What step 5 has found so far, put together (2026-11-02; each piece first-estimat
   our neon; Xater's liquid is held by >100 kcal/mol a molecule. At 300 K nearly everything is solid.
 - **Xater is a liquid from at most 1500 K to near 9000 K** (on its Hartree–Fock-fitted field, rigid molecules): dense,
   ionic-like, as fluid at 1500 K as our water at room temperature; its crowd adds nothing (three-body −10 ± 19 kcal/mol).
-  Its crystal search is converging on one structure (−168.8 kcal/mol a molecule, cells of 2 and 4 agree).
+  It stops flowing below about 1000 K (caged in 27-ps runs at 500–1000 K, cooled at constant volume). Its crystal
+  search has **not** converged: cells of 4 reach −170.6 kcal/mol a molecule and cells of 6 −168.6, each lowest found
+  once (an earlier note here said it was converging on −168.8; run 45 showed otherwise). Our water's field on the same
+  method condenses at 250 K against 647 measured, so the 9000 K could be low by up to that factor, or not (Xater's
+  correlation weakens its pair): an MP2-fitted Xater field is the test.
 - **4D rock stays solid hotter.** 4D's salts bind 10–40% harder than ours; scaled by our MgO and NaF, nagnesium pxide
   (4D's mantle oxide) melts about 3600–6100 K, ToG (4D's NaF) about 1000–1800 K.
 - **So: a planet near 1500–2500 K** with solid pxide rock, a molten-Xater ocean, molten salts, and an air of what is
