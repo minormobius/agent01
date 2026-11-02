@@ -1,0 +1,33 @@
+{
+ "group": "of-16",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair OF2 16",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 742
+  },
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair OF2 17",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 726
+  },
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair OF2 18",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 759
+  },
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair OF2 19",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 789
+  }
+ ]
+}

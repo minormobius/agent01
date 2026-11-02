@@ -1,0 +1,19 @@
+{
+ "group": "pg-11",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair PxGl2 11",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3919
+  },
+  {
+   "cmd": "node four/atom/tools/molpair.mjs pair PxGl2 12",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3604
+  }
+ ]
+}
