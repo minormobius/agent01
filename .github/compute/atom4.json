@@ -1,24 +1,48 @@
 {
- "run": "of3d-ladder",
- "why": "Our OF₂ on its field refitted to the 80 placements in the Dd basis (binding 1.72× deeper, median; dispersion coefficients up 1.5–20×): the check of the MP2 → field → liquid chain, rerun. It boils at 128 K and its critical point is near 258 K; the D-basis field gave no liquid at all.",
+ "run": "of2-wells",
+ "why": "OF₂ on its Dd-refitted field condenses with a critical point near 120 K against 258 measured. Random placements may miss the bottom of the pair well: the field's own 12 deepest pairs (from 0.47 to 0.31 kcal/mol on the field, deeper than any random placement's MP2), recomputed by MP2 in Dd, two per runner. If the true well is deeper there, the refit closes some of the gap.",
  "minutes": 330,
  "groups": [
   {
-   "name": "of3d-0",
+   "name": "of2well-0",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run of3d 90 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3d 110 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3d 120 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3d 150 --cycles=12000 --minutes=320"
+    "node four/atom/tools/molpair.mjs well OF2 0 --plus=Dd",
+    "node four/atom/tools/molpair.mjs well OF2 1 --plus=Dd"
    ]
   },
   {
-   "name": "of3d-1",
+   "name": "of2well-1",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run of3d 180 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3d 205 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3d 225 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3d 240 --cycles=12000 --minutes=320"
+    "node four/atom/tools/molpair.mjs well OF2 2 --plus=Dd",
+    "node four/atom/tools/molpair.mjs well OF2 3 --plus=Dd"
+   ]
+  },
+  {
+   "name": "of2well-2",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs well OF2 4 --plus=Dd",
+    "node four/atom/tools/molpair.mjs well OF2 5 --plus=Dd"
+   ]
+  },
+  {
+   "name": "of2well-3",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs well OF2 6 --plus=Dd",
+    "node four/atom/tools/molpair.mjs well OF2 7 --plus=Dd"
+   ]
+  },
+  {
+   "name": "of2well-4",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs well OF2 8 --plus=Dd",
+    "node four/atom/tools/molpair.mjs well OF2 9 --plus=Dd"
+   ]
+  },
+  {
+   "name": "of2well-5",
+   "cmds": [
+    "node four/atom/tools/molpair.mjs well OF2 10 --plus=Dd",
+    "node four/atom/tools/molpair.mjs well OF2 11 --plus=Dd"
    ]
   }
  ]

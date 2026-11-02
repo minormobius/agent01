@@ -11,7 +11,7 @@ import path from "node:path";
 import os from "node:os";
 import { shortPair } from "../js/md.js";
 import { bornMayer } from "./fitff.mjs";
-import { MOLS } from "./molpair.mjs";
+import { MOLS, placement } from "./molpair.mjs";
 
 const here = path.dirname(new URL(import.meta.url).pathname), DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-molpair"), KCAL = 627.5095;
 export const NAMES = ["q", "lnA_XX", "lnA_XL", "lnA_LL", "C_XX", "C_XL", "C_LL", "c_X", "c_L"];
@@ -48,6 +48,25 @@ export function fit(M, pts, start) {
 const [cmd, name] = process.argv.slice(2), MAIN = !!process.argv[1] && import.meta.url.endsWith("/" + path.basename(process.argv[1]));
 if (!MAIN) {
   // imported (tools/liquid.mjs): no command
+} else if (cmd === "wells") {
+  /* the field's own deepest pairs, which random placements rarely land in: 4000 random placements scored on the fitted
+     field, the best 300 refined by small rigid moves of the second molecule, the distinct minima (by energy, 0.02 kcal/mol)
+     kept, 16 of them at least 0.01 kcal/mol apart (from the deepest down) written for molpair.mjs `well` to recompute by MP2 (k = 5000 + i, so a refit takes them in) */
+  const grown = (process.argv.find((a) => a.startsWith("--plus=")) ?? "").split("=")[1] ?? "", key = grown ? `${name}@${grown}` : name, M = MOLS[name];
+  const F = (await import("../js/molffdata.js")).MOLFF[key]; if (!F) { console.log(`no field ${key}`); process.exit(1); }
+  const d = M.d; let s = 12345; const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const E = (A, B) => modelEnergy(F.p, M, A.map((a) => a.at), B.map((b) => b.at));
+  const nudge = (B, h) => { const c = B[0].at, S = Array.from({ length: d }, () => new Array(d).fill(0)); for (let i = 0; i < d; i++) for (let j = i + 1; j < d; j++) { const v = (rnd() - 0.5) * h; S[i][j] = v; S[j][i] = -v; }
+    // an exact rotation: the rows of I + S, Gram–Schmidt orthonormalized (B stays rigid however many moves it takes)
+    const Q = []; for (let i = 0; i < d; i++) { let r = S[i].map((v, j) => v + (i === j ? 1 : 0)); for (const q of Q) { const p = r.reduce((t, x, j) => t + x * q[j], 0); r = r.map((x, j) => x - p * q[j]); } const n = Math.hypot(...r); Q.push(r.map((x) => x / n)); }
+    const t = Array.from({ length: d }, () => (rnd() - 0.5) * h * 2); return B.map((b) => ({ Z: b.Z, at: b.at.map((_, i) => c[i] + t[i] + b.at.reduce((q, x, j) => q + Q[i][j] * (x - c[j]), 0)) })); };
+  const starts = Array.from({ length: 4000 }, (_, k) => { const [A, B] = placement(M, 100000 + k); return { A, B, e: E(A, B) }; }).sort((a, b) => a.e - b.e).slice(0, 300);
+  const mins = [];
+  for (const st of starts) { let { A, B, e } = st; for (let it = 0, h = 0.3; it < 1500; it++) { const nb = nudge(B, h), ne = E(A, nb); if (ne < e) { B = nb; e = ne; } else if (it % 150 === 149) h *= 0.6; }
+    const cen = B[0].at; if (!mins.some((m) => Math.abs(m.e - e) < 0.005 / KCAL && Math.hypot(...m.B[0].at.map((x, i) => x - cen[i])) < 0.3)) mins.push({ A, B, e }); }
+  mins.sort((a, b) => a.e - b.e); const keep = []; for (const m of mins) { if (keep.length >= 16) break; if (keep.every((k) => Math.abs(k.e - m.e) >= 0.01 / KCAL)) keep.push(m); } // spread over the well's depths, not one well's symmetric copies
+  const wj = JSON.stringify(keep.map((m) => ({ A: m.A, B: m.B, model: m.e }))); writeFileSync(path.join(DIR, `wells-${name}${grown}.json`), wj); writeFileSync(path.join(here, `wells-${name}${grown}.json`), wj + "\n"); // the repo copy is what the runner reads
+  console.log(`${key}: ${mins.length} distinct minima from 300; deepest ${keep.map((m) => (m.e * KCAL).toFixed(3)).join(", ")} kcal/mol on the field (the random set's deepest MP2 placement for comparison: see molpair bake)`);
 } else if (cmd === "fit") {
   // --plus=Dd: fit to the grown basis's placements (pairDd-…), stored as "<name>@Dd"
   const grown = (process.argv.find((a) => a.startsWith("--plus=")) ?? "").split("=")[1] ?? "", key = grown ? `${name}@${grown}` : name;

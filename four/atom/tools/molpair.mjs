@@ -88,6 +88,13 @@ if (!MAIN) {
   const M = MOLS[name], k = +karg, full = process.argv.includes("--full"), grown = (process.argv.find((a) => a.startsWith("--plus=")) ?? "").split("=")[1] ?? "", f = path.join(DIR, `${full ? "pairfull" : "pair" + grown}-${name}-${k}.json`);
   if (!existsSync(f)) { const [A, B] = placement(M, k), t0 = Date.now(), e = pairEnergy(A, B, M.d, grown || M.plus, !full); writeFileSync(f, JSON.stringify({ name, k, basis: full ? "full" : grown ? `economy-${grown}` : "economy", A: A.map((a) => a.at), B: B.map((b) => b.at), ...e, s: (Date.now() - t0) / 1000 })); }
   const r = JSON.parse(readFileSync(f, "utf8")); console.log(`${name} ${k}: MP2 ${(r.mp2 * KCAL).toFixed(3)} kcal/mol (${(r.mp2 * KELVIN).toFixed(0)} K), HF ${(r.hf * KCAL).toFixed(3)}, ${r.ok ? "converged" : "NOT converged"}, ${r.n} functions, ${r.s.toFixed(0)} s`);
+} else if (cmd === "well") {
+  // one of the field's own deepest pairs (tools/molff.mjs wells → wells-<name><plus>.json), by MP2 in the grown basis, as
+  // placement k = 5000 + i so the refit takes it in
+  const grown = (process.argv.find((a) => a.startsWith("--plus=")) ?? "").split("=")[1] ?? "", i = +karg, M = MOLS[name], W = JSON.parse(readFileSync(path.join(here, `wells-${name}${grown}.json`), "utf8"))[i], k = 5000 + i;
+  const f = path.join(DIR, `pair${grown}-${name}-${k}.json`);
+  if (!existsSync(f)) { const t0 = Date.now(), e = pairEnergy(W.A, W.B, M.d, grown || M.plus, true); writeFileSync(f, JSON.stringify({ name, k, basis: grown ? `economy-${grown}` : "economy", A: W.A.map((a) => a.at), B: W.B.map((b) => b.at), model: W.model, ...e, s: (Date.now() - t0) / 1000 })); }
+  const r = JSON.parse(readFileSync(f, "utf8")); console.log(`${name} well ${i}: MP2 ${(r.mp2 * KCAL).toFixed(3)} kcal/mol, the field said ${(r.model * KCAL).toFixed(3)}; ${r.ok ? "converged" : "NOT converged"}`);
 } else if (cmd === "basis") {
   // placement k again with the basis grown by plus (tools/census.mjs basisFor letters: d, f, F on the heavy atoms), economy
   // as for pair: does the field's well depend on the basis? (dispersion needs polarization functions; "D" alone has none)
