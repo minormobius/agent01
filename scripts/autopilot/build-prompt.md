@@ -33,10 +33,10 @@ _Regenerated 2026-11-02 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-02, 100 members / 196 posts):
+**Neighborhood spark** (bisk 2026-11-02, 100 members / 228 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: anthonybecker, bcz, idk
-- Top post: "My" — @moultano.bsky.social
+- Distinctive words: anthonybecker, anthropic, qwen
+- Top post: "what the fuck, frontier LLMs can directly interpret and edit the weights of smaller models rikiyat.github.io/blog/weight" — @philpax.me
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
