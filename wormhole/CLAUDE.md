@@ -159,6 +159,24 @@ a big emphasis on the patterning of the scales"). It borrows flora's geometry co
   past the head's rest and doubled back (the undulation now stops 7 W0 below it), and heads posed
   2.5 W0 toward the viewer above a flat body (a fold hidden in a perspective cusp — slithering
   heads now sit at body height). The head end stays fixed through the limiter (its rest was chosen to clear the text); the foot coil sits low and tight with its head resting off to one side, so its neck has room to arc. The selftest asserts no neck joint over 45°; measured worst ~34°.
+- **The head is the body, continued** (operator: "head segmentation looks off, get that smooth").
+  `body()` extends the spine past the last vertebra along the head's heading for `LH·1.05`,
+  widening from the neck's width into the jaw (smoothstep to `hh`) and tapering elliptically to
+  the snout, with the neck's roll/facing carried over. The lattice, light, sheen and silhouette
+  therefore run straight over the head — no outline, no seam. On the head the lattice covers the
+  whole circumference (belly-coloured scales on chin and throat; belly plates stop at the chin —
+  leaving the jaw unscaled showed the dark underlay as a row of "teeth"). `drawHead()` now draws
+  only features: mouth, faint lip line, soft eye stripe, nostril, eye with brow, tongue (under the
+  snout). `B.Lb` is the body/head boundary, `B.hA` the heading, `B.L` includes the head.
+- **Scales that wrap the body** (operator: "they don't curve around the body"). Each dorsal scale
+  is a curved quad: its four edges are sampled at their midpoints *in body coordinates* (u, v) and
+  mapped through the round cross-section, drawn as quadratic curves through those points — so
+  scales bow with the surface and compress toward the flanks. The free edge of each scale gets a
+  soft dark rim (it overlaps the next toward the tail). Cost: ~0.6 s/tall page in the browser,
+  ~3 MB SVG.
+- **Tails hang free**: the lowest coil starts ≥18 body widths up the trunk and the hanging tail is
+  capped short of the page bottom — a tail that reached the page edge ran flat along that wall,
+  the "two right angles".
 - **Neck & head**: only the head (last two vertebrae, a little of the third) is pinned; the
   neck's initial pose is a slack cubic — up off the body, a swan's curve into the head's heading
   — and the skeleton settles it, so it rises rather than shooting out. Over its last ~8 body-
