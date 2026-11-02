@@ -1083,6 +1083,13 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   }
   ok(Math.max(...errs) < 1e-4, `plasma screening: the cloud's potential at a nucleus matches Debye's √(4πκ) in ours and (4π²)^{4/3}κ^{1/3}/12√3π in 4D, by quadrature, to ${Math.max(...errs).toExponential(1)}`);
 }
+{ // strong screening's ion sphere: ours −0.9 Z²/a (Salpeter), 4D's against a Monte Carlo of the 4-ball's ⟨1/|r − r'|⟩
+  const PL = await import(path.join(here, "../js/plasma.js"));
+  let seed = 987; const rnd = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; }, pt = () => { for (;;) { const x = [0, 0, 0, 0].map(() => 2 * rnd() - 1); if (x.reduce((s, v) => s + v * v, 0) < 1) return x; } };
+  let inv = 0; const M = 400000; for (let i = 0; i < M; i++) { const a = pt(), b = pt(); inv += 1 / Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]); }
+  const mc4 = -4 / 3 + 0.5 * (inv / M), e3 = Math.abs(PL.ionSphereCoef(3) + 0.9), e4 = Math.abs(PL.ionSphereCoef(4) / mc4 - 1);
+  ok(e3 < 1e-4 && e4 < 5e-3, `plasma ion sphere: ours −0.9 Z²/a to ${e3.toExponential(0)}; 4D ${PL.ionSphereCoef(4).toFixed(4)} against a Monte Carlo ${mc4.toFixed(4)}`);
+}
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
