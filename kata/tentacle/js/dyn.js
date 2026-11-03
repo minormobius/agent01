@@ -42,12 +42,19 @@ export function segSeg(p1, q1, p2, q2) {
   return { s, t, dist: norm(n), n };
 }
 
-/* a rod: nodes x (positions), radii r, rest lengths L (one per segment). opts.pinned: indices that don't move by dynamics */
+/* a rod: nodes x (positions), radii r, rest lengths L (one per segment). opts.pinned: indices that don't move by
+   dynamics. opts.stride: shape-match every stride-th window only (2 halves the cost; with windows 5 wide every node is
+   still in two). opts.chains: the lengths of several arms laid end to end in one rod (an octopus: 8 × 65 nodes), so one
+   solve moves them all and they can touch one another; nothing joins the last node of one to the first of the next
+   (its L is 0). opts.noContact: nodes whose segments touch nothing (arms' roots, crowded together at the body) */
 export function makeRod(d, xs, rs, opts = {}) {
-  const N = xs.length, L = xs.slice(1).map((x, i) => norm(sub(x, xs[i])));
+  const N = xs.length, cs = new Int32Array(N), ce = new Int32Array(N); let at = 0;
+  for (const n of opts.chains || [N]) { for (let i = at; i < at + n; i++) { cs[i] = at; ce[i] = at + n - 1; } at += n; }
+  const L = xs.slice(1).map((x, i) => (i === ce[i] ? 0 : norm(sub(x, xs[i]))));
   const m = xs.map((_, i) => { const l = ((L[i - 1] || 0) + (L[i] || 0)) / 2; return (RHO + CA * 1000) * crossVol(d, rs[i]) * l; });
   return {
     d, N, x: xs.map((v) => v.slice()), v: xs.map(() => new Array(d).fill(0)), r: rs.slice(), L, m, pinned: new Set(opts.pinned || []),
+    cs, ce, noContact: new Set(opts.noContact || []), stride: opts.stride || 1,
     R: xs.map(() => { const R = new Float64Array(d * d); for (let i = 0; i < d; i++) R[i * d + i] = 1; return R; }), hw: opts.hw ?? 2, t: 0, body: new Array(d).fill(0), water: new Array(d).fill(0), mom: new Array(d).fill(0),
   };
 }
@@ -62,6 +69,7 @@ const momentum = (rod) => { const P = new Array(rod.d).fill(0); for (let i = 0; 
      g      acceleration (buoyancy-corrected gravity) for every free node
      bMax   how hard a fully tense arm holds its whole shape (per substep), beyond each window's
      kn, kt the drag coefficients across and along (accel = k |v| v / r)
+     solids  [{ a, b, ra, rb }]: round cones the arm can't enter (an octopus's head and mantle), nodes pushed out
      collide  self-contact on/off; sub substeps; iters constraint passes per substep */
 export function step(rod, dt, o) {
   const { d, N, x, v, r, m } = rod, sub_ = o.sub ?? 10, h = dt / sub_, iters = o.iters ?? 2, kn = o.kn ?? 0.2, kt = o.kt ?? 0.01;
@@ -75,7 +83,7 @@ export function step(rod, dt, o) {
       const vi = v[i], f = o.force && o.force[i];
       for (let c = 0; c < d; c++) vi[c] += h * ((o.g ? o.g[c] : 0) + (f ? f[c] / m[i] : 0));
       // drag: split the velocity along the arm (T) and across, each slowed implicitly
-      const a = x[Math.max(0, i - 1)], b = x[Math.min(N - 1, i + 1)], T = sub(b, a), tl = norm(T) || 1;
+      const a = x[Math.max(rod.cs[i], i - 1)], b = x[Math.min(rod.ce[i], i + 1)], T = sub(b, a), tl = norm(T) || 1;
       for (let c = 0; c < d; c++) T[c] /= tl;
       const vt = dotv(vi, T), vn = vi.map((u, c) => u - vt * T[c]), vnm = norm(vn), before = vi.slice();
       const ft = 1 / (1 + (h * kt * Math.abs(vt)) / r[i]), fn = 1 / (1 + (h * kn * vnm) / r[i]);
@@ -86,6 +94,7 @@ export function step(rod, dt, o) {
     for (let it = 0; it < iters; it++) {
       // LENGTH
       for (let i = 0; i + 1 < N; i++) {
+        if (i === rod.ce[i]) continue;
         const wa = rod.pinned.has(i) ? 0 : 1 / m[i], wb = rod.pinned.has(i + 1) ? 0 : 1 / m[i + 1]; if (!(wa + wb)) continue;
         const e = sub(p[i + 1], p[i]), l = norm(e) || 1e-9, k = (l - L[i]) / (l * (wa + wb));
         for (let c = 0; c < d; c++) { p[i][c] += wa * k * e[c]; p[i + 1][c] -= wb * k * e[c]; }
@@ -95,7 +104,8 @@ export function step(rod, dt, o) {
       // HOLD: a tense arm also holds its whole shape relative to the body, not just each window's (without this the
       // long, slow modes are as soft as a rope's and it sags); a pull toward the target place, as strong as the tone
       if (o.q && o.bMax) for (let i = 0; i < N; i++) if (!rod.pinned.has(i)) { const b = o.bMax * tone[i]; for (let c = 0; c < d; c++) p[i][c] += b * (o.q[i][c] - p[i][c]); }
-      if (o.collide) collide(rod, p);
+      if (o.collide && s % (o.contactEvery || 1) === 0) collide(rod, p);
+      if (o.solids) solids(rod, p, o.solids);
       if (o.pins) for (const i in o.pins) p[i] = o.pins[i].slice();
     }
     for (let i = 0; i < N; i++) { for (let c = 0; c < d; c++) v[i][c] = rod.pinned.has(i) ? 0 : (p[i][c] - x[i][c]) / h; x[i] = p[i]; }
@@ -115,8 +125,8 @@ function shapeMatch(rod, p, q, alpha) {
   if (!WS.G || WS.G.length !== N * d) { WS.G = new Float64Array(N * d); WS.cnt = new Float64Array(N); }
   const G = WS.G, cnt = WS.cnt; G.fill(0); cnt.fill(0);
   const pc = new Float64Array(d), qc = new Float64Array(d), A = new Float64Array(d * d), M = new Float64Array(d * d), W = new Float64Array(d * d), S = new Float64Array(d * d), Rn = new Float64Array(d * d);
-  for (let w = 0; w < N; w++) {
-    const i0 = Math.max(0, w - hw), i1 = Math.min(N - 1, w + hw), n = i1 - i0 + 1; pc.fill(0); qc.fill(0); A.fill(0);
+  for (let w = 0; w < N; w += rod.stride) {
+    const i0 = Math.max(rod.cs[w], w - hw), i1 = Math.min(rod.ce[w], w + hw), n = i1 - i0 + 1; pc.fill(0); qc.fill(0); A.fill(0);
     for (let i = i0; i <= i1; i++) for (let c = 0; c < d; c++) { pc[c] += p[i][c] / n; qc[c] += q[i][c] / n; }
     for (let i = i0; i <= i1; i++) for (let a = 0; a < d; a++) { const pa = p[i][a] - pc[a]; for (let b = 0; b < d; b++) A[a * d + b] += pa * (q[i][b] - qc[b]); }
     const R = rod.R[w]; let tr = 0;
@@ -136,6 +146,22 @@ function shapeMatch(rod, p, q, alpha) {
   for (let i = 0; i < N; i++) if (!rod.pinned.has(i)) for (let c = 0; c < d; c++) p[i][c] += alpha[i] * (G[i * d + c] / cnt[i] - p[i][c]);
 }
 
+/* solid round cones (a body): any node inside one is pushed out along the cone's normal, its radius added */
+function solids(rod, p, list) {
+  const d = rod.d;
+  for (let i = 0; i < rod.N; i++) {
+    if (rod.pinned.has(i) || rod.noContact.has(i)) continue;
+    const x = p[i];
+    for (const { a, b, ra, rb } of list) {
+      let ab2 = 0, apab = 0; for (let c = 0; c < d; c++) { const e = (b[c] || 0) - (a[c] || 0); ab2 += e * e; apab += (x[c] - (a[c] || 0)) * e; }
+      const h = ab2 > 0 ? Math.min(1, Math.max(0, apab / ab2)) : 0; let dist = 0; const n = new Array(d);
+      for (let c = 0; c < d; c++) { n[c] = x[c] - (a[c] || 0) - ((b[c] || 0) - (a[c] || 0)) * h; dist += n[c] * n[c]; } dist = Math.sqrt(dist);
+      const R = ra + (rb - ra) * h + rod.r[i]; if (dist >= R || dist < 1e-9) continue;
+      for (let c = 0; c < d; c++) x[c] += (n[c] / dist) * (R - dist);
+    }
+  }
+}
+
 /* self-contact: every pair of segments far enough apart along the arm that they aren't neighbours, pushed apart to the
    sum of their radii. Groups of 8 segments with bounding balls skip the far pairs. */
 function collide(rod, p) {
@@ -147,12 +173,17 @@ function collide(rod, p) {
   }
   const arc = [0]; for (let i = 1; i < N; i++) arc.push(arc[i - 1] + rod.L[i - 1]);
   const im = new Float64Array(N); for (let i = 0; i < N; i++) im[i] = rod.pinned.has(i) ? 0 : 1 / m[i];
+  // which segments can touch anything (not the gap between two arms, not a crowded root)
+  if (!rod.live) { rod.live = new Uint8Array(N); for (let i = 0; i + 1 < N; i++) rod.live[i] = i !== rod.ce[i] && !rod.noContact.has(i) ? 1 : 0; }
+  const live = rod.live;
   const d = rod.d, d1 = new Float64Array(d), d2 = new Float64Array(d), rv = new Float64Array(d), nv = new Float64Array(d);
   for (let ga = 0; ga < ng; ga++) for (let gb = ga; gb < ng; gb++) {
     const A = balls[ga], B = balls[gb]; if (ga !== gb) { let q = 0; for (let c = 0; c < d; c++) q += (A.c[c] - B.c[c]) ** 2; if (q > (A.rad + B.rad) ** 2) continue; }
     for (let i = A.i0; i < A.i1; i++) for (let j = Math.max(B.i0, ga === gb ? i + 1 : 0); j < B.i1; j++) {
+      if (!live[i] || !live[j]) continue;
       const rr0 = Math.max(r[i], r[i + 1]) + Math.max(r[j], r[j + 1]);
-      if (Math.abs(arc[j] - arc[i]) < 1.7 * rr0 + rod.L[i]) continue; // neighbours along the arm: they're meant to touch
+      // neighbours along the same arm are meant to touch
+      if (rod.cs[i] === rod.cs[j] && Math.abs(arc[j] - arc[i]) < 1.7 * rr0 + rod.L[i]) continue;
       // the closest points of the two segments (segSeg, unrolled: this is the inner loop)
       const P1 = p[i], Q1 = p[i + 1], P2 = p[j], Q2 = p[j + 1];
       let a = 0, e = 0, f = 0, cc = 0, bb = 0, quick = 0;
@@ -173,12 +204,15 @@ function collide(rod, p) {
 /* the frames the arm actually has: each node's window rotation applied to the frame the muscles asked for, then turned
    the least amount onto the arm's true tangent (so the twist the muscles made rides along) */
 export function framesOf(rod, F0) {
-  const { x, N } = rod;
-  return x.map((_, i) => {
-    const Rf = rod.R[i], d = rod.d, F = F0[i].map((row) => Array.from({ length: d }, (_, a) => { let v = 0; for (let b = 0; b < d; b++) v += Rf[a * d + b] * row[b]; return v; })), T = sub(x[Math.min(N - 1, i + 1)], x[Math.max(0, i - 1)]), tl = norm(T) || 1;
-    const b = T.map((u) => u / tl), a = F[0].map((u) => u / (norm(F[0]) || 1));
-    return F.map((row) => turn(a, b, row));
-  });
+  const { x, N, d } = rod, out = new Array(N), a = new Array(d), b = new Array(d);
+  for (let i = 0; i < N; i++) {
+    const Rf = rod.R[i - (i % rod.stride)], F = new Array(d), xa = x[Math.max(rod.cs[i], i - 1)], xb = x[Math.min(rod.ce[i], i + 1)];
+    for (let r = 0; r < d; r++) { const row = F0[i][r], v = new Array(d); for (let c = 0; c < d; c++) { let s = 0; for (let k = 0; k < d; k++) s += Rf[c * d + k] * row[k]; v[c] = s; } F[r] = v; }
+    let tl = 0, al = 0; for (let c = 0; c < d; c++) { b[c] = xb[c] - xa[c]; tl += b[c] * b[c]; al += F[0][c] * F[0][c]; } tl = Math.sqrt(tl) || 1; al = Math.sqrt(al) || 1;
+    for (let c = 0; c < d; c++) { b[c] /= tl; a[c] = F[0][c] / al; }
+    out[i] = F.map((row) => turn(a, b, row));
+  }
+  return out;
 }
 /* frames by parallel transport alone (a rope with no muscle frame): start from any frame at node 0, turn it along */
 export function transportFrames(x, F0) {

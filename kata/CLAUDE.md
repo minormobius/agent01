@@ -72,11 +72,19 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   matrix exponentials; longitudinal fibres as a pattern over the skin (a ring; Lebedev's 26 on the 2-sphere), dipole →
   bend, mean → shorten; transverse at constant volume; helical twist, whose 4D fields have the hairy ball's bald
   poles). Its own shader sphere-traces the hypertube and its suckers (2D cup profiles turned round their axes) from a
-  float texture of nodes (up to 128). **Physics** (`js/dyn.js`, `js/arm.js`): position-based dynamics in d dimensions,
+  float texture of nodes (`js/render.js`, shared with OCTOPUS). **Physics** (`js/dyn.js`, `js/arm.js`): position-based dynamics in d dimensions,
   shape matching to the muscles' shape with a tone-set stiffness, implicit anisotropic drag, segment–segment contact;
   the knot (jams in 3D, slips out through w in 4D, jams in 4D held in w = 0). Keep shader comments off the ends of
   code lines, and never `mix()` a 1e9 "no hit" distance (single precision makes it 0: black blobs). See
   [`tentacle/README.md`](tentacle/README.md).
+- **OCTOPUS at `/octopus/`**: eight of TENTACLE's arms on a head (`js/octo.js`, no DOM), importing
+  `../tentacle/js/rod.js`, `dyn.js` and `render.js` (same site: not copies), so **a change to TENTACLE's rod, dynamics or
+  renderer runs OCTOPUS's selftest too**. The eight are one `dyn.js` rod of eight chains (one solve: they touch each
+  other, the head and mantle are `solids`). In 4D the roots are a cube's corners on the 2-sphere round the mouth, turned
+  45° in z–w so four lie in w = 0. The renderer takes arms × per nodes (8 × 65; texture 640 wide) and body 2 (head,
+  mantle, eyes). Cost: ~10 ms a frame for all eight here, after making `build()` allocation-free and halving the
+  muscle rate, shape-matching windows and contact passes; the page sheds substeps, then resolution, below 40 fps. See
+  [`octopus/README.md`](octopus/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -136,6 +144,7 @@ node kata/orbital/test/orbital.selftest.mjs # ~8 s
 node kata/squid/test/squid.selftest.mjs # < 1 s
 node kata/tentacle/test/tentacle.selftest.mjs # ~1 s
 node kata/tentacle/test/dyn.selftest.mjs # ~30 s
+node kata/octopus/test/octopus.selftest.mjs # ~60 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

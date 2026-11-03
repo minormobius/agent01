@@ -32,28 +32,46 @@ export function expm(A) {
   for (let i = 0; i < k; i++) E = mul(E, E);
   return E;
 }
-/* the generator of a segment's strains, in its own frame: column j of the frame changes by Σ_i Ω_ij column i */
-function generator(d, b, tw) {
-  const O = Array.from({ length: d }, () => new Array(d).fill(0));
-  for (let i = 1; i < d; i++) { O[i][0] = b[i - 1]; O[0][i] = -b[i - 1]; } // T turns toward e_i at b_i
-  planes(d).forEach(([i, j], k) => { O[j][i] = tw[k]; O[i][j] = -tw[k]; }); // e_i turns toward e_j at τ_k
-  return O;
+/* exp of a small d×d matrix (flat, row-major) by Horner's Taylor series, halving and squaring when it isn't small:
+   E = I + A(I + A/2(I + A/3(… ))). The hot loop of build(): no allocation but its output */
+const SCR = { B: { 3: new Float64Array(9), 4: new Float64Array(16) }, T: { 3: new Float64Array(9), 4: new Float64Array(16) } };
+function expmFlat(A, d, out) {
+  let nrm = 0; for (let i = 0; i < d; i++) { let r = 0; for (let j = 0; j < d; j++) r += Math.abs(A[i * d + j]); nrm = Math.max(nrm, r); }
+  const k = nrm > 0.1 ? Math.ceil(Math.log2(nrm / 0.1)) : 0, sc = 2 ** -k, B = SCR.B[d], T = SCR.T[d];
+  for (let i = 0; i < d * d; i++) B[i] = A[i] * sc;
+  out.fill(0); for (let i = 0; i < d; i++) out[i * d + i] = 1;
+  // Horner, 8 terms: |B| ≤ 0.1 leaves an error below 0.1⁹/9! ≈ 3e-15
+  for (let m = 8; m >= 1; m--) {
+    for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) { let v = 0; for (let q = 0; q < d; q++) v += B[i * d + q] * out[q * d + j]; T[i * d + j] = v / m + (i === j ? 1 : 0); }
+    out.set(T);
+  }
+  for (let s = 0; s < k; s++) { for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) { let v = 0; for (let q = 0; q < d; q++) v += out[i * d + q] * out[q * d + j]; T[i * d + j] = v; } out.set(T); }
+  return out;
 }
 /* build the arm: strains for each segment → nodes { x, F (frame rows: T, e1…), r } (SEG + 1 of them). The base sits at
-   the origin, T up (+y), e1 = x, e2 = z, e3 = w */
-export function build(d, strains) {
-  const ds = LEN / SEG, base = d === 3 ? [[0, 1, 0], [1, 0, 0], [0, 0, 1]] : [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]];
-  let F = base.map((r) => r.slice()), x = new Array(d).fill(0); const nodes = [{ x: x.slice(), F: F.map((r) => r.slice()), r: R0 }];
+   x0 (the origin) with frame F0 (T up (+y), e1 = x, e2 = z, e3 = w): an octopus gives each arm its own */
+export function build(d, strains, x0 = null, F0 = null) {
+  const ds = LEN / SEG, base = F0 || (d === 3 ? [[0, 1, 0], [1, 0, 0], [0, 0, 1]] : [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]);
+  const F = new Float64Array(d * d), Fn = new Float64Array(d * d), G = new Float64Array(d * d), Eh = new Float64Array(d * d), Ef = new Float64Array(d * d), x = new Float64Array(d);
+  base.forEach((r, i) => r.forEach((v, c) => { F[i * d + c] = v; })); if (x0) x.set(x0);
+  const rows = () => Array.from({ length: d }, (_, i) => Array.from(F.subarray(i * d, i * d + d)));
+  const nodes = [{ x: Array.from(x), F: rows(), r: R0 }], pl = planes(d);
   for (let k = 0; k < SEG; k++) {
-    const s = strains[k], L = ds * s.stretch, O = generator(d, s.bend, s.twist);
-    // the frame's columns, as rows of F: F' = expm(Ω L)ᵀ F applied in the body frame: new e_j = Σ_i E_ij e_i
-    const half = expm(O.map((r) => r.map((v) => (v * L) / 2))), full = expm(O.map((r) => r.map((v) => v * L)));
-    const along = (E) => E.map((_, j) => F.reduce((acc, row, i) => acc.map((a, c) => a + E[i][j] * row[c]), new Array(d).fill(0)));
-    const Fm = along(half); x = x.map((v, c) => v + L * Fm[0][c]); F = along(full);
+    const st = strains[k], L = ds * st.stretch;
+    // the generator Ω (T turns toward e_i at b_i; e_i toward e_j at τ), times L/2
+    G.fill(0); for (let i = 1; i < d; i++) { G[i * d] = (st.bend[i - 1] * L) / 2; G[i] = (-st.bend[i - 1] * L) / 2; }
+    pl.forEach(([i, j], q) => { G[j * d + i] = (st.twist[q] * L) / 2; G[i * d + j] = (-st.twist[q] * L) / 2; });
+    expmFlat(G, d, Eh);
+    // the full step is the half step twice
+    for (let i = 0; i < d; i++) for (let j = 0; j < d; j++) { let v = 0; for (let q = 0; q < d; q++) v += Eh[i * d + q] * Eh[q * d + j]; Ef[i * d + j] = v; }
+    // the frame's rows move as new e_j = Σ_i E_ij e_i; the centreline steps along the mid-segment tangent
+    for (let c = 0; c < d; c++) { let t = 0; for (let i = 0; i < d; i++) t += Eh[i * d] * F[i * d + c]; x[c] += L * t; }
+    for (let j = 0; j < d; j++) for (let c = 0; c < d; c++) { let v = 0; for (let i = 0; i < d; i++) v += Ef[i * d + j] * F[i * d + c]; Fn[j * d + c] = v; }
     // keep it orthonormal (Gram–Schmidt): the exponential already is, to rounding
-    for (let i = 0; i < d; i++) { for (let j = 0; j < i; j++) { const p = dot(F[i], F[j]); F[i] = F[i].map((v, c) => v - p * F[j][c]); } const m = Math.hypot(...F[i]); F[i] = F[i].map((v) => v / m); }
+    for (let i = 0; i < d; i++) { for (let j = 0; j < i; j++) { let p = 0; for (let c = 0; c < d; c++) p += Fn[i * d + c] * Fn[j * d + c]; for (let c = 0; c < d; c++) Fn[i * d + c] -= p * Fn[j * d + c]; } let m = 0; for (let c = 0; c < d; c++) m += Fn[i * d + c] ** 2; m = Math.sqrt(m); for (let c = 0; c < d; c++) Fn[i * d + c] /= m; }
+    F.set(Fn);
     const taper = R0 + (RTIP - R0) * ((k + 1) / SEG);
-    nodes.push({ x: x.slice(), F: F.map((r) => r.slice()), r: taper * s.stretch ** (-1 / (d - 1)), s: (k + 1) / SEG });
+    nodes.push({ x: Array.from(x), F: rows(), r: taper * st.stretch ** (-1 / (d - 1)), s: (k + 1) / SEG });
   }
   nodes[0].s = 0; return nodes;
 }

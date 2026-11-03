@@ -5857,6 +5857,23 @@
       ]
     },
     {
+      "n": "kata-octopus",
+      "u": "https://kata.mino.mobi/octopus/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-03",
+      "b": "2026-11-03",
+      "p": "kata",
+      "surface": "kata",
+      "d": "Eight muscular arms on a head, in 3D and in 4D, each with mass, water drag and suckers, all eight in one solve so they press on one another and drape over the head. In 4D the arms root at a cube's corners round the mouth, 70.5 degrees apart with three nearest neighbours each, and your slice cuts them into pieces. A swimming stroke, fast close and slow open, pushes the body because drag goes as speed squared; run backwards it pushes the other way. Sprawl, writhe, sweep, flare, grab and reach.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

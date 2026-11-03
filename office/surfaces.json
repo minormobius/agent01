@@ -3749,6 +3749,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-octopus",
+   "name": "kata-octopus",
+   "url": "https://kata.mino.mobi/octopus/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",
