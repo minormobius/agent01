@@ -1209,8 +1209,19 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   // our neon's pseudopotential: each screened channel gives back its all-electron level
   const ne = PS.makePseudo({ Z: 10, d: 3, core: { "1s": 2 }, valence: { "2s": 2, "2p": 6 }, rc: { 0: 1.5, 1: 1.5 }, local: 1 }), sh = ne.ae.sh;
   const pse = Math.max(...Object.values(ne.chans).map((ch) => Math.abs(PS.solveAny(ch.Vscr, ch.l, 0, 3).e - ne.ae.es[sh.findIndex((s) => s.name === ch.name)])));
-  ok(fe < 1e-9 && ft < 2e-4 && jb < 1e-7 && ew > erad && ew - erad < 3e-3 && ewd < 2e-5 && kw < 1e-12 && pse < 1e-5,
-    `plane waves: the FFT to ${fe.toExponential(0)}, 4D/3D radial transforms to ${ft.toExponential(0)}, a Gaussian well ${ew.toFixed(5)} above the radial ${erad.toFixed(5)}, the ions' energy split-independent to ${ewd.toExponential(0)} (4D cores leaking), neon's pseudo-levels to ${pse.toExponential(0)}`);
+  // transferability with the nonlinear core correction: stripping our Al to Al³⁺, pseudo against all-electron (0.6 eV off without it)
+  const { kernel: Kf, hartree: Hf, N: NN, H: HH } = await import(path.join(here, "../js/atom.js")), EXd = PW.EXCHANGE[3], SPd = PW.SPHERE[3];
+  const exf = (r) => -EXd * Math.pow(Math.max(r, 0), 4 / 3), vxf = (r) => -(4 / 3) * EXd * Math.pow(Math.max(r, 0), 1 / 3), rhoOf = (Q) => Float64Array.from(Q, (q, j) => q / (HH * R[j] * SPd * R[j] ** 2));
+  const Etot = (Q, es, pc) => { const VH = Hf(Kf(3), Q), rho = rhoOf(Q); let e = es; for (let j = 0; j < NN; j++) { const w = HH * R[j] * SPd * R[j] ** 2; e += -0.5 * Q[j] * VH[j] + w * (exf(rho[j] + pc[j]) - exf(pc[j])) - Q[j] * vxf(rho[j] + pc[j]); } return e; };
+  const alPs = PS.makePseudo({ Z: 13, d: 3, core: { "1s": 2, "2s": 2, "2p": 6 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.1, 1: 2.3 }, local: 1, nlcc: true });
+  const psTot = (occ) => { let Q = new Float64Array(NN), es = {}; for (let it = 0; it < 300; it++) { const VH = Hf(Kf(3), Q), rho = rhoOf(Q), Qn = new Float64Array(NN);
+      for (const [l, o] of Object.entries(occ)) { if (!o) continue; const V = Float64Array.from(alPs.chans[l].Vion, (v, j) => v + VH[j] + vxf(rho[j] + alPs.rhoc[j])), q = PS.solveAny(V, +l, 0, 3); es[l] = q.e; for (let j = 0; j < NN; j++) Qn[j] += o * q.u[j] ** 2 * R[j] * HH; }
+      Q = Float64Array.from(Q, (q, j) => 0.6 * q + 0.4 * Qn[j]); }
+    return Etot(Q, Object.entries(occ).reduce((t, [l, o]) => t + (o ? o * es[l] : 0), 0), alPs.rhoc); };
+  const aeE = (spec) => { const a = PS.aeAtom(13, spec, 3); let es = 0; a.sh.forEach((_, i) => { if (a.occ[i]) es += a.occ[i] * a.es[i]; }); const VH = Hf(Kf(3), a.Q), rho = rhoOf(a.Q); let e = es; for (let j = 0; j < NN; j++) e += -0.5 * a.Q[j] * VH[j] + HH * R[j] * SPd * R[j] ** 2 * exf(rho[j]) - a.Q[j] * vxf(rho[j]); return e; };
+  const core = { "1s": 2, "2s": 2, "2p": 6 }, dAE = aeE(core) - aeE({ ...core, "3s": 2, "3p": 1 }), dPS = psTot({ 0: 0, 1: 0 }) - psTot({ 0: 2, 1: 1 }), tr = Math.abs(dPS - dAE) * 27.2114;
+  ok(fe < 1e-9 && ft < 2e-4 && jb < 1e-7 && ew > erad && ew - erad < 3e-3 && ewd < 2e-5 && kw < 1e-12 && pse < 1e-5 && tr < 0.05,
+    `plane waves: the FFT to ${fe.toExponential(0)}, 4D/3D radial transforms to ${ft.toExponential(0)}, a Gaussian well ${ew.toFixed(5)} above the radial ${erad.toFixed(5)}, the ions' energy split-independent to ${ewd.toExponential(0)} (4D cores leaking), neon's pseudo-levels to ${pse.toExponential(0)}, Al → Al³⁺ through the core-corrected pseudopotential to ${(tr * 1000).toFixed(0)} meV of all-electron (${(dAE * 27.2114).toFixed(2)} eV)`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

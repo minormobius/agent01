@@ -92,7 +92,16 @@ function gauss5(A, b) { const n = b.length, M = A.map((r, i) => [...r, b[i]]); f
    channel, the local channel; an unoccupied channel (for the local part, typically) is solved at the energy `eUnbound`
    … here simply taken from a slightly ionized reference: pass it as a valence entry with occupation 0 and its own
    configuration in `refs` is not needed when it is bound in the reference, which the specs below arrange */
-export function makePseudo({ Z, d, core, valence, rc, local }) {
+/* the partial core (Louie, Froyen and Cohen's nonlinear core correction): exchange isn't linear in the density, so
+   taking the valence's off by itself leaves an error that grows as the valence leaves (a fully ionized cation is off by
+   ~0.5 eV). The core's density is kept for the exchange, the true one outside r₀ and a smooth a + br² + cr⁴ inside
+   (value, slope and curvature matched at r₀, the radius where the core's density falls to the valence's) */
+function partialCore(rhoc, rhov) {
+  let i0 = 5; while (i0 < N - 3 && !(rhoc[i0] < rhov[i0] && R[i0] > 0.05)) i0++; // first crossing, outward from the nucleus
+  const r0 = R[i0], [f0, f1, f2] = derivs(rhoc, i0), c = (f2 - f1 / r0) / (8 * r0 * r0), b = f1 / (2 * r0) - 2 * c * r0 * r0, a = f0 - b * r0 * r0 - c * r0 ** 4;
+  return { r0, rho: Float64Array.from(R, (r, j) => (j >= i0 ? rhoc[j] : Math.max(0, a + b * r * r + c * r ** 4))) };
+}
+export function makePseudo({ Z, d, core, valence, rc, local, nlcc = false }) {
   const spec = { ...core, ...valence }, ae = aeAtom(Z, spec, d), sh = ae.sh, chans = {};
   const zc = Object.values(core).reduce((a, b) => a + b, 0), Zv = Z - zc;
   for (const [name, occ] of Object.entries(valence)) { const i = sh.findIndex((s) => s.name === name), s = sh[i];
@@ -101,14 +110,16 @@ export function makePseudo({ Z, d, core, valence, rc, local }) {
   // descreen by the valence pseudo-density's Hartree and exchange
   const Qv = new Float64Array(N); for (const ch of Object.values(chans)) for (let j = 0; j < N; j++) Qv[j] += ch.occ * ch.u[j] * ch.u[j] * R[j] * H;
   const VHv = hartree(kernel(d), Qv), rhov = toRho(Qv, d);
-  for (const ch of Object.values(chans)) ch.Vion = Float64Array.from(ch.Vscr, (v, j) => v - VHv[j] - vx(rhov[j], d));
+  const Qc = new Float64Array(N); for (const [name] of Object.entries(core)) { const i = sh.findIndex((s) => s.name === name); for (let j = 0; j < N; j++) Qc[j] += ae.occ[i] * ae.qs[i][j]; }
+  const pc = nlcc ? partialCore(toRho(Qc, d), rhov) : { r0: 0, rho: new Float64Array(N) };
+  for (const ch of Object.values(chans)) ch.Vion = Float64Array.from(ch.Vscr, (v, j) => v - VHv[j] - vx(rhov[j] + pc.rho[j], d));
   // the core's moments (its leaked field in 4D)
   let S = 0, T = 0; for (const [name] of Object.entries(core)) { const i = sh.findIndex((s) => s.name === name); for (let j = 0; j < N; j++) { S += ae.occ[i] * ae.qs[i][j] * R[j] ** 2; T += ae.occ[i] * ae.qs[i][j] * R[j] ** 4; } }
   const loc = chans[local], Vloc = loc.Vion;
   const proj = Object.values(chans).filter((ch) => ch.l !== local).map((ch) => { const dV = Float64Array.from(ch.Vion, (v, j) => v - Vloc[j]);
     let den = 0; for (let j = 0; j < N; j++) den += ch.u[j] * dV[j] * ch.u[j] * R[j] * H; // ⟨φ|δV|φ⟩ (u = r^((d−1)/2) R, so ∫ u² dr is the norm)
     return { l: ch.l, D: 1 / den, chi: Float64Array.from(ch.u, (v, j) => (v * dV[j]) / R[j] ** ((d - 1) / 2)) }; }); // radial β(r) = δV R(r)
-  return { Z, Zv, d, S, T, c: d === 4 ? S / 8 : 0, Vloc, chans, proj, ae, rhov };
+  return { Z, Zv, d, S, T, c: d === 4 ? S / 8 : 0, Vloc, chans, proj, ae, rhov, rhoc: pc.rho, rcore: pc.r0 };
 }
 
 /* d-dimensional radial Bessel factors j_l^(d)(x) = Γ(d/2)(2/x)^(d/2−1) J_(l+d/2−1)(x), j_0 = the sphere-averaged plane wave */
@@ -134,5 +145,6 @@ export function forPW(ps, { qmax = 30, dq = 0.01 } = {}) {
   const vs = tab((q) => hankel(d, 0, fsr, q, upto)), vsr = interp(vs);
   const K = (q) => (d === 3 ? (4 * Math.PI) / (q * q) : (4 * Math.PI * Math.PI) / (q * q * q)), Kc = (q) => (4 * Math.PI * Math.PI) / q; // FT of 1/r, and of 1/r³ in 4D
   const projs = ps.proj.map((p) => { const T = tab((q) => hankel(d, p.l, p.chi, q, upto)); return { l: p.l, D: p.D, beta: interp(T) }; });
-  return { Z: Zv, c, S: ps.S, T: ps.T, alphaZ: vs[0], vloc: (q) => vsr(q) - Zv * K(q) - (d === 4 ? c * Kc(q) : 0), proj: projs };
+  const rc0 = ps.rhoc && ps.rhoc.some((v) => v > 0) ? interp(tab((q) => hankel(d, 0, ps.rhoc, q, upto))) : null; // the partial core's transform
+  return { Z: Zv, c, S: ps.S, T: ps.T, alphaZ: vs[0], vloc: (q) => vsr(q) - Zv * K(q) - (d === 4 ? c * Kc(q) : 0), proj: projs, rhoc: rc0 };
 }

@@ -325,6 +325,11 @@ export class PW {
       atoms.forEach((at, I) => { const key = at.sp + "|" + g.toFixed(10); if (!cache.has(key)) cache.set(key, this.species[at.sp].vloc(g)); const v = cache.get(key);
         let arg = 0; for (let c = 0; c < d; c++) arg += G[j * d + c] * at.x[c]; const imz = -v * (Math.sin(arg) * rr + Math.cos(arg) * ri); // Im(v e^(−iG·τ) ρ*)
         for (let c = 0; c < d; c++) F[I][c] -= G[j * d + c] * imz; }); }
+    // the partial cores move with their ions: −∫ v_x(ρ + ρ̃_c) ∂ρ̃_c/∂τ, through v_x's G components
+    if (this.coreGrid()) { const pc = this.coreGrid(), vr = new Float64Array(ntot), vi = new Float64Array(ntot); for (let j = 0; j < ntot; j++) vr[j] = -(1 + 1 / d) * EXCHANGE[d] * Math.pow(Math.max(rho[j] + pc[j], 0), 1 / d); fftn(vr, vi, dims, false);
+      const cc = new Map(); for (let j = 1; j < ntot; j++) { if (!(G2[j] > 0)) continue; const g = Math.sqrt(G2[j]), xr = vr[j] / ntot, xi = vi[j] / ntot;
+        atoms.forEach((at, I) => { const f = this.species[at.sp].rhoc; if (!f) return; const key = at.sp + "|" + g.toFixed(10); if (!cc.has(key)) cc.set(key, f(g)); const v = cc.get(key);
+          let arg = 0; for (let c = 0; c < d; c++) arg += G[j * d + c] * at.x[c]; const imz = -v * (Math.sin(arg) * xr + Math.cos(arg) * xi); for (let c = 0; c < d; c++) F[I][c] -= G[j * d + c] * imz; }); } }
     if (nlForces) nlForces.forEach((f, I) => { for (let c = 0; c < d; c++) F[I][c] += f[c]; });
     else this.nonlocalForces(states).forEach((f, I) => { for (let c = 0; c < d; c++) F[I][c] += f[c]; });
     const keys = [...new Set(atoms.map((a) => a.sp))], kinds = atoms.map((a) => keys.indexOf(a.sp));
@@ -349,12 +354,22 @@ export class PW {
       for (let i = 0; i < B0.n; i++) kin += occ * B0.kin[i] * (x.re[i] ** 2 + x.im[i] ** 2);
       for (const p of B0.proj) { let sr = 0, si = 0; for (let i = 0; i < B0.n; i++) { sr += p.re[i] * x.re[i] + p.im[i] * x.im[i]; si += p.re[i] * x.im[i] - p.im[i] * x.re[i]; } nl += occ * p.D * (sr * sr + si * si); } } });
     return { kin, nl }; }
+  /* the partial cores' density on the grid (the nonlinear core correction: it joins the valence density in exchange only) */
+  coreGrid() {
+    if (this._core !== undefined) return this._core; const { d, ntot, dims, G, G2, atoms } = this;
+    if (!atoms.some((a) => this.species[a.sp].rhoc)) return (this._core = null);
+    const re = new Float64Array(ntot), im = new Float64Array(ntot), cache = new Map();
+    for (let j = 0; j < ntot; j++) { const g = Math.sqrt(G2[j]);
+      for (const at of atoms) { const f = this.species[at.sp].rhoc; if (!f) continue; const key = at.sp + "|" + g.toFixed(10); if (!cache.has(key)) cache.set(key, f(g));
+        const v = cache.get(key) / this.vol; let arg = 0; for (let c = 0; c < d; c++) arg -= G[j * d + c] * at.x[c]; re[j] += v * Math.cos(arg); im[j] += v * Math.sin(arg); } }
+    fftn(re, im, dims, true); for (let j = 0; j < ntot; j++) re[j] = Math.max(0, re[j]); return (this._core = re);
+  }
   /* the local potential the electrons feel: ions + Hartree + exchange, on the grid */
   potential(rho, vlocR, { hartree = true, exchange = true } = {}) {
     const { d, ntot, dims, G2 } = this, V = Float64Array.from(vlocR);
     if (hartree) { const re = Float64Array.from(rho), im = new Float64Array(ntot); fftn(re, im, dims, false);
       for (let j = 0; j < ntot; j++) { const K = j === 0 || G2[j] === 0 ? 0 : coulombK(d, Math.sqrt(G2[j])) / ntot; re[j] *= K; im[j] *= K; } fftn(re, im, dims, true); for (let j = 0; j < ntot; j++) V[j] += re[j]; }
-    if (exchange) for (let j = 0; j < ntot; j++) V[j] += -(1 + 1 / d) * EXCHANGE[d] * Math.pow(Math.max(rho[j], 0), 1 / d);
+    if (exchange) { const pc = this.coreGrid(); for (let j = 0; j < ntot; j++) V[j] += -(1 + 1 / d) * EXCHANGE[d] * Math.pow(Math.max(rho[j] + (pc ? pc[j] : 0), 0), 1 / d); }
     return { V };
   }
   /* the total energy per cell: band kinetic + nonlocal, local, Hartree, exchange, Ewald */
@@ -365,7 +380,7 @@ export class PW {
       for (const p of B0.proj) { let sr = 0, si = 0; for (let i = 0; i < B0.n; i++) { sr += p.re[i] * x.re[i] + p.im[i] * x.im[i]; si += p.re[i] * x.im[i] - p.im[i] * x.re[i]; } nl += occ * p.D * (sr * sr + si * si); } } });
     const re = Float64Array.from(rho), im = new Float64Array(ntot); fftn(re, im, dims, false); // ρ(G)·N
     let eloc = 0, eh = 0; for (let j = 0; j < ntot; j++) { const rr = re[j] / ntot, ri = im[j] / ntot; eloc += vol * (VL.re[j] * rr + VL.im[j] * ri); if (hartree && j && G2[j] > 0) eh += 0.5 * vol * coulombK(d, Math.sqrt(G2[j])) * (rr * rr + ri * ri); }
-    let ex = 0; if (exchange) for (let j = 0; j < ntot; j++) ex += -EXCHANGE[d] * Math.pow(Math.max(rho[j], 0), 1 + 1 / d); ex *= vol / ntot;
+    let ex = 0; if (exchange) { const pc = this.coreGrid(); for (let j = 0; j < ntot; j++) ex += -EXCHANGE[d] * Math.pow(Math.max(rho[j] + (pc ? pc[j] : 0), 0), 1 + 1 / d); } ex *= vol / ntot;
     return { kinetic: kin, nonlocal: nl, local: eloc, hartree: eh, exchange: ex, ewald: this.ewald, total: kin + nl + eloc + eh + ex + this.ewald };
   }
 }

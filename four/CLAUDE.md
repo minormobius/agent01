@@ -287,7 +287,15 @@ for games, and this is a modelling programme with publications to come. The game
   Runs: `al2o3-pw` (ecut 40, k a18s): corundum's minimum at the measured cell, −1394.353 eV per formula; poly6
   crashed on the solver bug and is rerun in `pw-poly6-bp-conv`, with Bl₂Px₃'s convergence at Γ (`crystalref-Bl2Px3.json`,
   the ionic model's eight best cells; 15 → 20 Ha moved the total 30 eV a formula, so the gap between candidates is
-  what's being converged) and the soft sets on the aluminas.
+  what's being converged) and the soft sets on the aluminas. **`al2o3-pw` result (all exit 0 but poly6): corundum
+  lowest, but θ +1.47 and the impostor +1.56 eV per formula where PBE has +0.50 and +0.15** — too far apart, and the two
+  in the wrong order. Not the cells (the same corundum in a sheared cell agrees to 10⁻⁶ Ha); the pseudopotentials:
+  stripping Al to Al³⁺ was 0.6 eV off all-electron (Bl to Bl³⁺ 0.46) because exchange isn't linear in the density.
+  `makePseudo({ …, nlcc: true })` now keeps a partial core (Louie–Froyen–Cohen: the true core density outside the radius
+  where it falls to the valence's, a + br² + cr⁴ inside) in the exchange, in pw.js's potential, energy and forces
+  (AlF's forces match central differences to 5 × 10⁻⁶): Al³⁺ to 5 meV, Bl³⁺ to 22. On for Al and Bl only (O's and Px's
+  1s cores barely meet their valence: 15–25 meV without it). Selftest 66 checks Al → Al³⁺ within 50 meV. Queued:
+  `al2o3-pw-nlcc`, the four aluminas at four scales.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

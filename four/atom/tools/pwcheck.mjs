@@ -19,11 +19,11 @@ import path from "node:path";
 import os from "node:os";
 /* the pseudopotentials the crystal checks use (rc in bohr): our Al and O; 4D's bluminium (element 15, core 1s²2s²2p⁸) and pxygen (10) */
 const PSEUDO_ARGS = {
-  Al2O3: { cat: { Z: 13, d: 3, core: { "1s": 2, "2s": 2, "2p": 6 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.1, 1: 2.3 }, local: 1 }, an: { Z: 8, d: 3, core: { "1s": 2 }, valence: { "2s": 2, "2p": 4 }, rc: { 0: 1.45, 1: 1.45 }, local: 1 } },
-  Bl2Px3: { cat: { Z: 15, d: 4, core: { "1s": 2, "2s": 2, "2p": 8 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.2, 1: 2.4 }, local: 1 }, an: { Z: 10, d: 4, core: { "1s": 2 }, valence: { "2s": 2, "2p": 6 }, rc: { 0: 1.6, 1: 1.6 }, local: 1 } },
+  Al2O3: { cat: { Z: 13, d: 3, core: { "1s": 2, "2s": 2, "2p": 6 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.1, 1: 2.3 }, local: 1, nlcc: true }, an: { Z: 8, d: 3, core: { "1s": 2 }, valence: { "2s": 2, "2p": 4 }, rc: { 0: 1.45, 1: 1.45 }, local: 1 } },
+  Bl2Px3: { cat: { Z: 15, d: 4, core: { "1s": 2, "2s": 2, "2p": 8 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.2, 1: 2.4 }, local: 1, nlcc: true }, an: { Z: 10, d: 4, core: { "1s": 2 }, valence: { "2s": 2, "2p": 6 }, rc: { 0: 1.6, 1: 1.6 }, local: 1 } },
   // softer: wider cores, cheaper plane waves; whether rankings survive the softening is what the convergence runs ask
-  "Bl2Px3-soft": { cat: { Z: 15, d: 4, core: { "1s": 2, "2s": 2, "2p": 8 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.6, 1: 2.8 }, local: 1 }, an: { Z: 10, d: 4, core: { "1s": 2 }, valence: { "2s": 2, "2p": 6 }, rc: { 0: 1.9, 1: 1.9 }, local: 1 } },
-  "Al2O3-soft": { cat: { Z: 13, d: 3, core: { "1s": 2, "2s": 2, "2p": 6 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.5, 1: 2.7 }, local: 1 }, an: { Z: 8, d: 3, core: { "1s": 2 }, valence: { "2s": 2, "2p": 4 }, rc: { 0: 1.75, 1: 1.75 }, local: 1 } },
+  "Bl2Px3-soft": { cat: { Z: 15, d: 4, core: { "1s": 2, "2s": 2, "2p": 8 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.6, 1: 2.8 }, local: 1, nlcc: true }, an: { Z: 10, d: 4, core: { "1s": 2 }, valence: { "2s": 2, "2p": 6 }, rc: { 0: 1.9, 1: 1.9 }, local: 1 } },
+  "Al2O3-soft": { cat: { Z: 13, d: 3, core: { "1s": 2, "2s": 2, "2p": 6 }, valence: { "3s": 2, "3p": 1 }, rc: { 0: 2.5, 1: 2.7 }, local: 1, nlcc: true }, an: { Z: 8, d: 3, core: { "1s": 2 }, valence: { "2s": 2, "2p": 4 }, rc: { 0: 1.75, 1: 1.75 }, local: 1 } },
 };
 function invM(M) { const n = M.length, A = M.map((r, i) => [...r, ...Array.from({ length: n }, (_, j) => +(i === j))]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; const v = A[c][c]; A[c] = A[c].map((x) => x / v); for (let r = 0; r < n; r++) if (r !== c) { const f = A[r][c]; A[r] = A[r].map((x, k) => x - f * A[c][k]); } } return A.map((r) => r.slice(n)); }
 
