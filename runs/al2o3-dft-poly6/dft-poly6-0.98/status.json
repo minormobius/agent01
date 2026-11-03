@@ -1,0 +1,12 @@
+{
+ "group": "dft-poly6-0.98",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 poly6 0.98 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2353
+  }
+ ]
+}

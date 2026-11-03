@@ -1,0 +1,3 @@
+$ node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4
+{"name": "poly6", "scale": 1.0, "atoms": 20, "nf": 4.0, "kmesh": [2, 2, 2], "E": -210.23264035926888, "perFormula_eV": -1430.180381653811, "converged": true, "volume_per_formula_bohr3": 282.05332121255117, "seconds": 3683.57771897316}
+Al2O3 poly6 ×1: -1430.1804 eV per formula, converged
