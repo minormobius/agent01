@@ -1,0 +1,12 @@
+{
+ "group": "py-lda-poly6",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4 lda",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3146
+  }
+ ]
+}

@@ -1,0 +1,1 @@
+{"name": "poly6", "scale": 1.0, "xc": "lda,vwn", "pseudo": "gth-pade", "atoms": 20, "nf": 4.0, "kmesh": [2, 2, 2], "E": -210.4963434661764, "perFormula_eV": -1431.9743134116761, "converged": true, "volume_per_formula_bohr3": 282.05332121255117, "seconds": 3133.5717289447784}

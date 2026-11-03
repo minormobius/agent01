@@ -1,0 +1,3 @@
+$ node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 lda
+{"name": "corundum", "scale": 1.0, "xc": "lda,vwn", "pseudo": "gth-pade", "atoms": 10, "nf": 2.0, "kmesh": [2, 2, 2], "E": -105.28297714941215, "perFormula_eV": -1432.4478652209168, "converged": true, "volume_per_formula_bohr3": 286.5706594955667, "seconds": 1239.5541517734528}
+Al2O3 corundum ×1: -1432.4479 eV per formula, converged

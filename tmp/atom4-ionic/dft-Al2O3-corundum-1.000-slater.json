@@ -1,0 +1,1 @@
+{"name": "corundum", "scale": 1.0, "xc": "slater", "pseudo": "gth-pade", "atoms": 10, "nf": 2.0, "kmesh": [2, 2, 2], "E": -102.4807773748334, "perFormula_eV": -1394.321995363329, "converged": true, "volume_per_formula_bohr3": 286.5706594955665, "seconds": 1044.2029242515564}

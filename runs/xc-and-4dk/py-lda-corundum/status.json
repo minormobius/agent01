@@ -1,0 +1,12 @@
+{
+ "group": "py-lda-corundum",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 lda",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1254
+  }
+ ]
+}
