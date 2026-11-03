@@ -59,8 +59,10 @@ What step 5 has found so far, put together (2026-11-02; each piece first-estimat
   (Gl₂ crossed −0.85 eV at 4 bohr and falling; PxGl₂ pairs bound down to Gl–Gl 3.7 bohr). Their condensed phases are
   likely networks. The MP2-pair → field → liquid chain's OF₂ check: no liquid in the D basis; with the d split (pairs 1.72× deeper)
   OF₂ condenses but with Tc ≈ 117–124 K against 258 measured (0.45×), as our water on a Hartree–Fock field (0.39×). Fitted
-  pair fields underbind liquids; read their liquids as lower bounds. Next: recompute the field's own best pairs (the well
-  bottom random placements miss).
+  pair fields underbind liquids; read their liquids as lower bounds. The well's bottom was fine; the basis wasn't: the book's
+  Dd equals aug-cc-pVDZ, and all 92 pairs redone in aug-cc-pVTZ (PySCF) bind 1.19× deeper. The refitted field's liquid:
+  Tc ≈ 163–178 K (0.63× measured, from 0.45×). The basis limit and CCSD(T) add ~13% more to the pair; the rest is
+  three-body, which no pair field carries.
 - **Deep burning ends at element 101–136** (NSE, trusted drops; ours, checked, at Ti-44 vs measured Ni-56).
 - **4D rock stays solid hotter.** 4D's salts bind 10–40% harder than ours; scaled by our MgO and NaF, nagnesium pxide
   (4D's mantle oxide) melts about 3600–6100 K, ToG (4D's NaF) about 1000–1800 K.

@@ -1,24 +1,33 @@
 {
- "run": "of3t-ladder",
- "why": "Our OF₂ on its field refitted to the 92 placements by MP2 in aug-cc-pVTZ (PySCF; binding a median 1.19× deeper than the Dd basis, which was aug-cc-pVDZ's equal): the chain's check once more. OF₂ boils at 128 K, critical near 258 K; the Dd field gave ≈ 120 K.",
- "minutes": 330,
+ "run": "al2o3-dft",
+ "why": "The ionic model's independent check: periodic PBE (PySCF) on our corundum and θ-alumina as measured and the ionic model's blind-search impostor, each scaled 0.98–1.04 isotropically. Corundum must come lowest; the gaps size what the model must get right.",
+ "minutes": 300,
  "groups": [
   {
-   "name": "of3t-0",
+   "name": "dft-corundum",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run of3t 110 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3t 130 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3t 150 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3t 170 --cycles=12000 --minutes=320"
+    "node four/atom/tools/crystalref.mjs Al2O3 corundum 0.98",
+    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00",
+    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.02",
+    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.04"
    ]
   },
   {
-   "name": "of3t-1",
+   "name": "dft-theta",
    "cmds": [
-    "node four/atom/tools/liquid.mjs run of3t 190 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3t 210 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3t 230 --cycles=12000 --minutes=320",
-    "node four/atom/tools/liquid.mjs run of3t 250 --cycles=12000 --minutes=320"
+    "node four/atom/tools/crystalref.mjs Al2O3 theta 0.98",
+    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.00",
+    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.02",
+    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.04"
+   ]
+  },
+  {
+   "name": "dft-impostor",
+   "cmds": [
+    "node four/atom/tools/crystalref.mjs Al2O3 impostor 0.98",
+    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.00",
+    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.02",
+    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.04"
    ]
   }
  ]
