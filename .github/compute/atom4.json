@@ -1,213 +1,24 @@
 {
- "run": "of2-tz-pairs",
- "why": "The OF₂ check: the book's Dd basis equals aug-cc-pVDZ (well 2: −0.446 against −0.449 kcal/mol, Hartree-Fock to 0.003), and aug-cc-pVTZ binds 26% deeper (−0.565; CCSD(T) adds 5% to MP2 in aug-cc-pVDZ). So all 92 OF₂ placements (the 80 random and the field's 12 wells) by MP2 in aug-cc-pVTZ with PySCF (tools/pairref.mjs), then the field refitted and the liquid run once more. (Second try: the first ran PySCF with python3 -I, which ignores the user site-packages pip had just installed it into.)",
+ "run": "of3t-ladder",
+ "why": "Our OF₂ on its field refitted to the 92 placements by MP2 in aug-cc-pVTZ (PySCF; binding a median 1.19× deeper than the Dd basis, which was aug-cc-pVDZ's equal): the chain's check once more. OF₂ boils at 128 K, critical near 258 K; the Dd field gave ≈ 120 K.",
  "minutes": 330,
  "groups": [
   {
-   "name": "of2tz-0",
+   "name": "of3t-0",
    "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 0",
-    "node four/atom/tools/pairref.mjs OF2 1",
-    "node four/atom/tools/pairref.mjs OF2 2",
-    "node four/atom/tools/pairref.mjs OF2 3"
+    "node four/atom/tools/liquid.mjs run of3t 110 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3t 130 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3t 150 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3t 170 --cycles=12000 --minutes=320"
    ]
   },
   {
-   "name": "of2tz-1",
+   "name": "of3t-1",
    "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 4",
-    "node four/atom/tools/pairref.mjs OF2 5",
-    "node four/atom/tools/pairref.mjs OF2 6",
-    "node four/atom/tools/pairref.mjs OF2 7"
-   ]
-  },
-  {
-   "name": "of2tz-2",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 8",
-    "node four/atom/tools/pairref.mjs OF2 9",
-    "node four/atom/tools/pairref.mjs OF2 10",
-    "node four/atom/tools/pairref.mjs OF2 11"
-   ]
-  },
-  {
-   "name": "of2tz-3",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 12",
-    "node four/atom/tools/pairref.mjs OF2 13",
-    "node four/atom/tools/pairref.mjs OF2 14",
-    "node four/atom/tools/pairref.mjs OF2 15"
-   ]
-  },
-  {
-   "name": "of2tz-4",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 16",
-    "node four/atom/tools/pairref.mjs OF2 17",
-    "node four/atom/tools/pairref.mjs OF2 18",
-    "node four/atom/tools/pairref.mjs OF2 19"
-   ]
-  },
-  {
-   "name": "of2tz-5",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 20",
-    "node four/atom/tools/pairref.mjs OF2 21",
-    "node four/atom/tools/pairref.mjs OF2 22",
-    "node four/atom/tools/pairref.mjs OF2 23"
-   ]
-  },
-  {
-   "name": "of2tz-6",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 24",
-    "node four/atom/tools/pairref.mjs OF2 25",
-    "node four/atom/tools/pairref.mjs OF2 26",
-    "node four/atom/tools/pairref.mjs OF2 27"
-   ]
-  },
-  {
-   "name": "of2tz-7",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 28",
-    "node four/atom/tools/pairref.mjs OF2 29",
-    "node four/atom/tools/pairref.mjs OF2 30",
-    "node four/atom/tools/pairref.mjs OF2 31"
-   ]
-  },
-  {
-   "name": "of2tz-8",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 32",
-    "node four/atom/tools/pairref.mjs OF2 33",
-    "node four/atom/tools/pairref.mjs OF2 34",
-    "node four/atom/tools/pairref.mjs OF2 35"
-   ]
-  },
-  {
-   "name": "of2tz-9",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 36",
-    "node four/atom/tools/pairref.mjs OF2 37",
-    "node four/atom/tools/pairref.mjs OF2 38",
-    "node four/atom/tools/pairref.mjs OF2 39"
-   ]
-  },
-  {
-   "name": "of2tz-10",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 40",
-    "node four/atom/tools/pairref.mjs OF2 41",
-    "node four/atom/tools/pairref.mjs OF2 42",
-    "node four/atom/tools/pairref.mjs OF2 43"
-   ]
-  },
-  {
-   "name": "of2tz-11",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 44",
-    "node four/atom/tools/pairref.mjs OF2 45",
-    "node four/atom/tools/pairref.mjs OF2 46",
-    "node four/atom/tools/pairref.mjs OF2 47"
-   ]
-  },
-  {
-   "name": "of2tz-12",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 48",
-    "node four/atom/tools/pairref.mjs OF2 49",
-    "node four/atom/tools/pairref.mjs OF2 50",
-    "node four/atom/tools/pairref.mjs OF2 51"
-   ]
-  },
-  {
-   "name": "of2tz-13",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 52",
-    "node four/atom/tools/pairref.mjs OF2 53",
-    "node four/atom/tools/pairref.mjs OF2 54",
-    "node four/atom/tools/pairref.mjs OF2 55"
-   ]
-  },
-  {
-   "name": "of2tz-14",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 56",
-    "node four/atom/tools/pairref.mjs OF2 57",
-    "node four/atom/tools/pairref.mjs OF2 58",
-    "node four/atom/tools/pairref.mjs OF2 59"
-   ]
-  },
-  {
-   "name": "of2tz-15",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 60",
-    "node four/atom/tools/pairref.mjs OF2 61",
-    "node four/atom/tools/pairref.mjs OF2 62",
-    "node four/atom/tools/pairref.mjs OF2 63"
-   ]
-  },
-  {
-   "name": "of2tz-16",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 64",
-    "node four/atom/tools/pairref.mjs OF2 65",
-    "node four/atom/tools/pairref.mjs OF2 66",
-    "node four/atom/tools/pairref.mjs OF2 67"
-   ]
-  },
-  {
-   "name": "of2tz-17",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 68",
-    "node four/atom/tools/pairref.mjs OF2 69",
-    "node four/atom/tools/pairref.mjs OF2 70",
-    "node four/atom/tools/pairref.mjs OF2 71"
-   ]
-  },
-  {
-   "name": "of2tz-18",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 72",
-    "node four/atom/tools/pairref.mjs OF2 73",
-    "node four/atom/tools/pairref.mjs OF2 74",
-    "node four/atom/tools/pairref.mjs OF2 75"
-   ]
-  },
-  {
-   "name": "of2tz-19",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 76",
-    "node four/atom/tools/pairref.mjs OF2 77",
-    "node four/atom/tools/pairref.mjs OF2 78",
-    "node four/atom/tools/pairref.mjs OF2 79"
-   ]
-  },
-  {
-   "name": "of2tz-20",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 5000",
-    "node four/atom/tools/pairref.mjs OF2 5001",
-    "node four/atom/tools/pairref.mjs OF2 5002",
-    "node four/atom/tools/pairref.mjs OF2 5003"
-   ]
-  },
-  {
-   "name": "of2tz-21",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 5004",
-    "node four/atom/tools/pairref.mjs OF2 5005",
-    "node four/atom/tools/pairref.mjs OF2 5006",
-    "node four/atom/tools/pairref.mjs OF2 5007"
-   ]
-  },
-  {
-   "name": "of2tz-22",
-   "cmds": [
-    "node four/atom/tools/pairref.mjs OF2 5008",
-    "node four/atom/tools/pairref.mjs OF2 5009",
-    "node four/atom/tools/pairref.mjs OF2 5010",
-    "node four/atom/tools/pairref.mjs OF2 5011"
+    "node four/atom/tools/liquid.mjs run of3t 190 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3t 210 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3t 230 --cycles=12000 --minutes=320",
+    "node four/atom/tools/liquid.mjs run of3t 250 --cycles=12000 --minutes=320"
    ]
   }
  ]
