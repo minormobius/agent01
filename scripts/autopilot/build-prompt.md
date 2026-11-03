@@ -33,10 +33,10 @@ _Regenerated 2026-11-03 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-03, 99 members / 266 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: anthonybecker, github, bisks
-- Top post: "what the fuck, frontier LLMs can directly interpret and edit the weights of smaller models rikiyat.github.io/blog/weight" — @philpax.me
+**Neighborhood spark** (bisk 2026-11-03, 99 members / 255 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: llm, llms, github
+- Top post: "posting “don’t forget to vote” on The App For People Who Love Voting" — @samuel.fm
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
