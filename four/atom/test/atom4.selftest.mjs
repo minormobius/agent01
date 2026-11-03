@@ -1163,5 +1163,26 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `a charge in 4D fields: trapped by two planes within ${mx.toFixed(2)} of a ${bound.toFixed(2)} bound, its speed kept to ${kept.toExponential(0)}; drift −F⁻¹E to ${dErr.toExponential(0)}; a one-plane field's free sheet runs away as E t; all ${D.HOLES.length} drift-golf holes played in par`);
 }
 
+/* 65 · ionic crystals (js/ionic.js, for Bl₂Px₃): the Ewald sums of 1/r and 4D's charge–cloud 1/r³ in a cell of any shape.
+   Point charges on the alternating lattice give Madelung's constant in both worlds (1.7475646, 1.8393991) and the anion's
+   site potential 2M/a; and every slope, ions and cell, matches its finite difference on a skewed, distorted 4D salt with
+   clouds and a Born–Mayer short range */
+{
+  const { Ionic } = await import(path.join(here, "../js/ionic.js")), MAD = { 3: 1.7475646, 4: 1.8393991 }; let mad = 0, pot = 0;
+  for (const d of [3, 4]) { const I = new Ionic({ d, species: [{ q: 1, S: 0, T: 0 }, { q: -1, S: 0, T: 0 }], short: () => [0, 0] }), a = 3, H = Array.from({ length: d }, (_, i) => Array.from({ length: d }, (_, j) => (i === j ? 2 * a : 0))), x = [], kinds = [];
+    for (let m = 0; m < 2 ** d; m++) { const c = Array.from({ length: d }, (_, i) => (m >> i) & 1); x.push(...c.map((v) => v * a)); kinds.push(c.reduce((t, v) => t + v, 0) % 2); }
+    const e = I.energy(H, Float64Array.from(x), kinds, 2 ** (d - 1)); mad = Math.max(mad, Math.abs((-e.E * a) / MAD[d] - 1));
+    const phi = I.sitePotentials(H, Float64Array.from(x), kinds); pot = Math.max(pot, Math.abs((phi[kinds.indexOf(1)] * a) / MAD[d] - 1)); }
+  const sp = [{ q: 2, S: 6, T: 20 }, { q: -2, S: 14, T: 70 }], bm = (A, b) => (r) => [A * Math.exp(-b * r), -b * A * Math.exp(-b * r)];
+  const BM = [[bm(40, 2.2), bm(90, 2.1)], [bm(90, 2.1), bm(200, 2)]], I = new Ionic({ d: 4, species: sp, short: (a, b, r) => BM[a][b](r) });
+  let sd = 5; const u = () => ((sd = (sd * 16807) % 2147483647) / 2147483647) - 0.5, a0 = 3.9, H = Array.from({ length: 4 }, (_, i) => Array.from({ length: 4 }, (_, j) => (i === j ? 2 * a0 : j < i ? 0.4 * u() : 0))), x = [], kinds = [];
+  for (let m = 0; m < 16; m++) { const c = Array.from({ length: 4 }, (_, i) => (m >> i) & 1); x.push(...c.map((v) => v * a0 + 0.3 * u())); kinds.push(c.reduce((t, v) => t + v, 0) % 2); }
+  const X = Float64Array.from(x), e = I.energy(H, X, kinds, 8, true), h = 1e-5; let slope = 0;
+  for (const k of [0, 7, 22, 41, 63]) { const p = X.slice(), m = X.slice(); p[k] += h; m[k] -= h; slope = Math.max(slope, Math.abs((I.energy(H, p, kinds, 8).E - I.energy(H, m, kinds, 8).E) / (2 * h) - e.gx[k])); }
+  for (const [b, c] of [[0, 0], [2, 1], [3, 3], [3, 0]]) { const p = H.map((r) => r.slice()), m = H.map((r) => r.slice()); p[b][c] += h; m[b][c] -= h; slope = Math.max(slope, Math.abs((I.energy(p, X, kinds, 8).E - I.energy(m, X, kinds, 8).E) / (2 * h) - e.gH[b][c])); }
+  ok(mad < 1e-6 && pot < 1e-6 && slope < 1e-7 && e.clouds !== 0,
+    `ionic crystals: Madelung's constants by Ewald to ${mad.toExponential(0)}, the anion's site potential to ${pot.toExponential(0)}, every slope (ions and cell, with 4D's charge–cloud sum) to ${slope.toExponential(0)} hartree/bohr`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

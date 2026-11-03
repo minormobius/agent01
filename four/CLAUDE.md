@@ -220,6 +220,15 @@ for games, and this is a modelling programme with publications to come. The game
   moments, since a numerical tail would diverge over 4D's r³ shells; sodium fluoride is the check; `salt.mjs bake` → **generated**
   `js/saltdata.js`, adding magnesia and nagnesium pxide with Watson-held anions and the densities, which the stars chapter's
   "What sets G" turns into G; without `bake` it prints the baked JSON),
+  `js/ionic.js` (no DOM, selftest 65, mirrored): ionic crystals in a cell of any shape, any d: Ewald sums of 1/r and 4D's
+  charge–cloud 1/r³ (r^(−p) split by incomplete gammas, FT_p(k) = π^(d/2)2^(d−p)k^(p−d)Γ((d−p)/2)Q((d−p)/2,k²/4α²)/Γ(p/2)),
+  the r⁻⁵ cloud terms direct, salt's short-range curves tabulated and tapered to zero over the last 2 bohr, analytic
+  slopes in ions and cell, and anion site potentials. `atom/tools/ionic.mjs`: `known Al2O3` (corundum relaxed: 163.2 eV
+  per formula against 165.0 measured, density 3.995 against 3.987, CN 6/4), `search <Al2O3|Bl2Px3> <Z> <n> [--shard]`,
+  `rerank` (each candidate's anion Watson radius from its own site potential, its shrinking paid for by `anionOwn`),
+  `bake` → **generated** `js/ionicdata.js`. Calibration status: the blind Al₂O₃ search finds corundum but ranks a
+  low-coordination structure with a terminal oxide 0.3–0.4 eV per formula lower, with or without the mean-radius
+  breathing; per-site anion radii are the next fix. Don't report a Bl₂Px₃ structure from it until corundum wins.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

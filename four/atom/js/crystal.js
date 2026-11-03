@@ -183,7 +183,7 @@ export function tidy(st) {
 }
 /* BFGS as js/landscape.js runs it (backtracking, restarts on a failed line search, done when |g| < gtol), with the
    slope given */
-function* bfgsG(fg, x0, iters, gtol) {
+export function* bfgsG(fg, x0, iters, gtol) {
   const n = x0.length; let x = x0.slice(), { f: fx, g: gx } = fg(x), fresh = true, H = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => +(i === j)));
   yield { x, f: fx, g: Math.hypot(...gx) };
   for (let it = 0; it < iters; it++) {

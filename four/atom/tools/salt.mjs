@@ -80,7 +80,7 @@ export function far(A, B, R) {
   const a = (A.m ??= moments(A)), b = (B.m ??= moments(B));
   return (A.q * b.S + B.q * a.S) / (8 * R ** 3) - (3 * a.S * b.S) / (64 * R ** 5) + (A.q * b.T + B.q * a.T) / (64 * R ** 5);
 }
-function curves(cat, an, lo = 2.6, step = 0.05) {
+export function curves(cat, an, lo = 2.6, step = 0.05) {
   const Rs = []; for (let R = lo; R <= RM + 1e-9; R += step) Rs.push(R);
   const pairs = { pm: [cat, an], pp: [cat, cat], mm: [an, an] }, out = { T: {}, seam: {} };
   for (const [k, [A, B]] of Object.entries(pairs)) {
