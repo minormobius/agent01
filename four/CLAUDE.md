@@ -226,9 +226,18 @@ for games, and this is a modelling programme with publications to come. The game
   slopes in ions and cell, and anion site potentials. `atom/tools/ionic.mjs`: `known Al2O3` (corundum relaxed: 163.2 eV
   per formula against 165.0 measured, density 3.995 against 3.987, CN 6/4), `search <Al2O3|Bl2Px3> <Z> <n> [--shard]`,
   `rerank` (each candidate's anion Watson radius from its own site potential, its shrinking paid for by `anionOwn`),
-  `bake` → **generated** `js/ionicdata.js`. Calibration status: the blind Al₂O₃ search finds corundum but ranks a
-  low-coordination structure with a terminal oxide 0.3–0.4 eV per formula lower, with or without the mean-radius
-  breathing; per-site anion radii are the next fix. Don't report a Bl₂Px₃ structure from it until corundum wins.
+  `bake` → **generated** `js/ionicdata.js`. `tables <name> [--xs=]` (~2 min, workers) writes `tools/pib-<name>[-xNN].json`,
+  the curves at every pair of anion radii for per-site breathing (`pibRelax`: R_i = 2/φ_i, each anion's squeezing paid by
+  `anionOwn`); `--disp` adds dispersion (C₆ by Casimir–Polder from `response.mjs coupledAlpha` with the anion inside its
+  Watson shell, `vext`; Tang–Toennies damping, β from the curve) and `--xs` scales the overlap's exchange (×0.85 fits our
+  Ne₂, Ar₂, Kr₂ wells within ~10%). `ladder Al2O3 [Z] [--pib] [--disp] [--xs=]` ranks corundum, θ-alumina (`theta()`,
+  half its Al tetrahedral, above corundum in hybrid DFT) and the search's best. `tools/ionref.py [RW]` (PySCF) is the
+  reference: linear Al³⁺–O²⁻–Al³⁺, the oxide in a point-charge Watson shell, HF/MP2 and the frozen clouds (Heitler–London).
+  **Calibration status: corundum does not win robustly.** Over six variants the gaps to θ and the impostor run −0.43 to
+  +0.28 eV per formula, each correction moving them more than the gaps themselves. The reference says why: the electron
+  gas's frozen repulsion is 1.26–1.53× too weak at 3–4.2 bohr, and the clouds' relaxation (HF minus frozen) is −1.3 to
+  −2.4 eV per Al–O bond, many-body, which the rigid-ion picture lacks (first-order dipole induction alone favours θ by
+  1 eV). Don't report a Bl₂Px₃ structure from it until corundum wins with every term checked.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

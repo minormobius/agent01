@@ -83,9 +83,11 @@ function eigenvector(T, nr, Z) {
   let nodes = 0; for (let i = 1; i < N; i++) if (v[i] * v[i - 1] < 0 && Math.abs(v[i]) + Math.abs(v[i - 1]) > 1e-8) nodes++;
   return { e: lam, z: v, nodes };
 }
-export function coupledAlpha(Z, d, { exchange = true, occ: occIn = null, omegas = [0, ...OMEGA], coupling = true } = {}) {
+export function coupledAlpha(Z, d, { exchange = true, occ: occIn = null, omegas = [0, ...OMEGA], coupling = true, vext = null } = {}) {
   const sh = subshells(d), el = TABLE[d][Z - 1], occ = occIn || sh.map((s) => (el.orb.find((o) => o.s === s.name) || { o: 0 }).o);
-  const g = scf(Z, occ, d, { iters: 80, exchange }), Vs = potentials(Z, occ, g.qs, d, { exchange }), K = dipoleKernel(d);
+  // vext: an outside potential on every electron (an ion's Watson shell), held rigid: it shapes the orbitals, not the response
+  const g = scf(Z, occ, d, { iters: vext ? 300 : 80, exchange, vext }), K = dipoleKernel(d);
+  const Vs = potentials(Z, occ, g.qs, d, { exchange }).map((V) => (vext && V ? Float64Array.from(V, (v, j) => v + vext[j]) : V));
   // each occupied orbital, its channels, and the occupied orbitals there to project out (all in its own potential)
   const parts = [];
   sh.forEach((s, i) => {

@@ -48,11 +48,11 @@ function halfOverlap(A, B, R) {
   return { kin, exch };
 }
 /* two ions R apart: everything but their point charges' q_A q_B / R, which the Madelung sum carries */
-export function shortRange(A, B, R) {
+export function shortRange(A, B, R, xs = 1) { // xs scales the overlap's exchange (1: Gordon and Kim's as they stand)
   let elel = 0;
   for (let j = 0; j < N; j++) { const r = GRID[j]; if (r > 60) break; if (A.Q[j] < 1e-13) continue; let s = 0; for (let k = 0; k < GL.x.length; k++) { const th = (Math.PI / 2) * (GL.x[k] + 1), dist = Math.sqrt(r * r + R * R - 2 * r * R * Math.cos(th)); s += GL.w[k] * meas(A.d, th) * psiAt(B, dist); } elel += A.Q[j] * s * (Math.PI / 2) / SPHERE[A.d]; }
   const es = (A.Z * B.Z) / R - A.Z * psiAt(B, R) - B.Z * psiAt(A, R) + elel, h1 = halfOverlap(A, B, R), h2 = halfOverlap(B, A, R);
-  return es - (A.q * B.q) / R + h1.kin + h2.kin + h1.exch + h2.exch;
+  return es - (A.q * B.q) / R + h1.kin + h2.kin + xs * (h1.exch + h2.exch);
 }
 /* the alternating lattice (rock salt in 3D), nearest neighbours a apart: energy per ion pair, from free ions */
 export const MADELUNG = { 3: 1.7475646, 4: 1.8393991 };
@@ -80,11 +80,11 @@ export function far(A, B, R) {
   const a = (A.m ??= moments(A)), b = (B.m ??= moments(B));
   return (A.q * b.S + B.q * a.S) / (8 * R ** 3) - (3 * a.S * b.S) / (64 * R ** 5) + (A.q * b.T + B.q * a.T) / (64 * R ** 5);
 }
-export function curves(cat, an, lo = 2.6, step = 0.05) {
+export function curves(cat, an, lo = 2.6, step = 0.05, xs = 1) {
   const Rs = []; for (let R = lo; R <= RM + 1e-9; R += step) Rs.push(R);
   const pairs = { pm: [cat, an], pp: [cat, cat], mm: [an, an] }, out = { T: {}, seam: {} };
   for (const [k, [A, B]] of Object.entries(pairs)) {
-    const v = Rs.map((R) => shortRange(A, B, R)), fz = (R) => far(A, B, R);
+    const v = Rs.map((R) => shortRange(A, B, R, xs)), fz = (R) => far(A, B, R);
     out.T[k] = v; out.seam[k] = { computed: v.at(-1), far: fz(RM) };
     out[k] = (r) => { if (r >= RM) return fz(r); const x = (r - lo) / step, i = Math.max(0, Math.min(Rs.length - 2, Math.floor(x))), u = x - i; return v[i] * (1 - u) + v[i + 1] * u; };
   }
