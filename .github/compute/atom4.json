@@ -1,6 +1,6 @@
 {
- "run": "al2o3-pw-poly6",
- "why": "The poly6 cells of al2o3-pw crashed on a band-solver bug (a complex eigenvector dropped in a degenerate block; fixed): rerun, each scale on its own runner with four k-point workers.",
+ "run": "pw-poly6-bp-conv",
+ "why": "(1) al2o3-pw's poly6 cells, which crashed on a band-solver bug now fixed: each scale on its own runner with four k-point workers. (2) How Bl₂Px₃'s plane-wave energies converge: the ionic model's two best cells at Γ, ecut 15–30, with the default and a softer pseudopotential set; the gap between them is what has to converge. (3) The same softening in ours, where PBE knows the answer: the four aluminas with soft Al and O at ecut 25 — does corundum's lead survive?",
  "minutes": 330,
  "groups": [
   {
@@ -25,6 +25,56 @@
    "name": "pw2-poly6-1.04",
    "cmds": [
     "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.04 40 a18s 4"
+   ]
+  },
+  {
+   "name": "bp-conv-z2-0",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 15 1 1",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 20 1 1",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 1 1",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 30 1 1"
+   ]
+  },
+  {
+   "name": "bp-conv-z2-1",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 15 1 1",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 20 1 1",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 1 1",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 30 1 1"
+   ]
+  },
+  {
+   "name": "bp-conv-z2-0-soft",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 15 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 20 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 30 1 1 soft"
+   ]
+  },
+  {
+   "name": "bp-conv-z2-1-soft",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 15 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 20 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 30 1 1 soft"
+   ]
+  },
+  {
+   "name": "al-soft-a",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.00 25 a18s 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.00 25 a18s 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.00 25 a18s 1 soft"
+   ]
+  },
+  {
+   "name": "al-soft-b",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.00 25 a18s 4 soft"
    ]
   }
  ]
