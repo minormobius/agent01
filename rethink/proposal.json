@@ -1170,6 +1170,12 @@
           "note": "Grad's 1967 conjecture, disproved in closed form: twisted plasma equilibria you can spin and slide back to a tokamak"
         },
         {
+          "u": "math.mino.mobi/commit",
+          "action": "keep",
+          "group": "other",
+          "note": "coin flipping by telephone: commit, call, open, and the counting argument that no commitment both hides and binds perfectly"
+        },
+        {
           "u": "mino.mobi/markov",
           "action": "keep",
           "group": "dynamics"

@@ -46,6 +46,7 @@
   --c-equiv:    #4146bd;
   --c-chair44:  #1f6f8b;
   --c-grad:     #1c5cab;
+  --c-commit:   #46607a;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -90,6 +91,7 @@
     --c-equiv:    #9aa2f2;
     --c-chair44:  #5cc0dd;
     --c-grad:     #6da7ec;
+    --c-commit:   #8fb0d0;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -395,6 +397,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://math.mino.mobi/equivelar/">equivelar</a> ·
     <a href="https://math.mino.mobi/chair44/">chair44</a> ·
     <a href="https://math.mino.mobi/grad/">grad</a> ·
+    <a href="https://math.mino.mobi/commit/">commit</a> ·
     <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
     · sibling hub: <a href="https://math.mino.mobi/conjectures/">conjectures</a>
@@ -570,6 +573,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://math.mino.mobi/equivelar/">equivelar</a>
   <a href="https://math.mino.mobi/chair44/">chair44</a>
   <a href="https://math.mino.mobi/grad/">grad</a>
+  <a href="https://math.mino.mobi/commit/">commit</a>
   <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
@@ -734,6 +738,18 @@ const PACK = [
     status: 'disproved',
     statusRank: 4,
     statusText: 'explicit counterexamples, 2026',
+  },
+  {
+    name: 'commit',
+    url:  'https://math.mino.mobi/commit/',
+    accent: 'var(--c-commit)',
+    problem: 'Hiding vs binding (Blum 1981)',
+    era: 1981,
+    eraText: 'Blum 1981',
+    tech: 'exact counting over toy schemes',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'p ≥ 1 − δ, by counting',
   },
   {
     name: 'arnold',

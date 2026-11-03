@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>commit — coin flipping by telephone</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#46607a">
+<meta name="description" content="Flip a fair coin with someone you don't trust, over the phone: commit to a bit, hear their call, then open. Play it with real SHA-256, then shrink the commitment until you can count every case and watch the trade-off appear: every commitment either hides the bit or binds it, never both perfectly, and p ≥ 1 − δ on every scheme there is.">
+
+<style>
+/* layout: the pack's stage-over-panel shell. The stage is a mirror histogram of the
+   commitment space: bit 0 up, bit 1 down, one column per commitment value. */
+:root {
+  --bg: #fcfcfb;
+  --fg: #0b0b0b;
+  --muted: #52514e;
+  --faint: #8a8984;
+  --rule: #dcdbd6;
+  --accent: #46607a;            /* bit 0, and the page */
+  --accent-faint: rgba(70, 96, 122, 0.14);
+  --accent-tint: rgba(70, 96, 122, 0.06);
+  --one: #c0612a;               /* bit 1 */
+  --both: rgba(150, 120, 30, 0.13); /* columns both bits reach: Alice could lie there */
+  --panel: #f3f3f0;
+  --stage: #ebebe7;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --good: #1f7a3f;
+  --bad: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19;
+    --fg: #ffffff;
+    --muted: #c3c2b7;
+    --faint: #8f8e87;
+    --rule: #34332f;
+    --accent: #8fb0d0;
+    --accent-faint: rgba(143, 176, 208, 0.16);
+    --accent-tint: rgba(143, 176, 208, 0.07);
+    --one: #e89058;
+    --both: rgba(220, 190, 90, 0.12);
+    --panel: #20201e;
+    --stage: #121211;
+    --good: #6ec48f;
+    --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--panel); border-top: 1px solid var(--rule);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.head {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top));
+}
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); }
+canvas#hist { display: block; width: 100%; height: 100%; }
+.verdict {
+  position: absolute; left: 0.7rem; bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.22rem 0.6rem; pointer-events: none;
+  max-width: calc(100% - 1.4rem);
+}
+.verdict.good { color: var(--good); }
+.verdict.bad { color: var(--bad); }
+.key {
+  position: absolute; left: 0.7rem; top: 0.5rem; pointer-events: none;
+  font-family: var(--mono); font-size: 0.56rem; color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: 0.25rem 0.8rem; max-width: calc(100% - 1.4rem);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border: 1px solid var(--rule); border-radius: 8px; padding: 0.2rem 0.55rem;
+}
+.key i { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 2px; vertical-align: -0.05rem; margin-right: 0.3rem; }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab {
+  flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+  text-transform: uppercase; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.tab:focus-visible, button.act:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3rem; margin-bottom: 0.45rem; }
+.seg.two { grid-template-columns: 1fr 1fr; }
+.knob { display: grid; grid-template-columns: 5.2rem 1fr 3.2rem; align-items: center; gap: 0.4rem; margin: 0.14rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.04em; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.64rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; margin-top: 0.45rem; }
+button.act {
+  font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+  border-radius: 5px; padding: 0.42rem 0.5rem; cursor: pointer; min-height: 2rem;
+}
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+button.act:disabled { opacity: 0.4; cursor: default; border-color: var(--rule); color: var(--muted); }
+.note { font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 0; }
+
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.64rem; font-variant-numeric: tabular-nums; margin-top: 0.4rem; }
+table.facts td, table.facts th { padding: 0.28rem 0.2rem; border-bottom: 1px solid var(--rule); vertical-align: top; text-align: right; }
+table.facts th { color: var(--muted); font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.56rem; }
+table.facts td:first-child, table.facts th:first-child { text-align: left; color: var(--muted); }
+.good { color: var(--good); } .bad { color: var(--bad); }
+
+/* the flip */
+.steps { list-style: none; margin: 0.2rem 0 0; padding: 0; display: grid; gap: 0.45rem; }
+.steps li { display: grid; grid-template-columns: 1.4rem 1fr; gap: 0.4rem; align-items: start; }
+.steps .n { font-family: var(--mono); font-size: 0.6rem; color: var(--accent); padding-top: 0.15rem; }
+.steps .who { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.steps li.wait { opacity: 0.45; }
+.hexbox { font-family: var(--mono); font-size: 0.66rem; overflow-wrap: anywhere; word-break: break-all; background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 0.25rem 0.4rem; margin-top: 0.15rem; }
+.result { font-size: 1rem; margin-top: 0.15rem; }
+.tally { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 0.6rem; font-variant-numeric: tabular-nums; }
+
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose code { font-family: var(--mono); font-size: 0.8em; background: var(--accent-tint); padding: 0.05em 0.3em; border-radius: 3px; }
+.prose .eq { font-family: var(--mono); font-size: 0.78rem; text-align: center; margin: 0.6rem 0; overflow-x: auto; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+
+@media (min-width: 860px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 28rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; }
+  .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+@media (max-height: 460px) and (orientation: landscape) and (max-width: 859px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 min(52%, 22rem); border-top: none; border-left: 1px solid var(--rule); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://math.mino.mobi/">← math</a>
+      <h1>commit</h1>
+      <span class="tagline">coin flipping by telephone</span>
+    </div>
+    <div class="stage">
+      <canvas id="hist" aria-label="Histogram of the commitment space: for each commitment value, how many nonces send bit 0 there (up) and bit 1 there (down)"></canvas>
+      <div class="key" id="key">
+        <span><i style="background:var(--accent)"></i>bit 0 → c</span>
+        <span><i style="background:var(--one)"></i>bit 1 → c</span>
+        <span><i style="background:var(--both);outline:1px solid var(--faint)"></i>both reach c</span>
+      </div>
+      <div class="verdict good" id="verdict">—</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-pane="space">space</button>
+      <button class="tab" data-pane="flip">flip</button>
+      <button class="tab" data-pane="attack">attack</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+
+      <div class="pane active" id="pane-space">
+        <div class="seg" id="schemeSeg">
+          <button class="act" data-scheme="hash">hash</button>
+          <button class="act" data-scheme="shift">shift</button>
+          <button class="act" data-scheme="tag">tag</button>
+        </div>
+        <div class="knob"><label for="kIn">commit bits k</label><input type="range" id="kIn" min="1" max="10" step="1" value="5"><output id="kOut"></output></div>
+        <div class="knob"><label for="rIn">nonce bits r</label><input type="range" id="rIn" min="0" max="10" step="1" value="5"><output id="rOut"></output></div>
+        <div class="row">
+          <button class="act" id="reroll">new salt</button>
+          <span class="note" id="schemeNote" style="margin:0"></span>
+        </div>
+        <table class="facts" id="facts"></table>
+        <p class="note">Each column is one possible commitment value c. The bar above the line counts the nonces that send <strong>bit 0</strong> to c, the bar below counts those that send <strong>bit 1</strong> there. Where only one colour reaches a column, seeing that c tells Bob the bit. Where both reach it, Alice could open it either way. The solid part of each bar is the overlap, min(D₀, D₁), and the faded part is the excess. The overlap adds up to exactly 1 − δ.</p>
+      </div>
+
+      <div class="pane" id="pane-flip">
+        <p class="note" style="margin-top:0">You are Bob. Alice is in another city and neither of you trusts the other. This is the real protocol, with SHA-256 and a 128-bit nonce.</p>
+        <ol class="steps">
+          <li id="s1"><span class="n">1</span><div><div class="who">Alice commits</div>She picks a secret bit and a random nonce and sends you only the hash:<div class="hexbox" id="cBox">—</div></div></li>
+          <li id="s2"><span class="n">2</span><div><div class="who">You call</div><div class="row" style="margin-top:0.2rem"><button class="act" id="callH">call heads</button><button class="act" id="callT">call tails</button></div></div></li>
+          <li id="s3" class="wait"><span class="n">3</span><div><div class="who">Alice opens</div><div id="openBox">waiting for your call</div></div></li>
+          <li id="s4" class="wait"><span class="n">4</span><div><div class="who">The coin</div><div id="coinBox">Alice's bit XOR your call. 0 is heads.</div></div></li>
+        </ol>
+        <div class="row">
+          <button class="act" id="nextFlip">next flip</button>
+          <button class="act" id="cheatT" aria-pressed="false">Alice cheats</button>
+        </div>
+        <div class="tally" id="tally"></div>
+        <p class="note">With <em>Alice cheats</em> on, she waits for your call and then opens whichever bit makes her win, reusing her nonce. To get away with it she would need a second nonce that hashes to the same 256 bits under the other bit. The <em>attack</em> tab shows what that costs.</p>
+      </div>
+
+      <div class="pane" id="pane-attack">
+        <div class="viz-title" style="font-family:var(--mono);font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">Alice attacks binding</div>
+        <p class="note" style="margin-top:0.2rem">Find two nonces with h(0, n₀) = h(1, n₁) on the k-bit hash, nonces unlimited. Draw from both sides until the lists meet: the birthday paradox says this takes about √(π·2ᵏ) hashes.</p>
+        <div class="row"><button class="act" id="atkAlice">find a double opening</button></div>
+        <div class="hexbox" id="aliceOut" style="margin-top:0.4rem">—</div>
+        <div class="viz-title" style="font-family:var(--mono);font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:0.9rem">Bob attacks hiding</div>
+        <p class="note" style="margin-top:0.2rem">Alice commits honestly with the scheme on screen. Bob tries all 2ʳ nonces under both bits and keeps the bits that fit.</p>
+        <div class="row"><button class="act" id="atkBob">unmask a commitment</button></div>
+        <div class="hexbox" id="bobOut" style="margin-top:0.4rem">—</div>
+        <div class="viz-title" style="font-family:var(--mono);font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:0.9rem">At full size</div>
+        <table class="facts" id="scaleTable"></table>
+        <p class="note">Both attacks always succeed in the toy. At 256 bits of hash and 128 bits of nonce they still exist, but they take longer than the age of the universe. That gap is the whole escape from the trade-off: real commitments are secure against a bounded opponent, not an unlimited one.</p>
+      </div>
+
+      <div class="pane prose" id="pane-about">
+        <h2>The problem</h2>
+        <p>In 1981 Manuel Blum asked how two people who don't trust each other could flip a fair coin over the telephone. If Alice flips and reports, she can lie. If Bob calls first, Alice hears the call before she reports. His answer was <a href="https://www.cs.cmu.edu/~mblum/research/pdf/coin/">“Coin flipping by telephone”</a> (CRYPTO 1981): Alice <em>commits</em> to a bit, Bob calls, Alice <em>opens</em>, and the coin is the XOR of the two. If either of them chooses at random, the XOR is a fair coin, whatever the other does.</p>
+        <p>A commitment is a sealed envelope made of arithmetic. It needs two properties. <strong>Hiding</strong>: Bob learns nothing about the bit from the envelope. <strong>Binding</strong>: Alice can't open it to a different bit later.</p>
+
+        <h2>Why you can't have both</h2>
+        <p>Shrink the scheme until it can be counted. A nonce is one of 2ʳ values, a commitment one of 2ᵏ. Count how many nonces send each bit to each value: that gives two histograms, D₀ and D₁, and they are the stage above.</p>
+        <p>Bob's best guess at the bit from c is right with probability (1 + δ)/2, where δ is the statistical distance:</p>
+        <div class="eq">δ = ½ · Σ꜀ |D₀(c) − D₁(c)| / 2ʳ</div>
+        <p>Alice can lie about c exactly when both bits reach it. Call p the chance that an honest commitment lands on such a value. Every column where the bars overlap contributes min(D₀, D₁) to both quantities, and those minimums sum to 1 − δ. So for every scheme there is:</p>
+        <div class="eq">p ≥ 1 − δ</div>
+        <p>Perfect hiding (δ = 0) forces p = 1: every commitment opens both ways. Perfect binding (p = 0) forces δ = 1: Bob reads the bit straight off c. <em>Shift</em> is the first extreme, <em>tag</em> is the second, and <em>hash</em> sits in between, moving as you trade r against k.</p>
+
+        <h2>The way out</h2>
+        <p>The theorem is about an opponent with unlimited time. Real schemes give up one property against that opponent and keep it against anyone who has to do the work. A SHA-256 commitment with a long nonce is <em>statistically</em> hiding and <em>computationally</em> binding: the double openings exist, but finding one is a 2¹²⁸-step search. Pedersen's commitment (1991) makes the same trade with discrete logarithms in place of a hash.</p>
+        <p>This is the first page of a series on things that can be proven without being shown. The next one uses a commitment for every vertex of a graph to prove a graph has a 3-colouring without revealing a single colour.</p>
+
+        <h2>Checked</h2>
+        <p>The engine, <code>commit.js</code>, is the only copy of the maths, and the page and <code>commit.selftest.mjs</code> both import it: 11,170 checks. They cover SHA-256 against the NIST vectors and node's crypto; commitments that open only one way; Blum's coin fair whenever one side is uniform; p ≥ 1 − δ on 2,960 schemes, including 2,000 random functions; Bob's brute force agreeing with the census; and the mean cost of a double opening matching √(π·2ᵏ) at k = 8, 12 and 16.</p>
+
+        <div class="crossref">
+          sisters ·
+          <a href="https://math.mino.mobi/">geometry</a> ·
+          <a href="https://math.mino.mobi/capset/">capset</a> ·
+          <a href="https://mino.mobi/hadwiger/">hadwiger</a> ·
+          <a href="https://math.mino.mobi/conjectures/">conjectures</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as C from './commit.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pct = (x) => (100 * x).toFixed(x > 0 && x < 0.001 ? 2 : 1) + '%';
+
+// ── tabs ──
+for (const t of document.querySelectorAll('.tab')) {
+  t.addEventListener('click', () => {
+    for (const u of document.querySelectorAll('.tab')) u.classList.toggle('active', u === t);
+    for (const p of document.querySelectorAll('.pane')) p.classList.toggle('active', p.id === 'pane-' + t.dataset.pane);
+  });
+}
+
+// ── the space ──
+const state = { scheme: 'hash', k: 5, r: 5, salt: 2026, mark: null };
+let S = null;
+const NOTES = {
+  hash: 'first k bits of SHA-256(salt ‖ bit ‖ nonce)',
+  shift: 'c = nonce + bit·s mod 2ᵏ',
+  tag: 'the bit sits in the last place of c',
+};
+
+function recompute() {
+  S = C.census(state.scheme, state.k, state.r, state.salt);
+  $('kOut').textContent = state.k + ' · ' + S.M;
+  $('rOut').textContent = state.r + ' · ' + S.N;
+  $('schemeNote').textContent = NOTES[state.scheme];
+  for (const b of $('schemeSeg').children) b.setAttribute('aria-pressed', b.dataset.scheme === state.scheme);
+  const holds = S.p0 >= 1 - S.delta - 1e-12;
+  $('facts').innerHTML = `
+    <tr><th>measure</th><th>value</th></tr>
+    <tr><td>δ, the hiding loss</td><td>${S.delta.toFixed(3)}</td></tr>
+    <tr><td>Bob guesses the bit</td><td>${pct(S.guess)}</td></tr>
+    <tr><td>p, Alice can lie (bit 0)</td><td>${pct(S.p0)}</td></tr>
+    <tr><td>p, Alice can lie (bit 1)</td><td>${pct(S.p1)}</td></tr>
+    <tr><td>overlap Σ min = 1 − δ</td><td>${S.overlap.toFixed(3)}</td></tr>
+    <tr><td>p ≥ 1 − δ</td><td class="${holds ? 'good' : 'bad'}">${S.p0.toFixed(3)} ≥ ${(1 - S.delta).toFixed(3)} ${holds ? 'holds' : 'FAILS'}</td></tr>`;
+  const v = $('verdict');
+  v.className = 'verdict ' + (holds ? 'good' : 'bad');
+  v.textContent = `Bob reads the bit ${pct(S.guess)} · Alice can lie on ${pct(S.p0)} · p ≥ 1 − δ ${holds ? 'holds' : 'fails'}`;
+  draw();
+}
+
+for (const b of $('schemeSeg').children) b.addEventListener('click', () => { state.scheme = b.dataset.scheme; state.mark = null; recompute(); });
+$('kIn').addEventListener('input', (e) => { state.k = +e.target.value; state.mark = null; recompute(); });
+$('rIn').addEventListener('input', (e) => { state.r = +e.target.value; state.mark = null; recompute(); });
+$('reroll').addEventListener('click', () => { state.salt = (Math.random() * 2 ** 31) >>> 0; state.mark = null; recompute(); });
+
+// ── stage ──
+const cv = $('hist'), g = cv.getContext('2d');
+function draw() {
+  if (!S) return;
+  const dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  const padL = 14, padR = 14, padT = 58, padB = 74;
+  const plotW = W - padL - padR, mid = padT + (H - padT - padB) / 2, half = (H - padT - padB) / 2 - 6;
+  let max = 1;
+  for (let c = 0; c < S.M; c++) max = Math.max(max, S.D0[c], S.D1[c]);
+  const bw = plotW / S.M, gap = bw > 6 ? Math.min(2, bw * 0.15) : 0;
+  const col0 = css('--accent'), col1 = css('--one'), both = css('--both'), fg = css('--fg'), muted = css('--muted'), rule = css('--rule');
+  for (let c = 0; c < S.M; c++) {
+    const a = S.D0[c], b = S.D1[c], x = padL + c * bw;
+    if (a > 0 && b > 0) { g.fillStyle = both; g.fillRect(x, padT - 6, bw, H - padT - padB + 12); }
+    const ha = (a / max) * half, hb = (b / max) * half, m = Math.min(a, b) / max * half;
+    g.globalAlpha = 0.45; g.fillStyle = col0; g.fillRect(x + gap / 2, mid - ha, bw - gap, ha);
+    g.fillStyle = col1; g.fillRect(x + gap / 2, mid, bw - gap, hb);
+    g.globalAlpha = 1;   g.fillStyle = col0; g.fillRect(x + gap / 2, mid - m, bw - gap, m);
+    g.fillStyle = col1; g.fillRect(x + gap / 2, mid, bw - gap, m);
+  }
+  g.strokeStyle = rule; g.lineWidth = 1; g.beginPath(); g.moveTo(padL, mid + 0.5); g.lineTo(W - padR, mid + 0.5); g.stroke();
+  if (state.mark != null && state.mark < S.M) {
+    const x = padL + state.mark * bw;
+    g.strokeStyle = fg; g.lineWidth = 1.5; g.strokeRect(x - 1, padT - 6, Math.max(bw, 3) + 2, H - padT - padB + 12);
+    g.fillStyle = fg; g.font = '10px ui-monospace, Menlo, monospace'; g.textAlign = x > W / 2 ? 'right' : 'left';
+    g.fillText(`c = ${state.mark}`, x > W / 2 ? x - 4 : x + Math.max(bw, 3) + 4, padT + 6);
+  }
+  g.fillStyle = muted; g.font = '10px ui-monospace, Menlo, monospace';
+  const ay = H - padB + 20;
+  g.textAlign = 'left'; g.fillText('0', padL, ay);
+  g.textAlign = 'right'; g.fillText(String(S.M - 1), W - padR, ay);
+  g.textAlign = 'center'; g.fillText(`commitment value c · tallest bar ${max} nonce${max === 1 ? '' : 's'}`, W / 2, ay);
+}
+new ResizeObserver(draw).observe(cv);
+
+// ── the flip ──
+const tally = { flips: 0, heads: 0, aliceWins: 0, caught: 0 };
+let F = null, cheat = false;
+function newFlip() {
+  const bit = crypto.getRandomValues(new Uint8Array(1))[0] & 1;
+  F = { ...C.commit(bit), call: null };
+  $('cBox').textContent = F.c;
+  $('openBox').textContent = 'waiting for your call';
+  $('coinBox').textContent = "Alice's bit XOR your call. 0 is heads.";
+  $('s3').classList.add('wait'); $('s4').classList.add('wait');
+  $('callH').disabled = $('callT').disabled = false;
+  $('nextFlip').disabled = true;
+}
+function call(c) {
+  if (!F || F.call != null) return;
+  F.call = c;
+  $('callH').disabled = $('callT').disabled = true;
+  // Alice wins on tails (coin = 1). A cheating Alice opens whichever bit makes the coin 1.
+  const claimed = cheat ? (1 ^ c) : F.bit;
+  const valid = C.opens(F.c, claimed, F.nonce);
+  const recomputed = C.digest(claimed, F.nonce);
+  $('s3').classList.remove('wait'); $('s4').classList.remove('wait');
+  $('openBox').innerHTML = `bit <strong>${claimed}</strong>, nonce <div class="hexbox">${C.hex(F.nonce)}</div>`
+    + `you recompute the hash: <div class="hexbox">${recomputed}</div>`
+    + (valid ? '<span class="good">matches the commitment: the opening is valid</span>'
+             : `<span class="bad">does not match: Alice committed to ${F.bit} and tried to open ${claimed}. Caught.</span>`);
+  tally.flips++;
+  if (valid) {
+    const coin = C.coin(claimed, c);
+    if (coin === 0) tally.heads++; else tally.aliceWins++;
+    $('coinBox').innerHTML = `<div class="result">${claimed} XOR ${c} = ${coin}: <strong>${coin === 0 ? 'heads' : 'tails'}</strong>. ${coin === 0 ? 'You win.' : 'Alice wins.'}</div>`;
+  } else {
+    tally.caught++;
+    $('coinBox').innerHTML = '<div class="result">No coin. A bad opening forfeits the flip.</div>';
+  }
+  const fair = tally.flips - tally.caught;
+  $('tally').textContent = `${tally.flips} flip${tally.flips === 1 ? '' : 's'} · heads ${tally.heads} of ${fair}${fair ? ' (' + pct(tally.heads / fair) + ')' : ''} · cheats caught ${tally.caught}`;
+  $('nextFlip').disabled = false;
+}
+$('callH').addEventListener('click', () => call(0));
+$('callT').addEventListener('click', () => call(1));
+$('nextFlip').addEventListener('click', newFlip);
+$('cheatT').addEventListener('click', () => { cheat = !cheat; $('cheatT').setAttribute('aria-pressed', cheat); });
+$('tally').textContent = 'no flips yet';
+
+// ── attacks ──
+$('atkAlice').addEventListener('click', () => {
+  if (state.scheme !== 'hash') { state.scheme = 'hash'; }
+  const start = (Math.random() * 2 ** 30) >>> 0;
+  const d = C.doubleOpening(state.k, state.salt, start);
+  state.mark = d.found ? d.c : null;
+  recompute();
+  $('aliceOut').innerHTML = d.found
+    ? `found after <strong>${d.draws}</strong> hashes (√(π·2^${state.k}) ≈ ${C.expectedDoubleOpening(state.k).toFixed(1)})<br>h(0, ${d.n0}) = h(1, ${d.n1}) = <strong>${d.c}</strong><br><span class="bad">Alice can commit to c = ${d.c} and open it either way.</span>`
+    : 'no double opening found';
+});
+$('atkBob').addEventListener('click', () => {
+  const bit = Math.random() < 0.5 ? 0 : 1, n = Math.floor(Math.random() * S.N);
+  const f = C.SCHEMES[state.scheme].f(state.salt, state.k);
+  const c = f(bit, n);
+  const u = C.unmask(state.scheme, state.k, state.r, state.salt, c);
+  state.mark = c; draw();
+  const both = u.fits[0] && u.fits[1];
+  const share0 = S.D0[c] / (S.D0[c] + S.D1[c]);
+  $('bobOut').innerHTML = `Alice committed to c = <strong>${c}</strong>. Bob tried ${u.work} openings.<br>`
+    + (both ? `Both bits fit. <span class="good">Bob can't be sure.</span> His best guess is bit ${share0 >= 0.5 ? 0 : 1} (${pct(Math.max(share0, 1 - share0))}).`
+            : `<span class="bad">Only bit ${u.fits[0] ? 0 : 1} fits. Bob knows the bit.</span>`)
+    + `<br>The bit was ${bit}.`;
+});
+{
+  const years = (log2) => 2 ** log2 / 1e9 / 3.156e7;
+  const fmt = (y) => { const e = Math.floor(Math.log10(y)); return `${(y / 10 ** e).toFixed(1)}×10^${e}`; };
+  $('scaleTable').innerHTML = `
+    <tr><th>attack</th><th>hashes</th><th>years at 10⁹/s</th></tr>
+    <tr><td>Alice: double opening, 256-bit hash</td><td>2^${C.fullSize.doubleOpeningLog2.toFixed(1)}</td><td>${fmt(years(C.fullSize.doubleOpeningLog2))}</td></tr>
+    <tr><td>Bob: every 128-bit nonce, both bits</td><td>2^${C.fullSize.unmaskLog2}</td><td>${fmt(years(C.fullSize.unmaskLog2))}</td></tr>
+    <tr><td>for scale: the universe so far</td><td></td><td>1.4×10^10</td></tr>`;
+}
+
+recompute();
+newFlip();
+</script>
+</body>
+</html>

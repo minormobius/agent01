@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`, `chair44`, `grad`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`, `chair44`, `grad`, `commit`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -250,6 +250,27 @@ Nothing in it solves an equilibrium. B, ψ and the surfaces are closed forms,
 and the numerics are all *checks*: finite-difference force balance, field lines
 traced through B alone, and the rotational-transform ODE. Full notes in
 [`../grad/CLAUDE.md`](../grad/CLAUDE.md).
+
+## `/commit/` — coin flipping by telephone, and the first page of the label-and-the-law track
+
+`commit/` follows the engine rule: **`commit/commit.js`** is the only copy of
+the maths, and **`commit/commit.selftest.mjs`** imports the exact file the page
+runs.
+
+```bash
+node commit/commit.selftest.mjs   # ~2 s, 11,170 checks
+```
+
+Blum's protocol (1981) played for real with SHA-256, then the trade-off it rests
+on, made countable: shrink a commitment to k output bits and r nonce bits and
+the page lays out every case. The theorem the stage shows is **p ≥ 1 − δ**:
+δ is the statistical distance between the commitment distributions for the two
+bits (Bob's edge), p is the chance an honest commitment could be opened the
+other way (Alice's), and the overlap Σ min(D₀, D₁) is exactly 1 − δ. It is a
+counting fact, so the selftest checks it on random functions as well as the
+three schemes. Full notes in [`../commit/CLAUDE.md`](../commit/CLAUDE.md).
+This page opens the "label and the law" roadmap in [`IDEAS.md`](IDEAS.md);
+`/zk-colour/` is next and will import `commit.js`.
 
 ## Deploying
 

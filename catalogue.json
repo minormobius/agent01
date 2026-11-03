@@ -4923,6 +4923,23 @@
       ]
     },
     {
+      "n": "commit",
+      "u": "https://math.mino.mobi/commit/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-11-03",
+      "b": "2026-11-03",
+      "p": "geometry",
+      "surface": "math",
+      "d": "How do two people who don't trust each other flip a fair coin over the phone? Manuel Blum's 1981 answer: Alice commits to a bit, Bob calls, Alice opens, and the coin is the XOR. Play it with real SHA-256, and catch Alice when she tries to change her bit. Then shrink the commitment until every case can be counted, and the trade-off appears on screen: a commitment can hide the bit or bind Alice to it, never both perfectly. For every scheme there is, Alice's chance to lie plus Bob's edge is at least one.",
+      "tags": [
+        "math",
+        "cryptography",
+        "canvas"
+      ]
+    },
+    {
       "n": "studio",
       "u": "https://studio.mino.mobi",
       "c": "games",
@@ -6173,6 +6190,11 @@
       "glob": "grad",
       "kind": "pending",
       "reason": "catalogued at math.mino.mobi/grad/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
+      "glob": "commit",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/commit/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
     },
     {
       "glob": "ising",

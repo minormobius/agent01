@@ -901,7 +901,8 @@
         "csaszar",
         "equivelar",
         "chair44",
-        "grad"
+        "grad",
+        "commit"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
@@ -933,7 +934,8 @@
         "csaszar/**",
         "equivelar/**",
         "chair44/**",
-        "grad/**"
+        "grad/**",
+        "commit/**"
       ]
     },
     {
