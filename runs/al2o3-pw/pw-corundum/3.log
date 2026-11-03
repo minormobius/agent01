@@ -1,0 +1,25 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.04 40 a18s
+corundum ×1.04: 10 atoms, 48 electrons, grid 60×60×60, 7761/7794/7794/7794 PW at 4 k
+  scf 0: E -76.24877605  |Δρ| 6.94e+0  bands 1.0e-1 1.5e-1 2.0e-1 1.6e-1
+  scf 1: E -90.28772937  |Δρ| 3.68e+0  bands 7.9e-2 1.4e-1 1.3e-1 9.1e-2
+  scf 2: E -102.04425927  |Δρ| 1.68e+0  bands 1.3e-1 1.3e-1 7.7e-2 7.3e-2
+  scf 3: E -99.41709033  |Δρ| 1.67e+0  bands 2.1e-2 3.4e-2 2.3e-2 2.3e-2
+  scf 4: E -101.32352411  |Δρ| 1.02e+0  bands 6.8e-2 8.9e-2 8.0e-2 7.8e-2
+  scf 5: E -102.36021880  |Δρ| 3.53e-1  bands 4.2e-2 2.9e-2 2.1e-2 2.1e-2
+  scf 6: E -102.43632881  |Δρ| 1.27e-1  bands 4.2e-2 2.0e-2 1.7e-2 1.7e-2
+  scf 7: E -102.43330737  |Δρ| 1.42e-1  bands 4.7e-2 1.3e-2 1.1e-2 1.1e-2
+  scf 8: E -102.45334408  |Δρ| 8.40e-3  bands 3.9e-2 6.3e-3 3.7e-3 3.3e-3
+  scf 9: E -102.45332971  |Δρ| 6.14e-3  bands 3.4e-2 4.7e-3 2.8e-3 2.9e-3
+  scf 10: E -102.45337086  |Δρ| 1.00e-3  bands 2.5e-2 1.8e-3 7.2e-4 5.7e-4
+  scf 11: E -102.45337102  |Δρ| 6.44e-4  bands 1.6e-2 1.8e-3 6.0e-4 3.4e-4
+  scf 12: E -102.45337110  |Δρ| 2.38e-4  bands 1.2e-2 1.4e-3 4.8e-4 2.3e-4
+  scf 13: E -102.45337112  |Δρ| 1.10e-4  bands 1.0e-2 1.2e-3 3.6e-4 1.0e-4
+  scf 14: E -102.45337112  |Δρ| 5.36e-5  bands 7.8e-3 9.9e-4 3.1e-4 7.8e-5
+  scf 15: E -102.45337112  |Δρ| 2.76e-5  bands 7.2e-3 6.4e-4 2.2e-4 5.2e-5
+  scf 16: E -102.45337112  |Δρ| 1.40e-5  bands 4.3e-3 5.4e-4 1.7e-4 3.7e-5
+  scf 17: E -102.45337112  |Δρ| 1.95e-6  bands 5.4e-3 4.4e-4 1.7e-4 3.6e-5
+{"file":"crystalref-Al2O3.json","name":"corundum","scale":1.04,"ecut":40,"nk":"a18s","ns":[2,2,2],"nkpts":4,"atoms":10,"nf":2,"E":-102.45337112058579,"perFormula_eV":-1393.9491142817562,"gap_eV":5.720963163421767,"parts":{"kinetic":70.61282903483774,"nonlocal":12.081283139032974,"local":-106.51751902640342,"hartree":27.640317224573472,"exchange":-21.52941548530425,"ewald":-84.74086600732231,"total":-102.45337112058579},"s":2719.956}
+(node:2557) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

@@ -1,0 +1,33 @@
+{
+ "group": "pw-corundum",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 0.98 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2547
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2614
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.02 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2721
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.04 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2725
+  }
+ ]
+}

@@ -1,0 +1,25 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.02 40 a18s
+corundum ×1.02: 10 atoms, 48 electrons, grid 60×60×60, 7329/7342/7342/7342 PW at 4 k
+  scf 0: E -76.87800059  |Δρ| 6.90e+0  bands 2.1e-1 1.9e-1 1.1e-1 1.4e-1
+  scf 1: E -90.98515154  |Δρ| 3.62e+0  bands 1.2e-1 8.8e-2 7.0e-2 1.0e-1
+  scf 2: E -102.10666832  |Δρ| 1.61e+0  bands 1.9e-1 8.6e-2 9.9e-2 8.7e-2
+  scf 3: E -99.90186313  |Δρ| 1.56e+0  bands 3.0e-2 3.0e-2 1.7e-2 1.9e-2
+  scf 4: E -101.64361115  |Δρ| 9.01e-1  bands 7.1e-2 1.2e-1 1.3e-1 1.3e-1
+  scf 5: E -102.41010689  |Δρ| 3.05e-1  bands 6.0e-2 2.8e-2 2.9e-2 3.0e-2
+  scf 6: E -102.46338001  |Δρ| 1.10e-1  bands 5.8e-2 2.0e-2 1.9e-2 1.8e-2
+  scf 7: E -102.46710660  |Δρ| 9.55e-2  bands 4.5e-2 1.4e-2 1.3e-2 1.2e-2
+  scf 8: E -102.47572802  |Δρ| 6.53e-3  bands 3.2e-2 4.5e-3 4.7e-3 4.7e-3
+  scf 9: E -102.47572371  |Δρ| 4.16e-3  bands 2.5e-2 3.0e-3 3.1e-3 3.1e-3
+  scf 10: E -102.47574100  |Δρ| 8.20e-4  bands 1.5e-2 1.8e-3 1.6e-3 1.6e-3
+  scf 11: E -102.47574110  |Δρ| 5.26e-4  bands 1.2e-2 1.3e-3 7.8e-4 7.7e-4
+  scf 12: E -102.47574115  |Δρ| 1.94e-4  bands 8.2e-3 1.0e-3 4.5e-4 4.6e-4
+  scf 13: E -102.47574117  |Δρ| 9.44e-5  bands 6.8e-3 9.6e-4 3.9e-4 3.8e-4
+  scf 14: E -102.47574117  |Δρ| 3.78e-5  bands 6.7e-3 6.9e-4 2.6e-4 2.5e-4
+  scf 15: E -102.47574117  |Δρ| 2.08e-5  bands 4.8e-3 5.4e-4 1.8e-4 1.8e-4
+  scf 16: E -102.47574117  |Δρ| 1.01e-5  bands 4.2e-3 3.4e-4 1.4e-4 1.4e-4
+  scf 17: E -102.47574117  |Δρ| 1.58e-6  bands 3.0e-3 1.9e-4 9.1e-5 9.8e-5
+{"file":"crystalref-Al2O3.json","name":"corundum","scale":1.02,"ecut":40,"nk":"a18s","ns":[2,2,2],"nkpts":4,"atoms":10,"nf":2,"E":-102.47574116686648,"perFormula_eV":-1394.2534742638472,"gap_eV":6.378100506156011,"parts":{"kinetic":71.27774455151557,"nonlocal":12.031926532957238,"local":-104.69948317709128,"hartree":27.01809114373946,"exchange":-21.701568643582075,"ewald":-86.4024515744054,"total":-102.47574116686648},"s":2715.986}
+(node:2552) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

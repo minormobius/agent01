@@ -1,0 +1,31 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.04 40 a18s
+impostor ×1.04: 10 atoms, 48 electrons, grid 40×75×72, 9028/9059/9044/9049/9043/9047 PW at 6 k
+  scf 0: E -75.47569345  |Δρ| 7.03e+0  bands 1.0e-2 2.8e-2 1.6e-2 1.8e-2 4.0e-2 1.6e-2
+  scf 1: E -88.92940981  |Δρ| 3.83e+0  bands 2.2e-2 3.0e-2 3.2e-2 2.6e-2 2.5e-2 2.9e-2
+  scf 2: E -100.55621423  |Δρ| 1.86e+0  bands 7.6e-2 6.9e-2 5.7e-2 9.1e-2 6.7e-2 5.9e-2
+  scf 3: E -98.48762389  |Δρ| 1.82e+0  bands 1.6e-2 1.7e-2 2.1e-2 1.3e-2 1.6e-2 1.6e-2
+  scf 4: E -101.98810209  |Δρ| 3.75e-1  bands 3.6e-2 6.6e-2 4.6e-2 5.4e-2 9.8e-2 5.2e-2
+  scf 5: E -102.02292254  |Δρ| 3.26e-1  bands 2.5e-2 5.8e-2 4.1e-2 3.1e-2 9.2e-2 2.8e-2
+  scf 6: E -102.04341672  |Δρ| 4.11e-1  bands 3.2e-2 6.0e-2 5.9e-2 4.1e-2 5.4e-2 3.6e-2
+  scf 7: E -102.30053244  |Δρ| 1.01e-1  bands 3.1e-2 3.0e-2 2.1e-2 2.5e-2 2.8e-2 2.2e-2
+  scf 8: E -102.33335958  |Δρ| 6.98e-2  bands 3.0e-2 3.5e-2 2.1e-2 2.5e-2 3.5e-2 2.2e-2
+  scf 9: E -102.35265593  |Δρ| 4.28e-2  bands 3.2e-2 5.1e-2 2.5e-2 3.1e-2 6.3e-2 3.4e-2
+  scf 10: E -102.35562054  |Δρ| 1.69e-2  bands 2.0e-2 2.3e-2 1.2e-2 2.2e-2 3.1e-2 3.4e-2
+  scf 11: E -102.35650156  |Δρ| 1.06e-2  bands 1.7e-2 1.7e-2 1.3e-2 1.6e-2 3.5e-2 2.8e-2
+  scf 12: E -102.35665802  |Δρ| 5.74e-3  bands 1.5e-2 1.2e-2 7.3e-3 1.2e-2 2.3e-2 2.9e-2
+  scf 13: E -102.35671793  |Δρ| 2.42e-3  bands 1.0e-2 6.2e-3 8.4e-3 7.4e-3 1.9e-2 2.1e-2
+  scf 14: E -102.35672895  |Δρ| 1.58e-3  bands 7.8e-3 4.8e-3 7.5e-3 4.3e-3 1.3e-2 1.7e-2
+  scf 15: E -102.35673675  |Δρ| 7.74e-4  bands 7.5e-3 2.7e-3 8.1e-3 3.5e-3 1.2e-2 1.5e-2
+  scf 16: E -102.35673775  |Δρ| 4.53e-4  bands 6.3e-3 1.8e-3 6.0e-3 1.8e-3 8.1e-3 9.7e-3
+  scf 17: E -102.35673826  |Δρ| 2.24e-4  bands 5.9e-3 1.1e-3 2.9e-3 1.1e-3 6.2e-3 7.0e-3
+  scf 18: E -102.35673837  |Δρ| 1.15e-4  bands 5.9e-3 6.9e-4 2.3e-3 6.0e-4 3.7e-3 6.1e-3
+  scf 19: E -102.35673840  |Δρ| 5.95e-5  bands 5.4e-3 4.3e-4 2.3e-3 6.1e-4 2.5e-3 5.0e-3
+  scf 20: E -102.35673841  |Δρ| 2.19e-5  bands 4.9e-3 2.2e-4 1.7e-3 4.0e-4 1.7e-3 3.5e-3
+  scf 21: E -102.35673841  |Δρ| 1.45e-5  bands 4.2e-3 1.2e-4 1.2e-3 2.4e-4 1.9e-3 2.6e-3
+  scf 22: E -102.35673841  |Δρ| 1.04e-5  bands 3.4e-3 8.3e-5 1.0e-3 1.2e-4 1.5e-3 1.7e-3
+  scf 23: E -102.35673841  |Δρ| 6.16e-6  bands 3.0e-3 4.1e-5 5.8e-4 1.0e-4 1.2e-3 1.8e-3
+{"file":"crystalref-Al2O3.json","name":"impostor","scale":1.04,"ecut":40,"nk":"a18s","ns":[3,2,2],"nkpts":6,"atoms":10,"nf":2,"E":-102.35673840816293,"perFormula_eV":-1392.6343592627736,"gap_eV":5.201762713444727,"parts":{"kinetic":70.55466859233768,"nonlocal":12.07597084897839,"local":-118.26426008460322,"hartree":31.965320449425224,"exchange":-21.448153639351922,"ewald":-77.24028457494907,"total":-102.35673840816293},"s":3878.845}
+(node:2420) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

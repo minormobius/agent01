@@ -1,0 +1,17 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 0.98 40 a18s
+poly6 ×0.98: 20 atoms, 96 electrons, grid 64×64×64, 12846/12846/12846/12865 PW at 4 k
+file:///home/runner/work/agent01/agent01/four/atom/js/pw.js:247
+        for (let i = 0; i < n; i++) { const r1 = HXs[b].re[i] - eps[b] * X[b].re[i], r2 = HXs[b].im[i] - eps[b] * X[b].im[i]; rn += r1 * r1 + r2 * r2; const den = B0.kin[i] - eps[b], pre = 1 / (Math.abs(den) < 0.5 ? (den >= 0 ? 0.5 : -0.5) : den); pr[i] = r1 * pre; pi[i] = r2 * pre; }
+                                                        ^
+
+TypeError: Cannot read properties of undefined (reading 're')
+    at PW.bands (file:///home/runner/work/agent01/agent01/four/atom/js/pw.js:247:57)
+    at file:///home/runner/work/agent01/agent01/four/atom/js/pw.js:292:46
+    at Array.map (<anonymous>)
+    at PW.scf (file:///home/runner/work/agent01/agent01/four/atom/js/pw.js:292:26)
+    at file:///home/runner/work/agent01/agent01/four/atom/tools/pwcheck.mjs:59:16
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.4

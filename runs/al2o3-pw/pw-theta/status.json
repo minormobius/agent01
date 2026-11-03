@@ -1,0 +1,33 @@
+{
+ "group": "pw-theta",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 0.98 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4751
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.00 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4752
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.02 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4873
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.04 40 a18s",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 6239
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 0.98 40 a18s
+theta ×0.98: 10 atoms, 48 electrons, grid 72×72×64, 7198/7209/7227/7198 PW at 4 k
+  scf 0: E -77.37839050  |Δρ| 6.90e+0  bands 1.6e-1 4.8e-2 7.8e-2 9.8e-2
+  scf 1: E -91.24886073  |Δρ| 3.62e+0  bands 8.3e-2 3.3e-2 4.8e-2 5.0e-2
+  scf 2: E -101.54573068  |Δρ| 1.58e+0  bands 1.1e-1 1.0e-1 9.9e-2 9.1e-2
+  scf 3: E -100.00964977  |Δρ| 1.50e+0  bands 3.1e-2 3.4e-2 8.3e-2 3.3e-2
+  scf 4: E -102.12319581  |Δρ| 4.46e-1  bands 8.9e-2 7.0e-2 4.5e-2 9.0e-2
+  scf 5: E -102.27644485  |Δρ| 2.22e-1  bands 5.5e-2 2.7e-2 2.1e-2 5.0e-2
+  scf 6: E -102.32004203  |Δρ| 1.32e-1  bands 8.4e-2 2.9e-2 3.5e-2 8.1e-2
+  scf 7: E -102.34599809  |Δρ| 6.74e-2  bands 5.1e-2 2.4e-2 3.0e-2 4.9e-2
+  scf 8: E -102.35466135  |Δρ| 2.00e-2  bands 3.2e-2 2.7e-2 2.4e-2 3.1e-2
+  scf 9: E -102.35511109  |Δρ| 9.87e-3  bands 1.6e-2 1.7e-2 9.2e-3 1.5e-2
+  scf 10: E -102.35535347  |Δρ| 5.13e-3  bands 1.0e-2 1.8e-2 1.1e-2 9.8e-3
+  scf 11: E -102.35543618  |Δρ| 2.75e-3  bands 9.0e-3 1.5e-2 9.2e-3 8.8e-3
+  scf 12: E -102.35545974  |Δρ| 1.04e-3  bands 5.3e-3 1.2e-2 4.7e-3 5.2e-3
+  scf 13: E -102.35546229  |Δρ| 4.68e-4  bands 4.3e-3 6.5e-3 3.0e-3 4.3e-3
+  scf 14: E -102.35546249  |Δρ| 3.12e-4  bands 2.8e-3 4.8e-3 3.0e-3 2.8e-3
+  scf 15: E -102.35546275  |Δρ| 1.35e-4  bands 2.1e-3 2.9e-3 2.9e-3 2.1e-3
+  scf 16: E -102.35546279  |Δρ| 9.17e-5  bands 1.8e-3 1.9e-3 1.3e-3 1.9e-3
+  scf 17: E -102.35546281  |Δρ| 2.09e-5  bands 1.7e-3 1.6e-3 1.2e-3 1.7e-3
+  scf 18: E -102.35546282  |Δρ| 1.03e-5  bands 1.6e-3 2.5e-3 1.0e-3 1.7e-3
+  scf 19: E -102.35546282  |Δρ| 7.33e-6  bands 1.4e-3 1.5e-3 8.0e-4 1.4e-3
+{"file":"crystalref-Al2O3.json","name":"theta","scale":0.98,"ecut":40,"nk":"a18s","ns":[2,2,2],"nkpts":4,"atoms":10,"nf":2,"E":-102.3554628160333,"perFormula_eV":-1392.6170039478645,"gap_eV":6.295280740062852,"parts":{"kinetic":72.56702784077781,"nonlocal":11.914840764379392,"local":-107.03564451999797,"hartree":27.742833755867284,"exchange":-21.952437269030064,"ewald":-85.59208338802975,"total":-102.3554628160333},"s":4745.475}
+(node:2548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
