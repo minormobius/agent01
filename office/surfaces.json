@@ -3740,6 +3740,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-tentacle",
+   "name": "kata-tentacle",
+   "url": "https://kata.mino.mobi/tentacle/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

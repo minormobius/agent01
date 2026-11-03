@@ -5840,6 +5840,23 @@
       ]
     },
     {
+      "n": "kata-tentacle",
+      "u": "https://kata.mino.mobi/tentacle/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-03",
+      "b": "2026-11-03",
+      "p": "kata",
+      "surface": "kata",
+      "d": "A tentacle lab: a muscular hydrostat, an arm with no bones, moved by muscle alone at constant volume, in 3D and then in 4D, as a Cosserat rod with longitudinal, transverse and helical muscles. Kata's arm has seven strains a segment to our four, its twist muscles leave bald lines by the hairy ball theorem, and your slice cuts a writhing arm into separate pieces that swell, merge and vanish. Reach, writhe, coil, twist and strike.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

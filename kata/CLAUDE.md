@@ -67,6 +67,12 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   the Munk moment against the arms' weathercocking; the frame turned in the single plane of F and ω, so no roll). Its
   own shader: your slice from the heading, 200 jellies and 8 axis giants as 4D balls read from a float texture (too
   many for uniforms on a phone), halos for those within 30 m of the slice. See [`squid/README.md`](squid/README.md).
+- **TENTACLE at `/tentacle/`**: a muscular hydrostat in 3D (calibration) and 4D (`js/rod.js`, no DOM: a discrete
+  Cosserat rod, 64 segments, strains bend/twist/stretch, 4 per segment in 3D and 7 in 4D, the frame carried by exact
+  matrix exponentials; longitudinal fibres as a pattern over the skin (a ring; Lebedev's 26 on the 2-sphere), dipole →
+  bend, mean → shorten; transverse at constant volume; helical twist, whose 4D fields have the hairy ball's bald
+  poles). Its own shader sphere-traces the hypertube from a float texture of nodes. See
+  [`tentacle/README.md`](tentacle/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -124,6 +130,7 @@ node kata/wake/test/wake.selftest.mjs # ~3 s
 node kata/wavelab/test/wavelab.selftest.mjs # ~15 s
 node kata/orbital/test/orbital.selftest.mjs # ~8 s
 node kata/squid/test/squid.selftest.mjs # < 1 s
+node kata/tentacle/test/tentacle.selftest.mjs # ~1 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
