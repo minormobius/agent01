@@ -278,6 +278,16 @@ for games, and this is a modelling programme with publications to come. The game
   <scale> <ecut> [k]` (k a number, or aX / aXs for ⌈X/|a_i|⌉ Γ-centred / shifted). Corundum at Γ: ecut 30, 40, 50 give
   −102.402, −102.421, −102.424 Ha a cell (40 is within 1.3 mHa a formula), gap 5.96 eV (LDA-level; measured 8.8).
   Selftest 66 (FFT, transforms, a Gaussian well, the ions' split independence, neon's pseudo-levels), mirrored.
+  Forces (`forces(states, rho)`, Hellmann–Feynman: local through ρ(G), projector phases, ions via ionic.js's slopes)
+  match central differences: F₂ in ours to 10⁻⁶, a 4D element-12 pair to 10⁻⁵ Ha/bohr. `tools/pwpool.mjs` shares the
+  k-points out to worker threads through shared memory (`scf({ pool })`; pwcheck's 6th argument): serial-exact to 10⁻¹²,
+  3.5× on four cores. The complex Hermitian eigensolver (`hermEigen`, the real double [[A,−B],[B,A]]) once dropped a
+  vector in degenerate blocks; it now takes exactly n in two passes. Pseudopotential sets in pwcheck (`PSEUDO_ARGS`):
+  ours (Al rc 2.1/2.3, O 1.45), 4D (Bl 2.2/2.4 with its 12-electron core, Px 1.6), and `soft` variants of each.
+  Runs: `al2o3-pw` (ecut 40, k a18s): corundum's minimum at the measured cell, −1394.353 eV per formula; poly6
+  crashed on the solver bug and is rerun in `pw-poly6-bp-conv`, with Bl₂Px₃'s convergence at Γ (`crystalref-Bl2Px3.json`,
+  the ionic model's eight best cells; 15 → 20 Ha moved the total 30 eV a formula, so the gap between candidates is
+  what's being converged) and the soft sets on the aluminas.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
