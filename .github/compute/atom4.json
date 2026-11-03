@@ -1,6 +1,6 @@
 {
  "run": "of2-tz-pairs",
- "why": "The OF₂ check: the book's Dd basis equals aug-cc-pVDZ (well 2: −0.446 against −0.449 kcal/mol, Hartree-Fock to 0.003), and aug-cc-pVTZ binds 26% deeper (−0.565; CCSD(T) adds 5% to MP2 in aug-cc-pVDZ). So all 92 OF₂ placements (the 80 random and the field's 12 wells) by MP2 in aug-cc-pVTZ with PySCF (tools/pairref.mjs), then the field refitted and the liquid run once more.",
+ "why": "The OF₂ check: the book's Dd basis equals aug-cc-pVDZ (well 2: −0.446 against −0.449 kcal/mol, Hartree-Fock to 0.003), and aug-cc-pVTZ binds 26% deeper (−0.565; CCSD(T) adds 5% to MP2 in aug-cc-pVDZ). So all 92 OF₂ placements (the 80 random and the field's 12 wells) by MP2 in aug-cc-pVTZ with PySCF (tools/pairref.mjs), then the field refitted and the liquid run once more. (Second try: the first ran PySCF with python3 -I, which ignores the user site-packages pip had just installed it into.)",
  "minutes": 330,
  "groups": [
   {

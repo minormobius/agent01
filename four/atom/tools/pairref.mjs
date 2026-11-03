@@ -19,6 +19,7 @@ if (!existsSync(out)) {
   if (!has()) { const lock = path.join(os.tmpdir(), "pyscf-install.lock");
     try { mkdirSync(lock); try { execFileSync("python3", ["-m", "pip", "install", "--user", "-q", "pyscf"], { stdio: "inherit" }); } finally { rmSync(lock, { recursive: true, force: true }); } }
     catch (e) { if (e.code !== "EEXIST") throw e; for (let t = 0; t < 240 && !has(); t++) execFileSync("sleep", ["5"]); } }
-  execFileSync("python3", ["-I", path.join(here, "pairref.py"), src, out, basis, SYMS[name]], { stdio: "inherit", env: { ...process.env, OMP_NUM_THREADS: "1" } });
+  // not -I: that drops the user site-packages where PySCF was just installed (our own script, run from the temp dir)
+  execFileSync("python3", [path.join(here, "pairref.py"), src, out, basis, SYMS[name]], { stdio: "inherit", cwd: os.tmpdir(), env: { ...process.env, OMP_NUM_THREADS: "1" } });
 }
 const r = JSON.parse(readFileSync(out, "utf8")); console.log(`${name} ${k} in ${r.basis}: MP2 ${(r.mp2 * 627.5095).toFixed(3)} kcal/mol, HF ${(r.hf * 627.5095).toFixed(3)}, ${r.n} functions, ${r.ok ? "converged" : "NOT converged"}, ${r.s} s`);
