@@ -250,7 +250,13 @@ for games, and this is a modelling programme with publications to come. The game
   js/ionic.js switches the r⁻⁵ cloud terms off over the 2 bohr before rc with the continuum taking the rest (`tailJ`; a
   hard cut made the energy jump and stalled BFGS at |g| ~ 10⁻³). Bl₂Px₃, Z = 2, 200 starts (sandbox): lowest U 181.3 eV
   per formula, density 3.57 × 10¹³ kg/m⁴, every Bl 13-coordinated (3 + 3 + 1 + 3 + 3 at 1.93–2.09 Å), Px 8 and 9;
-  next +0.36. Z = 1–4 and our Al₂O₃ at Z = 4 are on the runner (run `bl2px3-search`) before it's reported.
+  next +0.36. Runner `bl2px3-search` (every command exit 0): Bl₂Px₃ Z = 4, 240 starts, finds the same structure lowest
+  (52 hits) and nothing below it; Z = 3 can't hold it (best 180.40), Z = 1 tops at 178.97. Our Al₂O₃ at Z = 4 (160
+  starts) finds one arrangement 0.023 eV per formula *below* corundum (density 4051, 1 hit): Al all 6-, O all 4-coordinated
+  like corundum, 2 regular and 6 distorted octahedra. That's inside the model's ~0.1 eV error against PBE, so it is
+  `poly6` in `crystalref-Al2O3.json` and on the runner (`crystalref.mjs Al2O3 poly6 <scale> 4`, 20 atoms, 4 threads).
+  Until PBE has judged it: the model gets corundum's coordination and density, but can't separate same-coordination
+  arrangements within ~0.1 eV. Bl₂Px₃'s runner-up is 0.36 eV higher, past that.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

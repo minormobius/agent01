@@ -1,51 +1,30 @@
 {
- "run": "bl2px3-search",
- "why": "Bl₂Px₃ (4D's sapphire) by blind search on the ionic model that passed our corundum's check (fixed Watson radius + dispersion: 200 random starts find corundum lowest, then the impostor and θ-alumina, the order periodic PBE gives). Z = 1–4 formula units a cell; our Al₂O₃ at Z = 2 and 4 as the check that bigger cells find nothing below corundum.",
+ "run": "al2o3-dft-poly6",
+ "why": "The ionic model's Z = 4 search found a corundum-like arrangement (Al 6-, O 4-coordinated; 2 regular and 6 distorted octahedra) 0.023 eV per formula below corundum, inside the model's ~0.1 eV error against PBE. Periodic PBE on it, as on corundum, θ and the impostor before: is corundum still lowest?",
  "minutes": 330,
  "groups": [
   {
-   "name": "bp-z1-z2",
+   "name": "dft-poly6-0.98",
    "cmds": [
-    "node four/atom/tools/ionic.mjs search Bl2Px3 1 120 --disp",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 2 240 --disp --shard 0/3",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 2 240 --disp --shard 1/3",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 2 240 --disp --shard 2/3"
+    "node four/atom/tools/crystalref.mjs Al2O3 poly6 0.98 4"
    ]
   },
   {
-   "name": "bp-z3",
+   "name": "dft-poly6-1.00",
    "cmds": [
-    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 0/4",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 1/4",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 2/4",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 3/4"
+    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4"
    ]
   },
   {
-   "name": "bp-z4-0",
+   "name": "dft-poly6-1.02",
    "cmds": [
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 0/8",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 1/8",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 2/8",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 3/8"
+    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.02 4"
    ]
   },
   {
-   "name": "bp-z4-1",
+   "name": "dft-poly6-1.04",
    "cmds": [
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 4/8",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 5/8",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 6/8",
-    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 7/8"
-   ]
-  },
-  {
-   "name": "al-check",
-   "cmds": [
-    "node four/atom/tools/ionic.mjs search Al2O3 2 200 --disp --shard 0/2",
-    "node four/atom/tools/ionic.mjs search Al2O3 2 200 --disp --shard 1/2",
-    "node four/atom/tools/ionic.mjs search Al2O3 4 160 --disp --shard 0/2",
-    "node four/atom/tools/ionic.mjs search Al2O3 4 160 --disp --shard 1/2"
+    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.04 4"
    ]
   }
  ]
