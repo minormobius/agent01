@@ -124,13 +124,16 @@ function hermEigen(M, n) {
   for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { const a = M.re[i * n + j], b = M.im[i * n + j]; R[i * N2 + j] = a; R[(i + n) * N2 + j + n] = a; R[i * N2 + j + n] = -b; R[(i + n) * N2 + j] = b; }
   const { values, vectors } = jacobiEigen(R, N2), idx = Array.from({ length: N2 }, (_, i) => i).sort((p, q) => values[p] - values[q]);
   // take one of each degenerate pair: Gram–Schmidt the complex vectors in order, keeping n independent ones
-  const vals = [], vre = [], vim = [];
-  for (const k of idx) { if (vals.length === n) break;
+  const vals = [], vre = [], vim = [], used = new Set();
+  // two passes: first only vectors well clear of those taken (each pair's twin is i times its partner); then, if a
+  // degenerate block mixed the pairs, whatever independent part is left, so exactly n come back
+  for (const thr of [0.25, 1e-8]) for (const k of idx) { if (vals.length === n) break; if (used.has(k)) continue;
     let xr = new Float64Array(n), xi = new Float64Array(n); for (let i = 0; i < n; i++) { xr[i] = vectors[i * N2 + k]; xi[i] = vectors[(i + n) * N2 + k]; }
     for (let p = 0; p < vals.length; p++) { let sr = 0, si = 0; for (let i = 0; i < n; i++) { sr += vre[p][i] * xr[i] + vim[p][i] * xi[i]; si += vre[p][i] * xi[i] - vim[p][i] * xr[i]; } for (let i = 0; i < n; i++) { xr[i] -= sr * vre[p][i] - si * vim[p][i]; xi[i] -= sr * vim[p][i] + si * vre[p][i]; } }
-    let nn = 0; for (let i = 0; i < n; i++) nn += xr[i] * xr[i] + xi[i] * xi[i]; if (nn < 0.25) continue; nn = Math.sqrt(nn);
-    for (let i = 0; i < n; i++) { xr[i] /= nn; xi[i] /= nn; } vals.push(values[k]); vre.push(xr); vim.push(xi); }
-  return { values: vals, re: vre, im: vim };
+    let nn = 0; for (let i = 0; i < n; i++) nn += xr[i] * xr[i] + xi[i] * xi[i]; if (nn < thr) continue; nn = Math.sqrt(nn);
+    for (let i = 0; i < n; i++) { xr[i] /= nn; xi[i] /= nn; } used.add(k); vals.push(values[k]); vre.push(xr); vim.push(xi); }
+  // the second pass can take them out of order: sort by eigenvalue (the Rayleigh quotient, exact for an eigenvector)
+  const ord = vals.map((_, i) => i).sort((a, b) => vals[a] - vals[b]); return { values: ord.map((i) => vals[i]), re: ord.map((i) => vre[i]), im: ord.map((i) => vim[i]) };
 }
 
 /* ---------------------------------------------------------------- the crystal
@@ -172,14 +175,14 @@ export class PW {
   /* the Kleinman–Bylander projectors at k: for each atom, channel and harmonic, the vector β(|k+G|) Y(k+G) e^(−i(k+G)·τ)/√Ω */
   projectorsFor(B0) {
     const { d } = this, out = [];
-    for (const at of this.atoms) for (const p of this.species[at.sp].proj ?? []) { const Ys = harmonics(d, p.l);
+    this.atoms.forEach((at, ai) => { for (const p of this.species[at.sp].proj ?? []) { const Ys = harmonics(d, p.l);
       // the plane wave's expansion carries (−i)^l
       const ph = [[1, 0], [0, -1], [-1, 0], [0, 1]][p.l % 4];
       for (const Y of Ys) { const re = new Float64Array(B0.n), im = new Float64Array(B0.n);
         for (let i = 0; i < B0.n; i++) { const q = Array.from({ length: d }, (_, c) => B0.kg[i * d + c]), qn = Math.hypot(...q), u = qn > 1e-12 ? q.map((x) => x / qn) : q.map((_, c) => (c === 0 ? 1 : 0));
           const amp = (p.beta(qn) * Y(u)) / Math.sqrt(this.vol), arg = -q.reduce((t, x, c) => t + x * at.x[c], 0), cr = Math.cos(arg), ci = Math.sin(arg);
           const ar = amp * (ph[0] * cr - ph[1] * ci), ai = amp * (ph[0] * ci + ph[1] * cr); re[i] = ar; im[i] = ai; }
-        out.push({ re, im, D: p.D }); } }
+        out.push({ re, im, D: p.D, atom: ai }); } } });
     return out;
   }
   /* the local potential's G components (ions), V_loc(G) = Σ_atoms e^(−iG·τ) v̂(|G|)/Ω, G = 0 from the α Z terms */
@@ -283,18 +286,21 @@ export class PW {
     return rho;
   }
   /* the self-consistent ground state */
-  scf({ maxIter = 60, tol = 1e-6, log = () => {}, hartree = true, exchange = true, mixHist = 6, beta = 0.5, q0 = 1.5 } = {}) {
+  /* pool (optional): k-points shared out to worker threads (tools/pwpool.mjs); its run(V, iters) returns the bands' density,
+     kinetic and nonlocal energies, residual and eigenvalues, and states then stay in the workers */
+  scf({ maxIter = 60, tol = 1e-6, log = () => {}, hartree = true, exchange = true, mixHist = 6, beta = 0.5, q0 = 1.5, pool = null, bandIters = 6 } = {}) {
     const { d, ntot, vol, dims, G2 } = this, VL = this.localG(), vlocR = (() => { const re = Float64Array.from(VL.re), im = Float64Array.from(VL.im); fftn(re, im, dims, true); return re; })();
     let rho = new Float64Array(ntot).fill(this.nelec / vol), states = this.kpts.map(() => null), E = null, Eold = null;
     const hist = [];
     for (let it = 0; it < maxIter; it++) {
       const pot = this.potential(rho, vlocR, { hartree, exchange });
-      states = this.kpts.map((_, ki) => this.bands(ki, pot.V, states[ki]?.X, { iters: it ? 6 : 40 }));
-      const rhoOut = this.density(states);
-      E = this.energy(states, rhoOut, VL, { hartree, exchange });
+      let rhoOut, parts = null, resTxt;
+      if (pool) { const r = pool.run(pot.V, it ? bandIters : 40); rhoOut = r.rho; parts = { kin: r.kin, nl: r.nl }; this.eigs = r.eigs; resTxt = r.res.toExponential(1); }
+      else { states = this.kpts.map((_, ki) => this.bands(ki, pot.V, states[ki]?.X, { iters: it ? bandIters : 40 })); rhoOut = this.density(states); this.eigs = states.map((s) => s.e); resTxt = states.map((s) => s.res.toExponential(1)).join(" "); }
+      E = this.energy(states, rhoOut, VL, { hartree, exchange, parts });
       // Pulay on the density with Kerker's preconditioning (in G space)
       const R = Float64Array.from(rhoOut, (v, j) => v - rho[j]); let rn = 0; for (const v of R) rn += v * v; rn = Math.sqrt((rn * vol) / ntot);
-      log(`  scf ${it}: E ${E.total.toFixed(8)}  |Δρ| ${rn.toExponential(2)}  bands ${states.map((s) => s.res.toExponential(1)).join(" ")}`);
+      log(`  scf ${it}: E ${E.total.toFixed(8)}  |Δρ| ${rn.toExponential(2)}  bands ${resTxt}`);
       if (rn < tol && Eold != null && Math.abs(E.total - Eold) < tol) break; Eold = E.total;
       hist.push({ rho: Float64Array.from(rho), R }); if (hist.length > mixHist) hist.shift();
       const m = hist.length, A = Array.from({ length: m + 1 }, () => new Float64Array(m + 1)), b = new Float64Array(m + 1);
@@ -308,6 +314,41 @@ export class PW {
     }
     return { E, states, rho };
   }
+  /* forces on the ions, −dE/dτ, at self-consistency (Hellmann–Feynman): the local part through the density's G
+     components, the projectors' phases e^(−i(k+G)·τ), and the ions' own energy from js/ionic.js's analytic slopes (4D
+     clouds included; the background terms don't depend on where the ions are). Returns one d-vector per atom */
+  forces(states, rho, nlForces = null) {
+    const { d, ntot, dims, G, G2, atoms } = this, F = atoms.map(() => new Float64Array(d)), nocc = this.nelec / 2;
+    const re = Float64Array.from(rho), im = new Float64Array(ntot); fftn(re, im, dims, false);
+    const cache = new Map();
+    for (let j = 1; j < ntot; j++) { if (!(G2[j] > 0)) continue; const g = Math.sqrt(G2[j]), rr = re[j] / ntot, ri = im[j] / ntot;
+      atoms.forEach((at, I) => { const key = at.sp + "|" + g.toFixed(10); if (!cache.has(key)) cache.set(key, this.species[at.sp].vloc(g)); const v = cache.get(key);
+        let arg = 0; for (let c = 0; c < d; c++) arg += G[j * d + c] * at.x[c]; const imz = -v * (Math.sin(arg) * rr + Math.cos(arg) * ri); // Im(v e^(−iG·τ) ρ*)
+        for (let c = 0; c < d; c++) F[I][c] -= G[j * d + c] * imz; }); }
+    if (nlForces) nlForces.forEach((f, I) => { for (let c = 0; c < d; c++) F[I][c] += f[c]; });
+    else this.nonlocalForces(states).forEach((f, I) => { for (let c = 0; c < d; c++) F[I][c] += f[c]; });
+    const keys = [...new Set(atoms.map((a) => a.sp))], kinds = atoms.map((a) => keys.indexOf(a.sp));
+    const I = new Ionic({ d, species: keys.map((k) => ({ q: this.species[k].Z, S: d === 4 ? this.species[k].S ?? 0 : 0, T: d === 4 ? this.species[k].T ?? 0 : 0 })), short: () => [0, 0] });
+    const e = I.energy(this.H, Float64Array.from(atoms.flatMap((a) => a.x)), kinds, 1, true); atoms.forEach((_, i) => { for (let c = 0; c < d; c++) F[i][c] -= e.gx[i * d + c]; });
+    return F;
+  }
+  /* the projectors' share of the forces, from the bands at the k-points this instance holds */
+  nonlocalForces(states) {
+    const { d, atoms } = this, F = atoms.map(() => new Float64Array(d)), nocc = this.nelec / 2;
+    states.forEach((st, ki) => { const B0 = this.basis[ki], w = this.kpts[ki].w;
+      for (let b = 0; b < nocc; b++) { const occ = 2 * w * Math.min(1, nocc - b), x = st.X[b];
+        for (const p of B0.proj) { let ar = 0, ai = 0; const dr = new Float64Array(d), di = new Float64Array(d);
+          for (let i = 0; i < B0.n; i++) { const cr = p.re[i] * x.re[i] + p.im[i] * x.im[i], ci = p.re[i] * x.im[i] - p.im[i] * x.re[i]; ar += cr; ai += ci; // conj(p) c
+            for (let c = 0; c < d; c++) { const q = B0.kg[i * d + c]; dr[c] += -q * ci; di[c] += q * cr; } } // i q conj(p) c
+          for (let c = 0; c < d; c++) F[p.atom][c] -= occ * p.D * 2 * (ar * dr[c] + ai * di[c]); } } });
+    return F;
+  }
+  /* the bands' kinetic and nonlocal energies (what a worker holding some k-points reports) */
+  bandEnergies(states) { const nocc = this.nelec / 2; let kin = 0, nl = 0;
+    states.forEach((st, ki) => { const B0 = this.basis[ki], w = this.kpts[ki].w; for (let b = 0; b < nocc; b++) { const occ = 2 * w * Math.min(1, nocc - b), x = st.X[b];
+      for (let i = 0; i < B0.n; i++) kin += occ * B0.kin[i] * (x.re[i] ** 2 + x.im[i] ** 2);
+      for (const p of B0.proj) { let sr = 0, si = 0; for (let i = 0; i < B0.n; i++) { sr += p.re[i] * x.re[i] + p.im[i] * x.im[i]; si += p.re[i] * x.im[i] - p.im[i] * x.re[i]; } nl += occ * p.D * (sr * sr + si * si); } } });
+    return { kin, nl }; }
   /* the local potential the electrons feel: ions + Hartree + exchange, on the grid */
   potential(rho, vlocR, { hartree = true, exchange = true } = {}) {
     const { d, ntot, dims, G2 } = this, V = Float64Array.from(vlocR);
@@ -317,9 +358,9 @@ export class PW {
     return { V };
   }
   /* the total energy per cell: band kinetic + nonlocal, local, Hartree, exchange, Ewald */
-  energy(states, rho, VL, { hartree = true, exchange = true } = {}) {
-    const { d, ntot, vol, dims, G2 } = this, nocc = this.nelec / 2; let kin = 0, nl = 0;
-    states.forEach((st, ki) => { const B0 = this.basis[ki], w = this.kpts[ki].w; for (let b = 0; b < nocc; b++) { const occ = 2 * w * Math.min(1, nocc - b), x = st.X[b];
+  energy(states, rho, VL, { hartree = true, exchange = true, parts = null } = {}) {
+    const { d, ntot, vol, dims, G2 } = this, nocc = this.nelec / 2; let kin = parts ? parts.kin : 0, nl = parts ? parts.nl : 0;
+    if (!parts) states.forEach((st, ki) => { const B0 = this.basis[ki], w = this.kpts[ki].w; for (let b = 0; b < nocc; b++) { const occ = 2 * w * Math.min(1, nocc - b), x = st.X[b];
       for (let i = 0; i < B0.n; i++) kin += occ * B0.kin[i] * (x.re[i] ** 2 + x.im[i] ** 2);
       for (const p of B0.proj) { let sr = 0, si = 0; for (let i = 0; i < B0.n; i++) { sr += p.re[i] * x.re[i] + p.im[i] * x.im[i]; si += p.re[i] * x.im[i] - p.im[i] * x.re[i]; } nl += occ * p.D * (sr * sr + si * si); } } });
     const re = Float64Array.from(rho), im = new Float64Array(ntot); fftn(re, im, dims, false); // ρ(G)·N
