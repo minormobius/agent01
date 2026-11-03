@@ -1,0 +1,26 @@
+{
+ "group": "al-soft-a",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.00 25 a18s 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 876
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.00 25 a18s 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1331
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.00 25 a18s 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1721
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+{
+ "group": "bp-conv-z2-1-soft",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 15 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2357
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 20 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4209
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4644
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 30 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 6401
+  }
+ ]
+}
