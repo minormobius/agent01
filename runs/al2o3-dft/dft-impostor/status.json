@@ -1,0 +1,33 @@
+{
+ "group": "dft-impostor",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 impostor 0.98",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4512
+  },
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.00",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4245
+  },
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.02",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3640
+  },
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.04",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3487
+  }
+ ]
+}

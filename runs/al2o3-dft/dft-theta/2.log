@@ -1,0 +1,3 @@
+$ node four/atom/tools/crystalref.mjs Al2O3 theta 1.02
+{"name": "theta", "scale": 1.02, "atoms": 10, "nf": 2.0, "kmesh": [2, 2, 2], "E": -105.12330394957448, "perFormula_eV": -1430.2754006835978, "converged": true, "volume_per_formula_bohr3": 336.4440629132971, "seconds": 4223.732490301132}
+Al2O3 theta ×1.02: -1430.2754 eV per formula, converged

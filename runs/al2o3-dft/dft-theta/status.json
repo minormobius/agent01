@@ -1,0 +1,33 @@
+{
+ "group": "dft-theta",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 theta 0.98",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4492
+  },
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 theta 1.00",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4407
+  },
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 theta 1.02",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4237
+  },
+  {
+   "cmd": "node four/atom/tools/crystalref.mjs Al2O3 theta 1.04",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3956
+  }
+ ]
+}

@@ -1,0 +1,3 @@
+$ node four/atom/tools/crystalref.mjs Al2O3 impostor 1.02
+{"name": "impostor", "scale": 1.02, "atoms": 10, "nf": 2.0, "kmesh": [3, 2, 2], "E": -105.14915370815388, "perFormula_eV": -1430.6271045629533, "converged": true, "volume_per_formula_bohr3": 353.284238230346, "seconds": 3626.196163415909}
+Al2O3 impostor ×1.02: -1430.6271 eV per formula, converged
