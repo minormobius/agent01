@@ -18,6 +18,7 @@
    × N_electrons / Ω, and the Ewald background −Q²/(2Ω) ∫ erfc(αr)/r d^d r. */
 import { erfc, Qgamma } from "./md.js";
 import { jacobiEigen } from "./gauss.js";
+import { Ionic } from "./ionic.js";
 
 export const SPHERE = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI };
 export const EXCHANGE = { 3: 0.75 * Math.cbrt(3 / Math.PI), 4: 16 / (15 * Math.sqrt(Math.PI)) }; // as js/atom.js
@@ -44,18 +45,36 @@ function plan(n) {
   const P = { n, f, perm, c, s, br: new Float64Array(n), bi: new Float64Array(n) }; PLANS.set(n, P); return P;
 }
 function fft1(re, im, n, inverse) {
-  const { f, perm, c, s, br, bi } = plan(n), sg = inverse ? 1 : -1;
-  for (let i = 0; i < n; i++) { br[i] = re[perm[i]]; bi[i] = im[perm[i]]; }
-  const tr = new Float64Array(5), ti = new Float64Array(5);
-  let m = 1; // the sub-transform length
+  const P = plan(n), { f, perm, c, s } = P, sg = inverse ? 1 : -1;
+  let xr = P.br, xi = P.bi, yr = (P.cr ??= new Float64Array(n)), yi = (P.ci ??= new Float64Array(n));
+  for (let i = 0; i < n; i++) { xr[i] = re[perm[i]]; xi[i] = im[perm[i]]; }
+  const C3 = -0.5, S3 = sg * Math.sqrt(3) / 2, C51 = Math.cos((2 * Math.PI) / 5), C52 = Math.cos((4 * Math.PI) / 5), S51 = sg * Math.sin((2 * Math.PI) / 5), S52 = sg * Math.sin((4 * Math.PI) / 5);
+  let m = 1;
   for (let st = f.length - 1; st >= 0; st--) { const p = f[st], L = p * m, step = n / L;
     for (let b0 = 0; b0 < n; b0 += L) for (let k = 0; k < m; k++) {
-      for (let q = 0; q < p; q++) { const idx = b0 + q * m + k, w = (q * k * step) % n, wr = c[w], wi = sg * s[w], xr = br[idx], xi = bi[idx]; tr[q] = xr * wr - xi * wi; ti[q] = xr * wi + xi * wr; }
-      for (let t = 0; t < p; t++) { let yr = 0, yi = 0; for (let q = 0; q < p; q++) { const w = ((q * t * n) / p) % n, wr = c[w], wi = sg * s[w]; yr += tr[q] * wr - ti[q] * wi; yi += tr[q] * wi + ti[q] * wr; } re[b0 + k + m * t] = yr; im[b0 + k + m * t] = yi; }
+      const i0 = b0 + k, w1 = k * step; // twiddle W^(q k step) for each input q
+      let a0r = xr[i0], a0i = xi[i0], a1r, a1i, a2r, a2i, a3r, a3i, a4r, a4i;
+      { const j = i0 + m, wr = c[w1], wi = sg * s[w1], ur = xr[j], ui = xi[j]; a1r = ur * wr - ui * wi; a1i = ur * wi + ui * wr; }
+      if (p >= 3) { const j = i0 + 2 * m, w = 2 * w1, wr = c[w], wi = sg * s[w], ur = xr[j], ui = xi[j]; a2r = ur * wr - ui * wi; a2i = ur * wi + ui * wr; }
+      if (p >= 4) { const j = i0 + 3 * m, w = 3 * w1, wr = c[w], wi = sg * s[w], ur = xr[j], ui = xi[j]; a3r = ur * wr - ui * wi; a3i = ur * wi + ui * wr; }
+      if (p === 5) { const j = i0 + 4 * m, w = 4 * w1, wr = c[w], wi = sg * s[w], ur = xr[j], ui = xi[j]; a4r = ur * wr - ui * wi; a4i = ur * wi + ui * wr; }
+      if (p === 2) { yr[i0] = a0r + a1r; yi[i0] = a0i + a1i; yr[i0 + m] = a0r - a1r; yi[i0 + m] = a0i - a1i; }
+      else if (p === 4) { const t0r = a0r + a2r, t0i = a0i + a2i, t1r = a0r - a2r, t1i = a0i - a2i, t2r = a1r + a3r, t2i = a1i + a3i, t3r = a1r - a3r, t3i = a1i - a3i;
+        // ±i (a1 − a3): forward −i, inverse +i
+        const jr = -sg * t3i, ji = sg * t3r;
+        yr[i0] = t0r + t2r; yi[i0] = t0i + t2i; yr[i0 + m] = t1r + jr; yi[i0 + m] = t1i + ji; yr[i0 + 2 * m] = t0r - t2r; yi[i0 + 2 * m] = t0i - t2i; yr[i0 + 3 * m] = t1r - jr; yi[i0 + 3 * m] = t1i - ji; }
+      else if (p === 3) { const sr = a1r + a2r, si = a1i + a2i, dr = a1r - a2r, di = a1i - a2i, mr = a0r + C3 * sr, mi = a0i + C3 * si;
+        yr[i0] = a0r + sr; yi[i0] = a0i + si; yr[i0 + m] = mr - S3 * di; yi[i0 + m] = mi + S3 * dr; yr[i0 + 2 * m] = mr + S3 * di; yi[i0 + 2 * m] = mi - S3 * dr; }
+      else { // radix 5
+        const s1r = a1r + a4r, s1i = a1i + a4i, d1r = a1r - a4r, d1i = a1i - a4i, s2r = a2r + a3r, s2i = a2i + a3i, d2r = a2r - a3r, d2i = a2i - a3i;
+        const m1r = a0r + C51 * s1r + C52 * s2r, m1i = a0i + C51 * s1i + C52 * s2i, m2r = a0r + C52 * s1r + C51 * s2r, m2i = a0i + C52 * s1i + C51 * s2i;
+        const n1r = S51 * d1r + S52 * d2r, n1i = S51 * d1i + S52 * d2i, n2r = S52 * d1r - S51 * d2r, n2i = S52 * d1i - S51 * d2i;
+        yr[i0] = a0r + s1r + s2r; yi[i0] = a0i + s1i + s2i;
+        yr[i0 + m] = m1r - n1i; yi[i0 + m] = m1i + n1r; yr[i0 + 4 * m] = m1r + n1i; yi[i0 + 4 * m] = m1i - n1r;
+        yr[i0 + 2 * m] = m2r - n2i; yi[i0 + 2 * m] = m2i + n2r; yr[i0 + 3 * m] = m2r + n2i; yi[i0 + 3 * m] = m2i - n2r; }
     }
-    for (let i = 0; i < n; i++) { br[i] = re[i]; bi[i] = im[i]; }
-    m = L; }
-  for (let i = 0; i < n; i++) { re[i] = br[i]; im[i] = bi[i]; }
+    let t = xr; xr = yr; yr = t; t = xi; xi = yi; yi = t; m = L; }
+  for (let i = 0; i < n; i++) { re[i] = xr[i]; im[i] = xi[i]; }
 }
 export function fftn(re, im, dims, inverse = false) {
   const total = re.length; let stride = total;
@@ -172,9 +191,19 @@ export class PW {
     re[0] = this.atoms.reduce((t, at) => t + this.species[at.sp].alphaZ, 0) / this.vol; // the α Z terms (the G = 0 limit of v + Z K)
     return { re, im };
   }
-  /* the ions' Ewald energy with a uniform background (any d; the background's term vanishes for a neutral set) */
-  ewaldEnergy() {
-    const { d, H, atoms, vol } = this, Z = atoms.map((a) => this.species[a.sp].Z), Q = Z.reduce((a, b) => a + b, 0), rc = 14, alpha = 4.2 / rc;
+  /* the ions' energy. In 4D a core's cloud leaks (species S = Σ⟨r²⟩, T = Σ⟨r⁴⟩ of its electrons), so two ions meet as
+     Z_iZ_j/r + (Z_i S_j + S_i Z_j)/8r³ + (−3S_iS_j + Z_iT_j + T_iZ_j)/64r⁵: js/ionic.js sums exactly that (Ewald for the
+     first two, k = 0 left out), and the background adds −Q²/2Ω ∫erfc(αr)/r and −Q C/Ω ∫Q(3/2, α²r²)/r³ (C = ΣS/8), the
+     G = 0 pieces the electrons' side leaves out. In ours, or without clouds, the point-charge sum below. */
+  ewaldEnergy(rc) {
+    if (this.d === 4 && this.atoms.some((a) => this.species[a.sp].S)) {
+      const keys = [...new Set(this.atoms.map((a) => a.sp))], kinds = this.atoms.map((a) => keys.indexOf(a.sp));
+      const I = new Ionic({ d: 4, species: keys.map((k) => ({ q: this.species[k].Z, S: this.species[k].S ?? 0, T: this.species[k].T ?? 0 })), short: () => [0, 0], ...(rc ? { rc } : {}) });
+      const e = I.energy(this.H, Float64Array.from(this.atoms.flatMap((a) => a.x)), kinds, 1), al = I.alpha;
+      const Q = this.atoms.reduce((t, a) => t + this.species[a.sp].Z, 0), C = this.atoms.reduce((t, a) => t + (this.species[a.sp].S ?? 0) / 8, 0);
+      return e.E - ((Q * Q) / (2 * this.vol)) * backgroundInt(4, al) - ((Q * C) / this.vol) * ((4 * Math.PI ** 1.5) / al);
+    }
+    const { d, H, atoms, vol } = this, Z = atoms.map((a) => this.species[a.sp].Z), Q = Z.reduce((a, b) => a + b, 0); rc = rc ?? 14; const alpha = 4.2 / rc;
     let E = 0; const bound = H.map((_, i) => Math.ceil(rc * Math.hypot(...this.Hi.map((r) => r[i]))) + 1), m = bound.map((b) => -b);
     for (;;) { const t = new Array(d).fill(0); for (let a = 0; a < d; a++) for (let c = 0; c < d; c++) t[c] += m[a] * H[a][c];
       for (let i = 0; i < atoms.length; i++) for (let j = 0; j < atoms.length; j++) { let r2 = 0; for (let c = 0; c < d; c++) r2 += (atoms[j].x[c] - atoms[i].x[c] + t[c]) ** 2; if (r2 < 1e-14 || r2 > rc * rc) continue; const r = Math.sqrt(r2); E += (0.5 * Z[i] * Z[j] * erfc(alpha * r)) / r; }
@@ -216,8 +245,10 @@ export class PW {
       const P = []; res = 0;
       for (let b = 0; b < nb; b++) { const pr = new Float64Array(n), pi = new Float64Array(n); let rn = 0;
         for (let i = 0; i < n; i++) { const r1 = HXs[b].re[i] - eps[b] * X[b].re[i], r2 = HXs[b].im[i] - eps[b] * X[b].im[i]; rn += r1 * r1 + r2 * r2; const den = B0.kin[i] - eps[b], pre = 1 / (Math.abs(den) < 0.5 ? (den >= 0 ? 0.5 : -0.5) : den); pr[i] = r1 * pre; pi[i] = r2 * pre; }
-        res = Math.max(res, Math.sqrt(rn)); if (rn > 1e-24) P.push({ re: pr, im: pi }); }
+        res = Math.max(res, Math.sqrt(rn)); let pn = 0; for (let i = 0; i < n; i++) pn += pr[i] * pr[i] + pi[i] * pi[i]; pn = Math.sqrt(pn);
+        if (rn > 1e-24 && pn > 0) { for (let i = 0; i < n; i++) { pr[i] /= pn; pi[i] /= pn; } P.push({ re: pr, im: pi }); } } // unit directions keep the overlap well conditioned
       if (res < tol || !P.length) break;
+      if (X.length < nb) throw new Error(`bands: the subspace collapsed (${X.length} of ${nb})`);
       const HP = P.map((x) => { const h = this.applyH(B0, V, x.re, x.im); return { re: h.hr, im: h.hi }; });
       rr = this.ritz([...X, ...P], [...HXs, ...HP], nb); X = rr.X; eps = rr.e;
     }
@@ -296,6 +327,17 @@ export class PW {
     let ex = 0; if (exchange) for (let j = 0; j < ntot; j++) ex += -EXCHANGE[d] * Math.pow(Math.max(rho[j], 0), 1 + 1 / d); ex *= vol / ntot;
     return { kinetic: kin, nonlocal: nl, local: eloc, hartree: eh, exchange: ex, ewald: this.ewald, total: kin + nl + eloc + eh + ex + this.ewald };
   }
+}
+/* a Monkhorst–Pack grid of k (Γ-centred, n per reciprocal vector), folded by time reversal (k and −k give the same
+   energy): [{ k, w }], weights summing to 1. B: the reciprocal vectors as rows */
+export function kgrid(H, ns, shift = null) {
+  const d = H.length, Hi = inv(H), B = Array.from({ length: d }, (_, j) => Array.from({ length: d }, (_, a) => 2 * Math.PI * Hi[a][j])), sh = shift ?? ns.map(() => 0);
+  const seen = new Map(), out = [], m = ns.map(() => 0), tot = ns.reduce((a, b) => a * b, 1);
+  for (;;) { const f = m.map((v, i) => ((v + sh[i]) / ns[i]) % 1), wrap = (x) => { let y = x - Math.round(x); if (Math.abs(y + 0.5) < 1e-9) y = 0.5; return y; };
+    const fp = f.map(wrap), fn = fp.map((x) => wrap(-x)), key = (v) => v.map((x) => x.toFixed(6)).join(","), kp = key(fp), kn = key(fn);
+    if (seen.has(kn)) out[seen.get(kn)].w += 1 / tot; else if (seen.has(kp)) out[seen.get(kp)].w += 1 / tot; else { seen.set(kp, out.length); out.push({ f: fp, k: Array.from({ length: d }, (_, c) => fp.reduce((t, x, a) => t + x * B[a][c], 0)), w: 1 / tot }); }
+    let i = 0; while (i < d && m[i] === ns[i] - 1) { m[i] = 0; i++; } if (i === d) break; m[i]++; }
+  return out;
 }
 function solveLin(A, b) { const n = b.length, M = A.map((r, i) => [...r, b[i]]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r; [M[p], M[c]] = [M[c], M[p]]; if (Math.abs(M[c][c]) < 1e-300) return null; for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; } } return M.map((r, i) => r[n] / r[i]); }
 function inv(M) { const n = M.length, A = M.map((r, i) => [...r, ...Array.from({ length: n }, (_, j) => +(i === j))]); for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[p], A[c]] = [A[c], A[p]]; const v = A[c][c]; A[c] = A[c].map((x) => x / v); for (let r = 0; r < n; r++) if (r !== c) { const f = A[r][c]; A[r] = A[r].map((x, k) => x - f * A[c][k]); } } return A.map((r) => r.slice(n)); }

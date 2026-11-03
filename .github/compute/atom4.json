@@ -1,30 +1,42 @@
 {
- "run": "al2o3-dft-poly6",
- "why": "The ionic model's Z = 4 search found a corundum-like arrangement (Al 6-, O 4-coordinated; 2 regular and 6 distorted octahedra) 0.023 eV per formula below corundum, inside the model's ~0.1 eV error against PBE. Periodic PBE on it, as on corundum, θ and the impostor before: is corundum still lowest?",
+ "run": "al2o3-pw",
+ "why": "The book's own plane-wave DFT (js/pw.js: local exchange, its own Troullier–Martins pseudopotentials) on the four alumina structures PBE has ranked (corundum lowest; impostor +0.15, poly6 +0.38, θ +0.50 eV per formula): the 3D check before it scores Bl₂Px₃. Same cells, same scales, ecut 40, k shifted ~18 bohr.",
  "minutes": 330,
  "groups": [
   {
-   "name": "dft-poly6-0.98",
+   "name": "pw-corundum",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 poly6 0.98 4"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 0.98 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.02 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.04 40 a18s"
    ]
   },
   {
-   "name": "dft-poly6-1.00",
+   "name": "pw-theta",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 0.98 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.00 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.02 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.04 40 a18s"
    ]
   },
   {
-   "name": "dft-poly6-1.02",
+   "name": "pw-impostor",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.02 4"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 0.98 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.00 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.02 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.04 40 a18s"
    ]
   },
   {
-   "name": "dft-poly6-1.04",
+   "name": "pw-poly6",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.04 4"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 0.98 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.00 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.02 40 a18s",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.04 40 a18s"
    ]
   }
  ]

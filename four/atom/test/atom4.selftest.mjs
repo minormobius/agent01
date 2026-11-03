@@ -1184,5 +1184,34 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `ionic crystals: Madelung's constants by Ewald to ${mad.toExponential(0)}, the anion's site potential to ${pot.toExponential(0)}, every slope (ions and cell, with 4D's charge–cloud sum) to ${slope.toExponential(0)} hartree/bohr`);
 }
 
+/* 66 · plane waves in any dimension (js/pw.js, js/pseudo.js: the quantum referee for crystals). The mixed-radix FFT against a
+   direct transform; the d-dimensional transforms against closed forms (e^(−r) → 12π²/(1+q²)^(5/2) in 4D) and the Bessel
+   factor j₁ against 2J₂(x)/x; a Gaussian well in a periodic box against the radial solver (ours, converged from above);
+   the ions' Ewald energy independent of the split in both worlds, 4D's leaking cores included; and our neon's
+   Troullier–Martins channels giving back the all-electron levels */
+{
+  const PW = await import(path.join(here, "../js/pw.js")), PS = await import(path.join(here, "../js/pseudo.js"));
+  let fe = 0; for (const dims of [[6, 10], [3, 5, 4], [4, 3, 2, 5]]) { const n = dims.reduce((a, b) => a * b, 1), re = Float64Array.from({ length: n }, (_, i) => Math.sin(1.3 * i) + 0.1 * i), im = Float64Array.from({ length: n }, (_, i) => Math.cos(0.7 * i)), r0 = re.slice(), i0 = im.slice(); PW.fftn(re, im, dims, false);
+    const idx = (k) => { const v = []; for (let a = dims.length - 1; a >= 0; a--) { v[a] = k % dims[a]; k = Math.floor(k / dims[a]); } return v; };
+    for (let k = 0; k < n; k++) { const kk = idx(k); let sr = 0, si = 0; for (let j = 0; j < n; j++) { const jj = idx(j); let ph = 0; for (let a = 0; a < dims.length; a++) ph -= (2 * Math.PI * kk[a] * jj[a]) / dims[a]; sr += r0[j] * Math.cos(ph) - i0[j] * Math.sin(ph); si += r0[j] * Math.sin(ph) + i0[j] * Math.cos(ph); } fe = Math.max(fe, Math.hypot(sr - re[k], si - im[k])); } }
+  const { R } = await import(path.join(here, "../js/atom.js")), ex = Float64Array.from(R, (r) => Math.exp(-r));
+  const ft = Math.max(...[0, 1, 2].map((q) => Math.abs(PS.hankel(4, 0, ex, q) / ((12 * Math.PI ** 2) / (1 + q * q) ** 2.5) - 1)), ...[0, 1].map((q) => Math.abs(PS.hankel(3, 0, ex, q) / ((8 * Math.PI) / (1 + q * q) ** 2) - 1))), jb = Math.abs(PS.jl(4, 1, 3) - 0.32406084039059413);
+  // a Gaussian well, one electron, no Hartree or exchange: periodic box against the radial solver
+  const A = 3, b = 1.2, Vg = Float64Array.from(R, (r) => -A * Math.exp(-(r * r) / (b * b))), erad = PS.solveAny(Vg, 0, 0, 3).e;
+  const wpw = new PW.PW({ d: 3, H: [[12, 0, 0], [0, 12, 0], [0, 0, 12]], atoms: [{ x: [0, 0, 0], sp: "g" }], species: { g: { Z: 0, vloc: (q) => -A * (Math.sqrt(Math.PI) * b) ** 3 * Math.exp(-(q * q * b * b) / 4), alphaZ: -A * (Math.sqrt(Math.PI) * b) ** 3, proj: [] } }, ecut: 10, nelec: 2, nbands: 1 });
+  const ew = wpw.scf({ hartree: false, exchange: false, maxIter: 2 }).states[0].e[0];
+  // the ions' energy against the Ewald split (rc 12 and 20): 3D point ions, 4D with leaking cores
+  const H4 = [[6, 0, 0, 0], [1, 5.5, 0, 0], [0.5, -0.7, 6.2, 0], [0.3, 0.4, -0.2, 5.8]], at4 = [{ x: [0, 0, 0, 0], sp: "A" }, { x: [2.9, 1.1, 3.1, 2.7], sp: "B" }, { x: [4, 3.5, 1, 1], sp: "B" }];
+  const sp4 = { A: { Z: 3, S: 0.9, T: 1.4, vloc: () => 0, alphaZ: 0, proj: [] }, B: { Z: 8, S: 0.26, T: 0.2, vloc: () => 0, alphaZ: 0, proj: [] } };
+  const P4 = new PW.PW({ d: 4, H: H4, atoms: at4, species: sp4, ecut: 0.5, nelec: 2, nbands: 1 }), P3 = new PW.PW({ d: 3, H: [[5, 0, 0], [1, 6, 0], [0.5, -0.3, 5.5]], atoms: [{ x: [0, 0, 0], sp: "A" }, { x: [2, 2.5, 2.2], sp: "B" }], species: { A: { Z: 3, vloc: () => 0, alphaZ: 0, proj: [] }, B: { Z: 6, vloc: () => 0, alphaZ: 0, proj: [] } }, ecut: 0.5, nelec: 2, nbands: 1 });
+  const ewd = Math.max(Math.abs(P4.ewaldEnergy(12) - P4.ewaldEnergy(20)), Math.abs(P3.ewaldEnergy(10) - P3.ewaldEnergy(20)));
+  const kw = Math.abs(PW.kgrid([[5, 0, 0], [1, 5, 0], [0, 0, 6]], [3, 2, 2]).reduce((t, k) => t + k.w, 0) - 1);
+  // our neon's pseudopotential: each screened channel gives back its all-electron level
+  const ne = PS.makePseudo({ Z: 10, d: 3, core: { "1s": 2 }, valence: { "2s": 2, "2p": 6 }, rc: { 0: 1.5, 1: 1.5 }, local: 1 }), sh = ne.ae.sh;
+  const pse = Math.max(...Object.values(ne.chans).map((ch) => Math.abs(PS.solveAny(ch.Vscr, ch.l, 0, 3).e - ne.ae.es[sh.findIndex((s) => s.name === ch.name)])));
+  ok(fe < 1e-9 && ft < 2e-4 && jb < 1e-7 && ew > erad && ew - erad < 3e-3 && ewd < 2e-5 && kw < 1e-12 && pse < 1e-5,
+    `plane waves: the FFT to ${fe.toExponential(0)}, 4D/3D radial transforms to ${ft.toExponential(0)}, a Gaussian well ${ew.toFixed(5)} above the radial ${erad.toFixed(5)}, the ions' energy split-independent to ${ewd.toExponential(0)} (4D cores leaking), neon's pseudo-levels to ${pse.toExponential(0)}`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

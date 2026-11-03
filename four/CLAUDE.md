@@ -269,8 +269,15 @@ for games, and this is a modelling programme with publications to come. The game
   radial solver in 3D and 4D (4D converges from above, −2.4532 at ecut 16 against −2.4565); pseudo-atoms reproduce the
   all-electron levels to 10⁻⁶ (our Ne, O; 4D element 12, pxygen); our Ne in plane waves, extrapolated over box size (an
   isolated atom's energy carries a 1/L³ Makov–Payne-type term, which crystals don't), within 1 mHa of the radial
-  pseudo-atom, and s- or p-projector choices agree to 1 mHa. Still to do: the 4D ions' cloud terms in the ion–ion energy,
-  smearing for open shells, a selftest block, speed for 4D cells (runner).
+  pseudo-atom, and s- or p-projector choices agree to 1 mHa. In 4D the ions' energy carries the cores' leak
+  (Z_iS_j/8r³ and the r⁻⁵ terms, through js/ionic.js, plus two background integrals), split-independent to 10⁻⁵. **An
+  isolated atom in a 4D box carries a 1/Ω artefact a hundred times ours**: the plane-wave electrostatics of the radial
+  atom's own density differ from the radial integrals by −C/Ω with C = 3450 (L = 7, 8, 10 give 3448, 3451, 3460; ours 37),
+  which is why the 4D element-12 check sits 0.8 Ha below the radial at L = 8 while its s–p spacing agrees (0.7556 against
+  0.7531 at ecut 24). Crystals have no such term. `tools/pwcheck.mjs`: `atom …` (that check) and `crystal <file> <name>
+  <scale> <ecut> [k]` (k a number, or aX / aXs for ⌈X/|a_i|⌉ Γ-centred / shifted). Corundum at Γ: ecut 30, 40, 50 give
+  −102.402, −102.421, −102.424 Ha a cell (40 is within 1.3 mHa a formula), gap 5.96 eV (LDA-level; measured 8.8).
+  Selftest 66 (FFT, transforms, a Gaussian well, the ions' split independence, neon's pseudo-levels), mirrored.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
