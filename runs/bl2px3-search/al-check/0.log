@@ -1,0 +1,27 @@
+$ node four/atom/tools/ionic.mjs search Al2O3 2 200 --disp --shard 0/2
+Al2O3 Z 2: 5 starts, best 165.890 eV (density 4.150e+3), 4 minima, 3 s
+Al2O3 Z 2: 10 starts, best 165.890 eV (density 4.150e+3), 8 minima, 6 s
+Al2O3 Z 2: 15 starts, best 165.890 eV (density 4.150e+3), 12 minima, 8 s
+Al2O3 Z 2: 20 starts, best 165.890 eV (density 4.150e+3), 16 minima, 11 s
+Al2O3 Z 2: 25 starts, best 165.890 eV (density 4.150e+3), 19 minima, 13 s
+Al2O3 Z 2: 30 starts, best 165.890 eV (density 4.150e+3), 22 minima, 15 s
+Al2O3 Z 2: 35 starts, best 165.890 eV (density 4.150e+3), 25 minima, 18 s
+Al2O3 Z 2: 40 starts, best 165.890 eV (density 4.150e+3), 27 minima, 20 s
+Al2O3 Z 2: 45 starts, best 165.890 eV (density 4.150e+3), 29 minima, 23 s
+Al2O3 Z 2: 50 starts, best 165.890 eV (density 4.150e+3), 32 minima, 25 s
+Al2O3 Z 2: 55 starts, best 165.890 eV (density 4.150e+3), 35 minima, 27 s
+Al2O3 Z 2: 60 starts, best 165.890 eV (density 4.150e+3), 39 minima, 30 s
+Al2O3 Z 2: 65 starts, best 165.890 eV (density 4.150e+3), 42 minima, 32 s
+Al2O3 Z 2: 70 starts, best 165.890 eV (density 4.150e+3), 43 minima, 35 s
+Al2O3 Z 2: 75 starts, best 165.890 eV (density 4.150e+3), 46 minima, 37 s
+Al2O3 Z 2: 80 starts, best 165.890 eV (density 4.150e+3), 48 minima, 39 s
+  start 166 not kept: |g| 9.0e+6, contact 0.62 bohr, U 24587.448
+Al2O3 Z 2: 85 starts, best 165.890 eV (density 4.150e+3), 50 minima, 71 s
+  start 178 not kept: |g| 1.3e+6, contact 4.44 bohr, U 12668.783
+Al2O3 Z 2: 90 starts, best 165.890 eV (density 4.150e+3), 50 minima, 75 s
+Al2O3 Z 2: 95 starts, best 165.890 eV (density 4.150e+3), 52 minima, 77 s
+Al2O3 Z 2: 100 starts, best 165.890 eV (density 4.150e+3), 53 minima, 79 s
+(node:2538) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ionic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

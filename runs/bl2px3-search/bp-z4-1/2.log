@@ -1,0 +1,11 @@
+$ node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 6/8
+Bl2Px3 Z 4: 5 starts, best 179.261 eV (density 3.497e+13), 5 minima, 61 s
+Bl2Px3 Z 4: 10 starts, best 179.261 eV (density 3.497e+13), 10 minima, 127 s
+Bl2Px3 Z 4: 15 starts, best 181.339 eV (density 3.569e+13), 15 minima, 200 s
+Bl2Px3 Z 4: 20 starts, best 181.339 eV (density 3.569e+13), 20 minima, 256 s
+Bl2Px3 Z 4: 25 starts, best 181.339 eV (density 3.569e+13), 22 minima, 306 s
+Bl2Px3 Z 4: 30 starts, best 181.339 eV (density 3.569e+13), 23 minima, 355 s
+(node:2302) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ionic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

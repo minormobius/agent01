@@ -1,0 +1,36 @@
+$ node four/atom/tools/ionic.mjs search Bl2Px3 1 120 --disp
+Bl2Px3 Z 1: 5 starts, best 178.966 eV (density 3.491e+13), 5 minima, 22 s
+Bl2Px3 Z 1: 10 starts, best 178.966 eV (density 3.491e+13), 7 minima, 47 s
+Bl2Px3 Z 1: 15 starts, best 178.966 eV (density 3.491e+13), 9 minima, 72 s
+Bl2Px3 Z 1: 20 starts, best 178.966 eV (density 3.491e+13), 10 minima, 97 s
+  start 24 not kept: |g| 3.4e-4, contact 3.38 bohr, U 177.425
+Bl2Px3 Z 1: 25 starts, best 178.966 eV (density 3.491e+13), 11 minima, 134 s
+Bl2Px3 Z 1: 30 starts, best 178.966 eV (density 3.491e+13), 11 minima, 156 s
+Bl2Px3 Z 1: 35 starts, best 178.966 eV (density 3.491e+13), 13 minima, 177 s
+  start 39 not kept: |g| 3.5e-4, contact 3.38 bohr, U 177.425
+Bl2Px3 Z 1: 40 starts, best 178.966 eV (density 3.491e+13), 15 minima, 211 s
+  start 43 not kept: |g| 5.6e-4, contact 3.38 bohr, U 177.425
+Bl2Px3 Z 1: 45 starts, best 178.966 eV (density 3.491e+13), 16 minima, 244 s
+Bl2Px3 Z 1: 50 starts, best 178.966 eV (density 3.491e+13), 16 minima, 267 s
+Bl2Px3 Z 1: 55 starts, best 178.966 eV (density 3.491e+13), 18 minima, 287 s
+Bl2Px3 Z 1: 60 starts, best 178.966 eV (density 3.491e+13), 18 minima, 312 s
+  start 64 not kept: |g| 5.0e-4, contact 4.11 bohr, U 177.425
+Bl2Px3 Z 1: 65 starts, best 178.966 eV (density 3.491e+13), 19 minima, 342 s
+Bl2Px3 Z 1: 70 starts, best 178.966 eV (density 3.491e+13), 19 minima, 363 s
+Bl2Px3 Z 1: 75 starts, best 178.966 eV (density 3.491e+13), 20 minima, 385 s
+Bl2Px3 Z 1: 80 starts, best 178.966 eV (density 3.491e+13), 22 minima, 411 s
+Bl2Px3 Z 1: 85 starts, best 178.966 eV (density 3.491e+13), 23 minima, 435 s
+Bl2Px3 Z 1: 90 starts, best 178.966 eV (density 3.491e+13), 24 minima, 460 s
+Bl2Px3 Z 1: 95 starts, best 178.966 eV (density 3.491e+13), 24 minima, 485 s
+  start 98 not kept: |g| 2.2e-4, contact 16.97 bohr, U 178.242
+Bl2Px3 Z 1: 100 starts, best 178.966 eV (density 3.491e+13), 25 minima, 523 s
+  start 101 not kept: |g| 6.0e-4, contact 19.11 bohr, U 177.425
+Bl2Px3 Z 1: 105 starts, best 178.966 eV (density 3.491e+13), 26 minima, 558 s
+Bl2Px3 Z 1: 110 starts, best 178.966 eV (density 3.491e+13), 28 minima, 584 s
+  start 111 not kept: |g| 5.6e-4, contact 12.40 bohr, U 177.425
+Bl2Px3 Z 1: 115 starts, best 178.966 eV (density 3.491e+13), 28 minima, 613 s
+Bl2Px3 Z 1: 120 starts, best 178.966 eV (density 3.491e+13), 29 minima, 634 s
+(node:2536) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ionic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

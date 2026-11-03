@@ -1,0 +1,17 @@
+$ node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 2/4
+Bl2Px3 Z 3: 5 starts, best 178.829 eV (density 3.508e+13), 5 minima, 84 s
+Bl2Px3 Z 3: 10 starts, best 178.929 eV (density 3.430e+13), 9 minima, 155 s
+Bl2Px3 Z 3: 15 starts, best 178.929 eV (density 3.430e+13), 13 minima, 234 s
+Bl2Px3 Z 3: 20 starts, best 178.942 eV (density 3.482e+13), 17 minima, 294 s
+Bl2Px3 Z 3: 25 starts, best 178.942 eV (density 3.482e+13), 20 minima, 356 s
+Bl2Px3 Z 3: 30 starts, best 180.396 eV (density 3.532e+13), 24 minima, 432 s
+Bl2Px3 Z 3: 35 starts, best 180.396 eV (density 3.532e+13), 29 minima, 494 s
+Bl2Px3 Z 3: 40 starts, best 180.396 eV (density 3.532e+13), 31 minima, 568 s
+Bl2Px3 Z 3: 45 starts, best 180.396 eV (density 3.532e+13), 35 minima, 631 s
+Bl2Px3 Z 3: 50 starts, best 180.396 eV (density 3.532e+13), 37 minima, 720 s
+Bl2Px3 Z 3: 55 starts, best 180.396 eV (density 3.532e+13), 42 minima, 782 s
+Bl2Px3 Z 3: 60 starts, best 180.396 eV (density 3.532e+13), 47 minima, 831 s
+(node:2540) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ionic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

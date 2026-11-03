@@ -1,0 +1,24 @@
+$ node four/atom/tools/ionic.mjs search Al2O3 4 160 --disp --shard 1/2
+Al2O3 Z 4: 5 starts, best 165.913 eV (density 4.051e+3), 5 minima, 8 s
+Al2O3 Z 4: 10 starts, best 165.913 eV (density 4.051e+3), 10 minima, 16 s
+Al2O3 Z 4: 15 starts, best 165.913 eV (density 4.051e+3), 15 minima, 24 s
+Al2O3 Z 4: 20 starts, best 165.913 eV (density 4.051e+3), 20 minima, 33 s
+Al2O3 Z 4: 25 starts, best 165.913 eV (density 4.051e+3), 25 minima, 40 s
+Al2O3 Z 4: 30 starts, best 165.913 eV (density 4.051e+3), 30 minima, 48 s
+Al2O3 Z 4: 35 starts, best 165.913 eV (density 4.051e+3), 35 minima, 57 s
+  start 73 not kept: |g| 1.8e+6, contact 0.00 bohr, U 6609.587
+Al2O3 Z 4: 40 starts, best 165.913 eV (density 4.051e+3), 39 minima, 78 s
+Al2O3 Z 4: 45 starts, best 165.913 eV (density 4.051e+3), 43 minima, 89 s
+Al2O3 Z 4: 50 starts, best 165.913 eV (density 4.051e+3), 48 minima, 95 s
+  start 107 not kept: |g| 3.3e+7, contact 1.81 bohr, U 38671.470
+Al2O3 Z 4: 55 starts, best 165.913 eV (density 4.051e+3), 52 minima, 103 s
+Al2O3 Z 4: 60 starts, best 165.913 eV (density 4.051e+3), 56 minima, 108 s
+Al2O3 Z 4: 65 starts, best 165.913 eV (density 4.051e+3), 60 minima, 113 s
+Al2O3 Z 4: 70 starts, best 165.913 eV (density 4.051e+3), 65 minima, 117 s
+Al2O3 Z 4: 75 starts, best 165.913 eV (density 4.051e+3), 68 minima, 122 s
+  start 151 not kept: |g| 2.4e+8, contact 0.90 bohr, U 71933.795
+Al2O3 Z 4: 80 starts, best 165.913 eV (density 4.051e+3), 71 minima, 150 s
+(node:2546) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ionic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

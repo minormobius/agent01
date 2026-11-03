@@ -1,0 +1,33 @@
+{
+ "group": "bp-z4-1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 4/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 392
+  },
+  {
+   "cmd": "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 5/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 390
+  },
+  {
+   "cmd": "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 6/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 385
+  },
+  {
+   "cmd": "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 7/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 376
+  }
+ ]
+}

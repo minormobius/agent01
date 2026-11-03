@@ -1,0 +1,28 @@
+$ node four/atom/tools/ionic.mjs search Al2O3 2 200 --disp --shard 1/2
+Al2O3 Z 2: 5 starts, best 165.532 eV (density 3.989e+3), 4 minima, 3 s
+Al2O3 Z 2: 10 starts, best 165.614 eV (density 3.792e+3), 8 minima, 6 s
+Al2O3 Z 2: 15 starts, best 165.614 eV (density 3.792e+3), 12 minima, 8 s
+  start 31 not kept: |g| 4.0e+6, contact 14.13 bohr, U 19347.836
+Al2O3 Z 2: 20 starts, best 165.614 eV (density 3.792e+3), 13 minima, 27 s
+Al2O3 Z 2: 25 starts, best 165.890 eV (density 4.150e+3), 16 minima, 29 s
+  start 55 not kept: |g| 1.2e+8, contact 0.00 bohr, U 88071.945
+Al2O3 Z 2: 30 starts, best 165.890 eV (density 4.150e+3), 19 minima, 54 s
+Al2O3 Z 2: 35 starts, best 165.890 eV (density 4.150e+3), 19 minima, 56 s
+Al2O3 Z 2: 40 starts, best 165.890 eV (density 4.150e+3), 19 minima, 59 s
+  start 81 not kept: |g| 7.9e+7, contact 0.00 bohr, U 142150.779
+Al2O3 Z 2: 45 starts, best 165.890 eV (density 4.150e+3), 19 minima, 67 s
+Al2O3 Z 2: 50 starts, best 165.890 eV (density 4.150e+3), 19 minima, 69 s
+Al2O3 Z 2: 55 starts, best 165.890 eV (density 4.150e+3), 19 minima, 71 s
+Al2O3 Z 2: 60 starts, best 165.890 eV (density 4.150e+3), 20 minima, 74 s
+Al2O3 Z 2: 65 starts, best 165.890 eV (density 4.150e+3), 20 minima, 76 s
+Al2O3 Z 2: 70 starts, best 165.890 eV (density 4.150e+3), 20 minima, 78 s
+Al2O3 Z 2: 75 starts, best 165.890 eV (density 4.150e+3), 22 minima, 81 s
+Al2O3 Z 2: 80 starts, best 165.890 eV (density 4.150e+3), 23 minima, 83 s
+Al2O3 Z 2: 85 starts, best 165.890 eV (density 4.150e+3), 25 minima, 85 s
+Al2O3 Z 2: 90 starts, best 165.890 eV (density 4.150e+3), 28 minima, 88 s
+Al2O3 Z 2: 95 starts, best 165.890 eV (density 4.150e+3), 29 minima, 91 s
+Al2O3 Z 2: 100 starts, best 165.890 eV (density 4.150e+3), 33 minima, 93 s
+(node:2539) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/ionic.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
