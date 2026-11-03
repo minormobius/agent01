@@ -92,7 +92,8 @@ export function twistField(n, i, j) { const v = new Array(n.length).fill(0); v[j
 export const PRESETS = {
   rest: () => () => ({}),
   // a curled arm unrolling from base to tip, as an octopus reaches: the bend point travels out
-  reach: (d, t) => { const sb = ((t * 0.35) % 1.4) - 0.2; return (s) => ({ long: (n) => (n[0] > 0 ? n[0] : 0) * 0.9 * smooth((s - sb) / 0.08) }); },
+  // (out, then curling back in again)
+  reach: (d, t) => { const ph = (t * 0.35) % 2, sb = (ph < 1 ? ph : 2 - ph) * 1.4 - 0.2; return (s) => ({ long: (n) => (n[0] > 0 ? n[0] : 0) * 0.9 * smooth((s - sb) / 0.08) }); },
   // waves of contraction running down the arm, their side turning as they go (in 4D, through w as well)
   // (in 4D the contracting side swings between ana and kata along the arm, so it weaves back and forth across w, through
   // your slice and out again, while it also turns in x and z)
@@ -100,13 +101,21 @@ export const PRESETS = {
     const dir = d === 3 ? [Math.cos(ph), Math.sin(ph)] : (() => { const v = [0.55 * Math.cos(th), 0.55 * Math.sin(th), Math.cos(ph)], m = Math.hypot(...v); return v.map((x) => x / m); })();
     return { long: (n) => Math.max(0, dot(n, dir)) * (d === 3 ? 0.55 + 0.45 * Math.sin(5 * s - 3 * t) : 0.8 + 0.2 * Math.sin(5 * s - 3 * t)) }; },
   // a steady bend with a steady twist: a helix (in 4D, a helix that can also wind into w)
-  coil: (d, t) => (s) => ({ long: (n) => Math.max(0, n[0]) * 0.55, helix: d === 3 ? [0.35] : [0.35, 0.25 * Math.sin(0.5 * t), 0] }),
+  // (the contracting side is the oral one, −e1, so the suckers face into the coil, as an octopus grips)
+  coil: (d, t) => (s) => ({ long: (n) => Math.max(0, -n[0]) * 0.55, helix: d === 3 ? [0.35] : [0.35, 0.25 * Math.sin(0.5 * t), 0] }),
   // pure twist, slowly: watch the skin's stripes spiral (and, in 4D, the bald lines where a twist muscle can't)
   // (in 4D in the plane of e1 and e3, so its bald poles point along e2, a direction your slice shows: blue lines down the
   // arm's sides; a twist in the e1–e2 plane would put them along w, where a slice through the arm never looks)
   twist: (d, t) => (s) => ({ helix: d === 3 ? [0.4 * Math.sin(0.8 * t)] : [0, 0.4 * Math.sin(0.8 * t), 0] }),
   // the strike: squeeze it thin and it shoots out (constant volume), then relax
   strike: (d, t) => { const p = (t * 0.6) % 1, sq = p < 0.2 ? p / 0.2 : p < 0.5 ? 1 : Math.max(0, 1 - (p - 0.5) / 0.3); return (s) => ({ trans: sq * smooth((s - 0.15) / 0.1), long: (n) => (1 - sq) * 0.5 * Math.max(0, n[0]) * smooth((s - 0.6) / 0.1) }); },
+  // the whip: the base flicks (one side, then the other, hard and quick) while the rest of the arm is left slack (its
+  // tone, in arm.js), so the bend runs out along it and speeds up as it goes: only with dynamics (in the shape-only
+  // view it's just the base bending)
+  whip: (d, t) => { const p = (t % 2.6) / 2.6, f = p < 0.12 ? p / 0.12 : p < 0.3 ? 1 - (p - 0.12) / 0.09 : p < 0.5 ? -1 + (p - 0.3) / 0.2 : 0;
+    return (s) => ({ long: (n) => Math.max(0, n[0] * Math.sign(f || 1)) * Math.abs(f) * 0.95 * (1 - smooth((s - 0.3) / 0.1)) }); },
+  // limp: no muscle at all, and no tone (arm.js): what's left of gravity takes it, and the water slows it
+  limp: () => () => ({}),
   // 4D: curl into w, out of your slice and back
   ana: (d, t) => (s) => ({ long: (n) => Math.max(0, n[d === 3 ? 1 : 2]) * 0.8 * (0.5 + 0.5 * Math.sin(1.1 * t)) * smooth((s - 0.25) / 0.1) }),
 };

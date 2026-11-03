@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="TENTACLE — a muscular hydrostat in 3D and in 4D: bend, twist and stretch from muscle alone, at constant volume. In 4D a tentacle bends three ways and twists three ways, its twist muscles have bald lines (the hairy ball theorem), and your slice cuts it into pieces that swell, merge and vanish." />
+<meta name="description" content="TENTACLE — a muscular hydrostat in 3D and in 4D: bend, twist and stretch from muscle alone, at constant volume, with mass, water drag, suckers and self-contact. An overhand knot that jams in 3D slips out through w in 4D. In 4D a tentacle bends three ways and twists three ways, its twist muscles have bald lines (the hairy ball theorem), and your slice cuts it into pieces that swell, merge and vanish." />
 <title>TENTACLE — kata.mino.mobi</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/tentacle.css" />
@@ -17,7 +17,9 @@
     <b>TENTACLE</b>
     <div id="exps">
       <button type="button" data-d="3">3D</button><button type="button" data-d="4">4D</button>
-      <button type="button" data-x="rest">rest</button><button type="button" data-x="reach">reach</button><button type="button" data-x="writhe">writhe</button><button type="button" data-x="coil">coil</button><button type="button" data-x="twist">twist</button><button type="button" data-x="strike">strike</button><button type="button" data-x="ana" id="anaB">into w</button>
+      <button type="button" data-x="rest">rest</button><button type="button" data-x="reach">reach</button><button type="button" data-x="writhe">writhe</button><button type="button" data-x="coil">coil</button><button type="button" data-x="twist">twist</button><button type="button" data-x="strike">strike</button><button type="button" data-x="ana" id="anaB">into w</button><button type="button" data-x="whip">whip</button><button type="button" data-x="limp">limp</button><button type="button" data-x="knot">knot</button>
+      <button type="button" id="pullB">pull</button><button type="button" id="retieB">retie</button>
+      <button type="button" id="physB" aria-label="physics: mass, water and contact, on or off">physics</button>
       <button type="button" id="pauseB">pause</button>
       <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
       <button type="button" id="gearB" aria-label="help">?</button>
@@ -27,7 +29,7 @@
   <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
   <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
   <div id="panel" hidden>
-    <p class="foot">A muscular hydrostat: an arm with no bones, moved by muscle alone at constant volume. Start in <b>3D</b> to calibrate your eye, then switch to <b>4D</b>. Drag to turn the view. In 4D the pad twists your slice into w (J L, I K), the lever moves it ana and kata (R F), ⊞ or Z squares it up. <a href="./README.md">how it works</a> · <a href="../">kata</a> · <a href="../squid/">SQUID</a></p>
+    <p class="foot">A muscular hydrostat: an arm with no bones, moved by muscle alone at constant volume. Start in <b>3D</b> to calibrate your eye, then switch to <b>4D</b>. Drag to turn the view. <b>physics</b> gives the arm mass, water and self-contact (off: the shape its muscles ask for, at once). <b>knot</b> ties a length of arm in an overhand knot and pulls; <b>pull</b> slackens or pulls again, <b>retie</b> starts over. In 4D the pad twists your slice into w (J L, I K), the lever moves it ana and kata (R F), ⊞ or Z squares it up. <a href="./README.md">how it works</a> · <a href="../">kata</a> · <a href="../squid/">SQUID</a></p>
   </div>
 </div>
 <script type="module" src="js/main.js"></script>

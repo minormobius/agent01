@@ -71,7 +71,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   Cosserat rod, 64 segments, strains bend/twist/stretch, 4 per segment in 3D and 7 in 4D, the frame carried by exact
   matrix exponentials; longitudinal fibres as a pattern over the skin (a ring; Lebedev's 26 on the 2-sphere), dipole →
   bend, mean → shorten; transverse at constant volume; helical twist, whose 4D fields have the hairy ball's bald
-  poles). Its own shader sphere-traces the hypertube from a float texture of nodes. See
+  poles). Its own shader sphere-traces the hypertube and its suckers (2D cup profiles turned round their axes) from a
+  float texture of nodes (up to 128). **Physics** (`js/dyn.js`, `js/arm.js`): position-based dynamics in d dimensions,
+  shape matching to the muscles' shape with a tone-set stiffness, implicit anisotropic drag, segment–segment contact;
+  the knot (jams in 3D, slips out through w in 4D, jams in 4D held in w = 0). Keep shader comments off the ends of
+  code lines, and never `mix()` a 1e9 "no hit" distance (single precision makes it 0: black blobs). See
   [`tentacle/README.md`](tentacle/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
@@ -131,6 +135,7 @@ node kata/wavelab/test/wavelab.selftest.mjs # ~15 s
 node kata/orbital/test/orbital.selftest.mjs # ~8 s
 node kata/squid/test/squid.selftest.mjs # < 1 s
 node kata/tentacle/test/tentacle.selftest.mjs # ~1 s
+node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
