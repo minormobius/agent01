@@ -125,10 +125,14 @@ export function makePseudo({ Z, d, core, valence, rc, local, nlcc = false }) {
 /* d-dimensional radial Bessel factors j_l^(d)(x) = Γ(d/2)(2/x)^(d/2−1) J_(l+d/2−1)(x), j_0 = the sphere-averaged plane wave */
 function besselJ(nu, x) { // integer nu ≥ 0 (4D) by series below x ≈ nu + 8, else downward-safe upward recurrence from J0, J1
   if (x < 1e-12) return nu === 0 ? 1 : 0;
-  if (x < 12) { let s = 0, t = (x / 2) ** nu / fact(nu); for (let k = 0; k < 60; k++) { s += t; t *= -(x * x) / (4 * (k + 1) * (k + 1 + nu)); if (Math.abs(t) < 1e-17 * Math.abs(s)) break; } return s; }
-  let j0 = asymJ(0, x), j1 = asymJ(1, x); if (nu === 0) return j0; for (let n = 1; n < nu; n++) { const j2 = ((2 * n) / x) * j1 - j0; j0 = j1; j1 = j2; } return j1;
+  if (x < 8) { let s = 0, t = (x / 2) ** nu / fact(nu); for (let k = 0; k < 60; k++) { s += t; t *= -(x * x) / (4 * (k + 1) * (k + 1 + nu)); if (Math.abs(t) < 1e-17 * Math.abs(s)) break; } return s; }
+  // past 8: J₀ and J₁ by the standard rational forms of their amplitude and phase (Abramowitz–Stegun 9.4.3, 9.4.6),
+  // then upward recurrence, stable for x > ν
+  let j0 = largeJ(0, x), j1 = largeJ(1, x); if (nu === 0) return j0; for (let n = 1; n < nu; n++) { const j2 = ((2 * n) / x) * j1 - j0; j0 = j1; j1 = j2; } return j1;
 }
-function asymJ(n, x) { const mu = 4 * n * n, w = x - (n / 2 + 0.25) * Math.PI; let P = 1, Q = (mu - 1) / (8 * x), t = 1; for (let k = 1; k < 8; k++) { t *= -((mu - (4 * k - 3) ** 2) * (mu - (4 * k - 1) ** 2)) / ((2 * k - 1) * (2 * k) * 64 * x * x); P += t; } return Math.sqrt(2 / (Math.PI * x)) * (P * Math.cos(w) - Q * Math.sin(w)); }
+function largeJ(n, x) { const z = 8 / x, y = z * z;
+  if (n === 0) { const xx = x - 0.785398164, p = 1 + y * (-0.1098628627e-2 + y * (0.2734510407e-4 + y * (-0.2073370639e-5 + y * 0.2093887211e-6))), q = -0.1562499995e-1 + y * (0.1430488765e-3 + y * (-0.6911147651e-5 + y * (0.7621095161e-6 - y * 0.934935152e-7))); return Math.sqrt(0.636619772 / x) * (Math.cos(xx) * p - z * Math.sin(xx) * q); }
+  const xx = x - 2.356194491, p = 1 + y * (0.183105e-2 + y * (-0.3516396496e-4 + y * (0.2457520174e-5 + y * -0.240337019e-6))), q = 0.04687499995 + y * (-0.2002690873e-3 + y * (0.8449199096e-5 + y * (-0.88228987e-6 + y * 0.105787412e-6))); return Math.sqrt(0.636619772 / x) * (Math.cos(xx) * p - z * Math.sin(xx) * q); }
 function fact(n) { let f = 1; for (let i = 2; i <= n; i++) f *= i; return f; }
 export function jl(d, l, x) {
   if (d === 3) { if (x < 1e-3) return l === 0 ? 1 - (x * x) / 6 : l === 1 ? x / 3 : (x * x) / 15; const s = Math.sin(x), c = Math.cos(x); return l === 0 ? s / x : l === 1 ? s / (x * x) - c / x : (3 / (x * x) - 1) * (s / x) - (3 * c) / (x * x); }

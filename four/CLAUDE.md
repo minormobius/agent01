@@ -294,8 +294,18 @@ for games, and this is a modelling programme with publications to come. The game
   `makePseudo({ …, nlcc: true })` now keeps a partial core (Louie–Froyen–Cohen: the true core density outside the radius
   where it falls to the valence's, a + br² + cr⁴ inside) in the exchange, in pw.js's potential, energy and forces
   (AlF's forces match central differences to 5 × 10⁻⁶): Al³⁺ to 5 meV, Bl³⁺ to 22. On for Al and Bl only (O's and Px's
-  1s cores barely meet their valence: 15–25 meV without it). Selftest 66 checks Al → Al³⁺ within 50 meV. Queued:
-  `al2o3-pw-nlcc`, the four aluminas at four scales.
+  1s cores barely meet their valence: 15–25 meV without it). Selftest 66 checks Al → Al³⁺ within 50 meV.
+  **`al2o3-pw-nlcc` (all 16 exit 0): the core correction barely moves the ranking** — θ +1.50, impostor +1.59, poly6 +0.66
+  eV per formula (from +1.47, +1.56, +0.67), and the soft set at ecut 25 agrees (+1.39, +1.57, +0.86). So it isn't the
+  pseudopotentials. The excess over PBE follows the volume: −11.6 eV × V_corundum/V per formula fits poly6 and θ exactly
+  and the impostor within 0.16. The electrostatics are verified exact, so that isn't a bug: a Gaussian atom in a box (3D),
+  the same with a smeared ion through `forPW`'s tables, and a 4D model atom with a point nucleus, a leaking Gaussian core
+  and a Gaussian valence, whose energy minus the exact lattice sum of its pair interaction is box-independent to 10⁻⁶
+  (selftest 66 now). The earlier "isolated-atom 1/Ω artefact" is that lattice sum in 4D, not an error. Bessel factors past
+  x = 8 now by Abramowitz–Stegun's rational forms (the 8-term asymptotic series was 10⁻⁶ off at x ≈ 12). Remaining
+  suspects, queued as `xc-and-4dk`: the book's functional (exchange only, no correlation: PySCF with exchange-only LDA
+  and with full LDA on the same four cells), and for Bl₂Px₃, whose two best cells sat 15 eV per formula apart at Γ
+  (z2-1 − z2-0 converged in ecut by 25: +15.8 default, +15.1 soft), sampling (4 shifted k).
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

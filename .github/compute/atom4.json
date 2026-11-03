@@ -1,102 +1,66 @@
 {
- "run": "al2o3-pw-nlcc",
- "why": "The aluminas again with Al's nonlinear core correction: without it stripping Al to Al³⁺ was 0.6 eV off all-electron (now 5 meV), and the first plane-wave ranking put θ and the impostor ~1.5 eV per formula above corundum where PBE says 0.5 and 0.15. Each structure and scale on its own runner, four k-point workers, ecut 40.",
+ "run": "xc-and-4dk",
+ "why": "(1) Is the plane-wave code's excess over PBE on the aluminas (θ +1.50, impostor +1.59, poly6 +0.66 against +0.50, +0.15, +0.38 eV per formula) the book's functional? PySCF with exchange-only LDA (the book's) and with full LDA on the same four cells. (2) Is Bl₂Px₃'s 15 eV gap at Γ a sampling artefact? Its two best cells at 4 shifted k (soft set, ecut 20). The plane-wave electrostatics are verified exact in both worlds, 4D leaking cores included.",
  "minutes": 330,
  "groups": [
   {
-   "name": "nl-corundum-0.98",
+   "name": "py-slater-corundum",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 0.98 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 slater"
    ]
   },
   {
-   "name": "nl-corundum-1.00",
+   "name": "py-slater-theta",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.00 4 slater"
    ]
   },
   {
-   "name": "nl-corundum-1.02",
+   "name": "py-slater-impostor",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.02 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.00 4 slater"
    ]
   },
   {
-   "name": "nl-corundum-1.04",
+   "name": "py-slater-poly6",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.04 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4 slater"
    ]
   },
   {
-   "name": "nl-theta-0.98",
+   "name": "py-lda-corundum",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 0.98 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 lda"
    ]
   },
   {
-   "name": "nl-theta-1.00",
+   "name": "py-lda-theta",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.00 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.00 4 lda"
    ]
   },
   {
-   "name": "nl-theta-1.02",
+   "name": "py-lda-impostor",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.02 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.00 4 lda"
    ]
   },
   {
-   "name": "nl-theta-1.04",
+   "name": "py-lda-poly6",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.04 40 a18s 4"
+    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4 lda"
    ]
   },
   {
-   "name": "nl-impostor-0.98",
+   "name": "bp-k-z2-0",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 0.98 40 a18s 4"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 20 a10s 4 soft"
    ]
   },
   {
-   "name": "nl-impostor-1.00",
+   "name": "bp-k-z2-1",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.00 40 a18s 4"
-   ]
-  },
-  {
-   "name": "nl-impostor-1.02",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.02 40 a18s 4"
-   ]
-  },
-  {
-   "name": "nl-impostor-1.04",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.04 40 a18s 4"
-   ]
-  },
-  {
-   "name": "nl-poly6-0.98",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 0.98 40 a18s 4"
-   ]
-  },
-  {
-   "name": "nl-poly6-1.00",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.00 40 a18s 4"
-   ]
-  },
-  {
-   "name": "nl-poly6-1.02",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.02 40 a18s 4"
-   ]
-  },
-  {
-   "name": "nl-poly6-1.04",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.04 40 a18s 4"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 20 a10s 4 soft"
    ]
   }
  ]
