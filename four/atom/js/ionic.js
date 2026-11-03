@@ -25,6 +25,12 @@ const SD = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI };
 /* FT of the smooth part of r^(−p), divided by nothing (the caller divides by V) */
 const ft = (d, p, k, alpha) => (Math.PI ** (d / 2) * 2 ** (d - p) * k ** (p - d) * G[(d - p) / 2] * Qgamma((d - p) / 2, (k * k) / (4 * alpha * alpha))) / G[p / 2];
 
+const W5 = 2; // bohr over which the r⁻⁵ cloud terms are switched off before rc
+/* ∫ (1 − s(r)) r⁻² dr from rc − W5 to ∞, s the quintic switch (Simpson on the switch's span, 1/rc past it) */
+const TAIL = new Map();
+function tailJ(rc) { if (TAIL.has(rc)) return TAIL.get(rc); const n = 200, a = rc - W5, h = W5 / n; let J = 0;
+  for (let k = 0; k <= n; k++) { const r = a + k * h, t = (r - a) / W5, s = 1 - t * t * t * (10 - 15 * t + 6 * t * t), wk = k === 0 || k === n ? 1 : k % 2 ? 4 : 2; J += (wk * (1 - s)) / (r * r); }
+  J = (J * h) / 3 + 1 / rc; TAIL.set(rc, J); return J; }
 export class Ionic {
   /* species: [{ q, S, T }] (S, T: Σ⟨r²⟩ and Σ⟨r⁴⟩ over the ion's electrons; only used in 4D); short(a, b, r): the
      short-range rest between species a and b at r (zero past RM); rc the real-space cut */
@@ -77,8 +83,12 @@ export class Ionic {
         const r = Math.sqrt(r2); if (i !== j) closest = Math.min(closest, r);
         const ef = erfc(alpha * r), ex = Math.exp(-a2 * r2); let dU = -qq * (ef / r2 + (SP * alpha * ex) / r); // dU/dr
         E1 += (w * qq * ef) / r;
-        if (cloud) { const Q3 = Qgamma(1.5, a2 * r2); E3 += (w * c3 * Q3) / (r2 * r); E5 += (w * c5) / (r2 * r2 * r);
-          dU += c3 * ((-2 * alpha ** 3 * r2 * ex) / G[1.5] / (r2 * r) - (3 * Q3) / (r2 * r2)) - (5 * c5) / (r2 * r2 * r2); }
+        if (cloud) { const Q3 = Qgamma(1.5, a2 * r2); E3 += (w * c3 * Q3) / (r2 * r);
+          // the r⁻⁵ terms switched off over the last W5 bohr before rc (the continuum below takes the rest): a hard cut
+          // makes the energy jump as an image crosses rc, which stalls the descent
+          let s5 = 1, ds5 = 0; if (r > rc - W5) { const t = (r - rc + W5) / W5; s5 = 1 - t * t * t * (10 - 15 * t + 6 * t * t); ds5 = (-30 * t * t * (1 - t) * (1 - t)) / W5; }
+          E5 += (w * c5 * s5) / (r2 * r2 * r);
+          dU += c3 * ((-2 * alpha ** 3 * r2 * ex) / G[1.5] / (r2 * r) - (3 * Q3) / (r2 * r2)) + c5 * (ds5 / (r2 * r2 * r) - (5 * s5) / (r2 * r2 * r2)); }
         if (r < this.RM) { let [u, du] = this.short(kinds[i], kinds[j], r); // tapered to zero over the last 2 bohr (the tables end a hair short of it)
           if (r > this.RM - 2) { const t = (r - this.RM + 2) / 2, sw = 1 - t * t * t * (10 - 15 * t + 6 * t * t), dsw = (-30 * t * t * (1 - t) * (1 - t)) / 2; du = du * sw + u * dsw; u *= sw; }
           Es += w * u; dU += du; }
@@ -87,8 +97,8 @@ export class Ionic {
         for (let a = 0; a < d; a++) { const f = g * rv[a]; gx[j * d + a] += f; gx[i * d + a] -= f; for (let b = 0; b < d; b++) gH[b][a] += f * (nt[b] - m[b]); }
       }
     }
-    // the r⁻⁵ continuum past rc: ½ Σ_ij c5_ij S_d ∫ r^(d−1) r⁻⁵ dr / V (4D: S_d / rc)
-    let Etail = 0; if (cloud) { let s5 = 0; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) s5 += (-3 * S[i] * S[j] + q[i] * T[j] + T[i] * q[j]) / 64; Etail = (0.5 * s5 * SD[4]) / rc / V; E5 += Etail; }
+    // the r⁻⁵ continuum the switch leaves: ½ Σ_ij c5_ij S_d ∫ (1 − s(r)) r^(d−1) r⁻⁵ dr / V (4D: r⁻², so S_d (J + 1/rc))
+    let Etail = 0; if (cloud) { let s5 = 0; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) s5 += (-3 * S[i] * S[j] + q[i] * T[j] + T[i] * q[j]) / 64; Etail = (0.5 * s5 * SD[4] * tailJ(rc)) / V; E5 += Etail; }
     // reciprocal space over half the k vectors
     let K1 = 0, K3 = 0; const nb = H.map((h) => Math.ceil((Math.hypot(...h) * this.kmax) / (2 * Math.PI))); if (nb.reduce((t, b) => t * (2 * b + 1), 1) > 6e5) return null;
     const kv = new Float64Array(d), cs = new Float64Array(n), sn = new Float64Array(n), gk = new Float64Array(d);

@@ -1,33 +1,51 @@
 {
- "run": "al2o3-dft",
- "why": "The ionic model's independent check: periodic PBE (PySCF) on our corundum and θ-alumina as measured and the ionic model's blind-search impostor, each scaled 0.98–1.04 isotropically. Corundum must come lowest; the gaps size what the model must get right.",
- "minutes": 300,
+ "run": "bl2px3-search",
+ "why": "Bl₂Px₃ (4D's sapphire) by blind search on the ionic model that passed our corundum's check (fixed Watson radius + dispersion: 200 random starts find corundum lowest, then the impostor and θ-alumina, the order periodic PBE gives). Z = 1–4 formula units a cell; our Al₂O₃ at Z = 2 and 4 as the check that bigger cells find nothing below corundum.",
+ "minutes": 330,
  "groups": [
   {
-   "name": "dft-corundum",
+   "name": "bp-z1-z2",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 corundum 0.98",
-    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00",
-    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.02",
-    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.04"
+    "node four/atom/tools/ionic.mjs search Bl2Px3 1 120 --disp",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 2 240 --disp --shard 0/3",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 2 240 --disp --shard 1/3",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 2 240 --disp --shard 2/3"
    ]
   },
   {
-   "name": "dft-theta",
+   "name": "bp-z3",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 theta 0.98",
-    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.00",
-    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.02",
-    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.04"
+    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 0/4",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 1/4",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 2/4",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 3 240 --disp --shard 3/4"
    ]
   },
   {
-   "name": "dft-impostor",
+   "name": "bp-z4-0",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 impostor 0.98",
-    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.00",
-    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.02",
-    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.04"
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 0/8",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 1/8",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 2/8",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 3/8"
+   ]
+  },
+  {
+   "name": "bp-z4-1",
+   "cmds": [
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 4/8",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 5/8",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 6/8",
+    "node four/atom/tools/ionic.mjs search Bl2Px3 4 240 --disp --shard 7/8"
+   ]
+  },
+  {
+   "name": "al-check",
+   "cmds": [
+    "node four/atom/tools/ionic.mjs search Al2O3 2 200 --disp --shard 0/2",
+    "node four/atom/tools/ionic.mjs search Al2O3 2 200 --disp --shard 1/2",
+    "node four/atom/tools/ionic.mjs search Al2O3 4 160 --disp --shard 0/2",
+    "node four/atom/tools/ionic.mjs search Al2O3 4 160 --disp --shard 1/2"
    ]
   }
  ]

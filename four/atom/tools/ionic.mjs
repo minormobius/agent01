@@ -32,11 +32,15 @@ export const COMPOUNDS = {
   Bl2Px3: { d: 4, cat: 15, an: 10, core: ne4, nc: 2, na: 3, watson: 2.09, mc: 31, ma: 20, vIon: 3.85 ** 4 },
 };
 const mom = (A) => { let S = 0, T = 0; for (let j = 0; j < N; j++) { S += A.Q[j] * GRID[j] ** 2; T += A.Q[j] * GRID[j] ** 4; } return { S, T }; };
-/* cubic Hermite on a uniform table, [u, du/dr]; inside the table's start an exponential wall continuing it */
-function hermite(lo, step, v) {
+/* cubic Hermite on a uniform table, [u, du/dr]; inside the table's start an exponential wall continuing it. The table is
+   the short range less the clouds' far field (4D: a/r³ + b/r⁵, summed separately by js/ionic.js for every pair), so the
+   wall continues the whole meeting and takes that far field off again: otherwise 4D's −3S²/64r⁵ between two anions
+   outgrows an exponential continued from the remainder alone and the ions fall into each other */
+function hermite(lo, step, v, ff = null) {
   const n = v.length, m = v.map((_, i) => (i === 0 ? v[1] - v[0] : i === n - 1 ? v[n - 1] - v[n - 2] : (v[i + 1] - v[i - 1]) / 2));
-  const kap = v[0] > 0 && m[0] < 0 ? -m[0] / step / v[0] : 3;
-  return (r) => { const x = (r - lo) / step; if (x <= 0) { const u = Math.max(v[0], 1e-3) * Math.exp(kap * (lo - r)); return [u, -kap * u]; } if (x >= n - 1) return [0, 0];
+  const f = ff ? (r) => [ff.a / r ** 3 + ff.b / r ** 5, (-3 * ff.a) / r ** 4 - (5 * ff.b) / r ** 6] : () => [0, 0];
+  const t0 = v[0] + f(lo)[0], s0 = m[0] / step + f(lo)[1], kap = t0 > 0 && s0 < 0 ? -s0 / t0 : 3;
+  return (r) => { const x = (r - lo) / step; if (x <= 0) { const u = Math.max(t0, 1e-3) * Math.exp(kap * (lo - r)), [g, dg] = f(r); return [u - g, -kap * u - dg]; } if (x >= n - 1) return [0, 0];
     const i = Math.floor(x), t = x - i, t2 = t * t, t3 = t2 * t;
     return [(2 * t3 - 3 * t2 + 1) * v[i] + (t3 - 2 * t2 + t) * m[i] + (-2 * t3 + 3 * t2) * v[i + 1] + (t3 - t2) * m[i + 1], ((6 * t2 - 6 * t) * v[i] + (3 * t2 - 4 * t + 1) * m[i] + (-6 * t2 + 6 * t) * v[i + 1] + (3 * t2 - 2 * t) * m[i + 1]) / step]; };
 }
@@ -56,9 +60,11 @@ const WIN = { ca: [3, 4.5], aa: [4, 6], cc: [4, 6] };
 const FACT6 = 720;
 export const dispersion = (C6, beta) => (r) => { const x = beta * r, f = tangToennies6(x), df = (beta * Math.exp(-x) * x ** 6) / FACT6, u = (-C6 * f) / r ** 6; return [u, (-C6 * df) / r ** 6 + (6 * C6 * f) / r ** 7]; };
 const plus = (f, g) => (r) => { const [a, da] = f(r), [b, db] = g(r); return [a + b, da + db]; };
+/* the far field salt.mjs takes off the tables, as a/r³ + b/r⁵ (zero in 3D) */
+const farCoef = (A, B) => { const f1 = far(A, B, 1), f2 = far(A, B, 2); const b = (f1 - 8 * f2) / (1 - 8 / 32); return { a: f1 - b, b }; };
 export function model(name, watson = null, { disp = false, xs = 1 } = {}) {
   const C = COMPOUNDS[name], d = C.d, cat = ion(C.cat, d, C.core), an = ion(C.an, d, C.core, { watson: { q: 2, R: watson ?? C.watson } }), f = curves(cat, an, 2.6, 0.05, xs), ions = [cat, an], lo = 2.6, step = 0.05;
-  const tab = {}, al = disp ? [polar(name), polar(name, watson ?? C.watson)] : null; for (const [k, [a, b]] of Object.entries({ pm: [0, 1], pp: [0, 0], mm: [1, 1] })) { const v = f.T[k].map((u, i) => u - far(ions[a], ions[b], lo + i * step)); tab[k] = hermite(lo, step, v);
+  const tab = {}, al = disp ? [polar(name), polar(name, watson ?? C.watson)] : null; for (const [k, [a, b]] of Object.entries({ pm: [0, 1], pp: [0, 0], mm: [1, 1] })) { const v = f.T[k].map((u, i) => u - far(ions[a], ions[b], lo + i * step)); tab[k] = hermite(lo, step, v, farCoef(ions[a], ions[b]));
     if (disp) tab[k] = plus(tab[k], dispersion(c6From(al[a], al[b], d), decay(v, ...WIN[{ pm: "ca", pp: "cc", mm: "aa" }[k]]))); }
   const I = new Ionic({ d, species: ions.map((A) => ({ q: A.q, ...mom(A) })), short: (a, b, r) => tab[a === b ? (a === 0 ? "pp" : "mm") : "pm"](r) });
   return { C, d, I, ions, converged: cat.converged && an.converged };
@@ -107,7 +113,7 @@ export function theta() {
   return { H: [[a, 0, 0], [0, b, 0], [c * Math.cos(be), 0, c * Math.sin(be)]], s, kinds, nf: 4 };
 }
 /* a random start (seeded by k) */
-function start(M, Z, k) {
+export function start(M, Z, k) {
   let sd = (k + 1) * 2654435761 >>> 0; const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
   const { C, d } = M, kinds = [...Array(C.nc * Z).fill(0), ...Array(C.na * Z).fill(1)], n = kinds.length, V = C.vIon * n * (0.7 + 0.9 * rnd());
   for (;;) {
@@ -210,10 +216,12 @@ if (!isMainThread && workerData?.name) {
   const out = { name, measuredGeometry: D0, relaxed: D, g: r.g, s: (Date.now() - t0) / 1000 };
   writeFileSync(path.join(DIR, `known-${name}.json`), JSON.stringify(out)); console.log(JSON.stringify(out));
 } else if (cmd === "search") {
-  const M = model(name), Z = +zArg, starts = +nArg, sh = process.argv.indexOf("--shard"), [si, sm] = sh > 0 ? process.argv[sh + 1].split("/").map(Number) : [0, 1];
-  const file = path.join(DIR, `${name}_${Z}${sm > 1 ? `_s${si}of${sm}` : ""}.json`), st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { name, Z, done: 0, minima: [] }, t0 = Date.now();
+  // --disp: with dispersion (the variant that tracks periodic DFT on our corundum, θ-alumina and the impostor); its own cache
+  const disp = process.argv.includes("--disp"), M = model(name, null, { disp }), Z = +zArg, starts = +nArg, sh = process.argv.indexOf("--shard"), [si, sm] = sh > 0 ? process.argv[sh + 1].split("/").map(Number) : [0, 1];
+  const file = path.join(DIR, `${name}${disp ? "-disp" : ""}_${Z}${sm > 1 ? `_s${si}of${sm}` : ""}.json`), st = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : { name, Z, done: 0, minima: [] }, t0 = Date.now();
   for (let k = si + sm * st.done; k < starts; k = si + sm * st.done) {
     const S0 = start(M, Z, k), r = relax(M, S0.H, S0.s, S0.kinds, Z), D = describe(M, r, S0.kinds, Z);
+    if (!(r.g < 1e-4 && D.contact > 2.5)) console.log(`  start ${k} not kept: |g| ${r.g.toExponential(1)}, contact ${D.contact.toFixed(2)} bohr, U ${D.U.toFixed(3)}`);
     if (r.g < 1e-4 && D.contact > 2.5) { const same = st.minima.find((m) => Math.abs(m.U - D.U) < 0.005 && Math.abs(m.Vf / D.Vf - 1) < 0.01); if (same) same.hits++; else st.minima.push({ ...D, hits: 1, H: r.H, s: r.s, kinds: S0.kinds, first: k }); }
     st.done++; st.minima.sort((a, b) => b.U - a.U); writeFileSync(file, JSON.stringify(st));
     if (st.done % 5 === 0) console.log(`${name} Z ${Z}: ${st.done} starts, best ${st.minima[0]?.U.toFixed(3)} eV (density ${st.minima[0]?.density.toExponential(3)}), ${st.minima.length} minima, ${((Date.now() - t0) / 1000).toFixed(0)} s`);

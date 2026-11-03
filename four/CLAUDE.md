@@ -233,11 +233,24 @@ for games, and this is a modelling programme with publications to come. The game
   Ne₂, Ar₂, Kr₂ wells within ~10%). `ladder Al2O3 [Z] [--pib] [--disp] [--xs=]` ranks corundum, θ-alumina (`theta()`,
   half its Al tetrahedral, above corundum in hybrid DFT) and the search's best. `tools/ionref.py [RW]` (PySCF) is the
   reference: linear Al³⁺–O²⁻–Al³⁺, the oxide in a point-charge Watson shell, HF/MP2 and the frozen clouds (Heitler–London).
-  **Calibration status: corundum does not win robustly.** Over six variants the gaps to θ and the impostor run −0.43 to
-  +0.28 eV per formula, each correction moving them more than the gaps themselves. The reference says why: the electron
-  gas's frozen repulsion is 1.26–1.53× too weak at 3–4.2 bohr, and the clouds' relaxation (HF minus frozen) is −1.3 to
-  −2.4 eV per Al–O bond, many-body, which the rigid-ion picture lacks (first-order dipole induction alone favours θ by
-  1 eV). Don't report a Bl₂Px₃ structure from it until corundum wins with every term checked.
+  `tools/crystalref.mjs Al2O3 <corundum|theta|impostor> <scale>` (runner, ~1 h each; `table` prints them) is the
+  independent ranking: periodic PBE (PySCF, GTH, DZVP) on `tools/crystalref-Al2O3.json`'s three cells, scaled 0.98–1.04,
+  internal coordinates held. PBE: corundum lowest, the impostor +0.15, θ +0.50 eV per formula (upper bounds, unrelaxed).
+  At those same geometries (cell scaled only) the variants give θ−α / imp−α: fixed R 0.12 / −0.47; **fixed R + dispersion
+  0.48 / +0.04**; PIB 0.06 / −0.48; PIB + dispersion 0.40 / +0.01; either with ×0.85 exchange ~0.1 / −0.4. So the model
+  adopted is **fixed Watson radius + dispersion** (`model(name, null, { disp: true })`, `search … --disp`, cache
+  `<name>-disp_<Z>`): it tracks PBE on θ and gets the impostor's sign, 0.1 eV short; relaxed it ranks corundum first by
+  0.19 and 0.28, density 4150 against 3987 (4% dense), U 165.9 against 165.0 measured. Breathing and the noble gases'
+  exchange scaling both make the match to PBE worse, and are kept only as diagnostics. The HF reference (`ionref.py`)
+  still says the pair repulsion is too weak and a −1.3 to −2.4 eV-a-bond relaxation is missing; at fixed geometry the two
+  largely cancel, which is what the PBE match measures. **Blind check passed:** `search Al2O3 2 200 --disp` finds corundum
+  lowest (17 of 200 starts; bonds 3 × 1.82 + 3 × 1.97 Å, CN 6/4), then the impostor (+0.19) and θ-alumina (+0.28).
+  Two 4D fixes came with it (no 3D effect): the tables' inner wall continues the whole meeting and subtracts the clouds'
+  far field (`hermite(…, farCoef)`; before, 4D's −3S²/64r⁵ between anions beat the wall and ions fell together), and
+  js/ionic.js switches the r⁻⁵ cloud terms off over the 2 bohr before rc with the continuum taking the rest (`tailJ`; a
+  hard cut made the energy jump and stalled BFGS at |g| ~ 10⁻³). Bl₂Px₃, Z = 2, 200 starts (sandbox): lowest U 181.3 eV
+  per formula, density 3.57 × 10¹³ kg/m⁴, every Bl 13-coordinated (3 + 3 + 1 + 3 + 3 at 1.93–2.09 Å), Px 8 and 9;
+  next +0.36. Z = 1–4 and our Al₂O₃ at Z = 4 are on the runner (run `bl2px3-search`) before it's reported.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
