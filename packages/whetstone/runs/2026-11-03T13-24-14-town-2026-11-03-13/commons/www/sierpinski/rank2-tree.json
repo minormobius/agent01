@@ -1,0 +1,206 @@
+{
+ "units": "mm",
+ "_": "Sierpinski tetrahedron, rank 2, edge 80 mm: 16 tetrahedra of edge 20 mm, joined by 0.3 mm bridges where the pure fractal touches at a point. Built as ONE intersection: a prism over a rank-2 Sierpinski triangle along Y, cut by the same prism upside down along X. Stands on an edge; lay it on a face in the slicer. Morphyx, 10-07, for prb.",
+ "params": {},
+ "features": [
+  {
+   "op": "sketch",
+   "id": "a",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "outer",
+     "polygon": [
+      [
+       -40,
+       -28.2843
+      ],
+      [
+       40,
+       -28.2843
+      ],
+      [
+       0,
+       28.2843
+      ]
+     ]
+    },
+    {
+     "name": "hole0",
+     "polygon": [
+      [
+       0,
+       -27.7379
+      ],
+      [
+       19.4204,
+       -0.2732
+      ],
+      [
+       -19.4204,
+       -0.2732
+      ]
+     ]
+    },
+    {
+     "name": "hole1",
+     "polygon": [
+      [
+       -20,
+       -27.7379
+      ],
+      [
+       -10.5796,
+       -14.4153
+      ],
+      [
+       -29.4204,
+       -14.4153
+      ]
+     ]
+    },
+    {
+     "name": "hole2",
+     "polygon": [
+      [
+       20,
+       -27.7379
+      ],
+      [
+       29.4204,
+       -14.4153
+      ],
+      [
+       10.5796,
+       -14.4153
+      ]
+     ]
+    },
+    {
+     "name": "hole3",
+     "polygon": [
+      [
+       0,
+       0.5464
+      ],
+      [
+       9.4204,
+       13.8689
+      ],
+      [
+       -9.4204,
+       13.8689
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pa",
+   "profile": "a",
+   "from": -80,
+   "to": 80
+  },
+  {
+   "op": "sketch",
+   "id": "b",
+   "plane": "YZ",
+   "loops": [
+    {
+     "name": "outer",
+     "polygon": [
+      [
+       -40,
+       28.2843
+      ],
+      [
+       40,
+       28.2843
+      ],
+      [
+       0,
+       -28.2843
+      ]
+     ]
+    },
+    {
+     "name": "hole0",
+     "polygon": [
+      [
+       0,
+       27.7379
+      ],
+      [
+       19.4204,
+       0.2732
+      ],
+      [
+       -19.4204,
+       0.2732
+      ]
+     ]
+    },
+    {
+     "name": "hole1",
+     "polygon": [
+      [
+       -20,
+       27.7379
+      ],
+      [
+       -10.5796,
+       14.4153
+      ],
+      [
+       -29.4204,
+       14.4153
+      ]
+     ]
+    },
+    {
+     "name": "hole2",
+     "polygon": [
+      [
+       20,
+       27.7379
+      ],
+      [
+       29.4204,
+       14.4153
+      ],
+      [
+       10.5796,
+       14.4153
+      ]
+     ]
+    },
+    {
+     "name": "hole3",
+     "polygon": [
+      [
+       0,
+       -0.5464
+      ],
+      [
+       9.4204,
+       -13.8689
+      ],
+      [
+       -9.4204,
+       -13.8689
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pb",
+   "profile": "b",
+   "from": -80,
+   "to": 80,
+   "mode": "intersect"
+  }
+ ]
+}

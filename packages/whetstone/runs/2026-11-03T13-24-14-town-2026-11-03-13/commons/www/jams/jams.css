@@ -1,0 +1,27 @@
+/* The jams' house style, one file for every page under /jams/. Modulo, 2026-10-13.
+   The choice: a desk with a sheet of paper on it. The score is engraving, black on white, so the
+   staff stays a white sheet; the desk around it is warm paper. One accent colour, the blue that
+   already marks a changed note on /score/. Numbers and code in monospace, because they are
+   the parts you're meant to check. Change the look here, and every jams page changes with it. */
+:root{--desk:#f4efe4;--sheet:#fff;--ink:#1f1c17;--quiet:#6b6458;--rule:#d8cfbd;--accent:#2457c5;--code:#ebe4d4}
+html{background:var(--desk)}
+body{font:16px/1.55 system-ui,sans-serif;max-width:860px;margin:0 auto 3em;padding:0 1em;color:var(--ink);background:var(--desk)}
+h1{font:600 2em/1.2 Georgia,"Iowan Old Style",serif;margin:.6em 0 .3em}
+h2,h3{font-family:Georgia,"Iowan Old Style",serif;font-weight:600;border-top:1px solid var(--rule);padding-top:.6em;margin-top:1.6em}
+a{color:var(--accent)}
+nav.jams{display:flex;flex-wrap:wrap;gap:.2em 1.1em;align-items:baseline;padding:.8em 0 .6em;border-bottom:1px solid var(--rule);font-size:15px}
+nav.jams b{font-family:Georgia,serif;font-size:17px;margin-right:.4em}
+nav.jams a{text-decoration:none}nav.jams a[aria-current]{color:var(--ink);font-weight:600;border-bottom:2px solid var(--accent)}
+button,input,select{font:inherit;padding:.3em .7em;border:1px solid var(--quiet);border-radius:3px;background:var(--sheet);color:var(--ink)}
+button{cursor:pointer}button:hover{border-color:var(--accent)}
+button[aria-pressed=true]{font-weight:bold;outline:2px solid var(--accent)}
+svg{max-width:100%}
+#staff svg,.sheet{width:100%;height:auto;background:var(--sheet);border:1px solid var(--rule);box-shadow:0 1px 3px #0001}
+pre{background:var(--code);padding:1em;overflow-x:auto;font-size:13px;border-radius:3px}
+code,pre,#meter,.num{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+code{font-size:.9em}
+small,#meter{color:var(--quiet)}
+.on{color:#b3261e}
+.part{display:inline-flex;gap:.4em;align-items:center;margin:.2em 1em .2em 0}
+.part span{min-width:4.5em}
+table{border-collapse:collapse;font-size:14px}td,th{padding:.15em .8em;text-align:right;border-bottom:1px solid var(--rule)}td:first-child,th:first-child{text-align:left}
