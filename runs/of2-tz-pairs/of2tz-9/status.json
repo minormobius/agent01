@@ -3,31 +3,31 @@
  "status": [
   {
    "cmd": "node four/atom/tools/pairref.mjs OF2 36",
-   "code": 1,
+   "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 12
+   "seconds": 408
   },
   {
    "cmd": "node four/atom/tools/pairref.mjs OF2 37",
-   "code": 1,
+   "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 12
+   "seconds": 442
   },
   {
    "cmd": "node four/atom/tools/pairref.mjs OF2 38",
-   "code": 1,
+   "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 12
+   "seconds": 449
   },
   {
    "cmd": "node four/atom/tools/pairref.mjs OF2 39",
-   "code": 1,
+   "code": 0,
    "signal": null,
    "cut": false,
-   "seconds": 14
+   "seconds": 655
   }
  ]
 }
