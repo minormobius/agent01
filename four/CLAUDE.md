@@ -255,8 +255,13 @@ for games, and this is a modelling programme with publications to come. The game
   starts) finds one arrangement 0.023 eV per formula *below* corundum (density 4051, 1 hit): Al all 6-, O all 4-coordinated
   like corundum, 2 regular and 6 distorted octahedra. That's inside the model's ~0.1 eV error against PBE, so it is
   `poly6` in `crystalref-Al2O3.json` and on the runner (`crystalref.mjs Al2O3 poly6 <scale> 4`, 20 atoms, 4 threads).
-  Until PBE has judged it: the model gets corundum's coordination and density, but can't separate same-coordination
-  arrangements within ~0.1 eV. Bl₂Px₃'s runner-up is 0.36 eV higher, past that.
+  **PBE's verdict (run `al2o3-dft-poly6`, all exit 0): corundum stays lowest, poly6 +0.38 eV per formula** (best at
+  ×1.02–1.04). At the same geometries the model has it −0.19: an error of 0.57 eV, where θ's was 0.02 and the impostor's
+  0.11. **So the model fails the larger-cell test**: its energy function can be off by more than half an eV per formula
+  between same-coordination arrangements, and Bl₂Px₃'s runner-up (0.36 eV) is inside that. The Bl₂Px₃ structure is a
+  candidate, not a result; nothing from it goes into a chapter. What did work: periodic PBE on the model's candidates
+  picks corundum every time ("the model proposes, a quantum method decides", the book's pair-search pattern). 4D has no
+  periodic quantum code yet, which is the gap.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
