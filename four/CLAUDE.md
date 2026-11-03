@@ -261,7 +261,16 @@ for games, and this is a modelling programme with publications to come. The game
   between same-coordination arrangements, and Bl₂Px₃'s runner-up (0.36 eV) is inside that. The Bl₂Px₃ structure is a
   candidate, not a result; nothing from it goes into a chapter. What did work: periodic PBE on the model's candidates
   picks corundum every time ("the model proposes, a quantum method decides", the book's pair-search pattern). 4D has no
-  periodic quantum code yet, which is the gap.
+  periodic quantum code yet, which is the gap — being built: `js/pw.js` (no DOM) is plane-wave DFT in d dimensions (mixed-
+  radix FFT, the Coulomb kernel 4π/G² or the pinned 4π²/G³, atom.js's local exchange without the own-share correction,
+  Kleinman–Bylander projectors on d-dimensional harmonics l ≤ 2, block Davidson, Pulay + Kerker, Ewald with background),
+  and `js/pseudo.js` (no DOM) norm-conserving Troullier–Martins pseudopotentials from the book's atom with L = l + (d−3)/2.
+  Checked so far (scratch tests, selftest block to come): FFT against a direct transform; Gaussian wells against the
+  radial solver in 3D and 4D (4D converges from above, −2.4532 at ecut 16 against −2.4565); pseudo-atoms reproduce the
+  all-electron levels to 10⁻⁶ (our Ne, O; 4D element 12, pxygen); our Ne in plane waves, extrapolated over box size (an
+  isolated atom's energy carries a 1/L³ Makov–Payne-type term, which crystals don't), within 1 mHa of the radial
+  pseudo-atom, and s- or p-projector choices agree to 1 mHa. Still to do: the 4D ions' cloud terms in the ion–ion energy,
+  smearing for open shells, a selftest block, speed for 4D cells (runner).
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
