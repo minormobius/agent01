@@ -11,7 +11,7 @@ name: Deploy Math (explainer pack)
 
 on:
   push:
-    branches: ['claude/3d-einstein-tile-math-n4t93d']
+    branches: ['claude/math-label-and-law']
     paths:
       - 'geometry/**'
       - 'conjectures/**'

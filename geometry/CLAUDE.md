@@ -15,7 +15,7 @@ Hub for the extremal-geometry pack. Family-resemblance table sortable by era, te
 | Dir | `geometry/` |
 | Endpoint | `math.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/3d-einstein-tile-math-n4t93d` |
+| Owning branch | `claude/math-label-and-law` |
 | Deploy | `.github/workflows/deploy-math.yml` |
 | Uses | — |
 | Provides | — |
@@ -274,7 +274,7 @@ This page opens the "label and the law" roadmap in [`IDEAS.md`](IDEAS.md);
 
 ## Deploying
 
-Pushes to `claude/3d-einstein-tile-math-n4t93d` (the owner since 2026-09-24; before that `claude/landing-page-merge-candidate-8sp0fv`) that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
+Pushes to `claude/math-label-and-law` (the owner since 2026-11-03, taken with `take-ownership.mjs` to ship `/commit/`; before that `claude/3d-einstein-tile-math-n4t93d`, and before that `claude/landing-page-merge-candidate-8sp0fv`) that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
