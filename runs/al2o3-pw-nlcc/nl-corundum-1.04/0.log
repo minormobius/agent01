@@ -1,0 +1,24 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.04 40 a18s 4
+corundum ×1.04: 10 atoms, 48 electrons, grid 60×60×60, 7761 PW at the first of 4 k, 4 workers
+  scf 0: E -78.55038283  |Δρ| 6.94e+0  bands 1.8e-1
+  scf 1: E -92.58730006  |Δρ| 3.68e+0  bands 1.6e-1
+  scf 2: E -104.43902210  |Δρ| 1.68e+0  bands 2.1e-1
+  scf 3: E -101.77464115  |Δρ| 1.67e+0  bands 4.0e-2
+  scf 4: E -103.60024860  |Δρ| 1.06e+0  bands 1.0e-1
+  scf 5: E -104.73204703  |Δρ| 3.71e-1  bands 4.3e-2
+  scf 6: E -104.81794202  |Δρ| 1.46e-1  bands 4.2e-2
+  scf 7: E -104.81658485  |Δρ| 1.50e-1  bands 4.8e-2
+  scf 8: E -104.83987368  |Δρ| 7.74e-3  bands 4.1e-2
+  scf 9: E -104.83984195  |Δρ| 6.58e-3  bands 1.8e-2
+  scf 10: E -104.83989502  |Δρ| 8.96e-4  bands 2.4e-2
+  scf 11: E -104.83989522  |Δρ| 5.53e-4  bands 1.8e-2
+  scf 12: E -104.83989530  |Δρ| 2.41e-4  bands 1.0e-2
+  scf 13: E -104.83989534  |Δρ| 7.62e-5  bands 8.5e-3
+  scf 14: E -104.83989534  |Δρ| 4.18e-5  bands 7.0e-3
+  scf 15: E -104.83989534  |Δρ| 1.07e-5  bands 6.5e-3
+  scf 16: E -104.83989534  |Δρ| 6.18e-6  bands 5.7e-3
+{"file":"crystalref-Al2O3.json","name":"corundum","scale":1.04,"ecut":40,"nk":"a18s","ns":[2,2,2],"nkpts":4,"threads":4,"pset":"Al2O3","atoms":10,"nf":2,"E":-104.83989533743498,"perFormula_eV":-1426.4194301132718,"gap_eV":5.698201048092161,"parts":{"kinetic":70.6070092202445,"nonlocal":12.088479546911211,"local":-106.29376398835402,"hartree":27.631489889101395,"exchange":-24.132243998015774,"ewald":-84.74086600732231,"total":-104.83989533743498},"s":694.761}
+(node:2631) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

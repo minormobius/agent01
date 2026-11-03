@@ -1,0 +1,26 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.00 40 a18s 4
+poly6 ×1: 20 atoms, 96 electrons, grid 64×64×64, 13627 PW at the first of 4 k, 4 workers
+  scf 0: E -160.20737350  |Δρ| 9.69e+0  bands 2.1e-1
+  scf 1: E -187.95976047  |Δρ| 5.05e+0  bands 8.7e-2
+  scf 2: E -209.04945136  |Δρ| 2.15e+0  bands 1.7e-1
+  scf 3: E -205.45951838  |Δρ| 2.00e+0  bands 8.7e-2
+  scf 4: E -208.32224291  |Δρ| 1.15e+0  bands 2.0e-1
+  scf 5: E -209.54487395  |Δρ| 3.32e-1  bands 8.3e-2
+  scf 6: E -209.59010201  |Δρ| 1.10e-1  bands 3.9e-2
+  scf 7: E -209.60056474  |Δρ| 2.86e-2  bands 3.0e-2
+  scf 8: E -209.60133263  |Δρ| 1.03e-2  bands 2.7e-2
+  scf 9: E -209.60148373  |Δρ| 4.99e-3  bands 3.1e-2
+  scf 10: E -209.60155344  |Δρ| 2.55e-3  bands 3.2e-2
+  scf 11: E -209.60158358  |Δρ| 1.46e-3  bands 3.0e-2
+  scf 12: E -209.60159198  |Δρ| 7.13e-4  bands 2.8e-2
+  scf 13: E -209.60159311  |Δρ| 4.24e-4  bands 2.7e-2
+  scf 14: E -209.60159356  |Δρ| 1.38e-4  bands 2.6e-2
+  scf 15: E -209.60159357  |Δρ| 4.82e-5  bands 2.3e-2
+  scf 16: E -209.60159358  |Δρ| 2.88e-5  bands 2.7e-2
+  scf 17: E -209.60159358  |Δρ| 1.39e-5  bands 2.7e-2
+  scf 18: E -209.60159358  |Δρ| 6.87e-6  bands 2.5e-2
+{"file":"crystalref-Al2O3.json","name":"poly6","scale":1,"ecut":40,"nk":"a18s","ns":[2,2,2],"nkpts":4,"threads":4,"pset":"Al2O3","atoms":20,"nf":4,"E":-209.60159357762475,"perFormula_eV":-1425.887467263967,"gap_eV":7.217399810036237,"parts":{"kinetic":145.25437645095258,"nonlocal":24.084723416404955,"local":-208.87536455297214,"hartree":54.53155111282327,"exchange":-49.338985933629104,"ewald":-175.2578940712043,"total":-209.60159357762475},"s":2247.428}
+(node:2854) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

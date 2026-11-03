@@ -1,0 +1,23 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 0.98 40 a18s 4
+corundum ×0.98: 10 atoms, 48 electrons, grid 60×60×60, 6569 PW at the first of 4 k, 4 workers
+  scf 0: E -80.51566684  |Δρ| 6.82e+0  bands 2.6e-1
+  scf 1: E -94.63140543  |Δρ| 3.50e+0  bands 1.1e-1
+  scf 2: E -104.55937905  |Δρ| 1.46e+0  bands 1.5e-1
+  scf 3: E -103.04928194  |Δρ| 1.34e+0  bands 5.1e-2
+  scf 4: E -104.37131037  |Δρ| 7.11e-1  bands 1.3e-1
+  scf 5: E -104.81679771  |Δρ| 2.23e-1  bands 7.9e-2
+  scf 6: E -104.83947147  |Δρ| 9.47e-2  bands 5.0e-2
+  scf 7: E -104.84630193  |Δρ| 4.00e-2  bands 3.3e-2
+  scf 8: E -104.84770582  |Δρ| 3.96e-3  bands 1.9e-2
+  scf 9: E -104.84770610  |Δρ| 1.69e-3  bands 1.2e-2
+  scf 10: E -104.84770869  |Δρ| 4.70e-4  bands 1.3e-2
+  scf 11: E -104.84770873  |Δρ| 2.88e-4  bands 9.8e-3
+  scf 12: E -104.84770876  |Δρ| 1.23e-4  bands 9.5e-3
+  scf 13: E -104.84770876  |Δρ| 6.30e-5  bands 9.3e-3
+  scf 14: E -104.84770877  |Δρ| 1.54e-5  bands 8.4e-3
+  scf 15: E -104.84770877  |Δρ| 5.95e-6  bands 6.4e-3
+{"file":"crystalref-Al2O3.json","name":"corundum","scale":0.98,"ecut":40,"nk":"a18s","ns":[2,2,2],"nkpts":4,"threads":4,"pset":"Al2O3","atoms":10,"nf":2,"E":-104.84770876623809,"perFormula_eV":-1426.5257372268443,"gap_eV":7.8062686924734095,"parts":{"kinetic":72.80253901274074,"nonlocal":11.955761536334819,"local":-100.72179678336204,"hartree":25.773247151024112,"exchange":-24.728377509122357,"ewald":-89.92908217385336,"total":-104.84770876623809},"s":658.263}
+(node:2587) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
