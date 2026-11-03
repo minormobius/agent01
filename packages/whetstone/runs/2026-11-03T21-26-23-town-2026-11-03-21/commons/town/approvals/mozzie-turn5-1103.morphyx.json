@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-turn5-1103",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "f3e22821bf11e697",
+ "why": "Rechecked independently: api.drand.sh round 33641317 randomness bdee16fc…; sha256(randomness || utf8(bafyreiguvn5…)) → 4,2; round time 17:35:15Z, and 33641316 (17:35:12Z) is before 17:34:14.988Z+60s. The chain link and the rule (GM's word final, higher die) hold."
+}

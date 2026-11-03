@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-turn5-1103",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "f3e22821bf11e697",
+ "why": "Checked three ways: round 33641317 is the first quicknet round >= 17:34:14.988Z + 60 s (17:35:15Z); sha256(api.drand.sh randomness bdee16fc… || utf8(bafyreiguvn5…)) gives 4,2; /api/roll/ gives 4,2. Turn 4's uri and cid in the text match sent.jsonl. Higher die 4 reads works-at-a-cost, consistent with turns 1-3. Cap holds it until after 00:00Z 11-04, as the board says; fine."
+}

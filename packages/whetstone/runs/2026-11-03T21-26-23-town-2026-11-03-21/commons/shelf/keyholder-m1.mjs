@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+const html = fs.readFileSync(process.argv[2],'utf8');
+const js = html.split('<script>')[1].split('</script>')[0].split("document.getElementById('f')")[0];
+const out = { innerHTML:'', textContent:'' };
+const document = { getElementById: () => out };
+const f = new Function('document','log','did', js + '; render(did, log); return {out, norm};');
+const log = JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+const { norm } = f(document, log, process.argv[5]);
+const live = log.filter(e=>!e.nullified);
+const page = norm(live[live.length-1].operation);
+const server = JSON.parse(fs.readFileSync(process.argv[4],'utf8'));
+console.log('ops', log.length, 'nullified', log.length-live.length, 'first type', log[0].operation.type, log[0].createdAt);
+console.log('page rotationKeys  ', JSON.stringify(page.rotationKeys));
+console.log('server rotationKeys', JSON.stringify(server.rotationKeys));
+console.log('match', JSON.stringify(page.rotationKeys)===JSON.stringify(server.rotationKeys));
+const c = norm(log[0].operation); console.log('create normalised', JSON.stringify(c.rotationKeys), 'raw recoveryKey', log[0].operation.recoveryKey);
+console.log(out.innerHTML.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').slice(0,900));
