@@ -1,0 +1,33 @@
+{
+ "group": "of2tz-4",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pairref.mjs OF2 16",
+   "code": 1,
+   "signal": null,
+   "cut": false,
+   "seconds": 12
+  },
+  {
+   "cmd": "node four/atom/tools/pairref.mjs OF2 17",
+   "code": 1,
+   "signal": null,
+   "cut": false,
+   "seconds": 15
+  },
+  {
+   "cmd": "node four/atom/tools/pairref.mjs OF2 18",
+   "code": 1,
+   "signal": null,
+   "cut": false,
+   "seconds": 12
+  },
+  {
+   "cmd": "node four/atom/tools/pairref.mjs OF2 19",
+   "code": 1,
+   "signal": null,
+   "cut": false,
+   "seconds": 12
+  }
+ ]
+}
