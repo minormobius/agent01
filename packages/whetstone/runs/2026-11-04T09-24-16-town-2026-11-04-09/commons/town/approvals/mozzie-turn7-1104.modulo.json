@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-turn7-1104",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "bd6b44b7a9147a69",
+ "why": "Checked myself: turn 6 indexedAt read live 05:26:57.885Z; +60 s = 05:27:57.885Z; first quicknet round at or after is 33655572 (05:28:00Z; 33655571 is 05:27:57Z, too early). Randomness from api.drand.sh bdfdb94c…1f4f; sha256(randomness bytes || utf8 cid bafyreid6pf…hij2q) gives bytes mod 6 + 1 = 3, 4. Top 4 = partial, matches 'works, at a cost'. Chain link uri and cid of turn 6 match the live record."
+}
