@@ -333,7 +333,13 @@ for games, and this is a modelling programme with publications to come. The game
   with their SCFs converged and the 29-point path unfinished, nothing kept; `bands` now saves the SCF
   (`<tag>-scf.json`, the potential `<tag>-V.f64`) and each path point (`<tag>-bandk.jsonl`) as they finish, prints the
   SCF grid's band edges before the path (a line with `"stage":"scf"`), and runs a shorter path (t = ½, 1 toward each face
-  and the far corner, occ + 4 bands, 100 iterations); a rerun resumes. Run `bands-2`: z2-0, z2-1.
+  and the far corner, occ + 4 bands, 100 iterations); a rerun resumes. **`bands-2` (both exit 0, path finished): Bl₂Px₃ z2-0 (soft, ecut 25, a10, 8 k): gap 3.79 eV,
+  indirect, valence top at Γ, conduction bottom at (½,½,0,0), where the smallest vertical gap is 4.30; z2-1 (4 k):
+  4.57 eV, direct at Γ.** With the calibration (+2.8 eV, or ×1.47) z2-0's gap is 5.6–6.6 eV (direct 6.3–7.1), z2-1's
+  6.7–7.4: a wide-gap insulator either way, transparent to visible light, like corundum; the two cells disagree on
+  direct against indirect. Total energies here: z2-0 lower by 0.65 eV per formula, but on unequal k-grids (8 k against
+  4), so still no ranking (0.09 eV at a10s). The band edges are from the SCF grid plus a 10-point path, not a dense
+  zone search.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
