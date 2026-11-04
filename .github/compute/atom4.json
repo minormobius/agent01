@@ -1,132 +1,84 @@
 {
- "run": "lawtable-shell",
- "why": "Paper 1's counterfactual table: all 140 4D elements solved again with the shell theorem forced on (the clouds' pull as if each sat at the centre), searched as the bake searched and seeded from the real table's configurations. It separates what the periodic table owes to the charge law from what it owes to the geometry. A sample in the sandbox already showed the law reordering the blocks (element 26: 4s² 4p² under the shell theorem against 3d² 4s²; element 100 filling 4f³⁰ before 5p).",
- "minutes": 180,
+ "run": "lawtable-repair",
+ "why": "lawtable-shell (all exit 0) settled 107 of the 140 elements under the shell theorem; 33 (38, 39, 41, 88–117: most of row 6's f block) never settled in ground()'s budgets, so their configurations are unsettled fillings, and one of them (110, 4f³² 5s² 5p⁸) would be a closed shell, which would split row 6. Each is searched again from every configuration in reach (47 for element 38), mixing 0.15 for up to 1500 iterations; element 38 settled in two minutes in the sandbox (3d¹³ 4s² 4p¹).",
+ "minutes": 300,
  "groups": [
   {
-   "name": "shell-0",
+   "name": "repair-0",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 0 56",
-    "node four/atom/tools/lawtable.mjs shell 1 56",
-    "node four/atom/tools/lawtable.mjs shell 2 56",
-    "node four/atom/tools/lawtable.mjs shell 3 56"
+    "node four/atom/tools/lawtable.mjs repair 117 140",
+    "node four/atom/tools/lawtable.mjs repair 116 140",
+    "node four/atom/tools/lawtable.mjs repair 115 140",
+    "node four/atom/tools/lawtable.mjs repair 114 140"
    ]
   },
   {
-   "name": "shell-1",
+   "name": "repair-1",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 4 56",
-    "node four/atom/tools/lawtable.mjs shell 5 56",
-    "node four/atom/tools/lawtable.mjs shell 6 56",
-    "node four/atom/tools/lawtable.mjs shell 7 56"
+    "node four/atom/tools/lawtable.mjs repair 113 140",
+    "node four/atom/tools/lawtable.mjs repair 112 140",
+    "node four/atom/tools/lawtable.mjs repair 111 140",
+    "node four/atom/tools/lawtable.mjs repair 110 140"
    ]
   },
   {
-   "name": "shell-2",
+   "name": "repair-2",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 8 56",
-    "node four/atom/tools/lawtable.mjs shell 9 56",
-    "node four/atom/tools/lawtable.mjs shell 10 56",
-    "node four/atom/tools/lawtable.mjs shell 11 56"
+    "node four/atom/tools/lawtable.mjs repair 109 140",
+    "node four/atom/tools/lawtable.mjs repair 108 140",
+    "node four/atom/tools/lawtable.mjs repair 107 140",
+    "node four/atom/tools/lawtable.mjs repair 106 140"
    ]
   },
   {
-   "name": "shell-3",
+   "name": "repair-3",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 12 56",
-    "node four/atom/tools/lawtable.mjs shell 13 56",
-    "node four/atom/tools/lawtable.mjs shell 14 56",
-    "node four/atom/tools/lawtable.mjs shell 15 56"
+    "node four/atom/tools/lawtable.mjs repair 105 140",
+    "node four/atom/tools/lawtable.mjs repair 104 140",
+    "node four/atom/tools/lawtable.mjs repair 103 140",
+    "node four/atom/tools/lawtable.mjs repair 102 140"
    ]
   },
   {
-   "name": "shell-4",
+   "name": "repair-4",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 16 56",
-    "node four/atom/tools/lawtable.mjs shell 17 56",
-    "node four/atom/tools/lawtable.mjs shell 18 56",
-    "node four/atom/tools/lawtable.mjs shell 19 56"
+    "node four/atom/tools/lawtable.mjs repair 101 140",
+    "node four/atom/tools/lawtable.mjs repair 100 140",
+    "node four/atom/tools/lawtable.mjs repair 99 140",
+    "node four/atom/tools/lawtable.mjs repair 98 140"
    ]
   },
   {
-   "name": "shell-5",
+   "name": "repair-5",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 20 56",
-    "node four/atom/tools/lawtable.mjs shell 21 56",
-    "node four/atom/tools/lawtable.mjs shell 22 56",
-    "node four/atom/tools/lawtable.mjs shell 23 56"
+    "node four/atom/tools/lawtable.mjs repair 97 140",
+    "node four/atom/tools/lawtable.mjs repair 96 140",
+    "node four/atom/tools/lawtable.mjs repair 95 140",
+    "node four/atom/tools/lawtable.mjs repair 94 140"
    ]
   },
   {
-   "name": "shell-6",
+   "name": "repair-6",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 24 56",
-    "node four/atom/tools/lawtable.mjs shell 25 56",
-    "node four/atom/tools/lawtable.mjs shell 26 56",
-    "node four/atom/tools/lawtable.mjs shell 27 56"
+    "node four/atom/tools/lawtable.mjs repair 93 140",
+    "node four/atom/tools/lawtable.mjs repair 92 140",
+    "node four/atom/tools/lawtable.mjs repair 91 140",
+    "node four/atom/tools/lawtable.mjs repair 90 140"
    ]
   },
   {
-   "name": "shell-7",
+   "name": "repair-7",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 28 56",
-    "node four/atom/tools/lawtable.mjs shell 29 56",
-    "node four/atom/tools/lawtable.mjs shell 30 56",
-    "node four/atom/tools/lawtable.mjs shell 31 56"
+    "node four/atom/tools/lawtable.mjs repair 89 140",
+    "node four/atom/tools/lawtable.mjs repair 88 140",
+    "node four/atom/tools/lawtable.mjs repair 41 140",
+    "node four/atom/tools/lawtable.mjs repair 39 140"
    ]
   },
   {
-   "name": "shell-8",
+   "name": "repair-8",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 32 56",
-    "node four/atom/tools/lawtable.mjs shell 33 56",
-    "node four/atom/tools/lawtable.mjs shell 34 56",
-    "node four/atom/tools/lawtable.mjs shell 35 56"
-   ]
-  },
-  {
-   "name": "shell-9",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 36 56",
-    "node four/atom/tools/lawtable.mjs shell 37 56",
-    "node four/atom/tools/lawtable.mjs shell 38 56",
-    "node four/atom/tools/lawtable.mjs shell 39 56"
-   ]
-  },
-  {
-   "name": "shell-10",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 40 56",
-    "node four/atom/tools/lawtable.mjs shell 41 56",
-    "node four/atom/tools/lawtable.mjs shell 42 56",
-    "node four/atom/tools/lawtable.mjs shell 43 56"
-   ]
-  },
-  {
-   "name": "shell-11",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 44 56",
-    "node four/atom/tools/lawtable.mjs shell 45 56",
-    "node four/atom/tools/lawtable.mjs shell 46 56",
-    "node four/atom/tools/lawtable.mjs shell 47 56"
-   ]
-  },
-  {
-   "name": "shell-12",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 48 56",
-    "node four/atom/tools/lawtable.mjs shell 49 56",
-    "node four/atom/tools/lawtable.mjs shell 50 56",
-    "node four/atom/tools/lawtable.mjs shell 51 56"
-   ]
-  },
-  {
-   "name": "shell-13",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs shell 52 56",
-    "node four/atom/tools/lawtable.mjs shell 53 56",
-    "node four/atom/tools/lawtable.mjs shell 54 56",
-    "node four/atom/tools/lawtable.mjs shell 55 56"
+    "node four/atom/tools/lawtable.mjs repair 38 140"
    ]
   }
  ]

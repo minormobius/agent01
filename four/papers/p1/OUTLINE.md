@@ -31,9 +31,12 @@ in 4D, 1/r isn't harmonic, so there is no Gauss's law, no shell theorem and no F
 gives it (the lens vacuum) gives up relativity for the force. We then solve every neutral atom to Z = 140
 self-consistently under that law. Rows of 2, 10, 10, 28, 28, 60 and noble gases at 2, 12, 22, 50, 78, 138 come out,
 as Négadi and Kibler's generalized Madelung rule predicts for D = 4: the first self-consistent table that confirms it.
-Solving the same table with the shell theorem forced back on separates what the table owes to the law from what it owes
-to the geometry. The law reorders the blocks (where d and f begin), holds outer electrons 1.8–2.9 times harder, and
-makes a neutral atom felt from afar, −Σ⟨r²⟩/8s³. The same solver in three dimensions gets 32 of our 36 ground
+Solving the same table with the shell theorem forced back on separates
+what the table owes to the law from what it owes to the geometry. The rows are the geometry's: the first 24 elements
+and all six noble gases come out the same. Everything inside the rows from the first d element on is the law's: without
+it p beats d (element 25 takes 4s² 4p¹ for 3d¹ 4s²), outer electrons are held a median 2.5 times more weakly, and the
+table's hardest-held electron, element 128's full 5d¹⁸ at 29.6 eV, falls to 3.1 eV, leaving the noble gases to hold
+hardest, as ours do. A neutral atom under the law is felt from afar, −Σ⟨r²⟩/8s³. The same solver in three dimensions gets 32 of our 36 ground
 configurations and our ionization energies to a few percent.
 
 ## Part I — The law (about 40 % of the paper)
@@ -103,14 +106,19 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
 ## Part III — What the law does (measured against the shell theorem)
 
 9. **The counterfactual table.** All 140 elements solved again with the shell theorem forced on, everything else held
-   (`atom/tools/lawtable.mjs`, run `lawtable-shell`; seeded from the real table's configurations so the comparison
-   isn't a weaker search; the real law re-solved in each counterfactual configuration as the check the other way).
-   Which rows, noble gases and configurations survive; where the d and f blocks begin. *Sandbox sample, first pass:*
-   element 26 is 4s² 4p² under the shell theorem against 3d² 4s² (ionization halves, 0.140 against 0.274 hartree);
-   element 100 fills 4f³⁰ before 5p. *To do:* the run, its bake (`papers/p1/data/shelltable.json`), ledger claims, and
-   whether the generalized Madelung rows are a consequence of the law or of the geometry alone.
-10. **Partial screening.** Outer electrons held 1.09× (helium) to 2.90× (element 138) harder than the shell theorem
-    allows (*ledger* `screening`); across all Z once the counterfactual table is in.
+   (`atom/tools/lawtable.mjs`, runs `lawtable-shell` and `lawtable-repair`; seeded from the real table's configurations
+   so the comparison isn't a weaker search; the real law re-solved in each counterfactual configuration as the check the
+   other way). *Result (2026-11-04, 107 of 140 settled):* the first 24 elements and all six noble gases are unchanged,
+   so the rows are the geometry's; 52 of the settled atoms change, every one from element 25 (the first d element) on,
+   and under the shell theorem p beats d; element 128's hold falls from 29.6 eV to 3.1 and the noble gases become the
+   hardest-held, as in ours. In every changed atom the law's own configuration is still lower under the law. *Open:*
+   33 atoms (38, 39, 41, 88–117) never settled in the first run; their re-search is queued (`lawtable-repair`). One of
+   their unsettled fillings, element 110 as 4f³² 5s² 5p⁸, is a closed shell: if it holds, the shell theorem splits row
+   6 and "the rows are the geometry's" needs a qualifier. *Ledger:* `geometry`, `reorders`, `law128`, `holdratio`;
+   figure 6.
+10. **Partial screening.** Outer electrons held a median 2.5 times harder than the shell theorem allows, from 1.06 to
+    9.6 times (element 128) across the settled atoms (*ledger* `holdratio`); the noble gases 1.09× (helium) to 2.90×
+    (138) (*ledger* `screening`).
 11. **Neutral atoms aren't silent.** An atom's far potential −Σ⟨r²⟩/8s³ (*ledger* `farpull`); between two atoms the
     permanent −3S_AS_B/64R⁵ (`js/forces.js`); what it means for the next papers: noble gases condense, molecules bind
     differently. *Selftest 8.*

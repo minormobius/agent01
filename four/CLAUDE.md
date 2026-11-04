@@ -314,7 +314,12 @@ for games, and this is a modelling programme with publications to come. The game
   the final orbitals. (2) In 4D the ion's leaked moment used the core's ⟨r²⟩ only, but norm conservation doesn't keep
   ⟨r²⟩: S = S_core + S_val(true) − S_val(pseudo) (Px 0.264 → 0.134), else α Z grows linearly with the integral's reach.
   Both are in selftest 66 (α Z settled past 25 bohr). θ − corundum at ×1.00, ecut 30: **+0.69** (from +1.53; PySCF same
-  functional +0.58, PBE +0.51). Queued: `pw-fixed` (aluminas at four scales, all Bl₂Px₃ candidates at Γ, top two at 4 k).
+  functional +0.58, PBE +0.51). **`pw-fixed` (all exit 0): corundum lowest and the order right, but against same-functional PySCF at ×1.00 θ is
+  +0.69 (PySCF +0.58, 0.11 off), the impostor +0.53 (+0.28, 0.26 off), poly6 +0.98 (+0.58, 0.40 off)**; all four cells
+  still falling at ×1.04 (minimum not bracketed). That misses the agreed 0.2 eV bar on two of three, so the stop-loss
+  applies: the Bl₂Px₃ candidate stays the ionic model's (density 3.57 × 10¹³ kg/m⁴) and the next step is its bands.
+  Bl₂Px₃ at Γ can't rank: going from 1 to 4 k moved z2-0 by 17.8 eV per formula, and z2-0 and z2-1 sit 0.09 eV
+  apart once k-sampled (the old 15 eV gap was the 4D ion-moment bug).
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
@@ -538,7 +543,11 @@ for games, and this is a modelling programme with publications to come. The game
   `papers/p1/laws.js` (no DOM, mirrored): one electron under any central V on a movable log grid (`levels`; Gauss's
   −α/r²: nothing binds below ½, ε ∝ 1/r₀² above; `shellSplit`: only 1/r keeps 2s with 2p). `atom/tools/lawtable.mjs
   shell <i> <m>` (runner, run `lawtable-shell`) solves every 4D element with the shell theorem forced on, seeded from
-  the real table's configurations, and `bake` writes `papers/p1/data/shelltable.json`. Ledger claims carry `part`
+  the real table's configurations, and `bake` writes `papers/p1/data/shelltable.json`. Result: 107 of 140 settled; the first 24 and all six noble gases unchanged
+  (rows are the geometry's), 52 changed from element 25 on (p beats d without the law), 128's hold 29.6 → 3.1 eV. 33
+  (38, 39, 41, 88–117) never settled (E null: `ground()`'s seeded search keeps E = ∞ when no field converges); `repair
+  <i> <m>` re-searches them from every configuration in reach with mixing 0.15 for 1500 iterations (run
+  `lawtable-repair`); then `bake` again. Count only rows with E ≠ null. Ledger claims carry `part`
   (law, table, consequence) and the process page groups them so. `bake.mjs`'s `element(Z, d, seeds, solver)` takes the
   scf options.
   **Figures and text are generated too.** `papers/p1/figures/make.mjs` draws the paper's figures (SVG, on

@@ -129,6 +129,50 @@
    ]
   },
   {
+   "id": "geometry",
+   "part": "consequence",
+   "claim": "The rows are the geometry's, not the law's: solved with the shell theorem forced on, the first 24 elements keep every configuration, and the noble gases close the same rows at 2, 12, 22, 50, 78 and 138",
+   "value": "with the shell theorem: 1–24 unchanged (all settled, all the same); noble gases 2 same, 12 same, 22 same, 50 same, 78 same, 138 same. 33 atoms not yet settled (38…117), so whether row 6 splits is open",
+   "holds": true,
+   "section": "9",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "reorders",
+   "part": "consequence",
+   "claim": "The law decides what fills inside the rows: of the atoms settled under both, every change of configuration begins at the first d element, and under the shell theorem p beats d (element 25 takes 4s² 4p¹ where the law gives 3d¹ 4s²)",
+   "value": "107 settled under the shell theorem; 52 differ, the first at 25; in every one the law's own configuration stays lower under the law (checked)",
+   "holds": true,
+   "section": "9",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "law128",
+   "part": "consequence",
+   "claim": "Element 128's hold on its outermost electron is the law's: with the shell theorem forced on it falls from the table's highest to a few volts, and the noble gases hold hardest, as ours do",
+   "value": "128: 3.10 eV with the shell theorem against 29.56 under the law; the shell theorem's five highest are 12, 22, 50, 78, 138",
+   "holds": true,
+   "section": "9",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "holdratio",
+   "part": "consequence",
+   "claim": "Across the table the law holds outer electrons about two and a half times harder than the shell theorem would, and up to ten times",
+   "value": "first ionization, the law over the shell theorem, 105 atoms past helium settled under both: median 2.52, from 1.06 to 9.55",
+   "holds": true,
+   "section": "10",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "screening",
    "part": "consequence",
    "claim": "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
@@ -230,8 +274,8 @@
   },
   {
    "path": "figures/6.svg",
-   "bytes": 6742,
-   "sha256": "69dc5b8afdddbb7c31e3c9edbb3eabe817ada203f135c004dcd855b0b8c6d9df"
+   "bytes": 54118,
+   "sha256": "e012d7786430f80fee60415569ee20af6c44738b9b5958c1847ea1d976e1ebf6"
   },
   {
    "path": "figures/A1.svg",
@@ -245,8 +289,8 @@
   },
   {
    "path": "figures/captions.json",
-   "bytes": 4090,
-   "sha256": "57b2c9aaae7744f1f68da5f75614b4c4ad79b1398409d2e3004d65d094451785"
+   "bytes": 4425,
+   "sha256": "5d8f72af63b655d021129eca8f4f316eeae9d790d7d960fa104b39b4b457518b"
   }
  ],
  "refs": {

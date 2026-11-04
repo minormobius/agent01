@@ -182,6 +182,25 @@ function ledger(t3, t4, files, refs) {
       value: `${hits} of ${t3.length}; missed ${misses.join(", ")} (one d electron too many against 4s: local exchange leans to d)`, holds: hits === 32, section: "4", gate: [6, 67] },
     { id: "ion3", part: "table", claim: "… and our first ionization energies to a few percent",
       value: `median error ${med.toFixed(1)} %, largest ${errs.at(-1).toFixed(1)} %`, holds: med < 6, section: "4", gate: [6] },
+    ...(() => { // the counterfactual table (data/shelltable.json, lawtable.mjs): only settled atoms count
+      const ST = JSON.parse(readFileSync(join(HERE, "data/shelltable.json"), "utf8")).rows, ok = ST.filter((r) => r.E !== null), uns = ST.filter((r) => r.E === null).map((r) => r.Z);
+      const diff = ok.filter((r) => !r.sameConfig), nobles = [2, 12, 22, 50, 78, 138], z128 = ST[127];
+      const both = ok.filter((r) => r.ion !== null && r.Z > 2).map((r) => t4[r.Z - 1].ion_hartree / r.ion).sort((x, y) => x - y);
+      return [
+        { id: "geometry", part: "consequence", claim: "The rows are the geometry's, not the law's: solved with the shell theorem forced on, the first 24 elements keep every configuration, and the noble gases close the same rows at 2, 12, 22, 50, 78 and 138",
+          value: `with the shell theorem: 1–24 unchanged (${ST.slice(0, 24).every((r) => r.E !== null && r.sameConfig) ? "all settled, all the same" : "not all"}); noble gases ${nobles.map((z) => `${z} ${ST[z - 1].E !== null && ST[z - 1].sameConfig ? "same" : "changed"}`).join(", ")}. ${uns.length} atoms not yet settled (${uns.length ? `${uns[0]}…${uns.at(-1)}` : ""}), so whether row 6 splits is open`,
+          holds: ST.slice(0, 24).every((r) => r.E !== null && r.sameConfig) && nobles.every((z) => ST[z - 1].E !== null && ST[z - 1].sameConfig), section: "9", gate: [67] },
+        { id: "reorders", part: "consequence", claim: "The law decides what fills inside the rows: of the atoms settled under both, every change of configuration begins at the first d element, and under the shell theorem p beats d (element 25 takes 4s² 4p¹ where the law gives 3d¹ 4s²)",
+          value: `${ok.length} settled under the shell theorem; ${diff.length} differ, the first at ${Math.min(...diff.map((r) => r.Z))}; in every one the law's own configuration stays lower under the law (${ok.every((r) => r.tableStillLower) ? "checked" : "NOT"})`,
+          holds: Math.min(...diff.map((r) => r.Z)) === 25 && ok.every((r) => r.tableStillLower) && /4p1$/.test(ST[24].config), section: "9", gate: [67] },
+        { id: "law128", part: "consequence", claim: "Element 128's hold on its outermost electron is the law's: with the shell theorem forced on it falls from the table's highest to a few volts, and the noble gases hold hardest, as ours do",
+          value: `128: ${(z128.ion * 27.211386).toFixed(2)} eV with the shell theorem against ${t4[127].ion_eV.toFixed(2)} under the law; the shell theorem's five highest are ${[...ok].filter((r) => r.ion !== null).sort((x, y) => y.ion - x.ion).slice(0, 5).map((r) => r.Z).join(", ")}`,
+          holds: z128.E !== null && z128.ion * 27.211386 < 10 && [...ok].filter((r) => r.ion !== null).sort((x, y) => y.ion - x.ion).slice(0, 5).map((r) => r.Z).sort((x, y) => x - y).join() === "12,22,50,78,138", section: "9", gate: [67] },
+        { id: "holdratio", part: "consequence", claim: "Across the table the law holds outer electrons about two and a half times harder than the shell theorem would, and up to ten times",
+          value: `first ionization, the law over the shell theorem, ${both.length} atoms past helium settled under both: median ${both[both.length >> 1].toFixed(2)}, from ${both[0].toFixed(2)} to ${both.at(-1).toFixed(2)}`,
+          holds: both[both.length >> 1] > 2 && both[both.length >> 1] < 3 && both.at(-1) > 9 && both[0] > 1, section: "10", gate: [67] },
+      ];
+    })(),
     { id: "screening", part: "consequence", claim: "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
       value: ratios.map((r) => `${r.Z}: ${r.ratio}×`).join(", "), holds: ratios.filter((r) => r.Z > 2).every((r) => r.ratio > 1.5), section: "6", gate: [8] },
     { id: "farpull", part: "consequence", claim: "A neutral atom pulls on a distant electron as −Σ⟨r²⟩/8s³",
