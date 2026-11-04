@@ -5798,6 +5798,21 @@
         "canvas",
         "math"
       ]
+    },
+    {
+      "n": "four-papers",
+      "u": "https://four.mino.mobi/papers/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-04",
+      "b": "2026-11-04",
+      "p": "four",
+      "surface": "four",
+      "d": "How a physics paper gets made, in the open: paper 1, a periodic table for four dimensions, from solver to bake to data. Its seven claims are recomputed from the baked table on every build, and a test fails the build if one stops holding. 21 references, each marked by how far it's been checked (Crossref corrected four). A reproduction anyone can run gets the same numbers to the last digit. Plus a journal of what happened and what's still to do before a word of prose.",
+      "tags": [
+        "math"
+      ]
     }
   ],
   "notListed": [

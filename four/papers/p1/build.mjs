@@ -3,12 +3,18 @@
      data/table3.json, data/table3.csv   the same solver in our three dimensions, Z = 1–36, beside the measured values
      data/README.md                      the schema
      figdata/f*.json                     each figure's data, as the figure script will draw it
+     ledger.json                         every claim the paper makes of the bake, its value recomputed now and whether it
+                                         holds; the data files' sizes and hashes; the references' tally. The process page
+                                         (four/papers/) renders it, and selftest 67 fails if any claim stops holding
    node four/papers/p1/build.mjs           write
    node four/papers/p1/build.mjs --check   exit 1 if anything on disk differs from what the bake gives */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TABLE, SHELL_COUNTERFACTUAL } from "../../atom/js/table.js";
+import { createHash } from "node:crypto";
+import { TABLE, SHELL_COUNTERFACTUAL, RPLOT } from "../../atom/js/table.js";
+import { subshells } from "../../atom/js/atom.js";
+import { farPull } from "./far.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout } from "../../atom/js/periodic.js";
 import { names } from "../../atom/js/names.js";
 
@@ -119,6 +125,45 @@ export function checkRefs(refs = JSON.parse(readFileSync(join(HERE, "refs.json")
   return { bad, refs, citable: new Set(refs.filter((r) => r.status === "read" || r.status === "index").map((r) => r.key)) };
 }
 
+/* Négadi & Kibler's generalized Madelung rule for D dimensions: subshells fill in order of n + l (then n), each holding
+   2 × (the number of D-dimensional harmonics of degree l), and a row closes after each p (and after 1s) */
+export function madelungRows(d, upto) {
+  const order = subshells(d).sort((a, b) => a.n + a.l - (b.n + b.l) || a.n - b.n), rows = []; let cur = 0, total = 0;
+  for (const s of order) { cur += s.cap; total += s.cap; if (s.l === 1 || s.name === "1s") { rows.push(cur); cur = 0; } if (total >= upto) break; }
+  return rows;
+}
+
+function ledger(t3, t4, files, refs) {
+  const { periods } = layout(TABLE, 4), rows = periods.map((p) => p.length), whole = rows.slice(0, -1), predicted = madelungRows(4, 140).slice(0, whole.length);
+  const nobles = t4.filter((r) => r.noble), nobleZ = nobles.map((r) => r.Z);
+  const peaks = nobles.every((r) => (r.Z === 1 || t4[r.Z - 2].ion_hartree < r.ion_hartree) && (r.Z === t4.length || t4[r.Z].ion_hartree < r.ion_hartree));
+  const hits = t3.filter((r) => r.config_match).length, misses = t3.filter((r) => !r.config_match).map((r) => r.symbol);
+  const errs = t3.map((r) => Math.abs(r.ion_error_pct)).sort((a, b) => a - b), med = errs[errs.length >> 1];
+  const ratios = nobles.map((r) => ({ Z: r.Z, ratio: +(r.ion_hartree / SHELL_COUNTERFACTUAL.find((c) => c.Z === r.Z).ion).toFixed(3) }));
+  const far = nobles.map((r) => { const f = farPull(TABLE[4][r.Z - 1], RPLOT); return { Z: r.Z, S: +f.S.toFixed(3), ratio30: +(f.U(30) / f.far(30)).toFixed(4) }; });
+  const h = t4[0].E_hartree, hExact = -1 / (2 * 1.5 ** 2);
+  const claims = [
+    { id: "rows", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",
+      value: `solved ${whole.join(", ")} (and ${rows.at(-1)} of the next by Z = 140); the rule ${predicted.join(", ")}`, holds: whole.join() === predicted.join() && whole.join() === "2,10,10,28,28,60", section: "5", gate: [7, 27, 67] },
+    { id: "nobles", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
+      value: `noble gases ${nobleZ.join(", ")}; each above both neighbours: ${peaks ? "yes" : "no"}`, holds: nobleZ.join() === "2,12,22,50,78,138" && peaks, section: "5", gate: [7, 27, 67] },
+    { id: "hydrogen", claim: "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
+      value: `${h} hartree against ${hExact.toFixed(5)}`, holds: Math.abs(h - hExact) < 1e-5, section: "4", gate: [1] },
+    { id: "configs3", claim: "The same solver in our three dimensions gets 32 of our 36 ground configurations",
+      value: `${hits} of ${t3.length}; missed ${misses.join(", ")} (one d electron too many against 4s: local exchange leans to d)`, holds: hits === 32, section: "4", gate: [6, 67] },
+    { id: "ion3", claim: "… and our first ionization energies to a few percent",
+      value: `median error ${med.toFixed(1)} %, largest ${errs.at(-1).toFixed(1)} %`, holds: med < 6, section: "4", gate: [6] },
+    { id: "screening", claim: "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
+      value: ratios.map((r) => `${r.Z}: ${r.ratio}×`).join(", "), holds: ratios.filter((r) => r.Z > 2).every((r) => r.ratio > 1.5), section: "6", gate: [8] },
+    { id: "farpull", claim: "A neutral atom pulls on a distant electron as −Σ⟨r²⟩/8s³",
+      value: `the full cloud over the far form at 30 bohr: ${far.map((f) => `${f.Z}: ${f.ratio30}`).join(", ")}`, holds: far.every((f) => Math.abs(f.ratio30 - 1) < 0.01), section: "6", gate: [8, 67] },
+  ];
+  const sha = (t) => createHash("sha256").update(t).digest("hex");
+  const data = [...files].map(([path, text]) => ({ path, bytes: Buffer.byteLength(text), sha256: sha(text) }));
+  const tally = {}; for (const r of refs) tally[r.status] = (tally[r.status] ?? 0) + 1;
+  return { about: "Generated by papers/p1/build.mjs from atom/js/table.js; do not edit. Each claim's value is recomputed from the bake on every build.", claims, data, refs: tally };
+}
+
 export function build() {
   const t3 = rows(3), t4 = rows(4), out = new Map();
   out.set("data/table4.json", JSON.stringify(t4, null, 1) + "\n");
@@ -127,7 +172,9 @@ export function build() {
   out.set("data/table3.csv", csv(t3));
   out.set("data/README.md", SCHEMA(t3, t4));
   for (const [k, v] of Object.entries(figures(t3, t4))) out.set(`figdata/${k}.json`, JSON.stringify(v, null, 1) + "\n");
-  return { files: out, t3, t4 };
+  const L = ledger(t3, t4, out, checkRefs().refs);
+  out.set("ledger.json", JSON.stringify(L, null, 1) + "\n");
+  return { files: out, t3, t4, ledger: L };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

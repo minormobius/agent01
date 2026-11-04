@@ -2,7 +2,7 @@
    (solve.js, on atom/js/atom.js). Far pull: the potential of a neutral 4D atom's baked cloud (table.js's radial
    density) under the 3-sphere kernel, against its far form −S/8s³. Both read the paper's bake; neither changes it. */
 import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "../../../atom/js/table.js";
-import { k4 } from "../../../atom/js/kernel.js";
+import { farPull } from "../far.js";
 import { isNoble } from "../../../atom/js/periodic.js";
 import { names } from "../../../atom/js/names.js";
 
@@ -78,21 +78,14 @@ function drawNoble() {
 
 /* -------------------------------------------------------------------------------------------------- 2 · far pull */
 const S_MIN = 1, S_MAX = 100, sAt = (u) => S_MIN * (S_MAX / S_MIN) ** u;
-/* an electron's energy at distance s from the neutral atom: −(Z/s − ∫ρ(r) k(min/max)/max dr). The baked density
-   starts at 0.02 bohr; whatever charge lies inside that (the heavy atoms' 1s) is put at the centre, where it acts as
-   a point charge to well below the far form's accuracy. It ends at 20 bohr, so beyond the cloud's edge only */
-function farPull(Z) {
-  const el = T4[Z - 1], r = RPLOT, q = el.dens; let n = 0;
-  for (let i = 1; i < r.length; i++) n += 0.5 * (r[i] - r[i - 1]) * (q[i] + q[i - 1]);
-  const S = el.orb.reduce((a, o) => a + o.o * o.r2, 0), inner = Z - n;
-  const U = (s) => { let v = (Z - inner) / s; for (let i = 1; i < r.length; i++) { const f = (j) => { const a = Math.min(r[j], s), b = Math.max(r[j], s); return (q[j] * k4(a / b)) / b; }; v -= 0.5 * (r[i] - r[i - 1]) * (f(i) + f(i - 1)); } return -v; };
-  const pts = Array.from({ length: 60 }, (_, i) => sAt(i / 59)).map((s) => [s, U(s)]);
-  return { S, U, pts };
+function farCurve(Z) {
+  const { S, U } = farPull(T4[Z - 1], RPLOT);
+  return { S, U, pts: Array.from({ length: 60 }, (_, i) => sAt(i / 59)).map((s) => [s, U(s)]) };
 }
 let FP = null;
 function drawFar() {
   const Z = +$("fz").value, s = sAt(+$("fs").value); $("fzv").textContent = label(Z); $("fsv").textContent = `${s.toFixed(1)} bohr`;
-  if (!FP || FP.Z !== Z) FP = { Z, ...farPull(Z) };
+  if (!FP || FP.Z !== Z) FP = { Z, ...farCurve(Z) };
   const far = (x) => FP.S / (8 * x ** 3), u = FP.U(s);
   $("uFull").textContent = `${u.toExponential(3)} Ha`; $("uFar").textContent = `${(-far(s)).toExponential(3)} Ha`; $("sv").textContent = `${FP.S.toFixed(2)} bohr²`;
   const abs = FP.pts.map(([x, v]) => [x, Math.abs(v)]), ymin = Math.max(1e-9, far(S_MAX) / 3);

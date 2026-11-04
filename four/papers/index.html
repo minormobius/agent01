@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="How a physics paper gets made, in the open: paper 1, a periodic table for four dimensions, from solver to bake to data, every claim recomputed from the numbers on each build, the references checked one by one, a reproduction anyone can run, and a journal of what happened." />
+<title>Four · how a paper gets made</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section { max-width: 900px; }
+  .step { border-top: 1px solid var(--border); padding-top: 6px; margin-top: 32px; }
+  .step h3 { margin: 10px 0 6px; }
+  .mono { font-family: var(--mono); }
+  .chip { display: inline-block; font: 600 10px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--border); border-radius: 999px; padding: 4px 8px; color: var(--dim); white-space: nowrap; }
+  .chip.built, .chip.done, .chip.read, .chip.holds { color: var(--d4); border-color: var(--d4); }
+  .chip.index { color: var(--d4); border-color: rgba(111,224,255,.45); }
+  .chip.waiting, .chip.partly, .chip.open, .chip.cited { color: var(--d3); border-color: var(--d3); }
+  .chip.memory, .chip.broken { color: #ff7a7a; border-color: #ff7a7a; }
+  .byline { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 10px 0 4px; }
+  .byline div { font: 13px/1.4 var(--sans); } .byline b { font: 700 14px var(--mono); color: var(--text); display: block; } .byline span { color: var(--dim); font-size: 12px; }
+  .note { font: 12px/1.55 var(--mono); color: var(--dim); }
+  .pipe { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; counter-reset: st; margin: 10px 0; }
+  .node { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; position: relative; counter-increment: st; }
+  .node.built { border-color: rgba(111,224,255,.5); }
+  .node h4 { margin: 0 0 4px; font: 700 13px var(--mono); display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .node h4::before { content: counter(st) " · "; color: var(--dim); font-weight: 400; margin-right: -4px; }
+  .node h4 span.t { flex: 1; }
+  .node p { margin: 4px 0; font-size: 13px; line-height: 1.45; }
+  .node code { font: 11px var(--mono); color: var(--dim); word-break: break-word; }
+  .claims { display: grid; gap: 8px; margin: 10px 0; }
+  .claim { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--d4); border-radius: 8px; padding: 10px 12px; }
+  .claim.no { border-left-color: #ff7a7a; }
+  .claim .c { font-size: 14px; } .claim .v { font: 12px/1.5 var(--mono); color: var(--text); margin-top: 4px; } .claim .m { font: 11px var(--mono); color: var(--dim); margin-top: 4px; }
+  .tally { display: flex; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); margin: 8px 0 4px; }
+  .tally i { display: block; height: 100%; }
+  .refs { list-style: none; padding: 0; margin: 8px 0; }
+  .refs li { padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.45; display: grid; grid-template-columns: 74px 1fr; gap: 10px; }
+  .refs li .r { color: var(--dim); font: 11px var(--mono); }
+  .refs a, .files a, .more a, .journal a { color: var(--text); }
+  .files { width: 100%; border-collapse: collapse; font: 12px var(--mono); margin: 8px 0; }
+  .files td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--border); vertical-align: top; } .files td.n { text-align: right; color: var(--dim); white-space: nowrap; } .files td.h { color: var(--dim); word-break: break-all; }
+  pre.cmd { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font: 12px/1.6 var(--mono); overflow-x: auto; margin: 8px 0; }
+  .check { list-style: none; padding: 0; margin: 8px 0; } .check li { display: grid; grid-template-columns: 74px 1fr; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.45; }
+  .journal { list-style: none; padding: 0; margin: 8px 0; border-left: 1px solid var(--border); }
+  .journal li { position: relative; padding: 0 0 14px 16px; font-size: 14px; line-height: 1.5; }
+  .journal li::before { content: ""; position: absolute; left: -4px; top: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--d4); }
+  .journal time { display: block; font: 11px var(--mono); color: var(--dim); }
+  @media (max-width: 560px) { .refs li, .check li { grid-template-columns: 1fr; gap: 2px; } .files td.h { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../start/">where we are</a><a href="../table/">the table</a><a href="../fields/">fields</a><a href="../atom/">ATOM⁴</a><a href="./" class="here">papers</a></nav>
+  <h2>four.mino.mobi · papers</h2>
+  <h1 class="ch">How a paper gets made</h1>
+  <p class="lede">Paper 1, being written in the open. Everything below is read from the paper's own files as they stand: the claims' values are recomputed from the baked table on every build, and a test fails the build if any claim stops holding. Nothing here is a description of the work written after the fact.</p>
+  <div id="paper"></div>
+</header>
+
+<section class="step" id="rule">
+  <h3>The rule</h3>
+  <p>A number in the paper is never typed. It's read from a file the solver baked, and a test checks it against that file. The claims, the figures and eventually the text are generated, so the prose can't drift from the numbers. References are cited only once their details have been confirmed from the source or an index; seen-in-passing doesn't count. Anyone can solve the atoms again and get the same numbers to the last digit.</p>
+</section>
+
+<section class="step" id="pipeline">
+  <h3>The pipeline</h3>
+  <p class="note">From solver to PDF. Each stage's status is kept in <a href="p1/process.json" style="color:var(--text)">process.json</a>.</p>
+  <div class="pipe" id="flow"></div>
+</section>
+
+<section class="step" id="ledger">
+  <h3>The claims, checked now</h3>
+  <p class="note" id="ledgerNote"></p>
+  <div class="claims" id="claims"></div>
+</section>
+
+<section class="step" id="references">
+  <h3>The references</h3>
+  <p class="note">Each source marked by how far it has been checked: <span class="chip read">read</span> the source itself, <span class="chip index">index</span> its details confirmed from a publisher's or index's record, <span class="chip cited">cited</span> only seen cited in another work, <span class="chip memory">memory</span> not yet looked up. Only read and index may be cited.</p>
+  <div class="tally" id="tally"></div><p class="note" id="tallyNote"></p>
+  <ul class="refs" id="refs"></ul>
+</section>
+
+<section class="step" id="data">
+  <h3>The data</h3>
+  <p class="note">Generated from the bake by <code>papers/p1/build.mjs</code>; the field guide is <a href="p1/data/README.md" style="color:var(--text)">data/README.md</a>. Hashes are SHA-256 of the files as served.</p>
+  <table class="files" id="files"></table>
+</section>
+
+<section class="step" id="reproduce">
+  <h3>Solve it again</h3>
+  <p>The reproduction re-solves the paper's atoms with the same function that baked them and compares, configuration exactly and energies to 10⁻⁴ hartree. It ships with the solvers in the open mirror (MIT), and the mirror's workflow runs the sample on every change.</p>
+  <pre class="cmd">node papers/p1/reproduce.mjs                 # a sample: each 4D row's first, second and noble gas, and six of ours
+node papers/p1/reproduce.mjs --z4=78,138     # chosen 4D elements
+node papers/p1/reproduce.mjs --all           # all 176 (hours on one machine)</pre>
+  <p class="note">Last run: 14 of 14 reproduced to the bit, 18 s on four cores (2026-11-04).</p>
+</section>
+
+<section class="step" id="checklist">
+  <h3>Before a word of prose</h3>
+  <ul class="check" id="check"></ul>
+</section>
+
+<section class="step" id="journal">
+  <h3>Journal</h3>
+  <ul class="journal" id="jrnl"></ul>
+</section>
+
+<section class="step" id="more">
+  <h3>More</h3>
+  <p class="more"><a href="p1/OUTLINE.md">The outline and figure plan</a> · <a href="p1/widgets/">the widgets</a> · <a href="../table/">the table itself</a> · <a href="../atom/LITERATURE.md">the literature register</a> · <a href="https://github.com/minormobius/agent01/tree/main/four">the code</a></p>
+</section>
+
+<script type="module" src="process.js"></script>
+</body>
+</html>
