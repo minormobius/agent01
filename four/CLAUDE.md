@@ -306,6 +306,15 @@ for games, and this is a modelling programme with publications to come. The game
   suspects, queued as `xc-and-4dk`: the book's functional (exchange only, no correlation: PySCF with exchange-only LDA
   and with full LDA on the same four cells), and for Bl₂Px₃, whose two best cells sat 15 eV per formula apart at Γ
   (z2-1 − z2-0 converged in ecut by 25: +15.8 default, +15.1 soft), sampling (4 shifted k).
+  **`xc-and-4dk` (all exit 0): PySCF with the book's own functional (exchange-only LDA) gives θ +0.58, impostor +0.28,
+  poly6 +0.58 at ×1.00 — close to PBE — so the functional wasn't it**; Bl₂Px₃'s gap held at 4 k (+13.6). **The cause, two
+  bugs in pseudo.js:** (1) `aeAtom` stopped on its eigenvalues while the far tail of the mixed density was still 6× off
+  the orbitals' (at 20 bohr), and exchange (∝ ρ^(1/d)) carried that into V; the descreened ion then had a tail that
+  skewed α Z (O 0.78 → 1.42, Al +0.9) — exactly a 1/V error. Now converged on the density pointwise, with V rebuilt from
+  the final orbitals. (2) In 4D the ion's leaked moment used the core's ⟨r²⟩ only, but norm conservation doesn't keep
+  ⟨r²⟩: S = S_core + S_val(true) − S_val(pseudo) (Px 0.264 → 0.134), else α Z grows linearly with the integral's reach.
+  Both are in selftest 66 (α Z settled past 25 bohr). θ − corundum at ×1.00, ecut 30: **+0.69** (from +1.53; PySCF same
+  functional +0.58, PBE +0.51). Queued: `pw-fixed` (aluminas at four scales, all Bl₂Px₃ candidates at Γ, top two at 4 k).
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

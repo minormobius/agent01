@@ -21,16 +21,21 @@ export const occOf = (d, spec) => { const sh = subshells(d), o = sh.map(() => 0)
 const toRho = (Q, d) => Float64Array.from(Q, (q, j) => q / (H * R[j] * SPHERE[d] * R[j] ** (d - 1)));
 
 /* the all-electron atom with plain local exchange: { V (total potential), es, qs (u² dr per grid point), rho } */
-export function aeAtom(Z, spec, d, { iters = 300, mix = 0.3, tol = 1e-10 } = {}) {
+export function aeAtom(Z, spec, d, { iters = 600, mix = 0.3, tol = 1e-10 } = {}) {
   const sh = subshells(d), occ = occOf(d, spec), live = sh.map((_, i) => i).filter((i) => occ[i] > 0), K = kernel(d);
   let Q = null, V = Float64Array.from(R, (r) => -Z / r), es = sh.map(() => 0), qs = sh.map(() => null), last = Infinity;
+  const solveAll = () => { for (const i of live) { const s = solve(V, sh[i].l, sh[i].n - sh[i].l - 1, d); es[i] = s.e; qs[i] = s.q; } const Qn = new Float64Array(N); for (const i of live) for (let j = 0; j < N; j++) Qn[j] += occ[i] * qs[i][j]; return Qn; };
+  const potOf = (Qx) => { const VH = hartree(K, Qx), rho = toRho(Qx, d); return Float64Array.from(R, (r, j) => -Z / r + VH[j] + vx(rho[j], d)); };
   for (let it = 0; it < iters; it++) {
-    for (const i of live) { const s = solve(V, sh[i].l, sh[i].n - sh[i].l - 1, d); es[i] = s.e; qs[i] = s.q; }
-    const Qn = new Float64Array(N); for (const i of live) for (let j = 0; j < N; j++) Qn[j] += occ[i] * qs[i][j];
-    Q = Q ? Float64Array.from(Q, (q, j) => (1 - mix) * q + mix * Qn[j]) : Qn;
-    const VH = hartree(K, Q), rho = toRho(Q, d); V = Float64Array.from(R, (r, j) => -Z / r + VH[j] + vx(rho[j], d));
-    const s = live.reduce((t, i) => t + es[i], 0); if (Math.abs(s - last) < tol) break; last = s;
+    const Qn = solveAll();
+    // converged on the density itself, relative at every point (the far tail too), not just on the eigenvalues: the
+    // pseudopotential's descreening cancels the exchange tail only if the potential and the orbitals' density agree there
+    let dq = 0; if (Q) for (let j = 0; j < N; j++) if (Qn[j] > 1e-30) dq = Math.max(dq, Math.abs(Qn[j] - Q[j]) / (Qn[j] + 1e-14));
+    Q = Q ? Float64Array.from(Q, (q, j) => (1 - mix) * q + mix * Qn[j]) : Qn; V = potOf(Q);
+    const sum = live.reduce((t, i) => t + es[i], 0); if (Math.abs(sum - last) < tol && dq < 1e-8) break; last = sum;
   }
+  // the potential from the orbitals' own density, and the orbitals once more in it
+  V = potOf(solveAll()); Q = solveAll(); V = potOf(Q);
   return { Z, d, V, es, qs, occ, sh, Q, rho: toRho(Q, d) };
 }
 /* a radial solve for any potential (no Coulomb point at the origin): js/atom.js's Numerov with the energy bracket set
@@ -113,8 +118,12 @@ export function makePseudo({ Z, d, core, valence, rc, local, nlcc = false }) {
   const Qc = new Float64Array(N); for (const [name] of Object.entries(core)) { const i = sh.findIndex((s) => s.name === name); for (let j = 0; j < N; j++) Qc[j] += ae.occ[i] * ae.qs[i][j]; }
   const pc = nlcc ? partialCore(toRho(Qc, d), rhov) : { r0: 0, rho: new Float64Array(N) };
   for (const ch of Object.values(chans)) ch.Vion = Float64Array.from(ch.Vscr, (v, j) => v - VHv[j] - vx(rhov[j] + pc.rho[j], d));
-  // the core's moments (its leaked field in 4D)
-  let S = 0, T = 0; for (const [name] of Object.entries(core)) { const i = sh.findIndex((s) => s.name === name); for (let j = 0; j < N; j++) { S += ae.occ[i] * ae.qs[i][j] * R[j] ** 2; T += ae.occ[i] * ae.qs[i][j] * R[j] ** 4; } }
+  // the pseudo-ion's moments, its leaked field in 4D: the core's, plus what the pseudo-valence lacks of the true one's.
+  // Norm conservation keeps each orbital's charge inside rc but not its ⟨r²⟩, so the ion (everything the plane waves don't
+  // carry) is the nucleus, the core and that difference: S = S_core + S_val(true) − S_val(pseudo), and T likewise
+  let S = 0, T = 0; const mom = (q, w) => { for (let j = 0; j < N; j++) { S += w * q[j] * R[j] ** 2; T += w * q[j] * R[j] ** 4; } };
+  for (const [name] of Object.entries(core)) { const i = sh.findIndex((s) => s.name === name); mom(ae.qs[i], ae.occ[i]); }
+  for (const ch of Object.values(chans)) { const i = sh.findIndex((s) => s.name === ch.name); mom(ae.qs[i], ch.occ); mom(Float64Array.from(ch.u, (v, j) => v * v * R[j] * H), -ch.occ); }
   const loc = chans[local], Vloc = loc.Vion;
   const proj = Object.values(chans).filter((ch) => ch.l !== local).map((ch) => { const dV = Float64Array.from(ch.Vion, (v, j) => v - Vloc[j]);
     let den = 0; for (let j = 0; j < N; j++) den += ch.u[j] * dV[j] * ch.u[j] * R[j] * H; // ⟨φ|δV|φ⟩ (u = r^((d−1)/2) R, so ∫ u² dr is the norm)

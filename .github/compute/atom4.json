@@ -1,66 +1,132 @@
 {
- "run": "xc-and-4dk",
- "why": "(1) Is the plane-wave code's excess over PBE on the aluminas (θ +1.50, impostor +1.59, poly6 +0.66 against +0.50, +0.15, +0.38 eV per formula) the book's functional? PySCF with exchange-only LDA (the book's) and with full LDA on the same four cells. (2) Is Bl₂Px₃'s 15 eV gap at Γ a sampling artefact? Its two best cells at 4 shifted k (soft set, ecut 20). The plane-wave electrostatics are verified exact in both worlds, 4D leaking cores included.",
+ "run": "pw-fixed",
+ "why": "Two pseudopotential bugs found and fixed: the all-electron atom's far density wasn't converged (exchange left a tail that skewed α Z by ~1 Ha·bohr³ per ion, a 1/V error), and in 4D the ion's leaked moment missed the pseudo-valence's ⟨r²⟩ deficit (α Z grew without bound). θ − corundum went from +1.53 to +0.69 eV per formula (PySCF with the same functional +0.58). Now: the four aluminas at four scales, ecut 40; all eight Bl₂Px₃ candidates at Γ (soft, ecut 25); the top two at 4 shifted k.",
  "minutes": 330,
  "groups": [
   {
-   "name": "py-slater-corundum",
+   "name": "fx-corundum-0.98",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 slater"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 0.98 40 a18s 4"
    ]
   },
   {
-   "name": "py-slater-theta",
+   "name": "fx-corundum-1.00",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.00 4 slater"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18s 4"
    ]
   },
   {
-   "name": "py-slater-impostor",
+   "name": "fx-corundum-1.02",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.00 4 slater"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.02 40 a18s 4"
    ]
   },
   {
-   "name": "py-slater-poly6",
+   "name": "fx-corundum-1.04",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4 slater"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.04 40 a18s 4"
    ]
   },
   {
-   "name": "py-lda-corundum",
+   "name": "fx-theta-0.98",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 lda"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 0.98 40 a18s 4"
    ]
   },
   {
-   "name": "py-lda-theta",
+   "name": "fx-theta-1.00",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 theta 1.00 4 lda"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.00 40 a18s 4"
    ]
   },
   {
-   "name": "py-lda-impostor",
+   "name": "fx-theta-1.02",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 impostor 1.00 4 lda"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.02 40 a18s 4"
    ]
   },
   {
-   "name": "py-lda-poly6",
+   "name": "fx-theta-1.04",
    "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 poly6 1.00 4 lda"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.04 40 a18s 4"
    ]
   },
   {
-   "name": "bp-k-z2-0",
+   "name": "fx-impostor-0.98",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 20 a10s 4 soft"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 0.98 40 a18s 4"
    ]
   },
   {
-   "name": "bp-k-z2-1",
+   "name": "fx-impostor-1.00",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 20 a10s 4 soft"
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.00 40 a18s 4"
+   ]
+  },
+  {
+   "name": "fx-impostor-1.02",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.02 40 a18s 4"
+   ]
+  },
+  {
+   "name": "fx-impostor-1.04",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.04 40 a18s 4"
+   ]
+  },
+  {
+   "name": "fx-poly6-0.98",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 0.98 40 a18s 4"
+   ]
+  },
+  {
+   "name": "fx-poly6-1.00",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.00 40 a18s 4"
+   ]
+  },
+  {
+   "name": "fx-poly6-1.02",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.02 40 a18s 4"
+   ]
+  },
+  {
+   "name": "fx-poly6-1.04",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.04 40 a18s 4"
+   ]
+  },
+  {
+   "name": "bp-g0",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-2 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-3 1.00 25 1 1 soft"
+   ]
+  },
+  {
+   "name": "bp-g1",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-4 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-5 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z4-2 1.00 25 1 1 soft",
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z4-3 1.00 25 1 1 soft"
+   ]
+  },
+  {
+   "name": "bp-k4-z2-0",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 a10s 4 soft"
+   ]
+  },
+  {
+   "name": "bp-k4-z2-1",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a10s 4 soft"
    ]
   }
  ]
