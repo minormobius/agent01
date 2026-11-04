@@ -4,6 +4,18 @@ Two liquids un-mixing, in 3D and in 4D side by side, by the same equations on th
 the whole 3D box, 32³ cells. On the right is your 3D slice of the 4D box, 32⁴ cells. Teal is one liquid, drawn solid;
 the other is clear.
 
+## The liquids
+
+**Every preset uses the same pair, A (teal, drawn solid) and B (clear), and they're immiscible**, like oil and water.
+Their free energy has two wells, at pure A and pure B. A 50/50 mixture can't last, and across a flat interface neither
+dissolves in the other at all. The **miscible** preset is the contrast: the same two made to mix (one well, at the
+mixture: above their critical temperature). Its uneven start just smooths out.
+
+**Solubility only comes from curvature.** A droplet's surface squeezes it, and the squeeze pushes a trace of its liquid
+out into the liquid around it. The smaller the droplet, the more (Gibbs–Thomson). So a droplet of A is in **balance**
+with B holding a certain fraction of A dissolved, set by its radius. If the liquid holds more, the droplet grows; if
+less, it dissolves. `need(D, R)` computes it. At R = 7 it's 3.8% in 3D and 6.1% in 4D.
+
 ## What it shows
 
 Most of what phase separation does **doesn't depend on dimension**. Two things do, and both are about curvature.
@@ -13,7 +25,8 @@ Most of what phase separation does **doesn't depend on dimension**. Two things d
 | **un-mix** | a 50/50 mixture separates and coarsens | domains grow at the same rate in both (as t^⅓), and at the same domain size they carry the **same** interface per volume (~1.9/L) with ~29% of the material in interfaces. Dimension doesn't change these |
 | **emulsion** | a quarter of one liquid in the other | ours **breaks into pieces** as it coarsens (2–4 pieces, its largest down to 60–70% of it, between t ≈ 200 and 450); in 4D it stays **one connected network** throughout. In a box this small both end as one piece once the domains reach the box's size |
 | **droplet** | one droplet settling to equilibrium | the droplet's own squeeze, μR/σ (Gibbs–Thomson), is **1 in 3D and 3/2 in 4D**: its surface curves two ways in 3D and three in 4D. Measured: 0.99 and 1.45 |
-| **nucleus** | the same R = 7 droplet in the same over-saturated liquid | it **grows** in 3D and **dissolves** in 4D. The critical radius R* = (d − 1)σ / (Δφ μ) is 5.5 in 3D and 8.3 in 4D |
+| **miscible** | the same 50/50 start with a pair that mixes | it smooths out to one liquid, in both |
+| **nucleus** | the same R = 7 droplet of A in the same B, which holds 5.0% A dissolved | the balance at R = 7 is 3.8% in 3D (less than 5.0%: it **grows**, drawing the liquid down toward its balance) and 6.1% in 4D (more: it **dissolves**). The critical radius, where the balance is 5.0%, is 5.5 in 3D and 8.3 in 4D. The end is sudden, and really is: as it shrinks its balance rises, so it dissolves faster and faster |
 
 **What "surface-dominated" means here.** At the same domain size the interface per volume is the same in 3D and 4D;
 the measurements say so. What is stronger in 4D is the **curvature**: a ball's surface curves in d − 1 directions, so at
@@ -58,7 +71,9 @@ measure. That same over-saturation (μ = 0.171) sets the critical radii.
 - **the fraction in interfaces**, the share of cells with |φ| < 0.6;
 - **pieces**, by union–find over face neighbours, periodic;
 - **μ** in the liquid far from any interface;
-- **a droplet's radius**, as the radius of a ball of its cell count.
+- **a droplet's radius**, as the radius of a ball holding the A it has above the liquid around it. This shrinks smoothly
+  to nothing; counting the cells more than half A would drop to zero the moment the centre fell below one half;
+- **the A dissolved** in B, far from any interface, against the balance the droplet needs at its radius.
 
 ## Not yet
 
@@ -74,9 +89,13 @@ node kata/phase/test/phase.selftest.mjs   # ~2 min: the 4D runs are a million ce
 ```
 
 It checks:
+- **The pair.** From the same uneven 50/50 start, the miscible pair smooths out (rms < 0.01) while the immiscible pair
+  separates (rms > 0.6: the rest is the interfaces, where φ passes through 0), in both dimensions. The balance at a flat interface is zero, and at R = 7 it's 3.79% (3D) and
+  6.13% (4D).
 - **The solver.** The batched FFT matches WAVELAB's. Each liquid's amount is conserved, and the free energy never rises.
   A flat interface carries σ = 2√2/3 in both dimensions (0.9424 against 0.9428).
-- **The droplet.** μR/σ within 5% of 1 in 3D (0.990) and within 0.1 of 1.5 in 4D (1.448).
-- **The nucleus.** R = 7 grows in 3D (to 7.73) and is gone by t = 1000 in 4D.
+- **The droplet.** μR/σ within 5% of 1 in 3D (0.990, t 800) and within 0.1 of 1.5 in 4D (1.44, t 400: settled by t 200).
+- **The nucleus.** R = 7 grows in 3D, drawing the liquid down to about its balance. In 4D, by t = 400, it's below R = 6.5
+  and the liquid holds less A than its radius needs: dissolving.
 - **The emulsion.** For two seeds, at t = 200, 300 and 400, 3D's largest piece falls below 80% of the minority (to
   61–69%), while 4D is one piece every time.

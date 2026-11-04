@@ -13,7 +13,7 @@ const VS = `#version 300 es
 in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
 const FS = `#version 300 es
 precision highp float; precision highp sampler3D;
-uniform sampler3D uF3, uF4; uniform vec4 uVP3, uVP4; uniform vec3 uEye, uCR, uCU, uCF; uniform float uTan;
+uniform sampler3D uF3, uF4; uniform vec4 uVP3, uVP4; uniform vec3 uEye, uCR, uCU, uCF; uniform float uTan, uIso, uTint;
 out vec4 o;
 // the box is [−1, 1]³; a texture coordinate is (p + 1)/2
 float phiAt(sampler3D s, vec3 p) { return texture(s, p * 0.5 + 0.5).r; }
@@ -29,7 +29,7 @@ vec3 shade(sampler3D s, vec4 vp, vec2 fc) {
   vec3 L = normalize(vec3(0.4, 0.8, -0.3));
   // entering the box inside the + liquid: a cut face, flat, with its face's normal
   vec3 pa = uEye + d * a; float fa = phiAt(s, pa);
-  if (fa > 0.0) {
+  if (fa > uIso) {
     vec3 n = vec3(0.0); vec3 ap = abs(pa); if (ap.x > ap.y && ap.x > ap.z) n.x = sign(pa.x); else if (ap.y > ap.z) n.y = sign(pa.y); else n.z = sign(pa.z);
     return vec3(0.1, 0.55, 0.52) * (0.55 + 0.45 * max(dot(n, L), 0.0)) * (0.8 + 0.2 * clamp(fa, 0.0, 1.0));
   }
@@ -38,9 +38,9 @@ vec3 shade(sampler3D s, vec4 vp, vec2 fc) {
   for (int i = 0; i < 200; i++) {
     t += st; if (t > b) break;
     float f = phiAt(s, uEye + d * t);
-    if (f > 0.0) {
+    if (f > uIso) {
       float lo = t - st, hi = t;
-      for (int k = 0; k < 6; k++) { float m = 0.5 * (lo + hi); if (phiAt(s, uEye + d * m) > 0.0) hi = m; else lo = m; }
+      for (int k = 0; k < 6; k++) { float m = 0.5 * (lo + hi); if (phiAt(s, uEye + d * m) > uIso) hi = m; else lo = m; }
       vec3 p = uEye + d * hi; const float e = 1.0 / 32.0;
       vec3 n = -normalize(vec3(phiAt(s, p + vec3(e, 0, 0)) - phiAt(s, p - vec3(e, 0, 0)), phiAt(s, p + vec3(0, e, 0)) - phiAt(s, p - vec3(0, e, 0)), phiAt(s, p + vec3(0, 0, e)) - phiAt(s, p - vec3(0, 0, e))));
       float lam = max(dot(n, L), 0.0), rim = pow(1.0 - abs(dot(n, d)), 3.0), sp = pow(max(dot(reflect(d, n), L), 0.0), 24.0);
@@ -50,7 +50,7 @@ vec3 shade(sampler3D s, vec4 vp, vec2 fc) {
     fog = min(0.35, fog + 0.004);
     prev = f;
   }
-  return mix(c, vec3(0.45, 0.16, 0.28), 0.25 + fog);
+  return mix(c, mix(vec3(0.45, 0.16, 0.28), vec3(0.32, 0.4, 0.5), uTint), 0.25 + fog);
 }
 void main() {
   vec2 fc = gl_FragCoord.xy; vec3 c;
@@ -64,7 +64,7 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aPos = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-const U = {}; for (const n of ["uF3", "uF4", "uVP3", "uVP4", "uEye", "uCR", "uCU", "uCF", "uTan"]) U[n] = gl.getUniformLocation(prog, n);
+const U = {}; for (const n of ["uF3", "uF4", "uVP3", "uVP4", "uEye", "uCR", "uCU", "uCF", "uTan", "uIso", "uTint"]) U[n] = gl.getUniformLocation(prog, n);
 /* two 32³ half-float textures (half floats filter linearly everywhere WebGL2 runs; 32-bit floats don't on every phone),
    wrapping, so the periodic box interpolates across its edges */
 const texs = [0, 1].map((unitI) => {
@@ -74,6 +74,10 @@ const texs = [0, 1].map((unitI) => {
   return t;
 });
 gl.uniform1i(U.uF3, 0); gl.uniform1i(U.uF4, 1);
+/* what's drawn solid: A where φ > 0, the middle of an interface (the immiscible pair); for the miscible pair, only where
+   it's A-rich (φ > 0.2), the rest tinted as the mixture it is: a 50/50 mix sits at φ ≈ 0 everywhere, and an
+   isosurface at 0 would draw its last ripples as if it had separated */
+function look(p) { gl.uniform1f(U.uIso, p === "mixable" ? 0.2 : 0); gl.uniform1f(U.uTint, p === "mixable" ? 1 : 0); }
 function upload(i, field) { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_3D, texs[i]); gl.texSubImage3D(gl.TEXTURE_3D, 0, 0, 0, 0, N, N, N, gl.RED, gl.FLOAT, field); }
 
 /* ------------------------------------------------------------------ the runs */
@@ -83,7 +87,7 @@ const S = { 3: null, 4: null }, hist = { 3: [], 4: [] }, gens = { 3: 0, 4: 0 };
 for (const D of [3, 4]) W[D].onmessage = (e) => {
   const m = e.data; if (m.gen !== gens[D]) return;
   upload(D - 3, m.field); S[D] = m.stats; if (D === 4) W[3].postMessage({ type: "cap", t: m.stats.t + 1e-9 });
-  const h = hist[D]; if (!h.length || m.stats.t > h[h.length - 1].t + 1e-9) h.push({ t: m.stats.t, L: m.stats.L, largest: m.stats.largest, pieces: m.stats.pieces, mu: m.stats.mu, radii: m.stats.radii });
+  const h = hist[D]; if (!h.length || m.stats.t > h[h.length - 1].t + 1e-9) h.push({ t: m.stats.t, rms: m.stats.rms, L: m.stats.L, largest: m.stats.largest, pieces: m.stats.pieces, mu: m.stats.mu, radii: m.stats.radii });
 };
 function start() { for (const D of [3, 4]) { gens[D]++; hist[D] = []; S[D] = null; W[D].postMessage({ type: "start", D, preset: sel.preset, seed: sel.seed }); W[D].postMessage({ type: "run", v: !sel.paused }); } sendSlice(); }
 
@@ -102,15 +106,17 @@ const view = { az: 0.75, el: 0.42, dist: 4.4 };
 function camera() { const { az, el, dist } = view, eye = [-dist * Math.cos(el) * Math.sin(az), dist * Math.sin(el), -dist * Math.cos(el) * Math.cos(az)], F = unit(eye.map((x) => -x)), R = unit([F[2], 0, -F[0]]); return { eye, F, R, U: cross(F, R) }; }
 
 /* ------------------------------------------------------------------ captions */
+const PAIR = `<span class="pair">liquids A (teal, drawn solid) and B (clear): <b>immiscible</b>, like oil and water</span>`;
 const CAPS = {
-  unmix: `<b>Un-mixing, 50/50.</b> Two liquids start evenly mixed and separate (Cahn–Hilliard: the mixture slides down its free energy, conserving each liquid). Left, ours, the whole 3D box; right, your 3D slice of the 4D box. Domains grow as t<sup>1/3</sup> in both: that law doesn't care about dimension, and nor does the interface per volume at a given domain size. What does is <b>curvature</b>: try <b>droplet</b>.`,
-  emulsion: `<b>An emulsion</b>: about a quarter of one liquid in the other. As ours coarsens the minority <b>breaks into pieces</b> (here roughly t 200 to 450, its largest piece falling to two-thirds of it); in 4D it stays <b>one connected network</b> the whole time. With an extra direction there are more ways for a thin thread to stay joined to the rest. In a box this small, both end as one piece once the domains are as big as the box. The plot follows the largest piece's share; <b>again</b> tries another mixture.`,
-  droplet: `<b>A droplet</b> of one liquid in the other. Its surface is curved in every direction across it: <b>two</b> in 3D, <b>three</b> in 4D. The pressure inside (and the chemical potential μ it raises in the liquid around it, Gibbs–Thomson) goes as σ × that total curvature: <b>μR/σ = 1 in 3D, 3/2 in 4D</b>. The same droplet, half again as squeezed by its own surface. The readout measures it.`,
-  nucleus: `<b>A nucleus</b>: the same small droplet (R = 7) in the same over-saturated liquid, in both. A droplet grows only if it's bigger than the <b>critical radius</b>, where its surface's squeeze balances the liquid's urge to come out of solution: R* = (d − 1)σ / (Δφ μ). Here (μ = 0.171, Δφ = 2, σ = 0.943) that's <b>5.5 in 3D and 8.3 in 4D</b>. So ours grows, and the 4D one, the same size in the same liquid, <b>dissolves</b>. Starting a new phase (a raindrop, a crystal, a bubble) is harder in 4D: the first speck has to be half again as big.`,
+  mixable: `<span class="pair">liquids A and B made <b>miscible</b>: above their critical temperature</span><b>A pair that mixes.</b> Half A, half B, started in big patches of each (teal where it's mostly A), but this pair's free energy has one well, at the 50/50 mixture, not two: every patch richer in A or B costs more than the mix, so diffusion <b>smooths it out</b> and it stays one liquid, in 3D and 4D alike. Every other preset uses the <b>immiscible</b> pair (two wells, at pure A and pure B), whose 50/50 mixture can't last: see <b>un-mix</b>.`,
+  unmix: `${PAIR}<b>Un-mixing, 50/50.</b> Evenly mixed, the immiscible pair can't stay that way: it splits into regions of almost pure A and almost pure B (Cahn–Hilliard: the mixture slides down its free energy, conserving each liquid). Left, ours, the whole 3D box; right, your 3D slice of the 4D box. Domains grow as t<sup>1/3</sup> in both, and at a given domain size they carry the same interface per volume. Dimension changes neither. What it changes is <b>curvature</b>: try <b>droplet</b>.`,
+  emulsion: `${PAIR}<b>An emulsion</b>: about a quarter A in three quarters B, mixed, then left to separate. As ours coarsens, the A <b>breaks into pieces</b> (here roughly t 200 to 450, its largest piece falling to two-thirds of it); in 4D it stays <b>one connected network</b> the whole time. With an extra direction there are more ways for a thin thread to stay joined to the rest. In a box this small, both end as one piece once the domains are as big as the box. The plot follows the largest piece's share; <b>again</b> tries another mixture.`,
+  droplet: `${PAIR}<b>A droplet</b> of A in B. Flat, this pair dissolves nothing in each other. Curved, it does: the droplet's surface squeezes it (curved in every direction across it, <b>two</b> in 3D, <b>three</b> in 4D), and the squeeze pushes a trace of A out into the B around it (Gibbs–Thomson). The chemical potential that measures it goes as σ × total curvature: <b>μR/σ = 1 in 3D, 3/2 in 4D</b>. The same droplet, half again as squeezed by its own surface. The readout gives the A dissolved around it too.`,
+  nucleus: `${PAIR}<b>A nucleus</b>: the same droplet of A (R = 7) in the same B, which holds <b>5.0% A</b> dissolved, in both. A droplet grows if the liquid round it holds more A than its curvature makes it shed, and dissolves if less. At R = 7 that balance is <b>3.8% in 3D</b> and <b>6.1% in 4D</b>, so ours grows (drawing the liquid down toward its balance) and the 4D one, the same size in the same liquid, <b>dissolves</b>. The critical radius, where the balance is 5.0%, is 5.5 in 3D and 8.3 in 4D: a new phase is harder to start in 4D. The end is sudden, and really is: as it shrinks, its balance rises, so it dissolves faster and faster.`,
 };
 function caption() { $("cap").innerHTML = CAPS[sel.preset]; }
 $("cap").onclick = () => $("cap").classList.toggle("min");
-function setPreset(p) { sel.preset = p; for (const b of document.querySelectorAll("#exps button[data-x]")) b.classList.toggle("on", b.dataset.x === p); caption(); history.replaceState(null, "", `?p=${p}`); start(); }
+function setPreset(p) { sel.preset = p; look(p); for (const b of document.querySelectorAll("#exps button[data-x]")) b.classList.toggle("on", b.dataset.x === p); caption(); history.replaceState(null, "", `?p=${p}`); start(); }
 for (const b of document.querySelectorAll("#exps button[data-x]")) b.onclick = () => setPreset(b.dataset.x);
 $("againB").onclick = () => { sel.seed++; start(); };
 $("pauseB").onclick = () => { sel.paused = !sel.paused; $("pauseB").classList.toggle("on", sel.paused); for (const D of [3, 4]) W[D].postMessage({ type: "run", v: !sel.paused }); };
@@ -164,8 +170,9 @@ function readout(D) {
   const l = [`t ${s.t.toFixed(0)} · ${s.rate.toFixed(1)} steps/s on ${D === 3 ? "32³" : "32⁴"} = ${D === 3 ? "32,768" : "1,048,576"} cells`];
   if (sel.preset === "unmix") l.push(`domain size L ${fmt(s.L, 1)} · interface ${fmt(s.SV * s.L, 2)} per volume × L · ${(s.interFrac * 100).toFixed(0)}% of it in interfaces`);
   if (sel.preset === "emulsion") l.push(`the minority (${(s.minority * 100).toFixed(0)}%): ${s.pieces} piece${s.pieces === 1 ? "" : "s"}, the largest ${(s.largest * 100).toFixed(0)}% of it`);
-  if (sel.preset === "droplet") { const R = s.radii && s.radii[0]; l.push(`droplet R ${fmt(R, 2)} · μ ${fmt(s.mu, 4)} · μR/σ ${fmt((s.mu * R) / SIGMA, 2)} (curvature says ${D === 3 ? "1" : "1.5"})`); }
-  if (sel.preset === "nucleus") { const R = s.radii && s.radii[0]; l.push(R > 0.5 ? `droplet R ${fmt(R, 2)} (it started at 7; critical ${D === 3 ? "5.5" : "8.3"}): ${R > 7.05 ? "growing" : R < 6.95 ? "dissolving" : "…"}` : "dissolved"); }
+  if (sel.preset === "mixable") l.push(`unevenness (rms of φ) ${fmt(s.rms, 3)}: one liquid, smoothing`);
+  if (sel.preset === "droplet") { const R = s.radii && s.radii[0]; l.push(`droplet R ${fmt(R, 2)} · μ ${fmt(s.mu, 4)} · μR/σ ${fmt((s.mu * R) / SIGMA, 2)} (curvature says ${D === 3 ? "1" : "1.5"}) · B holds ${fmt(100 * s.dissolved, 2)}% A`); }
+  if (sel.preset === "nucleus") { const R = s.radii && s.radii[0]; l.push(R > 0.5 ? `droplet R ${fmt(R, 2)} (started 7) · B holds ${fmt(100 * s.dissolved, 2)}% A · it needs ${fmt(100 * s.need, 2)}% · ${s.dissolved > s.need + 0.0005 ? "more than it needs: growing" : s.dissolved < s.need - 0.0005 ? "less: dissolving" : "in balance"}` : `dissolved: B now holds ${fmt(100 * s.dissolved, 2)}% A`); }
   return l;
 }
 function overlay() {
@@ -197,7 +204,8 @@ function chart(g, x, y, w, h) {
   g.fillStyle = "rgba(7,8,12,0.75)"; g.fillRect(x, y, w, h);
   const pad = { l: 44, r: 12, t: 18, b: 22 }, X0 = x + pad.l, X1 = x + w - pad.r, Y0 = y + h - pad.b, Y1 = y + pad.t;
   const col = { 3: "#e9e4da", 4: "#ffd27a" }, P = sel.preset;
-  const spec = P === "unmix" ? { title: "domain size L against time (log–log); the dashed line is t^1/3", log: true, f: (e) => e.L, y: [4, 32], x: [5, 2000] }
+  const spec = P === "mixable" ? { title: "how uneven the mixture is (rms of φ): a mixing pair smooths out", log: false, f: (e) => e.rms, y: [0, 0.3], x: [0, 300] }
+    : P === "unmix" ? { title: "domain size L against time (log–log); the dashed line is t^1/3", log: true, f: (e) => e.L, y: [4, 32], x: [5, 2000] }
     : P === "emulsion" ? { title: "the minority's largest piece, as a share of it (1: one network)", log: false, f: (e) => e.largest, y: [0, 1], x: [0, 1000] }
     : P === "droplet" ? { title: "μR/σ: the droplet's own squeeze (3D → 1, 4D → 3/2)", log: false, f: (e) => (e.mu * (e.radii && e.radii[0])) / SIGMA, y: [0, 2], x: [0, 600], lines: [1, 1.5] }
     : { title: "the droplet's radius (dashed: critical, 5.5 in 3D and 8.3 in 4D)", log: false, f: (e) => (e.radii && e.radii[0]) || 0, y: [0, 10], x: [0, 1000], lines: [5.52, 8.28] };

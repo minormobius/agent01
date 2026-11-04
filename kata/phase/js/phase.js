@@ -1,9 +1,12 @@
 /* PHASELAB, no DOM: two liquids un-mixing, in 3D and in 4D, by the same code.
 
-   THE MODEL is Cahn–Hilliard: φ is the mixture's composition (+1 one liquid, −1 the other), its free energy
-       F = ∫ ¼(φ² − 1)² + ½ε²|∇φ|²
-   (two wells, one per liquid, and a price on gradients, which is the price of interface), and φ flows down the gradient
-   of its chemical potential μ = φ³ − φ − ε²∇²φ, conserving the amount of each:
+   THE MODEL is Cahn–Hilliard: φ is the mixture's composition (+1 pure liquid A, −1 pure liquid B), its free energy
+       F = ∫ ¼φ⁴ − ½aφ² + ½ε²|∇φ|²
+   with a = 1 for an immiscible pair, A and B (below their critical temperature: two wells at φ = ±1, so a flat
+   interface between them has pure A on one side and pure B on the other) and a < 0 for a pair that mixes (above it: one
+   well at φ = 0, and any mixture stays mixed). Every preset but one uses the immiscible pair,
+   (and a price on gradients, which is the price of interface), and φ flows down the gradient of its chemical potential
+   μ = φ³ − aφ − ε²∇²φ, conserving the amount of each:
        ∂φ/∂t = ∇²μ.
    Nothing in that knows how many dimensions it's in except ∇². A flat interface is φ = tanh(x / √2ε) in any dimension,
    with surface tension σ = (2√2/3) ε per unit of interface (area in 3D, 3-volume in 4D).
@@ -11,8 +14,8 @@
    THE SOLVER is spectral, on a periodic grid of N per side (spacing 1), D = 3 or 4, by WAVELAB's 1D FFT batched over
    any number of axes. Each step is semi-implicit and stabilised (Eyre's splitting: the stiff ε²k⁴ and a stabiliser Ak²
    implicit, the rest explicit), which is stable for any step when A ≥ 2:
-       (1 + dt A k² + dt ε² k⁴) φ̂' = (1 + dt A k²) φ̂ − dt k² F[φ³ − φ].
-   Two FFTs a step: F[φ³ − φ] forward, φ̂' back. */
+       (1 + dt A k² + dt ε² k⁴) φ̂' = (1 + dt A k²) φ̂ − dt k² F[φ³ − aφ].
+   Two FFTs a step: F[φ³ − aφ] forward, φ̂' back. */
 import { makeFFT } from "../../wavelab/js/fft.js";
 
 /* the FFT along every axis of a D-dimensional grid, batched: along axis a ≥ 1 each butterfly is done for every line at
@@ -54,7 +57,7 @@ export function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13
 export function makeCH(D, N) {
   const M = N ** D, fft = makeBatchFFT(N, D), k2 = new Float64Array(M);
   for (let p = 0; p < M; p++) { let q = p, s = 0; for (let a = 0; a < D; a++) { const n = q % N, m = n <= N / 2 ? n : n - N; s += ((2 * Math.PI * m) / N) ** 2; q = Math.floor(q / N); } k2[p] = s; }
-  const ch = { D, N, M, k2, phi: new Float64Array(M), hr: new Float64Array(M), hi: new Float64Array(M), wr: new Float64Array(M), wi: new Float64Array(M), t: 0, steps: 0, fft };
+  const ch = { a: 1, D, N, M, k2, phi: new Float64Array(M), hr: new Float64Array(M), hi: new Float64Array(M), wr: new Float64Array(M), wi: new Float64Array(M), t: 0, steps: 0, fft };
   return ch;
 }
 /* set φ (a function of the cell's coordinates, or an array) and take its transform */
@@ -65,8 +68,8 @@ export function setPhi(ch, f) {
   return ch;
 }
 export function step(ch, dt) {
-  const { M, phi, hr, hi, wr, wi, k2 } = ch;
-  for (let p = 0; p < M; p++) { const f = phi[p]; wr[p] = f * f * f - f; wi[p] = 0; }
+  const { M, phi, hr, hi, wr, wi, k2, a } = ch;
+  for (let p = 0; p < M; p++) { const f = phi[p]; wr[p] = f * f * f - a * f; wi[p] = 0; }
   ch.fft(wr, wi, false);
   for (let p = 0; p < M; p++) {
     const k = k2[p], den = 1 + dt * A * k + dt * EPS * EPS * k * k, num = 1 + dt * A * k;
@@ -83,10 +86,10 @@ export const dtAt = (t) => Math.min(4, 0.3 + 0.02 * t);
 /* droplets: only where they settle matters, not how fast, so they step boldly */
 export const dtDrop = (t) => Math.min(6, 1 + 0.05 * t);
 
-/* μ = φ³ − φ − ε²∇²φ, everywhere (one more transform pair) */
+/* μ = φ³ − aφ − ε²∇²φ, everywhere (one more transform pair) */
 export function mu(ch) {
-  const { M, phi, hr, hi, wr, wi, k2 } = ch, out = new Float64Array(M);
-  for (let p = 0; p < M; p++) { const f = phi[p]; wr[p] = f * f * f - f; wi[p] = 0; }
+  const { M, phi, hr, hi, wr, wi, k2, a } = ch, out = new Float64Array(M);
+  for (let p = 0; p < M; p++) { const f = phi[p]; wr[p] = f * f * f - a * f; wi[p] = 0; }
   ch.fft(wr, wi, false);
   for (let p = 0; p < M; p++) { wr[p] += EPS * EPS * k2[p] * hr[p]; wi[p] += EPS * EPS * k2[p] * hi[p]; }
   ch.fft(wr, wi, true);
@@ -94,9 +97,10 @@ export function mu(ch) {
   return out;
 }
 
-/* the free energy F = Σ ¼(φ² − 1)² + ½ε²|∇φ|² (the gradient part spectrally, from φ̂): the scheme never raises it */
+/* the free energy F = Σ ¼φ⁴ − ½aφ² + ¼a² + ½ε²|∇φ|² (the constant makes it ¼(φ² − 1)² for a = 1, zero for pure
+   liquid; the gradient part spectrally, from φ̂): the scheme never raises it */
 export function energy(ch) {
-  let f = 0; for (let p = 0; p < ch.M; p++) f += 0.25 * (ch.phi[p] ** 2 - 1) ** 2;
+  let f = 0; for (let p = 0; p < ch.M; p++) { const v = ch.phi[p]; f += 0.25 * v ** 4 - 0.5 * ch.a * v * v + 0.25 * ch.a * ch.a; }
   let g = 0; for (let p = 0; p < ch.M; p++) g += ch.k2[p] * (ch.hr[p] ** 2 + ch.hi[p] ** 2);
   return f + (0.5 * EPS * EPS * g) / ch.M;
 }
@@ -119,7 +123,8 @@ export function stats(ch) {
     grad += Math.sqrt(g2);
   }
   mean /= M;
-  return { t: ch.t, L: s0 > 0 ? (2 * Math.PI) / (sk / s0) : Infinity, mean, SV: grad / 2 / M, interFrac: inter / M, ...clusters(ch, mean < 0 ? 1 : -1) };
+  let ms = 0; for (let p = 0; p < M; p++) ms += (phi[p] - mean) ** 2;
+  return { t: ch.t, rms: Math.sqrt(ms / M), L: s0 > 0 ? (2 * Math.PI) / (sk / s0) : Infinity, mean, SV: grad / 2 / M, interFrac: inter / M, ...clusters(ch, mean < 0 ? 1 : -1) };
 }
 /* the pieces of the liquid with sign sg (union–find, periodic, face neighbours) */
 export function clusters(ch, sg) {
@@ -139,6 +144,12 @@ export function clusters(ch, sg) {
 
 /* starting states */
 export function quench(ch, phi0, seed = 1, amp = 0.05) { const r = rng(seed); return setPhi(ch, () => phi0 + amp * (2 * r() - 1)); }
+/* how much A the B-rich liquid holds dissolved, as a fraction (φ = −1 is none; −0.9 is 5%), averaged far from any
+   interface; and how much it must hold for a droplet of A of radius R to be in balance with it: the composition where
+   f'(φ) = φ³ − φ equals the droplet's μ = (d − 1)σ / (Δφ R) (Gibbs–Thomson, Δφ = 2), solved by Newton from pure B.
+   A flat interface (R → ∞) needs none: this pair is fully immiscible; only curvature dissolves anything */
+export function dissolved(ch) { let s = 0, n = 0; for (let p = 0; p < ch.M; p++) if (ch.phi[p] < -0.8) { s += ch.phi[p]; n++; } return n ? (s / n + 1) / 2 : 0; }
+export function need(D, R) { const m = ((D - 1) * SIGMA) / (2 * R); let x = -1; for (let i = 0; i < 40; i++) x -= (x * x * x - x - m) / (3 * x * x - 1); return (x + 1) / 2; }
 /* a ball of the + liquid of radius R in the − one, centred, with the flat interface's own profile */
 /* (in a liquid already a little over-saturated, bg above −1: in a box this small a droplet in pure liquid dissolves away
    entirely, the liquid round it absorbing it, and there's no equilibrium to measure) */

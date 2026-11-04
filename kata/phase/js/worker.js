@@ -4,10 +4,14 @@
    sampled from the 32⁴ box with quadrilinear interpolation, periodic; so 4 MB never crosses to the page. */
 import * as P from "./phase.js";
 let ch = null, preset = "unmix", running = true, cap = Infinity, slice = { E: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], N: [0, 0, 0, 1], off: 0 }, sliceDirty = true, last = 0, rate = 0, gen = 0;
-export const PRESETS = { unmix: { phi0: 0, end: 2000 }, emulsion: { phi0: -0.4, end: 1000 }, droplet: { R: 8, bg: -0.9, end: 1500 }, nucleus: { R: 7, bg: -0.9, end: 1000 } };
+export const PRESETS = { mixable: { a: -0.05, patches: 0.9, end: 300 }, unmix: { phi0: 0, end: 2000 }, emulsion: { phi0: -0.4, end: 1000 }, droplet: { R: 8, bg: -0.9, end: 1500 }, nucleus: { R: 7, bg: -0.9, end: 1000 } };
 function start(D, p, seed) {
   preset = p; ch = ch && ch.D === D ? ch : P.makeCH(D, 32); const q = PRESETS[p];
-  if (p === "droplet" || p === "nucleus") P.droplet(ch, q.R, q.bg); else P.quench(ch, q.phi0, seed);
+  ch.a = q.a ?? 1; if (p === "droplet" || p === "nucleus") P.droplet(ch, q.R, q.bg);
+  // the miscible pair starts in four big patches, A-rich and B-rich, the box's width across (one wave in x and y), so
+  // its smoothing is slow enough to watch (shorter patches are gone in a few time units)
+  else if (q.patches) { const k = (2 * Math.PI) / 32; P.setPhi(ch, (x) => q.patches * Math.cos(k * x[0]) * Math.cos(k * x[1])); }
+  else P.quench(ch, q.phi0, seed, q.amp ?? 0.05);
   sliceDirty = true; gen++; cap = D === 3 ? 0 : Infinity; post(true);
 }
 function sliceOf() {
@@ -29,7 +33,11 @@ function post(force) {
   // the measures cost a lot in 4D (a cluster count over a million cells): every few steps
   if (force || ch.steps - statsAt >= (ch.D === 3 ? 4 : 6)) {
     statsAt = ch.steps; S = P.stats(ch);
-    if (preset === "droplet" || preset === "nucleus") { S.mu = P.farMu(ch); const plus = P.clusters(ch, 1); S.radii = plus.sizes.map((n) => P.radiusOf(ch.D, n)); }
+    if (preset === "droplet" || preset === "nucleus") {
+      // the droplet's radius from the A it holds above the liquid round it: it shrinks smoothly to nothing, where a count
+      // of cells more than half A would jump to zero the moment its centre dropped below one half
+      S.mu = P.farMu(ch); S.dissolved = P.dissolved(ch); const R = Math.max(0, P.dropRadius(ch, 2 * S.dissolved - 1) || 0); S.radii = [R]; S.need = R > 0.5 ? P.need(ch.D, R) : null;
+    }
   }
   postMessage({ gen, D: ch.D, field: sliceOf(), stats: { ...S, t: ch.t, steps: ch.steps, rate, preset } });
   sliceDirty = false;
@@ -37,7 +45,7 @@ function post(force) {
 function loop() {
   // a run stops at its preset's end; the 3D run never gets ahead of the 4D one (the page passes the 4D run's time as cap)
   if (ch && running && ch.t < PRESETS[preset].end && ch.t < cap) {
-    const t0 = performance.now(); P.step(ch, preset === "droplet" || preset === "nucleus" ? P.dtDrop(ch.t) : P.dtAt(ch.t)); const ms = performance.now() - t0; rate += (1000 / ms - rate) * 0.2;
+    const t0 = performance.now(); P.step(ch, preset === "droplet" ? P.dtDrop(ch.t) : preset === "nucleus" ? Math.min(2, P.dtDrop(ch.t)) : P.dtAt(ch.t)); const ms = performance.now() - t0; rate += (1000 / ms - rate) * 0.2;
     if (ch.D === 4 || ch.steps % 3 === 0) post(false);
   } else if (ch && sliceDirty) post(false);
   setTimeout(loop, 0);

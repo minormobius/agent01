@@ -28,3 +28,6 @@ html, body, button, canvas, #view { -webkit-user-select: none; user-select: none
 #anaKnob { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
 .lever b, .lever i { position: absolute; left: 0; right: 0; text-align: center; font: 600 10px var(--mono); font-style: normal; pointer-events: none; }
 .lever b { top: -15px; color: #38f2e0; } .lever i { bottom: -15px; color: #ff66b8; }
+
+#cap .pair { display: block; font: 600 11px var(--mono); color: #7fe0d6; margin-bottom: 4px; }
+#cap .pair b { color: #7fe0d6; text-decoration: underline; }

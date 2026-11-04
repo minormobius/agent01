@@ -3,7 +3,9 @@
    squeeze μR/σ is 1 in 3D and 3/2 in 4D (Gibbs–Thomson, curvature (d − 1)/R); the same R = 7 droplet in the same liquid
    grows in 3D and dissolves in 4D (critical radii 5.5 and 8.3); a quarter-minority breaks into pieces in 3D while it
    stays one network in 4D.
-     node kata/phase/test/phase.selftest.mjs   (~90 s: the 4D runs are a million cells) */
+   Also: the miscible pair smooths out where the immiscible one separates, and the balance a droplet needs (A dissolved
+   round it) is zero for a flat interface.
+     node kata/phase/test/phase.selftest.mjs   (~2 min: the 4D runs are a million cells) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), P = await import(path.join(here, "../js/phase.js")), F = await import(path.join(here, "../../wavelab/js/fft.js"));
@@ -29,15 +31,25 @@ for (const D of [3, 4]) {
   ok(Math.abs(sig / P.SIGMA - 1) < 0.02, `${D}D: a flat interface carries σ = ${sig.toFixed(4)} per unit of interface (2√2/3 = ${P.SIGMA.toFixed(4)}): the same in both`);
 }
 
+/* the miscible pair (a = −0.5: one well) smooths out; the immiscible one (a = 1) at 50/50 separates */
+for (const D of [3, 4]) {
+  const N = D === 3 ? 32 : 16, r = {};
+  for (const a of [-0.5, 1]) { const ch = P.makeCH(D, N); ch.a = a; P.quench(ch, 0, 3, 0.4); run(ch, 300); r[a] = P.stats(ch).rms; }
+  ok(r[-0.5] < 0.01 && r[1] > 0.6, `${D}D: the same uneven 50/50 start: the miscible pair smooths to one liquid (rms ${r[-0.5].toExponential(1)}), the immiscible pair separates into nearly pure A and B (rms ${r[1].toFixed(2)})`);
+}
+/* the balance: how much A the liquid must hold for a droplet of radius R (none for a flat interface) */
+ok(P.need(3, 1e9) < 1e-8 && Math.abs(P.need(3, 7) - 0.0379) < 0.001 && Math.abs(P.need(4, 7) - 0.0613) < 0.001, `the balance at R = 7: 3D ${(100 * P.need(3, 7)).toFixed(2)}%, 4D ${(100 * P.need(4, 7)).toFixed(2)}% of A dissolved; at a flat interface ${(100 * P.need(3, 1e9)).toExponential(0)}%: the pair is immiscible, only curvature dissolves anything`);
+
 /* the droplet's squeeze */
 const gt = {};
-for (const D of [3, 4]) { const ch = P.makeCH(D, 32); P.droplet(ch, 8, -0.9); run(ch, 800, P.dtDrop); const R = P.radiusOf(D, P.clusters(ch, 1).sizes[0]); gt[D] = (P.farMu(ch) * R) / P.SIGMA; gt[D + "R"] = R; }
+for (const D of [3, 4]) { const ch = P.makeCH(D, 32); P.droplet(ch, 8, -0.9); run(ch, D === 3 ? 800 : 400, P.dtDrop); const R = P.radiusOf(D, P.clusters(ch, 1).sizes[0]); gt[D] = (P.farMu(ch) * R) / P.SIGMA; gt[D + "R"] = R; }
 ok(Math.abs(gt[3] - 1) < 0.05 && Math.abs(gt[4] - 1.5) < 0.1 && gt[4] / gt[3] > 1.38, `a droplet's squeeze μR/σ: 3D ${gt[3].toFixed(3)} (R ${gt["3R"].toFixed(2)}; two curvatures, want 1), 4D ${gt[4].toFixed(3)} (R ${gt["4R"].toFixed(2)}; three, want 1.5): ${(gt[4] / gt[3]).toFixed(2)}× as squeezed`);
 
-/* the nucleus */
+/* the nucleus: 3D run to t 1000 (cheap), 4D to t 400 (a million cells): by then it must be well below where it started
+   and the liquid round it must hold less A than its radius needs, which is what dissolving is */
 {
-  const r = {}; for (const D of [3, 4]) { const ch = P.makeCH(D, 32); P.droplet(ch, 7, -0.9); run(ch, 1000, P.dtDrop); const sz = P.clusters(ch, 1).sizes[0] || 0; r[D] = sz ? P.radiusOf(D, sz) : 0; }
-  ok(r[3] > 7.2 && r[4] < 1, `the same R = 7 droplet in the same liquid (μ = 0.171): in 3D it grows (R ${r[3].toFixed(2)}, critical 5.5); in 4D it dissolves (${r[4] ? `R ${r[4].toFixed(2)}` : "gone"}, critical 8.3)`);
+  const r = {}; for (const D of [3, 4]) { const ch = P.makeCH(D, 32); P.droplet(ch, 7, -0.9); run(ch, D === 3 ? 1000 : 400, P.dtDrop); const has = P.dissolved(ch), R = Math.max(0, P.dropRadius(ch, 2 * has - 1) || 0); r[D] = { R, has, need: R > 0.5 ? P.need(D, R) : 1 }; }
+  ok(r[3].R > 7.2 && r[3].has >= r[3].need - 0.003 && r[4].R < 6.5 && r[4].has < r[4].need, `the same R = 7 droplet in B holding 5.0% A: in 3D it grows (R ${r[3].R.toFixed(2)}, the liquid drawn down to ${(100 * r[3].has).toFixed(2)}% against the ${(100 * r[3].need).toFixed(2)}% it needs); in 4D it dissolves (R ${r[4].R.toFixed(2)} by t 400, the liquid holding ${(100 * r[4].has).toFixed(2)}% where it needs ${(100 * r[4].need).toFixed(2)}%)`);
 }
 
 /* the emulsion */
