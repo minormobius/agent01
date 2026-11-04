@@ -555,7 +555,10 @@ for games, and this is a modelling programme with publications to come. The game
   (rows are the geometry's), 52 changed from element 25 on (p beats d without the law), 128's hold 29.6 → 3.1 eV. 33
   (38, 39, 41, 88–117) never settled (E null: `ground()`'s seeded search keeps E = ∞ when no field converges); `repair
   <i> <m>` re-searches them from every configuration in reach with mixing 0.15 for 1500 iterations (run
-  `lawtable-repair`); then `bake` again. Count only rows with E ≠ null. Ledger claims carry `part`
+  `lawtable-repair`, all exit 0): it settled 38, 39, 41, 88, 117; 114–116 "settled" with negative ionization (a missed lower
+  configuration: treated as unsettled); 89–113 never converge under the shell theorem. Count only rows with E ≠ null and
+  ion ≥ 0 (`build.mjs`'s `settledRow`): 112 of 140, every atom to 88, 57 changed. Next for 89–116: a homotopy in the
+  kernel from the law's converged field, not a search. Ledger claims carry `part`
   (law, table, consequence) and the process page groups them so. `bake.mjs`'s `element(Z, d, seeds, solver)` takes the
   scf options.
   **Figures and text are generated too.** `papers/p1/figures/make.mjs` draws the paper's figures (SVG, on

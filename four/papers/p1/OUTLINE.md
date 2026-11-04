@@ -36,7 +36,8 @@ what the table owes to the law from what it owes to the geometry. The rows are t
 and all six noble gases come out the same. Everything inside the rows from the first d element on is the law's: without
 it p beats d (element 25 takes 4s² 4p¹ for 3d¹ 4s²), outer electrons are held a median 2.5 times more weakly, and the
 table's hardest-held electron, element 128's full 5d¹⁸ at 29.6 eV, falls to 3.1 eV, leaving the noble gases to hold
-hardest, as ours do. A neutral atom under the law is felt from afar, −Σ⟨r²⟩/8s³. The same solver in three dimensions gets 32 of our 36 ground
+hardest, as ours do (row 6's f block doesn't settle under the shell theorem, so its rows are confirmed through
+row 5). A neutral atom under the law is felt from afar, −Σ⟨r²⟩/8s³. The same solver in three dimensions gets 32 of our 36 ground
 configurations and our ionization energies to a few percent.
 
 ## Part I — The law (about 40 % of the paper)
@@ -108,13 +109,16 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
 9. **The counterfactual table.** All 140 elements solved again with the shell theorem forced on, everything else held
    (`atom/tools/lawtable.mjs`, runs `lawtable-shell` and `lawtable-repair`; seeded from the real table's configurations
    so the comparison isn't a weaker search; the real law re-solved in each counterfactual configuration as the check the
-   other way). *Result (2026-11-04, 107 of 140 settled):* the first 24 elements and all six noble gases are unchanged,
-   so the rows are the geometry's; 52 of the settled atoms change, every one from element 25 (the first d element) on,
-   and under the shell theorem p beats d; element 128's hold falls from 29.6 eV to 3.1 and the noble gases become the
-   hardest-held, as in ours. In every changed atom the law's own configuration is still lower under the law. *Open:*
-   33 atoms (38, 39, 41, 88–117) never settled in the first run; their re-search is queued (`lawtable-repair`). One of
-   their unsettled fillings, element 110 as 4f³² 5s² 5p⁸, is a closed shell: if it holds, the shell theorem splits row
-   6 and "the rows are the geometry's" needs a qualifier. *Ledger:* `geometry`, `reorders`, `law128`, `holdratio`;
+   other way). *Result (2026-11-04, after the repair run: 112 of 140 settled):* every atom up to 88 settles; the first 24
+   elements and all six noble gases are unchanged, so the rows are the geometry's through row 5; 57 of the settled
+   atoms change, every one from element 25 (the first d element) on, and under the shell theorem p beats d; element
+   128's hold falls from 29.6 eV to 3.1 and the noble gases become the hardest-held, as in ours. In every changed atom
+   the law's own configuration is still lower under the law. *Open:* 28 atoms of row 6's f block (89–116) have no
+   settled ground state under the shell theorem, from 30–50 starting configurations each with gentle mixing (three of
+   them, 114–116, settled on a configuration with a negative ionization energy, i.e. the search missed a lower one).
+   So whether the shell theorem would put a closed shell at 110 and split row 6 is unanswered. The remedy to try: a
+   homotopy, starting from each atom's converged field under the law and turning the kernel to the shell theorem's in
+   small steps, which follows the ground state rather than searching for it. *Ledger:* `geometry`, `reorders`, `law128`, `holdratio`;
    figure 6.
 10. **Partial screening.** Outer electrons held a median 2.5 times harder than the shell theorem allows, from 1.06 to
     9.6 times (element 128) across the settled atoms (*ledger* `holdratio`); the noble gases 1.09× (helium) to 2.90×

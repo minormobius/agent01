@@ -88,7 +88,7 @@
    "what": "every element solved again with the shell theorem forced on, everything else held: what the table owes to the law rather than to the geometry",
    "path": "atom/tools/lawtable.mjs → data/shelltable.json",
    "status": "partly",
-   "note": "107 of 140 settled (run lawtable-shell); the other 33 re-searched in lawtable-repair, queued"
+   "note": "112 of 140 settled after lawtable-repair; row 6's f block (89–116) has no settled ground state under the shell theorem"
   },
   {
    "id": "widgets",
@@ -147,7 +147,7 @@
   {
    "item": "The counterfactual table: run lawtable-shell, bake it, add its claims, and say whether the generalized Madelung rows come from the law or from the geometry alone",
    "status": "partly",
-   "note": "107 of 140 settled: the rows are the geometry's, the d-and-f order and the binding are the law's; 33 atoms re-searching"
+   "note": "112 of 140 settled: rows the geometry's through row 5, the d-and-f order and the binding the law's; 89–116 don't settle under the shell theorem (next: a homotopy from the law's converged field)"
   },
   {
    "item": "Element 128 out-holds its row's noble gas: is it partial screening? Read it off the counterfactual table",
@@ -276,6 +276,10 @@
   {
    "date": "2026-11-04",
    "what": "pw-fixed came in (the 3D check of the plane-wave code, for the molecules paper): corundum lowest and the order right, θ within 0.11 eV of same-functional PySCF, but the impostor 0.26 and poly6 0.40 off, against the 0.2 eV bar agreed. The stop-loss applies there; it doesn't touch paper 1."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The counterfactual's repair run: of the 33 atoms that hadn't settled, a wider search (every configuration in reach, mixing 0.15, 1500 iterations) settled 38, 39, 41, 88 and 117 (38–41 again put an electron in 4p rather than 3d). Three more, 114–116, 'settled' on configurations an electron would rather leave (negative ionization energies): the search missed lower ones, so they don't count. The other 25, 89–113, the heart of row 6's f block, don't converge at all under the shell theorem. Every atom up to 88 is now settled, so the rows are the geometry's through row 5; whether the shell theorem would close a shell at 110 and split row 6 stays open. Next: follow each atom from the law's converged field to the shell theorem's in small steps of the kernel, instead of searching."
   }
  ]
 }

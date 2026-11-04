@@ -183,13 +183,16 @@ function ledger(t3, t4, files, refs) {
     { id: "ion3", part: "table", claim: "… and our first ionization energies to a few percent",
       value: `median error ${med.toFixed(1)} %, largest ${errs.at(-1).toFixed(1)} %`, holds: med < 6, section: "4", gate: [6] },
     ...(() => { // the counterfactual table (data/shelltable.json, lawtable.mjs): only settled atoms count
-      const ST = JSON.parse(readFileSync(join(HERE, "data/shelltable.json"), "utf8")).rows, ok = ST.filter((r) => r.E !== null), uns = ST.filter((r) => r.E === null).map((r) => r.Z);
+      // unsettled: no field converged (E null), or a "ground state" an electron would rather leave (negative ionization:
+      // the search missed a lower configuration); neither counts as a result
+      const settledRow = (r) => r.E !== null && !(r.ion !== null && r.ion < 0);
+      const ST = JSON.parse(readFileSync(join(HERE, "data/shelltable.json"), "utf8")).rows, ok = ST.filter(settledRow), uns = ST.filter((r) => !settledRow(r)).map((r) => r.Z);
       const diff = ok.filter((r) => !r.sameConfig), nobles = [2, 12, 22, 50, 78, 138], z128 = ST[127];
       const both = ok.filter((r) => r.ion !== null && r.Z > 2).map((r) => t4[r.Z - 1].ion_hartree / r.ion).sort((x, y) => x - y);
       return [
         { id: "geometry", part: "consequence", claim: "The rows are the geometry's, not the law's: solved with the shell theorem forced on, the first 24 elements keep every configuration, and the noble gases close the same rows at 2, 12, 22, 50, 78 and 138",
-          value: `with the shell theorem: 1–24 unchanged (${ST.slice(0, 24).every((r) => r.E !== null && r.sameConfig) ? "all settled, all the same" : "not all"}); noble gases ${nobles.map((z) => `${z} ${ST[z - 1].E !== null && ST[z - 1].sameConfig ? "same" : "changed"}`).join(", ")}. ${uns.length} atoms not yet settled (${uns.length ? `${uns[0]}…${uns.at(-1)}` : ""}), so whether row 6 splits is open`,
-          holds: ST.slice(0, 24).every((r) => r.E !== null && r.sameConfig) && nobles.every((z) => ST[z - 1].E !== null && ST[z - 1].sameConfig), section: "9", gate: [67] },
+          value: `with the shell theorem: 1–24 unchanged (${ST.slice(0, 24).every((r) => settledRow(r) && r.sameConfig) ? "all settled, all the same" : "not all"}); every atom to 88 settled; noble gases ${nobles.map((z) => `${z} ${settledRow(ST[z - 1]) && ST[z - 1].sameConfig ? "same" : "changed"}`).join(", ")}. ${uns.length} atoms of row 6's f block don't settle under the shell theorem (${uns.length ? `${uns[0]}–${uns.at(-1)}` : ""}), so whether row 6 splits is open`,
+          holds: ST.slice(0, 24).every((r) => settledRow(r) && r.sameConfig) && nobles.every((z) => settledRow(ST[z - 1]) && ST[z - 1].sameConfig) && ST.slice(0, 88).every(settledRow), section: "9", gate: [67] },
         { id: "reorders", part: "consequence", claim: "The law decides what fills inside the rows: of the atoms settled under both, every change of configuration begins at the first d element, and under the shell theorem p beats d (element 25 takes 4s² 4p¹ where the law gives 3d¹ 4s²)",
           value: `${ok.length} settled under the shell theorem; ${diff.length} differ, the first at ${Math.min(...diff.map((r) => r.Z))}; in every one the law's own configuration stays lower under the law (${ok.every((r) => r.tableStillLower) ? "checked" : "NOT"})`,
           holds: Math.min(...diff.map((r) => r.Z)) === 25 && ok.every((r) => r.tableStillLower) && /4p1$/.test(ST[24].config), section: "9", gate: [67] },

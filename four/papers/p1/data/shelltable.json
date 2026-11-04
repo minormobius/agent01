@@ -2081,10 +2081,10 @@
   {
    "law": "shell",
    "Z": 38,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d16",
-   "E": null,
-   "ion": null,
-   "top": "3d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d13 4s2 4p1",
+   "E": -1845.80352,
+   "ion": 0.11542,
+   "top": "4p",
    "orb": [
     {
      "s": "1s",
@@ -2136,17 +2136,25 @@
     "top": "4s"
    },
    "sameConfig": false,
-   "lawAtShell": -1893.52822,
+   "lawAtShell": -1893.09066,
    "tableStillLower": true,
-   "s": 290.997
+   "s": 290.997,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 47,
+    "settled": true,
+    "ionSettled": true,
+    "s": 154.578
+   }
   },
   {
    "law": "shell",
    "Z": 39,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d17",
-   "E": null,
-   "ion": null,
-   "top": "3d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d14 4s2 4p1",
+   "E": -1971.41979,
+   "ion": 0.1143,
+   "top": "4p",
    "orb": [
     {
      "s": "1s",
@@ -2198,9 +2206,17 @@
     "top": "4s"
    },
    "sameConfig": false,
-   "lawAtShell": -2023.03743,
+   "lawAtShell": -2022.51232,
    "tableStillLower": true,
-   "s": 267.697
+   "s": 267.697,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 35,
+    "settled": true,
+    "ionSettled": true,
+    "s": 201.826
+   }
   },
   {
    "law": "shell",
@@ -2281,10 +2297,10 @@
   {
    "law": "shell",
    "Z": 41,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s1",
-   "E": null,
-   "ion": null,
-   "top": "3d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d16 4s2 4p1",
+   "E": -2238.49486,
+   "ion": 0.11212,
+   "top": "4p",
    "orb": [
     {
      "s": "1s",
@@ -2342,10 +2358,18 @@
     "ion": 0.44985,
     "top": "4s"
    },
-   "sameConfig": true,
-   "lawAtShell": null,
+   "sameConfig": false,
+   "lawAtShell": -2297.87271,
    "tableStillLower": true,
-   "s": 292.005
+   "s": 292.005,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 53,
+    "settled": true,
+    "ionSettled": true,
+    "s": 242.6
+   }
   },
   {
    "law": "shell",
@@ -6665,10 +6689,10 @@
   {
    "law": "shell",
    "Z": 88,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f10 5s2 5p8",
-   "E": null,
-   "ion": null,
-   "top": "4f",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f1 5s2 5p8 5d7 6s2",
+   "E": -15499.90357,
+   "ion": 0.17261,
+   "top": "5d",
    "orb": [
     {
      "s": "1s",
@@ -6762,9 +6786,17 @@
     "top": "6s"
    },
    "sameConfig": false,
-   "lawAtShell": null,
+   "lawAtShell": -15861.38456,
    "tableStillLower": true,
-   "s": 438.926
+   "s": 438.926,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 41,
+    "settled": true,
+    "ionSettled": true,
+    "s": 1856.462
+   }
   },
   {
    "law": "shell",
@@ -6868,7 +6900,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 439.154
+   "s": 439.154,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1787.439
+   }
   },
   {
    "law": "shell",
@@ -6972,7 +7011,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 447.816
+   "s": 447.816,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3060.915
+   }
   },
   {
    "law": "shell",
@@ -7076,7 +7122,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 449.376
+   "s": 449.376,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3062.869
+   }
   },
   {
    "law": "shell",
@@ -7180,7 +7233,14 @@
    "sameConfig": false,
    "lawAtShell": -17743.68448,
    "tableStillLower": true,
-   "s": 537.291
+   "s": 537.291,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3035.632
+   }
   },
   {
    "law": "shell",
@@ -7284,7 +7344,14 @@
    "sameConfig": false,
    "lawAtShell": -18233.03943,
    "tableStillLower": true,
-   "s": 563.873
+   "s": 563.873,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 2976.226
+   }
   },
   {
    "law": "shell",
@@ -7388,7 +7455,14 @@
    "sameConfig": false,
    "lawAtShell": -18730.66145,
    "tableStillLower": true,
-   "s": 551.785
+   "s": 551.785,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3068.392
+   }
   },
   {
    "law": "shell",
@@ -7492,7 +7566,14 @@
    "sameConfig": false,
    "lawAtShell": -19236.4176,
    "tableStillLower": true,
-   "s": 566.415
+   "s": 566.415,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3024.708
+   }
   },
   {
    "law": "shell",
@@ -7589,7 +7670,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 515.471
+   "s": 515.471,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3064.056
+   }
   },
   {
    "law": "shell",
@@ -7686,7 +7774,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 563.087
+   "s": 563.087,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3051.652
+   }
   },
   {
    "law": "shell",
@@ -7783,7 +7878,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 540.589
+   "s": 540.589,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1602.222
+   }
   },
   {
    "law": "shell",
@@ -7880,7 +7982,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 526.909
+   "s": 526.909,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1577.553
+   }
   },
   {
    "law": "shell",
@@ -7977,7 +8086,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 561.607
+   "s": 561.607,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1595.746
+   }
   },
   {
    "law": "shell",
@@ -8074,7 +8190,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 539.342
+   "s": 539.342,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1601.728
+   }
   },
   {
    "law": "shell",
@@ -8171,7 +8294,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 524.169
+   "s": 524.169,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3064.801
+   }
   },
   {
    "law": "shell",
@@ -8275,7 +8405,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 562.995
+   "s": 562.995,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3051.43
+   }
   },
   {
    "law": "shell",
@@ -8379,7 +8516,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 573.54
+   "s": 573.54,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3066.816
+   }
   },
   {
    "law": "shell",
@@ -8483,7 +8627,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 552.383
+   "s": 552.383,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 3050.795
+   }
   },
   {
    "law": "shell",
@@ -8587,7 +8738,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 587.86
+   "s": 587.86,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 3175.578
+   }
   },
   {
    "law": "shell",
@@ -8691,7 +8849,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 576.777
+   "s": 576.777,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 3160.191
+   }
   },
   {
    "law": "shell",
@@ -8795,7 +8960,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 575.856
+   "s": 575.856,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 3164.437
+   }
   },
   {
    "law": "shell",
@@ -8899,7 +9071,14 @@
    "sameConfig": false,
    "lawAtShell": null,
    "tableStillLower": true,
-   "s": 546.46
+   "s": 546.46,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 3130.475
+   }
   },
   {
    "law": "shell",
@@ -9003,7 +9182,14 @@
    "sameConfig": false,
    "lawAtShell": -27863.41527,
    "tableStillLower": true,
-   "s": 486.983
+   "s": 486.983,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1548.562
+   }
   },
   {
    "law": "shell",
@@ -9114,7 +9300,14 @@
    "sameConfig": false,
    "lawAtShell": -28510.80776,
    "tableStillLower": true,
-   "s": 517.791
+   "s": 517.791,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1552.445
+   }
   },
   {
    "law": "shell",
@@ -9225,7 +9418,14 @@
    "sameConfig": false,
    "lawAtShell": -29166.98029,
    "tableStillLower": true,
-   "s": 549.095
+   "s": 549.095,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1579.598
+   }
   },
   {
    "law": "shell",
@@ -9336,14 +9536,21 @@
    "sameConfig": false,
    "lawAtShell": -29832.2042,
    "tableStillLower": true,
-   "s": 572.268
+   "s": 572.268,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1583.333
+   }
   },
   {
    "law": "shell",
    "Z": 114,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d4",
-   "E": null,
-   "ion": null,
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f31 5s2 5p8 5d3 6s2",
+   "E": -29743.31467,
+   "ion": -0.39609,
    "top": "4f",
    "orb": [
     {
@@ -9445,17 +9652,25 @@
     "top": "5d"
    },
    "sameConfig": false,
-   "lawAtShell": -30506.53915,
+   "lawAtShell": -30505.55521,
    "tableStillLower": true,
-   "s": 585.341
+   "s": 585.341,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": true,
+    "ionSettled": true,
+    "s": 1109.541
+   }
   },
   {
    "law": "shell",
    "Z": 115,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d5",
-   "E": null,
-   "ion": null,
-   "top": "5d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f31 5s2 5p8 5d4 6s2",
+   "E": -30408.85691,
+   "ion": -0.26135,
+   "top": "4f",
    "orb": [
     {
      "s": "1s",
@@ -9556,17 +9771,25 @@
     "top": "5d"
    },
    "sameConfig": false,
-   "lawAtShell": -31190.02989,
+   "lawAtShell": -31188.59494,
    "tableStillLower": true,
-   "s": 564.509
+   "s": 564.509,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": true,
+    "ionSettled": true,
+    "s": 202.75
+   }
   },
   {
    "law": "shell",
    "Z": 116,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d6",
-   "E": null,
-   "ion": null,
-   "top": "5d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f31 5s2 5p8 5d5 6s2",
+   "E": -31083.49714,
+   "ion": -0.0871,
+   "top": "4f",
    "orb": [
     {
      "s": "1s",
@@ -9667,17 +9890,25 @@
     "top": "5d"
    },
    "sameConfig": false,
-   "lawAtShell": -31882.7215,
+   "lawAtShell": -31880.8164,
    "tableStillLower": true,
-   "s": 570.564
+   "s": 570.564,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": true,
+    "ionSettled": true,
+    "s": 195.554
+   }
   },
   {
    "law": "shell",
    "Z": 117,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d7",
-   "E": null,
-   "ion": null,
-   "top": "5d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f30 5s2 5p8 5d5 6s2 6p2",
+   "E": -31767.28228,
+   "ion": 0.16735,
+   "top": "6p",
    "orb": [
     {
      "s": "1s",
@@ -9778,9 +10009,17 @@
     "top": "5d"
    },
    "sameConfig": false,
-   "lawAtShell": -32584.65916,
+   "lawAtShell": -32578.20731,
    "tableStillLower": true,
-   "s": 581.854
+   "s": 581.854,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 42,
+    "settled": true,
+    "ionSettled": true,
+    "s": 263.712
+   }
   },
   {
    "law": "shell",
