@@ -1,8 +1,9 @@
-# ATOM⁴ — the write-up: kit survey and plan (pinned)
+# ATOM⁴ — the write-up: kit survey and plan
 
-**Status: pinned, 2026-10-25.** Writing waits while the science moves forward. When it starts, take it slowly: a few
-days to get it right. The bar is arXiv's (checkable claims, verified references, reproducible numbers), whether or
-not anything is submitted.
+**Status: unpinned, 2026-11-04.** Paper 1 is started: its outline, figure plan and companion objects are in
+[`../papers/p1/OUTLINE.md`](../papers/p1/OUTLINE.md), which supersedes the outline below. The kit survey and the
+decisions here still stand. The bar is arXiv's (checkable claims, verified references, reproducible numbers), whether
+or not anything is submitted.
 
 The first paper is the 4D periodic table. If that goes well, the rest becomes a series: the forces between
 molecules, Pxygen and Xater, the census, and the lens vacuum. The prior art and what is new against it are in

@@ -1,0 +1,887 @@
+{
+ "caption": "⟨r⟩ of the outermost subshell against Z (bohr), both worlds",
+ "d4": [
+  {
+   "Z": 1,
+   "outer_r_mean_bohr": 3,
+   "noble": false
+  },
+  {
+   "Z": 2,
+   "outer_r_mean_bohr": 1.8516,
+   "noble": true
+  },
+  {
+   "Z": 3,
+   "outer_r_mean_bohr": 5.7039,
+   "noble": false
+  },
+  {
+   "Z": 4,
+   "outer_r_mean_bohr": 3.8737,
+   "noble": false
+  },
+  {
+   "Z": 5,
+   "outer_r_mean_bohr": 3.0934,
+   "noble": false
+  },
+  {
+   "Z": 6,
+   "outer_r_mean_bohr": 2.4337,
+   "noble": false
+  },
+  {
+   "Z": 7,
+   "outer_r_mean_bohr": 2.02,
+   "noble": false
+  },
+  {
+   "Z": 8,
+   "outer_r_mean_bohr": 1.7324,
+   "noble": false
+  },
+  {
+   "Z": 9,
+   "outer_r_mean_bohr": 1.5381,
+   "noble": false
+  },
+  {
+   "Z": 10,
+   "outer_r_mean_bohr": 1.3763,
+   "noble": false
+  },
+  {
+   "Z": 11,
+   "outer_r_mean_bohr": 1.2434,
+   "noble": false
+  },
+  {
+   "Z": 12,
+   "outer_r_mean_bohr": 1.1334,
+   "noble": true
+  },
+  {
+   "Z": 13,
+   "outer_r_mean_bohr": 4.3511,
+   "noble": false
+  },
+  {
+   "Z": 14,
+   "outer_r_mean_bohr": 3.4811,
+   "noble": false
+  },
+  {
+   "Z": 15,
+   "outer_r_mean_bohr": 4.1425,
+   "noble": false
+  },
+  {
+   "Z": 16,
+   "outer_r_mean_bohr": 3.2917,
+   "noble": false
+  },
+  {
+   "Z": 17,
+   "outer_r_mean_bohr": 2.7842,
+   "noble": false
+  },
+  {
+   "Z": 18,
+   "outer_r_mean_bohr": 2.434,
+   "noble": false
+  },
+  {
+   "Z": 19,
+   "outer_r_mean_bohr": 2.1845,
+   "noble": false
+  },
+  {
+   "Z": 20,
+   "outer_r_mean_bohr": 1.9826,
+   "noble": false
+  },
+  {
+   "Z": 21,
+   "outer_r_mean_bohr": 1.8164,
+   "noble": false
+  },
+  {
+   "Z": 22,
+   "outer_r_mean_bohr": 1.6773,
+   "noble": true
+  },
+  {
+   "Z": 23,
+   "outer_r_mean_bohr": 4.5408,
+   "noble": false
+  },
+  {
+   "Z": 24,
+   "outer_r_mean_bohr": 3.855,
+   "noble": false
+  },
+  {
+   "Z": 25,
+   "outer_r_mean_bohr": 3.612,
+   "noble": false
+  },
+  {
+   "Z": 26,
+   "outer_r_mean_bohr": 3.4311,
+   "noble": false
+  },
+  {
+   "Z": 27,
+   "outer_r_mean_bohr": 3.282,
+   "noble": false
+  },
+  {
+   "Z": 28,
+   "outer_r_mean_bohr": 3.1535,
+   "noble": false
+  },
+  {
+   "Z": 29,
+   "outer_r_mean_bohr": 3.04,
+   "noble": false
+  },
+  {
+   "Z": 30,
+   "outer_r_mean_bohr": 3.0276,
+   "noble": false
+  },
+  {
+   "Z": 31,
+   "outer_r_mean_bohr": 2.9286,
+   "noble": false
+  },
+  {
+   "Z": 32,
+   "outer_r_mean_bohr": 2.8381,
+   "noble": false
+  },
+  {
+   "Z": 33,
+   "outer_r_mean_bohr": 2.682,
+   "noble": false
+  },
+  {
+   "Z": 34,
+   "outer_r_mean_bohr": 2.5985,
+   "noble": false
+  },
+  {
+   "Z": 35,
+   "outer_r_mean_bohr": 2.523,
+   "noble": false
+  },
+  {
+   "Z": 36,
+   "outer_r_mean_bohr": 2.4539,
+   "noble": false
+  },
+  {
+   "Z": 37,
+   "outer_r_mean_bohr": 2.5021,
+   "noble": false
+  },
+  {
+   "Z": 38,
+   "outer_r_mean_bohr": 2.4476,
+   "noble": false
+  },
+  {
+   "Z": 39,
+   "outer_r_mean_bohr": 2.3963,
+   "noble": false
+  },
+  {
+   "Z": 40,
+   "outer_r_mean_bohr": 2.3477,
+   "noble": false
+  },
+  {
+   "Z": 41,
+   "outer_r_mean_bohr": 2.3015,
+   "noble": false
+  },
+  {
+   "Z": 42,
+   "outer_r_mean_bohr": 2.1288,
+   "noble": false
+  },
+  {
+   "Z": 43,
+   "outer_r_mean_bohr": 3.1145,
+   "noble": false
+  },
+  {
+   "Z": 44,
+   "outer_r_mean_bohr": 2.6034,
+   "noble": false
+  },
+  {
+   "Z": 45,
+   "outer_r_mean_bohr": 2.3056,
+   "noble": false
+  },
+  {
+   "Z": 46,
+   "outer_r_mean_bohr": 2.0968,
+   "noble": false
+  },
+  {
+   "Z": 47,
+   "outer_r_mean_bohr": 1.943,
+   "noble": false
+  },
+  {
+   "Z": 48,
+   "outer_r_mean_bohr": 1.8159,
+   "noble": false
+  },
+  {
+   "Z": 49,
+   "outer_r_mean_bohr": 1.7082,
+   "noble": false
+  },
+  {
+   "Z": 50,
+   "outer_r_mean_bohr": 1.6154,
+   "noble": true
+  },
+  {
+   "Z": 51,
+   "outer_r_mean_bohr": 4.0627,
+   "noble": false
+  },
+  {
+   "Z": 52,
+   "outer_r_mean_bohr": 3.5479,
+   "noble": false
+  },
+  {
+   "Z": 53,
+   "outer_r_mean_bohr": 2.6763,
+   "noble": false
+  },
+  {
+   "Z": 54,
+   "outer_r_mean_bohr": 2.196,
+   "noble": false
+  },
+  {
+   "Z": 55,
+   "outer_r_mean_bohr": 1.9395,
+   "noble": false
+  },
+  {
+   "Z": 56,
+   "outer_r_mean_bohr": 1.7654,
+   "noble": false
+  },
+  {
+   "Z": 57,
+   "outer_r_mean_bohr": 2.7613,
+   "noble": false
+  },
+  {
+   "Z": 58,
+   "outer_r_mean_bohr": 1.5955,
+   "noble": false
+  },
+  {
+   "Z": 59,
+   "outer_r_mean_bohr": 2.6282,
+   "noble": false
+  },
+  {
+   "Z": 60,
+   "outer_r_mean_bohr": 2.5596,
+   "noble": false
+  },
+  {
+   "Z": 61,
+   "outer_r_mean_bohr": 1.3487,
+   "noble": false
+  },
+  {
+   "Z": 62,
+   "outer_r_mean_bohr": 2.4494,
+   "noble": false
+  },
+  {
+   "Z": 63,
+   "outer_r_mean_bohr": 2.4002,
+   "noble": false
+  },
+  {
+   "Z": 64,
+   "outer_r_mean_bohr": 1.219,
+   "noble": false
+  },
+  {
+   "Z": 65,
+   "outer_r_mean_bohr": 1.1719,
+   "noble": false
+  },
+  {
+   "Z": 66,
+   "outer_r_mean_bohr": 1.129,
+   "noble": false
+  },
+  {
+   "Z": 67,
+   "outer_r_mean_bohr": 1.0897,
+   "noble": false
+  },
+  {
+   "Z": 68,
+   "outer_r_mean_bohr": 1.0535,
+   "noble": false
+  },
+  {
+   "Z": 69,
+   "outer_r_mean_bohr": 2.1609,
+   "noble": false
+  },
+  {
+   "Z": 70,
+   "outer_r_mean_bohr": 2.0478,
+   "noble": false
+  },
+  {
+   "Z": 71,
+   "outer_r_mean_bohr": 2.7657,
+   "noble": false
+  },
+  {
+   "Z": 72,
+   "outer_r_mean_bohr": 2.4699,
+   "noble": false
+  },
+  {
+   "Z": 73,
+   "outer_r_mean_bohr": 2.2687,
+   "noble": false
+  },
+  {
+   "Z": 74,
+   "outer_r_mean_bohr": 2.116,
+   "noble": false
+  },
+  {
+   "Z": 75,
+   "outer_r_mean_bohr": 1.9962,
+   "noble": false
+  },
+  {
+   "Z": 76,
+   "outer_r_mean_bohr": 1.8947,
+   "noble": false
+  },
+  {
+   "Z": 77,
+   "outer_r_mean_bohr": 1.8066,
+   "noble": false
+  },
+  {
+   "Z": 78,
+   "outer_r_mean_bohr": 1.729,
+   "noble": true
+  },
+  {
+   "Z": 79,
+   "outer_r_mean_bohr": 4.0427,
+   "noble": false
+  },
+  {
+   "Z": 80,
+   "outer_r_mean_bohr": 3.6027,
+   "noble": false
+  },
+  {
+   "Z": 81,
+   "outer_r_mean_bohr": 2.4085,
+   "noble": false
+  },
+  {
+   "Z": 82,
+   "outer_r_mean_bohr": 0.9448,
+   "noble": false
+  },
+  {
+   "Z": 83,
+   "outer_r_mean_bohr": 3.4478,
+   "noble": false
+  },
+  {
+   "Z": 84,
+   "outer_r_mean_bohr": 3.4085,
+   "noble": false
+  },
+  {
+   "Z": 85,
+   "outer_r_mean_bohr": 3.3721,
+   "noble": false
+  },
+  {
+   "Z": 86,
+   "outer_r_mean_bohr": 3.3379,
+   "noble": false
+  },
+  {
+   "Z": 87,
+   "outer_r_mean_bohr": 3.3056,
+   "noble": false
+  },
+  {
+   "Z": 88,
+   "outer_r_mean_bohr": 3.2749,
+   "noble": false
+  },
+  {
+   "Z": 89,
+   "outer_r_mean_bohr": 3.2455,
+   "noble": false
+  },
+  {
+   "Z": 90,
+   "outer_r_mean_bohr": 3.2173,
+   "noble": false
+  },
+  {
+   "Z": 91,
+   "outer_r_mean_bohr": 3.1901,
+   "noble": false
+  },
+  {
+   "Z": 92,
+   "outer_r_mean_bohr": 3.1639,
+   "noble": false
+  },
+  {
+   "Z": 93,
+   "outer_r_mean_bohr": 3.1385,
+   "noble": false
+  },
+  {
+   "Z": 94,
+   "outer_r_mean_bohr": 3.114,
+   "noble": false
+  },
+  {
+   "Z": 95,
+   "outer_r_mean_bohr": 3.0901,
+   "noble": false
+  },
+  {
+   "Z": 96,
+   "outer_r_mean_bohr": 3.067,
+   "noble": false
+  },
+  {
+   "Z": 97,
+   "outer_r_mean_bohr": 3.0427,
+   "noble": false
+  },
+  {
+   "Z": 98,
+   "outer_r_mean_bohr": 3.0193,
+   "noble": false
+  },
+  {
+   "Z": 99,
+   "outer_r_mean_bohr": 2.9967,
+   "noble": false
+  },
+  {
+   "Z": 100,
+   "outer_r_mean_bohr": 2.9747,
+   "noble": false
+  },
+  {
+   "Z": 101,
+   "outer_r_mean_bohr": 2.9534,
+   "noble": false
+  },
+  {
+   "Z": 102,
+   "outer_r_mean_bohr": 2.9326,
+   "noble": false
+  },
+  {
+   "Z": 103,
+   "outer_r_mean_bohr": 2.9124,
+   "noble": false
+  },
+  {
+   "Z": 104,
+   "outer_r_mean_bohr": 2.8928,
+   "noble": false
+  },
+  {
+   "Z": 105,
+   "outer_r_mean_bohr": 2.8736,
+   "noble": false
+  },
+  {
+   "Z": 106,
+   "outer_r_mean_bohr": 2.8548,
+   "noble": false
+  },
+  {
+   "Z": 107,
+   "outer_r_mean_bohr": 3.1168,
+   "noble": false
+  },
+  {
+   "Z": 108,
+   "outer_r_mean_bohr": 3.0999,
+   "noble": false
+  },
+  {
+   "Z": 109,
+   "outer_r_mean_bohr": 3.0833,
+   "noble": false
+  },
+  {
+   "Z": 110,
+   "outer_r_mean_bohr": 3.067,
+   "noble": false
+  },
+  {
+   "Z": 111,
+   "outer_r_mean_bohr": 3.051,
+   "noble": false
+  },
+  {
+   "Z": 112,
+   "outer_r_mean_bohr": 2.7507,
+   "noble": false
+  },
+  {
+   "Z": 113,
+   "outer_r_mean_bohr": 3.856,
+   "noble": false
+  },
+  {
+   "Z": 114,
+   "outer_r_mean_bohr": 1.8438,
+   "noble": false
+  },
+  {
+   "Z": 115,
+   "outer_r_mean_bohr": 1.6486,
+   "noble": false
+  },
+  {
+   "Z": 116,
+   "outer_r_mean_bohr": 1.5227,
+   "noble": false
+  },
+  {
+   "Z": 117,
+   "outer_r_mean_bohr": 1.4297,
+   "noble": false
+  },
+  {
+   "Z": 118,
+   "outer_r_mean_bohr": 2.2178,
+   "noble": false
+  },
+  {
+   "Z": 119,
+   "outer_r_mean_bohr": 2.1697,
+   "noble": false
+  },
+  {
+   "Z": 120,
+   "outer_r_mean_bohr": 1.2787,
+   "noble": false
+  },
+  {
+   "Z": 121,
+   "outer_r_mean_bohr": 2.0844,
+   "noble": false
+  },
+  {
+   "Z": 122,
+   "outer_r_mean_bohr": 1.1863,
+   "noble": false
+  },
+  {
+   "Z": 123,
+   "outer_r_mean_bohr": 2.029,
+   "noble": false
+  },
+  {
+   "Z": 124,
+   "outer_r_mean_bohr": 1.1361,
+   "noble": false
+  },
+  {
+   "Z": 125,
+   "outer_r_mean_bohr": 1.1018,
+   "noble": false
+  },
+  {
+   "Z": 126,
+   "outer_r_mean_bohr": 1.0703,
+   "noble": false
+  },
+  {
+   "Z": 127,
+   "outer_r_mean_bohr": 1.0414,
+   "noble": false
+  },
+  {
+   "Z": 128,
+   "outer_r_mean_bohr": 1.0145,
+   "noble": false
+  },
+  {
+   "Z": 129,
+   "outer_r_mean_bohr": 1.8593,
+   "noble": false
+  },
+  {
+   "Z": 130,
+   "outer_r_mean_bohr": 1.787,
+   "noble": false
+  },
+  {
+   "Z": 131,
+   "outer_r_mean_bohr": 2.4361,
+   "noble": false
+  },
+  {
+   "Z": 132,
+   "outer_r_mean_bohr": 2.2225,
+   "noble": false
+  },
+  {
+   "Z": 133,
+   "outer_r_mean_bohr": 2.071,
+   "noble": false
+  },
+  {
+   "Z": 134,
+   "outer_r_mean_bohr": 1.9535,
+   "noble": false
+  },
+  {
+   "Z": 135,
+   "outer_r_mean_bohr": 1.8595,
+   "noble": false
+  },
+  {
+   "Z": 136,
+   "outer_r_mean_bohr": 1.7795,
+   "noble": false
+  },
+  {
+   "Z": 137,
+   "outer_r_mean_bohr": 1.7097,
+   "noble": false
+  },
+  {
+   "Z": 138,
+   "outer_r_mean_bohr": 1.6478,
+   "noble": true
+  },
+  {
+   "Z": 139,
+   "outer_r_mean_bohr": 3.7414,
+   "noble": false
+  },
+  {
+   "Z": 140,
+   "outer_r_mean_bohr": 3.3734,
+   "noble": false
+  }
+ ],
+ "d3": [
+  {
+   "Z": 1,
+   "outer_r_mean_bohr": 1.5,
+   "noble": false
+  },
+  {
+   "Z": 2,
+   "outer_r_mean_bohr": 0.9273,
+   "noble": true
+  },
+  {
+   "Z": 3,
+   "outer_r_mean_bohr": 3.8893,
+   "noble": false
+  },
+  {
+   "Z": 4,
+   "outer_r_mean_bohr": 2.6552,
+   "noble": false
+  },
+  {
+   "Z": 5,
+   "outer_r_mean_bohr": 2.1909,
+   "noble": false
+  },
+  {
+   "Z": 6,
+   "outer_r_mean_bohr": 1.6992,
+   "noble": false
+  },
+  {
+   "Z": 7,
+   "outer_r_mean_bohr": 1.4006,
+   "noble": false
+  },
+  {
+   "Z": 8,
+   "outer_r_mean_bohr": 1.2295,
+   "noble": false
+  },
+  {
+   "Z": 9,
+   "outer_r_mean_bohr": 1.083,
+   "noble": false
+  },
+  {
+   "Z": 10,
+   "outer_r_mean_bohr": 0.9646,
+   "noble": true
+  },
+  {
+   "Z": 11,
+   "outer_r_mean_bohr": 4.1067,
+   "noble": false
+  },
+  {
+   "Z": 12,
+   "outer_r_mean_bohr": 3.2032,
+   "noble": false
+  },
+  {
+   "Z": 13,
+   "outer_r_mean_bohr": 3.4964,
+   "noble": false
+  },
+  {
+   "Z": 14,
+   "outer_r_mean_bohr": 2.7892,
+   "noble": false
+  },
+  {
+   "Z": 15,
+   "outer_r_mean_bohr": 2.3518,
+   "noble": false
+  },
+  {
+   "Z": 16,
+   "outer_r_mean_bohr": 2.0774,
+   "noble": false
+  },
+  {
+   "Z": 17,
+   "outer_r_mean_bohr": 1.8537,
+   "noble": false
+  },
+  {
+   "Z": 18,
+   "outer_r_mean_bohr": 1.6727,
+   "noble": true
+  },
+  {
+   "Z": 19,
+   "outer_r_mean_bohr": 5.0183,
+   "noble": false
+  },
+  {
+   "Z": 20,
+   "outer_r_mean_bohr": 4.094,
+   "noble": false
+  },
+  {
+   "Z": 21,
+   "outer_r_mean_bohr": 3.8219,
+   "noble": false
+  },
+  {
+   "Z": 22,
+   "outer_r_mean_bohr": 3.7442,
+   "noble": false
+  },
+  {
+   "Z": 23,
+   "outer_r_mean_bohr": 3.5761,
+   "noble": false
+  },
+  {
+   "Z": 24,
+   "outer_r_mean_bohr": 3.4357,
+   "noble": false
+  },
+  {
+   "Z": 25,
+   "outer_r_mean_bohr": 3.2443,
+   "noble": false
+  },
+  {
+   "Z": 26,
+   "outer_r_mean_bohr": 3.1146,
+   "noble": false
+  },
+  {
+   "Z": 27,
+   "outer_r_mean_bohr": 3.197,
+   "noble": false
+  },
+  {
+   "Z": 28,
+   "outer_r_mean_bohr": 3.1376,
+   "noble": false
+  },
+  {
+   "Z": 29,
+   "outer_r_mean_bohr": 3.0845,
+   "noble": false
+  },
+  {
+   "Z": 30,
+   "outer_r_mean_bohr": 2.7556,
+   "noble": false
+  },
+  {
+   "Z": 31,
+   "outer_r_mean_bohr": 3.4661,
+   "noble": false
+  },
+  {
+   "Z": 32,
+   "outer_r_mean_bohr": 2.9051,
+   "noble": false
+  },
+  {
+   "Z": 33,
+   "outer_r_mean_bohr": 2.5498,
+   "noble": false
+  },
+  {
+   "Z": 34,
+   "outer_r_mean_bohr": 2.3192,
+   "noble": false
+  },
+  {
+   "Z": 35,
+   "outer_r_mean_bohr": 2.1261,
+   "noble": false
+  },
+  {
+   "Z": 36,
+   "outer_r_mean_bohr": 1.965,
+   "noble": true
+  }
+ ]
+}

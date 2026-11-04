@@ -1,0 +1,322 @@
+{
+ "caption": "The solver in our three dimensions: ionization against measured, and the configurations it misses",
+ "points": [
+  {
+   "Z": 1,
+   "symbol": "H",
+   "ion_eV": 13.6057,
+   "measured_eV": 13.598,
+   "error_pct": 0.056626,
+   "config_match": true
+  },
+  {
+   "Z": 2,
+   "symbol": "He",
+   "ion_eV": 23.4467,
+   "measured_eV": 24.587,
+   "error_pct": -4.63782,
+   "config_match": true
+  },
+  {
+   "Z": 3,
+   "symbol": "Li",
+   "ion_eV": 5.37234,
+   "measured_eV": 5.392,
+   "error_pct": -0.364614,
+   "config_match": true
+  },
+  {
+   "Z": 4,
+   "symbol": "Be",
+   "ion_eV": 8.12886,
+   "measured_eV": 9.323,
+   "error_pct": -12.8085,
+   "config_match": true
+  },
+  {
+   "Z": 5,
+   "symbol": "B",
+   "ion_eV": 8.29376,
+   "measured_eV": 8.298,
+   "error_pct": -0.0510966,
+   "config_match": true
+  },
+  {
+   "Z": 6,
+   "symbol": "C",
+   "ion_eV": 11.573,
+   "measured_eV": 11.26,
+   "error_pct": 2.77975,
+   "config_match": true
+  },
+  {
+   "Z": 7,
+   "symbol": "N",
+   "ion_eV": 14.8422,
+   "measured_eV": 14.534,
+   "error_pct": 2.12054,
+   "config_match": true
+  },
+  {
+   "Z": 8,
+   "symbol": "O",
+   "ion_eV": 12.5559,
+   "measured_eV": 13.618,
+   "error_pct": -7.79924,
+   "config_match": true
+  },
+  {
+   "Z": 9,
+   "symbol": "F",
+   "ion_eV": 17.0637,
+   "measured_eV": 17.423,
+   "error_pct": -2.06222,
+   "config_match": true
+  },
+  {
+   "Z": 10,
+   "symbol": "Ne",
+   "ion_eV": 21.3071,
+   "measured_eV": 21.565,
+   "error_pct": -1.19592,
+   "config_match": true
+  },
+  {
+   "Z": 11,
+   "symbol": "Na",
+   "ion_eV": 5.18023,
+   "measured_eV": 5.139,
+   "error_pct": 0.802296,
+   "config_match": true
+  },
+  {
+   "Z": 12,
+   "symbol": "Mg",
+   "ion_eV": 6.87904,
+   "measured_eV": 7.646,
+   "error_pct": -10.0309,
+   "config_match": true
+  },
+  {
+   "Z": 13,
+   "symbol": "Al",
+   "ion_eV": 5.565,
+   "measured_eV": 5.986,
+   "error_pct": -7.03308,
+   "config_match": true
+  },
+  {
+   "Z": 14,
+   "symbol": "Si",
+   "ion_eV": 7.91171,
+   "measured_eV": 8.152,
+   "error_pct": -2.94762,
+   "config_match": true
+  },
+  {
+   "Z": 15,
+   "symbol": "P",
+   "ion_eV": 10.2228,
+   "measured_eV": 10.487,
+   "error_pct": -2.51931,
+   "config_match": true
+  },
+  {
+   "Z": 16,
+   "symbol": "S",
+   "ion_eV": 9.39691,
+   "measured_eV": 10.36,
+   "error_pct": -9.29624,
+   "config_match": true
+  },
+  {
+   "Z": 17,
+   "symbol": "Cl",
+   "ion_eV": 12.3608,
+   "measured_eV": 12.968,
+   "error_pct": -4.68229,
+   "config_match": true
+  },
+  {
+   "Z": 18,
+   "symbol": "Ar",
+   "ion_eV": 15.1883,
+   "measured_eV": 15.76,
+   "error_pct": -3.62754,
+   "config_match": true
+  },
+  {
+   "Z": 19,
+   "symbol": "K",
+   "ion_eV": 4.31083,
+   "measured_eV": 4.341,
+   "error_pct": -0.695001,
+   "config_match": true
+  },
+  {
+   "Z": 20,
+   "symbol": "Ca",
+   "ion_eV": 5.45969,
+   "measured_eV": 6.113,
+   "error_pct": -10.6872,
+   "config_match": true
+  },
+  {
+   "Z": 21,
+   "symbol": "Sc",
+   "ion_eV": 5.69045,
+   "measured_eV": 6.561,
+   "error_pct": -13.2686,
+   "config_match": true
+  },
+  {
+   "Z": 22,
+   "symbol": "Ti",
+   "ion_eV": 6.43685,
+   "measured_eV": 6.828,
+   "error_pct": -5.72862,
+   "config_match": false
+  },
+  {
+   "Z": 23,
+   "symbol": "V",
+   "ion_eV": 6.76529,
+   "measured_eV": 6.746,
+   "error_pct": 0.285947,
+   "config_match": false
+  },
+  {
+   "Z": 24,
+   "symbol": "Cr",
+   "ion_eV": 7.05782,
+   "measured_eV": 6.767,
+   "error_pct": 4.29762,
+   "config_match": true
+  },
+  {
+   "Z": 25,
+   "symbol": "Mn",
+   "ion_eV": 6.23277,
+   "measured_eV": 7.434,
+   "error_pct": -16.1586,
+   "config_match": true
+  },
+  {
+   "Z": 26,
+   "symbol": "Fe",
+   "ion_eV": 6.86652,
+   "measured_eV": 7.902,
+   "error_pct": -13.104,
+   "config_match": true
+  },
+  {
+   "Z": 27,
+   "symbol": "Co",
+   "ion_eV": 7.42191,
+   "measured_eV": 7.881,
+   "error_pct": -5.82528,
+   "config_match": false
+  },
+  {
+   "Z": 28,
+   "symbol": "Ni",
+   "ion_eV": 7.51007,
+   "measured_eV": 7.64,
+   "error_pct": -1.70065,
+   "config_match": false
+  },
+  {
+   "Z": 29,
+   "symbol": "Cu",
+   "ion_eV": 7.59089,
+   "measured_eV": 7.726,
+   "error_pct": -1.74877,
+   "config_match": true
+  },
+  {
+   "Z": 30,
+   "symbol": "Zn",
+   "ion_eV": 8.72234,
+   "measured_eV": 9.394,
+   "error_pct": -7.14988,
+   "config_match": true
+  },
+  {
+   "Z": 31,
+   "symbol": "Ga",
+   "ion_eV": 5.58677,
+   "measured_eV": 5.999,
+   "error_pct": -6.87165,
+   "config_match": true
+  },
+  {
+   "Z": 32,
+   "symbol": "Ge",
+   "ion_eV": 7.67334,
+   "measured_eV": 7.899,
+   "error_pct": -2.85682,
+   "config_match": true
+  },
+  {
+   "Z": 33,
+   "symbol": "As",
+   "ion_eV": 9.63337,
+   "measured_eV": 9.789,
+   "error_pct": -1.58985,
+   "config_match": true
+  },
+  {
+   "Z": 34,
+   "symbol": "Se",
+   "ion_eV": 8.81921,
+   "measured_eV": 9.752,
+   "error_pct": -9.56511,
+   "config_match": true
+  },
+  {
+   "Z": 35,
+   "symbol": "Br",
+   "ion_eV": 11.2563,
+   "measured_eV": 11.814,
+   "error_pct": -4.72067,
+   "config_match": true
+  },
+  {
+   "Z": 36,
+   "symbol": "Kr",
+   "ion_eV": 13.5145,
+   "measured_eV": 13.999,
+   "error_pct": -3.46096,
+   "config_match": true
+  }
+ ],
+ "config_hits": 32,
+ "config_total": 36,
+ "misses": [
+  {
+   "Z": 22,
+   "symbol": "Ti",
+   "ours": "1s2 2s2 2p6 3s2 3p6 3d3 4s1",
+   "measured": "1s2 2s2 2p6 3s2 3p6 3d2 4s2"
+  },
+  {
+   "Z": 23,
+   "symbol": "V",
+   "ours": "1s2 2s2 2p6 3s2 3p6 3d4 4s1",
+   "measured": "1s2 2s2 2p6 3s2 3p6 3d3 4s2"
+  },
+  {
+   "Z": 27,
+   "symbol": "Co",
+   "ours": "1s2 2s2 2p6 3s2 3p6 3d8 4s1",
+   "measured": "1s2 2s2 2p6 3s2 3p6 3d7 4s2"
+  },
+  {
+   "Z": 28,
+   "symbol": "Ni",
+   "ours": "1s2 2s2 2p6 3s2 3p6 3d9 4s1",
+   "measured": "1s2 2s2 2p6 3s2 3p6 3d8 4s2"
+  }
+ ],
+ "ion_median_abs_error_pct": 4.29762
+}

@@ -1,0 +1,931 @@
+{
+ "caption": "First ionization energy against Z, both worlds; ours beside measured",
+ "d4": [
+  {
+   "Z": 1,
+   "ion_eV": 6.04691,
+   "noble": false
+  },
+  {
+   "Z": 2,
+   "ion_eV": 10.0043,
+   "noble": true
+  },
+  {
+   "Z": 3,
+   "ion_eV": 3.50945,
+   "noble": false
+  },
+  {
+   "Z": 4,
+   "ion_eV": 5.5133,
+   "noble": false
+  },
+  {
+   "Z": 5,
+   "ion_eV": 5.49942,
+   "noble": false
+  },
+  {
+   "Z": 6,
+   "ion_eV": 7.41347,
+   "noble": false
+  },
+  {
+   "Z": 7,
+   "ion_eV": 9.34956,
+   "noble": false
+  },
+  {
+   "Z": 8,
+   "ion_eV": 11.3496,
+   "noble": false
+  },
+  {
+   "Z": 9,
+   "ion_eV": 10.3626,
+   "noble": false
+  },
+  {
+   "Z": 10,
+   "ion_eV": 13.1096,
+   "noble": false
+  },
+  {
+   "Z": 11,
+   "ion_eV": 15.7491,
+   "noble": false
+  },
+  {
+   "Z": 12,
+   "ion_eV": 18.3884,
+   "noble": true
+  },
+  {
+   "Z": 13,
+   "ion_eV": 4.84907,
+   "noble": false
+  },
+  {
+   "Z": 14,
+   "ion_eV": 6.64556,
+   "noble": false
+  },
+  {
+   "Z": 15,
+   "ion_eV": 4.32171,
+   "noble": false
+  },
+  {
+   "Z": 16,
+   "ion_eV": 6.22569,
+   "noble": false
+  },
+  {
+   "Z": 17,
+   "ion_eV": 8.13675,
+   "noble": false
+  },
+  {
+   "Z": 18,
+   "ion_eV": 10.1166,
+   "noble": false
+  },
+  {
+   "Z": 19,
+   "ion_eV": 10.1722,
+   "noble": false
+  },
+  {
+   "Z": 20,
+   "ion_eV": 12.6859,
+   "noble": false
+  },
+  {
+   "Z": 21,
+   "ion_eV": 15.1668,
+   "noble": false
+  },
+  {
+   "Z": 22,
+   "ion_eV": 17.692,
+   "noble": true
+  },
+  {
+   "Z": 23,
+   "ion_eV": 5.04499,
+   "noble": false
+  },
+  {
+   "Z": 24,
+   "ion_eV": 6.54706,
+   "noble": false
+  },
+  {
+   "Z": 25,
+   "ion_eV": 7.04612,
+   "noble": false
+  },
+  {
+   "Z": 26,
+   "ion_eV": 7.45674,
+   "noble": false
+  },
+  {
+   "Z": 27,
+   "ion_eV": 7.82545,
+   "noble": false
+  },
+  {
+   "Z": 28,
+   "ion_eV": 8.16967,
+   "noble": false
+  },
+  {
+   "Z": 29,
+   "ion_eV": 8.49784,
+   "noble": false
+  },
+  {
+   "Z": 30,
+   "ion_eV": 8.98683,
+   "noble": false
+  },
+  {
+   "Z": 31,
+   "ion_eV": 9.35881,
+   "noble": false
+  },
+  {
+   "Z": 32,
+   "ion_eV": 9.7229,
+   "noble": false
+  },
+  {
+   "Z": 33,
+   "ion_eV": 9.72154,
+   "noble": false
+  },
+  {
+   "Z": 34,
+   "ion_eV": 10.33,
+   "noble": false
+  },
+  {
+   "Z": 35,
+   "ion_eV": 10.89,
+   "noble": false
+  },
+  {
+   "Z": 36,
+   "ion_eV": 11.419,
+   "noble": false
+  },
+  {
+   "Z": 37,
+   "ion_eV": 11.1733,
+   "noble": false
+  },
+  {
+   "Z": 38,
+   "ion_eV": 11.4448,
+   "noble": false
+  },
+  {
+   "Z": 39,
+   "ion_eV": 11.7129,
+   "noble": false
+  },
+  {
+   "Z": 40,
+   "ion_eV": 11.9779,
+   "noble": false
+  },
+  {
+   "Z": 41,
+   "ion_eV": 12.241,
+   "noble": false
+  },
+  {
+   "Z": 42,
+   "ion_eV": 14.2577,
+   "noble": false
+  },
+  {
+   "Z": 43,
+   "ion_eV": 5.68147,
+   "noble": false
+  },
+  {
+   "Z": 44,
+   "ion_eV": 8.08913,
+   "noble": false
+  },
+  {
+   "Z": 45,
+   "ion_eV": 10.3787,
+   "noble": false
+  },
+  {
+   "Z": 46,
+   "ion_eV": 12.6645,
+   "noble": false
+  },
+  {
+   "Z": 47,
+   "ion_eV": 12.8389,
+   "noble": false
+  },
+  {
+   "Z": 48,
+   "ion_eV": 15.6068,
+   "noble": false
+  },
+  {
+   "Z": 49,
+   "ion_eV": 18.2749,
+   "noble": false
+  },
+  {
+   "Z": 50,
+   "ion_eV": 20.9397,
+   "noble": true
+  },
+  {
+   "Z": 51,
+   "ion_eV": 5.94542,
+   "noble": false
+  },
+  {
+   "Z": 52,
+   "ion_eV": 7.54735,
+   "noble": false
+  },
+  {
+   "Z": 53,
+   "ion_eV": 4.46321,
+   "noble": false
+  },
+  {
+   "Z": 54,
+   "ion_eV": 6.41264,
+   "noble": false
+  },
+  {
+   "Z": 55,
+   "ion_eV": 8.2807,
+   "noble": false
+  },
+  {
+   "Z": 56,
+   "ion_eV": 10.1232,
+   "noble": false
+  },
+  {
+   "Z": 57,
+   "ion_eV": 10.8367,
+   "noble": false
+  },
+  {
+   "Z": 58,
+   "ion_eV": 11.4789,
+   "noble": false
+  },
+  {
+   "Z": 59,
+   "ion_eV": 12.6881,
+   "noble": false
+  },
+  {
+   "Z": 60,
+   "ion_eV": 13.1469,
+   "noble": false
+  },
+  {
+   "Z": 61,
+   "ion_eV": 12.7363,
+   "noble": false
+  },
+  {
+   "Z": 62,
+   "ion_eV": 13.8204,
+   "noble": false
+  },
+  {
+   "Z": 63,
+   "ion_eV": 14.1423,
+   "noble": false
+  },
+  {
+   "Z": 64,
+   "ion_eV": 15.4084,
+   "noble": false
+  },
+  {
+   "Z": 65,
+   "ion_eV": 17.1032,
+   "noble": false
+  },
+  {
+   "Z": 66,
+   "ion_eV": 18.8178,
+   "noble": false
+  },
+  {
+   "Z": 67,
+   "ion_eV": 20.5558,
+   "noble": false
+  },
+  {
+   "Z": 68,
+   "ion_eV": 22.3196,
+   "noble": false
+  },
+  {
+   "Z": 69,
+   "ion_eV": 15.9451,
+   "noble": false
+  },
+  {
+   "Z": 70,
+   "ion_eV": 17.9826,
+   "noble": false
+  },
+  {
+   "Z": 71,
+   "ion_eV": 7.66545,
+   "noble": false
+  },
+  {
+   "Z": 72,
+   "ion_eV": 10.1594,
+   "noble": false
+  },
+  {
+   "Z": 73,
+   "ion_eV": 12.5156,
+   "noble": false
+  },
+  {
+   "Z": 74,
+   "ion_eV": 14.8403,
+   "noble": false
+  },
+  {
+   "Z": 75,
+   "ion_eV": 15.2074,
+   "noble": false
+  },
+  {
+   "Z": 76,
+   "ion_eV": 17.9149,
+   "noble": false
+  },
+  {
+   "Z": 77,
+   "ion_eV": 20.516,
+   "noble": false
+  },
+  {
+   "Z": 78,
+   "ion_eV": 23.0973,
+   "noble": true
+  },
+  {
+   "Z": 79,
+   "ion_eV": 6.38189,
+   "noble": false
+  },
+  {
+   "Z": 80,
+   "ion_eV": 7.95661,
+   "noble": false
+  },
+  {
+   "Z": 81,
+   "ion_eV": 7.24095,
+   "noble": false
+  },
+  {
+   "Z": 82,
+   "ion_eV": 7.02544,
+   "noble": false
+  },
+  {
+   "Z": 83,
+   "ion_eV": 8.34274,
+   "noble": false
+  },
+  {
+   "Z": 84,
+   "ion_eV": 8.43961,
+   "noble": false
+  },
+  {
+   "Z": 85,
+   "ion_eV": 8.52968,
+   "noble": false
+  },
+  {
+   "Z": 86,
+   "ion_eV": 8.61512,
+   "noble": false
+  },
+  {
+   "Z": 87,
+   "ion_eV": 8.69676,
+   "noble": false
+  },
+  {
+   "Z": 88,
+   "ion_eV": 8.7754,
+   "noble": false
+  },
+  {
+   "Z": 89,
+   "ion_eV": 8.85132,
+   "noble": false
+  },
+  {
+   "Z": 90,
+   "ion_eV": 8.92533,
+   "noble": false
+  },
+  {
+   "Z": 91,
+   "ion_eV": 8.99717,
+   "noble": false
+  },
+  {
+   "Z": 92,
+   "ion_eV": 9.06765,
+   "noble": false
+  },
+  {
+   "Z": 93,
+   "ion_eV": 9.13677,
+   "noble": false
+  },
+  {
+   "Z": 94,
+   "ion_eV": 9.20425,
+   "noble": false
+  },
+  {
+   "Z": 95,
+   "ion_eV": 9.27092,
+   "noble": false
+  },
+  {
+   "Z": 96,
+   "ion_eV": 9.33623,
+   "noble": false
+  },
+  {
+   "Z": 97,
+   "ion_eV": 9.4331,
+   "noble": false
+  },
+  {
+   "Z": 98,
+   "ion_eV": 9.52725,
+   "noble": false
+  },
+  {
+   "Z": 99,
+   "ion_eV": 9.61895,
+   "noble": false
+  },
+  {
+   "Z": 100,
+   "ion_eV": 9.70821,
+   "noble": false
+  },
+  {
+   "Z": 101,
+   "ion_eV": 9.79528,
+   "noble": false
+  },
+  {
+   "Z": 102,
+   "ion_eV": 9.88045,
+   "noble": false
+  },
+  {
+   "Z": 103,
+   "ion_eV": 9.96399,
+   "noble": false
+  },
+  {
+   "Z": 104,
+   "ion_eV": 10.0459,
+   "noble": false
+  },
+  {
+   "Z": 105,
+   "ion_eV": 10.1262,
+   "noble": false
+  },
+  {
+   "Z": 106,
+   "ion_eV": 10.2054,
+   "noble": false
+  },
+  {
+   "Z": 107,
+   "ion_eV": 8.47118,
+   "noble": false
+  },
+  {
+   "Z": 108,
+   "ion_eV": 8.51118,
+   "noble": false
+  },
+  {
+   "Z": 109,
+   "ion_eV": 8.55118,
+   "noble": false
+  },
+  {
+   "Z": 110,
+   "ion_eV": 8.59063,
+   "noble": false
+  },
+  {
+   "Z": 111,
+   "ion_eV": 8.63009,
+   "noble": false
+  },
+  {
+   "Z": 112,
+   "ion_eV": 10.6554,
+   "noble": false
+  },
+  {
+   "Z": 113,
+   "ion_eV": 5.11547,
+   "noble": false
+  },
+  {
+   "Z": 114,
+   "ion_eV": 6.91768,
+   "noble": false
+  },
+  {
+   "Z": 115,
+   "ion_eV": 9.2818,
+   "noble": false
+  },
+  {
+   "Z": 116,
+   "ion_eV": 11.5997,
+   "noble": false
+  },
+  {
+   "Z": 117,
+   "ion_eV": 13.9034,
+   "noble": false
+  },
+  {
+   "Z": 118,
+   "ion_eV": 15.4038,
+   "noble": false
+  },
+  {
+   "Z": 119,
+   "ion_eV": 15.9532,
+   "noble": false
+  },
+  {
+   "Z": 120,
+   "ion_eV": 17.9269,
+   "noble": false
+  },
+  {
+   "Z": 121,
+   "ion_eV": 17.0098,
+   "noble": false
+  },
+  {
+   "Z": 122,
+   "ion_eV": 18.6567,
+   "noble": false
+  },
+  {
+   "Z": 123,
+   "ion_eV": 19.3873,
+   "noble": false
+  },
+  {
+   "Z": 124,
+   "ion_eV": 20.3889,
+   "noble": false
+  },
+  {
+   "Z": 125,
+   "ion_eV": 22.645,
+   "noble": false
+  },
+  {
+   "Z": 126,
+   "ion_eV": 24.9237,
+   "noble": false
+  },
+  {
+   "Z": 127,
+   "ion_eV": 27.2291,
+   "noble": false
+  },
+  {
+   "Z": 128,
+   "ion_eV": 29.5644,
+   "noble": false
+  },
+  {
+   "Z": 129,
+   "ion_eV": 22.0249,
+   "noble": false
+  },
+  {
+   "Z": 130,
+   "ion_eV": 24.3199,
+   "noble": false
+  },
+  {
+   "Z": 131,
+   "ion_eV": 9.55473,
+   "noble": false
+  },
+  {
+   "Z": 132,
+   "ion_eV": 12.3719,
+   "noble": false
+  },
+  {
+   "Z": 133,
+   "ion_eV": 15.0215,
+   "noble": false
+  },
+  {
+   "Z": 134,
+   "ion_eV": 17.6161,
+   "noble": false
+  },
+  {
+   "Z": 135,
+   "ion_eV": 18.1467,
+   "noble": false
+  },
+  {
+   "Z": 136,
+   "ion_eV": 21.1016,
+   "noble": false
+  },
+  {
+   "Z": 137,
+   "ion_eV": 23.9259,
+   "noble": false
+  },
+  {
+   "Z": 138,
+   "ion_eV": 26.7112,
+   "noble": true
+  },
+  {
+   "Z": 139,
+   "ion_eV": 7.24177,
+   "noble": false
+  },
+  {
+   "Z": 140,
+   "ion_eV": 8.94166,
+   "noble": false
+  }
+ ],
+ "d3": [
+  {
+   "Z": 1,
+   "ion_eV": 13.6057,
+   "noble": false,
+   "measured_eV": 13.598
+  },
+  {
+   "Z": 2,
+   "ion_eV": 23.4467,
+   "noble": true,
+   "measured_eV": 24.587
+  },
+  {
+   "Z": 3,
+   "ion_eV": 5.37234,
+   "noble": false,
+   "measured_eV": 5.392
+  },
+  {
+   "Z": 4,
+   "ion_eV": 8.12886,
+   "noble": false,
+   "measured_eV": 9.323
+  },
+  {
+   "Z": 5,
+   "ion_eV": 8.29376,
+   "noble": false,
+   "measured_eV": 8.298
+  },
+  {
+   "Z": 6,
+   "ion_eV": 11.573,
+   "noble": false,
+   "measured_eV": 11.26
+  },
+  {
+   "Z": 7,
+   "ion_eV": 14.8422,
+   "noble": false,
+   "measured_eV": 14.534
+  },
+  {
+   "Z": 8,
+   "ion_eV": 12.5559,
+   "noble": false,
+   "measured_eV": 13.618
+  },
+  {
+   "Z": 9,
+   "ion_eV": 17.0637,
+   "noble": false,
+   "measured_eV": 17.423
+  },
+  {
+   "Z": 10,
+   "ion_eV": 21.3071,
+   "noble": true,
+   "measured_eV": 21.565
+  },
+  {
+   "Z": 11,
+   "ion_eV": 5.18023,
+   "noble": false,
+   "measured_eV": 5.139
+  },
+  {
+   "Z": 12,
+   "ion_eV": 6.87904,
+   "noble": false,
+   "measured_eV": 7.646
+  },
+  {
+   "Z": 13,
+   "ion_eV": 5.565,
+   "noble": false,
+   "measured_eV": 5.986
+  },
+  {
+   "Z": 14,
+   "ion_eV": 7.91171,
+   "noble": false,
+   "measured_eV": 8.152
+  },
+  {
+   "Z": 15,
+   "ion_eV": 10.2228,
+   "noble": false,
+   "measured_eV": 10.487
+  },
+  {
+   "Z": 16,
+   "ion_eV": 9.39691,
+   "noble": false,
+   "measured_eV": 10.36
+  },
+  {
+   "Z": 17,
+   "ion_eV": 12.3608,
+   "noble": false,
+   "measured_eV": 12.968
+  },
+  {
+   "Z": 18,
+   "ion_eV": 15.1883,
+   "noble": true,
+   "measured_eV": 15.76
+  },
+  {
+   "Z": 19,
+   "ion_eV": 4.31083,
+   "noble": false,
+   "measured_eV": 4.341
+  },
+  {
+   "Z": 20,
+   "ion_eV": 5.45969,
+   "noble": false,
+   "measured_eV": 6.113
+  },
+  {
+   "Z": 21,
+   "ion_eV": 5.69045,
+   "noble": false,
+   "measured_eV": 6.561
+  },
+  {
+   "Z": 22,
+   "ion_eV": 6.43685,
+   "noble": false,
+   "measured_eV": 6.828
+  },
+  {
+   "Z": 23,
+   "ion_eV": 6.76529,
+   "noble": false,
+   "measured_eV": 6.746
+  },
+  {
+   "Z": 24,
+   "ion_eV": 7.05782,
+   "noble": false,
+   "measured_eV": 6.767
+  },
+  {
+   "Z": 25,
+   "ion_eV": 6.23277,
+   "noble": false,
+   "measured_eV": 7.434
+  },
+  {
+   "Z": 26,
+   "ion_eV": 6.86652,
+   "noble": false,
+   "measured_eV": 7.902
+  },
+  {
+   "Z": 27,
+   "ion_eV": 7.42191,
+   "noble": false,
+   "measured_eV": 7.881
+  },
+  {
+   "Z": 28,
+   "ion_eV": 7.51007,
+   "noble": false,
+   "measured_eV": 7.64
+  },
+  {
+   "Z": 29,
+   "ion_eV": 7.59089,
+   "noble": false,
+   "measured_eV": 7.726
+  },
+  {
+   "Z": 30,
+   "ion_eV": 8.72234,
+   "noble": false,
+   "measured_eV": 9.394
+  },
+  {
+   "Z": 31,
+   "ion_eV": 5.58677,
+   "noble": false,
+   "measured_eV": 5.999
+  },
+  {
+   "Z": 32,
+   "ion_eV": 7.67334,
+   "noble": false,
+   "measured_eV": 7.899
+  },
+  {
+   "Z": 33,
+   "ion_eV": 9.63337,
+   "noble": false,
+   "measured_eV": 9.789
+  },
+  {
+   "Z": 34,
+   "ion_eV": 8.81921,
+   "noble": false,
+   "measured_eV": 9.752
+  },
+  {
+   "Z": 35,
+   "ion_eV": 11.2563,
+   "noble": false,
+   "measured_eV": 11.814
+  },
+  {
+   "Z": 36,
+   "ion_eV": 13.5145,
+   "noble": true,
+   "measured_eV": 13.999
+  }
+ ],
+ "noble_gases_4d": [
+  2,
+  12,
+  22,
+  50,
+  78,
+  138
+ ]
+}

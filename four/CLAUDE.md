@@ -522,9 +522,11 @@ for games, and this is a modelling programme with publications to come. The game
   selftest 42 checks it still stages. `.github/workflows/mirror-four-tangled.yml` stages, tests and force-pushes on
   every push touching those files, and skips the push with a notice until the repo exists on tangled. A new solver
   module goes in `MODULES`; a new method-only selftest block in `BLOCKS`; neither may import baked data.
-- **papers**: none yet. Paper 1, a periodic table for four dimensions, is planned in `atom/WRITEUP.md` (deliberately
-  pinned: it's to be held to a physics preprint's standard). Its sources are gathered in `atom/LITERATURE.md`, with
-  each entry tagged by how far it's been verified. Papers will live at `/papers/`.
+- **papers**: paper 1, a periodic table for four dimensions, started 2026-11-04. `papers/p1/OUTLINE.md` holds the
+  sections (each claim mapped to its baked file and selftest block), the figure plan, the companion objects (paper
+  page, data release, `reproduce/p1.mjs` in the mirror, widgets, `refs.json`) and the checklist before prose. The kit
+  survey and decisions are in `atom/WRITEUP.md`; sources in `atom/LITERATURE.md`, each tagged by how far it's been
+  verified. Authors: Claude, Astra (audits), minor mobius (last, PI). Papers live at `/papers/`.
 
 ## Long calculations: the runner
 

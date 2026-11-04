@@ -1237,5 +1237,15 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `plane waves: the FFT to ${fe.toExponential(0)}, 4D/3D radial transforms to ${ft.toExponential(0)}, a Gaussian well ${ew.toFixed(5)} above the radial ${erad.toFixed(5)}, the ions' energy split-independent to ${ewd.toExponential(0)} (4D cores leaking), neon's pseudo-levels to ${pse.toExponential(0)}, Al → Al³⁺ through the core-corrected pseudopotential to ${(tr * 1000).toFixed(0)} meV of all-electron (${(dAE * 27.2114).toFixed(2)} eV), 4D electrostatics with leaking cores box-independent after the exact lattice sum to ${es4.toExponential(0)}, oxygen's and pxygen's α Z settled to ${aDrift.toExponential(0)} past 25 bohr`);
 }
 
+/* 67 · paper 1's companion data (papers/p1/build.mjs) is what the bake gives, and the claims the outline makes of it
+   still hold: the 4D noble gases at 2, 12, 22, 50, 78, 138, and 32 of our 36 ground configurations */
+{
+  const { build } = await import(path.join(here, "../../papers/p1/build.mjs")), { files, t3, t4 } = build();
+  const fs = await import("node:fs"), stale = [...files].filter(([rel, text]) => { const q = path.join(here, "../../papers/p1", rel); return !fs.existsSync(q) || fs.readFileSync(q, "utf8") !== text; }).map(([rel]) => rel);
+  const nobles = t4.filter((r) => r.noble).map((r) => r.Z).join(","), hits = t3.filter((r) => r.config_match).length;
+  ok(!stale.length && nobles === "2,12,22,50,78,138" && hits === 32 && t4.length === 140,
+    `paper 1 data: ${stale.length ? `stale (${stale.join(", ")}): run node four/papers/p1/build.mjs` : "current"}, 4D noble gases ${nobles}, ${hits} of ${t3.length} configurations, ${t4.length} elements`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

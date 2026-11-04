@@ -1,0 +1,35 @@
+{
+ "caption": "Noble-gas ionization, the 4D solve against the shell-theorem counterfactual",
+ "points": [
+  {
+   "Z": 2,
+   "ion_hartree": 0.36765,
+   "shell_theorem_hartree": 0.3375
+  },
+  {
+   "Z": 12,
+   "ion_hartree": 0.67576,
+   "shell_theorem_hartree": 0.37852
+  },
+  {
+   "Z": 22,
+   "ion_hartree": 0.65017,
+   "shell_theorem_hartree": 0.36004
+  },
+  {
+   "Z": 50,
+   "ion_hartree": 0.76952,
+   "shell_theorem_hartree": 0.35292
+  },
+  {
+   "Z": 78,
+   "ion_hartree": 0.84881,
+   "shell_theorem_hartree": 0.33922
+  },
+  {
+   "Z": 138,
+   "ion_hartree": 0.98162,
+   "shell_theorem_hartree": 0.33889
+  }
+ ]
+}
