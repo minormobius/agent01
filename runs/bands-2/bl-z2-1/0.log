@@ -1,0 +1,37 @@
+$ node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a10 4 soft
+z2-1 ×1: 10 atoms, 60 electrons, grid 25×25×48×48, 11497 PW at the first of 4 k, 4 workers
+  scf 0: E -124.32975364  |Δρ| 5.82e+0  bands 1.4e-1
+  scf 1: E -137.34329135  |Δρ| 2.71e+0  bands 1.1e-1
+  scf 2: E -144.26234289  |Δρ| 9.00e-1  bands 2.2e-1
+  scf 3: E -144.03283816  |Δρ| 6.11e-1  bands 1.1e-1
+  scf 4: E -144.50702286  |Δρ| 1.50e-1  bands 4.2e-1
+  scf 5: E -144.51607862  |Δρ| 6.87e-2  bands 6.6e-2
+  scf 6: E -144.51867383  |Δρ| 4.46e-2  bands 4.7e-2
+  scf 7: E -144.52061865  |Δρ| 8.49e-3  bands 2.2e-2
+  scf 8: E -144.52082193  |Δρ| 1.86e-3  bands 2.2e-2
+  scf 9: E -144.52082633  |Δρ| 6.47e-4  bands 2.1e-2
+  scf 10: E -144.52082749  |Δρ| 2.71e-4  bands 2.3e-2
+  scf 11: E -144.52082756  |Δρ| 1.18e-4  bands 4.2e-2
+  scf 12: E -144.52082756  |Δρ| 2.17e-5  bands 4.8e-2
+  scf 13: E -144.52082756  |Δρ| 9.49e-6  bands 4.8e-2
+{"stage":"scf","name":"z2-1","scale":1,"ecut":25,"nk":"a10","ns":[2,2,1,1],"nkpts":4,"pset":"Bl2Px3-soft","perFormula_eV":-1966.3060119012575,"vbm":{"f":[0,0,0,0]},"cbm":{"f":[0,0,0,0]},"gap_eV":4.5669,"direct":{"f":[0,0,0,0],"gap_eV":4.5669},"isDirect":true,"s":4019.815}
+(node:2353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2353) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  bands: 4 of 10 path points
+  bands: 8 of 10 path points
+  bands: 10 of 10 path points
+{"stage":"bands","file":"crystalref-Bl2Px3.json","name":"z2-1","scale":1,"ecut":25,"nk":"a10","ns":[2,2,1,1],"pset":"Bl2Px3-soft","atoms":10,"nf":2,"E":-144.52082756102592,"perFormula_eV":-1966.3060119012575,"vbm":{"f":[0,0,0,0]},"cbm":{"f":[0,0,0,0]},"gap_eV":4.5669,"direct":{"f":[0,0,0,0],"gap_eV":4.5669},"isDirect":true,"scfGap_eV":4.5668750442005965,"maxRes":0.00652556224417066,"s":11365.337}
