@@ -21,11 +21,11 @@ export function makeFFT(n) {
     }
   };
 }
-/* the FFT of a grid along each of its D axes (D = 2 or 3), N per side: each line copied out, transformed, copied back
+/* the FFT of a grid along each of its D axes (any D: WAVELAB uses 2 and 3, PHASELAB 3 and 4), N per side: each line copied out, transformed, copied back
    (in-place strided lines measured slower: a stride of N² through the grid is cache-hostile) */
 export function makeGridFFT(N, D) {
-  const f = makeFFT(N), lr = new Float64Array(N), li = new Float64Array(N), strides = D === 3 ? [1, N, N * N] : [1, N];
-  const bases = strides.map((st) => { const b = []; for (let p = 0; p < N ** D; p++) if (Math.floor(p / st) % N === 0) b.push(p); return Uint32Array.from(b); });
+  const f = makeFFT(N), lr = new Float64Array(N), li = new Float64Array(N), strides = Array.from({ length: D }, (_, a) => N ** a);
+  const bases = strides.map((st) => { const b = new Uint32Array(N ** (D - 1)); let n = 0; for (let p = 0; p < N ** D; p++) if (Math.floor(p / st) % N === 0) b[n++] = p; return b; });
   return function gridFFT(re, im, inverse = false) {
     for (let a = 0; a < D; a++) {
       const st = strides[a], B = bases[a];

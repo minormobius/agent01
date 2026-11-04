@@ -85,6 +85,15 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   mantle, eyes). Cost: ~10 ms a frame for all eight here, after making `build()` allocation-free and halving the
   muscle rate, shape-matching windows and contact passes; the page sheds substeps, then resolution, below 40 fps. See
   [`octopus/README.md`](octopus/README.md).
+- **PHASELAB at `/phase/`**: two liquids un-mixing, 3D (32³) beside your slice of 4D (32⁴), Cahn–Hilliard solved
+  spectrally (`js/phase.js`, no DOM: stabilised semi-implicit steps, energy never rises; WAVELAB's 1D FFT **imported**
+  from `../wavelab/js/fft.js` and batched across axes, so **a change to WAVELAB's FFT runs PHASELAB's selftest too**;
+  `makeGridFFT` there now takes any number of axes). Each dimension in its own worker (`js/worker.js`), the 3D one held
+  to the 4D one's time, the 4D one cutting your slice itself. Its own ray-march shader in `js/main.js` (R16F 3D textures:
+  they filter on every WebGL2 phone, R32F doesn't). The claims, held by the selftest: interface per volume at a given
+  domain size is the same in both; a droplet's squeeze μR/σ is 1 vs 3/2; R = 7 grows in 3D and dissolves in 4D
+  (critical 5.5 vs 8.3); a quarter-minority fragments in 3D and stays one network in 4D. A 4D step is ~190 ms here.
+  See [`phase/README.md`](phase/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -145,6 +154,7 @@ node kata/squid/test/squid.selftest.mjs # < 1 s
 node kata/tentacle/test/tentacle.selftest.mjs # ~1 s
 node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 node kata/octopus/test/octopus.selftest.mjs # ~60 s
+node kata/phase/test/phase.selftest.mjs # ~2 min
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

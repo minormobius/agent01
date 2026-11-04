@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="PHASELAB — two liquids un-mixing in 3D and in 4D side by side (Cahn–Hilliard, spectral). The coarsening law and the interface per volume don't care about dimension; curvature does: a 4D droplet is squeezed half again as hard by its own surface, the critical nucleus is half again as big, and a thin minority stays connected where ours breaks into droplets." />
+<title>PHASELAB — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/phase.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Two liquids separating: left the whole 3D box, right your 3D slice of the 4D box"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="bar">
+    <b>PHASELAB</b>
+    <div id="exps">
+      <button type="button" data-x="unmix">un-mix</button><button type="button" data-x="emulsion">emulsion</button><button type="button" data-x="droplet">droplet</button><button type="button" data-x="nucleus">nucleus</button>
+      <button type="button" id="againB">again</button>
+      <button type="button" id="pauseB">pause</button>
+      <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
+      <button type="button" id="gearB" aria-label="help">?</button>
+    </div>
+  </div>
+  <div id="cap"></div>
+  <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+  <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+  <div id="panel" hidden>
+    <p class="foot">Two liquids separating, 3D (the whole box) beside 4D (your 3D slice of the 4D box), the same equations and the same grid spacing: 32³ and 32⁴ cells, each run in its own worker. Teal is one liquid, drawn solid; the other is clear. Drag to turn both boxes. The pad twists your 4D slice into w (J L, I K), the lever moves it ana and kata (R F), ⊞ or Z squares it up. <b>again</b> starts over with a new random mixture. The 4D box is a million cells: on a slow device it steps a few times a second. <a href="./README.md">how it works</a> · <a href="../wavelab/">WAVELAB</a> · <a href="../">kata</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

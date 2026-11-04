@@ -5874,6 +5874,23 @@
       ]
     },
     {
+      "n": "kata-phase",
+      "u": "https://kata.mino.mobi/phase/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-04",
+      "b": "2026-11-04",
+      "p": "kata",
+      "surface": "kata",
+      "d": "PHASELAB: two liquids un-mixing in 3D and in 4D side by side, Cahn-Hilliard solved spectrally on 32 cubed and 32 to the fourth grids. The coarsening and the interface per volume don't care about dimension; curvature does. A 4D droplet is squeezed half again as hard by its own surface (measured 1.45 against 0.99), the same small droplet that grows in our liquid dissolves in 4D, and a quarter-minority that breaks into pieces in 3D stays one connected network in 4D.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",
