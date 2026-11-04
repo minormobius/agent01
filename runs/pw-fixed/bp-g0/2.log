@@ -1,0 +1,24 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-2 1.00 25 1 1 soft
+z2-2 ×1: 10 atoms, 60 electrons, grid 48×25×25×40, 11533 PW at the first of 1 k
+  scf 0: E -123.45474718  |Δρ| 5.84e+0  bands 8.7e-3
+  scf 1: E -131.97595406  |Δρ| 2.75e+0  bands 3.6e-2
+  scf 2: E -141.64391420  |Δρ| 1.05e+0  bands 7.5e-2
+  scf 3: E -142.27098742  |Δρ| 7.02e-1  bands 6.3e-2
+  scf 4: E -142.91109574  |Δρ| 2.34e-1  bands 1.2e-1
+  scf 5: E -143.09305993  |Δρ| 8.45e-2  bands 4.4e-2
+  scf 6: E -143.12444478  |Δρ| 5.79e-2  bands 2.2e-2
+  scf 7: E -143.15073527  |Δρ| 1.94e-2  bands 2.9e-2
+  scf 8: E -143.15222731  |Δρ| 1.06e-2  bands 9.5e-3
+  scf 9: E -143.15340328  |Δρ| 4.25e-3  bands 9.1e-3
+  scf 10: E -143.15353925  |Δρ| 1.61e-3  bands 4.4e-3
+  scf 11: E -143.15355417  |Δρ| 5.82e-4  bands 2.8e-3
+  scf 12: E -143.15355462  |Δρ| 2.22e-4  bands 1.6e-3
+  scf 13: E -143.15355473  |Δρ| 1.12e-4  bands 8.8e-4
+  scf 14: E -143.15355475  |Δρ| 5.18e-5  bands 2.8e-4
+  scf 15: E -143.15355476  |Δρ| 2.07e-5  bands 1.3e-4
+  scf 16: E -143.15355476  |Δρ| 8.05e-6  bands 7.1e-5
+{"file":"crystalref-Bl2Px3.json","name":"z2-2","scale":1,"ecut":25,"nk":"1","ns":[1,1,1,1],"nkpts":1,"threads":1,"pset":"Bl2Px3-soft","atoms":10,"nf":2,"E":-143.1535547583812,"perFormula_eV":-1947.703317901224,"gap_eV":2.844090379032274,"parts":{"kinetic":118.66168383601328,"nonlocal":9.459755345321213,"local":-124.31255224306099,"hartree":27.69478653636571,"exchange":-23.56773832588786,"ewald":-151.08948990713256,"total":-143.1535547583812},"s":2659.744}
+(node:2356) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

@@ -1,0 +1,45 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.00 40 a18s 4
+impostor ×1: 10 atoms, 48 electrons, grid 36×72×64, 8057 PW at the first of 8 k, 4 workers
+  scf 0: E -78.34616811  |Δρ| 6.97e+0  bands 1.1e-1
+  scf 1: E -91.92821096  |Δρ| 3.74e+0  bands 1.0e-1
+  scf 2: E -102.59628925  |Δρ| 1.73e+0  bands 8.8e-2
+  scf 3: E -101.12053560  |Δρ| 1.65e+0  bands 4.1e-2
+  scf 4: E -103.84614948  |Δρ| 3.63e-1  bands 8.3e-2
+  scf 5: E -103.92502295  |Δρ| 3.10e-1  bands 9.0e-2
+  scf 6: E -104.01195581  |Δρ| 3.05e-1  bands 1.2e-1
+  scf 7: E -104.16595995  |Δρ| 9.09e-2  bands 6.4e-2
+  scf 8: E -104.19464700  |Δρ| 6.17e-2  bands 8.4e-2
+  scf 9: E -104.20224690  |Δρ| 1.93e-2  bands 5.8e-2
+  scf 10: E -104.20346329  |Δρ| 9.73e-3  bands 4.8e-2
+  scf 11: E -104.20365022  |Δρ| 4.65e-3  bands 3.4e-2
+  scf 12: E -104.20367674  |Δρ| 2.72e-3  bands 2.3e-2
+  scf 13: E -104.20369249  |Δρ| 1.40e-3  bands 2.4e-2
+  scf 14: E -104.20369889  |Δρ| 7.27e-4  bands 1.9e-2
+  scf 15: E -104.20369997  |Δρ| 4.15e-4  bands 1.5e-2
+  scf 16: E -104.20370048  |Δρ| 1.91e-4  bands 1.2e-2
+  scf 17: E -104.20370054  |Δρ| 8.28e-5  bands 1.0e-2
+  scf 18: E -104.20370055  |Δρ| 4.51e-5  bands 1.0e-2
+  scf 19: E -104.20370055  |Δρ| 2.62e-5  bands 7.2e-3
+  scf 20: E -104.20370056  |Δρ| 1.50e-5  bands 6.6e-3
+  scf 21: E -104.20370056  |Δρ| 4.90e-6  bands 5.6e-3
+{"file":"crystalref-Al2O3.json","name":"impostor","scale":1,"ecut":40,"nk":"a18s","ns":[4,2,2],"nkpts":8,"threads":4,"pset":"Al2O3","atoms":10,"nf":2,"E":-104.20370055713842,"perFormula_eV":-1417.7635592443544,"gap_eV":5.906553417710738,"parts":{"kinetic":71.86478230398336,"nonlocal":12.016573817026995,"local":-114.04130975892407,"hartree":30.709735137296118,"exchange":-24.423586109774174,"ewald":-80.32989594674665,"total":-104.20370055713842},"s":1560.347}
+(node:2544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

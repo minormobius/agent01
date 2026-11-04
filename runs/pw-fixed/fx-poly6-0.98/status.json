@@ -1,0 +1,12 @@
+{
+ "group": "fx-poly6-0.98",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 0.98 40 a18s 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2232
+  }
+ ]
+}

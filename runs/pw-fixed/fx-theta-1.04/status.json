@@ -1,0 +1,12 @@
+{
+ "group": "fx-theta-1.04",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.04 40 a18s 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1416
+  }
+ ]
+}

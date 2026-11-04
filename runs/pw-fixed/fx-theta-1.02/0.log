@@ -1,0 +1,44 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.02 40 a18s 4
+theta ×1.02: 10 atoms, 48 electrons, grid 72×72×64, 8136 PW at the first of 4 k, 4 workers
+  scf 0: E -77.93762170  |Δρ| 6.97e+0  bands 1.2e-1
+  scf 1: E -91.72153369  |Δρ| 3.73e+0  bands 6.4e-2
+  scf 2: E -103.28291586  |Δρ| 1.73e+0  bands 1.1e-1
+  scf 3: E -101.01354445  |Δρ| 1.70e+0  bands 4.7e-2
+  scf 4: E -103.88650279  |Δρ| 5.16e-1  bands 1.0e-1
+  scf 5: E -104.12787239  |Δρ| 2.31e-1  bands 2.5e-2
+  scf 6: E -104.15335930  |Δρ| 2.06e-1  bands 3.9e-2
+  scf 7: E -104.21238219  |Δρ| 7.50e-2  bands 3.7e-2
+  scf 8: E -104.22340668  |Δρ| 3.76e-2  bands 3.3e-2
+  scf 9: E -104.22617276  |Δρ| 1.24e-2  bands 2.6e-2
+  scf 10: E -104.22646969  |Δρ| 8.71e-3  bands 1.9e-2
+  scf 11: E -104.22670216  |Δρ| 4.29e-3  bands 1.2e-2
+  scf 12: E -104.22675723  |Δρ| 1.80e-3  bands 1.1e-2
+  scf 13: E -104.22676895  |Δρ| 7.47e-4  bands 6.4e-3
+  scf 14: E -104.22677007  |Δρ| 4.47e-4  bands 4.5e-3
+  scf 15: E -104.22677046  |Δρ| 1.84e-4  bands 3.9e-3
+  scf 16: E -104.22677053  |Δρ| 7.98e-5  bands 3.0e-3
+  scf 17: E -104.22677055  |Δρ| 5.42e-5  bands 2.6e-3
+  scf 18: E -104.22677055  |Δρ| 3.25e-5  bands 2.5e-3
+  scf 19: E -104.22677056  |Δρ| 1.24e-5  bands 2.6e-3
+  scf 20: E -104.22677056  |Δρ| 4.97e-6  bands 1.9e-3
+{"file":"crystalref-Al2O3.json","name":"theta","scale":1.02,"ecut":40,"nk":"a18s","ns":[2,2,2],"nkpts":4,"threads":4,"pset":"Al2O3","atoms":10,"nf":2,"E":-104.22677055885909,"perFormula_eV":-1418.077442605275,"gap_eV":5.073467848955064,"parts":{"kinetic":71.14810890244331,"nonlocal":11.997313043316892,"local":-109.95725036649151,"hartree":29.043648903647426,"exchange":-24.22305970060451,"ewald":-82.2355313411707,"total":-104.22677055885909},"s":1256.844}
+(node:2576) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2576) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2576) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2576) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2576) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

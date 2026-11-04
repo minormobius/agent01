@@ -1,0 +1,47 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.04 40 a18s 4
+impostor ×1.04: 10 atoms, 48 electrons, grid 40×75×72, 9028 PW at the first of 6 k, 4 workers
+  scf 0: E -77.29948840  |Δρ| 7.03e+0  bands 1.0e-1
+  scf 1: E -90.75829882  |Δρ| 3.84e+0  bands 4.9e-2
+  scf 2: E -102.48333626  |Δρ| 1.86e+0  bands 9.8e-2
+  scf 3: E -100.35717992  |Δρ| 1.83e+0  bands 2.4e-2
+  scf 4: E -103.88321638  |Δρ| 3.79e-1  bands 9.9e-2
+  scf 5: E -103.93056097  |Δρ| 3.22e-1  bands 8.6e-2
+  scf 6: E -103.93640890  |Δρ| 4.15e-1  bands 6.9e-2
+  scf 7: E -104.20738010  |Δρ| 1.01e-1  bands 3.4e-2
+  scf 8: E -104.24127960  |Δρ| 7.15e-2  bands 3.7e-2
+  scf 9: E -104.25975064  |Δρ| 4.27e-2  bands 6.5e-2
+  scf 10: E -104.26292956  |Δρ| 1.72e-2  bands 3.4e-2
+  scf 11: E -104.26387079  |Δρ| 1.06e-2  bands 3.1e-2
+  scf 12: E -104.26403103  |Δρ| 5.34e-3  bands 3.0e-2
+  scf 13: E -104.26408392  |Δρ| 2.29e-3  bands 2.3e-2
+  scf 14: E -104.26409498  |Δρ| 1.44e-3  bands 1.7e-2
+  scf 15: E -104.26410122  |Δρ| 7.79e-4  bands 1.5e-2
+  scf 16: E -104.26410239  |Δρ| 3.93e-4  bands 1.0e-2
+  scf 17: E -104.26410273  |Δρ| 2.24e-4  bands 8.4e-3
+  scf 18: E -104.26410288  |Δρ| 9.30e-5  bands 7.2e-3
+  scf 19: E -104.26410289  |Δρ| 5.10e-5  bands 5.2e-3
+  scf 20: E -104.26410290  |Δρ| 3.00e-5  bands 4.5e-3
+  scf 21: E -104.26410290  |Δρ| 1.94e-5  bands 3.7e-3
+  scf 22: E -104.26410290  |Δρ| 1.06e-5  bands 3.2e-3
+  scf 23: E -104.26410290  |Δρ| 4.79e-6  bands 2.3e-3
+{"file":"crystalref-Al2O3.json","name":"impostor","scale":1.04,"ecut":40,"nk":"a18s","ns":[3,2,2],"nkpts":6,"threads":4,"pset":"Al2O3","atoms":10,"nf":2,"E":-104.26410290228799,"perFormula_eV":-1418.5853750089393,"gap_eV":5.1865517341944685,"parts":{"kinetic":70.55152279711864,"nonlocal":12.084143043356079,"local":-117.5540693307112,"hartree":31.95785262371266,"exchange":-24.06326746081509,"ewald":-77.24028457494907,"total":-104.26410290228799},"s":1416.567}
+(node:2553) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2553) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2553) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2553) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2553) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

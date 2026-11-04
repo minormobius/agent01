@@ -1,0 +1,33 @@
+{
+ "group": "bp-g1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-4 1.00 25 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5971
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-5 1.00 25 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3604
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z4-2 1.00 25 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 14736
+  },
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z4-3 1.00 25 1 1 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 12964
+  }
+ ]
+}
