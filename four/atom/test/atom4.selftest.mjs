@@ -1247,6 +1247,8 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const fs = await import("node:fs"), stale = [...files].filter(([rel, text]) => { const q = path.join(here, "../../papers/p1", rel); return !fs.existsSync(q) || fs.readFileSync(q, "utf8") !== text; }).map(([rel]) => rel);
   const nobles = t4.filter((r) => r.noble).map((r) => r.Z).join(","), hits = t3.filter((r) => r.config_match).length;
   ok(!badRefs.length, `paper 1 refs.json: ${badRefs.join("; ")}`);
+  const { stalePages } = await import(path.join(here, "../../papers/p1/page.mjs")), stale2 = stalePages();
+  ok(!stale2.length, `paper 1 pages: ${stale2.length ? `stale (${stale2.join(", ")}): run node four/papers/p1/page.mjs` : "every draft section rendered from its current source"}`);
   const broken = ledger.claims.filter((c) => !c.holds);
   ok(!broken.length, `paper 1 ledger: ${ledger.claims.length - broken.length} of ${ledger.claims.length} claims hold${broken.length ? `; broken: ${broken.map((c) => `${c.id} (${c.value})`).join("; ")}` : ""}`);
   ok(!stale.length && nobles === "2,12,22,50,78,138" && hits === 32 && t4.length === 140,

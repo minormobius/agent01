@@ -95,6 +95,17 @@
    ]
   },
   {
+   "id": "grid",
+   "part": "table",
+   "claim": "The table's ionization energies don't depend on the radial grid: halving or doubling its points, or moving either end by a factor of ten in or out, moves none by a millihartree",
+   "value": "11 atoms, both worlds, six grids: |Δion| ≤ 1.4e-4 hartree; total energies ≤ 6.7e-2",
+   "holds": true,
+   "section": "6, C",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hydrogen",
    "part": "table",
    "claim": "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",

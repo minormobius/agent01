@@ -34,7 +34,7 @@ Promise.all([get("process.json"), get("ledger.json"), get("refs.json"), get("fig
   // figures as <object> so their <title> tooltips work; captions beside them
   $("figs").innerHTML = Object.entries(CAP).map(([k, c]) => `<figure class="fig"><object type="image/svg+xml" data="p1/figures/${esc(k)}.svg" aria-label="figure ${esc(k)}"></object><figcaption><b>Figure ${esc(k)}.</b> ${esc(c)}</figcaption></figure>`).join("");
   const drafts = L.data.filter((f) => f.path.startsWith("draft/"));
-  $("draftList").innerHTML = drafts.length ? drafts.map((f) => `<li><div>${chip("draft")}</div><div><a href="p1/${esc(f.path)}" style="color:var(--text)">${esc(f.path.replace("draft/", "").replace(".md", ""))}</a> <span class="note">${(f.bytes / 1024).toFixed(1)} kB</span></div></li>`).join("") : `<li><div></div><div class="note">none yet</div></li>`;
+  $("draftList").innerHTML = drafts.length ? drafts.map((f) => `<li><div>${chip("draft")}</div><div><a href="p1/${esc(f.path.replace(/\.md$/, ".html"))}" style="color:var(--text)">${esc(f.path.replace("draft/", "").replace(".md", ""))}</a> <a href="p1/${esc(f.path)}" class="note">(source)</a> <span class="note">${(f.bytes / 1024).toFixed(1)} kB</span></div></li>`).join("") : `<li><div></div><div class="note">none yet</div></li>`;
   $("check").innerHTML = P.checklist.map((c) => `<li><div>${chip(c.status)}</div><div>${esc(c.item)}${c.note ? `<div class="note">${esc(c.note)}</div>` : ""}</div></li>`).join("");
   $("jrnl").innerHTML = P.journal.slice().reverse().map((j) => `<li><time>${esc(j.date)}</time>${esc(j.what)}</li>`).join("");
 }).catch((e) => { $("paper").innerHTML = `<p class="note">Couldn't load the paper's files (${esc(e.message)}).</p>`; });

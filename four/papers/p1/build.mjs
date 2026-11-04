@@ -176,6 +176,9 @@ function ledger(t3, t4, files, refs) {
     (() => { const AU = JSON.parse(readFileSync(join(HERE, "data/audit-scf.json"), "utf8")), m = AU.summary; return { id: "converged", part: "table", claim: "The table's numbers are converged in the solver's stop: tightening it a hundred-thousandfold moves no total or ionization energy by a microhartree, nor Σ⟨r²⟩ by 10⁻⁴ of itself",
       value: `${AU.rows.length} atoms, both worlds: |ΔE| ≤ ${m.maxAbs_dE.toExponential(1)}, |Δion| ≤ ${m.maxAbs_dIon.toExponential(1)} hartree; Σ⟨r²⟩ ≤ ${m.maxSRel.toExponential(1)} relative, the bake's against the tight ${m.maxBakeSRel.toExponential(1)}`,
       holds: m.allTight && m.maxAbs_dE < 1e-6 && m.maxAbs_dIon < 1e-6 && m.maxSRel < 1e-4 && m.maxBakeSRel < 1e-4 && AU.rows.every((r) => Math.abs(r.bakeE - r.tightE) < 1e-5), section: "6, C", gate: [67] }; })(),
+    (() => { const CV = JSON.parse(readFileSync(join(HERE, "data/convergence.json"), "utf8")), m = CV.summary; return { id: "grid", part: "table", claim: "The table's ionization energies don't depend on the radial grid: halving or doubling its points, or moving either end by a factor of ten in or out, moves none by a millihartree",
+      value: `${CV.base.atoms.length} atoms, both worlds, six grids: |Δion| ≤ ${m.maxAbs_dIon.toExponential(1)} hartree; total energies ≤ ${m.maxAbs_dE.toExponential(1)}`,
+      holds: m.allConverged && m.maxAbs_dIon < 1e-3, section: "6, C", gate: [67] }; })(),
     { id: "hydrogen", part: "table", claim: "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
       value: `${h} hartree against ${hExact.toFixed(5)}`, holds: Math.abs(h - hExact) < 1e-5, section: "4", gate: [1] },
     { id: "configs3", part: "table", claim: "The same solver in our three dimensions gets 32 of our 36 ground configurations",
@@ -222,8 +225,14 @@ function numbers(t3, t4, L) {
   const kSrc = readFileSync(join(HERE, "../../atom/js/kernel.js"), "utf8");
   const claim = (id) => L.claims.find((c) => c.id === id), SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹", tenTo = (x) => `10${String(Math.round(Math.log10(x))).replace("-", "⁻").replace(/\d/g, (c) => SUP[c])}`, minus = (v) => v.replace("-", "−");
   const repaired = [88, 101, 102, 103, 105, 106, 107];
+  const CV = JSON.parse(readFileSync(join(HERE, "data/convergence.json"), "utf8")), CF = JSON.parse(readFileSync(join(HERE, "data/shelltable.json"), "utf8")).rows;
+  const cfOk = CF.filter((r) => r.E !== null && !(r.ion !== null && r.ion < 0)), cvBase = new Map(CV.base.atoms.map((x) => [`${x.d}-${x.Z}`, x.E]));
+  const cvRel = Math.max(...CV.rows.flatMap((g) => g.atoms.map((x) => Math.abs(x.dE / cvBase.get(`${x.d}-${x.Z}`)))));
+  const lawtable = readFileSync(join(HERE, "../../atom/tools/lawtable.mjs"), "utf8"), rep = lawtable.match(/REPAIR = \{ mix: ([\d.]+), iters: (\d+) \}/);
   const AU = JSON.parse(readFileSync(join(HERE, "data/audit-scf.json"), "utf8")), e1 = (v) => minus(Math.abs(v).toExponential(1).replace(/e([+-])(\d+)/, (_, sg, n) => ` × 10${sg === "-" ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`));
   return {
+    "conv.n": String(CV.base.atoms.length), "conv.dIon": e1(CV.summary.maxAbs_dIon), "conv.dE": e1(CV.summary.maxAbs_dE), "conv.dErel": e1(cvRel),
+    "repair.mix": rep[1], "repair.iters": rep[2], "cf.settled": String(cfOk.length), "cf.n": String(CF.length), "cf.through": String(CF.findIndex((r) => !cfOk.includes(r))), "cf.unsettled": (() => { const u = CF.filter((r) => !cfOk.includes(r)).map((r) => r.Z); return `${u[0]}–${u.at(-1)}`; })(),
     "audit.n": String(AU.rows.length), "audit.tightTol": tenTo(AU.tight.tol), "audit.dE": e1(AU.summary.maxAbs_dE), "audit.dIon": e1(AU.summary.maxAbs_dIon), "audit.dEps": e1(AU.summary.maxAbs_dEps), "audit.dS": e1(AU.summary.maxSRel), "audit.bakeS": e1(AU.summary.maxBakeSRel),
     "h4.E": minus(t4[0].E_hartree.toFixed(5)),
     "kernel.k1": k4(1).toFixed(6), "kernel.M": kSrc.match(/const M = (\d+)/)[1], "kernel.table": String(+kSrc.match(/new Float64Array\((\d+)\)/)[1]),

@@ -9,9 +9,9 @@ through the pinned potential q₁q₂/r in four spatial dimensions. The same law
 and between two electrons; nothing in the method borrows Gauss's law. Atomic units throughout (hartree, bohr).
 
 Each electron moves in the field of the nucleus and of the other electrons' clouds, averaged over directions, so the
-problem is radial. In D dimensions a wavefunction R(r)Y_l, written as u = r^((D−1)/2) R, obeys
+problem is radial. In D dimensions a wavefunction $R(r)\,Y_l$, written as $u = r^{(D-1)/2} R$, obeys
 
-  −½ u″ + [ L(L + 1)/2r² + V(r) ] u = ε u,  L = l + (D − 3)/2,
+$$-\tfrac12\,u'' + \Big[\frac{L(L+1)}{2r^2} + V(r)\Big]\,u = \varepsilon\,u, \qquad L = l + \frac{D-3}{2},$$
 
 so four dimensions differ from ours by the half-integer shift of L (L = l + ½) and by the degeneracies: a subshell of
 angular momentum l holds 2(2l + 1) electrons in ours and 2(l + 1)² in four dimensions. With V = −Z/r the levels are
@@ -21,14 +21,14 @@ angular momentum l holds 2(2l + 1) electrons in ours and 2(l + 1)² in four dime
 shell theorem). In four dimensions under 1/r it gives k(t)/max(r, s), t = min/max, with k the 1/r kernel averaged over
 a 3-sphere,
 
-  k(t) = (2/π) ∫₀^π sin²θ (1 + t² − 2t cos θ)^(−½) dθ,
+$$k(t) = \frac{2}{\pi}\int_0^\pi \frac{\sin^2\theta\,d\theta}{\sqrt{1 + t^2 - 2t\cos\theta}},$$
 
 which falls from k(0) = 1 to k(1) = 8/3π = 0.848826 (appendix A; Simpson's rule on 400 intervals, then a
 table of 2001 points with linear interpolation). Every electron–electron term in the self-consistent
 field, its energy and the ionized atom's goes through this kernel. That is where the missing shell theorem enters the
 atom: an inner cloud screens the nucleus from an outer electron only partly.
 
-**Exchange.** Local exchange from the uniform electron gas of the same dimension and the same law, ε_x(ρ) = −C_D ρ^(1/D)
+**Exchange.** Local exchange from the uniform electron gas of the same dimension and the same law, $\varepsilon_x(\rho) = -C_D\,\rho^{1/D}$
 per electron, with C₃ = ¾(3/π)^⅓ = 0.738559 and C₄ = 16/(15√π) = 0.601802, taken from Loos and Gill's
 general-D formulas for 1/r jellium (appendix B). Spins are polarized by Hund's rule (a subshell fills one spin first),
 and each electron's own share is removed from both its Hartree and its exchange potential: the Hartree term by its own
@@ -59,6 +59,13 @@ but it is noise there: off by large factors only where it is 10⁻¹³ to 10⁻�
 on it; a calculation that builds a potential from the far density through exchange must converge the density
 pointwise, as the pseudopotentials now do.
 
+**Is the grid fine enough?** 11 atoms from every row of both worlds were re-solved in their baked
+configurations on six other grids, changing one of the number of points (500, 1000), the inner end (10⁻⁴, 10⁻⁶ bohr) and
+the outer end (100, 250 bohr) at a time (appendix C, `convergence.mjs`). First ionization energies moved by at most
+1.4 × 10⁻⁴ hartree on any of them. Total energies moved by at most 6.7 × 10⁻² hartree, 2.4 × 10⁻⁵ of themselves,
+the largest for our own krypton, whose 1s sits deeper than any four-dimensional atom's and is the grid's hardest case.
+The paper quotes ionization energies and energy differences, not total energies.
+
 ## The ground configuration
 
 For each Z the ground configuration is searched, not assumed. The search starts from the hydrogenic filling (subshells
@@ -85,9 +92,14 @@ Z ≈ 80) into a single generated file, which a selftest re-solves in sample on 
 To separate what the table owes to the law from what it owes to the geometry, every 4D element is solved a second time
 with the shell theorem forced on: the clouds' potential taken as 1/max(r, s) (our kernel) while everything else, the
 4D kinetic operator, the degeneracies, exchange, the search, stays as it was. Each element's search is seeded with the
-real table's configuration and its neighbours' ± one electron, so the counterfactual isn't a weaker search; and the
-real law is re-solved in each counterfactual configuration, to check the real table's configuration is still the lower
-one. *(Run `lawtable-shell`; results pending.)*
+real table's configuration and its neighbours' ± one electron, so the counterfactual isn't a weaker search; and the real
+law is re-solved in each counterfactual configuration, to check that the real table's configuration is still the lower
+one under the law. Where no candidate's field settled, a second, wider search started from every configuration in reach
+(the real table's for the element and its neighbours ± one electron, the unsettled filling, and the counterfactual's own
+neighbours ± one), each solved from scratch with the clouds mixed at 0.15 for up to 1500
+iterations. A counterfactual atom counts as settled only if its field converged and its first ionization energy is
+positive (a negative one means an electron would rather leave: the search missed a lower configuration). By that rule
+112 of 140 settle, every atom up to 88; the rest (89–116) are row 6's f block and the first elements after it.
 
 ## One electron, any law
 

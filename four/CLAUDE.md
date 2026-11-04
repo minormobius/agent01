@@ -577,6 +577,12 @@ for games, and this is a modelling programme with publications to come. The game
   A1–A2: a figure has to carry an argument. `papers/p1/profiles.mjs` (seconds) re-solves the profiled atoms in their
   baked configurations with their radial functions kept → `data/profiles.json`; `build.mjs` stops if one drifts from the
   bake, so re-run it after a bake. Figure 3's interactive twin is kata.mino.mobi/orbital (the kata branch's ORBITAL).
+  **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
+  stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
+  process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).
+  **Pages:** `page.mjs` renders each `draft/*.md` to `draft/*.html` with pandoc (`--mathml`; display maths in the text
+  sources as `$$ TeX $$`, inline as `$…$`) on `paper.css` (forked from wormhole's); each page carries its source's SHA-256
+  and selftest 67 fails on a stale one, so after changing a text source run `build.mjs` then `page.mjs`.
 
 ## Long calculations: the runner
 

@@ -16,7 +16,10 @@
 import { k4, kTab } from "./kernel.js";
 export { k4, kTab }; // the kernel lives in kernel.js; re-exported for the code that imports it from here
 
-export const N = 700, R0 = 1e-5, RMAX = 150; // the log grid: r_i = R0 e^(i h)
+// the log grid: r_i = R0 e^(i h). ATOM4_GRID="N,R0,RMAX" in node's environment overrides it, for the convergence
+// study only (paper 1's appendix C); the bake, the pages and every check use the default
+const GRID = (typeof process !== "undefined" && process.env && process.env.ATOM4_GRID ? process.env.ATOM4_GRID.split(",").map(Number) : []);
+export const N = GRID[0] || 700, R0 = GRID[1] || 1e-5, RMAX = GRID[2] || 150;
 export const H = Math.log(RMAX / R0) / (N - 1);
 export const R = Float64Array.from({ length: N }, (_, i) => R0 * Math.exp(i * H));
 
