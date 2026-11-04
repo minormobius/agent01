@@ -4,7 +4,9 @@
    in x, z, w) and the offset along the third (N) can turn. */
 import * as Lm from "./lamp.js";
 export const PRESETS = {
-  lamp: { phys: {}, end: 3000 },
+  // (the glass lamp: a sharper interface, ε = 0.7, so blobs this small aren't mostly interface; a fifth of the glass
+  // wax; a gentler heater)
+  lamp: { phys: { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.3 }, end: 3000 },
   thread: { phys: { g: 0, heat: 0, cool: 0 }, R: 4, n: 3, end: 300 },
   cooling: { phys: { g: 0, heat: 0, cool: 0 }, R: 5, end: 80 },
 };

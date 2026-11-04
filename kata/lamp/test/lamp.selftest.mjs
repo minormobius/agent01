@@ -2,7 +2,8 @@
    and is divergence-free, to rounding; the box stays its own mirror image, so the walls are walls; the wax is
    conserved), and the page's claims: a rippled thread with kR = 1.18 straightens in 3D and pinches off in 4D (the
    thresholds are kR < 1 and kR < √2); with kR = 0.69 it pinches in 3D too (the control); a hot ball loses half its
-   heat at least 1.6× faster in 4D; the 3D lamp cycles (its wax rises past 0.7 of the height and comes back below 0.2).
+   heat at least 1.6× faster in 4D; the 3D lamp in its glass cycles (wax reaches 0.7 of the height and its top blob comes
+   back down) and never leaves the glass. (The 4D lamp costs ~180 ms a step here: its cycles aren't run.)
      node kata/lamp/test/lamp.selftest.mjs   (~80 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -53,11 +54,17 @@ const thread = (D, R, n, T) => { const L = Lm.makeLamp(D, 16, 32, { g: 0, heat: 
   ok(hl[3] / hl[4] > 1.6, `a hot ball (R = 5) keeps half its heat until t ${hl[3].toFixed(1)} in 3D and t ${hl[4].toFixed(1)} in 4D: ${(hl[3] / hl[4]).toFixed(2)}× faster (4/3 the surface per volume, and more room for the heat to go)`);
 }
 
-/* the lamp */
+/* the lamp, in its glass (the page's: ε 0.7, a fifth of the glass wax, heater 0.3) */
 {
-  const L = Lm.makeLamp(3); Lm.START.lamp(L, 3); let up = null, down = null;
-  while (L.t < 300 && down == null) { Lm.step(L); if (L.steps % 5) continue; const h = Lm.stats(L).height; if (up == null && h > 0.7) up = L.t; if (up != null && h < 0.2) down = L.t; }
-  ok(up != null && down != null, `the 3D lamp cycles: its wax, pooled on the floor, rises past 0.7 of the height by t ${up?.toFixed(0)} and is back below 0.2 by t ${down?.toFixed(0)}`);
+  const L = Lm.makeLamp(3, 16, 32, { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.3 }); Lm.START.lamp(L, 1); let up = null, down = null, outMax = -1, waxOut = 0;
+  while (L.t < 250) {
+    Lm.step(L); if (L.steps % 5) continue;
+    // up: wax at 0.7 of the height; down: after that, a cold blob (it cooled up there) low in the lamp, on its way back
+    const s = Lm.stats(L), top = Math.max(0, ...s.blobs.filter((b) => b.n > 30).map((b) => b.y));
+    if (up == null && top > 0.7) up = L.t; if (up != null && down == null && L.t > up + 10 && s.blobs.some((b) => b.n > 30 && b.T < 0.25 && b.y < 0.5 && b.y > 0.2)) down = L.t;
+    let w = 0, n = 0; for (let p = 0; p < L.M; p++) if (L.yOf[p] < L.ny) { if (L.phi[p] > 0) { n++; if (!L.inside[p]) w++; } if (!L.inside[p]) outMax = Math.max(outMax, L.phi[p]); } waxOut = Math.max(waxOut, w / Math.max(1, n));
+  }
+  ok(up != null && down != null && waxOut === 0 && outMax < -0.5, `the 3D lamp in its glass cycles: wax reaches 0.7 of the height by t ${up?.toFixed(0)}, and a blob cooled up there is back below half height by t ${down?.toFixed(0)}; none of it ever outside the glass (the liquid there no richer than φ = ${outMax.toFixed(2)})`);
 }
 
 console.log(`\n${checks - fails}/${checks} checks passed`);

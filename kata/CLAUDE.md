@@ -94,14 +94,18 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   domain size is the same in both; a droplet's squeeze μR/σ is 1 vs 3/2; R = 7 grows in 3D and dissolves in 4D
   (critical 5.5 vs 8.3); a quarter-minority fragments in 3D and stays one network in 4D. A 4D step is ~190 ms here.
   See [`phase/README.md`](phase/README.md).
-- **LAVALAMP at `/lamp/`**: a lava lamp, 3D beside your slice of 4D, both 16 across and 32 tall (`js/lamp.js`, no DOM):
-  PHASELAB's Cahn–Hilliard pair carried by creeping (Stokes) flow, solved exactly in Fourier space, driven by buoyancy
-  and the capillary force μ∇φ; heat advected (upwind) and conducted, a heater below, a cool top. Floor and ceiling are
+- **LAVALAMP at `/lamp/`**: a lava lamp in the classic glass (`glassR(y)`, a metal base and cap drawn in the shader; in
+  4D the profile turned round the vertical axis, so your slice at w shows radius √(R² − w²)), 3D beside your slice of 4D,
+  both 16 across and 32 tall (`js/lamp.js`, no DOM). The glass in the solver: flow masked and re-projected, transport by
+  face fluxes that skip glass faces, a stiff wall potential (W 40, stabiliser raised to match) so the liquid outside
+  can't soak up the wax. The physics: PHASELAB's Cahn–Hilliard pair carried by creeping (Stokes) flow, solved exactly in Fourier space, driven by buoyancy
+  and the capillary force μ∇φ; heat advected (slope-limited upwind fluxes: plain upwind's numerical diffusion swamped κ) and conducted. Floor and ceiling are
   mirror walls (the doubled box, symmetrised: T every step, φ every tenth); the sides are periodic. `makeFFTn` (mixed
   axis lengths) is its own, built on WAVELAB's 1D FFT, **imported**. The force's real components go two to a transform,
   and the Nyquist modes carry no flow (their projection isn't conjugate-symmetric, and the packed pairs would mix).
   The selftest holds: Stokes to rounding; the walls; wax conserved; a kR = 1.18 thread straightens in 3D and pinches in
-  4D (thresholds 1 and √2); a hot ball's half-life 1.9× shorter in 4D; the 3D lamp cycles. 4D ~140 ms a step here.
+  4D (thresholds 1 and √2); a hot ball's half-life 1.9× shorter in 4D; the 3D glass lamp cycles and its wax never leaves
+  the glass. 4D ~180 ms a step here (glass).
   See [`lamp/README.md`](lamp/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
@@ -164,7 +168,7 @@ node kata/tentacle/test/tentacle.selftest.mjs # ~1 s
 node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
-node kata/lamp/test/lamp.selftest.mjs # ~50 s
+node kata/lamp/test/lamp.selftest.mjs # ~45 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
