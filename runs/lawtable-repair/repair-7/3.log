@@ -1,0 +1,6 @@
+$ node four/atom/tools/lawtable.mjs repair 39 140
+{"law":"shell","Z":39,"config":"1s2 2s2 2p8 3s2 3p8 3d14 4s2 4p1","E":-1971.41979,"ion":0.1143,"top":"4p","orb":[{"s":"1s","o":2,"e":-234.20304,"r":0.0788,"r2":0.0078},{"s":"2s","o":2,"e":-39.85579,"r":0.2666,"r2":0.0827},{"s":"2p","o":8,"e":-35.01184,"r":0.2286,"r2":0.0622},{"s":"3s","o":2,"e":-4.89751,"r":0.7125,"r2":0.5834},{"s":"3p","o":8,"e":-2.84712,"r":0.7403,"r2":0.6473},{"s":"3d","o":17,"e":-0.05499,"r":4.5367,"r2":44.5144}],"real":{"config":"1s2 2s2 2p8 3s2 3p8 3d16 4s1","E":-2023.12866,"ion":0.43044,"top":"4s"},"sameConfig":false,"lawAtShell":-2022.51232,"tableStillLower":true,"s":267.697,"repair":{"mix":0.15,"iters":1500,"candidates":35,"settled":true,"ionSettled":true,"s":201.826}}
+(node:2533) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

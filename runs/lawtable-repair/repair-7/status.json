@@ -1,0 +1,33 @@
+{
+ "group": "repair-7",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs repair 89 140",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1788
+  },
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs repair 88 140",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1857
+  },
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs repair 41 140",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 243
+  },
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs repair 39 140",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 202
+  }
+ ]
+}
