@@ -47,6 +47,17 @@
    ]
   },
   {
+   "id": "tf",
+   "part": "law",
+   "claim": "Atoms don't collapse: total energies follow each world's Thomas–Fermi law, Z^(3−2/D) (Z^(5/2) in four dimensions, Z^(7/3) in ours), as the shell theorem's absence would have to break if matter were unstable",
+   "value": "fitted exponent 2.527 over Z = 10–140 in 4D (5/2 = 2.5); 2.387 over Z = 10–36 in ours (7/3 = 2.333); both a little above, as finite-Z corrections make them",
+   "holds": true,
+   "section": "4.5",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "rows",
    "part": "table",
    "claim": "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",

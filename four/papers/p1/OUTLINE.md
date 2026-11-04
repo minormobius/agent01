@@ -40,7 +40,7 @@ hardest, as ours do (row 6's f block doesn't settle under the shell theorem, so 
 row 5). A neutral atom under the law is felt from afar, −Σ⟨r²⟩/8s³. The same solver in three dimensions gets 32 of our 36 ground
 configurations and our ionization energies to a few percent.
 
-## Part I — The law (about 40 % of the paper)
+## Part I — The law (about 40 % of the paper) · *drafted 2026-11-04: `text/law.md` → `draft/law.html`*
 
 Each section lists what it claims, what holds it up (the ledger claim, the baked file, the selftest block), and what
 is still to do. Ledger claims are recomputed on every build (`papers/p1/ledger.json`; selftest 67 fails if one stops
@@ -82,8 +82,7 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
      relativity), point nuclei stable to Z = 140, a small fine-structure constant, no other long-range field.
    - 4.5 Stability of matter: the theorems (Dyson & Lenard; Lieb & Thirring) lean on the shell theorem and don't carry
      over. The evidence instead: atoms' energies scale as Z^(5/2) (4D Thomas–Fermi; Kventsel & Katriel), every force
-     between neutral atoms falls faster than R⁻⁴. Argued, not proved; said so. *To do:* a ledger claim for the Z^(5/2)
-     fit from the bake.
+     between neutral atoms falls faster than R⁻⁴. Argued, not proved; said so. *Ledger:* `tf` (fitted 2.53 against 5/2 in 4D; 2.39 against 7/3 in ours).
 5. **The law inside an atom.** The same law between electrons as between electron and nucleus: the sphere-averaged
    kernel in the self-consistent field; exchange from the 4D electron gas *with the same 1/r* (Loos & Gill's D-jellium is
    1/r in D dimensions, so the constants are consistent with the law, not borrowed from Gauss's); the own-share

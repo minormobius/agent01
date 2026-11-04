@@ -23,6 +23,7 @@ import { farPull } from "./far.js";
 import { gaussLaw, shellSplit } from "./laws.js";
 import { figures as drawFigures } from "./figures/make.mjs";
 import { k4 } from "../../atom/js/kernel.js";
+import * as FIELDS from "../../atom/js/fields.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout } from "../../atom/js/periodic.js";
 import { names } from "../../atom/js/names.js";
 
@@ -166,6 +167,11 @@ function ledger(t3, t4, files, refs) {
       value: `∇²(1/r) at r = 1, 2: ${lap(1).toFixed(5)}, ${lap(2).toFixed(5)} (−1/r³: −1, −0.125)`, holds: Math.abs(lap(1) + 1) < 1e-4 && Math.abs(lap(2) + 0.125) < 1e-4, section: "2", gate: [3, 33] },
     { id: "shell", part: "law", claim: "… and no shell theorem: a shell of charge is felt at its own radius at k(1) = 8/3π of a point charge's pull, and a hollow conductor's centre sits at 3π/8 of its wall's potential (no Faraday cage)",
       value: `k(1) = ${k1.toFixed(6)} (8/3π = ${(8 / (3 * Math.PI)).toFixed(6)}); centre over wall ${(1 / k1).toFixed(6)} (3π/8 = ${((3 * Math.PI) / 8).toFixed(6)})`, holds: Math.abs(k1 - 8 / (3 * Math.PI)) < 1e-6, section: "2", gate: [3] },
+    (() => { const fit = (rows) => { const x = rows.map((e) => Math.log(e.Z)), y = rows.map((e) => Math.log(-e.E)), n = x.length, mx = x.reduce((p, q) => p + q) / n, my = y.reduce((p, q) => p + q) / n; let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; } return sxy / sxx; };
+      const e4 = fit(TABLE[4].filter((e) => e.Z >= 10)), e3 = fit(TABLE[3].filter((e) => e.Z >= 10));
+      return { id: "tf", part: "law", claim: "Atoms don't collapse: total energies follow each world's Thomas–Fermi law, Z^(3−2/D) (Z^(5/2) in four dimensions, Z^(7/3) in ours), as the shell theorem's absence would have to break if matter were unstable",
+        value: `fitted exponent ${e4.toFixed(3)} over Z = 10–140 in 4D (5/2 = 2.5); ${e3.toFixed(3)} over Z = 10–36 in ours (7/3 = 2.333); both a little above, as finite-Z corrections make them`,
+        holds: e4 > 2.5 && e4 < 2.56 && e3 > 7 / 3 && e3 < 2.42 && e4 - 2.5 < e3 - 7 / 3 + 0.03, section: "4.5", gate: [67] }; })(),
     { id: "rows", part: "table", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",
       value: `solved ${whole.join(", ")} (and ${rows.at(-1)} of the next by Z = 140); the rule ${predicted.join(", ")}`, holds: whole.join() === predicted.join() && whole.join() === "2,10,10,28,28,60", section: "5", gate: [7, 27, 67] },
     { id: "nobles", part: "table", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
@@ -230,7 +236,17 @@ function numbers(t3, t4, L) {
   const cvRel = Math.max(...CV.rows.flatMap((g) => g.atoms.map((x) => Math.abs(x.dE / cvBase.get(`${x.d}-${x.Z}`)))));
   const lawtable = readFileSync(join(HERE, "../../atom/tools/lawtable.mjs"), "utf8"), rep = lawtable.match(/REPAIR = \{ mix: ([\d.]+), iters: (\d+) \}/);
   const AU = JSON.parse(readFileSync(join(HERE, "data/audit-scf.json"), "utf8")), e1 = (v) => minus(Math.abs(v).toExponential(1).replace(/e([+-])(\d+)/, (_, sg, n) => ` × 10${sg === "-" ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`));
+  const g7 = gaussLaw(0.7, [1e-3, 1e-4, 1e-5]), spl = Object.fromEntries([0.8, 1, 1.2].map((p) => [p, shellSplit(p)]));
+  const lapAt = (r, hh = 1e-3) => { const f = (x) => 1 / x; return (f(r + hh) - 2 * f(r) + f(r - hh)) / hh ** 2 + (3 / r) * (f(r + hh) - f(r - hh)) / (2 * hh); };
+  const tfFit = (rows) => { const x = rows.map((e) => Math.log(e.Z)), y = rows.map((e) => Math.log(-e.E)), n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n; let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; } return sxy / sxx; };
+  const pct = (v) => `${v < 0 ? "−" : "+"}${Math.abs(100 * v).toFixed(1)} %`, a3 = FIELDS.propagatorPower(1, 4);
   return {
+    "gauss.e3": minus(g7[0].e.toExponential(2)).replace(/e\+?(-?)(\d+)/, (_, sg, n) => ` × 10${sg ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`), "gauss.e4": minus(g7[1].e.toExponential(2)).replace(/e\+?(-?)(\d+)/, (_, sg, n) => ` × 10${sg ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`), "gauss.e5": minus(g7[2].e.toExponential(2)).replace(/e\+?(-?)(\d+)/, (_, sg, n) => ` × 10${sg ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`),
+    "gauss.c3": minus((g7[0].e * 1e-6).toFixed(5)), "gauss.c5": minus((g7[2].e * 1e-10).toFixed(5)),
+    "split.p08": pct(spl[0.8].split2), "split.p1": `${Math.abs(100 * spl[1].split2).toExponential(0).replace(/e-?(\d+)/, (_, n) => ` × 10⁻${n.replace(/\d/g, (c) => SUP[c])}`)} %`, "split.p12": pct(spl[1.2].split2),
+    "lap.r1": minus(lapAt(1).toFixed(5)), "lap.r2": minus(lapAt(2).toFixed(5)), "cage.ratio": (1 / k4(1)).toFixed(6),
+    "fields.delta": String(FIELDS.scalingDim(a3, 4)), "fields.floor": String(FIELDS.unitarityFloor(4)), "fields.m": String(FIELDS.nonlinearExponent(4)),
+    "tf.exp4": tfFit(TABLE[4].filter((e) => e.Z >= 10)).toFixed(3), "tf.exp3": tfFit(TABLE[3].filter((e) => e.Z >= 10)).toFixed(3),
     "conv.n": String(CV.base.atoms.length), "conv.dIon": e1(CV.summary.maxAbs_dIon), "conv.dE": e1(CV.summary.maxAbs_dE), "conv.dErel": e1(cvRel),
     "repair.mix": rep[1], "repair.iters": rep[2], "cf.settled": String(cfOk.length), "cf.n": String(CF.length), "cf.through": String(CF.findIndex((r) => !cfOk.includes(r))), "cf.unsettled": (() => { const u = CF.filter((r) => !cfOk.includes(r)).map((r) => r.Z); return `${u[0]}–${u.at(-1)}`; })(),
     "audit.n": String(AU.rows.length), "audit.tightTol": tenTo(AU.tight.tol), "audit.dE": e1(AU.summary.maxAbs_dE), "audit.dIon": e1(AU.summary.maxAbs_dIon), "audit.dEps": e1(AU.summary.maxAbs_dEps), "audit.dS": e1(AU.summary.maxSRel), "audit.bakeS": e1(AU.summary.maxBakeSRel),
