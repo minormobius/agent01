@@ -105,9 +105,12 @@ hand. Each has a companion widget where interaction helps (below).
 4. **Widgets**, standalone and linked from the paper:
    - the 4D table viewer (`/table/`, exists): hover a counterpart, configurations, clouds;
    - the filling diagram (exists);
-   - *new:* **screening on/off**, one atom solved with the 4D kernel and with the shell-theorem kernel, side by side,
-     the outer electron's binding as the slider moves Z;
-   - *new:* **an atom's far pull**, a test charge walked out from a neutral 4D atom, the potential against −S/8s³;
+   - **screening on/off** (**built**, `papers/p1/widgets/`): any 4D atom solved live in a worker with the 4D kernel
+     and with the shell theorem forced on, in its baked configuration, ionization by ΔSCF from the baked outermost
+     subshell (it gives back the bake: element 12 at 18.39 against 10.30 eV, 138 at 26.71 against 9.22), and the
+     outer electron's Z_eff(r) for both; the noble gases' pair from `SHELL_COUNTERFACTUAL` beside it;
+   - **an atom's far pull** (**built**, same page): an electron walked out from a neutral 4D atom, the baked cloud's
+     potential under the 3-sphere kernel against −S/8s³ (within 0.1–1 % past 20 bohr for 2, 12, 13, 50, 138);
    - the `/start/` toys that already illustrate steps of the argument.
 5. **References**, `papers/p1/refs.json` (**built**, 21 entries): each with `status: read | index | cited | memory`
    and the paper's use for it. Checked against Crossref on 2026-11-04, which fixed volumes and pages (Al-Jaber, Loos &

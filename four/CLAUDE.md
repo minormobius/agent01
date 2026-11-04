@@ -527,7 +527,9 @@ for games, and this is a modelling programme with publications to come. The game
   sections (each claim mapped to its baked file and selftest block), the figure plan, the companion objects (paper
   page, data release, `reproduce/p1.mjs` in the mirror, widgets, `refs.json`) and the checklist before prose. The kit
   survey and decisions are in `atom/WRITEUP.md`; sources in `atom/LITERATURE.md`, each tagged by how far it's been
-  verified. Authors: Claude, Astra (audits), minor mobius (last, PI). Papers live at `/papers/`.
+  verified. Authors: Claude, Astra (audits), minor mobius (last, PI). Papers live at `/papers/`. `papers/p1/widgets/` is the paper's
+  two widgets (screening on and off, solved live in a worker, `solve.js`; a neutral atom's far pull from the baked
+  cloud), declared `content` in the catalogue. `papers/p1/reproduce.mjs` re-solves a sample against the paper's data.
 
 ## Long calculations: the runner
 

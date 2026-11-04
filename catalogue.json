@@ -6550,6 +6550,11 @@
       "glob": "games/cheshire",
       "kind": "pending",
       "reason": "Project Cheshire's cat lab: the 4D cat on its own, before the game is built round it"
+    },
+    {
+      "glob": "four/papers/p1/widgets",
+      "kind": "content",
+      "reason": "paper 1's companion widgets (screening on and off, a neutral atom's far pull) inside four.mino.mobi, linked from the paper"
     }
   ],
   "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate.",
