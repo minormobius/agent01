@@ -94,7 +94,10 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
    Gaussian Hartree–Fock code in 4D (`js/gauss.js`), MP2 against PySCF in ours (*selftest 17, 43*); our table, 32 of 36
    configurations (Ti, V, Co, Ni missed: local exchange leans to d), ionization to a 4.3 % median (*ledger* `configs3`,
    `ion3`; largest error 16.2 %, said).
-8. **Results.** Rows and noble gases against the generalized Madelung rule (*ledger* `rows`, `nobles`; *selftest 7, 27*);
+8. **Results.** Rows and noble gases against the generalized Madelung rule (*ledger* `rows`, `nobles`; *selftest 7, 27*).
+   **The hardest-held electron isn't a noble gas's** (*ledger* `fulld`, found in figure F3): element 128 (5d¹⁸, nothing
+   outside) at 29.56 eV against its row's noble gas 138 at 26.71, the table's highest; 68 (4d¹⁸) within a volt of 78.
+   Ours goes the other way (Pd 8.3, Xe 12.1 eV). Part III asks whether partial screening does it.
    configurations, where the filling departs from the simple order; ionization energies and radii against Z.
 
 ## Part III — What the law does (measured against the shell theorem)
@@ -128,23 +131,24 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
 
 | # | Figure | Data | Exists as | To build |
 |---|---|---|---|---|
-| L1 | Gauss's law has no atom: the ground level of −α/r² against the grid's inner end, either side of α = ½ | `laws.js` `gaussLaw` | — | new |
-| L2 | Only 1/r keeps a shell: 2p − 2s and 3d − 3s against p | `laws.js` `shellSplit` | — | new |
-| L3 | No shell theorem: k(t) against the shell theorem's 1, and the bowed inside of a charged shell | `kernel.js`, `fields.js` | `/fields/` step 3 | paper figure |
+| L1 | Gauss's law has no atom: the ground level of −α/r² against the grid's inner end, either side of α = ½ | `laws.js` `gaussLaw` | — | **built** (`figures/make.mjs`) |
+| L2 | Only 1/r keeps a shell: 2p − 2s and 3d − 3s against p | `laws.js` `shellSplit` | — | **built** (`figures/make.mjs`) |
+| L3 | No shell theorem: k(t) against the shell theorem's 1, and the bowed inside of a charged shell | `kernel.js`, `fields.js` | `/fields/` step 3 | **built** (`figures/make.mjs`) |
 | 1 | The 4D periodic table, f block as a band, beside ours | `js/table.js`, `js/periodic.js` `layout` | `/table/` viewer | a static print version (SVG) |
 | 2 | The filling diagram, both worlds (Madelung's diagonals; boxes of 2(2l+1) and 2(l+1)²) | `table/filling.js`, `js/table.js` | `/table/` | static SVG |
-| 3 | First ionization energy against Z, both worlds, ours against measured | `figdata/f3` | table chapter charts | paper figure |
-| 4 | The 3D validation: computed against measured ionization, configuration hits and misses | `figdata/f4` | table chapter | scatter + residual panel |
+| 3 | First ionization energy against Z, both worlds, ours against measured | `figdata/f3` | table chapter charts | **built** (`figures/make.mjs`) |
+| 4 | The 3D validation: computed against measured ionization, configuration hits and misses | `figdata/f4` | table chapter | **built** (`figures/make.mjs`) |
 | 5 | Subshell energies against Z (where d turns over), both worlds | `figdata/f5` | — | new |
 | C1 | **The table under each law**: the 4D table with the shell theorem forced on beside the real one, changed configurations marked | `shelltable.json` (run `lawtable-shell`) | — | new |
 | C2 | Ionization against Z under each law | `shelltable.json`, `figdata/f3` | — | new |
-| 6 | Partial screening: noble-gas ionization against the shell theorem's (all Z once C1 is in) | `figdata/f6` | `/papers/p1/widgets/` | paper figure |
-| 7 | A neutral atom's far pull, −Σ⟨r²⟩/8s³ against the full cloud | `far.js` | `/papers/p1/widgets/` | paper figure |
+| 6 | Partial screening: noble-gas ionization against the shell theorem's (all Z once C1 is in) | `figdata/f6` | `/papers/p1/widgets/` | **built** (`figures/make.mjs`) |
+| 7 | A neutral atom's far pull, −Σ⟨r²⟩/8s³ against the full cloud | `far.js` | `/papers/p1/widgets/` | **built** (`figures/make.mjs`) |
 | 8 | Radii against Z, both worlds | `figdata/f8` | table detail panel | new |
 | A1 | Convergence: total energy and ionization against grid and tolerance | new runs | — | appendix |
 
-Figures are SVG from `packages/dataviz/charts.js` (Okabe–Ito palette), generated from the bakes by a script, never by
-hand. Each has a companion widget where interaction helps (below).
+Figures are SVG drawn by `papers/p1/figures/make.mjs` (on `figures/plot.js`: `packages/dataviz/charts.js`'s theme and
+Okabe–Ito order, with the log axes that library lacks) from the bakes and `laws.js`, on every build, never by hand;
+captions live beside them (`CAPTIONS`). Selftest 67 fails on a stale figure. Each has a companion widget where interaction helps (below).
 
 ## Companion objects
 

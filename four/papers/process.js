@@ -5,7 +5,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const chip = (s, label = s) => `<span class="chip ${esc(s.replace(/\s+/g, "-"))}">${esc(label)}</span>`;
 const get = (f) => fetch(`p1/${f}`, { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(`${f}: ${r.status}`); return r.json(); });
 
-Promise.all([get("process.json"), get("ledger.json"), get("refs.json")]).then(([P, L, R]) => {
+Promise.all([get("process.json"), get("ledger.json"), get("refs.json"), get("figures/captions.json")]).then(([P, L, R, CAP]) => {
   const p = P.paper;
   $("paper").innerHTML = `<p style="margin:14px 0 4px"><b>Paper 1</b> · <i>${esc(p.title)}</i></p>` +
     `<div class="byline">${P.authors.map((a) => `<div><b>${esc(a.name)}</b>${a.affiliation ? `<span>${esc(a.affiliation)} · </span>` : ""}<span>${esc(a.role)}</span>${a.note ? `<br><span>(${esc(a.note)})</span>` : ""}</div>`).join("")}</div>` +
@@ -31,6 +31,10 @@ Promise.all([get("process.json"), get("ledger.json"), get("refs.json")]).then(([
   const kb = (b) => (b > 1024 ? `${(b / 1024).toFixed(1)} kB` : `${b} B`);
   $("files").innerHTML = L.data.map((f) => `<tr><td><a href="p1/${esc(f.path)}">${esc(f.path)}</a></td><td class="n">${kb(f.bytes)}</td><td class="h">${esc(f.sha256.slice(0, 16))}…</td></tr>`).join("");
 
+  // figures as <object> so their <title> tooltips work; captions beside them
+  $("figs").innerHTML = Object.entries(CAP).map(([k, c]) => `<figure class="fig"><object type="image/svg+xml" data="p1/figures/${esc(k)}.svg" aria-label="figure ${esc(k)}"></object><figcaption><b>Figure ${esc(k)}.</b> ${esc(c)}</figcaption></figure>`).join("");
+  const drafts = L.data.filter((f) => f.path.startsWith("draft/"));
+  $("draftList").innerHTML = drafts.length ? drafts.map((f) => `<li><div>${chip("draft")}</div><div><a href="p1/${esc(f.path)}" style="color:var(--text)">${esc(f.path.replace("draft/", "").replace(".md", ""))}</a> <span class="note">${(f.bytes / 1024).toFixed(1)} kB</span></div></li>`).join("") : `<li><div></div><div class="note">none yet</div></li>`;
   $("check").innerHTML = P.checklist.map((c) => `<li><div>${chip(c.status)}</div><div>${esc(c.item)}${c.note ? `<div class="note">${esc(c.note)}</div>` : ""}</div></li>`).join("");
   $("jrnl").innerHTML = P.journal.slice().reverse().map((j) => `<li><time>${esc(j.date)}</time>${esc(j.what)}</li>`).join("");
 }).catch((e) => { $("paper").innerHTML = `<p class="note">Couldn't load the paper's files (${esc(e.message)}).</p>`; });

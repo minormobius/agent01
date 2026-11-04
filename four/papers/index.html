@@ -49,6 +49,8 @@
   .journal li { position: relative; padding: 0 0 14px 16px; font-size: 14px; line-height: 1.5; }
   .journal li::before { content: ""; position: absolute; left: -4px; top: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--d4); }
   .journal time { display: block; font: 11px var(--mono); color: var(--dim); }
+  figure.fig { margin: 14px 0 22px; } figure.fig object, figure.fig img { width: 100%; height: auto; background: #fff; border-radius: 8px; display: block; }
+  figure.fig figcaption { font-size: 13px; line-height: 1.5; color: var(--dim); margin-top: 6px; } figure.fig figcaption b { color: var(--text); }
   @media (max-width: 560px) { .refs li, .check li { grid-template-columns: 1fr; gap: 2px; } .files td.h { display: none; } }
 </style>
 </head>
@@ -77,6 +79,18 @@
   <h3>The claims, checked now</h3>
   <p class="note" id="ledgerNote"></p>
   <div class="claims" id="claims"></div>
+</section>
+
+<section class="step" id="figures">
+  <h3>The figures</h3>
+  <p class="note">Drawn by <code>papers/p1/figures/make.mjs</code> from the bake and the law code on every build; captions from the same file. Hover a point for its value.</p>
+  <div id="figs"></div>
+</section>
+
+<section class="step" id="drafts">
+  <h3>The text so far</h3>
+  <p class="note">Each section's source is in <code>papers/p1/text/</code>, with every number a token the build fills from the code or the bake; a token it doesn't know stops the build.</p>
+  <ul class="check" id="draftList"></ul>
 </section>
 
 <section class="step" id="references">

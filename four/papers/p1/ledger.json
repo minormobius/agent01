@@ -73,6 +73,17 @@
    ]
   },
   {
+   "id": "fulld",
+   "part": "table",
+   "claim": "The hardest-held electron in the table isn't a noble gas's: element 128, whose 18-electron d shell is full with nothing outside it (our palladium's kind), out-holds its row's noble gas 138, and element 68, the same kind a row up, comes within a volt of its row's noble gas 78 (in ours palladium holds far less hard than xenon, 8.3 against 12.1 eV)",
+   "value": "128: 29.56 eV (5p8 5d18) against 138: 26.71; 68: 22.32 eV (4p8 4d18) against 78: 23.10; the table's highest is element 128",
+   "holds": true,
+   "section": "8",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hydrogen",
    "part": "table",
    "claim": "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
@@ -180,6 +191,46 @@
    "path": "figdata/f8-radii.json",
    "bytes": 12579,
    "sha256": "7250fda680fde66c022a6970723e25289a972aed538f2229a4fb92c6f04774e7"
+  },
+  {
+   "path": "figures/L1.svg",
+   "bytes": 16543,
+   "sha256": "7b241f865bf08f3ffc3ce27a24e269248c3d7f1fb101cce1a1930853fc2a5b10"
+  },
+  {
+   "path": "figures/L2.svg",
+   "bytes": 10239,
+   "sha256": "e850898c5c645229cf882fcf1c8e2e3b1905e0cb16f612a0c6de149c8d462757"
+  },
+  {
+   "path": "figures/L3.svg",
+   "bytes": 10228,
+   "sha256": "8b6ce28463183889177d8a019694059a1d266337902ffcd8446a5eed388411cf"
+  },
+  {
+   "path": "figures/F3.svg",
+   "bytes": 15930,
+   "sha256": "e2946ead30e6fd54f16599cda0d35699c0aa5f501f201c592df33e1e950ad2b0"
+  },
+  {
+   "path": "figures/F4.svg",
+   "bytes": 18724,
+   "sha256": "c2d0086bd32643b92aa7cccc9f73b23a685fcc3fbb4115b9ee72a694e251e384"
+  },
+  {
+   "path": "figures/F6.svg",
+   "bytes": 6742,
+   "sha256": "69dc5b8afdddbb7c31e3c9edbb3eabe817ada203f135c004dcd855b0b8c6d9df"
+  },
+  {
+   "path": "figures/F7.svg",
+   "bytes": 7816,
+   "sha256": "7c8e2becd469824f72b57744774da46feb83ca2ad8acd200e9d6d06c11dabe2e"
+  },
+  {
+   "path": "figures/captions.json",
+   "bytes": 2766,
+   "sha256": "72d8e6812a8f57c70c9cd116ac0d26fa9360b91bd173f9461110a424f9dd8008"
   }
  ],
  "refs": {

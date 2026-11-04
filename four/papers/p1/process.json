@@ -3,7 +3,7 @@
  "paper": {
   "id": "p1",
   "title": "Atoms in four spatial dimensions with a 1/r interaction: a self-consistent periodic table",
-  "status": "in preparation: restructured around the charge law; outline, data, ledger, references, reproduction and widgets built; the counterfactual table queued; no prose yet",
+  "status": "in preparation: restructured around the charge law; seven figures and the methods drafted; the counterfactual table queued",
   "started": "2026-11-04",
   "bar": "arXiv's: checkable claims, verified references, reproducible numbers. Every number in the text comes from a baked file and is checked against it."
  },
@@ -93,9 +93,18 @@
   {
    "id": "figures",
    "name": "Figures",
-   "what": "SVG from the figure data by a script, never by hand (Okabe–Ito palette)",
-   "path": "papers/p1/figures/",
-   "status": "to do"
+   "what": "SVG drawn from the bake and the law code by a script on every build, never by hand (Okabe–Ito palette, the shared library's theme); captions beside them in the same file",
+   "path": "papers/p1/figures/make.mjs → figures/*.svg",
+   "status": "partly",
+   "note": "7 of the plan's 13: L1–L3, F3, F4, F6, F7; the counterfactual's C1–C2 wait on its run"
+  },
+  {
+   "id": "text",
+   "name": "The text",
+   "what": "each section's source with every number a token the build fills from the code or the bake; an unknown token stops the build",
+   "path": "papers/p1/text/*.md → draft/*.md",
+   "status": "partly",
+   "note": "methods drafted"
   },
   {
    "id": "page",
@@ -132,6 +141,10 @@
    "item": "The counterfactual table: run lawtable-shell, bake it, add its claims, and say whether the generalized Madelung rows come from the law or from the geometry alone",
    "status": "queued",
    "note": "a sandbox sample already shows the law reordering the d and f blocks"
+  },
+  {
+   "item": "Element 128 out-holds its row's noble gas: is it partial screening? Read it off the counterfactual table",
+   "status": "open"
   },
   {
    "item": "Choose the title: the table first, or the law first",
@@ -218,6 +231,18 @@
   {
    "date": "2026-11-04",
    "what": "A first look at the counterfactual, in the sandbox: with the shell theorem forced on, element 26 settles in 4s² 4p² instead of 3d² 4s² (even when seeded with the real configuration) and its ionization halves; element 100 fills its f shell to 4f³⁰ before 5p. The law doesn't just tighten the binding: it decides where the blocks begin. The full table is queued on the runner."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "Seven figures, drawn from the bake and the law code by a script that runs with every build (so a stale figure fails the selftest like a stale number): Gauss's law's fall to the centre, the shell splitting against the exponent, the 3-sphere kernel, ionization against Z in both worlds, the 3D validation, partial screening, and the far pull."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The first figure of ionization against Z showed what the outline had wrong: the hardest-held electron in the 4D table isn't a noble gas's. Element 128, a full 18-electron d shell with nothing outside it (our palladium's kind), holds its outermost electron at 29.56 eV against its row's noble gas 138 at 26.71; element 68, the same kind a row up, comes within a volt of its row's. In ours palladium holds far less hard than xenon. A first wording of the claim said 68 also beat its row's noble gas; the ledger's own value showed it doesn't (22.32 against 78's 23.10), and the claim was corrected before it went in. Whether partial screening causes this is a question for the counterfactual."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The methods section drafted. Its numbers (grid, tolerances, mixing, the kernel's quadrature, the exchange constants, the search's rounds) are tokens the build reads from the solver's own source, so the text says what the code does."
   }
  ]
 }
