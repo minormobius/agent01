@@ -34,9 +34,9 @@ _Regenerated 2026-11-04 by build-brief.mjs — do not edit by hand._
 **Catalog saturation** (sites per category): .
 
 **Neighborhood spark** (bisk 2026-11-04, 100 members / 307 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: bluesky, github, llm
-- Top post: "posting “don’t forget to vote” on The App For People Who Love Voting" — @samuel.fm
+- Mood: Overcast ☁ (trust)
+- Distinctive words: dems, bluesky, bcz
+- Top post: "It's unfortunate that X users have chosen to isolate themselves in a politically homogeneous echo chamber. If they were " — @moultano.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
