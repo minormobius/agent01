@@ -1,0 +1,12 @@
+{
+ "group": "bl-z2-1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a10 4 soft",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}

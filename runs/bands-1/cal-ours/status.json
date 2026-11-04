@@ -1,0 +1,12 @@
+{
+ "group": "cal-ours",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5576
+  }
+ ]
+}

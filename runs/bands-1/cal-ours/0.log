@@ -1,0 +1,24 @@
+$ node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18 4
+corundum ×1: 10 atoms, 48 electrons, grid 60×60×60, 6941 PW at the first of 8 k, 4 workers
+  scf 0: E -79.21041109  |Δρ| 6.86e+0  bands 2.8e-1
+  scf 1: E -93.34289418  |Δρ| 3.56e+0  bands 1.1e-1
+  scf 2: E -103.92038168  |Δρ| 1.53e+0  bands 2.3e-1
+  scf 3: E -102.07077700  |Δρ| 1.45e+0  bands 8.6e-2
+  scf 4: E -103.58080279  |Δρ| 8.14e-1  bands 1.1e-1
+  scf 5: E -104.19342929  |Δρ| 2.67e-1  bands 1.4e-1
+  scf 6: E -104.23059924  |Δρ| 1.08e-1  bands 6.9e-2
+  scf 7: E -104.23793113  |Δρ| 6.47e-2  bands 5.6e-2
+  scf 8: E -104.24178068  |Δρ| 4.89e-3  bands 3.7e-2
+  scf 9: E -104.24177789  |Δρ| 2.74e-3  bands 1.7e-2
+  scf 10: E -104.24178562  |Δρ| 5.83e-4  bands 1.1e-2
+  scf 11: E -104.24178568  |Δρ| 3.66e-4  bands 6.1e-3
+  scf 12: E -104.24178572  |Δρ| 1.42e-4  bands 4.8e-3
+  scf 13: E -104.24178574  |Δρ| 6.89e-5  bands 4.2e-3
+  scf 14: E -104.24178574  |Δρ| 2.34e-5  bands 3.4e-3
+  scf 15: E -104.24178574  |Δρ| 1.04e-5  bands 3.3e-3
+  scf 16: E -104.24178574  |Δρ| 6.00e-6  bands 2.0e-3
+(node:2531) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pseudo.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"file":"crystalref-Al2O3.json","name":"corundum","scale":1,"ecut":40,"nk":"a18","ns":[2,2,2],"pset":"Al2O3","atoms":10,"nf":2,"E":-104.24178573695444,"perFormula_eV":-1418.281734508781,"vbm":{"f":[0.125,0,0],"e":0},"cbm":{"f":[0,0,0],"e":6.0072},"gap_eV":6.0072,"direct":{"f":[0,0,0],"gap_eV":6.0185},"isDirect":false,"scfGap_eV":6.018500941997546,"maxRes":0.020314134495751004,"s":5572.033}
