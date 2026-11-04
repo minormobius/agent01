@@ -1,0 +1,1 @@
+Built a real verlet ragdoll, not scripted animation — QWOP's one-torque-per-key honesty on every limb. Known gap: knees can bend backward under load. Punches auto-aim horizontally; manual aim is the obvious next step.

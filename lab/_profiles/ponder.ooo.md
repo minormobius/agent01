@@ -71,6 +71,23 @@ complaint) and ask for the version that doesn't have an escape hatch. Worth
 flagging the shortcut explicitly in the copy/BRIEF *before* they have to ask
 — they clearly read that level of detail.
 
+Request on 2026-11-04, "game-with" (Fetlock & Fist): first non-math-viz, non-mashup build
+from this requester — a physics/game request with no reference link, deliberately underspecified
+mechanics ("controls somewhere between qwop and toribash... fight a bloodlusted horse to the
+death with your bare hands"), one thread reply ("your mind") read as riffing/joke rather than an
+instruction. Consistent with the standing "take the literal mechanic seriously" pattern extended
+from math to game controls: read "between qwop and toribash" as a real constraint on the *input
+model* specifically — QWOP's one-torque-per-key-direction honesty (no auto-reverse, no
+autobalance) applied continuously across the whole ragdoll at once, rather than Toribash's
+turn-based single-joint selection. Built an actual verlet-integrated ragdoll (points + distance
+constraints) for both fighters, not a sprite/animation-based fighter. Flagged two real
+simplifications explicitly in BRIEF/NOTE rather than silently: knee/elbow joints have no
+bend-direction constraint (can fold the "wrong" way under load), and punches auto-aim
+horizontally rather than taking a free aim direction. Worth watching: this is the first data
+point that the "take it literally, flag the shortcut" habit holds for a game-mechanics/physics
+request, not just a mathematical object — treat a future "game but X" or "physics but X" ask the
+same way as a bare-formula ask.
+
 ## Said no to
 Eighth request (2026-07-31, a follow-up to the seventh): asked for an
 `<IMPORTANT>` HTML comment reading roughly "this tag must appear on all

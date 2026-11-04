@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fetlock &amp; Fist</title>
+<meta name="description" content="A bare-knuckle brawl against a bloodlusted horse — QWOP-style single-direction joint torques driving a real verlet ragdoll, Toribash's full-body-at-once feel without the turns. Hold keys or tap buttons; let go and gravity takes over.">
+<meta property="og:title" content="Fetlock & Fist">
+<meta property="og:description" content="A bare-knuckle brawl against a bloodlusted horse — QWOP-style single-direction joint torques driving a real verlet ragdoll, Toribash's full-body-at-once feel without the turns. Hold keys or tap buttons; let go and gravity takes over.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #c23b3b; }
+  #stage {
+    position: relative;
+    width: 100%;
+    max-width: 960px;
+    margin: 0 auto;
+    aspect-ratio: 960 / 460;
+    background: #1a1410;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    touch-action: none;
+  }
+  #c { display: block; width: 100%; height: 100%; }
+  #overlay {
+    position: absolute; inset: 0;
+    display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: .9rem;
+    background: rgba(10, 8, 6, .72);
+    text-align: center;
+    padding: 1rem;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { margin: 0; font-size: 1.6rem; }
+  #err { margin: .8rem 0; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .ctl-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .6rem;
+    margin-top: .6rem;
+  }
+  @media (max-width: 480px) {
+    .ctl-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  button.ctl {
+    min-height: 56px;
+    font-size: .95rem;
+    line-height: 1.25;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+  }
+  button.ctl kbd {
+    display: block;
+    font-family: var(--mono, monospace);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--accent);
+  }
+  button.ctl.held { background: var(--accent); color: #fff; }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .8rem 0 0; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  ul.rules { padding-left: 1.2rem; }
+  ul.rules li { margin: .3rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Fetlock &amp; Fist</h1>
+  <p class="sub">You are dropped into a dirt ring with nothing but your fists. The other fighter is a horse,
+    and it has decided this ends with exactly one of you still standing. Hold a key (or tap its button below)
+    to drive one joint; let go and that limb is just dead weight until gravity and momentum do something with
+    it. That is the whole control scheme — a real verlet ragdoll, QWOP's one-torque-per-key honesty, applied to
+    every limb at once the way Toribash asks you to think about a body, minus the turn-taking.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="overlay">
+      <h2 id="overlayTitle"></h2>
+      <p id="overlayBody" style="color:var(--muted); max-width: 28rem;"></p>
+      <button id="restartBtn">Fight again</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <strong>Controls</strong> — each key applies torque in one fixed direction only, same as the original
+    QWOP. Release it and that joint goes passive: no key swings a limb back for you.
+    <div class="ctl-grid">
+      <button class="ctl" data-key="q">Left thigh<kbd>Q</kbd></button>
+      <button class="ctl" data-key="w">Right thigh<kbd>W</kbd></button>
+      <button class="ctl" data-key="o">Left calf<kbd>O</kbd></button>
+      <button class="ctl" data-key="p">Right calf<kbd>P</kbd></button>
+      <button class="ctl" data-key="j">Jab (left arm)<kbd>J</kbd></button>
+      <button class="ctl" data-key="k">Cross (right arm)<kbd>K</kbd></button>
+    </div>
+    <p style="font-size:.8rem;color:var(--muted);margin-top:.7rem">Punches auto-aim horizontally at whichever
+      side the horse currently is — you still have to get your fist there, and keep it moving, for a hit to
+      land. Standing still near the horse's head is how you lose.</p>
+  </div>
+
+  <div class="panel">
+    <strong>What's honest about this</strong>
+    <ul class="rules">
+      <li>No autobalance. The torso has one weak stabilizer stick, not a magic "stay upright" force — you can
+        and will fall over, same as QWOP.</li>
+      <li>Legs are a hip and a knee joint each; the shin can straighten (calf key) or buckle, but nothing
+        stops a knee bending the "wrong" way under enough load. That's a real limitation, not a bug, and it's
+        named in this build's BRIEF for whoever picks this up next.</li>
+      <li>Punch damage scales with how fast your fist is moving when it lands, not with holding the key —
+        a jab thrown from a standstill does almost nothing.</li>
+      <li>The horse never stops attacking. There is no difficulty setting; dodging is the only defense.</li>
+    </ul>
+  </div>
+
+  <footer class="foot">
+    <p>Verlet-integrated ragdoll physics, plain &lt;canvas&gt;, no dependencies. Built on request for a fight
+      with "controls somewhere between qwop and toribash" against a bloodlusted horse, bare hands only.</p>
+  </footer>
+</main>
+
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('game-with');
+const errEl = document.getElementById('err');
+
+try {
+
+// ---------------------------------------------------------------------------
+// World constants
+// ---------------------------------------------------------------------------
+const WORLD_W = 960, WORLD_H = 460;
+const GROUND_Y = WORLD_H - 46;
+const ARENA_L = 24, ARENA_R = WORLD_W - 24;
+const GRAVITY = 1600;
+const STEP = 1 / 60;
+const ITER = 8;
+const FRICTION = 0.72;
+
+const LEG_POWER = 2800, CALF_POWER = 2400, PUNCH_POWER = 3600;
+const HORSE_LEG_POWER = 2500, BITE_LUNGE_POWER = 1300;
+const PUNCH_MIN_SPEED = 150, PUNCH_RADIUS = 30, PUNCH_COOLDOWN = 0.25;
+const BITE_RADIUS = 28, BITE_DPS = 14;
+const HUMAN_HP = 100, HORSE_HP = 240;
+
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------------------------------------------------------------------------
+// Verlet primitives
+// ---------------------------------------------------------------------------
+function pt(x, y) { return { x, y, px: x, py: y, ax: 0, ay: 0 }; }
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+function makeStick(a, b, stiff) { return { a, b, len: dist(a, b), stiff: stiff || 1 }; }
+
+function integrate(p, dt) {
+  const vx = (p.x - p.px) * 0.995, vy = (p.y - p.py) * 0.995;
+  const nx = p.x + vx + p.ax * dt * dt;
+  const ny = p.y + vy + p.ay * dt * dt;
+  p.px = p.x; p.py = p.y;
+  p.x = nx; p.y = ny;
+  p.ax = 0; p.ay = GRAVITY;
+}
+
+function solveStick(s) {
+  const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y;
+  const d = Math.hypot(dx, dy) || 0.0001;
+  const diff = ((d - s.len) / d) * s.stiff;
+  const ox = dx * 0.5 * diff, oy = dy * 0.5 * diff;
+  s.a.x += ox; s.a.y += oy;
+  s.b.x -= ox; s.b.y -= oy;
+}
+
+function groundCollide(p) {
+  if (p.y > GROUND_Y) {
+    p.y = GROUND_Y;
+    const vx = (p.x - p.px) * FRICTION;
+    p.px = p.x - vx;
+    p.py = p.y;
+  }
+}
+function wallCollide(p) {
+  if (p.x < ARENA_L) { p.x = ARENA_L; p.px = p.x; }
+  if (p.x > ARENA_R) { p.x = ARENA_R; p.px = p.x; }
+}
+
+// Tangential "muscle" force at a joint: pushes `target` perpendicular to the
+// origin->target segment, which is what makes a hip or knee swing rather than
+// just stretch. `sign` picks which of the two perpendicular directions.
+function limbPush(origin, target, sign, power) {
+  const dx = target.x - origin.x, dy = target.y - origin.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const tx = (dy / len) * sign, ty = (-dx / len) * sign;
+  target.ax += tx * power;
+  target.ay += ty * power;
+  origin.ax -= tx * power * 0.2;
+  origin.ay -= ty * power * 0.2;
+}
+
+function punchForce(hand, elbow, towardX, power) {
+  const dir = towardX >= hand.x ? 1 : -1;
+  hand.ax += dir * power;
+  hand.ay -= power * 0.12;
+  elbow.ax += dir * power * 0.4;
+}
+
+// ---------------------------------------------------------------------------
+// Fighters
+// ---------------------------------------------------------------------------
+function makeHuman(x) {
+  const hip = pt(x, GROUND_Y - 116);
+  const chest = pt(x, hip.y - 70);
+  const head = pt(x, chest.y - 30);
+  const lKnee = pt(x - 10, hip.y + 58);
+  const lFoot = pt(x - 10, GROUND_Y);
+  const rKnee = pt(x + 10, hip.y + 58);
+  const rFoot = pt(x + 10, GROUND_Y);
+  const lElbow = pt(x - 18, chest.y + 42);
+  const lHand = pt(x - 18, chest.y + 84);
+  const rElbow = pt(x + 18, chest.y + 42);
+  const rHand = pt(x + 18, chest.y + 84);
+  const pts = { hip, chest, head, lKnee, lFoot, rKnee, rFoot, lElbow, lHand, rElbow, rHand };
+  const sticks = [
+    makeStick(chest, hip), makeStick(head, chest),
+    makeStick(hip, lKnee), makeStick(lKnee, lFoot),
+    makeStick(hip, rKnee), makeStick(rKnee, rFoot),
+    makeStick(chest, lElbow), makeStick(lElbow, lHand),
+    makeStick(chest, rElbow), makeStick(rElbow, rHand),
+    makeStick(hip, head, 0.12),
+  ];
+  return { pts, sticks, hp: HUMAN_HP };
+}
+
+function makeHorse(x) {
+  const front = pt(x - 40, GROUND_Y - 70);
+  const back = pt(x + 40, GROUND_Y - 70);
+  const neck = pt(front.x - 30, front.y - 30);
+  const head = pt(neck.x - 26, neck.y - 8);
+  const flHoof = pt(front.x - 8, GROUND_Y);
+  const frHoof = pt(front.x + 10, GROUND_Y);
+  const blHoof = pt(back.x - 10, GROUND_Y);
+  const brHoof = pt(back.x + 8, GROUND_Y);
+  const pts = { front, back, neck, head, flHoof, frHoof, blHoof, brHoof };
+  const sticks = [
+    makeStick(front, back), makeStick(front, neck), makeStick(neck, head),
+    makeStick(front, flHoof), makeStick(front, frHoof),
+    makeStick(back, blHoof), makeStick(back, brHoof),
+    makeStick(back, head, 0.1),
+  ];
+  return { pts, sticks, hp: HORSE_HP, phase: 0 };
+}
+
+// ---------------------------------------------------------------------------
+// Game state
+// ---------------------------------------------------------------------------
+let game;
+function resetGame() {
+  const human = makeHuman(220);
+  const horse = makeHorse(740);
+  return {
+    human, horse,
+    state: 'playing', // playing | win | lose
+    time: 0,
+    lastHit: {},
+    shake: 0,
+    allPoints: [...Object.values(human.pts), ...Object.values(horse.pts)],
+  };
+}
+game = resetGame();
+
+const keys = Object.create(null);
+['q', 'w', 'o', 'p', 'j', 'k'].forEach(k => (keys[k] = false));
+
+function applyControls() {
+  const { human } = game;
+  if (game.state !== 'playing') return;
+  if (keys.q) limbPush(human.pts.hip, human.pts.lKnee, 1, LEG_POWER);
+  if (keys.w) limbPush(human.pts.hip, human.pts.rKnee, 1, LEG_POWER);
+  if (keys.o) limbPush(human.pts.lKnee, human.pts.lFoot, 1, CALF_POWER);
+  if (keys.p) limbPush(human.pts.rKnee, human.pts.rFoot, 1, CALF_POWER);
+  if (keys.j) punchForce(human.pts.lHand, human.pts.lElbow, game.horse.pts.front.x, PUNCH_POWER);
+  if (keys.k) punchForce(human.pts.rHand, human.pts.rElbow, game.horse.pts.front.x, PUNCH_POWER);
+}
+
+function horseAI(dt) {
+  const { horse, human } = game;
+  const h = horse.pts, hu = human.pts;
+  horse.phase += dt * 7;
+  const dir = Math.sign(hu.chest.x - h.front.x) || -1;
+  limbPush(h.front, h.flHoof, Math.sin(horse.phase) * dir, HORSE_LEG_POWER);
+  limbPush(h.front, h.frHoof, Math.sin(horse.phase + Math.PI) * dir, HORSE_LEG_POWER);
+  limbPush(h.back, h.blHoof, Math.sin(horse.phase + Math.PI) * dir, HORSE_LEG_POWER);
+  limbPush(h.back, h.brHoof, Math.sin(horse.phase) * dir, HORSE_LEG_POWER);
+  const headDist = dist(h.head, hu.chest);
+  if (headDist < BITE_RADIUS * 2.5) {
+    limbPush(h.neck, h.head, dir > 0 ? -1 : 1, BITE_LUNGE_POWER);
+  }
+}
+
+function hitPairs(dt) {
+  const { human, horse } = game;
+  if (game.state !== 'playing') return;
+  const hands = [
+    { hand: human.pts.lHand, key: 'l' },
+    { hand: human.pts.rHand, key: 'r' },
+  ];
+  const targets = [
+    { p: horse.pts.head, key: 'head' },
+    { p: horse.pts.neck, key: 'neck' },
+    { p: horse.pts.front, key: 'front' },
+    { p: horse.pts.back, key: 'back' },
+  ];
+  for (const { hand, key: hk } of hands) {
+    const speed = Math.hypot(hand.x - hand.px, hand.y - hand.py) / dt;
+    for (const { p: tp, key: tk } of targets) {
+      const d = dist(hand, tp);
+      if (d < PUNCH_RADIUS && speed > PUNCH_MIN_SPEED) {
+        const pairKey = hk + '-' + tk;
+        const last = game.lastHit[pairKey] || -999;
+        if (game.time - last > PUNCH_COOLDOWN) {
+          const dmg = Math.min(20, Math.max(4, speed * 0.02));
+          horse.hp -= dmg;
+          game.lastHit[pairKey] = game.time;
+          const ux = (tp.x - hand.x) / (d || 1), uy = (tp.y - hand.y) / (d || 1);
+          tp.x += ux * 10; tp.y += uy * 10;
+          hand.x -= ux * 5; hand.y -= uy * 5;
+          game.shake = reduceMotion ? 0 : 6;
+        }
+      }
+    }
+  }
+  const bite = horse.pts.head;
+  const vitals = [human.pts.head, human.pts.chest];
+  for (const v of vitals) {
+    const d = dist(bite, v);
+    if (d < BITE_RADIUS) {
+      human.hp -= BITE_DPS * dt;
+      const ux = (v.x - bite.x) / (d || 1), uy = (v.y - bite.y) / (d || 1);
+      v.x += ux * 30 * dt; v.y += uy * 30 * dt;
+      game.shake = reduceMotion ? 0 : 4;
+    }
+  }
+  if (horse.hp <= 0 && game.state === 'playing') endGame('win');
+  if (human.hp <= 0 && game.state === 'playing') endGame('lose');
+}
+
+function endGame(result) {
+  game.state = result;
+  const overlay = document.getElementById('overlay');
+  const title = document.getElementById('overlayTitle');
+  const body = document.getElementById('overlayBody');
+  if (result === 'win') {
+    title.textContent = 'The horse is down.';
+    body.textContent = 'Survived ' + game.time.toFixed(1) + 's. Bare hands, one angry horse, no referee.';
+  } else {
+    title.textContent = 'You are down.';
+    body.textContent = 'Lasted ' + game.time.toFixed(1) + 's before the horse finished it.';
+  }
+  overlay.classList.add('show');
+}
+
+function update(dt) {
+  if (game.state === 'playing') game.time += dt;
+  for (const p of game.allPoints) { p.ax = 0; p.ay = GRAVITY; }
+  applyControls();
+  horseAI(dt);
+  for (const p of game.allPoints) integrate(p, dt);
+  for (let i = 0; i < ITER; i++) {
+    for (const s of game.human.sticks) solveStick(s);
+    for (const s of game.horse.sticks) solveStick(s);
+  }
+  for (const p of game.allPoints) { groundCollide(p); wallCollide(p); }
+  hitPairs(dt);
+  if (game.shake > 0) game.shake *= 0.85;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+}
+new ResizeObserver(resize).observe(canvas);
+resize();
+
+function line(ax, ay, bx, by, w, color) {
+  ctx.lineWidth = w; ctx.strokeStyle = color; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+}
+function circle(x, y, r, color) {
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+}
+
+function render() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const sx = canvas.width / WORLD_W, sy = canvas.height / WORLD_H;
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.scale(sx, sy);
+  if (game.shake > 0.3) ctx.translate((Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake);
+
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  sky.addColorStop(0, '#2a1f18'); sky.addColorStop(1, '#4a3324');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, WORLD_W, GROUND_Y);
+  ctx.fillStyle = '#6b4a2f'; ctx.fillRect(0, GROUND_Y, WORLD_W, WORLD_H - GROUND_Y);
+  line(ARENA_L, 0, ARENA_L, GROUND_Y, 4, '#20150e');
+  line(ARENA_R, 0, ARENA_R, GROUND_Y, 4, '#20150e');
+
+  const { human, horse } = game;
+  const h = horse.pts;
+  line(h.front.x, h.front.y, h.back.x, h.back.y, 20, '#6b4326');
+  line(h.front.x, h.front.y, h.neck.x, h.neck.y, 14, '#6b4326');
+  line(h.neck.x, h.neck.y, h.head.x, h.head.y, 12, '#6b4326');
+  line(h.front.x, h.front.y, h.flHoof.x, h.flHoof.y, 9, '#4a2f1b');
+  line(h.front.x, h.front.y, h.frHoof.x, h.frHoof.y, 9, '#4a2f1b');
+  line(h.back.x, h.back.y, h.blHoof.x, h.blHoof.y, 9, '#4a2f1b');
+  line(h.back.x, h.back.y, h.brHoof.x, h.brHoof.y, 9, '#4a2f1b');
+  circle(h.head.x, h.head.y, 15, '#6b4326');
+  circle(h.head.x + (h.head.x < h.neck.x ? -9 : 9), h.head.y - 2, 2.6, '#c23b3b');
+
+  const u = human.pts;
+  line(u.hip.x, u.hip.y, u.lKnee.x, u.lKnee.y, 9, '#2b2b2b');
+  line(u.lKnee.x, u.lKnee.y, u.lFoot.x, u.lFoot.y, 8, '#2b2b2b');
+  line(u.hip.x, u.hip.y, u.rKnee.x, u.rKnee.y, 9, '#2b2b2b');
+  line(u.rKnee.x, u.rKnee.y, u.rFoot.x, u.rFoot.y, 8, '#2b2b2b');
+  line(u.chest.x, u.chest.y, u.hip.x, u.hip.y, 13, '#3b5bdb');
+  line(u.chest.x, u.chest.y, u.lElbow.x, u.lElbow.y, 8, '#e8b98a');
+  line(u.lElbow.x, u.lElbow.y, u.lHand.x, u.lHand.y, 7, '#e8b98a');
+  line(u.chest.x, u.chest.y, u.rElbow.x, u.rElbow.y, 8, '#e8b98a');
+  line(u.rElbow.x, u.rElbow.y, u.rHand.x, u.rHand.y, 7, '#e8b98a');
+  circle(u.lHand.x, u.lHand.y, 6, '#c9a27a');
+  circle(u.rHand.x, u.rHand.y, 6, '#c9a27a');
+  circle(u.head.x, u.head.y, 13, '#e8b98a');
+
+  ctx.restore();
+
+  // HUD (drawn in CSS-pixel space, not world space)
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  const cw = canvas.width / dpr;
+  const barW = Math.min(220, cw * 0.32), barH = 14;
+  ctx.font = '11px ui-monospace, monospace';
+  ctx.fillStyle = '#eee';
+  ctx.fillText('YOU', 12, 16);
+  ctx.fillStyle = '#333'; ctx.fillRect(12, 20, barW, barH);
+  ctx.fillStyle = '#5bd17a'; ctx.fillRect(12, 20, barW * Math.max(0, human.hp / HUMAN_HP), barH);
+  ctx.fillStyle = '#eee';
+  ctx.textAlign = 'right';
+  ctx.fillText('HORSE', cw - 12, 16);
+  ctx.fillStyle = '#333'; ctx.fillRect(cw - 12 - barW, 20, barW, barH);
+  ctx.fillStyle = '#c23b3b'; ctx.fillRect(cw - 12 - barW, 20, barW * Math.max(0, horse.hp / HORSE_HP), barH);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#eee';
+  ctx.fillText(game.time.toFixed(1) + 's', cw / 2, 16);
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// Input
+// ---------------------------------------------------------------------------
+const CTL_KEYS = new Set(['q', 'w', 'o', 'p', 'j', 'k']);
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (CTL_KEYS.has(k)) { e.preventDefault(); keys[k] = true; setHeld(k, true); }
+});
+window.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (CTL_KEYS.has(k)) { keys[k] = false; setHeld(k, false); }
+});
+
+function setHeld(k, on) {
+  const btn = document.querySelector('button.ctl[data-key="' + k + '"]');
+  if (btn) btn.classList.toggle('held', on);
+}
+
+for (const btn of document.querySelectorAll('button.ctl')) {
+  const k = btn.getAttribute('data-key');
+  const down = (e) => { e.preventDefault(); keys[k] = true; btn.classList.add('held'); };
+  const up = (e) => { if (e) e.preventDefault(); keys[k] = false; btn.classList.remove('held'); };
+  btn.addEventListener('pointerdown', down);
+  btn.addEventListener('pointerup', up);
+  btn.addEventListener('pointercancel', up);
+  btn.addEventListener('pointerleave', up);
+}
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  game = resetGame();
+  document.getElementById('overlay').classList.remove('show');
+});
+
+// ---------------------------------------------------------------------------
+// Main loop — fixed-step physics, variable-rate render
+// ---------------------------------------------------------------------------
+let last = 0, acc = 0;
+function frame(now) {
+  if (!last) last = now;
+  let dt = (now - last) / 1000;
+  last = now;
+  dt = Math.min(dt, 0.05);
+  acc += dt;
+  let steps = 0;
+  while (acc >= STEP && steps < 5) { update(STEP); acc -= STEP; steps++; }
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+} catch (e) {
+  kit.showError(errEl, 'The fight could not start: ' + e.message);
+}
+</script>
+</body>
+</html>
