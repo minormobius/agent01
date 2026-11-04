@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nobody Owns The Graph — an agentic ATProto pitch deck</title>
+<meta name="description" content="A short pitch deck arguing where value actually gets captured in an agentic ATProto stack, and why it lands on the person holding their own identity rather than on whichever app they signed up through. Ends with a live demo: type your own handle and watch it resolve to a DID and a real PDS host, off this site's own servers entirely.">
+<meta property="og:title" content="Nobody Owns The Graph — an agentic ATProto pitch deck">
+<meta property="og:description" content="Where does the value in an agentic ATProto stack actually get captured, and why is it the user? Seven short slides, then a live demo that resolves your own handle to its DID and its real, independent PDS host.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .kicker {
+    text-transform: uppercase; letter-spacing: .14em; font-size: .72rem;
+    color: var(--muted); margin: 0 0 .5rem;
+  }
+  h1 { font-size: clamp(1.9rem, 6vw, 2.7rem); line-height: 1.05; }
+  .lede { color: var(--fg); font-size: .95rem; max-width: 40rem; margin-top: .75rem; }
+
+  .slide { padding: 2.6rem 0; border-top: 1px solid var(--border); }
+  .slide:first-of-type { border-top: none; }
+  .slide .num { font-size: .72rem; color: var(--muted); letter-spacing: .08em; margin: 0 0 .4rem; }
+  .slide h2 {
+    font-size: clamp(1.15rem, 4vw, 1.5rem); color: var(--accent);
+    margin: 0 0 .9rem; font-weight: 600; letter-spacing: -.01em;
+  }
+  .slide p { font-size: .92rem; line-height: 1.65; }
+  .slide p + p { margin-top: .85rem; }
+  .slide .aside { font-size: .78rem; color: var(--muted); margin-top: 1rem; padding-left: .8rem; border-left: 2px solid var(--border); }
+
+  /* ---- old model: a walled box, on purpose the one rectilinear shape here ---- */
+  .platform-box {
+    position: relative; border: 3px solid var(--muted); border-radius: 10px;
+    padding: 1.1rem 1.2rem; background: var(--bg-raised); margin: 1.4rem 0 .6rem;
+    max-width: 26rem;
+  }
+  .platform-box .lock { position: absolute; top: -13px; right: 14px; font-size: 1.4rem; }
+  .platform-box .chips { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .chip {
+    background: var(--accent-dim); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .4rem .7rem; font-size: .74rem; color: var(--accent); white-space: nowrap;
+  }
+  .platform-box .caption { font-size: .78rem; color: var(--muted); margin-top: .8rem; }
+
+  /* ---- new model: rings, drawn open ---- */
+  .rings-wrap { display: flex; flex-direction: column; align-items: center; gap: 1.1rem; margin: 1.4rem 0; }
+  #rings { width: 100%; max-width: 380px; height: auto; display: block; }
+  .legend { display: flex; flex-direction: column; gap: .55rem; font-size: .8rem; color: var(--muted); width: 100%; max-width: 380px; }
+  .legend .row { display: flex; gap: .6rem; align-items: flex-start; }
+  .legend .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; margin-top: .2rem; }
+  .legend b { color: var(--fg); }
+
+  /* ---- live demo ---- */
+  form#handleForm { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+  form#handleForm input { flex: 1 1 14rem; }
+  form#handleForm button { min-height: 44px; flex: 0 0 auto; }
+  .demo-card {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.1rem 1.2rem; margin-top: 1rem;
+  }
+  .demo-row { display: flex; gap: .85rem; align-items: center; }
+  .demo-row img.avatar {
+    width: 52px; height: 52px; border-radius: 50%; object-fit: cover;
+    background: var(--border); flex: none;
+  }
+  .demo-row .who b { color: var(--fg); font-size: .95rem; display: block; }
+  .demo-row .who span { color: var(--muted); font-size: .8rem; }
+  .fields { margin-top: 1rem; display: flex; flex-direction: column; gap: .55rem; }
+  .field { font-size: .8rem; color: var(--muted); }
+  .field b { color: var(--fg); }
+  .field code { color: var(--accent); word-break: break-all; font-size: .78rem; }
+  .demo-note { font-size: .78rem; color: var(--muted); margin-top: .9rem; }
+  #demoErr, #demoStatus { margin-top: .8rem; }
+  #demoStatus { font-size: .82rem; color: var(--muted); }
+
+  footer.close { padding: 2.2rem 0 0; border-top: 1px solid var(--border); }
+  footer.close p { font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <script>document.write(kit.crumb('sketch-out'));</script>
+
+  <header>
+    <p class="kicker">pitch deck · sketched, not built</p>
+    <h1>Nobody Owns The Graph</h1>
+    <p class="lede">A short case for where the value in an agentic ATProto
+    stack actually lands, and why it lands on the person holding their own
+    identity — not on whichever app they happened to sign up through.</p>
+  </header>
+
+  <section class="slide">
+    <p class="num">01 / 07</p>
+    <h2>the old shape</h2>
+    <p>In the shape most apps still use, your identity, your data, and your
+    social graph all live inside the app that built them. Leave, and you lose
+    all three at once — so the app doesn't have to keep winning you over. It
+    just has to make leaving expensive. That's the whole business model of a
+    walled garden: the wall isn't security, it's the product.</p>
+    <div class="platform-box">
+      <span class="lock" aria-hidden="true">🔒</span>
+      <div class="chips">
+        <span class="chip">identity</span>
+        <span class="chip">your data</span>
+        <span class="chip">your followers</span>
+      </div>
+      <p class="caption">all three, held by one company, released together or not at all</p>
+    </div>
+  </section>
+
+  <section class="slide">
+    <p class="num">02 / 07</p>
+    <h2>the atproto shape</h2>
+    <p>A DID isn't issued by an app — it's yours. Your repo lives on a PDS
+    that doesn't have to be the same company as the app you're using. Move
+    your handle, your posts, your follows to a different PDS or client, and
+    every follower still finds you, every record is still yours, still
+    signed by the same key. Leaving costs nothing, which means staying has to
+    be earned every single day instead of assumed after the first sign-up.</p>
+    <p>Drawn as rings instead of a box on purpose — nothing here is walled
+    in. The protocol sits at the center as a shared, uncontested commodity.
+    Apps orbit it, each free to specialize. You sit on the outside, and the
+    boundary is open.</p>
+    <div class="rings-wrap">
+      <svg id="rings" viewBox="0 0 400 400" aria-hidden="true">
+        <defs>
+          <marker id="exitArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0L10,5L0,10z" fill="var(--accent)"></path>
+          </marker>
+        </defs>
+        <circle cx="200" cy="200" r="150" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="7 7"></circle>
+        <circle cx="200" cy="200" r="34" fill="var(--accent)"></circle>
+        <circle cx="288.63" cy="215.62" r="7" fill="var(--fg)" opacity=".55"></circle>
+        <circle cx="257.36" cy="281.92" r="8" fill="var(--fg)" opacity=".55"></circle>
+        <circle cx="184.72" cy="286.66" r="6.5" fill="var(--fg)" opacity=".55"></circle>
+        <circle cx="116.44" cy="258.51" r="8.5" fill="var(--fg)" opacity=".55"></circle>
+        <circle cx="109.40" cy="184.03" r="7" fill="var(--fg)" opacity=".55"></circle>
+        <circle cx="143.79" cy="119.72" r="7.5" fill="var(--fg)" opacity=".55"></circle>
+        <circle cx="214.93" cy="115.31" r="6.5" fill="var(--fg)" opacity=".55"></circle>
+        <circle cx="285.20" cy="140.35" r="8" fill="var(--fg)" opacity=".55"></circle>
+        <line x1="350" y1="200" x2="384" y2="200" stroke="var(--accent)" stroke-width="3" marker-end="url(#exitArrow)"></line>
+      </svg>
+      <ul class="legend" style="list-style:none; padding:0; margin:0;">
+        <li class="row"><span class="dot" style="background:var(--accent)"></span><span><b>center — the protocol.</b> Identity, signing, data transport. A commodity, and free, so nobody collects rent just for existing at this layer.</span></li>
+        <li class="row"><span class="dot" style="background:var(--fg); opacity:.55"></span><span><b>the ring of dots — apps.</b> Independent, competing on whether they solve one problem well, because none of them can compete on trapping you.</span></li>
+        <li class="row"><span class="dot" style="background:var(--accent)"></span><span><b>the open boundary, with the arrow through it — you.</b> Identity and data on the outside, and an exit that's always unlocked.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide">
+    <p class="num">03 / 07</p>
+    <h2>see your own</h2>
+    <p>This isn't a claim you have to take on faith. Type a handle below —
+    yours, if you want — and watch it resolve the way any app would have to:
+    a DID it doesn't issue, and a PDS host it doesn't run. Everything you see
+    below is public and lives off this domain entirely. If minomobi.com
+    disappeared tonight, none of it would move.</p>
+    <form id="handleForm" autocomplete="off">
+      <input id="handleInput" type="text" placeholder="yourhandle.bsky.social" aria-label="Bluesky handle">
+      <button type="submit">resolve</button>
+    </form>
+    <div id="demoErr" class="err hidden"></div>
+    <div id="demoStatus" class="hidden"></div>
+    <div id="demoCard" class="demo-card hidden">
+      <div class="demo-row">
+        <img id="demoAvatar" class="avatar" alt="" hidden>
+        <div class="who">
+          <b id="demoName"></b>
+          <span id="demoHandle"></span>
+        </div>
+      </div>
+      <div class="fields">
+        <div class="field"><b>DID</b> — the identity itself, not assigned by any app: <code id="demoDid"></code></div>
+        <div class="field"><b>PDS host</b> — where the actual repo lives, resolved from the DID's own document: <code id="demoPds"></code></div>
+      </div>
+      <p class="demo-note" id="demoNote"></p>
+    </div>
+  </section>
+
+  <section class="slide">
+    <p class="num">04 / 07</p>
+    <h2>where the money actually sits</h2>
+    <p>The protocol layer compresses to zero margin almost by design — it's
+    "trivial to use as free, world-class infrastructure," which is exactly
+    what makes it uninteresting to try to own. Nobody captures rent at a
+    layer that's already commodity.</p>
+    <p>So value moves up, to the layer that still has to be earned: apps that
+    solve one problem well. A registrar that isn't dogshit. A place to stand
+    up a site without becoming your own hosting company. Neither has to
+    rebuild identity, auth, or a social graph from scratch to be useful —
+    that's already solved underneath them, which is precisely what lets a
+    small, targeted product compete with an incumbent that spent a decade
+    building a moat instead of a product.</p>
+    <p class="aside">This factory is the same instinct at toy scale: dozens
+    of single-purpose sites here share one login (a domain-wide OAuth worker)
+    and one small set of storage primitives instead of each one rebuilding
+    its own account system. None of them had to become a platform to exist.</p>
+  </section>
+
+  <section class="slide">
+    <p class="num">05 / 07</p>
+    <h2>why it's the user</h2>
+    <p>The thing actually being priced, in the old shape, is your captivity —
+    the platform sells advertisers access to an audience that can't easily
+    leave, and the switching cost <i>is</i> the asset on their balance sheet.
+    In the atproto shape that option — the standing ability to walk, at zero
+    cost, at any time — can't be centrally owned, because no single company
+    holds the keys that would let them price it. It just sits with whoever
+    holds the DID. That's not a side effect of decentralization; in money
+    terms, it <i>is</i> decentralization. The option value that used to be
+    the platform's moat is now permanently vested in the person who can
+    exercise it.</p>
+    <p>Even the joke earlier in this thread — wiring two agents together over
+    Bluesky DMs and calling it a "revolutionary agent-to-agent communication
+    system with portable data" — makes the point better than it means to. It
+    would work, today, with no new protocol, not because DMs are special, but
+    because the identity and the data underneath were never the app's to
+    withhold in the first place. The boring reuse only looks trivial because
+    the hard part was already solved, out from under any one company.</p>
+  </section>
+
+  <section class="slide">
+    <p class="num">06 / 07</p>
+    <h2>who's building this</h2>
+    <p>Increasingly: whoever ships the specific thing well, on a stack they
+    didn't have to build. Agents make that sharper, not softer — an agent
+    acting on your behalf needs your identity and your data to actually be
+    yours to hand over, or there's nothing portable for it to carry between
+    services. An agentic layer built on a platform that owns your graph is
+    just the platform, wearing an agent as a mask. An agentic layer built on
+    top of a protocol where you hold the keys is the first kind of agent
+    that's actually working for you and not for whoever it's logged into.</p>
+  </section>
+
+  <section class="slide">
+    <p class="num">07 / 07</p>
+    <h2>the deck's answer</h2>
+    <p>Value doesn't vanish when the protocol layer goes free — it moves to
+    wherever real judgment still has to happen, and it stays with whoever
+    holds the one thing that was never anyone else's to sell: your own
+    identity, and the standing right to take it somewhere else.</p>
+  </section>
+
+  <footer class="close">
+    <p>Sketched from a thread, not commissioned or reviewed by anyone it
+    names. No investment was raised, bajillion dollars or otherwise, in the
+    making of this deck.</p>
+  </footer>
+</main>
+
+<script type="module">
+  const form = document.getElementById('handleForm');
+  const input = document.getElementById('handleInput');
+  const errEl = document.getElementById('demoErr');
+  const statusEl = document.getElementById('demoStatus');
+  const card = document.getElementById('demoCard');
+  const avatarEl = document.getElementById('demoAvatar');
+  const nameEl = document.getElementById('demoName');
+  const handleEl = document.getElementById('demoHandle');
+  const didEl = document.getElementById('demoDid');
+  const pdsEl = document.getElementById('demoPds');
+  const noteEl = document.getElementById('demoNote');
+
+  kit.handleInput(input, { onPick: (handle) => resolve(handle) });
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const h = input.value.trim().replace(/^@/, '');
+    if (h) resolve(h);
+  });
+
+  async function resolve(handle) {
+    kit.clear(errEl);
+    card.classList.add('hidden');
+    statusEl.classList.remove('hidden');
+    statusEl.textContent = 'resolving ' + handle + '…';
+    try {
+      const id = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle });
+      const did = id.did;
+
+      let profile = null;
+      try { profile = await kit.bskyGet('app.bsky.actor.getProfile', { actor: did }); } catch (e) { /* profile is decoration, not the point */ }
+
+      didEl.textContent = did;
+      nameEl.textContent = (profile && profile.displayName) || handle;
+      handleEl.textContent = '@' + ((profile && profile.handle) || handle);
+      if (profile && profile.avatar) {
+        avatarEl.src = profile.avatar;
+        avatarEl.hidden = false;
+      } else {
+        avatarEl.hidden = true;
+      }
+
+      if (did.indexOf('did:plc:') === 0) {
+        statusEl.textContent = 'reading the DID document…';
+        const doc = await kit.fetchJson('https://plc.directory/' + did);
+        const svc = (doc.service || []).find((s) => s.type === 'AtprotoPersonalDataServer');
+        pdsEl.textContent = svc ? svc.serviceEndpoint : '(no PDS service listed in the document)';
+        noteEl.textContent = 'That host is a PDS, not Bluesky and not this lab — it answers directly for this identity’s repo, at a URL nobody but the DID document names.';
+      } else {
+        pdsEl.textContent = did + ' (did:web — resolved from a domain, not plc.directory)';
+        noteEl.textContent = 'This identity resolves through its own domain rather than the plc.directory registry this demo reads — same portability, different lookup, not fetched here.';
+      }
+
+      statusEl.classList.add('hidden');
+      card.classList.remove('hidden');
+    } catch (e) {
+      statusEl.classList.add('hidden');
+      kit.showError(errEl, 'Could not resolve "' + handle + '" — check the spelling and try again.');
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serre Twist Lab — O(n) on the projective line, as a twisted ribbon</title>
+<meta name="description" content="Serre's twisting sheaf O(n) on P^1, made literal: a ribbon that winds n full turns around a loop, driven by the actual transition function t^n. Drag the slider, drag to rotate, read off the sections.">
+<meta property="og:title" content="Serre Twist Lab">
+<meta property="og:description" content="Serre's twisting sheaf O(n) on P^1, made literal: a ribbon that winds n full turns around a loop, driven by the actual transition function t^n. Drag the slider, drag to rotate, read off the sections.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --col: 68rem; --twist: #5db8d6; }
+  #viewport {
+    width: 100%;
+    height: min(56vh, 480px);
+    background: #0b0b0e;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+  }
+  #viewport:active { cursor: grabbing; }
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin: .4rem 0; }
+  input[type=range] { flex: 1 1 14rem; height: 2.75rem; accent-color: var(--accent); min-width: 8rem; }
+  input[type=number] {
+    width: 5rem; min-height: 2.75rem; padding: .6rem .5rem; font: inherit; font-size: 1rem;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+    border-radius: var(--radius); text-align: center;
+  }
+  .nlabel { font-size: 1.1rem; color: var(--accent); min-width: 3.5rem; }
+  .stat { font-size: .85rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  .formula {
+    font-family: var(--mono); font-size: .95rem; color: var(--fg);
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .7rem .9rem; margin: .5rem 0; overflow-x: auto;
+  }
+  .formula .dim { color: var(--muted); }
+  #sectionsOut { font-family: var(--mono); font-size: .9rem; line-height: 1.8; }
+  #sectionsOut span {
+    display: inline-block; margin: .15rem .3rem .15rem 0; padding: .15rem .5rem;
+    border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg);
+    color: var(--twist);
+  }
+  .legend { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: .3rem; }
+  .swatch { display: inline-block; width: .9rem; height: .9rem; border-radius: 2px; vertical-align: -1px; margin-right: .35rem; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Serre Twist Lab</h1>
+  <p class="sub">The twisting sheaf <code>O(n)</code> on the projective line, made literal: a ribbon
+    that winds <b>n full turns</b> around a loop, because that loop is a faithful picture of
+    <code>O(n)</code>'s own transition function. Drag the viewport to rotate, scroll to zoom,
+    drag the slider to change <code>n</code>.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="panel">
+    <div class="row">
+      <input type="range" id="nSlider" min="-10" max="10" step="1" value="3">
+      <input type="number" id="nInput" min="-10" max="10" step="1" value="3">
+      <span class="nlabel">n = <b id="nOut">3</b></span>
+    </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--accent)"></span>chart U₀ side of the frame</span>
+      <span><span class="swatch" style="background:var(--twist)"></span>chart U₁ side of the frame</span>
+    </div>
+  </div>
+
+  <div id="viewport"></div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">What the ribbon actually is</h2>
+    <p style="margin:.3rem 0 0">
+      <code>P¹</code> has two charts: <code>U₀ = {z₀≠0}</code> with coordinate
+      <code>t = z₁/z₀</code>, and <code>U₁ = {z₁≠0}</code> with coordinate
+      <code>s = z₀/z₁ = 1/t</code>. <code>O(n)</code> is trivial on each chart alone — pick a
+      local frame vector on <code>U₀</code> and one on <code>U₁</code> — and the two frames are
+      related on the overlap by the transition function
+    </p>
+    <div class="formula">g₀₁(t) = <span id="cocycleOut">t³</span><span class="dim">  — the cocycle that defines O(n)</span></div>
+    <p style="margin:.3rem 0 0">
+      The grey ring below is the <b>real locus</b> of <code>P¹(C)</code> — the circle
+      <code>t = e^{iθ}</code>, θ running once around. The coloured ribbon tracks a single real
+      frame direction as it is carried around that loop by <code>g₀₁</code>: its angle turns by
+      <code>n·θ</code>, so after one full lap (θ: 0 → 2π) it has rotated by exactly
+      <code>2πn</code> — a whole number of turns, which is why the ribbon always closes up
+      smoothly no matter how hard it's twisted. The <b>winding count you can see is literally
+      n</b>, the same integer that is <code>O(n)</code>'s degree (its first Chern class).
+    </p>
+    <p style="margin:.6rem 0 0">
+      <b>Honest limit:</b> the actual fibre of <code>O(n)</code> is a complex line — two real
+      dimensions — so the true total space over this one real circle is 3-real-dimensional and
+      the full thing over all of <code>P¹(C)</code> is 4-real-dimensional. Neither embeds
+      faithfully in the screen. What's drawn is the real span of one trivializing frame vector,
+      which carries the winding number honestly but throws away the phase orthogonal to it — a
+      deliberate simplification, not an approximation error.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Cohomology — Riemann–Roch on <code>P¹</code></h2>
+    <div class="row">
+      <span class="stat">h⁰(O(n)) = <b id="h0Out">4</b></span>
+      <span class="stat">h¹(O(n)) = <b id="h1Out">0</b></span>
+      <span class="stat">χ = h⁰ − h¹ = <b id="chiOut">4</b> <span class="dim">(should equal n+1 = 4)</span></span>
+    </div>
+    <p style="margin:.5rem 0 0">
+      <code>deg O(n) = n</code>, genus of <code>P¹</code> is 0, so Riemann–Roch says
+      <code>χ(O(n)) = n + 1</code> unconditionally. <code>h¹</code> comes from Serre duality,
+      <code>h¹(O(n)) = h⁰(O(−n−2))</code>, which is positive only once <code>n ≤ −2</code> —
+      <code>O(−1)</code> is the one twist with <em>no</em> cohomology at all, in either degree.
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Global sections — a basis of H⁰(P¹, O(n))</h2>
+    <p style="margin:.3rem 0 .4rem">
+      Sections of <code>O(n)</code> are degree-<code>n</code> homogeneous polynomials in
+      <code>z₀, z₁</code>. For <code>n ≥ 0</code> that space has dimension exactly
+      <code>n+1</code>, spanned by the monomials below; for <code>n &lt; 0</code> there are no
+      nonzero global sections at all — a twisting sheaf that's twisted the wrong way has nothing
+      to hold onto.
+    </p>
+    <div id="sectionsOut"></div>
+  </div>
+
+  <footer class="foot">
+    Built with three.js, run entirely in your browser — nothing here is sent anywhere.
+    One convention is fixed for concreteness (which chart's frame reads as the "untwisted" one at
+    θ=0); flipping it would mirror the ribbon's handedness but not change n.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb("serre's twisting sheaf");
+
+  const viewport = document.getElementById('viewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0b0e);
+
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 100);
+  camera.position.set(0, 0, 7.5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const key = new THREE.DirectionalLight(0xffffff, 0.95);
+  key.position.set(5, 8, 6);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+  fill.position.set(-6, -3, -4);
+  scene.add(fill);
+
+  const group = new THREE.Group();
+  group.rotation.x = -0.55;
+  group.rotation.y = 0.35;
+  scene.add(group);
+
+  const R = 2.3, HALF_W = 0.42;
+
+  // the base loop — the real locus of P^1(C), t = e^{i theta}
+  const ringPts = [];
+  for (let i = 0; i <= 128; i++) {
+    const th = (2 * Math.PI * i) / 128;
+    ringPts.push(new THREE.Vector3(R * Math.cos(th), 0, R * Math.sin(th)));
+  }
+  const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
+  const ring = new THREE.Line(ringGeo, new THREE.LineBasicMaterial({ color: 0x4a4852 }));
+  group.add(ring);
+
+  function buildRibbonGeometry(n) {
+    const turns = Math.max(1, Math.abs(n));
+    const segments = Math.min(2200, Math.max(240, 40 * turns + 80));
+    const count = segments + 1;
+    const positions = new Float32Array(count * 2 * 3);
+    const colors = new Float32Array(count * 2 * 3);
+    const colA = new THREE.Color(0xe8a33d);
+    const colB = new THREE.Color(0x5db8d6);
+
+    for (let i = 0; i < count; i++) {
+      const theta = (2 * Math.PI * i) / segments;
+      const cx = R * Math.cos(theta), cz = R * Math.sin(theta);
+      const rx = Math.cos(theta), rz = Math.sin(theta); // radial direction
+      const twist = n * theta;
+      const ct = Math.cos(twist), st = Math.sin(twist);
+      // offset direction = cos(twist)*radial + sin(twist)*y-hat
+      const ox = rx * ct, oy = st, oz = rz * ct;
+
+      const top = i * 2, bot = i * 2 + 1;
+      positions[top * 3 + 0] = cx + ox * HALF_W;
+      positions[top * 3 + 1] = 0 + oy * HALF_W;
+      positions[top * 3 + 2] = cz + oz * HALF_W;
+      positions[bot * 3 + 0] = cx - ox * HALF_W;
+      positions[bot * 3 + 1] = 0 - oy * HALF_W;
+      positions[bot * 3 + 2] = cz - oz * HALF_W;
+
+      colA.toArray(colors, top * 3);
+      colB.toArray(colors, bot * 3);
+    }
+
+    const indices = [];
+    for (let i = 0; i < segments; i++) {
+      const a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+      indices.push(a, b, c, b, d, c);
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  const material = new THREE.MeshStandardMaterial({
+    vertexColors: true, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.08,
+  });
+  let mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+  group.add(mesh);
+
+  function resize() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+
+  // drag to rotate, wheel to zoom — same interaction as the rest of the lab
+  let dragging = false, lastX = 0, lastY = 0;
+  const canvas = renderer.domElement;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    group.rotation.y += dx * 0.008;
+    group.rotation.x += dy * 0.008;
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camera.position.z = Math.min(20, Math.max(3, camera.position.z * (1 + e.deltaY * 0.001)));
+  }, { passive: false });
+
+  // ---------------------------------------------------------------- math panels
+
+  function sectionsList(n) {
+    if (n < 0) return null;
+    const arr = [];
+    for (let i = 0; i <= n; i++) {
+      const a = i, b = n - i;
+      let term = '';
+      term += a === 0 ? '' : (a === 1 ? 'z₀' : `z₀^${a}`);
+      if (a > 0 && b > 0) term += '·';
+      term += b === 0 ? '' : (b === 1 ? 'z₁' : `z₁^${b}`);
+      arr.push(term === '' ? '1' : term);
+    }
+    return arr;
+  }
+
+  function cocycleStr(n) {
+    if (n === 0) return '1';
+    if (n === 1) return 't';
+    if (n === -1) return 't^(-1)';
+    return n > 0 ? `t^${n}` : `t^(${n})`;
+  }
+
+  function updateInfo(n) {
+    document.getElementById('nOut').textContent = String(n);
+    document.getElementById('cocycleOut').textContent = cocycleStr(n);
+
+    const h0 = Math.max(n + 1, 0);
+    const h1 = Math.max(-n - 1, 0);
+    document.getElementById('h0Out').textContent = String(h0);
+    document.getElementById('h1Out').textContent = String(h1);
+    document.getElementById('chiOut').textContent = String(h0 - h1);
+
+    const box = document.getElementById('sectionsOut');
+    const list = sectionsList(n);
+    if (!list) {
+      box.innerHTML = '<p style="margin:0">no nonzero global sections — O(' + n + ') has negative degree.</p>';
+    } else {
+      box.innerHTML = list.map((t) => `<span>${t}</span>`).join('');
+    }
+  }
+
+  function setN(n) {
+    n = Math.max(-10, Math.min(10, Math.round(n)));
+    document.getElementById('nSlider').value = String(n);
+    document.getElementById('nInput').value = String(n);
+    mesh.geometry.dispose();
+    mesh.geometry = buildRibbonGeometry(n);
+    updateInfo(n);
+  }
+
+  document.getElementById('nSlider').addEventListener('input', (e) => setN(+e.target.value));
+  document.getElementById('nInput').addEventListener('input', (e) => {
+    if (e.target.value === '' || e.target.value === '-') return;
+    setN(+e.target.value);
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+
+  resize();
+  setN(3);
+  animate();
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

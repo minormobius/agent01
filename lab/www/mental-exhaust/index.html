@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mental Exhaust — a polymathical generator</title>
+<meta property="og:title" content="Mental Exhaust — a polymathical generator">
+<meta property="og:description" content="Wikipedia-shaped infoboxes, invented resource charts, and mystical-mathematical aphorisms, mad-libbed fresh on every load. Nothing here is researched. Quality varies wildly — that's the feature.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .poster-wrap { margin: 1.5rem 0; }
+  #poster { width: 100%; height: auto; display: block; border-radius: 8px; background: var(--bg-raised); }
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; margin: 1rem 0 1.5rem; }
+  .controls button { flex: 1 1 auto; min-height: 44px; }
+  details.transcript { margin: 0 0 2rem; font-size: .8rem; }
+  details.transcript summary { cursor: pointer; color: var(--accent); padding: .4rem 0; min-height: 44px; display: flex; align-items: center; }
+  details.transcript pre { white-space: pre-wrap; word-break: break-word; background: var(--bg-raised);
+    padding: 1rem; border-radius: var(--radius); border: 1px solid var(--border); color: var(--fg); }
+  .flood-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .flood-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .75rem; margin: 1rem 0 2.5rem; }
+  .flood-card { text-align: left; display: flex; flex-direction: column; gap: .4rem; background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .85rem; cursor: pointer; min-height: 44px; }
+  .flood-card:hover, .flood-card:focus-visible { border-color: var(--accent); }
+  .fc-q { font-size: .65rem; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); }
+  .fc-t { font-size: .85rem; color: var(--fg); }
+  .fc-a { font-style: italic; color: var(--muted); font-size: .75rem; }
+  footer.note { color: var(--muted); font-size: .75rem; border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Mental Exhaust</h1>
+  <p class="sub">A mad-lib generator for the tone of an account with no one going
+    concern: manic-wikipedia infoboxes, an invented resource chart, and a
+    poetico-mathematic aphorism, assembled fresh from word banks every time.
+    Nothing below is researched, sourced, or true. Quality varies wildly —
+    that is the whole design.</p>
+
+  <div class="poster-wrap">
+    <canvas id="poster" width="900" height="1200" role="img"></canvas>
+  </div>
+
+  <div class="controls">
+    <button id="gen" type="button">Generate another</button>
+    <button id="download" type="button">Download PNG</button>
+    <button id="permalink" type="button">Copy permalink</button>
+    <button id="copytext" type="button">Copy as text</button>
+  </div>
+
+  <details class="transcript">
+    <summary>Read the plain-text version</summary>
+    <pre id="transcript"></pre>
+  </details>
+
+  <div class="flood-head">
+    <h2 style="margin:0">Flood the timeline</h2>
+    <button id="flood" type="button" style="min-height:44px">Generate nine at once</button>
+  </div>
+  <p>The original method: quantity over quality, on purpose. Pick one to
+    promote it to the poster above.</p>
+  <div class="flood-grid" id="floodGrid" aria-live="polite"></div>
+
+  <footer class="note">
+    Generated client-side from static word banks — no account's actual posts,
+    past or present, are read, scraped, or reproduced here. <code>#seed=</code>
+    in the URL makes a fragment reproducible; share the link to share the
+    exact one you got.
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('needing-your');
+
+  // ---------------------------------------------------------------------
+  // word banks
+  // ---------------------------------------------------------------------
+  var DOMAINS = {
+    mysticism: {
+      label: 'Mysticism',
+      adj: ['ineffable','liminal','occulted','numinous','tenebrous','oracular','apophatic','chthonic','ecstatic','gnostic'],
+      noun: ['threshold','sigil','oracle','vestibule','undertow','aether','omen','palimpsest','invocation','hierophany'],
+      unit: ['auguries per lunation','invocations per vigil','omens per fortnight']
+    },
+    futurism: {
+      label: 'Futurism',
+      adj: ['post-terrestrial','accelerationist','synthetic','networked','recursive','exoplanetary','asymptotic','posthuman','speculative','emergent'],
+      noun: ['singularity','substrate','protocol','payload','interface','trajectory','feedback loop','archive','successor','horizon'],
+      unit: ['payloads per epoch','iterations per horizon','forecasts per quarter']
+    },
+    folklore: {
+      label: 'Folklore',
+      adj: ['uncanny','itinerant','tutelary','apotropaic','seasonal','household','borrowed','inherited','whispered','half-remembered'],
+      noun: ['changeling','threshold-spirit','charm','almanac','hearth-tale','boundary-stone','revenant','omen-bird','riddle','kin'],
+      unit: ['retellings per generation','charms per hearth-cycle','warnings per winter']
+    },
+    naturalia: {
+      label: 'Naturalia (bugs and slugs)',
+      adj: ['chitinous','mucal','compound-eyed','segmented','radular','photophobic','gregarious','subterranean','iridescent','exoskeletal'],
+      noun: ['slug','beetle','moth','gastropod','antenna','carapace','larva','pupa','hemolymph','spiracle'],
+      unit: ['instars per season','moults per brood','specimens per survey']
+    },
+    mathematics: {
+      label: 'Mathematics',
+      adj: ['topological','non-orientable','asymptotic','recursive','fractal','ergodic','transcendental','self-similar','undecidable','bounded'],
+      noun: ['mobius band','manifold','invariant','limit','conjecture','lemma','eigenvalue','boundary','corollary','attractor'],
+      unit: ['proofs per conjecture','iterations per limit','counterexamples per century']
+    }
+  };
+  var DOMAIN_KEYS = Object.keys(DOMAINS);
+
+  var TEMPLATES = [
+    'Every {adj1} {noun1} is, in the limit, a {adj2} {noun2}.',
+    'The {noun1} does not resolve; it merely becomes {adj1}.',
+    'What the {adj1} {noun1} forgets, the {noun2} remembers {adj2}ly.',
+    'Consider the {noun1}: {adj1}, {adj2}, and never once finished.',
+    'A {noun1} is only a {noun2} that has not yet been asked to explain itself.',
+    'Somewhere a {adj1} {noun1} is doing the work of a {adj2} {noun2}, uncredited.',
+    'The {noun1} converges on the {noun2} the way regret converges on {adj1} weather.',
+    'To be {adj1} is to be, briefly, a {noun1} for something larger.',
+    'The {noun1} and the {noun2} were never separate; only the {adj1} footnote pretends otherwise.',
+    'Between the {noun1} and the {noun2} there is only a {adj1} silence, citation needed.'
+  ];
+
+  var QUALITY = ['peer reviewed (by nobody)','transmission garbled','citation needed','widely disputed',
+    'vibes only','load-bearing','structurally sound nonsense','half-remembered','asterisk required',
+    'provisional at best','confidently wrong','accidentally correct'];
+
+  var CONTINUITY = ['disputed','ongoing','retconned','load-bearing','apocryphal','provisional','dormant',
+    'recurring','abandoned mid-revision'];
+
+  var LAST_OBSERVED = ['three lunations ago','mid-recursion','before the fork','during the thaw',
+    'in a since-deleted draft','just now, allegedly','never, technically','at the edge of the citation'];
+
+  // ---------------------------------------------------------------------
+  // deterministic RNG so a #seed= permalink reproduces exactly
+  // ---------------------------------------------------------------------
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+  function int(rng, min, max) { return min + Math.floor(rng() * (max - min + 1)); }
+  function cap(s) { return s.replace(/\b\w/g, function (c) { return c.toUpperCase(); }); }
+  function randomSeed() { return Math.floor(Math.random() * 1e9); }
+
+  function generateFragment(seed) {
+    var rng = mulberry32(seed);
+    var domA = pick(rng, DOMAIN_KEYS);
+    var domB = pick(rng, DOMAIN_KEYS);
+    if (domB === domA && rng() < 0.6) domB = pick(rng, DOMAIN_KEYS);
+    var A = DOMAINS[domA], B = DOMAINS[domB];
+    var adj1 = pick(rng, A.adj), noun1 = pick(rng, A.noun);
+    var adj2 = pick(rng, B.adj), noun2 = pick(rng, B.noun);
+    var title = cap('the ' + adj1 + ' ' + noun1 + ' of the ' + adj2 + ' ' + noun2);
+    var tmpl = pick(rng, TEMPLATES);
+    var aph = tmpl.replace('{adj1}', adj1).replace('{noun1}', noun1)
+                  .replace('{adj2}', adj2).replace('{noun2}', noun2);
+    aph = aph.charAt(0).toUpperCase() + aph.slice(1);
+    var quality = pick(rng, QUALITY);
+    var continuity = pick(rng, CONTINUITY);
+    var unit = pick(rng, A.unit.concat(B.unit));
+    var flux = int(rng, 3, 480) + ' ' + unit;
+    var lastObserved = pick(rng, LAST_OBSERVED);
+    var citations = int(rng, 0, 37);
+    var domainLabel = domA === domB ? A.label : (A.label + ' / ' + B.label);
+    var infobox = [
+      ['Domain', domainLabel],
+      ['Continuity', continuity],
+      ['Estimated flux', flux],
+      ['Citations', citations + ' (0 verified)'],
+      ['Last observed', lastObserved]
+    ];
+    var nounsPool = Array.from(new Set(A.noun.concat(B.noun)));
+    var barLabels = [];
+    var guard = 0;
+    while (barLabels.length < 5 && guard < 200) {
+      var n = pick(rng, nounsPool);
+      if (barLabels.indexOf(n) === -1) barLabels.push(n);
+      guard++;
+    }
+    var barValues = barLabels.map(function () { return int(rng, 8, 100); });
+    return {
+      seed: seed, title: title, aphorism: aph, quality: quality, infobox: infobox,
+      chart: { unit: unit, labels: barLabels, values: barValues }
+    };
+  }
+
+  function transcriptOf(frag) {
+    var lines = [];
+    lines.push(frag.title.toUpperCase());
+    lines.push('');
+    frag.infobox.forEach(function (row) { lines.push(row[0] + ': ' + row[1]); });
+    lines.push('');
+    lines.push('“' + frag.aphorism + '”');
+    lines.push('');
+    lines.push('chart (' + frag.chart.unit + '): ' + frag.chart.labels.map(function (l, i) {
+      return l + '=' + frag.chart.values[i];
+    }).join(', '));
+    lines.push('');
+    lines.push('quality: ' + frag.quality + '  ·  fragment №' + frag.seed);
+    return lines.join('\n');
+  }
+
+  // ---------------------------------------------------------------------
+  // poster rendering — a self-contained "image quote" card, canvas only,
+  // so a visitor can download or screenshot it without any external image.
+  // ---------------------------------------------------------------------
+  var W = 900, H = 1200;
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    var words = text.split(' ');
+    var line = '';
+    for (var n = 0; n < words.length; n++) {
+      var test = line + words[n] + ' ';
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line.trim(), x, y);
+        line = words[n] + ' ';
+        y += lineHeight;
+      } else {
+        line = test;
+      }
+    }
+    ctx.fillText(line.trim(), x, y);
+    return y + lineHeight;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawChart(ctx, chart, x, y, w, h, fg, muted, hue) {
+    var n = chart.values.length;
+    var gap = 16;
+    var barW = (w - gap * (n - 1)) / n;
+    var max = Math.max.apply(null, chart.values.concat([1]));
+    ctx.textAlign = 'left';
+    ctx.font = '13px ui-monospace, monospace';
+    ctx.fillStyle = muted;
+    ctx.fillText('units: ' + chart.unit, x, y - 8);
+    ctx.textAlign = 'center';
+    for (var i = 0; i < n; i++) {
+      var bh = (chart.values[i] / max) * (h - 44);
+      var bx = x + i * (barW + gap);
+      var by = y + h - 40 - bh;
+      ctx.fillStyle = 'hsl(' + (hue + i * 20) + ' 55% 55% / .85)';
+      ctx.fillRect(bx, by, barW, bh);
+      ctx.fillStyle = muted;
+      ctx.font = '12px ui-monospace, monospace';
+      wrapText(ctx, chart.labels[i], bx + barW / 2, y + h - 20, barW + gap, 13);
+    }
+  }
+
+  function renderPoster(canvas, frag) {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    var hue = (frag.seed * 47) % 360;
+    var hue2 = (hue + 40) % 360;
+    var grad = ctx.createLinearGradient(0, 0, W, H);
+    grad.addColorStop(0, 'hsl(' + hue + ' 45% 14%)');
+    grad.addColorStop(1, 'hsl(' + hue2 + ' 40% 8%)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'hsl(' + hue + ' 60% 70% / .55)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(16, 16, W - 32, H - 32);
+
+    var fg = 'hsl(' + hue + ' 60% 92%)';
+    var muted = 'hsl(' + hue + ' 20% 72% / .8)';
+
+    ctx.font = '20px ui-monospace, monospace';
+    ctx.fillStyle = muted;
+    ctx.textAlign = 'left';
+    ctx.fillText('§ FRAGMENT №' + frag.seed, 48, 68);
+    ctx.textAlign = 'right';
+    ctx.fillText('MENTAL EXHAUST', W - 48, 68);
+
+    ctx.fillStyle = fg;
+    ctx.font = 'bold 44px Georgia, "Times New Roman", serif';
+    ctx.textAlign = 'center';
+    var y = 150;
+    y = wrapText(ctx, frag.title, W / 2, y, W - 160, 52);
+
+    y += 16;
+    ctx.strokeStyle = muted;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(120, y); ctx.lineTo(W - 120, y); ctx.stroke();
+    y += 44;
+
+    ctx.textAlign = 'left';
+    ctx.font = '19px ui-monospace, monospace';
+    frag.infobox.forEach(function (row) {
+      ctx.fillStyle = muted;
+      ctx.fillText(row[0].toUpperCase(), 90, y);
+      ctx.fillStyle = fg;
+      ctx.fillText(String(row[1]), 320, y);
+      y += 32;
+    });
+
+    y += 16;
+    ctx.strokeStyle = muted;
+    ctx.beginPath(); ctx.moveTo(120, y); ctx.lineTo(W - 120, y); ctx.stroke();
+    y += 54;
+
+    ctx.fillStyle = fg;
+    ctx.font = 'italic 29px Georgia, "Times New Roman", serif';
+    ctx.textAlign = 'center';
+    y = wrapText(ctx, '“' + frag.aphorism + '”', W / 2, y, W - 200, 38);
+    y += 30;
+
+    var chartTop = Math.max(y, H - 340);
+    drawChart(ctx, frag.chart, 90, chartTop, W - 180, 200, fg, muted, hue);
+
+    ctx.font = '16px ui-monospace, monospace';
+    var chipText = frag.quality.toUpperCase();
+    ctx.textAlign = 'left';
+    var chipW = ctx.measureText(chipText).width + 32;
+    ctx.fillStyle = 'hsl(' + hue + ' 50% 30% / .65)';
+    roundRect(ctx, 48, H - 84, chipW, 34, 17);
+    ctx.fill();
+    ctx.fillStyle = fg;
+    ctx.fillText(chipText, 64, H - 61);
+
+    ctx.fillStyle = muted;
+    ctx.textAlign = 'right';
+    ctx.font = '13px ui-monospace, monospace';
+    ctx.fillText('generated, not researched — quality varies wildly by design', W - 48, H - 58);
+
+    canvas.setAttribute('aria-label', frag.title + '. ' + frag.aphorism + ' Quality: ' + frag.quality + '.');
+  }
+
+  // ---------------------------------------------------------------------
+  // wiring
+  // ---------------------------------------------------------------------
+  var canvas = document.getElementById('poster');
+  var transcriptEl = document.getElementById('transcript');
+  var floodGrid = document.getElementById('floodGrid');
+  var frag;
+
+  function seedFromHash() {
+    var m = location.hash.match(/seed=(\d+)/);
+    return m ? parseInt(m[1], 10) : null;
+  }
+
+  function renderAll() {
+    renderPoster(canvas, frag);
+    transcriptEl.textContent = transcriptOf(frag);
+    history.replaceState(null, '', '#seed=' + frag.seed);
+  }
+
+  frag = generateFragment(seedFromHash() || randomSeed());
+  renderAll();
+
+  document.getElementById('gen').addEventListener('click', function () {
+    frag = generateFragment(randomSeed());
+    renderAll();
+  });
+
+  document.getElementById('permalink').addEventListener('click', function (e) {
+    kit.copy(location.href, e.currentTarget);
+  });
+
+  document.getElementById('copytext').addEventListener('click', function (e) {
+    kit.copy(transcriptOf(frag), e.currentTarget);
+  });
+
+  document.getElementById('download').addEventListener('click', function (btn) {
+    canvas.toBlob(function (blob) {
+      if (!blob) return;
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'mental-exhaust-' + frag.seed + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  });
+
+  document.getElementById('flood').addEventListener('click', function () {
+    floodGrid.innerHTML = '';
+    for (var i = 0; i < 9; i++) {
+      (function () {
+        var s = randomSeed();
+        var f = generateFragment(s);
+        var card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'flood-card';
+
+        var q = document.createElement('span');
+        q.className = 'fc-q';
+        q.textContent = f.quality;
+
+        var t = document.createElement('span');
+        t.className = 'fc-t';
+        t.textContent = f.title;
+
+        var a = document.createElement('span');
+        a.className = 'fc-a';
+        a.textContent = '“' + f.aphorism + '”';
+
+        card.appendChild(q);
+        card.appendChild(t);
+        card.appendChild(a);
+        card.addEventListener('click', function () {
+          frag = f;
+          renderAll();
+          canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        floodGrid.appendChild(card);
+      })();
+    }
+  });
+})();
+</script>
+</body>
+</html>

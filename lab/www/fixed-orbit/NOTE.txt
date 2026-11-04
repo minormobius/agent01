@@ -1,0 +1,1 @@
+Turn one: greedy only, no race yet — that's next. The right-hand plot runs your same phases at 0.3x/1x/3x power and overlays the paths. They land on one curve — that's the actual argument for why greedy can't win, made checkable instead of asserted.

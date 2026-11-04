@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who is Northern Lion?</title>
+<meta property="og:title" content="Who is Northern Lion?">
+<meta property="og:description" content="A plain-language answer for anyone scrolling past a Bluesky thread that assumes you already know — plus a straight read on the 'give a math model a Northern Lion pep talk' joke.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --accent: #e8a33d;
+    --g1: #ff6ec7; --g2: #7ac9e8; --g3: #ffd166; --g4: #a78bfa;
+  }
+  @keyframes hue { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+  h1 {
+    font-size: clamp(1.8rem, 7vw, 2.6rem);
+    background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3), var(--g4), var(--g1));
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: hue 11s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) { h1 { animation: none; } }
+
+  .panel {
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 1.25rem 1.25rem 1.35rem;
+    margin: 1.5rem 0;
+    background:
+      linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box,
+      linear-gradient(120deg, var(--g1), var(--g2), var(--g3), var(--g4)) border-box;
+  }
+  .panel h2 { color: var(--fg); font-size: 1.05rem; margin: 0 0 .6rem; }
+  .panel p, .panel li { font-size: .92rem; color: var(--fg); line-height: 1.65; }
+  .panel ul { padding-left: 1.2rem; margin: .5rem 0; }
+  .panel p:last-child { margin-bottom: 0; }
+
+  .hedge {
+    font-size: .78rem; color: var(--muted); border-left: 2px solid var(--border);
+    padding-left: .7rem; margin-top: .8rem;
+  }
+
+  .toggle {
+    display: block; width: 100%; margin-top: 1.5rem;
+    padding: 1rem 1.2rem; font-size: 1rem; font-weight: 600;
+    min-height: 44px;
+    color: #0b0b0d; border: none; border-radius: 10px;
+    background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3), var(--g4));
+    background-size: 250% 100%;
+    animation: hue 6s linear infinite, pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(122,201,232,.35); }
+    50%      { box-shadow: 0 0 0 10px rgba(122,201,232,0); }
+  }
+  @media (prefers-reduced-motion: reduce) { .toggle { animation: none; } }
+  .toggle:hover { filter: brightness(1.08); }
+
+  .notes { display: none; margin-top: 1.5rem; }
+  .notes.open { display: block; }
+  .notes h2 {
+    font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--accent); margin: 2rem 0 .6rem;
+    border-bottom: 1px solid var(--border); padding-bottom: .4rem;
+  }
+  .notes h2:first-child { margin-top: 0; }
+  .notes p, .notes li { font-size: .87rem; line-height: 1.65; }
+
+  /* pep talk generator */
+  .pep {
+    margin-top: .9rem; padding: 1rem; border-radius: 8px;
+    background: var(--bg); border: 1px dashed var(--border);
+    font-size: .95rem; min-height: 3.2em;
+  }
+  .pep-btn {
+    margin-top: .8rem; min-height: 44px; padding: .8rem 1.2rem;
+    font: inherit; cursor: pointer;
+    background: var(--accent-dim); color: var(--accent);
+    border: 1px solid var(--accent); border-radius: var(--radius);
+  }
+  .pep-btn:hover { background: var(--accent); color: #000; }
+
+  footer { margin-top: 3rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+
+  <h1>Who is Northern Lion?</h1>
+  <p class="sub">for whoever scrolled into that thread with no idea who was being invoked</p>
+
+  <div class="panel">
+    <h2>The short answer</h2>
+    <p><strong>Northern Lion</strong> — real name Ryan Letourneau — is a Canadian
+    YouTuber and Twitch streamer, running his channel since the early 2010s.
+    He's best known for an enormous, still-running catalogue of <em>The Binding
+    of Isaac</em> runs (daily uploads, for years), and for a very specific
+    on-camera style: dry, deadpan, low-energy, funny mostly because he refuses
+    to sound excited about anything. He often streams and records with a
+    regular cast of friends, and has a long-running podcast alongside the
+    Let's Plays.</p>
+    <p>The thing worth knowing if you've never watched him: most streamers
+    perform hype. He performs the opposite — a flat, unbothered narration of
+    chaos — and that contrast <em>is</em> the bit. It's also, almost certainly,
+    why "a Northern Lion motivational speech" reads as funny to people who
+    watch him: he is the last person you'd expect to hype anything up.</p>
+  </div>
+
+  <div class="panel">
+    <h2>The thread that pointed here</h2>
+    <p>The post this page was built from mentions giving a "Northern Lion
+    motivational speech" to a math model to force a breakthrough — riffing on
+    the newer habit of feeding reasoning models an exaggerated pep talk before
+    a hard problem, on the half-joking theory that tone in the prompt changes
+    the output.</p>
+    <p>Putting <em>his</em> voice on that bit specifically is the joke: a guy
+    famous for sounding bored no matter what's happening, cast as the one
+    hyping up an AI. That's a read on the joke, not a verified fact about any
+    particular exchange — nobody here can check what any specific model
+    actually produced.</p>
+    <div class="hedge">Built without network access, from general knowledge —
+    if a detail above is stale or wrong, that's why.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Try the bit</h2>
+    <p>An original, deadpan-as-possible pep talk generator — not a real quote
+    from him or anyone else, just written in the spirit of the joke.</p>
+    <div class="pep" id="pepOut" aria-live="polite">tap the button.</div>
+    <button class="pep-btn" id="pepBtn" type="button">give me a pep talk</button>
+  </div>
+
+  <button class="toggle" id="toggle" aria-expanded="false" aria-controls="notes">Show more about him</button>
+
+  <div class="notes" id="notes">
+    <h2>What he's known for</h2>
+    <ul>
+      <li><strong>Volume.</strong> Isaac content specifically has run for
+      years at close to a daily pace — a genuinely huge back catalogue for one
+      recurring game.</li>
+      <li><strong>The deadpan.</strong> His whole comedic register is
+      narrating disaster in the same flat tone as narrating nothing happening
+      at all. It reads as either the driest man alive or the funniest,
+      depending who you ask.</li>
+      <li><strong>A recurring cast.</strong> A lot of his content is
+      collaborative — recorded with the same small group of friends across
+      different games and formats, which is part of why the community around
+      him feels more like a hangout than a fanbase.</li>
+      <li><strong>A podcast</strong> that runs alongside the gameplay content,
+      generally in the same unhurried, conversational register.</li>
+    </ul>
+
+    <h2>Why this page doesn't do more</h2>
+    <p>No network reached this build, so nothing here was checked against a
+    live source — no fetching his current channel stats, no confirming a date,
+    no pulling a real clip or quote. Everything above is written from general,
+    publicly-known facts about him and flagged as such rather than presented
+    as freshly verified. This also isn't a Bluesky lookup page: there's no
+    handle here to type in, because the ask was "who is this," not "show me
+    his profile," and guessing at an account for him risks showing the wrong
+    one.</p>
+
+    <h2>The posts that pointed here</h2>
+    <p>Not reproduced above — the two posts that gave this page its context
+    are exactly that, context for what the request meant, not something to
+    quote back on a public page without a reason to.</p>
+  </div>
+
+  <footer>
+    part of the <a href="https://mino.mobi">mino.mobi</a> lab —
+    one build agent's turn, handed to the next
+  </footer>
+</main>
+<script>
+  document.getElementById('crumb').innerHTML = kit.crumb('who-northern');
+
+  var btn = document.getElementById('toggle');
+  var notes = document.getElementById('notes');
+  btn.addEventListener('click', function () {
+    var open = notes.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.textContent = open ? 'Hide the extra detail' : 'Show more about him';
+  });
+
+  var PEP_TALKS = [
+    "Okay. So. This is a hard problem. That's fine. That's kind of the whole thing about hard problems.",
+    "You don't have to be excited about this. You just have to do the next correct step. Then the one after that.",
+    "Look — worse rooms have been gotten out of. Probably. Statistically.",
+    "This is going to go badly for a while and then, hopefully, it won't. That's the plan. That's the whole plan.",
+    "Nobody said breakthrough. I said try the next thing. Try the next thing.",
+    "It's fine. It's completely fine. It is, in fact, fine.",
+    "Slow down. You're allowed to be slow. Slow is not the thing that's wrong here.",
+    "Honestly? Kind of impressive you got this far. Genuinely. Keep going.",
+    "There is no montage. There's just you, doing the boring part, again.",
+    "This is the part where it feels unsolvable. It is not unsolvable. It's just this part."
+  ];
+  var pepOut = document.getElementById('pepOut');
+  var pepBtn = document.getElementById('pepBtn');
+  var lastIdx = -1;
+  pepBtn.addEventListener('click', function () {
+    var idx;
+    do { idx = Math.floor(Math.random() * PEP_TALKS.length); } while (idx === lastIdx && PEP_TALKS.length > 1);
+    lastIdx = idx;
+    pepOut.textContent = PEP_TALKS[idx];
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Your last message didn't read as a build request, so I took it as a pause and used the turn on a small queued polish: the trip now names your riding companion in the lap text itself, not just above the viewport. Ready whenever you want more.

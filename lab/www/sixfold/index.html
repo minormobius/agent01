@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sixfold — grow a 6-net, meet its neoplatonic solid</title>
+<meta name="description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. Solve your own net, or five closed-form deltahedra plus a sixth solved from scratch, in a real numerical relaxation that reports both its edge error and how close it came to folding into itself.">
+<meta property="og:title" content="Sixfold — grow a 6-net, meet its neoplatonic solid">
+<meta property="og:description" content="Attach triangles one at a time; the tool refuses any move that would let a vertex touch more than six of them. Solve your own net, or five closed-form deltahedra plus a sixth solved from scratch, in a real numerical relaxation that reports both its edge error and how close it came to folding into itself.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .5rem 0; }
+  button.small { padding: .6rem 1rem; font-size: .8rem; min-height: 44px; }
+  .stat { font-size: .8rem; color: var(--fg); }
+  .stat b { color: var(--accent); }
+  .stat.warn b { color: #f2777a; }
+  .statline { display: flex; flex-wrap: wrap; gap: 1rem; margin: .6rem 0; }
+
+  /* the "big shiny" copy-image action this requester always wants on a
+     rendered diagram — a highlighted primary action, not a quiet icon button */
+  button.copy-shiny {
+    background: linear-gradient(135deg, var(--accent), #ffcf7a);
+    color: #1a1206; border: none; font-weight: 700;
+    box-shadow: 0 0 0 1px var(--accent), 0 4px 18px -4px rgba(232,163,61,.6);
+  }
+  button.copy-shiny:hover { filter: brightness(1.08); }
+  button.solve-btn { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+  #editorWrap { position: relative; }
+  #editorCanvas {
+    width: 100%; height: min(58vh, 460px);
+    display: block;
+    background: #0e0e11;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: pointer;
+  }
+  #editorErr { margin-top: .6rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: .9rem; font-size: .72rem; color: var(--muted); margin-top: .5rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex: none; }
+
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .7rem; margin-top: .8rem; }
+  .gallery figure { margin: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: #0e0e11; }
+  .gallery img { width: 100%; display: block; aspect-ratio: 1; object-fit: contain; background: #0e0e11; }
+  .gallery figcaption { font-size: .68rem; color: var(--muted); padding: .35rem .5rem; }
+
+  .solidBtns { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .solidBtns button[aria-pressed="true"] { background: var(--accent); color: #000; }
+
+  #solidViewport {
+    width: 100%; height: min(56vh, 440px);
+    background: #0e0e11;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    touch-action: none;
+    cursor: grab;
+    overflow: hidden;
+    position: relative;
+  }
+  #solidViewport:active { cursor: grabbing; }
+  #solidHint {
+    position: absolute; top: .6rem; left: .75rem;
+    font-size: .72rem; color: var(--muted);
+    background: rgba(14,14,17,.6);
+    padding: .3rem .6rem; border-radius: var(--radius);
+    pointer-events: none;
+  }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Sixfold</h1>
+  <p class="sub">Build a triangulated sphere by hand, one unit triangle at a time — the editor
+    refuses any attachment that would let a vertex touch more than six triangles. A mesh built
+    entirely under that rule is called a <b>6-net</b>. A theorem says every closed 6-net folds,
+    uniquely, into one rigid shape made of flat unit triangles — no stretching, no gaps — which is
+    why the paper behind this toy calls the result a <b>neoplatonic solid</b>: it earns the name
+    without being one of the five ancient ones, since it can be as irregular as the mesh allows.</p>
+
+  <div class="panel">
+    <p style="margin:0">Six is the magic number because of a fixed budget: for any closed
+      triangulated sphere, <code>Σ (6 − degree(v))</code> over every vertex always equals exactly
+      <b style="color:var(--accent)">12</b> — a fact of the sphere's topology (Euler's formula in
+      disguise), not a choice. A vertex with degree under six is carrying some of that budget as
+      curvature; a vertex at exactly six is locally flat and carries none. Close a net with the
+      budget unspent and it cannot be a sphere at all — which is the real reason nothing here is
+      allowed past degree six: overshoot even one vertex and the total can never balance back to 12.</p>
+  </div>
+
+  <h2>1 — grow a net</h2>
+  <p>Tap a triangle touching the built mesh to attach it. Green means plenty of room at every
+    corner it touches; amber means one corner is close to the degree-six cap; a triangle drawn
+    dim and crossed out would push a corner over six, and tapping it is refused.</p>
+
+  <div id="editorWrap">
+    <canvas id="editorCanvas" aria-label="triangular mesh editor"></canvas>
+  </div>
+  <div id="editorErr" class="err hidden" role="alert"></div>
+  <div class="legend">
+    <span><i class="swatch" style="background:#7ac387"></i> degree 3</span>
+    <span><i class="swatch" style="background:#b7c377"></i> degree 4</span>
+    <span><i class="swatch" style="background:#e8a33d"></i> degree 5</span>
+    <span><i class="swatch" style="background:#f2777a"></i> degree 6 (at cap)</span>
+  </div>
+
+  <div class="panel">
+    <div class="statline">
+      <span class="stat">triangles: <b id="statTris">1</b></span>
+      <span class="stat">vertices: <b id="statVerts">3</b></span>
+      <span class="stat">highest degree so far: <b id="statMaxDeg">1</b></span>
+      <span class="stat">boundary edges: <b id="statBoundary">3</b></span>
+    </div>
+    <p style="font-size:.72rem;color:var(--muted);margin:.3rem 0 0">A flat patch cut from
+      this lattice always has a boundary — that number above can shrink but never reaches zero
+      here, because closing a net into a sphere means taping non-adjacent boundary edges
+      together, which this tap-to-attach editor doesn't do. "Solve" below still runs the same
+      relaxation on your net as-is: it will find <em>a</em> 3D shape satisfying every edge, but
+      because the boundary is open the result is <b>flexible</b>, not the unique rigid solid the
+      theorem promises for a closed net — you'll see the same boundary-edge count reappear next
+      to it as a reminder of exactly why.</p>
+    <div class="row">
+      <button id="newNetBtn" class="small">New net</button>
+      <button id="finishBtn" class="small">Finish → add to gallery</button>
+      <button id="solveMeshBtn" class="small solve-btn">Solve this net ↓</button>
+      <button id="copyEditorBtn" class="copy-shiny">Copy image</button>
+    </div>
+  </div>
+
+  <h2>2 — your net sketches</h2>
+  <p id="galleryEmpty" class="stat">Nothing finished yet — build a net above and hit "Finish".</p>
+  <div id="gallery" class="gallery"></div>
+  <p style="font-size:.72rem">Kept in this browser only. There is no shared backend here to show
+    what other visitors have built — see the note at the bottom of this page for why.</p>
+
+  <h2 id="solidsSection">3 — solids, one of them actually solved</h2>
+  <p>Five closed 6-nets whose unit-triangle shape comes from closed-form trig (a regular
+    base plus an apex placed so every edge is exactly 1) — that's arithmetic, not the paper's
+    realization method. The sixth is different: it's an irregular, non-vertex-transitive 6-net
+    (a pentagonal bipyramid with one face split into three), handed to the page only as a face
+    list — no coordinates supplied anywhere — and its shape below is what a real numerical
+    solver found. Hit "Solve this net" above to add your own drawn mesh here too. Drag to look
+    around; the solver's own numbers are printed under it.</p>
+  <div class="panel" style="font-size:.78rem">
+    <p style="margin:0"><b>How do you know a solved shape is right?</b> Two numbers, both
+      printed below, and neither is trusted alone. <b>Edge error</b> is how far every edge
+      landed from length exactly 1 — near zero means the springs stopped pulling. That alone
+      isn't enough: springs only push connected vertices apart from each other, so nothing
+      stops two <em>unconnected</em> corners from drifting close together or the whole net
+      folding back on itself — which is exactly what a "squished, overlapping" result looks
+      like. So the solver also tracks the <b>closest gap between any two non-adjacent
+      vertices</b>; a small number there is the warning sign, flagged in red below. This
+      turn's fix adds a short-range repulsion between non-adjacent vertices to actively push
+      the solver away from that failure mode, not just report it after the fact.</p>
+  </div>
+
+  <div class="row solidBtns" id="solidBtns"></div>
+
+  <div id="solidViewport">
+    <div id="solidHint">drag to look</div>
+  </div>
+  <div class="panel">
+    <div class="statline" id="solidStats"></div>
+    <div class="row">
+      <button id="copySolidBtn" class="copy-shiny">Copy image</button>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <b>Turn three: the solver can now be pointed at your own net, and it now fights its own
+    worst failure mode instead of just reporting it.</b> Hit "Solve this net" under the editor
+    and the same relaxation runs on whatever you've drawn — labelled clearly as a
+    <em>flexible</em> embedding, not the rigid solid, because your net still has an open boundary
+    (see the note there for why that's unavoidable with this editor). The relaxation itself
+    changed too: edge-length error alone can't catch a shape that's folded back on itself —
+    springs only pull <em>connected</em> vertices to length 1, nothing stops two unconnected ones
+    from landing on top of each other — so non-adjacent vertices now repel each other at close
+    range, and the closest surviving gap between any two of them is printed next to the edge
+    error for every solved shape, flagged in red if it's tight. Five of the six precomputed
+    solids are the classic convex deltahedra, built from closed-form trig, not solved. <b>The
+    sixth is genuinely solved</b>: given only its face list, the relaxation starts every vertex at
+    a random point in space, run three times from independent starts with the lowest-error run
+    kept. That is <em>not</em> the paper's own method — the paper's is a numerical homotopy
+    continuation from a hyperbolic starting point, which needs circle-packing machinery this
+    build doesn't have — so convergence plus a clean non-adjacent gap is evidence the shape is
+    right, not a proof the way the paper's algorithm would be. It has not been tried on a
+    genuinely non-convex net, which is the paper's actual headline claim. Every edge on every
+    rendered solid, solved or closed-form, is measured after construction, not assumed. Built
+    with three.js, runs entirely in your browser; nothing here is sent anywhere. Honours "reduce
+    motion" by turning off the idle auto-rotate on the solid viewer.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('sixfold');
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // =====================================================================
+  // 1. the triangular-lattice mesh editor
+  // =====================================================================
+
+  const SQRT3_2 = Math.sqrt(3) / 2;
+
+  function vkey(v) { return v[0] + ',' + v[1]; }
+  function triKey(t) { return t.i + ',' + t.j + ',' + (t.up ? 1 : 0); }
+  function verticesOf(t) {
+    return t.up
+      ? [[t.i, t.j], [t.i + 1, t.j], [t.i, t.j + 1]]
+      : [[t.i + 1, t.j], [t.i, t.j + 1], [t.i + 1, t.j + 1]];
+  }
+  function neighborsOf(t) {
+    return t.up
+      ? [{ i: t.i, j: t.j, up: false }, { i: t.i - 1, j: t.j, up: false }, { i: t.i, j: t.j - 1, up: false }]
+      : [{ i: t.i, j: t.j, up: true }, { i: t.i + 1, j: t.j, up: true }, { i: t.i, j: t.j + 1, up: true }];
+  }
+
+  let mesh = new Map();     // triKey -> tri
+  let vertDeg = new Map();  // vkey -> count
+  let yourNetData = null;   // set by solveYourNet() below — { verts, faces, info, boundary }
+
+  function commit(t) {
+    mesh.set(triKey(t), t);
+    for (const v of verticesOf(t)) { const k = vkey(v); vertDeg.set(k, (vertDeg.get(k) || 0) + 1); }
+  }
+  function predictWorst(t) {
+    let worst = 0;
+    for (const v of verticesOf(t)) { const nd = (vertDeg.get(vkey(v)) || 0) + 1; if (nd > worst) worst = nd; }
+    return worst;
+  }
+  function tryAdd(t) {
+    const k = triKey(t);
+    if (mesh.has(k)) return { ok: false };
+    if (mesh.size > 0 && !neighborsOf(t).some((n) => mesh.has(triKey(n)))) {
+      return { ok: false, reason: 'that triangle doesn’t touch the mesh yet — pick one on the edge' };
+    }
+    const worst = predictWorst(t);
+    if (worst > 6) return { ok: false, reason: 'blocked — a corner there would reach degree ' + worst + ', and six is the cap' };
+    commit(t);
+    return { ok: true };
+  }
+  function resetMesh() {
+    mesh = new Map(); vertDeg = new Map();
+    commit({ i: 0, j: 0, up: true });
+  }
+
+  function computeCandidates() {
+    const cands = new Map();
+    for (const t of mesh.values()) {
+      for (const n of neighborsOf(t)) {
+        const k = triKey(n);
+        if (!mesh.has(k) && !cands.has(k)) cands.set(k, n);
+      }
+    }
+    return cands;
+  }
+
+  function degreeColor(d) {
+    if (d >= 6) return '#f2777a';
+    if (d === 5) return '#e8a33d';
+    if (d === 4) return '#b7c377';
+    return '#7ac387';
+  }
+
+  const canvas = document.getElementById('editorCanvas');
+  const ctx = canvas.getContext('2d');
+  let rectW = 0, rectH = 0, S = 30;
+
+  function resizeEditor() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    rectW = rect.width; rectH = rect.height;
+    canvas.width = Math.max(1, rectW * dpr);
+    canvas.height = Math.max(1, rectH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
+  }
+
+  function toPixel(v) {
+    const x = v[0] + v[1] * 0.5, y = v[1] * SQRT3_2;
+    return [rectW / 2 + S * x, rectH / 2 - S * y];
+  }
+  function pixelToTri(px, py) {
+    const x = (px - rectW / 2) / S, y = (rectH / 2 - py) / S;
+    const jf = y / SQRT3_2;
+    const iflt = x - jf * 0.5;
+    const i0 = Math.floor(iflt), j0 = Math.floor(jf);
+    const fi = iflt - i0, fj = jf - j0;
+    return { i: i0, j: j0, up: (fi + fj) < 1 };
+  }
+
+  function pathOf(t) {
+    const vs = verticesOf(t).map(toPixel);
+    ctx.beginPath();
+    ctx.moveTo(vs[0][0], vs[0][1]);
+    ctx.lineTo(vs[1][0], vs[1][1]);
+    ctx.lineTo(vs[2][0], vs[2][1]);
+    ctx.closePath();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, rectW, rectH);
+    const cands = computeCandidates();
+
+    for (const [, t] of cands) {
+      const worst = predictWorst(t);
+      pathOf(t);
+      if (worst > 6) {
+        ctx.fillStyle = 'rgba(242,119,122,.08)';
+        ctx.strokeStyle = 'rgba(242,119,122,.35)';
+      } else {
+        ctx.fillStyle = 'rgba(122,195,135,.06)';
+        ctx.strokeStyle = worst >= 5 ? 'rgba(232,163,61,.55)' : 'rgba(122,195,135,.4)';
+      }
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.fill(); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    for (const [, t] of mesh) {
+      pathOf(t);
+      ctx.fillStyle = 'rgba(232,163,61,.35)';
+      ctx.strokeStyle = '#1a1206';
+      ctx.lineWidth = 1.5;
+      ctx.fill(); ctx.stroke();
+    }
+
+    for (const [k, d] of vertDeg) {
+      const v = k.split(',').map(Number);
+      const [px, py] = toPixel(v);
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, Math.PI * 2);
+      ctx.fillStyle = degreeColor(d);
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#0e0e11';
+      ctx.stroke();
+    }
+
+    document.getElementById('statTris').textContent = String(mesh.size);
+    document.getElementById('statVerts').textContent = String(vertDeg.size);
+    let maxDeg = 0;
+    for (const d of vertDeg.values()) if (d > maxDeg) maxDeg = d;
+    document.getElementById('statMaxDeg').textContent = String(maxDeg);
+    document.getElementById('statBoundary').textContent = String(boundaryEdgeCount());
+  }
+
+  function boundaryEdgeCount() {
+    const edgeCount = new Map();
+    for (const t of mesh.values()) {
+      const vs = verticesOf(t);
+      for (let e = 0; e < 3; e++) {
+        const a = vs[e], b = vs[(e + 1) % 3];
+        const ka = vkey(a), kb = vkey(b);
+        const k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
+        edgeCount.set(k, (edgeCount.get(k) || 0) + 1);
+      }
+    }
+    let boundary = 0;
+    for (const c of edgeCount.values()) if (c === 1) boundary++;
+    return boundary;
+  }
+
+  function flashError(msg) {
+    const el = document.getElementById('editorErr');
+    kit.showError(el, msg);
+    clearTimeout(flashError._t);
+    flashError._t = setTimeout(() => kit.clear(el), 2400);
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const t = pixelToTri(e.clientX - rect.left, e.clientY - rect.top);
+    const r = tryAdd(t);
+    if (!r.ok) { if (r.reason) flashError(r.reason); return; }
+    draw();
+  });
+
+  window.addEventListener('resize', resizeEditor);
+  document.getElementById('newNetBtn').addEventListener('click', () => { resetMesh(); draw(); });
+  document.getElementById('copyEditorBtn').addEventListener('click', () => copyCanvasImage(canvas, document.getElementById('copyEditorBtn')));
+
+  // -------------------------------------------------------------- gallery
+
+  const GALLERY_KEY = 'lab.that-2.nets.v1';
+  function loadGallery() {
+    try { return JSON.parse(localStorage.getItem(GALLERY_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveGallery(list) {
+    try { localStorage.setItem(GALLERY_KEY, JSON.stringify(list.slice(-24))); } catch (e) { /* storage full or blocked — sketch still shown this session */ }
+  }
+  function renderGallery() {
+    const list = loadGallery();
+    const wrap = document.getElementById('gallery');
+    document.getElementById('galleryEmpty').classList.toggle('hidden', list.length > 0);
+    wrap.textContent = '';
+    for (const item of list.slice().reverse()) {
+      const fig = document.createElement('figure');
+      const img = document.createElement('img');
+      img.src = item.img; img.alt = item.tris + '-triangle net sketch';
+      const cap = document.createElement('figcaption');
+      cap.textContent = item.tris + ' triangles · ' + item.verts + ' vertices · max degree ' + item.maxDeg;
+      fig.appendChild(img); fig.appendChild(cap);
+      wrap.appendChild(fig);
+    }
+  }
+  document.getElementById('finishBtn').addEventListener('click', () => {
+    if (mesh.size < 1) return;
+    let maxDeg = 0;
+    for (const d of vertDeg.values()) if (d > maxDeg) maxDeg = d;
+    const list = loadGallery();
+    list.push({ img: canvas.toDataURL('image/png'), tris: mesh.size, verts: vertDeg.size, maxDeg });
+    saveGallery(list);
+    renderGallery();
+  });
+
+  // --------------------------------------------- solve the drawn net as-is
+
+  function meshToIndexed() {
+    const vkeys = [...vertDeg.keys()];
+    const vindex = new Map(vkeys.map((k, idx) => [k, idx]));
+    const faces = [];
+    for (const t of mesh.values()) faces.push(verticesOf(t).map((v) => vindex.get(vkey(v))));
+    return { n: vkeys.length, faces };
+  }
+
+  function ensureYourNetButton() {
+    if (document.querySelector('#solidBtns button[data-key="yournet"]')) return;
+    const b = document.createElement('button');
+    b.className = 'small';
+    b.textContent = 'Your net';
+    b.dataset.key = 'yournet';
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => showSolid('yournet'));
+    document.getElementById('solidBtns').appendChild(b);
+  }
+
+  document.getElementById('solveMeshBtn').addEventListener('click', () => {
+    if (mesh.size < 1) return;
+    const btn = document.getElementById('solveMeshBtn');
+    const was = btn.textContent;
+    btn.textContent = 'solving…';
+    btn.disabled = true;
+    const { n, faces } = meshToIndexed();
+    const boundary = boundaryEdgeCount();
+    // let the "solving…" label paint before the (possibly slow) synchronous relax
+    setTimeout(() => {
+      const edges = edgesOfFaces(faces);
+      const iters = n <= 20 ? 6000 : n <= 60 ? 3000 : n <= 150 ? 1500 : 700;
+      const attempts = n <= 60 ? 3 : 1;
+      let best = null;
+      for (let a = 0; a < attempts; a++) {
+        const r = relaxEmbedding(n, edges, { iters });
+        if (!best || r.maxErr < best.maxErr) best = r;
+      }
+      const verts = [];
+      for (let i = 0; i < n; i++) verts.push([best.pos[i * 3], best.pos[i * 3 + 1], best.pos[i * 3 + 2]]);
+      yourNetData = { verts, faces, info: best, boundary };
+      ensureYourNetButton();
+      showSolid('yournet');
+      btn.textContent = was;
+      btn.disabled = false;
+      document.getElementById('solidsSection').scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+    }, 20);
+  });
+
+  resizeEditor();
+  resetMesh();
+  draw();
+  renderGallery();
+
+  // =====================================================================
+  // 2. precomputed neoplatonic solids
+  // =====================================================================
+
+  function trisToGeometry(verts, faces) {
+    let cx = 0, cy = 0, cz = 0;
+    for (const v of verts) { cx += v[0]; cy += v[1]; cz += v[2]; }
+    cx /= verts.length; cy /= verts.length; cz /= verts.length;
+    const positions = [];
+    for (const f of faces) {
+      let a = verts[f[0]], b = verts[f[1]], c = verts[f[2]];
+      const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+      const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const fcx = (a[0] + b[0] + c[0]) / 3, fcy = (a[1] + b[1] + c[1]) / 3, fcz = (a[2] + b[2] + c[2]) / 3;
+      const dot = nx * (fcx - cx) + ny * (fcy - cy) + nz * (fcz - cz);
+      if (dot < 0) { const t = b; b = c; c = t; }
+      positions.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  function nonIndexed(geo) { return geo.index ? geo.toNonIndexed() : geo; }
+
+  function meshStats(geo) {
+    geo = nonIndexed(geo);
+    const pos = geo.attributes.position.array;
+    let minE = Infinity, maxE = -Infinity;
+    const dist = (i, j) => Math.hypot(pos[i] - pos[j], pos[i + 1] - pos[j + 1], pos[i + 2] - pos[j + 2]);
+    for (let f = 0; f < pos.length; f += 9) {
+      const e1 = dist(f, f + 3), e2 = dist(f + 3, f + 6), e3 = dist(f + 6, f);
+      for (const e of [e1, e2, e3]) { if (e < minE) minE = e; if (e > maxE) maxE = e; }
+    }
+    const vmap = new Map();
+    for (let i = 0; i < pos.length; i += 3) {
+      const key = pos[i].toFixed(3) + ',' + pos[i + 1].toFixed(3) + ',' + pos[i + 2].toFixed(3);
+      vmap.set(key, (vmap.get(key) || 0) + 1);
+    }
+    let curvSum = 0;
+    for (const d of vmap.values()) curvSum += (6 - d);
+    return { minE, maxE, faces: pos.length / 9, verts: vmap.size, curvSum };
+  }
+
+  // A gradient-descent mass-spring relaxation: given only which vertex indices
+  // are joined by a unit-length edge, find 3D positions satisfying all of them.
+  // Not the paper's homotopy-continuation solver — a generic numerical fallback,
+  // validated by the max/mean edge error it reports rather than assumed correct.
+  //
+  // Edge springs alone don't rule out a "squished, overlapping" result: nothing
+  // stops two vertices that AREN'T joined by an edge from drifting on top of each
+  // other, which is what folding-back-on-itself looks like. So non-adjacent pairs
+  // that get closer than one edge-length also get a short-range repulsion, and the
+  // closest such gap is reported alongside the edge error as second evidence.
+  function relaxEmbedding(n, edges, opts) {
+    opts = opts || {};
+    const iters = opts.iters || 5000;
+    const dt = 0.06, damping = 0.85;
+    const REPEL = 0.6;
+    const pos = new Float64Array(n * 3);
+    const vel = new Float64Array(n * 3);
+    const R = Math.max(0.6, Math.sqrt(n) * 0.5);
+    for (let i = 0; i < n; i++) {
+      let x, y, z, d2;
+      do {
+        x = Math.random() * 2 - 1; y = Math.random() * 2 - 1; z = Math.random() * 2 - 1;
+        d2 = x * x + y * y + z * z;
+      } while (d2 > 1 || d2 < 1e-6);
+      const s = R / Math.sqrt(d2);
+      pos[i * 3] = x * s; pos[i * 3 + 1] = y * s; pos[i * 3 + 2] = z * s;
+    }
+    const edgeSet = new Set(edges.map(([a, b]) => (a < b ? a + '_' + b : b + '_' + a)));
+    const repel = n <= 150; // O(n^2) per iteration — skip for a very large hand-drawn net
+    let lastEnergy = Infinity, stall = 0, it = 0;
+    const force = new Float64Array(n * 3);
+    for (; it < iters; it++) {
+      force.fill(0);
+      let energy = 0;
+      for (const [a, b] of edges) {
+        const dx = pos[a * 3] - pos[b * 3], dy = pos[a * 3 + 1] - pos[b * 3 + 1], dz = pos[a * 3 + 2] - pos[b * 3 + 2];
+        const d = Math.hypot(dx, dy, dz) || 1e-9;
+        const diff = d - 1;
+        energy += diff * diff;
+        const f = -diff / d;
+        force[a * 3] += f * dx; force[a * 3 + 1] += f * dy; force[a * 3 + 2] += f * dz;
+        force[b * 3] -= f * dx; force[b * 3 + 1] -= f * dy; force[b * 3 + 2] -= f * dz;
+      }
+      if (repel) {
+        for (let a = 0; a < n; a++) {
+          for (let b = a + 1; b < n; b++) {
+            if (edgeSet.has(a + '_' + b)) continue;
+            const dx = pos[a * 3] - pos[b * 3], dy = pos[a * 3 + 1] - pos[b * 3 + 1], dz = pos[a * 3 + 2] - pos[b * 3 + 2];
+            const d = Math.hypot(dx, dy, dz) || 1e-9;
+            if (d >= 1) continue;
+            const f = REPEL * (1 - d) / d;
+            force[a * 3] += f * dx; force[a * 3 + 1] += f * dy; force[a * 3 + 2] += f * dz;
+            force[b * 3] -= f * dx; force[b * 3 + 1] -= f * dy; force[b * 3 + 2] -= f * dz;
+          }
+        }
+      }
+      for (let i = 0; i < n * 3; i++) {
+        vel[i] = (vel[i] + force[i] * dt) * damping;
+        pos[i] += vel[i] * dt;
+      }
+      stall = Math.abs(lastEnergy - energy) < 1e-9 ? stall + 1 : 0;
+      lastEnergy = energy;
+      if (stall > 60 || energy < 1e-8) { it++; break; }
+    }
+    let maxErr = 0, sumErr = 0;
+    for (const [a, b] of edges) {
+      const d = Math.hypot(pos[a * 3] - pos[b * 3], pos[a * 3 + 1] - pos[b * 3 + 1], pos[a * 3 + 2] - pos[b * 3 + 2]);
+      const err = Math.abs(d - 1);
+      if (err > maxErr) maxErr = err;
+      sumErr += err;
+    }
+    let minNonEdgeDist = Infinity;
+    for (let a = 0; a < n; a++) {
+      for (let b = a + 1; b < n; b++) {
+        if (edgeSet.has(a + '_' + b)) continue;
+        const d = Math.hypot(pos[a * 3] - pos[b * 3], pos[a * 3 + 1] - pos[b * 3 + 1], pos[a * 3 + 2] - pos[b * 3 + 2]);
+        if (d < minNonEdgeDist) minNonEdgeDist = d;
+      }
+    }
+    return { pos, iterations: it, maxErr, meanErr: sumErr / edges.length, minNonEdgeDist };
+  }
+
+  function edgesOfFaces(faces) {
+    const edgeSet = new Map();
+    for (const f of faces) {
+      for (let e = 0; e < 3; e++) {
+        const a = f[e], b = f[(e + 1) % 3];
+        const k = a < b ? a + '_' + b : b + '_' + a;
+        edgeSet.set(k, (edgeSet.get(k) || 0) + 1);
+      }
+    }
+    return [...edgeSet.keys()].map((k) => k.split('_').map(Number));
+  }
+
+  // An irregular, non-vertex-transitive closed 6-net: a pentagonal bipyramid
+  // (apex T=0, apex B=1, equator E0..E4=2..6) with its T-E0-E1 face split into
+  // three by a new vertex M=7. Hand-checked: Euler V-E+F = 8-18+12 = 2, and
+  // Sigma(6-deg) = 0(T)+1(B)+1(E0)+1(E1)+2(E2)+2(E3)+2(E4)+3(M) = 12, both as
+  // the theorem on this page requires. No coordinates given — only this list.
+  const STELLATED_FACES = [
+    [0, 3, 4], [0, 4, 5], [0, 5, 6], [0, 6, 2],
+    [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 6, 5], [1, 2, 6],
+    [0, 2, 7], [2, 3, 7], [3, 0, 7],
+  ];
+  let stellatedCache = null;
+  function buildStellatedSolid() {
+    if (!stellatedCache) {
+      const edges = edgesOfFaces(STELLATED_FACES);
+      let best = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const r = relaxEmbedding(8, edges, { iters: 6000 });
+        if (!best || r.maxErr < best.maxErr) best = r;
+      }
+      const verts = [];
+      for (let i = 0; i < 8; i++) verts.push([best.pos[i * 3], best.pos[i * 3 + 1], best.pos[i * 3 + 2]]);
+      stellatedCache = { verts, info: best };
+    }
+    const geo = trisToGeometry(stellatedCache.verts, STELLATED_FACES);
+    geo.userData.solveInfo = stellatedCache.info;
+    return geo;
+  }
+
+  function buildBipyramid(n) {
+    const R = 0.5 / Math.sin(Math.PI / n);
+    const h = Math.sqrt(Math.max(0, 1 - R * R));
+    const verts = [];
+    for (let i = 0; i < n; i++) { const a = (2 * Math.PI * i) / n; verts.push([R * Math.cos(a), R * Math.sin(a), 0]); }
+    verts.push([0, 0, h]); verts.push([0, 0, -h]);
+    const top = n, bot = n + 1;
+    const faces = [];
+    for (let i = 0; i < n; i++) {
+      const a = i, b = (i + 1) % n;
+      faces.push([a, b, top]);
+      faces.push([b, a, bot]);
+    }
+    return trisToGeometry(verts, faces);
+  }
+
+  const SOLIDS = [
+    { key: 'tetra', name: 'Tetrahedron', build: () => nonIndexed(new THREE.TetrahedronGeometry(Math.sqrt(6) / 4, 0)) },
+    { key: 'tribi', name: 'Triangular bipyramid', build: () => buildBipyramid(3) },
+    { key: 'octa', name: 'Octahedron', build: () => nonIndexed(new THREE.OctahedronGeometry(1 / Math.sqrt(2), 0)) },
+    { key: 'pentabi', name: 'Pentagonal bipyramid', build: () => buildBipyramid(5) },
+    { key: 'icosa', name: 'Icosahedron', build: () => nonIndexed(new THREE.IcosahedronGeometry(Math.sqrt(10 + 2 * Math.sqrt(5)) / 4, 0)) },
+    { key: 'stellated', name: 'Split-face bipyramid (solved, not closed-form)', build: buildStellatedSolid },
+  ];
+
+  const viewport = document.getElementById('solidViewport');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e0e11);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 100);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  viewport.insertBefore(renderer.domElement, viewport.firstChild);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9); key.position.set(5, 8, 6); scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.3); fill.position.set(-6, -3, -4); scene.add(fill);
+
+  const rootGroup = new THREE.Group();
+  scene.add(rootGroup);
+  const material = new THREE.MeshStandardMaterial({ color: 0xe8a33d, roughness: 0.45, metalness: 0.1, flatShading: true, side: THREE.DoubleSide });
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0x1a1206, transparent: true, opacity: 0.55 });
+  let solidMesh = null, wireMesh = null;
+
+  function resizeSolid() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resizeSolid);
+
+  function showSolid(key) {
+    let spec;
+    if (key === 'yournet' && yourNetData) {
+      spec = {
+        key: 'yournet',
+        name: 'Your net',
+        build: () => {
+          const geo = trisToGeometry(yourNetData.verts, yourNetData.faces);
+          geo.userData.solveInfo = yourNetData.info;
+          geo.userData.openBoundary = yourNetData.boundary;
+          return geo;
+        },
+      };
+    } else {
+      spec = SOLIDS.find((s) => s.key === key) || SOLIDS[0];
+    }
+    if (solidMesh) { rootGroup.remove(solidMesh); solidMesh.geometry.dispose(); }
+    if (wireMesh) { rootGroup.remove(wireMesh); wireMesh.geometry.dispose(); }
+
+    const geo = spec.build();
+    geo.computeBoundingSphere();
+    solidMesh = new THREE.Mesh(geo, material);
+    rootGroup.add(solidMesh);
+    wireMesh = new THREE.LineSegments(new THREE.WireframeGeometry(geo), lineMaterial);
+    rootGroup.add(wireMesh);
+
+    const r = geo.boundingSphere ? geo.boundingSphere.radius : 1;
+    camera.position.set(0, 0, Math.max(2.2, r * 2.6));
+    camera.lookAt(0, 0, 0);
+    rootGroup.rotation.set(0.35, 0.5, 0);
+
+    const st = meshStats(geo);
+    let statsHTML =
+      '<span class="stat">faces: <b>' + st.faces + '</b></span>' +
+      '<span class="stat">vertices: <b>' + st.verts + '</b></span>' +
+      '<span class="stat">Σ(6−deg): <b>' + st.curvSum + '</b></span>' +
+      '<span class="stat">edge length: <b>' + st.minE.toFixed(4) + '–' + st.maxE.toFixed(4) + '</b></span>';
+    if (geo.userData && geo.userData.solveInfo) {
+      const si = geo.userData.solveInfo;
+      const tight = isFinite(si.minNonEdgeDist) && si.minNonEdgeDist < 0.35;
+      statsHTML +=
+        '<span class="stat">solver max/mean edge error: <b>' + si.maxErr.toFixed(4) + ' / ' + si.meanErr.toFixed(4) + '</b></span>' +
+        '<span class="stat">solver iterations: <b>' + si.iterations + '</b></span>' +
+        '<span class="stat' + (tight ? ' warn' : '') + '">closest non-adjacent gap: <b>' +
+          (isFinite(si.minNonEdgeDist) ? si.minNonEdgeDist.toFixed(3) : '—') + '</b>' +
+          (tight ? ' ⚠ tight — may be folding into itself' : '') + '</span>';
+    }
+    if (geo.userData && geo.userData.openBoundary) {
+      statsHTML += '<span class="stat warn">boundary edges: <b>' + geo.userData.openBoundary +
+        '</b> — open, so this is one flexible embedding, not the unique rigid solid</span>';
+    }
+    document.getElementById('solidStats').innerHTML = statsHTML;
+
+    for (const btn of document.querySelectorAll('#solidBtns button')) {
+      btn.setAttribute('aria-pressed', btn.dataset.key === spec.key ? 'true' : 'false');
+    }
+  }
+
+  const btnRow = document.getElementById('solidBtns');
+  for (const spec of SOLIDS) {
+    const b = document.createElement('button');
+    b.className = 'small';
+    b.textContent = spec.name;
+    b.dataset.key = spec.key;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => showSolid(spec.key));
+    btnRow.appendChild(b);
+  }
+
+  document.getElementById('copySolidBtn').addEventListener('click', () => {
+    renderer.render(scene, camera);
+    copyCanvasImage(renderer.domElement, document.getElementById('copySolidBtn'));
+  });
+
+  let dragging = false, lastX = 0, lastY = 0, manualYaw = 0.5, manualPitch = 0.35;
+  const canvas3d = renderer.domElement;
+  canvas3d.addEventListener('pointerdown', (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas3d.setPointerCapture(e.pointerId); });
+  canvas3d.addEventListener('pointerup', () => { dragging = false; });
+  canvas3d.addEventListener('pointercancel', () => { dragging = false; });
+  canvas3d.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    manualYaw += dx * 0.008;
+    manualPitch += dy * 0.008;
+    rootGroup.rotation.set(manualPitch, manualYaw, 0);
+  });
+
+  const clock = new THREE.Clock();
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = clock.getDelta();
+    if (!reducedMotion && !dragging) {
+      manualYaw += dt * 0.15;
+      rootGroup.rotation.set(manualPitch, manualYaw, 0);
+    }
+    renderer.render(scene, camera);
+  }
+
+  resizeSolid();
+  showSolid('tetra');
+  animate();
+
+  // -------------------------------------------------------------- copy image
+
+  async function copyCanvasImage(sourceCanvas, btn) {
+    const was = btn.textContent;
+    sourceCanvas.toBlob(async (blob) => {
+      if (!blob) { btn.textContent = 'copy failed'; setTimeout(() => (btn.textContent = was), 1400); return; }
+      try {
+        if (navigator.clipboard && window.ClipboardItem) {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          btn.textContent = 'copied';
+        } else {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'sixfold.png';
+          a.click();
+          btn.textContent = 'downloaded';
+        }
+      } catch (e) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'sixfold.png';
+        a.click();
+        btn.textContent = 'downloaded';
+      }
+      setTimeout(() => (btn.textContent = was), 1400);
+    }, 'image/png');
+  }
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.createElement('div');
+  el.className = 'err';
+  document.querySelector('main').prepend(el);
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

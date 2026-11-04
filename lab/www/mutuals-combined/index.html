@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>your interaction chart, combined — a real least-squares fit</title>
+<meta name="description" content="Type your handle. We read your own post history — every reply and quote you've made, paginated in full rather than one page — to rank who you actually interact with most, turn their recent posts into word-frequency vectors, and solve the non-negative combination of your top interaction partners that best reconstructs yours. A real linear-algebra fit, with its own error shown, not a single 'written by' guess.">
+<meta property="og:title" content="your interaction chart, combined — a real least-squares fit">
+<meta property="og:description" content="Type your handle. We read your own post history — every reply and quote you've made, paginated in full rather than one page — to rank who you actually interact with most, turn their recent posts into word-frequency vectors, and solve the non-negative combination of your top interaction partners that best reconstructs yours. A real linear-algebra fit, with its own error shown, not a single 'written by' guess.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: stretch; }
+  .row input { flex: 1; min-width: 12rem; }
+  .row button { flex: none; min-height: 44px; }
+
+  #status { font-size: .8rem; color: var(--muted); margin: .75rem 0; min-height: 1.1em; }
+
+  .card { display: flex; gap: .6rem; align-items: center; padding: .75rem;
+          background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); }
+  .card img { width: 40px; height: 40px; border-radius: 50%; flex: none; background: var(--border); object-fit: cover; }
+  .card .name { color: var(--fg); font-size: .9rem; }
+  .card .handle { color: var(--muted); font-size: .75rem; }
+
+  #results { margin-top: 1.5rem; }
+  .eqn { font-size: .95rem; line-height: 1.7; padding: .9rem 1rem; margin: 1rem 0;
+         background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+         word-break: break-word; }
+  .eqn .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .3rem; }
+
+  .canvas-wrap { display: flex; flex-direction: column; align-items: center; margin: 1.25rem 0; }
+  #donutImg { max-width: min(320px, 90vw); width: 100%; height: auto; display: block; }
+
+  .copy-btn { display: block; margin: .9rem auto 0; padding: .9rem 1.5rem; min-height: 44px;
+              font-weight: 700; border: none; border-radius: var(--radius); cursor: pointer;
+              background: linear-gradient(135deg, var(--accent), #ffd27a); color: #171208;
+              box-shadow: 0 0 22px rgba(232,163,61,.4); }
+  .copy-btn:hover { filter: brightness(1.08); }
+  .copy-btn:active { filter: brightness(.95); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: 1.25rem 0; }
+  .stat { padding: .7rem; background: var(--bg-raised); border: 1px solid var(--border);
+          border-radius: var(--radius); text-align: center; }
+  .stat .label { font-size: .68rem; color: var(--muted); }
+  .stat .value { font-size: 1.2rem; color: var(--accent); margin-top: .15rem; }
+
+  .contrib { margin-top: 1.5rem; }
+  .contrib h2 { margin-bottom: .6rem; }
+  .entry { display: flex; gap: .6rem; align-items: center; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+  .entry:last-child { border-bottom: none; }
+  .entry img { width: 32px; height: 32px; border-radius: 50%; flex: none; background: var(--border); object-fit: cover; }
+  .entry .who { min-width: 0; flex: 1; }
+  .entry .name { font-size: .82rem; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .entry .track { height: 6px; background: var(--border); border-radius: 3px; margin-top: .3rem; overflow: hidden; }
+  .entry .fill { height: 100%; border-radius: 3px; }
+  .entry .share { font-size: .8rem; color: var(--accent); flex: none; width: 3.2rem; text-align: right; }
+
+  .note { font-size: .85rem; padding: .8rem 1rem; border: 1px solid var(--border); border-radius: var(--radius);
+          background: var(--bg-raised); color: var(--fg); margin-top: 1rem; }
+
+  details { margin-top: 2rem; }
+  summary { cursor: pointer; color: var(--accent); font-size: .85rem; padding: .4rem 0; }
+  details p, details li { font-size: .8rem; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>your interaction chart, combined</h1>
+  <p class="sub">Type your handle. We page through your own post history to find who you actually
+    reply to and quote most, turn your words and theirs into word-frequency vectors, then solve for
+    the non-negative combination of your top interaction partners that best reconstructs yours. A real
+    fit, not a single "who does this sound like" guess.</p>
+
+  <form id="form" class="row">
+    <input type="text" id="handle" placeholder="you.bsky.social" autocomplete="off">
+    <button type="submit" id="go">combine</button>
+  </form>
+
+  <div id="status"></div>
+  <div id="err" class="err hidden"></div>
+
+  <div id="results" class="hidden">
+    <div class="card" id="youCard"></div>
+
+    <div class="eqn" id="eqn"></div>
+
+    <div class="canvas-wrap">
+      <img id="donutImg" alt="donut chart of the combination weights">
+      <button type="button" class="copy-btn" id="copyBtn">copy image</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="label">cosine fit</div><div class="value" id="statCos">—</div></div>
+      <div class="stat"><div class="label">residual (L2)</div><div class="value" id="statRes">—</div></div>
+    </div>
+
+    <div class="contrib">
+      <h2 id="contribHead">contributors</h2>
+      <div id="contribList"></div>
+    </div>
+
+    <div id="noteBox"></div>
+  </div>
+
+  <details>
+    <summary>how this is computed, honestly</summary>
+    <p>We resolve your handle, then <b>page through your own post history with the API's cursor</b> —
+       up to 10 pages, ~1000 posts, not just the first 100 — reading every reply and quote you made
+       along the way. Each reply counts as an interaction with whoever you replied to; each quote counts
+       as an interaction with whoever you quoted. Tally those up, rank by count, and that's your
+       <b>interaction chart</b> — up to 100 of the accounts you actually talk to and about most, not
+       people who merely follow you back. It might not fill up to 100 — most accounts don't reply or
+       quote 100 different people — and that's fine; you get however many you actually have.</p>
+    <p>For you and for each interaction partner we build a relative-frequency, bag-of-words vector from
+       recent posts (skipping reposts and reply parents that aren't their own words), tokenized, a short
+       stopword list dropped, normalized to unit length. That vector is the "embedding" here — plain
+       word counts, not a trained model. There is no ML embeddings API this environment can reach
+       without a key, so this is the honest substitute, not a pretend one. Your own vector is built from
+       every page we read; each interaction partner's is built from their most recent 100 posts only —
+       fetching full histories for up to 100 accounts wasn't feasible in one page load, and that's said
+       here rather than left silent.</p>
+    <p>Let <code>v</code> be your vector and <code>u₁…uₙ</code> your interaction partners' vectors. We
+       solve <code>min ‖v − Σwᵢuᵢ‖²</code> subject to <code>wᵢ ≥ 0</code> — non-negative least squares —
+       with a small active-set method: solve the unconstrained system, drop the most negative
+       coefficient, re-solve, repeat until every remaining weight is non-negative. That's a simplified
+       NNLS, not the full Lawson–Hanson algorithm; exact for the modest n involved here, but if this ever
+       runs against someone with dozens of genuine interaction partners it's the first thing to swap for
+       the full algorithm.</p>
+    <p>The donut's colored slices are each partner's share of the fit; the grey slice is what the fit
+       couldn't explain. <b>Cosine fit</b> and <b>residual</b> are two independent checks on the same
+       answer, not one number dressed up as two — a high cosine similarity can still hide a lopsided
+       reconstruction, so both are shown rather than asserting "solved" from either alone.</p>
+    <p>This deliberately shows a <b>blend across several people</b>, not a single closest match. A
+       "which one account does this sound most like" tool is one short step from a target list; a linear
+       combination across everyone you actually talk to isn't, and that's the version worth building.</p>
+    <p><b>Real limitations, stated plainly:</b> only replies and quotes are counted as interactions —
+       likes aren't visible through the public API for anyone but you, so they're not part of this chart.
+       A reply whose parent post has been deleted or is otherwise unreadable doesn't count either. Only
+       your own most-recent ~1000 posts are scanned, so a very old exchange won't surface. Bag-of-words
+       has no sense of meaning, sarcasm, or language beyond English-ish tokenizing — a heavily non-English
+       account will look thin here. Small accounts with little recent text won't have enough signal to fit
+       against.</p>
+  </details>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  document.getElementById('crumb').innerHTML = kit.crumb('one-hand');
+
+  var form = document.getElementById('form');
+  var goBtn = document.getElementById('go');
+  var statusEl = document.getElementById('status');
+  var errEl = document.getElementById('err');
+  var resultsEl = document.getElementById('results');
+
+  var BLANK_AVATAR = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBTAA7';
+  function avatarSrc(url) { return url || BLANK_AVATAR; }
+  function setStatus(msg) { statusEl.textContent = msg || ''; }
+
+  var STOP = ('the and for are but not you your with this that from have has was were been they them ' +
+    'their what which who when where why how all any can cant could did didnt does doesnt doing dont ' +
+    'down each had hadnt hasnt havent her here hers herself him himself his into isnt its itself just ' +
+    'more most mustnt myself need neednt off once only other ought our ours ourselves out over own same ' +
+    'shan she should shouldnt some such than then there these they those through too until very wasnt ' +
+    'we were werent while whom will wont would wouldnt youd youll youre youve about after again against ' +
+    'because before being below between both doesn during further having one two also like get got ' +
+    'really still even back much many well now amp yeah okay lol its').split(' ');
+  var STOPSET = {};
+  for (var si = 0; si < STOP.length; si++) STOPSET[STOP[si]] = true;
+
+  var MUTUAL_CAP = 100;          // top interaction partners considered
+  var OWN_FEED_MAX_PAGES = 10;   // ~1000 of your own posts, not just the first 100
+  var FETCH_CONCURRENCY = 8;     // parallel author-feed fetches for interaction partners
+
+  function tokenize(text) {
+    if (!text) return [];
+    var t = text.toLowerCase()
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/@[a-z0-9.\-]+/g, ' ')
+      .replace(/[^a-z']+/g, ' ')
+      .split(/\s+/);
+    var out = [];
+    for (var i = 0; i < t.length; i++) {
+      var w = t[i].replace(/^'+|'+$/g, '');
+      if (w.length >= 3 && w.length <= 20 && !STOPSET[w]) out.push(w);
+    }
+    return out;
+  }
+
+  /** Bag-of-words vector, relative-frequency then L2 normalized. Returns null if too little text. */
+  function buildVector(texts) {
+    var counts = new Map(), total = 0;
+    for (var i = 0; i < texts.length; i++) {
+      var toks = tokenize(texts[i]);
+      for (var j = 0; j < toks.length; j++) { var w = toks[j]; counts.set(w, (counts.get(w) || 0) + 1); total++; }
+    }
+    if (total < 15) return null;
+    var vec = new Map(), sumsq = 0;
+    counts.forEach(function (c, w) { var f = c / total; vec.set(w, f); sumsq += f * f; });
+    var norm = Math.sqrt(sumsq) || 1;
+    vec.forEach(function (v, w) { vec.set(w, v / norm); });
+    return vec;
+  }
+
+  function dot(a, b) {
+    if (!a || !b) return 0;
+    var small = a.size <= b.size ? a : b, big = small === a ? b : a;
+    var s = 0;
+    small.forEach(function (v, k) { if (big.has(k)) s += v * big.get(k); });
+    return s;
+  }
+
+  function vecNorm(m) { var s = 0; m.forEach(function (v) { s += v * v; }); return Math.sqrt(s); }
+
+  /** Gaussian elimination with partial pivoting, tiny ridge for stability. */
+  function solveLin(Msrc, ysrc) {
+    var n = ysrc.length;
+    var A = Msrc.map(function (row) { return row.slice(); });
+    var x = ysrc.slice();
+    for (var i = 0; i < n; i++) {
+      var maxRow = i, maxVal = Math.abs(A[i][i]);
+      for (var r = i + 1; r < n; r++) { if (Math.abs(A[r][i]) > maxVal) { maxVal = Math.abs(A[r][i]); maxRow = r; } }
+      if (maxRow !== i) {
+        var tmp = A[i]; A[i] = A[maxRow]; A[maxRow] = tmp;
+        var t2 = x[i]; x[i] = x[maxRow]; x[maxRow] = t2;
+      }
+      if (Math.abs(A[i][i]) < 1e-9) A[i][i] = 1e-9;
+      for (var r2 = i + 1; r2 < n; r2++) {
+        var f = A[r2][i] / A[i][i];
+        for (var c = i; c < n; c++) A[r2][c] -= f * A[i][c];
+        x[r2] -= f * x[i];
+      }
+    }
+    var sol = new Array(n).fill(0);
+    for (var i2 = n - 1; i2 >= 0; i2--) {
+      var s = x[i2];
+      for (var c2 = i2 + 1; c2 < n; c2++) s -= A[i2][c2] * sol[c2];
+      sol[i2] = s / A[i2][i2];
+    }
+    return sol;
+  }
+
+  /** Simplified active-set NNLS: solve unconstrained, drop the worst-negative
+   *  coefficient, re-solve, repeat. Exact for the small n used here. */
+  function nnls(G, b) {
+    var n = b.length;
+    var active = []; for (var i = 0; i < n; i++) active.push(i);
+    var w = new Array(n).fill(0);
+    var trace = 0; for (var i2 = 0; i2 < n; i2++) trace += G[i2][i2];
+    var ridge = Math.max(1e-6, trace * 1e-6 / Math.max(n, 1));
+    while (active.length) {
+      var k = active.length;
+      var M = new Array(k), y = new Array(k);
+      for (var r = 0; r < k; r++) {
+        M[r] = new Array(k);
+        for (var c = 0; c < k; c++) M[r][c] = G[active[r]][active[c]] + (r === c ? ridge : 0);
+        y[r] = b[active[r]];
+      }
+      var sol = solveLin(M, y);
+      var worst = -1, worstVal = -1e-7;
+      for (var idx = 0; idx < k; idx++) { if (sol[idx] < worstVal) { worstVal = sol[idx]; worst = idx; } }
+      if (worst === -1) {
+        for (var idx2 = 0; idx2 < k; idx2++) w[active[idx2]] = Math.max(0, sol[idx2]);
+        break;
+      }
+      active.splice(worst, 1);
+    }
+    return w;
+  }
+
+  function normalizeHandle(raw) { return (raw || '').trim().replace(/^@/, ''); }
+
+  async function resolveDid(handle) {
+    try {
+      var res = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: handle });
+      return res.did;
+    } catch (e) {
+      throw new Error('could not resolve @' + handle + ' — check the spelling');
+    }
+  }
+
+  function ownTexts(feedItems, did) {
+    var items = kit.visible(feedItems || []);
+    var texts = [];
+    for (var i = 0; i < items.length; i++) {
+      var post = items[i].post;
+      if (!post || !post.author || post.author.did !== did) continue;
+      if (post.record && typeof post.record.text === 'string') texts.push(post.record.text);
+    }
+    return texts;
+  }
+
+  /** Page through an account's own feed with the cursor, not just the first page. */
+  async function fetchOwnFeedPages(did, maxPages, onProgress) {
+    var pages = [];
+    var cursor;
+    for (var p = 0; p < maxPages; p++) {
+      var params = { actor: did, limit: 100 };
+      if (cursor) params.cursor = cursor;
+      var res = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+      pages.push(res);
+      if (onProgress) onProgress(pages.length);
+      if (!res || !res.cursor || !res.feed || !res.feed.length) break;
+      cursor = res.cursor;
+    }
+    return pages;
+  }
+
+  /** Who did this account actually reply to and quote? Ranked by count, most first.
+   *  This is the interaction chart — it replaces reading the follow graph, which
+   *  silently undercounts anyone past the first page of follows/followers. */
+  function tallyInteractions(feedItems, did) {
+    var items = kit.visible(feedItems || []);
+    var counts = new Map(), meta = new Map();
+    function bump(actor) {
+      if (!actor || !actor.did || actor.did === did) return;
+      counts.set(actor.did, (counts.get(actor.did) || 0) + 1);
+      if (!meta.has(actor.did)) meta.set(actor.did, actor);
+    }
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var post = item.post;
+      if (!post || !post.author || post.author.did !== did) continue;
+      if (item.reply && item.reply.parent && item.reply.parent.author) bump(item.reply.parent.author);
+      var embed = post.embed;
+      if (embed && embed.$type === 'app.bsky.embed.record#view' && embed.record) bump(embed.record.author);
+      if (embed && embed.$type === 'app.bsky.embed.recordWithMedia#view' && embed.record && embed.record.record) {
+        bump(embed.record.record.author);
+      }
+    }
+    var ranked = [];
+    counts.forEach(function (c, actorDid) { ranked.push({ did: actorDid, count: c, actor: meta.get(actorDid) }); });
+    ranked.sort(function (a, b) { return b.count - a.count; });
+    return ranked;
+  }
+
+  /** Run fn over items with at most `limit` in flight at once. */
+  async function mapPool(items, limit, fn) {
+    var results = new Array(items.length);
+    var next = 0;
+    async function worker() {
+      while (next < items.length) {
+        var i = next++;
+        results[i] = await fn(items[i], i);
+      }
+    }
+    var workers = [];
+    for (var w = 0; w < Math.min(limit, items.length); w++) workers.push(worker());
+    await Promise.all(workers);
+    return results;
+  }
+
+  var HUE_STEP = 137.508; // golden angle — visually distinct, no picked palette needed
+  function colorFor(i) { return 'hsl(' + Math.round((i * HUE_STEP) % 360) + ', 62%, 58%)'; }
+  var LEFTOVER_COLOR = '#8b8792';
+
+  function drawDonut(slices) {
+    var size = 640;
+    var canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0e0e11';
+    ctx.fillRect(0, 0, size, size);
+    var cx = size / 2, cy = size / 2, rOuter = size * 0.38, rInner = size * 0.22;
+    var start = -Math.PI / 2;
+    for (var i = 0; i < slices.length; i++) {
+      var frac = slices[i].value;
+      if (frac <= 0.0005) continue;
+      var end = start + frac * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, rOuter, start, end);
+      ctx.closePath();
+      ctx.fillStyle = slices[i].color;
+      ctx.fill();
+      start = end;
+    }
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(cx, cy, rInner, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    return canvas;
+  }
+
+  function verdictNote(usedCount, foundCount, cos) {
+    var lines = [];
+    lines.push('Combined from ' + usedCount + ' of ' + foundCount + ' interaction partners with enough recent text.');
+    if (cos < 0.15) lines.push('The fit is weak — your recent words don’t line up much with theirs, which is a fine and normal outcome.');
+    return lines.join(' ');
+  }
+
+  form.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    kit.clear(errEl);
+    resultsEl.classList.add('hidden');
+    document.getElementById('noteBox').innerHTML = '';
+    document.getElementById('contribList').innerHTML = '';
+
+    var handle = normalizeHandle(document.getElementById('handle').value);
+    if (!handle) { kit.showError(errEl, 'enter your handle.'); return; }
+
+    goBtn.disabled = true;
+    try {
+      setStatus('resolving @' + handle + '…');
+      var did = await resolveDid(handle);
+      var profile = await kit.bskyGet('app.bsky.actor.getProfile', { actor: did });
+
+      function renderEmpty(message) {
+        document.getElementById('youCard').innerHTML =
+          '<img src="' + avatarSrc(profile.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
+          '<div><div class="name">' + (profile.displayName || profile.handle) + '</div><div class="handle">@' + profile.handle + '</div></div>';
+        document.getElementById('eqn').textContent = message;
+        document.getElementById('donutImg').classList.add('hidden');
+        document.getElementById('copyBtn').classList.add('hidden');
+        document.querySelector('.stats').classList.add('hidden');
+        document.getElementById('contribHead').classList.add('hidden');
+        resultsEl.classList.remove('hidden');
+      }
+
+      var ownPages = await fetchOwnFeedPages(did, OWN_FEED_MAX_PAGES, function (n) {
+        setStatus('reading your post history (' + (n * 100) + ' posts so far)…');
+      });
+      var ownItems = [];
+      for (var pi = 0; pi < ownPages.length; pi++) ownItems = ownItems.concat(ownPages[pi].feed || []);
+
+      var myVec = buildVector(ownTexts(ownItems, did));
+      if (!myVec) {
+        kit.showError(errEl, 'not enough recent original text from @' + handle + ' to build a vector — try an account with more posts.');
+        setStatus('');
+        return;
+      }
+
+      setStatus('finding who you actually interact with…');
+      var ranked = tallyInteractions(ownItems, did);
+      var candidates = ranked.slice(0, MUTUAL_CAP);
+
+      if (!candidates.length) {
+        renderEmpty('no replies or quotes of anyone else turned up in your recent posts — nothing to build an interaction chart from yet.');
+        setStatus('');
+        return;
+      }
+
+      var doneCount = 0;
+      setStatus('reading ' + candidates.length + ' interaction partners’ recent posts (0/' + candidates.length + ')…');
+      var vecResults = await mapPool(candidates, FETCH_CONCURRENCY, async function (cand) {
+        var v = null;
+        try {
+          var mf = await kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: cand.did, limit: 100 });
+          v = buildVector(ownTexts(mf.feed, cand.did));
+        } catch (e) { /* skip an account we can't read */ }
+        doneCount++;
+        setStatus('reading interaction partners’ recent posts (' + doneCount + '/' + candidates.length + ')…');
+        return v ? { vec: v, meta: cand.actor, count: cand.count } : null;
+      });
+
+      var mutualVecs = [], mutualMeta = [], mutualCounts = [];
+      for (var vi = 0; vi < vecResults.length; vi++) {
+        var r = vecResults[vi];
+        if (r) { mutualVecs.push(r.vec); mutualMeta.push(r.meta); mutualCounts.push(r.count); }
+      }
+
+      if (!mutualVecs.length) {
+        renderEmpty('found ' + candidates.length + ' accounts you interact with, but none had enough recent text to build a vector.');
+        setStatus('');
+        return;
+      }
+
+      setStatus('solving…');
+      var n = mutualVecs.length;
+      var G = [], b = [];
+      for (var gi = 0; gi < n; gi++) {
+        G.push([]);
+        for (var gj = 0; gj < n; gj++) G[gi].push(dot(mutualVecs[gi], mutualVecs[gj]));
+        b.push(dot(mutualVecs[gi], myVec));
+      }
+      var w = nnls(G, b);
+
+      var recon = new Map();
+      for (var ri = 0; ri < n; ri++) {
+        if (w[ri] <= 0) continue;
+        mutualVecs[ri].forEach(function (val, key) { recon.set(key, (recon.get(key) || 0) + val * w[ri]); });
+      }
+      var reconNorm = vecNorm(recon);
+      var cos = reconNorm > 0 ? clamp01(dot(myVec, recon) / reconNorm) : 0;
+      var diff = new Map(myVec);
+      recon.forEach(function (val, key) { diff.set(key, (diff.get(key) || 0) - val); });
+      var residual = vecNorm(diff);
+
+      function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+      var sumW = 0; for (var swi = 0; swi < n; swi++) sumW += w[swi];
+      var explained = clamp01(cos);
+      var order = [];
+      for (var oi = 0; oi < n; oi++) order.push(oi);
+      order.sort(function (a, c) { return w[c] - w[a]; });
+
+      var slices = [];
+      var eqnParts = [];
+      var listHtml = '';
+      for (var oj = 0; oj < order.length; oj++) {
+        var idx = order[oj];
+        if (w[idx] <= 0 || sumW <= 0) continue;
+        var share = (w[idx] / sumW) * explained;
+        if (share < 0.003) continue;
+        var meta = mutualMeta[idx];
+        var interactions = mutualCounts[idx];
+        var color = colorFor(oj);
+        slices.push({ value: share, color: color });
+        eqnParts.push('<span class="dot" style="background:' + color + '"></span>' + Math.round(share * 100) + '% · @' + meta.handle);
+        listHtml += '<div class="entry">' +
+          '<img src="' + avatarSrc(meta.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
+          '<div class="who"><div class="name">' + (meta.displayName || meta.handle) + ' <span class="handle">@' + meta.handle + '</span>' +
+          ' <span class="handle">· ' + interactions + ' ' + (interactions === 1 ? 'interaction' : 'interactions') + '</span></div>' +
+          '<div class="track"><div class="fill" style="width:' + Math.round(share * 100) + '%;background:' + color + '"></div></div></div>' +
+          '<div class="share">' + Math.round(share * 100) + '%</div></div>';
+      }
+      var leftover = clamp01(1 - explained);
+      if (leftover > 0.003) slices.push({ value: leftover, color: LEFTOVER_COLOR });
+
+      document.getElementById('youCard').innerHTML =
+        '<img src="' + avatarSrc(profile.avatar) + '" alt="" loading="lazy" onerror="this.src=\'' + BLANK_AVATAR + '\'">' +
+        '<div><div class="name">' + (profile.displayName || profile.handle) + '</div><div class="handle">@' + profile.handle + '</div></div>';
+
+      document.getElementById('eqn').innerHTML = eqnParts.length
+        ? 'you ≈ ' + eqnParts.join(' + ') + (leftover > 0.03 ? ' + <span class="dot" style="background:' + LEFTOVER_COLOR + '"></span>' + Math.round(leftover * 100) + '% not captured' : '')
+        : 'no positive combination found — your words and theirs don’t overlap enough to fit.';
+
+      var canvas = drawDonut(slices.length ? slices : [{ value: 1, color: LEFTOVER_COLOR }]);
+      var img = document.getElementById('donutImg');
+      img.classList.remove('hidden');
+      img.src = canvas.toDataURL('image/png');
+
+      var copyBtn = document.getElementById('copyBtn');
+      copyBtn.classList.remove('hidden');
+      copyBtn.onclick = function () {
+        canvas.toBlob(function (blob) {
+          if (!blob) { copyBtn.textContent = 'copy failed'; setTimeout(function () { copyBtn.textContent = 'copy image'; }, 1200); return; }
+          if (navigator.clipboard && window.ClipboardItem) {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+              copyBtn.textContent = 'copied';
+            }).catch(function () {
+              copyBtn.textContent = 'long-press the image above';
+            }).finally(function () { setTimeout(function () { copyBtn.textContent = 'copy image'; }, 1400); });
+          } else {
+            copyBtn.textContent = 'long-press the image above';
+            setTimeout(function () { copyBtn.textContent = 'copy image'; }, 1400);
+          }
+        });
+      };
+
+      document.querySelector('.stats').classList.remove('hidden');
+      document.getElementById('statCos').textContent = Math.round(cos * 100) + '%';
+      document.getElementById('statRes').textContent = residual.toFixed(3);
+
+      document.getElementById('contribHead').classList.remove('hidden');
+      document.getElementById('contribHead').textContent = 'contributors';
+      document.getElementById('contribList').innerHTML = listHtml || '<p class="empty">no interaction partner contributed a positive share.</p>';
+
+      document.getElementById('noteBox').innerHTML = '<div class="note">' + verdictNote(mutualVecs.length, candidates.length, cos) + '</div>';
+
+      resultsEl.classList.remove('hidden');
+      setStatus('');
+    } catch (e) {
+      kit.showError(errEl, e.message || 'something went wrong.');
+      setStatus('');
+    } finally {
+      goBtn.disabled = false;
+    }
+  });
+
+  kit.handleInput(document.getElementById('handle'), {
+    onPick: function (handle) { document.getElementById('handle').value = handle; }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>check a name, across every tld</title>
+<meta name="description" content="A sketch of a domain-availability idea — type a name, see it spread across TLDs. For a real check, this page points straight to domain-gen.com.">
+<meta property="og:title" content="check a name, across every tld">
+<meta property="og:description" content="Type a word, see it formatted across a spread of TLDs. This page can't check real availability — it points to domain-gen.com, which does.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #e8a33d; }
+
+  /* Chrome gets the rainbow treatment; reading surfaces stay kit-plain. */
+  .rainbow {
+    background: linear-gradient(90deg, #ff6b6b, #ffd166, #06d6a0, #4dabf7, #c77dff, #ff6b6b);
+    background-size: 300% 100%;
+    animation: shift 8s linear infinite;
+  }
+  @keyframes shift { to { background-position: 300% 0; } }
+
+  .banner {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: .3rem .75rem;
+    margin: -2rem -1.25rem 2rem;
+    padding: 1.1rem 1.25rem;
+    min-height: 44px;
+    color: #0b0b0d;
+    font-weight: 700;
+    text-decoration: none;
+    text-align: center;
+  }
+  .banner:hover, .banner:focus-visible { filter: brightness(1.08); }
+  .banner .arrow { font-weight: 400; opacity: .85; }
+
+  h1 {
+    background: linear-gradient(90deg, #ff6b6b, #ffd166, #06d6a0, #4dabf7, #c77dff);
+    background-size: 200% 100%;
+    animation: shift 10s linear infinite;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    line-height: 1.15;
+  }
+
+  .panel {
+    border-radius: var(--radius);
+    padding: 2px;
+    margin: 1.5rem 0;
+  }
+  .panel > div {
+    background: var(--bg-raised);
+    border-radius: calc(var(--radius) - 1px);
+    padding: 1.25rem;
+  }
+
+  .cta {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: .5rem;
+    min-height: 44px;
+    padding: .8rem 1.4rem;
+    border: none; border-radius: var(--radius);
+    color: #0b0b0d; font-weight: 700; font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,163,61,.35); }
+    50%      { box-shadow: 0 0 0 8px rgba(232,163,61,0); }
+  }
+
+  .tlds {
+    list-style: none; margin: 1rem 0 0; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: .5rem;
+  }
+  .tlds li {
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .7rem; font-size: .85rem; color: var(--fg);
+    overflow-wrap: anywhere;
+  }
+  .note { font-size: .8rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.25rem; }
+</style>
+</head>
+<body>
+
+<a class="banner rainbow" href="https://domain-gen.com" rel="noopener noreferrer" target="_blank">
+  <span>Want an actual domain-availability check?</span>
+  <span class="arrow">→ domain-gen.com</span>
+</a>
+
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / insert-banner</div>
+
+  <h1>check a name, across every tld</h1>
+  <p class="sub">the idea: type a word, see how it looks as a domain across a wide spread of endings.</p>
+
+  <p>
+    This page can't do the real version of that idea. Every lab site here only gets to
+    talk to Bluesky's own API — nothing that could reach a registrar, a WHOIS server, or
+    an RDAP endpoint. So there's no way for this page to actually tell you whether a name
+    is taken.
+  </p>
+  <p>
+    What it can do, honestly: show you the <em>shape</em> of the idea below — a name spread
+    across a wide range of TLDs, formatted, nothing more. For the real thing — actual
+    availability, actual public registration data — that's what the banner above is for.
+    domain-gen.com already does this properly; this page just points at it.
+  </p>
+
+  <div class="panel rainbow"><div>
+    <h2 style="margin-top:0">try a name</h2>
+    <input id="word" type="text" placeholder="e.g. minomobi" maxlength="40"
+           autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text">
+    <ul id="out" class="tlds" aria-live="polite"></ul>
+    <p class="note" id="hint">format preview only — nothing here has been checked against a real registry.</p>
+  </div></div>
+
+  <div class="actions">
+    <a class="cta rainbow" href="https://domain-gen.com" rel="noopener noreferrer" target="_blank">
+      check these for real → domain-gen.com
+    </a>
+  </div>
+</main>
+
+<script>
+(function () {
+  var TLDS = ['com','net','org','io','dev','app','co','xyz','ai','me',
+              'info','tech','site','online','store','club','live','cloud'];
+  var word = document.getElementById('word');
+  var out = document.getElementById('out');
+  var hint = document.getElementById('hint');
+
+  function slugify(v) {
+    return v.toLowerCase().replace(/[^a-z0-9-]+/g, '').replace(/^-+|-+$/g, '');
+  }
+
+  function render() {
+    var slug = slugify(word.value);
+    out.textContent = '';
+    if (!slug) {
+      hint.textContent = 'format preview only — nothing here has been checked against a real registry.';
+      return;
+    }
+    hint.textContent = 'format preview only — nothing here has been checked against a real registry.';
+    TLDS.forEach(function (tld) {
+      var li = document.createElement('li');
+      li.textContent = slug + '.' + tld;
+      out.appendChild(li);
+    });
+  }
+
+  word.addEventListener('input', render);
+  render();
+})();
+</script>
+</body>
+</html>

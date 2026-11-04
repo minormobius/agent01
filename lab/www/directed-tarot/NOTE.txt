@@ -1,0 +1,1 @@
+Deck's the full 78 now, every rank of every suit plus all 22 major arcana, and there's a copy button for a finished reading. Still nothing saves to your repo — burn it again anytime, nothing remembers a past draw yet.

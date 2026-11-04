@@ -1,0 +1,1 @@
+Defaults start at θ=1 exactly, the paper's hardest case — watch it wander before it (almost surely) dies. Skipped the cross-visitor histogram: this kit has no global leaderboard query, only named-handle lookups, so pooling strangers' runs isn't buildable here. More in BRIEF.md.

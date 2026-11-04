@@ -1,0 +1,1 @@
+The ribbon tracks one real frame direction, not the full complex fiber (that's 4 real dims total, can't embed it). Said so on-page rather than quietly. Natural next step: let n go non-integer so you can watch the cocycle actually fail to close up.

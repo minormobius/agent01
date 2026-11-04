@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swarmwell — a falling-block well where nothing waits its turn</title>
+<meta property="og:title" content="Swarmwell">
+<meta property="og:description" content="A falling-block well four rows taller than the classic 20. A fresh piece drops in on its own clock whether or not the last one has landed, and every key you press moves ALL of them at once — left, rotate, drop, all of it, simultaneously.">
+<meta name="description" content="Falling-block puzzle: the well is taller than usual, new pieces keep arriving before the current one lands, and your controls move every piece that's currently falling at the same time.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .sub { margin-bottom: 1.5rem; }
+
+  .gamewrap {
+    display: flex; flex-direction: column; gap: 1.5rem; align-items: center;
+  }
+  @media (min-width: 720px) {
+    .gamewrap { flex-direction: row; align-items: flex-start; justify-content: center; }
+    .board-col { flex: 0 0 auto; }
+    .side-col { flex: 0 0 15rem; }
+  }
+
+  .board-col { width: 100%; display: flex; justify-content: center; }
+  #board {
+    width: min(92vw, 300px);
+    aspect-ratio: 10 / 24;
+    background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    display: block;
+  }
+
+  .side-col { width: 100%; max-width: 300px; }
+
+  .stat-row {
+    display: flex; justify-content: space-between; font-size: .82rem;
+    padding: .5rem 0; border-bottom: 1px solid var(--border);
+  }
+  .stat-row b { color: var(--accent); }
+  #fallingStat.hot { color: var(--error); }
+
+  .controls {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem;
+    margin-top: 1rem;
+  }
+  .controls button { min-height: 46px; font-size: 1rem; }
+  #rotateBtn { grid-column: 2 / 3; }
+  #dropRow { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .5rem; }
+  #dropRow button { min-height: 46px; font-size: .85rem; }
+  #pauseBtn { width: 100%; margin-top: .75rem; min-height: 46px; }
+
+  .kbd-hint { margin-top: 1rem; font-size: .72rem; color: var(--muted); line-height: 1.5; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(6,6,8,.85);
+    display: flex; align-items: center; justify-content: center; padding: 1.5rem; z-index: 20;
+  }
+  .overlay.hidden { display: none; }
+  .overlay .box {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 2rem 1.75rem; max-width: 24rem; text-align: center;
+  }
+  .overlay h2 { font-size: 1.3rem; color: var(--accent); margin: 0 0 .6rem; }
+  .overlay p { font-size: .85rem; margin: 0 0 1.2rem; }
+  .overlay button { width: 100%; min-height: 46px; }
+
+  .rules { margin-top: 2.5rem; font-size: .8rem; }
+  .rules li { margin: .4rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Swarmwell</h1>
+  <p class="sub">A falling-block well, four rows taller than the classic 20 you know. The
+    difference: it doesn't wait for you. A fresh piece drops in on its own clock whether or
+    not the last one has landed, and every control you press — left, right, rotate, drop —
+    moves <b>every piece currently in the air</b> at once. You are never steering one piece.
+    You are steering the whole swarm.</p>
+
+  <div class="gamewrap">
+    <div class="board-col">
+      <canvas id="board" width="240" height="576" aria-label="the well"></canvas>
+    </div>
+
+    <div class="side-col">
+      <div class="stat-row"><span>Score</span><b id="scoreStat">0</b></div>
+      <div class="stat-row"><span>Lines</span><b id="linesStat">0</b></div>
+      <div class="stat-row"><span>Falling now</span><b id="fallingStat">0</b></div>
+      <div class="stat-row"><span>Best</span><b id="bestStat">0</b></div>
+
+      <div class="controls">
+        <button type="button" id="leftBtn" aria-label="move all pieces left">←</button>
+        <button type="button" id="rotateBtn" aria-label="rotate all pieces">↻</button>
+        <button type="button" id="rightBtn" aria-label="move all pieces right">→</button>
+      </div>
+      <div id="dropRow">
+        <button type="button" id="downBtn">↓ nudge all</button>
+        <button type="button" id="dropBtn">⤓ drop all</button>
+      </div>
+      <button type="button" id="pauseBtn">Pause</button>
+
+      <p class="kbd-hint">Keyboard: arrows to move &amp; nudge, ↑ to rotate, space to drop
+        everything at once, P to pause.</p>
+    </div>
+  </div>
+
+  <ul class="rules">
+    <li>The well is 10 wide, 24 tall — a standard well is 20 rows; this one gives you four
+      more to work with, because you'll need them.</li>
+    <li>A new piece spawns on its own timer. It does not wait for the piece already falling
+      to land, so the well fills up with several pieces in the air together.</li>
+    <li>There is no "current piece." Every falling piece shares your controls — move left and
+      all of them shift left; rotate and all of them turn; drop and every last one of them
+      falls straight to rest, in one keystroke.</li>
+    <li>Falling pieces can't pass through each other any more than they can pass through the
+      stack — treat the swarm itself as part of the obstacle.</li>
+    <li>Clear a row by filling it edge to edge with locked blocks. The run ends when a piece
+      has nowhere to lock but off the top of the well.</li>
+  </ul>
+</main>
+
+<div id="overlay" class="overlay hidden">
+  <div class="box">
+    <h2 id="overlayTitle">Well's full</h2>
+    <p id="overlayMsg"></p>
+    <button type="button" id="playAgainBtn">Play again</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('Swarmwell');
+
+  // ---------------------------------------------------------------------
+  // Well geometry
+  // ---------------------------------------------------------------------
+  var COLS = 10, ROWS = 24, CELL = 24;
+  var canvas = document.getElementById('board');
+  var ctx = canvas.getContext('2d');
+
+  var SHAPES = {
+    I: { m: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], color: '#e8a33d' },
+    O: { m: [[1,1],[1,1]], color: '#7ac387' },
+    T: { m: [[0,1,0],[1,1,1],[0,0,0]], color: '#9a7fd6' },
+    S: { m: [[0,1,1],[1,1,0],[0,0,0]], color: '#4fc3d9' },
+    Z: { m: [[1,1,0],[0,1,1],[0,0,0]], color: '#e8657a' },
+    J: { m: [[1,0,0],[1,1,1],[0,0,0]], color: '#5b8def' },
+    L: { m: [[0,0,1],[1,1,1],[0,0,0]], color: '#d9a441' }
+  };
+  var SHAPE_KEYS = Object.keys(SHAPES);
+  var MAX_FALLING = 4;
+  var SPAWN_MS = 2300;
+
+  var board = [];
+  var active = [];       // { m, N, color, row, col }
+  var score = 0, lines = 0, best = 0;
+  var runState = 'ready'; // 'playing' | 'paused' | 'over' | 'ready'
+  var lastGravity = 0, lastSpawn = 0, gravityMs = 750;
+  var rafId = null;
+
+  var scoreStat = document.getElementById('scoreStat');
+  var linesStat = document.getElementById('linesStat');
+  var fallingStat = document.getElementById('fallingStat');
+  var bestStat = document.getElementById('bestStat');
+  var pauseBtn = document.getElementById('pauseBtn');
+  var overlay = document.getElementById('overlay');
+  var overlayTitle = document.getElementById('overlayTitle');
+  var overlayMsg = document.getElementById('overlayMsg');
+
+  try { best = Number(localStorage.getItem('swarmwell-best') || 0) || 0; } catch (e) { best = 0; }
+  bestStat.textContent = String(best);
+
+  function newBoard() {
+    var b = [];
+    for (var r = 0; r < ROWS; r++) b.push(new Array(COLS).fill(null));
+    return b;
+  }
+  function cloneM(m) { return m.map(function (row) { return row.slice(); }); }
+  function rotateCW(m) {
+    var n = m.length, res = [];
+    for (var i = 0; i < n; i++) res.push(new Array(n).fill(0));
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) res[c][n - 1 - r] = m[r][c];
+    return res;
+  }
+
+  // Cells (as "row,col" strings) currently occupied by every falling piece
+  // except the one supplied — this is what makes the swarm solid to itself.
+  function othersMask(exclude) {
+    var s = Object.create(null);
+    for (var i = 0; i < active.length; i++) {
+      var p = active[i];
+      if (p === exclude) continue;
+      for (var r = 0; r < p.N; r++) for (var c = 0; c < p.N; c++) {
+        if (p.m[r][c]) s[(p.row + r) + ',' + (p.col + c)] = true;
+      }
+    }
+    return s;
+  }
+
+  function collides(m, N, row, col, mask) {
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        if (!m[r][c]) continue;
+        var br = row + r, bc = col + c;
+        if (bc < 0 || bc >= COLS || br >= ROWS) return true;
+        if (br >= 0 && board[br][bc]) return true;
+        if (br >= 0 && mask[br + ',' + bc]) return true;
+      }
+    }
+    return false;
+  }
+
+  function spawnPiece() {
+    if (active.length >= MAX_FALLING) return;
+    var key = SHAPE_KEYS[Math.floor(Math.random() * SHAPE_KEYS.length)];
+    var shape = SHAPES[key];
+    var m = cloneM(shape.m);
+    var N = m.length;
+    var firstFilledRow = 0;
+    outer: for (var r = 0; r < N; r++) { for (var c = 0; c < N; c++) if (m[r][c]) { firstFilledRow = r; break outer; } }
+    var mask = othersMask(null);
+    var tries = [Math.floor((COLS - N) / 2)];
+    for (var t = 0; t < 6; t++) tries.push(Math.floor(Math.random() * (COLS - N + 1)));
+    for (var i = 0; i < tries.length; i++) {
+      var col = Math.max(0, Math.min(COLS - N, tries[i]));
+      var row = -firstFilledRow;
+      if (!collides(m, N, row, col, mask)) {
+        active.push({ m: m, N: N, color: shape.color, row: row, col: col });
+        return;
+      }
+    }
+    // No free column right now — the swarm gets a breather this tick instead
+    // of jamming a piece in on top of another.
+  }
+
+  function lockPiece(p) {
+    var toppedOut = false;
+    for (var r = 0; r < p.N; r++) {
+      for (var c = 0; c < p.N; c++) {
+        if (!p.m[r][c]) continue;
+        var br = p.row + r, bc = p.col + c;
+        if (br < 0) { toppedOut = true; continue; }
+        if (br < ROWS && bc >= 0 && bc < COLS) board[br][bc] = p.color;
+      }
+    }
+    active = active.filter(function (x) { return x !== p; });
+    if (toppedOut) endRun();
+  }
+
+  function clearLines() {
+    var cleared = 0;
+    for (var r = ROWS - 1; r >= 0; r--) {
+      if (board[r].every(function (cell) { return cell; })) {
+        board.splice(r, 1);
+        board.unshift(new Array(COLS).fill(null));
+        cleared++;
+        r++;
+      }
+    }
+    if (cleared) {
+      var awards = [0, 100, 300, 500, 800];
+      score += (awards[cleared] || cleared * 200);
+      lines += cleared;
+      scoreStat.textContent = String(score);
+      linesStat.textContent = String(lines);
+      gravityMs = Math.max(220, 750 - Math.floor(lines / 8) * 60);
+    }
+  }
+
+  function moveAll(dc) {
+    if (runState !== 'playing') return;
+    var snapshot = active.slice();
+    for (var i = 0; i < snapshot.length; i++) {
+      var p = snapshot[i];
+      var mask = othersMask(p);
+      if (!collides(p.m, p.N, p.row, p.col + dc, mask)) p.col += dc;
+    }
+    draw();
+  }
+
+  function rotateAll() {
+    if (runState !== 'playing') return;
+    var snapshot = active.slice();
+    for (var i = 0; i < snapshot.length; i++) {
+      var p = snapshot[i];
+      var rotated = rotateCW(p.m);
+      var mask = othersMask(p);
+      if (!collides(rotated, p.N, p.row, p.col, mask)) p.m = rotated;
+    }
+    draw();
+  }
+
+  // Bottom-most pieces resolve first each tick, so a piece about to land does
+  // not get shadowed by one still falling above it.
+  function byRowDesc(list) { return list.slice().sort(function (a, b) { return b.row - a.row; }); }
+
+  function gravityStep() {
+    if (runState !== 'playing') return;
+    var order = byRowDesc(active);
+    for (var i = 0; i < order.length; i++) {
+      var p = order[i];
+      if (active.indexOf(p) === -1) continue;
+      var mask = othersMask(p);
+      if (!collides(p.m, p.N, p.row + 1, p.col, mask)) p.row += 1;
+      else lockPiece(p);
+    }
+    clearLines();
+  }
+
+  function nudgeAll() {
+    if (runState !== 'playing') return;
+    gravityStep();
+    draw();
+  }
+
+  function dropAll() {
+    if (runState !== 'playing') return;
+    var order = byRowDesc(active);
+    for (var i = 0; i < order.length; i++) {
+      var p = order[i];
+      if (active.indexOf(p) === -1) continue;
+      var mask = othersMask(p);
+      while (!collides(p.m, p.N, p.row + 1, p.col, mask)) { p.row += 1; mask = othersMask(p); }
+      lockPiece(p);
+    }
+    clearLines();
+    draw();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(255,255,255,.05)';
+    ctx.lineWidth = 1;
+    for (var x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, ROWS * CELL); ctx.stroke(); }
+    for (var y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(COLS * CELL, y * CELL); ctx.stroke(); }
+    for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) {
+      if (board[r][c]) { ctx.fillStyle = board[r][c]; ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2); }
+    }
+    for (var i = 0; i < active.length; i++) {
+      var p = active[i];
+      ctx.fillStyle = p.color;
+      for (var pr = 0; pr < p.N; pr++) for (var pc = 0; pc < p.N; pc++) {
+        if (p.m[pr][pc] && p.row + pr >= 0) ctx.fillRect((p.col + pc) * CELL + 1, (p.row + pr) * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+    fallingStat.textContent = String(active.length);
+    fallingStat.parentNode.classList.toggle('hot', active.length >= MAX_FALLING);
+  }
+
+  function loop(ts) {
+    if (runState === 'playing') {
+      if (ts - lastGravity > gravityMs) { gravityStep(); lastGravity = ts; }
+      if (ts - lastSpawn > SPAWN_MS) { spawnPiece(); lastSpawn = ts; }
+      draw();
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function endRun() {
+    if (runState === 'over') return;
+    runState = 'over';
+    if (score > best) {
+      best = score;
+      bestStat.textContent = String(best);
+      try { localStorage.setItem('swarmwell-best', String(best)); } catch (e) { /* private mode: best just won't persist */ }
+    }
+    overlayTitle.textContent = 'Well’s full';
+    overlayMsg.textContent = 'The swarm topped out after ' + lines + ' line(s) and ' + score + ' points.';
+    overlay.classList.remove('hidden');
+    draw();
+  }
+
+  function togglePause() {
+    if (runState === 'playing') { runState = 'paused'; pauseBtn.textContent = 'Resume'; }
+    else if (runState === 'paused') {
+      runState = 'playing'; pauseBtn.textContent = 'Pause';
+      lastGravity = performance.now(); lastSpawn = performance.now();
+    }
+  }
+
+  function newRun() {
+    board = newBoard();
+    active = [];
+    score = 0; lines = 0; gravityMs = 750;
+    scoreStat.textContent = '0'; linesStat.textContent = '0';
+    runState = 'playing';
+    pauseBtn.textContent = 'Pause';
+    overlay.classList.add('hidden');
+    lastGravity = performance.now();
+    lastSpawn = performance.now() - SPAWN_MS + 400; // first extra piece arrives quickly
+    spawnPiece();
+    draw();
+  }
+
+  document.getElementById('leftBtn').addEventListener('click', function () { moveAll(-1); });
+  document.getElementById('rightBtn').addEventListener('click', function () { moveAll(1); });
+  document.getElementById('rotateBtn').addEventListener('click', rotateAll);
+  document.getElementById('downBtn').addEventListener('click', nudgeAll);
+  document.getElementById('dropBtn').addEventListener('click', dropAll);
+  document.getElementById('pauseBtn').addEventListener('click', togglePause);
+  document.getElementById('playAgainBtn').addEventListener('click', newRun);
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); moveAll(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); moveAll(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); rotateAll(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); nudgeAll(); }
+    else if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); dropAll(); }
+    else if (e.key === 'p' || e.key === 'P') { togglePause(); }
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && runState === 'playing') togglePause();
+  });
+
+  newRun();
+  rafId = requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Fixed the squishing: vertices that aren't edges now repel each other, and the page prints how close they got next to the edge error. Your drawn nets solve too now, flexibly — full closure (gluing edges shut) is next.

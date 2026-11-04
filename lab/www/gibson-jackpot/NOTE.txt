@@ -1,0 +1,1 @@
+Done: jackpot hazard now scales with country/resilience/SES (own q_J multiplier), income is now a percentile vs. your country's own median. q_J reuses m_base's formula — no spec for a different one — one line to change if you want it to diverge.

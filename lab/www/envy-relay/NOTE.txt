@@ -1,0 +1,1 @@
+Shipped intra-fairness mode: pantries checked via item-based potential value, the combo the paper proves is always solvable. Inter-fairness (compare across everyone) is the harder toggle — left for next turn, see BRIEF.md.

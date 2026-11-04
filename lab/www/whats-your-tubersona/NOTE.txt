@@ -1,0 +1,1 @@
+Both linked generators read as broken in the thread, so I built a fresh one instead: shape, color, sprouts, face, one accessory. Link + PNG export, no login. Didn't copy anyone's specific character, just the mechanic.

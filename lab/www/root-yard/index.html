@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Root Yard — drag a polynomial's coefficients, watch its roots</title>
+<meta name="description" content="Drag points on the complex plane to set a polynomial's coefficients, shuffle which coefficient lands on which power, or change the degree — the roots recompute live. Exact algebra up to degree 3 (Cardano's formula), Durand-Kerner numerical iteration above that.">
+<meta property="og:title" content="Root Yard — drag a polynomial's coefficients, watch its roots">
+<meta property="og:description" content="Drag points on the complex plane to set a polynomial's coefficients, shuffle which coefficient lands on which power, or change the degree — the roots recompute live. Exact algebra up to degree 3, numerical iteration above that.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .layout { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 1rem; }
+  .plane { flex: 1 1 320px; min-width: 280px; max-width: 520px; }
+  .plane h2 { font-size: .95rem; margin: 0 0 .5rem; color: var(--muted); font-weight: 600; }
+  .canvas-wrap {
+    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; touch-action: none;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+  #coeffCanvas { cursor: grab; }
+  #coeffCanvas.dragging { cursor: grabbing; }
+  .panel {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--bg-raised); padding: 1rem 1.1rem; margin: 1rem 0;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: end; }
+  .control { display: flex; flex-direction: column; gap: .35rem; flex: 1 1 13rem; min-width: 11rem; }
+  .control label { font-size: .75rem; color: var(--muted); display: flex; justify-content: space-between; gap: .5rem; }
+  .control label b { color: var(--accent); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 2.75rem; }
+  .actions { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; margin-top: .75rem; }
+  .actions button { min-height: 44px; padding: 0 1rem; }
+  #method {
+    font-size: .8rem; padding: .5rem .75rem; border-radius: var(--radius);
+    background: var(--bg); border: 1px solid var(--border); margin-top: .75rem;
+  }
+  #method.exact { color: var(--accent); }
+  #expr {
+    font-family: var(--mono); font-size: .85rem; word-break: break-all;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: .6rem .75rem; margin-top: .5rem; line-height: 1.5;
+  }
+  ul.rootlist { list-style: none; padding: 0; margin: .5rem 0 0; font-family: var(--mono); font-size: .85rem; }
+  ul.rootlist li { padding: .3rem 0; border-bottom: 1px dashed var(--border); display: flex; gap: .5rem; align-items: baseline; }
+  ul.rootlist li:last-child { border-bottom: none; }
+  .swatch { display: inline-block; width: .7em; height: .7em; border-radius: 50%; flex: none; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Root Yard</h1>
+  <p class="sub">Each point on the left is one coefficient c<sub>k</sub> of a
+    polynomial — drag it anywhere on the complex plane. The right side plots
+    every complex root of the resulting polynomial, recomputed as you move.
+    Degree 1–3 are solved exactly, by the classical linear / quadratic /
+    cubic (Cardano) formulas; degree 4 and up are solved numerically by
+    <strong>Durand&ndash;Kerner</strong> iteration (a quartic formula exists
+    too, but is not built yet — see the numerical fallback's residual to
+    judge how good an approximation you're looking at).</p>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="control">
+        <label for="degree">Degree <b id="degreeVal">3</b></label>
+        <input type="range" id="degree" min="1" max="10" step="1" value="3">
+      </div>
+    </div>
+    <div class="actions">
+      <button id="permuteBtn" type="button">Permute coefficients</button>
+      <button id="randomBtn" type="button">Randomize</button>
+      <button id="resetBtn" type="button">Reset</button>
+    </div>
+    <div id="method" class="panel-status"></div>
+    <div id="expr"></div>
+  </div>
+
+  <div class="layout">
+    <div class="plane">
+      <h2>Coefficients — drag the points</h2>
+      <div class="canvas-wrap">
+        <canvas id="coeffCanvas" width="600" height="600" role="img" aria-label="Coefficient plane, drag points to change the polynomial"></canvas>
+      </div>
+      <ul class="rootlist" id="coeffList"></ul>
+    </div>
+    <div class="plane">
+      <h2>Roots</h2>
+      <div class="canvas-wrap">
+        <canvas id="rootCanvas" width="600" height="600" role="img" aria-label="Complex plane showing the polynomial's roots"></canvas>
+      </div>
+      <ul class="rootlist" id="rootList"></ul>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <p>p(z) = c<sub>n</sub>z<sup>n</sup> + &hellip; + c<sub>1</sub>z + c<sub>0</sub>.
+    "Permute coefficients" keeps the exact same set of complex values but
+    reassigns which power each one multiplies — same numbers, different
+    polynomial, generally different roots. Numerical roots (degree &ge; 4)
+    show their iteration residual; a residual that stops shrinking usually
+    means two roots have collided (a repeated root), which is the hard case
+    for this method.</p>
+  </footer>
+</main>
+<script>
+(function(){
+  'use strict';
+  if (window.kit && kit.crumb) document.getElementById('crumb').innerHTML = kit.crumb('Root Yard');
+
+  // ---------- complex arithmetic ----------
+  function cadd(a,b){ return {re:a.re+b.re, im:a.im+b.im}; }
+  function csub(a,b){ return {re:a.re-b.re, im:a.im-b.im}; }
+  function cmul(a,b){ return {re:a.re*b.re-a.im*b.im, im:a.re*b.im+a.im*b.re}; }
+  function cdiv(a,b){ const d=b.re*b.re+b.im*b.im || 1e-300; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d}; }
+  function cscale(a,s){ return {re:a.re*s, im:a.im*s}; }
+  function cneg(a){ return {re:-a.re, im:-a.im}; }
+  function cabs(a){ return Math.hypot(a.re,a.im); }
+  function carg(a){ return Math.atan2(a.im,a.re); }
+  function csqrt(z){ const r=cabs(z), t=carg(z), sr=Math.sqrt(r); return {re:sr*Math.cos(t/2), im:sr*Math.sin(t/2)}; }
+  function ccbrt(z){ if (cabs(z) < 1e-13) return {re:0,im:0}; const r=cabs(z), t=carg(z), cr=Math.cbrt(r); return {re:cr*Math.cos(t/3), im:cr*Math.sin(t/3)}; }
+  const OMEGA1 = {re:-0.5, im: Math.sqrt(3)/2};
+  const OMEGA2 = {re:-0.5, im:-Math.sqrt(3)/2};
+
+  // ---------- solvers ----------
+  // coeffs indexed by power: coeffs[k] is the coefficient of z^k
+  function trim(coeffs){
+    let n = coeffs.length - 1;
+    while (n > 0 && cabs(coeffs[n]) < 1e-12) n--;
+    return { c: coeffs.slice(0, n+1), n };
+  }
+
+  function solveLinear(c){ // c0 + c1 z = 0
+    return [ cneg(cdiv(c[0], c[1])) ];
+  }
+
+  function solveQuadratic(c){
+    const a1 = cdiv(c[1], c[2]), a0 = cdiv(c[0], c[2]);
+    const disc = csub(cmul(a1,a1), cscale(a0,4));
+    const sq = csqrt(disc);
+    return [
+      cscale(cadd(cneg(a1), sq), 0.5),
+      cscale(csub(cneg(a1), sq), 0.5),
+    ];
+  }
+
+  function solveCubic(c){
+    const a2 = cdiv(c[2], c[3]), a1 = cdiv(c[1], c[3]), a0 = cdiv(c[0], c[3]);
+    const p = csub(a1, cscale(cmul(a2,a2), 1/3));
+    const term1 = cscale(cmul(cmul(a2,a2), a2), 2/27);
+    const term2 = cscale(cmul(a2, a1), 1/3);
+    const q = cadd(csub(term1, term2), a0);
+    const D = cadd(cmul(cscale(q,0.5), cscale(q,0.5)), cmul(cmul(cscale(p,1/3), cscale(p,1/3)), cscale(p,1/3)));
+    const sqrtD = csqrt(D);
+    const negHalfQ = cscale(q, -0.5);
+    let u = ccbrt(cadd(negHalfQ, sqrtD));
+    let v;
+    if (cabs(u) < 1e-9) {
+      u = ccbrt(csub(negHalfQ, sqrtD));
+      v = cabs(u) < 1e-9 ? {re:0,im:0} : cdiv(cscale(p, -1/3), u);
+    } else {
+      v = cdiv(cscale(p, -1/3), u);
+    }
+    const shift = cscale(a2, -1/3);
+    const t0 = cadd(u, v);
+    const t1 = cadd(cmul(u, OMEGA1), cmul(v, OMEGA2));
+    const t2 = cadd(cmul(u, OMEGA2), cmul(v, OMEGA1));
+    return [ cadd(t0, shift), cadd(t1, shift), cadd(t2, shift) ];
+  }
+
+  function durandKerner(coeffs, n, iters){
+    iters = iters || 300;
+    const lead = coeffs[n];
+    const c = coeffs.map(function(z){ return cdiv(z, lead); });
+    function evalP(z){
+      let r = c[n];
+      for (let i = n-1; i >= 0; i--) r = cadd(cmul(r, z), c[i]);
+      return r;
+    }
+    const w = {re:0.4, im:0.9};
+    let roots = [], wk = {re:1, im:0};
+    for (let k = 0; k < n; k++){
+      if (k > 0) wk = cmul(wk, w);
+      roots.push(wk);
+    }
+    let maxDelta = Infinity, used = 0;
+    for (let it = 0; it < iters; it++){
+      used = it + 1;
+      maxDelta = 0;
+      const next = roots.slice();
+      for (let k = 0; k < n; k++){
+        let denom = {re:1, im:0};
+        for (let j = 0; j < n; j++){
+          if (j === k) continue;
+          denom = cmul(denom, csub(roots[k], roots[j]));
+        }
+        if (cabs(denom) < 1e-14) denom = {re:1e-14, im:0};
+        const delta = cdiv(evalP(roots[k]), denom);
+        next[k] = csub(roots[k], delta);
+        maxDelta = Math.max(maxDelta, cabs(delta));
+      }
+      roots = next;
+      if (maxDelta < 1e-13) break;
+    }
+    return { roots: roots, iterations: used, residual: maxDelta };
+  }
+
+  function solve(coeffsRaw){
+    const t = trim(coeffsRaw), c = t.c, n = t.n;
+    if (n === 0) {
+      return { roots: [], method: 'exact', note: cabs(c[0]) < 1e-12 ? 'identically zero — every point is a root' : 'no roots (nonzero constant)' };
+    }
+    if (n === 1) return { roots: solveLinear(c), method: 'exact', note: 'linear formula' };
+    if (n === 2) return { roots: solveQuadratic(c), method: 'exact', note: 'quadratic formula' };
+    if (n === 3) return { roots: solveCubic(c), method: 'exact', note: "Cardano's cubic formula" };
+    const dk = durandKerner(c, n, 400);
+    return { roots: dk.roots, method: 'numerical', note: 'Durand–Kerner, ' + dk.iterations + ' iterations, residual ' + dk.residual.toExponential(2) };
+  }
+
+  // ---------- state ----------
+  let coeffs = [ {re:-1,im:0}, {re:0,im:0}, {re:0,im:0}, {re:1,im:0} ]; // z^3 - 1
+  const MAXV = 4; // coefficient plane half-width
+  const colors = ['#e6194b','#3cb44b','#4363d8','#f58231','#911eb4','#46f0f0','#f032e6','#bfef45','#fabed4','#469990','#dcbeff'];
+
+  const degreeInput = document.getElementById('degree');
+  const degreeVal = document.getElementById('degreeVal');
+  const coeffCanvas = document.getElementById('coeffCanvas');
+  const rootCanvas = document.getElementById('rootCanvas');
+  const cctx = coeffCanvas.getContext('2d');
+  const rctx = rootCanvas.getContext('2d');
+  const methodEl = document.getElementById('method');
+  const exprEl = document.getElementById('expr');
+  const coeffListEl = document.getElementById('coeffList');
+  const rootListEl = document.getElementById('rootList');
+
+  function fmt(z){
+    const re = Math.abs(z.re) < 1e-9 ? 0 : z.re;
+    const im = Math.abs(z.im) < 1e-9 ? 0 : z.im;
+    const sign = im < 0 ? '−' : '+';
+    return re.toFixed(3) + ' ' + sign + ' ' + Math.abs(im).toFixed(3) + 'i';
+  }
+
+  function toScreen(z, view, size){
+    return { x: (z.re / view + 1) / 2 * size, y: (1 - z.im / view) / 2 * size };
+  }
+  function toComplex(x, y, view, size){
+    return { re: (x / size * 2 - 1) * view, im: (1 - y / size * 2) * view };
+  }
+
+  function drawGrid(ctx, size, view){
+    ctx.clearRect(0, 0, size, size);
+    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1;
+    const step = view > 8 ? 2 : 1;
+    for (let g = -Math.floor(view); g <= Math.floor(view); g += step){
+      const p1 = toScreen({re:g, im:-view}, view, size);
+      ctx.beginPath(); ctx.moveTo(p1.x, 0); ctx.lineTo(p1.x, size); ctx.stroke();
+      const q1 = toScreen({re:-view, im:g}, view, size);
+      ctx.beginPath(); ctx.moveTo(0, q1.y); ctx.lineTo(size, q1.y); ctx.stroke();
+    }
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 1.5;
+    const o = toScreen({re:0,im:0}, view, size);
+    ctx.beginPath(); ctx.moveTo(o.x, 0); ctx.lineTo(o.x, size); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, o.y); ctx.lineTo(size, o.y); ctx.stroke();
+  }
+
+  function renderExpr(){
+    const n = coeffs.length - 1;
+    const parts = [];
+    for (let k = n; k >= 0; k--){
+      parts.push('(' + fmt(coeffs[k]) + ')' + (k > 0 ? '·z' + (k > 1 ? '^' + k : '') : ''));
+    }
+    exprEl.textContent = 'p(z) = ' + parts.join(' + ');
+  }
+
+  let lastResult = null;
+
+  function recompute(){
+    lastResult = solve(coeffs);
+    renderExpr();
+    if (lastResult.method === 'exact') {
+      methodEl.textContent = 'Exact — ' + lastResult.note;
+      methodEl.className = 'panel-status exact';
+    } else {
+      methodEl.textContent = 'Numerical — ' + lastResult.note;
+      methodEl.className = 'panel-status';
+    }
+    drawAll();
+    renderLists();
+  }
+
+  function drawAll(){
+    const size = coeffCanvas.width;
+    drawGrid(cctx, size, MAXV);
+    coeffs.forEach(function(z, i){
+      const p = toScreen(z, MAXV, size);
+      cctx.fillStyle = colors[i % colors.length];
+      cctx.beginPath(); cctx.arc(p.x, p.y, 9, 0, Math.PI*2); cctx.fill();
+      cctx.strokeStyle = '#222'; cctx.lineWidth = 1.5; cctx.stroke();
+      cctx.fillStyle = '#222'; cctx.font = '12px sans-serif';
+      cctx.fillText('c' + i, p.x + 12, p.y - 10);
+    });
+
+    let rview = 2;
+    (lastResult.roots || []).forEach(function(z){ rview = Math.max(rview, cabs(z) * 1.25); });
+    drawGrid(rctx, size, rview);
+    (lastResult.roots || []).forEach(function(z, i){
+      const p = toScreen(z, rview, size);
+      rctx.fillStyle = '#111';
+      rctx.beginPath(); rctx.arc(p.x, p.y, 6, 0, Math.PI*2); rctx.fill();
+      rctx.fillStyle = '#555'; rctx.font = '11px sans-serif';
+      rctx.fillText('r' + (i+1), p.x + 9, p.y - 8);
+    });
+  }
+
+  function renderLists(){
+    coeffListEl.innerHTML = coeffs.map(function(z, i){
+      return '<li><span class="swatch" style="background:' + colors[i % colors.length] + '"></span> c<sub>' + i + '</sub> = ' + fmt(z) + '</li>';
+    }).join('');
+    rootListEl.innerHTML = (lastResult.roots && lastResult.roots.length)
+      ? lastResult.roots.map(function(z, i){ return '<li>r<sub>' + (i+1) + '</sub> = ' + fmt(z) + '</li>'; }).join('')
+      : '<li>' + (lastResult.note || 'no roots') + '</li>';
+  }
+
+  function setDegree(n){
+    const cur = coeffs.length - 1;
+    if (n > cur){
+      for (let k = cur + 1; k <= n; k++){
+        coeffs.push({ re: (Math.random()*2-1) * 0.8, im: (Math.random()*2-1) * 0.8 });
+      }
+    } else if (n < cur){
+      coeffs = coeffs.slice(0, n + 1);
+    }
+    degreeVal.textContent = n;
+    recompute();
+  }
+
+  degreeInput.addEventListener('input', function(){ setDegree(parseInt(degreeInput.value, 10)); });
+
+  document.getElementById('permuteBtn').addEventListener('click', function(){
+    for (let i = coeffs.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = coeffs[i]; coeffs[i] = coeffs[j]; coeffs[j] = t;
+    }
+    recompute();
+  });
+
+  document.getElementById('randomBtn').addEventListener('click', function(){
+    coeffs = coeffs.map(function(){ return { re: (Math.random()*2-1)*3, im: (Math.random()*2-1)*3 }; });
+    recompute();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', function(){
+    degreeInput.value = 3; degreeVal.textContent = 3;
+    coeffs = [ {re:-1,im:0}, {re:0,im:0}, {re:0,im:0}, {re:1,im:0} ];
+    recompute();
+  });
+
+  // ---------- dragging ----------
+  let dragIndex = -1;
+  function pointerPos(evt){
+    const rect = coeffCanvas.getBoundingClientRect();
+    const x = (evt.clientX - rect.left) / rect.width * coeffCanvas.width;
+    const y = (evt.clientY - rect.top) / rect.height * coeffCanvas.height;
+    return { x: x, y: y };
+  }
+  function nearestPoint(x, y){
+    const size = coeffCanvas.width;
+    const rect = coeffCanvas.getBoundingClientRect();
+    // 22 CSS px radius (44px touch target), converted into canvas-space units
+    let best = -1, bestD = 22 * (size / rect.width);
+    coeffs.forEach(function(z, i){
+      const p = toScreen(z, MAXV, size);
+      const d = Math.hypot(p.x - x, p.y - y);
+      if (d < bestD){ bestD = d; best = i; }
+    });
+    return best;
+  }
+  coeffCanvas.addEventListener('pointerdown', function(evt){
+    const pos = pointerPos(evt);
+    const idx = nearestPoint(pos.x, pos.y);
+    if (idx >= 0){
+      dragIndex = idx;
+      coeffCanvas.setPointerCapture(evt.pointerId);
+      coeffCanvas.classList.add('dragging');
+    }
+  });
+  coeffCanvas.addEventListener('pointermove', function(evt){
+    if (dragIndex < 0) return;
+    const pos = pointerPos(evt);
+    let z = toComplex(pos.x, pos.y, MAXV, coeffCanvas.width);
+    z.re = Math.max(-MAXV, Math.min(MAXV, z.re));
+    z.im = Math.max(-MAXV, Math.min(MAXV, z.im));
+    coeffs[dragIndex] = z;
+    recompute();
+  });
+  function endDrag(evt){
+    if (dragIndex < 0) return;
+    dragIndex = -1;
+    coeffCanvas.classList.remove('dragging');
+  }
+  coeffCanvas.addEventListener('pointerup', endDrag);
+  coeffCanvas.addEventListener('pointercancel', endDrag);
+
+  recompute();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Just the Mention — a bare-reply gallery</title>
+<meta property="og:title" content="Just the Mention">
+<meta property="og:description" content="Every reply where @croissanthology.com wrote nothing but &quot;@norvid-studies.bsky.social&quot; — no other words, gathered live from the public feed.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  #status {
+    display: flex; align-items: center; gap: .6rem;
+    font-size: 1rem; color: var(--fg); margin: 1.2rem 0; min-height: 1.6em;
+  }
+  #status.done, #status.idle { color: var(--muted); font-size: .85rem; }
+  .spinner {
+    width: 18px; height: 18px; flex: none; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: kit-spin 0.8s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation: none; border-top-color: var(--border); }
+  }
+  @keyframes kit-spin { to { transform: rotate(360deg); } }
+  #err { margin: 1rem 0; }
+  #gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .card {
+    display: block;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    text-decoration: none;
+    color: var(--fg);
+    min-height: 44px;
+  }
+  .card:hover { border-color: var(--accent); }
+  .reply-row { display: flex; align-items: center; gap: .6rem; }
+  .av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; background: var(--border); }
+  .h { font-weight: 600; font-size: .9rem; color: var(--fg); }
+  .ts { font-size: .75rem; color: var(--muted); }
+  .bare {
+    margin-top: .8rem;
+    font-size: 1.05rem;
+    color: var(--accent);
+    font-weight: 600;
+    word-break: break-word;
+  }
+  .ctx {
+    margin-top: .7rem;
+    padding-top: .7rem;
+    border-top: 1px solid var(--border);
+    font-size: .8rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .ctx.muted { font-style: italic; }
+  .ctx b { color: var(--fg); font-weight: 600; }
+  #empty, #capped { font-size: .85rem; color: var(--muted); margin-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Just the Mention</h1>
+  <p class="sub">
+    Every reply where <b>@croissanthology.com</b> posted nothing at all except
+    <code>@norvid-studies.bsky.social</code> — no extra words, no punctuation, just the
+    name. Read live off the public feed, scanned in full, no cache.
+  </p>
+
+  <div id="status" class="idle" role="status" aria-live="polite">
+    <span id="statusSpin" class="spinner" hidden></span>
+    <span id="statusText"></span>
+  </div>
+  <div id="err" class="err hidden"></div>
+
+  <div id="gallery" hidden></div>
+  <p id="empty" hidden></p>
+  <p id="capped" hidden></p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('just-the-mention');
+
+  var TARGET_HANDLE = 'croissanthology.com';
+  var REPLY_HANDLE = 'norvid-studies.bsky.social';
+  var MATCH_TEXT = '@' + REPLY_HANDLE;
+  var MAX_PAGES = 40; // safety cap: 40 * 100 = up to 4000 posts scanned
+
+  var statusEl = document.getElementById('status');
+  var statusText = document.getElementById('statusText');
+  var statusSpin = document.getElementById('statusSpin');
+  var errEl = document.getElementById('err');
+  var galleryEl = document.getElementById('gallery');
+  var emptyEl = document.getElementById('empty');
+  var cappedEl = document.getElementById('capped');
+
+  function setStatus(msg, opts) {
+    opts = opts || {};
+    statusText.textContent = msg;
+    statusSpin.hidden = !opts.spinning;
+    statusEl.className = opts.spinning ? '' : (opts.done ? 'done' : 'idle');
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function truncate(s, n) {
+    s = String(s || '');
+    return s.length > n ? s.slice(0, n).trim() + '…' : s;
+  }
+
+  function addCard(item) {
+    var post = item.post;
+    var rkey = post.uri.split('/').pop();
+    var permalink = 'https://bsky.app/profile/' + post.author.handle + '/post/' + rkey;
+    var when;
+    try { when = new Date(post.record.createdAt).toLocaleString(); } catch (e) { when = ''; }
+
+    var parent = item.reply && item.reply.parent;
+    var parentOk = parent && parent.record && typeof parent.record.text === 'string' && parent.author;
+
+    var card = document.createElement('a');
+    card.className = 'card';
+    card.href = permalink;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+
+    var html = '<div class="reply-row">';
+    if (post.author.avatar) {
+      html += '<img class="av" src="' + escapeHtml(post.author.avatar) + '" alt="" loading="lazy">';
+    } else {
+      html += '<span class="av"></span>';
+    }
+    html += '<div><div class="h">@' + escapeHtml(post.author.handle) + '</div>' +
+            '<div class="ts">' + escapeHtml(when) + '</div></div></div>';
+    html += '<div class="bare">' + escapeHtml(MATCH_TEXT) + '</div>';
+    if (parentOk) {
+      html += '<div class="ctx">in reply to <b>@' + escapeHtml(parent.author.handle) + '</b>: “' +
+              escapeHtml(truncate(parent.record.text, 140)) + '”</div>';
+    } else {
+      html += '<div class="ctx muted">(the original post is no longer available)</div>';
+    }
+    card.innerHTML = html;
+    galleryEl.appendChild(card);
+    galleryEl.hidden = false;
+  }
+
+  function plural(n) { return n === 1 ? '' : 'es'; }
+
+  async function run() {
+    setStatus('resolving @' + TARGET_HANDLE + '…', { spinning: true });
+    var did;
+    try {
+      var r = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: TARGET_HANDLE });
+      did = r.did;
+    } catch (e) {
+      setStatus('');
+      kit.showError(errEl, 'Could not resolve @' + TARGET_HANDLE + ': ' + e.message);
+      return;
+    }
+
+    var cursor, pages = 0, scanned = 0, matched = 0, skipped = 0;
+    var seen = {};
+
+    do {
+      pages++;
+      var page;
+      try {
+        var params = { actor: did, filter: 'posts_with_replies', limit: 100 };
+        if (cursor) params.cursor = cursor;
+        page = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+      } catch (e) {
+        kit.showError(errEl, 'Feed fetch failed after ' + scanned + ' posts: ' + e.message +
+          ' — showing what was found before the failure.');
+        break;
+      }
+
+      var items = kit.visible(page.feed || []);
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        scanned++;
+        try {
+          if (item.reason) continue; // a repost of someone else, not authored here
+          var post = item.post;
+          if (!post || !post.uri || !post.record || !post.author) continue;
+          if (post.author.did !== did) continue;
+          var rec = post.record;
+          if (!rec.reply) continue; // must be a reply
+          var text = (rec.text || '').trim();
+          if (text.toLowerCase() !== MATCH_TEXT.toLowerCase()) continue;
+          if (seen[post.uri]) continue;
+          seen[post.uri] = true;
+          matched++;
+          addCard(item);
+        } catch (e) {
+          // One oddly-shaped post must not take the whole scan down with it.
+          skipped++;
+        }
+      }
+
+      setStatus('scanning @' + TARGET_HANDLE + ' — ' + scanned + ' post' + plural(scanned) + ' read, ' +
+        matched + ' match' + plural(matched) + ' found so far (page ' + pages + ' of up to ' + MAX_PAGES +
+        ') — this can take a little while for a long posting history', { spinning: true });
+      cursor = page.cursor;
+    } while (cursor && pages < MAX_PAGES);
+
+    if (matched === 0) {
+      setStatus('');
+      emptyEl.hidden = false;
+      emptyEl.textContent = 'Scanned ' + scanned + ' post' + plural(scanned) + ' from @' + TARGET_HANDLE +
+        '. None of them were a reply containing only @' + REPLY_HANDLE + '.';
+    } else {
+      setStatus('done — scanned ' + scanned + ' post' + plural(scanned) + ', ' +
+        matched + ' match' + plural(matched) + '.', { done: true });
+    }
+
+    if (skipped > 0) {
+      kit.showError(errEl, skipped + ' post' + plural(skipped) + ' had an unexpected shape and ' +
+        (skipped === 1 ? 'was' : 'were') + ' skipped rather than shown — the rest of the scan continued.');
+    }
+
+    if (cursor && pages >= MAX_PAGES) {
+      cappedEl.hidden = false;
+      cappedEl.textContent = 'Stopped after ' + MAX_PAGES + ' pages (' + scanned + ' posts) as a safety cap — ' +
+        '@' + TARGET_HANDLE + ' has more history further back than this page checked.';
+    }
+  }
+
+  run().catch(function (e) {
+    setStatus('');
+    kit.showError(errEl, 'Something went wrong while scanning: ' + (e && e.message ? e.message : e) +
+      ' — this is a bug, not a sign there are no matches.');
+  });
+})();
+</script>
+</body>
+</html>

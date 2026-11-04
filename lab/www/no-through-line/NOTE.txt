@@ -1,0 +1,1 @@
+A red dot now comes with a red line: the two points it broke position between, straight through it, live on the cylinder. Multiple violations draw multiple lines — could get busy with a big selection, untested at high density, noted for next time.

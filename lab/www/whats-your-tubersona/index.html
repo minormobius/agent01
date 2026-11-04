@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>what's your tubersona?</title>
+<meta property="og:title" content="what's your tubersona?">
+<meta property="og:description" content="Build a lumpy tuber creature: shape, color, sprouts, a face, and one accessory — eyepatch, katana, wrench, toolbelt, camera-iris, or ledger &amp; pen. Grab a link or a PNG.">
+<meta property="og:type" content="website">
+<meta name="description" content="A generator for the tubersona meme: pick a shape, a color, sprouts, a face and an accessory, then share a link or download a PNG.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .controls {
+    display: grid; gap: .9rem; margin: 1.5rem 0;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .controls .full { grid-column: 1 / -1; }
+  .controls label { font-size: .8rem; color: var(--muted); display: block; margin-bottom: .35rem; }
+  select {
+    width: 100%; padding: .8rem 1rem; font: inherit;
+    background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+  .swatches { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .swatch {
+    width: 44px; height: 44px; border-radius: var(--radius);
+    border: 2px solid var(--border); cursor: pointer; padding: 0;
+  }
+  .swatch.on { border-color: var(--accent); }
+  input[type=color] {
+    width: 44px; height: 44px; padding: 2px; cursor: pointer;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .colorrow { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .buttonrow { display: flex; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .stage { display: flex; justify-content: center; margin-bottom: .75rem; }
+  canvas {
+    max-width: 100%; height: auto; width: min(90vw, 420px);
+    background: var(--bg-raised);
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  #dlLink { display: none; }
+  .share {
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+    margin: 0 0 2rem; padding: 1rem 1.1rem;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .share p { margin: 0; font-size: .85rem; color: var(--muted); flex: 1 1 220px; }
+  .share button { flex: 0 0 auto; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>what's your tubersona?</h1>
+  <p class="sub">tuber + persona: one lumpy body, a face, sprouts if you want them, one accessory.</p>
+
+  <p>Nobody had built a plain generator for this yet, so here's one: pick a
+     shape, a color, some sprouts, an expression, and exactly one accessory.
+     Everything renders on a <code>&lt;canvas&gt;</code>, live, as you change
+     things — nothing is fetched, nothing leaves your browser.</p>
+
+  <div class="stage">
+    <canvas id="stage" width="640" height="640" aria-label="your tubersona"></canvas>
+  </div>
+
+  <div class="buttonrow">
+    <button type="button" id="rerollShape">Reroll shape</button>
+    <button type="button" id="randomizeAll">Randomize all</button>
+    <button type="button" id="downloadBtn">Download PNG</button>
+    <a id="dlLink" download="tubersona.png"></a>
+  </div>
+
+  <div class="controls">
+    <div class="full">
+      <label>Body color</label>
+      <div class="colorrow">
+        <div class="swatches" id="swatches"></div>
+        <input type="color" id="customColor" aria-label="custom body color">
+      </div>
+    </div>
+    <div>
+      <label for="hairSel">Sprouts</label>
+      <select id="hairSel">
+        <option value="none">None</option>
+        <option value="sprout">Single sprout</option>
+        <option value="tuft">Tuft</option>
+        <option value="poof">Poof</option>
+      </select>
+    </div>
+    <div>
+      <label for="exprSel">Expression</label>
+      <select id="exprSel">
+        <option value="content">Content</option>
+        <option value="wink">Wink</option>
+        <option value="sleepy">Sleepy</option>
+        <option value="determined">Determined</option>
+      </select>
+    </div>
+    <div class="full">
+      <label for="accSel">Accessory</label>
+      <select id="accSel">
+        <option value="none">None</option>
+        <option value="eyepatch">Eyepatch</option>
+        <option value="katana">Katana</option>
+        <option value="wrench">Wrench</option>
+        <option value="toolbelt">Toolbelt</option>
+        <option value="aperture">Camera-iris face</option>
+        <option value="ledger">Ledger &amp; pen</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="errBox" class="err hidden" role="alert"></div>
+
+  <div class="share">
+    <p>The link and the image both carry your exact tuber — shape, color,
+       sprouts, face and accessory — not a blank generator.</p>
+    <button type="button" id="copyBtn">Copy link</button>
+    <button type="button" id="shareBtn">Share to Bluesky</button>
+  </div>
+
+  <h2>What this is</h2>
+  <p>No shared lexicon for "tubersona" exists yet, so this treats it plainly:
+     tuber body, round eyes, optional sprouts, one accessory. It doesn't try
+     to be anyone's specific character — it's the mechanic, so anyone can make
+     their own. Nothing here reads or writes a Bluesky account; it's a
+     standalone drawing tool.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('what-your');
+
+  var canvas = document.getElementById('stage');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var errEl = document.getElementById('errBox');
+
+  var COLORS = ['#c9a26b', '#8b5e3c', '#d9c79e', '#b5651d', '#6b4f3a', '#5a5a5a'];
+
+  var hairSel = document.getElementById('hairSel');
+  var exprSel = document.getElementById('exprSel');
+  var accSel = document.getElementById('accSel');
+  var customColor = document.getElementById('customColor');
+  var swatchesEl = document.getElementById('swatches');
+
+  var state = { color: COLORS[0], seed: 1, hair: 'none', expr: 'content', acc: 'none' };
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function lumpPoints(seed) {
+    var rng = mulberry32(seed >>> 0);
+    var n = 14;
+    var base = 175;
+    var raw = [];
+    for (var i = 0; i < n; i++) raw.push(base + (rng() - 0.5) * 60);
+    // smooth twice so it reads as lumpy, not spiky
+    for (var pass = 0; pass < 2; pass++) {
+      var sm = [];
+      for (var j = 0; j < n; j++) {
+        var prev = raw[(j - 1 + n) % n], next = raw[(j + 1) % n];
+        sm.push((prev + raw[j] * 2 + next) / 4);
+      }
+      raw = sm;
+    }
+    var pts = [];
+    for (var k = 0; k < n; k++) {
+      var ang = (k / n) * Math.PI * 2 - Math.PI / 2;
+      pts.push({ x: Math.cos(ang) * raw[k], y: Math.sin(ang) * raw[k] * 0.92 });
+    }
+    return pts;
+  }
+
+  function mid(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+
+  function drawBlobPath(c, pts, cx, cy) {
+    var n = pts.length;
+    var m0 = mid(pts[n - 1], pts[0]);
+    c.beginPath();
+    c.moveTo(cx + m0.x, cy + m0.y);
+    for (var i = 0; i < n; i++) {
+      var p = pts[i], nextMid = mid(p, pts[(i + 1) % n]);
+      c.quadraticCurveTo(cx + p.x, cy + p.y, cx + nextMid.x, cy + nextMid.y);
+    }
+    c.closePath();
+  }
+
+  function shade(hex, amt) {
+    var n = parseInt(hex.slice(1), 16);
+    var r = Math.min(255, Math.max(0, ((n >> 16) & 255) + amt));
+    var g = Math.min(255, Math.max(0, ((n >> 8) & 255) + amt));
+    var b = Math.min(255, Math.max(0, (n & 255) + amt));
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  function drawEye(c, x, y, r, closed, wink) {
+    if (closed || wink) {
+      c.strokeStyle = '#2a2420';
+      c.lineWidth = r * 0.32;
+      c.lineCap = 'round';
+      c.beginPath();
+      c.arc(x, y, r * 0.9, Math.PI * 0.15, Math.PI * 0.85);
+      c.stroke();
+      return;
+    }
+    // "circle with a pupil" — the ◕ look
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fillStyle = '#f4efe6';
+    c.fill();
+    c.beginPath();
+    c.arc(x - r * 0.12, y + r * 0.08, r * 0.72, 0, Math.PI * 2);
+    c.fillStyle = '#2a2420';
+    c.fill();
+    c.beginPath();
+    c.arc(x + r * 0.28, y - r * 0.32, r * 0.22, 0, Math.PI * 2);
+    c.fillStyle = 'rgba(255,255,255,.85)';
+    c.fill();
+  }
+
+  function drawAperture(c, x, y, r) {
+    var blades = 7;
+    c.save();
+    c.translate(x, y);
+    c.fillStyle = '#dcd6cc';
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    for (var i = 0; i < blades; i++) {
+      c.save();
+      c.rotate((i / blades) * Math.PI * 2);
+      c.fillStyle = i % 2 ? '#3a3530' : '#4d4740';
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.arc(0, 0, r * 0.85, -Math.PI / blades, Math.PI / blades);
+      c.closePath();
+      c.fill();
+      c.restore();
+    }
+    c.beginPath(); c.arc(0, 0, r * 0.22, 0, Math.PI * 2);
+    c.fillStyle = '#111'; c.fill();
+    c.restore();
+  }
+
+  function drawHair(c, cx, topY, kind, seed) {
+    var rng = mulberry32((seed >>> 0) ^ 0x9e3779b9);
+    c.strokeStyle = '#4a6b2a';
+    c.fillStyle = '#4a6b2a';
+    c.lineCap = 'round';
+    if (kind === 'sprout') {
+      c.lineWidth = 6;
+      c.beginPath();
+      c.moveTo(cx, topY);
+      c.quadraticCurveTo(cx + 14, topY - 30, cx - 4, topY - 55);
+      c.stroke();
+    } else if (kind === 'tuft') {
+      for (var i = 0; i < 4; i++) {
+        var dx = (i - 1.5) * 14 + (rng() - 0.5) * 6;
+        c.lineWidth = 4 + rng() * 2;
+        c.beginPath();
+        c.moveTo(cx + dx, topY);
+        c.quadraticCurveTo(cx + dx + (rng() - 0.5) * 24, topY - 24 - rng() * 10, cx + dx * 1.4, topY - 40 - rng() * 12);
+        c.stroke();
+      }
+    } else if (kind === 'poof') {
+      for (var j = 0; j < 9; j++) {
+        var ang = (j / 9) * Math.PI - Math.PI / 2;
+        var rr = 20 + rng() * 8;
+        c.beginPath();
+        c.arc(cx + Math.cos(ang) * 34, topY - 8 + Math.sin(ang) * 14, rr * 0.28, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+  }
+
+  function drawAccessory(c, kind, cx, cy, bodyR, eyeY, eyeSpacing) {
+    if (kind === 'eyepatch') {
+      c.strokeStyle = '#1a1a1a';
+      c.lineWidth = 7;
+      c.beginPath();
+      c.moveTo(cx - bodyR * 0.8, eyeY - 20);
+      c.lineTo(cx + bodyR * 0.85, eyeY + 30);
+      c.stroke();
+      c.fillStyle = '#141414';
+      c.beginPath();
+      c.ellipse(cx + eyeSpacing, eyeY, 32, 26, -0.25, 0, Math.PI * 2);
+      c.fill();
+    } else if (kind === 'katana') {
+      c.save();
+      c.translate(cx + bodyR * 0.95, cy + bodyR * 0.35);
+      c.rotate(-0.55);
+      c.fillStyle = '#8a8f96';
+      c.fillRect(-6, -190, 12, 190);
+      c.fillStyle = '#e8e6e3';
+      c.beginPath(); c.moveTo(-6, -190); c.lineTo(6, -190); c.lineTo(0, -206); c.closePath(); c.fill();
+      c.fillStyle = '#3a2c15';
+      c.fillRect(-14, -4, 28, 10);
+      c.fillStyle = '#1c1c1c';
+      c.fillRect(-9, 4, 18, 46);
+      c.restore();
+    } else if (kind === 'wrench') {
+      c.save();
+      c.translate(cx + bodyR * 0.55, cy + bodyR * 0.75);
+      c.rotate(0.5);
+      c.fillStyle = '#8b8792';
+      c.fillRect(-9, -55, 18, 90);
+      c.beginPath(); c.arc(0, -55, 20, Math.PI * 0.15, Math.PI * 0.85, true); c.lineWidth = 12; c.strokeStyle = '#8b8792'; c.stroke();
+      c.beginPath(); c.arc(0, 35, 16, 0, Math.PI * 2); c.fillStyle = '#8b8792'; c.fill();
+      c.beginPath(); c.arc(0, 35, 7, 0, Math.PI * 2); c.fillStyle = '#2a2c30'; c.fill();
+      c.restore();
+    } else if (kind === 'toolbelt') {
+      c.fillStyle = '#3a2c15';
+      c.fillRect(cx - bodyR * 0.95, cy + bodyR * 0.15, bodyR * 1.9, 34);
+      for (var i = 0; i < 3; i++) {
+        c.fillStyle = '#e8a33d';
+        c.fillRect(cx - bodyR * 0.6 + i * bodyR * 0.6, cy + bodyR * 0.14, 26, 36);
+      }
+    } else if (kind === 'ledger') {
+      c.save();
+      c.translate(cx - bodyR * 0.85, cy + bodyR * 0.55);
+      c.rotate(-0.15);
+      c.fillStyle = '#efe6d6';
+      c.fillRect(-26, -34, 52, 68);
+      c.strokeStyle = '#8b8792'; c.lineWidth = 2;
+      for (var j = 0; j < 4; j++) { c.beginPath(); c.moveTo(-18, -18 + j * 14); c.lineTo(18, -18 + j * 14); c.stroke(); }
+      c.restore();
+      c.save();
+      c.translate(cx + bodyR * 0.5, cy - bodyR * 0.75);
+      c.rotate(0.8);
+      c.fillStyle = '#c9c9c9';
+      c.fillRect(-4, -60, 8, 60);
+      c.fillStyle = '#2a2420';
+      c.fillRect(-4, 40, 8, 14);
+      c.restore();
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    var cx = W / 2, cy = H / 2 + 30;
+    var pts = lumpPoints(state.seed);
+    var body = state.color;
+
+    drawBlobPath(ctx, pts, cx, cy);
+    var grad = ctx.createRadialGradient(cx - 60, cy - 80, 20, cx, cy, 260);
+    grad.addColorStop(0, shade(body, 35));
+    grad.addColorStop(1, shade(body, -20));
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = shade(body, -55);
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // a few surface dimples for texture
+    var rng = mulberry32((state.seed >>> 0) ^ 0x12345);
+    ctx.fillStyle = shade(body, -30);
+    for (var i = 0; i < 6; i++) {
+      var a = rng() * Math.PI * 2, r0 = 60 + rng() * 140;
+      ctx.beginPath();
+      ctx.ellipse(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0 * 0.9, 8 + rng() * 6, 5 + rng() * 4, a, 0, Math.PI * 2);
+      ctx.globalAlpha = 0.25;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    var eyeY = cy - 30;
+    var eyeSpacing = 46;
+    var bodyR = 190;
+
+    if (state.acc === 'aperture') {
+      drawAperture(ctx, cx, eyeY, 54);
+    } else {
+      var closedL = state.expr === 'sleepy';
+      var closedR = state.expr === 'sleepy';
+      var winkR = state.expr === 'wink';
+      drawEye(ctx, cx - eyeSpacing, eyeY, 30, closedL, false);
+      drawEye(ctx, cx + eyeSpacing, eyeY, 30, closedR, winkR);
+    }
+
+    // mouth
+    ctx.strokeStyle = '#2a2420';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    var my = cy + 40;
+    if (state.expr === 'determined') {
+      ctx.moveTo(cx - 26, my); ctx.lineTo(cx + 26, my);
+    } else if (state.expr === 'sleepy') {
+      ctx.moveTo(cx - 18, my); ctx.quadraticCurveTo(cx, my + 4, cx + 18, my);
+    } else {
+      ctx.moveTo(cx - 22, my - 6); ctx.quadraticCurveTo(cx, my + 16, cx + 22, my - 6);
+    }
+    ctx.stroke();
+
+    drawHair(ctx, cx, cy - 190, state.hair, state.seed);
+    if (state.acc !== 'none' && state.acc !== 'aperture') {
+      drawAccessory(ctx, state.acc, cx, cy, bodyR, eyeY, eyeSpacing);
+    }
+  }
+
+  function buildSwatches() {
+    swatchesEl.innerHTML = '';
+    COLORS.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'swatch';
+      b.style.background = c;
+      b.setAttribute('aria-label', 'color ' + c);
+      b.addEventListener('click', function () {
+        state.color = c;
+        customColor.value = c;
+        markSwatch();
+        draw();
+      });
+      b.dataset.c = c;
+      swatchesEl.appendChild(b);
+    });
+  }
+  function markSwatch() {
+    Array.prototype.forEach.call(swatchesEl.children, function (b) {
+      b.className = 'swatch' + (b.dataset.c.toLowerCase() === state.color.toLowerCase() ? ' on' : '');
+    });
+  }
+
+  function valuesFromUrl() {
+    var p = new URLSearchParams(location.search);
+    var c = p.get('c'), s = p.get('s'), h = p.get('h'), e = p.get('e'), a = p.get('a');
+    if (!c && !s && !h && !e && !a) return null;
+    return {
+      color: /^#?[0-9a-fA-F]{6}$/.test(c || '') ? ('#' + (c || '').replace('#', '')) : COLORS[0],
+      seed: parseInt(s, 10) || 1,
+      hair: ['none', 'sprout', 'tuft', 'poof'].indexOf(h) !== -1 ? h : 'none',
+      expr: ['content', 'wink', 'sleepy', 'determined'].indexOf(e) !== -1 ? e : 'content',
+      acc: ['none', 'eyepatch', 'katana', 'wrench', 'toolbelt', 'aperture', 'ledger'].indexOf(a) !== -1 ? a : 'none'
+    };
+  }
+
+  function shareUrl() {
+    var p = new URLSearchParams();
+    p.set('c', state.color.replace('#', ''));
+    p.set('s', String(state.seed));
+    p.set('h', state.hair);
+    p.set('e', state.expr);
+    p.set('a', state.acc);
+    return location.origin + location.pathname + '?' + p.toString();
+  }
+
+  function syncControls() {
+    hairSel.value = state.hair;
+    exprSel.value = state.expr;
+    accSel.value = state.acc;
+    customColor.value = state.color;
+    markSwatch();
+  }
+
+  hairSel.addEventListener('change', function () { state.hair = hairSel.value; draw(); });
+  exprSel.addEventListener('change', function () { state.expr = exprSel.value; draw(); });
+  accSel.addEventListener('change', function () { state.acc = accSel.value; draw(); });
+  customColor.addEventListener('input', function () { state.color = customColor.value; markSwatch(); draw(); });
+
+  document.getElementById('rerollShape').addEventListener('click', function () {
+    state.seed = Math.floor(Math.random() * 1e9);
+    draw();
+  });
+  document.getElementById('randomizeAll').addEventListener('click', function () {
+    state.seed = Math.floor(Math.random() * 1e9);
+    state.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    var hairs = ['none', 'sprout', 'tuft', 'poof'];
+    var exprs = ['content', 'wink', 'sleepy', 'determined'];
+    var accs = ['none', 'eyepatch', 'katana', 'wrench', 'toolbelt', 'aperture', 'ledger'];
+    state.hair = hairs[Math.floor(Math.random() * hairs.length)];
+    state.expr = exprs[Math.floor(Math.random() * exprs.length)];
+    state.acc = accs[Math.floor(Math.random() * accs.length)];
+    syncControls();
+    draw();
+  });
+  document.getElementById('downloadBtn').addEventListener('click', function () {
+    kit.clear(errEl);
+    try {
+      var link = document.getElementById('dlLink');
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) {
+      kit.showError(errEl, 'could not export a PNG in this browser: ' + e.message);
+    }
+  });
+  document.getElementById('copyBtn').addEventListener('click', function (e) {
+    kit.copy(shareUrl(), e.currentTarget);
+  });
+  document.getElementById('shareBtn').addEventListener('click', function () {
+    var text = "what's my tubersona? this one. 🥔\n\n" + shareUrl();
+    var url = 'https://bsky.app/intent/compose?text=' + encodeURIComponent(text);
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+
+  buildSwatches();
+  var fromUrl = valuesFromUrl();
+  if (fromUrl) {
+    state = fromUrl;
+  } else {
+    state.seed = Math.floor(Math.random() * 1e9);
+    state.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+  }
+  syncControls();
+  draw();
+})();
+</script>
+</body>
+</html>

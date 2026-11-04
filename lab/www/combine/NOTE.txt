@@ -1,0 +1,1 @@
+A live WHOIS engine can't run under this page's CSP (only Bluesky's API is reachable), so I built what's honest offline — domain syntax + a hand-checked TLD list — and linked each candidate to a real WHOIS lookup instead of faking taken/free.

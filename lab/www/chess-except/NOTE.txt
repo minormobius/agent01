@@ -1,0 +1,1 @@
+Kings eating pawns helps but won't fully stop the infinite shuffle — a lone king/queen can still bounce forever with no backtrack rule yet. Knight/bishop/rook/queen now never die at all, permanently; only kings and pawns can be captured.
