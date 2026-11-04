@@ -96,7 +96,7 @@
    "what": "SVG drawn from the bake and the law code by a script on every build, never by hand (Okabe–Ito palette, the shared library's theme); captions beside them in the same file",
    "path": "papers/p1/figures/make.mjs → figures/*.svg",
    "status": "partly",
-   "note": "7 of the plan's 13: L1–L3, F3, F4, F6, F7; the counterfactual's C1–C2 wait on its run"
+   "note": "pruned to six for the main text and two for the appendix; 6 waits on the counterfactual run"
   },
   {
    "id": "text",
@@ -243,6 +243,10 @@
   {
    "date": "2026-11-04",
    "what": "The methods section drafted. Its numbers (grid, tolerances, mixing, the kernel's quadrature, the exchange constants, the search's rounds) are tokens the build reads from the solver's own source, so the text says what the code does."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The figures pruned, at the PI's direction: half of the first seven only illustrated. The main text now has six: the table itself; the choice of law (Gauss's fall to the centre beside the shell splitting against the exponent); orbitals only four dimensions has, cut through the nucleus by a plane on solved atoms' radial functions (the fourth p orbital along w, and a d orbital positive all round one plane and negative all round its completely perpendicular one); ionization against Z; six elements in profile; and the counterfactual (a stand-in until its run). The kernel and our-world validation moved to the appendix; the far-pull curve, the α scan and the shell's potential were cut. The six profiled atoms are the bake's own, re-solved with their radial functions kept; the build stops if one drifts from the bake."
   }
  ]
 }

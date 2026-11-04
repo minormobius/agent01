@@ -229,6 +229,9 @@ export function build() {
   out.set("data/table3.csv", csv(t3));
   out.set("data/README.md", SCHEMA(t3, t4));
   for (const [k, v] of Object.entries(figures(t3, t4))) out.set(`figdata/${k}.json`, JSON.stringify(v, null, 1) + "\n");
+  // the profiles (data/profiles.json, profiles.mjs) must be the bake's atoms: same configuration, same energy
+  const prof = JSON.parse(readFileSync(join(HERE, "data/profiles.json"), "utf8"));
+  for (const at of prof.atoms) { const el = TABLE[4][at.Z - 1]; if (at.config !== el.config || Math.abs(at.E - el.E) > 1e-4) throw new Error(`data/profiles.json: element ${at.Z} isn't the bake's (run node four/papers/p1/profiles.mjs)`); }
   for (const [k, v] of drawFigures()) out.set(k, v);
   const L = ledger(t3, t4, out, checkRefs().refs);
   out.set("ledger.json", JSON.stringify(L, null, 1) + "\n");

@@ -193,44 +193,49 @@
    "sha256": "7250fda680fde66c022a6970723e25289a972aed538f2229a4fb92c6f04774e7"
   },
   {
-   "path": "figures/L1.svg",
-   "bytes": 16543,
-   "sha256": "7b241f865bf08f3ffc3ce27a24e269248c3d7f1fb101cce1a1930853fc2a5b10"
+   "path": "figures/1.svg",
+   "bytes": 63541,
+   "sha256": "5ef4be0114e17011b0801a43a0a904e65ed7275b43c367ab2d7b228488139f18"
   },
   {
-   "path": "figures/L2.svg",
-   "bytes": 10239,
-   "sha256": "e850898c5c645229cf882fcf1c8e2e3b1905e0cb16f612a0c6de149c8d462757"
+   "path": "figures/2.svg",
+   "bytes": 18931,
+   "sha256": "b12adcf0d968cc23d0d784dc7c63e87e865fbdc9ff0876be142175e05c1db85a"
   },
   {
-   "path": "figures/L3.svg",
-   "bytes": 10228,
-   "sha256": "8b6ce28463183889177d8a019694059a1d266337902ffcd8446a5eed388411cf"
+   "path": "figures/3.svg",
+   "bytes": 79986,
+   "sha256": "a2d894ea3e238074de2804e32eb943f414609500738f37e995ba2db43011c600"
   },
   {
-   "path": "figures/F3.svg",
-   "bytes": 15930,
-   "sha256": "e2946ead30e6fd54f16599cda0d35699c0aa5f501f201c592df33e1e950ad2b0"
+   "path": "figures/4.svg",
+   "bytes": 7760,
+   "sha256": "4bc34b2218ab1f5c84b9bfb7db8ada74b23d649f7451b143bb1ab59a6272a585"
   },
   {
-   "path": "figures/F4.svg",
-   "bytes": 18724,
-   "sha256": "c2d0086bd32643b92aa7cccc9f73b23a685fcc3fbb4115b9ee72a694e251e384"
+   "path": "figures/5.svg",
+   "bytes": 103800,
+   "sha256": "672b2bac6a5928c455526436a74bbccb77779171038b48d6cc031dd68c700b88"
   },
   {
-   "path": "figures/F6.svg",
+   "path": "figures/6.svg",
    "bytes": 6742,
    "sha256": "69dc5b8afdddbb7c31e3c9edbb3eabe817ada203f135c004dcd855b0b8c6d9df"
   },
   {
-   "path": "figures/F7.svg",
-   "bytes": 7816,
-   "sha256": "7c8e2becd469824f72b57744774da46feb83ca2ad8acd200e9d6d06c11dabe2e"
+   "path": "figures/A1.svg",
+   "bytes": 5354,
+   "sha256": "84440259fe1ad02b55189990a7ad723d787c846ed31eed87c3288920e08b2656"
+  },
+  {
+   "path": "figures/A2.svg",
+   "bytes": 18724,
+   "sha256": "c2d0086bd32643b92aa7cccc9f73b23a685fcc3fbb4115b9ee72a694e251e384"
   },
   {
    "path": "figures/captions.json",
-   "bytes": 2766,
-   "sha256": "72d8e6812a8f57c70c9cd116ac0d26fa9360b91bd173f9461110a424f9dd8008"
+   "bytes": 4090,
+   "sha256": "57b2c9aaae7744f1f68da5f75614b4c4ad79b1398409d2e3004d65d094451785"
   }
  ],
  "refs": {

@@ -129,26 +129,24 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
 
 ## Figure plan
 
-| # | Figure | Data | Exists as | To build |
-|---|---|---|---|---|
-| L1 | Gauss's law has no atom: the ground level of −α/r² against the grid's inner end, either side of α = ½ | `laws.js` `gaussLaw` | — | **built** (`figures/make.mjs`) |
-| L2 | Only 1/r keeps a shell: 2p − 2s and 3d − 3s against p | `laws.js` `shellSplit` | — | **built** (`figures/make.mjs`) |
-| L3 | No shell theorem: k(t) against the shell theorem's 1, and the bowed inside of a charged shell | `kernel.js`, `fields.js` | `/fields/` step 3 | **built** (`figures/make.mjs`) |
-| 1 | The 4D periodic table, f block as a band, beside ours | `js/table.js`, `js/periodic.js` `layout` | `/table/` viewer | a static print version (SVG) |
-| 2 | The filling diagram, both worlds (Madelung's diagonals; boxes of 2(2l+1) and 2(l+1)²) | `table/filling.js`, `js/table.js` | `/table/` | static SVG |
-| 3 | First ionization energy against Z, both worlds, ours against measured | `figdata/f3` | table chapter charts | **built** (`figures/make.mjs`) |
-| 4 | The 3D validation: computed against measured ionization, configuration hits and misses | `figdata/f4` | table chapter | **built** (`figures/make.mjs`) |
-| 5 | Subshell energies against Z (where d turns over), both worlds | `figdata/f5` | — | new |
-| C1 | **The table under each law**: the 4D table with the shell theorem forced on beside the real one, changed configurations marked | `shelltable.json` (run `lawtable-shell`) | — | new |
-| C2 | Ionization against Z under each law | `shelltable.json`, `figdata/f3` | — | new |
-| 6 | Partial screening: noble-gas ionization against the shell theorem's (all Z once C1 is in) | `figdata/f6` | `/papers/p1/widgets/` | **built** (`figures/make.mjs`) |
-| 7 | A neutral atom's far pull, −Σ⟨r²⟩/8s³ against the full cloud | `far.js` | `/papers/p1/widgets/` | **built** (`figures/make.mjs`) |
-| 8 | Radii against Z, both worlds | `figdata/f8` | table detail panel | new |
-| A1 | Convergence: total energy and ionization against grid and tolerance | new runs | — | appendix |
+Pruned 2026-11-04 at the PI's direction: a figure has to carry an argument the text can't. Drawn by
+`papers/p1/figures/make.mjs` from the bakes, `data/profiles.json` and `laws.js` on every build (never by hand), captions
+beside them (`CAPTIONS`); selftest 67 fails on a stale one.
 
-Figures are SVG drawn by `papers/p1/figures/make.mjs` (on `figures/plot.js`: `packages/dataviz/charts.js`'s theme and
-Okabe–Ito order, with the log axes that library lacks) from the bakes and `laws.js`, on every build, never by hand;
-captions live beside them (`CAPTIONS`). Selftest 67 fails on a stale figure. Each has a companion widget where interaction helps (below).
+| # | Figure | Carries | Status |
+|---|---|---|---|
+| 1 | **The table itself**: 140 cells by block, noble gases framed, names where a place answers to ours, the f block as a band | the rows 2, 10, 10, 28, 28, 60 and the blocks 8, 18, 32 wide at a glance | **built** |
+| 2 | **The choice of law**: (a) Gauss's −α/r², the lowest level against the grid's inner end (falls to the centre past ½, nothing below); (b) −1/rᵖ, the splitting within a shell against p | part I's two results: no atom under Gauss, and only 1/r keeps shells | **built** |
+| 3 | **Orbitals only 4D has**, cut through the nucleus by a plane, on solved atoms' radial functions: p_w in the x–w plane; d(x²+y²−z²−w²) in the x–y, z–w and x–z planes | what a 2(l + 1)² shell is made of; positive round one plane and negative round its completely perpendicular one | **built** (interactive twin: kata.mino.mobi/orbital) |
+| 4 | **Ionization against Z**, noble gases and the full-d elements marked | the rows close at the noble gases, but the hardest-held electron is element 128's | **built** |
+| 5 | **Elements in profile**: six atoms' subshell distributions (darbon 7, element 8, oeon 12, uitanium 26, element 101, 128) | what the table's cells are: shells, cores, where the d and f shells sit inside | **built** (`profiles.mjs` re-solves them; `build.mjs` checks each against the bake) |
+| 6 | **The table under each law** (counterfactual): changed configurations, ionization under both, all Z | part III: what the law does that the geometry doesn't | stand-in (noble gases only) until `lawtable-shell` |
+| A1 | The 3-sphere kernel against the shell theorem | appendix A | **built** |
+| A2 | The 3D validation: computed against measured ionization, the four missed configurations | section 7 / appendix | **built** |
+
+Cut: the α scan, the shell's potential inside and out, the far-pull convergence (a sentence and the ledger carry it),
+our ionization curve on its own (A2 carries the check). Possible additions, if they earn it: the filling diagram for
+both worlds, subshell energies against Z.
 
 ## Companion objects
 
@@ -168,6 +166,8 @@ captions live beside them (`CAPTIONS`). Selftest 67 fails on a stale figure. Eac
 4. **Widgets**, standalone and linked from the paper:
    - the 4D table viewer (`/table/`, exists): hover a counterpart, configurations, clouds;
    - the filling diagram (exists);
+   - ORBITAL (kata.mino.mobi/orbital, on the kata branch): hydrogen's exact 4D orbitals, sliced and turned live; figure 3's
+     interactive twin;
    - **screening on/off** (**built**, `papers/p1/widgets/`): any 4D atom solved live in a worker with the 4D kernel
      and with the shell theorem forced on, in its baked configuration, ionization by ΔSCF from the baked outermost
      subshell (it gives back the bake: element 12 at 18.39 against 10.30 eV, 138 at 26.71 against 9.22), and the
