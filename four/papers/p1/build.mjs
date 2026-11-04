@@ -173,6 +173,9 @@ function ledger(t3, t4, files, refs) {
     { id: "fulld", part: "table", claim: "The hardest-held electron in the table isn't a noble gas's: element 128, whose 18-electron d shell is full with nothing outside it (our palladium's kind), out-holds its row's noble gas 138, and element 68, the same kind a row up, comes within a volt of its row's noble gas 78 (in ours palladium holds far less hard than xenon, 8.3 against 12.1 eV)",
       value: `128: ${t4[127].ion_eV.toFixed(2)} eV (${t4[127].config.split(" ").slice(-2).join(" ")}) against 138: ${t4[137].ion_eV.toFixed(2)}; 68: ${t4[67].ion_eV.toFixed(2)} eV (${t4[67].config.split(" ").slice(-2).join(" ")}) against 78: ${t4[77].ion_eV.toFixed(2)}; the table's highest is element ${[...t4].sort((x, y) => y.ion_hartree - x.ion_hartree)[0].Z}`,
       holds: t4[127].ion_hartree > t4[137].ion_hartree && [...t4].sort((x, y) => y.ion_hartree - x.ion_hartree)[0].Z === 128 && /5d18$/.test(t4[127].config) && /4d18$/.test(t4[67].config) && t4[77].ion_eV - t4[67].ion_eV < 1 && t4[77].ion_eV > t4[67].ion_eV, section: "8", gate: [67] },
+    (() => { const AU = JSON.parse(readFileSync(join(HERE, "data/audit-scf.json"), "utf8")), m = AU.summary; return { id: "converged", part: "table", claim: "The table's numbers are converged in the solver's stop: tightening it a hundred-thousandfold moves no total or ionization energy by a microhartree, nor Σ⟨r²⟩ by 10⁻⁴ of itself",
+      value: `${AU.rows.length} atoms, both worlds: |ΔE| ≤ ${m.maxAbs_dE.toExponential(1)}, |Δion| ≤ ${m.maxAbs_dIon.toExponential(1)} hartree; Σ⟨r²⟩ ≤ ${m.maxSRel.toExponential(1)} relative, the bake's against the tight ${m.maxBakeSRel.toExponential(1)}`,
+      holds: m.allTight && m.maxAbs_dE < 1e-6 && m.maxAbs_dIon < 1e-6 && m.maxSRel < 1e-4 && m.maxBakeSRel < 1e-4 && AU.rows.every((r) => Math.abs(r.bakeE - r.tightE) < 1e-5), section: "6, C", gate: [67] }; })(),
     { id: "hydrogen", part: "table", claim: "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
       value: `${h} hartree against ${hExact.toFixed(5)}`, holds: Math.abs(h - hExact) < 1e-5, section: "4", gate: [1] },
     { id: "configs3", part: "table", claim: "The same solver in our three dimensions gets 32 of our 36 ground configurations",
@@ -197,7 +200,9 @@ function numbers(t3, t4, L) {
   const kSrc = readFileSync(join(HERE, "../../atom/js/kernel.js"), "utf8");
   const claim = (id) => L.claims.find((c) => c.id === id), SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹", tenTo = (x) => `10${String(Math.round(Math.log10(x))).replace("-", "⁻").replace(/\d/g, (c) => SUP[c])}`, minus = (v) => v.replace("-", "−");
   const repaired = [88, 101, 102, 103, 105, 106, 107];
+  const AU = JSON.parse(readFileSync(join(HERE, "data/audit-scf.json"), "utf8")), e1 = (v) => minus(Math.abs(v).toExponential(1).replace(/e([+-])(\d+)/, (_, sg, n) => ` × 10${sg === "-" ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`));
   return {
+    "audit.n": String(AU.rows.length), "audit.tightTol": tenTo(AU.tight.tol), "audit.dE": e1(AU.summary.maxAbs_dE), "audit.dIon": e1(AU.summary.maxAbs_dIon), "audit.dEps": e1(AU.summary.maxAbs_dEps), "audit.dS": e1(AU.summary.maxSRel), "audit.bakeS": e1(AU.summary.maxBakeSRel),
     "h4.E": minus(t4[0].E_hartree.toFixed(5)),
     "kernel.k1": k4(1).toFixed(6), "kernel.M": kSrc.match(/const M = (\d+)/)[1], "kernel.table": String(+kSrc.match(/new Float64Array\((\d+)\)/)[1]),
     "exchange.c3": EXCHANGE[3].toFixed(6), "exchange.c4": EXCHANGE[4].toFixed(6),

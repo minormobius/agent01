@@ -55,6 +55,13 @@
    "status": "built"
   },
   {
+   "id": "audit",
+   "name": "The solver audit",
+   "what": "the bake's stop against one a hundred-thousandfold tighter, on 19 atoms across every row of both worlds: what in the table is converged and what isn't",
+   "path": "papers/p1/audit-scf.mjs → data/audit-scf.json",
+   "status": "built"
+  },
+  {
    "id": "data",
    "name": "Data and ledger",
    "what": "the paper's tables as JSON and CSV, each figure's data, and the ledger of claims, all generated from the bake",
@@ -166,8 +173,8 @@
   },
   {
    "item": "Solver audit: atom.js's self-consistent field stops on the total energy. Check whether that leaves the far density unconverged, and what it does to the table's energies and ionizations",
-   "status": "to do",
-   "note": "the lesson from the plane-wave work, where a stop on eigenvalues left the pseudopotentials' tails wrong"
+   "status": "done",
+   "note": "19 atoms, both worlds, stop 10⁻⁷ → 10⁻¹² hartree: energies and ionizations move ≤ 3 × 10⁻⁷ hartree, Σ⟨r²⟩ ≤ 2 × 10⁻⁵ relative. The far tail is unconverged only where it is noise (10⁻¹³ electrons per bohr and below). Nothing quoted depends on it."
   },
   {
    "item": "Convergence runs for appendix C: grid (N, r₀, r_max), SCF tolerance, a few elements per row",
@@ -184,7 +191,8 @@
   },
   {
    "item": "The equation pipeline: KaTeX pre-rendering in the sandbox, or hand-written MathML",
-   "status": "to do"
+   "status": "partly",
+   "note": "pandoc 3.1.3 is in the sandbox: markdown maths to MathML (rendered natively by browsers) and LaTeX source for arXiv, with no downloaded code. KaTeX fetches from npm, but running a downloaded package needs the PI's approval; pandoc makes it unnecessary."
   },
   {
    "item": "Tag the mirror version the paper cites",
@@ -247,6 +255,14 @@
   {
    "date": "2026-11-04",
    "what": "The figures pruned, at the PI's direction: half of the first seven only illustrated. The main text now has six: the table itself; the choice of law (Gauss's fall to the centre beside the shell splitting against the exponent); orbitals only four dimensions has, cut through the nucleus by a plane on solved atoms' radial functions (the fourth p orbital along w, and a d orbital positive all round one plane and negative all round its completely perpendicular one); ionization against Z; six elements in profile; and the counterfactual (a stand-in until its run). The kernel and our-world validation moved to the appendix; the far-pull curve, the α scan and the shell's potential were cut. The six profiled atoms are the bake's own, re-solved with their radial functions kept; the build stops if one drifts from the bake."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The solver audit, the methods section's one open item: 19 atoms across every row of both worlds re-solved and driven from the bake's stop (energy change under 10⁻⁷ hartree) to one under 10⁻¹². Total and ionization energies moved by at most 2.8 × 10⁻⁷ hartree (8 μeV), Σ⟨r²⟩ by 2 × 10⁻⁵ of itself. The far density is not converged relatively past about 15 bohr, but only where it is noise, 10⁻¹³ to 10⁻¹⁷ electrons per bohr; atoms with a loose s electron, which do put charge out there, are converged to 10⁻⁶. So the plane-wave bug's lesson doesn't touch the table: it bites what builds a potential from the far density through exchange, which the pseudopotentials now converge pointwise. A new ledger claim holds it."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The kit, re-surveyed: pandoc 3.1.3 is now in the sandbox (the survey found none), which turns the text's maths into MathML that browsers render natively and writes the LaTeX source arXiv compiles itself, so the paper needs neither a downloaded maths library nor a local TeX. Still no TeX engine; KaTeX is fetchable but not needed."
   }
  ]
 }

@@ -48,9 +48,17 @@ field is iterated to self-consistency: each orbital solved in the potential of t
 exchange; the new clouds mixed into the old at {{scf.mix}}; up to {{scf.iters}} iterations, stopping when the total
 energy changes by less than {{scf.tol}} hartree between iterations.
 
-*To check before submission (the checklist's solver audit): a stop on the energy can leave the far density less
-converged than the energy is. The plane-wave work met exactly this in its all-electron atom. A sample per row is to be
-re-solved with a pointwise density test, and the differences reported in appendix C.*
+**Is the stop tight enough?** A stop on the energy can leave the far density less converged than the energy is; the
+plane-wave work met exactly that in its pseudopotentials' all-electron atom, where exchange carried an unconverged tail
+into the potential. So {{audit.n}} atoms across every row of both worlds were re-solved in their baked configurations
+and then driven on from that field to a stop of {{audit.tightTol}} hartree (appendix C, `audit-scf.mjs`). Total
+energies and first ionization energies moved by at most {{audit.dE}} and {{audit.dIon}} hartree, the outermost orbital
+energy by {{audit.dEps}}, and Σ⟨r²⟩ (the far pull's S, and the forces between atoms) by {{audit.dS}} of itself; the
+baked ⟨r²⟩ agree with the tight ones to {{audit.bakeS}}. The density beyond about 15 bohr is not converged relatively,
+but it is noise there: off by large factors only where it is 10⁻¹³ to 10⁻¹⁷ electrons per bohr, and converged to
+10⁻⁶ where an atom has a loosely held s electron that puts real charge out that far. Nothing the paper quotes depends
+on it; a calculation that builds a potential from the far density through exchange must converge the density
+pointwise, as the pseudopotentials now do.
 
 ## The ground configuration
 

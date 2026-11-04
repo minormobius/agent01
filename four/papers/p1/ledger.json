@@ -84,6 +84,17 @@
    ]
   },
   {
+   "id": "converged",
+   "part": "table",
+   "claim": "The table's numbers are converged in the solver's stop: tightening it a hundred-thousandfold moves no total or ionization energy by a microhartree, nor Σ⟨r²⟩ by 10⁻⁴ of itself",
+   "value": "19 atoms, both worlds: |ΔE| ≤ 2.7e-7, |Δion| ≤ 2.8e-7 hartree; Σ⟨r²⟩ ≤ 1.9e-5 relative, the bake's against the tight 7.0e-5",
+   "holds": true,
+   "section": "6, C",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hydrogen",
    "part": "table",
    "claim": "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
