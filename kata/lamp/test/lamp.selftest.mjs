@@ -4,10 +4,14 @@
    thresholds are kR < 1 and kR < √2); with kR = 0.69 it pinches in 3D too (the control); a hot ball loses half its
    heat at least 1.6× faster in 4D; the 3D lamp in its glass cycles (wax reaches 0.7 of the height and its top blob comes
    back down) and never leaves the glass. (The 4D lamp costs ~180 ms a step here: its cycles aren't run.)
-     node kata/lamp/test/lamp.selftest.mjs   (~80 s) */
+   Also: the threaded FFT matches the single-threaded one exactly, and the first blob rises out of the pool (it isn't
+   carried up dissolved and condensed at the top).
+     node kata/lamp/test/lamp.selftest.mjs   (~60 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), Lm = await import(path.join(here, "../js/lamp.js"));
+// (the page's lamp settings, as worker.js gives them)
+const LAMP = { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.5, mob: 0.2, cfl: 0.7, flowEvery: 2, coolFrom: 0.65 };
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } else console.log("ok   " + msg); };
 const runTo = (L, T) => { while (L.t < T) Lm.step(L); };
@@ -54,17 +58,48 @@ const thread = (D, R, n, T) => { const L = Lm.makeLamp(D, 16, 32, { g: 0, heat: 
   ok(hl[3] / hl[4] > 1.6, `a hot ball (R = 5) keeps half its heat until t ${hl[3].toFixed(1)} in 3D and t ${hl[4].toFixed(1)} in 4D: ${(hl[3] / hl[4]).toFixed(2)}× faster (4/3 the surface per volume, and more room for the heat to go)`);
 }
 
-/* the lamp, in its glass (the page's: ε 0.7, a fifth of the glass wax, heater 0.3) */
+/* the threaded FFT (node's worker_threads standing in for Web Workers): the same numbers, to the last bit */
 {
-  const L = Lm.makeLamp(3, 16, 32, { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.3 }); Lm.START.lamp(L, 1); let up = null, down = null, outMax = -1, waxOut = 0;
-  while (L.t < 250) {
+  const { Worker } = await import(path.join(here, "nodeworker.mjs")); globalThis.Worker = Worker;
+  const { makeThreadedFFT } = await import(path.join(here, "../js/pfft.js"));
+  const dims = [16, 64, 16, 16], M = dims.reduce((a, b) => a * b), sab = () => new Float64Array(new SharedArrayBuffer(8 * M)), re = sab(), im = sab();
+  for (let i = 0; i < M; i++) { re[i] = Math.sin(i * 0.37); im[i] = Math.cos(i * 0.11); }
+  const c = re.slice(), d = im.slice(); Lm.makeFFTn(dims)(c, d, true);
+  const P = await makeThreadedFFT(dims, 3, [re, im]); P.fft(re, im, true); P.close();
+  let e = 0; for (let i = 0; i < M; i++) e = Math.max(e, Math.abs(re[i] - c[i]), Math.abs(im[i] - d[i]));
+  ok(e === 0, `the 4D transform split across 3 threads sharing memory gives the same numbers as one thread, exactly (${e})`);
+}
+
+/* the lamp, in its glass, as the page runs it: the wax's centre rises past 0.45 of the height, comes back below 0.3,
+   and rises past 0.45 again (a cycle), and none of it is ever outside the glass */
+{
+  const L = Lm.makeLamp(3, 16, 32, LAMP); Lm.START.lamp(L, 1); const marks = []; let phase = 0, outMax = -1, waxOut = 0;
+  while (L.t < 400 && phase < 3) {
     Lm.step(L); if (L.steps % 5) continue;
-    // up: wax at 0.7 of the height; down: after that, a cold blob (it cooled up there) low in the lamp, on its way back
-    const s = Lm.stats(L), top = Math.max(0, ...s.blobs.filter((b) => b.n > 30).map((b) => b.y));
-    if (up == null && top > 0.7) up = L.t; if (up != null && down == null && L.t > up + 10 && s.blobs.some((b) => b.n > 30 && b.T < 0.25 && b.y < 0.5 && b.y > 0.2)) down = L.t;
+    const h = Lm.stats(L).height;
+    if (phase === 0 && h > 0.45) { marks.push(L.t); phase = 1; } else if (phase === 1 && h < 0.3) { marks.push(L.t); phase = 2; } else if (phase === 2 && h > 0.45) { marks.push(L.t); phase = 3; }
     let w = 0, n = 0; for (let p = 0; p < L.M; p++) if (L.yOf[p] < L.ny) { if (L.phi[p] > 0) { n++; if (!L.inside[p]) w++; } if (!L.inside[p]) outMax = Math.max(outMax, L.phi[p]); } waxOut = Math.max(waxOut, w / Math.max(1, n));
   }
-  ok(up != null && down != null && waxOut === 0 && outMax < -0.5, `the 3D lamp in its glass cycles: wax reaches 0.7 of the height by t ${up?.toFixed(0)}, and a blob cooled up there is back below half height by t ${down?.toFixed(0)}; none of it ever outside the glass (the liquid there no richer than φ = ${outMax.toFixed(2)})`);
+  ok(phase === 3 && waxOut === 0 && outMax < -0.5, `the 3D lamp in its glass cycles: the wax's centre up past 0.45 of the height at t ${marks[0]?.toFixed(0)}, back below 0.3 at t ${marks[1]?.toFixed(0)}, up again at t ${marks[2]?.toFixed(0)}; none of it ever outside the glass (the liquid there no richer than φ = ${outMax.toFixed(2)})`);
+}
+
+/* where the first blob comes from: the pool. Follow the top of the wax (its highest cell more than half wax) every
+   other step until it reaches 0.7 of the height: wax that rises gets there a little at a time; wax that went up
+   dissolved, or appeared from nothing, shows up there all at once. Both happened: with the wax free to diffuse
+   (mobility 1) it went up dissolved; and the flow next to the glass, not quite divergence-free once the glass's faces
+   are shut, rarefied pure liquid toward φ = 0 under the cap until advection took out the f ∇·u it was adding */
+const climb = (phys) => {
+  const L = Lm.makeLamp(3, 16, 32, phys); Lm.START.lamp(L, 1); let prev = 0, jump = 0;
+  while (L.t < 300) {
+    Lm.step(L); if (L.steps % 2) continue;
+    let top = 0; for (let p = 0; p < L.M; p++) if (L.yOf[p] < L.ny && L.phi[p] > 0) top = Math.max(top, L.yOf[p]);
+    jump = Math.max(jump, top - prev); prev = top; if (top >= 0.7 * L.ny) return { t: L.t, jump };
+  }
+  return { t: null, jump };
+};
+{
+  const a = climb(LAMP);
+  ok(a.t != null && a.jump <= 6, `the first blob rises from the pool: the top of the wax climbs to 0.7 of the height by t ${a.t?.toFixed(0)}, never more than ${a.jump} cells between looks (before the fix below it jumped 16 cells at once: wax appeared under the cap from nothing)`);
 }
 
 console.log(`\n${checks - fails}/${checks} checks passed`);

@@ -1,0 +1,6 @@
+# LAVALAMP's 4D solver splits its FFTs across threads that share memory (SharedArrayBuffer), which a browser allows
+# only on a cross-origin-isolated page. Everything /lamp/ loads is its own, from this origin, so isolating it costs
+# nothing. Other pages are left as they are.
+/lamp/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

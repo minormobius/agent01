@@ -1,7 +1,7 @@
 /* LAVALAMP, no DOM: wax and liquid in a lamp, heated from below, in 3D and in 4D, by the same code.
 
    THE LIQUIDS are PHASELAB's immiscible pair (Cahn–Hilliard: φ = +1 wax, −1 the liquid round it; μ = φ³ − φ − ε²∇²φ),
-   now carried by a flow: ∂φ/∂t + u·∇φ = ∇²μ.
+   now carried by a flow: ∂φ/∂t + u·∇φ = m∇²μ (m the mobility: how fast wax diffuses through the liquid).
    THE FLOW is creeping (Stokes: a lava lamp is slow and syrupy, so inertia is dropped), solved exactly each step:
        0 = −∇p + η∇²u + f,  ∇·u = 0   →   û = (I − k̂k̂ᵀ) f̂ / (η k²)
    driven by buoyancy (along y, up) and by the interface's own tension, f = μ∇φ (Cahn–Hilliard's capillary force:
@@ -19,46 +19,50 @@
    lengths). */
 import { makeFFT } from "../../wavelab/js/fft.js";
 
-/* the FFT of a grid with dims[a] points along axis a (powers of two, any mix), index x0 + n0(x1 + n1(x2 + …)). Axis 0
-   line by line; every other axis batched, each butterfly over all its lines at once, a tile at a time */
-export function makeFFTn(dims) {
+/* the FFT of a grid with dims[a] points along axis a (powers of two, any mix), index x0 + n0(x1 + n1(x2 + …)), in
+   passes, one per axis, each a list of independent tasks: along axis 0 a task is a line; along the others a task is a
+   tile (a block of C consecutive lines' worth, every butterfly over all of them at once, in cache). Split a pass's
+   tasks among threads (./pfft.js) or run them all here; the passes must run in order */
+export function fftPlan(dims) {
   const D = dims.length, M = dims.reduce((a, b) => a * b, 1), plans = {};
   const plan = (n) => {
     if (plans[n]) return plans[n];
-    const L = Math.log2(n), rev = new Uint32Array(n), cs = new Float64Array(n / 2), sn = new Float64Array(n / 2);
-    for (let i = 0; i < n; i++) { let r = 0; for (let b = 0; b < L; b++) r |= ((i >> b) & 1) << (L - 1 - b); rev[i] = r; }
+    const Lg = Math.log2(n), rev = new Uint32Array(n), cs = new Float64Array(n / 2), sn = new Float64Array(n / 2);
+    for (let i = 0; i < n; i++) { let r = 0; for (let b = 0; b < Lg; b++) r |= ((i >> b) & 1) << (Lg - 1 - b); rev[i] = r; }
     for (let k = 0; k < n / 2; k++) { cs[k] = Math.cos((2 * Math.PI * k) / n); sn[k] = Math.sin((2 * Math.PI * k) / n); }
     return (plans[n] = { n, rev, cs, sn, f1: makeFFT(n) });
   };
   const ps = dims.map(plan), strides = dims.map((_, a) => dims.slice(0, a).reduce((x, y) => x * y, 1));
-  return function (re, im, inverse = false) {
-    const n0 = dims[0]; for (let l = 0; l < M; l += n0) ps[0].f1(re, im, inverse, l, 1);
-    const sg = inverse ? 1 : -1;
-    for (let a = 1; a < D; a++) {
-      const { n, rev, cs, sn } = ps[a], st = strides[a], blk = st * n, C = Math.min(st, 64);
-      for (let base = 0; base < M; base += blk) for (let l0 = 0; l0 < st; l0 += C) {
-        const l1 = l0 + C;
-        for (let i = 0; i < n; i++) { const j = rev[i]; if (j <= i) continue; const x = base + i * st, y = base + j * st; for (let lo = l0; lo < l1; lo++) { let t = re[x + lo]; re[x + lo] = re[y + lo]; re[y + lo] = t; t = im[x + lo]; im[x + lo] = im[y + lo]; im[y + lo] = t; } }
-        for (let size = 2; size <= n; size <<= 1) {
-          const half = size >> 1, step = n / size;
-          for (let j = 0; j < half; j++) {
-            const c = cs[j * step], s = sg * sn[j * step];
-            for (let i = 0; i < n; i += size) {
-              const x = base + (i + j) * st, y = x + half * st;
-              for (let lo = l0; lo < l1; lo++) { const br = re[y + lo], bi = im[y + lo], tr = br * c - bi * s, ti = br * s + bi * c; re[y + lo] = re[x + lo] - tr; im[y + lo] = im[x + lo] - ti; re[x + lo] += tr; im[x + lo] += ti; }
-            }
+  const C = (a) => Math.min(strides[a], 64), tiles = (a) => strides[a] / C(a);
+  const tasks = (a) => (a === 0 ? M / dims[0] : (M / (strides[a] * dims[a])) * tiles(a));
+  function pass(re, im, inverse, a, t0, t1) {
+    if (a === 0) { const n0 = dims[0]; for (let t = t0; t < t1; t++) ps[0].f1(re, im, inverse, t * n0, 1); return; }
+    const sg = inverse ? 1 : -1, { n, rev, cs, sn } = ps[a], st = strides[a], blk = st * n, c = C(a), tl = tiles(a);
+    for (let t = t0; t < t1; t++) {
+      const base = Math.floor(t / tl) * blk, l0 = (t % tl) * c, l1 = l0 + c;
+      for (let i = 0; i < n; i++) { const j = rev[i]; if (j <= i) continue; const x = base + i * st, y = base + j * st; for (let lo = l0; lo < l1; lo++) { let tt = re[x + lo]; re[x + lo] = re[y + lo]; re[y + lo] = tt; tt = im[x + lo]; im[x + lo] = im[y + lo]; im[y + lo] = tt; } }
+      for (let size = 2; size <= n; size <<= 1) {
+        const half = size >> 1, step = n / size;
+        for (let j = 0; j < half; j++) {
+          const co = cs[j * step], si = sg * sn[j * step];
+          for (let i = 0; i < n; i += size) {
+            const x = base + (i + j) * st, y = x + half * st;
+            for (let lo = l0; lo < l1; lo++) { const br = re[y + lo], bi = im[y + lo], tr = br * co - bi * si, ti = br * si + bi * co; re[y + lo] = re[x + lo] - tr; im[y + lo] = im[x + lo] - ti; re[x + lo] += tr; im[x + lo] += ti; }
           }
         }
       }
     }
-  };
+  }
+  return { D, M, tasks, pass };
 }
+/* the whole transform, here, one pass after another */
+export function makeFFTn(dims) { const P = fftPlan(dims); return (re, im, inverse = false) => { for (let a = 0; a < P.D; a++) P.pass(re, im, inverse, a, 0, P.tasks(a)); }; }
 
 /* the lamp's physics, in grid units (cell = 1). Gravity is strong enough that a hot pool can let go at all: surface
    tension holds a flat interface against every ripple shorter than 2π √(σ / Δb) (Rayleigh–Taylor's capillary cut-off),
    and a lamp 16 cells across needs that to be well under 16. Hot wax (T ≈ 0.9) is lighter than the liquid by
    Δb ≈ 0.4, the cut-off ~10 cells. Cold wax is heavier by δ g = 0.75 */
-export const PHYS = { glass: false, wall: 40, Aglass: 21, pool: 6, waxShare: 0.15, coolGlass: 0.06, ambient: 0.3, wallCool: 0.02, eps: 1, A: 2, eta: 1, g: 3, delta: 0.25, aw: 0.5, al: 0.1, kappa: 0.08, heat: 0.4, cool: 0.15, band: 3, cfl: 0.4, dtMax: 0.5 };
+export const PHYS = { mob: 1, phiUpwind: false, glass: false, wall: 40, Aglass: 21, pool: 6, waxShare: 0.15, coolGlass: 0.06, coolFrom: 0.5, ambient: 0.3, wallCool: 0.02, eps: 1, A: 2, eta: 1, g: 3, delta: 0.25, aw: 0.5, al: 0.1, kappa: 0.08, heat: 0.4, cool: 0.15, band: 3, cfl: 0.4, dtMax: 0.5 };
 
 /* THE GLASS: the classic lamp's profile, its radius in cells at height y (0 the floor, 32 the top): 5 at the bottom,
    swelling to 6.8 a little above, then a long straight taper to 3.2 at the top. Turned round the vertical axis: in 3D a
@@ -67,14 +71,17 @@ export const PHYS = { glass: false, wall: 40, Aglass: 21, pool: 6, waxShare: 0.1
 export function glassR(y) { return y < 9 ? 5 + 1.8 * (1 - ((9 - y) / 9) ** 2) : 6.8 - (3.6 * (y - 9)) / 23; }
 
 /* a lamp: D = 3 or 4, nh cells across, ny tall. The arrays are the doubled box: dims [nh, 2ny, nh(, nh)], y axis 1 */
-export function makeLamp(D, nh = 16, ny = 32, phys = {}) {
+export function makeLamp(D, nh = 16, ny = 32, phys = {}, opt = {}) {
   const dims = D === 3 ? [nh, 2 * ny, nh] : [nh, 2 * ny, nh, nh], M = dims.reduce((a, b) => a * b, 1), P = { ...PHYS, ...phys };
   const strides = dims.map((_, a) => dims.slice(0, a).reduce((x, y) => x * y, 1)), kv = dims.map(() => new Float64Array(M)), k2 = new Float64Array(M);
   const yOf = new Int32Array(M), nyq = new Uint8Array(M);
   for (let p = 0; p < M; p++) { let q = p, s = 0; for (let a = 0; a < D; a++) { const n = q % dims[a], m = n <= dims[a] / 2 ? n : n - dims[a], k = (2 * Math.PI * m) / dims[a]; kv[a][p] = k; s += k * k; if (a === 1) yOf[p] = n; if (n === dims[a] / 2) nyq[p] = 1; q = Math.floor(q / dims[a]); } k2[p] = s; }
-  const L = { D, nh, ny, dims, M, strides, P, kv, k2, yOf, nyq, fft: makeFFTn(dims), t: 0, steps: 0,
-    phi: new Float64Array(M), T: new Float64Array(M), u: dims.map(() => new Float64Array(M)), hr: new Float64Array(M), hi: new Float64Array(M),
-    wr: new Float64Array(M), wi: new Float64Array(M), fr: dims.map(() => new Float64Array(M)), fi: dims.map(() => new Float64Array(M)), mu: new Float64Array(M), tmp: new Float64Array(M), dt: 0.1, umax: 0 };
+  // (opt.alloc: where the big arrays live, SharedArrayBuffer for ./pfft.js's threads; opt.fft: a transform that takes
+  // them, the threaded one; default here and single-threaded)
+  const al = opt.alloc || ((n) => new Float64Array(n));
+  const L = { D, nh, ny, dims, M, strides, P, kv, k2, yOf, nyq, fft: opt.fft || makeFFTn(dims), t: 0, steps: 0,
+    phi: al(M), T: al(M), u: dims.map(() => al(M)), hr: al(M), hi: al(M),
+    wr: al(M), wi: al(M), fr: dims.map(() => al(M)), fi: dims.map(() => al(M)), mu: al(M), tmp: al(M), dt: 0.1, umax: 0 };
   if (P.glass) {
     // (the wall's potential W(φ + 1)²/2 is stiff, and the stabiliser must match it, A ≥ (W + 2)/2, or the scheme is
     // unstable; a stiff wall is what keeps the liquid outside the glass from soaking up the wax: it can hold only
@@ -146,14 +153,19 @@ function solve(L, stokes) {
       zr[p] = (Zr + Vr) / 2; zi[p] = (Zi - Vi) / 2; br[p] = (Zi + Vi) / 2; bi[p] = -(Zr - Vr) / 2;
       zr[q] = (Vr + Zr) / 2; zi[q] = (Vi - Zi) / 2; br[q] = (Vi + Zi) / 2; bi[q] = -(Vr - Zr) / 2; }
   }
-  // project out the part that pressure takes (and for Stokes divide by η k²)
+  // project out the part that pressure takes (and for Stokes divide by η k²). The grid is walked in order with a
+  // counter per axis, so each wavenumber comes from a short table (dims[a] long), not a whole-grid array per axis
+  const K = L.kax || (L.kax = L.dims.map((n) => Float64Array.from({ length: n }, (_, i) => (2 * Math.PI * (i <= n / 2 ? i : i - n)) / n))), dims = L.dims, c = new Int32Array(D), kk4 = new Float64Array(D);
   for (let p = 0; p < M; p++) {
+    let kk = 0, ny0 = false; for (let a = 0; a < D; a++) { const kq = K[a][c[a]]; kk4[a] = kq; kk += kq * kq; if (c[a] === dims[a] / 2) ny0 = true; }
+    // (advance the counters)
+    for (let a = 0; a < D; a++) { if (++c[a] < dims[a]) break; c[a] = 0; }
     // (no flow in the mean, nor in any mode at an axis's Nyquist wavenumber, where +k and −k are one grid point: the
     // projection there isn't conjugate-symmetric, the velocity it gives isn't real, and the packed pairs would mix)
-    const kk = k2[p]; if (kk === 0 || nyq[p]) { for (let a = 0; a < D; a++) { fr[a][p] = 0; fi[a][p] = 0; } continue; }
-    let dr = 0, di = 0; for (let a = 0; a < D; a++) { dr += kv[a][p] * fr[a][p]; di += kv[a][p] * fi[a][p]; }
-    const s = stokes ? 1 / (P.eta * kk) : 1;
-    for (let a = 0; a < D; a++) { fr[a][p] = (fr[a][p] - (kv[a][p] * dr) / kk) * s; fi[a][p] = (fi[a][p] - (kv[a][p] * di) / kk) * s; }
+    if (kk === 0 || ny0) { for (let a = 0; a < D; a++) { fr[a][p] = 0; fi[a][p] = 0; } continue; }
+    let dr = 0, di = 0; for (let a = 0; a < D; a++) { dr += kk4[a] * fr[a][p]; di += kk4[a] * fi[a][p]; }
+    const s = stokes ? 1 / (P.eta * kk) : 1, ar = dr / kk, ai = di / kk;
+    for (let a = 0; a < D; a++) { fr[a][p] = (fr[a][p] - kk4[a] * ar) * s; fi[a][p] = (fi[a][p] - kk4[a] * ai) * s; }
   }
   // and back two at a time: the velocities are real, so W = U_a + iU_b transforms to u_a + i u_b
   let um = 0;
@@ -170,6 +182,7 @@ function solve(L, stokes) {
    the next), and in the glass no face that touches a glass cell carries anything, so nothing crosses it */
 function advect(L, f, out, upwind) {
   const { D, M, u, up, dn } = L, IN = L.inside; out.fill(0);
+  const div = L.div || (L.div = new Float64Array(M)); div.fill(0);
   const mm = (x, y) => (x * y <= 0 ? 0 : Math.abs(x) < Math.abs(y) ? x : y);
   for (let a = 0; a < D; a++) {
     const ua = u[a], U = up[a], Dn = dn[a];
@@ -180,18 +193,25 @@ function advect(L, f, out, upwind) {
       // overshoots): a plain upwind face would smear T by u·dx/2, several times the lamp's real diffusivity
       if (upwind) ff = uf > 0 ? f[p] + 0.5 * mm(f[q] - f[p], f[p] - f[Dn[p]]) : f[q] - 0.5 * mm(f[U[q]] - f[q], f[q] - f[p]);
       else ff = 0.5 * (f[p] + f[q]);
-      const fl = uf * ff; out[p] += fl; out[q] -= fl;
+      const fl = uf * ff; out[p] += fl; out[q] -= fl; div[p] += uf; div[q] -= uf;
     }
   }
+  // u·∇f = ∇·(u f) − f ∇·u, with the same faces: the flow next to the glass isn't quite divergence-free once the faces
+  // touching glass are shut, and in flux form alone that compresses or rarefies a uniform liquid there: pure liquid
+  // pushed below φ = −1 where the flow converges, toward φ = 0 (wax from nowhere) where it turns away, as under the cap.
+  // In this form a uniform field stays uniform whatever the flow does
+  for (let p = 0; p < M; p++) out[p] -= f[p] * div[p];
   return out;
 }
 /* one step: the flow, then φ (semi-implicit, stabilised, advected explicitly), then T (explicit, upwind) */
 export function step(L) {
-  flow(L);
+  // (the flow is creeping: it follows from where the wax and the heat are now, and they move under a cell a step, so
+  // with P.flowEvery 2 it's solved every other step and the last one reused between: half the step's biggest cost)
+  if (!L.flowAt || L.steps - L.flowAt >= (L.P.flowEvery || 1) || L.steps === 0) { flow(L); L.flowAt = L.steps; }
   const { D, M, P, phi, T, u, hr, hi, wr, wi, tmp, k2, yOf, ny, up, dn } = L;
   const dt = (L.dt = Math.min(P.dtMax, P.cfl / Math.max(1e-9, L.umax)));
   // φ: the bulk term and the advection, transformed together as two real fields in one complex transform
-  advect(L, phi, wi, false);
+  advect(L, phi, wi, L.P.phiUpwind);
   // (outside the glass, a potential W(φ + 1)²/2 holds the composition at pure liquid: the liquid wets the glass, the wax
   // stays inside)
   const IN = L.inside; for (let p = 0; p < M; p++) { const f = phi[p]; wr[p] = f * f * f - f + (IN && !IN[p] ? P.wall * (f + 1) : 0); }
@@ -201,11 +221,13 @@ export function step(L) {
   for (let p = 0; p < M; p++) {
     const q = neg[p], Wr = wr[p], Wi = wi[p], Vr = wr[q], Vi = -wi[q];
     const nr = (Wr + Vr) / 2, ni = (Wi + Vi) / 2, ar = (Wi - Vi) / 2, ai = -(Wr - Vr) / 2;
-    const k = k2[p], den = 1 + dt * P.A * k + dt * P.eps * P.eps * k * k, num = 1 + dt * P.A * k;
+    // (the mobility m scales how fast wax diffuses through the liquid: 1 for the thread and the cooling; low for the lamp,
+    // the sharp-interface limit, where a blob changes shape by being carried, not by dissolving and re-forming)
+    const m = P.mob, k = k2[p], den = 1 + dt * m * P.A * k + dt * m * P.eps * P.eps * k * k, num = 1 + dt * m * P.A * k;
     // (the advection's mean, its k = 0 part, is zero for a divergence-free flow; differences and the spectral projection
     // don't quite agree on that, so it's set so, and the wax is conserved exactly)
     const arr = p === 0 ? 0 : ar, aii = p === 0 ? 0 : ai;
-    tmp[p] = (num * hr[p] - dt * k * nr - dt * arr) / den; L.mu[p] = (num * hi[p] - dt * k * ni - dt * aii) / den;
+    tmp[p] = (num * hr[p] - dt * m * k * nr - dt * arr) / den; L.mu[p] = (num * hi[p] - dt * m * k * ni - dt * aii) / den;
   }
   hr.set(tmp); hi.set(L.mu); wr.set(hr); wi.set(hi); L.fft(wr, wi, true); for (let p = 0; p < M; p++) phi[p] = wr[p] / M;
   // T: upwind advection, diffusion, the heater and the cool top
@@ -215,9 +237,9 @@ export function step(L) {
     for (let a = 0; a < D; a++) lap += T[up[a][p]] + T[dn[a][p]];
     const y = yOf[p] < ny ? yOf[p] : 2 * ny - 1 - yOf[p], g = L.inside ? L.inside[p] : 1;
     // the heater under the floor and the cool top, inside the glass; outside it, the room (the glass loses heat to it)
-    // (in the glass the upper half loses heat, more toward the top, as a lamp's glass does; without it, only the top
+    // (in the glass the glass above coolFrom of the height loses heat, more toward the top, as a lamp's glass does; without it, only the top
     // layers, where a blob that can't fit into the narrow neck would never reach)
-    const top = L.inside ? P.coolGlass * Math.max(0, (y - ny / 2) / (ny / 2)) : y >= ny - P.band ? P.cool : 0;
+    const top = L.inside ? P.coolGlass * Math.max(0, (y - P.coolFrom * ny) / ((1 - P.coolFrom) * ny)) : y >= ny - P.band ? P.cool : 0;
     const src = !g ? P.wallCool * (P.ambient - T[p]) : y < P.band ? P.heat * (1 - T[p]) : -top * T[p];
     tmp[p] = T[p] + dt * (-adv + P.kappa * lap + src);
   }
@@ -301,3 +323,4 @@ export function ripple(L, n = 3) {
   const minA = Math.min(...area);
   return { amp: a0 ? (2 * c) / a0 : 0, minArea: minA, meanArea: a0 / ny, pinched: minA < 1 };
 }
+export { advect as _advect, symmetrize as _sym };

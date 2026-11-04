@@ -41,7 +41,25 @@ your slice doesn't change it: the lamp is the same in every direction across.
 - **A sharper interface, ε = 0.7.** At 16 cells across, a 4D blob is barely bigger than an ε = 1 interface. 4D squeezes
   small blobs harder, so they dissolve away (PHASELAB's effect).
 - **The wax is a fifth of the glass's volume.**
-- **A gentler heater.**
+- **A low mobility, m = 0.2.** How fast wax diffuses through the liquid. At m = 1 the curved little pool dissolved ~4%
+  of itself into the liquid (Gibbs–Thomson, at an interface 2 cells wide in a lamp 16 across). The flow carried that up
+  and it condensed under the cap. A real lamp's interface is nanometres in centimetres, the sharp-interface limit, where
+  wax moves only by being carried.
+- **The heater at 0.5; cooling only above 0.65 of the height.**
+
+## Where the first blob comes from
+
+It used to seem to appear at the top out of nothing. Two causes, both found by following the most wax-rich cell at
+every height:
+1. **Wax went up dissolved** (mobility 1, above).
+2. **The flow made wax from pure liquid under the cap.** Transport is by fluxes through faces, and the faces touching
+   glass are shut. So the flow next to the glass isn't quite divergence-free, and in flux form, ∇·(uφ), a uniform liquid
+   is compressed where the flow converges (φ pushed below −1) and rarefied where it turns away (pushed toward 0: wax).
+   Transport now uses u·∇φ = ∇·(uφ) − φ∇·u with the same faces, so a uniform field stays uniform. The mean is still
+   restored exactly, so the wax is conserved.
+
+Now the top of the wax climbs from the pool a few cells at a time. The selftest holds it to at most 6 between looks;
+before the fix it jumped 16 in one step.
 
 **Why it cycles, and the lag.** A lamp cycles because its blobs lag behind their surroundings thermally: hot on the way
 up, cold on the way down. A blob that comes into balance with the liquid around it just settles at its neutral height,
@@ -101,18 +119,37 @@ under the lamp's 16-cell width; with these parameters it's ~10 cells.
 **The cost.** The FFT is WAVELAB's, batched across axes of mixed lengths (`makeFFTn`). The force's components are real,
 so two share each complex transform: four transforms for the flow in 4D, not eight. The modes at an axis's Nyquist
 wavenumber carry no flow; there, +k and −k are one point, the projection isn't conjugate-symmetric, and the packed pairs
-would mix. Per step, on the machine this was built on:
-- 3D (16k cells): ~11 ms;
-- 4D (262k cells): ~140 ms, so the 4D lamp moves at 5–7 steps a second. The 3D one is held to its time.
+would mix.
+
+**What made the 4D lamp ~6× faster:**
+
+| | per step | step size |
+|---|---|---|
+| before | 178 ms | ~0.2 |
+| now, 1 thread | ~88 ms | 0.5 |
+| now, 3 threads | ~72 ms | 0.5 |
+
+- **The flow every other step** (`flowEvery: 2`). It's creeping flow, so it follows from where the wax and the heat are,
+  and they move under a cell a step. The flow was two thirds of the step.
+- **A bigger step:** a CFL number of 0.7, not 0.4.
+- **The projection walks the grid with counters** and per-axis wavenumber tables, not whole-grid arrays.
+- **Threads** (`js/pfft.js`, `js/pfft-helper.js`). The FFT is a sequence of passes (`fftPlan`), each a list of
+  independent tasks. The solver and up to three helpers split each pass, sharing the arrays (SharedArrayBuffer), and
+  meet at a barrier between axes on shared memory (Atomics.wait / notify), with no messages per pass. The FFT alone goes
+  2.5× faster on 3 threads and gives the same numbers to the last bit (the selftest checks this). Shared memory needs
+  the page cross-origin isolated, which `kata/_headers` does for `/lamp/*`. Without it, or on a 4-core machine (2 cores
+  are kept for the page and the 3D lamp), it runs on one thread. The readout says how many.
+- The 3D lamp is ~7 ms a step and is held to the 4D one's time.
 
 ## Not yet
 
 - **The glass isn't a true no-slip wall.** The flow is masked and re-projected once, not solved with the glass as a
   boundary, and some flow remains in the glass. It carries nothing across, but the flow next to the glass isn't
   exactly what a wall would give.
-- **A thin stream, not round blobs, going up.** At 16 cells across, hot wax rises as a stream too thin to count as a
-  piece, and gathers into a blob at the top. A wider lamp would make several round blobs, but in 4D every cell across
-  costs it cubed.
+- **One blob, mostly.** At 16 cells across, the wax tends to move as one mass: the pool lifts off whole, rises past
+  half height, cools and comes back. A wider lamp would make several blobs, but in 4D every cell across costs it cubed.
+- **Only the FFTs are threaded.** The real-space loops (forces, transport, heat) run on one thread and are now about
+  half the 4D step.
 - **4D lamp cycles aren't in the selftest.** At ~180 ms a step, one cycle is minutes of compute here.
 - **Viscosity is the same in wax and liquid.**
 - **Convection's onset isn't shown,** only stated.
@@ -120,7 +157,7 @@ would mix. Per step, on the machine this was built on:
 ## Testing
 
 ```bash
-node kata/lamp/test/lamp.selftest.mjs   # ~45 s
+node kata/lamp/test/lamp.selftest.mjs   # ~50 s
 ```
 
 It checks:
@@ -132,7 +169,10 @@ It checks:
 - **The thread.** At kR = 1.18, 3D straightens (ripple 0.33 → 0.09, never pinched) and 4D pinches off by t 83. The
   control at kR = 0.69 pinches in 3D too.
 - **The cooling.** Half the heat is gone by t 32.8 in 3D and t 17.2 in 4D: at least 1.6× faster (1.91).
-- **The lamp.** The 3D lamp in its glass cycles: wax reaches 0.7 of the height, and a blob cooled up there is back
-  below half height. None of the wax is ever outside the glass. The 4D lamp isn't run here (one cycle is minutes of
+- **The lamp.** As the page runs it, the 3D lamp in its glass cycles: the wax's centre goes up past 0.45 of the height,
+  back below 0.3, and up again. None of the wax is ever outside the glass. The top of the wax climbs from the pool to
+  0.7 of the height, never more than 6 cells between looks.
+- **The threaded FFT.** Run on node's worker_threads through `test/nodeworker.mjs`: 3 threads give exactly what one
+  gives. The 4D lamp isn't run here (one cycle is minutes of
   compute); the thread and the cooling exercise its physics. It was run by hand to t = 300: pieces at 0.11, 0.45 and
   0.80 of the height at once at t ≈ 204, moving up and down.

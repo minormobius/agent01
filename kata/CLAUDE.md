@@ -105,7 +105,10 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   and the Nyquist modes carry no flow (their projection isn't conjugate-symmetric, and the packed pairs would mix).
   The selftest holds: Stokes to rounding; the walls; wax conserved; a kR = 1.18 thread straightens in 3D and pinches in
   4D (thresholds 1 and √2); a hot ball's half-life 1.9× shorter in 4D; the 3D glass lamp cycles and its wax never leaves
-  the glass. 4D ~180 ms a step here (glass).
+  the glass; it climbs from the pool (no wax from nothing: transport is u·∇φ = ∇·(uφ) − φ∇·u, since the flow beside the
+  shut glass faces isn't divergence-free; and the lamp's mobility is low, so wax isn't carried up dissolved); the
+  threaded FFT is exact. Speed: the flow every other step, CFL 0.7, and the FFT split across threads sharing memory
+  (`js/pfft.js`; needs `kata/_headers`' cross-origin isolation for `/lamp/*`): 4D ~72–88 ms a step here, from 178.
   See [`lamp/README.md`](lamp/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
@@ -168,7 +171,7 @@ node kata/tentacle/test/tentacle.selftest.mjs # ~1 s
 node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
-node kata/lamp/test/lamp.selftest.mjs # ~45 s
+node kata/lamp/test/lamp.selftest.mjs # ~50 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
