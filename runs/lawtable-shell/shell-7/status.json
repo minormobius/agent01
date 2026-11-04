@@ -1,0 +1,33 @@
+{
+ "group": "shell-7",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs shell 28 56",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 714
+  },
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs shell 29 56",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 637
+  },
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs shell 30 56",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 687
+  },
+  {
+   "cmd": "node four/atom/tools/lawtable.mjs shell 31 56",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 679
+  }
+ ]
+}
