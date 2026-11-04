@@ -97,9 +97,11 @@ hand. Each has a companion widget where interaction helps (below).
    figure's data in `papers/p1/figdata/`. `papers/p1/build.mjs` writes them from `js/table.js`; selftest 67 fails if
    they're stale or if the outline's claims (the six noble gases, 32 of 36) stop holding. Run `bake.mjs`, then
    `build.mjs`.
-3. **The code**, the tangled mirror (`tangled.org/morphyxmino.bsky.social/four`, MIT): already staged and tested on
-   every push (84 checks), waiting only for the repo to be created on tangled. Add a `reproduce/p1.mjs` that rebuilds
-   the table's sample and every figure's data from the solver, and tag the version the paper cites.
+3. **The code**, the tangled mirror (`tangled.org/morphyxmino.bsky.social/four`, MIT): staged and tested on every
+   push, waiting only for the repo to be created on tangled (the owner's step). It now carries
+   `papers/p1/reproduce.mjs` (**built**), which re-solves a sample (each 4D row's first, second and noble gas, and six
+   of ours; `--z4=`, `--z3=`, `--all`) with the bake's own `element()` and checks it against the paper's data: 14 of
+   14 to the bit in 18 s, run by the mirror workflow on the staged copy. To do: tag the version the paper cites.
 4. **Widgets**, standalone and linked from the paper:
    - the 4D table viewer (`/table/`, exists): hover a counterpart, configurations, clouds;
    - the filling diagram (exists);
@@ -107,8 +109,12 @@ hand. Each has a companion widget where interaction helps (below).
      the outer electron's binding as the slider moves Z;
    - *new:* **an atom's far pull**, a test charge walked out from a neutral 4D atom, the potential against −S/8s³;
    - the `/start/` toys that already illustrate steps of the argument.
-5. **References**, `papers/p1/refs.json`: one entry per reference with `verified: read | index | cited`; the generator
-   refuses to cite a `cited` entry, and a selftest enforces it.
+5. **References**, `papers/p1/refs.json` (**built**, 21 entries): each with `status: read | index | cited | memory`
+   and the paper's use for it. Checked against Crossref on 2026-11-04, which fixed volumes and pages (Al-Jaber, Loos &
+   Gill), a title (Kventsel & Katriel's is the Thomas–Fermi atom in N dimensions), and split Loeser & Herschbach 1986
+   into its two papers (Hylleraas–Pekeris 84, 3882; Hartree–Fock 84, 3893). 18 citable; Ehrenfest 1917/1920 and
+   Madelung 1936 still only cited. `build.mjs` exports `checkRefs()` (the page generator will cite only read and
+   index); selftest 67 checks the shape.
 6. **The audit record**: Astra's audit contracts (selftest 58) and the audit rounds for this paper, summarized in an
    appendix or a supplementary note.
 

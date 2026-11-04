@@ -1238,11 +1238,13 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 }
 
 /* 67 · paper 1's companion data (papers/p1/build.mjs) is what the bake gives, and the claims the outline makes of it
-   still hold: the 4D noble gases at 2, 12, 22, 50, 78, 138, and 32 of our 36 ground configurations */
+   still hold: the 4D noble gases at 2, 12, 22, 50, 78, 138, and 32 of our 36 ground configurations. And its
+   references (papers/p1/refs.json) are well formed, every read or index entry carrying a DOI or a source */
 {
-  const { build } = await import(path.join(here, "../../papers/p1/build.mjs")), { files, t3, t4 } = build();
+  const { build, checkRefs } = await import(path.join(here, "../../papers/p1/build.mjs")), { files, t3, t4 } = build(), { bad: badRefs } = checkRefs();
   const fs = await import("node:fs"), stale = [...files].filter(([rel, text]) => { const q = path.join(here, "../../papers/p1", rel); return !fs.existsSync(q) || fs.readFileSync(q, "utf8") !== text; }).map(([rel]) => rel);
   const nobles = t4.filter((r) => r.noble).map((r) => r.Z).join(","), hits = t3.filter((r) => r.config_match).length;
+  ok(!badRefs.length, `paper 1 refs.json: ${badRefs.join("; ")}`);
   ok(!stale.length && nobles === "2,12,22,50,78,138" && hits === 32 && t4.length === 140,
     `paper 1 data: ${stale.length ? `stale (${stale.join(", ")}): run node four/papers/p1/build.mjs` : "current"}, 4D noble gases ${nobles}, ${hits} of ${t3.length} configurations, ${t4.length} elements`);
 }

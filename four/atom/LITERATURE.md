@@ -73,15 +73,17 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
 - F. R. Tangherlini, "Schwarzschild field in n dimensions and the dimensionality of space problem", Nuovo Cimento
   **27**, 636–651 (1963). Extends the argument to general relativity and to the Schrödinger hydrogen atom. — *index*
   (INSPIRE)
-- C. Callender, "Answers in search of a question: 'proofs' of the tri-dimensionality of space" (2005), and F. Caruso &
-  R. Moreira Xavier, on the stability argument's weakness. — *cited*; the exact references are to be fixed.
+- C. Callender, "Answers in search of a question: 'proofs' of the tri-dimensionality of space", Stud. Hist. Phil.
+  Mod. Phys. **36**, 113–136 (2005), doi:10.1016/j.shpsb.2004.09.002. — *index* (Crossref). F. Caruso &
+  R. Moreira Xavier, on the stability argument's weakness. — *cited*; the exact reference is to be fixed.
 
 ### D-dimensional hydrogen and periodic tables
-- M. M. Nieto, "Hydrogen atom and relativistic pi-mesic atom in N-space dimensions", Am. J. Phys. **47**, 1067
-  (1979). — *cited* (via hep-th/9410161)
-- S. M. Al-Jaber, "Hydrogen atom in N dimensions", Int. J. Theor. Phys. (1998). — *cited*; volume and pages to be fixed.
-- G. F. Kventsel & J. Katriel, Phys. Rev. A **24**, 2299 (1981). The Poisson-equation potential in D dimensions.
-  — *cited* (via Négadi & Kibler)
+- M. M. Nieto, "Hydrogen atom and relativistic pi-mesic atom in N-space dimensions", Am. J. Phys. **47**, 1067–1072
+  (1979), doi:10.1119/1.11976. — *index* (Crossref)
+- S. M. Al-Jaber, "Hydrogen atom in N dimensions", Int. J. Theor. Phys. **37**, 1289–1298 (1998),
+  doi:10.1023/A:1026679921970. — *index* (Crossref)
+- G. F. Kventsel & J. Katriel, "Thomas–Fermi atom in N dimensions", Phys. Rev. A **24**, 2299–2301 (1981),
+  doi:10.1103/PhysRevA.24.2299. — *index* (Crossref; the title corrects what was guessed from Négadi & Kibler)
 - T. Négadi & M. Kibler, "The periodic table in Flatland", Int. J. Quantum Chem. **57**, 53 (1996);
   arXiv:atom-ph/9512001. — *read*
 - P. Pyykkö & Y. Zhao, "The elements of Flatland: Hartree–Fock atomic ground states in two dimensions for Z = 1–24",
@@ -95,19 +97,21 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
 - P. Pyykkö & Y. Zhao, "Flatland: the periodic system for D = 2", in the above. — *index* (Pyykkö's publication list).
   A Springer listing found by search gives a "Low D Regime" chapter, pp. 115–138, by D. Z. Goodson, M. López-Cabrera,
   P. Pyykkö & Y. Zhao. Whether these are the same chapter is to be settled from the book.
-- J. G. Loeser & D. R. Herschbach, J. Chem. Phys. **84**, 3882–3892 (1986). Hartree–Fock and exact energies of He-like
-  ions against D. — *cited* (via Ghosh, Kais & Herschbach 2020; Bernard, Loos & Gill 2013)
+- J. G. Loeser & D. R. Herschbach, "Hylleraas–Pekeris treatment of D-dimensional two-electron atoms", J. Chem. Phys.
+  **84**, 3882–3892 (1986), doi:10.1063/1.450099; and "Hartree–Fock approximation for D-dimensional two-electron
+  atoms", *ibid.* 3893–3900, doi:10.1063/1.450100. The exact and the Hartree–Fock energies are two papers, not one.
+  — *index* (Crossref)
 - A. Ghosh, S. Kais & D. R. Herschbach, "Unorthodox dimensional interpolations for He, Li, Be atoms and hydrogen
   molecule", Front. Phys. (2020), doi:10.3389/fphy.2020.00331; arXiv:2004.11489. — *index*
 
 ### The uniform electron gas in D dimensions
-- P.-F. Loos & P. M. W. Gill, "The uniform electron gas", arXiv:1601.03544 (2016); published in WIREs Comput. Mol.
-  Sci. (2016), volume and pages to be confirmed. — *read* (the general-D kinetic and exchange formulas)
+- P.-F. Loos & P. M. W. Gill, "The uniform electron gas", WIREs Comput. Mol. Sci. **6**, 410–429 (2016),
+  doi:10.1002/wcms.1257; arXiv:1601.03544. — *read* (the general-D kinetic and exchange formulas)
 
 ### Methods the solver uses (to be verified before citing)
 - Numerov integration; Sturm bisection for eigenvalues.
-- Local exchange (Dirac/Slater); J. P. Perdew & A. Zunger, Phys. Rev. B **23**, 5048 (1981), self-interaction
-  correction. — *from memory; verify*
+- Local exchange (Dirac/Slater); J. P. Perdew & A. Zunger, Phys. Rev. B **23**, 5048–5079 (1981),
+  doi:10.1103/PhysRevB.23.5048, self-interaction correction. — *index* (Crossref)
 - Hund's rules; the shell theorem (Newton).
 
 ### Molecules: Hartree–Fock in any dimension (chapters 9 and 10)
@@ -117,7 +121,7 @@ work since 2000) found nothing at D = 4. It was a web search, not a citation ind
 - L. E. McMurchie & E. R. Davidson, "One- and two-electron integrals over Cartesian Gaussian functions", J. Comput.
   Phys. **26**, 218–231 (1978), doi:10.1016/0021-9991(78)90092-X. The integral scheme `js/gauss.js` follows. — *index*
 - S. F. Boys & F. Bernardi, Mol. Phys. **19**, 553 (1970). The counterpoise correction. — *from memory; verify*
-- P. Pulay, Chem. Phys. Lett. **73**, 393 (1980). DIIS. — *from memory; verify*
+- P. Pulay, Chem. Phys. Lett. **73**, 393–398 (1980), doi:10.1016/0009-2614(80)80396-4. DIIS. — *index* (Crossref)
 - R. S. Mulliken, J. Chem. Phys. **23**, 1833 (1955). Population analysis. — *from memory; verify*
 - Water at the Hartree–Fock limit (r ≈ 1.776 bohr, θ ≈ 106.3°, μ ≈ 0.78 au; dimer ≈ 3.6 kcal/mol) and measured
   (1.809 bohr, 104.5°, 0.730 au; dimer De ≈ 5.0 kcal/mol, O–O 2.91 Å): the values the chapters quote. — *from memory;

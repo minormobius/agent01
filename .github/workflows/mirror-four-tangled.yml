@@ -23,6 +23,10 @@ on:
       - 'four/atom/test/atom4.selftest.mjs'
       - 'four/atom/test/fixtures/**'
       - 'four/mirror/**'
+      - 'four/atom/tools/bake.mjs'
+      - 'four/papers/p1/reproduce.mjs'
+      - 'four/papers/p1/data/**'
+      - 'four/papers/p1/refs.json'
       - '.github/workflows/mirror-four-tangled.yml'
   workflow_dispatch:
 
@@ -50,6 +54,7 @@ jobs:
           OUT="$(mktemp -d)/four"
           node four/mirror/build.mjs "$OUT"
           ( cd "$OUT" && node atom/test/methods.selftest.mjs | tail -1 )
+          ( cd "$OUT" && node papers/p1/reproduce.mjs | tail -1 )   # paper 1's sample, solved again from the copy
           echo "OUT=$OUT" >> "$GITHUB_ENV"
           echo "staged $(find "$OUT" -type f | wc -l) files, $(du -sh "$OUT" | cut -f1)"
 

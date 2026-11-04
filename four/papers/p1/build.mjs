@@ -105,6 +105,20 @@ function figures(t3, t4) {
   };
 }
 
+/* refs.json's shape: unique keys, a known status, the fields a citation needs, and a DOI (or a source saying where the
+   details came from) on everything marked read or index. citable() is what the page generator may cite */
+const STATUS = new Set(["read", "index", "cited", "memory"]);
+export function checkRefs(refs = JSON.parse(readFileSync(join(HERE, "refs.json"), "utf8")).refs) {
+  const bad = [], seen = new Set();
+  for (const r of refs) {
+    if (!r.key || seen.has(r.key)) bad.push(`${r.key}: missing or repeated key`); seen.add(r.key);
+    if (!STATUS.has(r.status)) bad.push(`${r.key}: status ${r.status}`);
+    for (const f of ["authors", "title", "year", "role"]) if (!r[f]) bad.push(`${r.key}: no ${f}`);
+    if ((r.status === "read" || r.status === "index") && !r.doi && !r.source) bad.push(`${r.key}: ${r.status} with neither a DOI nor a source`);
+  }
+  return { bad, refs, citable: new Set(refs.filter((r) => r.status === "read" || r.status === "index").map((r) => r.key)) };
+}
+
 export function build() {
   const t3 = rows(3), t4 = rows(4), out = new Map();
   out.set("data/table4.json", JSON.stringify(t4, null, 1) + "\n");
@@ -123,6 +137,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     if (check) { if (!existsSync(p) || readFileSync(p, "utf8") !== text) stale.push(rel); continue; }
     mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, text);
   }
+  const { bad, refs, citable } = checkRefs();
+  if (bad.length) { console.error(`papers/p1/refs.json: ${bad.join("; ")}`); process.exit(1); }
+  const open = refs.filter((r) => !citable.has(r.key)).map((r) => r.key);
+  console.log(`papers/p1: ${citable.size} of ${refs.length} references citable${open.length ? `; still to verify: ${open.join(", ")}` : ""}`);
   if (check) { if (stale.length) { console.error(`papers/p1: stale, run build.mjs: ${stale.join(", ")}`); process.exit(1); } console.log(`papers/p1: ${files.size} files current`); }
   else console.log(`papers/p1: wrote ${files.size} files`);
 }

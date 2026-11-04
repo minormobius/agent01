@@ -26,6 +26,9 @@ How each method works, what checks it and its limits: [four.mino.mobi/atom/metho
 | `atom/js/polytopes.js`, `turning.js` | the six regular 4D polytopes; rotations in planes, handed spin, rigid bodies |
 | `atom/js/fields.js` | routes to a 1/r force in 4D, the lens vacuum, Biot–Savart under each kernel |
 | `lumen/js/optics.js` | light in n dimensions: falloff, diffraction, Planck, rainbows |
+| `atom/js/ionic.js` | ionic crystals of any shape in any d: Ewald sums, charge clouds that leak in 4D, a short-range model |
+| `atom/js/pw.js`, `pseudo.js` | plane-wave density functional theory in any d (FFT, Davidson, Pulay mixing, forces, k-points) and norm-conserving pseudopotentials from `atom.js` |
+| `atom/js/periodic.js`, `atom/tools/bake.mjs` | where each element sits in the table; one element's ground state and ionization, as the paper's table was baked |
 | `atom/js/tile.js` | the 4D viewer the site draws with (a browser canvas: shadow or slice, turning through w, the reticle) |
 
 ## Try it
@@ -44,6 +47,18 @@ polytrope("pinned4", 2).bound;              // 0.5: a 4D star of gas is bound wi
 
 import { returnChance } from "./atom/js/geometry.js";
 returnChance(4);                            // 0.193: a random walker comes home less often in 4D (ours 0.341)
+```
+
+## Paper 1: a periodic table for four dimensions
+
+`papers/p1/data/` holds the paper's table (the 4D table to Z = 140, and the same solver in our 36, beside the measured
+values; schema in its README) and `papers/p1/refs.json` its references, each marked by how far it was checked.
+`papers/p1/reproduce.mjs` solves the atoms again and checks them against that data:
+
+```bash
+node papers/p1/reproduce.mjs                 # a sample, a few seconds per core
+node papers/p1/reproduce.mjs --z4=78,138     # chosen 4D elements
+node papers/p1/reproduce.mjs --all           # everything (hours)
 ```
 
 ## About this copy

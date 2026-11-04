@@ -520,7 +520,8 @@ for games, and this is a modelling programme with publications to come. The game
   optics, a known-answer test assembled from the selftest's method blocks (`BLOCKS`: no baked data; 57 checks, 7 s),
   its fixture, `mirror/README.md` and `mirror/LICENSE`. `node four/mirror/build.mjs --check` stages and runs it;
   selftest 42 checks it still stages. `.github/workflows/mirror-four-tangled.yml` stages, tests and force-pushes on
-  every push touching those files, and skips the push with a notice until the repo exists on tangled. A new solver
+  every push touching those files, and skips the push with a notice until the repo exists on tangled. It also carries paper 1's `papers/p1/reproduce.mjs` (with `atom/tools/bake.mjs` and
+  `js/periodic.js`) and the paper's data (`DATA`), and the workflow runs the reproduction's sample. A new solver
   module goes in `MODULES`; a new method-only selftest block in `BLOCKS`; neither may import baked data.
 - **papers**: paper 1, a periodic table for four dimensions, started 2026-11-04. `papers/p1/OUTLINE.md` holds the
   sections (each claim mapped to its baked file and selftest block), the figure plan, the companion objects (paper
