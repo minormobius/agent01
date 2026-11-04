@@ -258,6 +258,17 @@ export class PW {
     return { e: eps, X, res };
   }
   /* Rayleigh–Ritz in span(Y): orthonormalize (Löwdin), diagonalize, keep the lowest keep */
+  /* non-self-consistent bands: the eigenvalues at any k in a converged potential V (the grid doesn't depend on k, so the
+     SCF's V serves every k). For band structures and band edges: ks a list of Cartesian k, nbands how many to take */
+  bandsAt(V, ks, { nbands = this.nbands, iters = 80, tol = 1e-8 } = {}) {
+    const keep = { basis: this.basis, kpts: this.kpts, nbands: this.nbands };
+    try {
+      this.nbands = nbands;
+      return ks.map((k) => { this.basis = [this.makeBasis(k)]; this.kpts = [{ k, w: 1 }]; const r = this.bands(0, V, null, { iters, tol }); return { k, e: Array.from(r.e), res: r.res }; });
+    } finally { Object.assign(this, keep); }
+  }
+  /* the ions' local potential on the grid (what scf() builds first), for potential() outside an scf */
+  localR() { const VL = this.localG(), re = Float64Array.from(VL.re), im = Float64Array.from(VL.im); fftn(re, im, this.dims, true); return re; }
   ritz(Y, HY, keep = Y.length) {
     const m = Y.length, n = Y[0].re.length, dot = (a, b) => { let r = 0, i = 0; for (let k = 0; k < n; k++) { r += a.re[k] * b.re[k] + a.im[k] * b.im[k]; i += a.re[k] * b.im[k] - a.im[k] * b.re[k]; } return [r, i]; };
     const S = { re: new Float64Array(m * m), im: new Float64Array(m * m) }, Hm = { re: new Float64Array(m * m), im: new Float64Array(m * m) };

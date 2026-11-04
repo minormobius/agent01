@@ -16,6 +16,9 @@ cell = gto.Cell(); cell.a = Hs; cell.unit = "Bohr"; cell.atom = [["Al" if k == 0
 cell.basis = "gth-dzvp-molopt-sr"; cell.pseudo = pp; cell.verbose = 0; cell.build()
 kmesh = [max(1, int(np.ceil(18 / np.linalg.norm(h)))) for h in Hs]
 t0 = time.time(); mf = dft.KRKS(cell, cell.make_kpts(kmesh)).density_fit(); mf.xc = xc; mf.conv_tol = 1e-8; e = mf.kernel()
-res = {"name": name, "scale": scale, "xc": xc, "pseudo": pp, "atoms": len(keep), "nf": nf, "kmesh": kmesh, "E": e, "perFormula_eV": e / nf * 27.211386, "converged": bool(mf.converged),
+# the band gap on the SCF's own k-mesh (Γ-centred, so it includes Γ): valence top and conduction bottom over every k
+nocc = cell.nelectron // 2; mo = [np.asarray(m) for m in mf.mo_energy]
+homo = max(m[nocc - 1] for m in mo); lumo = min(m[nocc] for m in mo); g0 = mo[0][nocc] - mo[0][nocc - 1]
+res = {"name": name, "scale": scale, "xc": xc, "pseudo": pp, "atoms": len(keep), "nf": nf, "kmesh": kmesh, "E": e, "perFormula_eV": e / nf * 27.211386, "converged": bool(mf.converged), "gap_eV": (lumo - homo) * 27.211386, "gapGamma_eV": g0 * 27.211386,
        "volume_per_formula_bohr3": abs(np.linalg.det(Hs)) / nf, "seconds": time.time() - t0}
 json.dump(res, open(out, "w")); print(json.dumps(res), flush=True)

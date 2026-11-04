@@ -4,7 +4,7 @@
    memory, so the SCF loop stays synchronous (the main thread blocks in Atomics.wait).
      const pool = makePool(recipe, nWorkers); pw.scf({ pool }); pool.nonlocalForces(); pool.close();
    recipe: { d, H, atoms, ecut, nelec, nbands, kpts, pseudos: { key: { args (for makePseudo), qmax } } } */
-import { Worker, isMainThread, workerData } from "node:worker_threads";
+import { Worker, isMainThread, workerData, parentPort } from "node:worker_threads";
 import { makePseudo, forPW } from "../js/pseudo.js";
 import { PW } from "../js/pw.js";
 
@@ -28,6 +28,23 @@ export function makePool(recipe, nw) {
     nonlocalForces() { cmd(2); const F = Array.from({ length: na }, () => new Float64Array(d)); for (const b of bufs) for (let i = 0; i < na; i++) for (let c = 0; c < d; c++) F[i][c] += b.nlf[i * d + c]; return F; },
     close() { cmd(3); workers.forEach((w) => w.terminate()); },
   };
+}
+
+/* non-self-consistent bands at many k, shared out to nw worker threads: each rebuilds the crystal from the recipe and runs
+   pw.bandsAt in the converged potential V (sent once through shared memory). Resolves to [{ k, e, res }] in ks's order */
+export function bandsParallel(recipe, Vin, ks, nbands, nw) {
+  const V = new Float64Array(new SharedArrayBuffer(8 * Vin.length)); V.set(Vin);
+  nw = Math.max(1, Math.min(nw, ks.length));
+  const share = Array.from({ length: nw }, (_, w) => ks.map((_, i) => i).filter((i) => i % nw === w));
+  return Promise.all(share.map((idx) => new Promise((resolve, reject) => {
+    const wk = new Worker(new URL(import.meta.url), { workerData: { bandsJob: { recipe, V, ks: idx.map((i) => ks[i]), nbands } } });
+    wk.on("message", (m) => { resolve(idx.map((i, j) => ({ i, ...m[j] }))); wk.terminate(); }); wk.on("error", reject);
+  }))).then((parts) => parts.flat().sort((x, y) => x.i - y.i).map(({ i, ...r }) => r));
+}
+
+if (!isMainThread && workerData?.bandsJob) {
+  const { recipe, V, ks, nbands } = workerData.bandsJob, pw = new PW({ ...recipe, species: speciesFrom(recipe.pseudos), kpts: [{ k: ks[0], w: 1 }] });
+  parentPort.postMessage(pw.bandsAt(V, ks, { nbands, iters: 160 }));
 }
 
 if (!isMainThread && workerData?.recipe) {

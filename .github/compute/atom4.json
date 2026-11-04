@@ -1,84 +1,30 @@
 {
- "run": "lawtable-repair",
- "why": "lawtable-shell (all exit 0) settled 107 of the 140 elements under the shell theorem; 33 (38, 39, 41, 88–117: most of row 6's f block) never settled in ground()'s budgets, so their configurations are unsettled fillings, and one of them (110, 4f³² 5s² 5p⁸) would be a closed shell, which would split row 6. Each is searched again from every configuration in reach (47 for element 38), mixing 0.15 for up to 1500 iterations; element 38 settled in two minutes in the sandbox (3d¹³ 4s² 4p¹).",
- "minutes": 300,
+ "run": "bands-1",
+ "why": "The plane-wave code missed the 0.2 eV bar on polymorph energies (pw-fixed), so per the agreed stop-loss Bl₂Px₃ goes to bands on the ionic model's structure. pwcheck.mjs bands: the SCF, then non-self-consistent bands in its potential along Γ → each zone face and the far corner, and on a Γ-centred grid for the band edges and the DOS (the earlier runs' shifted grids never sampled Γ, where corundum's gap sits; sandbox check: the bands at Γ give back the SCF's gap to every digit). Calibration first: our corundum at ×1.00 against PySCF with the same functional (exchange-only LDA, now reporting its gap) and measured 8.8 eV. Then Bl₂Px₃'s two cells the plane-wave code can't tell apart (z2-0, z2-1, 0.09 eV): if their gaps agree in kind, the structure question stops mattering for the laser case.",
+ "minutes": 330,
  "groups": [
   {
-   "name": "repair-0",
+   "name": "cal-pyscf",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 117 140",
-    "node four/atom/tools/lawtable.mjs repair 116 140",
-    "node four/atom/tools/lawtable.mjs repair 115 140",
-    "node four/atom/tools/lawtable.mjs repair 114 140"
+    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 slater"
    ]
   },
   {
-   "name": "repair-1",
+   "name": "cal-ours",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 113 140",
-    "node four/atom/tools/lawtable.mjs repair 112 140",
-    "node four/atom/tools/lawtable.mjs repair 111 140",
-    "node four/atom/tools/lawtable.mjs repair 110 140"
+    "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18 4"
    ]
   },
   {
-   "name": "repair-2",
+   "name": "bl-z2-0",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 109 140",
-    "node four/atom/tools/lawtable.mjs repair 108 140",
-    "node four/atom/tools/lawtable.mjs repair 107 140",
-    "node four/atom/tools/lawtable.mjs repair 106 140"
+    "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 a10 4 soft"
    ]
   },
   {
-   "name": "repair-3",
+   "name": "bl-z2-1",
    "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 105 140",
-    "node four/atom/tools/lawtable.mjs repair 104 140",
-    "node four/atom/tools/lawtable.mjs repair 103 140",
-    "node four/atom/tools/lawtable.mjs repair 102 140"
-   ]
-  },
-  {
-   "name": "repair-4",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 101 140",
-    "node four/atom/tools/lawtable.mjs repair 100 140",
-    "node four/atom/tools/lawtable.mjs repair 99 140",
-    "node four/atom/tools/lawtable.mjs repair 98 140"
-   ]
-  },
-  {
-   "name": "repair-5",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 97 140",
-    "node four/atom/tools/lawtable.mjs repair 96 140",
-    "node four/atom/tools/lawtable.mjs repair 95 140",
-    "node four/atom/tools/lawtable.mjs repair 94 140"
-   ]
-  },
-  {
-   "name": "repair-6",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 93 140",
-    "node four/atom/tools/lawtable.mjs repair 92 140",
-    "node four/atom/tools/lawtable.mjs repair 91 140",
-    "node four/atom/tools/lawtable.mjs repair 90 140"
-   ]
-  },
-  {
-   "name": "repair-7",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 89 140",
-    "node four/atom/tools/lawtable.mjs repair 88 140",
-    "node four/atom/tools/lawtable.mjs repair 41 140",
-    "node four/atom/tools/lawtable.mjs repair 39 140"
-   ]
-  },
-  {
-   "name": "repair-8",
-   "cmds": [
-    "node four/atom/tools/lawtable.mjs repair 38 140"
+    "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a10 4 soft"
    ]
   }
  ]

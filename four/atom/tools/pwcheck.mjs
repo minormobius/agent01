@@ -6,6 +6,11 @@
    in 4D two neutral atoms still meet as −3S²/64r⁵ (the shell theorem fails), so the box's images add the lattice sum
    of that, which this prints too, to be taken off before extrapolating in L.
      node four/atom/tools/pwcheck.mjs crystal <structures.json> <name> <scale> <ecut> [k] [threads] [soft]   → $TMPDIR/atom4-pw/…json
+     node four/atom/tools/pwcheck.mjs bands <structures.json> <name> <scale> <ecut> [k] [threads] [soft]     → …-bands.json
+       the same SCF, then non-self-consistent bands in its potential: a path from Γ out along each reciprocal vector to
+       the zone face (b_i/2) and to the far corner (Σb_i/2), and a Γ-centred grid of the SCF's density for the band edges
+       and the density of states. Reports the valence top and conduction bottom (and where), the gap, whether it's
+       direct (the smallest vertical gap and where), and the DOS (Gaussian, 0.15 eV)
        (threads: k-points shared out to that many workers, tools/pwpool.mjs)
        a crystalref-style structure (H rows, fractional s, kinds 0 cation 1 anion, primitive rows P), scaled; k a number
        per reciprocal vector, or aX / aXs (⌈X/|a_i|⌉, Γ-centred / shifted by half a step) */
@@ -13,7 +18,7 @@ import { makePseudo, forPW, solveAny } from "../js/pseudo.js";
 import { PW, EXCHANGE, SPHERE } from "../js/pw.js";
 import { kernel, hartree, R, N, H } from "../js/atom.js";
 import { kgrid } from "../js/pw.js";
-import { makePool, speciesFrom } from "./pwpool.mjs";
+import { makePool, speciesFrom, bandsParallel } from "./pwpool.mjs";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -50,7 +55,7 @@ if (cmd === "atom") {
   const pw = new PW({ d, H: Hc, atoms: [{ x: new Array(d).fill(0), sp: "X" }], species: { X: forPW(ps, { qmax: Math.max(40, 3 * Math.sqrt(2 * ecut)) }) }, ecut, nelec: Object.values(val).reduce((t, v) => t + v, 0), nbands: Object.entries(occ).reduce((t, [l]) => t + (d === 3 ? 2 * l + 1 : (+l + 1) ** 2), 0) });
   const r = pw.scf({ log: (s) => process.stderr.write(s + "\n"), maxIter: 40, tol: 2e-6 });
   console.log(JSON.stringify({ d, Z, L, ecut, rc, grid: pw.dims, npw: pw.basis[0].n, E: r.E.total, eps: r.states[0].e, Erad, epsRad: Object.fromEntries(Object.entries(st).map(([l, s]) => [l, s.e])), Stot, image: img, parts: r.E, s: (Date.now() - t0) / 1000 }));
-} else if (cmd === "crystal") {
+} else if (cmd === "crystal" || cmd === "bands") {
   // a structure from a crystalref-style file (H rows, fractional s, kinds 0 cation 1 anion, primitive rows P), scaled
   // k: a number (n per reciprocal vector), or aX / aXs: n_i = ⌈X/|a_i|⌉, Γ-centred or shifted by half a step (folds in pairs)
   const [file, name, scS, ecS, kS = "1", thS, psS] = a, st = JSON.parse(readFileSync(file, "utf8"))[name], sc = +scS, ecut = +ecS, d = st.H.length, nk = kS;
@@ -67,6 +72,24 @@ if (cmd === "atom") {
   const r = pw.scf({ log: (s) => process.stderr.write(s + "\n"), maxIter: 60, tol: 1e-5, pool, bandIters: +(process.env.PW_BANDITERS || 6) });
   pool?.close();
   const occ = nelec / 2, vb = Math.max(...pw.eigs.map((e) => e[occ - 1])), cb = Math.min(...pw.eigs.map((e) => e[occ]));
+  if (cmd === "bands") {
+    const V = pw.potential(r.rho, pw.localR()).V, Bv = pw.B, kOf = (f) => H[0].map((_, c) => f.reduce((t, v, a) => t + v * Bv[a][c], 0));
+    const dirs = [...H.map((_, i) => H.map((_, j) => +(i === j) * 0.5)), H.map(() => 0.5)], kpath = [{ f: H.map(() => 0), seg: "Γ" }];
+    dirs.forEach((u, s) => { for (const t of [0.25, 0.5, 0.75, 1]) kpath.push({ f: u.map((v) => v * t), seg: s < H.length ? `b${s + 1}/2` : "Σb/2" }); });
+    const grid = kgrid(H, ns, null), nbB = occ + 8, recipe = { d, H, atoms: at, ecut, nelec, nbands: nbB, kpts: [{ k: H.map(() => 0), w: 1 }], pseudos };
+    const all = await bandsParallel(recipe, V, [...kpath.map((p) => kOf(p.f)), ...grid.map((g) => g.k)], nbB, Math.max(1, threads));
+    const HA = 27.211386, onPath = all.slice(0, kpath.length), onGrid = all.slice(kpath.length), every = [...onPath.map((b, i) => ({ ...b, f: kpath[i].f })), ...onGrid.map((b, i) => ({ ...b, f: grid[i].f }))];
+    const top = every.reduce((m, b) => (b.e[occ - 1] > m.e[occ - 1] ? b : m)), bot = every.reduce((m, b) => (b.e[occ] < m.e[occ] ? b : m)), vert = every.reduce((m, b) => (b.e[occ] - b.e[occ - 1] < m.e[occ] - m.e[occ - 1] ? b : m));
+    const ev0 = top.e[occ - 1], rel = (e) => +((e - ev0) * HA).toFixed(4), fr = (f) => f.map((x) => +x.toFixed(3));
+    const lo = Math.min(...onGrid.flatMap((b) => b.e)) * HA - 1, hi = Math.max(...onGrid.flatMap((b) => b.e)) * HA + 1, dE = 0.05, sig = 0.15, dos = [];
+    for (let E = lo; E <= hi; E += dE) { let t = 0; onGrid.forEach((b, i) => { for (const e of b.e) t += (2 * grid[i].w * Math.exp(-(((e * HA - E) / sig) ** 2) / 2)) / (sig * Math.sqrt(2 * Math.PI)); }); dos.push([+(E - ev0 * HA).toFixed(3), +(t / nf).toFixed(4)]); }
+    const out = { file: path.basename(file), name, scale: sc, ecut, nk, ns, pset, atoms: at.length, nf, E: r.E.total, perFormula_eV: (r.E.total / nf) * HA,
+      vbm: { f: fr(top.f), e: 0 }, cbm: { f: fr(bot.f), e: rel(bot.e[occ]) }, gap_eV: rel(bot.e[occ]), direct: { f: fr(vert.f), gap_eV: +((vert.e[occ] - vert.e[occ - 1]) * HA).toFixed(4) }, isDirect: vert === top && vert === bot || Math.abs((vert.e[occ] - vert.e[occ - 1]) - (bot.e[occ] - top.e[occ - 1])) * HA < 1e-3,
+      scfGap_eV: (cb - vb) * HA, path: onPath.map((b, i) => ({ f: fr(kpath[i].f), seg: kpath[i].seg, e: b.e.map(rel) })), grid: onGrid.map((b, i) => ({ f: fr(grid[i].f), w: grid[i].w, e: b.e.map(rel) })), dos, maxRes: Math.max(...all.map((b) => b.res)), s: (Date.now() - t0) / 1000 };
+    const dir = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-pw"); mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, `${path.basename(file, ".json")}-${name}-${sc.toFixed(3)}-e${ecut}-k${nk}${psS ? `-${psS}` : ""}-bands.json`), JSON.stringify(out));
+    const { path: _p, grid: _g, dos: _d, ...brief } = out; console.log(JSON.stringify(brief)); process.exit(0);
+  }
   const res = { file: path.basename(file), name, scale: sc, ecut, nk, ns, nkpts: kpts.length, threads, pset, atoms: at.length, nf, E: r.E.total, perFormula_eV: (r.E.total / nf) * 27.211386, gap_eV: (cb - vb) * 27.211386, parts: r.E, s: (Date.now() - t0) / 1000 };
   const dir = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-pw"); mkdirSync(dir, { recursive: true });
   writeFileSync(path.join(dir, `${path.basename(file, ".json")}-${name}-${sc.toFixed(3)}-e${ecut}-k${nk}${psS ? `-${psS}` : ""}.json`), JSON.stringify(res)); console.log(JSON.stringify(res));

@@ -320,6 +320,14 @@ for games, and this is a modelling programme with publications to come. The game
   applies: the Bl₂Px₃ candidate stays the ionic model's (density 3.57 × 10¹³ kg/m⁴) and the next step is its bands.
   Bl₂Px₃ at Γ can't rank: going from 1 to 4 k moved z2-0 by 17.8 eV per formula, and z2-0 and z2-1 sit 0.09 eV
   apart once k-sampled (the old 15 eV gap was the 4D ion-moment bug).
+  **Bands** (the stop-loss's next step): `pw.bandsAt(V, ks, { nbands })` solves non-self-consistently at any k in a
+  converged potential (the grid doesn't depend on k; `localR()` gives the ions' grid potential for `potential()` outside
+  an scf), `pwpool.mjs bandsParallel` shares the k-points out to threads, and `pwcheck.mjs bands …` (same arguments as
+  `crystal`) runs the SCF, then a path Γ → b_i/2 and → Σb/2 plus a Γ-centred grid: valence top, conduction bottom and
+  where, the gap, whether direct, the DOS → `…-bands.json`. Check: the bands at Γ give back the SCF's gap to every digit
+  (corundum, ecut 20, Γ: 5.5128 eV, direct). Note the earlier runs' `a18s` grids are shifted and never sample Γ, where
+  corundum's gap sits. `crystalref.py` now reports PySCF's gap (whole mesh and at Γ). Run `bands-1`: the calibration
+  (our corundum against same-functional PySCF and measured 8.8 eV) and Bl₂Px₃ z2-0, z2-1.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

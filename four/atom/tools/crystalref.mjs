@@ -22,7 +22,8 @@ if (name === "table") {
   process.exit(0);
 }
 const scale = +sarg, out = path.join(DIR, `dft-${cmp}-${name}-${scale.toFixed(3)}${xcArg === "pbe" ? "" : `-${xcArg}`}.json`);
-if (!existsSync(out)) {
+// a result from before gaps were reported is redone (the gap is the band calibration's reference)
+if (!existsSync(out) || !("gap_eV" in JSON.parse(readFileSync(out, "utf8")))) {
   const has = () => { try { execFileSync("python3", ["-c", "import pyscf"], { stdio: "ignore" }); return true; } catch { return false; } };
   if (!has()) { const lock = path.join(os.tmpdir(), "pyscf-install.lock");
     try { mkdirSync(lock); try { execFileSync("python3", ["-m", "pip", "install", "--user", "-q", "pyscf"], { stdio: "inherit" }); } finally { rmSync(lock, { recursive: true, force: true }); } }
@@ -30,4 +31,4 @@ if (!existsSync(out)) {
   // not -I: that drops the user site-packages PySCF was installed into (our own script, run from the temp dir)
   execFileSync("python3", [path.join(here, "crystalref.py"), src, name, String(scale), out, XC[0], XC[1]], { stdio: "inherit", cwd: os.tmpdir(), env: { ...process.env, OMP_NUM_THREADS: String(+targ || 1) } });
 }
-const r = JSON.parse(readFileSync(out, "utf8")); console.log(`${cmp} ${name} ×${scale}: ${r.perFormula_eV.toFixed(4)} eV per formula, ${r.converged ? "converged" : "NOT converged"}`);
+const r = JSON.parse(readFileSync(out, "utf8")); console.log(`${cmp} ${name} ×${scale}: ${r.perFormula_eV.toFixed(4)} eV per formula, ${r.converged ? "converged" : "NOT converged"}, gap ${r.gap_eV?.toFixed(3)} eV (at Γ ${r.gapGamma_eV?.toFixed(3)})`); console.log(JSON.stringify(r));
