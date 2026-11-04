@@ -1,0 +1,22 @@
+parents complete: 147 of 147; runs: 2940
+G1 children of B parents that are B: 71 of 100 (guess: at least half)
+G2 I|S-front parents with no B neighbour having any B child: 0 of 18 (guess: fewer than half)
+G3 children sharing parent state: 490 of 588 (guess: at least 60%)
+by parent state -> children states
+  B {'D': 1, 'I': 8, 'S': 17, 'B': 71, 'T': 3}
+  D {'D': 110, 'S': 18}
+  I {'I': 88, 'B': 9, 'S': 2, 'T': 1}
+  S {'D': 16, 'S': 219, 'B': 6, 'I': 6, 'T': 1}
+  T {'D': 2, 'I': 3, 'T': 2, 'S': 3, 'B': 2}
+B children under non-B parents: 17 in 11 parents
+   s 1 p 0.2 h 0.6 I nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) IIBI
+   s 1 p 0.4 h 0.6 S nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) SBSS
+   s 1 p 0.4 h 0.8 I nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) IIBI
+   s 2 p 0.1 h 0.5 T nb BS kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) SBSB
+   s 2 p 0.3 h 0.5 S nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) SBSS
+   s 2 p 0.1 h 0.7 I nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) BBBB
+   s 2 p 0.4 h 0.7 S nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) BBSS
+   s 5 p 0.1 h 0.9 I nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) IIBI
+   s 10 p 0.1 h 0.7 S nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) SSSB
+   s 10 p 0.2 h 0.8 S nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) SBSS
+   s 10 p 0.1 h 1 I nb B kids(ll,lr? order: p-h-,p-h+,p+h-,p+h+) BIBI
