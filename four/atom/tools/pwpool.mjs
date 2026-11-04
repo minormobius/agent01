@@ -32,19 +32,19 @@ export function makePool(recipe, nw) {
 
 /* non-self-consistent bands at many k, shared out to nw worker threads: each rebuilds the crystal from the recipe and runs
    pw.bandsAt in the converged potential V (sent once through shared memory). Resolves to [{ k, e, res }] in ks's order */
-export function bandsParallel(recipe, Vin, ks, nbands, nw) {
+export function bandsParallel(recipe, Vin, ks, nbands, nw, iters = 160) {
   const V = new Float64Array(new SharedArrayBuffer(8 * Vin.length)); V.set(Vin);
   nw = Math.max(1, Math.min(nw, ks.length));
   const share = Array.from({ length: nw }, (_, w) => ks.map((_, i) => i).filter((i) => i % nw === w));
   return Promise.all(share.map((idx) => new Promise((resolve, reject) => {
-    const wk = new Worker(new URL(import.meta.url), { workerData: { bandsJob: { recipe, V, ks: idx.map((i) => ks[i]), nbands } } });
+    const wk = new Worker(new URL(import.meta.url), { workerData: { bandsJob: { recipe, V, ks: idx.map((i) => ks[i]), nbands, iters } } });
     wk.on("message", (m) => { resolve(idx.map((i, j) => ({ i, ...m[j] }))); wk.terminate(); }); wk.on("error", reject);
   }))).then((parts) => parts.flat().sort((x, y) => x.i - y.i).map(({ i, ...r }) => r));
 }
 
 if (!isMainThread && workerData?.bandsJob) {
-  const { recipe, V, ks, nbands } = workerData.bandsJob, pw = new PW({ ...recipe, species: speciesFrom(recipe.pseudos), kpts: [{ k: ks[0], w: 1 }] });
-  parentPort.postMessage(pw.bandsAt(V, ks, { nbands, iters: 160 }));
+  const { recipe, V, ks, nbands, iters } = workerData.bandsJob, pw = new PW({ ...recipe, species: speciesFrom(recipe.pseudos), kpts: [{ k: ks[0], w: 1 }] });
+  parentPort.postMessage(pw.bandsAt(V, ks, { nbands, iters }));
 }
 
 if (!isMainThread && workerData?.recipe) {

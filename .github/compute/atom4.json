@@ -1,20 +1,8 @@
 {
- "run": "bands-1",
- "why": "The plane-wave code missed the 0.2 eV bar on polymorph energies (pw-fixed), so per the agreed stop-loss Bl₂Px₃ goes to bands on the ionic model's structure. pwcheck.mjs bands: the SCF, then non-self-consistent bands in its potential along Γ → each zone face and the far corner, and on a Γ-centred grid for the band edges and the DOS (the earlier runs' shifted grids never sampled Γ, where corundum's gap sits; sandbox check: the bands at Γ give back the SCF's gap to every digit). Calibration first: our corundum at ×1.00 against PySCF with the same functional (exchange-only LDA, now reporting its gap) and measured 8.8 eV. Then Bl₂Px₃'s two cells the plane-wave code can't tell apart (z2-0, z2-1, 0.09 eV): if their gaps agree in kind, the structure question stops mattering for the laser case.",
- "minutes": 330,
+ "run": "bands-2",
+ "why": "bands-1 (all exit 0 but the two Bl₂Px₃ groups, cut at the deadline): the calibration is in, our corundum's gap 6.02 eV at Γ against same-functional PySCF's 5.95 (the code within 0.06 eV), measured 8.8 (the functional 2.8 eV low). Both Bl₂Px₃ cells' SCFs converged (13 iterations) but the band path (29 k, 38 bands, a 1.35-million-point 4D grid) didn't finish, and nothing was kept. pwcheck bands now saves the SCF (eigenvalues, potential) the moment it's done and prints the SCF grid's band edges, then does a shorter path (halfway and all the way to each zone face and the far corner, occ + 4 bands) saving each point, so a cut run resumes.",
+ "minutes": 340,
  "groups": [
-  {
-   "name": "cal-pyscf",
-   "cmds": [
-    "node four/atom/tools/crystalref.mjs Al2O3 corundum 1.00 4 slater"
-   ]
-  },
-  {
-   "name": "cal-ours",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18 4"
-   ]
-  },
   {
    "name": "bl-z2-0",
    "cmds": [

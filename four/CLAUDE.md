@@ -326,8 +326,14 @@ for games, and this is a modelling programme with publications to come. The game
   `crystal`) runs the SCF, then a path Γ → b_i/2 and → Σb/2 plus a Γ-centred grid: valence top, conduction bottom and
   where, the gap, whether direct, the DOS → `…-bands.json`. Check: the bands at Γ give back the SCF's gap to every digit
   (corundum, ecut 20, Γ: 5.5128 eV, direct). Note the earlier runs' `a18s` grids are shifted and never sample Γ, where
-  corundum's gap sits. `crystalref.py` now reports PySCF's gap (whole mesh and at Γ). Run `bands-1`: the calibration
-  (our corundum against same-functional PySCF and measured 8.8 eV) and Bl₂Px₃ z2-0, z2-1.
+  corundum's gap sits. `crystalref.py` now reports PySCF's gap (whole mesh and at Γ). **Calibration (`bands-1`): our corundum at ×1.00, ecut 40, gap 6.02 eV direct at Γ (the
+  valence top 0.011 eV higher at (⅛,0,0), within the band residuals: effectively direct); PySCF with the same
+  functional 5.95 eV at Γ.** So the code's band gap is good to 0.06 eV; the functional (exchange-only LDA) is 2.8 eV
+  under measured 8.8, the stated correction for Bl₂Px₃ (+2.8 eV, or ×1.47). Bl₂Px₃'s two cells were cut at the deadline
+  with their SCFs converged and the 29-point path unfinished, nothing kept; `bands` now saves the SCF
+  (`<tag>-scf.json`, the potential `<tag>-V.f64`) and each path point (`<tag>-bandk.jsonl`) as they finish, prints the
+  SCF grid's band edges before the path (a line with `"stage":"scf"`), and runs a shorter path (t = ½, 1 toward each face
+  and the far corner, occ + 4 bands, 100 iterations); a rerun resumes. Run `bands-2`: z2-0, z2-1.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
