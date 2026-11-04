@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="LAVALAMP — a lava lamp in 3D and in 4D side by side: wax and liquid, immiscible, a heater below and a cool top, creeping flow, surface tension and heat. In 4D a thread of wax pinches off where ours holds (it breaks when kR is under √2, not 1), and a hot blob loses its heat about twice as fast." />
+<title>LAVALAMP — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/lamp.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Two lava lamps: left a 3D one, right your 3D slice of a 4D one"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="bar">
+    <b>LAVALAMP</b>
+    <div id="exps">
+      <button type="button" data-x="lamp">lamp</button><button type="button" data-x="thread">thread</button><button type="button" data-x="cooling">cooling</button>
+      <button type="button" id="againB">again</button>
+      <button type="button" id="pauseB">pause</button>
+      <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
+      <button type="button" id="gearB" aria-label="help">?</button>
+    </div>
+  </div>
+  <div id="cap"></div>
+  <div id="twist" class="pad" aria-label="tilt your slice's two directions across into w"><div id="twistKnob"></div><span>tilt into w</span></div>
+  <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+  <div id="panel" hidden>
+    <p class="foot">A lava lamp in 3D beside one in 4D: the same physics (PHASELAB's immiscible pair, now carried by a creeping flow, with surface tension, buoyancy and heat), both 16 cells across and 32 tall, each in its own worker. The wax is drawn solid, coloured by its temperature; the liquid is clear. The lamps' sides wrap round; the floor and ceiling are walls. Drag to turn both. In 4D gravity stays vertical: the pad tilts the two directions across into w (J L, I K), the lever moves through w (R F), ⊞ or Z squares it up. <b>again</b> starts the lamp over with a new ripple in the pool. <a href="./README.md">how it works</a> · <a href="../phase/">PHASELAB</a> · <a href="../">kata</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
