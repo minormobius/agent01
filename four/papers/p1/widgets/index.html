@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="Two companions to paper 1, a periodic table for four dimensions: switch the shell theorem off and on for any 4D atom and watch how hard it holds its outer electron, and walk a charge away from a neutral 4D atom to feel its far pull, −Σ⟨r²⟩/8s³." />
+<meta name="description" content="Companions to paper 1, a periodic table for four dimensions: choose the charge law and watch one electron's levels split or fall to the centre; switch the shell theorem off and on for any 4D atom and watch how hard it holds its outer electron, and walk a charge away from a neutral 4D atom to feel its far pull, −Σ⟨r²⟩/8s³." />
 <title>Four · paper 1 widgets</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../../atom/css/atom4.css" />
@@ -32,12 +32,30 @@
 <header>
   <nav class="chapters"><a href="../../../" class="home">FOUR</a><a href="../../../start/">where we are</a><a href="../../../table/">the table</a><a href="../../../fields/">fields</a><a href="../../../atom/">ATOM⁴</a></nav>
   <h2>four.mino.mobi · paper 1</h2>
-  <h1 class="ch">Partial screening, by hand</h1>
-  <p class="lede">Companions to paper 1, <i>Atoms in four spatial dimensions with a 1/r interaction: a self-consistent periodic table</i>. With the force between charges pinned at <b>1/r</b> in four dimensions there's no shell theorem: a cloud of charge round an atom doesn't act as if it sat at the centre. Both toys below run on the paper's own solver and its baked table.</p>
+  <h1 class="ch">The charge law, by hand</h1>
+  <p class="lede">Companions to paper 1, <i>Atoms in four spatial dimensions with a 1/r interaction: a self-consistent periodic table</i>. With the force between charges pinned at <b>1/r</b> in four dimensions there's no shell theorem: a cloud of charge round an atom doesn't act as if it sat at the centre. First, why that law: try the others. Then what it does. Every toy runs on the paper's own code and baked table.</p>
 </header>
 
+<section class="step" id="law">
+  <h3>1 · Choose a law</h3>
+  <p>One electron, one nucleus, four dimensions. Under a pull −1/r<sup>p</sup> its levels group into shells only when p = 1: 2s sits exactly with 2p, and 3s with 3p and 3d. That grouping is what makes shells of 2, 8, 18, 32 and the table's rows. Move p off 1 and the shells come apart.</p>
+  <div class="toy">
+    <div class="ctl">p <input id="pp" type="range" min="0.6" max="1.5" step="0.01" value="1" /> <b id="ppv"></b> <button type="button" class="chip" id="pone">p = 1</button></div>
+    <canvas class="chart" id="cLev"></canvas>
+    <p class="cap">each shell's levels against its own s level, in percent of its binding: <span class="d4">s</span>, <span class="d3">p</span>, <span style="color:#c79bff">d</span>; at p = 1 they all sit on the dashed line</p>
+    <p class="read" id="rLev"></p>
+  </div>
+  <p>Gauss's law would give −α/r² instead, and that has no length in it at all. Below α = ½ nothing binds. Above it the electron falls to the centre: its lowest level is set by how close to the nucleus the calculation is allowed to look, and moves without limit as that point moves in.</p>
+  <div class="toy">
+    <div class="ctl">α <input id="ga" type="range" min="0.2" max="1" step="0.01" value="0.7" /> <b id="gav"></b></div>
+    <canvas class="chart" id="cGauss"></canvas>
+    <p class="cap">the lowest level |ε| (hartree) against the grid's inner end r₀: a settled atom would be a flat line; <span class="d3">1/r₀²</span> dashed</p>
+    <p class="read" id="rGauss"></p>
+  </div>
+</section>
+
 <section class="step" id="screening">
-  <h3>1 · Screening on and off</h3>
+  <h3>2 · Screening on and off</h3>
   <p>Pick a 4D element. The page solves it twice, in its ground configuration: once as this universe has it, and once with the shell theorem forced on (the clouds' pull computed as if each sat at the centre, the way ours would). The outer electron is held much harder without the shell theorem: the inner electrons screen it only partly.</p>
   <div class="toy">
     <div class="ctl">element <input id="z" type="range" min="1" max="140" step="1" value="12" /> <b id="zv"></b></div>
@@ -58,7 +76,7 @@
 </section>
 
 <section class="step" id="farpull">
-  <h3>2 · A neutral atom's far pull</h3>
+  <h3>3 · A neutral atom's far pull</h3>
   <p>In our world a neutral atom is invisible from outside: its nucleus and its cloud cancel exactly, by the shell theorem. In four dimensions the cloud's pull falls short of the nucleus's push, by a little that dies away as the cube of the distance. Walk an electron away from the atom: what it feels approaches <b>−S/8s³</b>, with S = Σ⟨r²⟩ over the atom's electrons.</p>
   <div class="toy">
     <div class="ctl">element <input id="fz" type="range" min="1" max="140" step="1" value="12" /> <b id="fzv"></b></div>

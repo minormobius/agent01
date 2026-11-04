@@ -1,132 +1,132 @@
 {
- "run": "pw-fixed",
- "why": "Two pseudopotential bugs found and fixed: the all-electron atom's far density wasn't converged (exchange left a tail that skewed α Z by ~1 Ha·bohr³ per ion, a 1/V error), and in 4D the ion's leaked moment missed the pseudo-valence's ⟨r²⟩ deficit (α Z grew without bound). θ − corundum went from +1.53 to +0.69 eV per formula (PySCF with the same functional +0.58). Now: the four aluminas at four scales, ecut 40; all eight Bl₂Px₃ candidates at Γ (soft, ecut 25); the top two at 4 shifted k.",
- "minutes": 330,
+ "run": "lawtable-shell",
+ "why": "Paper 1's counterfactual table: all 140 4D elements solved again with the shell theorem forced on (the clouds' pull as if each sat at the centre), searched as the bake searched and seeded from the real table's configurations. It separates what the periodic table owes to the charge law from what it owes to the geometry. A sample in the sandbox already showed the law reordering the blocks (element 26: 4s² 4p² under the shell theorem against 3d² 4s²; element 100 filling 4f³⁰ before 5p).",
+ "minutes": 180,
  "groups": [
   {
-   "name": "fx-corundum-0.98",
+   "name": "shell-0",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 0.98 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 0 56",
+    "node four/atom/tools/lawtable.mjs shell 1 56",
+    "node four/atom/tools/lawtable.mjs shell 2 56",
+    "node four/atom/tools/lawtable.mjs shell 3 56"
    ]
   },
   {
-   "name": "fx-corundum-1.00",
+   "name": "shell-1",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.00 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 4 56",
+    "node four/atom/tools/lawtable.mjs shell 5 56",
+    "node four/atom/tools/lawtable.mjs shell 6 56",
+    "node four/atom/tools/lawtable.mjs shell 7 56"
    ]
   },
   {
-   "name": "fx-corundum-1.02",
+   "name": "shell-2",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.02 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 8 56",
+    "node four/atom/tools/lawtable.mjs shell 9 56",
+    "node four/atom/tools/lawtable.mjs shell 10 56",
+    "node four/atom/tools/lawtable.mjs shell 11 56"
    ]
   },
   {
-   "name": "fx-corundum-1.04",
+   "name": "shell-3",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json corundum 1.04 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 12 56",
+    "node four/atom/tools/lawtable.mjs shell 13 56",
+    "node four/atom/tools/lawtable.mjs shell 14 56",
+    "node four/atom/tools/lawtable.mjs shell 15 56"
    ]
   },
   {
-   "name": "fx-theta-0.98",
+   "name": "shell-4",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 0.98 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 16 56",
+    "node four/atom/tools/lawtable.mjs shell 17 56",
+    "node four/atom/tools/lawtable.mjs shell 18 56",
+    "node four/atom/tools/lawtable.mjs shell 19 56"
    ]
   },
   {
-   "name": "fx-theta-1.00",
+   "name": "shell-5",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.00 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 20 56",
+    "node four/atom/tools/lawtable.mjs shell 21 56",
+    "node four/atom/tools/lawtable.mjs shell 22 56",
+    "node four/atom/tools/lawtable.mjs shell 23 56"
    ]
   },
   {
-   "name": "fx-theta-1.02",
+   "name": "shell-6",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.02 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 24 56",
+    "node four/atom/tools/lawtable.mjs shell 25 56",
+    "node four/atom/tools/lawtable.mjs shell 26 56",
+    "node four/atom/tools/lawtable.mjs shell 27 56"
    ]
   },
   {
-   "name": "fx-theta-1.04",
+   "name": "shell-7",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json theta 1.04 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 28 56",
+    "node four/atom/tools/lawtable.mjs shell 29 56",
+    "node four/atom/tools/lawtable.mjs shell 30 56",
+    "node four/atom/tools/lawtable.mjs shell 31 56"
    ]
   },
   {
-   "name": "fx-impostor-0.98",
+   "name": "shell-8",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 0.98 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 32 56",
+    "node four/atom/tools/lawtable.mjs shell 33 56",
+    "node four/atom/tools/lawtable.mjs shell 34 56",
+    "node four/atom/tools/lawtable.mjs shell 35 56"
    ]
   },
   {
-   "name": "fx-impostor-1.00",
+   "name": "shell-9",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.00 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 36 56",
+    "node four/atom/tools/lawtable.mjs shell 37 56",
+    "node four/atom/tools/lawtable.mjs shell 38 56",
+    "node four/atom/tools/lawtable.mjs shell 39 56"
    ]
   },
   {
-   "name": "fx-impostor-1.02",
+   "name": "shell-10",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.02 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 40 56",
+    "node four/atom/tools/lawtable.mjs shell 41 56",
+    "node four/atom/tools/lawtable.mjs shell 42 56",
+    "node four/atom/tools/lawtable.mjs shell 43 56"
    ]
   },
   {
-   "name": "fx-impostor-1.04",
+   "name": "shell-11",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json impostor 1.04 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 44 56",
+    "node four/atom/tools/lawtable.mjs shell 45 56",
+    "node four/atom/tools/lawtable.mjs shell 46 56",
+    "node four/atom/tools/lawtable.mjs shell 47 56"
    ]
   },
   {
-   "name": "fx-poly6-0.98",
+   "name": "shell-12",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 0.98 40 a18s 4"
+    "node four/atom/tools/lawtable.mjs shell 48 56",
+    "node four/atom/tools/lawtable.mjs shell 49 56",
+    "node four/atom/tools/lawtable.mjs shell 50 56",
+    "node four/atom/tools/lawtable.mjs shell 51 56"
    ]
   },
   {
-   "name": "fx-poly6-1.00",
+   "name": "shell-13",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.00 40 a18s 4"
-   ]
-  },
-  {
-   "name": "fx-poly6-1.02",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.02 40 a18s 4"
-   ]
-  },
-  {
-   "name": "fx-poly6-1.04",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Al2O3.json poly6 1.04 40 a18s 4"
-   ]
-  },
-  {
-   "name": "bp-g0",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 1 1 soft",
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 1 1 soft",
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-2 1.00 25 1 1 soft",
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-3 1.00 25 1 1 soft"
-   ]
-  },
-  {
-   "name": "bp-g1",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-4 1.00 25 1 1 soft",
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-5 1.00 25 1 1 soft",
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z4-2 1.00 25 1 1 soft",
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z4-3 1.00 25 1 1 soft"
-   ]
-  },
-  {
-   "name": "bp-k4-z2-0",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 a10s 4 soft"
-   ]
-  },
-  {
-   "name": "bp-k4-z2-1",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a10s 4 soft"
+    "node four/atom/tools/lawtable.mjs shell 52 56",
+    "node four/atom/tools/lawtable.mjs shell 53 56",
+    "node four/atom/tools/lawtable.mjs shell 54 56",
+    "node four/atom/tools/lawtable.mjs shell 55 56"
    ]
   }
  ]

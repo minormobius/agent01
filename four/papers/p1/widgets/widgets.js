@@ -3,6 +3,7 @@
    density) under the 3-sphere kernel, against its far form −S/8s³. Both read the paper's bake; neither changes it. */
 import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "../../../atom/js/table.js";
 import { farPull } from "../far.js";
+import { levels, grid, gaussLaw } from "../laws.js";
 import { isNoble } from "../../../atom/js/periodic.js";
 import { names } from "../../../atom/js/names.js";
 
@@ -27,7 +28,7 @@ function plot(cv, { x, y, logx = false, logy = false, xl = "", yl = "", series =
   if (hline != null) { g.setLineDash([3, 3]); g.beginPath(); g.moveTo(L, Y(hline)); g.lineTo(w - R, Y(hline)); g.stroke(); g.setLineDash([]); }
   const ticks = (lo, hi, log) => { if (!log) return [lo, (lo + hi) / 2, hi]; const a = Math.ceil(Math.log10(lo) - 1e-9), b = Math.floor(Math.log10(hi) + 1e-9); return Array.from({ length: b - a + 1 }, (_, i) => 10 ** (a + i)); };
   const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹", lab = (v, log) => (log && (v >= 1e4 || v < 1e-2) ? "10" + String(Math.round(Math.log10(v))).replace("-", "⁻").replace(/\d/g, (c) => SUP[c]) : String(+v.toPrecision(3)));
-  for (const v of ticks(x[0], x[1], logx)) g.fillText(lab(v, logx), X(v) - 8, h - B + 13);
+  for (const v of ticks(x[0], x[1], logx)) { const t = lab(v, logx); g.fillText(t, Math.min(X(v) - 8, w - R - g.measureText(t).width), h - B + 13); }
   for (const v of ticks(y[0], y[1], logy)) g.fillText(lab(v, logy), 2, Y(v) + 3);
   g.fillText(xl, w - R - g.measureText(xl).width, h - 4); g.fillText(yl, L + 4, T + 8);
   g.save(); g.beginPath(); g.rect(L, T, w - L - R, h - B - T); g.clip();
@@ -41,7 +42,39 @@ function plot(cv, { x, y, logx = false, logy = false, xl = "", yl = "", series =
   g.restore();
 }
 
-/* ------------------------------------------------------------------------------------------------- 1 · screening */
+/* ---------------------------------------------------------------------------------------------- 1 · choose a law */
+const SHELLS = [[1, 0], [2, 0], [2, 1], [3, 0], [3, 1], [3, 2]], LCOL = ["#6fe0ff", "#ffb46b", "#c79bff"], LG = grid(1e-5, 2000, 5000);
+function drawLaw() {
+  const p = +$("pp").value, V = (r) => -1 / r ** p; $("ppv").textContent = p.toFixed(2);
+  const e = SHELLS.map(([n, l]) => ({ n, l, e: levels(V, l, n - l - 1, 4, LG) })), e1 = e[0].e;
+  // each shell's levels as offsets from its own s level, in percent: at p = 1 they all sit on the line
+  const cv = $("cLev"), dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight; cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h); g.font = "11px ui-monospace, monospace";
+  const top = 12, bot = h - 26, SPAN = 30, Y = (pct) => top + ((bot - top) * (SPAN - Math.max(-SPAN, Math.min(SPAN, pct)))) / (2 * SPAN), colW = (w - 60) / 3, col = (n) => 52 + colW * (n - 1);
+  g.strokeStyle = "rgba(255,255,255,0.18)"; g.beginPath(); g.moveTo(44, top); g.lineTo(44, bot); g.stroke();
+  g.setLineDash([3, 3]); g.beginPath(); g.moveTo(44, Y(0)); g.lineTo(w - 8, Y(0)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = DIM; for (const v of [SPAN, 0, -SPAN]) g.fillText(`${v > 0 ? "+" : ""}${v} %`, 2, Y(v) + 4); g.fillText("less bound ↑", 50, top + 8);
+  const sOf = (n) => e.find((x) => x.n === n && x.l === 0).e;
+  for (const s of e) { if (s.e === null || !isFinite(s.e)) continue; const pct = s.l === 0 ? 0 : (100 * (s.e - sOf(s.n))) / Math.abs(sOf(s.n)), x0 = col(s.n) + s.l * Math.min(52, colW / 3.4), y = Y(pct);
+    g.strokeStyle = LCOL[s.l]; g.lineWidth = 3; g.beginPath(); g.moveTo(x0, y); g.lineTo(x0 + 26, y); g.stroke(); g.lineWidth = 1; g.fillStyle = LCOL[s.l]; g.fillText(`${s.n}${"spd"[s.l]}`, x0 + 2, y + (pct > 0 ? -6 : 14)); }
+  g.fillStyle = DIM; for (const n of [1, 2, 3]) g.fillText(`n = ${n}`, col(n), h - 6);
+  const sp = (a, b) => (100 * (b.e - a.e)) / Math.abs(a.e), s2 = sp(e[1], e[2]), s3 = sp(e[3], e[5]);
+  $("rLev").innerHTML = Math.abs(p - 1) < 0.005 ? `At p = 1 the shells are exact: 2p sits on 2s to ${Math.abs(s2).toExponential(0)} %, 3d on 3s to ${Math.abs(s3).toExponential(0)} %. In 4D the levels are −1/2(n + ½)², and a shell holds 2(l + 1)² electrons per l: 2, then 2 + 8, then 2 + 8 + 18.`
+    : `At p = ${p.toFixed(2)}, 2p sits <b>${s2 > 0 ? "above" : "below"}</b> 2s by ${Math.abs(s2).toFixed(1)} % and 3d ${s3 > 0 ? "above" : "below"} 3s by ${Math.abs(s3).toFixed(1)} %: ${p < 1 ? "the order inverts, the most-turning electron the most bound" : "s drops below p and p below d"}, and the shells come apart.`;
+}
+function drawGauss() {
+  const a = +$("ga").value; $("gav").textContent = a.toFixed(2);
+  const r0s = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6], res = gaussLaw(a, r0s);
+  const pts = res.filter((x) => x.bound && isFinite(x.e)).map((x) => [x.r0, -x.e]);
+  if (pts.length) { const c = pts[0][1] * pts[0][0] ** 2; plot($("cGauss"), { x: [1e-6, 1e-2], y: [10 ** Math.floor(Math.log10(Math.min(...pts.map((q) => q[1])) / 3)), 10 ** Math.ceil(Math.log10(Math.max(...pts.map((q) => q[1])) * 3))], logx: true, logy: true, xl: "r₀ (bohr)", yl: "|ε|", series: [{ c: C3, pts: r0s.map((r) => [r, c / r ** 2]), dash: [5, 4] }, { c: C4, pts, dots: true }] }); }
+  else { plot($("cGauss"), { x: [1e-6, 1e-2], y: [1e-3, 1], logx: true, logy: true, xl: "r₀ (bohr)", yl: "|ε|", series: [] }); const g = $("cGauss").getContext("2d"); g.fillStyle = C4; g.font = "13px ui-monospace, monospace"; g.fillText("no bound level, on any grid", 120, 60); }
+  $("rGauss").innerHTML = pts.length ? `α = ${a.toFixed(2)} is past ½: the electron falls. Its lowest level is ${pts.map((q) => q[1].toExponential(1)).join(", ")} hartree as r₀ goes from 10⁻² to 10⁻⁶ bohr: ×100 for every ×10 closer, so it has no size of its own. No Bohr radius, no atom.`
+    : `α = ${a.toFixed(2)} is at or below ½: no level at all, on any grid. The pull never beats the electron's resistance to being squeezed (Hardy's inequality: in 4D the squeeze costs at least ½ × 1/r²). Nothing binds.`;
+}
+$("pp").addEventListener("input", drawLaw); $("pone").addEventListener("click", () => { $("pp").value = 1; drawLaw(); });
+$("ga").addEventListener("input", drawGauss);
+
+/* ------------------------------------------------------------------------------------------------- 2 · screening */
 const worker = new Worker(new URL("./solve.js", import.meta.url), { type: "module" });
 let pending = null, busy = false, last = null;
 const ask = (Z) => { if (busy) { pending = Z; return; } busy = true; const el = T4[Z - 1]; worker.postMessage({ Z, config: el.config, top: el.top }); $("ion4").textContent = $("ionS").textContent = $("ratio").textContent = "solving…"; $("ion4").className = "busy"; };
@@ -76,7 +109,7 @@ function drawNoble() {
   plot($("cNoble"), { x: [0, 140], y: [0, 30], xl: "Z", yl: "eV", series: [{ c: C3, pts: ptsS, dots: true }, { c: C4, pts: pts4, dots: true }] });
 }
 
-/* -------------------------------------------------------------------------------------------------- 2 · far pull */
+/* -------------------------------------------------------------------------------------------------- 3 · far pull */
 const S_MIN = 1, S_MAX = 100, sAt = (u) => S_MIN * (S_MAX / S_MIN) ** u;
 function farCurve(Z) {
   const { S, U } = farPull(T4[Z - 1], RPLOT);
@@ -99,5 +132,5 @@ function drawFar() {
 }
 for (const id of ["fz", "fs"]) $(id).addEventListener("input", drawFar);
 
-onZ(); drawNoble(); drawFar();
-addEventListener("resize", () => { drawScreen(); drawNoble(); drawFar(); });
+drawLaw(); drawGauss(); onZ(); drawNoble(); drawFar();
+addEventListener("resize", () => { drawLaw(); drawGauss(); drawScreen(); drawNoble(); drawFar(); });

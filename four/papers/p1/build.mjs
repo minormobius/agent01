@@ -15,6 +15,8 @@ import { createHash } from "node:crypto";
 import { TABLE, SHELL_COUNTERFACTUAL, RPLOT } from "../../atom/js/table.js";
 import { subshells } from "../../atom/js/atom.js";
 import { farPull } from "./far.js";
+import { gaussLaw, shellSplit } from "./laws.js";
+import { k4 } from "../../atom/js/kernel.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout } from "../../atom/js/periodic.js";
 import { names } from "../../atom/js/names.js";
 
@@ -142,20 +144,35 @@ function ledger(t3, t4, files, refs) {
   const ratios = nobles.map((r) => ({ Z: r.Z, ratio: +(r.ion_hartree / SHELL_COUNTERFACTUAL.find((c) => c.Z === r.Z).ion).toFixed(3) }));
   const far = nobles.map((r) => { const f = farPull(TABLE[4][r.Z - 1], RPLOT); return { Z: r.Z, S: +f.S.toFixed(3), ratio30: +(f.U(30) / f.far(30)).toFixed(4) }; });
   const h = t4[0].E_hartree, hExact = -1 / (2 * 1.5 ** 2);
+  // the law: Gauss's 1/r² in 4D, power laws, harmonicity, the shell theorem
+  const weak = gaussLaw(0.45), strong = gaussLaw(0.7), ratioR0 = strong[2].e / strong[0].e;
+  const splits = [0.8, 1, 1.2].map((p) => shellSplit(p));
+  const lap = (r, hh = 1e-3) => { const f = (x) => 1 / x; return (f(r + hh) - 2 * f(r) + f(r - hh)) / hh ** 2 + (3 / r) * (f(r + hh) - f(r - hh)) / (2 * hh); }; // ∇² of a radial function in 4D: f'' + 3f'/r
+  const k1 = k4(1);
   const claims = [
-    { id: "rows", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",
+    { id: "gauss", part: "law", claim: "Gauss's law in 4D (a 1/r² potential) has no atom: below a critical strength nothing binds, above it the ground state falls to the centre, its energy set by wherever the calculation stops (no Bohr radius either way)",
+      value: `α = 0.45: bound on no grid; α = 0.7: ε = ${strong.map((g) => g.e.toExponential(3)).join(", ")} hartree for r₀ = 10⁻³, 10⁻⁴, 10⁻⁵ (×${ratioR0.toExponential(2)} over 10⁻² in r₀: ε ∝ 1/r₀²); the critical strength is ½ (Hardy's inequality in 4D)`,
+      holds: weak.every((g) => !g.bound) && strong.every((g) => g.bound) && Math.abs(ratioR0 / 1e4 - 1) < 0.01, section: "2", gate: [67] },
+    { id: "uniqueness", part: "law", claim: "Among power laws 1/r^p only p = 1 keeps a shell's levels together (2s with 2p, 3s with 3d), the degeneracy that makes shells of 2(l + 1)² and rows of 2, 10, 10, 28 …",
+      value: splits.map((s) => `p = ${s.p}: 2p − 2s ${(100 * s.split2).toFixed(s.p === 1 ? 9 : 1)} %, 3d − 3s ${(100 * s.split3).toFixed(s.p === 1 ? 9 : 1)} %`).join("; "),
+      holds: Math.abs(splits[1].split2) < 1e-8 && Math.abs(splits[1].split3) < 1e-8 && splits[0].split2 < -0.01 && splits[2].split2 > 0.01, section: "2", gate: [67] },
+    { id: "harmonic", part: "law", claim: "Pinned in 4D, 1/r isn't harmonic: ∇²(1/r) = −1/r³ in empty space, so there is no Gauss's law for it",
+      value: `∇²(1/r) at r = 1, 2: ${lap(1).toFixed(5)}, ${lap(2).toFixed(5)} (−1/r³: −1, −0.125)`, holds: Math.abs(lap(1) + 1) < 1e-4 && Math.abs(lap(2) + 0.125) < 1e-4, section: "2", gate: [3, 33] },
+    { id: "shell", part: "law", claim: "… and no shell theorem: a shell of charge is felt at its own radius at k(1) = 8/3π of a point charge's pull, and a hollow conductor's centre sits at 3π/8 of its wall's potential (no Faraday cage)",
+      value: `k(1) = ${k1.toFixed(6)} (8/3π = ${(8 / (3 * Math.PI)).toFixed(6)}); centre over wall ${(1 / k1).toFixed(6)} (3π/8 = ${((3 * Math.PI) / 8).toFixed(6)})`, holds: Math.abs(k1 - 8 / (3 * Math.PI)) < 1e-6, section: "2", gate: [3] },
+    { id: "rows", part: "table", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",
       value: `solved ${whole.join(", ")} (and ${rows.at(-1)} of the next by Z = 140); the rule ${predicted.join(", ")}`, holds: whole.join() === predicted.join() && whole.join() === "2,10,10,28,28,60", section: "5", gate: [7, 27, 67] },
-    { id: "nobles", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
+    { id: "nobles", part: "table", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
       value: `noble gases ${nobleZ.join(", ")}; each above both neighbours: ${peaks ? "yes" : "no"}`, holds: nobleZ.join() === "2,12,22,50,78,138" && peaks, section: "5", gate: [7, 27, 67] },
-    { id: "hydrogen", claim: "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
+    { id: "hydrogen", part: "table", claim: "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
       value: `${h} hartree against ${hExact.toFixed(5)}`, holds: Math.abs(h - hExact) < 1e-5, section: "4", gate: [1] },
-    { id: "configs3", claim: "The same solver in our three dimensions gets 32 of our 36 ground configurations",
+    { id: "configs3", part: "table", claim: "The same solver in our three dimensions gets 32 of our 36 ground configurations",
       value: `${hits} of ${t3.length}; missed ${misses.join(", ")} (one d electron too many against 4s: local exchange leans to d)`, holds: hits === 32, section: "4", gate: [6, 67] },
-    { id: "ion3", claim: "… and our first ionization energies to a few percent",
+    { id: "ion3", part: "table", claim: "… and our first ionization energies to a few percent",
       value: `median error ${med.toFixed(1)} %, largest ${errs.at(-1).toFixed(1)} %`, holds: med < 6, section: "4", gate: [6] },
-    { id: "screening", claim: "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
+    { id: "screening", part: "consequence", claim: "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
       value: ratios.map((r) => `${r.Z}: ${r.ratio}×`).join(", "), holds: ratios.filter((r) => r.Z > 2).every((r) => r.ratio > 1.5), section: "6", gate: [8] },
-    { id: "farpull", claim: "A neutral atom pulls on a distant electron as −Σ⟨r²⟩/8s³",
+    { id: "farpull", part: "consequence", claim: "A neutral atom pulls on a distant electron as −Σ⟨r²⟩/8s³",
       value: `the full cloud over the far form at 30 bohr: ${far.map((f) => `${f.Z}: ${f.ratio30}`).join(", ")}`, holds: far.every((f) => Math.abs(f.ratio30 - 1) < 0.01), section: "6", gate: [8, 67] },
   ];
   const sha = (t) => createHash("sha256").update(t).digest("hex");

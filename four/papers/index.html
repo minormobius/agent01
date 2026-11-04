@@ -32,6 +32,8 @@
   .claims { display: grid; gap: 8px; margin: 10px 0; }
   .claim { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--d4); border-radius: 8px; padding: 10px 12px; }
   .claim.no { border-left-color: #ff7a7a; }
+  h4.part { font: 700 12px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em; margin: 14px 0 0; }
+  .chip.queued { color: var(--d3); border-color: var(--d3); }
   .claim .c { font-size: 14px; } .claim .v { font: 12px/1.5 var(--mono); color: var(--text); margin-top: 4px; } .claim .m { font: 11px var(--mono); color: var(--dim); margin-top: 4px; }
   .tally { display: flex; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); margin: 8px 0 4px; }
   .tally i { display: block; height: 100%; }
@@ -61,6 +63,7 @@
 
 <section class="step" id="rule">
   <h3>The rule</h3>
+  <p>The paper's subject is a choice. In four dimensions the law between charges can't be inherited: Gauss's law leaves no atom, so one has to be picked, and what it costs has to be paid in the open. Paper 1 picks 1/r, says why, and measures what that choice does by solving the whole periodic table twice, once under the law and once with the shell theorem forced back on.</p>
   <p>A number in the paper is never typed. It's read from a file the solver baked, and a test checks it against that file. The claims, the figures and eventually the text are generated, so the prose can't drift from the numbers. References are cited only once their details have been confirmed from the source or an index; seen-in-passing doesn't count. Anyone can solve the atoms again and get the same numbers to the last digit.</p>
 </section>
 

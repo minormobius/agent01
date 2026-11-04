@@ -3,48 +3,221 @@
  "paper": {
   "id": "p1",
   "title": "Atoms in four spatial dimensions with a 1/r interaction: a self-consistent periodic table",
-  "status": "in preparation: outline, data, references, reproduction and widgets built; no prose yet",
+  "status": "in preparation: restructured around the charge law; outline, data, ledger, references, reproduction and widgets built; the counterfactual table queued; no prose yet",
   "started": "2026-11-04",
   "bar": "arXiv's: checkable claims, verified references, reproducible numbers. Every number in the text comes from a baked file and is checked against it."
  },
  "authors": [
-  { "name": "Claude", "affiliation": "Anthropic", "role": "computation, code, analysis, drafting" },
-  { "name": "Astra", "role": "independent audit: the failure contracts behind selftest 58, and the audit rounds for this paper", "note": "the form of credit (author, audit appendix or acknowledgement) is still to settle" },
-  { "name": "minor mobius", "note": "pseudonym", "role": "direction, judgement of results, PI (last author)" }
+  {
+   "name": "Claude",
+   "affiliation": "Anthropic",
+   "role": "computation, code, analysis, drafting"
+  },
+  {
+   "name": "Astra",
+   "role": "independent audit: the failure contracts behind selftest 58, and the audit rounds for this paper",
+   "note": "the form of credit (author, audit appendix or acknowledgement) is still to settle"
+  },
+  {
+   "name": "minor mobius",
+   "note": "pseudonym",
+   "role": "direction, judgement of results, PI (last author)"
+  }
  ],
  "authorship_note": "arXiv doesn't accept AI models as authors. If the paper goes there, the byline is minor mobius and the AI contributors move to a contribution statement, with the session record. On four.mino.mobi the byline above stands.",
  "pipeline": [
-  { "id": "solver", "name": "The solver", "what": "atom.js: the radial equation with l + (D − 3)/2, Numerov on a log grid, a self-consistent field with Hartree and local exchange, the ground-configuration search", "path": "atom/js/atom.js", "status": "built" },
-  { "id": "bake", "name": "The bake", "what": "every element in both worlds, solved once (on the runner for Z past ~80) and frozen: configurations, energies, orbitals, densities", "path": "atom/tools/bake.mjs → atom/js/table.js", "status": "built" },
-  { "id": "selftest", "name": "The gates", "what": "the selftest's blocks recompute a sample of the bake and check each method against closed forms and published values; block 67 checks the paper's own data and every claim in its ledger", "path": "atom/test/atom4.selftest.mjs", "status": "built" },
-  { "id": "data", "name": "Data and ledger", "what": "the paper's tables as JSON and CSV, each figure's data, and the ledger of claims, all generated from the bake", "path": "papers/p1/build.mjs → data/, figdata/, ledger.json", "status": "built" },
-  { "id": "refs", "name": "References", "what": "one entry per source, marked read, index, cited or memory; checked against Crossref; only read and index may be cited", "path": "papers/p1/refs.json", "status": "built" },
-  { "id": "reproduce", "name": "Reproduction", "what": "re-solves a sample of the paper's atoms from the solver and matches the data to the bit; ships in the open mirror", "path": "papers/p1/reproduce.mjs", "status": "built" },
-  { "id": "widgets", "name": "Widgets", "what": "screening on and off, solved live; a neutral atom's far pull", "path": "papers/p1/widgets/", "status": "built" },
-  { "id": "figures", "name": "Figures", "what": "SVG from the figure data by a script, never by hand (Okabe–Ito palette)", "path": "papers/p1/figures/", "status": "to do" },
-  { "id": "page", "name": "The paper page", "what": "HTML generated from the prose and the ledger, maths pre-rendered once, so the text can't drift from the numbers; a selftest checks the rendered numbers", "path": "papers/p1/index.html", "status": "to do" },
-  { "id": "pdf", "name": "PDF", "what": "the page printed headlessly", "path": "papers/p1/p1.pdf", "status": "to do" },
-  { "id": "mirror", "name": "Open code", "what": "the solvers, the reproduction and the data, MIT, on tangled; staged and tested on every push", "path": "tangled.org/morphyxmino.bsky.social/four", "status": "waiting", "note": "the repo has to be created on tangled by its owner" },
-  { "id": "audit", "name": "Audit", "what": "Astra's rounds on the paper's claims and code", "path": "", "status": "to do" }
+  {
+   "id": "solver",
+   "name": "The solver",
+   "what": "atom.js: the radial equation with l + (D − 3)/2, Numerov on a log grid, a self-consistent field with Hartree and local exchange, the ground-configuration search",
+   "path": "atom/js/atom.js",
+   "status": "built"
+  },
+  {
+   "id": "bake",
+   "name": "The bake",
+   "what": "every element in both worlds, solved once (on the runner for Z past ~80) and frozen: configurations, energies, orbitals, densities",
+   "path": "atom/tools/bake.mjs → atom/js/table.js",
+   "status": "built"
+  },
+  {
+   "id": "selftest",
+   "name": "The gates",
+   "what": "the selftest's blocks recompute a sample of the bake and check each method against closed forms and published values; block 67 checks the paper's own data and every claim in its ledger",
+   "path": "atom/test/atom4.selftest.mjs",
+   "status": "built"
+  },
+  {
+   "id": "laws",
+   "name": "The law calculations",
+   "what": "one electron under Gauss's 1/r² (no atom: nothing binds, or it falls to the centre) and under 1/r^p (only p = 1 keeps a shell together)",
+   "path": "papers/p1/laws.js",
+   "status": "built"
+  },
+  {
+   "id": "data",
+   "name": "Data and ledger",
+   "what": "the paper's tables as JSON and CSV, each figure's data, and the ledger of claims, all generated from the bake",
+   "path": "papers/p1/build.mjs → data/, figdata/, ledger.json",
+   "status": "built"
+  },
+  {
+   "id": "refs",
+   "name": "References",
+   "what": "one entry per source, marked read, index, cited or memory; checked against Crossref; only read and index may be cited",
+   "path": "papers/p1/refs.json",
+   "status": "built"
+  },
+  {
+   "id": "reproduce",
+   "name": "Reproduction",
+   "what": "re-solves a sample of the paper's atoms from the solver and matches the data to the bit; ships in the open mirror",
+   "path": "papers/p1/reproduce.mjs",
+   "status": "built"
+  },
+  {
+   "id": "counterfactual",
+   "name": "The counterfactual table",
+   "what": "every element solved again with the shell theorem forced on, everything else held: what the table owes to the law rather than to the geometry",
+   "path": "atom/tools/lawtable.mjs → data/shelltable.json",
+   "status": "queued",
+   "note": "run lawtable-shell, after pw-fixed"
+  },
+  {
+   "id": "widgets",
+   "name": "Widgets",
+   "what": "screening on and off, solved live; a neutral atom's far pull",
+   "path": "papers/p1/widgets/",
+   "status": "built"
+  },
+  {
+   "id": "figures",
+   "name": "Figures",
+   "what": "SVG from the figure data by a script, never by hand (Okabe–Ito palette)",
+   "path": "papers/p1/figures/",
+   "status": "to do"
+  },
+  {
+   "id": "page",
+   "name": "The paper page",
+   "what": "HTML generated from the prose and the ledger, maths pre-rendered once, so the text can't drift from the numbers; a selftest checks the rendered numbers",
+   "path": "papers/p1/index.html",
+   "status": "to do"
+  },
+  {
+   "id": "pdf",
+   "name": "PDF",
+   "what": "the page printed headlessly",
+   "path": "papers/p1/p1.pdf",
+   "status": "to do"
+  },
+  {
+   "id": "mirror",
+   "name": "Open code",
+   "what": "the solvers, the reproduction and the data, MIT, on tangled; staged and tested on every push",
+   "path": "tangled.org/morphyxmino.bsky.social/four",
+   "status": "waiting",
+   "note": "the repo has to be created on tangled by its owner"
+  },
+  {
+   "id": "audit",
+   "name": "Audit",
+   "what": "Astra's rounds on the paper's claims and code",
+   "path": "",
+   "status": "to do"
+  }
  ],
  "checklist": [
-  { "item": "Forward citation search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996) in a citation index, for any later self-consistent table at D = 4", "status": "to do", "note": "a web search found none; the paper says \"to our knowledge\" until an index search is run" },
-  { "item": "Turn every cited reference into read or index", "status": "partly", "note": "18 of 21 done on 2026-11-04; Ehrenfest 1917 and 1920 and Madelung 1936 remain" },
-  { "item": "Solver audit: atom.js's self-consistent field stops on the total energy. Check whether that leaves the far density unconverged, and what it does to the table's energies and ionizations", "status": "to do", "note": "the lesson from the plane-wave work, where a stop on eigenvalues left the pseudopotentials' tails wrong" },
-  { "item": "Convergence runs for appendix C: grid (N, r₀, r_max), SCF tolerance, a few elements per row", "status": "to do" },
-  { "item": "Re-derive the 3D validation from the current bake", "status": "done", "note": "32 of 36; median ionization error 4.3 %" },
-  { "item": "Decide the Z range in the main text: to 78 with 79–140 marked first-pass, or all 140 with the relativistic caveat", "status": "open" },
-  { "item": "The equation pipeline: KaTeX pre-rendering in the sandbox, or hand-written MathML", "status": "to do" },
-  { "item": "Tag the mirror version the paper cites", "status": "to do" }
+  {
+   "item": "The counterfactual table: run lawtable-shell, bake it, add its claims, and say whether the generalized Madelung rows come from the law or from the geometry alone",
+   "status": "queued",
+   "note": "a sandbox sample already shows the law reordering the d and f blocks"
+  },
+  {
+   "item": "Choose the title: the table first, or the law first",
+   "status": "open"
+  },
+  {
+   "item": "Find citable sources for Hardy's inequality in D dimensions and the fall to the centre (Landau–Lifshitz §35, to check)",
+   "status": "to do"
+  },
+  {
+   "item": "Forward citation search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996) in a citation index, for any later self-consistent table at D = 4",
+   "status": "to do",
+   "note": "a web search found none; the paper says \"to our knowledge\" until an index search is run"
+  },
+  {
+   "item": "Turn every cited reference into read or index",
+   "status": "partly",
+   "note": "18 of 21 done on 2026-11-04; Ehrenfest 1917 and 1920 and Madelung 1936 remain"
+  },
+  {
+   "item": "Solver audit: atom.js's self-consistent field stops on the total energy. Check whether that leaves the far density unconverged, and what it does to the table's energies and ionizations",
+   "status": "to do",
+   "note": "the lesson from the plane-wave work, where a stop on eigenvalues left the pseudopotentials' tails wrong"
+  },
+  {
+   "item": "Convergence runs for appendix C: grid (N, r₀, r_max), SCF tolerance, a few elements per row",
+   "status": "to do"
+  },
+  {
+   "item": "Re-derive the 3D validation from the current bake",
+   "status": "done",
+   "note": "32 of 36; median ionization error 4.3 %"
+  },
+  {
+   "item": "Decide the Z range in the main text: to 78 with 79–140 marked first-pass, or all 140 with the relativistic caveat",
+   "status": "open"
+  },
+  {
+   "item": "The equation pipeline: KaTeX pre-rendering in the sandbox, or hand-written MathML",
+   "status": "to do"
+  },
+  {
+   "item": "Tag the mirror version the paper cites",
+   "status": "to do"
+  }
  ],
  "journal": [
-  { "date": "2026-10-25", "what": "The write-up pinned: a kit survey of what the repo already had for a paper, and the decision that writing waits while the science moves. The literature register opened, each source tagged by how far it had been checked." },
-  { "date": "2026-11-04", "what": "A lesson from elsewhere in the project: the plane-wave code's pseudopotentials were wrong because their all-electron atom stopped iterating on its eigenvalues while its far density was still unsettled. The atom solver behind this paper stops on its total energy. That goes on the checklist as an audit, not an assumption." },
-  { "date": "2026-11-04", "what": "Writing started. The outline maps every claim to the baked file and the selftest block that hold it up; the figure plan and the companion objects are listed with it." },
-  { "date": "2026-11-04", "what": "The data release and its gate: build.mjs writes the tables, the figure data and a ledger of claims from the bake, and selftest 67 fails if any of it goes stale or any claim stops holding. Re-deriving the 3D check gave 32 of 36 configurations (Ti, V, Co and Ni each put one electron too many in 3d) and a 4.3 % median ionization error." },
-  { "date": "2026-11-04", "what": "The references checked against Crossref. It corrected four entries the register had from memory or from other papers' citations: Al-Jaber's volume and pages, Loos & Gill's, Kventsel & Katriel's title (it's the Thomas–Fermi atom in N dimensions), and Loeser & Herschbach 1986, which is two papers: the exact energies at 84, 3882 and Hartree–Fock at 84, 3893." },
-  { "date": "2026-11-04", "what": "The reproduction: a script that re-solves a sample of the paper's atoms with the bake's own function. 14 of 14 matched the data to the bit, in 18 s on four cores. It ships in the open mirror, whose workflow runs it on every push." },
-  { "date": "2026-11-04", "what": "Two widgets. Screening on and off solves any 4D atom live, with and without the shell theorem, and gives back the bake's numbers (element 12 holds its outer electron at 18.39 eV against 10.30; element 138 at 26.71 against 9.22). The far pull walks an electron away from a neutral atom; the full cloud meets −S/8s³ to within a fraction of a percent past 20 bohr." },
-  { "date": "2026-11-04", "what": "This page: the paper's production made public as it happens, its claims recomputed from the bake on every build." }
+  {
+   "date": "2026-10-25",
+   "what": "The write-up pinned: a kit survey of what the repo already had for a paper, and the decision that writing waits while the science moves. The literature register opened, each source tagged by how far it had been checked."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "A lesson from elsewhere in the project: the plane-wave code's pseudopotentials were wrong because their all-electron atom stopped iterating on its eigenvalues while its far density was still unsettled. The atom solver behind this paper stops on its total energy. That goes on the checklist as an audit, not an assumption."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "Writing started. The outline maps every claim to the baked file and the selftest block that hold it up; the figure plan and the companion objects are listed with it."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The data release and its gate: build.mjs writes the tables, the figure data and a ledger of claims from the bake, and selftest 67 fails if any of it goes stale or any claim stops holding. Re-deriving the 3D check gave 32 of 36 configurations (Ti, V, Co and Ni each put one electron too many in 3d) and a 4.3 % median ionization error."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The references checked against Crossref. It corrected four entries the register had from memory or from other papers' citations: Al-Jaber's volume and pages, Loos & Gill's, Kventsel & Katriel's title (it's the Thomas–Fermi atom in N dimensions), and Loeser & Herschbach 1986, which is two papers: the exact energies at 84, 3882 and Hartree–Fock at 84, 3893."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "The reproduction: a script that re-solves a sample of the paper's atoms with the bake's own function. 14 of 14 matched the data to the bit, in 18 s on four cores. It ships in the open mirror, whose workflow runs it on every push."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "Two widgets. Screening on and off solves any 4D atom live, with and without the shell theorem, and gives back the bake's numbers (element 12 holds its outer electron at 18.39 eV against 10.30; element 138 at 26.71 against 9.22). The far pull walks an electron away from a neutral atom; the full cloud meets −S/8s³ to within a fraction of a percent past 20 bohr."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "This page: the paper's production made public as it happens, its claims recomputed from the bake on every build."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "Restructured around the charge law, at the PI's direction: the choice of law, why it has to be made and what it costs are now the first part of the paper, and the table is measured against a counterfactual. New ledger claims, computed: Gauss's 1/r² in 4D binds nothing below α = ½ and falls to the centre above it (the ground level scales as 1/r₀² with the grid's inner end, constant to four figures over three decades); among power laws only 1/r keeps 2s with 2p (10⁻¹¹; −6 % at p = 0.8, +15 % at p = 1.2); ∇²(1/r) = −1/r³; k(1) = 8/3π. Five references for the law confirmed on Crossref."
+  },
+  {
+   "date": "2026-11-04",
+   "what": "A first look at the counterfactual, in the sandbox: with the shell theorem forced on, element 26 settles in 4s² 4p² instead of 3d² 4s² (even when seeded with the real configuration) and its ionization halves; element 100 fills its f shell to 4f³⁰ before 5p. The law doesn't just tighten the binding: it decides where the blocks begin. The full table is queued on the runner."
+  }
  ]
 }

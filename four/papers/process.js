@@ -15,7 +15,8 @@ Promise.all([get("process.json"), get("ledger.json"), get("refs.json")]).then(([
 
   const held = L.claims.filter((c) => c.holds).length;
   $("ledgerNote").innerHTML = `${held} of ${L.claims.length} hold as of the last build. Each value below was recomputed from the baked table by <code>build.mjs</code>; selftest 67 fails the build if any stops holding. Under each: the paper's section, and the selftest blocks that check the claim.`;
-  $("claims").innerHTML = L.claims.map((c) => `<div class="claim ${c.holds ? "" : "no"}"><div class="c">${chip(c.holds ? "holds" : "broken")} ${esc(c.claim)}</div><div class="v">${esc(c.value)}</div><div class="m">§${esc(c.section)} · selftest ${c.gate.join(", ")}</div></div>`).join("");
+  const PARTS = { law: "Part I · the law", table: "Part II · the table", consequence: "Part III · what the law does" };
+  $("claims").innerHTML = Object.entries(PARTS).map(([k, title]) => [k, title, L.claims.filter((c) => (c.part ?? "table") === k)]).filter(([, , cs]) => cs.length).map(([, title, cs]) => `<h4 class="part">${esc(title)}</h4>` + cs.map((c) => `<div class="claim ${c.holds ? "" : "no"}"><div class="c">${chip(c.holds ? "holds" : "broken")} ${esc(c.claim)}</div><div class="v">${esc(c.value)}</div><div class="m">§${esc(c.section)} · selftest ${c.gate.join(", ")}</div></div>`).join("")).join("");
 
   const order = ["read", "index", "cited", "memory"], col = { read: "var(--d4)", index: "rgba(111,224,255,.45)", cited: "var(--d3)", memory: "#ff7a7a" }, refs = R.refs;
   const n = (s) => refs.filter((r) => r.status === s).length;

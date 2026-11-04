@@ -19,15 +19,15 @@ export const ZMAX = { 3: 36, 4: +(process.env.ATOM4_ZMAX4 || 140) };
 const RPLOT = Float64Array.from({ length: 121 }, (_, i) => 0.02 * Math.pow(10, i / 40)); // 0.02 … 20 bohr
 
 /* one element, everything the page shows */
-export function element(Z, d, seeds = null) {
-  const g = ground(Z, d, seeds ? { ...SOLVER, seeds } : SOLVER), sh = subshells(d);
+export function element(Z, d, seeds = null, solver = SOLVER) { // solver: the scf options (paper 1's counterfactual table adds shellTheorem)
+  const g = ground(Z, d, seeds ? { ...solver, seeds } : solver), sh = subshells(d);
   const live = sh.map((s, i) => i).filter((i) => g.occ[i] > 0);
   // the first ionization energy: the ion's own ground state (it relaxes: ΔSCF, not Koopmans), taking the electron
   // from whichever of the three least-bound subshells leaves the ion lowest
   const cand = live.slice().sort((a, b) => g.es[b] - g.es[a]).slice(0, 3);
   let ion = Infinity, top = cand[0];
   if (Z === 1) ion = -g.E;
-  else for (const i of cand) { const occ = g.occ.slice(); occ[i]--; const r = scf(Z, occ, d, { iters: seeds ? 160 : 60, start: g.qs, ...SOLVER }); if (seeds && !r.converged) continue; const e = r.E - g.E; if (e < ion) { ion = e; top = i; } }
+  else for (const i of cand) { const occ = g.occ.slice(); occ[i]--; const r = scf(Z, occ, d, { iters: seeds ? 160 : 60, start: g.qs, ...solver }); if (seeds && !r.converged) continue; const e = r.E - g.E; if (e < ion) { ion = e; top = i; } }
   const orb = live.map((i) => {
     let rm = 0, r2 = 0; for (let j = 0; j < N; j++) { rm += g.qs[i][j] * R[j]; r2 += g.qs[i][j] * R[j] * R[j]; }
     return { s: sh[i].name, o: g.occ[i], e: +g.es[i].toFixed(5), r: +rm.toFixed(4), r2: +r2.toFixed(4) };
