@@ -9,7 +9,7 @@ import { fftPlan } from "./lamp.js";
 export async function makeThreadedFFT(dims, nThreads, arrays) {
   const plan = fftPlan(dims), ctl = new Int32Array(new SharedArrayBuffer(4 * 8)), helpers = [];
   for (let i = 1; i < nThreads; i++) helpers.push(new Worker(new URL("./pfft-helper.js", import.meta.url), { type: "module" }));
-  await Promise.all(helpers.map((w, i) => new Promise((res, rej) => { w.onmessage = () => res(); w.onerror = rej; w.postMessage({ dims, ctl: ctl.buffer, bufs: arrays.map((a) => a.buffer), id: i + 1, n: nThreads }); })));
+  await Promise.all(helpers.map((w, i) => new Promise((res, rej) => { w.onmessage = () => res(); w.onerror = (e) => rej(new Error((e && e.message) || "a helper thread failed to load")); w.postMessage({ dims, ctl: ctl.buffer, bufs: arrays.map((a) => a.buffer), id: i + 1, n: nThreads }); })));
   const slice = (a, id) => { const T = plan.tasks(a); return [Math.floor((T * id) / nThreads), Math.floor((T * (id + 1)) / nThreads)]; };
   function fft(re, im, inverse = false) {
     const ir = arrays.indexOf(re), ii = arrays.indexOf(im);
@@ -18,7 +18,8 @@ export async function makeThreadedFFT(dims, nThreads, arrays) {
       ctl[1] = ir; ctl[2] = ii; ctl[3] = inverse ? 1 : 0; ctl[4] = a; Atomics.store(ctl, 5, 0);
       Atomics.add(ctl, 0, 1); Atomics.notify(ctl, 0);
       const [t0, t1] = slice(a, 0); plan.pass(re, im, inverse, a, t0, t1);
-      let d; while ((d = Atomics.load(ctl, 5)) < nThreads - 1) Atomics.wait(ctl, 5, d);
+      // (a helper that has stopped answering mustn't hang the lamp: after 3 s the pass fails, and worker.js goes on with one thread)
+      let d; while ((d = Atomics.load(ctl, 5)) < nThreads - 1) if (Atomics.wait(ctl, 5, d, 3000) === "timed-out") throw new Error("a helper thread stopped answering");
     }
   }
   function close() { Atomics.store(ctl, 6, 1); Atomics.add(ctl, 0, 1); Atomics.notify(ctl, 0); for (const w of helpers) w.terminate(); }

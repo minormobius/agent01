@@ -18,21 +18,30 @@ let pool = null;
 export const THREADS = () => (D4 && self.crossOriginIsolated && typeof SharedArrayBuffer !== "undefined" ? Math.max(1, Math.min(maxThreads, 4, (navigator.hardwareConcurrency || 2) - 2)) : 1);
 let maxThreads = 4;
 let D4 = false;
+let note = "", fftImpl = null;
 async function start(D, p, seed, over = {}) {
   D4 = D === 4; preset = p; const q = PRESETS[p], n = THREADS();
   if (pool) { pool.close(); pool = null; }
-  L = null; const myGen = ++startGen;
+  L = null; note = ""; const myGen = ++startGen;
   if (n > 1) {
-    // the lamp's arrays on shared memory, and its transform the threaded one (swapped in once the helpers are up)
+    // the lamp's arrays on shared memory, and its transform the threaded one, swapped in once the helpers are up. If
+    // they aren't up in 4 s, or anything about them fails (a browser that can't start a worker inside a worker, say),
+    // the same lamp runs on this one thread
     const reg = [], alloc = (k) => { const a = new Float64Array(new SharedArrayBuffer(8 * k)); reg.push(a); return a; };
-    const dims = [16, 64, 16, 16]; let fft = Lm.makeFFTn(dims);
-    const Lw = Lm.makeLamp(D, 16, 32, { ...q.phys, ...over }, { alloc, fft: (re, im, inv) => fft(re, im, inv) });
-    const P = await makeThreadedFFT(dims, n, reg); if (myGen !== startGen) { P.close(); return; }
-    pool = P; fft = P.fft; L = Lw;
+    const dims = [16, 64, 16, 16]; fftImpl = Lm.makeFFTn(dims);
+    const Lw = Lm.makeLamp(D, 16, 32, { ...q.phys, ...over }, { alloc, fft: (re, im, inv) => fftImpl(re, im, inv) });
+    try {
+      const P = await Promise.race([makeThreadedFFT(dims, n, reg), new Promise((_, rej) => setTimeout(() => rej(new Error("the helper threads didn't start within 4 s")), 4000))]);
+      if (myGen !== startGen) { P.close(); return; }
+      pool = P; fftImpl = P.fft;
+    } catch (e) { if (myGen !== startGen) return; note = `one thread (${e.message || e})`; }
+    L = Lw;
   } else L = Lm.makeLamp(D, 16, 32, { ...q.phys, ...over });
   if (p === "lamp") Lm.START.lamp(L, seed); else if (p === "thread") Lm.START.thread(L, q.R, q.n); else Lm.START.cooling(L, q.R);
   gen++; cap = D === 3 ? 0 : Infinity; statsAt = -99; post(true);
 }
+/* the threaded transform failed in the middle of a run: drop the helpers and carry on with one thread */
+function oneThread(e) { if (pool) { try { pool.close(); } catch (err) { /* gone already */ } pool = null; } fftImpl = Lm.makeFFTn([16, 64, 16, 16]); note = `one thread (${e.message || e})`; }
 function fieldOut() {
   const { nh, ny, D } = L, out = new Float32Array(nh * ny * nh * 2), phi = Lm.realHalf(L, L.phi), T = Lm.realHalf(L, L.T);
   if (D === 3) { for (let p = 0; p < phi.length; p++) { out[2 * p] = phi[p]; out[2 * p + 1] = T[p]; } return out; }
@@ -54,17 +63,22 @@ function post(force) {
     if (preset === "thread") { const r = Lm.ripple(L, PRESETS.thread.n); S.amp = r.amp; S.minArea = r.minArea; S.meanArea = r.meanArea; S.pinched = r.pinched; }
     if (preset === "cooling") S.heat = Lm.heatIn(L, PRESETS.cooling.R);
   }
-  postMessage({ gen, D: L.D, field: fieldOut(), stats: { ...S, t: L.t, steps: L.steps, rate, preset, threads: pool ? pool.threads : 1 } });
+  postMessage({ gen, D: L.D, field: fieldOut(), stats: { ...S, t: L.t, steps: L.steps, rate, preset, threads: pool ? pool.threads : 1, note } });
   dirty = false;
 }
 function loop() {
-  if (L && running && L.t < PRESETS[preset].end && L.t < cap) { const t0 = performance.now(); Lm.step(L); rate += (1000 / (performance.now() - t0) - rate) * 0.2; if (L.D === 4 || L.steps % 3 === 0) post(false); }
-  else if (L && dirty) post(false);
+  try {
+    if (L && running && L.t < PRESETS[preset].end && L.t < cap) {
+      const t0 = performance.now();
+      try { Lm.step(L); } catch (e) { if (!pool) throw e; oneThread(e); }
+      rate += (1000 / (performance.now() - t0) - rate) * 0.2; if (L.D === 4 || L.steps % 3 === 0) post(false);
+    } else if (L && dirty) post(false);
+  } catch (e) { postMessage({ gen, error: String((e && e.message) || e) }); L = null; }
   setTimeout(loop, 0);
 }
 onmessage = (e) => {
   const m = e.data;
-  if (m.type === "start") { if (m.threads) maxThreads = m.threads; start(m.D, m.preset, m.seed || 1, m.phys || {}); }
+  if (m.type === "start") { if (m.threads) maxThreads = m.threads; start(m.D, m.preset, m.seed || 1, m.phys || {}).catch((e) => postMessage({ gen, error: String((e && e.message) || e) })); }
   if (m.type === "slice") { slice = m.slice; dirty = true; }
   if (m.type === "run") running = m.v;
   if (m.type === "cap") cap = m.t;

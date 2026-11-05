@@ -106,7 +106,8 @@ const U = {}; for (const n of ["uF3", "uF4", "uVP3", "uVP4", "uEye", "uCR", "uCU
 const texs = [0, 1].map((unitI) => {
   const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unitI); gl.bindTexture(gl.TEXTURE_3D, t);
   for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.REPEAT], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_R, gl.REPEAT]]) gl.texParameteri(gl.TEXTURE_3D, k, v);
-  gl.texImage3D(gl.TEXTURE_3D, 0, gl.RG16F, NH, NY, NH, 0, gl.RG, gl.FLOAT, new Float32Array(NH * NY * NH * 2).fill(-1));
+  // (until a lamp's first field arrives: cold liquid, φ −1 and T 0; a T of −1 here once glowed the 4D glass pink)
+  gl.texImage3D(gl.TEXTURE_3D, 0, gl.RG16F, NH, NY, NH, 0, gl.RG, gl.FLOAT, new Float32Array(NH * NY * NH * 2).map((_, i) => (i % 2 ? 0 : -1)));
   return t;
 });
 gl.uniform1i(U.uF3, 0); gl.uniform1i(U.uF4, 1);
@@ -119,13 +120,17 @@ const sel = { preset: "lamp", paused: false, seed: 1 };
 const THREADS_OVER = +new URLSearchParams(location.search).get("threads") || 0;
 const PHYS_OVER = (() => { try { return JSON.parse(new URLSearchParams(location.search).get("phys") || "{}"); } catch (e) { return {}; } })();
 const W = { 3: new Worker("js/worker.js", { type: "module" }), 4: new Worker("js/worker.js", { type: "module" }) };
-const S = { 3: null, 4: null }, hist = { 3: [], 4: [] }, gens = { 3: 0, 4: 0 };
+const failed = { 3: null, 4: null }, S = { 3: null, 4: null }, hist = { 3: [], 4: [] }, gens = { 3: 0, 4: 0 };
+for (const D of [3, 4]) W[D].onerror = (e) => { failed[D] = (e && e.message) || "the worker failed to load"; if (D === 4) W[3].postMessage({ type: "cap", t: Infinity }); };
 for (const D of [3, 4]) W[D].onmessage = (e) => {
-  const m = e.data; if (m.gen !== gens[D]) return;
+  const m = e.data;
+  // (a lamp that can't run says why, and the 3D one stops waiting for a 4D one that won't come)
+  if (m.error) { failed[D] = m.error; if (D === 4) W[3].postMessage({ type: "cap", t: Infinity }); return; }
+  if (m.gen !== gens[D]) return;
   upload(D - 3, m.field); S[D] = m.stats; if (D === 4) W[3].postMessage({ type: "cap", t: m.stats.t + 1e-9 });
   const h = hist[D]; if (!h.length || m.stats.t > h[h.length - 1].t + 1e-9) h.push({ ...m.stats });
 };
-function start() { for (const D of [3, 4]) { gens[D]++; hist[D] = []; S[D] = null; W[D].postMessage({ type: "start", D, preset: sel.preset, seed: sel.seed, phys: PHYS_OVER, threads: THREADS_OVER }); W[D].postMessage({ type: "run", v: !sel.paused }); } sendSlice(); }
+function start() { for (const D of [3, 4]) { failed[D] = null; gens[D]++; hist[D] = []; S[D] = null; W[D].postMessage({ type: "start", D, preset: sel.preset, seed: sel.seed, phys: PHYS_OVER, threads: THREADS_OVER }); W[D].postMessage({ type: "run", v: !sel.paused }); } sendSlice(); }
 
 /* ------------------------------------------------------------------ the slice (4D: across only) and the camera */
 const frame = { E0: [1, 0, 0], E2: [0, 1, 0], N: [0, 0, 1], off: 0 };
@@ -210,8 +215,9 @@ function cycle(h) {
 }
 function halfLife(h) { for (let i = 1; i < h.length; i++) if (h[i].heat <= 0.5 && h[i - 1].heat > 0.5) { const a = h[i - 1], b = h[i]; return a.t + ((a.heat - 0.5) / (a.heat - b.heat)) * (b.t - a.t); } return null; }
 function readout(D) {
+  if (failed[D]) return [`this lamp couldn't run: ${failed[D]}`];
   const s = S[D]; if (!s) return ["starting…"];
-  const l = [`t ${s.t.toFixed(0)} · ${s.rate.toFixed(1)} steps/s${s.threads > 1 ? ` on ${s.threads} threads` : ""} · ${D === 3 ? "16 × 32 × 16" : "16 × 32 × 16 × 16"} cells`];
+  const l = [`t ${s.t.toFixed(0)} · ${s.rate.toFixed(1)} steps/s${s.threads > 1 ? ` on ${s.threads} threads` : s.note ? ` on ${s.note}` : ""} · ${D === 3 ? "16 × 32 × 16" : "16 × 32 × 16 × 16"} cells`];
   if (sel.preset === "lamp") { const c = cycle(hist[D]); l.push(`${s.pieces} piece${s.pieces === 1 ? "" : "s"} of wax · ${(s.aloft * 100).toFixed(0)}% of it above half height · its temperature ${fmt(s.Twax)}`, `a blob comes down every ${c ? c.toFixed(0) + " time units" : "(counting…)"}`); }
   if (sel.preset === "thread") { const kR = (Math.PI * 3 * 4) / 32; l.push(`kR ${kR.toFixed(2)} (breaks if under ${D === 3 ? "1" : "√2 = 1.41"}) · ripple ${fmt(s.amp, 3)} · ${s.pinched ? "pinched off into drops" : s.t > 30 && hist[D].length > 3 && s.amp < hist[D][2].amp ? "straightening" : "…"}`); }
   if (sel.preset === "cooling") { const hl = halfLife(hist[D]); l.push(`heat still in the ball ${(100 * (s.heat ?? 0)).toFixed(0)}% · half gone ${hl ? "by t " + hl.toFixed(1) : "…"}`); }
