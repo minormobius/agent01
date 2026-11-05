@@ -1,0 +1,12 @@
+{
+ "group": "relax-z20-097",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-0 0.97 25 2x2x1x2s 4 soft 1e-3 60",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 20400
+  }
+ ]
+}
