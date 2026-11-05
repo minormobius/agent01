@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="CELL — a cell's membrane in 3D and in 4D, held out by pressure and in by the cortex: pseudopods, contraction, blebs and division. A 4D cell holds half again the pressure for the same tension, and a contractile ring can't divide it: it takes a belt." />
+<title>CELL — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/cell.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="A cell: in 3D whole; in 4D, the slice of it in your 3D slice"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="bar">
+    <b>CELL</b>
+    <div id="exps">
+      <button type="button" data-d="3">3D</button><button type="button" data-d="4">4D</button>
+      <button type="button" data-x="rest">rest</button><button type="button" data-x="reach">reach</button><button type="button" data-x="contract">contract</button><button type="button" data-x="wave">wave</button><button type="button" data-x="bleb">bleb</button><button type="button" data-x="belt">divide</button><button type="button" data-x="ring">ring</button>
+      <button type="button" id="pauseB">pause</button>
+      <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
+      <button type="button" id="gearB" aria-label="help">?</button>
+    </div>
+  </div>
+  <div id="cap"></div>
+  <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+  <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+  <div id="panel" hidden>
+    <p class="foot">A cell's membrane, pushed out by its pressure and pulled in by its cortex, in 3D and then in 4D. The colour is the cortex's tension: warm where it's tight, cool where it has let go, gold where a contractile ring or belt pulls. The purple ball is the nucleus, seen through. Drag to turn it. In 4D the pad twists your slice into w (J L, I K), the lever moves it ana and kata (R F), ⊞ or Z squares it up. <a href="./README.md">how it works</a> · <a href="../tentacle/">TENTACLE</a> · <a href="../">kata</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

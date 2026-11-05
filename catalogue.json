@@ -5908,6 +5908,23 @@
       ]
     },
     {
+      "n": "kata-cell",
+      "u": "https://kata.mino.mobi/cell/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-05",
+      "b": "2026-11-05",
+      "p": "kata",
+      "surface": "kata",
+      "d": "CELL: a cell's membrane in 3D and in 4D side by side, with pressure inside and a contractile cortex pulling on it. Reach a pseudopod, contract the rear, run a contraction wave, throw a bleb, or divide it. The same tension squeezes a 4D cell half again as hard (Laplace's law is P = 3 sigma / R there, not 2 sigma / R), and a contractile ring that pinches ours in two only dents a 4D cell; dividing one takes a whole belt, a 2-sphere's worth of cortex.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

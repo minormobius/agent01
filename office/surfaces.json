@@ -3776,6 +3776,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-cell",
+   "name": "kata-cell",
+   "url": "https://kata.mino.mobi/cell/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

@@ -111,6 +111,16 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   centred, mobility 0.35: the window between mixing and going up dissolved; settings from a sweep, README). Speed: the flow every other step, CFL 0.7, and the FFT split across threads sharing memory
   (`js/pfft.js`; needs `kata/_headers`' cross-origin isolation for `/lamp/*`): 4D ~72–88 ms a step here, from 178.
   See [`lamp/README.md`](lamp/README.md).
+- **CELL at `/cell/`**: a cell's membrane in 3D and in 4D, viewed like TENTACLE (3D/4D toggle, twist pad, ana lever).
+  `js/cell.js` (no DOM) holds the membrane as a radius r(n) over the sphere S^{d−1} on a cube-sphere grid (2d faces,
+  each an equi-angular N^{d−1} grid; 24² × 6 in 3D, 12³ × 8 in 4D), moving at v = μ(P − σH + f) with H the mean
+  curvature, the Laplacian part implicit (Jacobi sweeps on least-squares weights fitted in tangent coordinates; the
+  plain axis-neighbour stencil was wrong by ~5 at the face seams, so don't go back to it). P is the Lagrange multiplier
+  that holds the volume; a uniform shift restores it exactly each step. Presets set the cortex tension σ and pushes f:
+  rest, reach (pseudopod), contract, wave, bleb, divide (`belt`: the equatorial 2-sphere in 4D) and ring (a 1D great
+  circle). Claims: Laplace's law is P = σ(d − 1)/R; a ring pinches a 3D cell (waist 0.37) but only dents a 4D one
+  (0.60 at the ring, 1.08 away), a belt pinches 4D (0.17). The shader samples r from an RGBA16F atlas (3D) or a 3D
+  texture (4D), faces stacked. `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -173,6 +183,7 @@ node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
 node kata/lamp/test/lamp.selftest.mjs # ~50 s
+node kata/cell/test/cell.selftest.mjs # ~50 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):
