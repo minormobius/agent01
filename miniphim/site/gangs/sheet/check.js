@@ -3,12 +3,24 @@
 // Version 2 (Modulo, 2026-10-18), to CHOICE 10-18 §2: allowlist, actions as an array of
 // {action, dots} with no duplicates, numbers from the root's `rules` (defaults below).
 // Mozzie keeps off this file while seated; Modulo and Morphyx are its two keys.
+// v2.4 candidate (Morphyx, 10-18): abilities, the person's "blank page with rules" (3my5xvqflx224).
+// Optional array of {name, text}; at most the root's rules.abilities.atStart (default 1); names
+// unique after case-fold and NFKC; each needs a visible character. Code checks count and shape only;
+// whether the words fit the root's guide is the GM's, by a strike move.
+// v3 (Morphyx, 11-04), Modulo's fuzz and probes of 10-18 (fuzz-modulo/):
+//  (a)(b) a root atStart outside 0..8 or max outside 0..16 (the lexicon's ranges) means the default,
+//         the same way a non-integer already did; no reinterpreting, no clamping.
+//  (c) fields on an ability other than name and text are reported as ignored, as CHOICE 10-18 §2 asks.
+//  (d) the name fold is NFKC, then toUpperCase().toLowerCase(), so ß/SS count as one name.
+//      (ı/I: upper-casing ı gives I, so they fold together too.)
+//  -00:00 is RFC 3339's "offset unknown": a local time with no zone. It fails, like no zone at all.
 // Pure module: browser and node (shelf/gangs-sheet.mjs is the CLI and selftest).
 
 // Defaults only. A root's `rules` overrides them.
 export const DEFAULT_RULES = {
   actions: ['hunt','study','survey','tinker','finesse','prowl','skirmish','wreck','attune','command','consort','sway'],
   dotsTotal: 7, dotsMax: 2,
+  abilities: { atStart: 1, max: 4 },
 };
 export const ACTIONS = DEFAULT_RULES.actions;               // kept for old importers
 export const RULES = { ...DEFAULT_RULES, textMax: 300, nameMax: 64 };
@@ -25,7 +37,7 @@ const MDAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 export function parseTime(x) {
   if (typeof x !== 'string') return NaN;
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|([+-])(\d{2}):(\d{2}))$/.exec(x);
-  if (!m) return NaN;
+  if (!m || m[8] === '-00:00') return NaN;
   const [Y, M, D, h, mi, se] = m.slice(1, 7).map(Number);
   const leap = (Y % 4 === 0 && Y % 100 !== 0) || Y % 400 === 0;
   if (M < 1 || M > 12 || D < 1 || D > (M === 2 && leap ? 29 : MDAYS[M - 1])) return NaN;
@@ -44,10 +56,11 @@ export function parseTime(x) {
 const DID = /^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$/;
 
 // The fields the fold reads. Anything else on the record is ignored and reported, not rejected.
-export const ALLOWED = ['$type','game','name','playbook','look','drive','controller','operator','actions','createdAt'];
+export const ALLOWED = ['$type','game','name','playbook','look','drive','controller','operator','actions','abilities','createdAt'];
 
 const g = s => [...new Intl.Segmenter().segment(s)].length;
 const isStr = x => typeof x === 'string';
+const inRange = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 
 // root may be {uri, cid}, {uri, cid, rules}, {uri, cid, value: <game record>}, or null.
 export function rulesOf(root) {
@@ -57,6 +70,11 @@ export function rulesOf(root) {
     dotsTotal: Number.isInteger(r.dotsTotal) ? r.dotsTotal : DEFAULT_RULES.dotsTotal,
     dotsMax: Number.isInteger(r.dotsMax) ? r.dotsMax : DEFAULT_RULES.dotsMax,
     playbooks: Array.isArray(r.playbooks) && r.playbooks.length ? r.playbooks : null,
+    abilities: {
+      atStart: inRange(r.abilities?.atStart, 0, 8) ? r.abilities.atStart : DEFAULT_RULES.abilities.atStart,
+      max: inRange(r.abilities?.max, 0, 16) ? r.abilities.max : DEFAULT_RULES.abilities.max,
+      guide: isStr(r.abilities?.guide) ? r.abilities.guide : null,
+    },
   };
 }
 
@@ -101,6 +119,32 @@ export function reportSheet(rec, root) {
       if (Number.isInteger(d.dots)) sum += d.dots;
     });
     if (sum !== R.dotsTotal) bad.push(`actions: ${sum} dots, must be exactly ${R.dotsTotal}`);
+  }
+  if (rec.abilities !== undefined) {
+    const b = rec.abilities, cap = Math.min(R.abilities.atStart, R.abilities.max);
+    if (!Array.isArray(b)) bad.push('abilities: must be an array of {name, text}');
+    else {
+      if (b.length > cap) bad.push(`abilities: ${b.length}, at most ${cap} at creation (more come by advance)`);
+      const names = new Set();
+      b.forEach((x, i) => {
+        if (!x || typeof x !== 'object' || Array.isArray(x)) { bad.push(`abilities[${i}]: needs {name, text}`); return; }
+        for (const k of Object.keys(x)) if (k !== 'name' && k !== 'text') ignored.push(`ignored: abilities[${i}].${k}`);
+        const t = (k, gmax, bmax) => {
+          const v = x[k];
+          if (!isStr(v) || !v.trim()) { bad.push(`abilities[${i}].${k}: missing`); return false; }
+          if (!VISIBLE.test(v)) { bad.push(`abilities[${i}].${k}: no visible character`); return false; }
+          if (g(v) > gmax) { bad.push(`abilities[${i}].${k}: over ${gmax} graphemes`); return false; }
+          if (bytes(v) > bmax) { bad.push(`abilities[${i}].${k}: over ${bmax} bytes`); return false; }
+          return true;
+        };
+        if (t('name', LIMITS.nameMax, LIMITS.nameBytes)) {
+          const key = x.name.normalize('NFKC').toUpperCase().toLowerCase().replace(/\s+/gu, ' ').trim();
+          if (names.has(key)) bad.push(`abilities[${i}]: "${x.name}" listed twice`);
+          names.add(key);
+        }
+        t('text', LIMITS.textMax, LIMITS.textBytes);
+      });
+    }
   }
   if (isNaN(parseTime(rec.createdAt)))
     bad.push('createdAt: must be an RFC 3339 datetime with a zone, e.g. 2026-10-18T05:00:00Z');
