@@ -37,7 +37,7 @@ const dir = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-pw"), tag = `${p
 const stFile = path.join(dir, `${tag}-relax.json`), rhoFile = path.join(dir, `${tag}-relax-rho.f64`), outFile = path.join(dir, `${tag}-relaxed.json`);
 mkdirSync(dir, { recursive: true });
 
-const n = na * d, dot = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0), K0 = 0.3; // the starting Hessian, K0 Ha/bohr² on every coordinate
+const n = na * d, dot = (a, b) => a.reduce((t, v, i) => t + v * b[i], 0), K0 = 0.6; // the starting Hessian, K0 Ha/bohr² on every coordinate (0.3 overshot: relax-1's first steps went uphill in five of six)
 let S = existsSync(stFile) ? JSON.parse(readFileSync(stFile, "utf8")) : null;
 if (!S) S = { x: atoms.flatMap((q) => H[0].map((_, c) => q.g.reduce((t, v, b) => t + v * H[b][c], 0))), Hinv: null, prev: null, steps: [], done: false };
 if (S.done) { console.log(JSON.stringify({ stage: "relaxed", resumed: true, ...S.steps.at(-1) })); process.exit(0); }

@@ -400,6 +400,18 @@ for games, and this is a modelling programme with publications to come. The game
   the cells' difference 0.56 eV per formula. **Decision rule, fixed before the results:** the cells rank only if the
   relaxed difference beats 0.4 eV per formula (`pw-fixed`'s worst miss against PySCF in ours) plus however far the
   k-ladder still moves it; otherwise they stay unranked and both stay in play.
+  **`relax-1` (exit 0 where finished; the rest cut at the deadline with their state saved):** a step costs 70–100 min
+  (the warm start barely helps; the first SCF iteration's 40 band sweeps dominate). The first step overshot and went
+  uphill in five of six runs, so K0 is now 0.6. z2-0 ×1.03 relaxed in 5 steps (−1969.150 → −1969.194 eV a formula,
+  fmax 1.9 × 10⁻⁴); the rest after 3–4 steps (eV a formula, fmax): z2-0 ×0.97 −1966.213 (0.018), ×1.00 −1968.457
+  (0.008); z2-1 ×0.97 −1966.167 (0.039), ×1.00 −1968.360 (0.015), ×1.03 −1969.038 (0.004). So far z2-0 is lower by
+  0.05 / 0.10 / 0.16 eV at ×0.97 / 1.00 / 1.03, under the 0.4 bar: **unranked, as the rule says.** The energy is still
+  falling at ×1.03 (0.74 eV a formula below ×1.00), so the minimum isn't bracketed. k-ladder: z2-0 at ×1.00 unrelaxed
+  gives −1968.042 (a14, 20 k), −1968.164 (a14s, 18 k) and −1968.389 (2×2×1×2s, 4 k). The absolute energy is still
+  moving 0.1–0.3 eV with sampling, and the SCF-grid gap moves with it (a14 5.02, a14s 5.44 eV; a10 3.79). z2-1's
+  single points were cut just short, so the crystal SCF now saves its mixed density every 2 min (`scf({ onIter })`)
+  and warm-starts on a rerun (corundum: 16 iterations cold, 2 warm). **`relax-2` (queued):** resumes the five
+  unfinished relaxations, adds ×1.06 and ×1.09 for both cells, and reruns z2-1's a14 and a14s.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

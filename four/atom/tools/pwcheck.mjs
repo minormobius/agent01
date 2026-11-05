@@ -90,7 +90,11 @@ if (!main) {} else if (cmd === "atom") {
     const pool = threads > 1 && kpts.length > 1 ? makePool({ d, H, atoms: at, ecut, nelec, nbands, kpts, pseudos }, threads) : null;
     pw = new PW({ d, H, atoms: at, species, ecut, nelec, nbands, kpts: pool ? [kpts[0]] : kpts });
     process.stderr.write(`${name} ×${sc}: ${at.length} atoms, ${nelec} electrons, grid ${pw.dims.join("×")}, ${pw.basis[0].n} PW at the first of ${kpts.length} k${pool ? `, ${pool.nw} workers` : ""}\n`);
-    const r = pw.scf({ log: (s) => process.stderr.write(s + "\n"), maxIter: 60, tol: 1e-5, pool, bandIters: +(process.env.PW_BANDITERS || 6) });
+    // resumable: the mixed density is saved every few minutes and a rerun starts from it (a cut run loses at most that)
+    const rhoFile = path.join(dir, `${tag}-scf-rho.f64`); let rho0 = null, saved = Date.now();
+    if (existsSync(rhoFile)) { const b = readFileSync(rhoFile); rho0 = new Float64Array(b.buffer, b.byteOffset, b.byteLength / 8).slice(); if (rho0.length !== pw.ntot) rho0 = null; else process.stderr.write(`  warm start from ${path.basename(rhoFile)}\n`); }
+    const onIter = (rho) => { if (Date.now() - saved < +(process.env.PW_SAVE_MS ?? 120000)) return; writeFileSync(rhoFile, Buffer.from(rho.buffer, rho.byteOffset, rho.byteLength)); saved = Date.now(); };
+    const r = pw.scf({ log: (s) => process.stderr.write(s + "\n"), maxIter: 60, tol: 1e-5, pool, rho0, onIter, bandIters: +(process.env.PW_BANDITERS || 6) });
     pool?.close();
     S = { E: r.E.total, parts: r.E, eigs: pw.eigs.map((e) => Array.from(e)), f: kpts.map((k) => k.f), w: kpts.map((k) => k.w), s: (Date.now() - t0) / 1000 };
     if (cmd === "bands") {
