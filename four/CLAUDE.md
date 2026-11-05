@@ -423,6 +423,20 @@ for games, and this is a modelling programme with publications to come. The game
   single points were cut just short, so the crystal SCF now saves its mixed density every 2 min (`scf({ onIter })`)
   and warm-starts on a rerun (corundum: 16 iterations cold, 2 warm). **`relax-2` (queued):** resumes the five
   unfinished relaxations, adds ×1.06 and ×1.09 for both cells, and reruns z2-1's a14 and a14s.
+  **`relax-2` (exit 0 where finished; the rest cut with state saved):** relaxed (eV a formula, 4 k): z2-0 ×0.97
+  −1966.2285, ×1.00 −1968.4605, ×1.03 −1969.1942 (all converged), ×1.06 −1968.838 and ×1.09 −1967.726 (2–3 steps);
+  z2-1 ×0.97 −1966.210 and ×1.03 −1969.0385 (converged), ×1.00 −1968.368 (fmax 1.1 × 10⁻³), ×1.06 −1968.641 and ×1.09
+  −1967.470 (2 steps). **The minimum is bracketed:** quadratic and cubic fits in V put both cells near ×1.033 (z2-0
+  −1969.22 to −1969.23, z2-1 −1969.05 to −1969.08), so z2-0 is lower by 0.16 eV there at 4 k. The difference grows with
+  volume (+0.02, +0.09, +0.16, +0.20, +0.26 from ×0.97 to ×1.09). **k-ladder:** z2-1 unrelaxed ×1.00 gives −1967.649
+  (a14) and −1967.761 (a14s), so z2-1 − z2-0 is +0.11 at 4 k, +0.393 at a14 and +0.403 at a14s. The two dense grids
+  agree on the difference to 0.01, so it is converged there, and 4 k understates it by 0.29. **Verdict under the rule:**
+  the estimate at the relaxed minimum is 0.16 + 0.29 ≈ 0.45, past the 0.41 bar (0.4 + the ladder's 0.01) but by
+  adding two measurements made at different geometries. So it is not ranked yet; z2-0 is favoured. The relaxed
+  structures are now `tools/crystalref-Bl2Px3-relaxed.json` (keys `z2-0-x097` … `z2-1-x103`; z2-1 ×1.00 isn't
+  converged yet). **`relax-3` (queued):** a14 and a14s single points on both cells' relaxed ×1.03, the direct
+  measurement, and the five unfinished relaxations. The SCF grid's gaps at a14/a14s (z2-0 5.02/5.44, z2-1 4.62/4.45)
+  miss z2-0's conduction minimum at (½,½,0,0), which 3-point axes don't sample. `bands-2`'s 3.79 eV stands.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

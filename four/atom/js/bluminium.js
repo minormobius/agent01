@@ -48,7 +48,7 @@ function buildResults() {
     return `<tr><td>×${sc.toFixed(2)}</td>${e.map((r) => (r ? `<td>${r.E.toFixed(3)}<small>${r.done ? " ✓" : ` · f ${r.fmax.toExponential(0)}`}</small></td>` : "<td>—</td>")).join("")}<td>${diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff.toFixed(2)}`}</td></tr>`; };
   el.innerHTML = `<div class="tablewrap"><table class="bl"><thead><tr><th>volume</th>${cells.map((c) => `<th>${c}</th>`).join("")}<th>${cells[1]} − ${cells[0]}</th></tr></thead><tbody>${scales.map(row).join("")}</tbody></table></div>
     <p class="read">${R.status}. Energies in eV per Bl₂Px₃ after relaxing the ions (✓ converged; otherwise the largest force left, Ha/bohr). ${R.relaxed.note}.</p>
-    <p class="read">Band gaps (unrelaxed, ×1.00): ${cells.map((c) => { const g = R.gaps[c]; return `${c} ${g.gap_eV.toFixed(2)} eV, ${g.direct ? "direct at Γ" : `indirect (${g.vbm} → ${g.cbm}, direct ${g.directGap_eV.toFixed(2)})`}`; }).join("; ")}. ${R.gaps.note}. Sampling still moves the totals: z2-0 at ×1.00 reads ${R.kLadder["z2-0"].map((k) => `${k.E.toFixed(2)} (${k.k})`).join(", ")}.</p>`;
+    <p class="read">Band gaps (unrelaxed, ×1.00): ${cells.map((c) => { const g = R.gaps[c]; return `${c} ${g.gap_eV.toFixed(2)} eV, ${g.direct ? "direct at Γ" : `indirect (${g.vbm} → ${g.cbm}, direct ${g.directGap_eV.toFixed(2)})`}`; }).join("; ")}. ${R.gaps.note}. Sampling still moves the totals: at ×1.00 unrelaxed, ${cells.map((c) => `${c} reads ${R.kLadder[c].map((k) => `${k.E.toFixed(2)} (${k.k})`).join(", ")}`).join("; ")}; ${R.kLadder.difference}.</p>`;
 }
 
 /* ---------- the playground ---------- */
