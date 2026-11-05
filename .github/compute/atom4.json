@@ -1,18 +1,66 @@
 {
- "run": "bands-2",
- "why": "bands-1 (all exit 0 but the two Bl₂Px₃ groups, cut at the deadline): the calibration is in, our corundum's gap 6.02 eV at Γ against same-functional PySCF's 5.95 (the code within 0.06 eV), measured 8.8 (the functional 2.8 eV low). Both Bl₂Px₃ cells' SCFs converged (13 iterations) but the band path (29 k, 38 bands, a 1.35-million-point 4D grid) didn't finish, and nothing was kept. pwcheck bands now saves the SCF (eigenvalues, potential) the moment it's done and prints the SCF grid's band edges, then does a shorter path (halfway and all the way to each zone face and the far corner, occ + 4 bands) saving each point, so a cut run resumes.",
+ "run": "relax-1",
+ "why": "Rank Bluminium's two candidate cells (z2-0, z2-1) after relaxing, which now also decides the 4D d¹ laser's gap and where d³'s spin-flip line sits (multiplets.mjs). pwrelax.mjs relaxes the ions in a fixed cell (plane-wave SCF, Hellmann–Feynman forces, BFGS, resumable each step) at scales 0.97, 1.00 and 1.03 for an E(V) fit. Both cells use the same 2×2×1×2 shifted k-grid, since their axes nearly match and a10 gave them 8 k against 4. The k-ladder groups ask how far the cells' difference still moves with sampling: unrelaxed single points at a14 (3×3×2×2, both cells) Γ-centred and shifted, because a10 against a10s moved the difference by 0.56 eV per formula. Expect relaxation to need two or three runs (warm-started steps of about 20–30 min).",
  "minutes": 340,
  "groups": [
   {
-   "name": "bl-z2-0",
+   "name": "relax-z20-097",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 a10 4 soft"
+    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-0 0.97 25 2x2x1x2s 4 soft 1e-3 60"
    ]
   },
   {
-   "name": "bl-z2-1",
+   "name": "relax-z20-100",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs bands four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a10 4 soft"
+    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 2x2x1x2s 4 soft 1e-3 60"
+   ]
+  },
+  {
+   "name": "relax-z20-103",
+   "cmds": [
+    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-0 1.03 25 2x2x1x2s 4 soft 1e-3 60"
+   ]
+  },
+  {
+   "name": "relax-z21-097",
+   "cmds": [
+    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-1 0.97 25 2x2x1x2s 4 soft 1e-3 60"
+   ]
+  },
+  {
+   "name": "relax-z21-100",
+   "cmds": [
+    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 2x2x1x2s 4 soft 1e-3 60"
+   ]
+  },
+  {
+   "name": "relax-z21-103",
+   "cmds": [
+    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-1 1.03 25 2x2x1x2s 4 soft 1e-3 60"
+   ]
+  },
+  {
+   "name": "k-z20-a14",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 a14 4 soft"
+   ]
+  },
+  {
+   "name": "k-z20-a14s",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-0 1.00 25 a14s 4 soft"
+   ]
+  },
+  {
+   "name": "k-z21-a14",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a14 4 soft"
+   ]
+  },
+  {
+   "name": "k-z21-a14s",
+   "cmds": [
+    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 a14s 4 soft"
    ]
   }
  ]

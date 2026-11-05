@@ -298,10 +298,10 @@ export class PW {
   }
   /* the self-consistent ground state */
   /* pool (optional): k-points shared out to worker threads (tools/pwpool.mjs); its run(V, iters) returns the bands' density,
-     kinetic and nonlocal energies, residual and eigenvalues, and states then stay in the workers */
-  scf({ maxIter = 60, tol = 1e-6, log = () => {}, hartree = true, exchange = true, mixHist = 6, beta = 0.5, q0 = 1.5, pool = null, bandIters = 6 } = {}) {
+     kinetic and nonlocal energies, residual and eigenvalues, and states then stay in the workers. rho0 (optional): the starting density */
+  scf({ maxIter = 60, tol = 1e-6, log = () => {}, hartree = true, exchange = true, mixHist = 6, beta = 0.5, q0 = 1.5, pool = null, bandIters = 6, rho0 = null } = {}) {
     const { d, ntot, vol, dims, G2 } = this, VL = this.localG(), vlocR = (() => { const re = Float64Array.from(VL.re), im = Float64Array.from(VL.im); fftn(re, im, dims, true); return re; })();
-    let rho = new Float64Array(ntot).fill(this.nelec / vol), states = this.kpts.map(() => null), E = null, Eold = null;
+    let rho = rho0 && rho0.length === ntot ? Float64Array.from(rho0) : new Float64Array(ntot).fill(this.nelec / vol), states = this.kpts.map(() => null), E = null, Eold = null; // rho0: a warm start (a relaxation's last step)
     const hist = [];
     for (let it = 0; it < maxIter; it++) {
       const pot = this.potential(rho, vlocR, { hartree, exchange });

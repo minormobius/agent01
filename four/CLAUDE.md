@@ -386,6 +386,20 @@ for games, and this is a modelling programme with publications to come. The game
   is lowest. The table's solver fills shells as a spin-polarized average and doesn't resolve terms, so its d²-like
   configurations are unaffected; any statement about their ground spin would be. All of this stands on point charges ×
   a factor carried from ruby.
+  `atom/tools/pwrelax.mjs <structures.json> <name> <scale> <ecut> <k> [threads] [soft] [fmax] [steps]` relaxes the ions
+  in a fixed cell: plane-wave SCF (warm-started from the last step's density, `scf({ rho0 })`), Hellmann–Feynman forces
+  (the pool's projector share included), and BFGS in Cartesian coordinates with the mean force removed. Steps are capped
+  at 0.2 bohr an atom, and an uphill step is halved back. It is resumable after every step (`<tag>-relax.json`,
+  `-relax-rho.f64`) and ends with `<tag>-relaxed.json`, a crystalref-style structure. k accepts an explicit
+  `2x2x1x2[s]`, so both Bl₂Px₃ cells get the same grid (a10 gave z2-0 8 k against z2-1's 4, because their 4th axes are 9.51
+  against 10.09 bohr). There is no stress, so volume comes from relaxing at several scales and fitting E(V); the cell's shape stays the
+  ionic model's. Checked before queueing: in 4D (z2-0, ecut 8, 2 k) the pool's forces equal the serial ones to 2 × 10⁻⁸ Ha/bohr and a
+  central difference of the energy to 1.4 × 10⁻⁶ (the largest force 0.07); our corundum at ×0.97 (ecut 12, Γ) relaxes
+  in 4 steps to fmax 4 × 10⁻⁵, the energy falling at every step, and a cut run resumes from its saved state. Run `relax-1` (queued): both cells relaxed at ×0.97, 1.00, 1.03, ecut 25 soft, 2×2×1×2 shifted (4 k).
+  Alongside it, unrelaxed single points at a14 (3×3×2×2 for both) Γ-centred and shifted, because a10 against a10s moved
+  the cells' difference 0.56 eV per formula. **Decision rule, fixed before the results:** the cells rank only if the
+  relaxed difference beats 0.4 eV per formula (`pw-fixed`'s worst miss against PySCF in ours) plus however far the
+  k-ladder still moves it; otherwise they stay unranked and both stay in play.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
