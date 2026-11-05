@@ -107,7 +107,8 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   4D (thresholds 1 and √2); a hot ball's half-life 1.9× shorter in 4D; the 3D glass lamp cycles and its wax never leaves
   the glass; it climbs from the pool (no wax from nothing: transport is u·∇φ = ∇·(uφ) − φ∇·u, since the flow beside the
   shut glass faces isn't divergence-free; and the lamp's mobility is low, so wax isn't carried up dissolved); the
-  threaded FFT is exact. Speed: the flow every other step, CFL 0.7, and the FFT split across threads sharing memory
+  threaded FFT is exact; the wax stays wax (the interface's tension acts only deep inside the glass, φ is transported
+  centred, mobility 0.35: the window between mixing and going up dissolved; settings from a sweep, README). Speed: the flow every other step, CFL 0.7, and the FFT split across threads sharing memory
   (`js/pfft.js`; needs `kata/_headers`' cross-origin isolation for `/lamp/*`): 4D ~72–88 ms a step here, from 178.
   See [`lamp/README.md`](lamp/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid

@@ -41,11 +41,42 @@ your slice doesn't change it: the lamp is the same in every direction across.
 - **A sharper interface, ε = 0.7.** At 16 cells across, a 4D blob is barely bigger than an ε = 1 interface. 4D squeezes
   small blobs harder, so they dissolve away (PHASELAB's effect).
 - **The wax is a fifth of the glass's volume.**
-- **A low mobility, m = 0.2.** How fast wax diffuses through the liquid. At m = 1 the curved little pool dissolved ~4%
+- **A low mobility, m = 0.35.** How fast wax diffuses through the liquid. At m = 1 the curved little pool dissolved ~4%
   of itself into the liquid (Gibbs–Thomson, at an interface 2 cells wide in a lamp 16 across). The flow carried that up
   and it condensed under the cap. A real lamp's interface is nanometres in centimetres, the sharp-interface limit, where
-  wax moves only by being carried.
-- **The heater at 0.5; cooling only above 0.65 of the height.**
+  wax moves only by being carried. Lower than 0.35 can't keep the interface sharp under the flow (the sweep, below).
+- **The interface's tension in the flow at 0.3** (`capF`), so buoyancy pinches blobs off more easily.
+- **The heater at 0.8; cooling 0.15, only above 0.65 of the height.**
+
+## The sweep: what makes it livelier, and what doesn't
+
+84 runs, 3D screened over viscosity, the interface's tension in the flow (`capF`), heating and cooling, the amount of wax
+and the mobility; the best three run in 4D. Each scored by how many pieces of wax there are, how often there are two or
+more, how far the wax travels, and how much of it stays wax.
+
+**Two bugs first: the wax was turning to mush.** In the old settings only 10–60% of the wax was still wax by t = 400.
+- **The interface's tension acting at the glass.** The wall's potential holds φ at −1 just outside the glass, which is a
+  sharp step against any wax touching it, and its tension there drove a flow that never stopped. Now the tension acts
+  only where a cell's neighbours are all inside the glass.
+- **Limited-upwind transport of φ.** Its numerical diffusion smeared the interface faster than a low mobility could
+  re-sharpen it: 497 cells of wax were 13 by t = 300. φ is transported centred again.
+
+**Mobility has a window.** At 0.2 or below, the interface can't be kept sharp under the flow, and the wax mixes. At 1,
+the curved pool dissolves into the liquid and the wax goes up dissolved. 0.35 holds both: about two-thirds of the wax
+stays wax in 3D.
+
+**What helps.** A weaker tension in the flow (`capF` 0.3) and stronger heating and cooling (0.8, 0.15). With them, the
+3D lamp has two pieces about a fifth of the time (before: never), and the top of the wax travels between 0.3 and 0.7 of
+the height.
+
+**What doesn't.** Lower viscosity: faster flow mixes the wax away at this resolution. Less wax: it dissolves (in 4D,
+nearly all of it).
+
+**The 4D lamp stays one glob**, whatever the settings: always one piece, travelling between 0.3 and 0.7 of the height,
+with only 40–45% of its wax staying wax (3D: about 65%). Some of that is 4D, PHASELAB's results again: a small piece is
+squeezed half again as hard and dissolves, and a blob trades heat about twice as fast, so it settles toward the height
+where it floats. Some of it is resolution: 16 cells across, an interface 2 cells wide. A lamp that breaks into many
+blobs needs it wider, and in 4D every cell across costs it cubed: 32 across is 16× the work.
 
 ## Where the first blob comes from
 
@@ -169,6 +200,7 @@ It checks:
 - **The thread.** At kR = 1.18, 3D straightens (ripple 0.33 → 0.09, never pinched) and 4D pinches off by t 83. The
   control at kR = 0.69 pinches in 3D too.
 - **The cooling.** Half the heat is gone by t 32.8 in 3D and t 17.2 in 4D: at least 1.6× faster (1.91).
+- **The wax stays wax.** Over t 200–400, on average at least half of it is still more than half wax.
 - **The lamp.** As the page runs it, the 3D lamp in its glass cycles: the wax's centre goes up past 0.45 of the height,
   back below 0.3, and up again. None of the wax is ever outside the glass. The top of the wax climbs from the pool to
   0.7 of the height, never more than 6 cells between looks.

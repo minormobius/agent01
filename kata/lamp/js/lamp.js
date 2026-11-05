@@ -127,13 +127,26 @@ export function flow(L) {
   mu.fill(0); for (let a = 0; a < D; a++) { const U = up[a], Dn = dn[a]; for (let p = 0; p < M; p++) mu[p] += phi[U[p]] + phi[Dn[p]]; }
   for (let p = 0; p < M; p++) { const f = phi[p]; mu[p] = f * f * f - f - P.eps * P.eps * (mu[p] - 2 * D * f); }
   // f = μ∇φ + buoyancy along y (up in the real half, down in the mirror half)
-  for (let a = 0; a < D; a++) { const f = fr[a], U = up[a], Dn = dn[a]; for (let p = 0; p < M; p++) f[p] = (mu[p] * (phi[U[p]] - phi[Dn[p]])) / 2; }
+  // (P.capF scales how hard the interface's tension pushes the flow: below 1, buoyancy wins more easily and blobs pinch off)
+  const cf = P.capF ?? 1;
+  for (let a = 0; a < D; a++) { const f = fr[a], U = up[a], Dn = dn[a]; for (let p = 0; p < M; p++) f[p] = (cf * mu[p] * (phi[U[p]] - phi[Dn[p]])) / 2; }
+  // (the interface's tension acts only well inside the glass: at the glass, the wall's potential holds φ at −1 outside,
+  // which is a sharp step against any wax touching it; its tension there drove a flow that never stopped, stirring the
+  // wax into the liquid until most of it was mush)
+  if (L.inside) { const deep = deepMask(L); for (let a = 0; a < D; a++) { const f = fr[a]; for (let p = 0; p < M; p++) if (!deep[p]) f[p] = 0; } }
   for (let p = 0; p < M; p++) { const f = phi[p], rho = 0.5 * (1 + f) * (P.delta - P.aw * T[p]) - 0.5 * (1 - f) * P.al * T[p]; fr[1][p] += (yOf[p] < ny ? -1 : 1) * P.g * rho; }
   solve(L, true);
   // the glass: no flow in it. Zero the velocity there and project back onto divergence-free flow: what's left in the
   // glass is small, and carries nothing (transport is by fluxes between cells, and a face that touches glass carries
   // none: see advect())
   if (L.inside) for (let it = 0; it < 1; it++) { for (let a = 0; a < D; a++) { const ua = u[a]; for (let p = 0; p < M; p++) fr[a][p] = L.inside[p] ? ua[p] : 0; } solve(L, false); }
+}
+/* the cells inside the glass whose neighbours are all inside too */
+function deepMask(L) {
+  if (L.deep) return L.deep;
+  const { M, D, up, dn, inside } = L, deep = new Uint8Array(M);
+  for (let p = 0; p < M; p++) { let ok = inside[p]; for (let a = 0; a < D && ok; a++) ok = inside[up[a][p]] && inside[dn[a][p]]; deep[p] = ok ? 1 : 0; }
+  return (L.deep = deep);
 }
 /* from the forces in fr (real space) to the velocity u: the Stokes solve (stokes true: project and divide by η k²) or
    the projection alone (onto divergence-free fields) */

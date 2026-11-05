@@ -7,7 +7,7 @@ import { makeThreadedFFT } from "./pfft.js";
 export const PRESETS = {
   // (the glass lamp: a sharper interface, ε = 0.7, so blobs this small aren't mostly interface; a fifth of the glass
   // wax; a gentler heater)
-  lamp: { phys: { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.5, mob: 0.2, cfl: 0.7, flowEvery: 2, coolFrom: 0.65 }, end: 3000 },
+  lamp: { phys: { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.8, coolGlass: 0.15, coolFrom: 0.65, mob: 0.35, capF: 0.3, cfl: 0.7, flowEvery: 2 }, end: 3000 },
   thread: { phys: { g: 0, heat: 0, cool: 0 }, R: 4, n: 3, end: 300 },
   cooling: { phys: { g: 0, heat: 0, cool: 0 }, R: 5, end: 80 },
 };

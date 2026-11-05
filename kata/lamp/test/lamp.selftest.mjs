@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), Lm = await import(path.join(here, "../js/lamp.js"));
 // (the page's lamp settings, as worker.js gives them)
-const LAMP = { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.5, mob: 0.2, cfl: 0.7, flowEvery: 2, coolFrom: 0.65 };
+const LAMP = { glass: true, eps: 0.7, waxShare: 0.2, heat: 0.8, coolGlass: 0.15, coolFrom: 0.65, mob: 0.35, capF: 0.3, cfl: 0.7, flowEvery: 2 };
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } else console.log("ok   " + msg); };
 const runTo = (L, T) => { while (L.t < T) Lm.step(L); };
@@ -81,6 +81,16 @@ const thread = (D, R, n, T) => { const L = Lm.makeLamp(D, 16, 32, { g: 0, heat: 
     let w = 0, n = 0; for (let p = 0; p < L.M; p++) if (L.yOf[p] < L.ny) { if (L.phi[p] > 0) { n++; if (!L.inside[p]) w++; } if (!L.inside[p]) outMax = Math.max(outMax, L.phi[p]); } waxOut = Math.max(waxOut, w / Math.max(1, n));
   }
   ok(phase === 3 && waxOut === 0 && outMax < -0.5, `the 3D lamp in its glass cycles: the wax's centre up past 0.45 of the height at t ${marks[0]?.toFixed(0)}, back below 0.3 at t ${marks[1]?.toFixed(0)}, up again at t ${marks[2]?.toFixed(0)}; none of it ever outside the glass (the liquid there no richer than φ = ${outMax.toFixed(2)})`);
+}
+
+/* the wax stays wax: over the second half of a 400-long run, on average at least half the cells that began as wax are
+   still more than half wax. (Two things once stirred it into a mush: limited-upwind transport of φ, whose numerical
+   diffusion low mobility can't undo, and the interface's tension acting at the glass, where the wall's potential makes a
+   step against any wax touching it, which drove a flow that never stopped) */
+{
+  const L = Lm.makeLamp(3, 16, 32, LAMP); Lm.START.lamp(L, 1); const w0 = Lm.stats(L).wax; let s = 0, n = 0, last = 0;
+  while (L.t < 400) { Lm.step(L); if (L.t > 200 && L.t - last >= 2) { last = L.t; s += Lm.stats(L).wax / w0; n++; } }
+  ok(s / n >= 0.5, `the wax stays wax: ${(100 * s / n).toFixed(0)}% of it, on average over t 200–400, still more than half wax`);
 }
 
 /* where the first blob comes from: the pool. Follow the top of the wax (its highest cell more than half wax) every
