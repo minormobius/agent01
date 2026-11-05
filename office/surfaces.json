@@ -8911,6 +8911,16 @@
    "discovered": true
   },
   {
+   "id": "atom4/bluminium.html",
+   "name": "bluminium",
+   "url": "https://four.mino.mobi/atom/bluminium.html",
+   "cat": "data",
+   "commits": 0,
+   "age": "warm",
+   "parent": "atom4",
+   "discovered": true
+  },
+  {
    "id": "atom4/census.html",
    "name": "census",
    "url": "https://four.mino.mobi/atom/census.html",

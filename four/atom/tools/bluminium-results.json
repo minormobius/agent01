@@ -1,0 +1,19 @@
+{
+ "about": "Hand-kept from the runner's logs (atom4-data runs/<run>/<group>/*.log). Plane-wave DFT, the book's exchange-only LDA, soft pseudopotentials, ecut 25 Ha. Energies in eV per formula unit Bl2Px3. Provisional until the relaxations finish.",
+ "status": "relax-2 running: the cells are unranked so far (rule: rank only beyond 0.4 eV a formula plus the k-ladder's movement), and the volume minimum is not yet bracketed",
+ "relaxed": {
+  "note": "relax-1, 2x2x1x2 shifted k (4 k), ions relaxed at a fixed cell shape; 'fmax' the largest remaining force (Ha/bohr), 'done' whether converged below 1e-3",
+  "z2-0": [{ "scale": 0.97, "E": -1966.2125, "fmax": 0.0175, "done": false }, { "scale": 1.00, "E": -1968.4566, "fmax": 0.0079, "done": false }, { "scale": 1.03, "E": -1969.1942, "fmax": 0.00019, "done": true }],
+  "z2-1": [{ "scale": 0.97, "E": -1966.1669, "fmax": 0.0392, "done": false }, { "scale": 1.00, "E": -1968.3599, "fmax": 0.0147, "done": false }, { "scale": 1.03, "E": -1969.0378, "fmax": 0.0037, "done": false }]
+ },
+ "kLadder": {
+  "note": "unrelaxed x1.00 single points: how far sampling still moves the energy",
+  "z2-0": [{ "k": "2x2x1x2s (4 k)", "E": -1968.3888 }, { "k": "a14 (20 k)", "E": -1968.0422 }, { "k": "a14s (18 k)", "E": -1968.1636 }],
+  "z2-1": [{ "k": "2x2x1x2s (4 k)", "E": -1968.2812 }]
+ },
+ "gaps": {
+  "note": "bands-2: SCF grid plus a 10-point path, x1.00 unrelaxed, a10 k; this functional sits about 2.8 eV under measured gaps in ours (corundum: 6.02 against 8.8), so add +2.8 eV or scale x1.47",
+  "z2-0": { "gap_eV": 3.79, "direct": false, "vbm": "Γ", "cbm": "(½,½,0,0)", "directGap_eV": 4.30 },
+  "z2-1": { "gap_eV": 4.57, "direct": true, "vbm": "Γ", "cbm": "Γ" }
+ }
+}

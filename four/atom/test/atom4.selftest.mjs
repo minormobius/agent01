@@ -542,7 +542,7 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
 
 /* 28 · the pages outside ATOM⁴'s chapters (where we are, the big table): every element their scripts draw into exists */
 {
-  for (const [page, script] of [["../../start/index.html", "../../start/start.js"], ["../../table/index.html", "../../table/viewer.js"], ["../../fields/index.html", "../../fields/fields.js"]]) {
+  for (const [page, script] of [["../../start/index.html", "../../start/start.js"], ["../../table/index.html", "../../table/viewer.js"], ["../../fields/index.html", "../../fields/fields.js"], ["../bluminium.html", "../js/bluminium.js"]]) {
     const html = fs.readFileSync(path.join(here, page), "utf8"), js = fs.readFileSync(path.join(here, script), "utf8");
     const want = [...new Set([...js.matchAll(/\$\(\s*["'`]([A-Za-z0-9_-]+)["'`]\s*\)/g)].map((m) => m[1]))], ids = new Set([...(html + js).matchAll(/id="([^"]+)"/g)].map((m) => m[1])); // the page's, and those the script writes itself
     const missing = want.filter((id) => !ids.has(id) && !/\$\{/.test(id));
@@ -1253,6 +1253,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   ok(!broken.length, `paper 1 ledger: ${ledger.claims.length - broken.length} of ${ledger.claims.length} claims hold${broken.length ? `; broken: ${broken.map((c) => `${c.id} (${c.value})`).join("; ")}` : ""}`);
   ok(!stale.length && nobles === "2,12,22,50,78,138" && hits === 32 && t4.length === 140,
     `paper 1 data: ${stale.length ? `stale (${stale.join(", ")}): run node four/papers/p1/build.mjs` : "current"}, 4D noble gases ${nobles}, ${hits} of ${t3.length} configurations, ${t4.length} elements`);
+}
+
+/* 68 · the Bluminium viewer's solver (js/multiplet.js): spin by counting across M_S blocks agrees with ⟨S²⟩ from the
+   eigenvectors (4D d², 81 determinants), and ruby's baked s, β give back the two measured levels it was fitted to */
+{
+  const { BLUMINIUM: BL } = await import("../js/bluminiumdata.js"), { levels, levelsByVectors, firsts } = await import("../js/multiplet.js");
+  const o = BL.dopants.find((x) => x.n === 2), key = (L) => L.multiplets.map((x) => `${x.eV.toFixed(4)}:${x.mult}x${x.g}`).join(" ");
+  const same = [0, 1, BL.ruby.s].every((sv) => key(levels(9, 2, o.on["z2-0"][0].leak, sv, { m: 9, A: BL.A4 }, o.F, BL.ruby.beta)) === key(levelsByVectors(9, 2, o.on["z2-0"][0].leak, sv, { m: 9, A: BL.A4 }, o.F, BL.ruby.beta)));
+  const free = levels(9, 2, o.on["z2-0"][0].leak, 0, { m: 9, A: BL.A4 }, o.F, 1).multiplets[0];
+  const cr = BL.ours.find((x) => x.Z === 24), f = firsts(levels(5, 3, cr.H, BL.ruby.s, { m: 5, A: BL.A3 }, cr.F, BL.ruby.beta), [3, 2]);
+  ok(same && free.mult === 1 && free.g === 10 && Math.abs(f.allowed_eV - 2.23) < 1e-3 && Math.abs(f.flip_eV - 1.786) < 1e-3,
+    `the Bluminium solver: block counting matches ⟨S²⟩ (${same}), free 4D d² ground a singlet ×${free.g} (Hund's first rule fails), ruby at the baked s, β: ⁴T₂ ${f.allowed_eV.toFixed(3)}, ²E ${f.flip_eV.toFixed(3)} eV`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);

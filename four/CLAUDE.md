@@ -386,6 +386,17 @@ for games, and this is a modelling programme with publications to come. The game
   is lowest. The table's solver fills shells as a spin-polarized average and doesn't resolve terms, so its d²-like
   configurations are unaffected; any statement about their ground spin would be. All of this stands on point charges ×
   a factor carried from ruby.
+  **The Bluminium viewer, `atom/bluminium.html`** (off the chapter nav, linked from the landing's "made" line and
+  its open questions): `js/bluminium.js` draws both Bl₂Px₃ cells and each cation site's coordination in `tile.js`
+  tiles. It tabulates the energies and gaps from hand-kept `tools/bluminium-results.json` (update it from the
+  runner's logs, then rebake), and runs the dopant playground: site, ion (4D 3d¹–3d⁴ and 3d¹⁴–3d¹⁷; ours
+  Ti/V/Cr/Mn³⁺ on corundum), the leak on or off, sliders on s and β. That gives the level diagram, a verdict (sharp
+  spin-flip line, broad band, or a two-set gap) and the scan against s. **Generated** `js/bluminiumdata.js`
+  (`tools/bluminium.mjs bake`, about 1 min, 112 kB) holds the cells, the field matrices, F⁰/F²/F⁴, the angular tensors
+  and ruby's fitted s and β. The page solves live in `js/multipletworker.js` with `js/multiplet.js` (no DOM), which
+  `tools/multiplets.mjs` now imports too. `levels()` takes eigenvalues only and gets spin by counting each level's
+  copies across M_S blocks (identical to the ⟨S²⟩ route, `levelsByVectors`, on all 60 cases tried; 4–5× faster: 4D d³
+  in 40 ms, d⁴ about 3.5 s). Selftest 68 checks that agreement, the free 4D d² singlet, and ruby at the baked s, β.
   `atom/tools/pwrelax.mjs <structures.json> <name> <scale> <ecut> <k> [threads] [soft] [fmax] [steps]` relaxes the ions
   in a fixed cell: plane-wave SCF (warm-started from the last step's density, `scf({ rho0 })`), Hellmann–Feynman forces
   (the pool's projector share included), and BFGS in Cartesian coordinates with the mean force removed. Steps are capped

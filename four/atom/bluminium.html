@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴: Bluminium, Bl₂Px₃, the corundum of four dimensions. Its two candidate crystals to turn and slice, and a playground for doping it: put a d ion on a site and watch its levels decide between a ruby and a tunable laser." />
+<title>ATOM⁴ · Bluminium — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+<style>
+  .tablewrap { overflow-x: auto; }
+  table.bl { border-collapse: collapse; font: 13px var(--mono); margin: 8px 0 12px; min-width: 100%; }
+  table.bl th, table.bl td { border-bottom: 1px solid var(--border); padding: 5px 10px; text-align: right; white-space: nowrap; }
+  table.bl th:first-child, table.bl td:first-child { text-align: left; } table.bl small { color: var(--dim); }
+  .play { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 12px 0; }
+  .play select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; font: 13px var(--mono); max-width: 100%; }
+  .play button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; font: 12px var(--mono); cursor: pointer; }
+  .play button:hover { border-color: var(--d4); }
+  .play .what { font: 12px var(--mono); color: var(--dim); margin: 4px 0 8px; }
+  svg.levels { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; margin: 8px 0; }
+  svg.levels text { font: 11px var(--mono); fill: var(--dim); } svg.levels .grid { stroke: #1b1d26; } svg.levels .mark { stroke: #5a5648; stroke-dasharray: 4 4; } svg.levels .now { stroke: var(--d4); stroke-width: 1.4; }
+  .verdict { font-size: 14px; color: #c9c3b8; } .verdict b { color: var(--text); }
+  .play .ctl label { max-width: 100%; min-width: 0; flex-wrap: wrap; } .play select { max-width: calc(100vw - 110px); } .play input[type=range] { max-width: 46vw; }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="gravity.html">5 · gravity</a><a href="hydrogen.html">6 · hydrogen</a><a href="table.html">7 · the periodic table</a><a href="shapes.html">8 · the shapes</a><a href="darbon.html">9 · darbon</a><a href="forces.html">10 · forces between molecules</a><a href="xater.html">11 · pxygen and xater</a><a href="census.html">12 · which water</a><a href="search.html">13 · ten ways to meet</a><a href="gas.html">14 · gases</a><a href="nuclei.html">15 · nuclei</a><a href="stars.html">16 · stars</a><a href="planets.html">17 · planetary systems</a><a href="methods.html">methods</a></nav>
+  <h2>ATOM⁴ · a crystal to play with</h2>
+  <h1 class="ch">Bluminium</h1>
+  <p class="lede">Bl₂Px₃: element 15 and pxygen, the corundum of four dimensions. Two candidate crystals, still unranked, and a playground for doping them with a d ion to see whether this world has a ruby, or a tunable laser.</p>
+</header>
+
+<section id="blCrystal">
+  <h3>The crystal</h3>
+  <p>The ionic model's search found two cells within a fraction of an electronvolt of each other, <b>z2-0</b> and <b>z2-1</b>. Plane-wave density-functional theory hasn't separated them yet. Each tile shows a cell's shadow, coloured by w, or the slice a 3D creature would see at a chosen w. The site tiles show one cation and the pxygens around it: 13 on z2-0's only site, and 12 and 14 on z2-1's two. Drag to turn; the reticle and its buttons swing an axis into w.</p>
+  <div class="tiles" id="blTiles"></div>
+  <h4>Which cell, so far</h4>
+  <div id="blResults"></div>
+</section>
+
+<section id="blPlay">
+  <h3>The dopant playground</h3>
+  <p>Ruby is corundum with one aluminium in a hundred swapped for chromium. Chromium's three d electrons sit in the field of the six oxygens around them, and their levels decide what light the crystal holds. Here any 3dⁿ ion can go on any Bluminium site. The page solves its levels exactly, from every arrangement of n electrons in the d shell's 9 orbitals with both spins, each time a control moves.</p>
+  <div class="play">
+    <div class="ctl">
+      <label>site <select id="blHost"></select></label>
+      <label>ion <select id="blDop"></select></label>
+      <label id="blLeakL"><input type="checkbox" id="blLeak" checked /> clouds' leak</label>
+    </div>
+    <div class="ctl">
+      <label>field × s <input type="range" id="blS" min="0" max="8" step="0.01" /><output id="blSv"></output></label>
+      <label>repulsion × β <input type="range" id="blB" min="0.3" max="1.2" step="0.01" /><output id="blBv"></output></label>
+      <button type="button" id="blRuby">ruby's s, β</button><button type="button" id="blBare">bare point charges</button>
+    </div>
+    <p class="what" id="blWhat"></p>
+    <div id="blLevels"></div>
+    <p class="verdict" id="blVerdict"></p>
+    <h4>Against the field</h4>
+    <div id="blScan"></div>
+    <p class="what">The levels holding the lowest 60 states (all of them for a small shell), from no field to twice ruby's, at this β; the blue line is s now, and the dashed one is ruby's. Solved in <span id="blTime"></span> for the levels above.</p>
+  </div>
+  <h4>What s and β are, and how far to trust them</h4>
+  <p>Each pxygen is a point charge −2. In 4D each one's electron cloud also leaks a field of its own, because the shell theorem fails, and the leak pulls the d electrons back toward it (untick it to see the bare charges). Point charges are known to come out low. On ruby the same model gives 0.27 of the measured splitting, so the field gets a factor <b>s</b>. A free ion's repulsion also shrinks in a crystal, so the repulsion gets a factor <b>β</b>. Ruby fixes both: <b>s = <span id="blRubyS"></span>, β = <span id="blRubyB"></span></b> put its broad ⁴T₂ band at 2.23 eV and its sharp ²E line at 1.786 eV. Carrying them to a 4D crystal is an assumption, not a result. Inside ours, titanium on the same site at ruby's s overshoots its measured band by about ×1.4, so expect at least that much play. The real test would be a Hartree–Fock calculation of the dopant and its neighbours, which isn't built.</p>
+  <p>What to look for. The <b>4D chromium analogue (3d³, element 28)</b> has no visible ruby: its terms are squeezed, and the first spin flip sits 0.17 eV above the ground term, against 2.2 eV in ours, so its sharp line is in the mid-infrared. The <b>titanium analogue (3d¹, element 26)</b> on z2-0 splits into two sets of levels with a 0.7 eV gap between them, the shape of a tunable infrared laser; on z2-1's sites the gap closes up. And <b>3d² (element 27)</b> breaks Hund's first rule as a free ion: its ground state is a spin singlet, not a triplet. That comes from the 4D d shell itself, not the charge law, since Gauss's 1/r² gives the same order. Turn s down to 0 to see it.</p>
+  <p class="read">Levels from <code>tools/multiplets.mjs</code>, the field from <code>tools/crystalfield.mjs</code>, baked by <code>tools/bluminium.mjs</code>; ruby is checked there against Racah's formulas for the free ion. Measured ruby and titanium-sapphire values are from memory and still to be verified against a source.</p>
+</section>
+
+<footer class="pager"><a href="./">← ATOM⁴: the position</a><a href="methods.html">methods →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+<script type="module" src="js/bluminium.js"></script>
+</body>
+</html>
