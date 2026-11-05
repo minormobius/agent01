@@ -357,6 +357,31 @@ for games, and this is a modelling programme with publications to come. The game
   shortfall (×3.7) would put the 4D splitting near 1–1.5 eV, but that factor is covalency in our world and is not
   carried over; the leak is also only its leading term (anion radius about half the ligand distance). The real test is
   a cluster Hartree–Fock dopant calculation; not built.
+  `atom/tools/multiplets.mjs <check|ion D Z n|ruby|bl cell [n] [Z]|dopants cell>` (sandbox; ruby 1 s, `bl` 15 s,
+  `dopants` 2.5 min) turns that field into the levels that decide a laser: every determinant of n electrons in the d
+  shell's 10 (ours) or 18 (4D) spin orbitals, one M_S block, the repulsion projected exactly onto degree 0/2/4 like the
+  field (Slater's F⁰, F², F⁴ in ours), spin from ⟨S²⟩, Householder + QL eigensolver. Blocks above 1600 determinants are
+  refused, so 4D's 3d⁵ … 3d¹³ are not done. `check`: ours' free-ion terms equal Racah's formulas to the
+  cm⁻¹ (⁴P = 15B, ²G = 4B + 3C for d³; ³P, ¹D, ¹G, ¹S for d²); in 4D the d² and d³ term degeneracies match SO(4)'s
+  decomposition (d = (1,1): d² singlets 25 + 10 + 9 + 1, triplets 30 + 6). Two scales: s on the point-charge field, β on
+  F², F⁴. **Ruby fixes them** (⁴T₂ at 2.23 eV, ²E at 1.786 eV, both from memory): s = 3.75, β = 0.67 (B 1167 → 785 cm⁻¹,
+  free Cr³⁺ is ≈ 918 from memory); ruby then sits 25% above its crossover (s ≈ 3.0), and ²E's slope against s is 0.015
+  eV against ⁴T₂'s 0.60, which is the sharp line. **The carry tested inside ours:** Ti³⁺ on the same site at ruby's s
+  absorbs at 3.57 eV against ≈ 2.5 measured (Ti:sapphire, from memory): carrying s between ions is good to about ×1.4,
+  because the point-charge model makes the ion's size matter too much. **4D, z2-0's 13-coordinated site, at ruby's s and
+  β:** 3d³ (element 28) has no visible ruby. The free ion's terms are compressed: the first doublet sits 0.17 eV above
+  the 39-fold quartet ground term, against ours' 2.2 eV. The pinned 1/r is not harmonic, so its quadrupole part is weak
+  (F²/F⁰ 0.15; Gauss's 1/r² gives 0.52), and the field is weak as well. The quartets spread 0–0.24 eV and the spin-flip
+  doublet sits at 0.29 eV (slope 0.027): a candidate sharp line in the mid-infrared, near 4 µm. **3d¹ (element 26), the
+  Ti:sapphire analogue, is the laser-like one:** its 9 levels fall into two sets, 0 / 0.18 / 0.36 and
+  1.07 / 1.75 / 2.06 eV. That is a 0.7 eV gap with broadband emission across it, about 0.5 eV if Ti's ×1.4 overshoot
+  applies: a tunable near- to mid-infrared emitter pumped in the red or near-IR. The other dopants (3d², 3d⁴, 3d¹⁴–3d¹⁷)
+  have everything below 0.6 eV. **Hund's first rule fails for 4D d²:** the free 3d² ion (and 3d¹⁶, its hole mirror) has a
+  spin-singlet ground term, the 10-fold (2,0)⊕(0,2), with the triplet 0.52 eV up. It holds for d³ and d⁴. This is the 4D
+  shell, not the law: Gauss's 1/r² gives the same order. The F² part favours that singlet, and with F⁴ alone the triplet
+  is lowest. The table's solver fills shells as a spin-polarized average and doesn't resolve terms, so its d²-like
+  configurations are unaffected; any statement about their ground spin would be. All of this stands on point charges ×
+  a factor carried from ruby.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

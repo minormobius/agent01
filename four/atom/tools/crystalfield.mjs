@@ -21,10 +21,10 @@ import { harmonics, SPHERE } from "../js/pw.js";
 import { ion } from "./salt.mjs";
 import { COMPOUNDS } from "./ionic.mjs";
 
-const here = path.dirname(fileURLToPath(import.meta.url)), HA = 27.211386;
+export const here = path.dirname(fileURLToPath(import.meta.url)), HA = 27.211386;
 
 /* the dopant: a free ion's d orbital (its radial probability on atom.js's grid) and its moments ⟨r^k⟩ */
-function dopant(Z, d, config) {
+export function dopant(Z, d, config) {
   const sh = subshells(d), occ = sh.map(() => 0);
   for (const t of config.split(" ")) { const m = t.match(/^(\d+[a-z])(\d+)$/); occ[sh.findIndex((s) => s.name === m[1])] = +m[2]; }
   const g = scf(Z, occ, d, { exchange: true, iters: 400 }), i = sh.findIndex((s) => s.name === "3d");
@@ -33,8 +33,8 @@ function dopant(Z, d, config) {
 }
 
 /* quadrature on S^(d−1): product Gauss–Legendre in the polar angles, uniform in the last */
-function gaussLegendre(n) { const x = [], w = []; for (let i = 0; i < n; i++) { let z = Math.cos((Math.PI * (i + 0.75)) / (n + 0.5)), dp = 0; for (let it = 0; it < 100; it++) { let p0 = 1, p1 = z; for (let k = 2; k <= n; k++) { const p2 = ((2 * k - 1) * z * p1 - (k - 1) * p0) / k; p0 = p1; p1 = p2; } dp = (n * (z * p1 - p0)) / (z * z - 1); const dz = p1 / dp; z -= dz; if (Math.abs(dz) < 1e-15) break; } x.push(z); w.push(2 / ((1 - z * z) * dp * dp)); } return { x, w }; }
-function sphere(d, n = 16) {
+export function gaussLegendre(n) { const x = [], w = []; for (let i = 0; i < n; i++) { let z = Math.cos((Math.PI * (i + 0.75)) / (n + 0.5)), dp = 0; for (let it = 0; it < 100; it++) { let p0 = 1, p1 = z; for (let k = 2; k <= n; k++) { const p2 = ((2 * k - 1) * z * p1 - (k - 1) * p0) / k; p0 = p1; p1 = p2; } dp = (n * (z * p1 - p0)) / (z * z - 1); const dz = p1 / dp; z -= dz; if (Math.abs(dz) < 1e-15) break; } x.push(z); w.push(2 / ((1 - z * z) * dp * dp)); } return { x, w }; }
+export function sphere(d, n = 16) {
   const gl = gaussLegendre(n), nphi = 2 * n, pts = [];
   if (d === 3) { for (let a = 0; a < n; a++) for (let b = 0; b < nphi; b++) { const ct = gl.x[a], st = Math.sqrt(1 - ct * ct), ph = (2 * Math.PI * (b + 0.5)) / nphi; pts.push({ u: [st * Math.cos(ph), st * Math.sin(ph), ct], w: (gl.w[a] * 2 * Math.PI) / nphi }); } }
   else { // x = (cos χ, sin χ cos θ, sin χ sin θ cos φ, sin χ sin θ sin φ), dΩ = sin²χ sinθ dχ dθ dφ; cos χ by Gauss–Chebyshev of the second kind (weight √(1 − u²), exact)
@@ -42,7 +42,7 @@ function sphere(d, n = 16) {
       pts.push({ u: [cx, sx * ct, sx * st * Math.cos(ph), sx * st * Math.sin(ph)], w: (wx * gl.w[b] * 2 * Math.PI) / nphi }); } }
   return pts;
 }
-const legendre = (k, t) => { let p0 = 1, p1 = t; if (k === 0) return 1; for (let n = 2; n <= k; n++) { const p2 = ((2 * n - 1) * t * p1 - (n - 1) * p0) / n; p0 = p1; p1 = p2; } return p1; };
+export const legendre = (k, t) => { let p0 = 1, p1 = t; if (k === 0) return 1; for (let n = 2; n <= k; n++) { const p2 = ((2 * n - 1) * t * p1 - (n - 1) * p0) / n; p0 = p1; p1 = p2; } return p1; };
 
 function jacobi(A) { const n = A.length, a = A.map((r) => r.slice()); for (let sweep = 0; sweep < 100; sweep++) { let off = 0; for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += a[p][q] ** 2; if (off < 1e-24) break;
   for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) { if (Math.abs(a[p][q]) < 1e-30) continue; const th = (a[q][q] - a[p][p]) / (2 * a[p][q]), t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c;
@@ -50,7 +50,7 @@ function jacobi(A) { const n = A.length, a = A.map((r) => r.slice()); for (let s
   return a.map((r, i) => r[i]).sort((x, y) => x - y); }
 
 /* the ligands of cation site `site` in a crystalref-style structure: anions within 1.25 × the nearest distance */
-function ligands(st, site) {
+export function ligands(st, site) {
   const H = st.H, d = H.length, X = st.s.map((f) => H[0].map((_, c) => f.reduce((t, v, b) => t + v * H[b][c], 0))), x0 = X[site], out = [];
   const n = 2, m = new Array(d).fill(-n);
   for (;;) { const t = H[0].map((_, c) => m.reduce((s2, v, i) => s2 + v * H[i][c], 0));
@@ -59,21 +59,21 @@ function ligands(st, site) {
   out.sort((a, b) => a.r - b.r); const rmin = out[0].r; return out.filter((o) => o.r < 1.25 * rmin);
 }
 
-/* Gegenbauer C_n^λ(t), and the projection of a zonal function g(t) on S^(D−1) onto it: g_n = ∫ g C_n^λ (1−t²)^(λ−½) dt / h_n.
+/* Gegenbauer C_n^λ(t), and the projection of a zonal function g(t, 1 − t) on S^(D−1) (1 − t passed exact, for distances near zero) onto it: g_n = ∫ g C_n^λ (1−t²)^(λ−½) dt / h_n.
    t = cos θ; the integrand peaks at θ = 0 when r ≈ R, so θ is cut into intervals halving toward 0, each by Gauss–Legendre. */
-const gegen = (lam, n, t) => { if (lam === 0.5) return legendre(n, t); let c0 = 1, c1 = 2 * lam * t; if (n === 0) return 1; for (let m = 2; m <= n; m++) { const c2 = (2 * t * (m + lam - 1) * c1 - (m + 2 * lam - 2) * c0) / m; c0 = c1; c1 = c2; } return c1; };
+export const gegen = (lam, n, t) => { if (lam === 0.5) return legendre(n, t); let c0 = 1, c1 = 2 * lam * t; if (n === 0) return 1; for (let m = 2; m <= n; m++) { const c2 = (2 * t * (m + lam - 1) * c1 - (m + 2 * lam - 2) * c0) / m; c0 = c1; c1 = c2; } return c1; };
 const GLT = gaussLegendre(20), THETA = (() => { const pts = []; let hi = Math.PI; for (let j = 0; j < 48; j++) { const lo = j === 47 ? 0 : hi / 2; for (let i = 0; i < 20; i++) pts.push({ th: lo + ((GLT.x[i] + 1) / 2) * (hi - lo), w: (GLT.w[i] * (hi - lo)) / 2 }); hi = lo; } return pts; })();
-function project(d, g, ns) {
+export function project(d, g, ns) {
   const lam = (d - 2) / 2, out = ns.map(() => 0), h = ns.map(() => 0);
-  for (const { th, w } of THETA) { const t = Math.cos(th), wt = w * Math.sin(th) ** (2 * lam), gv = g(t); ns.forEach((n, i) => { const c = gegen(lam, n, t); out[i] += wt * gv * c; h[i] += wt * c * c; }); }
+  for (const { th, w } of THETA) { const t = Math.cos(th), wt = w * Math.sin(th) ** (2 * lam), gv = g(t, 2 * Math.sin(th / 2) ** 2); ns.forEach((n, i) => { const c = gegen(lam, n, t); out[i] += wt * gv * c; h[i] += wt * c * c; }); }
   return out.map((v, i) => v / h[i]);
 }
 /* the d block in the ligands' field: H_ij = −Σ_L Σ_(n = 0, 2, 4) ⟨v_n(r, R_L)⟩_3d ⟨Y_i|C_n^λ(x̂·R̂_L)|Y_j⟩, with V = q/|x−X| + c/|x−X|³ */
-function dBlock(d, ligs, q, c, dq) {
+export function dBlock(d, ligs, q, c, dq) {
   const Y = harmonics(d, 2), pts = sphere(d), n = Y.length, Yv = pts.map((p) => Y.map((f) => f(p.u))), lam = (d - 2) / 2, NS = [0, 2, 4];
   const H = Array.from({ length: n }, () => new Float64Array(n)), radial = new Map();
   const vbar = (Rl) => { const key = Rl.toFixed(9); if (radial.has(key)) return radial.get(key); const acc = NS.map(() => 0);
-    for (let j = 0; j < GN; j++) { if (dq[j] < 1e-14) continue; const r = GR[j], vn = project(d, (t) => { const s2 = r * r + Rl * Rl - 2 * r * Rl * t; return q / Math.sqrt(s2) + (c ? c / s2 ** 1.5 : 0); }, NS); NS.forEach((_, i) => (acc[i] += dq[j] * vn[i])); }
+    for (let j = 0; j < GN; j++) { if (dq[j] < 1e-14) continue; const r = GR[j], vn = project(d, (t, omt) => { const s2 = (r - Rl) ** 2 + 2 * r * Rl * omt; return q / Math.sqrt(s2) + (c ? c / s2 ** 1.5 : 0); }, NS); NS.forEach((_, i) => (acc[i] += dq[j] * vn[i])); }
     radial.set(key, acc); return acc; };
   for (const L of ligs) { const Rh = L.v.map((x) => x / L.r), vb = vbar(L.r);
     pts.forEach((p, s) => { const ct = p.u.reduce((t, x, i) => t + x * Rh[i], 0); let f = 0; NS.forEach((m, i) => (f += vb[i] * gegen(lam, m, ct))); f *= -p.w; for (let i = 0; i < n; i++) for (let j = i; j < n; j++) H[i][j] += f * Yv[s][i] * Yv[s][j]; }); }
@@ -81,7 +81,7 @@ function dBlock(d, ligs, q, c, dq) {
   const lv = jacobi(H.map((r) => Array.from(r))), mean = lv.reduce((t, v) => t + v, 0) / n;
   const norm = (() => { let e = 0; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) { let s2 = 0; pts.forEach((p, t) => (s2 += p.w * Yv[t][i] * Yv[t][j])); e = Math.max(e, Math.abs(s2 - +(i === j))); } return e; })();
   let past = 0; for (let j = 0; j < GN; j++) if (GR[j] > ligs[0].r) past += dq[j];
-  return { levels_eV: lv.map((v) => +((v - mean) * HA).toFixed(4)), spread_eV: +((lv.at(-1) - lv[0]) * HA).toFixed(4), quadratureError: norm, orbitalPastNearest: +past.toExponential(2) };
+  return { H, levels_eV: lv.map((v) => +((v - mean) * HA).toFixed(4)), spread_eV: +((lv.at(-1) - lv[0]) * HA).toFixed(4), quadratureError: norm, orbitalPastNearest: +past.toExponential(2) };
 }
 /* the textbook series for ours: −q ⟨r^k⟩/R^(k+1) P_k, k ≤ 4, which treats the whole orbital as inside the ligand */
 function textbook3(ligs, q, rk) {
@@ -91,14 +91,22 @@ function textbook3(ligs, q, rk) {
   return jacobi(H.map((r) => Array.from(r))).map((v) => v * HA);
 }
 /* group levels that lie within tol of each other: the splitting's pattern */
-const groups = (lv, tol = 0.02) => { const g = []; for (const v of lv) { const last = g.at(-1); if (last && v - last.top < tol) { last.n++; last.top = v; last.sum += v; } else g.push({ n: 1, top: v, sum: v }); } return g.map((x) => ({ n: x.n, e_eV: +(x.sum / x.n).toFixed(3) })); };
+export const groups = (lv, tol = 0.02) => { const g = []; for (const v of lv) { const last = g.at(-1); if (last && v - last.top < tol) { last.n++; last.top = v; last.sum += v; } else g.push({ n: 1, top: v, sum: v }); } return g.map((x) => ({ n: x.n, e_eV: +(x.sum / x.n).toFixed(3) })); };
 
+/* a host and its ligand field, for reuse (multiplets.mjs): ruby's corundum site, or Bl₂Px₃'s cation sites with the leak S/8 */
+export function host(which, cell = "z2-0") {
+  if (which === "ruby") { const st = JSON.parse(readFileSync(path.join(here, "crystalref-Al2O3.json"), "utf8")).corundum; return { d: 3, q: -2, c: 0, sites: [{ site: 0, L: ligands(st, 0) }] }; }
+  const st = JSON.parse(readFileSync(path.join(here, "crystalref-Bl2Px3.json"), "utf8"))[cell], C = COMPOUNDS.Bl2Px3;
+  const an = ion(C.an, 4, C.core, { watson: { q: 2, R: C.watson } }); let S = 0; for (let j = 0; j < GN; j++) S += an.Q[j] * GR[j] ** 2;
+  const sites = [], seen = new Set(); st.kinds.forEach((k, site) => { if (k !== 0) return; const L = ligands(st, site), key = L.map((l) => l.r.toFixed(3)).join(","); if (seen.has(key)) return; seen.add(key); sites.push({ site, L }); });
+  return { d: 4, q: -2, c: S / 8, S, sites };
+}
 const tenDq = (lv) => lv.slice(3).reduce((t, v) => t + v, 0) / 2 - lv.slice(0, 3).reduce((t, v) => t + v, 0) / 3;
-const [cmd, cell = "z2-0"] = process.argv.slice(2);
-if (cmd === "check") { // the projection against the closed forms: ours 1/|x−X| → r_<^n/r_>^(n+1); 4D 1/|x−X|² → r_<^n/r_>^(n+2)
+const [cmd, cell = "z2-0"] = process.argv.slice(2), main = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (!main) {} else if (cmd === "check") { // the projection against the closed forms: ours 1/|x−X| → r_<^n/r_>^(n+1); 4D 1/|x−X|² → r_<^n/r_>^(n+2)
   let worst = 0; const rows = [];
   for (const [d, p] of [[3, 1], [4, 2]]) for (const [r, R] of [[0.5, 3.6], [3.0, 3.6], [3.55, 3.6], [3.6, 3.65], [6, 3.6]]) {
-    const v = project(d, (t) => (r * r + R * R - 2 * r * R * t) ** (-p / 2), [0, 2, 4]), lo = Math.min(r, R), hi = Math.max(r, R);
+    const v = project(d, (t, omt) => ((r - R) ** 2 + 2 * r * R * omt) ** (-p / 2), [0, 2, 4]), lo = Math.min(r, R), hi = Math.max(r, R);
     v.forEach((x, i) => { const n = [0, 2, 4][i], ex = lo ** n / hi ** (n + p), e = Math.abs(x / ex - 1); worst = Math.max(worst, e); rows.push({ d, r, R, n, rel: +e.toExponential(1) }); }); }
   console.log(JSON.stringify({ check: "projection vs closed forms", worstRelative: +worst.toExponential(2), ok: worst < 1e-6, rows }));
 } else if (cmd === "ruby") {
