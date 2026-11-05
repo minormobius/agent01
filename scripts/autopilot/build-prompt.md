@@ -33,9 +33,9 @@ _Regenerated 2026-11-05 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-05, 100 members / 234 posts):
+**Neighborhood spark** (bisk 2026-11-05, 100 members / 213 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: idk, anthonybecker, openai
+- Distinctive words: openai, imo, anthonybecker
 - Top post: "it’s kinda stupid awesome how you can have your face bones broken and sawed and grinded and your fucking scalp cut open " — @hailey.at
 <!-- BRIEF_END -->
 
