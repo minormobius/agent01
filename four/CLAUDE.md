@@ -340,6 +340,23 @@ for games, and this is a modelling programme with publications to come. The game
   direct against indirect. Total energies here: z2-0 lower by 0.65 eV per formula, but on unequal k-grids (8 k against
   4), so still no ranking (0.09 eV at a10s). The band edges are from the SCF grid plus a 10-point path, not a dense
   zone search.
+  `atom/tools/crystalfield.mjs <ruby|bl [cell]|check>` (sandbox, seconds) is the first look at a 4D ruby: a 3d³ dopant
+  on a cation site, its ligands point charges −2, and in 4D each ligand's cloud also leaks S/8|x−X|³ (S = Σ⟨r²⟩ of the
+  anion in its Watson shell, 29.3 for Px²⁻). Each ligand's potential is projected exactly onto the sphere harmonics of
+  degree 0, 2, 4 (all a d × d product holds) at every radius of the free ion's 3d orbital; `check` reproduces 3D's
+  r_<^n/r_>^(n+1) and 4D Gauss's r_<^n/r_>^(n+2) to 6e-12. (A first version summed r^k/R^(k+1) series: in 4D every even
+  k contributes, and with the leak the series grew with k instead of settling, because the C_k^(3/2) coefficients reach
+  the orbital's tail past the ligand. It also had a φ-index slip in the 4D quadrature. Both are gone.) **Results,
+  point-charge model:** ruby (Cr³⁺ on corundum's Al site, 3 + 3 O at 3.505/3.725 bohr) 10Dq = 0.600 eV (textbook series
+  0.617) against measured ≈ 2.23 eV (from memory, unverified): the model gives 0.27 of the measured value, as point
+  charges are known to (no covalency, no overlap). 4D, element 28's 3+ (3d³, ⟨r⟩ 1.19 bohr) on Bl₂Px₃: z2-0's single
+  13-coordinated site (3.64–3.96 bohr): the 9 d levels spread 0.85 eV without the leak, **0.30 eV with it** (groups 5 +
+  1 + 3); z2-1's 12-coordinated site 1.88 → 0.40 eV and its 14-coordinated site 0.47 → 0.43 eV. So the clouds' leak,
+  which exists because the shell theorem fails, pulls the d electron toward the ligands and cancels most of the
+  ligands' field: on Bluminium's high-coordinated sites the point-charge spread is half to two-thirds of ruby's (0.63). Scaling by ruby's
+  shortfall (×3.7) would put the 4D splitting near 1–1.5 eV, but that factor is covalency in our world and is not
+  carried over; the leak is also only its leading term (anion radius about half the ligand distance). The real test is
+  a cluster Hartree–Fock dopant calculation; not built.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
