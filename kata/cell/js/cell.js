@@ -18,6 +18,9 @@
    H for a radius function: H ≈ (d − 1)/r − Δ_S r / r² (the round part, and the sphere's Laplacian of the radius: small
    slopes). The Laplacian part is taken implicitly (a few Jacobi sweeps), so the step can be long. */
 export const R0 = 1;
+/* the nucleus: a stiff ball of radius NUC_A (a 4-ball in 4D). The membrane can't come nearer it than NUC_GAP (the
+   cortex and a little cytoplasm between); inside NUC_SOFT more it is pushed back, and pushes the nucleus away */
+export const NUC_A = 0.34, NUC_GAP = 0.04, NUC_SOFT = 0.12, NUC_K = 40, NUC_MOB = 0.25, NUC_CENTRE = 0.6;
 
 /* ---------------------------------------------------------------- the grid on S^{d−1} */
 export function makeGrid(d, N) {
@@ -104,6 +107,9 @@ export function makeCell(d, N = d === 3 ? 24 : 12) {
   const G = makeGrid(d, N), c = G.count;
   const cell = { d, G, r: new Float64Array(c).fill(R0), sigma: new Float64Array(c).fill(1), f: new Float64Array(c), mu: 1, P: 0, t: 0, H: new Float64Array(c), lap: new Float64Array(c), tmp: new Float64Array(c) };
   cell.V0 = volume(cell); cell.P = (d - 1) / R0;
+  cell.fc = new Float64Array(c); cell.hard = new Float64Array(c); cell.pinned = new Uint8Array(c);
+  const c0 = new Float64Array(d); c0[0] = -0.12; c0[1] = 0.05; c0[2] = 0.08; if (d === 4) c0[3] = 0.06;
+  cell.nuc = [{ c: c0, a: NUC_A }];
   return cell;
 }
 export function volume(cell) { const { G, r, d } = cell; let v = 0; for (let i = 0; i < G.count; i++) v += (G.w[i] * r[i] ** d) / d; return v; }
@@ -116,25 +122,83 @@ export function area(cell) {
 /* mean curvature everywhere: (d − 1)/r − Δ_S r / r² */
 export function curvature(cell) { const { G, r, d, H, lap } = cell; laplacian(G, r, lap); for (let i = 0; i < G.count; i++) H[i] = (d - 1) / r[i] - lap[i] / (r[i] * r[i]); return H; }
 
+
+/* where the ray from the centre along direction n leaves a ball (centre c, radius a): the far root of |t n − c| = a,
+   or −∞ if the ray misses it. The membrane is star-shaped round the centre, so this is how near it may come */
+function farHit(n, o, c, a, d) { let b = 0, cc = 0; for (let k = 0; k < d; k++) { b += n[o + k] * c[k]; cc += c[k] * c[k]; } const q = a * a - cc + b * b; return q > 0 ? b + Math.sqrt(q) : -Infinity; }
+/* the membrane against the nuclei: cell.fc, an outward push wherever the membrane is within NUC_SOFT of the gap
+   (stiff, linear in the overlap); cell.hard, the nearest it may ever come. And the push's reaction on each nucleus */
+function contact(cell) {
+  const { G, r, d, nuc, fc, hard } = cell, n = G.count;
+  fc.fill(0); hard.fill(0);
+  const F = nuc.map(() => new Float64Array(d));
+  for (let i = 0; i < n; i++) {
+    for (let k = 0; k < nuc.length; k++) {
+      const N = nuc[k], th = farHit(G.n, i * d, N.c, N.a + NUC_GAP, d); if (th === -Infinity) continue;
+      if (th > hard[i]) hard[i] = th;
+      const ov = th + NUC_SOFT - r[i]; if (ov <= 0) continue;
+      const p = NUC_K * ov; fc[i] += p;
+      const A = G.w[i] * r[i] ** (d - 1); for (let j = 0; j < d; j++) F[k][j] -= p * A * G.n[i * d + j];
+    }
+  }
+  return F;
+}
+/* the cell's centre of mass (∫ x dV over the star: Σ w r^{d+1} n/(d+1)), of all of it or of the half with sign(y) = sy */
+export function centroid(cell, sy = 0) {
+  const { G, r, d } = cell, m = new Float64Array(d); let v = 0;
+  for (let i = 0; i < G.count; i++) { const y = G.n[i * d + 1]; if (sy && y * sy <= 0) continue; const q = G.w[i] * r[i] ** (d + 1) / (d + 1); for (let j = 0; j < d; j++) m[j] += q * G.n[i * d + j]; v += G.w[i] * r[i] ** d / d; }
+  for (let j = 0; j < d; j++) m[j] /= v; return m;
+}
+/* the nuclei move: pushed by the membrane where it presses (NUC_MOB: a big body, slow through the cytoplasm), held
+   toward the cell's centre of mass by the cytoskeleton (at NUC_CENTRE a second; after a split, each daughter toward its
+   own half's), and two daughters kept apart. Then the membrane is held off them: the hard limit, exactly */
+function moveNuclei(cell, F, dt) {
+  const { d, nuc } = cell, two = nuc.length === 2;
+  const tg = two ? [centroid(cell, 1), centroid(cell, -1)] : [centroid(cell)];
+  for (let k = 0; k < nuc.length; k++) {
+    const N = nuc[k], T = two ? (N.c[1] >= 0 ? tg[0] : tg[1]) : tg[0];
+    for (let j = 0; j < d; j++) N.c[j] += dt * (NUC_MOB * F[k][j] + NUC_CENTRE * (T[j] - N.c[j]));
+  }
+  if (two) { const [A, B] = nuc; let dd = 0; for (let j = 0; j < d; j++) dd += (A.c[j] - B.c[j]) ** 2; dd = Math.sqrt(dd); const m = A.a + B.a + 0.04; if (dd < m) { const s = (m - dd) / 2 / Math.max(dd, 1e-6); for (let j = 0; j < d; j++) { const e = (A.c[j] - B.c[j]) * s; A.c[j] += e; B.c[j] -= e; } } }
+}
+/* mitosis: the nucleus splits in two, each with half its volume (radius × 2^{−1/d}), one either side of y = 0 */
+export function splitNucleus(cell) {
+  if (cell.nuc.length !== 1) return; const { d } = cell, N = cell.nuc[0], a = N.a * 2 ** (-1 / d);
+  cell.nuc = [1, -1].map((s) => { const c = Float64Array.from(N.c); c[1] += s * 0.06; return { c, a }; });
+}
+/* how near the membrane is to any nucleus anywhere (radially, the gap not counted): > 0 means none is cut */
+export function nucClearance(cell) {
+  const { G, r, d, nuc } = cell; let m = Infinity;
+  for (let i = 0; i < G.count; i++) for (const N of nuc) { const th = farHit(G.n, i * d, N.c, N.a, d); if (th !== -Infinity) m = Math.min(m, r[i] - th); }
+  return m;
+}
+
 /* one step of dt: the pressure that keeps the volume (from the forces as they are), then every patch moved, the
    Laplacian part implicitly; then the volume restored exactly by a uniform shift (a rounding's worth) */
 export function step(cell, dt, sweeps = 6) {
   const { G, r, sigma, f, d, mu, tmp, lap } = cell, n = G.count, rMin = 0.04 * R0;
   curvature(cell);
+  const Fn = contact(cell), fc = cell.fc, hard = cell.hard;
   // P: the volume's rate of change Σ w r^{d−1} v must be zero
-  let num = 0, den = 0; for (let i = 0; i < n; i++) { const a = G.w[i] * r[i] ** (d - 1); num += a * (-sigma[i] * cell.H[i] + f[i]); den += a; }
+  let num = 0, den = 0; for (let i = 0; i < n; i++) { const a = G.w[i] * r[i] ** (d - 1); num += a * (-sigma[i] * cell.H[i] + f[i] + fc[i]); den += a; }
   cell.P = -num / den;
   // r' − dt μ σ Δr'/r² = r + dt μ (P − σ (d − 1)/r + f), by Jacobi sweeps on the least-squares Laplacian
   const { want, idx, wt, wc } = lapWeights(G), rhs = cell.rhs || (cell.rhs = new Float64Array(n)), kk = cell.kk || (cell.kk = new Float64Array(n));
-  for (let i = 0; i < n; i++) { rhs[i] = r[i] + dt * mu * (cell.P - (sigma[i] * (d - 1)) / r[i] + f[i]); kk[i] = (dt * mu * sigma[i]) / (r[i] * r[i]); }
+  for (let i = 0; i < n; i++) { rhs[i] = r[i] + dt * mu * (cell.P - (sigma[i] * (d - 1)) / r[i] + f[i] + fc[i]); kk[i] = (dt * mu * sigma[i]) / (r[i] * r[i]); }
   tmp.set(r);
   for (let s = 0; s < sweeps; s++) {
     for (let i = 0; i < n; i++) { let o = rhs[i]; for (let j = 0; j < want; j++) o += kk[i] * wt[i * want + j] * tmp[idx[i * want + j]]; lap[i] = o / (1 - kk[i] * wc[i]); }
     tmp.set(lap);
   }
   for (let i = 0; i < n; i++) r[i] = Math.max(rMin, tmp[i]);
-  // the volume, exactly: a uniform shift δ with Σ w r^{d−1} δ = V0 − V (Newton, twice)
-  for (let k = 0; k < 2; k++) { let v = 0, a = 0; for (let i = 0; i < n; i++) { v += (G.w[i] * r[i] ** d) / d; a += G.w[i] * r[i] ** (d - 1); } const dl = (cell.V0 - v) / a; for (let i = 0; i < n; i++) r[i] = Math.max(rMin, r[i] + dl); }
+  moveNuclei(cell, Fn, dt);
+  // the membrane held off the nuclei where they've moved (never through one), then the volume, exactly: a uniform
+  // shift δ of the patches not held, Σ w r^{d−1} δ = V0 − V (Newton, three times, re-holding each time)
+  contact(cell); const pin = cell.pinned;
+  for (let k = 0; k < 3; k++) {
+    let v = 0, a = 0; for (let i = 0; i < n; i++) { if (r[i] < hard[i]) r[i] = hard[i]; pin[i] = r[i] <= hard[i] + 1e-9 ? 1 : 0; v += (G.w[i] * r[i] ** d) / d; if (!pin[i]) a += G.w[i] * r[i] ** (d - 1); }
+    const dl = (cell.V0 - v) / Math.max(a, 1e-9); for (let i = 0; i < n; i++) if (!pin[i] || dl > 0) r[i] = Math.max(rMin, hard[i], r[i] + dl);
+  }
   cell.t += dt;
 }
 
@@ -142,6 +206,7 @@ export function step(cell, dt, sweeps = 6) {
    each sets σ (the tension, 1 at rest) and f (any other push, outward positive) over the directions n, at time t.
    "front" is +x. In 4D the ring is a great circle (the x–z plane's), a 1D loop on the 3-sphere; the belt is the
    equatorial 2-sphere y = 0. In 3D they are the same thing: the equator of a 2-sphere is a circle */
+export const SPLIT_T = 1.5;
 const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
 export const PRESETS = {
   // at rest: the tension wanders a little, slowly, over the whole surface (a living cortex is never quite still)
@@ -167,6 +232,7 @@ export const PRESETS = {
 /* the ring's and the belt's pull grows as the waist narrows (a loop of tension T round a waist of radius ρ pulls in at
    T/ρ per unit of its length): applied as f/r at the patch. Everything else as the preset says */
 export function applyPreset(cell, name, t) {
+  if ((name === "belt" || name === "ring") && t >= SPLIT_T) splitNucleus(cell);
   const { G, d, r, sigma, f } = cell, P = PRESETS[name], v = new Array(d), band = cell.band || (cell.band = new Float64Array(G.count));
   for (let i = 0; i < G.count; i++) {
     for (let c = 0; c < d; c++) v[c] = G.n[i * d + c];

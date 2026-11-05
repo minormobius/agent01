@@ -9,7 +9,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)), C = await import(path
 let checks = 0, fails = 0;
 const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg); } else console.log("ok   " + msg); };
 const DT = 0.02;
-const run = (d, name, T) => { const c = C.makeCell(d); let dv = 0; while (c.t < T - 1e-9) { C.applyPreset(c, name, c.t); C.step(c, DT); dv = Math.max(dv, Math.abs(C.volume(c) / c.V0 - 1)); } return { c, dv }; };
+const run = (d, name, T) => { const c = C.makeCell(d); let dv = 0, cl = Infinity; while (c.t < T - 1e-9) { C.applyPreset(c, name, c.t); C.step(c, DT); dv = Math.max(dv, Math.abs(C.volume(c) / c.V0 - 1)); cl = Math.min(cl, C.nucClearance(c)); } return { c, dv, cl }; };
 
 for (const d of [3, 4]) {
   const c = C.makeCell(d), want = d === 3 ? (4 * Math.PI) / 3 : Math.PI ** 2 / 2;
@@ -26,21 +26,26 @@ for (const d of [3, 4]) {
   ok(Math.abs(c.P / (1.5 * (d - 1)) - 1) < 0.01, `${d}D: at rest P = σ(d − 1)/R (${c.P.toFixed(4)} vs ${(1.5 * (d - 1)).toFixed(1)})`);
 }
 for (const name of ["rest", "reach", "contract", "wave", "bleb"]) for (const d of [3, 4]) {
-  const { c, dv } = run(d, name, 6);
+  const { c, dv, cl } = run(d, name, 6);
   let mn = Infinity, mx = 0; for (const v of c.r) { mn = Math.min(mn, v); mx = Math.max(mx, v); }
   ok(dv < 1e-4 && mn > 0.15 && mx < 2.5, `${d}D ${name}: the volume holds (${dv.toExponential(1)}) and the cell stays whole (r ${mn.toFixed(2)}–${mx.toFixed(2)})`);
+  ok(cl > C.NUC_GAP * 0.9, `${d}D ${name}: the membrane never cuts the nucleus (nearest ${cl.toFixed(3)}, the gap ${C.NUC_GAP})`);
 }
 for (const d of [3, 4]) {
-  const { c } = run(d, "reach", 3.4); let front = 0, back = 0, nf = 0, nb = 0;
+  const { c } = run(d, "reach", 3.4);
+  ok(c.nuc[0].c[0] > 0.2, `${d}D reach: the nucleus is carried forward into it (x ${c.nuc[0].c[0].toFixed(2)})`);
+  let front = 0, back = 0, nf = 0, nb = 0;
   for (let i = 0; i < c.G.count; i++) { const x = c.G.n[i * d]; if (x > 0.95) { front += c.r[i]; nf++; } else if (x < -0.95) { back += c.r[i]; nb++; } }
   ok(front / nf > 1.15 * (back / nb), `${d}D reach: the pseudopod bulges (front ${(front / nf).toFixed(2)} vs back ${(back / nb).toFixed(2)})`);
 }
 {
-  const { c, dv } = run(3, "ring", 14), w = C.waist(c);
+  const { c, dv, cl } = run(3, "ring", 14), w = C.waist(c), [A, B] = c.nuc;
   ok(w.min < 0.5 && dv < 1e-4, `3D: a contractile ring pinches the waist (${w.min.toFixed(2)})`);
+  ok(c.nuc.length === 2 && A.c[1] * B.c[1] < 0 && Math.min(Math.abs(A.c[1]), Math.abs(B.c[1])) > A.a + 0.1 && cl > 0, `3D: the nucleus divided and a daughter sits in each lobe, clear of the furrow (y ${A.c[1].toFixed(2)}, ${B.c[1].toFixed(2)}; radius ${A.a.toFixed(3)} = 0.34/∛2)`);
 }
 {
   const { c, dv } = run(4, "belt", 14), w = C.waist(c);
+  ok(Math.abs(c.nuc[0].a * 2 ** 0.25 - C.NUC_A) < 1e-12 && c.nuc[0].c[1] * c.nuc[1].c[1] < 0, `4D: the daughters have half the 4-volume each (radius 0.34/2^¼) and part, one to each lobe`);
   ok(w.mean < 0.3 && dv < 1e-4, `4D: a contractile belt pinches the waist all round (mean ${w.mean.toFixed(2)})`);
 }
 {

@@ -120,7 +120,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   rest, reach (pseudopod), contract, wave, bleb, divide (`belt`: the equatorial 2-sphere in 4D) and ring (a 1D great
   circle). Claims: Laplace's law is P = σ(d − 1)/R; a ring pinches a 3D cell (waist 0.37) but only dents a 4D one
   (0.60 at the ring, 1.08 away), a belt pinches 4D (0.17). The shader samples r from an RGBA16F atlas (3D) or a 3D
-  texture (4D), faces stacked. `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
+  texture (4D), faces stacked. **The nucleus is a body** (`cell.nuc`, one or two balls; uniforms `uNc`/`uNa`): the
+  membrane is pushed off it within `NUC_SOFT` of a `NUC_GAP` and held off it exactly (radially: the far root of the
+  ray–ball hit, so the star-shaped membrane never cuts it), the reaction pushes the nucleus, and the cytoskeleton
+  pulls it toward the cell's centre of mass. Divide and ring split it at `SPLIT_T` (half the volume each), each daughter
+  drawn to its own half's centroid. `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -183,7 +187,7 @@ node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
 node kata/lamp/test/lamp.selftest.mjs # ~50 s
-node kata/cell/test/cell.selftest.mjs # ~50 s
+node kata/cell/test/cell.selftest.mjs # ~60 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

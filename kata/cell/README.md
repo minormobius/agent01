@@ -29,9 +29,25 @@ The curvature term is stepped implicitly, with Jacobi sweeps.
   0.17.
 - The pseudopod (reach), rear contraction, wave and bleb run in both dimensions.
 
+## The nucleus
+
+The nucleus is a stiff ball, a 4-ball in 4D. It is part of the physics, not painted on:
+
+- **The membrane can't pass it.** Within a soft zone the membrane is pushed outward, and that push is in the
+  pressure balance like any other force. At a hard limit the membrane is held exactly: for each direction, the ray from
+  the centre leaves the nucleus at a known distance, and the membrane may come no nearer than that plus a small gap.
+- **It is pushed back.** The membrane's push on the nucleus moves it, slowly, through the cytoplasm.
+- **It is centred.** The cytoskeleton pulls it toward the cell's centre of mass. In a reach that centre moves forward,
+  so the nucleus is carried into the pseudopod. In a rear contraction the back pushes it forward.
+- **It divides.** Under divide or ring it splits at t = 1.5 into two daughters, each with half the volume (radius
+  0.34 × 2^(−1/d)), and each goes to the centre of mass of its own half. In 3D they end up one per lobe. In 4D the
+  belt does the same; under a ring the cell keeps both nuclei in one body.
+
+The selftest holds the membrane clear of every nucleus in every preset.
+
 ## Files
 
 - `js/cell.js`: the grid, the Laplacian, the step, the presets, `waist()`. No DOM.
 - `js/main.js`: the WebGL2 page. r is uploaded as a 2D atlas (3D) or a 3D texture (4D), and the shader marches
   `|p| − r(n)`.
-- `test/cell.selftest.mjs`: about 50 s.
+- `test/cell.selftest.mjs`: about 60 s.

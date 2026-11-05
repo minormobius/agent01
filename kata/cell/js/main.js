@@ -3,7 +3,7 @@
    grid is (the cube's faces side by side in 3D; stacked as slabs in 4D). The shader marches the star-shaped cell from
    that: at any point, its direction from the centre picks the face and the place on it, and the membrane is where the
    distance equals the radius there. In 4D, in your 3D slice. A nucleus shows through. */
-import { makeCell, step, applyPreset, volume, area, waist, R0 } from "./cell.js";
+import { makeCell, step, applyPreset, volume, area, waist, nucClearance, R0 } from "./cell.js";
 const $ = (id) => document.getElementById(id), glc = $("gl"), ov = $("ov");
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -39,9 +39,10 @@ vec4 at4(vec4 n) {
 vec4 cellAt(vec4 p) { float L = length(p); if (L < 1e-5) return vec4(1.0, 1.0, 0.0, 0.0); return uD == 3 ? at3(p.xyz / L) : at4(p / L); }
 // distance to the membrane (star-shaped: the radial gap, halved, is a safe step)
 float sdCell(vec4 p) { return (length(p) - cellAt(p).x) * 0.5; }
-// the nucleus: a ball inside, a little off centre (in 4D a 4-ball, so your slice of it comes and goes)
-const vec4 NC = vec4(-0.12, 0.05, 0.08, 0.06);
-float sdNuc(vec4 p) { return length(p - NC) - 0.34; }
+// the nuclei (one, or two after it divides): balls the membrane can't pass, moving as cell.js moves them (in 4D
+// 4-balls, so your slice of one comes and goes)
+uniform vec4 uNc[2]; uniform vec2 uNa;
+float sdNuc(vec4 p) { return min(length(p - uNc[0]) - uNa.x, length(p - uNc[1]) - uNa.y); }
 vec3 bg(vec3 d) { return mix(vec3(0.02, 0.05, 0.06), vec3(0.06, 0.12, 0.13), 0.5 + 0.5 * d.y); }
 vec4 P4(vec3 e) { return uO + e.x * uE0 + e.y * uE1 + e.z * uE2; }
 vec3 nrm(vec3 e, int which) {
@@ -78,7 +79,7 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aPos = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-const U = {}; for (const n of ["uRes", "uTan", "uN", "uEye", "uCR", "uCU", "uCF", "uO", "uE0", "uE1", "uE2", "uD", "uT3", "uT4"]) U[n] = gl.getUniformLocation(prog, n);
+const U = {}; for (const n of ["uRes", "uTan", "uN", "uEye", "uCR", "uCU", "uCF", "uO", "uE0", "uE1", "uE2", "uD", "uT3", "uT4", "uNc", "uNa"]) U[n] = gl.getUniformLocation(prog, n);
 const lin = (target) => { for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(target, k, v); if (target === gl.TEXTURE_3D) gl.texParameteri(target, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE); };
 const tex3 = gl.createTexture(), tex4 = gl.createTexture();
 gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex3); lin(gl.TEXTURE_2D);
@@ -118,13 +119,13 @@ function camera() { const { az, el, dist } = view, eye = [-dist * Math.cos(el) *
 
 /* ------------------------------------------------------------------ captions */
 const CAPS = {
-  rest: (d) => d === 3 ? `<b>A cell.</b> Pressure inside pushes the membrane out; the cortex under it (a gel of protein fibres) pulls it in. Round, they balance by <b>Laplace's law</b>, P = σ·2/R: the membrane curves two ways. The cortex's tension wanders a little; the colour shows it (warm where tight, cool where it lets go). The purple ball is the nucleus, seen through. Then press <b>4D</b>.` : `<b>A 4D cell</b>, in your slice. Its membrane is a 3-sphere and curves three ways, so the same tension holds <b>half again as much pressure</b>: P = σ·3/R. It has 4/3 the membrane for its volume. Move the lever and your slice moves through it: the cell shrinks to a point and is gone, and the nucleus, off centre, goes before it.`,
-  reach: (d) => `<b>Reach.</b> The cortex lets go in a patch at the front; the pressure pushes the membrane out there until its curvature is P/σ: a <b>pseudopod</b>. Then the tension comes back and pulls it in. (Held weak, a patch like this balloons until it has drained the cell: a bleb that runs away.)${d === 4 ? " In 4D the patch's rim is a 2-sphere, not a circle." : ""}`,
-  contract: (d) => `<b>Contract.</b> The cortex at the back tightens to three times its rest. The back flattens, and since the inside can't be squeezed, it goes forward: this is how a crawling cell pushes its front ahead.`,
+  rest: (d) => d === 3 ? `<b>A cell.</b> Pressure inside pushes the membrane out; the cortex under it (a gel of protein fibres) pulls it in. Round, they balance by <b>Laplace's law</b>, P = σ·2/R: the membrane curves two ways. The cortex's tension wanders a little; the colour shows it (warm where tight, cool where it lets go). The purple ball is the nucleus, seen through: a stiff body the membrane presses on and can't pass, held toward the cell's middle by the cytoskeleton. Then press <b>4D</b>.` : `<b>A 4D cell</b>, in your slice. Its membrane is a 3-sphere and curves three ways, so the same tension holds <b>half again as much pressure</b>: P = σ·3/R. It has 4/3 the membrane for its volume. Move the lever and your slice moves through it: the cell shrinks to a point and is gone, and the nucleus, off centre, goes before it.`,
+  reach: (d) => `<b>Reach.</b> The cortex lets go in a patch at the front; the pressure pushes the membrane out there until its curvature is P/σ: a <b>pseudopod</b>. Then the tension comes back and pulls it in. (Held weak, a patch like this balloons until it has drained the cell: a bleb that runs away.) The inside flows forward and the nucleus is carried with it, into the pseudopod: it is pushed, never cut.${d === 4 ? " In 4D the patch's rim is a 2-sphere, not a circle." : ""}`,
+  contract: (d) => `<b>Contract.</b> The cortex at the back tightens to three times its rest. The back flattens, and since the inside can't be squeezed, it goes forward: this is how a crawling cell pushes its front ahead. The back presses the nucleus forward too.`,
   wave: (d) => `<b>A contraction wave</b>: a band of tight cortex running from front to back, again and again.${d === 4 ? " In 4D the band is a 2-sphere's worth round the cell, not a ring." : ""}`,
   bleb: (d) => `<b>A bleb.</b> The cortex lets go of a small patch all at once; the membrane balloons out under the pressure; then cortex re-forms under it and pulls it back, harder than before.`,
-  belt: (d) => d === 3 ? `<b>Division.</b> A contractile ring round the equator tightens: a loop of tension pulls in at T/r, more the narrower it gets, and pinches the cell toward two. In 3D the equator <b>is</b> a ring. Now see 4D.` : `<b>Division in 4D: a belt.</b> The equator of a 3-sphere is a 2-sphere, and to pinch it you need a contractile <b>sheet</b> all round it. A sheet curves two ways, so it pulls in at 2T/r and pinches deep. Try <b>ring</b> to see what a loop does.`,
-  ring: (d) => d === 3 ? `<b>A ring</b>: in 3D the same as the belt (the equator of a 2-sphere is a circle).` : `<b>A ring in 4D</b>: a loop of tension round a great circle. It pulls a groove in along itself and the cell <b>bulges round it</b>: there's a whole 2-sphere of equator, and a loop is a line on it. A ring can't divide a 4D cell, as a string can't tie a 4D knot. It takes a belt.`,
+  belt: (d) => d === 3 ? `<b>Division.</b> A contractile ring round the equator tightens: a loop of tension pulls in at T/r, more the narrower it gets, and pinches the cell toward two. First the nucleus divides, and the daughters go one to each half, ahead of the furrow. In 3D the equator <b>is</b> a ring. Now see 4D.` : `<b>Division in 4D: a belt.</b> The equator of a 3-sphere is a 2-sphere, and to pinch it you need a contractile <b>sheet</b> all round it. A sheet curves two ways, so it pulls in at 2T/r and pinches deep. Try <b>ring</b> to see what a loop does.`,
+  ring: (d) => d === 3 ? `<b>A ring</b>: in 3D the same as the belt (the equator of a 2-sphere is a circle).` : `<b>A ring in 4D</b>: a loop of tension round a great circle. It pulls a groove in along itself and the cell <b>bulges round it</b>: there's a whole 2-sphere of equator, and a loop is a line on it. A ring can't divide a 4D cell, as a string can't tie a 4D knot. It takes a belt. The nucleus divides anyway: one cell, two nuclei.`,
 };
 function caption() { $("cap").innerHTML = CAPS[sel.preset](sel.d); }
 $("cap").onclick = () => $("cap").classList.toggle("min");
@@ -187,6 +188,8 @@ function draw(now) {
   const cam = camera(); gl.uniform3fv(U.uEye, cam.eye); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F);
   if (sel.d === 4) { gl.uniform4fv(U.uO, frame.N.map((v) => v * frame.off)); gl.uniform4fv(U.uE0, frame.E[0]); gl.uniform4fv(U.uE1, frame.E[1]); gl.uniform4fv(U.uE2, frame.E[2]); }
   else { gl.uniform4fv(U.uO, [0, 0, 0, 0]); gl.uniform4fv(U.uE0, [1, 0, 0, 0]); gl.uniform4fv(U.uE1, [0, 1, 0, 0]); gl.uniform4fv(U.uE2, [0, 0, 1, 0]); }
+  { const nu = cell.nuc, v = new Float32Array(8), a = [0, -1]; nu.forEach((N, k) => { for (let j = 0; j < cell.d; j++) v[4 * k + j] = N.c[j]; a[k] = N.a; }); if (nu.length < 2) v.set(v.subarray(0, 4), 4);
+    gl.uniform4fv(U.uNc, v); gl.uniform2f(U.uNa, a[0], a[1] < 0 ? a[0] : a[1]); }
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   overlay();
 }
@@ -195,12 +198,13 @@ function overlay() {
   const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1), w = ov.clientWidth, h = ov.clientHeight;
   if (ov.width !== Math.round(w * dpr) || ov.height !== Math.round(h * dpr)) { ov.width = Math.round(w * dpr); ov.height = Math.round(h * dpr); }
   g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h); g.font = "11px ui-monospace, Menlo, monospace";
-  const d = cell.d; if (cell.t - slow.t > 0.25 || cell.t < slow.t) slow = { t: cell.t, A: area(cell), V: volume(cell), W: waist(cell) };
+  const d = cell.d; if (cell.t - slow.t > 0.25 || cell.t < slow.t) slow = { t: cell.t, A: area(cell), V: volume(cell), W: waist(cell), C: nucClearance(cell) };
   const Req = (slow.V / (d === 3 ? (4 / 3) * Math.PI : Math.PI ** 2 / 2)) ** (1 / d);
   const lines = [`${d}D · the membrane on ${cell.G.count.toLocaleString()} directions · physics ${physMs.toFixed(1)} ms a step`,
     `volume ${slow.V.toFixed(3)} (held) · pressure ${cell.P.toFixed(2)} (round: σ·${d - 1}/R = ${((d - 1) / Req).toFixed(2)})`,
     `membrane ${slow.A.toFixed(2)} · per volume ${(slow.A / slow.V).toFixed(2)} (a round cell: ${d}/R = ${(d / Req).toFixed(2)})`];
   if (sel.preset === "belt" || sel.preset === "ring") lines.push(d === 3 ? `waist ${slow.W.min.toFixed(2)} (it started at 1)` : `at the ring ${slow.W.ring.toFixed(2)} · on the equator away from it ${slow.W.away.toFixed(2)} (both started at 1)`);
+  lines.push(cell.nuc.length === 2 ? `two nuclei, ${Math.abs(cell.nuc[0].c[1] - cell.nuc[1].c[1]).toFixed(2)} apart · nearest the membrane comes: ${slow.C.toFixed(2)}` : `the nucleus at (${[...cell.nuc[0].c].map((x) => x.toFixed(2)).join(", ")}) · nearest the membrane comes: ${slow.C.toFixed(2)}`);
   if (d === 4) lines.push(`your slice: ${frame.off >= 0 ? "+" : ""}${frame.off.toFixed(2)} ana`);
   const wrapped = lines.flatMap((l) => (g.measureText(l).width < w - 24 ? [l] : l.split(" · ")));
   g.fillStyle = "rgba(233,228,218,0.85)"; wrapped.forEach((l, i) => g.fillText(l, 12, h - 130 - 15 * (wrapped.length - i)));
