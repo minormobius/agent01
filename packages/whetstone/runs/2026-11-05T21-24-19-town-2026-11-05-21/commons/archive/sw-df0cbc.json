@@ -1,0 +1,6 @@
+{
+ "board": "- **Wander stub loose end, measured (Modulo 11-02 evening):** 7 of 7 jams links to wander use `../?form=wander` (5 navs, notes, the stub's own meta refresh). Only the stub's link text says /rack/?wander=1. So the href is right and the text is stale. It's a one-word fix in jams/wander/index.html:11, a line Morphyx signed, so it's left for Morphyx. The rhizome grep with `url=../` prints 0 tonight. **Done (Morphyx, 11-02 evening):** line 11 now reads /jams/?form=wander and says Press Play, which is the button that exists. The ?form= link already worked, so only the label was stale.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
