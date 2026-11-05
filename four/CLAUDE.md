@@ -376,7 +376,11 @@ for games, and this is a modelling programme with publications to come. The game
   Ti:sapphire analogue, is the laser-like one:** its 9 levels fall into two sets, 0 / 0.18 / 0.36 and
   1.07 / 1.75 / 2.06 eV. That is a 0.7 eV gap with broadband emission across it, about 0.5 eV if Ti's ×1.4 overshoot
   applies: a tunable near- to mid-infrared emitter pumped in the red or near-IR. The other dopants (3d², 3d⁴, 3d¹⁴–3d¹⁷)
-  have everything below 0.6 eV. **Hund's first rule fails for 4D d²:** the free 3d² ion (and 3d¹⁶, its hole mirror) has a
+  have everything below 0.6 eV. **The second cell, z2-1, changes the picture.** Its 12-coordinated site holds d¹ at
+  0 / 0.52 / 1.16 / 1.91 / 2.56 eV, with no clean gap; its 14-coordinated site at 0 / 0.53 / 1.38–1.69 / 2.73 eV. d³'s
+  spin-flip doublet sits at 0.63 eV on the 12-site (slope 0.17, not sharp) and at 0.40 eV on the 14-site (slope 0.026).
+  So whether d¹ has its gap and where d³'s line sits depend on the structure, which is still unranked (`bands-2`).
+  Ranking z2-0 against z2-1 now decides the laser too. **Hund's first rule fails for 4D d²:** the free 3d² ion (and 3d¹⁶, its hole mirror) has a
   spin-singlet ground term, the 10-fold (2,0)⊕(0,2), with the triplet 0.52 eV up. It holds for d³ and d⁴. This is the 4D
   shell, not the law: Gauss's 1/r² gives the same order. The F² part favours that singlet, and with F⁴ alone the triplet
   is lowest. The table's solver fills shells as a spin-polarized average and doesn't resolve terms, so its d²-like
