@@ -3,7 +3,7 @@
    grid is (the cube's faces side by side in 3D; stacked as slabs in 4D). The shader marches the star-shaped cell from
    that: at any point, its direction from the centre picks the face and the place on it, and the membrane is where the
    distance equals the radius there. In 4D, in your 3D slice. A nucleus shows through. */
-import { makeCell, step, applyPreset, volume, area, waist, nucClearance, R0 } from "./cell.js";
+import { makeCell, step, applyPreset, volume, area, waist, nucClearance, spawnFood, R0 } from "./cell.js";
 const $ = (id) => document.getElementById(id), glc = $("gl"), ov = $("ov");
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -42,6 +42,10 @@ float sdCell(vec4 p) { return (length(p) - cellAt(p).x) * 0.5; }
 // the nuclei (one, or two after it divides): balls the membrane can't pass, moving as cell.js moves them (in 4D
 // 4-balls, so your slice of one comes and goes)
 uniform vec4 uNc[2]; uniform vec2 uNa;
+// the floor (y = −uFloorH under the cell's centre; none when uFloorH < 0), the cell's place in the world (uX: the floor's
+// grid and colours are the world's, so they slide by as it crawls), and the morsel of food (body frame; uFoodOn)
+uniform float uFloorH, uFoodOn; uniform vec4 uX, uFood;
+float sdFood(vec4 p) { return uFoodOn > 0.5 ? length(p - uFood) - 0.12 : 1e3; }
 float sdNuc(vec4 p) { return min(length(p - uNc[0]) - uNa.x, length(p - uNc[1]) - uNa.y); }
 vec3 bg(vec3 d) { return mix(vec3(0.02, 0.05, 0.06), vec3(0.06, 0.12, 0.13), 0.5 + 0.5 * d.y); }
 vec4 P4(vec3 e) { return uO + e.x * uE0 + e.y * uE1 + e.z * uE2; }
@@ -54,8 +58,30 @@ void main() {
   vec2 q = (2.0 * gl_FragCoord.xy - uRes) / uRes.y;
   vec3 d = normalize(uCF + q.x * uTan * uCR + q.y * uTan * uCU), c = bg(d), L = normalize(vec3(0.4, 0.8, -0.35));
   float t = 0.2; bool hit = false; vec3 e;
-  for (int i = 0; i < 140; i++) { e = uEye + d * t; float s = sdCell(P4(e)); if (s < 0.001) { hit = true; break; } t += max(s, 0.004); if (t > 14.0) break; }
+  bool food = false;
+  for (int i = 0; i < 140; i++) { e = uEye + d * t; vec4 pe = P4(e); float s = sdCell(pe), sf = sdFood(pe); if (sf < 0.001) { hit = true; food = true; break; } if (s < 0.001) { hit = true; break; } t += max(min(s, sf), 0.004); if (t > 14.0) break; }
+  // the floor: where the ray's 4D point has y = −uFloorH (linear along the ray, so solved, not marched)
+  if (uFloorH > 0.0) {
+    float y0 = P4(uEye).y, yd = dot(vec3(uE0.y, uE1.y, uE2.y), d), tf = abs(yd) > 1e-5 ? (-uFloorH - y0) / yd : -1.0;
+    if (tf > 0.0 && (!hit || tf < t)) {
+      vec3 ef = uEye + d * tf; vec4 q = uX + P4(ef);
+      // a 1-radius grid in the floor's own coordinates (x, z, and in 4D w: its lines are planes, so your slice cuts them)
+      vec3 g = abs(fract(vec3(q.x, q.z, q.w) + 0.5) - 0.5); float ln = min(g.x, g.y); if (uD == 4 && length(vec3(uE0.w, uE1.w, uE2.w)) > 0.05) ln = min(ln, g.z);
+      vec3 base = uD == 4 ? mix(vec3(0.10, 0.22, 0.24), vec3(0.24, 0.13, 0.17), 0.5 + 0.5 * sin(q.w * 1.3)) : vec3(0.13, 0.19, 0.2);
+      vec3 col = mix(base * 1.6, base, smoothstep(0.0, 0.03, ln));
+      // the smell: food's chemical in your slice of the floor, amber, and the horizon where it falls below what the cell
+      // can follow (c = 0.1), a thin ring (in 4D a sphere's slice)
+      if (uFoodOn > 0.5) { vec4 F = uX + uFood; float r2 = dot(q - F, q - F) + 0.09, cc = uD == 3 ? 1.0 / sqrt(r2) : 1.0 / r2;
+        col += vec3(0.5, 0.33, 0.08) * clamp(cc * 0.5, 0.0, 0.8);
+        col = mix(col, vec3(0.95, 0.75, 0.3), (1.0 - smoothstep(0.0, 0.04, abs(log(cc / 0.1)))) * 0.6); }
+      // where the cell sits on it, its shadow
+      col *= 0.55 + 0.45 * smoothstep(0.0, 0.25, sdCell(P4(ef)));
+      o = vec4(mix(col, c, smoothstep(5.0, 13.0, tf)), 1.0); return;
+    }
+  }
   if (!hit) { o = vec4(c, 1.0); return; }
+  if (food) { vec3 nf = normalize(vec3(sdFood(P4(e + vec3(0.003, 0, 0))) - sdFood(P4(e - vec3(0.003, 0, 0))), sdFood(P4(e + vec3(0, 0.003, 0))) - sdFood(P4(e - vec3(0, 0.003, 0))), sdFood(P4(e + vec3(0, 0, 0.003))) - sdFood(P4(e - vec3(0, 0, 0.003)))));
+    o = vec4(vec3(0.45, 0.85, 0.35) * (0.35 + 0.7 * max(dot(nf, L), 0.0)), 1.0); return; }
   vec4 m = cellAt(P4(e)); vec3 n = nrm(e, 0);
   // the membrane: pale, warmer where the cortex is tight, cooler where it has let go, gold where a ring or belt pulls
   float sg = m.y;
@@ -79,7 +105,7 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
 const aPos = gl.getAttribLocation(prog, "aPos"); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-const U = {}; for (const n of ["uRes", "uTan", "uN", "uEye", "uCR", "uCU", "uCF", "uO", "uE0", "uE1", "uE2", "uD", "uT3", "uT4", "uNc", "uNa"]) U[n] = gl.getUniformLocation(prog, n);
+const U = {}; for (const n of ["uRes", "uTan", "uN", "uEye", "uCR", "uCU", "uCF", "uO", "uE0", "uE1", "uE2", "uD", "uT3", "uT4", "uNc", "uNa", "uFloorH", "uFoodOn", "uX", "uFood"]) U[n] = gl.getUniformLocation(prog, n);
 const lin = (target) => { for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(target, k, v); if (target === gl.TEXTURE_3D) gl.texParameteri(target, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE); };
 const tex3 = gl.createTexture(), tex4 = gl.createTexture();
 gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tex3); lin(gl.TEXTURE_2D);
@@ -125,6 +151,8 @@ const CAPS = {
   wave: (d) => `<b>A contraction wave</b>: a band of tight cortex running from front to back, again and again.${d === 4 ? " In 4D the band is a 2-sphere's worth round the cell, not a ring." : ""}`,
   bleb: (d) => `<b>A bleb.</b> The cortex lets go of a small patch all at once; the membrane balloons out under the pressure; then cortex re-forms under it and pulls it back, harder than before.`,
   belt: (d) => d === 3 ? `<b>Division.</b> A contractile ring round the equator tightens: a loop of tension pulls in at T/r, more the narrower it gets, and pinches the cell toward two. First the nucleus divides, and the daughters go one to each half, ahead of the furrow. In 3D the equator <b>is</b> a ring. Now see 4D.` : `<b>Division in 4D: a belt.</b> The equator of a 3-sphere is a 2-sphere, and to pinch it you need a contractile <b>sheet</b> all round it. A sheet curves two ways, so it pulls in at 2T/r and pinches deep. Try <b>ring</b> to see what a loop does.`,
+  crawl: (d) => d === 3 ? `<b>Crawl</b> (PROTEUS's amoeba). On a floor the cell spreads (adhesion pulls the membrane down) and polarises: the cortex lets go at the front, so the pressure pushes out a broad <b>pseudopod</b>, in pulses; it tightens at the back. Tension rising front to back makes the cortex <b>flow rearward</b>, and where the cell is stuck to the floor that flow pushes it forward, as a tank's tread does. In open water the same flow swims it (try <b>contract</b>: it drifts), slower, with nothing to push on but the water.` : `<b>Crawl in 4D.</b> The floor is a 3D space; the cell stands on it with a solid 3D <b>footprint</b>, and its leading edge is a 2D surface, not a line. Nothing about crawling needs a knot or a ring: pseudopod out, stick, contract the back, let go; all local pushing, so it works. Its heading is a point on a sphere (two angles to steer by). The same cortex moves it about 0.7 times as fast here: less of a 4D cell's membrane touches its floor.`,
+  hunt: (d) => d === 3 ? `<b>Hunt.</b> Food (green) on the floor leaks a chemical; the floor glows with it, and the gold ring is the cell's <b>horizon</b>: beyond it there's too little to tell a direction. A source's chemical falls as 1/r here. Inside the ring the cell reads which side of it smells stronger and turns its front that way; outside, it wanders. It engulfs what its membrane closes round, grows a little, and the next morsel appears. Then see 4D.` : `<b>Hunt in 4D.</b> A source's chemical falls as <b>1/r²</b> in 4D, so the same food is smelt from about √10 ≈ 3.2 radii, not 10: the horizon (gold, sliced) is close. Inside it the scent is twice as steep across the cell ((d − 2)/r), easy to follow; outside it the cell can only wander, over a 3D floor where a random walk mostly <b>never comes back</b> (it returns to where it started 19% of the time, against 34% in 3D and certainly on our 2D floor). Food is usually off your slice: watch its glow and the readout.`,
   ring: (d) => d === 3 ? `<b>A ring</b>: in 3D the same as the belt (the equator of a 2-sphere is a circle).` : `<b>A ring in 4D</b>: a loop of tension round a great circle. It pulls a groove in along itself and the cell <b>bulges round it</b>: there's a whole 2-sphere of equator, and a loop is a line on it. A ring can't divide a 4D cell, as a string can't tie a 4D knot. It takes a belt. The nucleus divides anyway: one cell, two nuclei.`,
 };
 function caption() { $("cap").innerHTML = CAPS[sel.preset](sel.d); }
@@ -135,7 +163,7 @@ function sync() {
   for (const id of ["twist", "ana", "squareB"]) $(id).style.display = sel.d === 4 ? "" : "none";
   caption(); history.replaceState(null, "", `?d=${sel.d}&p=${sel.preset}`);
 }
-function reset() { cell = makeCell(sel.d); }
+function reset() { cell = makeCell(sel.d); if (sel.preset === "hunt") spawnFood(cell); if (sel.preset === "crawl" || sel.preset === "hunt") view.el = Math.max(view.el, 0.5); }
 function setD(d) { sel.d = d; squareUp(); reset(); sync(); }
 function setPreset(p) { sel.preset = p; reset(); sync(); }
 for (const b of document.querySelectorAll("#exps button[data-d]")) b.onclick = () => setD(+b.dataset.d);
@@ -172,7 +200,7 @@ function physics(dt) {
   // fixed steps of 0.02, as many as the frame's time asks for, at most three (a slow device runs slow, not wrong)
   acc = Math.min(acc + dt * sel.speed, 3 * DT);
   const t0 = performance.now(); let k = 0;
-  while (acc >= DT && k < 3) { applyPreset(cell, sel.preset, cell.t); step(cell, DT); acc -= DT; k++; }
+  while (acc >= DT && k < 3) { cell.dtLast = DT; applyPreset(cell, sel.preset, cell.t); step(cell, DT); acc -= DT; k++; }
   if (k) physMs += ((performance.now() - t0) / k - physMs) * 0.1;
 }
 function draw(now) {
@@ -190,6 +218,8 @@ function draw(now) {
   else { gl.uniform4fv(U.uO, [0, 0, 0, 0]); gl.uniform4fv(U.uE0, [1, 0, 0, 0]); gl.uniform4fv(U.uE1, [0, 1, 0, 0]); gl.uniform4fv(U.uE2, [0, 0, 1, 0]); }
   { const nu = cell.nuc, v = new Float32Array(8), a = [0, -1]; nu.forEach((N, k) => { for (let j = 0; j < cell.d; j++) v[4 * k + j] = N.c[j]; a[k] = N.a; }); if (nu.length < 2) v.set(v.subarray(0, 4), 4);
     gl.uniform4fv(U.uNc, v); gl.uniform2f(U.uNa, a[0], a[1] < 0 ? a[0] : a[1]); }
+  { const X4 = [0, 0, 0, 0], F4 = [0, 0, 0, 0]; for (let j = 0; j < cell.d; j++) { X4[j] = cell.X[j]; if (cell.food) F4[j] = cell.food[j] - cell.X[j]; }
+    gl.uniform1f(U.uFloorH, cell.floor ? cell.floor.h : -1); gl.uniform4fv(U.uX, X4); gl.uniform4fv(U.uFood, F4); gl.uniform1f(U.uFoodOn, cell.food ? 1 : 0); }
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   overlay();
 }
@@ -204,6 +234,10 @@ function overlay() {
     `volume ${slow.V.toFixed(3)} (held) · pressure ${cell.P.toFixed(2)} (round: σ·${d - 1}/R = ${((d - 1) / Req).toFixed(2)})`,
     `membrane ${slow.A.toFixed(2)} · per volume ${(slow.A / slow.V).toFixed(2)} (a round cell: ${d}/R = ${(d / Req).toFixed(2)})`];
   if (sel.preset === "belt" || sel.preset === "ring") lines.push(d === 3 ? `waist ${slow.W.min.toFixed(2)} (it started at 1)` : `at the ring ${slow.W.ring.toFixed(2)} · on the equator away from it ${slow.W.away.toFixed(2)} (both started at 1)`);
+  if (sel.preset === "crawl" || sel.preset === "hunt" || Math.hypot(...cell.V) > 0.003) { let con = 0, tot = 0; for (let i = 0; i < cell.G.count; i++) { tot += cell.G.w[i]; if (cell.adh[i] > 0.9) con += cell.G.w[i]; }
+    lines.push(`${cell.floor ? "crawling" : "swimming"} at ${Math.hypot(...cell.V).toFixed(3)} radii/s${cell.floor ? ` · on the floor: ${((100 * con) / tot).toFixed(1)}% of the membrane` : ""}`); }
+  if (sel.preset === "hunt" && cell.food) { const sm = cell.sm, u = [...cell.food].map((v, a) => v - cell.X[a]), dist = Math.hypot(...u), ana = d === 4 ? dot(u, frame.N) : 0;
+    lines.push(`food ${dist.toFixed(1)} away${d === 4 ? ` (${ana >= 0 ? "+" : ""}${ana.toFixed(1)} ana of your slice)` : ""} · eaten ${cell.eaten} · smell ${sm.c.toFixed(3)} (follows above 0.1) · across the cell ${sm.grad.toFixed(2)}/r (${d - 2}/r = ${((d - 2) / dist).toFixed(2)}) · ${sm.senses ? "following it" : "wandering"}`); }
   lines.push(cell.nuc.length === 2 ? `two nuclei, ${Math.abs(cell.nuc[0].c[1] - cell.nuc[1].c[1]).toFixed(2)} apart · nearest the membrane comes: ${slow.C.toFixed(2)}` : `the nucleus at (${[...cell.nuc[0].c].map((x) => x.toFixed(2)).join(", ")}) · nearest the membrane comes: ${slow.C.toFixed(2)}`);
   if (d === 4) lines.push(`your slice: ${frame.off >= 0 ? "+" : ""}${frame.off.toFixed(2)} ana`);
   const wrapped = lines.flatMap((l) => (g.measureText(l).width < w - 24 ? [l] : l.split(" · ")));
@@ -217,5 +251,5 @@ sel.d = +(Q.get("d") || 3) === 4 ? 4 : 3; sel.preset = CAPS[Q.get("p")] ? Q.get(
 if (matchMedia("(orientation: portrait)").matches) $("cap").classList.add("min");
 requestAnimationFrame(draw);
 // (for tests: run the cell on by sec seconds without drawing)
-function ff(sec) { for (let i = 0; i < Math.round(sec / DT); i++) { applyPreset(cell, sel.preset, cell.t); step(cell, DT); } }
+function ff(sec) { for (let i = 0; i < Math.round(sec / DT); i++) { cell.dtLast = DT; applyPreset(cell, sel.preset, cell.t); step(cell, DT); } }
 window.CELL = { sel, frame, view, setD, setPreset, cell: () => cell, ff };

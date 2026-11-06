@@ -124,7 +124,13 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   membrane is pushed off it within `NUC_SOFT` of a `NUC_GAP` and held off it exactly (radially: the far root of the
   ray–ball hit, so the star-shaped membrane never cuts it), the reaction pushes the nucleus, and the cytoskeleton
   pulls it toward the cell's centre of mass. Divide and ring split it at `SPLIT_T` (half the volume each), each daughter
-  drawn to its own half's centroid. `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
+  drawn to its own half's centroid. **Moving** (crawl, hunt; from PROTEUS's amoeba, `pokemon/proteus/`): the cortex
+  flows at κ∇σ (`surfGrad`, gradient weights from the Laplacian's least-squares fit), and friction balances it,
+  V = −Σ ζ A v_c / Σ ζ A (water everywhere, the floor where it touches: crawl; water alone: swim, so every preset with a
+  tension gradient drifts). The floor is y = 0 under a centre at `FLOOR_H`, a hard upper limit on r (the volume's
+  restoring shift respects both limits) plus adhesion within `ADH_BAND`. `hunt` smells food (c ∝ 1/r^{d−2}, least-squares
+  gradient over the membrane), follows it above `SMELL_MIN` and wanders below, engulfs, grows. The camera follows the
+  cell; the floor's grid and smell are drawn in world coordinates (`uX`). `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -187,7 +193,7 @@ node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
 node kata/lamp/test/lamp.selftest.mjs # ~50 s
-node kata/cell/test/cell.selftest.mjs # ~60 s
+node kata/cell/test/cell.selftest.mjs # ~75 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

@@ -45,9 +45,53 @@ The nucleus is a stiff ball, a 4-ball in 4D. It is part of the physics, not pain
 
 The selftest holds the membrane clear of every nucleus in every preset.
 
+## Moving: crawl and hunt (PROTEUS's amoeba, in d dimensions)
+
+This builds on [`pokemon/proteus/`](../../pokemon/proteus/README.md), the amoeba-qualia prototype: a pressurised
+balloon held in by its cortex, a pseudopod wherever the cortex weakens, a ventral face stuck to the substrate, chemistry
+from food, engulfment, and growth on eating. PROTEUS moves its cell with a 2D spring polyline. Here the same ingredients
+run on CELL's membrane in 3D and 4D, with one mechanism doing the moving:
+
+- **The cortex flows toward where it is tight**, because myosin pulls it there: v_c = κ ∇σ along the surface.
+- **Friction turns that flow into motion.** Whatever the surface rubs against takes the flow as a push the other way:
+  the water everywhere (ζ_f), and the floor where it touches, much harder (ζ_s = 20 ζ_f). With no outside force the
+  pushes balance, so
+
+      V = −Σ ζ A v_c / Σ ζ A
+
+  In open water this is a squirmer's speed, U = −⟨v_c⟩, the reciprocal-theorem result for a sphere. This is
+  adhesion-independent amoeboid motion by cortical flow (Bergert et al. 2015; Ruprecht et al. 2015). On a floor the
+  contact dominates: a tank's tread.
+- **The floor.** It is the plane y = 0, and the cell's centre stands 0.45 radii above it (× (V/V₀)^{1/d} as it grows).
+  The membrane can't go below it: along n with n_y < 0, r ≤ h/(−n_y), held exactly like the nucleus's limit. Within
+  0.25 of it, adhesion pulls the membrane down, so the cell spreads. A patch touching it counts as stuck.
+- **Polarised** (`crawl`). Along a heading h, the cortex lets go at the front, so a broad pseudopod pushes out (in
+  pulses). It tightens at the back, the uropod. Tension rising front to back gives a rearward cortical flow, so the
+  cell goes forward.
+- **Smell** (`hunt`). Food on the floor leaks a chemical. Held steady, a point source gives c ∝ 1/r^{d−2}, smoothed
+  over 0.3. Each patch reads c where it is. The cell fits c ≈ c̄ + g·(x − x̄) over its whole membrane (least squares, so
+  the fit holds whatever the cell's shape) and turns its heading toward g at 1.5 a second. It follows the scent only
+  above c̄ = 0.1, the horizon; below that it wanders (the heading diffuses at 0.15 rad²/s). Food that ends up inside its
+  membrane is engulfed: the volume grows 5% (to at most 1.6×), and the next morsel appears 5 radii away.
+
+What it shows:
+
+- **Crawling needs no knots.** Protrusion, adhesion, contraction and release are all local pushes, so crawling works
+  in 4D. The 4D floor is a 3D space, the footprint a solid, and the leading edge a 2D surface. The same cortex crawls
+  at 0.16 radii/s in 4D against 0.23 in 3D, because less of a 4D cell's membrane touches its floor (4% against 12%).
+- **Smell is short and steep.** Relative gradient across the cell is (d − 2)/r, measured to 2%. The horizon is 10
+  radii in 3D and √10 ≈ 3.2 in 4D: the 3D cell finds food 6 away in about 21 s, and the 4D one can't smell it and
+  wanders. On a 3D floor a random walk usually never returns: it comes back 19% of the time, against 34% in 3D and
+  certainly on a 2D floor.
+- **Every preset swims now.** With a tension gradient the cortex flows, so `contract` swims the cell in open water,
+  more slowly than crawling.
+
+The source strength and the threshold are a modelling choice: concentrations in 3D and 4D don't share units. The
+scalings (1/r against 1/r², (d − 2)/r) are not.
+
 ## Files
 
-- `js/cell.js`: the grid, the Laplacian, the step, the presets, `waist()`. No DOM.
+- `js/cell.js`: the grid, the Laplacian and gradient, the step, the presets, the floor, `velocity()`, `sense()`, the hunt, `waist()`. No DOM.
 - `js/main.js`: the WebGL2 page. r is uploaded as a 2D atlas (3D) or a 3D texture (4D), and the shader marches
   `|p| − r(n)`.
-- `test/cell.selftest.mjs`: about 60 s.
+- `test/cell.selftest.mjs`: about 75 s.
