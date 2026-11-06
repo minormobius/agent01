@@ -490,6 +490,11 @@ for games, and this is a modelling programme with publications to come. The game
   relaxed structures are in `tools/crystalref-Bl2Px3-relaxed.json`. What could settle the ranking: the code's
   accuracy, not more sampling. The 0.4 eV bar is `pw-fixed`'s worst miss against PySCF on the aluminas, so a harder
   pseudopotential set and a higher cutoff on these two relaxed cells is the next lever.
+  **`relax-4` (both exit 0):** a14s on the relaxed ×1.03 cells: z2-0 −1968.9569, z2-1 −1968.5602, so **+0.397**
+  against a14's +0.396. The grids agree to 0.001, so the bar is 0.401 and the measurement sits just under it.
+  **Final under the rule: unranked, z2-0 favoured by 0.40 eV a formula.** Sampling, relaxation and volume are all
+  converged; only the method's accuracy (pseudopotentials, cutoff, functional) or the cell's shape could move it.
+  Carried forward as z2-0, tentatively.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble

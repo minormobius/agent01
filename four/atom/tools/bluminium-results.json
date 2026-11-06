@@ -1,6 +1,6 @@
 {
  "about": "Hand-kept from the runner's logs (atom4-data runs/<run>/<group>/*.log). Plane-wave DFT, the book's exchange-only LDA, soft pseudopotentials, ecut 25 Ha. Energies in eV per formula unit Bl2Px3. Provisional until the relaxations finish.",
- "status": "Unranked, by the rule fixed in advance, though only just. Every relaxation has converged, and both cells' energy minima sit at ×1.032–1.034. On the relaxed ×1.03 structures with dense k (a14), z2-0 is lower by 0.396 eV a formula, just under the 0.41 the plane-wave code can resolve (0.4 from its check against PySCF in ours, plus the k-grids' disagreement). z2-0 is favoured; relax-4 adds the second dense grid",
+ "status": "Unranked, by the rule fixed in advance, though only just; z2-0 favoured. Every relaxation converged, and both cells' energy minima sit at ×1.032–1.034. On the relaxed ×1.03 structures with the two dense k-grids, z2-0 is lower by 0.396 eV a formula (a14) and 0.397 (a14s). The grids agree to 0.001, so the bar is 0.401 (0.4 from the code's check against PySCF in ours, plus that disagreement), and the measurement sits just under it. Settling it needs more accuracy, not more sampling",
  "relaxed": {
   "note": "relax-1 to relax-3, 2x2x1x2 shifted k (4 k), ions relaxed at a fixed cell shape, all converged; E(V) fits put the minima at x1.034 (z2-0) and x1.032 (z2-1)",
   "z2-0": [
@@ -98,8 +98,8 @@
     "E": -1967.761
    }
   ],
-  "difference": "z2-1 − z2-0: unrelaxed ×1.00 +0.11 (4 k), +0.39 (a14), +0.40 (a14s); relaxed ×1.03 +0.16 (4 k), +0.396 (a14)",
-  "relaxed": "relaxed x1.03, a14 (20 k): z2-0 −1968.843, z2-1 −1968.447, difference +0.396"
+  "difference": "z2-1 − z2-0: unrelaxed ×1.00 +0.11 (4 k), +0.39 (a14), +0.40 (a14s); relaxed ×1.03 +0.16 (4 k), +0.396 (a14), +0.397 (a14s)",
+  "relaxed": "relaxed x1.03: a14 (20 k) z2-0 −1968.843, z2-1 −1968.447, difference +0.396; a14s (18 k) z2-0 −1968.957, z2-1 −1968.560, difference +0.397"
  },
  "gaps": {
   "note": "bands-2: SCF grid plus a 10-point path, x1.00 unrelaxed, a10 k; this functional sits about 2.8 eV under measured gaps in ours (corundum: 6.02 against 8.8), so add +2.8 eV or scale x1.47",
