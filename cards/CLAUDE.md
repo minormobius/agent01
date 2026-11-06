@@ -41,7 +41,6 @@ article (Wikidata when there is no enwiki article).
 |---|---|
 | `polity/index.html` | markup + CSS, no build |
 | `polity/polity.js` | the viewer: layouts (spiral, 3D state helix, timeline, chambers, tile map), WebGL2 renderer, GPU picking into a 1-px scissor, tooltip + Wikipedia REST summaries, URL-hash state |
-
 | `polity/data/polity.json` | **generated** — columnar terms + people + party families |
 | `polity/build/` | the pipeline that makes it (node + python3, needs network) |
 
