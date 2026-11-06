@@ -6181,6 +6181,11 @@
       "reason": "in-game route of a listed game"
     },
     {
+      "glob": "kata/amoeba",
+      "kind": "pending",
+      "reason": "AMOEBA, work in progress on claude/kata-amoeba-wip: the mesh membrane's motility isn't settled (needs remeshing)"
+    },
+    {
       "glob": "clock/antoine",
       "kind": "pending",
       "reason": "the clock toy pack — 28 single-file toys, none listed"
