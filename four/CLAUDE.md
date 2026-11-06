@@ -393,7 +393,26 @@ for games, and this is a modelling programme with publications to come. The game
   them Hund spins, so their configuration energies are too high by about that much. Where the ionized electron is a d
   electron (54, 66, 114, 126) the ionization rises by roughly the same, because the ion's d¹ or d¹⁵ has no such
   singlet. Not yet checked: d⁵–d¹³ (blocks up to 15 876 determinants, which needs a sparse lowest-eigenvalue solver)
-  and every f shell, elements 82–110 (needs 4D f harmonics, and degree-6 terms in the repulsion). All of this stands on point charges ×
+  and every f shell, elements 82–110 (needs 4D f harmonics, and degree-6 terms in the repulsion).
+  **`atom/tools/hund.mjs`** (2026-11-06) does the general case:
+  - **Harmonics:** degree-l harmonics on S^(D−1) for any l, built by orthogonalizing monomials on the sphere.
+  - **Repulsion:** projected onto degrees 0 … 2l over each atom's own orbital.
+  - **Spin:** a matrix-free Lanczos gives the lowest energy of each M_S block, dense below 400 determinants. The ground
+    term's spin is the largest M whose block still reaches the overall lowest energy.
+  - **Too-big blocks:** skipped and named, so the answer becomes a bound.
+  - **`check`** passes: ours' Cr³⁺ d³ ⁴F, Mn²⁺ d⁵ ⁶S, Pr³⁺ f² ³H and Gd³⁺ f⁷ ⁸S; 4D element 26's singlet at 0.396 eV, as
+    the dense solver gives.
+  - **Commands:** `survey <D> [Z/Z/…|all] [limit]` and `one <D> <Z> <config,with,commas> <shell>`.
+  - **No prior art found:** three web searches (Hund's rules in D dimensions, dimensional scaling, 4D multiplet
+    structure). A citation-index search is still owed before the paper claims it.
+
+  **The 4D survey so far (sandbox):**
+  - **d² and d¹⁶ break Hund's rule:** elements 26, 39, 54 and 66, as above.
+  - **Every other d filling holds:** d¹, d³–d¹², d¹⁴, d¹⁵ and d¹⁷ (3d and 4d rows complete; 3d⁹ and 4d⁹ blocks of
+    15 876 run in full).
+  - **f, partial:** 4f² (82) and 4f⁴ (84) hold; **4f³ (83) breaks it**, with spin ½ lowest, 0.151 eV below the quartet.
+  - **Still to run:** 4f⁵–4f³¹ (85–110), queued on the runner as `hund-f` (blocks up to 250 000 determinants, four
+    elements to a runner). All of this stands on point charges ×
   a factor carried from ruby.
   **The Bluminium viewer, `atom/bluminium.html`** (off the chapter nav, linked from the landing's "made" line and
   its open questions): `js/bluminium.js` draws both Bl₂Px₃ cells and each cation site's coordination in `tile.js`

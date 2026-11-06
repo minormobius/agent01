@@ -1,18 +1,67 @@
 {
- "run": "relax-4",
- "why": "relax-3: every relaxation converged, and both cells' E(V) minima sit at x1.032–1.034. Measured directly at a14 on the relaxed x1.03 structures, z2-1 − z2-0 is +0.396 eV a formula, just under the 0.41 bar, so the cells stay unranked by the rule. The a14s twins were cut at the deadline with their densities saved; this run finishes them (warm start) to give the second grid's number and the two grids' disagreement the rule asks for.",
+ "run": "hund-f",
+ "why": "Hund's first rule across the 4D table's f block (elements 85–110, 4f⁵ to 4f³¹). The sandbox survey found it broken for every d² and d¹⁶ (26, 39, 54, 66) and for 4f³ (83, spin ½ 0.15 eV below the quartet). It holds for d³–d¹⁵, d¹⁷, 4f² and 4f⁴. The f fillings from f⁵ on have M_S blocks of 10⁴–10⁶ determinants. Each element here runs its own matrix-free Lanczos per block up to 250 000 determinants, four elements to a runner. Bigger blocks are skipped and named, so for mid-shell f the answer is a bound (no lower term among the spins run).",
  "minutes": 340,
  "groups": [
   {
-   "name": "kr-z20-a14s",
+   "name": "hund-f-85-88",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3-relaxed.json z2-0-x103 1.00 25 a14s 4 soft"
+    "node four/atom/tools/hund.mjs survey 4 85 250000",
+    "node four/atom/tools/hund.mjs survey 4 86 250000",
+    "node four/atom/tools/hund.mjs survey 4 87 250000",
+    "node four/atom/tools/hund.mjs survey 4 88 250000"
    ]
   },
   {
-   "name": "kr-z21-a14s",
+   "name": "hund-f-89-92",
    "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3-relaxed.json z2-1-x103 1.00 25 a14s 4 soft"
+    "node four/atom/tools/hund.mjs survey 4 89 250000",
+    "node four/atom/tools/hund.mjs survey 4 90 250000",
+    "node four/atom/tools/hund.mjs survey 4 91 250000",
+    "node four/atom/tools/hund.mjs survey 4 92 250000"
+   ]
+  },
+  {
+   "name": "hund-f-93-96",
+   "cmds": [
+    "node four/atom/tools/hund.mjs survey 4 93 250000",
+    "node four/atom/tools/hund.mjs survey 4 94 250000",
+    "node four/atom/tools/hund.mjs survey 4 95 250000",
+    "node four/atom/tools/hund.mjs survey 4 96 250000"
+   ]
+  },
+  {
+   "name": "hund-f-97-100",
+   "cmds": [
+    "node four/atom/tools/hund.mjs survey 4 97 250000",
+    "node four/atom/tools/hund.mjs survey 4 98 250000",
+    "node four/atom/tools/hund.mjs survey 4 99 250000",
+    "node four/atom/tools/hund.mjs survey 4 100 250000"
+   ]
+  },
+  {
+   "name": "hund-f-101-104",
+   "cmds": [
+    "node four/atom/tools/hund.mjs survey 4 101 250000",
+    "node four/atom/tools/hund.mjs survey 4 102 250000",
+    "node four/atom/tools/hund.mjs survey 4 103 250000",
+    "node four/atom/tools/hund.mjs survey 4 104 250000"
+   ]
+  },
+  {
+   "name": "hund-f-105-108",
+   "cmds": [
+    "node four/atom/tools/hund.mjs survey 4 105 250000",
+    "node four/atom/tools/hund.mjs survey 4 106 250000",
+    "node four/atom/tools/hund.mjs survey 4 107 250000",
+    "node four/atom/tools/hund.mjs survey 4 108 250000"
+   ]
+  },
+  {
+   "name": "hund-f-109-110",
+   "cmds": [
+    "node four/atom/tools/hund.mjs survey 4 109 250000",
+    "node four/atom/tools/hund.mjs survey 4 110 250000"
    ]
   }
  ]
