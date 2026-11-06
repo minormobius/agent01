@@ -261,6 +261,17 @@
    ]
   },
   {
+   "id": "termtable",
+   "part": "table",
+   "claim": "Resolving the terms changes no ground configuration: it lowers the eight Hund-breaking atoms' energies and moves eight first ionizations by 0.3–0.7 eV; the wider search behind it finds one configuration the bake missed (element 82: 4f¹ 5d¹ 6s², our cerium's kind)",
+   "value": "92 elements searched again; configurations changed by the terms: none; by the wider search: 82 (5s2 5p8 6s2 → 5s2 5p8 5d1 6s2, -0.363 eV); ionizations moved: 54 6.41→6.71, 55 8.28→7.91, 66 18.82→19.40, 67 20.56→19.93, 114 6.92→7.27, 115 9.28→8.83, 126 24.92→25.55, 127 27.23→26.56",
+   "holds": true,
+   "section": "7",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "screening",
    "part": "consequence",
    "claim": "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
@@ -287,11 +298,21 @@
  "data": [
   {
    "path": "data/table4.json",
+   "bytes": 228058,
+   "sha256": "c2fa2adf36096ac18d27406203cfbf9960a037269268226d557209d47dcd1338"
+  },
+  {
+   "path": "data/table4.csv",
+   "bytes": 43616,
+   "sha256": "45172ca8f403033a6a8fdb02637c312136575d62fbec59f68bbdd5181951c3e7"
+  },
+  {
+   "path": "data/table4-hundspin.json",
    "bytes": 224094,
    "sha256": "e4def29c38cd39fa3be9f4568339fca71bdc79170fa712cbda251729210f8d87"
   },
   {
-   "path": "data/table4.csv",
+   "path": "data/table4-hundspin.csv",
    "bytes": 43243,
    "sha256": "2b98190f0b4191dfaeacc1934ef46bcf26b7763f5dae8cfff9db841e8813f122"
   },
@@ -307,13 +328,13 @@
   },
   {
    "path": "data/README.md",
-   "bytes": 1955,
-   "sha256": "9c1eb9b22195c75619044f45189be3011c2bc6d56e75790e4cc8efeac4d11866"
+   "bytes": 2470,
+   "sha256": "1704518ddc761e5919393ba3a7e2308672fdc0b8607385193a96c4340b1cfd7c"
   },
   {
    "path": "figdata/f3-ionization.json",
-   "bytes": 11811,
-   "sha256": "362246178ba6e5d3c608173c2a57fe224cf042710da15814523b9c2c9767a3ad"
+   "bytes": 11808,
+   "sha256": "14f1e690d8898a8640c79e9f9c76110f200e17db5d1f79929e5f374e1686a940"
   },
   {
    "path": "figdata/f4-validation3d.json",
@@ -322,8 +343,8 @@
   },
   {
    "path": "figdata/f5-subshells.json",
-   "bytes": 40228,
-   "sha256": "0d0309e86b1a8044f9f919377d12a0a7b60018331f1e8c96dd278e4e4e403688"
+   "bytes": 40248,
+   "sha256": "9231188542f6b0ea6c10f3b481564e4358784d225bd082860fa2ee71d83c09c8"
   },
   {
    "path": "figdata/f6-screening.json",
@@ -333,7 +354,7 @@
   {
    "path": "figdata/f8-radii.json",
    "bytes": 12579,
-   "sha256": "7250fda680fde66c022a6970723e25289a972aed538f2229a4fb92c6f04774e7"
+   "sha256": "8d29dca28a77b1c894c1c25faf9ee6f50215162557cf71417055dbe5a57aa413"
   },
   {
    "path": "figures/1.svg",

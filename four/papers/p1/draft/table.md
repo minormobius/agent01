@@ -65,11 +65,16 @@ electrons' left halves and cancels their right ones, or the other way round. Thr
 so ours has no such state. An interactive version is at four.mino.mobi/atom/hund.html.
 
 **7.4 What it does to the table.** Where the rule fails, the solver's energy for that configuration is the
-maximum-spin state's, too high by the gap. The table in section 8 corrects that. Every candidate configuration of the
-search gets its open subshells' gaps added, the search is widened with the neighbours' configurations, and the
-configurations are ranked again. The rankings with and without the correction are compared, so that a change from the
-wider search is told apart from one from the terms (`termtable.mjs`). The uncorrected table is supplement S1. Element 26
-keeps 3d² 4s², now 0.40 eV lower, and its ionization barely moves (7.46 → 7.44 eV), because its ion keeps the d² singlet.
+maximum-spin state's, too high by the gap. The table in section 8 corrects that. Every d- and f-block element
+(92 of them) was searched again, with the neighbours' configurations as extra seeds (49–65 settled
+candidates each). Every candidate got its open subshells' gaps added, and the candidates were ranked again, with and
+without the correction, so that a change from the wider search is told apart from one from the terms. **The terms
+change no ground configuration.** They lower the eight Hund-breaking atoms' energies, and they move first ionizations
+in pairs. An atom whose own ground term gains the gap holds its electron harder: 54 (6.41 → 6.71), 66 (18.82 → 19.40), 114 (6.92 → 7.27), 126 (24.92 → 25.55) eV. The next element,
+whose ion lands on the broken filling, gives one up more easily: 55 (8.28 → 7.91), 67 (20.56 → 19.93), 115 (9.28 → 8.83), 127 (27.23 → 26.56) eV. That is 0.30–0.67 eV either way.
+The wider search found one configuration the bake had missed. Element 82 is 4f¹ 5d¹ 6s², 0.36 eV below the
+bake's 4f² 6s², which is our cerium's kind; its ionization goes 7.03 → 7.39 eV. The table that follows is the
+corrected one (`data/table4.csv`). The Hund-spin table it replaces is supplement S1 (`data/table4-hundspin.csv`).
 
 ## 8 · The table
 

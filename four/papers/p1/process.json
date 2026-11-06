@@ -207,7 +207,8 @@
   },
   {
    "item": "The term-corrected table (termtable.mjs, runner run hund-f-and-terms): which elements change configuration, how far the ionizations move; make it the main table (data, figures, section 8 tokens) and move the Hund-spin table to supplement S1",
-   "status": "to do"
+   "status": "done",
+   "note": "no configuration changes from the terms; 8 ionizations ±0.30–0.67 eV; element 82 corrected by the wider search; main table now, S1 = Hund-spin"
   },
   {
    "item": "Hund's rule over the rest of the 4D f block (4f⁵–4f³¹, elements 85–110, runner); fold into data/hund.json (hund-collect.mjs) and section 7.2",
@@ -224,6 +225,18 @@
   },
   {
    "item": "Introduction and abstract, written last against the finished Parts I–III",
+   "status": "to do"
+  },
+  {
+   "item": "The site's own table chapter and js/table.js still show the bake (element 82 as 4f² 6s², the Hund-spin energies): rebake with the term-corrected search, or overlay data/termtable.json on the site",
+   "status": "to do"
+  },
+  {
+   "item": "The counterfactual table compares against the bake's configurations; element 82 now differs in the main table: re-check its counterfactual entry against 4f¹ 5d¹ 6s²",
+   "status": "to do"
+  },
+  {
+   "item": "Figures 1, 4 and 6 draw from atom/js/table.js (the bake), not the corrected table: point them at build.mjs's rows (differences ≤ 0.67 eV in eight ionizations, and element 82's configuration)",
    "status": "to do"
   }
  ],
@@ -327,6 +340,10 @@
   {
    "date": "2026-11-06",
    "what": "The f block surveyed (runner run hund-f). 4f³'s mirror 4f²⁹ (element 108) breaks Hund's rule too, by 0.26 eV, spin ½. Every other f filling keeps it: completely for f², f⁴, f⁵, f²⁸ and f³⁰, and for f⁶–f²⁵ over the highest two or three spins, the lower-spin blocks running to 10⁶–10⁸ arrangements, so a bound. Elements 102 and 106 didn't finish. So in four dimensions the rule breaks two from either end of the d shell and three from either end of the f shell, and nowhere else surveyed. Ledger claim hund4f29 makes 25, all holding."
+  },
+  {
+   "date": "2026-11-06",
+   "what": "The term-corrected table is in (runner run hund-f-and-terms, 92 d- and f-block elements searched again with neighbour seeds, every candidate corrected for its open subshells' Hund gaps) and is now the paper's main table. The Hund-spin bake is supplement S1 (data/table4-hundspin.*). The terms change no ground configuration. They lower the eight Hund-breaking atoms' energies and move eight first ionizations, in pairs, by 0.30–0.67 eV: up for 54, 66, 114, 126, down for the next element, whose ion lands on the broken filling (55, 67, 115, 127). The wider search found one configuration the bake had missed: element 82 is 4f¹ 5d¹ 6s² (our cerium's kind), 0.36 eV below 4f² 6s². Rows, noble gases, element 128's lead and the 2.54 hold ratio are untouched. Ledger claim termtable makes 26, all holding; §7.4 and a methods paragraph written."
   }
  ]
 }

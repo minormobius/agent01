@@ -428,7 +428,14 @@ for games, and this is a modelling programme with publications to come. The game
     E −0.396 eV, ionization 7.457 → 7.440 eV (the ion keeps the d² singlet).
   - **Queued:** every d- and f-block element (23–42, 51–70, 79–130), in the runner's `hund-f-and-terms`.
   - **The plan for paper 1:** the term-corrected table becomes the main result; the Hund-spin table moves to the
-    supplement. All of this stands on point charges ×
+    supplement.
+  - **Result (runner `hund-f-and-terms`, all 32 commands exit 0, collected by `papers/p1/termtable-collect.mjs` into
+    `data/termtable.json`):** the terms change **no** ground configuration. They lower the eight Hund-breaking atoms'
+    energies and move eight ionizations in pairs by 0.30–0.67 eV: up for 54, 66, 114 and 126; down for 55, 67, 115 and
+    127, whose ions land on the broken filling. The wider search found one bake miss, element 82: 4f¹ 5d¹ 6s² (our
+    cerium's kind), 0.363 eV below 4f² 6s², ionization 7.03 → 7.39 eV. **Paper 1's main table is now the corrected one**
+    (`build.mjs` overlays it; supplement S1 is `data/table4-hundspin.*`; claim `termtable`). `js/table.js` and the site's
+    table chapter still show the bake: to do. All of this stands on point charges ×
   a factor carried from ruby.
   **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §7.3) has five
   parts:

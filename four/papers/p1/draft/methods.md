@@ -87,6 +87,15 @@ energy. Koopmans' orbital energies are not used.
 The table is 140 elements in four dimensions and 36 in ours, baked once (on GitHub's runners past
 Z ≈ 80) into a single generated file, which a selftest re-solves in sample on every change.
 
+## The terms of open subshells
+
+The search above gives every open subshell Hund spins. Section 7 finds where that's wrong, and the table is corrected
+for it. Each d- and f-block element is searched again, seeded as the repair pass seeds, and every settled candidate's
+energy gets its open subshells' term correction: the lowest term less the lowest maximum-spin term. That comes from
+the subshell's own repulsion on that candidate's own orbital (`atom/tools/termtable.mjs`). It is zero wherever Hund's
+first rule holds. The ionization is corrected the same way on both sides. Fillings whose spin blocks are too large to
+solve per candidate take the survey's verdict (section 7.2), which for them is that the rule holds.
+
 ## The counterfactual
 
 To separate what the table owes to the law from what it owes to the geometry, every 4D element is solved a second time

@@ -1,9 +1,7 @@
 # Part II · The table (draft)
 
-<!-- Source. Every {{token}} is filled by papers/p1/build.mjs from the bake, data/hund.json, data/hund-law.json or the
-     ledger. Section 8's numbers are still the Hund-spin table's: when tools/termtable.mjs's corrected table lands it
-     becomes the main table, this one moves to supplement S1, and the tokens switch with it (rows, noble gases and
-     the full-d elements are untouched by the correction, which reaches only d², d¹⁶ and 4f³ configurations). -->
+<!-- Source. Every {{token}} is filled by papers/p1/build.mjs from the bake, data/termtable.json (the term-corrected
+     table, the main one), data/hund.json, data/hund-law.json or the ledger. -->
 
 ## 6 · Checks against what is known
 
@@ -68,12 +66,16 @@ electrons' left halves and cancels their right ones, or the other way round. Thr
 so ours has no such state. An interactive version is at four.mino.mobi/atom/hund.html.
 
 **7.4 What it does to the table.** Where the rule fails, the solver's energy for that configuration is the
-maximum-spin state's, too high by the gap. The table in section 8 corrects that. Every candidate configuration of the
-search gets its open subshells' gaps added, the search is widened with the neighbours' configurations, and the
-configurations are ranked again. The rankings with and without the correction are compared, so that a change from the
-wider search is told apart from one from the terms (`termtable.mjs`). The uncorrected table is supplement S1. Element 26
-keeps 3d² 4s², now 0.40 eV lower, and its ionization barely moves (7.46 → 7.44 eV), because its ion keeps the d² singlet.
-<!-- TODO when the runner's term-* groups land: which elements change configuration, and how far the ionizations move. -->
+maximum-spin state's, too high by the gap. The table in section 8 corrects that. Every d- and f-block element
+({{tt.n}} of them) was searched again, with the neighbours' configurations as extra seeds ({{tt.cands}} settled
+candidates each). Every candidate got its open subshells' gaps added, and the candidates were ranked again, with and
+without the correction, so that a change from the wider search is told apart from one from the terms. **The terms
+change no ground configuration.** They lower the eight Hund-breaking atoms' energies, and they move first ionizations
+in pairs. An atom whose own ground term gains the gap holds its electron harder: {{tt.up}} eV. The next element,
+whose ion lands on the broken filling, gives one up more easily: {{tt.down}} eV. That is {{tt.range}} eV either way.
+The wider search found one configuration the bake had missed. Element 82 is 4f¹ 5d¹ 6s², {{tt.82}} eV below the
+bake's 4f² 6s², which is our cerium's kind; its ionization goes {{tt.82ion}} eV. The table that follows is the
+corrected one (`data/table4.csv`). The Hund-spin table it replaces is supplement S1 (`data/table4-hundspin.csv`).
 
 ## 8 · The table
 
