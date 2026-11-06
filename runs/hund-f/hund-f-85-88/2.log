@@ -1,0 +1,6 @@
+$ node four/atom/tools/hund.mjs survey 4 87 250000
+{"d":4,"Z":87,"shell":"4f","n":7,"converged":true,"F_eV":[30.6755,4.5019,1.7807,0.9409],"Smax":3.5,"groundS":3.5,"hund":true,"belowMax_eV":0,"complete":false,"others":[],"blocks":"3.5:11440@0 2.5:128128@0 1.5:524160 skipped 0.5:1019200 skipped","s":3842.396}
+(node:2357) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/pw.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

@@ -1,0 +1,33 @@
+{
+ "group": "hund-f-101-104",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/hund.mjs survey 4 101 250000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 8317
+  },
+  {
+   "cmd": "node four/atom/tools/hund.mjs survey 4 102 250000",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 20400
+  },
+  {
+   "cmd": "node four/atom/tools/hund.mjs survey 4 103 250000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 16151
+  },
+  {
+   "cmd": "node four/atom/tools/hund.mjs survey 4 104 250000",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 16209
+  }
+ ]
+}
