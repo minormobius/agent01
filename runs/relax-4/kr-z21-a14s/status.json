@@ -1,0 +1,12 @@
+{
+ "group": "kr-z21-a14s",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3-relaxed.json z2-1-x103 1.00 25 a14s 4 soft",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 7997
+  }
+ ]
+}
