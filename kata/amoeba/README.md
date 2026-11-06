@@ -1,44 +1,100 @@
-# AMOEBA (work in progress)
+# AMOEBA
 
-**Not finished, and not deployed.** This branch (`claude/kata-amoeba-wip`) holds it; the kata deploy branch doesn't.
+An amoeba built from its mechanics, at `kata.mino.mobi/amoeba/`. It runs in 3D. 4D is next: its membrane is a mesh of
+tetrahedra, and that mesh needs the same remeshing (see the end).
 
-An amoeba's mechanics on its membrane, in 3D and 4D. The membrane is a mesh: triangles in 3D, tetrahedra in 4D. The
-3D mesh is a refined icosahedron (2,562 points); the 4D mesh is a refined 600-cell (6,480 points, 38,400 tetrahedra).
-The forces:
+## The membrane
 
-- **Tension:** the cortex, σ per vertex. It is solved implicitly: a graph-Laplacian system, made symmetric by scaling
-  each row, solved by conjugate gradients. Laplace's law holds exactly: P = 2.000 (3D) and 3.0005 (4D) for σ = 1, R = 1.
-- **Pressure:** the Lagrange multiplier that holds the volume (a second linear solve), plus an exact Newton fix.
-- **Polymerisation:** a speed, not a force, where the signalling fires.
-- **The floor:** adhesion, stickiness by position along the cell's axis, and flattening.
-- **The membrane budget:** a reserve, past which tension rises.
-- **The nucleus.**
-- **The signalling:** Barkley's excitable medium with nucleated patches, a slow recovery so it doesn't spiral, global
-  inhibition, curvature feedback, and smell.
-- **Polarity:** one front–rear axis for the whole cell. Myosin sits at the rear.
+The membrane is one closed triangle mesh. It covers the top, the sides and the underside alike, and it starts as a
+refined icosahedron. It moves overdamped, by its normal velocity: the membrane is a fluid, so forces along it only make
+it flow. Five things act on it:
 
-## What works
+- **Tension.** The cortex, σ per vertex. Its pull per unit area is σΔx (the normal part is σH). It is solved
+  implicitly as (1 − dt·m·σΔ)x' = …, a graph Laplacian plus a diagonal. Scaling each row makes it symmetric, so
+  conjugate gradients solves it. Implicit, the tension can be stiff without slowing everything else.
+- **Pressure.** Whatever holds the volume. A second solve gives the response to a unit pressure. P is then chosen so
+  that the volume, linearised, holds. A Newton shift along the volume's gradient removes the last rounding.
+- **Polymerisation.** A speed, not a force: v_p·u along the normal, wherever the signalling fires. As a force it only
+  found a new balance, a bulge that stopped.
+- **The floor.** The membrane can't go below y = 0. Within a band, adhesion pulls it down, and a flattening pressure
+  presses the cell down. A vertex touching the floor is stuck (more friction) only toward the front and middle: it
+  isn't stuck while firing, and it lets go where myosin is.
+- **The membrane budget.** As PROTEUS's: a reserve of 1.6 times a ball's area, past which tension rises everywhere.
+  A foot grows only by drawing the rest of the cell in.
 
-- `mesh.js`: the meshes, their volume and measure, and the generalised normal.
-- Laplace's law and the volume.
-- The worker-driven page: rasterised in 3D, sliced tetrahedra in 4D, a ray-marched floor, food and nucleus, and the
-  footprint minimap.
-- `inside()`: a ray-parity test for whether a point is inside the membrane, in both dimensions.
+## Remeshing (`js/remesh.js`)
 
-## What doesn't yet
+Every 5 steps the mesh is rebuilt where it needs it, by isotropic remeshing (Botsch & Kobbelt):
 
-Crawling with an honest, healthy mesh. The lessons, in order:
+- **Split** edges longer than 4/3 of the target length.
+- **Collapse** edges shorter than 4/5 of it, unless that would pinch the surface (the link condition), fold a triangle
+  over, or make a long edge.
+- **Flip** edges toward six neighbours per vertex.
 
-1. **Tension's stiffness must be implicit.** A diagonal stand-in slowed every motion about 36×. Pressure and tension
-   barely acted, and the cell sat still.
-2. **Forces should move the membrane only along its normal.** It is a fluid. In-plane pull piled mesh points into the
-   contracting rear.
-3. **A mesh keeper is needed.** Edge springs along the surface work. Moving points to their neighbours' average doesn't.
-4. **Polarity must be one axis, measured in absolute units.** Relative units let a growing tail call its own base
+The signalling's fields go with the mesh: a new point takes the average of its edge's two ends. Between remeshes, edge
+springs along the surface keep the points even. Without remeshing, a firing patch pushing out stretched the edges back
+to its base into long ramps, and the rear crowded its points into degenerate needles.
+
+## The signalling
+
+Barkley's excitable medium, an activator u and a recovery v, with these additions:
+
+- **Firing patches nucleate** at random, at a rate per unit of membrane, at the best of a dozen recovered spots. Spots
+  are scored by smell and by lying at the front.
+- **Recovery** rises fast while u fires and fades over a few seconds, so a patch can't fire again at once and waves
+  can't circle into spirals.
+- **Global inhibition:** the more of the membrane is firing, the higher the threshold, so it makes a few feet.
+- **Curvature feedback:** a sharply bent tip fires more readily, so a pseudopod keeps going instead of stopping as a
+  bump.
+- **Polarity** is one front–rear axis for the whole cell, grown along where it has fired and fading over 6 s.
+  - The front fires more readily.
+  - Myosin gathers at the rear, measured in absolute distance behind the middle, and tightens the cortex there.
+
+## What it does (the selftest holds these)
+
+- **Laplace's law:** P = σ(d − 1)/R at rest, 2.000 in 3D and 3.003 in 4D.
+- **Volume:** held to within 0.5% while it remeshes.
+- **The remeshed membrane stays a closed surface:** every edge is in two triangles, the Euler characteristic is 2,
+  and edges stay within bounds.
+- **Constraints:** the membrane never goes through the floor or its nucleus.
+- **Not round:** up to about 1.7 times a ball's membrane, reaching about 3 radii.
+- **It crawls:** about 0.15–0.25 radii/s.
+- **It hunts:** it finds food by smell (c ∝ 1/r) and engulfs it. A point is inside when an upward ray crosses the
+  membrane an odd number of times.
+
+Floating, it still drifts at about two-thirds the speed. Its feet push out in front and are drawn in behind, a cycle
+that doesn't undo itself, and amoebae and neutrophils have been seen to swim that way (Barry & Bretscher 2010). The
+water here is local drag, not a full flow, so that speed is a sketch.
+
+## How the settings were found
+
+By looking. `PAR` in `js/amoeba.js` holds them. They came from contact sheets: the cell from above every 6 s, across
+sweeps. The path, in order:
+
+1. Tension stiffness had been damped per vertex, which slowed everything 36×. Fixed with the implicit Laplacian.
+2. In-plane forces had moved the mesh. Now only normal forces do.
+3. Polarity had been a field. It is now one axis, in absolute units, because a long tail had called its own base
    "middle".
-5. **Protrusion must be a speed.** A protrusion force only finds a static bulge.
-6. **What's left:** a firing patch pushed out kinematically stretches the edges to its base into long ramps (edges up
-   to 2.5 against a mean of 0.05). This needs **true remeshing**: edge split, collapse and flip as membrane flows into a
-   foot. That is routine in 3D and hard in 4D (tetrahedral remeshing of a 3-manifold).
+4. Protrusion had been a force. It is now a speed.
+5. The mesh had no remeshing. Now it does.
+6. Mobility had been 1, and the cell glided at 3 radii/s on its rear squeeze alone. Now it is 0.05.
+7. The cell had been pressed into a pancake whose whole rim fired. It is now pressed gently, with stronger
+   inhibition.
+8. Curvature feedback is on.
 
-Try it locally with `?d=3&p=explore` and `&o={json}` to override the physics settings (`PAR` in `js/amoeba.js`).
+## 4D (next)
+
+The 4D mesh (a refined 600-cell: 6,480 points, 38,400 tetrahedra) has the same mechanics, Laplace's law included. It
+needs remeshing tetrahedra on a 3-manifold: splitting long edges (a tetrahedron's edge is shared by a ring of them),
+collapsing short ones under a link condition, and flips (2–3 and 3–2 instead of edge flips). Until then the page runs
+3D only.
+
+## Files
+
+- `js/mesh.js`: the starting meshes, normals, volume and measure (any dimension).
+- `js/amoeba.js`: the mechanics, the signalling, food, `inside()`. No DOM.
+- `js/remesh.js`: the 3D remesher.
+- `js/worker.js`: runs it off the page's thread, paced to the clock.
+- `js/main.js`: the page. It ray-marches the floor, food and nucleus, rasterises the membrane, and draws the
+  footprint map.
+- `test/amoeba.selftest.mjs`: about 40 s.

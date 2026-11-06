@@ -134,6 +134,16 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   (denser in 4D, under its nearer horizon), `cell.foods`, up to eight drawn. The camera follows the
   cell's centroid; the floor's grid and smell are drawn in world coordinates (`uX`). On a floor, an overlay minimap
   shows the footprint (3D: from above; 4D: the footprint solid in x, z, w with your slice's plane through it). `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
+- **AMOEBA at `/amoeba/`**: an amoeba from its mechanics, 3D (4D next). The membrane is one closed triangle mesh
+  (`js/mesh.js`: refined icosahedron; the 4D 600-cell mesh exists, no remeshing yet), moved by normal velocity:
+  implicit tension (σΔx, a symmetric graph-Laplacian system solved by CG), pressure as the Lagrange multiplier (a
+  second solve, linear), polymerisation as a speed where the signalling fires, floor adhesion/stick/flatten, a
+  membrane budget. **Remeshed** every 5 steps (`js/remesh.js`: split > 4/3 L, collapse < 4/5 L with the link
+  condition and fold checks, flips toward valence 6; u, v carried), edge springs between. Signalling: Barkley with
+  nucleated patches, slow recovery, global inhibition, curvature feedback, one polarity axis (absolute units), myosin
+  at the rear. Settings were found by contact sheets (README: the path, including the failures). Physics in a worker
+  (`js/worker.js`, mesh re-sent when remeshed); the page ray-marches floor, food and nucleus with depth, then
+  rasterises the membrane over it. See [`amoeba/README.md`](amoeba/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -197,6 +207,7 @@ node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
 node kata/lamp/test/lamp.selftest.mjs # ~50 s
 node kata/cell/test/cell.selftest.mjs # ~85 s
+node kata/amoeba/test/amoeba.selftest.mjs # ~40 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

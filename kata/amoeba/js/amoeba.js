@@ -27,20 +27,23 @@
    The stiff part (tension on a fine mesh) is taken implicitly per vertex, so the step can be large. The mesh is kept
    even by sliding vertices along the surface toward their neighbours' middle, carrying their signalling with them. */
 import { sphereMesh, neighbours, facetNormal, FACT } from "./mesh.js";
+import { remeshArrays, compact } from "./remesh.js";
 
 export const LEVEL = { 3: 4, 4: 2 };
 export const PAR = {
-  mu: 1, sigma0: 1, dt: 0.01,
+  // (settings found by looking: contact sheets of the cell from above over time, across sweeps of these; the README
+  // has the history. Time is in seconds, length in the cell's radius)
+  mu: 0.05, sigma0: 1, dt: 0.02,
   // the floor
-  floorH: 1, adhBand: 0.25, adhW: 3, stick: 25, flatten: 6, release: 1, stickFrom: -0.6,
-  // the signalling (Barkley: a, b, ε; diffusion on the membrane; noise; global inhibition; smell's bias)
-  a: 0.75, b: 0.07, eps: 0.04, Du: 0.001, noise: 0.12, inhibit: 0.9, chem: 0.25, vUp: 1, vDown: 0.3,
-  // what it does to the membrane: protrusion where u fires; the cortex softer there, tighter where v has built
-  protrude: 0, vp: 0.6, soften: 0.6, tighten: 2.5,
+  floorH: 1, adhBand: 0.25, adhW: 1.5, stick: 25, flatten: 1.5, release: 1, stickFrom: -0.6,
+  // the signalling (Barkley: a, b, ε; diffusion on the membrane; nucleation; global inhibition; smell's bias; recovery)
+  a: 0.75, b: 0.07, eps: 0.04, Du: 0.001, noise: 0.12, inhibit: 7, chem: 0.25, vUp: 1, vDown: 0.3,
+  // what it does to the membrane: polymerisation speed where u fires; the cortex softer there, tighter with myosin
+  protrude: 0, vp: 0.7, soften: 0.6, tighten: 0.7,
   // polarity: the cell's axis grows with firing (pUp), fades over pTau; leans firing to the front; myosin at the rear
-  pUp: 1, pTau: 20, myoGain: 2, myoFrom: 0.3, polSat: 0.15, retract: 0, polBias: 0.5, patch: 3, curvBias: 0,
+  pUp: 1, pTau: 6, myoGain: 2, myoFrom: 0.3, polSat: 0.15, retract: 0, polBias: 0.25, patch: 2, curvBias: 0.5,
   // keeping the mesh even
-  relax: 0.4, relaxIt: 2, smooth: 0, cgIt: 40,
+  relax: 0.4, relaxIt: 2, smooth: 0, cgIt: 40, remeshEvery: 5, edgeScale: 1.4,
   // the membrane budget: reserve (× a ball's area) before it stretches, and how steeply it resists past that
   reserve: 1.6, areaK: 12,
 };
@@ -63,6 +66,8 @@ export function makeAmoeba(d, level = LEVEL[d], opts = {}) {
   { const cnt = new Int32Array(nv + 1); for (let k = 0; k < M.nf * d; k++) cnt[M.F[k] + 1]++; for (let i = 0; i < nv; i++) cnt[i + 1] += cnt[i];
     const vf = new Int32Array(M.nf * d), at = cnt.slice(0, nv); for (let k = 0; k < M.nf; k++) for (let j = 0; j < d; j++) vf[at[M.F[k * d + j]]++] = k; A.vfStart = cnt; A.vf = vf; }
   geometry(A); A.V0 = A.V; A.A0 = A.Area;
+  // the target edge length for remeshing: the starting mesh's mean
+  { let s = 0, n = 0; for (let i = 0; i < nv; i++) for (let j = nbStart[i]; j < nbStart[i + 1]; j++) { const k = nb[j]; if (k < i) continue; let q = 0; for (let c = 0; c < d; c++) q += (P[k * d + c] - P[i * d + c]) ** 2; s += Math.sqrt(q); n++; } A.L = (s / n) * (par.edgeScale || 1); }
   return A;
 }
 
@@ -244,7 +249,8 @@ export function step(A, dt = A.par.dt) {
   constrain(A);
   moveNucleus(A, dt);
   if (A.foods.length) eat(A);
-  A.t += dt;
+  A.t += dt; A.nstep = (A.nstep || 0) + 1;
+  if (A.d === 3 && par.remeshEvery && A.nstep % par.remeshEvery === 0) A.lastRemesh = remesh(A);
 }
 
 /* conjugate gradients for (1/c_i + k_i) x_i − Σ_{j ~ i} x_j = r_i, every coordinate at once (the same matrix for each) */
@@ -258,6 +264,28 @@ function cg(A, cc, r, x, x0) {
     let rn = 0; for (let i = 0; i < n; i++) { x[i] += a * Pd[i]; R[i] -= a * Ap[i]; rn += R[i] * R[i]; }
     const b = rn / rr; rr = rn; for (let i = 0; i < n; i++) Pd[i] = R[i] + b * Pd[i];
   }
+}
+
+/* rebuild everything sized by the mesh after a remesh: the adjacency, the per-vertex and per-facet arrays (the
+   signalling's u and v carried over), and drop every scratch buffer so it is made again at the new size */
+const SCRATCH = ["H", "Lc", "Q", "cc", "cgA", "cgP", "cgR", "du", "dv", "f0", "f1", "front", "nh", "ra", "rb", "wsum", "xa", "xb", "ysw", "mob", "cv"];
+export function remesh(A) {
+  if (A.d !== 3) return null;
+  const { d, nv, P, M } = A, Pa = [], Fa = [];
+  for (let i = 0; i < nv; i++) Pa.push([P[i * 3], P[i * 3 + 1], P[i * 3 + 2]]);
+  for (let k = 0; k < M.nf; k++) Fa.push([M.F[k * 3], M.F[k * 3 + 1], M.F[k * 3 + 2]]);
+  const fu = [...A.u], fv = [...A.v], stats = remeshArrays(Pa, Fa, [fu, fv], A.L);
+  const c = compact(Pa, Fa, [fu, fv]);
+  A.M = { d, nv: c.nv, nf: c.nf, P: c.P, F: c.F }; A.P = c.P; A.nv = c.nv; A.nf = c.nf; A.meshVersion = (A.meshVersion || 0) + 1;
+  const nbr = neighbours(A.M); A.nbStart = nbr.nbStart; A.nb = nbr.nb;
+  { const cnt = new Int32Array(c.nv + 1); for (let k = 0; k < c.nf * d; k++) cnt[c.F[k] + 1]++; for (let i = 0; i < c.nv; i++) cnt[i + 1] += cnt[i];
+    const vf = new Int32Array(c.nf * d), at = cnt.slice(0, c.nv); for (let k = 0; k < c.nf; k++) for (let j = 0; j < d; j++) vf[at[c.F[k * d + j]]++] = k; A.vfStart = cnt; A.vf = vf; }
+  const n = c.nv; A.u = c.fields[0]; A.v = c.fields[1];
+  for (const k of ["sig", "myo", "area", "K", "stuck", "push", "chem", "lapU", "vk"]) A[k] = new Float64Array(n);
+  A.sig.fill(A.par.sigma0); A.F = new Float64Array(n * d); A.g = new Float64Array(n * d); A.fA = new Float64Array(c.nf); A.fN = new Float64Array(c.nf * d);
+  for (const k of SCRATCH) A[k] = undefined;
+  geometry(A);
+  return stats;
 }
 
 /* the floor and the nucleus: the membrane can't pass either */
@@ -304,7 +332,7 @@ function relaxMesh(A) {
 function moveNucleus(A, dt) {
   const { d, P, nv, area } = A, c = A.nuc.c, m = new Float64Array(d); let w = 0;
   for (let i = 0; i < nv; i++) { for (let k = 0; k < d; k++) m[k] += area[i] * P[i * d + k]; w += area[i]; }
-  for (let k = 0; k < d; k++) c[k] += dt * 0.8 * (m[k] / w - c[k]);
+  for (let k = 0; k < d; k++) c[k] += dt * 3 * (m[k] / w - c[k]);
   if (A.floor) c[1] = Math.max(c[1], A.nuc.a + NUC_GAP + 0.03);
 }
 

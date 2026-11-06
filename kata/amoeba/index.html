@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="AMOEBA — an amoeba's mechanics on its membrane, in 3D and in 4D: cortex tension, pressure that holds the volume, an excitable signalling medium that fires pseudopods, adhesion to a floor. Long feet, wandering outlines, and food to hunt." />
+<meta name="description" content="AMOEBA — an amoeba's mechanics on its membrane (3D; 4D next): cortex tension, pressure that holds the volume, an excitable signalling medium that fires pseudopods, adhesion to a floor. Long feet, wandering outlines, and food to hunt." />
 <title>AMOEBA — kata.mino.mobi</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/amoeba.css" />
@@ -16,8 +16,7 @@
   <div id="bar">
     <b>AMOEBA</b>
     <div id="exps">
-      <button type="button" data-d="3">3D</button><button type="button" data-d="4">4D</button>
-      <button type="button" data-x="explore">explore</button><button type="button" data-x="hunt">hunt</button><button type="button" data-x="still">still</button><button type="button" data-x="float">float</button>
+            <button type="button" data-x="explore">explore</button><button type="button" data-x="hunt">hunt</button><button type="button" data-x="still">still</button><button type="button" data-x="float">float</button>
       <button type="button" id="pauseB">pause</button>
       <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
       <button type="button" id="gearB" aria-label="help">?</button>
@@ -27,7 +26,7 @@
   <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
   <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
   <div id="panel" hidden>
-    <p class="foot">An amoeba's membrane as a mesh, in 3D and then in 4D. Its cortex pulls it in, its pressure holds its volume, and a signalling medium on the membrane fires: where it fires (cyan) actin pushes a pseudopod out; behind it myosin (warm) tightens and pulls back. On the floor it sticks, so the feet carry it. The purple ball is the nucleus. Drag to turn, pinch or scroll to zoom. In 4D the pad twists your slice into w (J L, I K), the lever moves it ana and kata (R F), ⊞ or Z squares it up. <a href="./README.md">how it works</a> · <a href="../cell/">CELL</a> · <a href="../">kata</a></p>
+    <p class="foot">An amoeba's membrane as a mesh, in 3D and then in 4D. Its cortex pulls it in, its pressure holds its volume, and a signalling medium on the membrane fires: where it fires (cyan) actin pushes a pseudopod out; behind it myosin (warm) tightens and pulls back. On the floor it sticks, so the feet carry it. The mesh is remeshed as it flows: long edges split, short ones merge, edges flip to keep the triangles even. The purple ball is the nucleus. Drag to turn, pinch or scroll to zoom. 4D is next: its membrane is a mesh of tetrahedra, and remeshing that is the work still to do. <a href="./README.md">how it works</a> · <a href="../cell/">CELL</a> · <a href="../">kata</a></p>
   </div>
 </div>
 <script type="module" src="js/main.js"></script>

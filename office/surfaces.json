@@ -3785,6 +3785,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-amoeba",
+   "name": "kata-amoeba",
+   "url": "https://kata.mino.mobi/amoeba/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

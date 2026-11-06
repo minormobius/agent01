@@ -57,7 +57,7 @@ void main() {
   vec3 n = normalize(vN), L = normalize(vec3(0.4, 0.8, -0.35)); if (dot(n, vV) > 0.0) n = -n;
   float u = vC.x, v = vC.y;
   vec3 skin = vec3(0.86, 0.72, 0.68);
-  skin = mix(skin, vec3(0.95, 0.42, 0.3), clamp(v * 1.4 * (1.0 - u), 0.0, 0.85));
+  skin = mix(skin, vec3(0.95, 0.42, 0.3), clamp(v * 0.9 * (1.0 - u), 0.0, 0.8));
   skin = mix(skin, vec3(0.35, 0.9, 1.0), clamp(u * 1.3, 0.0, 1.0));
   float lam = max(dot(n, L), 0.0), fr = pow(1.0 - abs(dot(n, vV)), 2.0);
   vec3 c = skin * (0.32 + 0.68 * lam) + vec3(0.9, 0.95, 1.0) * pow(max(dot(reflect(vV, n), L), 0.0), 30.0) * 0.35;
@@ -95,7 +95,7 @@ function camera() { const { az, el, dist } = view, eye = [-dist * Math.cos(el) *
 function start() {
   if (worker) worker.terminate();
   worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
-  worker.onmessage = (e) => { const m = e.data; if (m.type === "mesh") { mesh = m; meshReady(); } else if (m.type === "frame") { fr = m; worker.postMessage({ type: "ready" }); } };
+  worker.onmessage = (e) => { const m = e.data; if (m.type === "mesh") { mesh = m; meshReady(); } else if (m.type === "frame") { fr = m; if (mesh && m.F) { mesh.F = m.F; mesh.nv = m.nv; mesh.nf = m.nf; meshReady(); } else if (mesh) { mesh.nv = m.nv; } worker.postMessage({ type: "ready" }); } };
   worker.postMessage({ type: "init", d: sel.d, preset: sel.preset, opts: OPTS }); worker.postMessage({ type: "pause", on: sel.paused });
   fr = null; mesh = null; S = null;
 }
@@ -138,10 +138,10 @@ function buildMembrane() {
 
 /* ------------------------------------------------------------------ captions */
 const CAPS = {
-  explore: (d) => d === 3 ? `<b>An amoeba</b>, from its mechanics. Its membrane is a mesh. The cortex under it pulls it in; its pressure is whatever holds its volume; and a <b>signalling medium on the membrane</b> fires now and then: where it fires (cyan), actin pushes a pseudopod out and the cortex softens; behind the firing, myosin (warm) tightens and pulls back. The more of it is firing, the harder to fire more, so it makes a few feet, not a hundred. Stuck to the floor, its feet carry it. Nothing here is drawn on: the shapes are what those forces make. Then see 4D.` : `<b>A 4D amoeba</b>, in your slice. Its membrane is a 3-dimensional mesh of tetrahedra (the 600-cell's, refined), and what you see is your slice's cut through it. Its signalling spreads over a 3D membrane, its feet reach out along a 3D floor, and the same tension squeezes it half again as hard (σ·3/R). Move the lever to slide your slice through it; the map shows the footprint as the solid it is.`,
+  explore: (d) => d === 3 ? `<b>An amoeba</b>, from its mechanics. Its membrane is one closed mesh, remeshed as it flows. The cortex under it pulls it in; its pressure is whatever holds its volume; and a <b>signalling medium on the membrane</b> fires in patches: where it fires (cyan), actin polymerises against the membrane and pushes a pseudopod out, and a firing tip, bent sharply, keeps firing. The cell's front–rear axis follows its feet; myosin (warm) gathers at the rear and squeezes it in. The more of it is firing, the harder to fire more, so it makes a few feet, not a hundred. Nothing is drawn on: the shapes are what those forces make.` : `<b>A 4D amoeba</b>, in your slice. Its membrane is a 3-dimensional mesh of tetrahedra (the 600-cell's, refined), and what you see is your slice's cut through it. Its signalling spreads over a 3D membrane, its feet reach out along a 3D floor, and the same tension squeezes it half again as hard (σ·3/R). Move the lever to slide your slice through it; the map shows the footprint as the solid it is.`,
   hunt: (d) => d === 3 ? `<b>Hunt.</b> Food (green) leaks a chemical; the floor glows with it. The membrane fires more readily where the smell is stronger, so its feet go that way more often than not: nobody steers it. It eats what it closes round, and grows a little.` : `<b>Hunt in 4D.</b> The smell falls as 1/r² here, so food has to lie closer and thicker (ten morsels within 4.5 radii, against four within 9 in 3D) for the feet to find it. Most of it is off your slice: watch the glow, the map and the readout.`,
   still: (d) => `<b>Still.</b> The signalling off: no feet. Pressed flat by its weight and stuck down by adhesion, it settles to a dome on its footprint, the pressure ${d === 3 ? "σ·2/R" : "σ·3/R"} of its curvature, and stays.`,
-  float: (d) => `<b>Floating.</b> The same signalling, but nothing to hold on to. Feet push out and pull back and the cell barely goes anywhere: at a cell's scale water has no momentum, and pushing out and pulling back undo each other. Amoebae crawl because they stick.`,
+  float: (d) => `<b>Floating.</b> The same signalling with nothing to hold on to. It still drifts, about two-thirds as fast: its feet push out in front and are drawn in behind, a cycle that doesn't undo itself, and amoebae have been seen to swim that way. (The water here is plain local drag, not a full flow, so the speed is a sketch.)`,
 };
 function caption() { $("cap").innerHTML = CAPS[sel.preset](sel.d); }
 $("cap").onclick = () => $("cap").classList.toggle("min");
@@ -269,7 +269,7 @@ function minimap(g, w, h) {
 const Q = new URLSearchParams(location.search);
 // (?o={...}: physics settings, for trying things)
 let OPTS = {}; try { OPTS = JSON.parse(Q.get("o") || "{}"); } catch (err) { OPTS = {}; }
-sel.d = +(Q.get("d") || 3) === 4 ? 4 : 3; sel.preset = CAPS[Q.get("p")] ? Q.get("p") : "explore";
+sel.d = 3; // (4D is next: its tetrahedral mesh needs the same remeshing) sel.preset = CAPS[Q.get("p")] ? Q.get("p") : "explore";
 squareUp(); start(); sync();
 if (matchMedia("(orientation: portrait)").matches) $("cap").classList.add("min");
 requestAnimationFrame(draw);

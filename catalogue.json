@@ -5925,6 +5925,23 @@
       ]
     },
     {
+      "n": "kata-amoeba",
+      "u": "https://kata.mino.mobi/amoeba/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-06",
+      "b": "2026-11-06",
+      "p": "kata",
+      "surface": "kata",
+      "d": "AMOEBA: an amoeba built from its mechanics. Its membrane is one closed mesh, remeshed as it flows, pulled in by its cortex, held at its volume by its pressure, with an excitable signalling medium on it that fires in patches: actin pushes pseudopods out where it fires, myosin squeezes the rear, and it sticks to the floor. Long feet, branching, wandering outlines; it smells food and engulfs it. 3D now; the 4D one, on a mesh of tetrahedra, is next.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",
@@ -6179,11 +6196,6 @@
       "glob": "**/play",
       "kind": "content",
       "reason": "in-game route of a listed game"
-    },
-    {
-      "glob": "kata/amoeba",
-      "kind": "pending",
-      "reason": "AMOEBA, work in progress on claude/kata-amoeba-wip: the mesh membrane's motility isn't settled (needs remeshing)"
     },
     {
       "glob": "clock/antoine",
