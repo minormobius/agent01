@@ -128,9 +128,11 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   flows at κ∇σ (`surfGrad`, gradient weights from the Laplacian's least-squares fit), and friction balances it,
   V = −Σ ζ A v_c / Σ ζ A (water everywhere, the floor where it touches: crawl; water alone: swim, so every preset with a
   tension gradient drifts). The floor is y = 0 under a centre at `FLOOR_H`, a hard upper limit on r (the volume's
-  restoring shift respects both limits) plus adhesion within `ADH_BAND`. `hunt` smells food (c ∝ 1/r^{d−2}, least-squares
+  restoring shift respects both limits; P is taken over the free membrane only) plus adhesion within `ADH_BAND` and a
+  flattening pressure (`FLATTEN`·y) that lays it out as a splat. The front's softness is lobed (a few pseudopods). `hunt` smells food (c ∝ 1/r^{d−2}, least-squares
   gradient over the membrane), follows it above `SMELL_MIN` and wanders below, engulfs, grows. The camera follows the
-  cell; the floor's grid and smell are drawn in world coordinates (`uX`). `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
+  cell's centroid; the floor's grid and smell are drawn in world coordinates (`uX`). On a floor, an overlay minimap
+  shows the footprint (3D: from above; 4D: the footprint solid in x, z, w with your slice's plane through it). `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`

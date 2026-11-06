@@ -3,7 +3,7 @@
    grid is (the cube's faces side by side in 3D; stacked as slabs in 4D). The shader marches the star-shaped cell from
    that: at any point, its direction from the centre picks the face and the place on it, and the membrane is where the
    distance equals the radius there. In 4D, in your 3D slice. A nucleus shows through. */
-import { makeCell, step, applyPreset, volume, area, waist, nucClearance, spawnFood, R0 } from "./cell.js";
+import { makeCell, step, applyPreset, volume, area, waist, nucClearance, spawnFood, centroid, R0 } from "./cell.js";
 const $ = (id) => document.getElementById(id), glc = $("gl"), ov = $("ov");
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -151,7 +151,7 @@ const CAPS = {
   wave: (d) => `<b>A contraction wave</b>: a band of tight cortex running from front to back, again and again.${d === 4 ? " In 4D the band is a 2-sphere's worth round the cell, not a ring." : ""}`,
   bleb: (d) => `<b>A bleb.</b> The cortex lets go of a small patch all at once; the membrane balloons out under the pressure; then cortex re-forms under it and pulls it back, harder than before.`,
   belt: (d) => d === 3 ? `<b>Division.</b> A contractile ring round the equator tightens: a loop of tension pulls in at T/r, more the narrower it gets, and pinches the cell toward two. First the nucleus divides, and the daughters go one to each half, ahead of the furrow. In 3D the equator <b>is</b> a ring. Now see 4D.` : `<b>Division in 4D: a belt.</b> The equator of a 3-sphere is a 2-sphere, and to pinch it you need a contractile <b>sheet</b> all round it. A sheet curves two ways, so it pulls in at 2T/r and pinches deep. Try <b>ring</b> to see what a loop does.`,
-  crawl: (d) => d === 3 ? `<b>Crawl</b> (PROTEUS's amoeba). On a floor the cell spreads (adhesion pulls the membrane down) and polarises: the cortex lets go at the front, so the pressure pushes out a broad <b>pseudopod</b>, in pulses; it tightens at the back. Tension rising front to back makes the cortex <b>flow rearward</b>, and where the cell is stuck to the floor that flow pushes it forward, as a tank's tread does. In open water the same flow swims it (try <b>contract</b>: it drifts), slower, with nothing to push on but the water.` : `<b>Crawl in 4D.</b> The floor is a 3D space; the cell stands on it with a solid 3D <b>footprint</b>, and its leading edge is a 2D surface, not a line. Nothing about crawling needs a knot or a ring: pseudopod out, stick, contract the back, let go; all local pushing, so it works. Its heading is a point on a sphere (two angles to steer by). The same cortex moves it about 0.7 times as fast here: less of a 4D cell's membrane touches its floor.`,
+  crawl: (d) => d === 3 ? `<b>Crawl</b> (PROTEUS's amoeba). On a floor the cell spreads (adhesion pulls the membrane down) and polarises: the cortex lets go at the front, so the pressure pushes out a broad <b>pseudopod</b>, in pulses; it tightens at the back. Tension rising front to back makes the cortex <b>flow rearward</b>, and where the cell is stuck to the floor that flow pushes it forward, as a tank's tread does. In open water the same flow swims it (try <b>contract</b>: it drifts), slower, with nothing to push on but the water. Pressed flat by its weight and its dorsal cortex, it lies as a splat with a hump over the nucleus; the map (top right) shows its footprint from above.` : `<b>Crawl in 4D.</b> The floor is a 3D space; the cell stands on it with a solid 3D <b>footprint</b>, and its leading edge is a 2D surface, not a line. Nothing about crawling needs a knot or a ring: pseudopod out, stick, contract the back, let go; all local pushing, so it works. Its heading is a point on a sphere (two angles to steer by). The same cortex moves it about a third as fast: as dimensions rise, more of a sphere's surface crowds toward its equator, sideways to the heading, where the cortex is neither front nor back and doesn't flow. The map (top right) shows the footprint as the solid it is, and your slice's cut through it.`,
   hunt: (d) => d === 3 ? `<b>Hunt.</b> Food (green) on the floor leaks a chemical; the floor glows with it, and the gold ring is the cell's <b>horizon</b>: beyond it there's too little to tell a direction. A source's chemical falls as 1/r here. Inside the ring the cell reads which side of it smells stronger and turns its front that way; outside, it wanders. It engulfs what its membrane closes round, grows a little, and the next morsel appears. Then see 4D.` : `<b>Hunt in 4D.</b> A source's chemical falls as <b>1/r²</b> in 4D, so the same food is smelt from about √10 ≈ 3.2 radii, not 10: the horizon (gold, sliced) is close. Inside it the scent is twice as steep across the cell ((d − 2)/r), easy to follow; outside it the cell can only wander, over a 3D floor where a random walk mostly <b>never comes back</b> (it returns to where it started 19% of the time, against 34% in 3D and certainly on our 2D floor). Food is usually off your slice: watch its glow and the readout.`,
   ring: (d) => d === 3 ? `<b>A ring</b>: in 3D the same as the belt (the equator of a 2-sphere is a circle).` : `<b>A ring in 4D</b>: a loop of tension round a great circle. It pulls a groove in along itself and the cell <b>bulges round it</b>: there's a whole 2-sphere of equator, and a loop is a line on it. A ring can't divide a 4D cell, as a string can't tie a 4D knot. It takes a belt. The nucleus divides anyway: one cell, two nuclei.`,
 };
@@ -213,7 +213,11 @@ function draw(now) {
   const dpr = Math.min(1.5, devicePixelRatio || 1); if (!res) res = dpr * (matchMedia("(pointer: coarse)").matches ? 0.6 : 0.8);
   const cw = Math.round(glc.clientWidth * res), chh = Math.round(glc.clientHeight * res); if (glc.width !== cw || glc.height !== chh) { glc.width = cw; glc.height = chh; }
   gl.viewport(0, 0, cw, chh); gl.uniform2f(U.uRes, cw, chh); gl.uniform1f(U.uTan, TAN);
-  const cam = camera(); gl.uniform3fv(U.uEye, cam.eye); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F);
+  // (the camera looks at the cell's middle, its centre of mass along the floor, not the centre its membrane is held
+  // round: crawling, that centre trails at the back)
+  { const cen = centroid(cell), c4 = [0, 0, 0, 0]; if (cell.floor) for (let a = 0; a < cell.d; a++) if (a !== 1) c4[a] = cen[a];
+    const t3 = sel.d === 4 ? frame.E.map((e) => dot(e, c4)) : c4.slice(0, 3); look = look.map((v, k) => v + (t3[k] - v) * 0.08); }
+  const cam = camera(); cam.eye = cam.eye.map((v, k) => v + look[k]); gl.uniform3fv(U.uEye, cam.eye); gl.uniform3fv(U.uCR, cam.R); gl.uniform3fv(U.uCU, cam.U); gl.uniform3fv(U.uCF, cam.F);
   if (sel.d === 4) { gl.uniform4fv(U.uO, frame.N.map((v) => v * frame.off)); gl.uniform4fv(U.uE0, frame.E[0]); gl.uniform4fv(U.uE1, frame.E[1]); gl.uniform4fv(U.uE2, frame.E[2]); }
   else { gl.uniform4fv(U.uO, [0, 0, 0, 0]); gl.uniform4fv(U.uE0, [1, 0, 0, 0]); gl.uniform4fv(U.uE1, [0, 1, 0, 0]); gl.uniform4fv(U.uE2, [0, 0, 1, 0]); }
   { const nu = cell.nuc, v = new Float32Array(8), a = [0, -1]; nu.forEach((N, k) => { for (let j = 0; j < cell.d; j++) v[4 * k + j] = N.c[j]; a[k] = N.a; }); if (nu.length < 2) v.set(v.subarray(0, 4), 4);
@@ -223,7 +227,7 @@ function draw(now) {
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   overlay();
 }
-let slow = { t: -1, A: 0 };
+let slow = { t: -1, A: 0 }, look = [0, 0, 0];
 function overlay() {
   const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1), w = ov.clientWidth, h = ov.clientHeight;
   if (ov.width !== Math.round(w * dpr) || ov.height !== Math.round(h * dpr)) { ov.width = Math.round(w * dpr); ov.height = Math.round(h * dpr); }
@@ -242,7 +246,82 @@ function overlay() {
   if (d === 4) lines.push(`your slice: ${frame.off >= 0 ? "+" : ""}${frame.off.toFixed(2)} ana`);
   const wrapped = lines.flatMap((l) => (g.measureText(l).width < w - 24 ? [l] : l.split(" · ")));
   g.fillStyle = "rgba(233,228,218,0.85)"; wrapped.forEach((l, i) => g.fillText(l, 12, h - 130 - 15 * (wrapped.length - i)));
+  if (cell.floor) minimap(g, w, h);
   const tw = $("twist"), an = $("ana"); tw.style.left = "14px"; tw.style.top = `${h - 118}px`; an.style.left = `${w - 58}px`; an.style.top = `${h - 134}px`;
+}
+
+/* ------------------------------------------------------------------ the minimap: the footprint
+   On the floor, where the cell is stuck down. In 3D the floor is a plane, so the map looks straight down on it: the
+   footprint (filled, coloured by the cortex's tension: cool at the front, warm at the back) inside the cell's shadow
+   (all of it, seen from above), the nucleus, the heading, the food and its horizon. In 4D the floor is a 3D space and
+   the footprint a solid: the map is a little 3D view of it (x and z across, w up), turned as your camera turns, with
+   your slice's cut through the floor as a plane (where it meets the footprint is what the main view shows). Gathered
+   every quarter second; drawn every frame */
+let mm = { t: -1 };
+function mapData() {
+  const { G, d, r, X, sigma, adh } = cell, foot = [], shadow = [];
+  for (let i = 0; i < G.count; i++) {
+    const p = []; for (let a = 0; a < d; a++) if (a !== 1) p.push(r[i] * G.n[i * d + a]);
+    if (adh[i] > 0.9) foot.push([...p, sigma[i]]); else shadow.push(p);
+  }
+  const nuc = cell.nuc.map((N) => [...N.c].filter((_, a) => a !== 1));
+  const food = cell.food ? [...cell.food].map((v, a) => v - X[a]).filter((_, a) => a !== 1) : null;
+  // your slice's cut through the floor (4D): the points of the slice with world y = 0, a plane in (x, z, w)
+  let plane = null;
+  if (d === 4) {
+    const E = frame.E, gy = E.map((e) => e[1]), g2 = gy.reduce((a, v) => a + v * v, 0), O = frame.N.map((v) => v * frame.off);
+    if (g2 > 1e-6) {
+      const s0 = gy.map((v) => (v * -(X[1] + O[1])) / g2), at = (sv) => [0, 1, 2, 3].map((k) => O[k] + sv[0] * E[0][k] + sv[1] * E[1][k] + sv[2] * E[2][k]);
+      let u = Math.abs(gy[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1]; const pr = (u[0] * gy[0] + u[1] * gy[1] + u[2] * gy[2]) / g2; u = u.map((v, k) => v - pr * gy[k]); const lu = Math.hypot(...u); u = u.map((v) => v / lu);
+      const v3 = cross(gy, u), lv = Math.hypot(...v3), vv = v3.map((x) => x / lv), o = at(s0), U = at(u).map((x, k) => x - O[k]), V = at(vv).map((x, k) => x - O[k]), fz = (q) => [q[0], q[2], q[3]];
+      plane = { o: fz(o), U: fz(U), V: fz(V) };
+    }
+  }
+  return { t: cell.t, foot, shadow, nuc, food, plane, h: [...cell.heading].filter((_, a) => a !== 1) };
+}
+const tensionColour = (sg, a) => sg < 1 ? `rgba(${Math.round(120 - 60 * (1 - sg))},${Math.round(200 + 20 * (1 - sg))},235,${a})` : `rgba(240,${Math.round(170 - 60 * Math.min(1, (sg - 1) / 1.3))},${Math.round(140 - 80 * Math.min(1, (sg - 1) / 1.3))},${a})`;
+function minimap(g, w, h) {
+  if (cell.t - mm.t > 0.25 || cell.t < mm.t) mm = mapData();
+  const d = cell.d, S = Math.round(Math.min(180, w * 0.34)), x0 = w - S - 10, y0 = 50, cx = x0 + S / 2, cy = y0 + S / 2;
+  // (centred on the cell's middle, and scaled to fit it)
+  const all = mm.shadow.concat(mm.foot), m0 = [0, 0, 0]; for (const p of all) for (let k = 0; k < d - 1; k++) m0[k] += p[k] / all.length;
+  let reach = 1; for (const p of all) reach = Math.max(reach, Math.hypot(...p.slice(0, d - 1).map((v, k) => v - m0[k])));
+  const sc = (S * (d === 3 ? 0.5 : 0.42)) / reach;
+  g.save(); g.fillStyle = "rgba(8,14,16,0.72)"; g.strokeStyle = "rgba(233,228,218,0.25)"; g.lineWidth = 1; g.beginPath(); g.roundRect ? g.roundRect(x0, y0, S, S, 8) : g.rect(x0, y0, S, S); g.fill(); g.stroke();
+  g.beginPath(); g.rect(x0, y0, S, S); g.clip();
+  const az = view.az, ca = Math.cos(az), sa = Math.sin(az);
+  // (map coordinates: a = x, b = z, c = w, relative to the cell's centre; the view turned with the camera)
+  const pitch = d === 3 ? Math.PI / 2 : 0.55, cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const P = (a0, b0, c0 = 0) => { const a = a0 - m0[0], b = b0 - m0[1], c = c0 - m0[2], a2 = a * ca + b * sa, b2 = -a * sa + b * ca; return [cx + a2 * sc, cy - (c * cp - b2 * sp) * sc, c * sp + b2 * cp]; };
+  // the floor's grid (world-fixed: it slides as the cell goes)
+  g.strokeStyle = "rgba(160,200,200,0.12)"; const X = cell.X, wx = X[0], wz = X[2], R = Math.ceil(S / sc / 1.4);
+  for (let k = -R; k <= R; k++) { const gx = Math.round(wx + m0[0]) + k - wx, gz = Math.round(wz + m0[1]) + k - wz; let A = P(gx, m0[1] - R, m0[2]), B = P(gx, m0[1] + R, m0[2]); g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke(); A = P(m0[0] - R, gz, m0[2]); B = P(m0[0] + R, gz, m0[2]); g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke(); }
+  if (d === 3) {
+    // shadow and footprint as outlines by bearing (the furthest point in each of 90 bearings)
+    const outline = (pts) => { const best = new Array(90).fill(0); for (const p of pts) { const k = Math.floor(((Math.atan2(p[1], p[0]) + Math.PI) / (2 * Math.PI)) * 90) % 90; best[k] = Math.max(best[k], Math.hypot(p[0], p[1])); } return best.map((rr, k) => { const t = ((k + 0.5) / 90) * 2 * Math.PI - Math.PI; return P(rr * Math.cos(t), rr * Math.sin(t)); }); };
+    const poly = (pts, fill) => { g.fillStyle = fill; g.beginPath(); pts.forEach((p, k) => (k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fill(); };
+    poly(outline(mm.shadow.concat(mm.foot)), "rgba(220,190,185,0.18)");
+    poly(outline(mm.foot), "rgba(120,170,175,0.35)");
+    for (const p of mm.foot) { const q = P(p[0], p[1]); g.fillStyle = tensionColour(p[2], 0.55); g.fillRect(q[0] - 1, q[1] - 1, 2, 2); }
+  } else {
+    // the footprint solid as points, far ones dim; your slice's cut as a plane
+    if (mm.plane) { const { o, U, V } = mm.plane, L = reach + 0.2, c4 = [[-L, -L], [L, -L], [L, L], [-L, L]].map(([a, b]) => P(o[0] + a * U[0] + b * V[0], o[1] + a * U[1] + b * V[1], o[2] + a * U[2] + b * V[2]));
+      g.fillStyle = "rgba(233,228,218,0.08)"; g.strokeStyle = "rgba(233,228,218,0.35)"; g.beginPath(); c4.forEach((p, k) => (k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fill(); g.stroke(); }
+    const n = mm.plane ? (() => { const { U, V } = mm.plane, c = cross(U, V); const l = Math.hypot(...c); return c.map((v) => v / l); })() : null;
+    const pts = mm.foot.map((p) => { const q = P(p[0], p[1], p[2]); return [q, p[3], n ? Math.abs((p[0] - mm.plane.o[0]) * n[0] + (p[1] - mm.plane.o[1]) * n[1] + (p[2] - mm.plane.o[2]) * n[2]) : 9]; }).sort((A, B) => B[0][2] - A[0][2]);
+    for (const [q, sg, dist] of pts) { const inSlice = dist < 0.12, sh = 0.35 + 0.65 * Math.max(0, Math.min(1, 0.5 - q[2] / (2 * Math.max(3, reach)))); g.fillStyle = tensionColour(sg, inSlice ? 1 : 0.55 * sh); const z = inSlice ? 2.6 : 1.8; g.fillRect(q[0] - z / 2, q[1] - z / 2, z, z); }
+    // the axes: w up
+    g.strokeStyle = "rgba(233,228,218,0.4)"; const a0 = P(m0[0], m0[1], m0[2]), aw = P(m0[0], m0[1], m0[2] + 1.2); g.beginPath(); g.moveTo(a0[0], a0[1]); g.lineTo(aw[0], aw[1]); g.stroke(); g.fillStyle = "rgba(233,228,218,0.6)"; g.fillText("w", aw[0] + 3, aw[1] + 3);
+  }
+  // the nucleus, the heading, the food and its horizon
+  for (const nc of mm.nuc) { const q = P(nc[0], nc[1], nc[2] || 0); g.fillStyle = "rgba(170,110,200,0.9)"; g.beginPath(); g.arc(q[0], q[1], Math.max(2.5, 0.3 * sc), 0, 7); g.fill(); }
+  { const a = P(m0[0], m0[1], m0[2]), b = P(m0[0] + 1.3 * mm.h[0], m0[1] + 1.3 * mm.h[1], m0[2] + 1.3 * (mm.h[2] || 0)); g.strokeStyle = "rgba(255,220,140,0.9)"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.lineWidth = 1; }
+  if (mm.food) { const f = mm.food, q = P(f[0], f[1], f[2] || 0), hr = d === 3 ? Math.sqrt(100 - 0.09) : Math.sqrt(10 - 0.09);
+    g.strokeStyle = "rgba(242,190,80,0.55)"; g.beginPath(); g.arc(q[0], q[1], hr * sc, 0, 7); g.stroke();
+    const inside = q[0] > x0 + 4 && q[0] < x0 + S - 4 && q[1] > y0 + 4 && q[1] < y0 + S - 4;
+    if (inside) { g.fillStyle = "rgb(120,215,95)"; g.beginPath(); g.arc(q[0], q[1], 3.5, 0, 7); g.fill(); }
+    else { const t = Math.atan2(q[1] - cy, q[0] - cx), ex = cx + Math.cos(t) * (S / 2 - 9), ey = cy + Math.sin(t) * (S / 2 - 9); g.fillStyle = "rgb(120,215,95)"; g.beginPath(); g.moveTo(ex + Math.cos(t) * 6, ey + Math.sin(t) * 6); g.lineTo(ex + Math.cos(t + 2.4) * 6, ey + Math.sin(t + 2.4) * 6); g.lineTo(ex + Math.cos(t - 2.4) * 6, ey + Math.sin(t - 2.4) * 6); g.fill(); } }
+  g.restore(); g.fillStyle = "rgba(233,228,218,0.7)"; g.fillText(d === 3 ? "footprint, from above" : "footprint (x, z, w↑)", x0 + 6, y0 + S + 13);
 }
 
 /* ------------------------------------------------------------------ start */

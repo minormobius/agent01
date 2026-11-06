@@ -24,8 +24,10 @@ export const R0 = 1;
    surface rubs against takes that flow as a push the other way: the water (ζ_f, all over: the cell swims, as a
    squirmer does, U = −⟨v_c⟩) or the floor where it is stuck down (ζ_s, much stiffer: it crawls on its contact). The
    floor: the plane y = 0; the cell's centre stands FLOOR_H above it, the membrane can't go below it, and within ADH_BAND
-   of it adhesion pulls the membrane down (ADH_W), so the cell spreads on it */
-export const KAPPA = 0.5, ZETA_F = 1, ZETA_S = 20, FLOOR_H = 0.45, ADH_BAND = 0.25, ADH_W = 2;
+   of it adhesion pulls the membrane down (ADH_W), so the cell spreads on it; and it is pressed flat (FLATTEN: its weight,
+   and its dorsal cortex pulling down, as a pressure falling with height, −FLATTEN·y), so it lies as a splat with a hump
+   over the nucleus, not an orb */
+export const KAPPA = 0.5, ZETA_F = 1, ZETA_S = 20, FLOOR_H = 0.2, ADH_BAND = 0.3, ADH_W = 3, FLATTEN = 12;
 /* smell: food on the floor leaks a chemical; held steady, a point source's concentration falls as 1/r^{d−2} (1/r here,
    1/r² in 4D), smoothed over SMELL_S. The cell reads it at every patch, can follow it only above SMELL_MIN (too few
    molecules below that to tell a direction), turns toward it at TURN a second, and without it wanders (WANDER: the
@@ -271,9 +273,10 @@ export function step(cell, dt, sweeps = 6) {
   const { G, r, sigma, f, d, mu, tmp, lap } = cell, n = G.count, rMin = 0.04 * R0;
   curvature(cell);
   const Fn = contact(cell), fc = cell.fc, hard = cell.hard, ceil = cell.ceil, adh = cell.adh; floorBounds(cell);
-  if (cell.floor) for (let i = 0; i < n; i++) fc[i] += ADH_W * adh[i];
+  if (cell.floor) for (let i = 0; i < n; i++) fc[i] += ADH_W * adh[i] - FLATTEN * r[i] * G.n[i * d + 1];
   // P: the volume's rate of change Σ w r^{d−1} v must be zero
-  let num = 0, den = 0; for (let i = 0; i < n; i++) { const a = G.w[i] * r[i] ** (d - 1); num += a * (-sigma[i] * cell.H[i] + f[i] + fc[i]); den += a; }
+  // (over the free membrane: a patch the floor holds can't move out, so it takes no part)
+  let num = 0, den = 0; for (let i = 0; i < n; i++) { if (r[i] >= ceil[i] - 1e-9) continue; const a = G.w[i] * r[i] ** (d - 1); num += a * (-sigma[i] * cell.H[i] + f[i] + fc[i]); den += a; }
   cell.P = -num / den;
   // r' − dt μ σ Δr'/r² = r + dt μ (P − σ (d − 1)/r + f), by Jacobi sweeps on the least-squares Laplacian
   const { want, idx, wt, wc } = lapWeights(G), rhs = cell.rhs || (cell.rhs = new Float64Array(n)), kk = cell.kk || (cell.kk = new Float64Array(n));
@@ -349,9 +352,13 @@ function polarise(cell, name, t) {
   const { G, d, sigma, f, heading: h } = cell;
   if (name === "hunt") hunt(cell, cell.dtLast || 0.02);
   const pulse = 0.85 + 0.15 * Math.sin(2.2 * t), band = cell.band || (cell.band = new Float64Array(G.count));
+  // the front isn't one smooth bulge: a few pseudopods at once, coming and going (lobes across the front, along the
+  // sideways directions of the floor: one in 3D, two in 4D)
+  const side = []; for (let a = 0; a < d && side.length < d - 2; a++) { if (a === 1) continue; const e = new Float64Array(d); e[a] = 1; let pr = e[a] * h[a]; for (let c = 0; c < d; c++) e[c] -= pr * h[c]; for (const q of side) { pr = 0; for (let c = 0; c < d; c++) pr += e[c] * q[c]; for (let c = 0; c < d; c++) e[c] -= pr * q[c]; } const l = Math.hypot(...e); if (l > 0.3) side.push(e.map((v) => v / l)); }
   for (let i = 0; i < G.count; i++) {
     let nh = 0; for (let a = 0; a < d; a++) nh += G.n[i * d + a] * h[a];
-    sigma[i] = 1 - 0.45 * pulse * sm((nh - 0.45) / 0.4) + 1.3 * sm((-nh - 0.15) / 0.55); f[i] = 0; band[i] = 0;
+    let lobe = 1; side.forEach((e, k) => { let ne = 0; for (let a = 0; a < d; a++) ne += G.n[i * d + a] * e[a]; lobe *= 0.55 + 0.45 * Math.sin(5.5 * ne + (1.3 + 0.4 * k) * t + 2 * k); });
+    sigma[i] = 1 - 0.55 * pulse * (0.45 + 0.55 * lobe) * sm((nh - 0.4) / 0.4) + 1.3 * sm((-nh - 0.15) / 0.55); f[i] = 0; band[i] = 0;
   }
 }
 /* the waist: the radius at the equator (directions with |y| small), its least and its mean; and in 4D the radius along
