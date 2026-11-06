@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ATOM⁴: Hund's rule, and how four dimensions breaks it. Why electrons in our atoms line their spins up, what a d orbital is in three and four dimensions, and the spin-paired state only four dimensions has, all computed live." />
+<title>ATOM⁴ · Hund's rule — four.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/atom4.css" />
+<style>
+  svg.fig { width: 100%; height: auto; display: block; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin: 8px 0; }
+  svg.fig text.lbl { font: 11px var(--mono); fill: var(--dim); } svg.fig text.ttl { font: 600 12px var(--mono); fill: var(--text); } svg.fig .box { fill: #0b0d14; stroke: #3a3d4a; }
+  .play { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 12px 0; }
+  .play select, .seg button, .btns button, .real button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 4px 9px; font: 12px var(--mono); cursor: pointer; max-width: 100%; }
+  .seg button.on, .btns button.on { border-color: var(--d4); color: var(--d4); }
+  .btns, .real, .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .what { font: 12px var(--mono); color: var(--dim); }
+  b.bad, .bad b { color: #ff7a6b; } b.good { color: #8ef0a0; }
+  .orbwrap { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; } #orbCv { width: 260px; height: 260px; max-width: 100%; border-radius: 50%; background: #05060a; touch-action: none; cursor: grab; }
+  .orbwrap > div { flex: 1 1 260px; min-width: 0; }
+  .tablewrap { overflow-x: auto; } table.hd { border-collapse: collapse; font: 12px var(--mono); margin: 6px 0; min-width: 100%; }
+  table.hd th, table.hd td { border-bottom: 1px solid var(--border); padding: 4px 8px; text-align: right; white-space: nowrap; } table.hd th:first-child, table.hd td:first-child { text-align: left; }
+  .els { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 10px; } .el { width: 54px; padding: 4px; border-radius: 6px; border: 1px solid var(--border); font: 11px var(--mono); text-align: center; }
+  .el b { display: block; font-size: 13px; } .el span { color: var(--dim); } .el i { display: block; font-style: normal; color: #ff7a6b; } .el.bad { border-color: #ff7a6b; background: #24100e; }
+  h5 { font: 600 12px var(--mono); color: var(--dim); margin: 10px 0 2px; }
+  .ctl input[type=range] { max-width: 50vw; }
+  .callout { border-left: 3px solid var(--d4); padding: 6px 12px; margin: 12px 0; background: #0b0d14; }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="./" class="home">ATOM⁴</a><a href="geometry.html">1 · geometry</a><a href="force.html">2 · the force</a><a href="light.html">3 · light</a><a href="motion.html">4 · motion and spin</a><a href="gravity.html">5 · gravity</a><a href="hydrogen.html">6 · hydrogen</a><a href="table.html">7 · the periodic table</a><a href="shapes.html">8 · the shapes</a><a href="darbon.html">9 · darbon</a><a href="forces.html">10 · forces between molecules</a><a href="xater.html">11 · pxygen and xater</a><a href="census.html">12 · which water</a><a href="search.html">13 · ten ways to meet</a><a href="gas.html">14 · gases</a><a href="nuclei.html">15 · nuclei</a><a href="stars.html">16 · stars</a><a href="planets.html">17 · planetary systems</a><a href="methods.html">methods</a></nav>
+  <h2>ATOM⁴ · an explainer</h2>
+  <h1 class="ch">Hund's rule</h1>
+  <p class="lede">Why electrons in our atoms line their spins up, what a d orbital is in three and four dimensions, and the spin-paired state that only four dimensions has. Everything on this page is computed as you move it, from the same integrals the paper uses.</p>
+</header>
+
+<section id="hBoxes">
+  <h3>1 · Electrons in a shell</h3>
+  <p>An atom's electrons sit in <b>orbitals</b>, grouped into <b>subshells</b> of equal energy: one s orbital, then p, d and f subshells with more orbitals each. Draw each orbital as a box. Two rules decide how electrons go in. <b>Pauli's</b>: a box holds at most two, and then their spins point opposite ways. <b>Hund's first rule</b>: in a part-filled subshell, the lowest-energy arrangement puts as many spins parallel as it can, so electrons spread one to a box before any pair up. In our world every atom's ground state follows it.</p>
+  <p>Four dimensions has more orbitals in each subshell: 4 p orbitals instead of 3, 9 d instead of 5, 16 f instead of 7. Add electrons one at a time and watch.</p>
+  <div class="play">
+    <div class="ctl"><label>subshell <select id="bxShell"></select></label><label>electrons <input type="range" id="bxN" min="0" max="18" step="1" value="2" /><output id="bxNv"></output></label></div>
+    <div id="bxFig"></div>
+    <p id="bxSay"></p>
+  </div>
+  <p>Try 4D d with 2 electrons, then 16. Those two fillings, and 4D f with 3, are where the rule breaks.</p>
+</section>
+
+<section id="hOrbitals">
+  <h3>2 · What a d orbital is</h3>
+  <p>An orbital is a wave, and its angular part is a pattern of + and − on the sphere around the nucleus. An s orbital is the same everywhere. A p orbital is + on one side and − on the other. A <b>d orbital</b> changes sign twice around the sphere: four lobes, or a band around the middle. In ours there are exactly five independent such patterns. In four dimensions the sphere around the nucleus is a 3-sphere, and it carries <b>nine</b>. You can't see a 3-sphere whole, so the viewer shows one slice of it at a time, at a chosen value of the fourth coordinate w, the way a 3D creature would meet it. Drag to turn.</p>
+  <div class="play">
+    <div class="seg"><button type="button" data-orbd="3">ours: 5 d orbitals</button><button type="button" data-orbd="4" class="on">4D: 9 d orbitals</button></div>
+    <div class="btns" id="orbBtns"></div>
+    <div class="orbwrap"><canvas id="orbCv" width="260" height="260"></canvas>
+      <div><label class="ctl" id="orbWl">slice at w <input type="range" id="orbW" min="-0.98" max="0.98" step="0.01" value="0.3" /><output id="orbWv">0.30</output></label><p id="orbSay"></p></div></div>
+  </div>
+  <p>Six of the nine 4D d orbitals each live in a plane: xy, xz, xw, yz, yw and zw. Four dimensions has six planes through a point where ours has three, and some pairs of them, xy and zw for one, meet <b>only at the centre</b>. No two planes in our space can do that; any two share a line. Keep that in mind for section 4.</p>
+</section>
+
+<section id="hWhy">
+  <h3>3 · Why parallel spins usually win</h3>
+  <p>Electrons repel, so the lowest state is the one that keeps them apart. Spin enters through Pauli. Two electrons with <b>parallel</b> spins can never be found at the same point, because their shared wave has to change sign when they swap places and so vanishes where they meet. Two electrons with <b>opposite</b> spins have no such hole and can crowd together. That is the usual reason for Hund's rule: same-spin electrons stay apart by nature, so they repel less. But that is a tendency of the arrangement, not a law. What decides is how far apart each possible two-electron state actually keeps them.</p>
+  <p>Put two electrons in a d subshell. Their possible states fall into a few families (<b>terms</b>), each with a definite spin: a <b style="color:#ffb46b">triplet</b> (spins parallel) or a <b style="color:#6fe0ff">singlet</b> (spins paired). The chart shows, for each term, how likely the two electrons are to be found a given angle apart, seen from the nucleus. The dashed line is two electrons placed at random; the two thick curves are the lowest triplet and the term that comes lowest overall.</p>
+  <div class="play">
+    <div class="seg"><button type="button" data-sepd="3">ours</button><button type="button" data-sepd="4" class="on">four dimensions</button></div>
+    <div id="sepFig"></div>
+    <div id="sepTable"></div>
+    <p class="what">⟨cos²γ⟩ measures how much the two line up along a common axis (0 at right angles, 1 along one line). The repulsion's main angular part charges for exactly that.</p>
+  </div>
+  <div class="callout" id="keyNums"></div>
+  <p>Every triplet curve falls to zero at 0°: same-spin electrons never meet. In ours that is enough, and the triplet ³F is also the term that keeps the electrons closest to right angles. In four dimensions a singlet keeps them at right angles better than any triplet can. It is the ten-state term the tables call (2,0)⊕(0,2), and it leans hardest on pairs of orbitals in completely perpendicular planes (xy with zw, xz with yw, xw with yz), the arrangement section 2 said only four dimensions has.</p>
+</section>
+
+<section id="hLadder">
+  <h3>4 · The repulsion decides</h3>
+  <p>For two d electrons each term's energy is exactly <b>E = F⁰ + a₂F² + a₄F⁴</b>. F⁰ is the average repulsion, the same for every term. F² and F⁴ are its angular parts, the <b>quadrupole</b> and the <b>hexadecapole</b>, which depend on the atom's orbital. a₂ and a₄ depend only on the term; they are the columns of the table above. F² is always the bigger angular part, and a₂ is how much the term lines the electrons up, so the term that keeps them at right angles tends to win. The slider sets F⁴/F²; the buttons put it where real atoms are.</p>
+  <div class="play">
+    <div class="ctl"><label>F⁴ / F² <input type="range" id="ldR" min="0" max="2.5" step="0.01" value="0.39" /><output id="ldRv"></output></label></div>
+    <div class="real" id="ldReal"></div>
+    <div id="ldFig"></div>
+    <p id="ldSay"></p>
+  </div>
+  <p>In ours no value of the slider breaks Hund's rule for d²: ³F is always lowest. In four dimensions the singlet wins whenever F⁴/F² is below 5/3, and for real orbitals it is far below, 0.39 for element 26. It isn't the law between charges either: under Gauss's 1/r² the same orbital gives <span id="gaussR">about two-thirds</span>, and the singlet still wins, by more. It is four-dimensional space and its d shell.</p>
+</section>
+
+<section id="hTable">
+  <h3>5 · Across the 4D periodic table</h3>
+  <p>Every open d and f subshell of the 4D table, solved the same way with each atom's own orbital. Hund's rule breaks for d² and its mirror d¹⁶ (two missing from a full shell) in all three d rows, and for 4f³. Everywhere else it holds. Hover an element for its numbers.</p>
+  <div class="play"><div id="tbFig"></div><p class="what" id="tbSay"></p></div>
+</section>
+
+<section id="hMeaning">
+  <h3>6 · What it means</h3>
+  <p><b>For the table.</b> The periodic table in the paper was solved assuming Hund's rule. For these elements the true energy of their configuration is lower, by the gap. The table is being re-solved with that correction, and it will be the paper's main table.</p>
+  <p><b>For magnetism.</b> In ours a titanium atom, d², carries two parallel spins and is magnetic. Element 26, its counterpart in four dimensions, pairs them: as a free atom it has no net spin. The same goes for 39, 54, 66, 114 and 126.</p>
+  <p><b>For light and lasers.</b> What colour an ion absorbs and whether it can lase depends on its lowest states and their spins. On the <a href="bluminium.html">Bluminium page</a> the d² dopant's ground state is a singlet for the same reason.</p>
+  <p><b>Why only four dimensions.</b> In four dimensions every rotation splits into two independent halves, a left-handed and a right-handed turn. A d orbital carries one unit of each, which is what (1,1) means. Two electrons can add their left halves and cancel their right ones, or the other way round: that is (2,0) and (0,2). A three-dimensional rotation can't be split that way, so ours has no such state.</p>
+  <p><b>Is it known?</b> We found no earlier treatment of Hund's rules in four or more dimensions (three web searches; a citation-index search is still to do). The computation is the standard one for atomic terms, carried to the 3-sphere; the checks reproduce the known terms of our own ions.</p>
+  <p class="read">Computed live from the d shell's angular integrals (<code>tools/multiplets.mjs</code>), the term solver <code>js/multiplet.js</code>, the radial integrals of real atoms (<code>papers/p1/hundlaw.mjs</code>) and the survey (<code>tools/hund.mjs</code>, <code>papers/p1/data/hund.json</code>). The paper's section 7 is the written version.</p>
+</section>
+
+<footer class="pager"><a href="./">← ATOM⁴: the position</a><a href="bluminium.html">Bluminium →</a></footer>
+<p class="foot"><a href="./">ATOM⁴: the position</a> · <a href="./README.md">how it works</a> · <a href="../lumen/">Lumen⁴</a> · <a href="../iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/katabasis/">KATABASIS</a> · <a href="../">Four</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+<script type="module" src="js/hundpage.js"></script>
+</body>
+</html>

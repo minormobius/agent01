@@ -8991,6 +8991,16 @@
    "discovered": true
   },
   {
+   "id": "atom4/hund.html",
+   "name": "hund",
+   "url": "https://four.mino.mobi/atom/hund.html",
+   "cat": "data",
+   "commits": 0,
+   "age": "warm",
+   "parent": "atom4",
+   "discovered": true
+  },
+  {
    "id": "atom4/hydrogen.html",
    "name": "hydrogen",
    "url": "https://four.mino.mobi/atom/hydrogen.html",

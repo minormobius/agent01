@@ -49,9 +49,20 @@ singlet {{hl.gauss}} eV below the triplet, against {{hl.law}} eV under $1/r$; th
 not larger. The cause is the shell itself. Four-dimensional d orbitals form the representation (1,1) of SO(4) ≅
 SU(2) × SU(2)/ℤ₂. Two electrons in them make spatially symmetric states (2,2) ⊕ (2,0) ⊕ (0,2) ⊕ (1,1) ⊕ (0,0), all spin
 singlets (25, 10, 9 and 1 states), and antisymmetric ones (2,1) ⊕ (1,2) ⊕ (1,0) ⊕ (0,1), triplets (30 and 6). The
-singlet that comes lowest is the ten-state (2,0) ⊕ (0,2). The quadrupole part of the repulsion (F²) puts it there:
-with F² alone it is still lowest, the triplet {{hl.f2}} eV above, while the hexadecapole part (F⁴) alone would put a
-triplet lowest. Our d shell has no such state. Titanium's d² has ³F lowest and its first singlet {{hl.ours}} eV up.
+singlet that comes lowest is the ten-state (2,0) ⊕ (0,2). For two electrons in a d subshell each term's energy is
+exactly $F^0 + a_2F^2 + a_4F^4$. The $F^n$ are the radial parts of the repulsion and depend on the orbital. The
+$a_n = \langle C_n(\cos\gamma)\rangle$ over the term ($\gamma$ is the angle between the two electrons seen from the
+nucleus) depend only on the term. $a_2$ measures how much the term lets the electrons line up along a common axis. The
+ten-state singlet holds them nearest right angles, $\langle\cos^2\gamma\rangle$ = {{hl.cosS4}}, half of random
+(0.250), where the best triplet reaches {{hl.cosT4}}. It lies below every triplet whenever $F^4/F^2 <$ {{hl.crit}}.
+Element 26's orbital has $F^4/F^2$ = {{hl.rLaw}} under the law and {{hl.rGauss}} under Gauss's, so the rule breaks
+either way. In ours the triplet ³F is the term that keeps the electrons nearest right angles ({{hl.cosF3}}, against
+¹D's {{hl.cosD3}} and random's 0.333), and it is the lowest for every value of $F^4/F^2$. Titanium's d² has ³F lowest
+and its first singlet {{hl.ours}} eV up. Pauli keeps same-spin electrons apart, which is the usual reason for Hund's
+rule; four-dimensional space gives paired spins a way to stay apart that is better still. In SO(4) terms, every
+rotation splits into a left and a right half, and a d orbital carries one unit of each. The singlet adds the two
+electrons' left halves and cancels their right ones, or the other way round. Three-dimensional rotations don't split,
+so ours has no such state. An interactive version is at four.mino.mobi/atom/hund.html.
 
 **7.4 What it does to the table.** Where the rule fails, the solver's energy for that configuration is the
 maximum-spin state's, too high by the gap. The table in section 8 corrects that. Every candidate configuration of the

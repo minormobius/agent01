@@ -428,6 +428,18 @@ for games, and this is a modelling programme with publications to come. The game
   - **The plan for paper 1:** the term-corrected table becomes the main result; the Hund-spin table moves to the
     supplement. All of this stands on point charges ×
   a factor carried from ruby.
+  **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §7.3) has five
+  parts:
+  - orbitals as boxes, with each filling's verdict from the survey;
+  - the d orbitals on the sphere, and on slices of the 3-sphere;
+  - each d² term's separation-angle distribution: P(γ) from a₂ and a₄ alone, exact;
+  - the level ladder against F⁴/F², with real atoms marked;
+  - the survey across the table.
+
+  It is computed live from `bluminiumdata.js`'s angular tensors and `js/multiplet.js`, and fetches
+  `papers/p1/data/hund.json` and `hund-law.json`. The key fact, also ledgered as `hundcrit`: E(term) = F⁰ + a₂F² + a₄F⁴
+  with a_n = ⟨C_n(cos γ)⟩ over the term. In 4D the ten-state singlet (2,0)⊕(0,2) has ⟨cos²γ⟩ = 1/8, against the best
+  triplet's 0.19, and it is lowest whenever F⁴/F² < 5/3. In ours ³F is lowest for every F⁴/F².
   **The Bluminium viewer, `atom/bluminium.html`** (off the chapter nav, linked from the landing's "made" line and
   its open questions): `js/bluminium.js` draws both Bl₂Px₃ cells and each cation site's coordination in `tile.js`
   tiles. It tabulates the energies and gaps from hand-kept `tools/bluminium-results.json` (update it from the

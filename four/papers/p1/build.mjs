@@ -223,6 +223,9 @@ function ledger(t3, t4, files, refs) {
           holds: r4.filter((r) => r.l <= 2 && !r.hund).every((r) => r.l === 2 && (r.n === 2 || r.n === 16) && r.groundS === 0) && [2, 16].every((n) => r4.filter((r) => r.l === 2 && r.n === n).length === 3 && r4.filter((r) => r.l === 2 && r.n === n).every((r) => !r.hund)) && r4.filter((r) => r.l === 1).every((r) => r.hund), section: "7", gate: [67] },
         { id: "hund4f3", part: "table", claim: "In four dimensions 4f³ breaks it too: its ground term has spin ½",
           value: r4.filter((r) => r.l === 3).map((r) => `${r.Z} ${r.shell}${r.n}: S ${r.groundS} of ${r.Smax}${r.complete ? "" : " (bound)"}`).join("; "), holds: r4.some((r) => r.l === 3 && r.n === 3 && !r.hund && r.groundS === 0.5), section: "7", gate: [67] },
+        (() => { const W = hundWeights(); return { id: "hundcrit", part: "table", claim: "Why: two d electrons' terms have energies F⁰ + a₂F² + a₄F⁴ exactly; in 4D the ten-state singlet keeps the electrons nearer right angles than any triplet (⟨cos²γ⟩ 1/8, half of random) and lies lowest whenever F⁴/F² < 5/3, which every real orbital meets; in ours ³F is lowest for every F⁴/F²",
+          value: `4D: singlet ⟨cos²γ⟩ ${W.s4.cos2}, best triplet ${W.t4.cos2} (random 0.25); singlet lowest for F⁴/F² < ${W.crit.toFixed(4)}; element 26's F⁴/F² ${W.rLaw.toFixed(3)} (1/r), ${W.rGauss.toFixed(3)} (Gauss). Ours: ³F ${W.f3.cos2}, ¹D ${W.d3.cos2} (random 1/3); ³F lowest for all F⁴/F² ≥ 0: ${W.ours3}`,
+          holds: Math.abs(W.crit - 5 / 3) < 1e-4 && W.rLaw < W.crit && W.rGauss < W.crit && W.s4.cos2 < W.t4.cos2 && Math.abs(W.s4.cos2 - 0.125) < 1e-4 && W.ours3, section: "7", gate: [67] }; })(),
         { id: "hundlaw", part: "table", claim: "The failure is the 4D shell's, not the law's: Gauss's 1/r² gives d² the same singlet ground term, further below its triplet",
           value: `element 26's orbital: triplet above the singlet by ${law.terms.find((t) => t.mult === 3 && t.g === 30).eV} eV under 1/r, ${gauss.terms.find((t) => t.mult === 3 && t.g === 30).eV} eV under 1/r²`, holds: single(law) && single(gauss), section: "7", gate: [67] },
       ]; })(),
@@ -240,6 +243,14 @@ function ledger(t3, t4, files, refs) {
 /* Hund's first rule, from data/hund.json (hund-collect.mjs) and data/hund-law.json (hundlaw.mjs) */
 const SUPD = "⁰¹²³⁴⁵⁶⁷⁸⁹", supN = (n) => String(n).replace(/\d/g, (c) => SUPD[c]), shellN = (r) => `${r.shell}${supN(r.n)}`;
 function hundData() { return { HU: JSON.parse(readFileSync(join(HERE, "data/hund.json"), "utf8")).rows, HL: JSON.parse(readFileSync(join(HERE, "data/hund-law.json"), "utf8")).cases }; }
+/* the d² terms' weights (E = F⁰ + a₂F² + a₄F⁴): the 4D ten-state singlet against the best triplet, and ours' ³F against ¹D */
+function hundWeights() { const H = JSON.parse(readFileSync(join(HERE, "data/hund-law.json"), "utf8")), w3 = H.weights3, w4 = H.weights4, r = (id) => { const c = H.cases.find((x) => x.id === id); return c.F_eV[2] / c.F_eV[1]; };
+  const s4 = w4.find((t) => t.mult === 1 && t.g === 10), trip4 = w4.filter((t) => t.mult === 3), t4 = trip4.reduce((a, b) => (b.a2 < a.a2 ? b : a)), f3 = w3.find((t) => t.mult === 3 && t.g === 7), d3 = w3.find((t) => t.mult === 1 && t.g === 5);
+  // the singlet lies below triplet t for F⁴/F² < (a₂ᵗ − a₂ˢ)/(a₄ˢ − a₄ᵗ) when a₄ˢ > a₄ᵗ; the binding one is the smallest
+  const crit = Math.min(...trip4.map((t) => (s4.a4 > t.a4 ? (t.a2 - s4.a2) / (s4.a4 - t.a4) : Infinity)));
+  // ours: ³F below every singlet at F⁴/F² = 0 and as it grows without bound
+  const ours3 = w3.filter((t) => t.mult === 1).every((t) => t.a2 > f3.a2 && t.a4 >= f3.a4 - 1e-9 || (t.a2 > f3.a2 && t.a2 - f3.a2 + 1e3 * (t.a4 - f3.a4) > 0));
+  return { s4, t4, f3, d3, crit, ours3, rLaw: r("law"), rGauss: r("gauss"), rOurs: r("ours") }; }
 function hundTokens() {
   const { HU, HL } = hundData(), r4 = HU.filter((r) => r.d === 4), r3 = HU.filter((r) => r.d === 3), fails = r4.filter((r) => !r.hund), dF = fails.filter((r) => r.l === 2), fF = fails.filter((r) => r.l === 3);
   const gap = (id) => { const c = HL.find((x) => x.id === id), t = c.terms.find((x) => x.mult === 3 && x.g === 30); return t.eV.toFixed(2); };
@@ -255,6 +266,7 @@ function hundTokens() {
     "hund.fhold": fHold.map((r) => `${shellN(r)} (${r.Z})`).join(", ") || "none yet",
     "hund.fdone": `${fDone.length} of the 29 open f fillings (4f² to 4f³¹, elements 82–110)`,
     "hl.law": gap("law"), "hl.gauss": gap("gauss"), "hl.f2": gap("f2only"), "hl.ours": tiS.eV.toFixed(2),
+    ...(() => { const W = hundWeights(); return { "hl.cosS4": W.s4.cos2.toFixed(3), "hl.cosT4": W.t4.cos2.toFixed(3), "hl.cosF3": W.f3.cos2.toFixed(3), "hl.cosD3": W.d3.cos2.toFixed(3), "hl.crit": Math.abs(W.crit - 5 / 3) < 1e-4 ? "5/3" : W.crit.toFixed(3), "hl.rLaw": W.rLaw.toFixed(2), "hl.rGauss": W.rGauss.toFixed(2), "hl.rOurs": W.rOurs.toFixed(2) }; })(),
   };
 }
 /* the table's and the counterfactual's numbers the prose quotes */

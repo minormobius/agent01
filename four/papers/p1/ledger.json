@@ -228,6 +228,17 @@
    ]
   },
   {
+   "id": "hundcrit",
+   "part": "table",
+   "claim": "Why: two d electrons' terms have energies F⁰ + a₂F² + a₄F⁴ exactly; in 4D the ten-state singlet keeps the electrons nearer right angles than any triplet (⟨cos²γ⟩ 1/8, half of random) and lies lowest whenever F⁴/F² < 5/3, which every real orbital meets; in ours ³F is lowest for every F⁴/F²",
+   "value": "4D: singlet ⟨cos²γ⟩ 0.125, best triplet 0.1875 (random 0.25); singlet lowest for F⁴/F² < 1.6667; element 26's F⁴/F² 0.391 (1/r), 0.650 (Gauss). Ours: ³F 0.2245, ¹D 0.2925 (random 1/3); ³F lowest for all F⁴/F² ≥ 0: true",
+   "holds": true,
+   "section": "7",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hundlaw",
    "part": "table",
    "claim": "The failure is the 4D shell's, not the law's: Gauss's 1/r² gives d² the same singlet ground term, further below its triplet",

@@ -318,6 +318,10 @@
   {
    "date": "2026-11-06",
    "what": "Hund's first rule doesn't hold in four dimensions, and the paper now says so. A crystal-field side project turned up the free 4D d² ion with a spin-singlet ground term. A survey of every open subshell in the table (tools/hund.mjs: degree-l harmonics on the 3-sphere, the law projected onto them, every M_S block by Lanczos) finds that it fails for d² and d¹⁶ in all three d rows (elements 26, 39, 54, 66, 114, 126, by 0.30–0.77 eV) and for 4f³ (element 83). It holds for every p filling, every other d filling, 4f² and 4f⁴, and for every open subshell of our own table. It isn't the law: Gauss's 1/r² gives the same order on the same orbital. The PI's call: the table corrected for it (tools/termtable.mjs, now on the runner) becomes the main table, and the Hund-spin table moves to a supplement. Parts II and III drafted around it: checks against what is known (6), Hund's rule in four dimensions (7), the table (8), the counterfactual (9), partial screening (10), neutral atoms (11), limitations (12) and the conclusion (13). Four new ledger claims back section 7 (hund3, hund4, hund4f3, hundlaw), 23 in all, every one holding."
+  },
+  {
+   "date": "2026-11-06",
+   "what": "Why Hund's rule breaks, made exact, and an explainer for it. For two d electrons every term's energy is F⁰ + a₂F² + a₄F⁴, where a₂ measures how much the term lets the two electrons line up. In 4D the ten-state singlet keeps them nearest right angles (⟨cos²γ⟩ 1/8, half of random; the best triplet 0.19). It lies below every triplet whenever F⁴/F² < 5/3; element 26 sits at 0.39 under the law and 0.65 under Gauss's. In ours ³F wins for every value. Section 7.3 rewritten around it, with a 24th ledger claim (hundcrit). The interactive version is four.mino.mobi/atom/hund.html: orbitals as boxes, the d orbitals on the sphere and on slices of the 3-sphere, the pair's separation-angle distribution for every term, the level ladder against F⁴/F² with real atoms marked, and the survey across the table."
   }
  ]
 }
