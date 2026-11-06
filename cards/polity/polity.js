@@ -295,12 +295,13 @@ const cv = $('#gl'), ov = $('#ov'), ctx = ov.getContext('2d');
 const gl = cv.getContext('webgl2', { antialias: true, alpha: false });
 if (!gl) document.body.insertAdjacentHTML('beforeend', '<div id="loading">This needs WebGL2.</div>');
 const VS = `#version 300 es
-in vec2 q;
+uniform float segs;
 in vec3 p0; in vec3 u0; in vec3 v0; in vec3 p1; in vec3 u1; in vec3 v1; in float b0; in float b1;
 in vec3 c; in vec3 c2; in float h; in float k;
 uniform mat4 mvp; uniform float t, minPx, pick, hov; uniform vec2 vp;
 out vec2 vq; out vec2 vsz; out vec3 vc; out vec3 vc2; out float vh; out float vk; out float vhov; flat out int vid;
 void main(){
+  vec2 q = vec2(-1. + 2. * floor(float(gl_VertexID) / 2.) / segs, mod(float(gl_VertexID), 2.) * 2. - 1.);
   bool a0 = dot(u0, u0) > 0., a1 = dot(u1, u1) > 0.;
   vec3 P = mix(p0, p1, t), U = mix(u0, u1, t), V = mix(v0, v1, t);
   if (!a0) { P = p1; U = u1 * t; V = v1 * t; }
@@ -358,7 +359,7 @@ const prog = gl.createProgram();
 gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
 if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw gl.getProgramInfoLog(prog);
 gl.useProgram(prog);
-const U = {}; for (const u of ['mvp', 't', 'minPx', 'pick', 'hov', 'vp', 'bg', 'ink']) U[u] = gl.getUniformLocation(prog, u);
+const U = {}; for (const u of ['mvp', 't', 'minPx', 'pick', 'hov', 'vp', 'bg', 'ink', 'segs']) U[u] = gl.getUniformLocation(prog, u);
 const vao = gl.createVertexArray(); gl.bindVertexArray(vao);
 const bufs = {};
 function attr(name, n, divisor) {
@@ -366,10 +367,9 @@ function attr(name, n, divisor) {
   gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0); gl.vertexAttribDivisor(loc, divisor);
   bufs[name] = b;
 }
-attr('q', 2, 0);
-const SEG = 16, NV = 2 * (SEG + 1);
-{ const q = []; for (let i = 0; i <= SEG; i++) { const x = -1 + 2 * i / SEG; q.push(x, -1, x, 1); }
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufs.q); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(q), gl.STATIC_DRAW); }
+// curved cells need a 16-segment strip; everything else is a plain quad
+let curved = true, curvedTo = true;
+const segs = () => curved ? 16 : 1;
 for (const [n, c] of [['p0', 3], ['u0', 3], ['v0', 3], ['p1', 3], ['u1', 3], ['v1', 3], ['b0', 1], ['b1', 1], ['c', 3], ['c2', 3], ['h', 1], ['k', 1]]) attr(n, c, 1);
 function upload(name, arr) { gl.bindBuffer(gl.ARRAY_BUFFER, bufs[name]); gl.bufferData(gl.ARRAY_BUFFER, arr, gl.DYNAMIC_DRAW); }
 const pickFB = gl.createFramebuffer(), pickTex = gl.createRenderbuffer(), pickDepth = gl.createRenderbuffer();
@@ -432,12 +432,12 @@ function uniforms(M, pick) {
   gl.uniformMatrix4fv(U.mvp, false, M);
   gl.uniform1f(U.t, ease(mixT)); gl.uniform2f(U.vp, W * DPR, H * DPR);
   gl.uniform1f(U.minPx, 1.6 * DPR); gl.uniform1f(U.pick, pick); gl.uniform1f(U.hov, pinned >= 0 ? pinned : hover);
-  gl.uniform3fv(U.bg, BG); gl.uniform3fv(U.ink, INK);
+  gl.uniform3fv(U.bg, BG); gl.uniform3fv(U.ink, INK); gl.uniform1f(U.segs, segs());
 }
 let last = performance.now(), playing = false, playLast = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (mixT < 1) { mixT = Math.min(1, mixT + dt / 1.1); dirty = true; }
+  if (mixT < 1) { mixT = Math.min(1, mixT + dt / 1.1); dirty = true; if (mixT >= 1) curved = curvedTo; }
   if (camT < 1) {
     camT = Math.min(1, camT + dt / 1.1); const e = ease(camT);
     for (const k of ['yaw', 'pitch']) cam[k] = camFrom[k] + (camTo[k] - camFrom[k]) * e;
@@ -454,7 +454,7 @@ function draw() {
   gl.viewport(0, 0, W * DPR, H * DPR);
   gl.clearColor(BG[0], BG[1], BG[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.enable(gl.SAMPLE_ALPHA_TO_COVERAGE);
-  uniforms(m.M, 0); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, NV, N);
+  uniforms(m.M, 0); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 2 * (segs() + 1), N);
   gl.disable(gl.SAMPLE_ALPHA_TO_COVERAGE);
   overlay(m.M);
 }
@@ -527,7 +527,7 @@ function pickAt(sx, sy) {
   const px = Math.floor(sx * DPR), py = Math.floor((H - sy) * DPR);
   gl.enable(gl.SCISSOR_TEST); gl.scissor(px, py, 1, 1);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  uniforms(curM, 1); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, NV, N);
+  uniforms(curM, 1); gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 2 * (segs() + 1), N);
   const o = new Uint8Array(4); gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, o);
   gl.disable(gl.SCISSOR_TEST); gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   return (o[0] | o[1] << 8 | o[2] << 16) - 1;
@@ -550,6 +550,7 @@ function relayout(camToo) {
   const extBefore = LAYOUTS.chamber.ext[1];
   layout();
   for (const k of ['p0', 'u0', 'v0', 'p1', 'u1', 'v1', 'b0', 'b1']) upload(k, G[k]);
+  curvedTo = G.b1.some(v => v > 0); curved = curvedTo || G.b0.some(v => v > 0);
   mixT = 0;
   if (camToo || (S.layout === 'chamber' && LAYOUTS.chamber.ext[1] !== extBefore)) { camFrom = { ...cam, target: [...cam.target] }; camTo = fitCam(S.layout); camT = 0; }
   dirty = true;
@@ -754,5 +755,6 @@ layout();
 Object.assign(cam, fitCam(S.layout)); G.p0.set(G.p1); G.u0.set(G.u1); G.v0.set(G.v1); G.b0.set(G.b1);
 for (const k of ['p0', 'u0', 'v0', 'p1', 'u1', 'v1', 'b0', 'b1']) upload(k, G[k]);
 mixT = 1;
+curved = G.b1.some(v => v > 0);
 requestAnimationFrame(frame);
 window.__polity = { S, N, D, pickAt, relayout, cam, zoomAt, get dirty() { return dirty; }, set dirty(v) { dirty = v; } };
