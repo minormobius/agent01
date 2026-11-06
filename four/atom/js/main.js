@@ -3,7 +3,7 @@
    periodic table is baked into ./table.js by tools/bake.mjs, since solving 114 atoms takes minutes. */
 import { hydrogen, orbitals, k4 } from "./atom.js";
 import * as F from "./fields.js";
-import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "./table.js";
+import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "./tablec.js";
 import { lineColour, colourOf, planck } from "../../lumen/js/optics.js";
 import { fineSplit, harmonicDim } from "./turning.js";
 import * as MG from "./magnet.js";

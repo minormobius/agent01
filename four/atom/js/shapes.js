@@ -3,7 +3,7 @@
 import { polytopes, star, diamondNet } from "./polytopes.js";
 import { makeTile, eye, turn, turnLocal } from "./tile.js";
 import { MOLECULES } from "./molecules.js";
-import { TABLE } from "./table.js";
+import { TABLE } from "./tablec.js";
 
 const $ = (id) => document.getElementById(id);
 const tilted = () => turn(turn(turn(eye(), 0, 3, 0.55), 1, 2, 0.35), 2, 3, 0.45);

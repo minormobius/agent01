@@ -450,7 +450,14 @@ for games, and this is a modelling programme with publications to come. The game
     if every occupied orbital is bound and E > E_neutral − 1 Ha, because an anion's extra electron in a subshell with no
     bound level otherwise "settles" on nonsense (orbital energy 0, totals thousands of hartree low). Sandbox checks: 26⁺
     is 3d² 4s¹ and keeps its singlet; 9⁻ (2p⁶) is bound by about 0.8 eV; H⁻ and 12⁻ are not. H⁻ *is* bound in ours (0.75
-    eV), so the anion method is checked on ours first. Queued as `ions-1`: both charges, both worlds. All of this stands on point charges ×
+    eV), so the anion method is checked on ours first. Queued as `ions-1`: both charges, both worlds.
+  - **The site shows the corrected table (2026-11-06).** **Generated** `js/terms.js` (`tools/terms.mjs bake`, from
+    paper 1's `data/termtable.json`; element 82 re-solved for its orbitals and density) is laid over the bake by
+    `js/tablec.js`. **Pages import the table from `tablec.js`, never `table.js`** (main.js, shapes.js, table/viewer.js,
+    start/start.js, fields/fields.js). `table.js` stays the bake, which is the paper's supplement S1 (`HUNDSPIN`).
+    Selftest 69 checks the overlay against `termtable.json`. Rerun `terms.mjs bake` after `termtable-collect.mjs`. The
+    paper's figures lay the same data over the bake (`figures/make.mjs`). The table chapter gains a section, `#hund`,
+    and its landing card a bullet. All of this stands on point charges ×
   a factor carried from ruby.
   **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §7.3) has five
   parts:

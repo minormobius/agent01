@@ -1255,6 +1255,13 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `paper 1 data: ${stale.length ? `stale (${stale.join(", ")}): run node four/papers/p1/build.mjs` : "current"}, 4D noble gases ${nobles}, ${hits} of ${t3.length} configurations, ${t4.length} elements`);
 }
 
+/* 69 · the site's table agrees with paper 1's main table: js/terms.js (tools/terms.mjs) against data/termtable.json */
+{
+  const { TABLE: TC, HUNDSPIN } = await import("../js/tablec.js"), fs = await import("node:fs"), TT = JSON.parse(fs.readFileSync(path.join(here, "../../papers/p1/data/termtable.json"), "utf8")).rows;
+  const bad = TT.filter((r) => { const e = TC[4][r.Z - 1]; return e.config !== r.config || Math.abs(e.E - r.E_hartree) > 1e-5 || (r.ion_hartree != null && Math.abs(e.ion - r.ion_hartree) > 1e-5); });
+  ok(!bad.length && HUNDSPIN[4][81].config !== TC[4][81].config, `the site's table is paper 1's main table (${TT.length} term-corrected elements${bad.length ? `; differ: ${bad.map((r) => r.Z).join(", ")}: run node four/atom/tools/terms.mjs bake` : ""})`);
+}
+
 /* 68 · the Bluminium viewer's solver (js/multiplet.js): spin by counting across M_S blocks agrees with ⟨S²⟩ from the
    eigenvectors (4D d², 81 determinants), and ruby's baked s, β give back the two measured levels it was fitted to */
 {

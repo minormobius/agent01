@@ -7,7 +7,12 @@ import { panel, series, legend, figure, text, CAT, MUTE, INK } from "./plot.js";
 import { gaussLaw, shellSplit } from "../laws.js";
 import { farPull } from "../far.js";
 import { k4 } from "../../../atom/js/kernel.js";
-import { TABLE, RPLOT, SHELL_COUNTERFACTUAL } from "../../../atom/js/table.js";
+import { TABLE as BAKE, RPLOT, SHELL_COUNTERFACTUAL } from "../../../atom/js/table.js";
+import { readFileSync as readTerm } from "node:fs";
+/* the paper's main 4D table is the term-corrected one (data/termtable.json over the bake, as build.mjs's rows): its
+   configurations, energies, ionizations and (where the configuration changed) orbitals */
+const TERM = new Map(JSON.parse(readTerm(new URL("../data/termtable.json", import.meta.url), "utf8")).rows.map((r) => [r.Z, r]));
+const TABLE = { ...BAKE, 4: BAKE[4].map((el) => { const t = TERM.get(el.Z); return t ? { ...el, config: t.config, E: t.E_hartree, ion: t.ion_hartree, top: t.outermost, orb: t.orbitals ? t.orbitals.map((o) => ({ s: o.subshell, o: o.occ, e: o.e_hartree, r: o.r_mean_bohr, r2: o.r2_mean_bohr2 })) : el.orb } : el; }) };
 import { SYM, IE_REAL, realConfig, isNoble, layout } from "../../../atom/js/periodic.js";
 import { names } from "../../../atom/js/names.js";
 import { pngURI } from "./png.js";

@@ -231,7 +231,7 @@ function fire() {
   const step = () => { shot.n = Math.min(path.length, shot.n + 6); drawSpin(); if (shot.n < path.length) spinRaf = requestAnimationFrame(step); };
   spinRaf = requestAnimationFrame(step);
 }
-Promise.all([import("../atom/js/magnet.js"), import("../atom/js/table.js")]).then(([m, t]) => { MG = m; TAB = t.TABLE; drawMag(); drawSpin(); });
+Promise.all([import("../atom/js/magnet.js"), import("../atom/js/tablec.js")]).then(([m, t]) => { MG = m; TAB = t.TABLE; drawMag(); drawSpin(); });
 for (const id of ["spXY", "spZW", "spW"]) $(id).addEventListener("input", () => { shot = null; drawSpin(); });
 $("spFire").addEventListener("click", fire);
 for (const id of ["magAtom", "magT", "magK"]) $(id).addEventListener("input", drawMag);

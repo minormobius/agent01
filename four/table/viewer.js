@@ -1,7 +1,7 @@
 /* The periodic table of four dimensions, big: all 140 elements as ATOM⁴'s solver found them (../atom/js/table.js),
    named after ours where they do what one of ours does (../atom/js/names.js), the new ones marked, and our own table
    beside it, linked both ways. */
-import { TABLE, RPLOT } from "../atom/js/table.js";
+import { TABLE, RPLOT } from "../atom/js/tablec.js";
 import { IE_REAL, layout } from "../atom/js/periodic.js";
 import { names, OURS } from "../atom/js/names.js";
 import { CENSUS } from "../atom/js/census.js";

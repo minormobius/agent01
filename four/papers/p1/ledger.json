@@ -369,8 +369,8 @@
   },
   {
    "path": "figures/1.svg",
-   "bytes": 63541,
-   "sha256": "5ef4be0114e17011b0801a43a0a904e65ed7275b43c367ab2d7b228488139f18"
+   "bytes": 63545,
+   "sha256": "d5b3df3764bd8a6725490dfc248fdd6af9784902c769110df19183c3b2197bff"
   },
   {
    "path": "figures/2.svg",
@@ -385,7 +385,7 @@
   {
    "path": "figures/4.svg",
    "bytes": 7760,
-   "sha256": "4bc34b2218ab1f5c84b9bfb7db8ada74b23d649f7451b143bb1ab59a6272a585"
+   "sha256": "85a274566eacaff0fa02ab38c4743ecb5d7c38f5319ccdab3f90236df9a6c97a"
   },
   {
    "path": "figures/5.svg",
@@ -395,7 +395,7 @@
   {
    "path": "figures/6.svg",
    "bytes": 54309,
-   "sha256": "06d9047a391f8f9351404b3960213cf69f0db7e50aea7625b0e0835d7034a9de"
+   "sha256": "a445027edb2d2819061fa21c46c2c261aab8c28c02e560c7612b2798010294e5"
   },
   {
    "path": "figures/A1.svg",

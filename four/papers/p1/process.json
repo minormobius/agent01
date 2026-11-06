@@ -229,15 +229,18 @@
   },
   {
    "item": "The site's own table chapter and js/table.js still show the bake (element 82 as 4f² 6s², the Hund-spin energies): rebake with the term-corrected search, or overlay data/termtable.json on the site",
-   "status": "to do"
+   "status": "done",
+   "note": "atom/tools/terms.mjs bakes js/terms.js; js/tablec.js lays it over the bake; every page reads the table from tablec.js; selftest 69 checks it against data/termtable.json"
   },
   {
    "item": "The counterfactual table compares against the bake's configurations; element 82 now differs in the main table: re-check its counterfactual entry against 4f¹ 5d¹ 6s²",
-   "status": "to do"
+   "status": "done",
+   "note": "82 under the shell theorem is 6s² 6p², different from both its old and new configurations; 'changed' and 'the law's own configuration is lower' stand"
   },
   {
    "item": "Figures 1, 4 and 6 draw from atom/js/table.js (the bake), not the corrected table: point them at build.mjs's rows (differences ≤ 0.67 eV in eight ionizations, and element 82's configuration)",
-   "status": "to do"
+   "status": "done",
+   "note": "figures/make.mjs lays data/termtable.json over the bake, as build.mjs does"
   },
   {
    "item": "Check the measured 4s→3d promotion energies (section 6.3) and Pd/Xe ionizations (8.2) against NIST ASD and cite with the access date",

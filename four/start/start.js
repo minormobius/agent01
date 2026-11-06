@@ -3,7 +3,7 @@
    solved table, the pairs from the full pair search. The estimates are labelled as estimates. */
 import { shellPotential, SHELL_CENTRE_OVER_WALL } from "../atom/js/fields.js";
 import { hydrogen } from "../atom/js/atom.js";
-import { TABLE } from "../atom/js/table.js";
+import { TABLE } from "../atom/js/tablec.js";
 import { IE_REAL, layout, role } from "../atom/js/periodic.js";
 import { names, OURS } from "../atom/js/names.js";
 import { PAIRMIN } from "../atom/js/pairmin.js";
