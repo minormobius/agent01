@@ -134,12 +134,13 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   (denser in 4D, under its nearer horizon), `cell.foods`, up to eight drawn. The camera follows the
   cell's centroid; the floor's grid and smell are drawn in world coordinates (`uX`). On a floor, an overlay minimap
   shows the footprint (3D: from above; 4D: the footprint solid in x, z, w with your slice's plane through it). `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
-- **AMOEBA at `/amoeba/`**: an amoeba from its mechanics, 3D (4D next). The membrane is one closed triangle mesh
-  (`js/mesh.js`: refined icosahedron; the 4D 600-cell mesh exists, no remeshing yet), moved by normal velocity:
+- **AMOEBA at `/amoeba/`**: an amoeba from its mechanics, 3D and 4D. The membrane is one closed mesh, triangles or
+  tetrahedra (`js/mesh.js`: refined icosahedron / 600-cell), moved by normal velocity:
   implicit tension (σΔx, a symmetric graph-Laplacian system solved by CG), pressure as the Lagrange multiplier (a
   second solve, linear), polymerisation as a speed where the signalling fires, floor adhesion/stick/flatten, a
-  membrane budget. **Remeshed** every 5 steps (`js/remesh.js`: split > 4/3 L, collapse < 4/5 L with the link
-  condition and fold checks, flips toward valence 6; u, v carried), edge springs between. Signalling: Barkley with
+  membrane budget (polymerisation stalls exponentially once it's spent). **Remeshed** (`js/remesh.js`, any d: split
+  > 1.5 L, collapse < 0.6 L with the full link condition checked vertex/edge/triangle and fold checks, flips in 3D;
+  u, v carried; every 5 steps in 3D, 10 in 4D), edge springs between. 4D has its own settings (`PAR4`). Signalling: Barkley with
   nucleated patches, slow recovery, global inhibition, curvature feedback, one polarity axis (absolute units), myosin
   at the rear. Settings were found by contact sheets (README: the path, including the failures). Physics in a worker
   (`js/worker.js`, mesh re-sent when remeshed); the page ray-marches floor, food and nucleus with depth, then
@@ -207,7 +208,7 @@ node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
 node kata/lamp/test/lamp.selftest.mjs # ~50 s
 node kata/cell/test/cell.selftest.mjs # ~85 s
-node kata/amoeba/test/amoeba.selftest.mjs # ~40 s
+node kata/amoeba/test/amoeba.selftest.mjs # ~70 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

@@ -1,7 +1,7 @@
 # AMOEBA
 
-An amoeba built from its mechanics, at `kata.mino.mobi/amoeba/`. It runs in 3D. 4D is next: its membrane is a mesh of
-tetrahedra, and that mesh needs the same remeshing (see the end).
+An amoeba built from its mechanics, at `kata.mino.mobi/amoeba/`, in 3D and in 4D. In 4D its membrane is a
+3-dimensional mesh of tetrahedra, remeshed the same way, and the page shows your 3D slice through it.
 
 ## The membrane
 
@@ -52,7 +52,7 @@ Barkley's excitable medium, an activator u and a recovery v, with these addition
 
 ## What it does (the selftest holds these)
 
-- **Laplace's law:** P = σ(d − 1)/R at rest, 2.000 in 3D and 3.003 in 4D.
+- **Laplace's law:** P = σ(d − 1)/R at rest, 2.000 in 3D and 3.002 in 4D.
 - **Volume:** held to within 0.5% while it remeshes.
 - **The remeshed membrane stays a closed surface:** every edge is in two triangles, the Euler characteristic is 2,
   and edges stay within bounds.
@@ -82,19 +82,44 @@ sweeps. The path, in order:
    inhibition.
 8. Curvature feedback is on.
 
-## 4D (next)
+## 4D
 
-The 4D mesh (a refined 600-cell: 6,480 points, 38,400 tetrahedra) has the same mechanics, Laplace's law included. It
-needs remeshing tetrahedra on a 3-manifold: splitting long edges (a tetrahedron's edge is shared by a ring of them),
-collapsing short ones under a link condition, and flips (2–3 and 3–2 instead of edge flips). Until then the page runs
-3D only.
+The 4D membrane is a closed 3-dimensional mesh of tetrahedra. It starts as the 600-cell refined once (840 points,
+4,800 tetrahedra) and is remeshed to a target edge length. It has the same mechanics, Laplace's law included
+(P = σ·3/R). The remesher works for any dimension:
+
+- **Split.** Splitting an edge cuts every tetrahedron round it in two. That is a whole ring of them, where in 3D an
+  edge had two triangles.
+- **Collapse.** The link condition is checked at every level: shared vertices, shared edges (pairs that make a
+  triangle with both ends), and shared triangles (none may make a tetrahedron with both ends).
+- **No flips yet.** 4D would need 2–3 and 3–2 flips. The edge springs keep the tetrahedra healthy without them.
+- **Thresholds.** Split above 1.5× the target and collapse below 0.6×. With 4/3 and 4/5, a split edge's halves fell
+  straight under the collapse threshold, and the remesher churned (~200 splits and ~180 collapses per pass).
+- **Speed.** Checking the link condition cheapest-level first took a pass from 1.1 s to 0.05 s.
+
+Two findings, both kept in 3D too:
+
+- **Polymerisation stalls under load,** as a Brownian ratchet does. Its speed falls exponentially with the tension the
+  membrane budget adds once the reserve is spent. As a fixed speed it ignored the budget, and a 4D foot ran out to
+  15 radii.
+- **4D needs its own settings** (`PAR4`). A 4D tube is squeezed by its own tension twice as hard (σ·2/r, not σ/r),
+  so feet need a faster push (v_p 2) and a sharper tip (curvature feedback 0.7) to get going. The patches are one ring
+  of a coarser mesh, the rear squeeze is softer, and the reserve is 1.8.
+
+They were tuned by contact sheets with two cross-sections per moment: the cut at the cell's own w (x and z), and the
+cut at its own z (x and w). A foot reaching along w shows only in the second.
+
+What a 4D amoeba looks like from inside a 3D slice: a lobed body whose feet, reaching ana or kata, leave your slice
+and show as islands cut off from it. The selftest holds that after 15 s of remeshing it is still a closed 3-sphere:
+every triangle is in two tetrahedra, and the Euler characteristic is 0. It also checks the volume, the floor and the
+nucleus, and that it moves (about 0.25 radii/s). A step costs ~30 ms here and 30–55 ms in a browser.
 
 ## Files
 
 - `js/mesh.js`: the starting meshes, normals, volume and measure (any dimension).
 - `js/amoeba.js`: the mechanics, the signalling, food, `inside()`. No DOM.
-- `js/remesh.js`: the 3D remesher.
+- `js/remesh.js`: the remesher, for triangles (3D) and tetrahedra (4D).
 - `js/worker.js`: runs it off the page's thread, paced to the clock.
 - `js/main.js`: the page. It ray-marches the floor, food and nucleus, rasterises the membrane, and draws the
   footprint map.
-- `test/amoeba.selftest.mjs`: about 40 s.
+- `test/amoeba.selftest.mjs`: about 70 s.

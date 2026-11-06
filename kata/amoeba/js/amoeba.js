@@ -29,7 +29,7 @@
 import { sphereMesh, neighbours, facetNormal, FACT } from "./mesh.js";
 import { remeshArrays, compact } from "./remesh.js";
 
-export const LEVEL = { 3: 4, 4: 2 };
+export const LEVEL = { 3: 4, 4: 1 };
 export const PAR = {
   // (settings found by looking: contact sheets of the cell from above over time, across sweeps of these; the README
   // has the history. Time is in seconds, length in the cell's radius)
@@ -43,14 +43,18 @@ export const PAR = {
   // polarity: the cell's axis grows with firing (pUp), fades over pTau; leans firing to the front; myosin at the rear
   pUp: 1, pTau: 6, myoGain: 2, myoFrom: 0.3, polSat: 0.15, retract: 0, polBias: 0.25, patch: 2, curvBias: 0.5,
   // keeping the mesh even
-  relax: 0.4, relaxIt: 2, smooth: 0, cgIt: 40, remeshEvery: 5, edgeScale: 1.4,
+  relax: 0.4, relaxIt: 2, smooth: 0, cgIt: 40, remeshEvery: 5, remeshEvery4: 10, edgeScale: 1.4,
   // the membrane budget: reserve (× a ball's area) before it stretches, and how steeply it resists past that
-  reserve: 1.6, areaK: 12,
+  reserve: 1.6, areaK: 12, stallT: 0.5,
 };
+/* 4D's own: the same mechanics, tuned by its own contact sheets (two cross-sections a moment). A 4D tube is squeezed
+   by its own tension twice as hard (σ·2/r, not σ/r), so feet need a faster push and a stronger tip to get going; the
+   patches are one ring of a coarser mesh */
+export const PAR4 = { edgeScale: 1, vp: 2, curvBias: 0.7, patch: 1, inhibit: 5, tighten: 0.5, reserve: 1.8 };
 export const NUC_A = 0.34, NUC_GAP = 0.06;
 
 export function makeAmoeba(d, level = LEVEL[d], opts = {}) {
-  const M = sphereMesh(d, level), { nbStart, nb } = neighbours(M), nv = M.nv, par = { ...PAR, ...opts };
+  const M = sphereMesh(d, level), { nbStart, nb } = neighbours(M), nv = M.nv, par = { ...PAR, ...(d === 4 ? PAR4 : {}), ...opts };
   const P = M.P; // positions: start as the unit sphere, standing on the floor
   for (let i = 0; i < nv; i++) P[i * d + 1] += par.floorH;
   const A = {
@@ -228,8 +232,11 @@ export function step(A, dt = A.par.dt) {
   // twice: once for everything but the pressure (xa), once for a unit pressure (xb, linear in it). Then P is whatever
   // keeps the volume: x' = xa + P xb. Implicit, the tension can be stiff (a fine mesh) without slowing the rest
   const xa = A.xa || (A.xa = new Float64Array(nv * d)), xb = A.xb || (A.xb = new Float64Array(nv * d)), ra = A.ra || (A.ra = new Float64Array(nv * d)), rb = A.rb || (A.rb = new Float64Array(nv * d)), cc = A.cc || (A.cc = new Float64Array(nv));
+  // (polymerisation stalls under load, as a Brownian ratchet does: its speed falls exponentially with the tension the
+  // membrane budget adds once the reserve is spent, so a foot can't grow past the membrane there is)
+  const stall = Math.exp(-par.areaK * (A.over || 0) / par.stallT);
   for (let i = 0; i < nv; i++) {
-    const m = par.mu / (1 + par.stick * stuck[i]), vk = par.vp * A.u[i]; A.vk[i] = vk;
+    const m = par.mu / (1 + par.stick * stuck[i]), vk = par.vp * A.u[i] * stall; A.vk[i] = vk;
     cc[i] = dt * m * sig[i] * Lc[i];
     for (let c = 0; c < d; c++) { ra[i * d + c] = P[i * d + c] + dt * (m * F[i * d + c] + vk * nh[i * d + c]); rb[i * d + c] = dt * m * nh[i * d + c]; }
   }
@@ -250,7 +257,11 @@ export function step(A, dt = A.par.dt) {
   moveNucleus(A, dt);
   if (A.foods.length) eat(A);
   A.t += dt; A.nstep = (A.nstep || 0) + 1;
-  if (A.d === 3 && par.remeshEvery && A.nstep % par.remeshEvery === 0) A.lastRemesh = remesh(A);
+  const every = A.d === 3 ? par.remeshEvery : par.remeshEvery4;
+  if (every && A.nstep % every === 0) A.lastRemesh = remesh(A);
+  // (last of all: the nucleus has moved and remeshing may have put a new midpoint inside it, so the membrane is held off
+  // the floor and the nucleus once more)
+  constrain(A);
 }
 
 /* conjugate gradients for (1/c_i + k_i) x_i − Σ_{j ~ i} x_j = r_i, every coordinate at once (the same matrix for each) */
@@ -259,7 +270,7 @@ function cg(A, cc, r, x, x0) {
   const mul = (v, out) => { for (let i = 0; i < nv; i++) { const n0 = nbStart[i], n1 = nbStart[i + 1], dg = 1 / cc[i] + (n1 - n0); for (let c = 0; c < d; c++) { let m = 0; for (let j = n0; j < n1; j++) m += v[nb[j] * d + c]; out[i * d + c] = dg * v[i * d + c] - m; } } };
   if (x0) x.set(x0); else x.fill(0);
   mul(x, Ap); let rr = 0, r0 = 0; for (let i = 0; i < n; i++) { R[i] = r[i] - Ap[i]; Pd[i] = R[i]; rr += R[i] * R[i]; r0 += r[i] * r[i]; }
-  for (let it = 0; it < par.cgIt && rr > 1e-20 * r0; it++) {
+  for (let it = 0; it < par.cgIt && rr > 1e-12 * r0; it++) {
     mul(Pd, Ap); let pAp = 0; for (let i = 0; i < n; i++) pAp += Pd[i] * Ap[i]; const a = rr / pAp;
     let rn = 0; for (let i = 0; i < n; i++) { x[i] += a * Pd[i]; R[i] -= a * Ap[i]; rn += R[i] * R[i]; }
     const b = rn / rr; rr = rn; for (let i = 0; i < n; i++) Pd[i] = R[i] + b * Pd[i];
@@ -270,12 +281,11 @@ function cg(A, cc, r, x, x0) {
    signalling's u and v carried over), and drop every scratch buffer so it is made again at the new size */
 const SCRATCH = ["H", "Lc", "Q", "cc", "cgA", "cgP", "cgR", "du", "dv", "f0", "f1", "front", "nh", "ra", "rb", "wsum", "xa", "xb", "ysw", "mob", "cv"];
 export function remesh(A) {
-  if (A.d !== 3) return null;
   const { d, nv, P, M } = A, Pa = [], Fa = [];
-  for (let i = 0; i < nv; i++) Pa.push([P[i * 3], P[i * 3 + 1], P[i * 3 + 2]]);
-  for (let k = 0; k < M.nf; k++) Fa.push([M.F[k * 3], M.F[k * 3 + 1], M.F[k * 3 + 2]]);
-  const fu = [...A.u], fv = [...A.v], stats = remeshArrays(Pa, Fa, [fu, fv], A.L);
-  const c = compact(Pa, Fa, [fu, fv]);
+  for (let i = 0; i < nv; i++) Pa.push(Array.from(P.subarray(i * d, i * d + d)));
+  for (let k = 0; k < M.nf; k++) Fa.push(Array.from(M.F.subarray(k * d, k * d + d)));
+  const fu = [...A.u], fv = [...A.v], stats = remeshArrays(Pa, Fa, [fu, fv], A.L, { d, prof: A.prof });
+  const c = compact(Pa, Fa, [fu, fv], d);
   A.M = { d, nv: c.nv, nf: c.nf, P: c.P, F: c.F }; A.P = c.P; A.nv = c.nv; A.nf = c.nf; A.meshVersion = (A.meshVersion || 0) + 1;
   const nbr = neighbours(A.M); A.nbStart = nbr.nbStart; A.nb = nbr.nb;
   { const cnt = new Int32Array(c.nv + 1); for (let k = 0; k < c.nf * d; k++) cnt[c.F[k] + 1]++; for (let i = 0; i < c.nv; i++) cnt[i + 1] += cnt[i];
