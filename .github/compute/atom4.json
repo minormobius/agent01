@@ -1,54 +1,12 @@
 {
- "run": "relax-3",
- "why": "relax-2 (exit 0 where finished; the rest cut with their state saved). The E(V) minimum is bracketed: both cells sit near x1.033 (fits through the relaxed points). At 2x2x1x2s z2-0 is lower by 0.16 eV a formula there. The k-ladder shows the sampling moves the difference: unrelaxed at x1.00 it is +0.11 at 4 k but +0.393 (a14) and +0.403 (a14s), with the two dense grids agreeing to 0.01. So the converged-k relaxed difference is estimated near 0.45 eV, just past the 0.41 bar (0.4 plus the ladder's 0.01). That is an estimate: this run measures it with a14 and a14s single points on both cells' relaxed x1.03 structures (crystalref-Bl2Px3-relaxed.json). It also finishes the x1.06/x1.09 relaxations and z2-1 x1.00.",
+ "run": "relax-4",
+ "why": "relax-3: every relaxation converged, and both cells' E(V) minima sit at x1.032–1.034. Measured directly at a14 on the relaxed x1.03 structures, z2-1 − z2-0 is +0.396 eV a formula, just under the 0.41 bar, so the cells stay unranked by the rule. The a14s twins were cut at the deadline with their densities saved; this run finishes them (warm start) to give the second grid's number and the two grids' disagreement the rule asks for.",
  "minutes": 340,
  "groups": [
-  {
-   "name": "relax-z20-106",
-   "cmds": [
-    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-0 1.06 25 2x2x1x2s 4 soft 1e-3 60"
-   ]
-  },
-  {
-   "name": "relax-z20-109",
-   "cmds": [
-    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-0 1.09 25 2x2x1x2s 4 soft 1e-3 60"
-   ]
-  },
-  {
-   "name": "relax-z21-100",
-   "cmds": [
-    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 2x2x1x2s 4 soft 1e-3 60"
-   ]
-  },
-  {
-   "name": "relax-z21-106",
-   "cmds": [
-    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-1 1.06 25 2x2x1x2s 4 soft 1e-3 60"
-   ]
-  },
-  {
-   "name": "relax-z21-109",
-   "cmds": [
-    "node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-1 1.09 25 2x2x1x2s 4 soft 1e-3 60"
-   ]
-  },
-  {
-   "name": "kr-z20-a14",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3-relaxed.json z2-0-x103 1.00 25 a14 4 soft"
-   ]
-  },
   {
    "name": "kr-z20-a14s",
    "cmds": [
     "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3-relaxed.json z2-0-x103 1.00 25 a14s 4 soft"
-   ]
-  },
-  {
-   "name": "kr-z21-a14",
-   "cmds": [
-    "node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3-relaxed.json z2-1-x103 1.00 25 a14 4 soft"
    ]
   },
   {

@@ -1,8 +1,8 @@
 {
  "about": "Hand-kept from the runner's logs (atom4-data runs/<run>/<group>/*.log). Plane-wave DFT, the book's exchange-only LDA, soft pseudopotentials, ecut 25 Ha. Energies in eV per formula unit Bl2Px3. Provisional until the relaxations finish.",
- "status": "relax-3 running. The volume minimum is bracketed, near ×1.033 for both cells. At 4 k, z2-0 is lower there by 0.16 eV a formula. Denser k (a14, a14s, which agree to 0.01) widened the unrelaxed difference from 0.11 to 0.40, so the estimate at the relaxed minimum is about 0.45: just past the 0.41 bar, but estimated, not measured. relax-3 measures it on the relaxed structures. Until then the cells stay unranked, with z2-0 favoured",
+ "status": "Unranked, by the rule fixed in advance, though only just. Every relaxation has converged, and both cells' energy minima sit at ×1.032–1.034. On the relaxed ×1.03 structures with dense k (a14), z2-0 is lower by 0.396 eV a formula, just under the 0.41 the plane-wave code can resolve (0.4 from its check against PySCF in ours, plus the k-grids' disagreement). z2-0 is favoured; relax-4 adds the second dense grid",
  "relaxed": {
-  "note": "relax-1 and relax-2, 2x2x1x2 shifted k (4 k), ions relaxed at a fixed cell shape; fits through the points put both minima near x1.033 (z2-0 −1969.22 to −1969.23, z2-1 −1969.05 to −1969.08)",
+  "note": "relax-1 to relax-3, 2x2x1x2 shifted k (4 k), ions relaxed at a fixed cell shape, all converged; E(V) fits put the minima at x1.034 (z2-0) and x1.032 (z2-1)",
   "z2-0": [
    {
     "scale": 0.97,
@@ -24,15 +24,15 @@
    },
    {
     "scale": 1.06,
-    "E": -1968.8383,
-    "fmax": 0.0083,
-    "done": false
+    "E": -1968.8499,
+    "fmax": 0.00069,
+    "done": true
    },
    {
     "scale": 1.09,
-    "E": -1967.7256,
-    "fmax": 0.0027,
-    "done": false
+    "E": -1967.7268,
+    "fmax": 0.00057,
+    "done": true
    }
   ],
   "z2-1": [
@@ -44,9 +44,9 @@
    },
    {
     "scale": 1.0,
-    "E": -1968.3681,
-    "fmax": 0.0011,
-    "done": false
+    "E": -1968.3682,
+    "fmax": 0.00031,
+    "done": true
    },
    {
     "scale": 1.03,
@@ -56,15 +56,15 @@
    },
    {
     "scale": 1.06,
-    "E": -1968.6407,
-    "fmax": 0.0072,
-    "done": false
+    "E": -1968.6443,
+    "fmax": 0.00086,
+    "done": true
    },
    {
     "scale": 1.09,
-    "E": -1967.4703,
-    "fmax": 0.0106,
-    "done": false
+    "E": -1967.4795,
+    "fmax": 0.00021,
+    "done": true
    }
   ]
  },
@@ -98,7 +98,8 @@
     "E": -1967.761
    }
   ],
-  "difference": "z2-1 − z2-0, unrelaxed ×1.00: +0.11 (4 k), +0.39 (a14), +0.40 (a14s)"
+  "difference": "z2-1 − z2-0: unrelaxed ×1.00 +0.11 (4 k), +0.39 (a14), +0.40 (a14s); relaxed ×1.03 +0.16 (4 k), +0.396 (a14)",
+  "relaxed": "relaxed x1.03, a14 (20 k): z2-0 −1968.843, z2-1 −1968.447, difference +0.396"
  },
  "gaps": {
   "note": "bands-2: SCF grid plus a 10-point path, x1.00 unrelaxed, a10 k; this functional sits about 2.8 eV under measured gaps in ours (corundum: 6.02 against 8.8), so add +2.8 eV or scale x1.47",

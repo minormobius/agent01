@@ -437,6 +437,17 @@ for games, and this is a modelling programme with publications to come. The game
   converged yet). **`relax-3` (queued):** a14 and a14s single points on both cells' relaxed ×1.03, the direct
   measurement, and the five unfinished relaxations. The SCF grid's gaps at a14/a14s (z2-0 5.02/5.44, z2-1 4.62/4.45)
   miss z2-0's conduction minimum at (½,½,0,0), which 3-point axes don't sample. `bands-2`'s 3.79 eV stands.
+  **`relax-3` (all relaxations exit 0 and converged):** z2-0 ×1.06 −1968.8499 and ×1.09 −1967.7268; z2-1 ×1.00
+  −1968.3682, ×1.06 −1968.6443 and ×1.09 −1967.4795 (eV a formula, 4 k, fmax < 10⁻³). E(V) through all five points
+  (cubic rms 0.02, quartic exact): minima at ×1.034 (z2-0) and ×1.032 (z2-1). 4 k difference by scale: +0.02, +0.09,
+  +0.16, +0.21, +0.25. **The direct measurement, a14 on the relaxed ×1.03 structures:** z2-0 −1968.8426, z2-1
+  −1968.4468, so **+0.396 eV a formula, just under the 0.41 bar. Unranked by the rule fixed in advance; z2-0 favoured.**
+  The relaxed-k difference matches the unrelaxed one (0.393 at a14), so relaxation and sampling barely interact. The
+  a14s twins were cut at the deadline with their densities saved, and `relax-4` finishes them for the second grid.
+  The a14 SCF-grid gaps on the relaxed cells: z2-0 4.78, z2-1 3.61 eV (grid only; a path would be lower). All ten
+  relaxed structures are in `tools/crystalref-Bl2Px3-relaxed.json`. What could settle the ranking: the code's
+  accuracy, not more sampling. The 0.4 eV bar is `pw-fixed`'s worst miss against PySCF on the aluminas, so a harder
+  pseudopotential set and a higher cutoff on these two relaxed cells is the next lever.
   `atom/tools/air.mjs` (`mol`: H₂ in both worlds; `pair <He|H2> <d>`: MP2 pair scans, counterpoise, H₂ over four orientations
   weighted (1, 2(d−1), …)/d² by how a rod lies; `bake` → **generated** `js/airdata.js`; cache `$TMPDIR/atom4-air`),
   `atom/tools/ions.mjs` (ionization and affinity for Bl₂Px₃), and `atom/tools/coexist.mjs` (Gibbs-ensemble
