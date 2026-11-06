@@ -130,7 +130,8 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   tension gradient drifts). The floor is y = 0 under a centre at `FLOOR_H`, a hard upper limit on r (the volume's
   restoring shift respects both limits; P is taken over the free membrane only) plus adhesion within `ADH_BAND` and a
   flattening pressure (`FLATTEN`·y) that lays it out as a splat. The front's softness is lobed (a few pseudopods). `hunt` smells food (c ∝ 1/r^{d−2}, least-squares
-  gradient over the membrane), follows it above `SMELL_MIN` and wanders below, engulfs, grows. The camera follows the
+  gradient over the membrane), follows it above `SMELL_MIN` and wanders below, engulfs, grows; `FOOD` keeps a per-dimension population of morsels
+  (denser in 4D, under its nearer horizon), `cell.foods`, up to eight drawn. The camera follows the
   cell's centroid; the floor's grid and smell are drawn in world coordinates (`uX`). On a floor, an overlay minimap
   shows the footprint (3D: from above; 4D: the footprint solid in x, z, w with your slice's plane through it). `window.CELL` exposes the state. See [`cell/README.md`](cell/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
@@ -195,7 +196,7 @@ node kata/tentacle/test/dyn.selftest.mjs # ~30 s
 node kata/octopus/test/octopus.selftest.mjs # ~60 s
 node kata/phase/test/phase.selftest.mjs # ~90 s
 node kata/lamp/test/lamp.selftest.mjs # ~50 s
-node kata/cell/test/cell.selftest.mjs # ~75 s
+node kata/cell/test/cell.selftest.mjs # ~85 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

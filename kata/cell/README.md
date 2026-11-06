@@ -77,7 +77,11 @@ run on CELL's membrane in 3D and 4D, with one mechanism doing the moving:
   over 0.3. Each patch reads c where it is. The cell fits c ≈ c̄ + g·(x − x̄) over its whole membrane (least squares, so
   the fit holds whatever the cell's shape) and turns its heading toward g at 1.5 a second. It follows the scent only
   above c̄ = 0.1, the horizon; below that it wanders (the heading diffuses at 0.15 rad²/s). Food that ends up inside its
-  membrane is engulfed: the volume grows 5% (to at most 1.6×), and the next morsel appears 5 radii away.
+  membrane is engulfed: the volume grows 5% (to at most 1.6×). Every morsel's chemical adds to the smell.
+- **Food density.** The 4D horizon is a third as far, so a 4D world that feeds anything must hold more food per
+  volume, and it has a whole extra direction to put it in. Each world keeps its morsels' spacing under the horizon.
+  In 3D, 3 morsels lie 3 to 8 radii off. In 4D, 8 morsels lie 1.5 to 4 radii off, about one per 33 cubic radii of the
+  3D floor. A morsel left 3 shells behind is replaced.
 
 What it shows:
 
@@ -94,6 +98,10 @@ What it shows:
 
 The source strength and the threshold are a modelling choice: concentrations in 3D and 4D don't share units. The
 scalings (1/r against 1/r², (d − 2)/r) are not.
+
+## Viewing
+
+Drag to turn the view. Pinch or scroll to zoom.
 
 ## The minimap
 
@@ -113,4 +121,4 @@ the back.
 - `js/cell.js`: the grid, the Laplacian and gradient, the step, the presets, the floor, `velocity()`, `sense()`, the hunt, `waist()`. No DOM.
 - `js/main.js`: the WebGL2 page. r is uploaded as a 2D atlas (3D) or a 3D texture (4D), and the shader marches
   `|p| − r(n)`.
-- `test/cell.selftest.mjs`: about 75 s.
+- `test/cell.selftest.mjs`: about 85 s.

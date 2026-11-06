@@ -33,6 +33,11 @@ export const KAPPA = 0.5, ZETA_F = 1, ZETA_S = 20, FLOOR_H = 0.2, ADH_BAND = 0.3
    molecules below that to tell a direction), turns toward it at TURN a second, and without it wanders (WANDER: the
    heading's rotational diffusion) */
 export const SMELL_S = 0.3, SMELL_MIN = 0.1, TURN = 1.5, WANDER = 0.15, FOOD_R = 0.12, FOOD_DIST = 5;
+/* how much food lies about. A 4D cell smells only to ~3.2 radii (a 3D one to ~10), so a 4D world that feeds anything
+   must be denser in food, and it can be: there's a whole extra direction to hold it. Each keeps its morsels' typical
+   spacing under its horizon: 3D, 3 morsels 3–8 radii off (one per ~70 square radii of floor); 4D, 8 morsels 1.5–4 off
+   (one per ~33 cubic radii of its 3D floor) */
+export const FOOD = { 3: { count: 3, near: 3, far: 8 }, 4: { count: 8, near: 1.5, far: 4 } };
 export const NUC_A = 0.34, NUC_GAP = 0.04, NUC_SOFT = 0.12, NUC_K = 40, NUC_MOB = 0.25, NUC_CENTRE = 0.6;
 
 /* ---------------------------------------------------------------- the grid on S^{d−1} */
@@ -137,7 +142,7 @@ export function makeCell(d, N = d === 3 ? 24 : 12) {
   // where it is (its centre, in the world), how fast it goes, the cortex's flow, the floor (none: it floats)
   cell.X = new Float64Array(d); cell.V = new Float64Array(d); cell.gs = new Float64Array(c * d); cell.kappa = KAPPA; cell.floor = null;
   cell.ceil = new Float64Array(c).fill(Infinity); cell.adh = new Float64Array(c); cell.V00 = cell.V0;
-  cell.heading = new Float64Array(d); cell.heading[0] = 1; cell.food = null; cell.eaten = 0; cell.seed = 12345; cell.sinceMeal = 0;
+  cell.heading = new Float64Array(d); cell.heading[0] = 1; cell.foods = []; cell.foodCount = FOOD[d].count; cell.eaten = 0; cell.seed = 12345; cell.sinceMeal = 0;
   cell.sm = { c: 0, grad: 0, senses: false };
   return cell;
 }
@@ -237,10 +242,10 @@ export const smell = (d, x, F) => { let q = SMELL_S * SMELL_S; for (let a = 0; a
    every patch, weighted by its area: c ≈ c̄ + g·(x − x̄), whatever the cell's shape); its size relative to c̄ (per
    radius), and its direction along the floor */
 export function sense(cell) {
-  const { G, d, r, X, food } = cell, x = new Array(d), p = new Float64Array(d); let S = 0, cs = 0;
-  if (!food) return (cell.sm = { c: 0, grad: 0, senses: false, dir: p });
+  const { G, d, r, X, foods } = cell, x = new Array(d), p = new Float64Array(d); let S = 0, cs = 0;
+  if (!foods.length) return (cell.sm = { c: 0, grad: 0, senses: false, dir: p });
   const cv = cell.cv || (cell.cv = new Float64Array(G.count));
-  for (let i = 0; i < G.count; i++) { for (let a = 0; a < d; a++) x[a] = X[a] + r[i] * G.n[i * d + a]; cv[i] = smell(d, x, food); const A = G.w[i] * r[i] ** (d - 1); S += A; cs += A * cv[i]; }
+  for (let i = 0; i < G.count; i++) { for (let a = 0; a < d; a++) x[a] = X[a] + r[i] * G.n[i * d + a]; let c = 0; for (const F of foods) c += smell(d, x, F); cv[i] = c; const A = G.w[i] * r[i] ** (d - 1); S += A; cs += A * cv[i]; }
   const cb = cs / S, xb = new Float64Array(d), M = Array.from({ length: d }, () => new Array(d).fill(0)), b = new Array(d).fill(0);
   for (let i = 0; i < G.count; i++) { const A = G.w[i] * r[i] ** (d - 1); for (let a = 0; a < d; a++) xb[a] += (A * (X[a] + r[i] * G.n[i * d + a])) / S; }
   for (let i = 0; i < G.count; i++) { const A = G.w[i] * r[i] ** (d - 1); for (let a = 0; a < d; a++) x[a] = X[a] + r[i] * G.n[i * d + a] - xb[a]; for (let a = 0; a < d; a++) { b[a] += A * x[a] * (cv[i] - cb); for (let c = 0; c < d; c++) M[a][c] += A * x[a] * x[c]; } }
@@ -249,22 +254,29 @@ export function sense(cell) {
   return (cell.sm = { c: cb, grad: Math.hypot(...g) / cb, senses: cb > SMELL_MIN && m > 0, dir: m > 0 ? p.map((v) => v / m) : p });
 }
 /* food: a morsel on the floor at distance dist from the cell, in a random direction along the floor */
-export function spawnFood(cell, dist = FOOD_DIST) {
+export function spawnFood(cell, dist = null) {
   const d = cell.d, h = new Float64Array(d); for (let a = 0; a < d; a++) if (a !== 1) h[a] = gauss(cell); const m = Math.hypot(...h);
-  cell.food = new Float64Array(d); for (let a = 0; a < d; a++) cell.food[a] = a === 1 ? FOOD_R : cell.X[a] + (dist * h[a]) / m; cell.sinceMeal = 0;
+  // (no distance given: anywhere in the shell near–far round the cell, evenly over the floor's area or volume)
+  if (dist === null) { const { near, far } = FOOD[d], k = d - 1; dist = (near ** k + rand(cell) * (far ** k - near ** k)) ** (1 / k); }
+  const F = new Float64Array(d); for (let a = 0; a < d; a++) F[a] = a === 1 ? FOOD_R : cell.X[a] + (dist * h[a]) / m; cell.foods.push(F);
 }
-/* the hunt, each step: smell, turn the heading toward the scent if there is one (else let it wander), eat what is
-   inside the membrane (engulfed: the cell grows 5%, up to 1.6×), and put out the next morsel */
+/* the nearest morsel (or null) */
+export function nearestFood(cell) { let best = null, bd = Infinity; for (const F of cell.foods) { let q = 0; for (let a = 0; a < cell.d; a++) q += (F[a] - cell.X[a]) ** 2; if (q < bd) { bd = q; best = F; } } return best; }
+/* the hunt, each step: smell (every morsel's chemical adds), turn the heading toward the scent if there is one (else
+   let it wander), eat what is inside the membrane (engulfed: the cell grows 5%, up to 1.6×), and put out more */
 function hunt(cell, dt) {
   const { d, heading: h } = cell, sm = sense(cell);
   if (sm.senses) { for (let a = 0; a < d; a++) h[a] += dt * TURN * (sm.dir[a] - h[a]); }
   else { const k = Math.sqrt(2 * WANDER * dt); for (let a = 0; a < d; a++) if (a !== 1) h[a] += k * gauss(cell); }
   h[1] = 0; const m = Math.hypot(...h); for (let a = 0; a < d; a++) h[a] /= m;
-  cell.sinceMeal += dt;
-  if (!cell.food) { spawnFood(cell); return; }
-  const u = cell.food.map((v, a) => v - cell.X[a]), L = Math.hypot(...u), i = cell.G.nearest(u.map((v) => v / (L || 1)));
-  if (L < cell.r[i] - FOOD_R * 0.5) { cell.eaten++; cell.V0 = Math.min(cell.V00 * 1.6, cell.V0 * 1.05); setFloor(cell, true); spawnFood(cell); }
-  else if (cell.sinceMeal > 90) spawnFood(cell);
+  // eat what's inside; morsels left far behind (three times the shell) drift off and are replaced; keep the count up
+  const far = FOOD[d].far;
+  cell.foods = cell.foods.filter((F) => {
+    const u = F.map((v, a) => v - cell.X[a]), L = Math.hypot(...u), i = cell.G.nearest(u.map((v) => v / (L || 1)));
+    if (L < cell.r[i] - FOOD_R * 0.5) { cell.eaten++; cell.V0 = Math.min(cell.V00 * 1.6, cell.V0 * 1.05); setFloor(cell, true); return false; }
+    return L < 3 * far;
+  });
+  while (cell.foods.length < cell.foodCount) spawnFood(cell);
 }
 
 /* one step of dt: the pressure that keeps the volume (from the forces as they are), then every patch moved, the

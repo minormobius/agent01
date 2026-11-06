@@ -65,15 +65,19 @@ for (const d of [3, 4]) {
   const w = run(d, "contract", 6, N).c;
   ok(w.X[0] > 0.2 && !w.floor, `${d}D: in open water a rear contraction swims it forward (${w.X[0].toFixed(2)} radii in 6 s): the cortex's rearward flow against the water`);
   for (const dist of [3, 6]) {
-    const h = C.makeCell(d, N); h.dtLast = DT; C.spawnFood(h, dist); const sm = C.sense(h), want = (d - 2) / dist;
+    const h = C.makeCell(d, N); h.dtLast = DT; h.foodCount = 1; C.spawnFood(h, dist); const sm = C.sense(h), want = (d - 2) / dist;
     ok(Math.abs(sm.grad / want - 1) < 0.03 && Math.abs(sm.c * dist ** (d - 2) - 1) < 0.05, `${d}D: food ${dist} away smells ${sm.c.toFixed(3)} (1/r^${d - 2}) and its relative gradient across the cell is ${sm.grad.toFixed(3)}/r (${d - 2}/r = ${want.toFixed(3)})`);
   }
 }
 {
-  const hunt = (d, N, dist, T) => { const h = C.makeCell(d, N); h.dtLast = DT; h.seed = 7919; C.spawnFood(h, dist); const s0 = C.sense(h).senses; while (h.t < T && !h.eaten) { C.applyPreset(h, "hunt", h.t); C.step(h, DT); } return { h, s0 }; };
+  const hunt = (d, N, dist, T) => { const h = C.makeCell(d, N); h.dtLast = DT; h.seed = 7919; h.foodCount = 1; C.spawnFood(h, dist); const s0 = C.sense(h).senses; while (h.t < T && !h.eaten) { C.applyPreset(h, "hunt", h.t); C.step(h, DT); } return { h, s0 }; };
   const a = hunt(3, 24, 6, 40); ok(a.s0 && a.h.eaten === 1, `3D: food 6 away is inside the horizon (1/r: c = 0.17 > 0.1); the cell follows the scent and engulfs it (${a.h.t.toFixed(1)} s)`);
   const b = hunt(4, 8, 3, 20); ok(b.s0 && b.h.eaten === 1, `4D: food 3 away is inside the horizon too (1/r²: c = 0.11), and is caught (${b.h.t.toFixed(1)} s)`);
-  const e = hunt(4, 8, 6, 30); ok(!e.s0 && e.h.eaten === 0, `4D: food 6 away is beyond it (c = ${(1 / 36).toFixed(3)}): the cell can only wander, and in 30 s hasn't found it`);
+  const e = hunt(4, 8, 6, 20); ok(!e.s0 && e.h.eaten === 0, `4D: food 6 away is beyond it (c = ${(1 / 36).toFixed(3)}): the cell can only wander, and in 20 s hasn't found it`);
   ok(a.h.V0 > a.h.V00 * 1.04, `eating grows the cell (volume ×${(a.h.V0 / a.h.V00).toFixed(2)})`);
+  // the page's food: denser in 4D, so a 4D cell is fed. From the start, in both, the scent is there to follow, and in
+  // 20 s each has eaten
+  for (const [d, N] of [[3, 24], [4, 8]]) { const h = C.makeCell(d, N); h.dtLast = DT; h.seed = 4242; C.applyPreset(h, "hunt", 0); const s0 = C.sense(h).senses; while (h.t < 20) { C.applyPreset(h, "hunt", h.t); C.step(h, DT); }
+    ok(s0 && h.eaten >= 1 && h.foods.length === C.FOOD[d].count, `${d}D: with the page's food (${C.FOOD[d].count} morsels ${C.FOOD[d].near}–${C.FOOD[d].far} radii off), it smells food from the start and eats ${h.eaten} in 20 s`); }
 }
 console.log(`${checks - fails}/${checks} checks`); process.exit(fails ? 1 : 0);
