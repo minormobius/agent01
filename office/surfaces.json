@@ -1283,6 +1283,15 @@
    "parent": null
   },
   {
+   "id": "polity",
+   "name": "polity",
+   "url": "https://cards.mino.mobi/polity/",
+   "cat": "data",
+   "commits": 20,
+   "age": "hot",
+   "parent": "cards"
+  },
+  {
    "id": "techtree",
    "name": "techtree",
    "url": "https://mino.mobi/cards/collection/techtree.html",
@@ -6291,6 +6300,16 @@
    "commits": 0,
    "age": "cold",
    "parent": "phylo",
+   "discovered": true
+  },
+  {
+   "id": "cards/polity",
+   "name": "polity",
+   "url": "https://mino.mobi/cards/polity/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "cards",
    "discovered": true
   },
   {
