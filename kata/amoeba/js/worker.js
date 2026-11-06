@@ -24,9 +24,9 @@ function send() {
   const [t0, C0] = hist[0], vel = A.t > t0 ? Math.hypot(...[...C].map((x, k) => (k === 1 ? 0 : x - C0[k]))) / (A.t - t0) : 0;
   // (the mesh itself, when remeshing has changed it since the last frame the page took)
   const remeshed = (A.meshVersion || 0) !== sentVersion; sentVersion = A.meshVersion || 0;
-  const msg = { type: "frame", t: A.t, d, nv, nf: A.nf, F: remeshed ? A.M.F.slice() : null, P: Float32Array.from(P), g: gn, u: Float32Array.from(u), v: Float32Array.from(A.myo), sig: Float32Array.from(sig),
+  const msg = { type: "frame", t: A.t, d, nv, nf: A.nf, F: remeshed ? A.M.F.slice() : null, P: Float32Array.from(P), g: gn, u: Float32Array.from(u), v: Float32Array.from(A.myo), sig: Float32Array.from(sig), chem: Float32Array.from(A.chem), pv: A.pv ? [...A.pv] : null,
     nuc: [...A.nuc.c], nucA: A.nuc.a, foods: A.foods.map((F) => [...F]), C: [...C], V: A.V, V0: A.V0, V00: A.V00, area: A.Area, Pr: A.Pr, eaten: A.eaten, vel, floor: A.floor, stepMs: A.stepMs || 0 };
-  ready = false; self.postMessage(msg, [msg.P.buffer, msg.g.buffer, msg.u.buffer, msg.v.buffer, msg.sig.buffer]);
+  ready = false; self.postMessage(msg, [msg.P.buffer, msg.g.buffer, msg.u.buffer, msg.v.buffer, msg.sig.buffer, msg.chem.buffer]);
 }
 // paced to the clock: RATE seconds of the cell's time per second of yours (behind, it catches up within a budget;
 // a slow 4D step just runs slower)

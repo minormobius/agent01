@@ -260,8 +260,8 @@ export function step(A, dt = A.par.dt) {
   const every = A.d === 3 ? par.remeshEvery : par.remeshEvery4;
   if (every && A.nstep % every === 0) A.lastRemesh = remesh(A);
   // (last of all: the nucleus has moved and remeshing may have put a new midpoint inside it, so the membrane is held off
-  // the floor and the nucleus once more)
-  constrain(A);
+  // the floor and the nucleus once more, facets and all)
+  constrain(A, true);
 }
 
 /* conjugate gradients for (1/c_i + k_i) x_i − Σ_{j ~ i} x_j = r_i, every coordinate at once (the same matrix for each) */
@@ -299,13 +299,45 @@ export function remesh(A) {
 }
 
 /* the floor and the nucleus: the membrane can't pass either */
-function constrain(A) {
+function constrain(A, facets = false) {
   const { d, P, nv } = A, c = A.nuc.c, r = A.nuc.a + NUC_GAP;
+  // points: off the floor, and out of the nucleus (pushed out radially)
+  const R = A.nucPush || (A.nucPush = new Float64Array(d)); R.fill(0); let nr = 0;
   for (let i = 0; i < nv; i++) {
     if (A.floor && P[i * d + 1] < 0) P[i * d + 1] = 0;
     let q = 0; for (let k = 0; k < d; k++) q += (P[i * d + k] - c[k]) ** 2;
-    if (q < r * r) { const s = r / Math.sqrt(q || 1e-12); for (let k = 0; k < d; k++) P[i * d + k] = c[k] + (P[i * d + k] - c[k]) * s; }
+    if (q < r * r) { const s = r / Math.sqrt(q || 1e-12); for (let k = 0; k < d; k++) { const dx = (P[i * d + k] - c[k]) * (s - 1); P[i * d + k] += dx; R[k] += dx; } nr++; }
   }
+  // facets: a facet can pass across the nucleus with its corners all clear (in 4D the edges are as long as the nucleus
+  // is wide). So, once a step (facets = true), each facet near it is checked too: the nucleus's centre projected into
+  // the facet's own span; if that point lies inside the facet and nearer than r, the whole facet is pushed out along
+  // the line from the centre. (Only facets whose middle is within r plus their own size can touch it; the small
+  // Gram system is solved in place)
+  if (facets && A.M) {
+    const F = A.M.F, e = A.nucE || (A.nucE = [new Float64Array(d), new Float64Array(d), new Float64Array(d)]), x0 = A.nucX || (A.nucX = new Float64Array(d)), qp = A.nucQ || (A.nucQ = new Float64Array(d));
+    for (let k = 0; k < A.nf; k++) {
+      let cq = 0, rad = 0; for (let c2 = 0; c2 < d; c2++) { let m = 0; for (let j = 0; j < d; j++) m += P[F[k * d + j] * d + c2]; m /= d; cq += (m - c[c2]) ** 2; x0[c2] = m; }
+      for (let j = 0; j < d; j++) { let q = 0; for (let c2 = 0; c2 < d; c2++) q += (P[F[k * d + j] * d + c2] - x0[c2]) ** 2; if (q > rad) rad = q; }
+      const lim = r + Math.sqrt(rad); if (cq > lim * lim) continue;
+      const i0 = F[k * d];
+      for (let j = 1; j < d; j++) { const ij = F[k * d + j]; for (let c2 = 0; c2 < d; c2++) e[j - 1][c2] = P[ij * d + c2] - P[i0 * d + c2]; }
+      let l1, l2, l3 = 0;
+      const dt2 = (u, v) => { let q = 0; for (let c2 = 0; c2 < d; c2++) q += u[c2] * v[c2]; return q; }, bq = (u) => { let q = 0; for (let c2 = 0; c2 < d; c2++) q += u[c2] * (c[c2] - P[i0 * d + c2]); return q; };
+      if (d === 3) { const a = dt2(e[0], e[0]), bb = dt2(e[0], e[1]), cc = dt2(e[1], e[1]), b1 = bq(e[0]), b2 = bq(e[1]), det = a * cc - bb * bb; if (Math.abs(det) < 1e-14) continue; l1 = (b1 * cc - b2 * bb) / det; l2 = (a * b2 - bb * b1) / det; }
+      else { const a = dt2(e[0], e[0]), b = dt2(e[0], e[1]), cxx = dt2(e[0], e[2]), dd = dt2(e[1], e[1]), ee = dt2(e[1], e[2]), ff = dt2(e[2], e[2]), r1 = bq(e[0]), r2 = bq(e[1]), r3 = bq(e[2]);
+        const det = a * (dd * ff - ee * ee) - b * (b * ff - ee * cxx) + cxx * (b * ee - dd * cxx); if (Math.abs(det) < 1e-16) continue;
+        l1 = (r1 * (dd * ff - ee * ee) - b * (r2 * ff - ee * r3) + cxx * (r2 * ee - dd * r3)) / det;
+        l2 = (a * (r2 * ff - ee * r3) - r1 * (b * ff - ee * cxx) + cxx * (b * r3 - r2 * cxx)) / det;
+        l3 = (a * (dd * r3 - r2 * ee) - b * (b * r3 - r2 * cxx) + r1 * (b * ee - dd * cxx)) / det; }
+      if (l1 < 0 || l2 < 0 || l3 < 0 || l1 + l2 + l3 > 1) continue;
+      let dd2 = 0; for (let c2 = 0; c2 < d; c2++) { const v = P[i0 * d + c2] + l1 * e[0][c2] + l2 * e[1][c2] + (d === 4 ? l3 * e[2][c2] : 0); qp[c2] = v - c[c2]; dd2 += qp[c2] ** 2; }
+      const dd = Math.sqrt(dd2); if (dd >= r) continue;
+      const push = (r - dd) / (dd || 1e-9);
+      for (let j = 0; j < d; j++) { const ij = F[k * d + j]; for (let c2 = 0; c2 < d; c2++) P[ij * d + c2] += qp[c2] * push; }
+      for (let c2 = 0; c2 < d; c2++) R[c2] += qp[c2] * push * d; nr += d;
+    }
+  }
+  A.nucPushN = nr;
 }
 /* keep the mesh even: each vertex slides along the surface (its normal part removed) toward its neighbours' middle,
    and its signalling goes with it (blended as it moves) */
@@ -340,9 +372,16 @@ function relaxMesh(A) {
 
 /* the nucleus: held toward the cell's middle, kept off the floor */
 function moveNucleus(A, dt) {
-  const { d, P, nv, area } = A, c = A.nuc.c, m = new Float64Array(d); let w = 0;
-  for (let i = 0; i < nv; i++) { for (let k = 0; k < d; k++) m[k] += area[i] * P[i * d + k]; w += area[i]; }
-  for (let k = 0; k < d; k++) c[k] += dt * 3 * (m[k] / w - c[k]);
+  // it is held toward the middle of the volume the membrane encloses (each facet's cone from the origin, weighted by its
+  // signed volume; the average of the membrane's points could lie outside a sprawling cell), and pushed back by the
+  // membrane where the membrane presses on it (the reaction to holding the membrane off it)
+  const { d, P, nf, M, fN } = A, c = A.nuc.c, m = new Float64Array(d), fact = FACT[d]; let V = 0;
+  for (let k = 0; k < nf; k++) { const i0 = M.F[k * d]; let s = 0; for (let q = 0; q < d; q++) s += fN[k * d + q] * P[i0 * d + q]; const v = s / (fact * d); V += v;
+    for (let j = 0; j < d; j++) { const ij = M.F[k * d + j]; for (let q = 0; q < d; q++) m[q] += (v * P[ij * d + q]) / (d + 1); } }
+  const R = A.nucPush, n = A.nucPushN || 0;
+  for (let k = 0; k < d; k++) c[k] += dt * 3 * (m[k] / V - c[k]) - (n ? (0.5 * R[k]) / n : 0);
+  // (and if it has been left outside after all, straight back toward the middle)
+  if (!inside(A, c)) for (let k = 0; k < d; k++) c[k] += 0.3 * (m[k] / V - c[k]);
   if (A.floor) c[1] = Math.max(c[1], A.nuc.a + NUC_GAP + 0.03);
 }
 

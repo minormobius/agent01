@@ -22,6 +22,31 @@ it flow. Five things act on it:
 - **The membrane budget.** As PROTEUS's: a reserve of 1.6 times a ball's area, past which tension rises everywhere.
   A foot grows only by drawing the rest of the cell in.
 
+## The nucleus
+
+A stiff ball (a 4-ball in 4D) that the membrane can't pass:
+
+- **Points and facets.** The membrane's points are pushed out of it. Once a step its facets are too: the nucleus's
+  centre projected into each nearby facet, and the whole facet pushed out if that point is inside the facet and too
+  near. In 4D an edge is as long as the nucleus is wide, so a tetrahedron could sweep across it with its corners all
+  clear. In your slice that looked like a "dry nucleus", poking out of the cell.
+- **Pushed back.** The membrane pushes back where it presses on it.
+- **Held toward the middle of the enclosed volume.** That is each facet's cone, weighted by its signed volume. The
+  average of the membrane's points could lie outside a sprawling cell.
+
+## The panels
+
+The view takes the top two-thirds. Below are two little 3D views, each turned by dragging and zoomed by pinch or
+scroll, with labelled axes:
+
+- **Footprint.** In 3D, the floor plane (x, z) with the footprint on it and the cell faintly above (y up). In 4D, the
+  floor is a space (x, z, w), the footprint is a solid, and your slice's cut through the floor is drawn as a plane.
+  The white arrow is the cell's heading.
+- **Smell.** Every membrane point is placed by its direction from the cell's middle and coloured by the chemical it
+  reads, dark to amber. With no food about it is coloured by firing and myosin instead. In 3D the directions are
+  (x, y, z). In 4D the cell can only go along its floor, so they are the floor's (x, z, w): the sphere of every way
+  it could crawl. The arrows are the gradient it reads (gold) and its heading (white); green marks the food.
+
 ## Remeshing (`js/remesh.js`)
 
 Every 5 steps the mesh is rebuilt where it needs it, by isotropic remeshing (Botsch & Kobbelt):

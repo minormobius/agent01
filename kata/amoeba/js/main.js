@@ -214,7 +214,7 @@ function draw(now) {
   gl.uniform3fv(UM.uEye, cam.eye); gl.uniform3fv(UM.uCR, cam.R); gl.uniform3fv(UM.uCU, cam.U); gl.uniform3fv(UM.uCF, cam.F); gl.uniform1f(UM.uTan, TAN); gl.uniform1f(UM.uAsp, cw / chh);
   if (d === 3) gl.drawElements(gl.TRIANGLES, nIdx, gl.UNSIGNED_INT, 0); else gl.drawArrays(gl.TRIANGLES, 0, nTri);
   gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
-  overlay();
+  overlay(); panes();
 }
 
 /* ------------------------------------------------------------------ the readout and the minimap */
@@ -234,35 +234,102 @@ function overlay() {
   if (d === 4) lines.push(`your slice: ${frame.off >= 0 ? "+" : ""}${frame.off.toFixed(2)} ana`);
   const wrapped = lines.flatMap((l) => (g.measureText(l).width < w - 24 ? [l] : l.split(" · ")));
   g.fillStyle = "rgba(233,228,218,0.85)"; wrapped.forEach((l, i) => g.fillText(l, 12, h - 130 - 15 * (wrapped.length - i)));
-  if (fr.floor) minimap(g, w, h);
 }
-/* the footprint: the membrane's points on the floor, coloured by what they're doing (cyan firing, warm myosin), seen
-   from above in 3D; in 4D the floor is 3D, so a little 3D view of the footprint solid (x, z across, w up), turned with
-   your camera, with your slice's cut through the floor as a plane */
-function minimap(g, w, h) {
-  const d = fr.d, S0 = Math.round(Math.min(180, w * 0.34)), x0 = w - S0 - 10, y0 = 50, cx = x0 + S0 / 2, cy = y0 + S0 / 2;
-  const pts = []; for (let i = 0; i < mesh.nv; i++) if (fr.P[i * d + 1] < 0.03) pts.push(i);
-  let reach = 1; const m0 = [fr.C[0], fr.C[2], d === 4 ? fr.C[3] : 0];
-  for (let i = 0; i < mesh.nv; i++) { const p = [fr.P[i * d], fr.P[i * d + 2], d === 4 ? fr.P[i * d + 3] : 0]; reach = Math.max(reach, Math.hypot(p[0] - m0[0], p[1] - m0[1], p[2] - m0[2])); }
-  const sc = (S0 * (d === 3 ? 0.46 : 0.4)) / reach, ca = Math.cos(view.az), sa = Math.sin(view.az), pitch = d === 3 ? Math.PI / 2 : 0.55, cp = Math.cos(pitch), sp = Math.sin(pitch);
-  const Pm = (a0, b0, c0 = 0) => { const a = a0 - m0[0], b = b0 - m0[1], c = c0 - m0[2], a2 = a * ca + b * sa, b2 = -a * sa + b * ca; return [cx + a2 * sc, cy - (c * cp - b2 * sp) * sc, c * sp + b2 * cp]; };
-  g.save(); g.fillStyle = "rgba(8,14,16,0.72)"; g.strokeStyle = "rgba(233,228,218,0.25)"; g.beginPath(); g.roundRect ? g.roundRect(x0, y0, S0, S0, 8) : g.rect(x0, y0, S0, S0); g.fill(); g.stroke(); g.beginPath(); g.rect(x0, y0, S0, S0); g.clip();
-  // the whole cell from above, faint (3D)
-  if (d === 3) { g.fillStyle = "rgba(220,190,185,0.12)"; for (let i = 0; i < mesh.nv; i++) { const q = Pm(fr.P[i * 3], fr.P[i * 3 + 2]); g.fillRect(q[0] - 1, q[1] - 1, 2, 2); } }
-  if (d === 4) { const E = frame.E, gy = E.map((e) => e[1]), g2 = gy.reduce((a, v) => a + v * v, 0);
-    if (g2 > 1e-6 && S) { const s0 = gy.map((v) => (v * -S[1]) / g2), at = (sv) => [0, 1, 2, 3].map((k) => S[k] + sv[0] * E[0][k] + sv[1] * E[1][k] + sv[2] * E[2][k]);
-      let u = Math.abs(gy[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1]; const pr = dot(u, gy) / g2; u = u.map((v, k) => v - pr * gy[k]); u = unit(u); const v3 = unit(cross(gy, u));
-      const o = at(s0), U = at(u).map((x, k) => x - S[k]), V = at(v3).map((x, k) => x - S[k]), L = reach;
-      const c4 = [[-L, -L], [L, -L], [L, L], [-L, L]].map(([a, b]) => Pm(o[0] + a * U[0] + b * V[0], o[2] + a * U[2] + b * V[2], o[3] + a * U[3] + b * V[3]));
-      g.fillStyle = "rgba(233,228,218,0.08)"; g.strokeStyle = "rgba(233,228,218,0.35)"; g.beginPath(); c4.forEach((p, k) => (k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fill(); g.stroke(); } }
-  const P2 = pts.map((i) => { const q = Pm(fr.P[i * d], fr.P[i * d + 2], d === 4 ? fr.P[i * d + 3] : 0); return [q, fr.u[i], fr.v[i]]; }).sort((a, b) => b[0][2] - a[0][2]);
-  for (const [q, u, v] of P2) { g.fillStyle = u > 0.4 ? "rgba(90,230,255,0.9)" : v > 0.3 ? "rgba(240,120,90,0.8)" : "rgba(150,190,195,0.7)"; g.fillRect(q[0] - 1.2, q[1] - 1.2, 2.4, 2.4); }
-  { const q = Pm(fr.nuc[0], fr.nuc[2], d === 4 ? fr.nuc[3] : 0); g.fillStyle = "rgba(170,110,200,0.9)"; g.beginPath(); g.arc(q[0], q[1], Math.max(2.5, fr.nucA * sc * 0.8), 0, 7); g.fill(); }
-  for (const F of fr.foods) { const q = Pm(F[0], F[2], d === 4 ? F[3] : 0), inside = q[0] > x0 + 4 && q[0] < x0 + S0 - 4 && q[1] > y0 + 4 && q[1] < y0 + S0 - 4;
-    g.fillStyle = "rgba(120,215,95,0.85)";
-    if (inside) { g.beginPath(); g.arc(q[0], q[1], 2.8, 0, 7); g.fill(); }
-    else { const t = Math.atan2(q[1] - cy, q[0] - cx), ex = cx + Math.cos(t) * (S0 / 2 - 9), ey = cy + Math.sin(t) * (S0 / 2 - 9); g.beginPath(); g.moveTo(ex + Math.cos(t) * 5, ey + Math.sin(t) * 5); g.lineTo(ex + Math.cos(t + 2.4) * 5, ey + Math.sin(t + 2.4) * 5); g.lineTo(ex + Math.cos(t - 2.4) * 5, ey + Math.sin(t - 2.4) * 5); g.fill(); } }
-  g.restore(); g.fillStyle = "rgba(233,228,218,0.7)"; g.fillText(d === 3 ? "footprint, from above" : "footprint (x, z, w↑)", x0 + 6, y0 + S0 + 13);
+/* ------------------------------------------------------------------ the two panels below
+   Each is its own little 3D view, drawn on a 2D canvas: drag to turn it, pinch or scroll to zoom. Coordinates (a, b, c)
+   are drawn with c up; each panel says which axes they are, and draws and labels them.
+
+   FOOTPRINT: where the cell stands. In 3D the floor is the x–z plane: the footprint (the membrane's points touching
+   it, coloured by what they're doing) in it, the whole cell faintly above it (y up). In 4D the floor is a 3D space
+   (x, z, w): the footprint is a solid, the cell's shadow on its floor faint round it, and your slice's cut through the
+   floor drawn as a plane.
+
+   SMELL: what the membrane reads, all round. Every point of the membrane placed by its direction from the cell's middle
+   and coloured by the chemical there (dark to amber; with no food, by where it's firing). In 3D the directions are
+   (x, y, z): a sphere. In 4D the cell can only go along its floor, so the directions are the floor's (x, z, w): again a
+   sphere, now of every way it could crawl. The gold arrow is the gradient it reads, the white one its heading, the
+   green marks the directions of food */
+const PV = { fp: { az: 0.6, el: 0.55, zoom: 1, el3: 1.25 }, sm: { az: 0.6, el: 0.35, zoom: 1 } };
+function paneControls(cv, st) {
+  const ps = new Map(); let pinch0 = 0;
+  cv.addEventListener("pointerdown", (e) => { try { cv.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } ps.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ps.size === 2) { const [a, b] = [...ps.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); } });
+  cv.addEventListener("pointermove", (e) => { const g = ps.get(e.pointerId); if (!g) return;
+    if (ps.size >= 2) { g.x = e.clientX; g.y = e.clientY; const [a, b] = [...ps.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 10) st.zoom = Math.max(0.3, Math.min(6, st.zoom * (d / pinch0))); pinch0 = d; return; }
+    st.az -= (e.clientX - g.x) * 0.01; st.el = Math.max(-1.5, Math.min(1.5, st.el + (e.clientY - g.y) * 0.01)); g.x = e.clientX; g.y = e.clientY; });
+  for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, (e) => ps.delete(e.pointerId));
+  cv.addEventListener("wheel", (e) => { st.zoom = Math.max(0.3, Math.min(6, st.zoom * Math.exp(-e.deltaY * 0.0012))); e.preventDefault(); }, { passive: false });
+}
+paneControls($("fp"), PV.fp); paneControls($("sm"), PV.sm);
+// a view: rotate (a, b) by az about c, tilt by el; returns [sx, sy, depth]
+function projector(cv, st, scale, centre = [0, 0, 0]) {
+  const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const ca = Math.cos(st.az), sa = Math.sin(st.az), ce = Math.cos(st.el), se = Math.sin(st.el), sc = scale * st.zoom * Math.min(w, h), cx = w / 2, cy = h / 2 + 6;
+  const P = (a0, b0, c0) => { const a = a0 - centre[0], b = b0 - centre[1], c = c0 - centre[2], x = a * ca + b * sa, y = -a * sa + b * ca; return [cx + x * sc, cy - (c * ce - y * se) * sc, c * se + y * ce]; };
+  return { g, P, w, h, sc };
+}
+function axes(g, P, L, names, origin = [0, 0, 0]) {
+  g.lineWidth = 1; g.font = "600 11px ui-monospace, Menlo, monospace";
+  const cols = ["rgba(255,140,120,0.85)", "rgba(140,220,150,0.85)", "rgba(130,180,255,0.85)"];
+  for (let k = 0; k < 3; k++) { const e = [0, 0, 0]; e[k] = L; const a = P(...origin), b = P(origin[0] + e[0], origin[1] + e[1], origin[2] + e[2]), n = P(origin[0] - e[0], origin[1] - e[1], origin[2] - e[2]);
+    g.strokeStyle = cols[k].replace("0.85", "0.25"); g.beginPath(); g.moveTo(n[0], n[1]); g.lineTo(a[0], a[1]); g.stroke();
+    g.strokeStyle = cols[k]; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.fillStyle = cols[k]; g.fillText(names[k], b[0] + 3, b[1] - 3); }
+}
+const firingColour = (u, v, a = 1) => (u > 0.4 ? `rgba(90,230,255,${a})` : v > 0.3 ? `rgba(240,120,90,${a * 0.9})` : `rgba(160,195,200,${a * 0.75})`);
+function arrow(g, P, from, dir, len, col, w = 2) {
+  const a = P(...from), b = P(from[0] + dir[0] * len, from[1] + dir[1] * len, from[2] + dir[2] * len); g.strokeStyle = col; g.fillStyle = col; g.lineWidth = w;
+  g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); const t = Math.atan2(b[1] - a[1], b[0] - a[0]); g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(b[0] - 7 * Math.cos(t - 0.4), b[1] - 7 * Math.sin(t - 0.4)); g.lineTo(b[0] - 7 * Math.cos(t + 0.4), b[1] - 7 * Math.sin(t + 0.4)); g.fill(); g.lineWidth = 1;
+}
+function panes() {
+  if (!fr || !mesh || fr.d !== mesh.d) return;
+  const d = fr.d, nv = mesh.nv, C = fr.C, X = (i) => fr.P[i * d], Y = (i) => fr.P[i * d + 1], Z = (i) => fr.P[i * d + 2], Wc = (i) => (d === 4 ? fr.P[i * d + 3] : 0);
+  // ---- footprint
+  {
+    let reach = 1; for (let i = 0; i < nv; i++) reach = Math.max(reach, Math.hypot(X(i) - C[0], Z(i) - C[2], d === 4 ? Wc(i) - C[3] : 0));
+    const st = d === 3 ? { ...PV.fp, el: PV.fp.el } : PV.fp, ctr = d === 3 ? [C[0], C[2], 0] : [C[0], C[2], C[3]];
+    const { g, P } = projector($("fp"), st, 0.36 / reach, ctr);
+    // the floor's grid (world-fixed, so it slides as the cell goes): in 3D the floor plane; in 4D the slice's cut
+    g.strokeStyle = "rgba(160,200,200,0.1)"; const R = Math.ceil(reach * 1.4);
+    if (d === 3) for (let k = -R; k <= R; k++) { const gx = Math.round(C[0]) + k, gz = Math.round(C[2]) + k; let a = P(gx, C[2] - R, 0), b = P(gx, C[2] + R, 0); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); a = P(C[0] - R, gz, 0); b = P(C[0] + R, gz, 0); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    if (d === 4 && S) { const E = frame.E, gy = E.map((e) => e[1]), g2 = gy.reduce((a, v) => a + v * v, 0);
+      if (g2 > 1e-6) { const s0 = gy.map((v) => (v * -S[1]) / g2), at = (sv) => [0, 1, 2, 3].map((k) => S[k] + sv[0] * E[0][k] + sv[1] * E[1][k] + sv[2] * E[2][k]);
+        let u = Math.abs(gy[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1]; const pr = dot(u, gy) / g2; u = unit(u.map((v, k) => v - pr * gy[k])); const v3 = unit(cross(gy, u));
+        const o = at(s0), U = at(u).map((x, k) => x - S[k]), V = at(v3).map((x, k) => x - S[k]), L = reach * 1.2;
+        const c4 = [[-L, -L], [L, -L], [L, L], [-L, L]].map(([a, b]) => P(o[0] + a * U[0] + b * V[0], o[2] + a * U[2] + b * V[2], o[3] + a * U[3] + b * V[3]));
+        g.fillStyle = "rgba(233,228,218,0.07)"; g.strokeStyle = "rgba(233,228,218,0.35)"; g.beginPath(); c4.forEach((p, k) => (k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fill(); g.stroke(); } }
+    axes(g, P, reach * 0.9, d === 3 ? ["x", "z", "y (up)"] : ["x", "z", "w"], ctr);
+    const pts = [];
+    for (let i = 0; i < nv; i++) { const onFloor = Y(i) < 0.03; if (d === 3) pts.push([P(X(i), Z(i), onFloor ? 0 : Y(i)), onFloor, i]); else pts.push([P(X(i), Z(i), Wc(i)), onFloor, i]); }
+    pts.sort((p, q) => q[0][2] - p[0][2]);
+    for (const [q, on, i] of pts) { if (on) { g.fillStyle = firingColour(fr.u[i], fr.v[i]); g.fillRect(q[0] - 1.3, q[1] - 1.3, 2.6, 2.6); } else { g.fillStyle = "rgba(220,190,185,0.13)"; g.fillRect(q[0] - 0.8, q[1] - 0.8, 1.6, 1.6); } }
+    { const q = P(fr.nuc[0], fr.nuc[2], d === 4 ? fr.nuc[3] : fr.nuc[1]); g.fillStyle = "rgba(170,110,200,0.95)"; g.beginPath(); g.arc(q[0], q[1], 4, 0, 7); g.fill(); }
+    for (const F of fr.foods) { const q = P(F[0], F[2], d === 4 ? F[3] : 0); g.fillStyle = "rgba(120,215,95,0.9)"; g.beginPath(); g.arc(q[0], q[1], 3, 0, 7); g.fill(); }
+    if (fr.pv) { const h = [fr.pv[0], fr.pv[2], d === 4 ? fr.pv[3] : 0], l = Math.hypot(...h); if (l > 1e-3) arrow(g, P, ctr, h.map((x) => x / l), reach * 0.6, "rgba(255,255,255,0.8)"); }
+    $("fpT").textContent = d === 3 ? "footprint · the floor is a plane (x, z)" : "footprint · the floor is a space (x, z, w)";
+    $("fpS").textContent = d === 3 ? "on the floor, bright: cyan firing, red myosin · the cell faint above · white: its heading" : "the footprint is a solid · the plane: your slice's cut through the floor · white: its heading";
+  }
+  // ---- smell
+  {
+    const { g, P } = projector($("sm"), PV.sm, 0.3, [0, 0, 0]);
+    const dirs = []; let cmin = Infinity, cmax = -Infinity, cm = 0; const food = fr.foods.length > 0;
+    for (let i = 0; i < nv; i++) { let a = X(i) - C[0], b = Z(i) - C[2], c = d === 3 ? Y(i) - C[1] : Wc(i) - C[3]; const l = Math.hypot(a, b, c); if (l < 1e-6) continue; a /= l; b /= l; c /= l; dirs.push([a, b, c, i]); const ch = fr.chem[i]; cmin = Math.min(cmin, ch); cmax = Math.max(cmax, ch); cm += ch; }
+    cm /= Math.max(1, dirs.length);
+    // the sphere's outline, then the axes, then the membrane's readings, nearest last
+    g.strokeStyle = "rgba(233,228,218,0.15)"; const o = P(0, 0, 0), r0 = Math.abs(P(1, 0, 0)[0] - o[0]) || 1; g.beginPath(); g.arc(o[0], o[1], Math.hypot(P(1, 0, 0)[0] - o[0], P(1, 0, 0)[1] - o[1]), 0, 7); g.stroke(); void r0;
+    axes(g, P, 1.25, d === 3 ? ["x", "z", "y (up)"] : ["x", "z", "w"]);
+    const pts = dirs.map(([a, b, c, i]) => [P(a, b, c), i]).sort((p, q) => q[0][2] - p[0][2]);
+    for (const [q, i] of pts) { const front = q[2] < 0; let col;
+      if (food) { const t = cmax > cmin ? (fr.chem[i] - cmin) / (cmax - cmin) : 0; col = `rgba(${Math.round(40 + 215 * t)},${Math.round(60 + 130 * t)},${Math.round(110 - 70 * t)},${front ? 0.95 : 0.35})`; }
+      else col = firingColour(fr.u[i], fr.v[i], front ? 0.9 : 0.3);
+      g.fillStyle = col; g.fillRect(q[0] - 1.4, q[1] - 1.4, 2.8, 2.8); }
+    // the gradient it reads (Σ (c − c̄) n), its heading, and food
+    if (food) { const gr = [0, 0, 0]; for (const [a, b, c, i] of dirs) { const w = fr.chem[i] - cm; gr[0] += w * a; gr[1] += w * b; gr[2] += w * c; } const l = Math.hypot(...gr); if (l > 0) arrow(g, P, [0, 0, 0], gr.map((x) => x / l), 1.35, "rgba(255,210,122,0.95)", 2.5);
+      for (const F of fr.foods) { const a = F[0] - C[0], b = F[2] - C[2], c = d === 3 ? F[1] - C[1] : F[3] - C[3], l2 = Math.hypot(a, b, c); if (l2 < 1e-6) continue; const q = P((a / l2) * 1.15, (b / l2) * 1.15, (c / l2) * 1.15); g.fillStyle = "rgba(120,215,95,0.95)"; g.beginPath(); g.arc(q[0], q[1], 3.2, 0, 7); g.fill(); } }
+    if (fr.pv) { const h = [fr.pv[0], fr.pv[2], d === 4 ? fr.pv[3] : fr.pv[1]], l = Math.hypot(...h); if (l > 1e-3) arrow(g, P, [0, 0, 0], h.map((x) => x / l), 1.1, "rgba(255,255,255,0.75)"); }
+    $("smT").textContent = d === 3 ? "smell · its membrane, all round (x, y, z)" : "smell · every way along its floor (x, z, w)";
+    $("smS").textContent = food ? "dark → amber: the chemical each part reads · gold: the gradient · green: food · white: heading" : "no food about: coloured by firing (cyan) and myosin (red) · white: heading";
+  }
 }
 
 /* ------------------------------------------------------------------ start */

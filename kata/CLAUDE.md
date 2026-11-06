@@ -144,7 +144,9 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   nucleated patches, slow recovery, global inhibition, curvature feedback, one polarity axis (absolute units), myosin
   at the rear. Settings were found by contact sheets (README: the path, including the failures). Physics in a worker
   (`js/worker.js`, mesh re-sent when remeshed); the page ray-marches floor, food and nucleus with depth, then
-  rasterises the membrane over it. See [`amoeba/README.md`](amoeba/README.md).
+  rasterises the membrane over it (top two-thirds); below, two 2D-canvas 3D panels (footprint; smell sphere), each
+  with its own drag/pinch and labelled axes. The nucleus collides with facets, not just points (once a step: in 4D
+  an edge is as long as it is wide). See [`amoeba/README.md`](amoeba/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
