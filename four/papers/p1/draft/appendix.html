@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="source-sha256" content="1814c1f45053c4537f8ff596aad724dedf28a9f80f8188831d610364a8c47be1" />
+<title>Paper 1 · Appendices (draft)</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../paper.css" />
+</head>
+<body>
+<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 1 · draft section</span><span class="grow" style="flex:1"></span><a href="appendix.md">source with its numbers</a></div>
+<article class="sheet">
+<div class="p-venue">four.mino.mobi · paper 1 · in preparation</div>
+<div class="p-body single">
+<h1 id="appendices-draft">Appendices (draft)</h1>
+<h2 id="a-the-4d-kernel">A · The 4D kernel</h2>
+<p>A thin spherical shell of unit charge and radius
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>,
+felt at radius
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>,
+gives the potential
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">k(t)/\max(r, s)</annotation></semantics></math>,
+where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mo>min</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">t = \min(r, s)/\max(r, s)</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+is the law’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">|</mo><mi>x</mi><mo>−</mo><mi>y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">1/|x - y|</annotation></semantics></math>
+averaged over the shell. On the 3-sphere the average over directions
+carries the weight
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="false"><mn>2</mn><mi>π</mi></mfrac><msup><mo>sin</mo><mn>2</mn></msup><mi>θ</mi><mspace width="0.167em"></mspace><mi>d</mi><mi>θ</mi></mrow><annotation encoding="application/x-tex">\tfrac{2}{\pi}\sin^2\theta\,d\theta</annotation></semantics></math>,
+so</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>2</mn><mi>π</mi></mfrac><msubsup><mo>∫</mo><mn>0</mn><mi>π</mi></msubsup><mfrac><mrow><msup><mo>sin</mo><mn>2</mn></msup><mi>θ</mi><mspace width="0.167em"></mspace><mi>d</mi><mi>θ</mi></mrow><msqrt><mrow><mn>1</mn><mo>+</mo><msup><mi>t</mi><mn>2</mn></msup><mo>−</mo><mn>2</mn><mi>t</mi><mo>cos</mo><mi>θ</mi></mrow></msqrt></mfrac><mi>.</mi></mrow><annotation encoding="application/x-tex">k(t) = \frac{2}{\pi}\int_0^\pi \frac{\sin^2\theta\,d\theta}{\sqrt{1 + t^2 - 2t\cos\theta}}.</annotation></semantics></math></p>
+<p>In ours the same average, with weight
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>sin</mo><mi>θ</mi><mspace width="0.167em"></mspace><mi>d</mi><mi>θ</mi></mrow><annotation encoding="application/x-tex">\tfrac12\sin\theta\,d\theta</annotation></semantics></math>,
+is exactly 1 for every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>:
+the shell theorem. In four dimensions it isn’t. The integral has a
+closed form in the complete elliptic integrals
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>E</mi><annotation encoding="application/x-tex">E</annotation></semantics></math>
+of modulus
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mrow><mn>4</mn><mspace width="0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>+</mo><msup><mi>t</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>−</mo><msup><mi>t</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi>K</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="true" form="postfix">]</mo></mrow></mrow><mrow><mn>3</mn><mi>π</mi><msup><mi>t</mi><mn>2</mn></msup></mrow></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">k(t) = \frac{4\,[(1 + t^2)\,E(t) - (1 - t^2)\,K(t)]}{3\pi t^2},</annotation></semantics></math></p>
+<p>which gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>8</mn><mi>/</mi><mn>3</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">k(1) = 8/3\pi</annotation></semantics></math>
+(since
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">E(1) = 1</annotation></semantics></math>),
+and the series</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>1</mn><mo>−</mo><mfrac><msup><mi>t</mi><mn>2</mn></msup><mn>8</mn></mfrac><mo>−</mo><mfrac><msup><mi>t</mi><mn>4</mn></msup><mn>64</mn></mfrac><mo>−</mo><mfrac><mrow><mn>5</mn><msup><mi>t</mi><mn>6</mn></msup></mrow><mn>1024</mn></mfrac><mo>−</mo><mfrac><mrow><mn>35</mn><msup><mi>t</mi><mn>8</mn></msup></mrow><mn>16384</mn></mfrac><mo>−</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">k(t) = 1 - \frac{t^2}{8} - \frac{t^4}{64} - \frac{5t^6}{1024} - \frac{35t^8}{16384} - \dots</annotation></semantics></math></p>
+<p>Each term is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>t</mi><mi>n</mi></msup><annotation encoding="application/x-tex">t^n</annotation></semantics></math>
+times the average of the Legendre polynomial
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>P</mi><mi>n</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>cos</mo><mi>θ</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">P_n(\cos\theta)</annotation></semantics></math>
+over the 3-sphere; the odd ones vanish. The solver evaluates
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+by Simpson’s rule in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math>
+with 400 intervals, tabulated at 2001 points of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+and interpolated. The closed form agrees with that quadrature to 2.7 ×
+10⁻¹⁵ for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math>
+up to 0.9 (ledger <code>kernelclosed</code>); nearer 1 the quadrature’s
+own error dominates, a few parts in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mn>7</mn></msup><annotation encoding="application/x-tex">10^7</annotation></semantics></math>.</p>
+<p>The series’ first correction is the far pull of section 11. A cloud
+of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+electrons around a nucleus
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">+Z</annotation></semantics></math>,
+seen from a distance
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+outside it, gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo minsize="1.2" maxsize="1.2" stretchy="false" form="prefix">(</mo><mi>Z</mi><mo>−</mo><mi>N</mi><mo>+</mo><msub><mo>∑</mo><mi>i</mi></msub><mo stretchy="false" form="prefix">⟨</mo><msubsup><mi>r</mi><mi>i</mi><mn>2</mn></msubsup><mo stretchy="false" form="postfix">⟩</mo><mi>/</mi><mn>8</mn><msup><mi>s</mi><mn>2</mn></msup><mo>+</mo><mi>…</mi><mo minsize="1.2" maxsize="1.2" stretchy="false" form="postfix">)</mo><mi>/</mi><mi>s</mi></mrow><annotation encoding="application/x-tex">\big(Z - N + \sum_i \langle r_i^2\rangle / 8s^2 + \dots\big)/s</annotation></semantics></math>.
+A neutral atom therefore acts on an electron through
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo><mi>/</mi><mn>8</mn><msup><mi>s</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">-\sum\langle r^2\rangle/8s^3</annotation></semantics></math>,
+and two neutral atoms through
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>S</mi><mi>A</mi></msub><msub><mi>S</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3S_AS_B/64R^5</annotation></semantics></math>
+(section 11). Figure A1 draws
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+and the potential inside and outside a shell.</p>
+<h2 id="b-the-4d-electron-gas">B · The 4D electron gas</h2>
+<p>The solver’s exchange is the local form of the uniform electron gas
+of the same dimension and the same law. In
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions a spin-unpolarized Fermi sea of density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+has
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ρ</mi><mo>=</mo><mn>2</mn><mspace width="0.167em"></mspace><msub><mi>Ω</mi><mi>D</mi></msub><msubsup><mi>k</mi><mi>F</mi><mi>D</mi></msubsup><mi>/</mi><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mi>π</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>D</mi></msup></mrow><annotation encoding="application/x-tex">\rho = 2\,\Omega_D k_F^D/(2\pi)^D</annotation></semantics></math>,
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Ω</mi><mi>D</mi></msub><annotation encoding="application/x-tex">\Omega_D</annotation></semantics></math>
+the volume of the unit ball
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>π</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">\pi^2/2</annotation></semantics></math>
+for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>=</mo><mn>4</mn></mrow><annotation encoding="application/x-tex">D = 4</annotation></semantics></math>).
+Its kinetic energy per volume is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="false"><mi>D</mi><mrow><mi>D</mi><mo>+</mo><mn>2</mn></mrow></mfrac><mspace width="0.167em"></mspace><mi>ρ</mi><mspace width="0.167em"></mspace><msubsup><mi>k</mi><mi>F</mi><mn>2</mn></msubsup><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">\tfrac{D}{D + 2}\,\rho\,k_F^2/2</annotation></semantics></math>:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="false"><mn>3</mn><mn>10</mn></mfrac><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>3</mn><msup><mi>π</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mn>2</mn><mi>/</mi><mn>3</mn></mrow></msup><msup><mi>ρ</mi><mrow><mn>5</mn><mi>/</mi><mn>3</mn></mrow></msup></mrow><annotation encoding="application/x-tex">\tfrac{3}{10}(3\pi^2)^{2/3}\rho^{5/3}</annotation></semantics></math>
+in ours (Thomas–Fermi’s 2.8712),
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="false"><mrow><mn>4</mn><mi>π</mi></mrow><mn>3</mn></mfrac><msup><mi>ρ</mi><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">\tfrac{4\pi}{3}\rho^{3/2}</annotation></semantics></math>
+in four dimensions. Its exchange energy per volume is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msub><mi>C</mi><mi>D</mi></msub><mspace width="0.167em"></mspace><msup><mi>ρ</mi><mrow><mn>1</mn><mo>+</mo><mn>1</mn><mi>/</mi><mi>D</mi></mrow></msup></mrow><annotation encoding="application/x-tex">-C_D\,\rho^{1 + 1/D}</annotation></semantics></math>.
+In ours
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>3</mn></msub><mo>=</mo><mfrac displaystyle="false"><mn>3</mn><mn>4</mn></mfrac><msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>3</mn><mi>/</mi><mi>π</mi><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mn>1</mn><mi>/</mi><mn>3</mn></mrow></msup></mrow><annotation encoding="application/x-tex">C_3 = \tfrac34(3/\pi)^{1/3}</annotation></semantics></math>
+= 0.738559, Dirac’s constant. In four dimensions under the pinned
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>,
+with the Fermi sea’s density matrix built on the Bessel function
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>J</mi><mn>2</mn></msub><annotation encoding="application/x-tex">J_2</annotation></semantics></math>
+and the integral
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∫</mo><mn>0</mn><mi>∞</mi></msubsup><msub><mi>J</mi><mn>2</mn></msub><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>x</mi><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mspace width="0.167em"></mspace><msup><mi>x</mi><mrow><mo>−</mo><mn>2</mn></mrow></msup><mspace width="0.167em"></mspace><mi>d</mi><mi>x</mi><mo>=</mo><mn>4</mn><mi>/</mi><mn>15</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">\int_0^\infty J_2(x)^2\,x^{-2}\,dx = 4/15\pi</annotation></semantics></math>,
+it is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>4</mn></msub><mo>=</mo><mn>16</mn><mi>/</mi><mn>15</mn><msqrt><mi>π</mi></msqrt></mrow><annotation encoding="application/x-tex">C_4 = 16/15\sqrt\pi</annotation></semantics></math>
+= 0.601802. These agree with Loos and Gill’s (2016) expressions for the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>-dimensional
+gas. The selftest checks the textbook values in ours and the 4D integral
+(blocks 4 and 18). The potential each electron feels is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>v</mi><mi>x</mi></msub><mo>=</mo><mo>−</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo>+</mo><mn>1</mn><mi>/</mi><mi>D</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>C</mi><mi>D</mi></msub><mspace width="0.167em"></mspace><msup><mi>ρ</mi><mrow><mn>1</mn><mi>/</mi><mi>D</mi></mrow></msup></mrow><annotation encoding="application/x-tex">v_x = -(1 + 1/D)\,C_D\,\rho^{1/D}</annotation></semantics></math>,
+spin-polarized as in section 5 (each spin’s own density doubled), with
+each electron’s own share taken out.</p>
+<h2 id="c-numerical-convergence">C · Numerical convergence</h2>
+<p><strong>The solver’s stop.</strong> The self-consistent field stops
+when the total energy changes by less than 10⁻⁷ hartree between
+iterations. Re-solving 19 atoms (4D 2, 4D 7, 4D 12, 4D 13, 4D 22, 4D 26,
+4D 50, 4D 51, 4D 68, 4D 78, 4D 101, 4D 128, 4D 138, ours 2, ours 10,
+ours 11, ours 18, ours 26, ours 36) with the stop at 10⁻¹² moves no
+total energy by more than 2.7 × 10⁻⁷ hartree and no first ionization by
+more than 2.8 × 10⁻⁷ (ledger <code>converged</code>).</p>
+<p><strong>The radial grid.</strong> The baked grid has 700 points from
+10⁻⁵ to 150 bohr, logarithmic with step 0.02364. 11 atoms (4D 2, 4D 12,
+4D 13, 4D 22, 4D 50, 4D 78, 4D 128, 4D 138, ours 10, ours 18, ours 36)
+were re-solved on six other grids, each changing one parameter (ledger
+<code>grid</code>):</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>change from the baked grid</th>
+<th>largest |ΔE| (hartree)</th>
+<th>largest |Δ ionization| (hartree)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>N 500</td>
+<td>2.0 × 10⁻²</td>
+<td>1.4 × 10⁻⁴</td>
+</tr>
+<tr class="even">
+<td>N 1000</td>
+<td>1.0 × 10⁻²</td>
+<td>7.2 × 10⁻⁵</td>
+</tr>
+<tr class="odd">
+<td>r₀ 10⁻⁴</td>
+<td>6.7 × 10⁻²</td>
+<td>3.8 × 10⁻⁵</td>
+</tr>
+<tr class="even">
+<td>r₀ 10⁻⁶</td>
+<td>5.4 × 10⁻³</td>
+<td>4.2 × 10⁻⁵</td>
+</tr>
+<tr class="odd">
+<td>r_max 100</td>
+<td>1.0 × 10⁻³</td>
+<td>6.9 × 10⁻⁶</td>
+</tr>
+<tr class="even">
+<td>r_max 250</td>
+<td>1.3 × 10⁻³</td>
+<td>8.9 × 10⁻⁶</td>
+</tr>
+</tbody>
+</table>
+<p>The total energies of the heaviest atoms move by up to 6.7 × 10⁻²
+hartree, 2.4 × 10⁻⁵ of themselves, with the innermost point. The
+ionization energies, the differences the paper’s chemistry uses, move by
+at most 1.4 × 10⁻⁴ hartree.</p>
+<h2 id="d-the-law-calculations">D · The law calculations</h2>
+<p>Section 2’s arguments use a separate one-electron solver
+(<code>laws.js</code>), so that the grid’s inner end can be moved. It
+uses the radial equation with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>L</mi><mo>=</mo><mi>l</mi><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>−</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">L = l + (D - 3)/2</annotation></semantics></math>
+on a logarithmic grid of 6000 points, counts the nodes of an outward
+Numerov solution at a trial energy, and bisects on the count to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>13</mn></mrow></msup><annotation encoding="application/x-tex">10^{-13}</annotation></semantics></math>
+relative; a level that falls with the inner end of the grid is a fall to
+the centre. Its check is 4D hydrogen, −0.22222222 hartree against
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>.</p>
+<p><strong>Gauss’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>α</mi><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-\alpha/r^2</annotation></semantics></math>.</strong>
+At
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+= 0.45 there is no bound level on any grid. At
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+= 0.7 the lowest level is −5.87 × 10³, −5.87 × 10⁵ and −5.87 × 10⁷
+hartree with the inner end at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>3</mn></mrow></msup><annotation encoding="application/x-tex">10^{-3}</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>4</mn></mrow></msup><annotation encoding="application/x-tex">10^{-4}</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>5</mn></mrow></msup><annotation encoding="application/x-tex">10^{-5}</annotation></semantics></math>
+bohr:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><msubsup><mi>r</mi><mn>0</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\varepsilon r_0^2</annotation></semantics></math>
+= −0.00587 and −0.00587, a fall to the centre set by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>r</mi><mn>0</mn></msub><annotation encoding="application/x-tex">r_0</annotation></semantics></math>
+(ledger <code>gauss</code>). The boundary between the two is Hardy’s
+constant
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mrow><mo stretchy="true" form="prefix">(</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>−</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">((D - 2)/2)^2 = 1</annotation></semantics></math>
+(Barbatis 2023), which with the kinetic energy
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>∇</mi><mi>ψ</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\tfrac12|\nabla\psi|^2</annotation></semantics></math>
+puts the critical
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><annotation encoding="application/x-tex">\tfrac12</annotation></semantics></math>
+(Landau and Lifshitz 1977, §35).</p>
+<p><strong>Power laws
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>1</mn><mi>/</mi><msup><mi>r</mi><mi>p</mi></msup></mrow><annotation encoding="application/x-tex">-1/r^p</annotation></semantics></math>.</strong>
+The splitting of 2p from 2s, as a fraction of the shell’s binding, is
+−6.2 % at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>0.8</mn></mrow><annotation encoding="application/x-tex">p = 0.8</annotation></semantics></math>,
+5 × 10⁻¹⁰ % at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p = 1</annotation></semantics></math>
+and +15.4 % at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1.2</mn></mrow><annotation encoding="application/x-tex">p = 1.2</annotation></semantics></math>.
+For 3d against 3s it is −9.2 % and +21.9 % (ledger
+<code>uniqueness</code>). Only
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p = 1</annotation></semantics></math>
+keeps a shell together.</p>
+<h2 id="e-reproducing-every-number">E · Reproducing every number</h2>
+<p>Every number in the text is read by <code>papers/p1/build.mjs</code>
+from one of the files below, and the selftest (block 67) fails if any
+claim in <code>ledger.json</code> stops holding or any generated file is
+stale. What made each file:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>file</th>
+<th>made by</th>
+<th>where</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>atom/js/table.js</code> (the bake; supplement S1)</td>
+<td><code>atom/tools/bake.mjs</code>, then <code>--repair</code> for 88,
+101–103, 105–107</td>
+<td>GitHub’s runners, six minutes a shard</td>
+</tr>
+<tr class="even">
+<td><code>data/termtable.json</code> (the main table)</td>
+<td><code>atom/tools/termtable.mjs</code>, collected by
+<code>termtable-collect.mjs</code></td>
+<td>runner run <code>hund-f-and-terms</code></td>
+</tr>
+<tr class="odd">
+<td><code>data/hund.json</code></td>
+<td><code>atom/tools/hund.mjs survey</code>, collected by
+<code>hund-collect.mjs</code></td>
+<td>sandbox (p, d, first f) and runner run <code>hund-f</code></td>
+</tr>
+<tr class="even">
+<td><code>data/hund-law.json</code></td>
+<td><code>papers/p1/hundlaw.mjs</code></td>
+<td>a minute</td>
+</tr>
+<tr class="odd">
+<td><code>data/promotion3.json</code></td>
+<td><code>termtable.mjs</code> with <code>TERM_MODE=full</code> on ours,
+<code>promotion-collect.mjs</code></td>
+<td>sandbox, minutes</td>
+</tr>
+<tr class="even">
+<td><code>data/shelltable.json</code></td>
+<td><code>atom/tools/lawtable.mjs shell</code>, <code>repair</code>,
+<code>bake</code></td>
+<td>runner runs <code>lawtable-shell</code>,
+<code>lawtable-repair</code></td>
+</tr>
+<tr class="odd">
+<td><code>data/audit-scf.json</code>,
+<code>data/convergence.json</code></td>
+<td><code>audit-scf.mjs</code>, <code>convergence.mjs</code></td>
+<td>runner</td>
+</tr>
+<tr class="even">
+<td><code>data/profiles.json</code></td>
+<td><code>profiles.mjs</code></td>
+<td>sandbox</td>
+</tr>
+<tr class="odd">
+<td><code>data/table3.*</code>, <code>data/table4.*</code>,
+<code>figdata/</code>, <code>figures/</code>, <code>ledger.json</code>,
+<code>draft/</code></td>
+<td><code>build.mjs</code></td>
+<td>seconds</td>
+</tr>
+<tr class="even">
+<td><code>draft/*.html</code>, <code>draft/paper.pdf</code></td>
+<td><code>page.mjs</code> (pandoc), <code>pdf.cjs</code></td>
+<td>seconds</td>
+</tr>
+</tbody>
+</table>
+<p><code>papers/p1/reproduce.mjs</code> re-solves a sample of atoms from
+the solver and checks them against the paper’s data; <code>--all</code>
+re-solves every element. The runner’s logs, with each command’s exit
+status, are kept on the repository’s <code>atom4-data</code> branch
+under <code>runs/</code>. The code is mirrored at a tagged version for
+citation.</p>
+
+</div>
+<div class="p-source">Generated from <code>papers/p1/text/appendix.md</code>: every number in it is read by <code>build.mjs</code> from the solver, the bake or the runs, so this text says what the code does. Rendered by pandoc with MathML.</div>
+</article>
+</body>
+</html>

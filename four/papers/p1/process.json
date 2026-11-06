@@ -162,7 +162,8 @@
   },
   {
    "item": "Choose the title: the table first, or the law first",
-   "status": "open"
+   "status": "open",
+   "note": "left to the end, with the abstract (the PI may write it by hand)"
   },
   {
    "item": "Find citable sources for Hardy's inequality in D dimensions and the fall to the centre (Landau–Lifshitz §35, to check)",
@@ -252,7 +253,8 @@
   },
   {
    "item": "Appendices A–E (the 4D kernel and shell expansion, the electron-gas constants, convergence, the law calculations, reproducing every number)",
-   "status": "to do"
+   "status": "done",
+   "note": "text/appendix.md; A carries the kernel's closed form (kernelclosed)"
   }
  ],
  "journal": [
@@ -367,6 +369,10 @@
   {
    "date": "2026-11-06",
    "what": "The first whole draft. The abstract and introduction are written (text/intro.md), last, against Parts I–III as they stand. The build now assembles the whole paper as draft/paper.md: abstract and introduction, Part I, the methods as section 5 opening Part II, Parts II and III, the figures with their captions, what is still to write, and the references. It renders to draft/paper.html and prints to draft/paper.pdf (pdf.cjs, headless Chromium, A4). Four references were checked against indexes and sources: Ehrenfest 1917 and 1920 (a scan of the 1920 original), Landau–Lifshitz §35, and Hardy's constant (Barbatis's review). Palladium's and xenon's ionization energies match NIST's tables (nist-handbook), so 28 of 30 references are now citable. Still from memory: the 4s→3d promotion energies (NIST ASD), and the page of Madelung's 1936 book that carries the rule. Working title, law first, pending the PI's call."
+  },
+  {
+   "date": "2026-11-06",
+   "what": "The PI's call: no title and no abstract until the end, and the abstract may be hand-written. Both are now placeholders in the whole draft. The papers page leads with a 'read the current draft' link (draft/paper.html, and the PDF). The appendices are written (text/appendix.md): A, the 4D kernel; B, the 4D electron gas; C, numerical convergence (a table of the six grids); D, the law calculations; E, reproducing every number (every data file, what made it and where). A turned up a closed form, k(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, equal to the solver's quadrature to 3 × 10⁻¹⁵; ledger claim kernelclosed makes 28, all holding."
   }
  ]
 }

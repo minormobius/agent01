@@ -1,23 +1,6 @@
-# Abstract and introduction (draft)
+# Introduction (draft)
 
-<!-- Source. Every {{token}} is filled by papers/p1/build.mjs; written last, against Parts I–III as they stand. -->
-
-## Abstract
-
-In four spatial dimensions the law between charges can't be inherited from ours. Gauss's law gives a potential
-falling as $1/r^2$, under which an atom either doesn't bind or falls to its centre: there is no Bohr radius. We take
-the law as a choice instead. We keep the potential at $1/r$, the only power law whose levels keep a shell together,
-and follow what it costs: in four dimensions $1/r$ isn't harmonic, so there is no shell theorem and no Faraday cage,
-and the field theory that gives it gives up relativity for the force between charges. We then solve every neutral
-atom to $Z = 140$ self-consistently under that law. Rows of {{table.rows}} elements and noble gases at elements
-{{table.nobles}} come out: the rows Négadi and Kibler's generalized Madelung rule predicts for four dimensions.
-Solving the table again with the shell theorem forced on separates the law from the geometry. The rows are the
-geometry's, but what fills them from element {{cf.first}} on is the law's. Without it p beats d, and outer electrons
-are held a median {{cf.holdMedian}} times more weakly. The table's hardest-held electron, element 128's full d shell
-at {{ion.128}} eV, would fall to {{cf.128}} eV. Separately from the law, four-dimensional space breaks Hund's first
-rule. Atoms with two electrons in, or two short of, a d shell pair their spins, and so do 4f³ and 4f²⁹, because the
-four-dimensional d shell has a pair state ours lacks. The table is corrected for it. The same solver in three
-dimensions gets {{configs3}} of our ground configurations and our ionization energies to a median {{ion3.median}}.
+<!-- Source. Every {{token}} is filled by papers/p1/build.mjs. The abstract and the title are left to the end (the PI's call). -->
 
 ## 1 · Introduction
 

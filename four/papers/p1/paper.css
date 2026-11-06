@@ -167,3 +167,7 @@ math[display="block"] { display: block; margin: 10px auto; font-size: 1.05em; }
 .p-body img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 .p-body figcaption { font-size: 0.86em; line-height: 1.45; margin-top: 6px; }
 @media print { .toolbar { display: none; } .p-body figure { break-inside: avoid; } }
+/* on a phone: wide tables and display equations scroll inside the column instead of widening the page */
+.p-body table { display: block; overflow-x: auto; max-width: 100%; }
+.p-body math[display="block"] { display: block; overflow-x: auto; max-width: 100%; }
+.p-body code { overflow-wrap: anywhere; }
