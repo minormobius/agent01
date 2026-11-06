@@ -70,5 +70,5 @@ rows of 2, 10, 10, 28, 28, 60, noble gases at 2, 12, 22, 50, 78 and 138, as the 
 The rows are the geometry's. Everything that fills inside them from the first d element on is the law's, because in
 four dimensions $1/r$ isn't harmonic and an inner cloud screens only partly: outer electrons are held about two and a
 half times harder, the table's hardest-held electron belongs to a full d shell rather than a noble gas, and a neutral
-atom pulls from afar. And four-dimensional space breaks Hund's first rule for the d² and d¹⁶ fillings and for 4f³,
+atom pulls from afar. And four-dimensional space breaks Hund's first rule for the d² and d¹⁶ fillings and for 4f³ and 4f²⁹,
 whatever the law.

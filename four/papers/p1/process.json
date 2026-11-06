@@ -211,7 +211,8 @@
   },
   {
    "item": "Hund's rule over the rest of the 4D f block (4f⁵–4f³¹, elements 85–110, runner); fold into data/hund.json (hund-collect.mjs) and section 7.2",
-   "status": "to do"
+   "status": "done",
+   "note": "4f²⁹ (108) breaks it too (0.26 eV); every other filling holds (bounds for f⁶–f²⁵); 102 and 106 unfinished"
   },
   {
    "item": "Prior art on Hund's rules in D dimensions: three web searches found none; run a citation-index search before the paper calls section 7 new",
@@ -322,6 +323,10 @@
   {
    "date": "2026-11-06",
    "what": "Why Hund's rule breaks, made exact, and an explainer for it. For two d electrons every term's energy is F⁰ + a₂F² + a₄F⁴, where a₂ measures how much the term lets the two electrons line up. In 4D the ten-state singlet keeps them nearest right angles (⟨cos²γ⟩ 1/8, half of random; the best triplet 0.19). It lies below every triplet whenever F⁴/F² < 5/3; element 26 sits at 0.39 under the law and 0.65 under Gauss's. In ours ³F wins for every value. Section 7.3 rewritten around it, with a 24th ledger claim (hundcrit). The interactive version is four.mino.mobi/atom/hund.html: orbitals as boxes, the d orbitals on the sphere and on slices of the 3-sphere, the pair's separation-angle distribution for every term, the level ladder against F⁴/F² with real atoms marked, and the survey across the table."
+  },
+  {
+   "date": "2026-11-06",
+   "what": "The f block surveyed (runner run hund-f). 4f³'s mirror 4f²⁹ (element 108) breaks Hund's rule too, by 0.26 eV, spin ½. Every other f filling keeps it: completely for f², f⁴, f⁵, f²⁸ and f³⁰, and for f⁶–f²⁵ over the highest two or three spins, the lower-spin blocks running to 10⁶–10⁸ arrangements, so a bound. Elements 102 and 106 didn't finish. So in four dimensions the rule breaks two from either end of the d shell and three from either end of the f shell, and nowhere else surveyed. Ledger claim hund4f29 makes 25, all holding."
   }
  ]
 }

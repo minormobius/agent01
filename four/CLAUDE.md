@@ -411,8 +411,10 @@ for games, and this is a modelling programme with publications to come. The game
   - **Every other d filling holds:** d¹, d³–d¹², d¹⁴, d¹⁵ and d¹⁷ (3d and 4d rows complete; 3d⁹ and 4d⁹ blocks of
     15 876 run in full).
   - **f, partial:** 4f² (82) and 4f⁴ (84) hold; **4f³ (83) breaks it**, with spin ½ lowest, 0.151 eV below the quartet.
-  - **Still to run:** 4f⁵–4f³¹ (85–110), queued on the runner as `hund-f` (blocks up to 250 000 determinants, four
-    elements to a runner).
+  - **The f block (`hund-f`, run 75):** 4f²⁹ (108) breaks the rule too, with spin ½, 0.261 eV below the quartet:
+    the mirror of 4f³. Every other f filling holds. All spin blocks ran for f², f⁴, f⁵, f²⁸ and f³⁰; for f⁶–f²⁵ only the
+    highest two or three spins ran (the lower blocks hold 10⁶–10⁸ determinants), so those are bounds. 102 and 106 were
+    cut. **In 4D the rule breaks two from either end of the d shell and three from either end of the f shell.**
   **`atom/tools/termtable.mjs <Z/Z/…> [D]`, the term-corrected table:**
   - **Search:** an element's configurations searched as the bake does (`ground()`, the same solver), with the
     neighbours' configurations ±1 and ±2 electrons as extra seeds, as the repair pass makes them.

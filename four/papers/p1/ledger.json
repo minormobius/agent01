@@ -217,10 +217,21 @@
    ]
   },
   {
+   "id": "hund4f29",
+   "part": "table",
+   "claim": "… and so does its mirror 4f²⁹, three short of a full f shell: spin ½ again",
+   "value": "108 4f29: S 0.5 of 1.5, 0.261 eV below",
+   "holds": true,
+   "section": "7",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hund4f3",
    "part": "table",
    "claim": "In four dimensions 4f³ breaks it too: its ground term has spin ½",
-   "value": "82 4f2: S 1 of 1; 83 4f3: S 0.5 of 1.5; 84 4f4: S 2 of 2",
+   "value": "82 4f2: S 1 of 1; 83 4f3: S 0.5 of 1.5; 84 4f4: S 2 of 2; 85 4f5: S 2.5 of 2.5; 86 4f6: S 3 of 3 (bound); 87 4f7: S 3.5 of 3.5 (bound); 88 4f8: S 4 of 4 (bound); 89 4f9: S 4.5 of 4.5 (bound); 90 4f10: S 5 of 5 (bound); 91 4f11: S 5.5 of 5.5 (bound); 92 4f12: S 6 of 6 (bound); 93 4f13: S 6.5 of 6.5 (bound); 94 4f14: S 7 of 7 (bound); 95 4f15: S 7.5 of 7.5 (bound); 96 4f16: S 8 of 8 (bound); 97 4f17: S 7.5 of 7.5 (bound); 98 4f18: S 7 of 7 (bound); 99 4f19: S 6.5 of 6.5 (bound); 100 4f20: S 6 of 6 (bound); 101 4f21: S 5.5 of 5.5 (bound); 103 4f23: S 4.5 of 4.5 (bound); 104 4f24: S 4 of 4 (bound); 105 4f25: S 3.5 of 3.5 (bound); 107 4f28: S 2 of 2; 108 4f29: S 0.5 of 1.5; 109 4f30: S 1 of 1; 110 4f31: S 0.5 of 0.5",
    "holds": true,
    "section": "7",
    "gate": [

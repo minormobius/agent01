@@ -40,9 +40,12 @@ Cr³⁺, Mn²⁺, Pr³⁺ and Gd³⁺. Over all {{hund.n3}} open subshells of ou
 
 **7.2 Where it fails.** In four dimensions all {{hund.p4}} open p subshells of the table keep the rule, and so do the d
 fillings {{hund.dhold}}. The two exceptions are d² and its mirror d¹⁶, in all three d rows: {{hund.fails4d}}. In each the ground
-term is a spin singlet of ten states, and the triplet the solver assumed lies {{hund.range}} eV above it. In the f
-block, 4f³ (element 83) fails too: its ground term has spin ½, {{hund.f3}} eV below the quartet, while {{hund.fhold}}
-hold. So far {{hund.fdone}} have been run; the rest are running.
+term is a spin singlet of ten states, and the triplet the solver assumed lies {{hund.range}} eV above it. In the f block
+4f³ (element 83) fails too, and so does its mirror 4f²⁹ (element 108), three short of a full shell. Both have a
+ground term of spin ½, {{hund.f3}} and {{hund.f29}} eV below the quartet. Every other f filling keeps the rule. For
+{{hund.fcomplete}} every spin was checked; for {{hund.fbound}} only the highest two or three, because the lower-spin
+blocks run to 10⁶–10⁸ arrangements. There the result is a bound: no lower term among the spins that could be run.
+Two fillings (elements {{hund.fmissing}}) didn't finish in the runner's time.
 
 **7.3 Why it fails.** It isn't the law. On element 26's own orbital Gauss's $1/r^2$ gives the same order, with the
 singlet {{hl.gauss}} eV below the triplet, against {{hl.law}} eV under $1/r$; the pinned law makes the failure smaller,

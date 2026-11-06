@@ -132,10 +132,10 @@ function buildLadder() {
 function drawTable() {
   if (!HUND) { $("tbFig").innerHTML = `<p class="what">The survey (papers/p1/data/hund.json) didn't load.</p>`; return; }
   const rows = HUND.filter((r) => r.d === 4 && r.l >= 2).sort((a, b) => a.Z - b.Z), cell = (r) => { const bad = !r.hund; return `<div class="el ${bad ? "bad" : "ok"}" title="element ${r.Z}: ${r.shell}${r.n}, ground spin ${r.groundS} of ${r.Smax}${bad ? `, ${Math.abs(r.belowMax_eV).toFixed(2)} eV below the maximum-spin term` : ""}${r.complete ? "" : " (bound)"}"><b>${r.Z}</b><span>${r.shell}${r.n}</span>${bad ? `<i>${Math.abs(r.belowMax_eV).toFixed(2)}</i>` : ""}</div>`; };
-  const groups = [["3d row", (r) => r.shell === "3d"], ["4d row", (r) => r.shell === "4d"], ["4f block (so far)", (r) => r.shell === "4f"], ["5d row", (r) => r.shell === "5d"]];
+  const groups = [["3d row", (r) => r.shell === "3d"], ["4d row", (r) => r.shell === "4d"], ["4f block", (r) => r.shell === "4f"], ["5d row", (r) => r.shell === "5d"]];
   $("tbFig").innerHTML = groups.map(([t, f]) => `<h5>${t}</h5><div class="els">${rows.filter(f).map(cell).join("")}</div>`).join("");
   const n4 = HUND.filter((r) => r.d === 4), n3 = HUND.filter((r) => r.d === 3);
-  $("tbSay").innerHTML = `${n4.length} open subshells of the 4D table surveyed (${n4.filter((r) => r.l === 1).length} p, all keep the rule), and ${n3.length} of ours (all keep it). Red: Hund's rule breaks, with the gap in eV. The rest of the f block is still being computed.`;
+  $("tbSay").innerHTML = `${n4.length} open subshells of the 4D table surveyed (${n4.filter((r) => r.l === 1).length} p, all keep the rule), and ${n3.length} of ours (all keep it). Red: Hund's rule breaks, with the gap in eV. For the middle of the f block only the highest spins could be run, so there the verdict is a bound.`;
 }
 
 /* ---------- start ---------- */
