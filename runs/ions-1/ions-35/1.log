@@ -1,0 +1,9 @@
+$ node four/atom/tools/termtable.mjs 6/7/8/9 3 1
+{"Z":6,"D":3,"q":1,"nel":5,"raw":{"config":"1s2 2s2 2p1","E":-37.31819,"es":[-11.85605,-1.12325,-0.87523,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p1","E":-37.31819,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p1","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":69.4}
+{"Z":7,"D":3,"q":1,"nel":6,"raw":{"config":"1s2 2s2 2p2","E":-53.95831,"es":[-16.22189,-1.38466,-1.07839,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p2","E":-53.95831,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p2","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":77.7}
+{"Z":8,"D":3,"q":1,"nel":7,"raw":{"config":"1s2 2s2 2p3","E":-74.49703,"es":[-21.26257,-1.65834,-1.28005,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p3","E":-74.49703,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p3","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":85.003}
+{"Z":9,"D":3,"q":1,"nel":8,"raw":{"config":"1s2 2s2 2p4","E":-99.00635,"es":[-27.04147,-2.00316,-1.39406,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p4","E":-99.00635,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p4","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":46.487}
+(node:2560) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
