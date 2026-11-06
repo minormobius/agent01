@@ -1,7 +1,0 @@
-{
- "id": "mozzie-sphere-1106",
- "part": "modulo",
- "verdict": "yes",
- "hash": "b080676ecfac1271",
- "why": "Checked against arXiv 2611.06705v1 (abstract via export API, body via HTML): abstract does say 'first unconditional proof'; the Lean/'not clear to us that any human has understood' and 'continue to describe these results as being conditional' quotes are there; Table 1 matches cell for cell; the new no-GRH entries are 3-sphere plus two others (torus knot, cusped hyperbolicity), so 'and two other problems' is right. FSW, KM04/Zen18, OpenAI and Baroni–Lackenby attributions check out. Didn't check the maths either."
-}
