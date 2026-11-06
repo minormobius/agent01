@@ -44,14 +44,31 @@ article (Wikidata when there is no enwiki article).
 | `polity/data/polity.json` | **generated** — columnar terms + people + party families |
 | `polity/build/` | the pipeline that makes it (node + python3, needs network) |
 
+**Rendering — every dot fills its cell.** A layout does not place points; it gives each dot a *cell*: a centre plus two half-extent axes (`cell()` in `polity.js`), and on the spiral a curvature (`1/r`). The GPU draws one instanced, 16-segment strip per dot, bent along its arc when curved, rounded into a disc when square, and never thinner than ~1.6 px. So zooming never opens empty space: cells grow and stay tiled, and once a cell is a few dozen px the overlay writes the officeholder's name into it (`names()`), with a second line when there is room. Axis labels are decluttered by priority (`level`) in screen space. Uncalled races are striped in their two leaders' colours (grey stripes when no one leads); seats Wikipedia marks as a party *gain* are outlined.
+
 Rebuild the data:
 
 ```bash
 cd cards/polity/build
 python3 congress.py        # unitedstates/congress-legislators → raw/congress.json (House+Senate, complete)
 node wikidata.mjs          # Wikidata P39 holders of every position in positions.json (cached in raw/; --force refetches, ~15 min)
+node e2026.mjs             # Nov 3, 2026: Senate, House, governors from the en.wikipedia election articles → raw/e2026-federal.json
+node e2026-states.mjs      # Nov 3, 2026: all 88 state legislative chambers from their election articles → raw/e2026-states.json (--refresh refetches)
 node build.mjs             # → ../data/polity.json, prints party-family counts and unmapped labels
 ```
+
+**The 2026 election (added 2026-11-06, three days after it).** Winners come only from
+what English Wikipedia marks: `{{aye}}` in result tables, "Election box winning candidate",
+a filled "Elected" column. Anything unmarked is kept as **not yet called** (a dot with the
+leaders, linking to the race's article) — never inferred. Flips are Wikipedia's own
+"X gain" status cell, not a comparison we make. The winners take office in the 2027 cycle
+(`C26` in the viewer); the banner and chamber labels say "as of" the fetch date. **To
+refresh as more races are called**: re-run the three scripts above (`e2026.mjs` re-downloads
+pages older than an hour; `e2026-states.mjs --refresh`), then push. As of the first fetch:
+Congress + governors 480/515 called, 66 gains; state legislatures 2,283/4,784 called, with
+no district data for IL House, ME, MO House, NV, NH Senate, SD Senate, UT Senate (their
+articles had no results in a parseable form). Open-ended Wikidata terms now run to
+`y0 + typical term` so officeholders not up in 2026 carry into 2027.
 
 `raw/` is gitignored. Coverage facts worth knowing before reading the picture:
 
