@@ -412,7 +412,21 @@ for games, and this is a modelling programme with publications to come. The game
     15 876 run in full).
   - **f, partial:** 4f² (82) and 4f⁴ (84) hold; **4f³ (83) breaks it**, with spin ½ lowest, 0.151 eV below the quartet.
   - **Still to run:** 4f⁵–4f³¹ (85–110), queued on the runner as `hund-f` (blocks up to 250 000 determinants, four
-    elements to a runner). All of this stands on point charges ×
+    elements to a runner).
+  **`atom/tools/termtable.mjs <Z/Z/…> [D]`, the term-corrected table:**
+  - **Search:** an element's configurations searched as the bake does (`ground()`, the same solver), with the
+    neighbours' configurations ±1 and ±2 electrons as extra seeds, as the repair pass makes them.
+  - **`ground({ collect })`:** new; hands back every settled candidate. Without it `ground()` behaves as before.
+  - **Correction:** each candidate gets its open d and f shells' Hund correction (lowest term − lowest max-spin term,
+    `groundSpin()` on its own orbitals). Fillings whose biggest block exceeds `TERM_LIMIT` (3000) take the survey's
+    verdict and are flagged `assumed`.
+  - **Output:** both rankings and both first ionizations, so a change from the wider search is told apart from one
+    from the terms.
+  - **Element 26:** same configuration (3d²4s², one of 63 settled candidates, none within 1 eV once corrected),
+    E −0.396 eV, ionization 7.457 → 7.440 eV (the ion keeps the d² singlet).
+  - **Queued:** every d- and f-block element (23–42, 51–70, 79–130), in the runner's `hund-f-and-terms`.
+  - **The plan for paper 1:** the term-corrected table becomes the main result; the Hund-spin table moves to the
+    supplement. All of this stands on point charges ×
   a factor carried from ruby.
   **The Bluminium viewer, `atom/bluminium.html`** (off the chapter nav, linked from the landing's "made" line and
   its open questions): `js/bluminium.js` draws both Bl₂Px₃ cells and each cation site's coordination in `tile.js`

@@ -184,10 +184,12 @@ export function ground(Z, d, opts = {}) {
   // them, the aufbau's own result counts only if its field settled too
   if (opts.seeds) for (const c of opts.seeds) if (c.reduce((t, x) => t + x, 0) === Z && c.every((x, i) => x >= 0 && x <= sh[i].cap)) cands.push(c);
   let best = opts.seeds && !res.converged ? { E: Infinity, occ, res } : { E: res.E, occ, res };
+  const keep = (c, r) => { if (opts.collect && r.converged) opts.collect.push({ occ: c, E: r.E, es: r.es, qs: r.qs }); }; // opts.collect: every settled candidate, for a caller that re-ranks them (tools/termtable.mjs)
+  keep(occ, res);
   // a neighbour counts only if its field settled: an unsettled one can report an energy far too low (with exchange, a
   // barely bound orbital can drift for hundreds of iterations)
-  for (const c of cands.slice(1)) { const r = scf(Z, c, d, { iters: 80, start: res.qs, ...opts }); if (r.converged && r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; }
-  if (opts.seeds) for (const c of opts.seeds) { const r = scf(Z, c, d, { iters: 160, ...opts }); if (r.converged && r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; } // from scratch too
+  for (const c of cands.slice(1)) { const r = scf(Z, c, d, { iters: 80, start: res.qs, ...opts }); keep(c, r); if (r.converged && r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; }
+  if (opts.seeds) for (const c of opts.seeds) { const r = scf(Z, c, d, { iters: 160, ...opts }); keep(c, r); if (r.converged && r.E < best.E - 1e-6) best = { E: r.E, occ: c, res: r }; } // from scratch too
   return { Z, d, occ: best.occ, E: best.E, es: best.res.es, qs: best.res.qs, config: configString(best.occ, d) };
 }
 /* every subshell's orbital energy in the field of the current cloud (for the aufbau) */
