@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 const here = path.dirname(new URL(import.meta.url).pathname);
 const raw = path.join(here, 'raw');
-const NOW = 2026.85;
+const NOW = 2026.85; // today; terms that start after this are the 2026 results
 
 // ── party families: [key, name, color, wiki, regex] in pie order (left → right)
 const FAM = [
@@ -54,19 +54,22 @@ const TYP = { P: 4, V: 4, G: 4, S: 6, H: 2, SS: 4, SH: 2 };
 const people = [], pkey = new Map();
 function person(key, name, wiki, born, qid) {
   if (pkey.has(key)) return pkey.get(key);
-  const i = people.length; people.push([name || '?', wiki || '', born ? +born : 0, qid || '']); pkey.set(key, i); return i;
+  const i = people.length; people.push([name || wiki || (qid ? `Unnamed in Wikidata (${qid})` : 'Unnamed'), wiki || '', born ? +born : 0, qid || '']); pkey.set(key, i); return i;
 }
 const states = [];
 const stIdx = s => { let i = states.indexOf(s); if (i < 0) { states.push(s); i = states.length - 1; } return i; };
-const T = { p: [], b: [], s: [], f: [], y0: [], y1: [], d: [], pl: [] };
+const T = { p: [], b: [], s: [], f: [], y0: [], y1: [], d: [], pl: [], k: [], f2: [], x: [] };
+const notes = [], noteIdx = new Map();
+const note = s => { if (!s) return -1; if (!noteIdx.has(s)) { noteIdx.set(s, notes.length); notes.push(s); } return noteIdx.get(s); };
 const plabels = [], plIdx = new Map();
 const pl = l => { l = l || 'Unknown'; if (!plIdx.has(l)) { plIdx.set(l, plabels.length); plabels.push(l); } return plIdx.get(l); };
-function add(p, b, st, label, y0, y1, d) {
+function add(p, b, st, label, y0, y1, d, k = 0, f2 = -1, x = -1) {
   if (y0 == null || y0 < 1600 || y0 > NOW + 1) return false;
-  if (y1 == null || y1 < y0) y1 = Math.min(y0 + TYP[b], NOW);
+  if (y1 == null || y1 < y0) y1 = Math.max(Math.min(y0 + TYP[b], 2031), Math.min(NOW, y0 + 12));
   if (y1 - y0 > 60) y1 = y0 + 60;
   T.p.push(p); T.b.push(bodyIdx[b]); T.s.push(stIdx(st)); T.f.push(family(label)); T.pl.push(pl(label));
   T.y0.push(Math.round(y0 * 100) / 100); T.y1.push(Math.round(y1 * 100) / 100); T.d.push(d ?? '');
+  T.k.push(k); T.f2.push(f2); T.x.push(x);
   return true;
 }
 
@@ -120,6 +123,60 @@ for (const pos of positions) {
     if (add(pi, pos.b, pos.st, party, y0, y1, d)) kept++; else dropped++;
   }
 }
+// ── the November 3, 2026 elections (Wikipedia, raw/e2026-*.json from e2026.mjs / e2026-states.mjs)
+const byWiki = new Map(); people.forEach((p, i) => { if (p[1]) byWiki.set(p[1], i); });
+function who(c, fallbackName) {
+  if (c.wiki && byWiki.has(c.wiki)) return byWiki.get(c.wiki);
+  const i = person('w26:' + (c.wiki || c.name || fallbackName), c.name || fallbackName, c.wiki, null, null);
+  if (c.wiki) byWiki.set(c.wiki, i); return i;
+}
+const E26 = { races: 0, called: 0, uncalled: 0, gains: 0, state: { races: 0, called: 0, uncalled: 0, chambers: 0 } };
+let E26target = E26;
+function race26(x, b, st, d, y0, y1, article) {
+  const E = (b === 'SS' || b === 'SH') ? E26.state : E26;
+  E.races++;
+  if (x.called) {
+    const gain = x.result?.startsWith('gain:');
+    if (gain) E26.gains++; E.called++;
+    const inc = x.incParty && gain ? x.incParty : null;
+    const msg = gain ? `Seat flipped${inc ? ' from ' + inc : ''} to ${x.result.slice(5)} in 2026` : null;
+    add(who(x.winner), b, st, x.winner.party, y0, y1, d, gain ? 3 : 1, -1, note(msg));
+  } else {
+    E.uncalled++;
+    const L = (x.leaders || []).filter(l => l && l.name);
+    const lab = L.map(l => `${l.name} (${l.party || '?'}${l.pct != null ? ' ' + l.pct + '%' : ''})`).join(' vs ');
+    const where = b === 'H' ? `${st}-${d}` : b === 'SS' ? `${st} Senate district ${d}` : b === 'SH' ? `${st} House district ${d}` : st;
+    const pi = person('u26:' + b + st + d, `${where}: not yet called`, article, null, null);
+    add(pi, b, st, L[0]?.party, y0, y1, d, 2, family(L[1]?.party), note('Race not yet called as of ' + E26.asOf + (lab ? ' — ' + lab : '')));
+  }
+}
+const ST_NAME = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming' };
+const fedF = path.join(raw, 'e2026-federal.json');
+if (fs.existsSync(fedF)) {
+  const F = JSON.parse(fs.readFileSync(fedF));
+  E26.asOf = F.fetched.slice(0, 10);
+  const SEAT = 2027.01;
+  for (const x of F.house) race26(x, 'H', x.st, x.d, SEAT, 2029.01, ST_NAME[x.st] ? `2026 United States House of Representatives elections in ${ST_NAME[x.st]}` : '2026 United States House of Representatives elections');
+  // specials (FL, OH) seat on certification and run to 2029; regular class-2 seats to 2033
+  for (const x of F.senate) race26(x, 'S', x.st, '', x.special ? 2026.9 : SEAT, x.special ? 2029.01 : 2033.01, x.article);
+  for (const x of F.governor) race26(x, 'G', x.st, '', SEAT, ['VT', 'NH'].includes(x.st) ? 2029.01 : 2031.01, x.article);
+}
+const stF = path.join(raw, 'e2026-states.json');
+if (fs.existsSync(stF)) {
+  const S26 = JSON.parse(fs.readFileSync(stF));
+  for (const c of S26.chambers) {
+    const len = c.b === 'SS' ? 4 : 2, y1 = 2027.01 + len;
+    if ((c.members || []).length) E26.state.chambers++;
+    const seen = new Set();
+    for (const m of c.members || []) {
+      const key = String(m.district) + (m.seat || ''); if (seen.has(key) && !m.seat) continue; seen.add(key);
+      if (m.called && m.name) race26({ called: true, winner: m, result: null }, c.b, c.st, m.district, 2027.01, y1, c.source);
+      else race26({ called: false, leaders: m.leaders?.length ? m.leaders : [] }, c.b, c.st, m.district, 2027.01, y1, c.source);
+    }
+  }
+}
+console.log('2026:', JSON.stringify(E26));
+
 // collapse duplicate presidents/VP/governor statements (same person, body, state, overlapping)
 console.log('wikidata stmts kept', kept, 'dropped (undated)', dropped);
 
@@ -138,6 +195,7 @@ const kept2 = new Array(nu); people.forEach((p, i) => { if (used[i] >= 0) kept2[
 T.p = T.p.map(p => used[p]); people.length = 0; people.push(...kept2);
 
 const out = {
+  e2026: E26, notes,
   built: new Date().toISOString().slice(0, 10),
   sources: ['unitedstates/congress-legislators (CC0)', 'Wikidata (CC0)'],
   families: FAM.map(f => ({ k: f[0], name: f[1], color: f[2], wiki: f[3] })),
