@@ -24,10 +24,10 @@ import { COMPOUNDS } from "./ionic.mjs";
 export const here = path.dirname(fileURLToPath(import.meta.url)), HA = 27.211386;
 
 /* the dopant: a free ion's d orbital (its radial probability on atom.js's grid) and its moments ⟨r^k⟩ */
-export function dopant(Z, d, config) {
+export function dopant(Z, d, config, shell = "3d") {
   const sh = subshells(d), occ = sh.map(() => 0);
   for (const t of config.split(" ")) { const m = t.match(/^(\d+[a-z])(\d+)$/); occ[sh.findIndex((s) => s.name === m[1])] = +m[2]; }
-  const g = scf(Z, occ, d, { exchange: true, iters: 400 }), i = sh.findIndex((s) => s.name === "3d");
+  const g = scf(Z, occ, d, { exchange: true, iters: 400 }), i = sh.findIndex((s) => s.name === shell);
   const rk = (k) => { let t = 0; for (let j = 0; j < GN; j++) t += g.qs[i][j] * GR[j] ** k; return t; };
   return { Z, config, converged: g.converged, eps3d: g.es[i], rk, r: rk(1), q: g.qs[i] };
 }

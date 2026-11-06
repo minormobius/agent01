@@ -384,7 +384,16 @@ for games, and this is a modelling programme with publications to come. The game
   spin-singlet ground term, the 10-fold (2,0)⊕(0,2), with the triplet 0.52 eV up. It holds for d³ and d⁴. This is the 4D
   shell, not the law: Gauss's 1/r² gives the same order. The F² part favours that singlet, and with F⁴ alone the triplet
   is lowest. The table's solver fills shells as a spin-polarized average and doesn't resolve terms, so its d²-like
-  configurations are unaffected; any statement about their ground spin would be. All of this stands on point charges ×
+  configurations are unaffected; any statement about their ground spin would be.
+  **Hund's rule across the table (first survey, 2026-11-06).** `angular(d, l)` and `dopant(…, shell)` now take p
+  shells and any subshell. Every neutral 4D p configuration, p² to p⁷ (elements 6–11), has its maximum spin lowest, as
+  C, N and O do in ours, so the light elements are safe. **Every neutral 4D d² and d¹⁶ ground configuration breaks
+  Hund's first rule.** On each atom's own orbital, the 10-fold singlet sits below the triplet by: element 26 (3d²)
+  0.40 eV, 39 (3d¹⁶4s¹) 0.77, 54 (4d²) 0.30, 66 (4d¹⁶) 0.58, 114 (5d²) 0.36, 126 (5d¹⁶) 0.63. The table's solver gives
+  them Hund spins, so their configuration energies are too high by about that much. Where the ionized electron is a d
+  electron (54, 66, 114, 126) the ionization rises by roughly the same, because the ion's d¹ or d¹⁵ has no such
+  singlet. Not yet checked: d⁵–d¹³ (blocks up to 15 876 determinants, which needs a sparse lowest-eigenvalue solver)
+  and every f shell, elements 82–110 (needs 4D f harmonics, and degree-6 terms in the repulsion). All of this stands on point charges ×
   a factor carried from ruby.
   **The Bluminium viewer, `atom/bluminium.html`** (off the chapter nav, linked from the landing's "made" line and
   its open questions): `js/bluminium.js` draws both Bl₂Px₃ cells and each cation site's coordination in `tile.js`

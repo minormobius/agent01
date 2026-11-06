@@ -40,8 +40,8 @@ export function slater(d, q) {
 }
 
 /* the angular parts: A_n(ac, bd) = ∫∫ Y_aY_c(u) C_n^λ(u·w) Y_bY_d(w), exact on a small product rule (degree 8) */
-export function angular(d) {
-  const Y = harmonics(d, 2), m = Y.length, pts = sphere(d, 8), P = pts.length, lam = (d - 2) / 2;
+export function angular(d, l = 2) { // l ≤ 2: a product of two degree-l harmonics holds degrees 0 … 2l, all within 0, 2, 4
+  const Y = harmonics(d, l), m = Y.length, pts = sphere(d, 8), P = pts.length, lam = (d - 2) / 2;
   const f = []; for (let a = 0; a < m; a++) for (let c = 0; c < m; c++) f.push(Float64Array.from(pts, (p) => Y[a](p.u) * Y[c](p.u)));
   const A = [0, 2, 4].map((n) => { const K = Array.from({ length: P }, (_, i) => Float64Array.from(pts, (pj) => pts[i].w * pj.w * gegen(lam, n, pts[i].u.reduce((t, x, k) => t + x * pj.u[k], 0))));
     const M = f.map((fb) => Float64Array.from(K, (row) => row.reduce((t, v, j) => t + v * fb[j], 0)));
