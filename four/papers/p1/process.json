@@ -147,7 +147,8 @@
  "checklist": [
   {
    "item": "Before the paper is assembled: every author–year in the text must be a read or index reference. Part I cites Ehrenfest 1917, still only cited",
-   "status": "to do"
+   "status": "done",
+   "note": "Ehrenfest 1917 confirmed via indexes (read 26 May 1917, Proc. Amsterdam 20, 1918); 1920 via a scan of the original"
   },
   {
    "item": "The counterfactual table: run lawtable-shell, bake it, add its claims, and say whether the generalized Madelung rows come from the law or from the geometry alone",
@@ -165,7 +166,8 @@
   },
   {
    "item": "Find citable sources for Hardy's inequality in D dimensions and the fall to the centre (Landau–Lifshitz §35, to check)",
-   "status": "to do"
+   "status": "done",
+   "note": "Landau–Lifshitz §35 'Fall of a particle to the centre' (3rd ed. contents); Hardy's constant via Barbatis, arXiv:2311.08017"
   },
   {
    "item": "Forward citation search on Pyykkö & Zhao (1991) and Négadi & Kibler (1996) in a citation index, for any later self-consistent table at D = 4",
@@ -175,7 +177,7 @@
   {
    "item": "Turn every cited reference into read or index",
    "status": "partly",
-   "note": "18 of 21 done on 2026-11-04; Ehrenfest 1917 and 1920 and Madelung 1936 remain"
+   "note": "28 of 30: madelung1936 (the rule's page) and nist-asd (the promotion energies) remain"
   },
   {
    "item": "Solver audit: atom.js's self-consistent field stops on the total energy. Check whether that leaves the far density unconverged, and what it does to the table's energies and ionizations",
@@ -221,11 +223,13 @@
   },
   {
    "item": "Section 8.2 quotes palladium 8.3 eV and xenon 12.1 eV from memory: cite a measured source (NIST ASD)",
-   "status": "to do"
+   "status": "done",
+   "note": "NIST Handbook: Pd 8.3369 eV, Xe 12.1298 eV"
   },
   {
    "item": "Introduction and abstract, written last against the finished Parts I–III",
-   "status": "to do"
+   "status": "done",
+   "note": "text/intro.md; the whole draft assembled as draft/paper.{md,html,pdf}"
   },
   {
    "item": "The site's own table chapter and js/table.js still show the bake (element 82 as 4f² 6s², the Hund-spin energies): rebake with the term-corrected search, or overlay data/termtable.json on the site",
@@ -244,6 +248,10 @@
   },
   {
    "item": "Check the measured 4s→3d promotion energies (section 6.3) and Pd/Xe ionizations (8.2) against NIST ASD and cite with the access date",
+   "status": "to do"
+  },
+  {
+   "item": "Appendices A–E (the 4D kernel and shell expansion, the electron-gas constants, convergence, the law calculations, reproducing every number)",
    "status": "to do"
   }
  ],
@@ -355,6 +363,10 @@
   {
    "date": "2026-11-06",
    "what": "The full term correction, tested and rejected. Beyond Hund's first rule, the solver also averages every open subshell over orbitals, so we tried correcting each candidate by its whole term structure: lowest term less the average of the maximum-spin arrangements. That average has a closed form, checked against brute force. Tested on ours first (TERM_MODE=full, elements 5–36): it fixes none of the four misses and breaks two that were right (Sc, Fe), 26 of 32 against 28. The 4s→3d promotion energies against measured ones show why. The solver comes out too cheap for d in every 3d atom, by 0.35–1.70 eV, a mean 1.06 (local exchange without correlation), and the full correction leaves that mean where it is (1.07). So the paper corrects only Hund's first rule, the one thing a spin-polarized averaged field cannot represent, and states the bias. It also gives a robustness measure: 11 of the 92 4D d- and f-block elements have a fewer-d competitor within a volt (element 53's is 0.01 eV). New data/promotion3.json (promotion-collect.mjs), ledger claim promotion (27, all holding), §6.3, §7.4 and §12 updated, reference nist-asd added (from memory, to verify)."
+  },
+  {
+   "date": "2026-11-06",
+   "what": "The first whole draft. The abstract and introduction are written (text/intro.md), last, against Parts I–III as they stand. The build now assembles the whole paper as draft/paper.md: abstract and introduction, Part I, the methods as section 5 opening Part II, Parts II and III, the figures with their captions, what is still to write, and the references. It renders to draft/paper.html and prints to draft/paper.pdf (pdf.cjs, headless Chromium, A4). Four references were checked against indexes and sources: Ehrenfest 1917 and 1920 (a scan of the 1920 original), Landau–Lifshitz §35, and Hardy's constant (Barbatis's review). Palladium's and xenon's ionization energies match NIST's tables (nist-handbook), so 28 of 30 references are now citable. Still from memory: the 4s→3d promotion energies (NIST ASD), and the page of Madelung's 1936 book that carries the rule. Working title, law first, pending the PI's call."
   }
  ]
 }

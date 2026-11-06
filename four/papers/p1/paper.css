@@ -161,3 +161,9 @@ table.booktabs tbody tr:last-child td { border-bottom: 1.4px solid var(--ink); }
 math[display="block"] { display: block; margin: 10px auto; font-size: 1.05em; }
 .p-source { font-family: var(--sans); font-size: 10px; color: var(--ink-soft); border-top: 1px solid #ccc; margin-top: 22px; padding-top: 8px; }
 .toolbar a { color: #cfe3ff; }
+
+/* the assembled paper's figures (draft/paper.html): never wider than the column */
+.p-body figure { margin: 18px 0; }
+.p-body img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.p-body figcaption { font-size: 0.86em; line-height: 1.45; margin-top: 6px; }
+@media print { .toolbar { display: none; } .p-body figure { break-inside: avoid; } }

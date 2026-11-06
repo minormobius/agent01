@@ -39,7 +39,7 @@ function render(f) {
 <link rel="stylesheet" href="../paper.css" />
 </head>
 <body>
-<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 1 · draft section</span><span class="grow" style="flex:1"></span><a href="${f}">source with its numbers</a></div>
+<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 1 · ${f === "paper.md" ? "the whole draft" : "draft section"}</span><span class="grow" style="flex:1"></span>${f === "paper.md" ? `<a href="paper.pdf">PDF</a>&nbsp;·&nbsp;` : ""}<a href="${f}">source with its numbers</a></div>
 <article class="sheet">
 <div class="p-venue">four.mino.mobi · paper 1 · in preparation</div>
 <div class="p-body single">

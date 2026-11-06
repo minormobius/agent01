@@ -1,0 +1,50 @@
+# Abstract and introduction (draft)
+
+<!-- Source. Every {{token}} is filled by papers/p1/build.mjs; written last, against Parts I–III as they stand. -->
+
+## Abstract
+
+In four spatial dimensions the law between charges can't be inherited from ours. Gauss's law gives a potential
+falling as $1/r^2$, under which an atom either doesn't bind or falls to its centre: there is no Bohr radius. We take
+the law as a choice instead. We keep the potential at $1/r$, the only power law whose levels keep a shell together,
+and follow what it costs: in four dimensions $1/r$ isn't harmonic, so there is no shell theorem and no Faraday cage,
+and the field theory that gives it gives up relativity for the force between charges. We then solve every neutral
+atom to $Z = 140$ self-consistently under that law. Rows of {{table.rows}} elements and noble gases at elements
+{{table.nobles}} come out: the rows Négadi and Kibler's generalized Madelung rule predicts for four dimensions.
+Solving the table again with the shell theorem forced on separates the law from the geometry. The rows are the
+geometry's, but what fills them from element {{cf.first}} on is the law's. Without it p beats d, and outer electrons
+are held a median {{cf.holdMedian}} times more weakly. The table's hardest-held electron, element 128's full d shell
+at {{ion.128}} eV, would fall to {{cf.128}} eV. Separately from the law, four-dimensional space breaks Hund's first
+rule. Atoms with two electrons in, or two short of, a d shell pair their spins, and so do 4f³ and 4f²⁹, because the
+four-dimensional d shell has a pair state ours lacks. The table is corrected for it. The same solver in three
+dimensions gets {{configs3}} of our ground configurations and our ionization energies to a median {{ion3.median}}.
+
+## 1 · Introduction
+
+Why does space have three dimensions? Ehrenfest (1917, 1920) turned the question into physics. He asked what in the
+laws of physics would change with the number of dimensions, and found, among other things, that under the
+inverse-power force Gauss's law gives in $D$ dimensions, no planetary orbit is stable for $D > 3$. Tangherlini (1963)
+carried the argument into general relativity and into quantum mechanics: the hydrogen atom with Gauss's potential has
+no stable states above three dimensions. The usual conclusion is that a world with more than three large dimensions
+has no atoms. Callender (2005) points out what that conclusion leans on, that the laws carry over to other dimensions
+unchanged.
+
+They needn't. The literature on the hydrogen atom in $D$ dimensions (Nieto 1979; Al-Jaber 1998) and on dimensional
+scaling (Herschbach, Avery and Goscinski 1992; Loeser and Herschbach 1986) keeps the potential at $1/r$ in every $D$,
+mostly as a convention that keeps the problem solvable. With it, hydrogen has a Bohr radius in any dimension. Négadi
+and Kibler (1996) used the $D$-dimensional hydrogen atom to extend Madelung's filling rule (Madelung 1936) to other
+dimensions, and predicted the rows of a four-dimensional periodic table. Pyykkö and Zhao (1991) solved the atoms of a
+two-dimensional world self-consistently. To our knowledge no one has solved the atoms of a four-dimensional one, nor
+asked what the choice of $1/r$ itself does to them.
+
+This paper does both. Part I treats the law as a choice. It shows why one has to be made (section 2), why $1/r$ exactly
+(section 3), and what it costs in four dimensions (section 4). Part II solves every neutral atom to $Z = 140$ under it
+(sections 5–8). It checks the same solver against our own table (section 6). It finds that four-dimensional space
+breaks Hund's first rule, which the solver had assumed, and corrects for it (section 7), and it gives the table
+(section 8). Part III asks which of the table's features the law decides. It solves the table a second time with the
+shell theorem forced back on (section 9), and follows the law into partial screening (section 10) and into the pull of
+neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
+
+Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
+against a ledger of {{ledger.n}} claims. The code, the data and the paper's own making are public at
+four.mino.mobi/papers.

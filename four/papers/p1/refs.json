@@ -9,8 +9,8 @@
    "volume": "20",
    "pages": "200",
    "year": 1917,
-   "status": "cited",
-   "source": "via Tangherlini 1963 and later reviews; not in Crossref",
+   "status": "index",
+   "source": "secondary indexes (e.g. arXiv:1205.4916; Callender 2005): read 26 May 1917, Proc. Amsterdam Acad. 20 (1918) 200–209; the stability of orbits only in D ≤ 3",
    "role": "intro: Ehrenfest's dimension argument"
   },
   {
@@ -21,8 +21,8 @@
    "volume": "61",
    "pages": "440",
    "year": 1920,
-   "status": "cited",
-   "source": "via later reviews",
+   "status": "index",
+   "source": "scan of the original: zarm.uni-bremen.de/2forschung/gravi/laemmerzahl/hdg2008/sources/Ehrenfest_AdP20.pdf; cited as Ann. Phys. 61, 440 (1920) by Springer BF02784569",
    "role": "intro"
   },
   {
@@ -119,7 +119,7 @@
    "venue": "Springer, Berlin",
    "year": 1936,
    "status": "cited",
-   "source": "via Négadi & Kibler",
+   "source": "3rd ed., Springer, Berlin 1936 (library catalogues; Springer DOI 10.1007/978-3-662-41816-1); the page of the n + l rule not yet checked, so cited via Négadi & Kibler",
    "role": "intro: the Madelung rule"
   },
   {
@@ -317,20 +317,22 @@
   {
    "key": "landau-qm",
    "authors": "L. D. Landau & E. M. Lifshitz",
-   "title": "Quantum Mechanics: Non-Relativistic Theory",
+   "title": "Quantum Mechanics: Non-Relativistic Theory (Course of Theoretical Physics, vol. 3), 3rd ed.",
    "venue": "Pergamon",
    "year": 1977,
-   "status": "memory",
-   "role": "the law: the fall to the centre (§35 in the third edition, to check)"
+   "status": "index",
+   "role": "the law: the fall to the centre (§35 in the third edition, to check)",
+   "source": "§35 'Fall of a particle to the centre' in the third edition's contents; cited for it by arXiv:1312.2774 and others"
   },
   {
    "key": "hardy-inequality",
-   "authors": "G. H. Hardy (and the D-dimensional form)",
-   "title": "Hardy's inequality: ∫|∇ψ|² ≥ ((D − 2)/2)² ∫|ψ|²/r²",
-   "venue": "to choose: a textbook or review stating the D-dimensional constant",
-   "year": 1920,
-   "status": "memory",
-   "role": "the law: the critical strength ½ for −α/r² in 4D"
+   "authors": "G. Barbatis",
+   "title": "The Hardy constant: a review",
+   "venue": "arXiv:2311.08017",
+   "year": 2023,
+   "status": "index",
+   "role": "the law: the critical strength ½ for −α/r² in 4D (Hardy's inequality)",
+   "source": "arXiv:2311.08017; the classical constant ((D − 2)/2)² for ∫|∇ψ|² ≥ C∫|ψ|²/r² in D dimensions"
   },
   {
    "key": "nist-asd",
@@ -342,7 +344,19 @@
    "year": "2026",
    "status": "memory",
    "source": "not yet accessed: the values in sections 6.3 and 8.2 are from memory; cite with the access date once checked",
-   "role": "measured 4s→3d promotion energies of the 3d atoms (section 6.3), palladium's and xenon's ionization energies (section 8.2)"
+   "role": "measured 4s→3d promotion energies of the 3d atoms (section 6.3)"
+  },
+  {
+   "key": "nist-handbook",
+   "authors": "J. E. Sansonetti and W. C. Martin",
+   "title": "Handbook of Basic Atomic Spectroscopic Data",
+   "venue": "NIST, physics.nist.gov/PhysRefData/Handbook",
+   "volume": "",
+   "pages": "",
+   "year": 2005,
+   "status": "index",
+   "source": "physics.nist.gov/PhysRefData/Handbook/Tables/palladiumtable1.htm: Pd I 8.3369 eV; the same tables: Xe I 12.1298 eV",
+   "role": "palladium's and xenon's first ionization energies (section 8.2)"
   }
  ]
 }

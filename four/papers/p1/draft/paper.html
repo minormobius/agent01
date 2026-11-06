@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="source-sha256" content="d410d3f2f4a90071ebb1bd8a1fb590df6b22e98fe6123fc38d7d134ee9473c33" />
+<title>Paper 1 · Choosing a charge law for four dimensions: what 1/r does to atoms and the periodic table</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../paper.css" />
+</head>
+<body>
+<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 1 · the whole draft</span><span class="grow" style="flex:1"></span><a href="paper.pdf">PDF</a>&nbsp;·&nbsp;<a href="paper.md">source with its numbers</a></div>
+<article class="sheet">
+<div class="p-venue">four.mino.mobi · paper 1 · in preparation</div>
+<div class="p-body single">
+<h1
+id="choosing-a-charge-law-for-four-dimensions-what-1r-does-to-atoms-and-the-periodic-table">Choosing
+a charge law for four dimensions: what 1/r does to atoms and the
+periodic table</h1>
+<p><em>Working title. Authors and their credit to be settled; the
+paper’s making is public at four.mino.mobi/papers.</em></p>
+<h2 id="abstract">Abstract</h2>
+<p>In four spatial dimensions the law between charges can’t be inherited
+from ours. Gauss’s law gives a potential falling as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>,
+under which an atom either doesn’t bind or falls to its centre: there is
+no Bohr radius. We take the law as a choice instead. We keep the
+potential at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>,
+the only power law whose levels keep a shell together, and follow what
+it costs: in four dimensions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+isn’t harmonic, so there is no shell theorem and no Faraday cage, and
+the field theory that gives it gives up relativity for the force between
+charges. We then solve every neutral atom to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
+self-consistently under that law. Rows of 2, 10, 10, 28, 28, 60 elements
+and noble gases at elements 2, 12, 22, 50, 78, 138 come out: the rows
+Négadi and Kibler’s generalized Madelung rule predicts for four
+dimensions. Solving the table again with the shell theorem forced on
+separates the law from the geometry. The rows are the geometry’s, but
+what fills them from element 25 on is the law’s. Without it p beats d,
+and outer electrons are held a median 2.54 times more weakly. The
+table’s hardest-held electron, element 128’s full d shell at 29.56 eV,
+would fall to 3.1 eV. Separately from the law, four-dimensional space
+breaks Hund’s first rule. Atoms with two electrons in, or two short of,
+a d shell pair their spins, and so do 4f³ and 4f²⁹, because the
+four-dimensional d shell has a pair state ours lacks. The table is
+corrected for it. The same solver in three dimensions gets 32 of 36 of
+our ground configurations and our ionization energies to a median 4.3
+%.</p>
+<h2 id="introduction">1 · Introduction</h2>
+<p>Why does space have three dimensions? Ehrenfest (1917, 1920) turned
+the question into physics. He asked what in the laws of physics would
+change with the number of dimensions, and found, among other things,
+that under the inverse-power force Gauss’s law gives in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions, no planetary orbit is stable for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>&gt;</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">D &gt; 3</annotation></semantics></math>.
+Tangherlini (1963) carried the argument into general relativity and into
+quantum mechanics: the hydrogen atom with Gauss’s potential has no
+stable states above three dimensions. The usual conclusion is that a
+world with more than three large dimensions has no atoms. Callender
+(2005) points out what that conclusion leans on, that the laws carry
+over to other dimensions unchanged.</p>
+<p>They needn’t. The literature on the hydrogen atom in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions (Nieto 1979; Al-Jaber 1998) and on dimensional scaling
+(Herschbach, Avery and Goscinski 1992; Loeser and Herschbach 1986) keeps
+the potential at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+in every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>,
+mostly as a convention that keeps the problem solvable. With it,
+hydrogen has a Bohr radius in any dimension. Négadi and Kibler (1996)
+used the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>-dimensional
+hydrogen atom to extend Madelung’s filling rule (Madelung 1936) to other
+dimensions, and predicted the rows of a four-dimensional periodic table.
+Pyykkö and Zhao (1991) solved the atoms of a two-dimensional world
+self-consistently. To our knowledge no one has solved the atoms of a
+four-dimensional one, nor asked what the choice of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+itself does to them.</p>
+<p>This paper does both. Part I treats the law as a choice. It shows why
+one has to be made (section 2), why
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+exactly (section 3), and what it costs in four dimensions (section 4).
+Part II solves every neutral atom to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
+under it (sections 5–8). It checks the same solver against our own table
+(section 6). It finds that four-dimensional space breaks Hund’s first
+rule, which the solver had assumed, and corrects for it (section 7), and
+it gives the table (section 8). Part III asks which of the table’s
+features the law decides. It solves the table a second time with the
+shell theorem forced back on (section 9), and follows the law into
+partial screening (section 10) and into the pull of neutral atoms
+(section 11). Section 12 states the limitations; section 13
+concludes.</p>
+<p>Every number in the text is recomputed from the code and its baked
+data each time anything changes, and is checked against a ledger of 27
+claims. The code, the data and the paper’s own making are public at
+four.mino.mobi/papers.</p>
+<h1 id="part-i-the-law">Part I · The law</h1>
+<h2 id="why-a-law-has-to-be-chosen">2 · Why a law has to be chosen</h2>
+<p>Ask what the atoms are in a world with four dimensions of space and
+there is no answer yet, because the question leaves out the law between
+charges. In our world that law isn’t a free choice. Gauss’s law, which
+is what a local, linear field theory of charge gives, says the field of
+a point charge spreads over the sphere around it; the sphere’s area
+grows as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mrow><mi>D</mi><mo>−</mo><mn>1</mn></mrow></msup><annotation encoding="application/x-tex">r^{D-1}</annotation></semantics></math>,
+so the potential falls as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mrow><mo>−</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>−</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow></msup><annotation encoding="application/x-tex">r^{-(D-2)}</annotation></semantics></math>.
+In three dimensions that is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>.
+In four it is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>,
+and with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+there are no atoms.</p>
+<p><strong>2.1 Gauss’s law leaves no atom.</strong> One electron in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo>=</mo><mo>−</mo><mi>α</mi><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">V = -\alpha/r^2</annotation></semantics></math>
+has a Hamiltonian with no length in it: stretch every distance by a
+factor and the kinetic and potential energies scale alike. In four
+dimensions Hardy’s inequality puts a floor under the kinetic energy,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∫</mo><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>∇</mi><mi>ψ</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup><mspace width="0.278em"></mspace><mo>≥</mo><mspace width="0.278em"></mspace><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">(</mo><mfrac><mrow><mi>D</mi><mo>−</mo><mn>2</mn></mrow><mn>2</mn></mfrac><msup><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">)</mo><mn>2</mn></msup><mo>∫</mo><mfrac><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>ψ</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup><msup><mi>r</mi><mn>2</mn></msup></mfrac><mspace width="0.278em"></mspace><mo>=</mo><mspace width="0.278em"></mspace><mo>∫</mo><mfrac><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>ψ</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup><msup><mi>r</mi><mn>2</mn></msup></mfrac><mspace width="1.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>=</mo><mn>4</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">\int |\nabla\psi|^2 \;\ge\; \Big(\frac{D-2}{2}\Big)^2 \int \frac{|\psi|^2}{r^2} \;=\; \int \frac{|\psi|^2}{r^2} \quad (D = 4),</annotation></semantics></math></p>
+<p>so with the kinetic energy
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>∇</mi><mi>ψ</mi><mo stretchy="true" form="postfix">|</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\tfrac12|\nabla\psi|^2</annotation></semantics></math>
+the pull wins only for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>&gt;</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac></mrow><annotation encoding="application/x-tex">\alpha &gt; \tfrac12</annotation></semantics></math>.
+Below that nothing binds; above it the electron falls to the centre
+(Case 1950). We solved it rather than argue it (section 5,
+<code>laws.js</code>): for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.45</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.45</annotation></semantics></math>
+there is no bound level on any grid, and for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>0.7</mn></mrow><annotation encoding="application/x-tex">\alpha = 0.7</annotation></semantics></math>
+the lowest level is −5.87 × 10³, −5.87 × 10⁵ and −5.87 × 10⁷ hartree on
+grids whose inner end is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>3</mn></mrow></msup><annotation encoding="application/x-tex">10^{-3}</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>4</mn></mrow></msup><annotation encoding="application/x-tex">10^{-4}</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mrow><mo>−</mo><mn>5</mn></mrow></msup><annotation encoding="application/x-tex">10^{-5}</annotation></semantics></math>
+bohr: it grows as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msubsup><mi>r</mi><mn>0</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">1/r_0^2</annotation></semantics></math>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><msubsup><mi>r</mi><mn>0</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">\varepsilon r_0^2</annotation></semantics></math>
+= −0.00587, −0.00587), set by where the calculation stops rather than by
+the electron (figure 2a). Either way there is no Bohr radius, no size an
+atom could settle at. Ehrenfest made the classical version of this
+argument in 1917: under Gauss’s law in four dimensions no planetary
+orbit is stable either.</p>
+<p><strong>2.2 The ways out, and what each costs.</strong> Something has
+to give. The squeeze that resists the pull costs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>ℏ</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><mi>m</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\hbar^2/2mr^2</annotation></semantics></math>
+because the electron’s energy grows as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>p</mi><mn>2</mn></msup><annotation encoding="application/x-tex">p^2</annotation></semantics></math>;
+the pull costs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+because of Gauss. Change either and a length comes back. One way is to
+change the electron: an energy growing as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>p</mi><mn>3</mn></msup><annotation encoding="application/x-tex">p^3</annotation></semantics></math>
+or
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>p</mi><mn>4</mn></msup><annotation encoding="application/x-tex">p^4</annotation></semantics></math>
+outgrows a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+pull close in, so atoms bind at every strength. It keeps Gauss’s law,
+and with it the shell theorem and the Faraday cage, but it gives up
+Galilean relativity for all matter: a moving laboratory and a still one
+see the same physics only if energy is quadratic in momentum. Another is
+a small fourth dimension, the way extra dimensions could hide in ours;
+but atoms larger than it are three-dimensional atoms and smaller ones
+fall again, so it doesn’t give four-dimensional chemistry. The third is
+to change the law: keep the electron, keep four large dimensions, and
+make the potential between charges fall as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>.
+This universe takes the third, and the rest of part I says why
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+and what it costs. The choice between the first and the third is a
+judgement, stated as one: the electron route keeps our Faraday cages,
+the law route keeps our mechanics.</p>
+<h2 id="why-1r-exactly">3 · Why 1/r, exactly</h2>
+<p><strong>3.1 Only 1/r keeps a shell together.</strong> Among power
+laws
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo>=</mo><mo>−</mo><mn>1</mn><mi>/</mi><msup><mi>r</mi><mi>p</mi></msup></mrow><annotation encoding="application/x-tex">V = -1/r^p</annotation></semantics></math>,
+those with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>&lt;</mo><mi>p</mi><mo>&lt;</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">0 &lt; p &lt; 2</annotation></semantics></math>
+bind with a length of their own. Only
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p = 1</annotation></semantics></math>
+has the hidden symmetry of the hydrogen problem,
+SO(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D+1</annotation></semantics></math>)
+in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions (Fock 1935; Bander and Itzykson 1966), which makes a level
+depend on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+alone: in four dimensions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + \tfrac12)^2</annotation></semantics></math>,
+with every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
+below
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+at the same energy. That degeneracy is what makes a shell, and
+four-dimensional shells hold
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mo>∑</mo><mrow><mi>l</mi><mo>&lt;</mo><mi>n</mi></mrow></msub><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\sum_{l&lt;n} 2(l+1)^2</annotation></semantics></math>
+electrons: 2, 10, 28, 60. We measured how fast it breaks (figure 2b):
+the 2p level sits −6.2 % from 2s at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>0.8</mn></mrow><annotation encoding="application/x-tex">p = 0.8</annotation></semantics></math>,
+5 × 10⁻¹⁰ % at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">p = 1</annotation></semantics></math>
+and +15.4 % at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>1.2</mn></mrow><annotation encoding="application/x-tex">p = 1.2</annotation></semantics></math>
+(as a fraction of the shell’s binding; 3d against 3s goes the same way).
+Below 1 the more-turning electron is the more bound, above it the less,
+and either way the shell comes apart. The rows of the periodic table in
+section 8 rest on this.</p>
+<p><strong>3.2 The convention it agrees with.</strong> The literature on
+hydrogen in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions (Nieto 1979; Al-Jaber 1998) and on dimensional scaling
+(Herschbach, Avery and Goscinski 1992) takes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+in every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>,
+mostly as a convention that keeps the problem solvable. Négadi and
+Kibler’s generalized Madelung rule (1996), which predicts the
+four-dimensional rows, builds on the same
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>-dimensional
+hydrogen atom. Section 3.1 is why that convention is more than one: it
+is the only power law under which the question “what are the shells?”
+has the answer the rule needs.</p>
+<h2 id="what-1r-costs-in-four-dimensions">4 · What 1/r costs in four
+dimensions</h2>
+<p><strong>4.1 It isn’t harmonic.</strong> In three dimensions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>∇</mi><mn>2</mn></msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mi>/</mi><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\nabla^2(1/r) = 0</annotation></semantics></math>
+away from the charge, and that one fact is Gauss’s law. In
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>∇</mi><mn>2</mn></msup><msup><mi>r</mi><mi>q</mi></msup><mo>=</mo><mi>q</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>q</mi><mo>+</mo><mi>D</mi><mo>−</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msup><mi>r</mi><mrow><mi>q</mi><mo>−</mo><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">\nabla^2 r^q = q(q + D - 2)\,r^{q-2}</annotation></semantics></math>,
+so in four</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>∇</mi><mn>2</mn></msup><mfrac><mn>1</mn><mi>r</mi></mfrac><mo>=</mo><mo>−</mo><mfrac><mn>1</mn><msup><mi>r</mi><mn>3</mn></msup></mfrac><mspace width="2.0em"></mspace><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>≠</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>,</mo></mrow><annotation encoding="application/x-tex">\nabla^2 \frac{1}{r} = -\frac{1}{r^3} \qquad (r \ne 0),</annotation></semantics></math></p>
+<p>which we check numerically (−1.00000 at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">r = 1</annotation></semantics></math>,
+−0.12500 at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mn>2</mn></mrow><annotation encoding="application/x-tex">r = 2</annotation></semantics></math>).
+The flux of the field through a sphere round a charge grows with the
+sphere’s radius, linearly in four dimensions, as if empty space were
+charged with a density
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>∝</mo><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">\propto 1/r^3</annotation></semantics></math>.
+There is no Gauss’s law for it.</p>
+<p><strong>4.2 No shell theorem, no Faraday cage.</strong> A thin
+spherical shell of charge, felt at radius
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>,
+gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">k(t)/\max(r, s)</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>=</mo><mo>min</mo><mi>/</mi><mo>max</mo></mrow><annotation encoding="application/x-tex">t = \min/\max</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+kernel averaged over the 3-sphere (section 5, appendix A). In three
+dimensions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k = 1</annotation></semantics></math>:
+the shell theorem. In four,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+falls from 1 at the centre to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>8</mn><mi>/</mi><mn>3</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">k(1) = 8/3\pi</annotation></semantics></math>
+= 0.848826 at the shell (figure A1). So a cloud of charge never acts as
+if it sat at its centre; a hollow conductor’s centre sits at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>π</mi><mi>/</mi><mn>8</mn></mrow><annotation encoding="application/x-tex">3\pi/8</annotation></semantics></math>
+= 1.178097 of its wall’s potential, and a charge inside is pushed toward
+the wall; and a neutral atom is felt from outside, as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo><mi>/</mi><mn>8</mn><msup><mi>s</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">-\sum\langle r^2\rangle/8s^3</annotation></semantics></math>
+at distance
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+(section 11). Everything distinctive in part III comes from here.</p>
+<p><strong>4.3 A field theory for it.</strong> In Maxwell’s theory a
+charge’s potential is the Fourier transform of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>k</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/k^2</annotation></semantics></math>,
+which is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+in four dimensions;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+needs
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>k</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">1/k^3</annotation></semantics></math>.
+The book’s force chapter goes through five ways to get it:</p>
+<ol type="1">
+<li><em>A local, relativistic field:</em> impossible.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>k</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">1/k^3</annotation></semantics></math>
+isn’t a whole number of derivatives.</li>
+<li><em>Relativistic but non-local,</em>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mo>□</mo><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow></msup><annotation encoding="application/x-tex">\Box^{3/2}</annotation></semantics></math>:
+the field’s scaling dimension is 1, below the unitarity bound of 1.5, so
+the theory has states of negative probability.</li>
+<li><em>A vacuum whose permittivity grows with wavenumber,</em>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>ε</mi><mn>0</mn></msub><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\varepsilon(k) = \varepsilon_0 \ell k</annotation></semantics></math>:
+statics give
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>,
+but light disperses like deep-water waves,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ω</mi><mo>=</mo><mi>c</mi><msqrt><mrow><mi>k</mi><mi>/</mi><mo>ℓ</mo></mrow></msqrt></mrow><annotation encoding="application/x-tex">\omega = c\sqrt{k/\ell}</annotation></semantics></math>,
+and there is no speed of light.</li>
+<li><em>A nonlinear vacuum,</em>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mo>⋅</mo><mrow><mo stretchy="true" form="prefix">(</mo><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>E</mi><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mi>m</mi><mo>−</mo><mn>2</mn></mrow></msup><mi>E</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>ρ</mi></mrow><annotation encoding="application/x-tex">\nabla\cdot(|E|^{m-2}E) = \rho</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+= 2.5:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>,
+but fields no longer add.</li>
+<li><em>A small fourth dimension:</em>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+far away, but then atoms are three-dimensional (section 2.2).</li>
+</ol>
+<p>This universe takes a sixth, which finishes route 3: the <strong>lens
+vacuum</strong>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ε</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>ε</mi><mn>0</mn></msub><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\varepsilon(k) = \varepsilon_0 \ell k</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>μ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><msub><mi>μ</mi><mn>0</mn></msub><mi>/</mi><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\mu(k) = \mu_0/\ell k</annotation></semantics></math>.
+Then
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mi>/</mi><msub><mi>ε</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">D/\varepsilon_0</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>0</mn></msub><mi>H</mi></mrow><annotation encoding="application/x-tex">\mu_0 H</annotation></semantics></math>
+obey Maxwell’s equations in empty four-dimensional space exactly, so
+light is ordinary four-dimensional light at speed
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math>
+at every wavelength, and the energy is never negative. What pushes a
+charge is that light seen through a lens,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>E</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mi>/</mi><msub><mi>ε</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">E = (D/\varepsilon_0)/\ell k</annotation></semantics></math>,
+which blurs it across space with a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">1/r^3</annotation></semantics></math>
+kernel; its statics are
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mo>ℓ</mo><msup><mi>k</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">1/\ell k^3</annotation></semantics></math>,
+the pinned
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>.
+The price is relativity, for the force between charges only: the blur
+acts across all of space at once, so there is an absolute “now”, and a
+charge feels another’s change instantly, a little, everywhere. Atoms are
+static, so nothing in this paper depends on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mo>ℓ</mo><annotation encoding="application/x-tex">\ell</annotation></semantics></math>
+or on the absolute now; the field theory is the subject of a later
+paper.</p>
+<p><strong>4.4 What is declared with it.</strong> Electrons are spin-½
+fermions, two to an orbital. That is stated, not derived: in our world
+it follows from relativity and spin together, and this universe has
+given up relativity for the force. Nuclei are point charges
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">+Z</annotation></semantics></math>,
+stable for every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+to 140 (declared: nuclear physics in four dimensions is another paper).
+The fine-structure constant is small, so atoms are solved without
+relativity (section 12). No other long-range field acts on charges.</p>
+<p><strong>4.5 Is matter stable?</strong> In ours it is a theorem that
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+atoms have an energy proportional to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
+(Dyson and Lenard 1967; Lieb and Thirring 1975), and the proofs lean on
+the shell theorem, which fails here. So we give evidence, not a proof.
+Atoms don’t collapse: Thomas–Fermi scaling gives total energies growing
+as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>3</mn><mo>−</mo><mn>2</mn><mi>/</mi><mi>D</mi></mrow></msup><annotation encoding="application/x-tex">Z^{3-2/D}</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>7</mn><mi>/</mi><mn>3</mn></mrow></msup><annotation encoding="application/x-tex">Z^{7/3}</annotation></semantics></math>
+in ours and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>5</mn><mi>/</mi><mn>2</mn></mrow></msup><annotation encoding="application/x-tex">Z^{5/2}</annotation></semantics></math>
+in four dimensions (Kventsel and Katriel 1981), and the solved table
+follows it, with a fitted exponent of 2.527 over
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+= 10–140 (ours: 2.387 over 10–36; both a little above the asymptotic
+value, as
+finite-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+corrections make them). Many atoms don’t run away either: every force
+between neutral atoms here (the permanent
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>S</mi><mi>A</mi></msub><msub><mi>S</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3S_AS_B/64R^5</annotation></semantics></math>
+of section 11, dispersion’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>)
+falls faster than
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>4</mn></mrow></msup><annotation encoding="application/x-tex">R^{-4}</annotation></semantics></math>,
+so summed over four-dimensional space each atom’s share is finite. This
+is argued, not proved, and the paper says so.</p>
+<h1 id="part-ii-the-table">Part II · The table</h1>
+<h2 id="methods">5 · Methods</h2>
+<h3 id="the-law-inside-an-atom">The law inside an atom</h3>
+<p>An atom here is a point nucleus of charge Z and Z electrons,
+non-relativistic, with every pair of charges interacting through the
+pinned potential q₁q₂/r in four spatial dimensions. The same law acts
+between an electron and the nucleus and between two electrons; nothing
+in the method borrows Gauss’s law. Atomic units throughout (hartree,
+bohr).</p>
+<p>Each electron moves in the field of the nucleus and of the other
+electrons’ clouds, averaged over directions, so the problem is radial.
+In D dimensions a wavefunction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><msub><mi>Y</mi><mi>l</mi></msub></mrow><annotation encoding="application/x-tex">R(r)\,Y_l</annotation></semantics></math>,
+written as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>=</mo><msup><mi>r</mi><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>−</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn></mrow></msup><mi>R</mi></mrow><annotation encoding="application/x-tex">u = r^{(D-1)/2} R</annotation></semantics></math>,
+obeys</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mspace width="0.167em"></mspace><mi>u</mi><mi>″</mi><mo>+</mo><mo minsize="1.8" maxsize="1.8" stretchy="false" form="prefix">[</mo><mfrac><mrow><mi>L</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>L</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><mrow><mn>2</mn><msup><mi>r</mi><mn>2</mn></msup></mrow></mfrac><mo>+</mo><mi>V</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo minsize="1.8" maxsize="1.8" stretchy="false" form="postfix">]</mo><mspace width="0.167em"></mspace><mi>u</mi><mo>=</mo><mi>ε</mi><mspace width="0.167em"></mspace><mi>u</mi><mo>,</mo><mspace width="2.0em"></mspace><mi>L</mi><mo>=</mo><mi>l</mi><mo>+</mo><mfrac><mrow><mi>D</mi><mo>−</mo><mn>3</mn></mrow><mn>2</mn></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">-\tfrac12\,u&#39;&#39; + \Big[\frac{L(L+1)}{2r^2} + V(r)\Big]\,u = \varepsilon\,u, \qquad L = l + \frac{D-3}{2},</annotation></semantics></math></p>
+<p>so four dimensions differ from ours by the half-integer shift of L (L
+= l + ½) and by the degeneracies: a subshell of angular momentum l holds
+2(2l + 1) electrons in ours and 2(l + 1)² in four dimensions. With V =
+−Z/r the levels are −Z²/2(n + (D − 3)/2)², so 4D hydrogen’s ground state
+is −2/9 hartree; the solver gives −0.22222 (section 7).</p>
+<p><strong>The clouds’ potential.</strong> A spherical shell of charge
+at radius s, felt at radius r, gives in ours 1/max(r, s) (the shell
+theorem). In four dimensions under 1/r it gives k(t)/max(r, s), t =
+min/max, with k the 1/r kernel averaged over a 3-sphere,</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac><mn>2</mn><mi>π</mi></mfrac><msubsup><mo>∫</mo><mn>0</mn><mi>π</mi></msubsup><mfrac><mrow><msup><mo>sin</mo><mn>2</mn></msup><mi>θ</mi><mspace width="0.167em"></mspace><mi>d</mi><mi>θ</mi></mrow><msqrt><mrow><mn>1</mn><mo>+</mo><msup><mi>t</mi><mn>2</mn></msup><mo>−</mo><mn>2</mn><mi>t</mi><mo>cos</mo><mi>θ</mi></mrow></msqrt></mfrac><mo>,</mo></mrow><annotation encoding="application/x-tex">k(t) = \frac{2}{\pi}\int_0^\pi \frac{\sin^2\theta\,d\theta}{\sqrt{1 + t^2 - 2t\cos\theta}},</annotation></semantics></math></p>
+<p>which falls from k(0) = 1 to k(1) = 8/3π = 0.848826 (appendix A;
+Simpson’s rule on 400 intervals, then a table of 2001 points with linear
+interpolation). Every electron–electron term in the self-consistent
+field, its energy and the ionized atom’s goes through this kernel. That
+is where the missing shell theorem enters the atom: an inner cloud
+screens the nucleus from an outer electron only partly.</p>
+<p><strong>Exchange.</strong> Local exchange from the uniform electron
+gas of the same dimension and the same law,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ε</mi><mi>x</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><msub><mi>C</mi><mi>D</mi></msub><mspace width="0.167em"></mspace><msup><mi>ρ</mi><mrow><mn>1</mn><mi>/</mi><mi>D</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\varepsilon_x(\rho) = -C_D\,\rho^{1/D}</annotation></semantics></math>
+per electron, with C₃ = ¾(3/π)^⅓ = 0.738559 and C₄ = 16/(15√π) =
+0.601802, taken from Loos and Gill’s general-D formulas for 1/r jellium
+(appendix B). Spins are polarized by Hund’s rule (a subshell fills one
+spin first), and each electron’s own share is removed from both its
+Hartree and its exchange potential: the Hartree term by its own
+orbital’s cloud, the exchange term by the fully polarized exchange of
+that orbital alone (a Perdew–Zunger-style correction). There is no
+correlation term.</p>
+<h3 id="solving-one-configuration">Solving one configuration</h3>
+<p>The radial equation is solved on a logarithmic grid of 700 points
+from r₀ = 10⁻⁵ to 150 bohr (step h = 0.02364 in ln r) by Numerov’s
+method on y = u/√r, with each level found by Sturm bisection on the node
+count of the outward solution (90 halvings), the outward integration
+stopped where h²f/12 &gt; ½ so that Numerov cannot fake nodes in the
+forbidden region, and the orbital matched to an inward solution at the
+turning point.</p>
+<p>For a fixed configuration (occupations of each subshell, every
+orbital of a subshell sharing one radial function) the field is iterated
+to self-consistency: each orbital solved in the potential of the
+nucleus, the others’ clouds and exchange; the new clouds mixed into the
+old at 0.4; up to 80 iterations, stopping when the total energy changes
+by less than 10⁻⁷ hartree between iterations.</p>
+<p><strong>Is the stop tight enough?</strong> A stop on the energy can
+leave the far density less converged than the energy is; the plane-wave
+work met exactly that in its pseudopotentials’ all-electron atom, where
+exchange carried an unconverged tail into the potential. So 19 atoms
+across every row of both worlds were re-solved in their baked
+configurations and then driven on from that field to a stop of 10⁻¹²
+hartree (appendix C, <code>audit-scf.mjs</code>). Total energies and
+first ionization energies moved by at most 2.7 × 10⁻⁷ and 2.8 × 10⁻⁷
+hartree, the outermost orbital energy by 1.7 × 10⁻⁶, and Σ⟨r²⟩ (the far
+pull’s S, and the forces between atoms) by 1.9 × 10⁻⁵ of itself; the
+baked ⟨r²⟩ agree with the tight ones to 7.0 × 10⁻⁵. The density beyond
+about 15 bohr is not converged relatively, but it is noise there: off by
+large factors only where it is 10⁻¹³ to 10⁻¹⁷ electrons per bohr, and
+converged to 10⁻⁶ where an atom has a loosely held s electron that puts
+real charge out that far. Nothing the paper quotes depends on it; a
+calculation that builds a potential from the far density through
+exchange must converge the density pointwise, as the pseudopotentials
+now do.</p>
+<p><strong>Is the grid fine enough?</strong> 11 atoms from every row of
+both worlds were re-solved in their baked configurations on six other
+grids, changing one of the number of points (500, 1000), the inner end
+(10⁻⁴, 10⁻⁶ bohr) and the outer end (100, 250 bohr) at a time (appendix
+C, <code>convergence.mjs</code>). First ionization energies moved by at
+most 1.4 × 10⁻⁴ hartree on any of them. Total energies moved by at most
+6.7 × 10⁻² hartree, 2.4 × 10⁻⁵ of themselves, the largest for our own
+krypton, whose 1s sits deeper than any four-dimensional atom’s and is
+the grid’s hardest case. The paper quotes ionization energies and energy
+differences, not total energies.</p>
+<h3 id="the-ground-configuration">The ground configuration</h3>
+<p>For each Z the ground configuration is searched, not assumed. The
+search starts from the hydrogenic filling (subshells in order of n, then
+l), solves it, and refills by the orbital energies of every subshell,
+occupied or not, in the field it has just found, up to 6 rounds or until
+the filling stops changing. It then tries moving one or two electrons
+between the open subshells, the two highest filled ones and the two
+lowest empty ones, solving each candidate from the current field. A
+candidate counts only if its field settles: an unsettled field can
+report an energy far too low, since with exchange a barely bound orbital
+can drift for hundreds of iterations. The lowest settled energy is the
+ground state.</p>
+<p>For 7 elements of the 4D table (88, 101–103 and 105–107) the first
+search landed on an unsettled field. They were searched again seeded
+from both neighbours’ configurations with one or two electrons added or
+taken, each seed solved from scratch, and the lowest settled one
+kept.</p>
+<p>The first ionization energy is ΔSCF: the ion’s own ground state with
+an electron taken from whichever of the 3 least-bound occupied subshells
+leaves it lowest, relaxed from the atom’s field, minus the atom’s
+energy. Koopmans’ orbital energies are not used.</p>
+<p>The table is 140 elements in four dimensions and 36 in ours, baked
+once (on GitHub’s runners past Z ≈ 80) into a single generated file,
+which a selftest re-solves in sample on every change.</p>
+<h3 id="the-terms-of-open-subshells">The terms of open subshells</h3>
+<p>The search above gives every open subshell Hund spins. Section 7
+finds where that’s wrong, and the table is corrected for it. Each d- and
+f-block element is searched again, seeded as the repair pass seeds, and
+every settled candidate’s energy gets its open subshells’ term
+correction: the lowest term less the lowest maximum-spin term. That
+comes from the subshell’s own repulsion on that candidate’s own orbital
+(<code>atom/tools/termtable.mjs</code>). It is zero wherever Hund’s
+first rule holds. The ionization is corrected the same way on both
+sides. Fillings whose spin blocks are too large to solve per candidate
+take the survey’s verdict (section 7.2), which for them is that the rule
+holds.</p>
+<h3 id="the-counterfactual">The counterfactual</h3>
+<p>To separate what the table owes to the law from what it owes to the
+geometry, every 4D element is solved a second time with the shell
+theorem forced on: the clouds’ potential taken as 1/max(r, s) (our
+kernel) while everything else, the 4D kinetic operator, the
+degeneracies, exchange, the search, stays as it was. Each element’s
+search is seeded with the real table’s configuration and its neighbours’
+± one electron, so the counterfactual isn’t a weaker search; and the
+real law is re-solved in each counterfactual configuration, to check
+that the real table’s configuration is still the lower one under the
+law. Where no candidate’s field settled, a second, wider search started
+from every configuration in reach (the real table’s for the element and
+its neighbours ± one electron, the unsettled filling, and the
+counterfactual’s own neighbours ± one), each solved from scratch with
+the clouds mixed at 0.15 for up to 1500 iterations. A counterfactual
+atom counts as settled only if its field converged and its first
+ionization energy is positive (a negative one means an electron would
+rather leave: the search missed a lower configuration). By that rule 112
+of 140 settle, every atom up to 88; the rest (89–116) are row 6’s f
+block and the first elements after it.</p>
+<h3 id="one-electron-any-law">One electron, any law</h3>
+<p>The arguments of section 2 use a separate solver for one electron in
+any central potential (<code>laws.js</code>): the same radial equation
+and Numerov–Sturm method on a grid whose inner end can be moved, which
+is what tests a fall to the centre. For V = −α/r² it finds no level
+below α = ½ on any grid and, above it, a lowest level that scales as
+1/r₀² (section 2.1); for V = −1/rᵖ it gives the splittings within each
+shell (section 3.1). Its check is 4D hydrogen: −0.22222222 against
+−2/9.</p>
+<h3 id="checks">Checks</h3>
+<p>Every method above has a known-answer test in the selftest, run on
+every change: hydrogen in both worlds (block 1), the radial solver (2),
+the kernel against direct integration (3), exchange against the
+electron-gas constants (4, 18), the ground search (5, 7), two-electron
+atoms against an independent Gaussian Hartree–Fock code in four
+dimensions and MP2 against PySCF in ours (17, 43), our table against
+measured values (6: 32 of 36 configurations; ionization to a 4.3 %
+median error), and this paper’s own claims recomputed from the bake
+(67).</p>
+<h2 id="checks-against-what-is-known">6 · Checks against what is
+known</h2>
+<p><strong>6.1 Hydrogen.</strong> One electron needs no search and no
+exchange, and four-dimensional hydrogen has an exact answer:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + \tfrac12)^2</annotation></semantics></math>
+hartree, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
+for the ground state. The solver gives −0.22222.</p>
+<p><strong>6.2 Two electrons.</strong> Helium-like atoms in four
+dimensions are checked against an independent code, Hartree–Fock in a
+Gaussian basis written for any dimension (<code>gauss.js</code>), and
+the same atoms in ours against PySCF at the MP2 level (selftest blocks
+17 and 43). The two codes share no part of the radial solver.</p>
+<p><strong>6.3 Our own table.</strong> The same solver, the same law (in
+ours 1/r is Gauss’s) and the same search, run in three dimensions, gives
+32 of 36 of our measured ground configurations. The four it misses,
+titanium, vanadium, cobalt and nickel, each take one d electron too many
+against 4s, the known lean of local exchange toward d. The misses have
+one cause. Moving an electron from 4s into 3d comes out too cheap in
+every 3d atom we can compare (eV, the solver against measured: Sc 0.14
+against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.86, Co −0.35
+against 0.43, Ni −1.16 against 0.03), short by 0.35–1.70 eV and a mean
+1.06, always in d’s favour. That is local exchange without correlation.
+Resolving every open subshell’s whole term structure doesn’t remove it.
+With that correction (the lowest term less the average of the
+maximum-spin arrangements, which is what a spherically averaged field
+stands for), the bias stays at 1.07 eV and the configurations get worse,
+26 of 32 against 28 of 32. So the paper corrects only Hund’s first rule
+(section 7), the one thing a spin-polarized averaged field cannot
+represent. Its first ionization energies are off by a median 4.3 % and
+at most 16.2 % (figure A2). That is the accuracy to expect of the 4D
+table: a method that gets our transition metals mostly right and our
+ionizations to a few percent, not a spectroscopic one.</p>
+<p><strong>6.4 Numbers.</strong> Tightening the solver’s stop or
+changing its grid moves no ionization energy by a millihartree (section
+5 and appendix C).</p>
+<h2 id="hunds-first-rule-in-four-dimensions">7 · Hund’s first rule in
+four dimensions</h2>
+<p>The solver gives each open subshell the most parallel spins it can
+hold. That is Hund’s first rule, and in ours it is the known answer for
+the ground terms of free atoms. In four dimensions it is an assumption,
+and for some fillings it is wrong.</p>
+<p><strong>7.1 How the terms are found.</strong> For each open subshell
+of each ground configuration, its orbitals are the
+degree-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
+harmonics on the 3-sphere,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">(l + 1)^2</annotation></semantics></math>
+of them (4 for p, 9 for d, 16 for f). The repulsion between two of its
+electrons is the law’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">|</mo><mi>x</mi><mo>−</mo><mi>y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">1/|x - y|</annotation></semantics></math>,
+projected exactly onto the harmonics of degree
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>
+to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>l</mi></mrow><annotation encoding="application/x-tex">2l</annotation></semantics></math>,
+with the radial parts integrated over the atom’s own orbital. Every
+arrangement of the subshell’s electrons with a given
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>S</mi></msub><annotation encoding="application/x-tex">M_S</annotation></semantics></math>
+is set up and the lowest energy found (Lanczos, matrix-free; a 4D d⁹
+block has 15 876 arrangements). A term of spin
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+appears in every block with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>M</mi><mi>S</mi></msub><mo>≤</mo><mi>S</mi></mrow><annotation encoding="application/x-tex">M_S \le S</annotation></semantics></math>,
+so the ground term’s spin is the largest
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>S</mi></msub><annotation encoding="application/x-tex">M_S</annotation></semantics></math>
+whose block still reaches the lowest energy. In ours this reproduces
+Racah’s term separations for d² and d³ to the wavenumber, and the known
+ground terms of Cr³⁺, Mn²⁺, Pr³⁺ and Gd³⁺. Over all 23 open subshells of
+our table, maximum spin is lowest, as it should be.</p>
+<p><strong>7.2 Where it fails.</strong> In four dimensions all 36 open p
+subshells of the table keep the rule, and so do the d fillings d¹,
+d³–d¹², d¹⁴, d¹⁵, d¹⁷. The two exceptions are d² and its mirror d¹⁶, in
+all three d rows: element 26 (3d², 0.40 eV), element 39 (3d¹⁶, 0.77 eV),
+element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58 eV), element 114 (5d²,
+0.36 eV), element 126 (5d¹⁶, 0.63 eV). In each the ground term is a spin
+singlet of ten states, and the triplet the solver assumed lies 0.30–0.77
+eV above it. In the f block 4f³ (element 83) fails too, and so does its
+mirror 4f²⁹ (element 108), three short of a full shell. Both have a
+ground term of spin ½, 0.15 and 0.26 eV below the quartet. Every other f
+filling keeps the rule. For f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was
+checked; for f⁶–f²⁵ only the highest two or three, because the
+lower-spin blocks run to 10⁶–10⁸ arrangements. There the result is a
+bound: no lower term among the spins that could be run. Two fillings
+(elements 102 and 106) didn’t finish in the runner’s time.</p>
+<p><strong>7.3 Why it fails.</strong> It isn’t the law. On element 26’s
+own orbital Gauss’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+gives the same order, with the singlet 0.82 eV below the triplet,
+against 0.40 eV under
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>;
+the pinned law makes the failure smaller, not larger. The cause is the
+shell itself. Four-dimensional d orbitals form the representation (1,1)
+of SO(4) ≅ SU(2) × SU(2)/ℤ₂. Two electrons in them make spatially
+symmetric states (2,2) ⊕ (2,0) ⊕ (0,2) ⊕ (1,1) ⊕ (0,0), all spin
+singlets (25, 10, 9 and 1 states), and antisymmetric ones (2,1) ⊕ (1,2)
+⊕ (1,0) ⊕ (0,1), triplets (30 and 6). The singlet that comes lowest is
+the ten-state (2,0) ⊕ (0,2). For two electrons in a d subshell each
+term’s energy is exactly
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>0</mn></msup><mo>+</mo><msub><mi>a</mi><mn>2</mn></msub><msup><mi>F</mi><mn>2</mn></msup><mo>+</mo><msub><mi>a</mi><mn>4</mn></msub><msup><mi>F</mi><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">F^0 + a_2F^2 + a_4F^4</annotation></semantics></math>.
+The
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>F</mi><mi>n</mi></msup><annotation encoding="application/x-tex">F^n</annotation></semantics></math>
+are the radial parts of the repulsion and depend on the orbital. The
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>n</mi></msub><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><msub><mi>C</mi><mi>n</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>cos</mo><mi>γ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">a_n = \langle C_n(\cos\gamma)\rangle</annotation></semantics></math>
+over the term
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math>
+is the angle between the two electrons seen from the nucleus) depend
+only on the term.
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>2</mn></msub><annotation encoding="application/x-tex">a_2</annotation></semantics></math>
+measures how much the term lets the electrons line up along a common
+axis. The ten-state singlet holds them nearest right angles,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msup><mo>cos</mo><mn>2</mn></msup><mi>γ</mi><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle\cos^2\gamma\rangle</annotation></semantics></math>
+= 0.125, half of random (0.250), where the best triplet reaches 0.188.
+It lies below every triplet whenever
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup><mo>&lt;</mo></mrow><annotation encoding="application/x-tex">F^4/F^2 &lt;</annotation></semantics></math>
+5/3. Element 26’s orbital has
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>
+= 0.39 under the law and 0.65 under Gauss’s, so the rule breaks either
+way. In ours the triplet ³F is the term that keeps the electrons nearest
+right angles (0.225, against ¹D’s 0.292 and random’s 0.333), and it is
+the lowest for every value of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>.
+Titanium’s d² has ³F lowest and its first singlet 1.25 eV up. Pauli
+keeps same-spin electrons apart, which is the usual reason for Hund’s
+rule; four-dimensional space gives paired spins a way to stay apart that
+is better still. In SO(4) terms, every rotation splits into a left and a
+right half, and a d orbital carries one unit of each. The singlet adds
+the two electrons’ left halves and cancels their right ones, or the
+other way round. Three-dimensional rotations don’t split, so ours has no
+such state. An interactive version is at
+four.mino.mobi/atom/hund.html.</p>
+<p><strong>7.4 What it does to the table.</strong> Where the rule fails,
+the solver’s energy for that configuration is the maximum-spin state’s,
+too high by the gap. The table in section 8 corrects that. Every d- and
+f-block element (92 of them) was searched again, with the neighbours’
+configurations as extra seeds (49–65 settled candidates each). Every
+candidate got its open subshells’ gaps added, and the candidates were
+ranked again, with and without the correction, so that a change from the
+wider search is told apart from one from the terms. <strong>The terms
+change no ground configuration.</strong> They lower the eight
+Hund-breaking atoms’ energies, and they move first ionizations in pairs.
+An atom whose own ground term gains the gap holds its electron harder:
+54 (6.41 → 6.71), 66 (18.82 → 19.40), 114 (6.92 → 7.27), 126 (24.92 →
+25.55) eV. The next element, whose ion lands on the broken filling,
+gives one up more easily: 55 (8.28 → 7.91), 67 (20.56 → 19.93), 115
+(9.28 → 8.83), 127 (27.23 → 26.56) eV. That is 0.30–0.67 eV either way.
+The wider search found one configuration the bake had missed. Element 82
+is 4f¹ 5d¹ 6s², 0.36 eV below the bake’s 4f² 6s², which is our cerium’s
+kind; its ionization goes 7.03 → 7.39 eV. The table that follows is the
+corrected one (<code>data/table4.csv</code>). The Hund-spin table it
+replaces is supplement S1 (<code>data/table4-hundspin.csv</code>). How
+far to trust each configuration follows from section 6.3. Take a bias of
+about a volt toward d and f: a ground configuration with a competitor
+holding fewer d and f electrons within a volt of it could be the other
+way round. 11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s²,
+0.55 eV up), 37 (3d¹³ 4s², 0.55 eV up), 53 (5s² 5p¹, 0.01 eV up), 58
+(4d⁶ 5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV
+up), 107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s²,
+0.57 eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).</p>
+<h2 id="the-table">8 · The table</h2>
+<p><strong>8.1 Rows and noble gases.</strong> The table’s rows hold 2,
+10, 10, 28, 28, 60 elements (and 2 of the next by element 140), and its
+noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the
+first ionization energy (figures 1 and 4). Those are the rows the
+generalized Madelung rule of Négadi and Kibler (1996) predicts for four
+dimensions. To our knowledge this is the first self-consistent table
+that confirms them. Part III asks how much of that the law decides.</p>
+<p><strong>8.2 The hardest-held electron isn’t a noble gas’s.</strong>
+Element 128 has an 18-electron d shell, full, with nothing outside it.
+It holds its outermost electron at 29.56 eV, harder than its row’s noble
+gas 138 (26.71 eV) and harder than any other atom in the table. Element
+68, the same kind a row up, comes within a volt of its noble gas 78
+(22.32 eV against 23.10). Ours goes the other way: palladium’s full 4d¹⁰
+gives up an electron at 8.3 eV, xenon at 12.1. Section 9 shows the law
+does it.</p>
+<p><strong>8.3 Inside the rows.</strong> Figure 5 draws six atoms in
+profile: their radial densities, and what each one’s outermost orbital
+looks like on the 3-sphere (figure 3). Where the filling departs from
+the simple order, and how the ionization energy and the radius run with
+Z, are in the data files (table4.csv).</p>
+<h1 id="part-iii-what-the-law-does">Part III · What the law does</h1>
+<h2 id="the-table-again-with-the-shell-theorem-forced-on">9 · The table
+again, with the shell theorem forced on</h2>
+<p>Part I chose the law; Part II solved the table under it. To see which
+of the table’s features the law decides, every 4D element was solved a
+second time with one thing changed: the clouds’ potential taken as if
+the shell theorem held (our kernel,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">1/\max(r, s)</annotation></semantics></math>),
+and everything else, the four-dimensional kinetic energy, the
+degeneracies, exchange, the search, left as it was (section 5). Of the
+140 elements, 112 settle, every one up to element 88. The rest, elements
+89–116, row 6’s f block and the first elements after it, have no settled
+ground state under the shell theorem from any starting configuration
+tried. They are left out, so this part’s statements about the rows hold
+through row 5.</p>
+<p><strong>9.1 The rows are the geometry’s.</strong> With the shell
+theorem forced on, the first 24 elements keep every configuration, and
+the noble gases close the same rows at elements 2, 12, 22, 50, 78, 138
+(figure 6). The lengths of the rows, 2, 10, 10, 28, 28, come from
+four-dimensional space’s degeneracies,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">2(l + 1)^2</annotation></semantics></math>
+to a subshell. They don’t come from the law between charges, so long as
+that law keeps a shell together (section 3.1).</p>
+<p><strong>9.2 What fills inside the rows is the law’s.</strong> Of the
+settled atoms, 57 change configuration, and the first is element 25, the
+first d element. Under the shell theorem p beats d. Element 25 takes 4s²
+4p¹ where the law gives 3d¹ 4s², and the change runs on through the d
+and f blocks. In every changed atom the law’s own configuration is still
+the lower one when solved under the law, so the difference is the law’s,
+not a weaker search.</p>
+<h2 id="partial-screening">10 · Partial screening</h2>
+<p>In ours an outer electron sees the nucleus screened by every inner
+electron whole: the shell theorem makes an inner cloud act as its charge
+at the centre. In four dimensions an inner cloud screens only partly,
+because its pull at radius
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>
+is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">k(t)/r</annotation></semantics></math>
+of a point charge’s with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">k &lt; 1</annotation></semantics></math>
+(section 4.2). The outer electrons see more of the nucleus.</p>
+<p><strong>10.1 How much harder.</strong> Across the 110 atoms past
+helium that settle under both, the law holds the outermost electron a
+median 2.54 times as hard as the shell theorem would, from 1.06 to 9.55
+times. Among the noble gases the ratio grows from 1.09 (helium) to 2.90
+(element 138).</p>
+<p><strong>10.2 Element 128.</strong> The largest ratio is element
+128’s. Its 5d¹⁸ shell, full with nothing outside it, holds its electron
+at 29.56 eV under the law and at 3.1 eV under the shell theorem. With
+the shell theorem the noble gases are again the hardest-held atoms, as
+ours are. The table’s hardest-held electron (section 8.2) is partial
+screening at its strongest: a full shell whose own cloud hides the
+nucleus from it least.</p>
+<h2 id="neutral-atoms-arent-silent">11 · Neutral atoms aren’t
+silent</h2>
+<p>Under the shell theorem a neutral atom is invisible from outside its
+cloud. Here it isn’t. A spherical cloud of charge felt from outside
+gives
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>q</mi><mspace width="0.167em"></mspace><mi>k</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>t</mi><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mi>s</mi></mrow><annotation encoding="application/x-tex">-q\,k(t)/s</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>k</mi><mo>=</mo><mn>1</mn><mo>−</mo><msup><mi>t</mi><mn>2</mn></msup><mi>/</mi><mn>8</mn><mo>−</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">k = 1 - t^2/8 - \dots</annotation></semantics></math>
+(appendix A). The nucleus and the electrons cancel in the first term,
+and what remains, for an electron at distance
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>,
+is a pull
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo><mi>/</mi><mn>8</mn><msup><mi>s</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">-\sum\langle r^2\rangle/8s^3</annotation></semantics></math>
+over the atom’s electrons. The solved noble gases follow it: at 30 bohr
+the full cloud’s potential and the far form agree to 0.22 %. Between two
+atoms the same failure gives a permanent attraction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>S</mi><mi>A</mi></msub><msub><mi>S</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3S_AS_B/64R^5</annotation></semantics></math>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>S</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">S = \sum\langle r^2\rangle</annotation></semantics></math>),
+with no dipole needed, which outranges London’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>.
+The papers that follow take it up: noble gases that condense far above
+where ours do, and molecules held differently.</p>
+<h2 id="limitations">12 · Limitations</h2>
+<p><strong>The law’s own.</strong> The force acts instantly (section
+4.3), so only statics are safe; this paper has nothing that moves. Heavy
+atoms would need relativity, which the law has given up for the force
+between charges; the table past about element 100 is first-pass for that
+reason, and the innermost Dirac level of a bare nucleus would dive near
+Z ≈ 230 for a nucleus of 4–5 fm, as a potential problem, not one met
+here. Nuclei are declared stable to Z = 140.</p>
+<p><strong>The method’s.</strong> Local exchange and no correlation,
+which in ours favours d by about a volt (section 6.3); in four
+dimensions that leaves the configurations section 7.4 lists in doubt.
+Every subshell’s cloud is averaged over the sphere. The terms of open
+subshells are resolved only to first order, on the solver’s orbitals,
+and only where the rule fails (section 7). The counterfactual table
+leaves row 6’s f block unsettled (section 9).</p>
+<p><strong>What isn’t claimed.</strong> That four-dimensional chemistry
+looks like ours: the next papers take up bonds, liquids and crystals
+under the same law.</p>
+<h2 id="conclusion">13 · Conclusion</h2>
+<p>A world with four large dimensions of space has to choose its law
+between charges, because Gauss’s law gives it no atoms. Pinned at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>,
+the only power law that keeps a shell together, it has atoms, and they
+have a periodic table: rows of 2, 10, 10, 28, 28, 60, noble gases at 2,
+12, 22, 50, 78 and 138, as the generalized Madelung rule predicts. The
+rows are the geometry’s. Everything that fills inside them from the
+first d element on is the law’s, because in four dimensions
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+isn’t harmonic and an inner cloud screens only partly: outer electrons
+are held about two and a half times harder, the table’s hardest-held
+electron belongs to a full d shell rather than a noble gas, and a
+neutral atom pulls from afar. And four-dimensional space breaks Hund’s
+first rule for the d² and d¹⁶ fillings and for 4f³ and 4f²⁹, whatever
+the law.</p>
+<h2 id="figures">Figures</h2>
+<figure>
+<img src="../figures/1.svg"
+alt="Figure 1. The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler’s generalized Madelung rule predicts for four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6’s f block 32 (drawn below, as ours is). An element takes our element’s name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 5. Hover a cell for its configuration and ionization." />
+<figcaption aria-hidden="true"><strong>Figure 1.</strong> The periodic
+table of four dimensions, Z = 1 to 140, each atom solved
+self-consistently under the pinned 1/r. Rows close at the noble gases 2,
+12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as
+Négadi and Kibler’s generalized Madelung rule predicts for four
+dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8
+wide, the d block 18 and row 6’s f block 32 (drawn below, as ours is).
+An element takes our element’s name with its first letter moved on where
+its place answers to one of ours; the rest (·) have no counterpart.
+Dots: the elements in figure 5. Hover a cell for its configuration and
+ionization.</figcaption>
+</figure>
+<figure>
+<img src="../figures/2.svg"
+alt="Figure 2. The choice of law. (a) Gauss’s law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy’s inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/rᵖ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell’s binding vanishes only at p = 1, to 10⁻¹¹. Shells of 2(l + 1)², and the rows of figure 1, need exactly 1/r." />
+<figcaption aria-hidden="true"><strong>Figure 2.</strong> The choice of
+law. (a) Gauss’s law in four dimensions gives a potential −α/r². One
+electron in it, solved on grids whose inner end r₀ is moved in: for
+every α above ½ the lowest level scales as 1/r₀², set by where the
+calculation stops rather than by the electron (the fall to the centre);
+at or below ½ there is no level on any grid (Hardy’s inequality). Either
+way there is no Bohr radius and no atom. (b) With a pull −1/rᵖ instead,
+the splitting between 2p and 2s (and 3d and 3s) as a fraction of the
+shell’s binding vanishes only at p = 1, to 10⁻¹¹. Shells of 2(l + 1)²,
+and the rows of figure 1, need exactly 1/r.</figcaption>
+</figure>
+<figure>
+<img src="../figures/3.svg"
+alt="Figure 3. Orbitals four dimensions has and ours doesn’t, cut through the nucleus by a plane, on the solved atoms’ own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Interactive, with hydrogen’s exact orbitals: kata.mino.mobi/orbital." />
+<figcaption aria-hidden="true"><strong>Figure 3.</strong> Orbitals four
+dimensions has and ours doesn’t, cut through the nucleus by a plane, on
+the solved atoms’ own radial functions. (a) The fourth p orbital, p_w,
+in the x–w plane: a dumbbell along w, so any three-dimensional slice
+through the nucleus misses it entirely. (b–d) One of the nine 4D d
+orbitals, x² + y² − z² − w², in three planes: positive all the way round
+the x–y plane, negative all the way round the z–w plane, and a four-leaf
+clover in a plane that mixes them. The x–y and z–w planes are completely
+perpendicular and meet only at the nucleus; nothing in three dimensions
+is positive round one plane and negative round another. Interactive,
+with hydrogen’s exact orbitals: kata.mino.mobi/orbital.</figcaption>
+</figure>
+<figure>
+<img src="../figures/4.svg"
+alt="Figure 4. First ionization energy against Z across the four-dimensional table. The noble gases close their rows, but the hardest-held electron isn’t a noble gas’s: element 128, a full 18-electron d shell with nothing outside it (our palladium’s kind), holds its outermost electron at 29.6 eV against its row’s noble gas at 26.7; element 68, the same kind a row up, comes within a volt of its row’s. In ours palladium holds far less hard than xenon. Across row 6’s 32-wide f block (81–112) the binding barely moves." />
+<figcaption aria-hidden="true"><strong>Figure 4.</strong> First
+ionization energy against Z across the four-dimensional table. The noble
+gases close their rows, but the hardest-held electron isn’t a noble
+gas’s: element 128, a full 18-electron d shell with nothing outside it
+(our palladium’s kind), holds its outermost electron at 29.6 eV against
+its row’s noble gas at 26.7; element 68, the same kind a row up, comes
+within a volt of its row’s. In ours palladium holds far less hard than
+xenon. Across row 6’s 32-wide f block (81–112) the binding barely
+moves.</figcaption>
+</figure>
+<figure>
+<img src="../figures/5.svg"
+alt="Figure 5. Six four-dimensional atoms in profile: each subshell’s electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon’s place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table." />
+<figcaption aria-hidden="true"><strong>Figure 5.</strong> Six
+four-dimensional atoms in profile: each subshell’s electrons per unit ln
+r against distance, from the solved atoms; the area under a curve is its
+electron count, and the outermost subshell is drawn thick. Darbon (7),
+our carbon’s place, five electrons of a ten-electron shell; element 8,
+which answers to nothing of ours; oeon (12), the first noble gas past
+helium, its p shell holding eight; uitanium (26), where the d block
+starts; element 101, 21 electrons into an f shell that holds 32; and
+element 128, the hardest-held electron in the table.</figcaption>
+</figure>
+<figure>
+<img src="../figures/6.svg"
+alt="Figure 6. What the law does. Every 4D atom solved a second time with the shell theorem forced on (the clouds’ pull as if each sat at the centre), everything else held. (a) The table: grey, the same ground configuration under both laws; orange, changed; ?, no settled ground state under the shell theorem (row 6’s f block, 89–116, after a second, wider search). Every atom up to 88 settles. The first 24 elements and all six noble gases are unchanged: the rows are the geometry’s, at least through row 5. Every change starts at the first d element: without the law, p beats d inside each row. (b) First ionization under both: the law holds outer electrons a median 2.5 times harder, and element 128 nearly ten times (29.6 eV against 3.1); with the shell theorem the noble gases hold hardest, as ours do." />
+<figcaption aria-hidden="true"><strong>Figure 6.</strong> What the law
+does. Every 4D atom solved a second time with the shell theorem forced
+on (the clouds’ pull as if each sat at the centre), everything else
+held. (a) The table: grey, the same ground configuration under both
+laws; orange, changed; ?, no settled ground state under the shell
+theorem (row 6’s f block, 89–116, after a second, wider search). Every
+atom up to 88 settles. The first 24 elements and all six noble gases are
+unchanged: the rows are the geometry’s, at least through row 5. Every
+change starts at the first d element: without the law, p beats d inside
+each row. (b) First ionization under both: the law holds outer electrons
+a median 2.5 times harder, and element 128 nearly ten times (29.6 eV
+against 3.1); with the shell theorem the noble gases hold hardest, as
+ours do.</figcaption>
+</figure>
+<figure>
+<img src="../figures/A1.svg"
+alt="Figure A1. The pull of a thin shell of charge on a point at another radius, over a point charge’s at the shell’s centre, as k(t) of the ratio t of the two radii. The shell theorem makes it 1; under the pinned 1/r in four dimensions it falls to 8/3π at the shell itself." />
+<figcaption aria-hidden="true"><strong>Figure A1.</strong> The pull of a
+thin shell of charge on a point at another radius, over a point charge’s
+at the shell’s centre, as k(t) of the ratio t of the two radii. The
+shell theorem makes it 1; under the pinned 1/r in four dimensions it
+falls to 8/3π at the shell itself.</figcaption>
+</figure>
+<figure>
+<img src="../figures/A2.svg"
+alt="Figure A2. The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z." />
+<figcaption aria-hidden="true"><strong>Figure A2.</strong> The solver in
+our three dimensions. (a) Computed against measured first ionization
+energies (NIST), with the four elements whose ground configuration it
+misses (Ti, V, Co, Ni: one d electron too many against 4s, the known
+lean of local exchange). (b) The percentage error against
+Z.</figcaption>
+</figure>
+<h2 id="still-to-write">Still to write</h2>
+<p>Appendices A (the 4D kernel and the shell potential’s expansion), B
+(the 4D electron-gas constants), C (numerical convergence), D (the law
+calculations) and E (reproducing every number). Supplement S1 is the
+table with every open subshell given Hund spins
+(<code>data/table4-hundspin.csv</code>). The 27 claims this text rests
+on, and the data behind them, are in <code>ledger.json</code> and
+<code>data/</code>.</p>
+<h2 id="references">References</h2>
+<ul>
+<li>A. Ghosh, S. Kais &amp; D. R. Herschbach (2020). Unorthodox
+dimensional interpolations for He, Li, Be atoms and hydrogen molecule.
+<em>Front. Phys.</em> 8, 331.</li>
+<li>A. Kramida, Yu. Ralchenko, J. Reader and NIST ASD Team (2026). NIST
+Atomic Spectra Database. <em>National Institute of Standards and
+Technology</em>. <em>(Not yet checked against the source.)</em></li>
+<li>C. Callender (2005). Answers in search of a question: ‘proofs’ of
+the tri-dimensionality of space. <em>Stud. Hist. Phil. Mod. Phys.</em>
+36, 113–136.</li>
+<li>D. R. Herschbach, J. Avery &amp; O. Goscinski (eds.) (1992).
+Dimensional Scaling in Chemical Physics. <em>Kluwer,
+Dordrecht</em>.</li>
+<li>E. H. Lieb &amp; W. E. Thirring (1975). Bound for the kinetic energy
+of fermions which proves the stability of matter. <em>Phys.
+Rev. Lett.</em> 35, 687–689.</li>
+<li>E. Madelung (1936). Die mathematischen Hilfsmittel des Physikers.
+<em>Springer, Berlin</em>. <em>(Not yet checked against the
+source.)</em></li>
+<li>F. J. Dyson &amp; A. Lenard (1967). Stability of matter. I. <em>J.
+Math. Phys.</em> 8, 423–434.</li>
+<li>F. R. Tangherlini (1963). Schwarzschild field in n dimensions and
+the dimensionality of space problem. <em>Nuovo Cimento</em> 27,
+636–651.</li>
+<li>G. Barbatis (2023). The Hardy constant: a review.
+<em>arXiv:2311.08017</em>.</li>
+<li>G. F. Kventsel &amp; J. Katriel (1981). Thomas–Fermi atom in N
+dimensions. <em>Phys. Rev. A</em> 24, 2299–2301.</li>
+<li>J. E. Sansonetti and W. C. Martin (2005). Handbook of Basic Atomic
+Spectroscopic Data. <em>NIST,
+physics.nist.gov/PhysRefData/Handbook</em>.</li>
+<li>J. G. Loeser &amp; D. R. Herschbach (1986). Hartree–Fock
+approximation for D-dimensional two-electron atoms. <em>J. Chem.
+Phys.</em> 84, 3893–3900.</li>
+<li>J. G. Loeser &amp; D. R. Herschbach (1986). Hylleraas–Pekeris
+treatment of D-dimensional two-electron atoms. <em>J. Chem. Phys.</em>
+84, 3882–3892.</li>
+<li>J. P. Perdew &amp; A. Zunger (1981). Self-interaction correction to
+density-functional approximations for many-electron systems. <em>Phys.
+Rev. B</em> 23, 5048–5079.</li>
+<li>K. M. Case (1950). Singular potentials. <em>Phys. Rev.</em> 80,
+797–806.</li>
+<li>L. D. Landau &amp; E. M. Lifshitz (1977). Quantum Mechanics:
+Non-Relativistic Theory (Course of Theoretical Physics, vol. 3), 3rd
+ed.. <em>Pergamon</em>.</li>
+<li>L. E. McMurchie &amp; E. R. Davidson (1978). One- and two-electron
+integrals over Cartesian Gaussian functions. <em>J. Comput. Phys.</em>
+26, 218–231.</li>
+<li>M. Bander &amp; C. Itzykson (1966). Group theory and the hydrogen
+atom (I). <em>Rev. Mod. Phys.</em> 38, 330–345.</li>
+<li>M. M. Nieto (1979). Hydrogen atom and relativistic pi-mesic atom in
+N-space dimensions. <em>Am. J. Phys.</em> 47, 1067–1072.</li>
+<li>P. Ehrenfest (1917). In what way does it become manifest in the
+fundamental laws of physics that space has three dimensions?. <em>Proc.
+Amsterdam Acad.</em> 20, 200.</li>
+<li>P. Ehrenfest (1920). Welche Rolle spielt die Dreidimensionalität des
+Raumes in den Grundgesetzen der Physik?. <em>Ann. Phys.</em> 61,
+440.</li>
+<li>P. Pulay (1980). Convergence acceleration of iterative sequences.
+The case of SCF iteration. <em>Chem. Phys. Lett.</em> 73, 393–398.</li>
+<li>P. Pyykkö &amp; Y. Zhao (1991). The elements of Flatland:
+Hartree–Fock atomic ground states in two dimensions for Z = 1–24.
+<em>Int. J. Quantum Chem.</em> 40, 527–544.</li>
+<li>P.-F. Loos &amp; P. M. W. Gill (2016). The uniform electron gas.
+<em>WIREs Comput. Mol. Sci.</em> 6, 410–429.</li>
+<li>Q. Sun, T. C. Berkelbach, N. S. Blunt et al. (2018). PySCF: the
+Python-based simulations of chemistry framework. <em>WIREs Comput. Mol.
+Sci.</em> 8, e1340.</li>
+<li>Q. Sun, X. Zhang, S. Banerjee et al. (2020). Recent developments in
+the PySCF program package. <em>J. Chem. Phys.</em> 153, 024109.</li>
+<li>S. F. Boys (1950). Electronic wave functions. I. A general method of
+calculation for the stationary states of any molecular system. <em>Proc.
+R. Soc. A</em> 200, 542–554.</li>
+<li>S. M. Al-Jaber (1998). Hydrogen atom in N dimensions. <em>Int. J.
+Theor. Phys.</em> 37, 1289–1298.</li>
+<li>T. Négadi &amp; M. Kibler (1996). The periodic table in Flatland.
+<em>Int. J. Quantum Chem.</em> 57, 53–61.</li>
+<li>V. Fock (1935). Zur Theorie des Wasserstoffatoms. <em>Z. Phys.</em>
+98, 145–154.</li>
+</ul>
+
+</div>
+<div class="p-source">Generated from <code>papers/p1/text/paper.md</code>: every number in it is read by <code>build.mjs</code> from the solver, the bake or the runs, so this text says what the code does. Rendered by pandoc with MathML.</div>
+</article>
+</body>
+</html>
