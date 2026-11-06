@@ -1837,6 +1837,21 @@
       ]
     },
     {
+      "n": "polity",
+      "u": "https://cards.mino.mobi/polity/",
+      "c": "data",
+      "k": 20,
+      "a": "hot",
+      "t": "2026-11-06",
+      "b": "2026-11-06",
+      "p": "cards",
+      "surface": "cards",
+      "d": "Polity Spiral. Every elected American officeholder since 1789 — presidents, governors, Congress, state legislatures — one dot per official per cycle on a party-coloured spiral, a 3D state helix, chambers and a tile map; every dot opens its Wikipedia article.",
+      "tags": [
+        "webgl"
+      ]
+    },
+    {
       "n": "techtree",
       "u": "https://mino.mobi/cards/collection/techtree.html",
       "c": "data",

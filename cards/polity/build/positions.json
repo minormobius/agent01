@@ -1,0 +1,920 @@
+[
+ {
+  "q": "Q11696",
+  "b": "P",
+  "st": "US",
+  "label": "President of the United States"
+ },
+ {
+  "q": "Q11699",
+  "b": "V",
+  "st": "US",
+  "label": "Vice President of the United States"
+ },
+ {
+  "q": "Q18342769",
+  "b": "SS",
+  "st": "ME",
+  "label": "member of the State Senate of Maine"
+ },
+ {
+  "q": "Q16149111",
+  "b": "G",
+  "st": "OR",
+  "label": "Governor of Oregon"
+ },
+ {
+  "q": "Q17989863",
+  "b": "G",
+  "st": "OH",
+  "label": "Governor of Ohio"
+ },
+ {
+  "q": "Q16202700",
+  "b": "G",
+  "st": "NC",
+  "label": "Governor of North Carolina"
+ },
+ {
+  "q": "Q20064988",
+  "b": "SH",
+  "st": "NE",
+  "label": "member of the Nebraska House of Representatives"
+ },
+ {
+  "q": "Q693032",
+  "b": "G",
+  "st": "MD",
+  "label": "Governor of Maryland"
+ },
+ {
+  "q": "Q887010",
+  "b": "G",
+  "st": "CA",
+  "label": "Governor of California"
+ },
+ {
+  "q": "Q29514575",
+  "b": "G",
+  "st": "AL",
+  "label": "Governor of Alabama"
+ },
+ {
+  "q": "Q3506352",
+  "b": "G",
+  "st": "ME",
+  "label": "Governor of Maine"
+ },
+ {
+  "q": "Q5589687",
+  "b": "G",
+  "st": "NH",
+  "label": "Governor of New Hampshire"
+ },
+ {
+  "q": "Q887117",
+  "b": "G",
+  "st": "MA",
+  "label": "Governor of Massachusetts"
+ },
+ {
+  "q": "Q887090",
+  "b": "G",
+  "st": "CT",
+  "label": "Governor of Connecticut"
+ },
+ {
+  "q": "Q5589655",
+  "b": "G",
+  "st": "HI",
+  "label": "Governor of Hawaii"
+ },
+ {
+  "q": "Q20801644",
+  "b": "G",
+  "st": "AK",
+  "label": "Governor of Alaska"
+ },
+ {
+  "q": "Q20198851",
+  "b": "G",
+  "st": "FL",
+  "label": "Governor of Florida"
+ },
+ {
+  "q": "Q29514606",
+  "b": "G",
+  "st": "AZ",
+  "label": "Governor of Arizona"
+ },
+ {
+  "q": "Q887220",
+  "b": "G",
+  "st": "UT",
+  "label": "Governor of Utah"
+ },
+ {
+  "q": "Q5589680",
+  "b": "G",
+  "st": "MI",
+  "label": "Governor of Michigan"
+ },
+ {
+  "q": "Q3773741",
+  "b": "G",
+  "st": "ND",
+  "label": "Governor of North Dakota"
+ },
+ {
+  "q": "Q2626318",
+  "b": "G",
+  "st": "SD",
+  "label": "Governor of South Dakota"
+ },
+ {
+  "q": "Q20801646",
+  "b": "G",
+  "st": "MT",
+  "label": "Governor of Montana"
+ },
+ {
+  "q": "Q20801647",
+  "b": "G",
+  "st": "WY",
+  "label": "Governor of Wyoming"
+ },
+ {
+  "q": "Q29514674",
+  "b": "G",
+  "st": "ID",
+  "label": "Governor of Idaho"
+ },
+ {
+  "q": "Q19647220",
+  "b": "G",
+  "st": "WA",
+  "label": "Governor of Washington"
+ },
+ {
+  "q": "Q20801651",
+  "b": "G",
+  "st": "NV",
+  "label": "Governor of Nevada"
+ },
+ {
+  "q": "Q29514964",
+  "b": "G",
+  "st": "CO",
+  "label": "Governor of Colorado"
+ },
+ {
+  "q": "Q878942",
+  "b": "G",
+  "st": "VA",
+  "label": "Governor of Virginia"
+ },
+ {
+  "q": "Q20801652",
+  "b": "G",
+  "st": "WV",
+  "label": "Governor of West Virginia"
+ },
+ {
+  "q": "Q2347975",
+  "b": "G",
+  "st": "NY",
+  "label": "Governor of New York"
+ },
+ {
+  "q": "Q20765611",
+  "b": "G",
+  "st": "RI",
+  "label": "Governor of Rhode Island"
+ },
+ {
+  "q": "Q20801656",
+  "b": "G",
+  "st": "DE",
+  "label": "Governor of Delaware"
+ },
+ {
+  "q": "Q20801659",
+  "b": "G",
+  "st": "PA",
+  "label": "Governor of Pennsylvania"
+ },
+ {
+  "q": "Q3112728",
+  "b": "G",
+  "st": "NJ",
+  "label": "Governor of New Jersey"
+ },
+ {
+  "q": "Q16147601",
+  "b": "G",
+  "st": "IN",
+  "label": "Governor of Indiana"
+ },
+ {
+  "q": "Q880198",
+  "b": "G",
+  "st": "GA",
+  "label": "Governor of Georgia"
+ },
+ {
+  "q": "Q3773752",
+  "b": "G",
+  "st": "SC",
+  "label": "Governor of South Carolina"
+ },
+ {
+  "q": "Q878632",
+  "b": "G",
+  "st": "MS",
+  "label": "Governor of Mississippi"
+ },
+ {
+  "q": "Q5589724",
+  "b": "G",
+  "st": "TN",
+  "label": "Governor of Tennessee"
+ },
+ {
+  "q": "Q17089908",
+  "b": "G",
+  "st": "NM",
+  "label": "Governor of New Mexico"
+ },
+ {
+  "q": "Q5589682",
+  "b": "G",
+  "st": "MN",
+  "label": "Governor of Minnesota"
+ },
+ {
+  "q": "Q3112727",
+  "b": "G",
+  "st": "WI",
+  "label": "Governor of Wisconsin"
+ },
+ {
+  "q": "Q20801664",
+  "b": "G",
+  "st": "IA",
+  "label": "governor of Iowa"
+ },
+ {
+  "q": "Q5589688",
+  "b": "G",
+  "st": "NE",
+  "label": "Governor of Nebraska"
+ },
+ {
+  "q": "Q5589668",
+  "b": "G",
+  "st": "KS",
+  "label": "Governor of Kansas"
+ },
+ {
+  "q": "Q20801667",
+  "b": "G",
+  "st": "MO",
+  "label": "Governor of Missouri"
+ },
+ {
+  "q": "Q20766109",
+  "b": "G",
+  "st": "LA",
+  "label": "Governor of Louisiana"
+ },
+ {
+  "q": "Q4151335",
+  "b": "G",
+  "st": "KY",
+  "label": "Governor of Kentucky"
+ },
+ {
+  "q": "Q1540336",
+  "b": "G",
+  "st": "AR",
+  "label": "Governor of Arkansas"
+ },
+ {
+  "q": "Q2550683",
+  "b": "G",
+  "st": "OK",
+  "label": "Governor of Oklahoma"
+ },
+ {
+  "q": "Q3773745",
+  "b": "G",
+  "st": "VT",
+  "label": "Governor of Vermont"
+ },
+ {
+  "q": "Q3112719",
+  "b": "G",
+  "st": "IL",
+  "label": "Governor of Illinois"
+ },
+ {
+  "q": "Q5589725",
+  "b": "G",
+  "st": "TX",
+  "label": "Governor of Texas"
+ },
+ {
+  "q": "Q6814783",
+  "b": "SS",
+  "st": "SD",
+  "label": "member of the State Senate of South Dakota"
+ },
+ {
+  "q": "Q14616716",
+  "b": "SH",
+  "st": "PA",
+  "label": "member of the Pennsylvania House of Representatives"
+ },
+ {
+  "q": "Q21360107",
+  "b": "SS",
+  "st": "AK",
+  "label": "member of the State Senate of Alaska"
+ },
+ {
+  "q": "Q21360913",
+  "b": "SS",
+  "st": "AZ",
+  "label": "member of the State Senate of Arizona"
+ },
+ {
+  "q": "Q21366730",
+  "b": "SS",
+  "st": "ND",
+  "label": "member of the State Senate of North Dakota"
+ },
+ {
+  "q": "Q21365323",
+  "b": "SS",
+  "st": "MT",
+  "label": "member of the State Senate of Montana"
+ },
+ {
+  "q": "Q21368444",
+  "b": "SS",
+  "st": "WV",
+  "label": "member of the State Senate of West Virginia"
+ },
+ {
+  "q": "Q21362489",
+  "b": "SS",
+  "st": "DE",
+  "label": "member of the Delaware State Senate"
+ },
+ {
+  "q": "Q21363942",
+  "b": "SS",
+  "st": "MN",
+  "label": "member of the State Senate of Minnesota"
+ },
+ {
+  "q": "Q21364537",
+  "b": "SS",
+  "st": "MO",
+  "label": "member of the State Senate of Missouri"
+ },
+ {
+  "q": "Q21361754",
+  "b": "SS",
+  "st": "AR",
+  "label": "member of the Arkansas Senate"
+ },
+ {
+  "q": "Q21367377",
+  "b": "SS",
+  "st": "OK",
+  "label": "member of the Oklahoma Senate"
+ },
+ {
+  "q": "Q19264592",
+  "b": "SS",
+  "st": "NH",
+  "label": "member of the State Senate of New Hampshire"
+ },
+ {
+  "q": "Q18763331",
+  "b": "SH",
+  "st": "CT",
+  "label": "Member of the Connecticut House of Representatives"
+ },
+ {
+  "q": "Q19360415",
+  "b": "SH",
+  "st": "OR",
+  "label": "member of the Oregon House of Representatives"
+ },
+ {
+  "q": "Q18810381",
+  "b": "SH",
+  "st": "UT",
+  "label": "member of the Utah House of Representatives"
+ },
+ {
+  "q": "Q19360961",
+  "b": "SH",
+  "st": "ND",
+  "label": "member of the North Dakota House of Representatives"
+ },
+ {
+  "q": "Q19360976",
+  "b": "SH",
+  "st": "SD",
+  "label": "member of the South Dakota House of Representatives"
+ },
+ {
+  "q": "Q19394559",
+  "b": "SS",
+  "st": "WY",
+  "label": "member of the State Senate of Wyoming"
+ },
+ {
+  "q": "Q19397347",
+  "b": "SS",
+  "st": "RI",
+  "label": "Rhode Island state senator"
+ },
+ {
+  "q": "Q19385767",
+  "b": "SS",
+  "st": "NJ",
+  "label": "Member of the State Senate of New Jersey"
+ },
+ {
+  "q": "Q18925362",
+  "b": "SH",
+  "st": "OK",
+  "label": "member of the Oklahoma House of Representatives"
+ },
+ {
+  "q": "Q21971205",
+  "b": "SH",
+  "st": "NH",
+  "label": "member of the New Hampshire House of Representatives"
+ },
+ {
+  "q": "Q22679266",
+  "b": "SH",
+  "st": "DE",
+  "label": "member of the Delaware House of Representatives"
+ },
+ {
+  "q": "Q19690441",
+  "b": "SS",
+  "st": "CA",
+  "label": "member of the State Senate of California"
+ },
+ {
+  "q": "Q19831739",
+  "b": "SS",
+  "st": "CT",
+  "label": "member of the State Senate of Connecticut"
+ },
+ {
+  "q": "Q19689183",
+  "b": "SS",
+  "st": "OR",
+  "label": "member of the State Senate of Oregon"
+ },
+ {
+  "q": "Q19772501",
+  "b": "SH",
+  "st": "WV",
+  "label": "Member of the West Virginia House of Delegates"
+ },
+ {
+  "q": "Q19727887",
+  "b": "SS",
+  "st": "NC",
+  "label": "member of the North Carolina Senate"
+ },
+ {
+  "q": "Q19617175",
+  "b": "SS",
+  "st": "KS",
+  "label": "member of the State Senate of Kansas"
+ },
+ {
+  "q": "Q19681513",
+  "b": "SH",
+  "st": "AR",
+  "label": "member of the Arkansas House of Representatives"
+ },
+ {
+  "q": "Q17342542",
+  "b": "SH",
+  "st": "MA",
+  "label": "member of the Massachusetts House of Representatives"
+ },
+ {
+  "q": "Q17486298",
+  "b": "SH",
+  "st": "AZ",
+  "label": "member of the Arizona House of Representatives"
+ },
+ {
+  "q": "Q17496847",
+  "b": "SH",
+  "st": "MT",
+  "label": "member of the Montana House of Representatives"
+ },
+ {
+  "q": "Q17598395",
+  "b": "SH",
+  "st": "WA",
+  "label": "member of the Washington House of Representatives"
+ },
+ {
+  "q": "Q17485005",
+  "b": "SH",
+  "st": "CO",
+  "label": "member of the Colorado House of Representatives"
+ },
+ {
+  "q": "Q17502533",
+  "b": "SH",
+  "st": "OH",
+  "label": "Ohio state representative"
+ },
+ {
+  "q": "Q17548315",
+  "b": "SH",
+  "st": "GA",
+  "label": "member of the Georgia House of Representatives"
+ },
+ {
+  "q": "Q17487661",
+  "b": "SH",
+  "st": "MS",
+  "label": "member of the Mississippi House of Representatives"
+ },
+ {
+  "q": "Q17631457",
+  "b": "SH",
+  "st": "NM",
+  "label": "Member of the New Mexico House of Representatives"
+ },
+ {
+  "q": "Q17505193",
+  "b": "SH",
+  "st": "MN",
+  "label": "member of the Minnesota House of Representatives"
+ },
+ {
+  "q": "Q17602055",
+  "b": "SS",
+  "st": "WI",
+  "label": "member of the State Senate of Wisconsin"
+ },
+ {
+  "q": "Q17487134",
+  "b": "SH",
+  "st": "KS",
+  "label": "member of the Kansas House of Representatives"
+ },
+ {
+  "q": "Q17355090",
+  "b": "SH",
+  "st": "LA",
+  "label": "member of the Louisiana House of Representatives"
+ },
+ {
+  "q": "Q17484018",
+  "b": "SH",
+  "st": "VT",
+  "label": "member of the Vermont House of Representatives"
+ },
+ {
+  "q": "Q18180908",
+  "b": "SH",
+  "st": "CA",
+  "label": "member of the California State Assembly"
+ },
+ {
+  "q": "Q18342844",
+  "b": "SH",
+  "st": "FL",
+  "label": "member of the Florida House of Representatives"
+ },
+ {
+  "q": "Q18341783",
+  "b": "SH",
+  "st": "WY",
+  "label": "member of the Wyoming House of Representatives"
+ },
+ {
+  "q": "Q18199902",
+  "b": "SS",
+  "st": "PA",
+  "label": "member of the Pennsylvania State Senate"
+ },
+ {
+  "q": "Q18089655",
+  "b": "SH",
+  "st": "NC",
+  "label": "member of the North Carolina House of Representatives"
+ },
+ {
+  "q": "Q18195558",
+  "b": "SS",
+  "st": "MS",
+  "label": "Member of the Mississippi Senate"
+ },
+ {
+  "q": "Q18131809",
+  "b": "SH",
+  "st": "MO",
+  "label": "member of the Missouri House of Representatives"
+ },
+ {
+  "q": "Q18091440",
+  "b": "SS",
+  "st": "LA",
+  "label": "member of the State Senate of Louisiana"
+ },
+ {
+  "q": "Q20058764",
+  "b": "SS",
+  "st": "AL",
+  "label": "member of the State Senate of Alabama"
+ },
+ {
+  "q": "Q20058776",
+  "b": "SS",
+  "st": "MA",
+  "label": "member of the State Senate of Massachusetts"
+ },
+ {
+  "q": "Q19961062",
+  "b": "SS",
+  "st": "FL",
+  "label": "member of the State Senate of Florida"
+ },
+ {
+  "q": "Q20065565",
+  "b": "SS",
+  "st": "UT",
+  "label": "member of the State Senate of Utah"
+ },
+ {
+  "q": "Q20065405",
+  "b": "SS",
+  "st": "WA",
+  "label": "member of the Washington State Senate"
+ },
+ {
+  "q": "Q20064517",
+  "b": "SS",
+  "st": "NV",
+  "label": "member of the State Senate of Nevada"
+ },
+ {
+  "q": "Q20064489",
+  "b": "SS",
+  "st": "CO",
+  "label": "member of the State Senate of Colorado"
+ },
+ {
+  "q": "Q20065408",
+  "b": "SH",
+  "st": "VA",
+  "label": "member of the Virginia House of Delegates"
+ },
+ {
+  "q": "Q20058759",
+  "b": "SH",
+  "st": "RI",
+  "label": "member of the Rhode Island House of Representatives"
+ },
+ {
+  "q": "Q20064926",
+  "b": "SS",
+  "st": "MD",
+  "label": "member of the State Senate of Maryland"
+ },
+ {
+  "q": "Q20064986",
+  "b": "SH",
+  "st": "MD",
+  "label": "member of the Maryland House of Delegates"
+ },
+ {
+  "q": "Q20065429",
+  "b": "SS",
+  "st": "OH",
+  "label": "member of the State Senate of Ohio"
+ },
+ {
+  "q": "Q20065663",
+  "b": "SS",
+  "st": "GA",
+  "label": "member of the Georgia State Senate"
+ },
+ {
+  "q": "Q20065395",
+  "b": "SS",
+  "st": "NE",
+  "label": "Nebraska State Senator"
+ },
+ {
+  "q": "Q20065966",
+  "b": "SH",
+  "st": "KY",
+  "label": "member of the Kentucky House of Representatives"
+ },
+ {
+  "q": "Q20066070",
+  "b": "SS",
+  "st": "KY",
+  "label": "member of the State Senate of Kentucky"
+ },
+ {
+  "q": "Q20065418",
+  "b": "SS",
+  "st": "VT",
+  "label": "member of the State Senate of Vermont"
+ },
+ {
+  "q": "Q18648747",
+  "b": "SH",
+  "st": "AL",
+  "label": "member of the Alabama House of Representatives"
+ },
+ {
+  "q": "Q18713970",
+  "b": "SH",
+  "st": "ME",
+  "label": "member of the Maine House of Representatives"
+ },
+ {
+  "q": "Q18654736",
+  "b": "SH",
+  "st": "MI",
+  "label": "member of the Michigan House of Representatives"
+ },
+ {
+  "q": "Q18675883",
+  "b": "SS",
+  "st": "MI",
+  "label": "member of the State Senate of Michigan"
+ },
+ {
+  "q": "Q18604340",
+  "b": "SS",
+  "st": "VA",
+  "label": "member of the State Senate of Virginia"
+ },
+ {
+  "q": "Q18691526",
+  "b": "SS",
+  "st": "NY",
+  "label": "member of the State Senate of New York"
+ },
+ {
+  "q": "Q18536527",
+  "b": "SH",
+  "st": "NJ",
+  "label": "Member of the New Jersey General Assembly"
+ },
+ {
+  "q": "Q18565274",
+  "b": "SS",
+  "st": "TX",
+  "label": "member of the State Senate of Texas"
+ },
+ {
+  "q": "Q18604553",
+  "b": "SH",
+  "st": "TX",
+  "label": "member of the Texas House of Representatives"
+ },
+ {
+  "q": "Q18676729",
+  "b": "SS",
+  "st": "SC",
+  "label": "member of the State Senate of South Carolina"
+ },
+ {
+  "q": "Q18534307",
+  "b": "SS",
+  "st": "TN",
+  "label": "member of the State Senate of Tennessee"
+ },
+ {
+  "q": "Q18538054",
+  "b": "SH",
+  "st": "TN",
+  "label": "member of the Tennessee House of Representatives"
+ },
+ {
+  "q": "Q18526160",
+  "b": "SH",
+  "st": "WI",
+  "label": "member of the Wisconsin State Assembly"
+ },
+ {
+  "q": "Q20658713",
+  "b": "SS",
+  "st": "NM",
+  "label": "member of the State Senate of New Mexico"
+ },
+ {
+  "q": "Q26265831",
+  "b": "SH",
+  "st": "AK",
+  "label": "member of the Alaska House of Representatives"
+ },
+ {
+  "q": "Q75572150",
+  "b": "SH",
+  "st": "NC",
+  "label": "member of the North Carolina House of Commons"
+ },
+ {
+  "q": "Q19319643",
+  "b": "SH",
+  "st": "HI",
+  "label": "member of the Hawaii House of Representatives"
+ },
+ {
+  "q": "Q20058751",
+  "b": "SS",
+  "st": "HI",
+  "label": "member of the State Senate of Hawaii"
+ },
+ {
+  "q": "Q17495450",
+  "b": "SH",
+  "st": "IL",
+  "label": "member of the Illinois House of Representatives"
+ },
+ {
+  "q": "Q20058778",
+  "b": "SS",
+  "st": "IL",
+  "label": "member of the State Senate of Illinois"
+ },
+ {
+  "q": "Q17546641",
+  "b": "SH",
+  "st": "ID",
+  "label": "member of the Idaho House of Representatives"
+ },
+ {
+  "q": "Q18655026",
+  "b": "SS",
+  "st": "ID",
+  "label": "member of the State Senate of Idaho"
+ },
+ {
+  "q": "Q18341124",
+  "b": "SH",
+  "st": "NV",
+  "label": "member of the Nevada Assembly"
+ },
+ {
+  "q": "Q20058770",
+  "b": "SH",
+  "st": "NY",
+  "label": "member of the New York State Assembly"
+ },
+ {
+  "q": "Q18190880",
+  "b": "SH",
+  "st": "IN",
+  "label": "member of the Indiana House of Representatives"
+ },
+ {
+  "q": "Q19362907",
+  "b": "SS",
+  "st": "IN",
+  "label": "member of the State Senate of Indiana"
+ },
+ {
+  "q": "Q19754409",
+  "b": "SH",
+  "st": "SC",
+  "label": "member of the South Carolina House of Representatives"
+ },
+ {
+  "q": "Q17486706",
+  "b": "SH",
+  "st": "IA",
+  "label": "member of the Iowa House of Representatives"
+ },
+ {
+  "q": "Q18707052",
+  "b": "SS",
+  "st": "IA",
+  "label": "member of the State Senate of Iowa"
+ }
+]
