@@ -55,7 +55,8 @@ moves. Heavy atoms would need relativity, which the law has given up for the for
 about element 100 is first-pass for that reason, and the innermost Dirac level of a bare nucleus would dive near
 Z ≈ 230 for a nucleus of 4–5 fm, as a potential problem, not one met here. Nuclei are declared stable to Z = 140.
 
-**The method's.** Local exchange and no correlation, as section 6.3 measures in ours. Every subshell's cloud is
+**The method's.** Local exchange and no correlation, which in ours favours d by about a volt (section 6.3); in four
+dimensions that leaves the configurations section 7.4 lists in doubt. Every subshell's cloud is
 averaged over the sphere. The terms of open subshells are resolved only to first order, on the solver's orbitals, and
 only where the rule fails (section 7). The counterfactual table leaves row 6's f block unsettled (section 9).
 

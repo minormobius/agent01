@@ -13,7 +13,13 @@ Gaussian basis written for any dimension (`gauss.js`), and the same atoms in our
 
 **6.3 Our own table.** The same solver, the same law (in ours 1/r is Gauss's) and the same search, run in three
 dimensions, gives 32 of 36 of our measured ground configurations. The four it misses, titanium, vanadium, cobalt and nickel, each take one
-d electron too many against 4s, the known lean of local exchange toward d. Its first ionization energies are off by a
+d electron too many against 4s, the known lean of local exchange toward d. The misses have one cause. Moving an electron from 4s into 3d comes out
+too cheap in every 3d atom we can compare (eV, the solver against measured: Sc 0.14 against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.86, Co −0.35 against 0.43, Ni −1.16 against 0.03), short by 0.35–1.70
+eV and a mean 1.06, always in d's favour. That is local exchange without correlation. Resolving every open
+subshell's whole term structure doesn't remove it. With that correction (the lowest term less the average of the
+maximum-spin arrangements, which is what a spherically averaged field stands for), the bias stays at 1.07 eV and
+the configurations get worse, 26 of 32 against 28 of 32. So the paper corrects only Hund's first rule
+(section 7), the one thing a spin-polarized averaged field cannot represent. Its first ionization energies are off by a
 median 4.3 % and at most 16.2 % (figure A2). That is the accuracy to expect of the 4D table: a method
 that gets our transition metals mostly right and our ionizations to a few percent, not a spectroscopic one.
 
@@ -75,6 +81,9 @@ whose ion lands on the broken filling, gives one up more easily: 55 (8.28 → 7.
 The wider search found one configuration the bake had missed. Element 82 is 4f¹ 5d¹ 6s², 0.36 eV below the
 bake's 4f² 6s², which is our cerium's kind; its ionization goes 7.03 → 7.39 eV. The table that follows is the
 corrected one (`data/table4.csv`). The Hund-spin table it replaces is supplement S1 (`data/table4-hundspin.csv`).
+How far to trust each configuration follows from section 6.3. Take a bias of about a volt toward d and f: a ground
+configuration with a competitor holding fewer d and f electrons within a volt of it could be the other way round.
+11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s², 0.55 eV up), 37 (3d¹³ 4s², 0.55 eV up), 53 (5s² 5p¹, 0.01 eV up), 58 (4d⁶ 5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV up), 107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s², 0.57 eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).
 
 ## 8 · The table
 

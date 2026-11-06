@@ -102,15 +102,23 @@ function lowest(B, g, { tol = 1e-10, maxIt = 160 } = {}) {
   return { E, it: maxIt, unconverged: true };
 }
 /* the subshell's ground spin: lowest energy in each block from M = S_max down; skip blocks over `limit` */
-export function groundSpin(m, n, ang, F, { limit = 70000 } = {}) {
+/* the average energy of the M_S = S_max block's determinants, in closed form: each same-spin pair of distinct orbitals is
+   occupied with probability k(k−1)/m(m−1) and contributes J − K; each up–down pair (a, b), a = b included, with
+   probability nu·nd/m² and contributes J. This is what a spherically averaged, Hund-polarized field approximates */
+export function maxSpinAverage(m, nu, nd, g) {
+  let sJK = 0, sJ = 0; for (let a = 0; a < m; a++) for (let b = 0; b < m; b++) { const J = g[((a * m + b) * m + a) * m + b], K = g[((a * m + b) * m + b) * m + a]; sJ += J; if (a < b) sJK += J - K; }
+  return ((nu * (nu - 1) + nd * (nd - 1)) / (m * (m - 1))) * sJK + ((nu * nd) / (m * m)) * sJ;
+}
+export function groundSpin(m, n, ang, F, { limit = 70000, limitMax = limit } = {}) {
   const g = integrals(ang, F), Smax = Math.min(n, 2 * m - n) / 2, out = [];
   for (let M = Smax; M >= (n % 2) / 2 - 1e-9; M -= 1) { const nu = (n + 2 * M) / 2, nd = n - nu, B = blockOf(m, nu, nd);
-    if (B.dim > limit) { out.push({ M, dim: B.dim, skipped: true }); continue; }
+    if (B.dim > (Math.abs(M - Smax) < 1e-9 ? limitMax : limit)) { out.push({ M, dim: B.dim, skipped: true }); continue; }
     const t = Date.now(), r = lowest(B, g); out.push({ M, dim: B.dim, E: r.E, it: r.it, s: (Date.now() - t) / 1000, ...(r.unconverged ? { unconverged: true } : {}) }); }
   const run = out.filter((b) => !b.skipped), Emin = Math.min(...run.map((b) => b.E)), hi = run.find((b) => Math.abs(b.M - Smax) < 1e-9);
   const ground = run.filter((b) => b.E < Emin + 1e-7).reduce((a, b) => (b.M > a.M ? b : a)); // the largest M reaching the lowest energy
   const complete = !out.some((b) => b.skipped);
-  return { Smax, groundS: ground.M, hund: Math.abs(ground.M - Smax) < 1e-9, belowMax_eV: hi ? (Emin - hi.E) * HA : null, complete, blocks: out.map((b) => ({ ...b, E: b.E == null ? undefined : +((b.E - Emin) * HA).toFixed(5) })) };
+  const nuM = (n + 2 * Smax) / 2, avg = maxSpinAverage(m, nuM, n - nuM, g);
+  return { Smax, groundS: ground.M, hund: Math.abs(ground.M - Smax) < 1e-9, belowMax_eV: hi ? (Emin - hi.E) * HA : null, Emin, avgMax: avg, full_eV: (Emin - avg) * HA, complete, blocks: out.map((b) => ({ ...b, E: b.E == null ? undefined : +((b.E - Emin) * HA).toFixed(5) })) };
 }
 
 const L = { s: 0, p: 1, d: 2, f: 3 }, CAP3 = { s: 2, p: 6, d: 10, f: 14 }, CAP4 = { s: 2, p: 8, d: 18, f: 32 };

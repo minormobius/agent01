@@ -16,7 +16,10 @@ import { TABLE } from "../js/table.js";
 import { SOLVER } from "./bake.mjs";
 import { angularL, slaterL, groundSpin } from "./hund.mjs";
 
-const HA = 27.211386, L = { s: 0, p: 1, d: 2, f: 3 }, LIMIT = +(process.env.TERM_LIMIT || 3000);
+const HA = 27.211386, L = { s: 0, p: 1, d: 2, f: 3 }, LIMIT = +(process.env.TERM_LIMIT || 3000), FULL = process.env.TERM_MODE === "full", LIMIT_MAX = +(process.env.TERM_LIMIT_MAX || 20000);
+/* TERM_MODE=full: the whole term correction, lowest term − the average of the maximum-spin determinants (what the
+   spherically averaged, Hund-polarized field approximates), for every open p, d and f subshell; the default corrects
+   only Hund's first rule (lowest term − lowest maximum-spin term) */
 const [zs, dS = "4"] = process.argv.slice(2), D = +dS, sh = subshells(D), byName = Object.fromEntries(sh.map((s, i) => [s.name, i]));
 const angs = new Map(), ang = (l) => { if (!angs.has(l)) angs.set(l, angularL(D, l)); return angs.get(l); };
 const C = (a, b) => { let r = 1; for (let i = 0; i < b; i++) r = (r * (a - i)) / (i + 1); return r; };
@@ -26,12 +29,12 @@ const memo = new Map();
 /* the term correction of one occupation with its orbitals: Σ over open d and f subshells of (lowest term − lowest max-spin term) */
 function correction(occ, qs) {
   let delta = 0; const parts = [];
-  sh.forEach((s, i) => { const n = occ[i], l = L[s.name[1]]; if (l < 2 || n < 2 || n > s.cap - 2) return; // one electron or one hole: a single term
+  sh.forEach((s, i) => { const n = occ[i], l = L[s.name[1]]; if (l < (FULL ? 1 : 2) || n < 2 || n > s.cap - 2) return; // one electron or one hole: a single term
     const a = ang(l), m = a.m;
-    if (biggest(m, n) > LIMIT) { parts.push({ shell: s.name, n, assumed: true }); return; }
+    if (!FULL && biggest(m, n) > LIMIT) { parts.push({ shell: s.name, n, assumed: true }); return; }
     const key = `${s.name}${n}:${qs[i].length}:${qs[i][Math.floor(qs[i].length / 2)]}`;
-    let r = memo.get(key); if (!r) { const F = slaterL(D, qs[i], a.ns); r = groundSpin(m, n, a, F); memo.set(key, r); }
-    delta += r.belowMax_eV / HA; parts.push({ shell: s.name, n, groundS: r.groundS, Smax: r.Smax, eV: +r.belowMax_eV.toFixed(4) }); });
+    let r = memo.get(key); if (!r) { const F = slaterL(D, qs[i], a.ns); r = groundSpin(m, n, a, F, FULL ? { limit: LIMIT, limitMax: LIMIT_MAX } : {}); memo.set(key, r); }
+    const eV = FULL ? r.full_eV : r.belowMax_eV; delta += eV / HA; parts.push({ shell: s.name, n, groundS: r.groundS, Smax: r.Smax, eV: +eV.toFixed(4), ...(FULL ? { hund_eV: +(r.belowMax_eV ?? 0).toFixed(4), complete: r.complete } : {}) }); });
   return { delta, parts };
 }
 const occOf = (cfg) => { const o = sh.map(() => 0); for (const t of cfg.split(" ")) { const m = t.match(/^(\d+[a-z])(\d+)$/); o[byName[m[1]]] = +m[2]; } return o; };

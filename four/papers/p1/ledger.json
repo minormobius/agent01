@@ -272,6 +272,17 @@
    ]
   },
   {
+   "id": "promotion",
+   "part": "table",
+   "claim": "In ours the solver's misses have one cause, a bias toward d: moving a 4s electron into 3d comes out too cheap in every 3d atom measured, by about a volt; resolving the open subshells' whole term structure doesn't remove it, and gets fewer configurations right",
+   "value": "4s→3d, solver against measured (eV): Sc 0.138 vs 1.43, Ti -0.894 vs 0.81, Fe 0.509 vs 0.86, Co -0.346 vs 0.43, Ni -1.155 vs 0.03; mean error -1.062, with the full term correction -1.066; configurations right 28 (bake) and 26 (full correction) of 32",
+   "holds": true,
+   "section": "6",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "screening",
    "part": "consequence",
    "claim": "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
@@ -406,6 +417,6 @@
   "cited": 3,
   "index": 21,
   "read": 2,
-  "memory": 2
+  "memory": 3
  }
 }

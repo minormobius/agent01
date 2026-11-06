@@ -435,7 +435,15 @@ for games, and this is a modelling programme with publications to come. The game
     127, whose ions land on the broken filling. The wider search found one bake miss, element 82: 4f¹ 5d¹ 6s² (our
     cerium's kind), 0.363 eV below 4f² 6s², ionization 7.03 → 7.39 eV. **Paper 1's main table is now the corrected one**
     (`build.mjs` overlays it; supplement S1 is `data/table4-hundspin.*`; claim `termtable`). `js/table.js` and the site's
-    table chapter still show the bake: to do. All of this stands on point charges ×
+    table chapter still show the bake: to do.
+  - **The full term correction, tested and rejected (2026-11-06).** `TERM_MODE=full` corrects each candidate by its
+    whole term structure: lowest term − the average of the max-spin determinants (`maxSpinAverage()`, closed form,
+    checked against brute force). On ours (5–36) it gets **26/32** configurations right against the bake's 28, fixes
+    none of Ti, V, Co, Ni, and breaks Sc and Fe. The 4s→3d promotion energies against measured ones show why. The solver
+    is too cheap for d in every 3d atom, by 0.35–1.70 eV (mean 1.06), from local exchange without correlation, and the
+    full correction leaves the mean at 1.07. **So paper 1 corrects only Hund's first rule** and states the bias. 11 of the
+    92 4D d/f elements have a fewer-d competitor within 1 eV, flagged in §7.4 (`data/promotion3.json`,
+    `promotion-collect.mjs`, claim `promotion`). All of this stands on point charges ×
   a factor carried from ruby.
   **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §7.3) has five
   parts:

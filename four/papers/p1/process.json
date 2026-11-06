@@ -238,6 +238,10 @@
   {
    "item": "Figures 1, 4 and 6 draw from atom/js/table.js (the bake), not the corrected table: point them at build.mjs's rows (differences ≤ 0.67 eV in eight ionizations, and element 82's configuration)",
    "status": "to do"
+  },
+  {
+   "item": "Check the measured 4s→3d promotion energies (section 6.3) and Pd/Xe ionizations (8.2) against NIST ASD and cite with the access date",
+   "status": "to do"
   }
  ],
  "journal": [
@@ -344,6 +348,10 @@
   {
    "date": "2026-11-06",
    "what": "The term-corrected table is in (runner run hund-f-and-terms, 92 d- and f-block elements searched again with neighbour seeds, every candidate corrected for its open subshells' Hund gaps) and is now the paper's main table. The Hund-spin bake is supplement S1 (data/table4-hundspin.*). The terms change no ground configuration. They lower the eight Hund-breaking atoms' energies and move eight first ionizations, in pairs, by 0.30–0.67 eV: up for 54, 66, 114, 126, down for the next element, whose ion lands on the broken filling (55, 67, 115, 127). The wider search found one configuration the bake had missed: element 82 is 4f¹ 5d¹ 6s² (our cerium's kind), 0.36 eV below 4f² 6s². Rows, noble gases, element 128's lead and the 2.54 hold ratio are untouched. Ledger claim termtable makes 26, all holding; §7.4 and a methods paragraph written."
+  },
+  {
+   "date": "2026-11-06",
+   "what": "The full term correction, tested and rejected. Beyond Hund's first rule, the solver also averages every open subshell over orbitals, so we tried correcting each candidate by its whole term structure: lowest term less the average of the maximum-spin arrangements. That average has a closed form, checked against brute force. Tested on ours first (TERM_MODE=full, elements 5–36): it fixes none of the four misses and breaks two that were right (Sc, Fe), 26 of 32 against 28. The 4s→3d promotion energies against measured ones show why. The solver comes out too cheap for d in every 3d atom, by 0.35–1.70 eV, a mean 1.06 (local exchange without correlation), and the full correction leaves that mean where it is (1.07). So the paper corrects only Hund's first rule, the one thing a spin-polarized averaged field cannot represent, and states the bias. It also gives a robustness measure: 11 of the 92 4D d- and f-block elements have a fewer-d competitor within a volt (element 53's is 0.01 eV). New data/promotion3.json (promotion-collect.mjs), ledger claim promotion (27, all holding), §6.3, §7.4 and §12 updated, reference nist-asd added (from memory, to verify)."
   }
  ]
 }

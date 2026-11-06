@@ -17,7 +17,7 @@ const out = [];
 for (const r of [...rows.values()].sort((a, b) => a.Z - b.Z)) {
   const c = r.corrected, row = { Z: r.Z, config: c.config, E_hartree: +c.E.toFixed(5), ion_hartree: c.ion_eV == null ? null : +(c.ion_eV / EV).toFixed(5), ion_eV: c.ion_eV, outermost: c.top,
     hund_correction_eV: c.delta_eV, open: c.parts, ion_correction_eV: c.ionDelta_eV, candidates: r.candidates,
-    uncorrected: { config: r.raw.config, E_hartree: r.raw.E, ion_eV: r.raw.ion_eV }, bake: r.baked, configChangedBySearch: !r.raw.sameAsBaked, configChangedByTerms: c.changed };
+    uncorrected: { config: r.raw.config, E_hartree: r.raw.E, ion_eV: r.raw.ion_eV }, bake: r.baked, within1eV: r.within1eV, configChangedBySearch: !r.raw.sameAsBaked, configChangedByTerms: c.changed };
   if (c.config !== r.baked.config) { // solve it once in the new configuration, for its orbitals
     const g = scf(r.Z, occOf(c.config), 4, { iters: 400, ...SOLVER }); if (!g.converged) throw new Error(`element ${r.Z}: ${c.config} didn't settle`);
     row.orbitals = sh.map((s, i) => [s, i]).filter(([, i]) => g.occ ? g.occ[i] > 0 : occOf(c.config)[i] > 0).map(([s, i]) => { let rm = 0, r2 = 0; for (let j = 0; j < N; j++) { rm += g.qs[i][j] * R[j]; r2 += g.qs[i][j] * R[j] * R[j]; } return { subshell: s.name, occ: occOf(c.config)[i], e_hartree: +g.es[i].toFixed(5), r_mean_bohr: +rm.toFixed(4), r2_mean_bohr2: +r2.toFixed(4) }; });

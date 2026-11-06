@@ -14,7 +14,13 @@ Gaussian basis written for any dimension (`gauss.js`), and the same atoms in our
 
 **6.3 Our own table.** The same solver, the same law (in ours 1/r is Gauss's) and the same search, run in three
 dimensions, gives {{configs3}} of our measured ground configurations. The four it misses, {{misses3}}, each take one
-d electron too many against 4s, the known lean of local exchange toward d. Its first ionization energies are off by a
+d electron too many against 4s, the known lean of local exchange toward d. The misses have one cause. Moving an electron from 4s into 3d comes out
+too cheap in every 3d atom we can compare (eV, the solver against measured: {{prom.list}}), short by {{prom.min}}–{{prom.max}}
+eV and a mean {{prom.bias}}, always in d's favour. That is local exchange without correlation. Resolving every open
+subshell's whole term structure doesn't remove it. With that correction (the lowest term less the average of the
+maximum-spin arrangements, which is what a spherically averaged field stands for), the bias stays at {{prom.fullbias}} eV and
+the configurations get worse, {{prom.full}} against {{prom.bake}}. So the paper corrects only Hund's first rule
+(section 7), the one thing a spin-polarized averaged field cannot represent. Its first ionization energies are off by a
 median {{ion3.median}} and at most {{ion3.max}} (figure A2). That is the accuracy to expect of the 4D table: a method
 that gets our transition metals mostly right and our ionizations to a few percent, not a spectroscopic one.
 
@@ -76,6 +82,9 @@ whose ion lands on the broken filling, gives one up more easily: {{tt.down}} eV.
 The wider search found one configuration the bake had missed. Element 82 is 4f¹ 5d¹ 6s², {{tt.82}} eV below the
 bake's 4f² 6s², which is our cerium's kind; its ionization goes {{tt.82ion}} eV. The table that follows is the
 corrected one (`data/table4.csv`). The Hund-spin table it replaces is supplement S1 (`data/table4-hundspin.csv`).
+How far to trust each configuration follows from section 6.3. Take a bias of about a volt toward d and f: a ground
+configuration with a competitor holding fewer d and f electrons within a volt of it could be the other way round.
+{{tt.sensN}} of the {{tt.n}} d- and f-block elements have one: {{tt.sens}}.
 
 ## 8 · The table
 
