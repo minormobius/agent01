@@ -1,0 +1,33 @@
+{
+ "group": "term-7",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 62/102 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 874
+  },
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 61/101 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 741
+  },
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 60/100 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 764
+  },
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 59/99 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 764
+  }
+ ]
+}

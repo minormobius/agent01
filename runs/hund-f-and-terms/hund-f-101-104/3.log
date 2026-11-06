@@ -1,0 +1,3 @@
+$ node four/atom/tools/hund.mjs survey 4 104 250000
+
+[cut at the deadline, 340 min]
