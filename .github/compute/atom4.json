@@ -1,139 +1,364 @@
 {
- "run": "hund-f-and-terms",
- "why": "Hund's first rule across the 4D table's f block (elements 85–110, 4f⁵ to 4f³¹). The sandbox survey found it broken for every d² and d¹⁶ (26, 39, 54, 66) and for 4f³ (83, spin ½ 0.15 eV below the quartet). It holds for d³–d¹⁵, d¹⁷, 4f² and 4f⁴. The f fillings from f⁵ on have M_S blocks of 10⁴–10⁶ determinants. Each element here runs its own matrix-free Lanczos per block up to 250 000 determinants, four elements to a runner. Bigger blocks are skipped and named, so for mid-shell f the answer is a bound (no lower term among the spins run). Alongside it, the term-corrected table (termtable.mjs): every d- and f-block element (23–42, 51–70, 79–130) searched again with the bake's solver and the neighbours' configurations as seeds. Every settled candidate keeps its raw energy and gets its open shells' Hund correction (lowest term minus lowest maximum-spin term, on its own orbitals). Both rankings and both first ionizations are printed, so a change from the wider search is told apart from one from the terms.",
+ "run": "ions-1",
+ "why": "Two checks on the table's ionization energies, plus its first look at negative ions. (1) Every cation (Z − 1 electrons) searched for its own ground configuration, not only the bake's 'take one electron out of the atom's own configuration'. If an ion rearranges, its ionization energy drops; element 128's 29.6 eV is the one to test. (2) Every anion (Z + 1), for electron affinities. A neutral 4D atom pulls on a distant electron as −Σ⟨r²⟩/8s³, so atoms might hold an extra electron where ours don't. Candidates count only if every occupied orbital is bound. Both worlds: ours (1–36) is the check against measured ionizations and affinities. termtable.mjs with a charge argument: the same solver, the neutral configurations around each ion moved to its electron count as seeds, the Hund correction applied.",
  "minutes": 340,
  "groups": [
   {
-   "name": "hund-f-85-88",
+   "name": "ions-0",
    "cmds": [
-    "node four/atom/tools/hund.mjs survey 4 85 250000",
-    "node four/atom/tools/hund.mjs survey 4 86 250000",
-    "node four/atom/tools/hund.mjs survey 4 87 250000",
-    "node four/atom/tools/hund.mjs survey 4 88 250000"
+    "node four/atom/tools/termtable.mjs 2/140 4 1",
+    "node four/atom/tools/termtable.mjs 3/139 4 1",
+    "node four/atom/tools/termtable.mjs 4/138 4 1",
+    "node four/atom/tools/termtable.mjs 5/137 4 1"
    ]
   },
   {
-   "name": "hund-f-89-92",
+   "name": "ions-1",
    "cmds": [
-    "node four/atom/tools/hund.mjs survey 4 89 250000",
-    "node four/atom/tools/hund.mjs survey 4 90 250000",
-    "node four/atom/tools/hund.mjs survey 4 91 250000",
-    "node four/atom/tools/hund.mjs survey 4 92 250000"
+    "node four/atom/tools/termtable.mjs 6/136 4 1",
+    "node four/atom/tools/termtable.mjs 7/135 4 1",
+    "node four/atom/tools/termtable.mjs 8/134 4 1",
+    "node four/atom/tools/termtable.mjs 9/133 4 1"
    ]
   },
   {
-   "name": "hund-f-93-96",
+   "name": "ions-2",
    "cmds": [
-    "node four/atom/tools/hund.mjs survey 4 93 250000",
-    "node four/atom/tools/hund.mjs survey 4 94 250000",
-    "node four/atom/tools/hund.mjs survey 4 95 250000",
-    "node four/atom/tools/hund.mjs survey 4 96 250000"
+    "node four/atom/tools/termtable.mjs 10/132 4 1",
+    "node four/atom/tools/termtable.mjs 11/131 4 1",
+    "node four/atom/tools/termtable.mjs 12/130 4 1",
+    "node four/atom/tools/termtable.mjs 13/129 4 1"
    ]
   },
   {
-   "name": "hund-f-97-100",
+   "name": "ions-3",
    "cmds": [
-    "node four/atom/tools/hund.mjs survey 4 97 250000",
-    "node four/atom/tools/hund.mjs survey 4 98 250000",
-    "node four/atom/tools/hund.mjs survey 4 99 250000",
-    "node four/atom/tools/hund.mjs survey 4 100 250000"
+    "node four/atom/tools/termtable.mjs 14/128 4 1",
+    "node four/atom/tools/termtable.mjs 15/127 4 1",
+    "node four/atom/tools/termtable.mjs 16/126 4 1",
+    "node four/atom/tools/termtable.mjs 17/125 4 1"
    ]
   },
   {
-   "name": "hund-f-101-104",
+   "name": "ions-4",
    "cmds": [
-    "node four/atom/tools/hund.mjs survey 4 101 250000",
-    "node four/atom/tools/hund.mjs survey 4 102 250000",
-    "node four/atom/tools/hund.mjs survey 4 103 250000",
-    "node four/atom/tools/hund.mjs survey 4 104 250000"
+    "node four/atom/tools/termtable.mjs 18/124 4 1",
+    "node four/atom/tools/termtable.mjs 19/123 4 1",
+    "node four/atom/tools/termtable.mjs 20/122 4 1",
+    "node four/atom/tools/termtable.mjs 21/121 4 1"
    ]
   },
   {
-   "name": "hund-f-105-108",
+   "name": "ions-5",
    "cmds": [
-    "node four/atom/tools/hund.mjs survey 4 105 250000",
-    "node four/atom/tools/hund.mjs survey 4 106 250000",
-    "node four/atom/tools/hund.mjs survey 4 107 250000",
-    "node four/atom/tools/hund.mjs survey 4 108 250000"
+    "node four/atom/tools/termtable.mjs 22/120 4 1",
+    "node four/atom/tools/termtable.mjs 23/119 4 1",
+    "node four/atom/tools/termtable.mjs 24/118 4 1",
+    "node four/atom/tools/termtable.mjs 25/117 4 1"
    ]
   },
   {
-   "name": "hund-f-109-110",
+   "name": "ions-6",
    "cmds": [
-    "node four/atom/tools/hund.mjs survey 4 109 250000",
-    "node four/atom/tools/hund.mjs survey 4 110 250000"
+    "node four/atom/tools/termtable.mjs 26/116 4 1",
+    "node four/atom/tools/termtable.mjs 27/115 4 1",
+    "node four/atom/tools/termtable.mjs 28/114 4 1",
+    "node four/atom/tools/termtable.mjs 29/113 4 1"
    ]
   },
   {
-   "name": "term-0",
+   "name": "ions-7",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 58/98/130 4",
-    "node four/atom/tools/termtable.mjs 57/97/129 4",
-    "node four/atom/tools/termtable.mjs 56/96/128 4",
-    "node four/atom/tools/termtable.mjs 55/95/127 4"
+    "node four/atom/tools/termtable.mjs 30/112 4 1",
+    "node four/atom/tools/termtable.mjs 31/111 4 1",
+    "node four/atom/tools/termtable.mjs 32/110 4 1",
+    "node four/atom/tools/termtable.mjs 33/109 4 1"
    ]
   },
   {
-   "name": "term-1",
+   "name": "ions-8",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 54/94/126 4",
-    "node four/atom/tools/termtable.mjs 53/93/125 4",
-    "node four/atom/tools/termtable.mjs 52/92/124 4",
-    "node four/atom/tools/termtable.mjs 51/91/123 4"
+    "node four/atom/tools/termtable.mjs 34/108 4 1",
+    "node four/atom/tools/termtable.mjs 35/107 4 1",
+    "node four/atom/tools/termtable.mjs 36/106 4 1",
+    "node four/atom/tools/termtable.mjs 37/105 4 1"
    ]
   },
   {
-   "name": "term-2",
+   "name": "ions-9",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 42/90/122 4",
-    "node four/atom/tools/termtable.mjs 41/89/121 4",
-    "node four/atom/tools/termtable.mjs 40/88/120 4",
-    "node four/atom/tools/termtable.mjs 39/87/119 4"
+    "node four/atom/tools/termtable.mjs 38/104 4 1",
+    "node four/atom/tools/termtable.mjs 39/103 4 1",
+    "node four/atom/tools/termtable.mjs 40/102 4 1",
+    "node four/atom/tools/termtable.mjs 41/101 4 1"
    ]
   },
   {
-   "name": "term-3",
+   "name": "ions-10",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 38/86/118 4",
-    "node four/atom/tools/termtable.mjs 37/85/117 4",
-    "node four/atom/tools/termtable.mjs 36/84/116 4",
-    "node four/atom/tools/termtable.mjs 35/83/115 4"
+    "node four/atom/tools/termtable.mjs 42/100 4 1",
+    "node four/atom/tools/termtable.mjs 43/99 4 1",
+    "node four/atom/tools/termtable.mjs 44/98 4 1",
+    "node four/atom/tools/termtable.mjs 45/97 4 1"
    ]
   },
   {
-   "name": "term-4",
+   "name": "ions-11",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 34/82/114 4",
-    "node four/atom/tools/termtable.mjs 33/81/113 4",
-    "node four/atom/tools/termtable.mjs 32/80/112 4",
-    "node four/atom/tools/termtable.mjs 31/79/111 4"
+    "node four/atom/tools/termtable.mjs 46/96 4 1",
+    "node four/atom/tools/termtable.mjs 47/95 4 1",
+    "node four/atom/tools/termtable.mjs 48/94 4 1",
+    "node four/atom/tools/termtable.mjs 49/93 4 1"
    ]
   },
   {
-   "name": "term-5",
+   "name": "ions-12",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 30/70/110 4",
-    "node four/atom/tools/termtable.mjs 29/69/109 4",
-    "node four/atom/tools/termtable.mjs 28/68/108 4",
-    "node four/atom/tools/termtable.mjs 27/67/107 4"
+    "node four/atom/tools/termtable.mjs 50/92 4 1",
+    "node four/atom/tools/termtable.mjs 51/91 4 1",
+    "node four/atom/tools/termtable.mjs 52/90 4 1",
+    "node four/atom/tools/termtable.mjs 53/89 4 1"
    ]
   },
   {
-   "name": "term-6",
+   "name": "ions-13",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 26/66/106 4",
-    "node four/atom/tools/termtable.mjs 25/65/105 4",
-    "node four/atom/tools/termtable.mjs 24/64/104 4",
-    "node four/atom/tools/termtable.mjs 23/63/103 4"
+    "node four/atom/tools/termtable.mjs 54/88 4 1",
+    "node four/atom/tools/termtable.mjs 55/87 4 1",
+    "node four/atom/tools/termtable.mjs 56/86 4 1",
+    "node four/atom/tools/termtable.mjs 57/85 4 1"
    ]
   },
   {
-   "name": "term-7",
+   "name": "ions-14",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 62/102 4",
-    "node four/atom/tools/termtable.mjs 61/101 4",
-    "node four/atom/tools/termtable.mjs 60/100 4",
-    "node four/atom/tools/termtable.mjs 59/99 4"
+    "node four/atom/tools/termtable.mjs 58/84 4 1",
+    "node four/atom/tools/termtable.mjs 59/83 4 1",
+    "node four/atom/tools/termtable.mjs 60/82 4 1",
+    "node four/atom/tools/termtable.mjs 61/81 4 1"
+   ]
+  },
+  {
+   "name": "ions-15",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 62/80 4 1",
+    "node four/atom/tools/termtable.mjs 63/79 4 1",
+    "node four/atom/tools/termtable.mjs 64/78 4 1",
+    "node four/atom/tools/termtable.mjs 65/77 4 1"
+   ]
+  },
+  {
+   "name": "ions-16",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 66/76 4 1",
+    "node four/atom/tools/termtable.mjs 67/75 4 1",
+    "node four/atom/tools/termtable.mjs 68/74 4 1",
+    "node four/atom/tools/termtable.mjs 69/73 4 1"
+   ]
+  },
+  {
+   "name": "ions-17",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 70/72 4 1",
+    "node four/atom/tools/termtable.mjs 71 4 1",
+    "node four/atom/tools/termtable.mjs 1/140 4 -1",
+    "node four/atom/tools/termtable.mjs 2/139 4 -1"
+   ]
+  },
+  {
+   "name": "ions-18",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 3/138 4 -1",
+    "node four/atom/tools/termtable.mjs 4/137 4 -1",
+    "node four/atom/tools/termtable.mjs 5/136 4 -1",
+    "node four/atom/tools/termtable.mjs 6/135 4 -1"
+   ]
+  },
+  {
+   "name": "ions-19",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 7/134 4 -1",
+    "node four/atom/tools/termtable.mjs 8/133 4 -1",
+    "node four/atom/tools/termtable.mjs 9/132 4 -1",
+    "node four/atom/tools/termtable.mjs 10/131 4 -1"
+   ]
+  },
+  {
+   "name": "ions-20",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 11/130 4 -1",
+    "node four/atom/tools/termtable.mjs 12/129 4 -1",
+    "node four/atom/tools/termtable.mjs 13/128 4 -1",
+    "node four/atom/tools/termtable.mjs 14/127 4 -1"
+   ]
+  },
+  {
+   "name": "ions-21",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 15/126 4 -1",
+    "node four/atom/tools/termtable.mjs 16/125 4 -1",
+    "node four/atom/tools/termtable.mjs 17/124 4 -1",
+    "node four/atom/tools/termtable.mjs 18/123 4 -1"
+   ]
+  },
+  {
+   "name": "ions-22",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 19/122 4 -1",
+    "node four/atom/tools/termtable.mjs 20/121 4 -1",
+    "node four/atom/tools/termtable.mjs 21/120 4 -1",
+    "node four/atom/tools/termtable.mjs 22/119 4 -1"
+   ]
+  },
+  {
+   "name": "ions-23",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 23/118 4 -1",
+    "node four/atom/tools/termtable.mjs 24/117 4 -1",
+    "node four/atom/tools/termtable.mjs 25/116 4 -1",
+    "node four/atom/tools/termtable.mjs 26/115 4 -1"
+   ]
+  },
+  {
+   "name": "ions-24",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 27/114 4 -1",
+    "node four/atom/tools/termtable.mjs 28/113 4 -1",
+    "node four/atom/tools/termtable.mjs 29/112 4 -1",
+    "node four/atom/tools/termtable.mjs 30/111 4 -1"
+   ]
+  },
+  {
+   "name": "ions-25",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 31/110 4 -1",
+    "node four/atom/tools/termtable.mjs 32/109 4 -1",
+    "node four/atom/tools/termtable.mjs 33/108 4 -1",
+    "node four/atom/tools/termtable.mjs 34/107 4 -1"
+   ]
+  },
+  {
+   "name": "ions-26",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 35/106 4 -1",
+    "node four/atom/tools/termtable.mjs 36/105 4 -1",
+    "node four/atom/tools/termtable.mjs 37/104 4 -1",
+    "node four/atom/tools/termtable.mjs 38/103 4 -1"
+   ]
+  },
+  {
+   "name": "ions-27",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 39/102 4 -1",
+    "node four/atom/tools/termtable.mjs 40/101 4 -1",
+    "node four/atom/tools/termtable.mjs 41/100 4 -1",
+    "node four/atom/tools/termtable.mjs 42/99 4 -1"
+   ]
+  },
+  {
+   "name": "ions-28",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 43/98 4 -1",
+    "node four/atom/tools/termtable.mjs 44/97 4 -1",
+    "node four/atom/tools/termtable.mjs 45/96 4 -1",
+    "node four/atom/tools/termtable.mjs 46/95 4 -1"
+   ]
+  },
+  {
+   "name": "ions-29",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 47/94 4 -1",
+    "node four/atom/tools/termtable.mjs 48/93 4 -1",
+    "node four/atom/tools/termtable.mjs 49/92 4 -1",
+    "node four/atom/tools/termtable.mjs 50/91 4 -1"
+   ]
+  },
+  {
+   "name": "ions-30",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 51/90 4 -1",
+    "node four/atom/tools/termtable.mjs 52/89 4 -1",
+    "node four/atom/tools/termtable.mjs 53/88 4 -1",
+    "node four/atom/tools/termtable.mjs 54/87 4 -1"
+   ]
+  },
+  {
+   "name": "ions-31",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 55/86 4 -1",
+    "node four/atom/tools/termtable.mjs 56/85 4 -1",
+    "node four/atom/tools/termtable.mjs 57/84 4 -1",
+    "node four/atom/tools/termtable.mjs 58/83 4 -1"
+   ]
+  },
+  {
+   "name": "ions-32",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 59/82 4 -1",
+    "node four/atom/tools/termtable.mjs 60/81 4 -1",
+    "node four/atom/tools/termtable.mjs 61/80 4 -1",
+    "node four/atom/tools/termtable.mjs 62/79 4 -1"
+   ]
+  },
+  {
+   "name": "ions-33",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 63/78 4 -1",
+    "node four/atom/tools/termtable.mjs 64/77 4 -1",
+    "node four/atom/tools/termtable.mjs 65/76 4 -1",
+    "node four/atom/tools/termtable.mjs 66/75 4 -1"
+   ]
+  },
+  {
+   "name": "ions-34",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 67/74 4 -1",
+    "node four/atom/tools/termtable.mjs 68/73 4 -1",
+    "node four/atom/tools/termtable.mjs 69/72 4 -1",
+    "node four/atom/tools/termtable.mjs 70/71 4 -1"
+   ]
+  },
+  {
+   "name": "ions-35",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 2/3/4/5 3 1",
+    "node four/atom/tools/termtable.mjs 6/7/8/9 3 1",
+    "node four/atom/tools/termtable.mjs 10/11/12/13 3 1",
+    "node four/atom/tools/termtable.mjs 14/15/16/17 3 1"
+   ]
+  },
+  {
+   "name": "ions-36",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 18/19/20/21 3 1",
+    "node four/atom/tools/termtable.mjs 22/23/24/25 3 1",
+    "node four/atom/tools/termtable.mjs 26/27/28/29 3 1",
+    "node four/atom/tools/termtable.mjs 30/31/32/33 3 1"
+   ]
+  },
+  {
+   "name": "ions-37",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 34/35/36 3 1",
+    "node four/atom/tools/termtable.mjs 1/2/3/4 3 -1",
+    "node four/atom/tools/termtable.mjs 5/6/7/8 3 -1",
+    "node four/atom/tools/termtable.mjs 9/10/11/12 3 -1"
+   ]
+  },
+  {
+   "name": "ions-38",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 13/14/15/16 3 -1",
+    "node four/atom/tools/termtable.mjs 17/18/19/20 3 -1",
+    "node four/atom/tools/termtable.mjs 21/22/23/24 3 -1",
+    "node four/atom/tools/termtable.mjs 25/26/27/28 3 -1"
+   ]
+  },
+  {
+   "name": "ions-39",
+   "cmds": [
+    "node four/atom/tools/termtable.mjs 29/30/31/32 3 -1",
+    "node four/atom/tools/termtable.mjs 33/34/35/36 3 -1"
    ]
   }
  ]

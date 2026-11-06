@@ -164,7 +164,8 @@ export function scf(Z, occ, d, { iters = 80, mix = 0.4, tol = 1e-7, start = null
    one or two electrons between the outermost subshells and keep whatever has the least total energy */
 export function ground(Z, d, opts = {}) {
   const sh = subshells(d), byH = sh.map((s, i) => i).sort((a, b) => sh[a].n - sh[b].n || sh[a].l - sh[b].l);
-  const fill = (order) => { const occ = sh.map(() => 0); let left = Z; for (const i of order) { const k = Math.min(left, sh[i].cap); occ[i] = k; left -= k; if (!left) break; } return occ; };
+  const nel = opts.nelec ?? Z; // opts.nelec: an ion's electron count (tools/termtable.mjs); the nucleus stays Z
+  const fill = (order) => { const occ = sh.map(() => 0); let left = nel; for (const i of order) { const k = Math.min(left, sh[i].cap); occ[i] = k; left -= k; if (!left) break; } return occ; };
   let occ = fill(byH), res = scf(Z, occ, d, { iters: 40, ...opts });
   for (let round = 0; round < 6; round++) { // aufbau by the current orbital energies (every subshell's, occupied or not)
     const all = sh.map((s, i) => i), es = probeEnergies(Z, occ, res.qs, d, opts);
@@ -182,7 +183,7 @@ export function ground(Z, d, opts = {}) {
   }
   // opts.seeds: more starting configurations (the table's repair pass seeds an element from its neighbours'); with
   // them, the aufbau's own result counts only if its field settled too
-  if (opts.seeds) for (const c of opts.seeds) if (c.reduce((t, x) => t + x, 0) === Z && c.every((x, i) => x >= 0 && x <= sh[i].cap)) cands.push(c);
+  if (opts.seeds) for (const c of opts.seeds) if (c.reduce((t, x) => t + x, 0) === nel && c.every((x, i) => x >= 0 && x <= sh[i].cap)) cands.push(c);
   let best = opts.seeds && !res.converged ? { E: Infinity, occ, res } : { E: res.E, occ, res };
   const keep = (c, r) => { if (opts.collect && r.converged) opts.collect.push({ occ: c, E: r.E, es: r.es, qs: r.qs }); }; // opts.collect: every settled candidate, for a caller that re-ranks them (tools/termtable.mjs)
   keep(occ, res);

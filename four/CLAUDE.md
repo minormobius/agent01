@@ -443,7 +443,14 @@ for games, and this is a modelling programme with publications to come. The game
     is too cheap for d in every 3d atom, by 0.35–1.70 eV (mean 1.06), from local exchange without correlation, and the
     full correction leaves the mean at 1.07. **So paper 1 corrects only Hund's first rule** and states the bias. 11 of the
     92 4D d/f elements have a fewer-d competitor within 1 eV, flagged in §7.4 (`data/promotion3.json`,
-    `promotion-collect.mjs`, claim `promotion`). All of this stands on point charges ×
+    `promotion-collect.mjs`, claim `promotion`).
+  - **Ions (`termtable.mjs <Z/…> <D> <q>`, 2026-11-06).** A charge argument searches each cation (q = +1) or anion
+    (q = −1) for its own ground configuration. `ground({ nelec })` is new: an ion's electron count, nucleus unchanged.
+    The seeds are the neutral configurations within two electrons, moved to the ion's count. Ion candidates count only
+    if every occupied orbital is bound and E > E_neutral − 1 Ha, because an anion's extra electron in a subshell with no
+    bound level otherwise "settles" on nonsense (orbital energy 0, totals thousands of hartree low). Sandbox checks: 26⁺
+    is 3d² 4s¹ and keeps its singlet; 9⁻ (2p⁶) is bound by about 0.8 eV; H⁻ and 12⁻ are not. H⁻ *is* bound in ours (0.75
+    eV), so the anion method is checked on ours first. Queued as `ions-1`: both charges, both worlds. All of this stands on point charges ×
   a factor carried from ruby.
   **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §7.3) has five
   parts:

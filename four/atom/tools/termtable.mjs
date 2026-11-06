@@ -20,7 +20,9 @@ const HA = 27.211386, L = { s: 0, p: 1, d: 2, f: 3 }, LIMIT = +(process.env.TERM
 /* TERM_MODE=full: the whole term correction, lowest term − the average of the maximum-spin determinants (what the
    spherically averaged, Hund-polarized field approximates), for every open p, d and f subshell; the default corrects
    only Hund's first rule (lowest term − lowest maximum-spin term) */
-const [zs, dS = "4"] = process.argv.slice(2), D = +dS, sh = subshells(D), byName = Object.fromEntries(sh.map((s, i) => [s.name, i]));
+const [zs, dS = "4", qS = "0"] = process.argv.slice(2), D = +dS, Q = +qS, sh = subshells(D), byName = Object.fromEntries(sh.map((s, i) => [s.name, i]));
+/* the third argument, an ion's charge: +1 searches each cation (Z − 1 electrons) and −1 each anion (Z + 1) the same way, seeded from the neutral
+   configurations of the elements around it moved to that electron count; it prints the ion's corrected ground and its candidates */
 const angs = new Map(), ang = (l) => { if (!angs.has(l)) angs.set(l, angularL(D, l)); return angs.get(l); };
 const C = (a, b) => { let r = 1; for (let i = 0; i < b; i++) r = (r * (a - i)) / (i + 1); return r; };
 /* the biggest M_S block of n electrons in m orbitals */
@@ -41,16 +43,27 @@ const occOf = (cfg) => { const o = sh.map(() => 0); for (const t of cfg.split(" 
 const same = (a, b) => a.every((v, i) => v === b[i]);
 
 for (const Z of zs.split("/").map(Number)) {
-  const t0 = Date.now(), baked = TABLE[D].find((e) => e.Z === Z), seeds = [], add = (o) => { if (o.reduce((t, x) => t + x, 0) === Z && o.every((x, i) => x >= 0 && x <= sh[i].cap) && !seeds.some((x) => same(x, o))) seeds.push(o); };
+  const nel = Z - Q; if (nel < 1) continue;
+  const t0 = Date.now(), baked = TABLE[D].find((e) => e.Z === Z), seeds = [], add = (o) => { if (o.reduce((t, x) => t + x, 0) === nel && o.every((x, i) => x >= 0 && x <= sh[i].cap) && !seeds.some((x) => same(x, o))) seeds.push(o); };
   // the bake's repair seeds: each neighbour's configuration with one or two electrons added or taken, wherever they fit
-  for (const [Zn, k] of [[Z - 1, 1], [Z + 1, -1], [Z - 2, 2], [Z + 2, -2]]) { const e = TABLE[D].find((x) => x.Z === Zn); if (!e) continue; const base = occOf(e.config);
+  // (neutral: Z ± 1 and Z ± 2 moved to Z electrons, the repair pass's seeds; an ion: every neutral within two electrons of its count, moved to it)
+  for (let Zn = Z - Q - 2; Zn <= Z - Q + 2; Zn++) { const e = TABLE[D].find((x) => x.Z === Zn); if (!e) continue; const base = occOf(e.config), k = nel - Zn;
     for (let i = 0; i < sh.length; i++) { const o = base.slice(); o[i] += k; add(o); } }
-  add(occOf(baked.config));
-  const collect = [], g = ground(Z, D, { ...SOLVER, seeds, collect });
+  if (!Q) add(occOf(baked.config));
+  const collect = [], g = ground(Z, D, { ...SOLVER, seeds, collect, nelec: nel });
+  if (!collect.length) { console.log(JSON.stringify({ Z, D, q: Q, nel, unsettled: true, s: (Date.now() - t0) / 1000 })); continue; }
   // every distinct settled candidate, its raw and corrected energies
   const cands = []; for (const c of collect) { if (cands.some((x) => same(x.occ, c.occ) && Math.abs(x.E - c.E) < 1e-6)) continue; const k = cands.findIndex((x) => same(x.occ, c.occ)); if (k >= 0) { if (c.E < cands[k].E) cands[k] = c; continue; } cands.push(c); }
+  // an ion's candidate counts only if every occupied orbital is bound and its energy is sane against the neutral atom's
+  // (an extra electron in a subshell with no bound level lets the field settle on nonsense: energy 0 orbitals, totals
+  // thousands of hartree low); with none left the ion isn't held by this method
+  if (Q) { const sane = cands.filter((c) => c.occ.every((o, i) => !o || c.es[i] < -1e-5) && c.E > baked.E - 1); cands.length = 0; cands.push(...sane); }
+  if (!cands.length) { console.log(JSON.stringify({ Z, D, q: Q, nel, unbound: true, note: "no candidate with every occupied orbital bound", candidates: collect.length, s: (Date.now() - t0) / 1000 })); continue; }
   for (const c of cands) { const r = correction(c.occ, c.qs); c.delta = r.delta; c.parts = r.parts; c.Ec = c.E + r.delta; }
   const raw = cands.reduce((a, b) => (b.E < a.E ? b : a)), cor = cands.reduce((a, b) => (b.Ec < a.Ec ? b : a));
+  if (Q) { const near = cands.filter((c) => c.Ec < cor.Ec + 1 / HA).sort((a, b) => a.Ec - b.Ec);
+    console.log(JSON.stringify({ Z, D, q: Q, nel, raw: { config: configString(raw.occ, D), E: +raw.E.toFixed(5), es: raw.es.map((e) => +e.toFixed(5)) }, corrected: { config: configString(cor.occ, D), E: +cor.Ec.toFixed(5), delta_eV: +(cor.delta * HA).toFixed(4), parts: cor.parts, changed: configString(cor.occ, D) !== configString(raw.occ, D) },
+      within1eV: near.map((c) => ({ config: configString(c.occ, D), dEc_eV: +((c.Ec - cor.Ec) * HA).toFixed(4), delta_eV: +(c.delta * HA).toFixed(4) })), candidates: cands.length, s: (Date.now() - t0) / 1000 })); continue; }
   // the first ionization of a ground state, the bake's way, each side corrected when `corr`
   const ionOf = (gs, corr) => { const live = sh.map((s, i) => i).filter((i) => gs.occ[i] > 0), pick = live.slice().sort((a, b) => gs.es[b] - gs.es[a]).slice(0, 3); let best = null;
     for (const i of pick) { const o = gs.occ.slice(); o[i]--; const r = scf(Z, o, D, { iters: 160, start: gs.qs, ...SOLVER }); if (!r.converged) continue; const dI = corr ? correction(o, r.qs).delta : 0, e = r.E + dI - (gs.E + (corr ? gs.delta : 0));
