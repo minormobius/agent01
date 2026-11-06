@@ -33,10 +33,10 @@ _Regenerated 2026-11-06 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-06, 100 members / 227 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: imo, ppl, idk
-- Top post: "i want the lawyers directly involved to be sober professionals who refrain from saying things like this everyone else ca" — @segyges.bsky.social
+**Neighborhood spark** (bisk 2026-11-06, 100 members / 229 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: waymo, idk, dsh
+- Top post: "pleased to announce the first of several bluesky open-source projects that we've been using internally for llm-assisted " — @thebadcode.com
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
