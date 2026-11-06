@@ -141,7 +141,7 @@ if (main && cmd === "check") {
 } else if (main && cmd === "survey") {
   const D = +(args[0] || 4), CAP = D === 3 ? CAP3 : CAP4, only = args[1] && args[1] !== "all" ? new Set(args[1].split("/").map(Number)) : null, limit = +(args[2] || 70000);
   for (const e of TABLE[D]) { if (only && !only.has(e.Z)) continue;
-    const open = [...e.config.matchAll(/(\d[spdf])(\d+)/g)].filter(([, s, k]) => +k < CAP[s[1]] && +k > 0 && L[s[1]] >= 2);
+    const open = [...e.config.matchAll(/(\d[spdf])(\d+)/g)].filter(([, s, k]) => +k < CAP[s[1]] && +k > 0 && L[s[1]] >= +(process.env.HUND_LMIN ?? 2));
     for (const [, s] of open) { const t = Date.now(); const r = oneShell(D, e.Z, e.config, s, { limit }); const { blocks, ...rest } = r;
       console.log(JSON.stringify({ ...rest, belowMax_eV: rest.belowMax_eV && +rest.belowMax_eV.toFixed(4), others: [...e.config.matchAll(/(\d[spdf])(\d+)/g)].filter(([, s2, k]) => s2 !== s && +k < CAP[s2[1]]).map(([t2]) => t2), blocks: blocks.map((b) => `${b.M}:${b.dim}${b.skipped ? " skipped" : `@${b.E}`}`).join(" "), s: (Date.now() - t) / 1000 })); } }
 } else if (main) console.log("usage: hund.mjs check | survey [D] [Z/Z/…] | one <D> <Z> <config,with,commas> <shell>");

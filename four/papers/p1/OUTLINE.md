@@ -88,7 +88,7 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
    1/r in D dimensions, so the constants are consistent with the law, not borrowed from Gauss's); the own-share
    correction; what a different law would change here. *Selftest 3, 4, 18.*
 
-## Part II — The table
+## Part II — The table · *drafted 2026-11-06: `text/table.md` → `draft/table.html` (sections 6–8; numbering follows Part I's cross-references: 5 methods, 6 checks, 7 Hund's first rule in 4D, 8 the table)*
 
 6. **Method.** The radial equation with L = l + (D − 3)/2; Numerov on a log grid; Sturm bisection (*selftest 1–2*).
    The ground-configuration search, converged fields only, and the repair pass seeded from neighbours (elements 88,
@@ -103,7 +103,7 @@ holding). The book's force chapter (`atom/force.html`) has the argument in prose
    Ours goes the other way (Pd 8.3, Xe 12.1 eV). Part III asks whether partial screening does it.
    configurations, where the filling departs from the simple order; ionization energies and radii against Z.
 
-## Part III — What the law does (measured against the shell theorem)
+## Part III — What the law does (measured against the shell theorem) · *drafted 2026-11-06: `text/consequences.md` → `draft/consequences.html` (sections 9–13)*
 
 9. **The counterfactual table.** All 140 elements solved again with the shell theorem forced on, everything else held
    (`atom/tools/lawtable.mjs`, runs `lawtable-shell` and `lawtable-repair`; seeded from the real table's configurations

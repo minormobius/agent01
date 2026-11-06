@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="source-sha256" content="3b641f3876524efe93556907edb4f8c3d9c8bf766ed2defb56fa1d84cb550c97" />
+<title>Paper 1 · Part II · The table (draft)</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../paper.css" />
+</head>
+<body>
+<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 1 · draft section</span><span class="grow" style="flex:1"></span><a href="table.md">source with its numbers</a></div>
+<article class="sheet">
+<div class="p-venue">four.mino.mobi · paper 1 · in preparation</div>
+<div class="p-body single">
+<h1 id="part-ii-the-table-draft">Part II · The table (draft)</h1>
+<h2 id="checks-against-what-is-known">6 · Checks against what is
+known</h2>
+<p><strong>6.1 Hydrogen.</strong> One electron needs no search and no
+exchange, and four-dimensional hydrogen has an exact answer:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + \tfrac12)^2</annotation></semantics></math>
+hartree, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
+for the ground state. The solver gives −0.22222.</p>
+<p><strong>6.2 Two electrons.</strong> Helium-like atoms in four
+dimensions are checked against an independent code, Hartree–Fock in a
+Gaussian basis written for any dimension (<code>gauss.js</code>), and
+the same atoms in ours against PySCF at the MP2 level (selftest blocks
+17 and 43). The two codes share no part of the radial solver.</p>
+<p><strong>6.3 Our own table.</strong> The same solver, the same law (in
+ours 1/r is Gauss’s) and the same search, run in three dimensions, gives
+32 of 36 of our measured ground configurations. The four it misses,
+titanium, vanadium, cobalt and nickel, each take one d electron too many
+against 4s, the known lean of local exchange toward d. Its first
+ionization energies are off by a median 4.3 % and at most 16.2 % (figure
+A2). That is the accuracy to expect of the 4D table: a method that gets
+our transition metals mostly right and our ionizations to a few percent,
+not a spectroscopic one.</p>
+<p><strong>6.4 Numbers.</strong> Tightening the solver’s stop or
+changing its grid moves no ionization energy by a millihartree (section
+5 and appendix C).</p>
+<h2 id="hunds-first-rule-in-four-dimensions">7 · Hund’s first rule in
+four dimensions</h2>
+<p>The solver gives each open subshell the most parallel spins it can
+hold. That is Hund’s first rule, and in ours it is the known answer for
+the ground terms of free atoms. In four dimensions it is an assumption,
+and for some fillings it is wrong.</p>
+<p><strong>7.1 How the terms are found.</strong> For each open subshell
+of each ground configuration, its orbitals are the
+degree-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
+harmonics on the 3-sphere,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">(l + 1)^2</annotation></semantics></math>
+of them (4 for p, 9 for d, 16 for f). The repulsion between two of its
+electrons is the law’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">|</mo><mi>x</mi><mo>−</mo><mi>y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">1/|x - y|</annotation></semantics></math>,
+projected exactly onto the harmonics of degree
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>
+to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>l</mi></mrow><annotation encoding="application/x-tex">2l</annotation></semantics></math>,
+with the radial parts integrated over the atom’s own orbital. Every
+arrangement of the subshell’s electrons with a given
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>S</mi></msub><annotation encoding="application/x-tex">M_S</annotation></semantics></math>
+is set up and the lowest energy found (Lanczos, matrix-free; a 4D d⁹
+block has 15 876 arrangements). A term of spin
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
+appears in every block with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>M</mi><mi>S</mi></msub><mo>≤</mo><mi>S</mi></mrow><annotation encoding="application/x-tex">M_S \le S</annotation></semantics></math>,
+so the ground term’s spin is the largest
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>S</mi></msub><annotation encoding="application/x-tex">M_S</annotation></semantics></math>
+whose block still reaches the lowest energy. In ours this reproduces
+Racah’s term separations for d² and d³ to the wavenumber, and the known
+ground terms of Cr³⁺, Mn²⁺, Pr³⁺ and Gd³⁺. Over all 23 open subshells of
+our table, maximum spin is lowest, as it should be.</p>
+<p><strong>7.2 Where it fails.</strong> In four dimensions all 36 open p
+subshells of the table keep the rule, and so do the d fillings d¹,
+d³–d¹², d¹⁴, d¹⁵, d¹⁷. The two exceptions are d² and its mirror d¹⁶, in
+all three d rows: element 26 (3d², 0.40 eV), element 39 (3d¹⁶, 0.77 eV),
+element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58 eV), element 114 (5d²,
+0.36 eV), element 126 (5d¹⁶, 0.63 eV). In each the ground term is a spin
+singlet of ten states, and the triplet the solver assumed lies 0.30–0.77
+eV above it. In the f block, 4f³ (element 83) fails too: its ground term
+has spin ½, 0.15 eV below the quartet, while 4f² (82), 4f⁴ (84) hold. So
+far 3 of the 29 open f fillings (4f² to 4f³¹, elements 82–110) have been
+run; the rest are running.</p>
+<p><strong>7.3 Why it fails.</strong> It isn’t the law. On element 26’s
+own orbital Gauss’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+gives the same order, with the singlet 0.82 eV below the triplet,
+against 0.40 eV under
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>;
+the pinned law makes the failure smaller, not larger. The cause is the
+shell itself. Four-dimensional d orbitals form the representation (1,1)
+of SO(4) ≅ SU(2) × SU(2)/ℤ₂. Two electrons in them make spatially
+symmetric states (2,2) ⊕ (2,0) ⊕ (0,2) ⊕ (1,1) ⊕ (0,0), all spin
+singlets (25, 10, 9 and 1 states), and antisymmetric ones (2,1) ⊕ (1,2)
+⊕ (1,0) ⊕ (0,1), triplets (30 and 6). The singlet that comes lowest is
+the ten-state (2,0) ⊕ (0,2). The quadrupole part of the repulsion (F²)
+puts it there: with F² alone it is still lowest, the triplet 0.52 eV
+above, while the hexadecapole part (F⁴) alone would put a triplet
+lowest. Our d shell has no such state. Titanium’s d² has ³F lowest and
+its first singlet 1.25 eV up.</p>
+<p><strong>7.4 What it does to the table.</strong> Where the rule fails,
+the solver’s energy for that configuration is the maximum-spin state’s,
+too high by the gap. The table in section 8 corrects that. Every
+candidate configuration of the search gets its open subshells’ gaps
+added, the search is widened with the neighbours’ configurations, and
+the configurations are ranked again. The rankings with and without the
+correction are compared, so that a change from the wider search is told
+apart from one from the terms (<code>termtable.mjs</code>). The
+uncorrected table is supplement S1. Element 26 keeps 3d² 4s², now 0.40
+eV lower, and its ionization barely moves (7.46 → 7.44 eV), because its
+ion keeps the d² singlet.</p>
+<h2 id="the-table">8 · The table</h2>
+<p><strong>8.1 Rows and noble gases.</strong> The table’s rows hold 2,
+10, 10, 28, 28, 60 elements (and 2 of the next by element 140), and its
+noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the
+first ionization energy (figures 1 and 4). Those are the rows the
+generalized Madelung rule of Négadi and Kibler (1996) predicts for four
+dimensions. To our knowledge this is the first self-consistent table
+that confirms them. Part III asks how much of that the law decides.</p>
+<p><strong>8.2 The hardest-held electron isn’t a noble gas’s.</strong>
+Element 128 has an 18-electron d shell, full, with nothing outside it.
+It holds its outermost electron at 29.56 eV, harder than its row’s noble
+gas 138 (26.71 eV) and harder than any other atom in the table. Element
+68, the same kind a row up, comes within a volt of its noble gas 78
+(22.32 eV against 23.10). Ours goes the other way: palladium’s full 4d¹⁰
+gives up an electron at 8.3 eV, xenon at 12.1. Section 9 shows the law
+does it.</p>
+<p><strong>8.3 Inside the rows.</strong> Figure 5 draws six atoms in
+profile: their radial densities, and what each one’s outermost orbital
+looks like on the 3-sphere (figure 3). Where the filling departs from
+the simple order, and how the ionization energy and the radius run with
+Z, are in the data files (table4.csv).</p>
+
+</div>
+<div class="p-source">Generated from <code>papers/p1/text/table.md</code>: every number in it is read by <code>build.mjs</code> from the solver, the bake or the runs, so this text says what the code does. Rendered by pandoc with MathML.</div>
+</article>
+</body>
+</html>

@@ -204,6 +204,26 @@
   {
    "item": "Tag the mirror version the paper cites",
    "status": "to do"
+  },
+  {
+   "item": "The term-corrected table (termtable.mjs, runner run hund-f-and-terms): which elements change configuration, how far the ionizations move; make it the main table (data, figures, section 8 tokens) and move the Hund-spin table to supplement S1",
+   "status": "to do"
+  },
+  {
+   "item": "Hund's rule over the rest of the 4D f block (4f⁵–4f³¹, elements 85–110, runner); fold into data/hund.json (hund-collect.mjs) and section 7.2",
+   "status": "to do"
+  },
+  {
+   "item": "Prior art on Hund's rules in D dimensions: three web searches found none; run a citation-index search before the paper calls section 7 new",
+   "status": "to do"
+  },
+  {
+   "item": "Section 8.2 quotes palladium 8.3 eV and xenon 12.1 eV from memory: cite a measured source (NIST ASD)",
+   "status": "to do"
+  },
+  {
+   "item": "Introduction and abstract, written last against the finished Parts I–III",
+   "status": "to do"
   }
  ],
  "journal": [
@@ -294,6 +314,10 @@
   {
    "date": "2026-11-04",
    "what": "Part I drafted: why a law has to be chosen (Gauss's law in four dimensions has no atom: Hardy's floor, and the computed fall to the centre), the ways out and what each costs, why 1/r exactly (the only power law that keeps a shell together), and what it costs in four dimensions (not harmonic, no shell theorem or Faraday cage, the five routes to a field theory and the lens vacuum this universe takes, what is declared alongside, and the evidence that matter is stable). Every number in it is read from the ledger or the code. One new claim backs the stability section: the solved table's total energies follow each world's Thomas–Fermi law, a fitted exponent of 2.53 in four dimensions against 5/2, and 2.39 in ours against 7/3."
+  },
+  {
+   "date": "2026-11-06",
+   "what": "Hund's first rule doesn't hold in four dimensions, and the paper now says so. A crystal-field side project turned up the free 4D d² ion with a spin-singlet ground term. A survey of every open subshell in the table (tools/hund.mjs: degree-l harmonics on the 3-sphere, the law projected onto them, every M_S block by Lanczos) finds that it fails for d² and d¹⁶ in all three d rows (elements 26, 39, 54, 66, 114, 126, by 0.30–0.77 eV) and for 4f³ (element 83). It holds for every p filling, every other d filling, 4f² and 4f⁴, and for every open subshell of our own table. It isn't the law: Gauss's 1/r² gives the same order on the same orbital. The PI's call: the table corrected for it (tools/termtable.mjs, now on the runner) becomes the main table, and the Hund-spin table moves to a supplement. Parts II and III drafted around it: checks against what is known (6), Hund's rule in four dimensions (7), the table (8), the counterfactual (9), partial screening (10), neutral atoms (11), limitations (12) and the conclusion (13). Four new ledger claims back section 7 (hund3, hund4, hund4f3, hundlaw), 23 in all, every one holding."
   }
  ]
 }

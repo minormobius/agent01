@@ -195,6 +195,50 @@
    ]
   },
   {
+   "id": "hund3",
+   "part": "table",
+   "claim": "In ours every open subshell of the table has its maximum spin lowest (Hund's first rule), from the subshell's own repulsion",
+   "value": "23 subshells (p and d) of our 36 atoms: all hold",
+   "holds": true,
+   "section": "7",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "hund4",
+   "part": "table",
+   "claim": "In four dimensions Hund's first rule fails for d² and d¹⁶ in every d row, and holds for every other p and d filling of the table",
+   "value": "82 p and d subshells; fails: 26 3d2 by 0.396 eV, 39 3d16 by 0.767 eV, 54 4d2 by 0.296 eV, 66 4d16 by 0.580 eV, 114 5d2 by 0.357 eV, 126 5d16 by 0.628 eV",
+   "holds": true,
+   "section": "7",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "hund4f3",
+   "part": "table",
+   "claim": "In four dimensions 4f³ breaks it too: its ground term has spin ½",
+   "value": "82 4f2: S 1 of 1; 83 4f3: S 0.5 of 1.5; 84 4f4: S 2 of 2",
+   "holds": true,
+   "section": "7",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "hundlaw",
+   "part": "table",
+   "claim": "The failure is the 4D shell's, not the law's: Gauss's 1/r² gives d² the same singlet ground term, further below its triplet",
+   "value": "element 26's orbital: triplet above the singlet by 0.3961 eV under 1/r, 0.8231 eV under 1/r²",
+   "holds": true,
+   "section": "7",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "screening",
    "part": "consequence",
    "claim": "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
