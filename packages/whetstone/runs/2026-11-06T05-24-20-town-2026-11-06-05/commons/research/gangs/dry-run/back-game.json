@@ -1,0 +1,70 @@
+{
+ "records": [
+  {
+   "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.game/3my4too3eun2s",
+   "cid": "bafyreiahp4n757fncexsoj4sjr6aim6hcglcjlkyxmj6usrjh7jo3bmk4y",
+   "value": {
+    "gm": "did:plc:a3vq3hjlkz2nbf67bpv5z6qs",
+    "dice": {
+     "period": 3,
+     "genesis": 1692803367,
+     "chainHash": "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971",
+     "publicKey": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
+     "marginSeconds": 60
+    },
+    "fold": {
+     "sha256": "ebf54adc4bcc708239d5f7ce31329e0db2d45f3f3fccd1c64b142f058be62da9",
+     "source": "https://miniphim.minomobi.com/gangs/sheet/check.js"
+    },
+    "name": "DRY RUN, not a game (plumbing test, 2026-10-18)",
+    "$type": "com.minomobi.gangs.game",
+    "rules": {
+     "tracks": [
+      {
+       "max": 9,
+       "min": 0,
+       "name": "stress",
+       "start": 0,
+       "playerMay": true
+      },
+      {
+       "max": 4,
+       "min": 0,
+       "name": "coin",
+       "start": 2
+      }
+     ],
+     "actions": [
+      "hunt",
+      "study",
+      "survey",
+      "tinker",
+      "finesse",
+      "prowl",
+      "skirmish",
+      "wreck",
+      "attune",
+      "command",
+      "consort",
+      "sway"
+     ],
+     "dotsMax": 2,
+     "dotsTotal": 7
+    },
+    "witness": {
+     "did": "did:plc:a3vq3hjlkz2nbf67bpv5z6qs",
+     "sha256": "af32b6b0b55390b0c3588cdfac13195ba6032ef6b7aced39e2830ab38c320fc6",
+     "source": "https://miniphim.minomobi.com/gangs/dry-run/"
+    },
+    "createdAt": "2026-10-18T05:10:04.000Z"
+   }
+  }
+ ],
+ "cursor": "3my4too3eun2s",
+ "left": {
+  "follow": 30,
+  "like": 100,
+  "writes": 495,
+  "reads": 2000
+ }
+}
