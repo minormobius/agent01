@@ -1,0 +1,15 @@
+$ node four/atom/tools/pwrelax.mjs four/atom/tools/crystalref-Bl2Px3.json z2-1 1.00 25 2x2x1x2s 4 soft 1e-3 60
+z2-1 ×1: 10 atoms, 60 electrons, k 2×2×1×2 shifted (4), 4 workers, 6 steps done
+  scf 0: E -144.67214268  |Δρ| 9.10e-3  bands 9.0e-3
+  scf 1: E -144.67229838  |Δρ| 4.36e-3  bands 5.1e-3
+  scf 2: E -144.67237952  |Δρ| 1.33e-3  bands 4.5e-3
+  scf 3: E -144.67239152  |Δρ| 4.47e-4  bands 4.0e-3
+  scf 4: E -144.67239395  |Δρ| 1.94e-4  bands 3.0e-3
+  scf 5: E -144.67239408  |Δρ| 9.01e-5  bands 2.8e-3
+  scf 6: E -144.67239411  |Δρ| 1.74e-5  bands 2.4e-3
+  scf 7: E -144.67239411  |Δρ| 1.01e-5  bands 2.2e-3
+  scf 8: E -144.67239411  |Δρ| 2.89e-6  bands 2.1e-3
+  scf 9: E -144.67239411  |Δρ| 1.65e-6  bands 1.5e-3
+  scf 10: E -144.67239411  |Δρ| 4.64e-7  bands 1.2e-3
+{"stage":"step","name":"z2-1","scale":1,"i":6,"E":-144.6723941144971,"perFormula_eV":-1968.3681798968546,"fmax":0.00030631950641584084,"drift":1.22217246932191e-7,"s":4510.956,"step":0.0005}
+{"stage":"relaxed","name":"z2-1","scale":1,"E":-144.6723941144971,"perFormula_eV":-1968.3681798968546,"fmax":0.00030631950641584084,"steps":7,"firstPerFormula_eV":-1968.2811890328971,"s":4524.867}

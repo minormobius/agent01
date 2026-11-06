@@ -1,0 +1,14 @@
+$ node four/atom/tools/pwcheck.mjs crystal four/atom/tools/crystalref-Bl2Px3-relaxed.json z2-0-x103 1.00 25 a14s 4 soft
+z2-0-x103 ×1: 10 atoms, 60 electrons, grid 25×25×50×48, 12893 PW at the first of 18 k, 4 workers
+  scf 0: E -123.02399037  |Δρ| 5.91e+0  bands 1.9e-1
+  scf 1: E -136.80289444  |Δρ| 2.76e+0  bands 1.4e-1
+  scf 2: E -144.67991916  |Δρ| 9.70e-1  bands 1.6e-1
+  scf 3: E -144.06260424  |Δρ| 7.17e-1  bands 1.0e-1
+  scf 4: E -144.67707327  |Δρ| 2.12e-1  bands 1.2e-1
+  scf 5: E -144.71209348  |Δρ| 9.16e-2  bands 8.9e-2
+  scf 6: E -144.71521858  |Δρ| 2.32e-2  bands 7.5e-2
+  scf 7: E -144.71551858  |Δρ| 1.11e-2  bands 6.4e-2
+  scf 8: E -144.71566171  |Δρ| 5.30e-4  bands 3.9e-2
+  scf 9: E -144.71566183  |Δρ| 3.22e-4  bands 3.1e-2
+
+[cut at the deadline, 340 min]
