@@ -482,6 +482,29 @@ for games, and this is a modelling programme with publications to come. The game
   `tools/multiplets.mjs` now imports too. `levels()` takes eigenvalues only and gets spin by counting each level's
   copies across M_S blocks (identical to the ⟨S²⟩ route, `levelsByVectors`, on all 60 cases tried; 4–5× faster: 4D d³
   in 40 ms, d⁴ about 3.5 s). Selftest 68 checks that agreement, the free 4D d² singlet, and ruby at the baked s, β.
+  **`atom/tools/laser.mjs <ti | bl [cell] [s]>`, can a d¹ ion lase (2026-11-06).** It moves past level positions to the
+  numbers that decide a broadband laser.
+  - **The field** is crystalfield.mjs's projection, rebuilt for any ligand positions from radial tables v_n(R) and a
+    small exact sphere rule. It leaves out n = 0: the d electron's spherical pull is already in the ionic model through
+    the dopant's net charge. A first version kept it and the cage "relaxed" by 14 bohr.
+  - **The cage's stiffness** is the ionic model's Hessian in the ligands' coordinates, everything else held, in a
+    supercell where the ligands are distinct ions (ours 2×2×1, 120 ions; 4D 3×3×2×2, 360 ions, about 70 s).
+  - **Relaxation:** each state (the ground; the lowest level of the upper set) minimizes s·λ_k(X) + ½XᵀKX, Jahn–Teller
+    included. That gives absorption, emission, the zero-phonon line, Stokes shift, Huang–Rhys and widths (T = 0), the
+    host's highest Γ phonon, the gap in phonons, and Dexter–Klick–Russell's Λ = Stokes/(2·absorption), quenched past
+    about ¼.
+  - **The check, Ti:sapphire, only 10Dq fitted** (s = 2.52; measured values from memory): absorption 2.77 (≈ 2.5),
+    emission 1.84 (≈ 1.57), **Stokes 0.94 (≈ 0.93)**, zero-phonon line 2.07 (≈ 2.0), emission width 0.24 (≈ 0.35),
+    Λ 0.17. The ionic model's highest sapphire phonon is 0.16 eV against ≈ 0.11, too stiff by about 45 %.
+  - **4D d¹ (element 26's 3+) at Ti:sapphire's s:**
+    - z2-0's 13-site: absorption 1.24, emission 0.65 eV (1.9 µm), zero-phonon line 0.94, width 0.41, only **5.1 phonons
+      in the gap, Λ 0.24: marginal, at the quenching edge**.
+    - z2-1's 12-site: absorption 1.66, emission 1.28 eV (970 nm), zero-phonon line 1.52, width 0.39, **9.3 phonons,
+      Λ 0.12: a robust broadband near-IR emitter**, like Ti:sapphire.
+    - At ruby's s (3.75), z2-0 gives emission 0.94, 8.9 phonons, Λ 0.27.
+  - **So the 4D Ti:sapphire hangs on the structure again:** z2-0, the one favoured by 0.40 eV, is the marginal host.
+    Still missing: an ab initio field (embedded cluster or a doped plane-wave supercell) to replace s, the radiative
+    rate (odd-parity mixing; a 13-coordinated site has no inversion centre), and excited-state absorption.
   `atom/tools/pwrelax.mjs <structures.json> <name> <scale> <ecut> <k> [threads] [soft] [fmax] [steps]` relaxes the ions
   in a fixed cell: plane-wave SCF (warm-started from the last step's density, `scf({ rho0 })`), Hellmann–Feynman forces
   (the pool's projector share included), and BFGS in Cartesian coordinates with the mean force removed. Steps are capped
