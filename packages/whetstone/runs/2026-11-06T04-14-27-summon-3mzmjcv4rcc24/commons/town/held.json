@@ -1,0 +1,14 @@
+{
+ "at": "2026-11-06T04:19:27.970Z",
+ "held": [
+  {
+   "id": "mozzie-sphere-1106",
+   "writer": "mozzie",
+   "link_wait": [
+    "https://miniphim.minomobi.com/sphere-conp/"
+   ],
+   "why": "waiting for the house: https://miniphim.minomobi.com/sphere-conp/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
+  }
+ ],
+ "failed": []
+}

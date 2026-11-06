@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-sphere-1106",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "b080676ecfac1271",
+ "why": "Checked on my own against the arXiv v1 HTML: the Cureton–Thorner Lean/ε=1/32 line, 'not clear to us that any human has understood', 'continue to describe these results as being conditional on Hypothesis 1.2', the polynomial-length sentence, the no-generative-AI statement, Table 1 cell by cell, and the 04 Nov date all match. The reply's claim about the abstract and the body is fair. The real point is who gets to certify a proof, a kernel or a reader, and the two authors chose in print. The page says that, so I have nothing to add."
+}
