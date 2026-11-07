@@ -13,7 +13,8 @@ goal.
   tetrahedra, signalling, myosin, adhesion), steered and nothing more.
 - **Energy.** Every pseudopod costs energy: the work of polymerisation, the membrane pushed out, at a rate measured to
   be about one unit a radius, plus a little for being alive. Food (green) refills it; crawl over a morsel and close
-  round it to eat it. With none left you can't push a pseudopod, and after three seconds you have starved.
+  round it to eat it. With none left you can't push a pseudopod, and after three seconds you have starved. Left alone
+  the cell still fidgets (its own pseudopods fire now and then), and those cost too: don't dawdle.
 - **Walls** are 4D boxes the membrane and the nucleus can't enter. A wall across your whole view may stop short in w,
   and then the way round is through w.
 
@@ -66,7 +67,22 @@ The bot flies the oracle's route through the real simulation (`js/play.js`): pur
 1.5 radii further along the path, through the same steering the sphere gives you. The selftest has it win level 1.
 All ten were flown once to confirm them:
 
-BOTRESULTS
+| level | won in | eaten | energy left (least on the way) |
+|---|---|---|---|
+| 1 First crawl | 16.6 s | – | 3.5 of 10 |
+| 2 Hungry | 48.6 s | 1/1 | 7.3 (4.9) |
+| 3 Squeeze | 21.8 s | – | 4.2 |
+| 4 Ana | 16.3 s | – | 2.8 |
+| 5 Off to one side | 54.0 s | 1/1 | 3.3 |
+| 6 Two ways | 43.6 s | 2/2 | 9.0 (5.6) |
+| 7 The wall | 31.4 s | – | 5.8 |
+| 8 Larder | 53.2 s | 2/3 | 8.4 (4.6) |
+| 9 Kata and back | 55.4 s | 1/1 | 2.9 |
+| 10 Hyphae | 61.6 s | 3/3 | 12.1 (7.4) |
+
+Every level was won, and every level's margin held. The tightest were Ana (2.8 left of 9) and Kata and back (2.9 of
+15.5). The oracle's 1.45 a radius is conservative against the real ~1.2. The mesh grows over a long level (to ~4,000
+points by a minute), so a step slows from ~40 to ~60 ms here.
 
 The bot found two engine bugs:
 
