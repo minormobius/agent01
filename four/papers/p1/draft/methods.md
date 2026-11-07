@@ -2,43 +2,55 @@
 # Methods (draft)
 
 
+## The code
+
+Everything in this paper is computed by code written for it: JavaScript with no outside libraries, run under Node.js,
+and the same files run in a browser (four.mino.mobi/atom). The atom is `atom/js/atom.js`, with the shell kernel in
+`kernel.js`. One electron in any law is `papers/p1/laws.js`, and the terms of open subshells are `atom/tools/hund.mjs`
+and `termtable.mjs`. Nothing is taken from a quantum-chemistry package. Two independent codes check it (section 6.2):
+`atom/js/gauss.js`, Hartree–Fock in a Gaussian basis [@boys1950] for any $D$, with the integrals of McMurchie and
+Davidson [-@mcmurchie1978], and in ours PySCF [@sun2018; @sun2020]. Every number quoted is read from the code's output by the paper's build
+(appendix E).
+
 ## The law inside an atom
 
-An atom here is a point nucleus of charge Z and Z electrons, non-relativistic, with every pair of charges interacting
-through the pinned potential q₁q₂/r in four spatial dimensions. The same law acts between an electron and the nucleus
+An atom here is a point nucleus of charge $Z$ and $Z$ electrons, non-relativistic, with every pair of charges interacting
+through the pinned potential $q_1q_2/r$ in four spatial dimensions. The same law acts between an electron and the nucleus
 and between two electrons; nothing in the method borrows Gauss's law. Atomic units throughout (hartree, bohr).
 
 Each electron moves in the field of the nucleus and of the other electrons' clouds, averaged over directions, so the
-problem is radial. In D dimensions a wavefunction $R(r)\,Y_l$, written as $u = r^{(D-1)/2} R$, obeys
+problem is radial. In $D$ dimensions a wavefunction $\psi = r^{-(D-1)/2}\,u(r)\,Y$, with $Y$ a harmonic of degree $l$ on the
+$(D - 1)$-sphere, has a radial function $u$ that obeys
 
 $$-\tfrac12\,u'' + \Big[\frac{L(L+1)}{2r^2} + V(r)\Big]\,u = \varepsilon\,u, \qquad L = l + \frac{D-3}{2},$$
 
-so four dimensions differ from ours by the half-integer shift of L (L = l + ½) and by the degeneracies: a subshell of
-angular momentum l holds 2(2l + 1) electrons in ours and 2(l + 1)² in four dimensions. With V = −Z/r the levels are
-−Z²/2(n + (D − 3)/2)², so 4D hydrogen's ground state is −2/9 hartree; the solver gives −0.22222 (section 7).
+so four dimensions differ from ours by the half-integer shift of $L$ ($L = l + \tfrac12$) and by the degeneracies: a
+subshell of angular momentum $l$ holds $2(2l + 1)$ electrons in ours and $2(l + 1)^2$ in four dimensions. With
+$V = -Z/r$ the levels are $-Z^2/2(n + (D - 3)/2)^2$, so 4D hydrogen's ground state is $-2/9$ hartree; the solver gives
+−0.22222 (section 6.1).
 
-**The clouds' potential.** A spherical shell of charge at radius s, felt at radius r, gives in ours 1/max(r, s) (the
-shell theorem). In four dimensions under 1/r it gives k(t)/max(r, s), t = min/max, with k the 1/r kernel averaged over
-a 3-sphere,
+**The clouds' potential.** A spherical shell of charge at radius $s$, felt at radius $r$, gives in ours
+$1/\max(r, s)$ (the shell theorem). In four dimensions under $1/r$ it gives $\kappa(t)/\max(r, s)$,
+$t = \min/\max$, with $\kappa$ the $1/r$ kernel averaged over a 3-sphere,
 
-$$k(t) = \frac{2}{\pi}\int_0^\pi \frac{\sin^2\theta\,d\theta}{\sqrt{1 + t^2 - 2t\cos\theta}},$$
+$$\kappa(t) = \frac{2}{\pi}\int_0^\pi \frac{\sin^2\theta\,d\theta}{\sqrt{1 + t^2 - 2t\cos\theta}},$$
 
-which falls from k(0) = 1 to k(1) = 8/3π = 0.848826 (appendix A; Simpson's rule on 400 intervals, then a
+which falls from $\kappa(0) = 1$ to $\kappa(1) = 8/3\pi$ = 0.848826 (appendix A; Simpson's rule on 400 intervals, then a
 table of 2001 points with linear interpolation). Every electron–electron term in the self-consistent
 field, its energy and the ionized atom's goes through this kernel. That is where the missing shell theorem enters the
 atom: an inner cloud screens the nucleus from an outer electron only partly.
 
-**Exchange.** Local exchange from the uniform electron gas of the same dimension and the same law, $\varepsilon_x(\rho) = -C_D\,\rho^{1/D}$
-per electron, with C₃ = ¾(3/π)^⅓ = 0.738559 and C₄ = 16/(15√π) = 0.601802, taken from Loos and Gill's
-general-D formulas for 1/r jellium (appendix B). Spins are polarized by Hund's rule (a subshell fills one spin first),
+**Exchange.** Local exchange from the uniform electron gas of the same dimension and the same law,
+$\varepsilon_x(\rho) = -A_D\,\rho^{1/D}$ per electron for an electron density $\rho$, with
+$A_3 = \tfrac34(3/\pi)^{1/3}$ = 0.738559 and $A_4 = 16/15\sqrt\pi$ = 0.601802, as in the general-$D$ formulas
+of @loos2016 for $1/r$ jellium (appendix B). Spins are polarized by Hund's rule (a subshell fills one spin first),
 and each electron's own share is removed from both its Hartree and its exchange potential: the Hartree term by its own
-orbital's cloud, the exchange term by the fully polarized exchange of that orbital alone (a Perdew–Zunger-style
-correction). There is no correlation term.
+orbital's cloud, the exchange term by the fully polarized exchange of that orbital alone, in the manner of the self-interaction correction of @perdew1981. There is no correlation term.
 
 ## Solving one configuration
 
 The radial equation is solved on a logarithmic grid of 700 points from r₀ = 10⁻⁵ to 150 bohr
-(step h = 0.02364 in ln r) by Numerov's method on y = u/√r, with each level found by Sturm bisection on the node
+(step $h$ = 0.02364 in $\ln r$) by Numerov's method on y = u/√r, with each level found by Sturm bisection on the node
 count of the outward solution (90 halvings), the outward integration stopped where h²f/12 > ½ so that
 Numerov cannot fake nodes in the forbidden region, and the orbital matched to an inward solution at the turning point.
 
@@ -52,7 +64,7 @@ plane-wave work met exactly that in its pseudopotentials' all-electron atom, whe
 into the potential. So 19 atoms across every row of both worlds were re-solved in their baked configurations
 and then driven on from that field to a stop of 10⁻¹² hartree (appendix C, `audit-scf.mjs`). Total
 energies and first ionization energies moved by at most 2.7 × 10⁻⁷ and 2.8 × 10⁻⁷ hartree, the outermost orbital
-energy by 1.7 × 10⁻⁶, and Σ⟨r²⟩ (the far pull's S, and the forces between atoms) by 1.9 × 10⁻⁵ of itself; the
+energy by 1.7 × 10⁻⁶, and $Q = \sum\langle r^2\rangle$ (the far pull's, and the forces between atoms') by 1.9 × 10⁻⁵ of itself; the
 baked ⟨r²⟩ agree with the tight ones to 7.0 × 10⁻⁵. The density beyond about 15 bohr is not converged relatively,
 but it is noise there: off by large factors only where it is 10⁻¹³ to 10⁻¹⁷ electrons per bohr, and converged to
 10⁻⁶ where an atom has a loosely held s electron that puts real charge out that far. Nothing the paper quotes depends
@@ -115,7 +127,7 @@ positive (a negative one means an electron would rather leave: the search missed
 The arguments of section 2 use a separate solver for one electron in any central potential (`laws.js`): the same
 radial equation and Numerov–Sturm method on a grid whose inner end can be moved, which is what tests a fall to the
 centre. For V = −α/r² it finds no level below α = ½ on any grid and, above it, a lowest level that scales as 1/r₀²
-(section 2.1); for V = −1/rᵖ it gives the splittings within each shell (section 3.1). Its check is 4D hydrogen:
+(section 2.1); for $V = -1/r^\eta$ it gives the splittings within each shell (section 3.1). Its check is 4D hydrogen:
 −0.22222222 against −2/9.
 
 ## Checks

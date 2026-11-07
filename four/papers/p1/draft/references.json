@@ -1,0 +1,1106 @@
+[
+ {
+  "type": "article-journal",
+  "container-title": "Proceedings of the Koninklijke Akademie van Wetenschappen te Amsterdam",
+  "volume": "20",
+  "page": "200–209",
+  "id": "ehrenfest1917",
+  "title": "In what way does it become manifest in the fundamental laws of physics that space has three dimensions?",
+  "author": [
+   {
+    "given": "P.",
+    "family": "Ehrenfest"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     1918
+    ]
+   ]
+  },
+  "URL": "https://dwc.knaw.nl/DL/publications/PU00012213.pdf"
+ },
+ {
+  "type": "article-journal",
+  "title": "Welche Rolle spielt die Dreidimensionalität des Raumes in den Grundgesetzen der Physik?",
+  "author": [
+   {
+    "family": "Ehrenfest",
+    "given": "P."
+   }
+  ],
+  "container-title": "Annalen der Physik",
+  "volume": "366",
+  "issue": "5",
+  "page": "440-446",
+  "issued": {
+   "date-parts": [
+    [
+     1920,
+     1
+    ]
+   ]
+  },
+  "publisher": "Wiley",
+  "DOI": "10.1002/andp.19203660503",
+  "id": "ehrenfest1920",
+  "language": "de"
+ },
+ {
+  "type": "article-journal",
+  "title": "Schwarzschild field in n dimensions and the dimensionality of space problem",
+  "author": [
+   {
+    "family": "Tangherlini",
+    "given": "F. R."
+   }
+  ],
+  "container-title": "Il Nuovo Cimento",
+  "volume": "27",
+  "issue": "3",
+  "page": "636-651",
+  "issued": {
+   "date-parts": [
+    [
+     1963,
+     2
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/BF02784569",
+  "id": "tangherlini1963"
+ },
+ {
+  "type": "article-journal",
+  "title": "Answers in search of a question: 'proofs' of the tri-dimensionality of space",
+  "author": [
+   {
+    "family": "Callender",
+    "given": "Craig"
+   }
+  ],
+  "container-title": "Studies in History and Philosophy of Science Part B: Studies in History and Philosophy of Modern Physics",
+  "volume": "36",
+  "issue": "1",
+  "page": "113-136",
+  "issued": {
+   "date-parts": [
+    [
+     2005,
+     3
+    ]
+   ]
+  },
+  "publisher": "Elsevier BV",
+  "DOI": "10.1016/j.shpsb.2004.09.002",
+  "id": "callender2005"
+ },
+ {
+  "type": "article-journal",
+  "title": "Hydrogen atom and relativistic pi-mesic atom in N-space dimensions",
+  "author": [
+   {
+    "family": "Nieto",
+    "given": "Michael Martin"
+   }
+  ],
+  "container-title": "American Journal of Physics",
+  "volume": "47",
+  "issue": "12",
+  "page": "1067-1072",
+  "issued": {
+   "date-parts": [
+    [
+     1979,
+     12,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Association of Physics Teachers (AAPT)",
+  "DOI": "10.1119/1.11976",
+  "id": "nieto1979"
+ },
+ {
+  "type": "article-journal",
+  "title": "Hydrogen atom in N dimensions",
+  "author": [
+   {
+    "family": "Al-Jaber",
+    "given": "Sami M."
+   }
+  ],
+  "container-title": "International Journal of Theoretical Physics",
+  "volume": "37",
+  "issue": "4",
+  "page": "1289-1298",
+  "issued": {
+   "date-parts": [
+    [
+     1998,
+     4
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1023/A:1026679921970",
+  "id": "aljaber1998"
+ },
+ {
+  "type": "article-journal",
+  "title": "Thomas–Fermi atom in N dimensions",
+  "author": [
+   {
+    "family": "Kventsel",
+    "given": "G. F."
+   },
+   {
+    "family": "Katriel",
+    "given": "J."
+   }
+  ],
+  "container-title": "Physical Review A",
+  "volume": "24",
+  "issue": "5",
+  "page": "2299-2301",
+  "issued": {
+   "date-parts": [
+    [
+     1981,
+     11,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/PhysRevA.24.2299",
+  "id": "kventsel1981"
+ },
+ {
+  "type": "article-journal",
+  "title": "The periodic table in Flatland",
+  "author": [
+   {
+    "family": "Négadi",
+    "given": "T."
+   },
+   {
+    "family": "Kibler",
+    "given": "M."
+   }
+  ],
+  "container-title": "International Journal of Quantum Chemistry",
+  "volume": "57",
+  "issue": "1",
+  "page": "53-61",
+  "issued": {
+   "date-parts": [
+    [
+     1996,
+     1,
+     5
+    ]
+   ]
+  },
+  "publisher": "Wiley",
+  "DOI": "10.1002/(SICI)1097-461X(1996)57:1<53::AID-QUA6>3.0.CO;2-Y",
+  "id": "negadi1996"
+ },
+ {
+  "type": "article-journal",
+  "title": "The elements of Flatland: Hartree–Fock atomic ground states in two dimensions for Z = 1–24",
+  "author": [
+   {
+    "family": "Pyykkö",
+    "given": "Pekka"
+   },
+   {
+    "family": "Zhao",
+    "given": "Yongfang"
+   }
+  ],
+  "container-title": "International Journal of Quantum Chemistry",
+  "volume": "40",
+  "issue": "4",
+  "page": "527-544",
+  "issued": {
+   "date-parts": [
+    [
+     1991,
+     10
+    ]
+   ]
+  },
+  "publisher": "Wiley",
+  "DOI": "10.1002/qua.560400408",
+  "id": "pyykko1991"
+ },
+ {
+  "type": "book",
+  "id": "madelung1936",
+  "title": "Die mathematischen Hilfsmittel des Physikers",
+  "author": [
+   {
+    "given": "E.",
+    "family": "Madelung"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     1936
+    ]
+   ]
+  },
+  "edition": "3",
+  "publisher": "Springer",
+  "publisher-place": "Berlin",
+  "language": "de"
+ },
+ {
+  "type": "book",
+  "title": "Dimensional Scaling in Chemical Physics",
+  "editor": [
+   {
+    "family": "Herschbach",
+    "given": "Dudley R."
+   },
+   {
+    "family": "Avery",
+    "given": "John"
+   },
+   {
+    "family": "Goscinski",
+    "given": "Osvaldo"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     1993
+    ]
+   ]
+  },
+  "publisher": "Kluwer",
+  "DOI": "10.1007/978-94-011-1836-1",
+  "id": "herschbach1992",
+  "publisher-place": "Dordrecht"
+ },
+ {
+  "type": "article-journal",
+  "title": "Hartree–Fock approximation for D-dimensional two-electron atoms",
+  "author": [
+   {
+    "family": "Loeser",
+    "given": "J. G."
+   },
+   {
+    "family": "Herschbach",
+    "given": "D. R."
+   }
+  ],
+  "container-title": "The Journal of Chemical Physics",
+  "volume": "84",
+  "issue": "7",
+  "page": "3893-3900",
+  "issued": {
+   "date-parts": [
+    [
+     1986,
+     4,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.450100",
+  "id": "loeser1986hf"
+ },
+ {
+  "type": "article-journal",
+  "title": "Hylleraas–Pekeris treatment of D-dimensional two-electron atoms",
+  "author": [
+   {
+    "family": "Loeser",
+    "given": "J. G."
+   },
+   {
+    "family": "Herschbach",
+    "given": "D. R."
+   }
+  ],
+  "container-title": "The Journal of Chemical Physics",
+  "volume": "84",
+  "issue": "7",
+  "page": "3882-3892",
+  "issued": {
+   "date-parts": [
+    [
+     1986,
+     4,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.450099",
+  "id": "loeser1986hp"
+ },
+ {
+  "type": "article-journal",
+  "title": "Unorthodox dimensional interpolations for He, Li, Be atoms and hydrogen molecule",
+  "author": [
+   {
+    "family": "Ghosh",
+    "given": "Kumar J. B."
+   },
+   {
+    "family": "Kais",
+    "given": "Sabre"
+   },
+   {
+    "family": "Herschbach",
+    "given": "Dudley R."
+   }
+  ],
+  "container-title": "Frontiers in Physics",
+  "volume": "8",
+  "issued": {
+   "date-parts": [
+    [
+     2020,
+     8,
+     27
+    ]
+   ]
+  },
+  "publisher": "Frontiers Media SA",
+  "DOI": "10.3389/fphy.2020.00331",
+  "id": "ghosh2020",
+  "page": "331"
+ },
+ {
+  "type": "article-journal",
+  "title": "The uniform electron gas",
+  "author": [
+   {
+    "family": "Loos",
+    "given": "Pierre‐François"
+   },
+   {
+    "family": "Gill",
+    "given": "Peter M. W."
+   }
+  ],
+  "container-title": "WIREs Computational Molecular Science",
+  "volume": "6",
+  "issue": "4",
+  "page": "410-429",
+  "issued": {
+   "date-parts": [
+    [
+     2016,
+     4,
+     22
+    ]
+   ]
+  },
+  "publisher": "Wiley",
+  "DOI": "10.1002/wcms.1257",
+  "id": "loos2016"
+ },
+ {
+  "type": "article-journal",
+  "title": "Self-interaction correction to density-functional approximations for many-electron systems",
+  "author": [
+   {
+    "family": "Perdew",
+    "given": "J. P."
+   },
+   {
+    "family": "Zunger",
+    "given": "Alex"
+   }
+  ],
+  "container-title": "Physical Review B",
+  "volume": "23",
+  "issue": "10",
+  "page": "5048-5079",
+  "issued": {
+   "date-parts": [
+    [
+     1981,
+     5,
+     15
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/PhysRevB.23.5048",
+  "id": "perdew1981"
+ },
+ {
+  "type": "article-journal",
+  "title": "Electronic wave functions. I. A general method of calculation for the stationary states of any molecular system",
+  "author": [
+   {
+    "family": "Boys",
+    "given": "S. F."
+   }
+  ],
+  "container-title": "Proceedings of the Royal Society of London. Series A. Mathematical and Physical Sciences",
+  "volume": "200",
+  "issue": "1063",
+  "page": "542-554",
+  "issued": {
+   "date-parts": [
+    [
+     1950,
+     2,
+     22
+    ]
+   ]
+  },
+  "publisher": "The Royal Society",
+  "DOI": "10.1098/rspa.1950.0036",
+  "id": "boys1950"
+ },
+ {
+  "type": "article-journal",
+  "title": "One- and two-electron integrals over Cartesian Gaussian functions",
+  "author": [
+   {
+    "family": "McMurchie",
+    "given": "Larry E"
+   },
+   {
+    "family": "Davidson",
+    "given": "Ernest R"
+   }
+  ],
+  "container-title": "Journal of Computational Physics",
+  "volume": "26",
+  "issue": "2",
+  "page": "218-231",
+  "issued": {
+   "date-parts": [
+    [
+     1978,
+     2
+    ]
+   ]
+  },
+  "publisher": "Elsevier BV",
+  "DOI": "10.1016/0021-9991(78)90092-X",
+  "id": "mcmurchie1978"
+ },
+ {
+  "type": "article-journal",
+  "title": "Convergence acceleration of iterative sequences. The case of SCF iteration",
+  "author": [
+   {
+    "family": "Pulay",
+    "given": "Péter"
+   }
+  ],
+  "container-title": "Chemical Physics Letters",
+  "volume": "73",
+  "issue": "2",
+  "page": "393-398",
+  "issued": {
+   "date-parts": [
+    [
+     1980,
+     7
+    ]
+   ]
+  },
+  "publisher": "Elsevier BV",
+  "DOI": "10.1016/0009-2614(80)80396-4",
+  "id": "pulay1980"
+ },
+ {
+  "type": "article-journal",
+  "title": "PySCF: the Python-based simulations of chemistry framework",
+  "author": [
+   {
+    "family": "Sun",
+    "given": "Qiming"
+   },
+   {
+    "family": "Berkelbach",
+    "given": "Timothy C."
+   },
+   {
+    "family": "Blunt",
+    "given": "Nick S."
+   },
+   {
+    "family": "Booth",
+    "given": "George H."
+   },
+   {
+    "family": "Guo",
+    "given": "Sheng"
+   },
+   {
+    "family": "Li",
+    "given": "Zhendong"
+   },
+   {
+    "family": "Liu",
+    "given": "Junzi"
+   },
+   {
+    "family": "McClain",
+    "given": "James D."
+   },
+   {
+    "family": "Sayfutyarova",
+    "given": "Elvira R."
+   },
+   {
+    "family": "Sharma",
+    "given": "Sandeep"
+   },
+   {
+    "family": "Wouters",
+    "given": "Sebastian"
+   },
+   {
+    "family": "Chan",
+    "given": "Garnet Kin‐Lic"
+   }
+  ],
+  "container-title": "WIREs Computational Molecular Science",
+  "volume": "8",
+  "issue": "1",
+  "issued": {
+   "date-parts": [
+    [
+     2018
+    ]
+   ]
+  },
+  "publisher": "Wiley",
+  "DOI": "10.1002/wcms.1340",
+  "id": "sun2018",
+  "page": "e1340"
+ },
+ {
+  "type": "article-journal",
+  "title": "Recent developments in the PySCF program package",
+  "author": [
+   {
+    "family": "Sun",
+    "given": "Qiming"
+   },
+   {
+    "family": "Zhang",
+    "given": "Xing"
+   },
+   {
+    "family": "Banerjee",
+    "given": "Samragni"
+   },
+   {
+    "family": "Bao",
+    "given": "Peng"
+   },
+   {
+    "family": "Barbry",
+    "given": "Marc"
+   },
+   {
+    "family": "Blunt",
+    "given": "Nick S."
+   },
+   {
+    "family": "Bogdanov",
+    "given": "Nikolay A."
+   },
+   {
+    "family": "Booth",
+    "given": "George H."
+   },
+   {
+    "family": "Chen",
+    "given": "Jia"
+   },
+   {
+    "family": "Cui",
+    "given": "Zhi-Hao"
+   },
+   {
+    "family": "Eriksen",
+    "given": "Janus J."
+   },
+   {
+    "family": "Gao",
+    "given": "Yang"
+   },
+   {
+    "family": "Guo",
+    "given": "Sheng"
+   },
+   {
+    "family": "Hermann",
+    "given": "Jan"
+   },
+   {
+    "family": "Hermes",
+    "given": "Matthew R."
+   },
+   {
+    "family": "Koh",
+    "given": "Kevin"
+   },
+   {
+    "family": "Koval",
+    "given": "Peter"
+   },
+   {
+    "family": "Lehtola",
+    "given": "Susi"
+   },
+   {
+    "family": "Li",
+    "given": "Zhendong"
+   },
+   {
+    "family": "Liu",
+    "given": "Junzi"
+   },
+   {
+    "family": "Mardirossian",
+    "given": "Narbe"
+   },
+   {
+    "family": "McClain",
+    "given": "James D."
+   },
+   {
+    "family": "Motta",
+    "given": "Mario"
+   },
+   {
+    "family": "Mussard",
+    "given": "Bastien"
+   },
+   {
+    "family": "Pham",
+    "given": "Hung Q."
+   },
+   {
+    "family": "Pulkin",
+    "given": "Artem"
+   },
+   {
+    "family": "Purwanto",
+    "given": "Wirawan"
+   },
+   {
+    "family": "Robinson",
+    "given": "Paul J."
+   },
+   {
+    "family": "Ronca",
+    "given": "Enrico"
+   },
+   {
+    "family": "Sayfutyarova",
+    "given": "Elvira R."
+   },
+   {
+    "family": "Scheurer",
+    "given": "Maximilian"
+   },
+   {
+    "family": "Schurkus",
+    "given": "Henry F."
+   },
+   {
+    "family": "Smith",
+    "given": "James E. T."
+   },
+   {
+    "family": "Sun",
+    "given": "Chong"
+   },
+   {
+    "family": "Sun",
+    "given": "Shi-Ning"
+   },
+   {
+    "family": "Upadhyay",
+    "given": "Shiv"
+   },
+   {
+    "family": "Wagner",
+    "given": "Lucas K."
+   },
+   {
+    "family": "Wang",
+    "given": "Xiao"
+   },
+   {
+    "family": "White",
+    "given": "Alec"
+   },
+   {
+    "family": "Whitfield",
+    "given": "James Daniel"
+   },
+   {
+    "family": "Williamson",
+    "given": "Mark J."
+   },
+   {
+    "family": "Wouters",
+    "given": "Sebastian"
+   },
+   {
+    "family": "Yang",
+    "given": "Jun"
+   },
+   {
+    "family": "Yu",
+    "given": "Jason M."
+   },
+   {
+    "family": "Zhu",
+    "given": "Tianyu"
+   },
+   {
+    "family": "Berkelbach",
+    "given": "Timothy C."
+   },
+   {
+    "family": "Sharma",
+    "given": "Sandeep"
+   },
+   {
+    "family": "Sokolov",
+    "given": "Alexander Yu."
+   },
+   {
+    "family": "Chan",
+    "given": "Garnet Kin-Lic"
+   }
+  ],
+  "container-title": "The Journal of Chemical Physics",
+  "volume": "153",
+  "issue": "2",
+  "issued": {
+   "date-parts": [
+    [
+     2020,
+     7,
+     9
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/5.0006074",
+  "id": "sun2020",
+  "page": "024109"
+ },
+ {
+  "type": "article-journal",
+  "title": "Zur Theorie des Wasserstoffatoms",
+  "author": [
+   {
+    "family": "Fock",
+    "given": "V."
+   }
+  ],
+  "container-title": "Zeitschrift für Physik",
+  "volume": "98",
+  "issue": "3-4",
+  "page": "145-154",
+  "issued": {
+   "date-parts": [
+    [
+     1935,
+     3
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/BF01336904",
+  "id": "fock1935",
+  "language": "de"
+ },
+ {
+  "type": "article-journal",
+  "title": "Group theory and the hydrogen atom (I)",
+  "author": [
+   {
+    "family": "Bander",
+    "given": "M."
+   },
+   {
+    "family": "Itzykson",
+    "given": "C."
+   }
+  ],
+  "container-title": "Reviews of Modern Physics",
+  "volume": "38",
+  "issue": "2",
+  "page": "330-345",
+  "issued": {
+   "date-parts": [
+    [
+     1966,
+     4,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/RevModPhys.38.330",
+  "id": "bander1966"
+ },
+ {
+  "type": "article-journal",
+  "title": "Singular potentials",
+  "author": [
+   {
+    "family": "Case",
+    "given": "K. M."
+   }
+  ],
+  "container-title": "Physical Review",
+  "volume": "80",
+  "issue": "5",
+  "page": "797-806",
+  "issued": {
+   "date-parts": [
+    [
+     1950,
+     12,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/PhysRev.80.797",
+  "id": "case1950"
+ },
+ {
+  "type": "article-journal",
+  "title": "Stability of matter. I",
+  "author": [
+   {
+    "family": "Dyson",
+    "given": "Freeman J."
+   },
+   {
+    "family": "Lenard",
+    "given": "A."
+   }
+  ],
+  "container-title": "Journal of Mathematical Physics",
+  "volume": "8",
+  "issue": "3",
+  "page": "423-434",
+  "issued": {
+   "date-parts": [
+    [
+     1967,
+     3,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.1705209",
+  "id": "dyson1967"
+ },
+ {
+  "type": "article-journal",
+  "title": "Bound for the kinetic energy of fermions which proves the stability of matter",
+  "author": [
+   {
+    "family": "Lieb",
+    "given": "Elliott H."
+   },
+   {
+    "family": "Thirring",
+    "given": "Walter E."
+   }
+  ],
+  "container-title": "Physical Review Letters",
+  "volume": "35",
+  "issue": "11",
+  "page": "687-689",
+  "issued": {
+   "date-parts": [
+    [
+     1975,
+     9,
+     15
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/PhysRevLett.35.687",
+  "id": "lieb1975"
+ },
+ {
+  "type": "book",
+  "title": "Quantum Mechanics: Non-Relativistic Theory",
+  "issued": {
+   "date-parts": [
+    [
+     1977
+    ]
+   ]
+  },
+  "publisher": "Pergamon",
+  "DOI": "10.1016/C2013-0-02793-4",
+  "id": "landau-qm",
+  "author": [
+   {
+    "given": "L. D.",
+    "family": "Landau"
+   },
+   {
+    "given": "E. M.",
+    "family": "Lifshitz"
+   }
+  ],
+  "collection-title": "Course of Theoretical Physics",
+  "edition": "3",
+  "publisher-place": "Oxford",
+  "collection-number": "3"
+ },
+ {
+  "type": "chapter",
+  "title": "The Hardy constant: a review",
+  "author": [
+   {
+    "family": "Barbatis",
+    "given": "Gerassimos"
+   }
+  ],
+  "container-title": "Modern Problems in PDEs and Applications",
+  "page": "3-11",
+  "issued": {
+   "date-parts": [
+    [
+     2024
+    ]
+   ]
+  },
+  "publisher": "Birkhäuser",
+  "DOI": "10.1007/978-3-031-56732-2_1",
+  "id": "hardy-inequality",
+  "collection-title": "Trends in Mathematics"
+ },
+ {
+  "type": "webpage",
+  "id": "nist-asd",
+  "title": "NIST Atomic Spectra Database",
+  "author": [
+   {
+    "given": "A.",
+    "family": "Kramida"
+   },
+   {
+    "given": "Yu.",
+    "family": "Ralchenko"
+   },
+   {
+    "given": "J.",
+    "family": "Reader"
+   },
+   {
+    "literal": "NIST ASD Team"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2026
+    ]
+   ]
+  },
+  "URL": "https://physics.nist.gov/asd",
+  "publisher": "National Institute of Standards and Technology"
+ },
+ {
+  "type": "article-journal",
+  "title": "Handbook of Basic Atomic Spectroscopic Data",
+  "author": [
+   {
+    "family": "Sansonetti",
+    "given": "J. E."
+   },
+   {
+    "family": "Martin",
+    "given": "W. C."
+   }
+  ],
+  "container-title": "Journal of Physical and Chemical Reference Data",
+  "volume": "34",
+  "issue": "4",
+  "page": "1559-2259",
+  "issued": {
+   "date-parts": [
+    [
+     2005,
+     9,
+     28
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.1800011",
+  "id": "nist-handbook"
+ },
+ {
+  "type": "article-journal",
+  "title": "Atomic and molecular electron affinities: photoelectron experiments and theoretical computations",
+  "author": [
+   {
+    "family": "Rienstra-Kiracofe",
+    "given": "Jonathan C."
+   },
+   {
+    "family": "Tschumper",
+    "given": "Gregory S."
+   },
+   {
+    "family": "Schaefer",
+    "given": "Henry F."
+   },
+   {
+    "family": "Nandi",
+    "given": "Sreela"
+   },
+   {
+    "family": "Ellison",
+    "given": "G. Barney"
+   }
+  ],
+  "container-title": "Chemical Reviews",
+  "volume": "102",
+  "issue": "1",
+  "page": "231-282",
+  "issued": {
+   "date-parts": [
+    [
+     2002,
+     1,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Chemical Society (ACS)",
+  "DOI": "10.1021/cr990044u",
+  "id": "rienstra2002"
+ }
+]

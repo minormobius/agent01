@@ -1,17 +1,21 @@
 {
- "about": "Paper 1's references. status: read (the source itself was read), index (bibliographic details confirmed from a publisher's or index's record, Crossref unless 'source' says otherwise; the text not read), cited (seen only as a citation in another work), memory (not yet looked up). The page generator cites only read and index; selftest 67 checks this file's shape. The working notes behind each entry are in atom/LITERATURE.md.",
+ "about": "Paper 1's references. status: read (the source itself was read), index (bibliographic details confirmed from a publisher's or index's record, Crossref unless 'source' says otherwise; the text not read), cited (seen only as a citation in another work), memory (not yet looked up). The text cites by pandoc key ([@key]); build.mjs makes CSL JSON from Crossref's record of each DOI (data/crossref.json, refs-crossref.mjs) and refs.json, with `csl` overriding, and page.mjs marks anything not read or index as unchecked; selftest 67 checks this file's shape. The working notes behind each entry are in atom/LITERATURE.md.",
  "refs": [
   {
    "key": "ehrenfest1917",
    "authors": "P. Ehrenfest",
    "title": "In what way does it become manifest in the fundamental laws of physics that space has three dimensions?",
-   "venue": "Proc. Amsterdam Acad.",
+   "venue": "Proc. KNAW",
    "volume": "20",
-   "pages": "200",
-   "year": 1917,
-   "status": "index",
-   "source": "secondary indexes (e.g. arXiv:1205.4916; Callender 2005): read 26 May 1917, Proc. Amsterdam Acad. 20 (1918) 200–209; the stability of orbits only in D ≤ 3",
-   "role": "intro: Ehrenfest's dimension argument"
+   "pages": "200–209",
+   "year": 1918,
+   "status": "read",
+   "source": "read: the KNAW digital library scan (Proceedings 20 I, 1918, 200–209; communicated 26 May 1917); §1 shows circular orbits unstable for n > 3",
+   "role": "intro: Ehrenfest's dimension argument",
+   "url": "https://dwc.knaw.nl/DL/publications/PU00012213.pdf",
+   "csl": {
+    "container-title": "Proceedings of the Koninklijke Akademie van Wetenschappen te Amsterdam"
+   }
   },
   {
    "key": "ehrenfest1920",
@@ -23,7 +27,11 @@
    "year": 1920,
    "status": "index",
    "source": "scan of the original: zarm.uni-bremen.de/2forschung/gravi/laemmerzahl/hdg2008/sources/Ehrenfest_AdP20.pdf; cited as Ann. Phys. 61, 440 (1920) by Springer BF02784569",
-   "role": "intro"
+   "role": "intro",
+   "doi": "10.1002/andp.19203660503",
+   "csl": {
+    "language": "de"
+   }
   },
   {
    "key": "tangherlini1963",
@@ -97,7 +105,19 @@
    "doi": "10.1002/(SICI)1097-461X(1996)57:1<53::AID-QUA6>3.0.CO;2-Y",
    "arxiv": "atom-ph/9512001",
    "status": "read",
-   "role": "intro, results: the generalized Madelung rule, D = 4 predicted"
+   "role": "intro, results: the generalized Madelung rule, D = 4 predicted",
+   "csl": {
+    "author": [
+     {
+      "family": "Négadi",
+      "given": "T."
+     },
+     {
+      "family": "Kibler",
+      "given": "M."
+     }
+    ]
+   }
   },
   {
    "key": "pyykko1991",
@@ -120,17 +140,30 @@
    "year": 1936,
    "status": "cited",
    "source": "3rd ed., Springer, Berlin 1936 (library catalogues; Springer DOI 10.1007/978-3-662-41816-1); the page of the n + l rule not yet checked, so cited via Négadi & Kibler",
-   "role": "intro: the Madelung rule"
+   "role": "intro: the Madelung rule",
+   "csl": {
+    "type": "book",
+    "container-title": null,
+    "edition": "3",
+    "publisher": "Springer",
+    "publisher-place": "Berlin",
+    "language": "de"
+   }
   },
   {
    "key": "herschbach1992",
    "authors": "D. R. Herschbach, J. Avery & O. Goscinski (eds.)",
    "title": "Dimensional Scaling in Chemical Physics",
    "venue": "Kluwer, Dordrecht",
-   "year": 1992,
+   "year": 1993,
    "status": "index",
-   "source": "publisher listing",
-   "role": "intro: dimensional scaling"
+   "source": "Crossref (Springer reissue of the Kluwer volume)",
+   "role": "intro: dimensional scaling",
+   "doi": "10.1007/978-94-011-1836-1",
+   "csl": {
+    "publisher": "Kluwer",
+    "publisher-place": "Dordrecht"
+   }
   },
   {
    "key": "loeser1986hf",
@@ -167,7 +200,10 @@
    "doi": "10.3389/fphy.2020.00331",
    "arxiv": "2004.11489",
    "status": "index",
-   "role": "intro: dimensional scaling, recent"
+   "role": "intro: dimensional scaling, recent",
+   "csl": {
+    "page": "331"
+   }
   },
   {
    "key": "loos2016",
@@ -240,7 +276,17 @@
    "year": 2018,
    "doi": "10.1002/wcms.1340",
    "status": "index",
-   "role": "validation: MP2 in our world"
+   "role": "validation: MP2 in our world",
+   "csl": {
+    "issued": {
+     "date-parts": [
+      [
+       2018
+      ]
+     ]
+    },
+    "page": "e1340"
+   }
   },
   {
    "key": "sun2020",
@@ -252,7 +298,10 @@
    "year": 2020,
    "doi": "10.1063/5.0006074",
    "status": "index",
-   "role": "validation"
+   "role": "validation",
+   "csl": {
+    "page": "024109"
+   }
   },
   {
    "key": "fock1935",
@@ -264,7 +313,11 @@
    "year": 1935,
    "doi": "10.1007/BF01336904",
    "status": "index",
-   "role": "the law: hydrogen's hidden symmetry, the source of the n-degeneracy that only 1/r keeps"
+   "role": "the law: hydrogen's hidden symmetry, the source of the n-degeneracy that only 1/r keeps",
+   "csl": {
+    "container-title": "Zeitschrift für Physik",
+    "language": "de"
+   }
   },
   {
    "key": "bander1966",
@@ -276,7 +329,19 @@
    "year": 1966,
    "doi": "10.1103/RevModPhys.38.330",
    "status": "index",
-   "role": "the law: the SO(D + 1) symmetry of the 1/r problem"
+   "role": "the law: the SO(D + 1) symmetry of the 1/r problem",
+   "csl": {
+    "author": [
+     {
+      "family": "Bander",
+      "given": "M."
+     },
+     {
+      "family": "Itzykson",
+      "given": "C."
+     }
+    ]
+   }
   },
   {
    "key": "case1950",
@@ -322,17 +387,34 @@
    "year": 1977,
    "status": "index",
    "role": "the law: the fall to the centre (§35 in the third edition, to check)",
-   "source": "§35 'Fall of a particle to the centre' in the third edition's contents; cited for it by arXiv:1312.2774 and others"
+   "source": "Crossref (Elsevier record of the third edition); §35 'Fall of a particle to the centre' in its contents",
+   "doi": "10.1016/C2013-0-02793-4",
+   "csl": {
+    "type": "book",
+    "title": "Quantum Mechanics: Non-Relativistic Theory",
+    "collection-title": "Course of Theoretical Physics",
+    "edition": "3",
+    "publisher": "Pergamon",
+    "publisher-place": "Oxford",
+    "collection-number": "3"
+   }
   },
   {
    "key": "hardy-inequality",
    "authors": "G. Barbatis",
    "title": "The Hardy constant: a review",
-   "venue": "arXiv:2311.08017",
-   "year": 2023,
+   "venue": "Modern Problems in PDEs and Applications (Trends in Mathematics), Birkhäuser",
+   "year": 2024,
    "status": "index",
    "role": "the law: the critical strength ½ for −α/r² in 4D (Hardy's inequality)",
-   "source": "arXiv:2311.08017; the classical constant ((D − 2)/2)² for ∫|∇ψ|² ≥ C∫|ψ|²/r² in D dimensions"
+   "source": "Crossref; arXiv:2311.08017; the classical constant ((D − 2)/2)² for ∫|∇ψ|² ≥ C∫|ψ|²/r² in D dimensions",
+   "doi": "10.1007/978-3-031-56732-2_1",
+   "arxiv": "2311.08017",
+   "csl": {
+    "container-title": "Modern Problems in PDEs and Applications",
+    "collection-title": "Trends in Mathematics",
+    "publisher": "Birkhäuser"
+   }
   },
   {
    "key": "nist-asd",
@@ -344,19 +426,27 @@
    "year": "2026",
    "status": "memory",
    "source": "not yet accessed: the values in sections 6.3 and 8.2 are from memory; cite with the access date once checked",
-   "role": "measured 4s→3d promotion energies of the 3d atoms (section 6.3)"
+   "role": "measured 4s→3d promotion energies of the 3d atoms (section 6.3)",
+   "url": "https://physics.nist.gov/asd",
+   "csl": {
+    "type": "webpage",
+    "container-title": null,
+    "publisher": "National Institute of Standards and Technology"
+   }
   },
   {
    "key": "nist-handbook",
    "authors": "J. E. Sansonetti and W. C. Martin",
    "title": "Handbook of Basic Atomic Spectroscopic Data",
-   "venue": "NIST, physics.nist.gov/PhysRefData/Handbook",
-   "volume": "",
-   "pages": "",
+   "venue": "J. Phys. Chem. Ref. Data",
+   "volume": "34",
+   "pages": "1559–2259",
    "year": 2005,
    "status": "index",
    "source": "physics.nist.gov/PhysRefData/Handbook/Tables/palladiumtable1.htm: Pd I 8.3369 eV; the same tables: Xe I 12.1298 eV",
-   "role": "palladium's and xenon's first ionization energies (section 8.2)"
+   "role": "palladium's and xenon's first ionization energies (section 8.2)",
+   "doi": "10.1063/1.1800011",
+   "url": "https://physics.nist.gov/PhysRefData/Handbook"
   },
   {
    "key": "rienstra2002",
@@ -366,9 +456,10 @@
    "volume": "102",
    "pages": "231–282",
    "year": 2002,
-   "status": "memory",
-   "source": "not yet checked: the measured affinities in section 6 are from memory",
-   "role": "measured electron affinities of our atoms (section 6)"
+   "status": "index",
+   "source": "Crossref",
+   "role": "measured electron affinities of our atoms (section 6)",
+   "doi": "10.1021/cr990044u"
   }
  ]
 }

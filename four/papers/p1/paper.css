@@ -171,3 +171,7 @@ math[display="block"] { display: block; margin: 10px auto; font-size: 1.05em; }
 .p-body table { display: block; overflow-x: auto; max-width: 100%; }
 .p-body math[display="block"] { display: block; overflow-x: auto; max-width: 100%; }
 .p-body code { overflow-wrap: anywhere; }
+
+/* the reference list (pandoc citeproc): ragged right, so a long DOI doesn't stretch its line */
+.csl-entry { text-align: left; margin: 0 0 0.4em; padding-left: 1.5em; text-indent: -1.5em; overflow-wrap: anywhere; }
+.unchecked { color: #a0522d; }

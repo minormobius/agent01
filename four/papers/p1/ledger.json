@@ -15,8 +15,8 @@
   {
    "id": "uniqueness",
    "part": "law",
-   "claim": "Among power laws 1/r^p only p = 1 keeps a shell's levels together (2s with 2p, 3s with 3d), the degeneracy that makes shells of 2(l + 1)² and rows of 2, 10, 10, 28 …",
-   "value": "p = 0.8: 2p − 2s -6.2 %, 3d − 3s -9.2 %; p = 1: 2p − 2s 0.000000001 %, 3d − 3s 0.000000002 %; p = 1.2: 2p − 2s 15.4 %, 3d − 3s 21.9 %",
+   "claim": "Among power laws 1/r^η only η = 1 keeps a shell's levels together (2s with 2p, 3s with 3d), the degeneracy that makes shells of 2(l + 1)² and rows of 2, 10, 10, 28 …",
+   "value": "η = 0.8: 2p − 2s -6.2 %, 3d − 3s -9.2 %; η = 1: 2p − 2s 0.000000001 %, 3d − 3s 0.000000002 %; η = 1.2: 2p − 2s 15.4 %, 3d − 3s 21.9 %",
    "holds": true,
    "section": "2",
    "gate": [
@@ -285,7 +285,7 @@
   {
    "id": "kernelclosed",
    "part": "law",
-   "claim": "The 4D shell kernel has a closed form, k(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with k(1) = 8/3π and k = 1 − t²/8 − t⁴/64 − …",
+   "claim": "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/3π and κ = 1 − t²/8 − t⁴/64 − …",
    "value": "closed form against the solver's quadrature at t = 0.1 … 0.9: largest relative difference 2.7e-15; at t = 1: 0.848826 against 8/3π = 0.848826",
    "holds": true,
    "section": "A",
@@ -418,8 +418,8 @@
   },
   {
    "path": "figures/2.svg",
-   "bytes": 18931,
-   "sha256": "b12adcf0d968cc23d0d784dc7c63e87e865fbdc9ff0876be142175e05c1db85a"
+   "bytes": 19084,
+   "sha256": "2c10cd1038e7296a1221f6941dd1624ef7934b5b35cef288fd2571edcc259901"
   },
   {
    "path": "figures/3.svg",
@@ -443,8 +443,8 @@
   },
   {
    "path": "figures/A1.svg",
-   "bytes": 5354,
-   "sha256": "84440259fe1ad02b55189990a7ad723d787c846ed31eed87c3288920e08b2656"
+   "bytes": 5356,
+   "sha256": "d17395b2818aff22bf98dbcfd1ffc7be4824c21a67e21ea1a02b9058bbc05934"
   },
   {
    "path": "figures/A2.svg",
@@ -453,14 +453,14 @@
   },
   {
    "path": "figures/captions.json",
-   "bytes": 4489,
-   "sha256": "7fb30a80d08fc5d671869b5792368bd462a00ace16b763788ff01868b44d1511"
+   "bytes": 4568,
+   "sha256": "36802fd9440a51f073b85fc98182221e0a4df80a9edb548c699cd3e1a3e34c89"
   }
  ],
  "refs": {
+  "read": 3,
   "index": 26,
-  "read": 2,
   "cited": 1,
-  "memory": 2
+  "memory": 1
  }
 }

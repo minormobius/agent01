@@ -26,7 +26,7 @@ configuration is still the lower one when solved under the law, so the differenc
 
 In ours an outer electron sees the nucleus screened by every inner electron whole: the shell theorem makes an inner
 cloud act as its charge at the centre. In four dimensions an inner cloud screens only partly, because its pull at
-radius $r$ is $k(t)/r$ of a point charge's with $k < 1$ (section 4.2). The outer electrons see more of the nucleus.
+radius $r$ is $\kappa(t)/r$ of a point charge's with $\kappa < 1$ (section 4.2). The outer electrons see more of the nucleus.
 
 **10.1 How much harder.** Across the {{cf.holdN}} atoms past helium that settle under both, the law holds the
 outermost electron a median {{cf.holdMedian}} times as hard as the shell theorem would, from {{cf.holdMin}} to
@@ -47,12 +47,13 @@ bound ({{ea.nob4}} eV), too little to call. In ours this method underbinds anion
 
 ## 11 · Neutral atoms aren't silent
 
-Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A spherical cloud of
-charge felt from outside gives $-q\,k(t)/s$ with $k = 1 - t^2/8 - \dots$ (appendix A). The nucleus and the electrons
-cancel in the first term, and what remains, for an electron at distance $s$, is a pull $-\sum\langle r^2\rangle/8s^3$
+Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A spherical shell
+of charge $q$ and radius $s$, felt at a distance $R$ outside it, gives $q\,\kappa(s/R)/R$ with
+$\kappa = 1 - t^2/8 - \dots$ (appendix A). Summed over the nucleus and the electrons, the leading terms cancel in a
+neutral atom, and what remains, for an electron at distance $R$, is a pull $-Q/8R^3$, with $Q = \sum\langle r^2\rangle$
 over the atom's electrons. The solved noble gases follow it: at 30 bohr the full cloud's potential and the far form
 agree to {{far.dev}}. Between two atoms the same failure gives a permanent attraction
-$-3S_AS_B/64R^5$ ($S = \sum\langle r^2\rangle$), with no dipole needed, which outranges London's $R^{-6}$. The papers
+$-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$. The papers
 that follow take it up: noble gases that condense far above where ours do, and molecules held differently.
 
 ## 12 · Limitations

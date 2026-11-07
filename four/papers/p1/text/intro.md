@@ -4,19 +4,18 @@
 
 ## 1 · Introduction
 
-Why does space have three dimensions? Ehrenfest (1917, 1920) turned the question into physics. He asked what in the
+Why does space have three dimensions? Ehrenfest [-@ehrenfest1917; -@ehrenfest1920] turned the question into physics. He asked what in the
 laws of physics would change with the number of dimensions, and found, among other things, that under the
-inverse-power force Gauss's law gives in $D$ dimensions, no planetary orbit is stable for $D > 3$. Tangherlini (1963)
+inverse-power force Gauss's law gives in $D$ dimensions, no planetary orbit is stable for $D > 3$. @tangherlini1963
 carried the argument into general relativity and into quantum mechanics: the hydrogen atom with Gauss's potential has
 no stable states above three dimensions. The usual conclusion is that a world with more than three large dimensions
-has no atoms. Callender (2005) points out what that conclusion leans on, that the laws carry over to other dimensions
+has no atoms. @callender2005 points out what that conclusion leans on, that the laws carry over to other dimensions
 unchanged.
 
-They needn't. The literature on the hydrogen atom in $D$ dimensions (Nieto 1979; Al-Jaber 1998) and on dimensional
-scaling (Herschbach, Avery and Goscinski 1992; Loeser and Herschbach 1986) keeps the potential at $1/r$ in every $D$,
-mostly as a convention that keeps the problem solvable. With it, hydrogen has a Bohr radius in any dimension. Négadi
-and Kibler (1996) used the $D$-dimensional hydrogen atom to extend Madelung's filling rule (Madelung 1936) to other
-dimensions, and predicted the rows of a four-dimensional periodic table. Pyykkö and Zhao (1991) solved the atoms of a
+They needn't. The literature on the hydrogen atom in $D$ dimensions [@nieto1979; @aljaber1998] and on dimensional
+scaling [@herschbach1992; @loeser1986hf; @loeser1986hp; @ghosh2020] keeps the potential at $1/r$ in every $D$,
+mostly as a convention that keeps the problem solvable. With it, hydrogen has a Bohr radius in any dimension. @negadi1996 used the $D$-dimensional hydrogen atom to extend Madelung's filling rule [@madelung1936] to other
+dimensions, and predicted the rows of a four-dimensional periodic table. @pyykko1991 solved the atoms of a
 two-dimensional world self-consistently. To our knowledge no one has solved the atoms of a four-dimensional one, nor
 asked what the choice of $1/r$ itself does to them.
 

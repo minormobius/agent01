@@ -1,7 +1,9 @@
 /* Paper 1's pages: each draft section (draft/*.md, which build.mjs fills from text/*.md) rendered to HTML by pandoc,
    its $$ TeX $$ maths as MathML (browsers draw it natively; no maths library is downloaded), on the paper stylesheet
-   (paper.css, forked from wormhole's). Each page carries its source's SHA-256, so the selftest can tell a stale page
-   without pandoc.
+   (paper.css, forked from wormhole's). Citations ([@key]) go through pandoc's citeproc on draft/references.json (CSL
+   JSON that build.mjs makes), author–date, each linked to its entry and each entry to its DOI; an entry refs.json
+   doesn't mark read or index is flagged as unchecked. Each page carries the SHA-256 of its source and the references,
+   so the selftest can tell a stale page without pandoc.
      node four/papers/p1/page.mjs           render every draft section (needs pandoc)
      node four/papers/p1/page.mjs --check   exit 1 if a page is missing or older than its source */
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
@@ -12,6 +14,8 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url)), DRAFT = path.join(here, "draft");
 const sha = (t) => createHash("sha256").update(t).digest("hex");
+const CSL = path.join(DRAFT, "references.json"), REFS = path.join(here, "refs.json");
+const srcSha = (f) => sha(readFileSync(path.join(DRAFT, f), "utf8") + (existsSync(CSL) ? readFileSync(CSL, "utf8") : ""));
 const sections = () => (existsSync(DRAFT) ? readdirSync(DRAFT).filter((f) => f.endsWith(".md")).sort() : []);
 
 /* the pages that are missing or older than their draft source */
@@ -20,20 +24,25 @@ export function stalePages() {
     const html = path.join(DRAFT, f.replace(/\.md$/, ".html"));
     if (!existsSync(html)) return true;
     const m = readFileSync(html, "utf8").match(/<meta name="source-sha256" content="([0-9a-f]+)"/);
-    return !m || m[1] !== sha(readFileSync(path.join(DRAFT, f), "utf8"));
+    return !m || m[1] !== srcSha(f);
   });
 }
 
 function render(f) {
   const src = readFileSync(path.join(DRAFT, f), "utf8"), md = src.replace(/<!--[\s\S]*?-->\n?/g, "");
-  const body = execFileSync("pandoc", ["-f", "markdown", "-t", "html5", "--mathml"], { input: md, encoding: "utf8" });
+  const args = ["-f", "markdown", "-t", "html5", "--mathml", "--citeproc", `--bibliography=${CSL}`, "-M", "link-citations=true", "-M", "link-bibliography=true"];
+  if (f !== "paper.md") args.push("-M", "reference-section-title=References");
+  let body = execFileSync("pandoc", args, { input: md, encoding: "utf8" });
+  // flag what hasn't been checked against its source (refs.json status cited or memory)
+  for (const r of JSON.parse(readFileSync(REFS, "utf8")).refs.filter((x) => x.status !== "read" && x.status !== "index"))
+    body = body.replace(new RegExp(`(<div id="ref-${r.key}"[^>]*>[\\s\\S]*?)(</div>)`), `$1 <em class="unchecked">(Not yet checked against the source.)</em>$2`);
   const title = (md.match(/^# (.+)$/m) || [, f])[1];
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="${sha(src)}" />
+<meta name="source-sha256" content="${srcSha(f)}" />
 <title>Paper 1 · ${title.replace(/[<>&]/g, "")}</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />

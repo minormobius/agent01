@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="1c74a22cf7b1cd52407a4d14e74cfef9ec92bb15e85970cce8e5ec4a39307d11" />
+<meta name="source-sha256" content="62e1c99dc7640717539c3237a27de5a2c3669f228fc6195980b27d0d57f0172f" />
 <title>Paper 1 · Introduction (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -15,36 +15,55 @@
 <div class="p-body single">
 <h1 id="introduction-draft">Introduction (draft)</h1>
 <h2 id="introduction">1 · Introduction</h2>
-<p>Why does space have three dimensions? Ehrenfest (1917, 1920) turned
+<p>Why does space have three dimensions? Ehrenfest <span
+class="citation" data-cites="ehrenfest1917 ehrenfest1920">(<a
+href="#ref-ehrenfest1917" role="doc-biblioref">1918</a>, <a
+href="#ref-ehrenfest1920" role="doc-biblioref">1920</a>)</span> turned
 the question into physics. He asked what in the laws of physics would
 change with the number of dimensions, and found, among other things,
 that under the inverse-power force Gauss’s law gives in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
 dimensions, no planetary orbit is stable for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>&gt;</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">D &gt; 3</annotation></semantics></math>.
-Tangherlini (1963) carried the argument into general relativity and into
-quantum mechanics: the hydrogen atom with Gauss’s potential has no
-stable states above three dimensions. The usual conclusion is that a
-world with more than three large dimensions has no atoms. Callender
-(2005) points out what that conclusion leans on, that the laws carry
-over to other dimensions unchanged.</p>
+<span class="citation" data-cites="tangherlini1963">Tangherlini (<a
+href="#ref-tangherlini1963" role="doc-biblioref">1963</a>)</span>
+carried the argument into general relativity and into quantum mechanics:
+the hydrogen atom with Gauss’s potential has no stable states above
+three dimensions. The usual conclusion is that a world with more than
+three large dimensions has no atoms. <span class="citation"
+data-cites="callender2005">Callender (<a href="#ref-callender2005"
+role="doc-biblioref">2005</a>)</span> points out what that conclusion
+leans on, that the laws carry over to other dimensions unchanged.</p>
 <p>They needn’t. The literature on the hydrogen atom in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
-dimensions (Nieto 1979; Al-Jaber 1998) and on dimensional scaling
-(Herschbach, Avery and Goscinski 1992; Loeser and Herschbach 1986) keeps
-the potential at
+dimensions <span class="citation" data-cites="nieto1979 aljaber1998">(<a
+href="#ref-nieto1979" role="doc-biblioref">Nieto 1979</a>; <a
+href="#ref-aljaber1998" role="doc-biblioref">Al-Jaber 1998</a>)</span>
+and on dimensional scaling <span class="citation"
+data-cites="herschbach1992 loeser1986hf loeser1986hp ghosh2020">(<a
+href="#ref-herschbach1992" role="doc-biblioref">Herschbach, Avery, and
+Goscinski 1993</a>; <a href="#ref-loeser1986hf"
+role="doc-biblioref">Loeser and Herschbach 1986a</a>, <a
+href="#ref-loeser1986hp" role="doc-biblioref">1986b</a>; <a
+href="#ref-ghosh2020" role="doc-biblioref">Ghosh, Kais, and Herschbach
+2020</a>)</span> keeps the potential at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 in every
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>,
 mostly as a convention that keeps the problem solvable. With it,
-hydrogen has a Bohr radius in any dimension. Négadi and Kibler (1996)
-used the
+hydrogen has a Bohr radius in any dimension. <span class="citation"
+data-cites="negadi1996">Négadi and Kibler (<a href="#ref-negadi1996"
+role="doc-biblioref">1996</a>)</span> used the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>-dimensional
-hydrogen atom to extend Madelung’s filling rule (Madelung 1936) to other
-dimensions, and predicted the rows of a four-dimensional periodic table.
-Pyykkö and Zhao (1991) solved the atoms of a two-dimensional world
-self-consistently. To our knowledge no one has solved the atoms of a
-four-dimensional one, nor asked what the choice of
+hydrogen atom to extend Madelung’s filling rule <span class="citation"
+data-cites="madelung1936">(<a href="#ref-madelung1936"
+role="doc-biblioref">Madelung 1936</a>)</span> to other dimensions, and
+predicted the rows of a four-dimensional periodic table. <span
+class="citation" data-cites="pyykko1991">Pyykkö and Zhao (<a
+href="#ref-pyykko1991" role="doc-biblioref">1991</a>)</span> solved the
+atoms of a two-dimensional world self-consistently. To our knowledge no
+one has solved the atoms of a four-dimensional one, nor asked what the
+choice of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 itself does to them.</p>
 <p>This paper does both. Part I treats the law as a choice. It shows why
@@ -66,6 +85,89 @@ concludes.</p>
 data each time anything changes, and is checked against a ledger of 31
 claims. The code, the data and the paper’s own making are public at
 four.mino.mobi/papers.</p>
+<h1 class="unnumbered" id="bibliography">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent"
+role="list">
+<div id="ref-aljaber1998" class="csl-entry" role="listitem">
+Al-Jaber, Sami M. 1998. <span>“Hydrogen Atom in N Dimensions.”</span>
+<em>International Journal of Theoretical Physics</em> 37 (4): 1289–98.
+<a
+href="https://doi.org/10.1023/A:1026679921970">https://doi.org/10.1023/A:1026679921970</a>.
+</div>
+<div id="ref-callender2005" class="csl-entry" role="listitem">
+Callender, Craig. 2005. <span>“Answers in Search of a Question:
+<span>‘Proofs’</span> of the Tri-Dimensionality of Space.”</span>
+<em>Studies in History and Philosophy of Science Part B: Studies in
+History and Philosophy of Modern Physics</em> 36 (1): 113–36. <a
+href="https://doi.org/10.1016/j.shpsb.2004.09.002">https://doi.org/10.1016/j.shpsb.2004.09.002</a>.
+</div>
+<div id="ref-ehrenfest1917" class="csl-entry" role="listitem">
+Ehrenfest, P. 1918. <span>“In What Way Does It Become Manifest in the
+Fundamental Laws of Physics That Space Has Three Dimensions?”</span>
+<em>Proceedings of the Koninklijke Akademie van Wetenschappen Te
+Amsterdam</em> 20: 200–209. <a
+href="https://dwc.knaw.nl/DL/publications/PU00012213.pdf">https://dwc.knaw.nl/DL/publications/PU00012213.pdf</a>.
+</div>
+<div id="ref-ehrenfest1920" class="csl-entry" role="listitem">
+———. 1920. <span>“Welche Rolle spielt die Dreidimensionalität des Raumes
+in den Grundgesetzen der Physik?”</span> <em>Annalen der Physik</em> 366
+(5): 440–46. <a
+href="https://doi.org/10.1002/andp.19203660503">https://doi.org/10.1002/andp.19203660503</a>.
+</div>
+<div id="ref-ghosh2020" class="csl-entry" role="listitem">
+Ghosh, Kumar J. B., Sabre Kais, and Dudley R. Herschbach. 2020.
+<span>“Unorthodox Dimensional Interpolations for He, Li, Be Atoms and
+Hydrogen Molecule.”</span> <em>Frontiers in Physics</em> 8 (August):
+331. <a
+href="https://doi.org/10.3389/fphy.2020.00331">https://doi.org/10.3389/fphy.2020.00331</a>.
+</div>
+<div id="ref-herschbach1992" class="csl-entry" role="listitem">
+Herschbach, Dudley R., John Avery, and Osvaldo Goscinski, eds. 1993.
+<em>Dimensional Scaling in Chemical Physics</em>. Dordrecht: Kluwer. <a
+href="https://doi.org/10.1007/978-94-011-1836-1">https://doi.org/10.1007/978-94-011-1836-1</a>.
+</div>
+<div id="ref-loeser1986hf" class="csl-entry" role="listitem">
+Loeser, J. G., and D. R. Herschbach. 1986a. <span>“Hartree–Fock
+Approximation for D-Dimensional Two-Electron Atoms.”</span> <em>The
+Journal of Chemical Physics</em> 84 (7): 3893–3900. <a
+href="https://doi.org/10.1063/1.450100">https://doi.org/10.1063/1.450100</a>.
+</div>
+<div id="ref-loeser1986hp" class="csl-entry" role="listitem">
+———. 1986b. <span>“Hylleraas–Pekeris Treatment of D-Dimensional
+Two-Electron Atoms.”</span> <em>The Journal of Chemical Physics</em> 84
+(7): 3882–92. <a
+href="https://doi.org/10.1063/1.450099">https://doi.org/10.1063/1.450099</a>.
+</div>
+<div id="ref-madelung1936" class="csl-entry" role="listitem">
+Madelung, E. 1936. <em>Die mathematischen Hilfsmittel des
+Physikers</em>. 3rd ed. Berlin: Springer.
+ <em class="unchecked">(Not yet checked against the source.)</em></div>
+<div id="ref-negadi1996" class="csl-entry" role="listitem">
+Négadi, T., and M. Kibler. 1996. <span>“The Periodic Table in
+Flatland.”</span> <em>International Journal of Quantum Chemistry</em> 57
+(1): 53–61. <a
+href="https://doi.org/10.1002/(SICI)1097-461X(1996)57:1&lt;53::AID-QUA6&gt;3.0.CO;2-Y">https://doi.org/10.1002/(SICI)1097-461X(1996)57:1&lt;53::AID-QUA6&gt;3.0.CO;2-Y</a>.
+</div>
+<div id="ref-nieto1979" class="csl-entry" role="listitem">
+Nieto, Michael Martin. 1979. <span>“Hydrogen Atom and Relativistic
+Pi-Mesic Atom in N-Space Dimensions.”</span> <em>American Journal of
+Physics</em> 47 (12): 1067–72. <a
+href="https://doi.org/10.1119/1.11976">https://doi.org/10.1119/1.11976</a>.
+</div>
+<div id="ref-pyykko1991" class="csl-entry" role="listitem">
+Pyykkö, Pekka, and Yongfang Zhao. 1991. <span>“The Elements of Flatland:
+Hartree–Fock Atomic Ground States in Two Dimensions for Z =
+1–24.”</span> <em>International Journal of Quantum Chemistry</em> 40
+(4): 527–44. <a
+href="https://doi.org/10.1002/qua.560400408">https://doi.org/10.1002/qua.560400408</a>.
+</div>
+<div id="ref-tangherlini1963" class="csl-entry" role="listitem">
+Tangherlini, F. R. 1963. <span>“Schwarzschild Field in n Dimensions and
+the Dimensionality of Space Problem.”</span> <em>Il Nuovo Cimento</em>
+27 (3): 636–51. <a
+href="https://doi.org/10.1007/BF02784569">https://doi.org/10.1007/BF02784569</a>.
+</div>
+</div>
 
 </div>
 <div class="p-source">Generated from <code>papers/p1/text/intro.md</code>: every number in it is read by <code>build.mjs</code> from the solver, the bake or the runs, so this text says what the code does. Rendered by pandoc with MathML.</div>

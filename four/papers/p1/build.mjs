@@ -146,6 +146,33 @@ export function checkRefs(refs = JSON.parse(readFileSync(join(HERE, "refs.json")
   return { bad, refs, citable: new Set(refs.filter((r) => r.status === "read" || r.status === "index").map((r) => r.key)) };
 }
 
+/* the references as CSL JSON for pandoc's citeproc (page.mjs): a DOI'd entry is Crossref's record (data/crossref.json,
+   fetched by refs-crossref.mjs) under refs.json's own title, with refs.json filling what Crossref lacks and its `csl`
+   field overriding; the rest are built from refs.json. Every in-text [@key] must be a key here */
+const CSL_TYPE = { "journal-article": "article-journal", "book-chapter": "chapter", "edited-book": "book", "proceedings-article": "paper-conference" };
+const cslNames = (s) => s.replace(/\s*\(eds?\.\)\s*$/, "").split(/\s*(?:,|&|\band\b)\s*/).filter(Boolean).map((n) => {
+  const m = n.match(/^((?:[A-Z][a-z]?\.\s*|[A-Z][a-z]?\.-[A-Z]\.\s*)+)(.+)$/); return m ? { given: m[1].trim(), family: m[2].trim() } : { literal: n.trim() }; });
+export function cslRefs(refs = JSON.parse(readFileSync(join(HERE, "refs.json"), "utf8")).refs) {
+  const cr = existsSync(join(HERE, "data/crossref.json")) ? JSON.parse(readFileSync(join(HERE, "data/crossref.json"), "utf8")).records : {};
+  return refs.map((r) => {
+    const c = r.doi ? cr[r.doi.toLowerCase()] : null;
+    if (r.doi && !c) throw new Error(`refs.json ${r.key}: DOI ${r.doi} isn't in data/crossref.json (node four/papers/p1/refs-crossref.mjs)`);
+    const e = c ? { ...c, type: CSL_TYPE[c.type] || c.type } : { type: r.csl?.type || (r.venue && /Springer|Kluwer|Pergamon/.test(r.venue) ? "book" : r.url && !r.volume ? "webpage" : "article-journal"),
+      "container-title": r.venue, volume: r.volume || undefined, page: r.pages || undefined };
+    e.id = r.key; e.title = r.title;
+    if (!e.author && !e.editor) e[/\(eds?\.\)/.test(r.authors) ? "editor" : "author"] = cslNames(r.authors);
+    if (!e.issued) e.issued = { "date-parts": [[+r.year]] };
+    if (!e.page && r.pages) e.page = r.pages;
+    if (!e.volume && r.volume) e.volume = r.volume;
+    if (r.url && !r.doi) e.URL = r.url;
+    if (r.doi) e.DOI = r.doi;
+    Object.assign(e, r.csl || {});
+    for (const k of Object.keys(e)) if (e[k] == null || e[k] === "") delete e[k];
+    return e;
+  });
+}
+const citedKeys = (t) => new Set([...t.replace(/<!--[\s\S]*?-->/g, "").matchAll(/(?<![\w.])-?@([a-z][\w-]*\d{4}[a-z]*|[a-z]+-[a-z-]+)/gi)].map((m) => m[1]));
+
 /* Négadi & Kibler's generalized Madelung rule for D dimensions: subshells fill in order of n + l (then n), each holding
    2 × (the number of D-dimensional harmonics of degree l), and a row closes after each p (and after 1s) */
 export function madelungRows(d, upto) {
@@ -172,8 +199,8 @@ function ledger(t3, t4, files, refs) {
     { id: "gauss", part: "law", claim: "Gauss's law in 4D (a 1/r² potential) has no atom: below a critical strength nothing binds, above it the ground state falls to the centre, its energy set by wherever the calculation stops (no Bohr radius either way)",
       value: `α = 0.45: bound on no grid; α = 0.7: ε = ${strong.map((g) => g.e.toExponential(3)).join(", ")} hartree for r₀ = 10⁻³, 10⁻⁴, 10⁻⁵ (×${ratioR0.toExponential(2)} over 10⁻² in r₀: ε ∝ 1/r₀²); the critical strength is ½ (Hardy's inequality in 4D)`,
       holds: weak.every((g) => !g.bound) && strong.every((g) => g.bound) && Math.abs(ratioR0 / 1e4 - 1) < 0.01, section: "2", gate: [67] },
-    { id: "uniqueness", part: "law", claim: "Among power laws 1/r^p only p = 1 keeps a shell's levels together (2s with 2p, 3s with 3d), the degeneracy that makes shells of 2(l + 1)² and rows of 2, 10, 10, 28 …",
-      value: splits.map((s) => `p = ${s.p}: 2p − 2s ${(100 * s.split2).toFixed(s.p === 1 ? 9 : 1)} %, 3d − 3s ${(100 * s.split3).toFixed(s.p === 1 ? 9 : 1)} %`).join("; "),
+    { id: "uniqueness", part: "law", claim: "Among power laws 1/r^η only η = 1 keeps a shell's levels together (2s with 2p, 3s with 3d), the degeneracy that makes shells of 2(l + 1)² and rows of 2, 10, 10, 28 …",
+      value: splits.map((s) => `η = ${s.p}: 2p − 2s ${(100 * s.split2).toFixed(s.p === 1 ? 9 : 1)} %, 3d − 3s ${(100 * s.split3).toFixed(s.p === 1 ? 9 : 1)} %`).join("; "),
       holds: Math.abs(splits[1].split2) < 1e-8 && Math.abs(splits[1].split3) < 1e-8 && splits[0].split2 < -0.01 && splits[2].split2 > 0.01, section: "2", gate: [67] },
     { id: "harmonic", part: "law", claim: "Pinned in 4D, 1/r isn't harmonic: ∇²(1/r) = −1/r³ in empty space, so there is no Gauss's law for it",
       value: `∇²(1/r) at r = 1, 2: ${lap(1).toFixed(5)}, ${lap(2).toFixed(5)} (−1/r³: −1, −0.125)`, holds: Math.abs(lap(1) + 1) < 1e-4 && Math.abs(lap(2) + 0.125) < 1e-4, section: "2", gate: [3, 33] },
@@ -253,7 +280,7 @@ function ledger(t3, t4, files, refs) {
         value: `4s→3d, solver against measured (eV): ${ok.map((x) => `${x.symbol} ${x.solver_eV} vs ${x.measured_eV}`).join(", ")}; mean error ${P.solverMeanError_eV}, with the full term correction ${P.fullMeanError_eV}; configurations right ${P.configs.bake} (bake) and ${P.configs.fullCorrection} (full correction) of ${P.configs.elements}`,
         holds: ok.length >= 5 && ok.every((x) => x.solverError_eV < 0) && P.fullMeanAbs_eV >= P.solverMeanAbs_eV - 0.05 && P.configs.fullCorrection < P.configs.bake, section: "6", gate: [67] }; })(),
     (() => { const ts = [0.1, 0.3, 0.5, 0.7, 0.9], err = Math.max(...ts.map((t) => Math.abs(kClosed(t) / k4(t) - 1)));
-      return { id: "kernelclosed", part: "law", claim: "The 4D shell kernel has a closed form, k(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with k(1) = 8/3π and k = 1 − t²/8 − t⁴/64 − …",
+      return { id: "kernelclosed", part: "law", claim: "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/3π and κ = 1 − t²/8 − t⁴/64 − …",
         value: `closed form against the solver's quadrature at t = 0.1 … 0.9: largest relative difference ${err.toExponential(1)}; at t = 1: ${kClosed(1 - 1e-12).toFixed(6)} against 8/3π = ${(8 / (3 * Math.PI)).toFixed(6)}`,
         holds: err < 1e-8 && Math.abs(kClosed(1 - 1e-12) - 8 / (3 * Math.PI)) < 1e-5, section: "A", gate: [67] }; })(),
     ...(() => { const I = IONS, o3 = I.filter((r) => r.D === 3), i4 = I.filter((r) => r.D === 4), pblock = [5, 6, 8, 9, 13, 14, 16, 17, 31, 32, 34, 35], unb = o3.filter((r) => r.ea_measured_eV === "unbound"), meas = o3.filter((r) => typeof r.ea_measured_eV === "number");
@@ -363,14 +390,14 @@ function numbers(t3, t4, L) {
   const cvRel = Math.max(...CV.rows.flatMap((g) => g.atoms.map((x) => Math.abs(x.dE / cvBase.get(`${x.d}-${x.Z}`)))));
   const lawtable = readFileSync(join(HERE, "../../atom/tools/lawtable.mjs"), "utf8"), rep = lawtable.match(/REPAIR = \{ mix: ([\d.]+), iters: (\d+) \}/);
   const AU = JSON.parse(readFileSync(join(HERE, "data/audit-scf.json"), "utf8")), e1 = (v) => minus(Math.abs(v).toExponential(1).replace(/e([+-])(\d+)/, (_, sg, n) => ` × 10${sg === "-" ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`));
-  const g7 = gaussLaw(0.7, [1e-3, 1e-4, 1e-5]), spl = Object.fromEntries([0.8, 1, 1.2].map((p) => [p, shellSplit(p)]));
+  const g7 = gaussLaw(0.7, [1e-3, 1e-4, 1e-5]), spl = Object.fromEntries([0.8, 1, 1.2, 1.5].map((p) => [p, shellSplit(p)]));
   const lapAt = (r, hh = 1e-3) => { const f = (x) => 1 / x; return (f(r + hh) - 2 * f(r) + f(r - hh)) / hh ** 2 + (3 / r) * (f(r + hh) - f(r - hh)) / (2 * hh); };
   const tfFit = (rows) => { const x = rows.map((e) => Math.log(e.Z)), y = rows.map((e) => Math.log(-e.E)), n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n; let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; } return sxy / sxx; };
   const pct = (v) => `${v < 0 ? "−" : "+"}${Math.abs(100 * v).toFixed(1)} %`, a3 = FIELDS.propagatorPower(1, 4);
   return {
     "gauss.e3": minus(g7[0].e.toExponential(2)).replace(/e\+?(-?)(\d+)/, (_, sg, n) => ` × 10${sg ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`), "gauss.e4": minus(g7[1].e.toExponential(2)).replace(/e\+?(-?)(\d+)/, (_, sg, n) => ` × 10${sg ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`), "gauss.e5": minus(g7[2].e.toExponential(2)).replace(/e\+?(-?)(\d+)/, (_, sg, n) => ` × 10${sg ? "⁻" : ""}${n.replace(/\d/g, (c) => SUP[c])}`),
     "gauss.c3": minus((g7[0].e * 1e-6).toFixed(5)), "gauss.c5": minus((g7[2].e * 1e-10).toFixed(5)),
-    "split.p08": pct(spl[0.8].split2), "split.p1": `${Math.abs(100 * spl[1].split2).toExponential(0).replace(/e-?(\d+)/, (_, n) => ` × 10⁻${n.replace(/\d/g, (c) => SUP[c])}`)} %`, "split.p12": pct(spl[1.2].split2),
+    "split.p08": pct(spl[0.8].split2), "split.p1": `${Math.abs(100 * spl[1].split2).toExponential(0).replace(/e-?(\d+)/, (_, n) => ` × 10⁻${n.replace(/\d/g, (c) => SUP[c])}`)} %`, "split.p12": pct(spl[1.2].split2), "split.p15": pct(spl[1.5].split2), "split3.p15": pct(spl[1.5].split3),
     "lap.r1": minus(lapAt(1).toFixed(5)), "lap.r2": minus(lapAt(2).toFixed(5)), "cage.ratio": (1 / k4(1)).toFixed(6),
     "fields.delta": String(FIELDS.scalingDim(a3, 4)), "fields.floor": String(FIELDS.unitarityFloor(4)), "fields.m": String(FIELDS.nonlinearExponent(4)),
     "tf.exp4": tfFit(TABLE[4].filter((e) => e.Z >= 10)).toFixed(3), "tf.exp3": tfFit(TABLE[3].filter((e) => e.Z >= 10)).toFixed(3),
@@ -401,7 +428,9 @@ function drafts(t3, t4, L) {
   const dir = join(HERE, "text"), out = new Map(), nums = numbers(t3, t4, L);
   if (!existsSync(dir)) return out;
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".md")).sort()) {
-    const body = readFileSync(join(dir, f), "utf8").replace(/<!--[\s\S]*?-->\n?/g, "").replace(/\{\{([a-z0-9.]+)\}\}/gi, (_, k) => { if (!(k in nums)) throw new Error(`text/${f}: unknown token {{${k}}}`); return nums[k]; });
+    const raw = readFileSync(join(dir, f), "utf8"), known = new Set(JSON.parse(readFileSync(join(HERE, "refs.json"), "utf8")).refs.map((r) => r.key));
+    for (const k of citedKeys(raw)) if (!known.has(k)) throw new Error(`text/${f}: cites @${k}, which isn't in refs.json`);
+    const body = raw.replace(/<!--[\s\S]*?-->\n?/g, "").replace(/\{\{([a-z0-9.]+)\}\}/gi, (_, k) => { if (!(k in nums)) throw new Error(`text/${f}: unknown token {{${k}}}`); return nums[k]; });
     out.set(`draft/${f}`, `<!-- Generated by papers/p1/build.mjs from text/${f}; edit the source. -->\n${body}`);
   }
   if (out.size) out.set("draft/paper.md", assemble(out, L));
@@ -414,9 +443,7 @@ function assemble(parts, L) {
   const methods = strip(get("methods.md")).replace(/^## /gm, "### ");
   const table = get("table.md").replace(/^# .*\n+/, "");
   const caps = JSON.parse(readFileSync(join(HERE, "figures/captions.json"), "utf8"));
-  const figs = Object.entries(caps).map(([k, c]) => `![**Figure ${k}.** ${c}](../figures/${k}.svg)`).join("\n\n");
-  const refs = JSON.parse(readFileSync(join(HERE, "refs.json"), "utf8")).refs.slice().sort((a, b) => a.authors.localeCompare(b.authors));
-  const refList = refs.map((r) => `- ${r.authors} (${r.year}). ${r.title}. *${r.venue}*${r.volume ? ` ${r.volume}` : ""}${r.pages ? `, ${r.pages}` : ""}.${r.status === "read" || r.status === "index" ? "" : " *(Not yet checked against the source.)*"}`).join("\n");
+  const figs = Object.entries(caps).map(([k, c]) => `![**Figure ${k}.** ${c.replace(/\^η/g, "^η^")}](../figures/${k}.svg)`).join("\n\n");
   return `<!-- Generated by papers/p1/build.mjs from text/*.md: the whole paper in one draft. -->
 # Paper 1 · the whole draft
 
@@ -428,6 +455,8 @@ regenerated from the code and its data on every change; the making is public at 
 *To be written last.*
 
 ${undraft(strip(get("intro.md")))}
+
+${undraft(strip(get("notation.md")))}
 
 ${undraft(get("law.md"))}
 
@@ -454,7 +483,8 @@ ${L.claims.length} claims this text rests on, and the data behind them, are in \
 
 ## References
 
-${refList}
+::: {#refs}
+:::
 `;
 }
 
@@ -476,6 +506,7 @@ export function build() {
   const L = ledger(t3, t4, out, checkRefs().refs);
   out.set("ledger.json", JSON.stringify(L, null, 1) + "\n");
   for (const [k, v] of drafts(t3, t4, L)) out.set(k, v);
+  out.set("draft/references.json", JSON.stringify(cslRefs(), null, 1) + "\n"); // CSL JSON for page.mjs's citeproc
   return { files: out, t3, t4, ledger: L };
 }
 

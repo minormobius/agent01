@@ -15,7 +15,7 @@ Gaussian basis written for any dimension (`gauss.js`), and the same atoms in our
 **6.3 Our own table.** The same solver, the same law (in ours 1/r is Gauss's) and the same search, run in three
 dimensions, gives {{configs3}} of our measured ground configurations. The four it misses, {{misses3}}, each take one
 d electron too many against 4s, the known lean of local exchange toward d. The misses have one cause. Moving an electron from 4s into 3d comes out
-too cheap in every 3d atom we can compare (eV, the solver against measured: {{prom.list}}), short by {{prom.min}}–{{prom.max}}
+too cheap in every 3d atom we can compare (eV, the solver against measured [@nist-asd]: {{prom.list}}), short by {{prom.min}}–{{prom.max}}
 eV and a mean {{prom.bias}}, always in d's favour. That is local exchange without correlation. Resolving every open
 subshell's whole term structure doesn't remove it. With that correction (the lowest term less the average of the
 maximum-spin arrangements, which is what a spherically averaged field stands for), the bias stays at {{prom.fullbias}} eV and
@@ -29,7 +29,7 @@ atom's configuration, changes no first ionization. The same search for anions gi
 the extra electron is bound by the field and exchange: the p-block acceptors ({{ea.pOurs}} eV, measured second). It
 also finds every anion that should be unbound to be unbound: the noble gases, beryllium, magnesium and nitrogen. It
 fails where correlation does the binding ({{ea.fail}}). In four dimensions, then, an affinity above about 0.7 eV is to
-be believed and a smaller one is not (Rienstra-Kiracofe et al. 2002 for the measured values).
+be believed and a smaller one is not (the measured values are from @rienstra2002).
 
 **6.5 Numbers.** Tightening the solver's stop or changing its grid moves no ionization energy by a millihartree
 (section 5 and appendix C).
@@ -97,7 +97,7 @@ configuration with a competitor holding fewer d and f electrons within a volt of
 
 **8.1 Rows and noble gases.** The table's rows hold {{table.rows}} elements (and {{table.lastRow}} of the next by
 element 140), and its noble gases are elements {{table.nobles}}, each a peak of the first ionization energy (figures
-1 and 4). Those are the rows the generalized Madelung rule of Négadi and Kibler (1996) predicts for four dimensions.
+1 and 4). Those are the rows the generalized Madelung rule of @negadi1996 predicts for four dimensions.
 To our knowledge this is the first self-consistent table that confirms them. Part III asks how much of that the law
 decides.
 
@@ -105,7 +105,7 @@ decides.
 outside it. It holds its outermost electron at {{ion.128}} eV, harder than its row's noble gas 138 ({{ion.138}} eV) and
 harder than any other atom in the table. Element 68, the same kind a row up, comes within a volt of its noble gas 78
 ({{ion.68}} eV against {{ion.78}}). Ours goes the other way: palladium's full 4d¹⁰ gives up an electron at 8.3 eV,
-xenon at 12.1. Searching each ion for its own ground state leaves element 128's ionization where
+xenon at 12.1 [@nist-handbook]. Searching each ion for its own ground state leaves element 128's ionization where
 it was. Seven other ions do rearrange, and their ionizations drop: {{ion.re4}} eV. The main table carries those. Section 9 shows the law does it.
 
 **8.3 Inside the rows.** Figure 5 draws six atoms in profile: their radial densities, and what each one's outermost
