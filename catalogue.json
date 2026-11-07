@@ -5942,6 +5942,23 @@
       ]
     },
     {
+      "n": "kata-ooze",
+      "u": "https://kata.mino.mobi/ooze/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-07",
+      "b": "2026-11-07",
+      "p": "kata",
+      "surface": "kata",
+      "d": "OOZE: pilot a 4D amoeba across a 3D floor to the exit. Steer by pressing the smell sphere, ana and kata included; every pseudopod costs energy, so eat on the way; walls that stop short in w are only passed through w. Ten levels that each teach one thing, then levels grown from seeds, every one checked solvable by an oracle, and the ten flown through the real simulation by a bot.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

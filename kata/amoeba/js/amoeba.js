@@ -43,6 +43,8 @@ export const PAR = {
   // polarity: the cell's axis grows with firing (pUp), fades over pTau; leans firing to the front; myosin at the rear
   // piloting: how much pressing leans the firing, adds nucleation, and swings the axis
   pilot: 0.35, pilotRate: 0.25, pilotTurn: 2,
+  // energy (only when a game gives the cell some): living's cost a second, and pushing's per unit of work
+  eBase: 0.02, eWork: 0.13,
   pUp: 1, pTau: 6, myoGain: 2, myoFrom: 0.3, polSat: 0.15, retract: 0, polBias: 0.25, patch: 2, curvBias: 0.5,
   // keeping the mesh even
   relax: 0.4, relaxIt: 2, smooth: 0, cgIt: 40, remeshEvery: 5, remeshEvery4: 10, edgeScale: 1.4,
@@ -212,6 +214,7 @@ function signalling(A, dt) {
 /* one step */
 export function step(A, dt = A.par.dt) {
   const { d, P, nv, F, g, area, par, stuck, nbStart, nb, sig } = A;
+  if (A.obstacles) { if (!A.Pprev || A.Pprev.length !== P.length) A.Pprev = new Float64Array(P.length); A.Pprev.set(P); }
   if (A.foods.length) smellAll(A);
   signalling(A, dt);
   geometry(A);
@@ -244,7 +247,8 @@ export function step(A, dt = A.par.dt) {
   const xa = A.xa || (A.xa = new Float64Array(nv * d)), xb = A.xb || (A.xb = new Float64Array(nv * d)), ra = A.ra || (A.ra = new Float64Array(nv * d)), rb = A.rb || (A.rb = new Float64Array(nv * d)), cc = A.cc || (A.cc = new Float64Array(nv));
   // (polymerisation stalls under load, as a Brownian ratchet does: its speed falls exponentially with the tension the
   // membrane budget adds once the reserve is spent, so a foot can't grow past the membrane there is)
-  const stall = Math.exp(-par.areaK * (A.over || 0) / par.stallT);
+  // (and, for a game, it runs on energy: none left, no polymerisation; the cell is starved)
+  const stall = Math.exp(-par.areaK * (A.over || 0) / par.stallT) * (A.energy !== undefined && A.energy <= 0 ? 0 : 1);
   for (let i = 0; i < nv; i++) {
     const m = par.mu / (1 + par.stick * stuck[i]), vk = par.vp * A.u[i] * stall; A.vk[i] = vk;
     cc[i] = dt * m * sig[i] * Lc[i];
@@ -267,6 +271,10 @@ export function step(A, dt = A.par.dt) {
   moveNucleus(A, dt);
   if (A.foods.length) eat(A);
   A.t += dt; A.nstep = (A.nstep || 0) + 1;
+  // ENERGY (a game's): living costs a little (eBase a second) and pushing costs the rest: the work of polymerisation,
+  // the membrane pushed out (Σ v_p u × its share of membrane), at eWork a unit. Food refills it (in eat)
+  if (A.energy !== undefined) { let w = 0; for (let i = 0; i < A.vk.length && i < A.area.length; i++) w += A.vk[i] * A.area[i]; A.work = w;
+    A.energy = Math.max(0, A.energy - dt * (par.eBase + par.eWork * w)); A.starved = A.energy <= 0; }
   const every = A.d === 3 ? par.remeshEvery : par.remeshEvery4;
   if (every && A.nstep % every === 0) A.lastRemesh = remesh(A);
   // (last of all: the nucleus has moved and remeshing may have put a new midpoint inside it, so the membrane is held off
@@ -313,8 +321,20 @@ function constrain(A, facets = false) {
   const { d, P, nv } = A, c = A.nuc.c, r = A.nuc.a + NUC_GAP;
   // points: off the floor, and out of the nucleus (pushed out radially)
   const R = A.nucPush || (A.nucPush = new Float64Array(d)); R.fill(0); let nr = 0;
+  const obs = A.obstacles;
   for (let i = 0; i < nv; i++) {
     if (A.floor && P[i * d + 1] < 0) P[i * d + 1] = 0;
+    // (walls, for a game: boxes standing on the floor; a point inside one goes out by its shallowest side)
+    // It goes back out the side it came in by (where it was when the step began): the nearest side would let a point
+    // that got more than halfway through a thin wall out on the far side, and the membrane would pass through
+    if (obs) for (const B of obs) { let inside = true; for (let k = 0; k < d; k++) { const x = P[i * d + k]; if (x <= B.lo[k] || x >= B.hi[k]) { inside = false; break; } }
+      if (!inside) continue;
+      const pp = A.Pprev && A.Pprev.length === P.length ? A.Pprev : null; let ax = -1, to = 0, best = Infinity;
+      if (pp) for (let k = 0; k < d; k++) { const x0 = pp[i * d + k]; if (x0 <= B.lo[k]) { const dd = B.lo[k] - x0; if (dd < best) { best = dd; ax = k; to = B.lo[k] - 1e-4; } } else if (x0 >= B.hi[k]) { const dd = x0 - B.hi[k]; if (dd < best) { best = dd; ax = k; to = B.hi[k] + 1e-4; } } }
+      if (ax < 0) for (let k = 0; k < d; k++) { const x = P[i * d + k];
+        if (k === 1) { const up = B.hi[1] - x; if (up < best) { best = up; ax = 1; to = B.hi[1] + 1e-4; } continue; }
+        const a = x - B.lo[k], b = B.hi[k] - x; if (a < best) { best = a; ax = k; to = B.lo[k] - 1e-4; } if (b < best) { best = b; ax = k; to = B.hi[k] + 1e-4; } }
+      if (ax >= 0) P[i * d + ax] = to; }
     let q = 0; for (let k = 0; k < d; k++) q += (P[i * d + k] - c[k]) ** 2;
     if (q < r * r) { const s = r / Math.sqrt(q || 1e-12); for (let k = 0; k < d; k++) { const dx = (P[i * d + k] - c[k]) * (s - 1); P[i * d + k] += dx; R[k] += dx; } nr++; }
   }
@@ -393,6 +413,10 @@ function moveNucleus(A, dt) {
   // (and if it has been left outside after all, straight back toward the middle)
   if (!inside(A, c)) for (let k = 0; k < d; k++) c[k] += 0.3 * (m[k] / V - c[k]);
   if (A.floor) c[1] = Math.max(c[1], A.nuc.a + NUC_GAP + 0.03);
+  // (and out of the walls: the nearest point of each box no closer than its radius)
+  if (A.obstacles) for (const B of A.obstacles) { const q = new Array(d); let dd = 0; for (let k = 0; k < d; k++) { q[k] = Math.max(B.lo[k], Math.min(B.hi[k], c[k])); dd += (c[k] - q[k]) ** 2; }
+    const r = A.nuc.a + NUC_GAP + 0.02; dd = Math.sqrt(dd);
+    if (dd < r) { if (dd > 1e-9) for (let k = 0; k < d; k++) c[k] = q[k] + ((c[k] - q[k]) * r) / dd; else { let best = Infinity, ax = 0, to = 0; for (let k = 0; k < d; k++) { if (k === 1) continue; for (const [lim, sgn] of [[B.lo[k], -1], [B.hi[k], 1]]) { const dist = Math.abs(c[k] - lim); if (dist < best) { best = dist; ax = k; to = lim + sgn * r; } } } c[ax] = to; } } }
 }
 
 /* the cell's centre (of its membrane) and how far it reaches from it: its outline's spread */
@@ -434,7 +458,7 @@ function solve(M, b) { const n = b.length, A = M.map((r, i) => [...r, b[i]]); fo
 function eat(A) {
   if (Math.round(A.t / A.par.dt) % 5) return;
   A.foods = A.foods.filter((F) => {
-    if (inside(A, F)) { A.eaten++; A.V0 = Math.min(A.V0 * 1.05, (A.V00 || A.V0) * 1.6); return false; }
+    if (inside(A, F)) { A.eaten++; if (!A.noGrow) A.V0 = Math.min(A.V0 * 1.05, (A.V00 || A.V0) * 1.6); if (A.energy !== undefined) A.energy = Math.min(A.eMax ?? Infinity, A.energy + (A.foodE ?? 1)); return false; }
     return true;
   });
   if (A.keepFood) while (A.foods.length < A.keepFood) spawnFood(A);

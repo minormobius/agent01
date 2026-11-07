@@ -150,6 +150,14 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   an edge is as long as it is wide). **Piloting:** press and hold the smell sphere (`sphereDir` inverts the panel's view
   to a direction; the worker sets `A.steer`): firing leans toward it, extra nucleation, the axis swings to it.
   See [`amoeba/README.md`](amoeba/README.md).
+- **OOZE at `/ooze/`**: the 4D amoeba game, on AMOEBA's engine, **imported** (`../../amoeba/js/amoeba.js`), so **a
+  change to AMOEBA's engine runs OOZE's selftest too**. `js/game.js` (no DOM): levels in floor coords (x, z, w), the
+  oracle (a 0.25 grid, free where ≥ 0.55 from walls; Dijkstra between start/food/goal; a DP over (node, eaten set)
+  for the most energy; COST 1.45 a radius; plan, path, margin, foods needed, difficulty /10), the ten (each harder,
+  food needed where present, E0 = 1.3 × the least), and `generate(seed, diff)`. `js/play.js`: `setup`, `play` (won /
+  starved), `bot` (pure pursuit on the oracle's path). The engine hooks (`A.obstacles`, `A.energy`) are AMOEBA's,
+  off unless set. Walls reach below the floor and points leave by the side they entered. See
+  [`ooze/README.md`](ooze/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -214,6 +222,7 @@ node kata/phase/test/phase.selftest.mjs # ~90 s
 node kata/lamp/test/lamp.selftest.mjs # ~50 s
 node kata/cell/test/cell.selftest.mjs # ~85 s
 node kata/amoeba/test/amoeba.selftest.mjs # ~70 s
+node kata/ooze/test/ooze.selftest.mjs # ~60 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

@@ -1,0 +1,47 @@
+/* TENTACLE: one canvas; the bar, the caption, the pads and the map float over it */
+:root { --bg: #07080c; --panel: rgba(14, 16, 23, 0.9); --text: #e9e4da; --dim: #9a958c; --ice: #6fe0ff; --gold: #ffd27a; --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; overscroll-behavior: none; }
+html, body, button, canvas, #view { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+[hidden] { display: none !important; }
+#view { position: fixed; inset: 0; }
+#gl, #ov { position: absolute; left: 0; top: 0; width: 100%; height: 66.6%; display: block; }
+#gl { touch-action: none; } #ov { pointer-events: none; }
+#bar { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 10px; align-items: center; padding: calc(6px + env(safe-area-inset-top)) 8px 6px 12px; background: linear-gradient(rgba(7, 8, 12, 0.85), rgba(7, 8, 12, 0)); }
+#bar > b { font: 800 13px var(--mono); letter-spacing: 0.1em; }
+#exps { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+#exps button { flex: none; font: 600 12px var(--mono); background: rgba(7, 8, 12, 0.6); color: var(--text); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 8px; padding: 5px 9px; cursor: pointer; touch-action: manipulation; }
+#exps button.on { border-color: var(--gold); color: var(--gold); }
+#cap { position: absolute; left: 10px; top: calc(44px + env(safe-area-inset-top)); max-width: min(520px, 58%); font: 13px/1.5 var(--sans); color: #d9d3c8; background: rgba(7, 8, 12, 0.62); border-radius: 10px; padding: 8px 11px; cursor: pointer; }
+#cap.min { max-height: 2.3em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+#cap b { color: var(--gold); }
+@media (orientation: portrait) { #cap { max-width: none; right: 10px; font-size: 12px; } }
+#panel { position: absolute; right: 8px; top: calc(44px + env(safe-area-inset-top)); width: min(330px, 92vw); background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 10px 12px; font: 12px var(--mono); }
+#panel label { display: grid; grid-template-columns: 1fr; gap: 2px; margin: 4px 0 8px; color: var(--dim); }
+#panel input { width: 100%; } #panel span { color: var(--text); }
+.foot { color: var(--dim); margin: 6px 0 0; line-height: 1.6; } .foot a { color: var(--text); }
+.pad { position: absolute; width: 104px; height: 104px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(7, 8, 12, 0.35); touch-action: none; cursor: grab; }
+.pad.live, .lever.live { border-color: rgba(255, 210, 122, 0.75); }
+#twistKnob { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+.pad span { position: absolute; left: -10px; right: -10px; top: -17px; text-align: center; font: 10px var(--mono); color: var(--dim); pointer-events: none; }
+.lever { position: absolute; width: 44px; height: 120px; border-radius: 22px; border: 2px solid rgba(255, 255, 255, 0.28); background: linear-gradient(rgba(56, 242, 224, 0.18), rgba(7, 8, 12, 0.3) 50%, rgba(255, 102, 184, 0.18)); touch-action: none; cursor: ns-resize; }
+#anaKnob { position: absolute; left: 50%; top: 50%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+.lever b, .lever i { position: absolute; left: 0; right: 0; text-align: center; font: 600 10px var(--mono); font-style: normal; pointer-events: none; }
+.lever b { top: -15px; color: #38f2e0; } .lever i { bottom: -15px; color: #ff66b8; }
+
+/* AMOEBA's bottom third: two panels, each its own little 3D view (drag to turn, pinch or scroll to zoom) */
+#panes { position: absolute; left: 0; right: 0; bottom: 0; height: 33.4%; display: flex; gap: 6px; padding: 6px 6px calc(6px + env(safe-area-inset-bottom)); background: #05080b; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.pane { position: relative; flex: 1; min-width: 0; border-radius: 10px; background: #0b1416; border: 1px solid rgba(255, 255, 255, 0.08); overflow: hidden; }
+.pane canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.pane .t { position: absolute; left: 8px; top: 6px; font: 600 11px var(--mono); color: var(--gold); pointer-events: none; }
+.pane .s { position: absolute; left: 8px; bottom: 5px; right: 8px; font: 10px var(--mono); color: var(--dim); pointer-events: none; }
+/* OOZE: the energy bar and the banner */
+#hud { position: absolute; left: 10px; right: 10px; top: calc(40px + env(safe-area-inset-top)); display: flex; gap: 10px; align-items: center; pointer-events: none; }
+#eBar { position: relative; flex: 0 0 min(280px, 50%); height: 14px; border-radius: 7px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); overflow: hidden; }
+#eFill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #ff6a4a, #ffd27a 40%, #8be28a); }
+#eText { position: absolute; inset: 0; text-align: center; font: 600 10px/14px var(--mono); color: #07080c; }
+#hudR { font: 11px var(--mono); color: var(--dim); }
+#cap { top: calc(62px + env(safe-area-inset-top)); }
+#banner { position: absolute; left: 50%; top: 30%; transform: translate(-50%, -50%); min-width: min(320px, 86vw); background: rgba(7, 8, 12, 0.88); border: 1px solid var(--gold); border-radius: 14px; padding: 14px 18px; text-align: center; }
+#banner b { font: 800 18px var(--mono); color: var(--gold); letter-spacing: 0.06em; } #banner p { font: 13px/1.5 var(--sans); color: #d9d3c8; margin: 8px 0 12px; }
+#banner button { font: 600 13px var(--mono); background: rgba(255, 255, 255, 0.06); color: var(--text); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 8px; padding: 6px 14px; margin: 0 4px; cursor: pointer; }

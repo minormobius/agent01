@@ -1,0 +1,428 @@
+/* OOZE — the page: AMOEBA's view (your 3D slice of the 4D cell, the floor, food and nucleus ray-marched; the membrane
+   cut from its tetrahedra and drawn over them), with a level in it: walls (4D boxes, cut by your slice), the goal, the
+   arena's bounds; the energy bar; the levels and the banner. The physics and the level's judging are ./worker.js.
+   (What follows is AMOEBA's page, made over.)
+
+   AMOEBA — the page. The physics is ./amoeba.js, run in ./worker.js; each frame the page takes the latest membrane
+   and draws it in two passes. First, ray-marched, everything that isn't the membrane: the floor (its grid in world
+   coordinates; food's smell on it), the food, the nucleus; this pass writes depth. Then the membrane as triangles,
+   translucent, over it: in 3D the mesh itself; in 4D the cut of every tetrahedron by your 3D slice (a triangle or a
+   quad where the slice passes through it), so what you see is exactly the slice of the 3-dimensional membrane. */
+const $ = (id) => document.getElementById(id), glc = $("gl"), ov = $("ov");
+const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (v) => { const m = Math.hypot(...v); return v.map((x) => x / m); };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+
+/* ------------------------------------------------------------------ GL */
+const gl = glc.getContext("webgl2", { antialias: true });
+if (!gl) { document.body.innerHTML = `<p style="padding:20px;font-family:monospace">AMOEBA needs WebGL2.</p>`; throw new Error("no WebGL2"); }
+const NEAR = 0.05, FAR = 60;
+const BG_VS = `#version 300 es
+in vec2 aPos; void main() { gl_Position = vec4(aPos, 0.0, 1.0); }`;
+const BG_FS = `#version 300 es
+precision highp float;
+uniform vec2 uRes; uniform float uTan, uFloorOn, uNucA; uniform vec3 uEye, uCR, uCU, uCF;
+uniform vec4 uS, uE0, uE1, uE2, uNuc; uniform int uD, uFoodN; uniform vec4 uFood[10];
+// the level: walls as 4D boxes (lo, hi; drawn 1.4 tall so they don't hide the cell), the goal (a ball on the floor and
+// its ring), the arena's bounds on the floor (x, z, w)
+uniform int uBn; uniform vec4 uBlo[24], uBhi[24], uGoal; uniform float uGoalR; uniform vec3 uLo, uHi;
+out vec4 o;
+vec4 W(vec3 e) { return uS + e.x * uE0 + e.y * uE1 + e.z * uE2; }
+float sdNuc(vec4 p) { return length(p - uNuc) - uNucA; }
+float sdWalls(vec4 p) { float m = 1e3; for (int k = 0; k < 24; k++) { if (k >= uBn) break; vec4 c = 0.5 * (uBlo[k] + uBhi[k]), h = 0.5 * (uBhi[k] - uBlo[k]), q = abs(p - c) - h; m = min(m, length(max(q, 0.0)) + min(max(max(q.x, q.y), max(q.z, q.w)), 0.0)); } return m; }
+float sdGoal(vec4 p) { return length(p - uGoal) - 0.32; }
+float sdFood(vec4 p) { float m = 1e3; for (int k = 0; k < 10; k++) { if (k >= uFoodN) break; m = min(m, length(p - uFood[k]) - 0.12); } return m; }
+float depthOf(float t, vec3 d) { float z = t * dot(d, uCF), A = (${FAR.toFixed(1)} + ${NEAR}) / (${FAR.toFixed(1)} - ${NEAR}), B = -2.0 * ${FAR.toFixed(1)} * ${NEAR} / (${FAR.toFixed(1)} - ${NEAR}); return 0.5 * (A + B / z) + 0.5; }
+void main() {
+  vec2 q = (2.0 * gl_FragCoord.xy - uRes) / uRes.y;
+  vec3 d = normalize(uCF + q.x * uTan * uCR + q.y * uTan * uCU), L = normalize(vec3(0.4, 0.8, -0.35));
+  vec3 c = mix(vec3(0.02, 0.05, 0.06), vec3(0.06, 0.12, 0.13), 0.5 + 0.5 * d.y);
+  float t = 0.05; bool hit = false; int which = 0;
+  for (int i = 0; i < 110; i++) { vec4 p = W(uEye + d * t); float a = sdNuc(p), b = sdFood(p), wl = sdWalls(p), gg = sdGoal(p), s = min(min(a, b), min(wl, gg)); if (s < 0.001) { hit = true; which = s == a ? 1 : (s == b ? 2 : (s == wl ? 3 : 4)); break; } t += max(s, 0.01); if (t > 30.0) break; }
+  float tf = -1.0;
+  if (uFloorOn > 0.5) { float y0 = W(uEye).y, yd = dot(vec3(uE0.y, uE1.y, uE2.y), d); tf = abs(yd) > 1e-5 ? -y0 / yd : -1.0; }
+  if (tf > 0.0 && (!hit || tf < t)) {
+    vec4 q4 = W(uEye + d * tf);
+    vec3 g = abs(fract(vec3(q4.x, q4.z, q4.w) + 0.5) - 0.5); float ln = min(g.x, g.y); if (uD == 4 && length(vec3(uE0.w, uE1.w, uE2.w)) > 0.05) ln = min(ln, g.z);
+    vec3 base = uD == 4 ? mix(vec3(0.10, 0.22, 0.24), vec3(0.24, 0.13, 0.17), 0.5 + 0.5 * sin(q4.w * 1.3)) : vec3(0.13, 0.19, 0.2);
+    vec3 col = mix(base * 1.6, base, smoothstep(0.0, 0.03, ln));
+    if (uFoodN > 0) { float cc = 0.0; for (int k = 0; k < 10; k++) { if (k >= uFoodN) break; vec4 F = uFood[k]; float r2 = dot(q4 - F, q4 - F) + 0.09; cc += uD == 3 ? 1.0 / sqrt(r2) : 1.0 / r2; }
+      col += vec3(0.5, 0.33, 0.08) * clamp(cc * 0.5, 0.0, 0.8); col = mix(col, vec3(0.95, 0.75, 0.3), (1.0 - smoothstep(0.0, 0.04, abs(log(cc / 0.1)))) * 0.6); }
+    // the goal's ring on the floor, and the dark beyond the arena's bounds
+    { float gd = length(vec3(q4.x, q4.z, q4.w) - vec3(uGoal.x, uGoal.z, uGoal.w)); col = mix(col, vec3(1.0, 0.82, 0.35), (1.0 - smoothstep(0.0, 0.06, abs(gd - uGoalR))) * 0.85 + (1.0 - smoothstep(0.0, uGoalR, gd)) * 0.18); }
+    { vec3 f3 = vec3(q4.x, q4.z, q4.w); if (any(lessThan(f3, uLo)) || any(greaterThan(f3, uHi))) col *= 0.35; }
+    o = vec4(mix(col, c, smoothstep(6.0, 16.0, tf)), 1.0); gl_FragDepth = depthOf(tf, d); return;
+  }
+  if (!hit) { o = vec4(c, 1.0); gl_FragDepth = 0.99999; return; }
+  vec3 e = uEye + d * t, nn; const float h = 0.003;
+  if (which == 3) { nn = normalize(vec3(sdWalls(W(e + vec3(h, 0, 0))) - sdWalls(W(e - vec3(h, 0, 0))), sdWalls(W(e + vec3(0, h, 0))) - sdWalls(W(e - vec3(0, h, 0))), sdWalls(W(e + vec3(0, 0, h))) - sdWalls(W(e - vec3(0, 0, h)))));
+    vec4 pw = W(e); vec3 gw = abs(fract(vec3(pw.x, pw.y, pw.z + pw.w) * 2.0 + 0.5) - 0.5); float lw = min(gw.x, min(gw.y, gw.z));
+    vec3 wc = mix(vec3(0.42, 0.5, 0.6), vec3(0.3, 0.36, 0.44), smoothstep(0.0, 0.05, lw));
+    o = vec4(wc * (0.35 + 0.7 * max(dot(nn, L), 0.0)), 1.0); gl_FragDepth = depthOf(t, d); return; }
+  if (which == 4) { o = vec4(vec3(1.0, 0.82, 0.35) * (0.8 + 0.4 * sin(t * 3.0)), 1.0); gl_FragDepth = depthOf(t, d); return; }
+  if (which == 1) nn = normalize(vec3(sdNuc(W(e + vec3(h, 0, 0))) - sdNuc(W(e - vec3(h, 0, 0))), sdNuc(W(e + vec3(0, h, 0))) - sdNuc(W(e - vec3(0, h, 0))), sdNuc(W(e + vec3(0, 0, h))) - sdNuc(W(e - vec3(0, 0, h)))));
+  else nn = normalize(vec3(sdFood(W(e + vec3(h, 0, 0))) - sdFood(W(e - vec3(h, 0, 0))), sdFood(W(e + vec3(0, h, 0))) - sdFood(W(e - vec3(0, h, 0))), sdFood(W(e + vec3(0, 0, h))) - sdFood(W(e - vec3(0, 0, h)))));
+  vec3 base = which == 1 ? vec3(0.55, 0.32, 0.62) : vec3(0.45, 0.85, 0.35);
+  o = vec4(base * (0.35 + 0.7 * max(dot(nn, L), 0.0)) + vec3(0.3, 0.2, 0.4) * pow(1.0 - abs(dot(nn, d)), 3.0) * (which == 1 ? 1.0 : 0.2), 1.0); gl_FragDepth = depthOf(t, d);
+}`;
+const MEM_VS = `#version 300 es
+in vec3 aPos, aNrm, aCol; uniform vec3 uEye, uCR, uCU, uCF; uniform float uTan, uAsp;
+out vec3 vN, vC, vV;
+void main() { vec3 r = aPos - uEye; float z = dot(r, uCF); vN = aNrm; vC = aCol; vV = normalize(r);
+  gl_Position = vec4(dot(r, uCR) / (uTan * uAsp), dot(r, uCU) / uTan, z * ${((FAR + NEAR) / (FAR - NEAR)).toFixed(6)} - ${((2 * FAR * NEAR) / (FAR - NEAR)).toFixed(6)}, z); }`;
+const MEM_FS = `#version 300 es
+precision highp float; in vec3 vN, vC, vV; out vec4 o;
+void main() {
+  vec3 n = normalize(vN), L = normalize(vec3(0.4, 0.8, -0.35)); if (dot(n, vV) > 0.0) n = -n;
+  float u = vC.x, v = vC.y;
+  vec3 skin = vec3(0.86, 0.72, 0.68);
+  skin = mix(skin, vec3(0.95, 0.42, 0.3), clamp(v * 0.9 * (1.0 - u), 0.0, 0.8));
+  skin = mix(skin, vec3(0.35, 0.9, 1.0), clamp(u * 1.3, 0.0, 1.0));
+  float lam = max(dot(n, L), 0.0), fr = pow(1.0 - abs(dot(n, vV)), 2.0);
+  vec3 c = skin * (0.32 + 0.68 * lam) + vec3(0.9, 0.95, 1.0) * pow(max(dot(reflect(vV, n), L), 0.0), 30.0) * 0.35;
+  o = vec4(c, 0.42 + 0.5 * fr);
+}`;
+const sh = (t, s) => { const x = gl.createShader(t); gl.shaderSource(x, s); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
+const program = (vs, fs) => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p)); return p; };
+const bgP = program(BG_VS, BG_FS), memP = program(MEM_VS, MEM_FS);
+const uni = (p, names) => Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(p, n)]));
+const UB = uni(bgP, ["uRes", "uTan", "uFloorOn", "uNucA", "uEye", "uCR", "uCU", "uCF", "uS", "uE0", "uE1", "uE2", "uNuc", "uD", "uFoodN", "uFood", "uBn", "uBlo", "uBhi", "uGoal", "uGoalR", "uLo", "uHi"]);
+const UM = uni(memP, ["uEye", "uCR", "uCU", "uCF", "uTan", "uAsp"]);
+const bgVao = gl.createVertexArray(); gl.bindVertexArray(bgVao);
+const bgBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bgBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+{ const a = gl.getAttribLocation(bgP, "aPos"); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0); }
+const memVao = gl.createVertexArray(); gl.bindVertexArray(memVao);
+const bufs = {}; for (const n of ["aPos", "aNrm", "aCol"]) { bufs[n] = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, bufs[n]); const a = gl.getAttribLocation(memP, n); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 3, gl.FLOAT, false, 0, 0); }
+const ibuf = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
+gl.bindVertexArray(null);
+
+/* ------------------------------------------------------------------ state */
+import { INTRO, oracle, engineWalls } from "./game.js";
+const sel = { d: 4, paused: false, lvl: 0, level: null, hint: false, path: null, gen: null, diff: 0.5 };
+let mesh = null, fr = null, worker = null, S = null, nIdx = 0, nTri = 0;
+const frame = { E: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], N: [0, 0, 0, 1], off: 0 };
+function twistSlice(dir3, ang) {
+  const u = unit([0, 1, 2, 3].map((k) => dir3[0] * frame.E[0][k] + dir3[1] * frame.E[1][k] + dir3[2] * frame.E[2][k])), N = frame.N, c = Math.cos(ang) - 1, s = Math.sin(ang);
+  const rot = (x) => { const a = dot(x, u), b = dot(x, N); return x.map((v, k) => v + c * (a * u[k] + b * N[k]) + s * (a * N[k] - b * u[k])); };
+  frame.E = frame.E.map(rot); frame.N = rot(N);
+  const B = [...frame.E, frame.N]; for (let i = 0; i < 4; i++) { for (let j = 0; j < i; j++) B[i] = add(B[i], B[j], -dot(B[i], B[j])); B[i] = unit(B[i]); } frame.E = B.slice(0, 3); frame.N = B[3];
+}
+const squareUp = () => Object.assign(frame, { E: [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], N: [0, 0, 0, 1], off: 0 });
+const view = { az: 0.6, el: 0.55, dist: 5.5 };
+function camera() { const { az, el, dist } = view, eye = [-dist * Math.cos(el) * Math.sin(az), dist * Math.sin(el), -dist * Math.cos(el) * Math.cos(az)], F = unit(eye.map((x) => -x)), R = unit([F[2], 0, -F[0]]); return { eye, F, R, U: cross(F, R) }; }
+
+/* ------------------------------------------------------------------ the worker */
+function start() {
+  if (worker) worker.terminate();
+  worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
+  worker.onmessage = (e) => { const m = e.data; if (m.type === "generated") return generated(m); if (m.type === "mesh") { mesh = m; meshReady(); } else if (m.type === "frame") { fr = m; if (mesh && m.F) { mesh.F = m.F; mesh.nv = m.nv; mesh.nf = m.nf; meshReady(); } else if (mesh) { mesh.nv = m.nv; } worker.postMessage({ type: "ready" }); } };
+  worker.postMessage({ type: "level", level: sel.level }); worker.postMessage({ type: "pause", on: sel.paused });
+  fr = null; mesh = null; S = null; steerDir = null;
+}
+function meshReady() {
+  if (mesh.d === 3) { gl.bindVertexArray(memVao); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, Uint32Array.from(mesh.F), gl.STATIC_DRAW); nIdx = mesh.F.length; gl.bindVertexArray(null); }
+  else cut = { pos: new Float32Array(mesh.nf * 18), nrm: new Float32Array(mesh.nf * 18), col: new Float32Array(mesh.nf * 18) };
+}
+let cut = null;
+
+/* ------------------------------------------------------------------ the membrane into triangles */
+// slice coordinates of a world point: (x − S)·E
+function buildMembrane() {
+  const d = fr.d, P = fr.P, g = fr.g, nv = mesh.nv;
+  gl.bindVertexArray(memVao);
+  if (d === 3) {
+    const pos = new Float32Array(nv * 3), col = new Float32Array(nv * 3);
+    for (let i = 0; i < nv; i++) { for (let c = 0; c < 3; c++) pos[i * 3 + c] = P[i * 3 + c] - S[c]; col[i * 3] = fr.u[i]; col[i * 3 + 1] = fr.v[i]; col[i * 3 + 2] = fr.sig[i]; }
+    for (const [n, a] of [["aPos", pos], ["aNrm", g], ["aCol", col]]) { gl.bindBuffer(gl.ARRAY_BUFFER, bufs[n]); gl.bufferData(gl.ARRAY_BUFFER, a, gl.DYNAMIC_DRAW); }
+  } else {
+    // marching tetrahedra: each tet's vertices' signed distances from your slice; where they change sign, the cut
+    const { E, N } = frame, F = mesh.F, nf = mesh.nf, s = new Float32Array(nv), loc = new Float32Array(nv * 3), nl = new Float32Array(nv * 3);
+    for (let i = 0; i < nv; i++) { const b = i * 4; let sd = 0; for (let c = 0; c < 4; c++) sd += (P[b + c] - S[c]) * N[c]; s[i] = sd;
+      for (let k = 0; k < 3; k++) { let x = 0, y = 0; for (let c = 0; c < 4; c++) { x += (P[b + c] - S[c]) * E[k][c]; y += g[b + c] * E[k][c]; } loc[i * 3 + k] = x; nl[i * 3 + k] = y; } }
+    const { pos, nrm, col } = cut; let nt = 0;
+    const pts = [], put = (a, b) => { const t = s[a] / (s[a] - s[b]); pts.push([a, b, t]); };
+    const emit = (p) => { for (const [a, b, t] of p) { const o = nt * 3; for (let k = 0; k < 3; k++) { pos[o + k] = loc[a * 3 + k] + t * (loc[b * 3 + k] - loc[a * 3 + k]); nrm[o + k] = nl[a * 3 + k] + t * (nl[b * 3 + k] - nl[a * 3 + k]); }
+      col[o] = fr.u[a] + t * (fr.u[b] - fr.u[a]); col[o + 1] = fr.v[a] + t * (fr.v[b] - fr.v[a]); col[o + 2] = fr.sig[a] + t * (fr.sig[b] - fr.sig[a]); nt++; } };
+    for (let k = 0; k < nf; k++) {
+      const v0 = F[k * 4], v1 = F[k * 4 + 1], v2 = F[k * 4 + 2], v3 = F[k * 4 + 3], q = [v0, v1, v2, v3], pos4 = q.filter((i) => s[i] > 0), neg = q.filter((i) => s[i] <= 0);
+      if (!pos4.length || !neg.length) continue;
+      pts.length = 0;
+      if (pos4.length === 1 || neg.length === 1) { const [lone, rest] = pos4.length === 1 ? [pos4[0], neg] : [neg[0], pos4]; for (const r of rest) put(lone, r); emit(pts); }
+      else { const [a, b] = pos4, [c, e] = neg; put(a, c); put(a, e); put(b, e); const tri1 = pts.slice(0, 3); pts.length = 0; put(a, c); put(b, e); put(b, c); emit(tri1); emit(pts.slice(0, 3)); }
+    }
+    nTri = nt;
+    for (const [n, a] of [["aPos", pos], ["aNrm", nrm], ["aCol", col]]) { gl.bindBuffer(gl.ARRAY_BUFFER, bufs[n]); gl.bufferData(gl.ARRAY_BUFFER, a.subarray(0, nt * 3), gl.DYNAMIC_DRAW); }
+  }
+  gl.bindVertexArray(null);
+}
+
+/* ------------------------------------------------------------------ levels
+   The ten, in order (beating one opens the next; kept in this browser), and "new": a level grown from a random seed at
+   the difficulty in the help panel, by the worker (the oracle checks it), shown with its seed and rating */
+const store = { get: (k, d) => { try { const v = localStorage.getItem("ooze." + k); return v === null ? d : JSON.parse(v); } catch (err) { return d; } }, set: (k, v) => { try { localStorage.setItem("ooze." + k, JSON.stringify(v)); } catch (err) { /* fine */ } } };
+let opened = store.get("opened", 1);
+function loadLevel(level) {
+  sel.level = level; const o = oracle(level); sel.path = o.solvable ? o.path : null; sel.rating = o.solvable ? o.difficulty : null;
+  $("banner").hidden = true; squareUp(); start(); syncLevel();
+}
+function syncLevel() {
+  const lv = sel.level, name = sel.gen ? `seed ${sel.gen.seed}` : `${sel.lvl + 1} · ${lv.name}`;
+  $("lvlB").textContent = name; $("prevB").disabled = !!sel.gen ? false : sel.lvl === 0; $("nextB").disabled = !sel.gen && sel.lvl + 1 >= Math.min(opened, INTRO.length);
+  $("hintB").classList.toggle("on", sel.hint);
+  $("cap").innerHTML = `<b>${sel.gen ? `A level grown from seed ${sel.gen.seed}` : lv.name}.</b> ${sel.gen ? "Every one is checked: the oracle found a way with the energy you have." : lv.hint} <span style="color:var(--dim)">(difficulty ${sel.rating ?? "?"}/10 · energy ${lv.E0}${lv.foods.length ? `, food worth ${lv.foodE} each` : ""})</span>`;
+  history.replaceState(null, "", sel.gen ? `?seed=${sel.gen.seed}&diff=${sel.gen.diff}` : `?level=${sel.lvl + 1}`);
+}
+function goLevel(i) { sel.gen = null; sel.lvl = Math.max(0, Math.min(INTRO.length - 1, i)); loadLevel(INTRO[sel.lvl]); }
+function newLevel(seed = Math.floor(Math.random() * 1e6), diff = sel.diff) { $("cap").innerHTML = `<b>Growing a level</b> from seed ${seed}…`; if (worker) worker.postMessage({ type: "generate", seed, diff }); else { start0(); worker.postMessage({ type: "generate", seed, diff }); } }
+function generated(m) { if (!m.level) { $("cap").innerHTML = `Seed ${m.seed} wouldn't make a level at that difficulty; trying another.`; return newLevel(m.seed + 1, m.diff); } sel.gen = { seed: m.seed, diff: m.diff }; loadLevel(m.level); }
+function start0() { worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" }); worker.onmessage = (e) => { if (e.data.type === "generated") generated(e.data); }; }
+$("prevB").onclick = () => (sel.gen ? goLevel(sel.lvl) : goLevel(sel.lvl - 1));
+$("nextB").onclick = () => (sel.gen ? newLevel() : goLevel(sel.lvl + 1));
+$("lvlB").onclick = () => (sel.gen ? goLevel(sel.lvl) : goLevel(sel.lvl));
+$("newB").onclick = () => newLevel();
+$("retryB").onclick = $("bRetry").onclick = () => loadLevel(sel.level);
+$("bNext").onclick = () => (sel.gen ? newLevel() : goLevel(sel.lvl + 1));
+$("hintB").onclick = () => { sel.hint = !sel.hint; syncLevel(); };
+$("diffR").oninput = () => { sel.diff = +$("diffR").value; $("diffV").textContent = sel.diff.toFixed(1); };
+// the verdict, when the worker gives one
+let shown = null;
+function verdict() {
+  if (!fr || fr.state === "playing" || shown === fr.state + sel.level.name) return; shown = fr.state + sel.level.name;
+  const won = fr.state === "won"; $("banner").hidden = false; $("bTitle").textContent = won ? "THROUGH" : "STARVED";
+  $("bText").textContent = won ? `In ${fr.t.toFixed(0)} s, with ${fr.energy.toFixed(1)} energy to spare${fr.eaten ? `, ${fr.eaten} eaten` : ""}.` : "Out of energy: no more pseudopods. Eat on the way, and spend your pushes where they count.";
+  $("bNext").hidden = !won || (!sel.gen && sel.lvl + 1 >= INTRO.length);
+  if (won && !sel.gen && sel.lvl + 2 > opened) { opened = Math.min(INTRO.length, sel.lvl + 2); store.set("opened", opened); syncLevel(); }
+}
+$("pauseB").onclick = () => { sel.paused = !sel.paused; $("pauseB").classList.toggle("on", sel.paused); worker && worker.postMessage({ type: "pause", on: sel.paused }); };
+$("squareB").onclick = squareUp;
+$("gearB").onclick = () => { $("panel").hidden = !$("panel").hidden; };
+
+/* ------------------------------------------------------------------ input */
+const pads = { tw: [0, 0], an: 0 };
+function padDrag(el, onMove, onEnd) {
+  let id = null;
+  el.addEventListener("pointerdown", (e) => { id = e.pointerId; try { el.setPointerCapture(id); } catch (err) { /* fine */ } el.classList.add("live"); onMove(e); });
+  el.addEventListener("pointermove", (e) => { if (e.pointerId === id) onMove(e); });
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) el.addEventListener(ev, (e) => { if (e.pointerId !== id) return; id = null; el.classList.remove("live"); onEnd(); });
+}
+padDrag($("twist"), (e) => { const r = $("twist").getBoundingClientRect(), dx = (e.clientX - r.left - r.width / 2) / (r.width / 2), dy = -(e.clientY - r.top - r.height / 2) / (r.height / 2), m = Math.hypot(dx, dy), k = m > 1 ? 1 / m : 1; pads.tw = [dx * k, dy * k]; $("twistKnob").style.transform = `translate(${dx * k * r.width / 2}px, ${-dy * k * r.height / 2}px)`; }, () => { pads.tw = [0, 0]; $("twistKnob").style.transform = ""; });
+padDrag($("ana"), (e) => { const r = $("ana").getBoundingClientRect(), dy = Math.max(-1, Math.min(1, -(e.clientY - r.top - r.height / 2) / (r.height / 2))); pads.an = dy; $("anaKnob").style.transform = `translateY(${-dy * r.height / 2 * 0.8}px)`; }, () => { pads.an = 0; $("anaKnob").style.transform = ""; });
+const keys = new Set();
+document.addEventListener("keydown", (e) => { const k = e.key.toLowerCase(); if (k === "z") { squareUp(); return; } if (k === " ") { e.preventDefault(); $("pauseB").onclick(); return; } if ("ijklrf".includes(k) && k.length === 1) keys.add(k); });
+document.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+addEventListener("blur", () => keys.clear());
+const drags = new Map();
+glc.addEventListener("pointerdown", (e) => { try { glc.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } drags.set(e.pointerId, { x: e.clientX, y: e.clientY }); });
+// one finger turns the view; two pinch it nearer or farther (the wheel does the same)
+const spread = () => { const [a, b] = [...drags.values()]; return Math.hypot(a.x - b.x, a.y - b.y); };
+glc.addEventListener("pointermove", (e) => { const g = drags.get(e.pointerId); if (!g) return;
+  if (drags.size >= 2) { const before = spread(); g.x = e.clientX; g.y = e.clientY; const after = spread(); if (before > 10 && after > 10) view.dist = Math.max(1.5, Math.min(18, view.dist * (before / after))); return; }
+  view.az -= (e.clientX - g.x) * 0.007; view.el = Math.max(-1.3, Math.min(1.3, view.el + (e.clientY - g.y) * 0.007)); g.x = e.clientX; g.y = e.clientY; });
+for (const ev of ["pointerup", "pointercancel"]) glc.addEventListener(ev, (e) => drags.delete(e.pointerId));
+glc.addEventListener("wheel", (e) => { view.dist = Math.max(1.5, Math.min(18, view.dist * Math.exp(e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
+for (const ev of ["contextmenu", "selectstart"]) document.addEventListener(ev, (e) => e.preventDefault());
+
+/* ------------------------------------------------------------------ the loop */
+const TAN = 0.5;
+let last = performance.now(), res = 0, lastCam = null;
+function draw(now) {
+  requestAnimationFrame(draw);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (sel.d === 4) { const kv = (a, b) => (keys.has(a) ? 1 : 0) - (keys.has(b) ? 1 : 0), cam0 = camera(), tx = pads.tw[0] + kv("l", "j"), ty = pads.tw[1] + kv("i", "k"), an = pads.an + kv("r", "f"), r = (40 * Math.PI) / 180;
+    if (tx) twistSlice(cam0.R, tx * r * dt); if (ty) twistSlice(cam0.U, ty * r * dt); if (an) frame.off = Math.max(-2.5, Math.min(2.5, frame.off + an * 0.8 * dt)); }
+  const dpr = Math.min(1.5, devicePixelRatio || 1); if (!res) res = dpr * (matchMedia("(pointer: coarse)").matches ? 0.75 : 1);
+  const cw = Math.round(glc.clientWidth * res), chh = Math.round(glc.clientHeight * res); if (glc.width !== cw || glc.height !== chh) { glc.width = cw; glc.height = chh; }
+  gl.viewport(0, 0, cw, chh); gl.clearColor(0.02, 0.05, 0.06, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (!fr || !mesh || fr.d !== mesh.d) { overlay(); return; }
+  // the slice follows the cell (its centre, plus your offset along N in 4D), smoothly
+  const d = fr.d, C4 = [0, 0, 0, 0]; for (let k = 0; k < d; k++) C4[k] = fr.C[k];
+  const target = d === 4 ? add(C4, frame.N, frame.off) : C4; target[1] = Math.max(target[1], 0.6);
+  S = S ? S.map((v, k) => v + (target[k] - v) * 0.08) : target;
+  const cam = camera(), E = d === 4 ? frame.E : [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]; lastCam = cam;
+  // pass 1: floor, food, nucleus
+  gl.useProgram(bgP); gl.bindVertexArray(bgVao); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.ALWAYS); gl.depthMask(true); gl.disable(gl.BLEND);
+  gl.uniform2f(UB.uRes, cw, chh); gl.uniform1f(UB.uTan, TAN); gl.uniform3fv(UB.uEye, cam.eye); gl.uniform3fv(UB.uCR, cam.R); gl.uniform3fv(UB.uCU, cam.U); gl.uniform3fv(UB.uCF, cam.F);
+  gl.uniform4fv(UB.uS, S); gl.uniform4fv(UB.uE0, E[0]); gl.uniform4fv(UB.uE1, E[1]); gl.uniform4fv(UB.uE2, E[2]); gl.uniform1i(UB.uD, d);
+  const nuc = [0, 0, 0, 0]; fr.nuc.forEach((v, k) => (nuc[k] = v)); gl.uniform4fv(UB.uNuc, nuc); gl.uniform1f(UB.uNucA, fr.nucA); gl.uniform1f(UB.uFloorOn, fr.floor ? 1 : 0);
+  const fd = new Float32Array(40), fs = fr.foods.slice(0, 10); fs.forEach((F, k) => F.forEach((v, c) => (fd[4 * k + c] = v))); gl.uniform4fv(UB.uFood, fd); gl.uniform1i(UB.uFoodN, fs.length);
+  { const lv = sel.level, walls = engineWalls(lv).filter((B) => !B.edge).slice(0, 24), lo = new Float32Array(96), hi = new Float32Array(96);
+    walls.forEach((B, k) => { for (let c = 0; c < 4; c++) { lo[4 * k + c] = B.lo[c]; hi[4 * k + c] = c === 1 ? Math.min(B.hi[c], 1.4) : B.hi[c]; } });
+    gl.uniform1i(UB.uBn, walls.length); gl.uniform4fv(UB.uBlo, lo); gl.uniform4fv(UB.uBhi, hi);
+    gl.uniform4fv(UB.uGoal, [lv.goal.c[0], 0.32, lv.goal.c[1], lv.goal.c[2]]); gl.uniform1f(UB.uGoalR, lv.goal.r);
+    gl.uniform3fv(UB.uLo, [lv.size.x[0], lv.size.z[0], lv.size.w[0]]); gl.uniform3fv(UB.uHi, [lv.size.x[1], lv.size.z[1], lv.size.w[1]]); }
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  // pass 2: the membrane, translucent, depth-tested but not depth-written
+  buildMembrane();
+  gl.useProgram(memP); gl.bindVertexArray(memVao); gl.depthFunc(gl.LESS); gl.depthMask(false); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.uniform3fv(UM.uEye, cam.eye); gl.uniform3fv(UM.uCR, cam.R); gl.uniform3fv(UM.uCU, cam.U); gl.uniform3fv(UM.uCF, cam.F); gl.uniform1f(UM.uTan, TAN); gl.uniform1f(UM.uAsp, cw / chh);
+  if (d === 3) gl.drawElements(gl.TRIANGLES, nIdx, gl.UNSIGNED_INT, 0); else gl.drawArrays(gl.TRIANGLES, 0, nTri);
+  gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
+  overlay(); panes(); hud(); verdict();
+}
+/* the energy bar, and the readout beside it */
+function hud() {
+  if (!fr || fr.energy === undefined) return; const f = Math.max(0, Math.min(1, fr.energy / (fr.eMax || 16)));
+  $("eFill").style.width = `${(100 * f).toFixed(1)}%`; $("eText").textContent = `energy ${fr.energy.toFixed(1)}`;
+  const G = sel.level.goal, p = fr.pos, u = [G.c[0] - p[0], 0, G.c[1] - p[1], G.c[2] - p[2]], ana = dot(u, frame.N);
+  $("hudR").textContent = `goal ${Math.hypot(u[0], u[2], u[3]).toFixed(1)} away${Math.abs(ana) > 0.3 ? ` (${ana > 0 ? "ana" : "kata"} ${Math.abs(ana).toFixed(1)})` : ""} · t ${fr.t.toFixed(0)} s${fr.eaten ? ` · eaten ${fr.eaten}` : ""}`;
+}
+
+/* ------------------------------------------------------------------ the readout and the minimap */
+function overlay() {
+  const g = ov.getContext("2d"), dpr = Math.min(2, devicePixelRatio || 1), w = ov.clientWidth, h = ov.clientHeight;
+  if (ov.width !== Math.round(w * dpr) || ov.height !== Math.round(h * dpr)) { ov.width = Math.round(w * dpr); ov.height = Math.round(h * dpr); }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h); g.font = "11px ui-monospace, Menlo, monospace";
+  const tw = $("twist"), an = $("ana"); tw.style.left = "14px"; tw.style.top = `${h - 118}px`; an.style.left = `${w - 58}px`; an.style.top = `${h - 134}px`;
+  if (!fr || !mesh || fr.d !== mesh.d) { g.fillStyle = "rgba(233,228,218,0.8)"; g.fillText("building the membrane…", 12, h - 150); return; }
+  const d = fr.d, Rv = (fr.V / (d === 3 ? (4 / 3) * Math.PI : Math.PI ** 2 / 2)) ** (1 / d), sphA = d === 3 ? 4 * Math.PI * Rv * Rv : 2 * Math.PI ** 2 * Rv ** 3;
+  let reach = 0, act = 0, foot = 0; for (let i = 0; i < mesh.nv; i++) { let q = 0; for (let k = 0; k < d; k++) if (k !== 1) q += (fr.P[i * d + k] - fr.C[k]) ** 2; reach = Math.max(reach, Math.sqrt(q)); if (fr.u[i] > 0.5) act++; if (fr.P[i * d + 1] < 0.03) foot++; }
+  const lines = [`going ${fr.vel.toFixed(2)} radii/s · ${((100 * act) / mesh.nv).toFixed(0)}% of the membrane firing · reaches ${reach.toFixed(1)} · physics ${fr.stepMs.toFixed(0)} ms a step`];
+  void sphA; void foot;
+  if (fr.foods.length || fr.eaten) { let nd = Infinity, ana = 0; for (const F of fr.foods) { const u = F.map((v, k) => v - fr.C[k]); const L = Math.hypot(...u.map((v, k) => (k === 1 ? 0 : v))); if (L < nd) { nd = L; ana = d === 4 ? dot(u, frame.N) : 0; } }
+    lines.push(`eaten ${fr.eaten} · nearest food ${nd.toFixed(1)} away${d === 4 ? ` (${ana >= 0 ? "+" : ""}${ana.toFixed(1)} ana of your slice)` : ""} · ${fr.foods.length} about`); }
+  if (d === 4) lines.push(`your slice: ${frame.off >= 0 ? "+" : ""}${frame.off.toFixed(2)} ana`);
+  const wrapped = lines.flatMap((l) => (g.measureText(l).width < w - 24 ? [l] : l.split(" · ")));
+  g.fillStyle = "rgba(233,228,218,0.85)"; wrapped.forEach((l, i) => g.fillText(l, 12, h - 130 - 15 * (wrapped.length - i)));
+  // the way you're steering, in the main view: an arrow from the cell's middle (in 4D, the part of it in your slice,
+  // and how much of it leaves your slice ana or kata)
+  if (steerDir && lastCam && S) {
+    const E = d === 4 ? frame.E : [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], C4 = [0, 0, 0, 0], D4 = [0, 0, 0, 0]; for (let k = 0; k < d; k++) { C4[k] = fr.C[k]; D4[k] = steerDir[k]; }
+    const toE = (p) => E.map((e) => dot(e, p.map((x, k) => x - S[k]))), { eye, R, U, F } = lastCam;
+    const proj = (e) => { const r = e.map((x, k) => x - eye[k]), z = dot(r, F); return z > 0.05 ? [w / 2 + (dot(r, R) / (z * TAN)) * (h / 2), h / 2 - (dot(r, U) / (z * TAN)) * (h / 2)] : null; };
+    const a = proj(toE(C4)), b = proj(toE(C4.map((x, k) => x + 1.8 * D4[k])));
+    if (a && b) { g.strokeStyle = "rgba(90,230,255,0.9)"; g.fillStyle = "rgba(90,230,255,0.9)"; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      const t = Math.atan2(b[1] - a[1], b[0] - a[0]); g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(b[0] - 11 * Math.cos(t - 0.4), b[1] - 11 * Math.sin(t - 0.4)); g.lineTo(b[0] - 11 * Math.cos(t + 0.4), b[1] - 11 * Math.sin(t + 0.4)); g.fill(); g.lineWidth = 1;
+      if (d === 4) { const an = dot(D4, frame.N); if (Math.abs(an) > 0.05) { g.fillStyle = an > 0 ? "#38f2e0" : "#ff66b8"; g.fillText(`${an > 0 ? "ana" : "kata"} ${Math.abs(an).toFixed(2)}`, b[0] + 8, b[1]); } } }
+  }
+}
+/* ------------------------------------------------------------------ the two panels below
+   Each is its own little 3D view, drawn on a 2D canvas: drag to turn it, pinch or scroll to zoom. Coordinates (a, b, c)
+   are drawn with c up; each panel says which axes they are, and draws and labels them.
+
+   FOOTPRINT: where the cell stands. In 3D the floor is the x–z plane: the footprint (the membrane's points touching
+   it, coloured by what they're doing) in it, the whole cell faintly above it (y up). In 4D the floor is a 3D space
+   (x, z, w): the footprint is a solid, the cell's shadow on its floor faint round it, and your slice's cut through the
+   floor drawn as a plane.
+
+   SMELL: what the membrane reads, all round. Every point of the membrane placed by its direction from the cell's middle
+   and coloured by the chemical there (dark to amber; with no food, by where it's firing). In 3D the directions are
+   (x, y, z): a sphere. In 4D the cell can only go along its floor, so the directions are the floor's (x, z, w): again a
+   sphere, now of every way it could crawl. The gold arrow is the gradient it reads, the white one its heading, the
+   green marks the directions of food */
+const PV = { fp: { az: 0.6, el: 0.55, zoom: 1, el3: 1.25, whole: true }, sm: { az: 0.6, el: 0.35, zoom: 1 } };
+function paneControls(cv, st, steers = false) {
+  const ps = new Map(); let pinch0 = 0, steering = null;
+  cv.addEventListener("pointerdown", (e) => { try { cv.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } ps.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ps.size === 2) { const [a, b] = [...ps.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); if (steering !== null) { steering = null; steer(null); } }
+    // (on the smell sphere, one finger on the sphere steers; anywhere else it turns the view)
+    if (steers && ps.size === 1) { const dir = sphereDir(st, e, cv); if (dir) { steering = e.pointerId; steer(dir); } } });
+  cv.addEventListener("pointermove", (e) => { const g = ps.get(e.pointerId); if (!g) return;
+    if (steering === e.pointerId) { const dir = sphereDir(st, e, cv); if (dir) steer(dir); g.x = e.clientX; g.y = e.clientY; return; }
+    if (ps.size >= 2) { g.x = e.clientX; g.y = e.clientY; const [a, b] = [...ps.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 10) st.zoom = Math.max(0.3, Math.min(6, st.zoom * (d / pinch0))); pinch0 = d; return; }
+    st.az -= (e.clientX - g.x) * 0.01; st.el = Math.max(-1.5, Math.min(1.5, st.el + (e.clientY - g.y) * 0.01)); g.x = e.clientX; g.y = e.clientY; });
+  for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, (e) => { ps.delete(e.pointerId); if (steering === e.pointerId) { steering = null; steer(null); } });
+  cv.addEventListener("wheel", (e) => { st.zoom = Math.max(0.3, Math.min(6, st.zoom * Math.exp(-e.deltaY * 0.0012))); e.preventDefault(); }, { passive: false });
+}
+paneControls($("fp"), PV.fp); paneControls($("sm"), PV.sm, true);
+/* PILOTING: a press on the smell sphere, back to a direction. The panel draws (a, b, c) turned by az and tilted by el;
+   undo that for the point on the sphere's near side under your finger. In 3D (a, b, c) = (x, z, y); in 4D the floor's
+   (x, z, w). That direction goes to the cell for as long as you hold, and follows your finger */
+function sphereDir(st, e, cv) {
+  const r = cv.getBoundingClientRect(), G = st.geom; if (!G) return null;
+  const X = (e.clientX - r.left - G.cx) / G.sc, Yv = -(e.clientY - r.top - G.cy) / G.sc, q = X * X + Yv * Yv;
+  if (q > 1.15 * 1.15) return null;
+  const k = q > 1 ? 1 / Math.sqrt(q) : 1, x = X * k, yv = Yv * k, Z = -Math.sqrt(Math.max(0, 1 - x * x - yv * yv));
+  const c = yv * G.ce + Z * G.se, y = -yv * G.se + Z * G.ce, a = x * G.ca - y * G.sa, b = x * G.sa + y * G.ca;
+  return sel.d === 3 ? [a, c, b] : [a, 0, b, c];
+}
+let steerDir = null;
+function steer(dir) { steerDir = dir; if (worker) worker.postMessage({ type: "steer", dir, s: 1 }); }
+// a view: rotate (a, b) by az about c, tilt by el; returns [sx, sy, depth]
+function projector(cv, st, scale, centre = [0, 0, 0]) {
+  const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const ca = Math.cos(st.az), sa = Math.sin(st.az), ce = Math.cos(st.el), se = Math.sin(st.el), sc = scale * st.zoom * Math.min(w, h), cx = w / 2, cy = h / 2 + 6;
+  st.geom = { cx, cy, sc, ca, sa, ce, se };
+  const P = (a0, b0, c0) => { const a = a0 - centre[0], b = b0 - centre[1], c = c0 - centre[2], x = a * ca + b * sa, y = -a * sa + b * ca; return [cx + x * sc, cy - (c * ce - y * se) * sc, c * se + y * ce]; };
+  return { g, P, w, h, sc };
+}
+function axes(g, P, L, names, origin = [0, 0, 0]) {
+  g.lineWidth = 1; g.font = "600 11px ui-monospace, Menlo, monospace";
+  const cols = ["rgba(255,140,120,0.85)", "rgba(140,220,150,0.85)", "rgba(130,180,255,0.85)"];
+  for (let k = 0; k < 3; k++) { const e = [0, 0, 0]; e[k] = L; const a = P(...origin), b = P(origin[0] + e[0], origin[1] + e[1], origin[2] + e[2]), n = P(origin[0] - e[0], origin[1] - e[1], origin[2] - e[2]);
+    g.strokeStyle = cols[k].replace("0.85", "0.25"); g.beginPath(); g.moveTo(n[0], n[1]); g.lineTo(a[0], a[1]); g.stroke();
+    g.strokeStyle = cols[k]; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.fillStyle = cols[k]; g.fillText(names[k], b[0] + 3, b[1] - 3); }
+}
+const firingColour = (u, v, a = 1) => (u > 0.4 ? `rgba(90,230,255,${a})` : v > 0.3 ? `rgba(240,120,90,${a * 0.9})` : `rgba(160,195,200,${a * 0.75})`);
+function arrow(g, P, from, dir, len, col, w = 2) {
+  const a = P(...from), b = P(from[0] + dir[0] * len, from[1] + dir[1] * len, from[2] + dir[2] * len); g.strokeStyle = col; g.fillStyle = col; g.lineWidth = w;
+  g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); const t = Math.atan2(b[1] - a[1], b[0] - a[0]); g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(b[0] - 7 * Math.cos(t - 0.4), b[1] - 7 * Math.sin(t - 0.4)); g.lineTo(b[0] - 7 * Math.cos(t + 0.4), b[1] - 7 * Math.sin(t + 0.4)); g.fill(); g.lineWidth = 1;
+}
+function panes() {
+  if (!fr || !mesh || fr.d !== mesh.d) return;
+  const d = fr.d, nv = mesh.nv, C = fr.C, X = (i) => fr.P[i * d], Y = (i) => fr.P[i * d + 1], Z = (i) => fr.P[i * d + 2], Wc = (i) => (d === 4 ? fr.P[i * d + 3] : 0);
+  // ---- footprint
+  {
+    let reach = 1; for (let i = 0; i < nv; i++) reach = Math.max(reach, Math.hypot(X(i) - C[0], Z(i) - C[2], d === 4 ? Wc(i) - C[3] : 0));
+    if (sel.level && PV.fp.whole) { const s0 = sel.level.size; reach = Math.max(s0.x[1] - s0.x[0], s0.z[1] - s0.z[0], s0.w[1] - s0.w[0]) * 0.55; }
+    const lvs = sel.level && sel.level.size, st = PV.fp, ctr = lvs ? [(lvs.x[0] + lvs.x[1]) / 2, (lvs.z[0] + lvs.z[1]) / 2, (lvs.w[0] + lvs.w[1]) / 2] : [C[0], C[2], C[3]];
+    const { g, P } = projector($("fp"), st, 0.36 / reach, ctr);
+    // the floor's grid (world-fixed, so it slides as the cell goes): in 3D the floor plane; in 4D the slice's cut
+    g.strokeStyle = "rgba(160,200,200,0.1)"; const R = Math.ceil(reach * 1.4);
+    if (d === 3) for (let k = -R; k <= R; k++) { const gx = Math.round(C[0]) + k, gz = Math.round(C[2]) + k; let a = P(gx, C[2] - R, 0), b = P(gx, C[2] + R, 0); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); a = P(C[0] - R, gz, 0); b = P(C[0] + R, gz, 0); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); }
+    if (d === 4 && S) { const E = frame.E, gy = E.map((e) => e[1]), g2 = gy.reduce((a, v) => a + v * v, 0);
+      if (g2 > 1e-6) { const s0 = gy.map((v) => (v * -S[1]) / g2), at = (sv) => [0, 1, 2, 3].map((k) => S[k] + sv[0] * E[0][k] + sv[1] * E[1][k] + sv[2] * E[2][k]);
+        let u = Math.abs(gy[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1]; const pr = dot(u, gy) / g2; u = unit(u.map((v, k) => v - pr * gy[k])); const v3 = unit(cross(gy, u));
+        const o = at(s0), U = at(u).map((x, k) => x - S[k]), V = at(v3).map((x, k) => x - S[k]), L = reach * 1.2;
+        const c4 = [[-L, -L], [L, -L], [L, L], [-L, L]].map(([a, b]) => P(o[0] + a * U[0] + b * V[0], o[2] + a * U[2] + b * V[2], o[3] + a * U[3] + b * V[3]));
+        g.fillStyle = "rgba(233,228,218,0.07)"; g.strokeStyle = "rgba(233,228,218,0.35)"; g.beginPath(); c4.forEach((p, k) => (k ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); g.fill(); g.stroke(); } }
+    axes(g, P, reach * 0.9, d === 3 ? ["x", "z", "y (up)"] : ["x", "z", "w"], ctr);
+    const pts = [];
+    for (let i = 0; i < nv; i++) { const onFloor = Y(i) < 0.03; if (d === 3) pts.push([P(X(i), Z(i), onFloor ? 0 : Y(i)), onFloor, i]); else pts.push([P(X(i), Z(i), Wc(i)), onFloor, i]); }
+    pts.sort((p, q) => q[0][2] - p[0][2]);
+    for (const [q, on, i] of pts) { if (on) { g.fillStyle = firingColour(fr.u[i], fr.v[i]); g.fillRect(q[0] - 1.3, q[1] - 1.3, 2.6, 2.6); } else { g.fillStyle = "rgba(220,190,185,0.13)"; g.fillRect(q[0] - 0.8, q[1] - 0.8, 1.6, 1.6); } }
+    // the level: walls (boxes, x z w), the arena's bounds, the goal, and (with hint) the oracle's route
+    if (sel.level) { const lv = sel.level, box = (lo, hi, col) => { g.strokeStyle = col; g.beginPath(); for (const [i0, j0] of [[0, 1], [1, 3], [3, 2], [2, 0], [4, 5], [5, 7], [7, 6], [6, 4], [0, 4], [1, 5], [2, 6], [3, 7]]) { const cn = (m) => [m & 1 ? hi[0] : lo[0], m & 2 ? hi[1] : lo[1], m & 4 ? hi[2] : lo[2]], a2 = P(...cn(i0)), b2 = P(...cn(j0)); g.moveTo(a2[0], a2[1]); g.lineTo(b2[0], b2[1]); } g.stroke(); };
+      box([lv.size.x[0], lv.size.z[0], lv.size.w[0]], [lv.size.x[1], lv.size.z[1], lv.size.w[1]], "rgba(233,228,218,0.18)");
+      for (const B of lv.walls) box(B.lo, B.hi, "rgba(140,170,210,0.75)");
+      if (sel.hint && sel.path) { g.strokeStyle = "rgba(255,210,122,0.6)"; g.setLineDash([4, 4]); g.beginPath(); sel.path.forEach((q, k) => { const a2 = P(q[0], q[1], q[2]); if (k) g.lineTo(a2[0], a2[1]); else g.moveTo(a2[0], a2[1]); }); g.stroke(); g.setLineDash([]); }
+      const gq = P(...lv.goal.c); g.strokeStyle = "rgba(255,210,122,0.95)"; g.lineWidth = 2; g.beginPath(); g.arc(gq[0], gq[1], 6, 0, 7); g.stroke(); g.lineWidth = 1; }
+    { const q = P(fr.nuc[0], fr.nuc[2], d === 4 ? fr.nuc[3] : fr.nuc[1]); g.fillStyle = "rgba(170,110,200,0.95)"; g.beginPath(); g.arc(q[0], q[1], 4, 0, 7); g.fill(); }
+    for (const F of fr.foods) { const q = P(F[0], F[2], d === 4 ? F[3] : 0); g.fillStyle = "rgba(120,215,95,0.9)"; g.beginPath(); g.arc(q[0], q[1], 3, 0, 7); g.fill(); }
+    if (fr.pv) { const h = [fr.pv[0], fr.pv[2], d === 4 ? fr.pv[3] : 0], l = Math.hypot(...h); if (l > 1e-3) arrow(g, P, ctr, h.map((x) => x / l), reach * 0.6, "rgba(255,255,255,0.8)"); }
+    if (steerDir) { const h = [steerDir[0], steerDir[2], d === 4 ? steerDir[3] : 0], l = Math.hypot(...h); if (l > 0.1) arrow(g, P, ctr, h.map((x) => x / l), reach * 0.8, "rgba(90,230,255,0.95)", 2.5); }
+    $("fpT").textContent = "the level · its floor is a space (x, z, w)";
+    $("fpS").textContent = `blue: walls · gold ring: the goal · green: food · the plane: your slice's cut${sel.hint ? " · dashed: the oracle's route" : ""}`;
+  }
+  // ---- smell
+  {
+    const { g, P } = projector($("sm"), PV.sm, 0.3, [0, 0, 0]);
+    const dirs = []; let cmin = Infinity, cmax = -Infinity, cm = 0; const food = fr.foods.length > 0;
+    for (let i = 0; i < nv; i++) { let a = X(i) - C[0], b = Z(i) - C[2], c = d === 3 ? Y(i) - C[1] : Wc(i) - C[3]; const l = Math.hypot(a, b, c); if (l < 1e-6) continue; a /= l; b /= l; c /= l; dirs.push([a, b, c, i]); const ch = fr.chem[i]; cmin = Math.min(cmin, ch); cmax = Math.max(cmax, ch); cm += ch; }
+    cm /= Math.max(1, dirs.length);
+    // the sphere's outline, then the axes, then the membrane's readings, nearest last
+    g.strokeStyle = "rgba(233,228,218,0.15)"; const o = P(0, 0, 0), r0 = Math.abs(P(1, 0, 0)[0] - o[0]) || 1; g.beginPath(); g.arc(o[0], o[1], Math.hypot(P(1, 0, 0)[0] - o[0], P(1, 0, 0)[1] - o[1]), 0, 7); g.stroke(); void r0;
+    axes(g, P, 1.25, d === 3 ? ["x", "z", "y (up)"] : ["x", "z", "w"]);
+    const pts = dirs.map(([a, b, c, i]) => [P(a, b, c), i]).sort((p, q) => q[0][2] - p[0][2]);
+    for (const [q, i] of pts) { const front = q[2] < 0; let col;
+      if (food) { const t = cmax > cmin ? (fr.chem[i] - cmin) / (cmax - cmin) : 0; col = `rgba(${Math.round(40 + 215 * t)},${Math.round(60 + 130 * t)},${Math.round(110 - 70 * t)},${front ? 0.95 : 0.35})`; }
+      else col = firingColour(fr.u[i], fr.v[i], front ? 0.9 : 0.3);
+      g.fillStyle = col; g.fillRect(q[0] - 1.4, q[1] - 1.4, 2.8, 2.8); }
+    // the gradient it reads (Σ (c − c̄) n), its heading, and food
+    if (food) { const gr = [0, 0, 0]; for (const [a, b, c, i] of dirs) { const w = fr.chem[i] - cm; gr[0] += w * a; gr[1] += w * b; gr[2] += w * c; } const l = Math.hypot(...gr); if (l > 0) arrow(g, P, [0, 0, 0], gr.map((x) => x / l), 1.35, "rgba(255,210,122,0.95)", 2.5);
+      for (const F of fr.foods) { const a = F[0] - C[0], b = F[2] - C[2], c = d === 3 ? F[1] - C[1] : F[3] - C[3], l2 = Math.hypot(a, b, c); if (l2 < 1e-6) continue; const q = P((a / l2) * 1.15, (b / l2) * 1.15, (c / l2) * 1.15); g.fillStyle = "rgba(120,215,95,0.95)"; g.beginPath(); g.arc(q[0], q[1], 3.2, 0, 7); g.fill(); } }
+    if (fr.pv) { const h = [fr.pv[0], fr.pv[2], d === 4 ? fr.pv[3] : fr.pv[1]], l = Math.hypot(...h); if (l > 1e-3) arrow(g, P, [0, 0, 0], h.map((x) => x / l), 1.1, "rgba(255,255,255,0.75)"); }
+    if (steerDir) { const sd = d === 3 ? [steerDir[0], steerDir[2], steerDir[1]] : [steerDir[0], steerDir[2], steerDir[3]], q = P(...sd); arrow(g, P, [0, 0, 0], sd, 1.0, "rgba(90,230,255,0.95)", 3); g.strokeStyle = "rgba(90,230,255,0.95)"; g.lineWidth = 2; g.beginPath(); g.arc(q[0], q[1], 9, 0, 7); g.stroke(); g.lineWidth = 1; }
+    $("smT").textContent = d === 3 ? "smell · its membrane, all round (x, y, z)" : "smell · every way along its floor (x, z, w)";
+    $("smS").textContent = (steerDir ? "steering (cyan) · " : "press and hold the sphere to steer · drag outside it to turn · ") + (food ? "amber: the chemical each part reads · gold: its gradient · green: food" : "cyan firing, red myosin · white: heading");
+  }
+}
+
+/* ------------------------------------------------------------------ start */
+const Q = new URLSearchParams(location.search);
+// (?o={...}: physics settings, for trying things)
+let OPTS = {}; try { OPTS = JSON.parse(Q.get("o") || "{}"); } catch (err) { OPTS = {}; }
+{ const lv = +(Q.get("level") || 0), seed = Q.get("seed"); if (seed !== null) { sel.diff = +(Q.get("diff") || 0.5); start0(); newLevel(+seed, sel.diff); } else { if (lv > opened) { opened = Math.min(INTRO.length, lv); } goLevel(Math.max(0, Math.min(INTRO.length, lv || 1) - 1)); } }
+
+if (matchMedia("(orientation: portrait)").matches) $("cap").classList.add("min");
+requestAnimationFrame(draw);
+window.OOZE = { sel, frame, view, goLevel, newLevel, frame_: () => fr };
