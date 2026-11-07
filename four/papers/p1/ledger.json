@@ -294,6 +294,39 @@
    ]
   },
   {
+   "id": "ions3",
+   "part": "table",
+   "claim": "In ours, searching each ion for its own ground state changes no ionization; the anion search gets every unbound anion unbound and every p-block acceptor bound, and fails only where correlation does the binding (H⁻, the alkalis, P and As)",
+   "value": "cations: largest change 0.000 eV over 35; anions: 7 of 7 unbound right; p-block B 0.34/0.28, C 1.32/1.262, O 0.71/1.461, F 2.80/3.401, Al 0.40/0.433, Si 1.30/1.39, S 1.56/2.077, Cl 3.15/3.613, Ga 0.35/0.43, Ge 1.25/1.233, Se 1.59/2.021, Br 3.01/3.364; failing H -0.33/0.754, Li -0.08/0.618, Na -0.02/0.548, K 0.03/0.501, P -0.10/0.746, As 0.05/0.8",
+   "holds": true,
+   "section": "6",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "ions4",
+   "part": "table",
+   "claim": "In 4D, seven ions rearrange when searched for their own ground states, lowering those ionizations by up to 1.3 eV; element 128's is unchanged",
+   "value": "36 11.42→10.94, 93 9.14→8.90, 94 9.20→8.43, 95 9.27→7.99, 103 9.96→9.67, 104 10.05→9.29, 105 10.13→8.92; 128: 29.56 against 29.56",
+   "holds": true,
+   "section": "8",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "halogens4",
+   "part": "consequence",
+   "claim": "One electron short of a full 4D p shell, atoms hold an extra electron harder and harder down the group, where ours hold it about equally: partial screening again",
+   "value": "p⁷ electron affinities (eV): 11: 3.39, 21: 5.71, 49: 7.81, 77: 10.25, 137: 12.88; ours (2p⁵, 3p⁵, 4p⁵): F 2.80 (measured 3.401), Cl 3.15 (measured 3.613), Br 3.01 (measured 3.364)",
+   "holds": true,
+   "section": "10",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "screening",
    "part": "consequence",
    "claim": "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
@@ -320,43 +353,43 @@
  "data": [
   {
    "path": "data/table4.json",
-   "bytes": 228058,
-   "sha256": "c2fa2adf36096ac18d27406203cfbf9960a037269268226d557209d47dcd1338"
+   "bytes": 233370,
+   "sha256": "c03727beb10cdd3c8b31095516628e2cee5036bf67ade7987dbfef9a8e83afa7"
   },
   {
    "path": "data/table4.csv",
-   "bytes": 43616,
-   "sha256": "45172ca8f403033a6a8fdb02637c312136575d62fbec59f68bbdd5181951c3e7"
+   "bytes": 44656,
+   "sha256": "68300b428191d22e5af01474b8e3f3adeb70da7a3f45d8e8c49ba64ec8c29193"
   },
   {
    "path": "data/table4-hundspin.json",
-   "bytes": 224094,
-   "sha256": "e4def29c38cd39fa3be9f4568339fca71bdc79170fa712cbda251729210f8d87"
+   "bytes": 228891,
+   "sha256": "e94bbcefe898e886152929fea5a827a7a3082befc0f38dd201410a449ca33b3d"
   },
   {
    "path": "data/table4-hundspin.csv",
-   "bytes": 43243,
-   "sha256": "2b98190f0b4191dfaeacc1934ef46bcf26b7763f5dae8cfff9db841e8813f122"
+   "bytes": 44281,
+   "sha256": "c2053bab9472830b779807cb3e92a7b1a07fb57bbf64e5f6b797ddd532160a7a"
   },
   {
    "path": "data/table3.json",
-   "bytes": 39399,
-   "sha256": "339b9c380860be8230fbd7f23325e9b47d60688fa6509df288211955c6cfc0cc"
+   "bytes": 40645,
+   "sha256": "1bb540152e27da501d3ca191ca70d6b1bca38565ca146b95e5f7e3bc1c16d7a1"
   },
   {
    "path": "data/table3.csv",
-   "bytes": 8273,
-   "sha256": "2a1eadf4b32da8c6815dd91494d508e9b899efacec14f0a032c1675181e7ff07"
+   "bytes": 8568,
+   "sha256": "2ade96eb1ad68a7d81ad4ac8d51e13987353c4181fdcd9127bbe376cd249d42d"
   },
   {
    "path": "data/README.md",
-   "bytes": 2470,
-   "sha256": "1704518ddc761e5919393ba3a7e2308672fdc0b8607385193a96c4340b1cfd7c"
+   "bytes": 2916,
+   "sha256": "7ca4ccb05c6af4e8fe5f6efda1bdcbf67846adf41eb589350188d0fe19ed5e92"
   },
   {
    "path": "figdata/f3-ionization.json",
-   "bytes": 11808,
-   "sha256": "14f1e690d8898a8640c79e9f9c76110f200e17db5d1f79929e5f374e1686a940"
+   "bytes": 11809,
+   "sha256": "df3772750b83ae168ba74eeeb55ee0473e0f3614431095a5fe9857abb7052737"
   },
   {
    "path": "figdata/f4-validation3d.json",
@@ -380,8 +413,8 @@
   },
   {
    "path": "figures/1.svg",
-   "bytes": 63545,
-   "sha256": "d5b3df3764bd8a6725490dfc248fdd6af9784902c769110df19183c3b2197bff"
+   "bytes": 63543,
+   "sha256": "f1ed05d49f02d3ec41d318ab82edc46097956035b6de9723758cb6295f55165d"
   },
   {
    "path": "figures/2.svg",
@@ -396,7 +429,7 @@
   {
    "path": "figures/4.svg",
    "bytes": 7760,
-   "sha256": "85a274566eacaff0fa02ab38c4743ecb5d7c38f5319ccdab3f90236df9a6c97a"
+   "sha256": "8ac356c83873e3b9f55d70ee4f55e722f634d73baca28b2d9c44569ece0305db"
   },
   {
    "path": "figures/5.svg",
@@ -406,7 +439,7 @@
   {
    "path": "figures/6.svg",
    "bytes": 54309,
-   "sha256": "a445027edb2d2819061fa21c46c2c261aab8c28c02e560c7612b2798010294e5"
+   "sha256": "70a9e33992b0a1a94d5643e5b7eed89c04816a62a89f54bb3de8bfa6a6ada3d8"
   },
   {
    "path": "figures/A1.svg",
@@ -428,6 +461,6 @@
   "index": 26,
   "read": 2,
   "cited": 1,
-  "memory": 1
+  "memory": 2
  }
 }

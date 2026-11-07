@@ -21,7 +21,8 @@
     "r2_mean_bohr2": 11.25
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.3265
  },
  {
   "Z": 2,
@@ -45,7 +46,8 @@
     "r2_mean_bohr2": 4.4115
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -7.0965
  },
  {
   "Z": 3,
@@ -76,7 +78,8 @@
     "r2_mean_bohr2": 37.8739
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.0299
  },
  {
   "Z": 4,
@@ -107,7 +110,8 @@
     "r2_mean_bohr2": 17.6383
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -1.3219
  },
  {
   "Z": 5,
@@ -145,7 +149,8 @@
     "r2_mean_bohr2": 11.8183
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.0014
  },
  {
   "Z": 6,
@@ -183,7 +188,8 @@
     "r2_mean_bohr2": 7.3599
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.4898
  },
  {
   "Z": 7,
@@ -221,7 +227,8 @@
     "r2_mean_bohr2": 5.0974
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.1086
  },
  {
   "Z": 8,
@@ -259,7 +266,8 @@
     "r2_mean_bohr2": 3.7665
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.5075
  },
  {
   "Z": 9,
@@ -297,7 +305,8 @@
     "r2_mean_bohr2": 2.9909
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.8128
  },
  {
   "Z": 10,
@@ -335,7 +344,8 @@
     "r2_mean_bohr2": 2.4063
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.0838
  },
  {
   "Z": 11,
@@ -373,7 +383,8 @@
     "r2_mean_bohr2": 1.9709
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.3873
  },
  {
   "Z": 12,
@@ -411,7 +422,8 @@
     "r2_mean_bohr2": 1.6419
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -13.576
  },
  {
   "Z": 13,
@@ -456,7 +468,8 @@
     "r2_mean_bohr2": 22.0881
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.2068
  },
  {
   "Z": 14,
@@ -501,7 +514,8 @@
     "r2_mean_bohr2": 14.1073
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -3.0316
  },
  {
   "Z": 15,
@@ -553,7 +567,8 @@
     "r2_mean_bohr2": 20.4802
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.0735
  },
  {
   "Z": 16,
@@ -605,7 +620,8 @@
     "r2_mean_bohr2": 12.8595
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.7899
  },
  {
   "Z": 17,
@@ -657,7 +673,8 @@
     "r2_mean_bohr2": 9.1759
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.7062
  },
  {
   "Z": 18,
@@ -709,7 +726,8 @@
     "r2_mean_bohr2": 7.0031
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.0988
  },
  {
   "Z": 19,
@@ -761,7 +779,8 @@
     "r2_mean_bohr2": 5.649
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.6098
  },
  {
   "Z": 20,
@@ -813,7 +832,8 @@
     "r2_mean_bohr2": 4.654
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.1239
  },
  {
   "Z": 21,
@@ -865,7 +885,8 @@
     "r2_mean_bohr2": 3.9054
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.7079
  },
  {
   "Z": 22,
@@ -917,7 +938,8 @@
     "r2_mean_bohr2": 3.329
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -12.4255
  },
  {
   "Z": 23,
@@ -976,7 +998,8 @@
     "r2_mean_bohr2": 23.6856
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.5129
  },
  {
   "Z": 24,
@@ -1035,7 +1058,8 @@
     "r2_mean_bohr2": 17.0106
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -2.6289
  },
  {
   "Z": 25,
@@ -1101,7 +1125,8 @@
     "r2_mean_bohr2": 14.9379
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -2.2585
  },
  {
   "Z": 26,
@@ -1167,7 +1192,8 @@
     "r2_mean_bohr2": 13.4893
    }
   ],
-  "hund_correction_eV": -0.3961
+  "hund_correction_eV": -0.3961,
+  "electron_affinity_eV": -1.292
  },
  {
   "Z": 27,
@@ -1233,7 +1259,8 @@
     "r2_mean_bohr2": 12.3534
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.2487
  },
  {
   "Z": 28,
@@ -1299,7 +1326,8 @@
     "r2_mean_bohr2": 11.4162
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.3935
  },
  {
   "Z": 29,
@@ -1365,7 +1393,8 @@
     "r2_mean_bohr2": 10.6195
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.0264
  },
  {
   "Z": 30,
@@ -1431,7 +1460,8 @@
     "r2_mean_bohr2": 10.561
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.1048
  },
  {
   "Z": 31,
@@ -1497,7 +1527,8 @@
     "r2_mean_bohr2": 9.893
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.1312
  },
  {
   "Z": 32,
@@ -1563,7 +1594,8 @@
     "r2_mean_bohr2": 9.301
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.1595
  },
  {
   "Z": 33,
@@ -1629,7 +1661,8 @@
     "r2_mean_bohr2": 8.2975
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.3883
  },
  {
   "Z": 34,
@@ -1695,7 +1728,8 @@
     "r2_mean_bohr2": 7.795
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.517
  },
  {
   "Z": 35,
@@ -1761,7 +1795,8 @@
     "r2_mean_bohr2": 7.3541
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.3793
  },
  {
   "Z": 36,
@@ -1773,8 +1808,8 @@
   "noble": false,
   "config": "1s2 2s2 2p8 3s2 3p8 3d12 4s2",
   "E_hartree": -1650.6565,
-  "ion_hartree": 0.41964,
-  "ion_eV": 11.419,
+  "ion_hartree": 0.40212,
+  "ion_eV": 10.9422,
   "outermost": "4s",
   "orbitals": [
    {
@@ -1827,7 +1862,9 @@
     "r2_mean_bohr2": 6.9623
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.209,
+  "cation_rearranged": "1s2 2s2 2p8 3s2 3p8 3d13"
  },
  {
   "Z": 37,
@@ -1893,7 +1930,8 @@
     "r2_mean_bohr2": 7.2733
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.4664
  },
  {
   "Z": 38,
@@ -1959,7 +1997,8 @@
     "r2_mean_bohr2": 6.9683
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.6675
  },
  {
   "Z": 39,
@@ -2025,7 +2064,8 @@
     "r2_mean_bohr2": 6.6865
    }
   ],
-  "hund_correction_eV": -0.7669
+  "hund_correction_eV": -0.7669,
+  "electron_affinity_eV": 2.8534
  },
  {
   "Z": 40,
@@ -2091,7 +2131,8 @@
     "r2_mean_bohr2": 6.4252
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.0463
  },
  {
   "Z": 41,
@@ -2157,7 +2198,8 @@
     "r2_mean_bohr2": 6.1819
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.2273
  },
  {
   "Z": 42,
@@ -2223,7 +2265,8 @@
     "r2_mean_bohr2": 5.2652
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -9.4051
  },
  {
   "Z": 43,
@@ -2296,7 +2339,8 @@
     "r2_mean_bohr2": 11.7984
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.0362
  },
  {
   "Z": 44,
@@ -2369,7 +2413,8 @@
     "r2_mean_bohr2": 8.093
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.0604
  },
  {
   "Z": 45,
@@ -2442,7 +2487,8 @@
     "r2_mean_bohr2": 6.2838
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.4017
  },
  {
   "Z": 46,
@@ -2515,7 +2561,8 @@
     "r2_mean_bohr2": 5.1632
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.9957
  },
  {
   "Z": 47,
@@ -2588,7 +2635,8 @@
     "r2_mean_bohr2": 4.4231
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.962
  },
  {
   "Z": 48,
@@ -2661,7 +2709,8 @@
     "r2_mean_bohr2": 3.8523
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.8692
  },
  {
   "Z": 49,
@@ -2734,7 +2783,8 @@
     "r2_mean_bohr2": 3.4002
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 7.8064
  },
  {
   "Z": 50,
@@ -2807,7 +2857,8 @@
     "r2_mean_bohr2": 3.0343
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.0501
  },
  {
   "Z": 51,
@@ -2887,7 +2938,8 @@
     "r2_mean_bohr2": 18.9312
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.8283
  },
  {
   "Z": 52,
@@ -2967,7 +3019,8 @@
     "r2_mean_bohr2": 14.3647
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -3.5222
  },
  {
   "Z": 53,
@@ -3054,7 +3107,8 @@
     "r2_mean_bohr2": 12.1365
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.4076
  },
  {
   "Z": 54,
@@ -3141,7 +3195,8 @@
     "r2_mean_bohr2": 10.8932
    }
   ],
-  "hund_correction_eV": -0.2962
+  "hund_correction_eV": -0.2962,
+  "electron_affinity_eV": -1.2158
  },
  {
   "Z": 55,
@@ -3228,7 +3283,8 @@
     "r2_mean_bohr2": 9.986
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.221
  },
  {
   "Z": 56,
@@ -3315,7 +3371,8 @@
     "r2_mean_bohr2": 9.2677
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.8202
  },
  {
   "Z": 57,
@@ -3402,7 +3459,8 @@
     "r2_mean_bohr2": 8.6726
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.9595
  },
  {
   "Z": 58,
@@ -3489,7 +3547,8 @@
     "r2_mean_bohr2": 8.3151
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.965
  },
  {
   "Z": 59,
@@ -3576,7 +3635,8 @@
     "r2_mean_bohr2": 7.8594
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.0553
  },
  {
   "Z": 60,
@@ -3663,7 +3723,8 @@
     "r2_mean_bohr2": 7.4572
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.1503
  },
  {
   "Z": 61,
@@ -3750,7 +3811,8 @@
     "r2_mean_bohr2": 7.1327
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.7065
  },
  {
   "Z": 62,
@@ -3837,7 +3899,8 @@
     "r2_mean_bohr2": 6.8387
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.1416
  },
  {
   "Z": 63,
@@ -3924,7 +3987,8 @@
     "r2_mean_bohr2": 6.5715
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.5149
  },
  {
   "Z": 64,
@@ -4004,7 +4068,8 @@
     "r2_mean_bohr2": 1.8038
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.5315
  },
  {
   "Z": 65,
@@ -4084,7 +4149,8 @@
     "r2_mean_bohr2": 1.6635
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.5628
  },
  {
   "Z": 66,
@@ -4164,7 +4230,8 @@
     "r2_mean_bohr2": 1.5409
    }
   ],
-  "hund_correction_eV": -0.5801
+  "hund_correction_eV": -0.5801,
+  "electron_affinity_eV": 4.5895
  },
  {
   "Z": 67,
@@ -4244,7 +4311,8 @@
     "r2_mean_bohr2": 1.4331
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.9552
  },
  {
   "Z": 68,
@@ -4324,7 +4392,8 @@
     "r2_mean_bohr2": 1.3375
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.6774
  },
  {
   "Z": 69,
@@ -4411,7 +4480,8 @@
     "r2_mean_bohr2": 5.347
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 6.2298
  },
  {
   "Z": 70,
@@ -4498,7 +4568,8 @@
     "r2_mean_bohr2": 4.7881
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -10.7496
  },
  {
   "Z": 71,
@@ -4592,7 +4663,8 @@
     "r2_mean_bohr2": 9.0397
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.8324
  },
  {
   "Z": 72,
@@ -4686,7 +4758,8 @@
     "r2_mean_bohr2": 7.114
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.4338
  },
  {
   "Z": 73,
@@ -4780,7 +4853,8 @@
     "r2_mean_bohr2": 5.9553
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.1032
  },
  {
   "Z": 74,
@@ -4874,7 +4948,8 @@
     "r2_mean_bohr2": 5.1535
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 4.0344
  },
  {
   "Z": 75,
@@ -4968,7 +5043,8 @@
     "r2_mean_bohr2": 4.5764
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 6.1637
  },
  {
   "Z": 76,
@@ -5062,7 +5138,8 @@
     "r2_mean_bohr2": 4.1128
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 8.2083
  },
  {
   "Z": 77,
@@ -5156,7 +5233,8 @@
     "r2_mean_bohr2": 3.731
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 10.2541
  },
  {
   "Z": 78,
@@ -5250,7 +5328,8 @@
     "r2_mean_bohr2": 3.411
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.231
  },
  {
   "Z": 79,
@@ -5351,7 +5430,8 @@
     "r2_mean_bohr2": 18.5883
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.1845
  },
  {
   "Z": 80,
@@ -5452,7 +5532,8 @@
     "r2_mean_bohr2": 14.6907
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -3.464
  },
  {
   "Z": 81,
@@ -5560,7 +5641,8 @@
     "r2_mean_bohr2": 12.9416
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.0324
  },
  {
   "Z": 82,
@@ -5675,7 +5757,8 @@
     "r2_mean_bohr2": 12.6156
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -3.8305
  },
  {
   "Z": 83,
@@ -5783,7 +5866,8 @@
     "r2_mean_bohr2": 13.4665
    }
   ],
-  "hund_correction_eV": -0.1509
+  "hund_correction_eV": -0.1509,
+  "electron_affinity_eV": -1.2403
  },
  {
   "Z": 84,
@@ -5891,7 +5975,8 @@
     "r2_mean_bohr2": 13.1659
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -2.3249
  },
  {
   "Z": 85,
@@ -5999,7 +6084,8 @@
     "r2_mean_bohr2": 12.8907
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -5.7397
  },
  {
   "Z": 86,
@@ -6107,7 +6193,8 @@
     "r2_mean_bohr2": 12.6355
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -6.9596
  },
  {
   "Z": 87,
@@ -6215,7 +6302,8 @@
     "r2_mean_bohr2": 12.3967
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -3.5818
  },
  {
   "Z": 88,
@@ -6323,7 +6411,8 @@
     "r2_mean_bohr2": 12.1716
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -2.8327
  },
  {
   "Z": 89,
@@ -6431,7 +6520,8 @@
     "r2_mean_bohr2": 11.9584
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -2.126
  },
  {
   "Z": 90,
@@ -6539,7 +6629,8 @@
     "r2_mean_bohr2": 11.7556
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -1.4593
  },
  {
   "Z": 91,
@@ -6647,7 +6738,8 @@
     "r2_mean_bohr2": 11.5621
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.8302
  },
  {
   "Z": 92,
@@ -6755,7 +6847,8 @@
     "r2_mean_bohr2": 11.3769
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.2354
  },
  {
   "Z": 93,
@@ -6767,8 +6860,8 @@
   "noble": false,
   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f13 5s2 5p8 6s2",
   "E_hartree": -18233.4498,
-  "ion_hartree": 0.33576,
-  "ion_eV": 9.1365,
+  "ion_hartree": 0.32725,
+  "ion_eV": 8.90493,
   "outermost": "6s",
   "orbitals": [
    {
@@ -6863,7 +6956,9 @@
     "r2_mean_bohr2": 11.1994
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.3268,
+  "cation_rearranged": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f14 5s2 5p8"
  },
  {
   "Z": 94,
@@ -6875,8 +6970,8 @@
   "noble": false,
   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f14 5s2 5p8 6s2",
   "E_hartree": -18731.04277,
-  "ion_hartree": 0.33825,
-  "ion_eV": 9.20425,
+  "ion_hartree": 0.30984,
+  "ion_eV": 8.43118,
   "outermost": "6s",
   "orbitals": [
    {
@@ -6971,7 +7066,9 @@
     "r2_mean_bohr2": 11.0287
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.858,
+  "cation_rearranged": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8"
  },
  {
   "Z": 95,
@@ -6983,8 +7080,8 @@
   "noble": false,
   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8 6s2",
   "E_hartree": -19236.96587,
-  "ion_hartree": 0.3407,
-  "ion_eV": 9.27092,
+  "ion_hartree": 0.29345,
+  "ion_eV": 7.98518,
   "outermost": "6s",
   "orbitals": [
    {
@@ -7079,7 +7176,9 @@
     "r2_mean_bohr2": 10.8644
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.3603,
+  "cation_rearranged": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f16 5s2 5p8"
  },
  {
   "Z": 96,
@@ -7187,7 +7286,8 @@
     "r2_mean_bohr2": 10.706
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -3.8006
  },
  {
   "Z": 97,
@@ -7295,7 +7395,8 @@
     "r2_mean_bohr2": 10.5411
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -3.1162
  },
  {
   "Z": 98,
@@ -7403,7 +7504,8 @@
     "r2_mean_bohr2": 10.3832
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -2.4735
  },
  {
   "Z": 99,
@@ -7511,7 +7613,8 @@
     "r2_mean_bohr2": 10.2314
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -1.8694
  },
  {
   "Z": 100,
@@ -7619,7 +7722,8 @@
     "r2_mean_bohr2": 10.0855
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -1.3012
  },
  {
   "Z": 101,
@@ -7727,7 +7831,8 @@
     "r2_mean_bohr2": 9.9447
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.7663
  },
  {
   "Z": 102,
@@ -7835,7 +7940,8 @@
     "r2_mean_bohr2": 9.8089
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.2626
  },
  {
   "Z": 103,
@@ -7847,8 +7953,8 @@
   "noble": false,
   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f23 5s2 5p8 6s2",
   "E_hartree": -23590.01022,
-  "ion_hartree": 0.36617,
-  "ion_eV": 9.96399,
+  "ion_hartree": 0.35552,
+  "ion_eV": 9.67419,
   "outermost": "6s",
   "orbitals": [
    {
@@ -7943,7 +8049,9 @@
     "r2_mean_bohr2": 9.6776
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.2114,
+  "cation_rearranged": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8"
  },
  {
   "Z": 104,
@@ -7955,8 +8063,8 @@
   "noble": false,
   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8 6s2",
   "E_hartree": -24173.42457,
-  "ion_hartree": 0.36918,
-  "ion_eV": 10.0459,
+  "ion_hartree": 0.34128,
+  "ion_eV": 9.2867,
   "outermost": "6s",
   "orbitals": [
    {
@@ -8051,7 +8159,9 @@
     "r2_mean_bohr2": 9.5506
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.658,
+  "cation_rearranged": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f25 5s2 5p8"
  },
  {
   "Z": 105,
@@ -8063,8 +8173,8 @@
   "noble": false,
   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f25 5s2 5p8 6s2",
   "E_hartree": -24765.77791,
-  "ion_hartree": 0.37213,
-  "ion_eV": 10.1262,
+  "ion_hartree": 0.32798,
+  "ion_eV": 8.92479,
   "outermost": "6s",
   "orbitals": [
    {
@@ -8159,7 +8269,9 @@
     "r2_mean_bohr2": 9.4275
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.0781,
+  "cation_rearranged": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f26 5s2 5p8"
  },
  {
   "Z": 106,
@@ -8267,7 +8379,8 @@
     "r2_mean_bohr2": 9.3081
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.4732
  },
  {
   "Z": 107,
@@ -8375,7 +8488,8 @@
     "r2_mean_bohr2": 11.176
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.6455
  },
  {
   "Z": 108,
@@ -8483,7 +8597,8 @@
     "r2_mean_bohr2": 11.0598
    }
   ],
-  "hund_correction_eV": -0.2614
+  "hund_correction_eV": -0.2614,
+  "electron_affinity_eV": 1.6604
  },
  {
   "Z": 109,
@@ -8591,7 +8706,8 @@
     "r2_mean_bohr2": 10.9461
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.6754
  },
  {
   "Z": 110,
@@ -8699,7 +8815,8 @@
     "r2_mean_bohr2": 10.8351
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.6898
  },
  {
   "Z": 111,
@@ -8807,7 +8924,8 @@
     "r2_mean_bohr2": 10.7264
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.7037
  },
  {
   "Z": 112,
@@ -8915,7 +9033,8 @@
     "r2_mean_bohr2": 8.6589
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -6.088
  },
  {
   "Z": 113,
@@ -9030,7 +9149,8 @@
     "r2_mean_bohr2": 17.4053
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.3652
  },
  {
   "Z": 114,
@@ -9145,7 +9265,8 @@
     "r2_mean_bohr2": 6.9779
    }
   ],
-  "hund_correction_eV": -0.3566
+  "hund_correction_eV": -0.3566,
+  "electron_affinity_eV": -1.064
  },
  {
   "Z": 115,
@@ -9260,7 +9381,8 @@
     "r2_mean_bohr2": 6.532
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -0.9431
  },
  {
   "Z": 116,
@@ -9375,7 +9497,8 @@
     "r2_mean_bohr2": 6.1672
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.4626
  },
  {
   "Z": 117,
@@ -9490,7 +9613,8 @@
     "r2_mean_bohr2": 5.8568
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 2.0275
  },
  {
   "Z": 118,
@@ -9605,7 +9729,8 @@
     "r2_mean_bohr2": 5.5858
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.6877
  },
  {
   "Z": 119,
@@ -9720,7 +9845,8 @@
     "r2_mean_bohr2": 5.345
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.4208
  },
  {
   "Z": 120,
@@ -9835,7 +9961,8 @@
     "r2_mean_bohr2": 5.1823
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.7762
  },
  {
   "Z": 121,
@@ -9950,7 +10077,8 @@
     "r2_mean_bohr2": 4.9315
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.6592
  },
  {
   "Z": 122,
@@ -10065,7 +10193,8 @@
     "r2_mean_bohr2": 4.8301
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 7.2793
  },
  {
   "Z": 123,
@@ -10180,7 +10309,8 @@
     "r2_mean_bohr2": 4.6741
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 7.8641
  },
  {
   "Z": 124,
@@ -10288,7 +10418,8 @@
     "r2_mean_bohr2": 1.5349
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 8.1544
  },
  {
   "Z": 125,
@@ -10396,7 +10527,8 @@
     "r2_mean_bohr2": 1.4391
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 8.3204
  },
  {
   "Z": 126,
@@ -10504,7 +10636,8 @@
     "r2_mean_bohr2": 1.3544
    }
   ],
-  "hund_correction_eV": -0.6284
+  "hund_correction_eV": -0.6284,
+  "electron_affinity_eV": 8.5659
  },
  {
   "Z": 127,
@@ -10612,7 +10745,8 @@
     "r2_mean_bohr2": 1.2789
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 10.9896
  },
  {
   "Z": 128,
@@ -10720,7 +10854,8 @@
     "r2_mean_bohr2": 1.2111
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 8.8554
  },
  {
   "Z": 129,
@@ -10835,7 +10970,8 @@
     "r2_mean_bohr2": 3.9293
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 10.7107
  },
  {
   "Z": 130,
@@ -10950,7 +11086,8 @@
     "r2_mean_bohr2": 3.6208
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -14.7301
  },
  {
   "Z": 131,
@@ -11072,7 +11209,8 @@
     "r2_mean_bohr2": 6.9651
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.6256
  },
  {
   "Z": 132,
@@ -11194,7 +11332,8 @@
     "r2_mean_bohr2": 5.7268
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 3.6262
  },
  {
   "Z": 133,
@@ -11316,7 +11455,8 @@
     "r2_mean_bohr2": 4.9348
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.6434
  },
  {
   "Z": 134,
@@ -11438,7 +11578,8 @@
     "r2_mean_bohr2": 4.3677
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 5.7808
  },
  {
   "Z": 135,
@@ -11560,7 +11701,8 @@
     "r2_mean_bohr2": 3.9474
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 8.2271
  },
  {
   "Z": 136,
@@ -11682,7 +11824,8 @@
     "r2_mean_bohr2": 3.6056
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 10.5626
  },
  {
   "Z": 137,
@@ -11804,7 +11947,8 @@
     "r2_mean_bohr2": 3.3202
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 12.8794
  },
  {
   "Z": 138,
@@ -11926,7 +12070,8 @@
     "r2_mean_bohr2": 3.078
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 0.4495
  },
  {
   "Z": 139,
@@ -12055,7 +12200,8 @@
     "r2_mean_bohr2": 15.8929
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": 1.5875
  },
  {
   "Z": 140,
@@ -12184,6 +12330,7 @@
     "r2_mean_bohr2": 12.8549
    }
   ],
-  "hund_correction_eV": 0
+  "hund_correction_eV": 0,
+  "electron_affinity_eV": -4.1772
  }
 ]

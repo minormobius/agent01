@@ -21,6 +21,7 @@
     "r2_mean_bohr2": 3
    }
   ],
+  "electron_affinity_eV": -0.3287,
   "config_measured": "1s1",
   "config_match": true,
   "ion_measured_eV": 13.598,
@@ -48,6 +49,7 @@
     "r2_mean_bohr2": 1.1849
    }
   ],
+  "electron_affinity_eV": -19.0667,
   "config_measured": "1s2",
   "config_match": true,
   "ion_measured_eV": 24.587,
@@ -82,6 +84,7 @@
     "r2_mean_bohr2": 17.9435
    }
   ],
+  "electron_affinity_eV": -0.0767,
   "config_measured": "1s2 2s1",
   "config_match": true,
   "ion_measured_eV": 5.392,
@@ -116,6 +119,7 @@
     "r2_mean_bohr2": 8.4897
    }
   ],
+  "electron_affinity_eV": -1.1995,
   "config_measured": "1s2 2s2",
   "config_match": true,
   "ion_measured_eV": 9.323,
@@ -157,6 +161,7 @@
     "r2_mean_bohr2": 6.137
    }
   ],
+  "electron_affinity_eV": 0.3382,
   "config_measured": "1s2 2s2 2p1",
   "config_match": true,
   "ion_measured_eV": 8.298,
@@ -198,6 +203,7 @@
     "r2_mean_bohr2": 3.7183
    }
   ],
+  "electron_affinity_eV": 1.3217,
   "config_measured": "1s2 2s2 2p2",
   "config_match": true,
   "ion_measured_eV": 11.26,
@@ -239,6 +245,7 @@
     "r2_mean_bohr2": 2.5427
    }
   ],
+  "electron_affinity_eV": -1.5007,
   "config_measured": "1s2 2s2 2p3",
   "config_match": true,
   "ion_measured_eV": 14.534,
@@ -280,6 +287,7 @@
     "r2_mean_bohr2": 1.9864
    }
   ],
+  "electron_affinity_eV": 0.7148,
   "config_measured": "1s2 2s2 2p4",
   "config_match": true,
   "ion_measured_eV": 13.618,
@@ -321,6 +329,7 @@
     "r2_mean_bohr2": 1.553
    }
   ],
+  "electron_affinity_eV": 2.8025,
   "config_measured": "1s2 2s2 2p5",
   "config_match": true,
   "ion_measured_eV": 17.423,
@@ -362,6 +371,7 @@
     "r2_mean_bohr2": 1.2384
    }
   ],
+  "electron_affinity_eV": -16.4052,
   "config_measured": "1s2 2s2 2p6",
   "config_match": true,
   "ion_measured_eV": 21.565,
@@ -410,6 +420,7 @@
     "r2_mean_bohr2": 19.814
    }
   ],
+  "electron_affinity_eV": -0.0152,
   "config_measured": "1s2 2s2 2p6 3s1",
   "config_match": true,
   "ion_measured_eV": 5.139,
@@ -458,6 +469,7 @@
     "r2_mean_bohr2": 12.1021
    }
   ],
+  "electron_affinity_eV": -1.7018,
   "config_measured": "1s2 2s2 2p6 3s2",
   "config_match": true,
   "ion_measured_eV": 7.646,
@@ -513,6 +525,7 @@
     "r2_mean_bohr2": 14.6972
    }
   ],
+  "electron_affinity_eV": 0.3978,
   "config_measured": "1s2 2s2 2p6 3s2 3p1",
   "config_match": true,
   "ion_measured_eV": 5.986,
@@ -568,6 +581,7 @@
     "r2_mean_bohr2": 9.325
    }
   ],
+  "electron_affinity_eV": 1.2985,
   "config_measured": "1s2 2s2 2p6 3s2 3p2",
   "config_match": true,
   "ion_measured_eV": 8.152,
@@ -623,6 +637,7 @@
     "r2_mean_bohr2": 6.625
    }
   ],
+  "electron_affinity_eV": -0.0958,
   "config_measured": "1s2 2s2 2p6 3s2 3p3",
   "config_match": true,
   "ion_measured_eV": 10.487,
@@ -678,6 +693,7 @@
     "r2_mean_bohr2": 5.2008
    }
   ],
+  "electron_affinity_eV": 1.5627,
   "config_measured": "1s2 2s2 2p6 3s2 3p4",
   "config_match": true,
   "ion_measured_eV": 10.36,
@@ -733,6 +749,7 @@
     "r2_mean_bohr2": 4.1497
    }
   ],
+  "electron_affinity_eV": 3.1484,
   "config_measured": "1s2 2s2 2p6 3s2 3p5",
   "config_match": true,
   "ion_measured_eV": 12.968,
@@ -788,6 +805,7 @@
     "r2_mean_bohr2": 3.3819
    }
   ],
+  "electron_affinity_eV": -11.0454,
   "config_measured": "1s2 2s2 2p6 3s2 3p6",
   "config_match": true,
   "ion_measured_eV": 15.76,
@@ -850,6 +868,7 @@
     "r2_mean_bohr2": 29.0835
    }
   ],
+  "electron_affinity_eV": 0.0278,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 4s1",
   "config_match": true,
   "ion_measured_eV": 4.341,
@@ -912,6 +931,7 @@
     "r2_mean_bohr2": 19.3861
    }
   ],
+  "electron_affinity_eV": -0.9154,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 4s2",
   "config_match": true,
   "ion_measured_eV": 6.113,
@@ -981,6 +1001,7 @@
     "r2_mean_bohr2": 16.9252
    }
   ],
+  "electron_affinity_eV": -0.2912,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d1 4s2",
   "config_match": true,
   "ion_measured_eV": 6.561,
@@ -1050,6 +1071,7 @@
     "r2_mean_bohr2": 16.2407
    }
   ],
+  "electron_affinity_eV": -0.3176,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d2 4s2",
   "config_match": false,
   "ion_measured_eV": 6.828,
@@ -1119,6 +1141,7 @@
     "r2_mean_bohr2": 14.8536
    }
   ],
+  "electron_affinity_eV": -0.4425,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d3 4s2",
   "config_match": false,
   "ion_measured_eV": 6.746,
@@ -1188,6 +1211,7 @@
     "r2_mean_bohr2": 13.7445
    }
   ],
+  "electron_affinity_eV": -0.5489,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d5 4s1",
   "config_match": true,
   "ion_measured_eV": 6.767,
@@ -1257,6 +1281,7 @@
     "r2_mean_bohr2": 12.294
    }
   ],
+  "electron_affinity_eV": -0.8433,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d5 4s2",
   "config_match": true,
   "ion_measured_eV": 7.434,
@@ -1326,6 +1351,7 @@
     "r2_mean_bohr2": 11.351
    }
   ],
+  "electron_affinity_eV": -0.4114,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d6 4s2",
   "config_match": true,
   "ion_measured_eV": 7.902,
@@ -1395,6 +1421,7 @@
     "r2_mean_bohr2": 12.0039
    }
   ],
+  "electron_affinity_eV": 0.3099,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d7 4s2",
   "config_match": false,
   "ion_measured_eV": 7.881,
@@ -1464,6 +1491,7 @@
     "r2_mean_bohr2": 11.5932
    }
   ],
+  "electron_affinity_eV": 0.4852,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d8 4s2",
   "config_match": false,
   "ion_measured_eV": 7.64,
@@ -1533,6 +1561,7 @@
     "r2_mean_bohr2": 11.2322
    }
   ],
+  "electron_affinity_eV": 0.6343,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s1",
   "config_match": true,
   "ion_measured_eV": 7.726,
@@ -1602,6 +1631,7 @@
     "r2_mean_bohr2": 8.9462
    }
   ],
+  "electron_affinity_eV": -3.2675,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s2",
   "config_match": true,
   "ion_measured_eV": 9.394,
@@ -1678,6 +1708,7 @@
     "r2_mean_bohr2": 14.427
    }
   ],
+  "electron_affinity_eV": 0.3475,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p1",
   "config_match": true,
   "ion_measured_eV": 5.999,
@@ -1754,6 +1785,7 @@
     "r2_mean_bohr2": 10.023
    }
   ],
+  "electron_affinity_eV": 1.2542,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p2",
   "config_match": true,
   "ion_measured_eV": 7.899,
@@ -1830,6 +1862,7 @@
     "r2_mean_bohr2": 7.6761
    }
   ],
+  "electron_affinity_eV": 0.0479,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p3",
   "config_match": true,
   "ion_measured_eV": 9.789,
@@ -1906,6 +1939,7 @@
     "r2_mean_bohr2": 6.3642
    }
   ],
+  "electron_affinity_eV": 1.5913,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p4",
   "config_match": true,
   "ion_measured_eV": 9.752,
@@ -1982,6 +2016,7 @@
     "r2_mean_bohr2": 5.3438
    }
   ],
+  "electron_affinity_eV": 3.0074,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p5",
   "config_match": true,
   "ion_measured_eV": 11.814,
@@ -2058,6 +2093,7 @@
     "r2_mean_bohr2": 4.5572
    }
   ],
+  "electron_affinity_eV": -9.5346,
   "config_measured": "1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6",
   "config_match": true,
   "ion_measured_eV": 13.999,

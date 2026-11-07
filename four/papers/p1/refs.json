@@ -357,6 +357,18 @@
    "status": "index",
    "source": "physics.nist.gov/PhysRefData/Handbook/Tables/palladiumtable1.htm: Pd I 8.3369 eV; the same tables: Xe I 12.1298 eV",
    "role": "palladium's and xenon's first ionization energies (section 8.2)"
+  },
+  {
+   "key": "rienstra2002",
+   "authors": "J. C. Rienstra-Kiracofe, G. S. Tschumper, H. F. Schaefer III, S. Nandi and G. B. Ellison",
+   "title": "Atomic and molecular electron affinities: photoelectron experiments and theoretical computations",
+   "venue": "Chem. Rev.",
+   "volume": "102",
+   "pages": "231–282",
+   "year": 2002,
+   "status": "memory",
+   "source": "not yet checked: the measured affinities in section 6 are from memory",
+   "role": "measured electron affinities of our atoms (section 6)"
   }
  ]
 }

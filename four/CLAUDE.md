@@ -451,6 +451,16 @@ for games, and this is a modelling programme with publications to come. The game
     bound level otherwise "settles" on nonsense (orbital energy 0, totals thousands of hartree low). Sandbox checks: 26⁺
     is 3d² 4s¹ and keeps its singlet; 9⁻ (2p⁶) is bound by about 0.8 eV; H⁻ and 12⁻ are not. H⁻ *is* bound in ours (0.75
     eV), so the anion method is checked on ours first. Queued as `ions-1`: both charges, both worlds.
+    **Result (`ions-1`, 350 searches, exit 0; `papers/p1/ions-collect.mjs` → `data/ions.json`):**
+    - **Ours:** the cation search changes no ionization. Anions: 7 of 7 unbound right, every p-block acceptor bound
+      (C 1.32/1.26, Si 1.30/1.39, Ge 1.25/1.23, F 2.80/3.40 eV). It fails for H⁻ (−0.33 against 0.75), the alkalis, P and
+      As, where correlation binds. Trust a 4D affinity above about 0.7 eV.
+    - **4D:** 128's 29.56 eV survives. Seven ions rearrange (36, 93–95, 103–105, up to −1.29 eV), folded into
+      `termtable.json` by `termtable-collect.mjs` and so into the paper, the figures and the site.
+    - **p⁷ affinities rise down the group:** 3.4, 5.7, 7.8, 10.3, 12.9 eV, against ours near 3.4 throughout.
+    - **Noble gases:** 2, 12 and 22 don't hold an extra electron; 50, 78 and 138 come out barely bound, too little to
+      call.
+    - Claims `ions3`, `ions4` and `halogens4`; the paper's §6.4, §8.2 and §10.3.
   - **The site shows the corrected table (2026-11-06).** **Generated** `js/terms.js` (`tools/terms.mjs bake`, from
     paper 1's `data/termtable.json`; element 82 re-solved for its orbitals and density) is laid over the bake by
     `js/tablec.js`. **Pages import the table from `tablec.js`, never `table.js`** (main.js, shapes.js, table/viewer.js,

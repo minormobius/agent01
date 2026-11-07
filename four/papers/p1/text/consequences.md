@@ -38,6 +38,13 @@ electron at {{ion.128}} eV under the law and at {{cf.128}} eV under the shell th
 noble gases are again the hardest-held atoms, as ours are. The table's hardest-held electron (section 8.2) is partial
 screening at its strongest: a full shell whose own cloud hides the nucleus from it least.
 
+**10.3 Negative ions.** Partial screening holds an extra electron harder too. One electron short of a full p shell
+(p⁷ in four dimensions), atoms bind an extra electron by {{ea.hal4}} eV going down the group, rising with every row,
+where ours stay level ({{ea.halOurs}} eV, measured). The largest affinity in the table is {{ea.max4}}, and
+{{ea.bound4}} of the 140 atoms bind an extra electron by more than the 0.7 eV section 6.4 trusts. The light noble gases
+(2, 12, 22) don't hold one at all: their anions lie {{ea.nobUn}} eV above the atom. The heavier ones come out barely
+bound ({{ea.nob4}} eV), too little to call. In ours this method underbinds anions like these, whose extra electron is s.
+
 ## 11 · Neutral atoms aren't silent
 
 Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A spherical cloud of

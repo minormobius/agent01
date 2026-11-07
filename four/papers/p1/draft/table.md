@@ -23,7 +23,14 @@ the configurations get worse, 26 of 32 against 28 of 32. So the paper corrects o
 median 4.3 % and at most 16.2 % (figure A2). That is the accuracy to expect of the 4D table: a method
 that gets our transition metals mostly right and our ionizations to a few percent, not a spectroscopic one.
 
-**6.4 Numbers.** Tightening the solver's stop or changing its grid moves no ionization energy by a millihartree
+**6.4 Ions.** Each ion of ours searched for its own ground state, rather than made by taking one electron from the
+atom's configuration, changes no first ionization. The same search for anions gives our electron affinities where
+the extra electron is bound by the field and exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against 1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against 3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second). It
+also finds every anion that should be unbound to be unbound: the noble gases, beryllium, magnesium and nitrogen. It
+fails where correlation does the binding (H -0.33 against 0.754, Li -0.08 against 0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In four dimensions, then, an affinity above about 0.7 eV is to
+be believed and a smaller one is not (Rienstra-Kiracofe et al. 2002 for the measured values).
+
+**6.5 Numbers.** Tightening the solver's stop or changing its grid moves no ionization energy by a millihartree
 (section 5 and appendix C).
 
 ## 7 · Hund's first rule in four dimensions
@@ -97,7 +104,8 @@ decides.
 outside it. It holds its outermost electron at 29.56 eV, harder than its row's noble gas 138 (26.71 eV) and
 harder than any other atom in the table. Element 68, the same kind a row up, comes within a volt of its noble gas 78
 (22.32 eV against 23.10). Ours goes the other way: palladium's full 4d¹⁰ gives up an electron at 8.3 eV,
-xenon at 12.1. Section 9 shows the law does it.
+xenon at 12.1. Searching each ion for its own ground state leaves element 128's ionization where
+it was. Seven other ions do rearrange, and their ionizations drop: 36 (11.42 → 10.94), 93 (9.14 → 8.90), 94 (9.20 → 8.43), 95 (9.27 → 7.99), 103 (9.96 → 9.67), 104 (10.05 → 9.29), 105 (10.13 → 8.92) eV. The main table carries those. Section 9 shows the law does it.
 
 **8.3 Inside the rows.** Figure 5 draws six atoms in profile: their radial densities, and what each one's outermost
 orbital looks like on the 3-sphere (figure 3). Where the filling departs from the simple order, and how the

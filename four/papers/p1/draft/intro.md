@@ -29,5 +29,5 @@ shell theorem forced back on (section 9), and follows the law into partial scree
 neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of 28 claims. The code, the data and the paper's own making are public at
+against a ledger of 31 claims. The code, the data and the paper's own making are public at
 four.mino.mobi/papers.

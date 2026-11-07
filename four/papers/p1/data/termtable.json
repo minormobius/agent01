@@ -494,8 +494,8 @@
    "Z": 36,
    "config": "1s2 2s2 2p8 3s2 3p8 3d12 4s2",
    "E_hartree": -1650.6565,
-   "ion_hartree": 0.41964,
-   "ion_eV": 11.4189,
+   "ion_hartree": 0.40212,
+   "ion_eV": 10.9422,
    "outermost": "4s",
    "hund_correction_eV": 0,
    "open": [
@@ -530,7 +530,9 @@
     }
    ],
    "configChangedBySearch": false,
-   "configChangedByTerms": false
+   "configChangedByTerms": false,
+   "ion_byRemoval_eV": 11.4189,
+   "cation": "1s2 2s2 2p8 3s2 3p8 3d13"
   },
   {
    "Z": 37,
@@ -2093,8 +2095,8 @@
    "Z": 93,
    "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f13 5s2 5p8 6s2",
    "E_hartree": -18233.4498,
-   "ion_hartree": 0.33576,
-   "ion_eV": 9.1366,
+   "ion_hartree": 0.32725,
+   "ion_eV": 8.9049,
    "outermost": "6s",
    "hund_correction_eV": 0,
    "open": [
@@ -2124,14 +2126,16 @@
     }
    ],
    "configChangedBySearch": false,
-   "configChangedByTerms": false
+   "configChangedByTerms": false,
+   "ion_byRemoval_eV": 9.1366,
+   "cation": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f14 5s2 5p8"
   },
   {
    "Z": 94,
    "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f14 5s2 5p8 6s2",
    "E_hartree": -18731.04277,
-   "ion_hartree": 0.33825,
-   "ion_eV": 9.2043,
+   "ion_hartree": 0.30984,
+   "ion_eV": 8.4312,
    "outermost": "6s",
    "hund_correction_eV": 0,
    "open": [
@@ -2166,14 +2170,16 @@
     }
    ],
    "configChangedBySearch": false,
-   "configChangedByTerms": false
+   "configChangedByTerms": false,
+   "ion_byRemoval_eV": 9.2043,
+   "cation": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8"
   },
   {
    "Z": 95,
    "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8 6s2",
    "E_hartree": -19236.96587,
-   "ion_hartree": 0.3407,
-   "ion_eV": 9.2708,
+   "ion_hartree": 0.29345,
+   "ion_eV": 7.9852,
    "outermost": "6s",
    "hund_correction_eV": 0,
    "open": [
@@ -2208,7 +2214,9 @@
     }
    ],
    "configChangedBySearch": false,
-   "configChangedByTerms": false
+   "configChangedByTerms": false,
+   "ion_byRemoval_eV": 9.2708,
+   "cation": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f16 5s2 5p8"
   },
   {
    "Z": 96,
@@ -2473,8 +2481,8 @@
    "Z": 103,
    "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f23 5s2 5p8 6s2",
    "E_hartree": -23590.01022,
-   "ion_hartree": 0.36617,
-   "ion_eV": 9.964,
+   "ion_hartree": 0.35552,
+   "ion_eV": 9.6742,
    "outermost": "6s",
    "hund_correction_eV": 0,
    "open": [
@@ -2504,14 +2512,16 @@
     }
    ],
    "configChangedBySearch": false,
-   "configChangedByTerms": false
+   "configChangedByTerms": false,
+   "ion_byRemoval_eV": 9.964,
+   "cation": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8"
   },
   {
    "Z": 104,
    "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8 6s2",
    "E_hartree": -24173.42457,
-   "ion_hartree": 0.36918,
-   "ion_eV": 10.0459,
+   "ion_hartree": 0.34128,
+   "ion_eV": 9.2867,
    "outermost": "6s",
    "hund_correction_eV": 0,
    "open": [
@@ -2546,14 +2556,16 @@
     }
    ],
    "configChangedBySearch": false,
-   "configChangedByTerms": false
+   "configChangedByTerms": false,
+   "ion_byRemoval_eV": 10.0459,
+   "cation": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f25 5s2 5p8"
   },
   {
    "Z": 105,
    "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f25 5s2 5p8 6s2",
    "E_hartree": -24765.77791,
-   "ion_hartree": 0.37213,
-   "ion_eV": 10.1262,
+   "ion_hartree": 0.32798,
+   "ion_eV": 8.9248,
    "outermost": "6s",
    "hund_correction_eV": 0,
    "open": [
@@ -2588,7 +2600,9 @@
     }
    ],
    "configChangedBySearch": false,
-   "configChangedByTerms": false
+   "configChangedByTerms": false,
+   "ion_byRemoval_eV": 10.1262,
+   "cation": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f26 5s2 5p8"
   },
   {
    "Z": 106,

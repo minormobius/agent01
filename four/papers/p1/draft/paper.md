@@ -35,7 +35,7 @@ shell theorem forced back on (section 9), and follows the law into partial scree
 neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of 28 claims. The code, the data and the paper's own making are public at
+against a ledger of 31 claims. The code, the data and the paper's own making are public at
 four.mino.mobi/papers.
 
 # Part I · The law
@@ -295,7 +295,14 @@ the configurations get worse, 26 of 32 against 28 of 32. So the paper corrects o
 median 4.3 % and at most 16.2 % (figure A2). That is the accuracy to expect of the 4D table: a method
 that gets our transition metals mostly right and our ionizations to a few percent, not a spectroscopic one.
 
-**6.4 Numbers.** Tightening the solver's stop or changing its grid moves no ionization energy by a millihartree
+**6.4 Ions.** Each ion of ours searched for its own ground state, rather than made by taking one electron from the
+atom's configuration, changes no first ionization. The same search for anions gives our electron affinities where
+the extra electron is bound by the field and exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against 1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against 3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second). It
+also finds every anion that should be unbound to be unbound: the noble gases, beryllium, magnesium and nitrogen. It
+fails where correlation does the binding (H -0.33 against 0.754, Li -0.08 against 0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In four dimensions, then, an affinity above about 0.7 eV is to
+be believed and a smaller one is not (Rienstra-Kiracofe et al. 2002 for the measured values).
+
+**6.5 Numbers.** Tightening the solver's stop or changing its grid moves no ionization energy by a millihartree
 (section 5 and appendix C).
 
 ## 7 · Hund's first rule in four dimensions
@@ -369,7 +376,8 @@ decides.
 outside it. It holds its outermost electron at 29.56 eV, harder than its row's noble gas 138 (26.71 eV) and
 harder than any other atom in the table. Element 68, the same kind a row up, comes within a volt of its noble gas 78
 (22.32 eV against 23.10). Ours goes the other way: palladium's full 4d¹⁰ gives up an electron at 8.3 eV,
-xenon at 12.1. Section 9 shows the law does it.
+xenon at 12.1. Searching each ion for its own ground state leaves element 128's ionization where
+it was. Seven other ions do rearrange, and their ionizations drop: 36 (11.42 → 10.94), 93 (9.14 → 8.90), 94 (9.20 → 8.43), 95 (9.27 → 7.99), 103 (9.96 → 9.67), 104 (10.05 → 9.29), 105 (10.13 → 8.92) eV. The main table carries those. Section 9 shows the law does it.
 
 **8.3 Inside the rows.** Figure 5 draws six atoms in profile: their radial densities, and what each one's outermost
 orbital looks like on the 3-sphere (figure 3). Where the filling departs from the simple order, and how the
@@ -413,6 +421,13 @@ outermost electron a median 2.54 times as hard as the shell theorem would, from 
 electron at 29.56 eV under the law and at 3.1 eV under the shell theorem. With the shell theorem the
 noble gases are again the hardest-held atoms, as ours are. The table's hardest-held electron (section 8.2) is partial
 screening at its strongest: a full shell whose own cloud hides the nucleus from it least.
+
+**10.3 Negative ions.** Partial screening holds an extra electron harder too. One electron short of a full p shell
+(p⁷ in four dimensions), atoms bind an extra electron by 3.4, 5.7, 7.8, 10.3, 12.9 eV going down the group, rising with every row,
+where ours stay level (F 3.401, Cl 3.613, Br 3.364 eV, measured). The largest affinity in the table is 12.9 eV (element 137), and
+80 of the 140 atoms bind an extra electron by more than the 0.7 eV section 6.4 trusts. The light noble gases
+(2, 12, 22) don't hold one at all: their anions lie 7, 14, 12 eV above the atom. The heavier ones come out barely
+bound (50: 0.05, 78: 0.23, 138: 0.45 eV), too little to call. In ours this method underbinds anions like these, whose extra electron is s.
 
 ## 11 · Neutral atoms aren't silent
 
@@ -578,7 +593,7 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 ## Supplement and data
 
 Supplement S1 is the table with every open subshell given Hund spins (`data/table4-hundspin.csv`). The
-28 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
+31 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
 
 ## References
 
@@ -592,6 +607,7 @@ Supplement S1 is the table with every open subshell given Hund spins (`data/tabl
 - F. R. Tangherlini (1963). Schwarzschild field in n dimensions and the dimensionality of space problem. *Nuovo Cimento* 27, 636–651.
 - G. Barbatis (2023). The Hardy constant: a review. *arXiv:2311.08017*.
 - G. F. Kventsel & J. Katriel (1981). Thomas–Fermi atom in N dimensions. *Phys. Rev. A* 24, 2299–2301.
+- J. C. Rienstra-Kiracofe, G. S. Tschumper, H. F. Schaefer III, S. Nandi and G. B. Ellison (2002). Atomic and molecular electron affinities: photoelectron experiments and theoretical computations. *Chem. Rev.* 102, 231–282. *(Not yet checked against the source.)*
 - J. E. Sansonetti and W. C. Martin (2005). Handbook of Basic Atomic Spectroscopic Data. *NIST, physics.nist.gov/PhysRefData/Handbook*.
 - J. G. Loeser & D. R. Herschbach (1986). Hartree–Fock approximation for D-dimensional two-electron atoms. *J. Chem. Phys.* 84, 3893–3900.
 - J. G. Loeser & D. R. Herschbach (1986). Hylleraas–Pekeris treatment of D-dimensional two-electron atoms. *J. Chem. Phys.* 84, 3882–3892.

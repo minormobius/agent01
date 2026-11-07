@@ -373,6 +373,10 @@
   {
    "date": "2026-11-06",
    "what": "The PI's call: no title and no abstract until the end, and the abstract may be hand-written. Both are now placeholders in the whole draft. The papers page leads with a 'read the current draft' link (draft/paper.html, and the PDF). The appendices are written (text/appendix.md): A, the 4D kernel; B, the 4D electron gas; C, numerical convergence (a table of the six grids); D, the law calculations; E, reproducing every number (every data file, what made it and where). A turned up a closed form, k(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, equal to the solver's quadrature to 3 × 10⁻¹⁵; ledger claim kernelclosed makes 28, all holding."
+  },
+  {
+   "date": "2026-11-07",
+   "what": "Ions (runner run ions-1: every cation and anion of both worlds searched for its own ground state, 350 searches, all exit 0). In ours the cation search changes no ionization. The anion search gets all seven unbound anions unbound and every p-block acceptor bound (C 1.32 against 1.26, Ge 1.25 against 1.23, F 2.80 against 3.40). It fails where correlation binds (H⁻, the alkalis, P, As), so in 4D an affinity above about 0.7 eV is believed. In 4D, element 128's 29.56 eV survives. Seven ions rearrange (36, 93–95, 103–105), lowering those ionizations by up to 1.29 eV, and the main table carries them. A new result: one electron short of a full 4D p shell, atoms hold an extra electron harder and harder down the group (3.4, 5.7, 7.8, 10.3, 12.9 eV) where ours stay level near 3.4, partial screening again (§10.3). 80 of 140 bind an extra electron by more than 0.7 eV; the light noble gases don't, the heavy ones come out barely bound. New: data/ions.json (ions-collect.mjs), an electron_affinity_eV column, three claims (ions3, ions4, halogens4), 31 in all, holding."
   }
  ]
 }
