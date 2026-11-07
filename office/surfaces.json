@@ -3794,6 +3794,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-ooze",
+   "name": "kata-ooze",
+   "url": "https://kata.mino.mobi/ooze/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",
