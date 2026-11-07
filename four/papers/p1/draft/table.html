@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="a305c891e0ed10f6ece7da7d69b3d8dff65fc458919a311e4d84b68379f7b897" />
+<meta name="source-sha256" content="d20f83ae7a4a70e43304ea497279045ff302bfacde032fe840331e5d7dd3a7cb" />
 <title>Paper 1 · Part II · The table (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -49,6 +49,16 @@ represent. Its first ionization energies are off by a median 4.3 % and
 at most 16.2 % (figure A2). That is the accuracy to expect of the 4D
 table: a method that gets our transition metals mostly right and our
 ionizations to a few percent, not a spectroscopic one.</p>
+<figure id="fig-A2">
+<img src="../figures/A2.svg"
+alt="Figure A2. The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z." />
+<figcaption aria-hidden="true"><strong>Figure A2.</strong> The solver in
+our three dimensions. (a) Computed against measured first ionization
+energies (NIST), with the four elements whose ground configuration it
+misses (Ti, V, Co, Ni: one d electron too many against 4s, the known
+lean of local exchange). (b) The percentage error against
+Z.</figcaption>
+</figure>
 <p><strong>6.4 Ions.</strong> Each ion of ours searched for its own
 ground state, rather than made by taking one electron from the atom’s
 configuration, changes no first ionization. The same search for anions
@@ -198,6 +208,34 @@ data-cites="negadi1996">Négadi and Kibler (<a href="#ref-negadi1996"
 role="doc-biblioref">1996</a>)</span> predicts for four dimensions. To
 our knowledge this is the first self-consistent table that confirms
 them. Part III asks how much of that the law decides.</p>
+<figure id="fig-1">
+<img src="../figures/1.svg"
+alt="Figure 1. The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler’s generalized Madelung rule predicts for four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6’s f block 32 (drawn below, as ours is). An element takes our element’s name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 5. Hover a cell for its configuration and ionization." />
+<figcaption aria-hidden="true"><strong>Figure 1.</strong> The periodic
+table of four dimensions, Z = 1 to 140, each atom solved
+self-consistently under the pinned 1/r. Rows close at the noble gases 2,
+12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as
+Négadi and Kibler’s generalized Madelung rule predicts for four
+dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8
+wide, the d block 18 and row 6’s f block 32 (drawn below, as ours is).
+An element takes our element’s name with its first letter moved on where
+its place answers to one of ours; the rest (·) have no counterpart.
+Dots: the elements in figure 5. Hover a cell for its configuration and
+ionization.</figcaption>
+</figure>
+<figure id="fig-4">
+<img src="../figures/4.svg"
+alt="Figure 4. First ionization energy against Z across the four-dimensional table. The noble gases close their rows, but the hardest-held electron isn’t a noble gas’s: element 128, a full 18-electron d shell with nothing outside it (our palladium’s kind), holds its outermost electron at 29.6 eV against its row’s noble gas at 26.7; element 68, the same kind a row up, comes within a volt of its row’s. In ours palladium holds far less hard than xenon. Across row 6’s 32-wide f block (81–112) the binding barely moves." />
+<figcaption aria-hidden="true"><strong>Figure 4.</strong> First
+ionization energy against Z across the four-dimensional table. The noble
+gases close their rows, but the hardest-held electron isn’t a noble
+gas’s: element 128, a full 18-electron d shell with nothing outside it
+(our palladium’s kind), holds its outermost electron at 29.6 eV against
+its row’s noble gas at 26.7; element 68, the same kind a row up, comes
+within a volt of its row’s. In ours palladium holds far less hard than
+xenon. Across row 6’s 32-wide f block (81–112) the binding barely
+moves.</figcaption>
+</figure>
 <p><strong>8.2 The hardest-held electron isn’t a noble gas’s.</strong>
 Element 128 has an 18-electron d shell, full, with nothing outside it.
 It holds its outermost electron at 29.56 eV, harder than its row’s noble
@@ -217,6 +255,34 @@ profile: their radial densities, and what each one’s outermost orbital
 looks like on the 3-sphere (figure 3). Where the filling departs from
 the simple order, and how the ionization energy and the radius run with
 Z, are in the data files (table4.csv).</p>
+<figure id="fig-5">
+<img src="../figures/5.svg"
+alt="Figure 5. Six four-dimensional atoms in profile: each subshell’s electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon’s place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table." />
+<figcaption aria-hidden="true"><strong>Figure 5.</strong> Six
+four-dimensional atoms in profile: each subshell’s electrons per unit ln
+r against distance, from the solved atoms; the area under a curve is its
+electron count, and the outermost subshell is drawn thick. Darbon (7),
+our carbon’s place, five electrons of a ten-electron shell; element 8,
+which answers to nothing of ours; oeon (12), the first noble gas past
+helium, its p shell holding eight; uitanium (26), where the d block
+starts; element 101, 21 electrons into an f shell that holds 32; and
+element 128, the hardest-held electron in the table.</figcaption>
+</figure>
+<figure id="fig-3">
+<img src="../figures/3.svg"
+alt="Figure 3. Orbitals four dimensions has and ours doesn’t, cut through the nucleus by a plane, on the solved atoms’ own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Interactive, with hydrogen’s exact orbitals: kata.mino.mobi/orbital." />
+<figcaption aria-hidden="true"><strong>Figure 3.</strong> Orbitals four
+dimensions has and ours doesn’t, cut through the nucleus by a plane, on
+the solved atoms’ own radial functions. (a) The fourth p orbital, p_w,
+in the x–w plane: a dumbbell along w, so any three-dimensional slice
+through the nucleus misses it entirely. (b–d) One of the nine 4D d
+orbitals, x² + y² − z² − w², in three planes: positive all the way round
+the x–y plane, negative all the way round the z–w plane, and a four-leaf
+clover in a plane that mixes them. The x–y and z–w planes are completely
+perpendicular and meet only at the nucleus; nothing in three dimensions
+is positive round one plane and negative round another. Interactive,
+with hydrogen’s exact orbitals: kata.mino.mobi/orbital.</figcaption>
+</figure>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">

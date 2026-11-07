@@ -814,7 +814,7 @@ for games, and this is a modelling programme with publications to come. The game
   `figures/plot.js`: charts.js's theme and Okabe–Ito order, with log axes) from the bake and `laws.js`, captions in
   `CAPTIONS`; `text/*.md` are the sections' sources, every number a `{{token}}` that `build.mjs`'s `numbers()` reads
   from the solver's own source (its defaults parsed from the function text), the kernel, the bake or the ledger, and an
-  unknown token stops the build; the rendered drafts are `draft/*.md`. All of it is in `build()`'s output, so selftest
+  unknown token stops the build; the rendered drafts are `draft/*.md`, each figure placed after the paragraph that first cites it (`placeFigures`). All of it is in `build()`'s output, so selftest
   67 fails on a stale figure or draft. The process page shows the figures and lists the drafts. The figure set was pruned to six for the main
   text (1 the table, 2 the law, 3 orbitals only 4D has, 4 ionization, 5 elements in profile, 6 the counterfactual) and
   A1–A2: a figure has to carry an argument. `papers/p1/profiles.mjs` (seconds) re-solves the profiled atoms in their
