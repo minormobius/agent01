@@ -39,10 +39,17 @@ export function remeshArrays(P, F, fields, L, opts = {}) {
 
   const T = opts.prof, tick = (k, t0) => { if (T) T[k] = (T[k] || 0) + performance.now() - t0; };
   let t0 = performance.now();
+  // (each vertex's normal: the sum of its facets' unit normals. A sharp bend is an edge whose two ends' normals differ
+  // by more than `bend`; that edge is split even if it isn't long, down to `minL`, and isn't collapsed. So a thin foot
+  // or a tip gets the points it needs to feel its own curvature: a tube one edge thick reads 4-6x too little and its
+  // tension can't pull it back)
+  const bend = Math.cos(opts.bend ?? (35 * Math.PI) / 180), minL = (opts.minL ?? 0.3) * L;
+  const vnormals = () => { const n = P.map((p) => (p ? new Array(d).fill(0) : null)); F.forEach((f) => { if (!f) return; const m = nrm(f); for (const v of f) for (let c = 0; c < d; c++) n[v][c] += m[c]; }); return n.map((v) => (v ? unit(v) : null)); };
+  const sharp = (vn, a, b) => vn[a] && vn[b] && dot(vn[a], vn[b]) < bend;
   // SPLIT, in rounds of edges that share no facet
   for (let round = 0; round < rounds; round++) {
-    const ef = edgeFaces(), long = [];
-    for (const [e, fs] of ef) { const a = Math.floor(e / 1048576), b = e % 1048576, l = len(a, b); if (l > hi) long.push([l, a, b, fs]); }
+    const ef = edgeFaces(), long = [], vn = vnormals();
+    for (const [e, fs] of ef) { const a = Math.floor(e / 1048576), b = e % 1048576, l = len(a, b); if (l > hi || (l > minL && sharp(vn, a, b))) long.push([l, a, b, fs]); }
     if (!long.length) break;
     long.sort((x, y) => y[0] - x[0]); const used = new Set(); let n = 0;
     for (const [, a, b, fs] of long) {
@@ -61,8 +68,8 @@ export function remeshArrays(P, F, fields, L, opts = {}) {
   for (let round = 0; round < rounds; round++) {
     const vf = new Map(); F.forEach((f, k) => { if (!f) return; for (const v of f) { const l = vf.get(v); if (l) l.push(k); else vf.set(v, [k]); } });
     const nbr = (v) => { const s = new Set(); for (const k of vf.get(v) || []) if (F[k]) for (const x of F[k]) if (x !== v) s.add(x); return s; };
-    const ef = edgeFaces(), short = [];
-    for (const [e, fs] of ef) { const a = Math.floor(e / 1048576), b = e % 1048576, l = len(a, b); if (l < lo) short.push([l, a, b, fs]); }
+    const ef = edgeFaces(), short = [], vn = vnormals();
+    for (const [e, fs] of ef) { const a = Math.floor(e / 1048576), b = e % 1048576, l = len(a, b); if (l < lo && !sharp(vn, a, b)) short.push([l, a, b, fs]); }
     if (!short.length) break;
     short.sort((x, y) => x[0] - y[0]); const locked = new Set(); let n = 0;
     for (const [, a, b, fs] of short) {
