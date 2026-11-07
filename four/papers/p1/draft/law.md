@@ -92,8 +92,8 @@ geometry's share of the table from the law's.
 
 **3.2 The convention it agrees with.** The literature on hydrogen in $D$ dimensions [@nieto1979; @aljaber1998] and on
 dimensional scaling [@herschbach1992] takes $1/r$ in every $D$, mostly as a convention that keeps the problem
-solvable. Négadi and Kibler's generalized Madelung rule [-@negadi1996], which predicts the four-dimensional rows,
-builds on the same $D$-dimensional hydrogen atom. Section 3.1 is why that convention is more than one: it is the only
+solvable. Négadi and Kibler's generalized Madelung rule [-@negadi1996], which gives the four-dimensional rows when it is
+applied to $D = 4$, builds on the same $D$-dimensional hydrogen atom. Section 3.1 is why that convention is more than one: it is the only
 power law under which the question "what are the shells?" has the answer the rule needs.
 
 ## 4 · What 1/r costs in four dimensions

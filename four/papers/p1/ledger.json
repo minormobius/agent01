@@ -60,7 +60,7 @@
   {
    "id": "rows",
    "part": "table",
-   "claim": "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",
+   "claim": "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule (stated for any D, worked out by them for D = 2) gives when applied to D = 4",
    "value": "solved 2, 10, 10, 28, 28, 60 (and 2 of the next by Z = 140); the rule 2, 10, 10, 28, 28, 60",
    "holds": true,
    "section": "5",
@@ -73,7 +73,7 @@
   {
    "id": "madelungfill",
    "part": "table",
-   "claim": "Inside the rows the rule is followed less strictly: most 4D atoms fill exactly in its order, and every other moves one or two electrons between two subshells, nearly always from an outer s into the d or f below it, as our chromium and copper do",
+   "claim": "Inside the rows, read as a ground-configuration rule (which, like Madelung's in ours, it isn't meant to be exactly): most 4D atoms fill exactly in its order, and every other moves one or two electrons between two subshells, nearly always from an outer s into the d or f below it, as our chromium and copper do",
    "value": "103 of 140 exactly the rule's; the rest: 30 4s → 3d, 31 4s → 3d, 32 4s → 3d, 37 4s → 3d, 38 4s → 3d, 39 4s → 3d, 40 4s → 3d, 41 4s → 3d, 58 5s → 4d, 59 5s → 4d, 60 5s → 4d, 61 5s → 4d, 62 5s → 4d, 63 5s → 4d, 64 5s → 4d ×2, 65 5s → 4d ×2, 66 5s → 4d ×2, 67 5s → 4d ×2, 68 5s → 4d ×2, 69 5s → 4d, 81 4f → 5d, 82 4f → 5d, 107 6s → 4f, 108 6s → 4f, 109 6s → 4f, 110 6s → 4f, 111 6s → 4f, 113 5d → 6p, 120 6s → 5d, 122 6s → 5d, 123 6s → 5d, 124 6s → 5d ×2, 125 6s → 5d ×2, 126 6s → 5d ×2, 127 6s → 5d ×2, 128 6s → 5d ×2, 129 6s → 5d. Ours 1–36: the solver departs at 22, 23, 24, 27, 28, 29, measured at 24, 29",
    "holds": true,
    "section": "8.1",
@@ -464,8 +464,8 @@
   },
   {
    "path": "figures/captions.json",
-   "bytes": 4672,
-   "sha256": "8558ae0219944f5ff6dea438e2773951d8ef591f2a4725263155a78fd700c160"
+   "bytes": 4681,
+   "sha256": "bd20fb454b8a90d560d247d77cd6d203b74949508a72749b1bc0c6fe22e80772"
   }
  ],
  "refs": {

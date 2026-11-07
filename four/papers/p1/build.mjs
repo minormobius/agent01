@@ -182,7 +182,7 @@ export function madelungRows(d, upto) {
 }
 
 /* the strict rule's configuration for Z in D dimensions (fill in order of n + l, then n), and each solved atom against
-   it: which subshells gain or lose electrons. Négadi and Kibler's rule predicts the filling as well as the rows */
+   it: which subshells gain or lose electrons. The rule is a filling order; like Madelung's in ours it has exceptions */
 export function madelungFill(Z, d) {
   const order = subshells(d).sort((a, b) => a.n + a.l - (b.n + b.l) || a.n - b.n), m = new Map(); let left = Z;
   for (const s of order) { if (!left) break; const k = Math.min(left, s.cap); m.set(s.name, k); left -= k; }
@@ -225,11 +225,11 @@ function ledger(t3, t4, files, refs) {
       return { id: "tf", part: "law", claim: "Atoms don't collapse: total energies follow each world's Thomas–Fermi law, Z^(3−2/D) (Z^(5/2) in four dimensions, Z^(7/3) in ours), as the shell theorem's absence would have to break if matter were unstable",
         value: `fitted exponent ${e4.toFixed(3)} over Z = 10–140 in 4D (5/2 = 2.5); ${e3.toFixed(3)} over Z = 10–36 in ours (7/3 = 2.333); both a little above, as finite-Z corrections make them`,
         holds: e4 > 2.5 && e4 < 2.56 && e3 > 7 / 3 && e3 < 2.42 && e4 - 2.5 < e3 - 7 / 3 + 0.03, section: "4.5", gate: [67] }; })(),
-    { id: "rows", part: "table", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",
+    { id: "rows", part: "table", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule (stated for any D, worked out by them for D = 2) gives when applied to D = 4",
       value: `solved ${whole.join(", ")} (and ${rows.at(-1)} of the next by Z = 140); the rule ${predicted.join(", ")}`, holds: whole.join() === predicted.join() && whole.join() === "2,10,10,28,28,60", section: "5", gate: [7, 27, 67] },
     (() => { const dv = madelungDiff(t4, 4), pair = dv.every((x) => x.moves.length === 2 && x.moves.reduce((t, [, v]) => t + v, 0) === 0 && Math.abs(x.moves[0][1]) <= 2);
       const ours = madelungDiff(t3.filter((r) => r.Z <= 36), 3), real = madelungDiff(t3.filter((r) => r.Z <= 36), 3, (r) => r.config_measured);
-      return { id: "madelungfill", part: "table", claim: "Inside the rows the rule is followed less strictly: most 4D atoms fill exactly in its order, and every other moves one or two electrons between two subshells, nearly always from an outer s into the d or f below it, as our chromium and copper do",
+      return { id: "madelungfill", part: "table", claim: "Inside the rows, read as a ground-configuration rule (which, like Madelung's in ours, it isn't meant to be exactly): most 4D atoms fill exactly in its order, and every other moves one or two electrons between two subshells, nearly always from an outer s into the d or f below it, as our chromium and copper do",
         value: `${t4.length - dv.length} of ${t4.length} exactly the rule's; the rest: ${dv.map((x) => `${x.Z} ${moveText(x.moves)}`).join(", ")}. Ours 1–36: the solver departs at ${ours.map((x) => x.Z).join(", ")}, measured at ${real.map((x) => x.Z).join(", ")}`,
         holds: pair && dv.length < 45 && t4.length - dv.length > 95, section: "8.1", gate: [67] }; })(),
     { id: "nobles", part: "table", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
@@ -393,7 +393,7 @@ function tableTokens(t3, t4, CF, cfOk) {
       return { "nk.match": String(t4.length - dv.length), "nk.n": String(dv.length), "nk.sd": String(sd.length), "nk.sd2": String(sd.filter((x) => x.moves.some(([, v]) => v === 2)).length),
         "nk.otherN": String(other.length), "nk.other": other.map((x) => `${x.Z} (${moveText(x.moves)})`).join(", ").replace(/, ([^,]*)$/, " and $1"), "nk.ours": String(ours.length), "nk.oursList": ours.map((x) => SY(x.Z)).join(", "),
         "nk.real": String(real.length), "nk.realList": real.map((x) => SY(x.Z)).join(" and ") }; })(),
-    "table.rows": rws.join(", "), "table.nobles": nob.join(", "), "table.lastRow": String(periods.at(-1).length),
+    "table.rows": rws.join(", "), "nk.rows": madelungRows(4, 140).join(", "), "table.nobles": nob.join(", "), "table.lastRow": String(periods.at(-1).length),
     "ion.128": t4[127].ion_eV.toFixed(2), "ion.138": t4[137].ion_eV.toFixed(2), "ion.68": t4[67].ion_eV.toFixed(2), "ion.78": t4[77].ion_eV.toFixed(2),
     "ion3.max": `${errs.at(-1).toFixed(1)} %`, "misses3": t3.filter((r) => !r.config_match).map((r) => r.name).join(", ").replace(/, ([^,]+)$/, " and $1"),
     "cf.changed": String(diff.length), "cf.first": String(Math.min(...diff.map((r) => r.Z))), "cf.25": sup(CF[24].config), "cf.128": (CF[127].ion * EV).toFixed(1),

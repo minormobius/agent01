@@ -397,6 +397,10 @@
   {
    "date": "2026-11-07",
    "what": "Methods put in the paper's own format: numbered run-in paragraphs 5.1–5.12 under '## 5 · Methods' (it had ### subheadings and unnumbered run-ins), its plain-text maths in TeX. The PI asked whether the table is exactly Négadi and Kibler's: the rows and noble gases are; the filling isn't. 103 of 140 configurations are exactly the strict n + l rule's; 34 move one or two electrons from the outer s into the d or f below (10 of them two), 81 and 82 move 4f → 5d, 113 moves 5d → 6p. The solver over-counts such departures in ours (6 in Z ≤ 36 against the measured 2, Cr and Cu), so the 4D count is likely high. §8.1 says so, from tokens; claim madelungfill."
+  },
+  {
+   "date": "2026-11-07",
+   "what": "Négadi and Kibler re-read (arXiv atom-ph/9512001): they state the generalized Madelung rule for any D and work it out for D = 2 (recovering D = 3); they publish no 4D table. The paper had said they 'predicted the rows of a four-dimensional table'; it now says their rule, applied to D = 4, gives those rows (intro, §3.2, §8.1, figure 2, claim rows, refs role, the site's table chapter). §8.1 also now says the rule is a filling order, like Madelung's in ours, which has exceptions (chromium and copper the first of about twenty), so the 37 departures aren't a disagreement with them."
   }
  ]
 }

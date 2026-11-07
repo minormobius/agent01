@@ -105,7 +105,7 @@
    "doi": "10.1002/(SICI)1097-461X(1996)57:1<53::AID-QUA6>3.0.CO;2-Y",
    "arxiv": "atom-ph/9512001",
    "status": "read",
-   "role": "intro, results: the generalized Madelung rule, D = 4 predicted",
+   "role": "intro, results: the generalized Madelung rule for any D (they work it out for D = 2 and recover D = 3; applied to D = 4 it gives the rows)",
    "csl": {
     "author": [
      {

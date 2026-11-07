@@ -13,8 +13,8 @@ unchanged.
 
 They needn't. The literature on the hydrogen atom in $D$ dimensions [@nieto1979; @aljaber1998] and on dimensional
 scaling [@herschbach1992; @loeser1986hf; @loeser1986hp; @ghosh2020] keeps the potential at $1/r$ in every $D$,
-mostly as a convention that keeps the problem solvable. With it, hydrogen has a Bohr radius in any dimension. @negadi1996 used the $D$-dimensional hydrogen atom to extend Madelung's filling rule [@madelung1936] to other
-dimensions, and predicted the rows of a four-dimensional periodic table. @pyykko1991 solved the atoms of a
+mostly as a convention that keeps the problem solvable. With it, hydrogen has a Bohr radius in any dimension. @negadi1996 used the $D$-dimensional hydrogen atom to extend Madelung's filling rule [@madelung1936] to any
+dimension and worked it out for two. Applied to four, their rule gives rows of 2, 10, 10, 28, 28, 60. @pyykko1991 solved the atoms of a
 two-dimensional world self-consistently. To our knowledge no one has solved the atoms of a four-dimensional one, nor
 asked what the choice of $1/r$ itself does to them.
 
