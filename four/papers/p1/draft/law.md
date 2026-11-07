@@ -126,8 +126,9 @@ $Q = \sum\langle r^2\rangle$ over its electrons (section 11). Everything distinc
 and the equation is simplest in Fourier space, where each pair of derivatives becomes a factor $k^2$ of the wavenumber
 $k$. Maxwell's statics give a point charge the potential $\varphi \propto 1/k^2$, and that transforms back to
 $1/r^{D-2}$ in space, so $1/r^2$ in four dimensions. A potential $1/r^\eta$ in $D$ dimensions is the transform of
-$1/k^{D-\eta}$, so the pinned $1/r$ needs $1/k^3$. The site's force chapter (four.mino.mobi/atom/force.html) goes
-through five ways to get it.
+$1/k^{D-\eta}$, so the pinned $1/r$ needs $1/k^3$. There are five ways to get it (the site's force chapter,
+four.mino.mobi/atom/force.html, works through each). Four fail outright. The third survives with a flaw that can be
+removed, and it is the one this paper takes.
 
 1. *A local, relativistic field:* impossible. A local field equation is a polynomial in $k^2$, a whole number of pairs
    of derivatives, and $k^3 = (k^2)^{3/2}$ isn't one.
@@ -137,18 +138,22 @@ through five ways to get it.
    least 1.5 (the unitarity bound, where an ordinary free field sits), so the theory has states of
    negative probability.
 3. *A vacuum whose permittivity grows with wavenumber,* $\varepsilon_0\,\ell k$ with $\ell$ a length. The static
-   equation becomes $\varepsilon_0\ell k \cdot k^2\varphi = \rho$, which is $1/k^3$, the pinned $1/r$. But light now
-   obeys $k^2 = \ell k\,\omega^2/c^2$, so $\omega = c\sqrt{k/\ell}$. It disperses like deep-water waves, and there is
-   no speed of light.
+   equation becomes $\varepsilon_0\ell k \cdot k^2\varphi = \rho$, which is $1/k^3$, the pinned $1/r$. With the
+   permeability left at $\mu_0$, light obeys $k^2 = \ell k\,\omega^2/c^2$, so $\omega = c\sqrt{k/\ell}$. It
+   disperses like deep-water waves, and there is no speed of light. This is the route we take, and the flaw is
+   removed below.
 4. *A nonlinear vacuum,* $\nabla\cdot(|\mathbf E|^{\beta-2}\mathbf E) = \rho$. It keeps a Gauss's law, for the flux of
    $|\mathbf E|^{\beta-2}\mathbf E$ instead of $\mathbf E$. A point charge then has $|\mathbf E|^{\beta-1}r^{D-1}$
    constant, and a $1/r$ potential ($|\mathbf E| \propto 1/r^2$) needs $\beta = (D + 1)/2$ = 2.5. But fields
    no longer add: the field of two charges isn't the sum of each one's.
 5. *A small fourth dimension:* $1/r$ far away, but then atoms are three-dimensional (section 2.2).
 
-This universe takes a sixth, which finishes route 3: the **lens vacuum**, with permittivity $\varepsilon_0\ell k$ and
-permeability $\mu_0/\ell k$. Their product is $\varepsilon_0\mu_0$ at every wavenumber, so light keeps the one speed
-$c$. The fields $\mathbf D/\varepsilon_0$ and $\mu_0\mathbf H$ obey Maxwell's equations of empty four-dimensional space
+Route 1 doesn't exist, route 2 has states of negative probability, route 4 gives up fields that add, and route 5
+gives back three-dimensional atoms. That leaves route 3. The
+permittivity fixes the statics, and the statics are all that the pinned law asks of it. The permeability is still
+free, and it decides only how fields move. Left at $\mu_0$ it gives the dispersive light above. We choose
+$\mu_0/\ell k$, and call the result the **lens vacuum**. The product of permittivity and permeability is then
+$\varepsilon_0\mu_0$ at every wavenumber, so light keeps the one speed $c$. The fields $\mathbf D/\varepsilon_0$ and $\mu_0\mathbf H$ obey Maxwell's equations of empty four-dimensional space
 exactly, so light is ordinary four-dimensional light at every wavelength, and the energy is never negative. What
 pushes a charge is $\mathbf E = (\mathbf D/\varepsilon_0)/\ell k$, that light seen through a lens. Dividing by $k$ in
 Fourier space is, in space, spreading over a kernel $1/r^3$ (the transform of $1/k$ in four dimensions), so
@@ -156,9 +161,10 @@ $\mathbf E$ at a point is a blur of $\mathbf D$ over all of space. Its statics a
 price is relativity, for the force between charges only. The blur acts across all of space at once, so there is an
 absolute "now", and a charge feels another's change instantly, a little, everywhere.
 
-This paper uses only the lens vacuum's statics: charges at rest and the $1/r$ between them, which is all an atom's
-ground state needs. Nothing here depends on $\ell$, on how the lens vacuum's fields move and radiate, or on the
-absolute now. That dynamics, of the same field theory, is the subject of a later paper.
+This paper uses only route 3's statics: charges at rest and the $1/r$ between them, which is all an atom's ground
+state needs. Every choice of permeability gives the same statics, so nothing here depends on that choice, on $\ell$,
+on how the lens vacuum's fields move and radiate, or on the absolute now. Those dynamics, of the same lens vacuum, are
+the subject of a later paper.
 
 **4.4 What is declared with it.** Electrons are spin-½ fermions, two to an orbital. That is stated, not derived: in our
 world it follows from relativity and spin together, and this universe has given up relativity for the force. Nuclei

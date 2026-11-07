@@ -389,6 +389,10 @@
   {
    "date": "2026-11-07",
    "what": "Figures renumbered in order of first citation (old 2, 1, 4, 5, 3, 6 → 1–6; make.mjs's figure functions renamed by subject so the numbers live only in CAPTIONS and the text). The paper's figures 4 and 5 (elements in profile, orbitals on the 3-sphere) now exist for every element: the big table's new 'Inside the atom' (table/inside.js, from table/profiles.json, baked by atom/tools/profiles.mjs: all 140 re-solved in the table's configurations, each matching the table's energy, selftest 70). /table/#Z opens on element Z; §8.3 and both captions link it."
+  },
+  {
+   "date": "2026-11-07",
+   "what": "§4.3 reframed at the PI's direction: not 'a sixth route' but a downselection. Five routes to 1/k³; four fail outright (none exists, negative probabilities, fields that don't add, three-dimensional atoms); route 3 is taken, and within it the permeability, which the statics leave free, is chosen as μ₀/ℓk: that choice is the lens vacuum. Every choice of permeability gives the same statics, which is why the paper depends on none of it. The site's force chapter now says the same (js/main.js routes, genpages.py), and its □^(3/2) is written out too."
   }
  ]
 }

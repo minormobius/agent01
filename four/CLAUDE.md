@@ -764,6 +764,9 @@ for games, and this is a modelling programme with publications to come. The game
   first chapters from `old-index.html`). Each chapter's body and the landing's cards live there, with their numbers
   pulled from the baked `atom/js/*.js`. So change a chapter there, never in the HTML, then
   `python3 four/atom/tools/pages/genpages.py`. **A new conclusion goes in its chapter and on the landing's cards.**
+  (2026-11-07: hand edits had crept into `index.html` and `table.html` (the Hund section, its landing bullet, the
+  Bluminium open question, the "to play with" links); they now live in `genpages.py` as anchored insertions that fail
+  loudly if their anchor moves. Diff a regeneration before committing it.)
   **Cross-references:** write "chapter N" only as a link to that chapter's page (`<a href="gas.html">chapter 13</a>`);
   the generator renumbers every such link from the chapter list `CH`, and the selftest fails on an unlinked or wrong
   one. In `main.js` use `chap("gas")`. Elsewhere (comments, docs) name chapters ("the gases chapter"), never number

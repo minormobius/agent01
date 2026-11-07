@@ -78,7 +78,7 @@ pin=inner('pin').replace("That's the world of everything below. Section 7 asks w
 mx=inner('maxwell')
 cut=mx.index('<h4>And it shows up in the chemistry</h4>'); cut2=mx.index('<h4>A small fourth dimension</h4>')
 mx=mx[:cut]+mx[cut2:]
-mx=mx.replace('There are five ways to get it, and each one costs something.</p>','There are five ways to get it, each with a cost, and a sixth, which is the one this universe takes.</p>')
+mx=mx.replace('There are five ways to get it, and each one costs something.</p>','There are five ways to get it, each with a cost. Four fail outright. The third survives with one flaw, which can be removed: that is the route this universe takes, as the lens vacuum.</p>')
 a=mx.index('<h4>And light?</h4>'); mx=mx[:a]+'''<h4>The big problem</h4>
   <p><b>Coulomb's 1/r isn't a free choice.</b> In 3D, locality, linearity, relativity and positive probabilities together force it. In 4D the same four force 1/r², and then there are no atoms. To keep 4D atoms, something has to go. This universe gives up relativity for electromagnetism: the lens vacuum keeps light exactly as 4D Maxwell has it and keeps every field adding, but its pull reaches across space at once. That's an absolute "now", a preferred frame, set by one new length ℓ. What it does to light is the <a href="light.html">next chapter</a>. What it does to atoms, through the failed shell theorem, is in <a href="table.html#screen">the periodic table</a>.</p>'''
 mx=mx.replace("This is in every atom in section 3","This is in every atom")
@@ -319,6 +319,12 @@ pages={"geometry":geometry,"force":force,"light":light,"motion":motion,"hydrogen
 # chapters can be added or reordered without hunting for numbers (the selftest checks none is left unlinked)
 def chnum(k): return [c for c,_,_ in CH].index(k)+1
 def refs(h): return re.sub(r'(<a href="(\w+)\.html(?:#[\w-]+)?">)([Cc])hapter \d+', lambda m: m.group(1)+f'{m.group(3)}hapter {chnum(m.group(2))}' if m.group(2) in [c for c,_,_ in CH] else m.group(0), h)
+
+# Hand-written additions made to the generated pages (2026-11-06) and carried here, so a regeneration keeps them:
+# the table chapter's Hund section, the landing's Hund bullet, its Bluminium open question and its "to play with" links.
+HUND_SECTION = "<section id=\"hund\">\n  <h3>Spins that pair: Hund's first rule fails</h3>\n    <p>The solver gives each part-filled subshell as many parallel spins as it can hold, which is <b>Hund's first rule</b>, and in ours always right. In four dimensions it isn't. With two electrons in a d subshell, or two missing from a full one (d², d¹⁶), the atoms pair their spins instead: elements 26, 39, 54, 66, 114 and 126, by 0.30–0.77 eV. So do 4f³ and 4f²⁹ (elements 83 and 108). It comes from four-dimensional space, not the law: Gauss's 1/r² gives the same. The cause is a pair state the d shell has only in four or more dimensions, which keeps two electrons nearer right angles than parallel spins can (<a href=\"hund.html\">the explainer</a>). The table on this page is corrected for it. No configuration changes; eight first ionizations move by 0.30–0.67 eV, up for the atoms that pair, down for the next element, whose ion lands on the paired filling. The wider search behind the correction also found element 82 as 4f¹ 5d¹ 6s², the arrangement of our cerium, 0.36 eV below the first search's 4f² 6s².</p>\n</section>\n"
+pages['table'] = pages['table'].replace("<section id=\"trust\">\n  <h3>How far to trust it</h3>\n    <p>", HUND_SECTION + "<section id=\"trust\">\n  <h3>How far to trust it</h3>\n    <p>", 1) if HUND_SECTION not in pages['table'] else pages['table']
+assert HUND_SECTION in pages['table'], 'genpages: the Hund section lost its anchor'
 for k,body in pages.items(): open(OUT+k+'.html','w').write(refs(chapter(k,body)))
 
 # the methods appendix: not a numbered chapter, after the last
@@ -458,5 +464,11 @@ landing=head('ATOM⁴ — the position','ATOM⁴ — the universe we are buildin
 </body>
 </html>
 '''
+
+# hand-written landing additions carried from 2026-11-06 (see HUND_SECTION above)
+for _old, _new in [("least sure entries.</li>", "least sure entries.</li><li><b>Hund's first rule fails in four dimensions</b> for d² and d¹⁶ in every d row and for 4f³ and 4f²⁹: those atoms pair their spins, by 0.15–0.77 eV. It is four-dimensional space's doing, not the law's. The table is corrected for it; no configuration changes, and eight ionizations move by up to 0.67 eV (<a href=\"hund.html\">why</a>).</li>"), ("in <a href=\"methods.html\">the methods</a>.</p>", "in <a href=\"methods.html\">the methods</a>. <b>To play with:</b> <a href=\"bluminium.html\">Bluminium</a>, 4D's corundum, its two candidate crystals and a dopant playground; and <a href=\"hund.html\">Hund's rule</a>, why parallel spins usually win and the spin-paired state only four dimensions has.</p>")]:
+    assert _old in landing, 'genpages: a landing addition lost its anchor'
+    landing = landing.replace(_old, _new, 1)
+landing = landing.replace("    <li><b>Which water fills the oceans.</b>", "    <li><b>Which crystal Bluminium makes, and whether it lases.</b> Bl₂Px₃'s two candidate cells, relaxed, both have their lowest energy near ×1.033 in volume. Measured on dense k-grids, z2-0 is lower by 0.40 eV a formula: right at the edge of what the plane-wave code can resolve, so z2-0 is favoured but not settled. A d ion on its sites gives no visible ruby: the chromium analogue's levels are squeezed into the infrared. The titanium analogue on one cell has the two-set levels of a tunable laser, and on the other it doesn't, so the laser hangs on the ranking. Free 4D d² ions break Hund's first rule (<a href=\"hund.html\">why</a>). Point charges times a factor fitted on ruby; <a href=\"bluminium.html\">play with it</a>.</li>\n" + "    <li><b>Which water fills the oceans.</b>", 1)
 open(OUT+'index.html','w').write(refs(landing))
 print("written")
