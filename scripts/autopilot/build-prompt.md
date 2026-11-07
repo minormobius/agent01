@@ -33,10 +33,10 @@ _Regenerated 2026-11-07 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-07, 100 members / 209 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: llm, imo, github
-- Top post: "bruh was nobody going to tell me I was cited in the February issue of the New Scientist magazine by name (page 48, a few" — @hikikomorphism.bsky.social
+**Neighborhood spark** (bisk 2026-11-07, 100 members / 192 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: llm, imo, llms
+- Top post: "Get fucked everyone who said we needed to moderate on trans issues. Get fuuuuuuucked you cowardly little shits" — @dollspace.gay
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
