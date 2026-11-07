@@ -177,7 +177,7 @@ both worlds, subshell energies against Z.
 4. **Widgets**, standalone and linked from the paper:
    - the 4D table viewer (`/table/`, exists): hover a counterpart, configurations, clouds;
    - the filling diagram (exists);
-   - ORBITAL (kata.mino.mobi/orbital, on the kata branch): hydrogen's exact 4D orbitals, sliced and turned live; figure 3's
+   - ORBITAL (kata.mino.mobi/orbital, on the kata branch): hydrogen's exact 4D orbitals, sliced and turned live; figure 5's
      interactive twin;
    - **screening on/off** (**built**, `papers/p1/widgets/`): any 4D atom solved live in a worker with the 4D kernel
      and with the shell theorem forced on, in its baked configuration, ionization by ΔSCF from the baked outermost

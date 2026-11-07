@@ -112,7 +112,11 @@ for games, and this is a modelling programme with publications to come. The game
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
-  and four colourings. The names come from `atom/js/names.js` (no DOM): an element takes our name with its first
+  and four colourings. **Inside the atom** (`table/inside.js`, below the tables) draws the pinned element's subshells in
+  profile and any of its orbitals cut by any of the six planes, paper 1's figures 4 and 5 for every element, from
+  **generated** `table/profiles.json` (`atom/tools/profiles.mjs bake`, ~2.5 min: each element re-solved in `tablec.js`'s
+  configuration with radial functions kept, checked against the table's energy; selftest 70). Re-run it after a bake or
+  `terms.mjs bake`. `/table/#Z` opens on element Z (the paper links it). The names come from `atom/js/names.js` (no DOM): an element takes our name with its first
   letter moved on when its place answers to one of ours (before a block's half-full element count from the left,
   the half-full one is ours, after it count from the full shell); 24 answer to nothing and are new, elements 6 and 8
   either side of darbon among them. Symbols keep the chapters' H, D, Px and Mi and otherwise avoid all 118 of ours.
@@ -816,10 +820,11 @@ for games, and this is a modelling programme with publications to come. The game
   from the solver's own source (its defaults parsed from the function text), the kernel, the bake or the ledger, and an
   unknown token stops the build; the rendered drafts are `draft/*.md`, each figure placed after the paragraph that first cites it (`placeFigures`). All of it is in `build()`'s output, so selftest
   67 fails on a stale figure or draft. The process page shows the figures and lists the drafts. The figure set was pruned to six for the main
-  text (1 the table, 2 the law, 3 orbitals only 4D has, 4 ionization, 5 elements in profile, 6 the counterfactual) and
+  text, numbered in order of first citation (1 the law, 2 the table, 3 ionization, 4 elements in profile, 5 orbitals only
+  4D has, 6 the counterfactual) and
   A1–A2: a figure has to carry an argument. `papers/p1/profiles.mjs` (seconds) re-solves the profiled atoms in their
   baked configurations with their radial functions kept → `data/profiles.json`; `build.mjs` stops if one drifts from the
-  bake, so re-run it after a bake. Figure 3's interactive twin is kata.mino.mobi/orbital (the kata branch's ORBITAL).
+  bake, so re-run it after a bake. Figures 4 and 5 for every element are the big table's "Inside the atom"; figure 5's hydrogen twin is kata.mino.mobi/orbital (the kata branch's ORBITAL).
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).

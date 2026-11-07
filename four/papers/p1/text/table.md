@@ -97,7 +97,7 @@ configuration with a competitor holding fewer d and f electrons within a volt of
 
 **8.1 Rows and noble gases.** The table's rows hold {{table.rows}} elements (and {{table.lastRow}} of the next by
 element 140), and its noble gases are elements {{table.nobles}}, each a peak of the first ionization energy (figures
-1 and 4). Those are the rows the generalized Madelung rule of @negadi1996 predicts for four dimensions.
+2 and 3). Those are the rows the generalized Madelung rule of @negadi1996 predicts for four dimensions.
 To our knowledge this is the first self-consistent table that confirms them. Part III asks how much of that the law
 decides.
 
@@ -108,6 +108,9 @@ harder than any other atom in the table. Element 68, the same kind a row up, com
 xenon at 12.1 [@nist-handbook]. Searching each ion for its own ground state leaves element 128's ionization where
 it was. Seven other ions do rearrange, and their ionizations drop: {{ion.re4}} eV. The main table carries those. Section 9 shows the law does it.
 
-**8.3 Inside the rows.** Figure 5 draws six atoms in profile: their radial densities, and what each one's outermost
-orbital looks like on the 3-sphere (figure 3). Where the filling departs from the simple order, and how the
-ionization energy and the radius run with Z, are in the data files (table4.csv).
+**8.3 Inside the rows.** Figure 4 draws six atoms in profile: their radial densities, and what each one's outermost
+orbital looks like on the 3-sphere (figure 5). The same two pictures for every element, from the same solver, are on
+the interactive table, where picking an element draws them and any of its subshells can be cut by any of the six planes
+of four-dimensional space ([four.mino.mobi/table](https://four.mino.mobi/table/#128); a link ending `#Z` opens on
+element Z). Where the filling departs from the simple order, and how the ionization energy and the radius run with Z,
+are in the data files (table4.csv).

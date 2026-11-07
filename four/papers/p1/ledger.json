@@ -413,28 +413,28 @@
   },
   {
    "path": "figures/1.svg",
-   "bytes": 63543,
-   "sha256": "f1ed05d49f02d3ec41d318ab82edc46097956035b6de9723758cb6295f55165d"
-  },
-  {
-   "path": "figures/2.svg",
    "bytes": 19084,
    "sha256": "2c10cd1038e7296a1221f6941dd1624ef7934b5b35cef288fd2571edcc259901"
   },
   {
-   "path": "figures/3.svg",
-   "bytes": 79986,
-   "sha256": "a2d894ea3e238074de2804e32eb943f414609500738f37e995ba2db43011c600"
+   "path": "figures/2.svg",
+   "bytes": 63543,
+   "sha256": "f1ed05d49f02d3ec41d318ab82edc46097956035b6de9723758cb6295f55165d"
   },
   {
-   "path": "figures/4.svg",
+   "path": "figures/3.svg",
    "bytes": 7760,
    "sha256": "8ac356c83873e3b9f55d70ee4f55e722f634d73baca28b2d9c44569ece0305db"
   },
   {
-   "path": "figures/5.svg",
+   "path": "figures/4.svg",
    "bytes": 103800,
    "sha256": "672b2bac6a5928c455526436a74bbccb77779171038b48d6cc031dd68c700b88"
+  },
+  {
+   "path": "figures/5.svg",
+   "bytes": 79986,
+   "sha256": "a2d894ea3e238074de2804e32eb943f414609500738f37e995ba2db43011c600"
   },
   {
    "path": "figures/6.svg",
@@ -453,8 +453,8 @@
   },
   {
    "path": "figures/captions.json",
-   "bytes": 4568,
-   "sha256": "36802fd9440a51f073b85fc98182221e0a4df80a9edb548c699cd3e1a3e34c89"
+   "bytes": 4672,
+   "sha256": "8558ae0219944f5ff6dea438e2773951d8ef591f2a4725263155a78fd700c160"
   }
  ],
  "refs": {

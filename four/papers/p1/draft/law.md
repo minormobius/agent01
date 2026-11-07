@@ -33,11 +33,11 @@ by Numerov's method on a logarithmic grid that stops at an inner radius $r_0$, a
 number of nodes. For $\alpha = 0.45$ it finds no bound level on any grid. For $\alpha = 0.7$ the lowest level is
 −5.87 × 10³, −5.87 × 10⁵ and −5.87 × 10⁷ hartree with $r_0 = 10^{-3}$, $10^{-4}$ and $10^{-5}$ bohr. It grows as
 $1/r_0^2$ ($\varepsilon r_0^2$ = −0.00587, −0.00587), set by where the calculation stops rather than by the
-electron (figure 2a). Either way there is no Bohr radius, no size an atom could settle at. Ehrenfest made the
+electron (figure 1a). Either way there is no Bohr radius, no size an atom could settle at. Ehrenfest made the
 classical version of this argument [@ehrenfest1917]: under Gauss's law in four dimensions no planetary orbit is stable
 either.
 
-![**Figure 2.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 1, need exactly 1/r.](../figures/2.svg){#fig-2}
+![**Figure 1.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 2, need exactly 1/r.](../figures/1.svg){#fig-1}
 
 **2.2 The ways out, and what each costs.** Something has to give. The squeeze that resists the pull costs
 $\hbar^2/2m_e r^2$, because the electron's energy grows as the square of its momentum $p$. The pull goes as $1/r^2$
@@ -82,7 +82,7 @@ $-Z^2/2(n + \tfrac12)^2$. With $(l + 1)^2$ orbitals to each $l$, shell $n$ holds
 
 Without the symmetry nothing holds the $l$ together. On the same solver, 2p sits −6.2 % from 2s at $\eta = 0.8$,
 5 × 10⁻¹⁰ % at $\eta = 1$, +15.4 % at $\eta = 1.2$ and +64.0 % at $\eta = 1.5$ (as a fraction of the shell's
-binding; 3d against 3s goes the same way, +78.3 % at $\eta = 1.5$; figure 2b). Below 1 the electron with more
+binding; 3d against 3s goes the same way, +78.3 % at $\eta = 1.5$; figure 1b). Below 1 the electron with more
 angular momentum is the more bound, above it the less. So under $\eta = 1.5$ a one-electron atom's 2p is bound little
 more than a third as hard as its 2s, and each $l$ is a level of its own. A table would still have rows, since many
 electrons split the $l$ in ours too. But the rows would be set by how the exponent treats electrons that come near the

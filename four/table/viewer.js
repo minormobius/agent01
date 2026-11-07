@@ -6,6 +6,7 @@ import { IE_REAL, layout } from "../atom/js/periodic.js";
 import { names, OURS } from "../atom/js/names.js";
 import { CENSUS } from "../atom/js/census.js";
 import { svg as fillSvg, order as fillOrder, ourOccupancy, parseConfig, nobles } from "./filling.js";
+import { inside } from "./inside.js";
 
 const $ = (id) => document.getElementById(id), EV = 27.2114, KCAL = 627.509;
 const N4 = names(TABLE, 4), L4 = layout(TABLE, 4);
@@ -25,7 +26,13 @@ const OUR = OURS.filter((o) => o.Z <= 54).map((o) => ({ ...o, ...ourCell(o.Z), e
 const hydride = (Z) => CENSUS[4].find((m) => m.Z === Z);
 const PAGES = { 1: ["hydrogen.html", "Hydrogen"], 7: ["darbon.html", "Darbon"], 10: ["xater.html", "Pxygen and Xater"] };
 
-let mode = "kin", pinned = 7, hover = null, world = 4;
+let mode = "kin", pinned = +(location.hash.match(/^#(\d{1,3})$/)?.[1] ?? 7), hover = null, world = 4;
+if (!(pinned >= 1 && pinned <= TABLE[4].length)) pinned = 7;
+/* a pinned 4D element is drawn inside (inside.js) and kept in the URL, so a link can open on it: /table/#128 */
+function pinned4() {
+  if (pinned > 0) { history.replaceState(null, "", `#${pinned}`); const e = N4.get(pinned); inside(pinned, e?.name ? `${e.name[0].toUpperCase()}${e.name.slice(1)} (${pinned})` : `Element ${pinned}`); }
+  else inside(0);
+}
 const sel = () => hover ?? pinned;
 
 function colourOf(e, el) {
@@ -47,7 +54,7 @@ function tile(e, el, which) {
   b.setAttribute("aria-label", `${name}, element ${e.Z}${e.isNew ? ", new: no counterpart in our world" : ""}`);
   b.onmouseenter = () => { hover = which === 4 ? e.Z : counterpart4.get(e.Z) ?? -e.Z; mark(); detail(); };
   b.onmouseleave = () => { hover = null; mark(); detail(); };
-  b.onclick = () => { pinned = which === 4 ? e.Z : counterpart4.get(e.Z) ?? -e.Z; hover = null; mark(); detail(); };
+  b.onclick = () => { pinned = which === 4 ? e.Z : counterpart4.get(e.Z) ?? -e.Z; hover = null; mark(); detail(); pinned4(); };
   return b;
 }
 
@@ -156,8 +163,9 @@ addEventListener("resize", () => { size(); reveal(); });
 addEventListener("keydown", (ev) => {
   if (ev.target.closest?.("input, textarea, select, [contenteditable]") || ev.ctrlKey || ev.metaKey || ev.altKey) return;
   if (!["ArrowLeft", "ArrowRight"].includes(ev.key) || pinned < 0) return;
-  pinned = Math.max(1, Math.min(TABLE[4].length, pinned + (ev.key === "ArrowRight" ? 1 : -1))); hover = null; mark(); detail(); ev.preventDefault();
+  pinned = Math.max(1, Math.min(TABLE[4].length, pinned + (ev.key === "ArrowRight" ? 1 : -1))); hover = null; mark(); detail(); pinned4(); ev.preventDefault();
 });
 const all = [...N4.values()];
 $("count").innerHTML = `<b>${all.length}</b> elements · <b>${all.filter((e) => !e.isNew).length}</b> answer to one of ours · <b class="newt">${all.filter((e) => e.isNew).length}</b> are new`;
-grids(); legend(); detail();
+grids(); legend(); detail(); pinned4();
+addEventListener("hashchange", () => { const z = +(location.hash.match(/^#(\d{1,3})$/)?.[1] ?? 0); if (z >= 1 && z <= TABLE[4].length && z !== pinned) { pinned = z; hover = null; mark(); detail(); reveal(); pinned4(); } });

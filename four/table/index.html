@@ -34,6 +34,15 @@
   #pt3 { --cw: calc(var(--cwr, 1) * 30px); }
   #pt3 .el { width: 34px; height: 36px; } #pt3 .el .sym { font-size: 12px; } #pt3 .el .nm { display: none; }
   .side { padding-top: 26px; }
+  .in-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  @media (max-width: 900px) { .in-grid { grid-template-columns: minmax(0, 1fr); } }
+  .in-fig { margin: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  .in-fig figcaption { font: 12px/1.6 var(--mono); color: var(--dim); margin-bottom: 8px; } .in-fig figcaption b { color: var(--text); }
+  .in-prof { width: 100%; height: 260px; display: block; }
+  .in-slice { width: 100%; aspect-ratio: 1; display: block; margin: 0 auto; border-radius: 6px; max-width: 360px; }
+  .in-keys { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .in-chip { font: 11px var(--mono); color: var(--text); background: #0b0d13; border: 1px solid #262833; border-left: 3px solid var(--c, #262833); border-radius: 5px; padding: 3px 7px; cursor: pointer; }
+  .in-chip span { color: var(--dim); } .in-chip.on { border-color: var(--text); border-left-color: var(--c, var(--text)); background: #1a1d27; }
   #detail { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-height: 260px; }
   #detail h4 { font: 700 20px var(--mono); margin: 0 0 4px; color: var(--d4); text-transform: capitalize; }
   #detail h4.newt { text-transform: none; }
@@ -78,6 +87,9 @@
       <div id="fill"></div>
     </div>
   </div>
+  <h3 class="sub" id="inside-h">Inside the atom</h3>
+  <p>The element you pick, solved: each subshell's electrons against distance from the nucleus, and one of its orbitals cut through the nucleus by a plane of four-dimensional space. Pick a plane that leans into w (x–w, y–w, z–w) to see what a three-dimensional slice through the nucleus would miss. These are paper 1's figures 4 and 5 for every element, from the same solver: each atom re-solved in the configuration the table gives it, with its subshells' radial functions kept. The orbital's angular part is a chosen harmonic of degree l; any other of the same degree has the same radial part.</p>
+  <div id="inside"></div>
   <h3 class="sub">How the names are given</h3>
   <p>By place, the way our groups work. Column 1 holds the alkali metals and column 2 the alkaline earths. In the p and d blocks, the elements <b>before the half-full one</b> count from the block's left edge: our boron is the first p element, and scandium, titanium, vanadium and chromium are the first four d. The <b>half-full</b> one answers to ours: carbon holds half of the 8-electron s + p shell, and darbon half of 4D's 10. The ones <b>after it count back from the full shell</b>: nitrogen is three short of a noble gas, so 4D's element three short is oitrogen.</p>
   <p>Our carbon is the one place this can't be done twice. It is both fourth from the start of its row and four short of the end. In 4D's longer rows those are two different elements, 6 and 8, on either side of darbon, and neither answers to anything of ours. Element 8 is the one whose hydride came out flat, with no dipole (<a href="../atom/census.html" style="color: var(--text)">Which water</a>). The 4D d block has eight such places in each of its two rows, where it holds 18 electrons to our 10. In all, 24 of the 78 are new.</p>

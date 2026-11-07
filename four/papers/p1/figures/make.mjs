@@ -24,8 +24,8 @@ const EV = 27.211386245988, B = CAT[0], V = CAT[1], G = CAT[2], P = CAT[3], O = 
 const norm = (c) => c.split(" ").sort().join(" ");
 
 /* L1 · Gauss's law has no atom */
-/* 1 · the table itself */
-function fig1() {
+/* 2 · the table itself */
+function figTable() {
   const { cells, W } = layout(TABLE, 4), NM = names(TABLE, 4), cw = 25, ch = 30, ox = 8, oy = 26, prof = new Set(PROFILES.atoms.map((a) => a.Z));
   const tint = { s: "#d6e8f5", p: "#fbe0cf", d: "#d3efe5", f: "#f2dcea" }, edge = { s: B, p: V, d: G, f: P };
   const y = (c) => oy + (c.row > 6 ? c.row - 0.45 : c.row) * ch;
@@ -49,8 +49,8 @@ function fig1() {
   return figure(ox + W * cw + 50, oy + 8.55 * ch + 8, [s], "The periodic table of four dimensions, 140 elements, from the self-consistent solution of each atom");
 }
 
-/* 2 · the law: Gauss's has no atom, and only 1/r keeps a shell together */
-function fig2() {
+/* 1 · the law: Gauss's has no atom, and only 1/r keeps a shell together */
+function figLaw() {
   const r0s = [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 3e-6, 1e-6], alphas = [[0.55, B], [0.7, V], [1.0, G]];
   const a = panel({ w: 390, h: 300, x: [1e-6, 1e-2], y: [1e-2, 1e12], logx: true, logy: true, xl: "grid's inner end r₀ (bohr)", yl: "|ε| of the lowest level (hartree)", tag: "a   V = −α/r² (Gauss's law in 4D)", yticks: [1e-2, 1e1, 1e4, 1e7, 1e10] });
   let s = "";
@@ -67,7 +67,7 @@ function fig2() {
   return figure(800, 300, [a, b, s], "The choice of law: Gauss's 1/r² gives no atom, and only 1/r keeps a shell's levels together");
 }
 
-/* 3 · orbitals only four dimensions has, cut through the nucleus by a plane, on the solved atoms' radial functions */
+/* 5 · orbitals only four dimensions has, cut through the nucleus by a plane, on the solved atoms' radial functions */
 function radialOf(Z, sub) {
   const at = PROFILES.atoms.find((a) => a.Z === Z), sh = at.sub.find((q) => q.name === sub), r = PROFILES.r;
   // |R| = √(P/r³) (P = r³R² per bohr in 4D); the subshells drawn have no radial node, so one sign
@@ -87,7 +87,7 @@ function slice(R, ang, plane, L, n = 150) {
   for (let k = 0; k < n * n; k++) { const v = vals[k], t = Math.abs(v) / mx, c = v >= 0 ? pos : neg; for (let q = 0; q < 3; q++) rgba[4 * k + q] = Math.round(255 - t * (255 - c[q])); rgba[4 * k + 3] = 255; }
   return pngURI(n, n, rgba);
 }
-function fig3() {
+function figOrbitals() {
   const AX = ["x", "y", "z", "w"], pw = (u) => u[3], dq = (u) => u[0] ** 2 + u[1] ** 2 - u[2] ** 2 - u[3] ** 2;
   const p2 = radialOf(12, "2p"), d3 = radialOf(26, "3d");
   const panels = [
@@ -109,8 +109,8 @@ function fig3() {
   return figure(10 + 4 * (sz + gap), top + sz + 30, [s], "Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions");
 }
 
-/* 4 · first ionization energy against Z */
-function fig4() {
+/* 3 · first ionization energy against Z */
+function figIonization() {
   const t4 = TABLE[4];
   const a = panel({ w: 820, h: 320, x: [0, 140], y: [0, 31], xl: "Z", yl: "first ionization energy (eV)", xticks: [0, 20, 40, 60, 80, 100, 120, 140] });
   let s = series(a, { pts: t4.map((e) => [e.Z, e.ion * EV, `${e.Z}: ${(e.ion * EV).toFixed(2)} eV, ${e.config}`]), c: B, w: 1.4 });
@@ -124,8 +124,8 @@ function fig4() {
   return figure(820, 320, [a, s], "First ionization energy against Z across the four-dimensional table");
 }
 
-/* 5 · elements in profile: each subshell's electrons per unit ln r */
-function fig5() {
+/* 4 · elements in profile: each subshell's electrons per unit ln r */
+function figProfiles() {
   const NM = names(TABLE, 4), r = PROFILES.r, col = [B, V, G, P], W = 270, Hh = 210, sup = (t) => t.replace(/(\d+)$/, (m) => m.replace(/\d/g, (c) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[c]));
   const parts = []; let s = "";
   PROFILES.atoms.forEach((at, k) => {
@@ -160,7 +160,7 @@ function A2() {
 
 /* 6 · the table under each law: what changes with the shell theorem forced on */
 const SHELL = JSON.parse(readFileSync(fileURLToPath(new URL("../data/shelltable.json", import.meta.url)), "utf8")).rows;
-function fig6() {
+function figCounterfactual() {
   const { cells, W } = layout(TABLE, 4), cw = 25, ch = 26, ox = 8, oy = 24, y = (c) => oy + (c.row > 6 ? c.row - 0.45 : c.row) * ch;
   let s = "";
   for (const c of cells) {
@@ -193,11 +193,11 @@ function A1() {
 }
 
 export const CAPTIONS = {
-  "1": "The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler's generalized Madelung rule predicts for four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6's f block 32 (drawn below, as ours is). An element takes our element's name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 5. Hover a cell for its configuration and ionization.",
-  "2": "The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 1, need exactly 1/r.",
-  "3": "Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Interactive, with hydrogen's exact orbitals: kata.mino.mobi/orbital.",
-  "4": "First ionization energy against Z across the four-dimensional table. The noble gases close their rows, but the hardest-held electron isn't a noble gas's: element 128, a full 18-electron d shell with nothing outside it (our palladium's kind), holds its outermost electron at 29.6 eV against its row's noble gas at 26.7; element 68, the same kind a row up, comes within a volt of its row's. In ours palladium holds far less hard than xenon. Across row 6's 32-wide f block (81–112) the binding barely moves.",
-  "5": "Six four-dimensional atoms in profile: each subshell's electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon's place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table.",
+  "1": "The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 2, need exactly 1/r.",
+  "2": "The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler's generalized Madelung rule predicts for four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6's f block 32 (drawn below, as ours is). An element takes our element's name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 4. Hover a cell for its configuration and ionization.",
+  "3": "First ionization energy against Z across the four-dimensional table. The noble gases close their rows, but the hardest-held electron isn't a noble gas's: element 128, a full 18-electron d shell with nothing outside it (our palladium's kind), holds its outermost electron at 29.6 eV against its row's noble gas at 26.7; element 68, the same kind a row up, comes within a volt of its row's. In ours palladium holds far less hard than xenon. Across row 6's 32-wide f block (81–112) the binding barely moves.",
+  "4": "Six four-dimensional atoms in profile: each subshell's electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon's place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table. Every element's profile: four.mino.mobi/table/#Z.",
+  "5": "Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Any element's orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen's exact ones, turned live: kata.mino.mobi/orbital.",
   "6": "What the law does. Every 4D atom solved a second time with the shell theorem forced on (the clouds' pull as if each sat at the centre), everything else held. (a) The table: grey, the same ground configuration under both laws; orange, changed; ?, no settled ground state under the shell theorem (row 6's f block, 89–116, after a second, wider search). Every atom up to 88 settles. The first 24 elements and all six noble gases are unchanged: the rows are the geometry's, at least through row 5. Every change starts at the first d element: without the law, p beats d inside each row. (b) First ionization under both: the law holds outer electrons a median 2.5 times harder, and element 128 nearly ten times (29.6 eV against 3.1); with the shell theorem the noble gases hold hardest, as ours do.",
   A1: "The pull of a thin shell of charge on a point at another radius, over a point charge's at the shell's centre, as κ(t) of the ratio t of the two radii. The shell theorem makes it 1; under the pinned 1/r in four dimensions it falls to 8/3π at the shell itself.",
   A2: "The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z.",
@@ -205,7 +205,7 @@ export const CAPTIONS = {
 
 export function figures() {
   const out = new Map();
-  for (const [k, f] of Object.entries({ "1": fig1, "2": fig2, "3": fig3, "4": fig4, "5": fig5, "6": fig6, A1, A2 })) out.set(`figures/${k}.svg`, f());
+  for (const [k, f] of Object.entries({ "1": figLaw, "2": figTable, "3": figIonization, "4": figProfiles, "5": figOrbitals, "6": figCounterfactual, A1, A2 })) out.set(`figures/${k}.svg`, f());
   out.set("figures/captions.json", JSON.stringify(CAPTIONS, null, 1) + "\n");
   return out;
 }

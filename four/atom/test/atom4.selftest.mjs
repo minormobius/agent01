@@ -1274,5 +1274,16 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the Bluminium solver: block counting matches ⟨S²⟩ (${same}), free 4D d² ground a singlet ×${free.g} (Hund's first rule fails), ruby at the baked s, β: ⁴T₂ ${f.allowed_eV.toFixed(3)}, ²E ${f.flip_eV.toFixed(3)} eV`);
 }
 
+/* 70 · the big table's "Inside the atom" (table/profiles.json, tools/profiles.mjs bake) is the site's table: every 4D
+   element in its configuration, each subshell's radial probability integrating to one electron */
+{
+  const fs = await import("node:fs"), { TABLE: TC } = await import("../js/tablec.js");
+  const PR = JSON.parse(fs.readFileSync(path.join(here, "../../table/profiles.json"), "utf8")), r = PR.r;
+  const wrong = PR.atoms.filter((a) => a.config !== TC[4][a.Z - 1].config).map((a) => a.Z);
+  let worst = 0; for (const a of PR.atoms) for (const q of a.sub) { let n = 0; for (let i = 1; i < r.length; i++) n += 0.5 * (q.P[i] * r[i] + q.P[i - 1] * r[i - 1]) * Math.log(r[i] / r[i - 1]) * q.k / 999; worst = Math.max(worst, Math.abs(n - 1)); }
+  ok(PR.atoms.length === TC[4].length && !wrong.length && worst < 0.02,
+    `the table's profiles: ${PR.atoms.length} elements${wrong.length ? `, configurations differ for ${wrong.join(", ")} (node four/atom/tools/profiles.mjs bake)` : ", every configuration the table's"}; each subshell holds one electron to ${(100 * worst).toFixed(2)} %`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

@@ -126,11 +126,11 @@ by Numerov's method on a logarithmic grid that stops at an inner radius $r_0$, a
 number of nodes. For $\alpha = 0.45$ it finds no bound level on any grid. For $\alpha = 0.7$ the lowest level is
 −5.87 × 10³, −5.87 × 10⁵ and −5.87 × 10⁷ hartree with $r_0 = 10^{-3}$, $10^{-4}$ and $10^{-5}$ bohr. It grows as
 $1/r_0^2$ ($\varepsilon r_0^2$ = −0.00587, −0.00587), set by where the calculation stops rather than by the
-electron (figure 2a). Either way there is no Bohr radius, no size an atom could settle at. Ehrenfest made the
+electron (figure 1a). Either way there is no Bohr radius, no size an atom could settle at. Ehrenfest made the
 classical version of this argument [@ehrenfest1917]: under Gauss's law in four dimensions no planetary orbit is stable
 either.
 
-![**Figure 2.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 1, need exactly 1/r.](../figures/2.svg){#fig-2}
+![**Figure 1.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 2, need exactly 1/r.](../figures/1.svg){#fig-1}
 
 **2.2 The ways out, and what each costs.** Something has to give. The squeeze that resists the pull costs
 $\hbar^2/2m_e r^2$, because the electron's energy grows as the square of its momentum $p$. The pull goes as $1/r^2$
@@ -175,7 +175,7 @@ $-Z^2/2(n + \tfrac12)^2$. With $(l + 1)^2$ orbitals to each $l$, shell $n$ holds
 
 Without the symmetry nothing holds the $l$ together. On the same solver, 2p sits −6.2 % from 2s at $\eta = 0.8$,
 5 × 10⁻¹⁰ % at $\eta = 1$, +15.4 % at $\eta = 1.2$ and +64.0 % at $\eta = 1.5$ (as a fraction of the shell's
-binding; 3d against 3s goes the same way, +78.3 % at $\eta = 1.5$; figure 2b). Below 1 the electron with more
+binding; 3d against 3s goes the same way, +78.3 % at $\eta = 1.5$; figure 1b). Below 1 the electron with more
 angular momentum is the more bound, above it the less. So under $\eta = 1.5$ a one-electron atom's 2p is bound little
 more than a third as hard as its 2s, and each $l$ is a level of its own. A table would still have rows, since many
 electrons split the $l$ in ours too. But the rows would be set by how the exponent treats electrons that come near the
@@ -502,13 +502,13 @@ configuration with a competitor holding fewer d and f electrons within a volt of
 
 **8.1 Rows and noble gases.** The table's rows hold 2, 10, 10, 28, 28, 60 elements (and 2 of the next by
 element 140), and its noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the first ionization energy (figures
-1 and 4). Those are the rows the generalized Madelung rule of @negadi1996 predicts for four dimensions.
+2 and 3). Those are the rows the generalized Madelung rule of @negadi1996 predicts for four dimensions.
 To our knowledge this is the first self-consistent table that confirms them. Part III asks how much of that the law
 decides.
 
-![**Figure 1.** The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler's generalized Madelung rule predicts for four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6's f block 32 (drawn below, as ours is). An element takes our element's name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 5. Hover a cell for its configuration and ionization.](../figures/1.svg){#fig-1}
+![**Figure 2.** The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler's generalized Madelung rule predicts for four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6's f block 32 (drawn below, as ours is). An element takes our element's name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 4. Hover a cell for its configuration and ionization.](../figures/2.svg){#fig-2}
 
-![**Figure 4.** First ionization energy against Z across the four-dimensional table. The noble gases close their rows, but the hardest-held electron isn't a noble gas's: element 128, a full 18-electron d shell with nothing outside it (our palladium's kind), holds its outermost electron at 29.6 eV against its row's noble gas at 26.7; element 68, the same kind a row up, comes within a volt of its row's. In ours palladium holds far less hard than xenon. Across row 6's 32-wide f block (81–112) the binding barely moves.](../figures/4.svg){#fig-4}
+![**Figure 3.** First ionization energy against Z across the four-dimensional table. The noble gases close their rows, but the hardest-held electron isn't a noble gas's: element 128, a full 18-electron d shell with nothing outside it (our palladium's kind), holds its outermost electron at 29.6 eV against its row's noble gas at 26.7; element 68, the same kind a row up, comes within a volt of its row's. In ours palladium holds far less hard than xenon. Across row 6's 32-wide f block (81–112) the binding barely moves.](../figures/3.svg){#fig-3}
 
 **8.2 The hardest-held electron isn't a noble gas's.** Element 128 has an 18-electron d shell, full, with nothing
 outside it. It holds its outermost electron at 29.56 eV, harder than its row's noble gas 138 (26.71 eV) and
@@ -517,13 +517,16 @@ harder than any other atom in the table. Element 68, the same kind a row up, com
 xenon at 12.1 [@nist-handbook]. Searching each ion for its own ground state leaves element 128's ionization where
 it was. Seven other ions do rearrange, and their ionizations drop: 36 (11.42 → 10.94), 93 (9.14 → 8.90), 94 (9.20 → 8.43), 95 (9.27 → 7.99), 103 (9.96 → 9.67), 104 (10.05 → 9.29), 105 (10.13 → 8.92) eV. The main table carries those. Section 9 shows the law does it.
 
-**8.3 Inside the rows.** Figure 5 draws six atoms in profile: their radial densities, and what each one's outermost
-orbital looks like on the 3-sphere (figure 3). Where the filling departs from the simple order, and how the
-ionization energy and the radius run with Z, are in the data files (table4.csv).
+**8.3 Inside the rows.** Figure 4 draws six atoms in profile: their radial densities, and what each one's outermost
+orbital looks like on the 3-sphere (figure 5). The same two pictures for every element, from the same solver, are on
+the interactive table, where picking an element draws them and any of its subshells can be cut by any of the six planes
+of four-dimensional space ([four.mino.mobi/table](https://four.mino.mobi/table/#128); a link ending `#Z` opens on
+element Z). Where the filling departs from the simple order, and how the ionization energy and the radius run with Z,
+are in the data files (table4.csv).
 
-![**Figure 5.** Six four-dimensional atoms in profile: each subshell's electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon's place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table.](../figures/5.svg){#fig-5}
+![**Figure 4.** Six four-dimensional atoms in profile: each subshell's electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon's place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table. Every element's profile: four.mino.mobi/table/#Z.](../figures/4.svg){#fig-4}
 
-![**Figure 3.** Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Interactive, with hydrogen's exact orbitals: kata.mino.mobi/orbital.](../figures/3.svg){#fig-3}
+![**Figure 5.** Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Any element's orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen's exact ones, turned live: kata.mino.mobi/orbital.](../figures/5.svg){#fig-5}
 
 # Part III · What the law does
 

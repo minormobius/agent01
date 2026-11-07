@@ -243,7 +243,7 @@
    "note": "82 under the shell theorem is 6s² 6p², different from both its old and new configurations; 'changed' and 'the law's own configuration is lower' stand"
   },
   {
-   "item": "Figures 1, 4 and 6 draw from atom/js/table.js (the bake), not the corrected table: point them at build.mjs's rows (differences ≤ 0.67 eV in eight ionizations, and element 82's configuration)",
+   "item": "Figures 2, 3 and 6 (numbered 1, 4 and 6 before the renumbering) draw from atom/js/table.js (the bake), not the corrected table: point them at build.mjs's rows (differences ≤ 0.67 eV in eight ionizations, and element 82's configuration)",
    "status": "done",
    "note": "figures/make.mjs lays data/termtable.json over the bake, as build.mjs does"
   },
@@ -385,6 +385,10 @@
   {
    "date": "2026-11-07",
    "what": "Figures placed in context at the PI's request: build.mjs puts each figure after the paragraph that first cites it (an appendix figure after its first citation in the appendices), in the whole draft and in each section page, each with an anchor #fig-N; the separate Figures section is gone. The main-text figures are now met in the order 2, 1, 4, 5, 3, 6, so their numbers no longer follow first citation."
+  },
+  {
+   "date": "2026-11-07",
+   "what": "Figures renumbered in order of first citation (old 2, 1, 4, 5, 3, 6 → 1–6; make.mjs's figure functions renamed by subject so the numbers live only in CAPTIONS and the text). The paper's figures 4 and 5 (elements in profile, orbitals on the 3-sphere) now exist for every element: the big table's new 'Inside the atom' (table/inside.js, from table/profiles.json, baked by atom/tools/profiles.mjs: all 140 re-solved in the table's configurations, each matching the table's energy, selftest 70). /table/#Z opens on element Z; §8.3 and both captions link it."
   }
  ]
 }

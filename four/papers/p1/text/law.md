@@ -37,7 +37,7 @@ by Numerov's method on a logarithmic grid that stops at an inner radius $r_0$, a
 number of nodes. For $\alpha = 0.45$ it finds no bound level on any grid. For $\alpha = 0.7$ the lowest level is
 {{gauss.e3}}, {{gauss.e4}} and {{gauss.e5}} hartree with $r_0 = 10^{-3}$, $10^{-4}$ and $10^{-5}$ bohr. It grows as
 $1/r_0^2$ ($\varepsilon r_0^2$ = {{gauss.c3}}, {{gauss.c5}}), set by where the calculation stops rather than by the
-electron (figure 2a). Either way there is no Bohr radius, no size an atom could settle at. Ehrenfest made the
+electron (figure 1a). Either way there is no Bohr radius, no size an atom could settle at. Ehrenfest made the
 classical version of this argument [@ehrenfest1917]: under Gauss's law in four dimensions no planetary orbit is stable
 either.
 
@@ -84,7 +84,7 @@ $-Z^2/2(n + \tfrac12)^2$. With $(l + 1)^2$ orbitals to each $l$, shell $n$ holds
 
 Without the symmetry nothing holds the $l$ together. On the same solver, 2p sits {{split.p08}} from 2s at $\eta = 0.8$,
 {{split.p1}} at $\eta = 1$, {{split.p12}} at $\eta = 1.2$ and {{split.p15}} at $\eta = 1.5$ (as a fraction of the shell's
-binding; 3d against 3s goes the same way, {{split3.p15}} at $\eta = 1.5$; figure 2b). Below 1 the electron with more
+binding; 3d against 3s goes the same way, {{split3.p15}} at $\eta = 1.5$; figure 1b). Below 1 the electron with more
 angular momentum is the more bound, above it the less. So under $\eta = 1.5$ a one-electron atom's 2p is bound little
 more than a third as hard as its 2s, and each $l$ is a level of its own. A table would still have rows, since many
 electrons split the $l$ in ours too. But the rows would be set by how the exponent treats electrons that come near the

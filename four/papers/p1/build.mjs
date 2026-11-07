@@ -21,7 +21,7 @@ import { levels as lawLevels } from "./laws.js";
 import { element as bakeElement } from "../../atom/tools/bake.mjs";
 import { farPull } from "./far.js";
 import { gaussLaw, shellSplit } from "./laws.js";
-import { figures as drawFigures } from "./figures/make.mjs";
+import { figures as drawFigures, CAPTIONS } from "./figures/make.mjs";
 import { k4 } from "../../atom/js/kernel.js";
 import * as FIELDS from "../../atom/js/fields.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout } from "../../atom/js/periodic.js";
@@ -430,7 +430,7 @@ function numbers(t3, t4, L) {
 const FIG_REF = /\b[Ff]igures?\s+((?:[A-Z]?\d+[a-z]?)(?:(?:,\s*|,?\s+and\s+)[A-Z]?\d+[a-z]?)*)/g;
 const figKeys = (block) => [...block.replace(/\s+/g, " ").matchAll(FIG_REF)].flatMap((m) => m[1].split(/,\s*|,?\s+and\s+/)).map((k) => k.replace(/^(\d+)[a-z]$/, "$1"));
 function placeFigures(md, { orphansBefore = null } = {}) {
-  const caps = JSON.parse(readFileSync(join(HERE, "figures/captions.json"), "utf8"));
+  const caps = CAPTIONS; // from make.mjs itself: figures/captions.json is this build's output, not its input
   const fig = (k) => `![**Figure ${k}.** ${caps[k].replace(/\^η/g, "^η^")}](../figures/${k}.svg){#fig-${k}}`;
   const blocks = md.split(/\n{2,}/), app = blocks.findIndex((b) => /^# Appendices/.test(b)), at = new Map();
   blocks.forEach((b, i) => { if (/^(#|\||!\[)/.test(b)) return; for (const k of figKeys(b)) {
