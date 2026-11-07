@@ -28,9 +28,10 @@ const PAGES = { 1: ["hydrogen.html", "Hydrogen"], 7: ["darbon.html", "Darbon"], 
 
 let mode = "kin", pinned = +(location.hash.match(/^#(\d{1,3})$/)?.[1] ?? 7), hover = null, world = 4;
 if (!(pinned >= 1 && pinned <= TABLE[4].length)) pinned = 7;
+const label4 = (z) => { const e = N4.get(z); return e?.name ? `${e.name[0].toUpperCase()}${e.name.slice(1)} (${z})` : `element ${z}`; };
 /* a pinned 4D element is drawn inside (inside.js) and kept in the URL, so a link can open on it: /table/#128 */
 function pinned4() {
-  if (pinned > 0) { history.replaceState(null, "", `#${pinned}`); const e = N4.get(pinned); inside(pinned, e?.name ? `${e.name[0].toUpperCase()}${e.name.slice(1)} (${pinned})` : `Element ${pinned}`); }
+  if (pinned > 0) { history.replaceState(null, "", `#${pinned}`); inside(pinned, label4(pinned), label4); }
   else inside(0);
 }
 const sel = () => hover ?? pinned;

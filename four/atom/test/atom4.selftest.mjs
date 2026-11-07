@@ -1281,8 +1281,12 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const PR = JSON.parse(fs.readFileSync(path.join(here, "../../table/profiles.json"), "utf8")), r = PR.r;
   const wrong = PR.atoms.filter((a) => a.config !== TC[4][a.Z - 1].config).map((a) => a.Z);
   let worst = 0; for (const a of PR.atoms) for (const q of a.sub) { let n = 0; for (let i = 1; i < r.length; i++) n += 0.5 * (q.P[i] * r[i] + q.P[i - 1] * r[i - 1]) * Math.log(r[i] / r[i - 1]) * q.k / 999; worst = Math.max(worst, Math.abs(n - 1)); }
+  // the ions' files (bake <q>): each ion in the configuration paper 1's searches found for it
+  const IONS = new Map(JSON.parse(fs.readFileSync(path.join(here, "../../papers/p1/data/ions.json"), "utf8")).rows.filter((x) => x.D === 4).map((x) => [x.Z, x]));
+  const ionNote = []; for (const [q, f] of [[1, "p1"], [2, "p2"], [3, "p3"], [-1, "m1"]]) { const fp = path.join(here, `../../table/profiles-${f}.json`); if (!fs.existsSync(fp)) continue;
+    const IP = JSON.parse(fs.readFileSync(fp, "utf8")), bad = IP.atoms.filter((a) => IONS.get(a.Z)?.ions?.[q]?.config !== a.config).map((a) => a.Z); if (bad.length) wrong.push(...bad.map((z) => `${z}(${q})`)); ionNote.push(`${IP.atoms.length} at ${q > 0 ? "+" : "−"}${Math.abs(q)}`); }
   ok(PR.atoms.length === TC[4].length && !wrong.length && worst < 0.02,
-    `the table's profiles: ${PR.atoms.length} elements${wrong.length ? `, configurations differ for ${wrong.join(", ")} (node four/atom/tools/profiles.mjs bake)` : ", every configuration the table's"}; each subshell holds one electron to ${(100 * worst).toFixed(2)} %`);
+    `the table's profiles: ${PR.atoms.length} elements${wrong.length ? `, configurations differ for ${wrong.join(", ")} (node four/atom/tools/profiles.mjs bake)` : ", every configuration the table's"}; each subshell holds one electron to ${(100 * worst).toFixed(2)} %; ions ${ionNote.join(", ") || "none"}, each in its searched configuration`);
 }
 
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
