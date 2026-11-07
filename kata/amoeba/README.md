@@ -34,6 +34,24 @@ A stiff ball (a 4-ball in 4D) that the membrane can't pass:
 - **Held toward the middle of the enclosed volume.** That is each facet's cone, weighted by its signed volume. The
   average of the membrane's points could lie outside a sprawling cell.
 
+## Piloting
+
+Press and hold the smell sphere and the cell goes that way. Drag on the sphere to change direction; drag outside it to
+turn the view. The press is a direction: the point on the sphere's near side under your finger, taken back through
+the panel's view to the world. In 3D that is any direction (x, y, z). In 4D it is a direction along the floor
+(x, z, w), so you can send the cell ana or kata, out of your slice. While you hold:
+
+- **It fires that way.** Membrane facing that direction (its direction from the cell's middle, dotted with yours)
+  fires more readily, and new pseudopods start there.
+- **More pseudopods.** Nucleation is boosted, so a foot answers within about a second.
+- **The axis follows.** The cell's front–rear axis swings toward your direction along the floor, so myosin gathers
+  opposite and the rear comes in.
+
+Let go and it goes back to its own devices (smell, if there is food). The selftest holds that piloted along z, a 3D
+cell goes along z (≥ 85% of its travel). Piloted ana, a 4D cell goes ana (99% in a 15 s run), out of the slice it
+started in. A cyan arrow shows the steer in the main view (in 4D, labelled with how far it leaves your slice ana or
+kata), in the footprint and on the sphere.
+
 ## The panels
 
 The view takes the top two-thirds. Below are two little 3D views, each turned by dragging and zoomed by pinch or

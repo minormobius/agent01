@@ -97,7 +97,7 @@ function start() {
   worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
   worker.onmessage = (e) => { const m = e.data; if (m.type === "mesh") { mesh = m; meshReady(); } else if (m.type === "frame") { fr = m; if (mesh && m.F) { mesh.F = m.F; mesh.nv = m.nv; mesh.nf = m.nf; meshReady(); } else if (mesh) { mesh.nv = m.nv; } worker.postMessage({ type: "ready" }); } };
   worker.postMessage({ type: "init", d: sel.d, preset: sel.preset, opts: OPTS }); worker.postMessage({ type: "pause", on: sel.paused });
-  fr = null; mesh = null; S = null;
+  fr = null; mesh = null; S = null; steerDir = null;
 }
 function meshReady() {
   if (mesh.d === 3) { gl.bindVertexArray(memVao); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, Uint32Array.from(mesh.F), gl.STATIC_DRAW); nIdx = mesh.F.length; gl.bindVertexArray(null); }
@@ -138,7 +138,7 @@ function buildMembrane() {
 
 /* ------------------------------------------------------------------ captions */
 const CAPS = {
-  explore: (d) => d === 3 ? `<b>An amoeba</b>, from its mechanics. Its membrane is one closed mesh, remeshed as it flows. The cortex under it pulls it in; its pressure is whatever holds its volume; and a <b>signalling medium on the membrane</b> fires in patches: where it fires (cyan), actin polymerises against the membrane and pushes a pseudopod out, and a firing tip, bent sharply, keeps firing. The cell's front–rear axis follows its feet; myosin (warm) gathers at the rear and squeezes it in. The more of it is firing, the harder to fire more, so it makes a few feet, not a hundred. Nothing is drawn on: the shapes are what those forces make.` : `<b>A 4D amoeba</b>, in your slice. Its membrane is a 3-dimensional mesh of tetrahedra, remeshed as it flows (an edge here is shared by a whole ring of them), and what you see is your slice's cut through it: a foot reaching ana or kata leaves your slice, and shows as an island cut off from the body. Its feet push out across a 3D floor, and they have it harder: a 4D tube is squeezed by its own tension twice as hard (σ·2/r), so it takes a faster push and a sharper tip to grow one. Slide the lever to move your slice through it; the map shows its footprint, the solid it stands on.`,
+  explore: (d) => d === 3 ? `<b>An amoeba</b>, from its mechanics. Its membrane is one closed mesh, remeshed as it flows. The cortex under it pulls it in; its pressure is whatever holds its volume; and a <b>signalling medium on the membrane</b> fires in patches: where it fires (cyan), actin polymerises against the membrane and pushes a pseudopod out, and a firing tip, bent sharply, keeps firing. The cell's front–rear axis follows its feet; myosin (warm) gathers at the rear and squeezes it in. The more of it is firing, the harder to fire more, so it makes a few feet, not a hundred. Nothing is drawn on: the shapes are what those forces make. <b>Pilot it:</b> press and hold the smell sphere below, and the membrane facing that way fires more readily, new feet start there, and its front swings round to follow.` : `<b>A 4D amoeba</b>, in your slice. Its membrane is a 3-dimensional mesh of tetrahedra, remeshed as it flows (an edge here is shared by a whole ring of them), and what you see is your slice's cut through it: a foot reaching ana or kata leaves your slice, and shows as an island cut off from the body. Its feet push out across a 3D floor, and they have it harder: a 4D tube is squeezed by its own tension twice as hard (σ·2/r), so it takes a faster push and a sharper tip to grow one. Slide the lever to move your slice through it; the map shows its footprint, the solid it stands on. <b>Pilot it</b> on the smell sphere: its directions are the floor's x, z and w, so you can send it ana or kata, out of your slice.`,
   hunt: (d) => d === 3 ? `<b>Hunt.</b> Food (green) leaks a chemical; the floor glows with it. The membrane fires more readily where the smell is stronger, so its feet go that way more often than not: nobody steers it. It eats what it closes round, and grows a little.` : `<b>Hunt in 4D.</b> The smell falls as 1/r² here, so food has to lie closer and thicker (ten morsels within 4.5 radii, against four within 9 in 3D) for the feet to find it. Most of it is off your slice: watch the glow, the map and the readout.`,
   still: (d) => `<b>Still.</b> The signalling off: no feet. Pressed flat by its weight and stuck down by adhesion, it settles to a dome on its footprint, the pressure ${d === 3 ? "σ·2/R" : "σ·3/R"} of its curvature, and stays.`,
   float: (d) => `<b>Floating.</b> The same signalling with nothing to hold on to. It still drifts, about two-thirds as fast: its feet push out in front and are drawn in behind, a cycle that doesn't undo itself, and amoebae have been seen to swim that way. (The water here is plain local drag, not a full flow, so the speed is a sketch.)`,
@@ -186,7 +186,7 @@ for (const ev of ["contextmenu", "selectstart"]) document.addEventListener(ev, (
 
 /* ------------------------------------------------------------------ the loop */
 const TAN = 0.5;
-let last = performance.now(), res = 0;
+let last = performance.now(), res = 0, lastCam = null;
 function draw(now) {
   requestAnimationFrame(draw);
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
@@ -200,7 +200,7 @@ function draw(now) {
   const d = fr.d, C4 = [0, 0, 0, 0]; for (let k = 0; k < d; k++) C4[k] = fr.C[k];
   const target = d === 4 ? add(C4, frame.N, frame.off) : C4; target[1] = Math.max(target[1], 0.6);
   S = S ? S.map((v, k) => v + (target[k] - v) * 0.08) : target;
-  const cam = camera(), E = d === 4 ? frame.E : [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]];
+  const cam = camera(), E = d === 4 ? frame.E : [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]; lastCam = cam;
   // pass 1: floor, food, nucleus
   gl.useProgram(bgP); gl.bindVertexArray(bgVao); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.ALWAYS); gl.depthMask(true); gl.disable(gl.BLEND);
   gl.uniform2f(UB.uRes, cw, chh); gl.uniform1f(UB.uTan, TAN); gl.uniform3fv(UB.uEye, cam.eye); gl.uniform3fv(UB.uCR, cam.R); gl.uniform3fv(UB.uCU, cam.U); gl.uniform3fv(UB.uCF, cam.F);
@@ -234,6 +234,17 @@ function overlay() {
   if (d === 4) lines.push(`your slice: ${frame.off >= 0 ? "+" : ""}${frame.off.toFixed(2)} ana`);
   const wrapped = lines.flatMap((l) => (g.measureText(l).width < w - 24 ? [l] : l.split(" · ")));
   g.fillStyle = "rgba(233,228,218,0.85)"; wrapped.forEach((l, i) => g.fillText(l, 12, h - 130 - 15 * (wrapped.length - i)));
+  // the way you're steering, in the main view: an arrow from the cell's middle (in 4D, the part of it in your slice,
+  // and how much of it leaves your slice ana or kata)
+  if (steerDir && lastCam && S) {
+    const E = d === 4 ? frame.E : [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], C4 = [0, 0, 0, 0], D4 = [0, 0, 0, 0]; for (let k = 0; k < d; k++) { C4[k] = fr.C[k]; D4[k] = steerDir[k]; }
+    const toE = (p) => E.map((e) => dot(e, p.map((x, k) => x - S[k]))), { eye, R, U, F } = lastCam;
+    const proj = (e) => { const r = e.map((x, k) => x - eye[k]), z = dot(r, F); return z > 0.05 ? [w / 2 + (dot(r, R) / (z * TAN)) * (h / 2), h / 2 - (dot(r, U) / (z * TAN)) * (h / 2)] : null; };
+    const a = proj(toE(C4)), b = proj(toE(C4.map((x, k) => x + 1.8 * D4[k])));
+    if (a && b) { g.strokeStyle = "rgba(90,230,255,0.9)"; g.fillStyle = "rgba(90,230,255,0.9)"; g.lineWidth = 3; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      const t = Math.atan2(b[1] - a[1], b[0] - a[0]); g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(b[0] - 11 * Math.cos(t - 0.4), b[1] - 11 * Math.sin(t - 0.4)); g.lineTo(b[0] - 11 * Math.cos(t + 0.4), b[1] - 11 * Math.sin(t + 0.4)); g.fill(); g.lineWidth = 1;
+      if (d === 4) { const an = dot(D4, frame.N); if (Math.abs(an) > 0.05) { g.fillStyle = an > 0 ? "#38f2e0" : "#ff66b8"; g.fillText(`${an > 0 ? "ana" : "kata"} ${Math.abs(an).toFixed(2)}`, b[0] + 8, b[1]); } } }
+  }
 }
 /* ------------------------------------------------------------------ the two panels below
    Each is its own little 3D view, drawn on a 2D canvas: drag to turn it, pinch or scroll to zoom. Coordinates (a, b, c)
@@ -250,22 +261,39 @@ function overlay() {
    sphere, now of every way it could crawl. The gold arrow is the gradient it reads, the white one its heading, the
    green marks the directions of food */
 const PV = { fp: { az: 0.6, el: 0.55, zoom: 1, el3: 1.25 }, sm: { az: 0.6, el: 0.35, zoom: 1 } };
-function paneControls(cv, st) {
-  const ps = new Map(); let pinch0 = 0;
-  cv.addEventListener("pointerdown", (e) => { try { cv.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } ps.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ps.size === 2) { const [a, b] = [...ps.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); } });
+function paneControls(cv, st, steers = false) {
+  const ps = new Map(); let pinch0 = 0, steering = null;
+  cv.addEventListener("pointerdown", (e) => { try { cv.setPointerCapture(e.pointerId); } catch (err) { /* fine */ } ps.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ps.size === 2) { const [a, b] = [...ps.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); if (steering !== null) { steering = null; steer(null); } }
+    // (on the smell sphere, one finger on the sphere steers; anywhere else it turns the view)
+    if (steers && ps.size === 1) { const dir = sphereDir(st, e, cv); if (dir) { steering = e.pointerId; steer(dir); } } });
   cv.addEventListener("pointermove", (e) => { const g = ps.get(e.pointerId); if (!g) return;
+    if (steering === e.pointerId) { const dir = sphereDir(st, e, cv); if (dir) steer(dir); g.x = e.clientX; g.y = e.clientY; return; }
     if (ps.size >= 2) { g.x = e.clientX; g.y = e.clientY; const [a, b] = [...ps.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch0 > 10) st.zoom = Math.max(0.3, Math.min(6, st.zoom * (d / pinch0))); pinch0 = d; return; }
     st.az -= (e.clientX - g.x) * 0.01; st.el = Math.max(-1.5, Math.min(1.5, st.el + (e.clientY - g.y) * 0.01)); g.x = e.clientX; g.y = e.clientY; });
-  for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, (e) => ps.delete(e.pointerId));
+  for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, (e) => { ps.delete(e.pointerId); if (steering === e.pointerId) { steering = null; steer(null); } });
   cv.addEventListener("wheel", (e) => { st.zoom = Math.max(0.3, Math.min(6, st.zoom * Math.exp(-e.deltaY * 0.0012))); e.preventDefault(); }, { passive: false });
 }
-paneControls($("fp"), PV.fp); paneControls($("sm"), PV.sm);
+paneControls($("fp"), PV.fp); paneControls($("sm"), PV.sm, true);
+/* PILOTING: a press on the smell sphere, back to a direction. The panel draws (a, b, c) turned by az and tilted by el;
+   undo that for the point on the sphere's near side under your finger. In 3D (a, b, c) = (x, z, y); in 4D the floor's
+   (x, z, w). That direction goes to the cell for as long as you hold, and follows your finger */
+function sphereDir(st, e, cv) {
+  const r = cv.getBoundingClientRect(), G = st.geom; if (!G) return null;
+  const X = (e.clientX - r.left - G.cx) / G.sc, Yv = -(e.clientY - r.top - G.cy) / G.sc, q = X * X + Yv * Yv;
+  if (q > 1.15 * 1.15) return null;
+  const k = q > 1 ? 1 / Math.sqrt(q) : 1, x = X * k, yv = Yv * k, Z = -Math.sqrt(Math.max(0, 1 - x * x - yv * yv));
+  const c = yv * G.ce + Z * G.se, y = -yv * G.se + Z * G.ce, a = x * G.ca - y * G.sa, b = x * G.sa + y * G.ca;
+  return sel.d === 3 ? [a, c, b] : [a, 0, b, c];
+}
+let steerDir = null;
+function steer(dir) { steerDir = dir; if (worker) worker.postMessage({ type: "steer", dir, s: 1 }); }
 // a view: rotate (a, b) by az about c, tilt by el; returns [sx, sy, depth]
 function projector(cv, st, scale, centre = [0, 0, 0]) {
   const dpr = Math.min(2, devicePixelRatio || 1), w = cv.clientWidth, h = cv.clientHeight;
   if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
   const ca = Math.cos(st.az), sa = Math.sin(st.az), ce = Math.cos(st.el), se = Math.sin(st.el), sc = scale * st.zoom * Math.min(w, h), cx = w / 2, cy = h / 2 + 6;
+  st.geom = { cx, cy, sc, ca, sa, ce, se };
   const P = (a0, b0, c0) => { const a = a0 - centre[0], b = b0 - centre[1], c = c0 - centre[2], x = a * ca + b * sa, y = -a * sa + b * ca; return [cx + x * sc, cy - (c * ce - y * se) * sc, c * se + y * ce]; };
   return { g, P, w, h, sc };
 }
@@ -306,6 +334,7 @@ function panes() {
     { const q = P(fr.nuc[0], fr.nuc[2], d === 4 ? fr.nuc[3] : fr.nuc[1]); g.fillStyle = "rgba(170,110,200,0.95)"; g.beginPath(); g.arc(q[0], q[1], 4, 0, 7); g.fill(); }
     for (const F of fr.foods) { const q = P(F[0], F[2], d === 4 ? F[3] : 0); g.fillStyle = "rgba(120,215,95,0.9)"; g.beginPath(); g.arc(q[0], q[1], 3, 0, 7); g.fill(); }
     if (fr.pv) { const h = [fr.pv[0], fr.pv[2], d === 4 ? fr.pv[3] : 0], l = Math.hypot(...h); if (l > 1e-3) arrow(g, P, ctr, h.map((x) => x / l), reach * 0.6, "rgba(255,255,255,0.8)"); }
+    if (steerDir) { const h = [steerDir[0], steerDir[2], d === 4 ? steerDir[3] : 0], l = Math.hypot(...h); if (l > 0.1) arrow(g, P, ctr, h.map((x) => x / l), reach * 0.8, "rgba(90,230,255,0.95)", 2.5); }
     $("fpT").textContent = d === 3 ? "footprint · the floor is a plane (x, z)" : "footprint · the floor is a space (x, z, w)";
     $("fpS").textContent = d === 3 ? "on the floor, bright: cyan firing, red myosin · the cell faint above · white: its heading" : "the footprint is a solid · the plane: your slice's cut through the floor · white: its heading";
   }
@@ -327,8 +356,9 @@ function panes() {
     if (food) { const gr = [0, 0, 0]; for (const [a, b, c, i] of dirs) { const w = fr.chem[i] - cm; gr[0] += w * a; gr[1] += w * b; gr[2] += w * c; } const l = Math.hypot(...gr); if (l > 0) arrow(g, P, [0, 0, 0], gr.map((x) => x / l), 1.35, "rgba(255,210,122,0.95)", 2.5);
       for (const F of fr.foods) { const a = F[0] - C[0], b = F[2] - C[2], c = d === 3 ? F[1] - C[1] : F[3] - C[3], l2 = Math.hypot(a, b, c); if (l2 < 1e-6) continue; const q = P((a / l2) * 1.15, (b / l2) * 1.15, (c / l2) * 1.15); g.fillStyle = "rgba(120,215,95,0.95)"; g.beginPath(); g.arc(q[0], q[1], 3.2, 0, 7); g.fill(); } }
     if (fr.pv) { const h = [fr.pv[0], fr.pv[2], d === 4 ? fr.pv[3] : fr.pv[1]], l = Math.hypot(...h); if (l > 1e-3) arrow(g, P, [0, 0, 0], h.map((x) => x / l), 1.1, "rgba(255,255,255,0.75)"); }
+    if (steerDir) { const sd = d === 3 ? [steerDir[0], steerDir[2], steerDir[1]] : [steerDir[0], steerDir[2], steerDir[3]], q = P(...sd); arrow(g, P, [0, 0, 0], sd, 1.0, "rgba(90,230,255,0.95)", 3); g.strokeStyle = "rgba(90,230,255,0.95)"; g.lineWidth = 2; g.beginPath(); g.arc(q[0], q[1], 9, 0, 7); g.stroke(); g.lineWidth = 1; }
     $("smT").textContent = d === 3 ? "smell · its membrane, all round (x, y, z)" : "smell · every way along its floor (x, z, w)";
-    $("smS").textContent = food ? "dark → amber: the chemical each part reads · gold: the gradient · green: food · white: heading" : "no food about: coloured by firing (cyan) and myosin (red) · white: heading";
+    $("smS").textContent = (steerDir ? "steering (cyan) · " : "press and hold the sphere to steer · drag outside it to turn · ") + (food ? "amber: the chemical each part reads · gold: its gradient · green: food" : "cyan firing, red myosin · white: heading");
   }
 }
 

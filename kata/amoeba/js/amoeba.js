@@ -41,6 +41,8 @@ export const PAR = {
   // what it does to the membrane: polymerisation speed where u fires; the cortex softer there, tighter with myosin
   protrude: 0, vp: 0.7, soften: 0.6, tighten: 0.7,
   // polarity: the cell's axis grows with firing (pUp), fades over pTau; leans firing to the front; myosin at the rear
+  // piloting: how much pressing leans the firing, adds nucleation, and swings the axis
+  pilot: 0.35, pilotRate: 0.25, pilotTurn: 2,
   pUp: 1, pTau: 6, myoGain: 2, myoFrom: 0.3, polSat: 0.15, retract: 0, polBias: 0.25, patch: 2, curvBias: 0.5,
   // keeping the mesh even
   relax: 0.4, relaxIt: 2, smooth: 0, cgIt: 40, remeshEvery: 5, remeshEvery4: 10, edgeScale: 1.4,
@@ -163,7 +165,12 @@ function signalling(A, dt) {
   // goes, and a foot grows long instead of stopping as a bump)
   const H = A.H; let Hm = 0; if (H) { for (let i = 0; i < nv; i++) Hm += area[i] * H[i]; Hm /= tot; }
   const curv = (j) => (H && Hm > 0 ? par.curvBias * Math.max(-1, Math.tanh((H[j] - Hm) / Hm)) : 0);
-  const bG = par.b + par.inhibit * act, lean = (j) => (cm > 0 ? par.chem * Math.tanh((chem[j] - cm) / cm) : 0) + par.polBias * str * Math.tanh(front[j]) + curv(j);
+  // PILOTING (A.steer = { dir, s }): the membrane facing the way you press fires more readily (aim: how squarely each
+  // point faces dir, from the cell's middle), and that's where new pseudopods start
+  const st = A.steer && A.steer.s > 0 ? A.steer : null, aim = A.aim || (A.aim = new Float64Array(nv));
+  if (st) for (let i = 0; i < nv; i++) { let q = 0, l = 0; for (let k = 0; k < d; k++) { const x = P[i * d + k] - C[k]; q += x * st.dir[k]; l += x * x; } aim[i] = q / (Math.sqrt(l) || 1); }
+  const pilot = (j) => (st ? par.pilot * st.s * Math.max(-0.5, aim[j]) : 0);
+  const bG = par.b + par.inhibit * act, lean = (j) => (cm > 0 ? par.chem * Math.tanh((chem[j] - cm) / cm) : 0) + par.polBias * str * Math.tanh(front[j]) + curv(j) + pilot(j);
   for (let i = 0; i < nv; i++) {
     const thr = (v[i] + bG - lean(i)) / par.a;
     const du = (u[i] * (1 - u[i]) * (u[i] - thr)) / par.eps;
@@ -175,7 +182,8 @@ function signalling(A, dt) {
   diffuse(A, u, par.Du, dt);
   // nucleation: now and then a small patch fires (a burst of actin signalling), at a rate per unit of membrane, at the
   // best of a dozen random spots that have recovered, scored by smell and by lying at the front
-  const events = par.noise * A.Area * dt; let ne = Math.floor(events) + (rand(A) < events % 1 ? 1 : 0);
+  // (piloted, more of them: a pseudopod answers you within about a second)
+  const events = (par.noise + (st ? par.pilotRate * st.s : 0)) * A.Area * dt; let ne = Math.floor(events) + (rand(A) < events % 1 ? 1 : 0);
   while (ne-- > 0) {
     const score = (j) => (v[j] > 0.15 ? -9 : lean(j) + 0.05 * rand(A));
     let i = Math.floor(rand(A) * nv), si = score(i);
@@ -190,6 +198,8 @@ function signalling(A, dt) {
   for (let i = 0; i < nv; i++) { if (u[i] < 0.3) continue; const w = area[i] * u[i]; for (let k = 0; k < d; k++) if (k !== 1) fd[k] += w * (P[i * d + k] - C[k]); fw += w; }
   const fl = Math.hypot(...fd); if (fl > 0) for (let k = 0; k < d; k++) pv[k] += (dt * par.pUp * (fw / tot) * fd[k]) / fl;
   for (let k = 0; k < d; k++) pv[k] -= (dt * pv[k]) / par.pTau;
+  // (piloted, the cell's front–rear axis swings toward the way you press, along the floor: myosin gathers opposite)
+  if (st && A.floor) { const h = st.dir.map((x, k) => (k === 1 ? 0 : x)), hl = Math.hypot(...h); if (hl > 0.2) for (let k = 0; k < d; k++) pv[k] += dt * par.pilotTurn * st.s * ((h[k] / hl) * Math.max(0.3, Math.hypot(...pv)) - pv[k]); }
   // myosin at the rear, as strong as the cell is polarised; what the cortex then does
   const myo = A.myo;
   for (let i = 0; i < nv; i++) myo[i] = str * Math.max(0, Math.min(1, par.myoGain * (-front[i] - par.myoFrom)));
@@ -279,7 +289,7 @@ function cg(A, cc, r, x, x0) {
 
 /* rebuild everything sized by the mesh after a remesh: the adjacency, the per-vertex and per-facet arrays (the
    signalling's u and v carried over), and drop every scratch buffer so it is made again at the new size */
-const SCRATCH = ["H", "Lc", "Q", "cc", "cgA", "cgP", "cgR", "du", "dv", "f0", "f1", "front", "nh", "ra", "rb", "wsum", "xa", "xb", "ysw", "mob", "cv"];
+const SCRATCH = ["aim", "H", "Lc", "Q", "cc", "cgA", "cgP", "cgR", "du", "dv", "f0", "f1", "front", "nh", "ra", "rb", "wsum", "xa", "xb", "ysw", "mob", "cv"];
 export function remesh(A) {
   const { d, nv, P, M } = A, Pa = [], Fa = [];
   for (let i = 0; i < nv; i++) Pa.push(Array.from(P.subarray(i * d, i * d + d)));

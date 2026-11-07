@@ -3,9 +3,9 @@
    30 s, remeshed as it goes: its volume holds; the mesh stays a closed surface (every edge in exactly two triangles,
    Euler characteristic 2) with its edges within the remesher's bounds; it never goes through the floor or cuts its
    nucleus; it is not round (more membrane than a ball's, reaching well out); it moves. The inside test (a ray's
-   crossings). And a hunt: it eats. Then 4D: 15 s exploring, remeshed
+   crossings). And a hunt: it eats. Then 4D: 15 s piloted ana, remeshed
    (tetrahedra), still a closed 3-sphere (every triangle in two tetrahedra, Euler characteristic 0); volume, floor,
-   nucleus; it moves.
+   nucleus; it goes ana. And 3D piloted along z goes along z.
      node kata/amoeba/test/amoeba.selftest.mjs   (~70 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,15 +48,23 @@ for (const d of [3, 4]) {
   ok(A.eaten >= 1 && A.V0 > A.V00, `hunting, it finds food by smell and engulfs it (first in ${A.t.toFixed(1)} s), and grows`);
 }
 {
-  // 4D: 15 s exploring, remeshed as it goes: still a closed 3-sphere of tetrahedra, volume, floor, nucleus, moving
+  // 4D: 15 s piloted ana, remeshed as it goes: still a closed 3-sphere of tetrahedra, volume, floor, nucleus, moving
   const A = Am.makeAmoeba(4); A.seed = 9001; const c0 = Am.centre(A); let dv = 0, below = 0, cut = Infinity;
+  A.steer = { dir: Float64Array.from([0, 0, 0, 1]), s: 1 }; // (piloted ana, along w, the whole time)
   while (A.t < 15) { Am.step(A); dv = Math.max(dv, Math.abs(A.V / A.V0 - 1));
     for (let i = 0; i < A.nv; i++) { below = Math.min(below, A.P[i * 4 + 1]); let q = 0; for (let k = 0; k < 4; k++) q += (A.P[i * 4 + k] - A.nuc.c[k]) ** 2; cut = Math.min(cut, Math.sqrt(q) - A.nuc.a); } }
   const tc = new Map(), ec = new Set(); for (let k = 0; k < A.nf; k++) { const f = [...A.M.F.subarray(k * 4, k * 4 + 4)].sort((x, y) => x - y); for (let o = 0; o < 4; o++) { const t = f.filter((_, j) => j !== o).join(","); tc.set(t, (tc.get(t) || 0) + 1); } for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) ec.add(f[i] + "," + f[j]); }
   const bad = [...tc.values()].filter((n) => n !== 2).length, chi = A.nv - ec.size + tc.size - A.nf;
   ok(bad === 0 && chi === 0, `4D: after 15 s of remeshing (every ${A.par.remeshEvery4} steps), still a closed 3-sphere of tetrahedra: every triangle in two (${bad} not), Euler characteristic ${chi} (${A.nv} points, ${A.nf} tetrahedra)`);
   ok(dv < 0.01 && below >= -1e-9 && cut > Am.NUC_GAP * 0.5, `4D: the volume holds (${(dv * 100).toFixed(2)}%), never through the floor (${below.toExponential(1)}) or its nucleus (nearest ${cut.toFixed(3)})`);
-  const c = Am.centre(A), moved = Math.hypot(c[0] - c0[0], c[2] - c0[2], c[3] - c0[3]);
-  ok(moved > 1, `4D: it crawls across its 3D floor: ${moved.toFixed(1)} radii in 15 s`);
+  const c = Am.centre(A), moved = Math.hypot(c[0] - c0[0], c[2] - c0[2], c[3] - c0[3]), ana = c[3] - c0[3];
+  ok(ana > 2 && ana > 0.85 * moved, `4D: piloted ana (along w), it goes ana: ${ana.toFixed(1)} of its ${moved.toFixed(1)} radii in 15 s, out of the slice it started in`);
+}
+{
+  // 3D: piloted along +z for 10 s, it goes along z
+  const A = Am.makeAmoeba(3); A.seed = 31; const c0 = Am.centre(A); A.steer = { dir: Float64Array.from([0, 0, 1]), s: 1 };
+  while (A.t < 10) Am.step(A);
+  const c = Am.centre(A), moved = Math.hypot(c[0] - c0[0], c[2] - c0[2]), along = c[2] - c0[2];
+  ok(along > 2 && along > 0.85 * moved, `3D: piloted along z, it goes along z: ${along.toFixed(1)} of its ${moved.toFixed(1)} radii in 10 s`);
 }
 console.log(`${checks - fails}/${checks} checks`); process.exit(fails ? 1 : 0);
