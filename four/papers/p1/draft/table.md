@@ -98,7 +98,14 @@ configuration with a competitor holding fewer d and f electrons within a volt of
 **8.1 Rows and noble gases.** The table's rows hold 2, 10, 10, 28, 28, 60 elements (and 2 of the next by
 element 140), and its noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the first ionization energy (figures
 2 and 3). Those are the rows the generalized Madelung rule of @negadi1996 predicts for four dimensions.
-To our knowledge this is the first self-consistent table that confirms them. Part III asks how much of that the law
+To our knowledge this is the first self-consistent table that confirms them. The rule also predicts how each row
+fills, and there the agreement is close but not exact. 103 of the 140 ground configurations are exactly the
+rule's. Each of the other 37 moves one or two electrons from one subshell to another: 34 from the outer s
+into the d or f subshell below it (10 of them two electrons), as our chromium, copper and palladium do, and
+the other 3 between other pairs: 81 (4f → 5d), 82 (4f → 5d) and 113 (5d → 6p). Ours has exceptions of the same kind, and the solver finds more of them than there are. Over our
+first 36 elements it departs from the rule 6 times (Ti, V, Cr, Co, Ni, Cu), where the measured configurations depart
+2 times (Cr and Cu). The reason is its lean toward d (section 6.3), so the 4D count is likely too high,
+and these departures, not the rows, are where the table is least sure. Part III asks how much of the table the law
 decides.
 
 ![**Figure 2.** The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler's generalized Madelung rule predicts for four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6's f block 32 (drawn below, as ours is). An element takes our element's name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 4. Hover a cell for its configuration and ionization.](../figures/2.svg){#fig-2}

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="78439ac6870782dabcfa0b6fc0f3408ff5cfd84fdb208547094b2b29a65ebfa7" />
+<meta name="source-sha256" content="8abeaf62a561dba6c4741b4da405520ecf94d223b9c6fa7bdf19ba907ef35465" />
 <title>Paper 1 · Methods (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -14,11 +14,11 @@
 <div class="p-venue">four.mino.mobi · paper 1 · in preparation</div>
 <div class="p-body single">
 <h1 id="methods-draft">Methods (draft)</h1>
-<h2 id="the-code">The code</h2>
-<p>Everything in this paper is computed by code written for it:
-JavaScript with no outside libraries, run under Node.js, and the same
-files run in a browser (four.mino.mobi/atom). The atom is
-<code>atom/js/atom.js</code>, with the shell kernel in
+<h2 id="methods">5 · Methods</h2>
+<p><strong>5.1 The code.</strong> Everything in this paper is computed
+by code written for it: JavaScript with no outside libraries, run under
+Node.js, and the same files run in a browser (four.mino.mobi/atom). The
+atom is <code>atom/js/atom.js</code>, with the shell kernel in
 <code>kernel.js</code>. One electron in any law is
 <code>papers/p1/laws.js</code>, and the terms of open subshells are
 <code>atom/tools/hund.mjs</code> and <code>termtable.mjs</code>. Nothing
@@ -34,8 +34,8 @@ class="citation" data-cites="sun2018 sun2020">(<a href="#ref-sun2018"
 role="doc-biblioref">Sun et al. 2018</a>, <a href="#ref-sun2020"
 role="doc-biblioref">2020</a>)</span>. Every number quoted is read from
 the code’s output by the paper’s build (appendix E).</p>
-<h2 id="the-law-inside-an-atom">The law inside an atom</h2>
-<p>An atom here is a point nucleus of charge
+<p><strong>5.2 The law inside an atom.</strong> An atom here is a point
+nucleus of charge
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
@@ -77,8 +77,8 @@ the levels are
 so 4D hydrogen’s ground state is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
 hartree; the solver gives −0.22222 (section 6.1).</p>
-<p><strong>The clouds’ potential.</strong> A spherical shell of charge
-at radius
+<p><strong>5.3 The clouds’ potential.</strong> A spherical shell of
+charge at radius
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>,
 felt at radius
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>,
@@ -105,8 +105,8 @@ the self-consistent field, its energy and the ionized atom’s goes
 through this kernel. That is where the missing shell theorem enters the
 atom: an inner cloud screens the nucleus from an outer electron only
 partly.</p>
-<p><strong>Exchange.</strong> Local exchange from the uniform electron
-gas of the same dimension and the same law,
+<p><strong>5.4 Exchange.</strong> Local exchange from the uniform
+electron gas of the same dimension and the same law,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ε</mi><mi>x</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mi>ρ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><msub><mi>A</mi><mi>D</mi></msub><mspace width="0.167em"></mspace><msup><mi>ρ</mi><mrow><mn>1</mn><mi>/</mi><mi>D</mi></mrow></msup></mrow><annotation encoding="application/x-tex">\varepsilon_x(\rho) = -A_D\,\rho^{1/D}</annotation></semantics></math>
 per electron for an electron density
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>,
@@ -127,44 +127,51 @@ that orbital alone, in the manner of the self-interaction correction of
 <span class="citation" data-cites="perdew1981">Perdew and Zunger (<a
 href="#ref-perdew1981" role="doc-biblioref">1981</a>)</span>. There is
 no correlation term.</p>
-<h2 id="solving-one-configuration">Solving one configuration</h2>
-<p>The radial equation is solved on a logarithmic grid of 700 points
-from r₀ = 10⁻⁵ to 150 bohr (step
+<p><strong>5.5 Solving one configuration.</strong> The radial equation
+is solved on a logarithmic grid of 700 points from
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>r</mi><mn>0</mn></msub><annotation encoding="application/x-tex">r_0</annotation></semantics></math>
+= 10⁻⁵ to 150 bohr (step
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>h</mi><annotation encoding="application/x-tex">h</annotation></semantics></math>
 = 0.02364 in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>ln</mo><mi>r</mi></mrow><annotation encoding="application/x-tex">\ln r</annotation></semantics></math>)
-by Numerov’s method on y = u/√r, with each level found by Sturm
-bisection on the node count of the outward solution (90 halvings), the
-outward integration stopped where h²f/12 &gt; ½ so that Numerov cannot
-fake nodes in the forbidden region, and the orbital matched to an inward
-solution at the turning point.</p>
+by Numerov’s method on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mo>=</mo><mi>u</mi><mi>/</mi><msqrt><mi>r</mi></msqrt></mrow><annotation encoding="application/x-tex">y = u/\sqrt r</annotation></semantics></math>,
+with each level found by Sturm bisection on the node count of the
+outward solution (90 halvings), the outward integration stopped where
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>h</mi><mn>2</mn></msup><mi>f</mi><mi>/</mi><mn>12</mn><mo>&gt;</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac></mrow><annotation encoding="application/x-tex">h^2 f/12 &gt; \tfrac12</annotation></semantics></math>
+(for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>y</mi><mi>″</mi><mo>=</mo><mi>f</mi><mspace width="0.167em"></mspace><mi>y</mi></mrow><annotation encoding="application/x-tex">y&#39;&#39; = f\,y</annotation></semantics></math>)
+so that Numerov cannot fake nodes in the forbidden region, and the
+orbital matched to an inward solution at the turning point.</p>
 <p>For a fixed configuration (occupations of each subshell, every
 orbital of a subshell sharing one radial function) the field is iterated
 to self-consistency: each orbital solved in the potential of the
 nucleus, the others’ clouds and exchange; the new clouds mixed into the
 old at 0.4; up to 80 iterations, stopping when the total energy changes
 by less than 10⁻⁷ hartree between iterations.</p>
-<p><strong>Is the stop tight enough?</strong> A stop on the energy can
-leave the far density less converged than the energy is; the plane-wave
-work met exactly that in its pseudopotentials’ all-electron atom, where
-exchange carried an unconverged tail into the potential. So 19 atoms
-across every row of both worlds were re-solved in their baked
+<p><strong>5.6 Is the stop tight enough?</strong> A stop on the energy
+can leave the far density less converged than the energy is; the
+plane-wave work met exactly that in its pseudopotentials’ all-electron
+atom, where exchange carried an unconverged tail into the potential. So
+19 atoms across every row of both worlds were re-solved in their baked
 configurations and then driven on from that field to a stop of 10⁻¹²
 hartree (appendix C, <code>audit-scf.mjs</code>). Total energies and
 first ionization energies moved by at most 2.7 × 10⁻⁷ and 2.8 × 10⁻⁷
 hartree, the outermost orbital energy by 1.7 × 10⁻⁶, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">Q = \sum\langle r^2\rangle</annotation></semantics></math>
 (the far pull’s, and the forces between atoms’) by 1.9 × 10⁻⁵ of itself;
-the baked ⟨r²⟩ agree with the tight ones to 7.0 × 10⁻⁵. The density
-beyond about 15 bohr is not converged relatively, but it is noise there:
-off by large factors only where it is 10⁻¹³ to 10⁻¹⁷ electrons per bohr,
-and converged to 10⁻⁶ where an atom has a loosely held s electron that
-puts real charge out that far. Nothing the paper quotes depends on it; a
+the baked
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle r^2\rangle</annotation></semantics></math>
+agree with the tight ones to 7.0 × 10⁻⁵. The density beyond about 15
+bohr is not converged relatively, but it is noise there: off by large
+factors only where it is 10⁻¹³ to 10⁻¹⁷ electrons per bohr, and
+converged to 10⁻⁶ where an atom has a loosely held s electron that puts
+real charge out that far. Nothing the paper quotes depends on it; a
 calculation that builds a potential from the far density through
 exchange must converge the density pointwise, as the pseudopotentials
 now do.</p>
-<p><strong>Is the grid fine enough?</strong> 11 atoms from every row of
-both worlds were re-solved in their baked configurations on six other
+<p><strong>5.7 Is the grid fine enough?</strong> 11 atoms from every row
+of both worlds were re-solved in their baked configurations on six other
 grids, changing one of the number of points (500, 1000), the inner end
 (10⁻⁴, 10⁻⁶ bohr) and the outer end (100, 250 bohr) at a time (appendix
 C, <code>convergence.mjs</code>). First ionization energies moved by at
@@ -173,47 +180,52 @@ most 1.4 × 10⁻⁴ hartree on any of them. Total energies moved by at most
 krypton, whose 1s sits deeper than any four-dimensional atom’s and is
 the grid’s hardest case. The paper quotes ionization energies and energy
 differences, not total energies.</p>
-<h2 id="the-ground-configuration">The ground configuration</h2>
-<p>For each Z the ground configuration is searched, not assumed. The
-search starts from the hydrogenic filling (subshells in order of n, then
-l), solves it, and refills by the orbital energies of every subshell,
-occupied or not, in the field it has just found, up to 6 rounds or until
-the filling stops changing. It then tries moving one or two electrons
-between the open subshells, the two highest filled ones and the two
-lowest empty ones, solving each candidate from the current field. A
-candidate counts only if its field settles: an unsettled field can
-report an energy far too low, since with exchange a barely bound orbital
-can drift for hundreds of iterations. The lowest settled energy is the
-ground state.</p>
+<p><strong>5.8 The ground configuration.</strong> For each
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+the ground configuration is searched, not assumed. The search starts
+from the hydrogenic filling (subshells in order of n, then l), solves
+it, and refills by the orbital energies of every subshell, occupied or
+not, in the field it has just found, up to 6 rounds or until the filling
+stops changing. It then tries moving one or two electrons between the
+open subshells, the two highest filled ones and the two lowest empty
+ones, solving each candidate from the current field. A candidate counts
+only if its field settles: an unsettled field can report an energy far
+too low, since with exchange a barely bound orbital can drift for
+hundreds of iterations. The lowest settled energy is the ground
+state.</p>
 <p>For 7 elements of the 4D table (88, 101–103 and 105–107) the first
 search landed on an unsettled field. They were searched again seeded
 from both neighbours’ configurations with one or two electrons added or
 taken, each seed solved from scratch, and the lowest settled one
 kept.</p>
-<p>The first ionization energy is ΔSCF: the ion’s own ground state with
-an electron taken from whichever of the 3 least-bound occupied subshells
-leaves it lowest, relaxed from the atom’s field, minus the atom’s
-energy. Koopmans’ orbital energies are not used.</p>
+<p>The first ionization energy is ΔSCF, a difference of two
+self-consistent energies: the ion’s own ground state with an electron
+taken from whichever of the 3 least-bound occupied subshells leaves it
+lowest, relaxed from the atom’s field, minus the atom’s energy.
+Koopmans’ orbital energies are not used.</p>
 <p>The table is 140 elements in four dimensions and 36 in ours, baked
-once (on GitHub’s runners past Z ≈ 80) into a single generated file,
-which a selftest re-solves in sample on every change.</p>
-<h2 id="the-terms-of-open-subshells">The terms of open subshells</h2>
-<p>The search above gives every open subshell Hund spins. Section 7
-finds where that’s wrong, and the table is corrected for it. Each d- and
-f-block element is searched again, seeded as the repair pass seeds, and
-every settled candidate’s energy gets its open subshells’ term
-correction: the lowest term less the lowest maximum-spin term. That
-comes from the subshell’s own repulsion on that candidate’s own orbital
+once (on GitHub’s runners past
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>≈</mo><mn>80</mn></mrow><annotation encoding="application/x-tex">Z \approx 80</annotation></semantics></math>)
+into a single generated file, which a selftest re-solves in sample on
+every change.</p>
+<p><strong>5.9 The terms of open subshells.</strong> The search above
+gives every open subshell Hund spins. Section 7 finds where that’s
+wrong, and the table is corrected for it. Each d- and f-block element is
+searched again, seeded as the repair pass seeds, and every settled
+candidate’s energy gets its open subshells’ term correction: the lowest
+term less the lowest maximum-spin term. That comes from the subshell’s
+own repulsion on that candidate’s own orbital
 (<code>atom/tools/termtable.mjs</code>). It is zero wherever Hund’s
 first rule holds. The ionization is corrected the same way on both
 sides. Fillings whose spin blocks are too large to solve per candidate
 take the survey’s verdict (section 7.2), which for them is that the rule
 holds.</p>
-<h2 id="the-counterfactual">The counterfactual</h2>
-<p>To separate what the table owes to the law from what it owes to the
-geometry, every 4D element is solved a second time with the shell
-theorem forced on: the clouds’ potential taken as 1/max(r, s) (our
-kernel) while everything else, the 4D kinetic operator, the
+<p><strong>5.10 The counterfactual.</strong> To separate what the table
+owes to the law from what it owes to the geometry, every 4D element is
+solved a second time with the shell theorem forced on: the clouds’
+potential taken as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mo>max</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>r</mi><mo>,</mo><mi>s</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">1/\max(r, s)</annotation></semantics></math>
+(our kernel) while everything else, the 4D kinetic operator, the
 degeneracies, exchange, the search, stays as it was. Each element’s
 search is seeded with the real table’s configuration and its neighbours’
 ± one electron, so the counterfactual isn’t a weaker search; and the
@@ -229,26 +241,30 @@ ionization energy is positive (a negative one means an electron would
 rather leave: the search missed a lower configuration). By that rule 112
 of 140 settle, every atom up to 88; the rest (89–116) are row 6’s f
 block and the first elements after it.</p>
-<h2 id="one-electron-any-law">One electron, any law</h2>
-<p>The arguments of section 2 use a separate solver for one electron in
-any central potential (<code>laws.js</code>): the same radial equation
-and Numerov–Sturm method on a grid whose inner end can be moved, which
-is what tests a fall to the centre. For V = −α/r² it finds no level
-below α = ½ on any grid and, above it, a lowest level that scales as
-1/r₀² (section 2.1); for
+<p><strong>5.11 One electron, any law.</strong> The arguments of section
+2 use a separate solver for one electron in any central potential
+(<code>laws.js</code>): the same radial equation and Numerov–Sturm
+method on a grid whose inner end can be moved, which is what tests a
+fall to the centre. For
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo>=</mo><mo>−</mo><mi>α</mi><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">V = -\alpha/r^2</annotation></semantics></math>
+it finds no level below
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac></mrow><annotation encoding="application/x-tex">\alpha = \tfrac12</annotation></semantics></math>
+on any grid and, above it, a lowest level that scales as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msubsup><mi>r</mi><mn>0</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">1/r_0^2</annotation></semantics></math>
+(section 2.1); for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>V</mi><mo>=</mo><mo>−</mo><mn>1</mn><mi>/</mi><msup><mi>r</mi><mi>η</mi></msup></mrow><annotation encoding="application/x-tex">V = -1/r^\eta</annotation></semantics></math>
 it gives the splittings within each shell (section 3.1). Its check is 4D
-hydrogen: −0.22222222 against −2/9.</p>
-<h2 id="checks">Checks</h2>
-<p>Every method above has a known-answer test in the selftest, run on
-every change: hydrogen in both worlds (block 1), the radial solver (2),
-the kernel against direct integration (3), exchange against the
-electron-gas constants (4, 18), the ground search (5, 7), two-electron
-atoms against an independent Gaussian Hartree–Fock code in four
-dimensions and MP2 against PySCF in ours (17, 43), our table against
-measured values (6: 32 of 36 configurations; ionization to a 4.3 %
-median error), and this paper’s own claims recomputed from the bake
-(67).</p>
+hydrogen: −0.22222222 against
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>.</p>
+<p><strong>5.12 Checks.</strong> Every method above has a known-answer
+test in the selftest, run on every change: hydrogen in both worlds
+(block 1), the radial solver (2), the kernel against direct integration
+(3), exchange against the electron-gas constants (4, 18), the ground
+search (5, 7), two-electron atoms against an independent Gaussian
+Hartree–Fock code in four dimensions and MP2 against PySCF in ours (17,
+43), our table against measured values (6: 32 of 36 configurations;
+ionization to a 4.3 % median error), and this paper’s own claims
+recomputed from the bake (67).</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">

@@ -181,6 +181,20 @@ export function madelungRows(d, upto) {
   return rows;
 }
 
+/* the strict rule's configuration for Z in D dimensions (fill in order of n + l, then n), and each solved atom against
+   it: which subshells gain or lose electrons. Négadi and Kibler's rule predicts the filling as well as the rows */
+export function madelungFill(Z, d) {
+  const order = subshells(d).sort((a, b) => a.n + a.l - (b.n + b.l) || a.n - b.n), m = new Map(); let left = Z;
+  for (const s of order) { if (!left) break; const k = Math.min(left, s.cap); m.set(s.name, k); left -= k; }
+  return m;
+}
+export function madelungDiff(rowsOf, d, config = (r) => r.config) {
+  const parse = (c) => new Map(c.split(" ").map((t) => { const x = t.match(/^(\d+[a-z])(\d+)$/); return [x[1], +x[2]]; }));
+  return rowsOf.map((r) => { const m = madelungFill(r.Z, d), o = parse(config(r)), keys = [...new Set([...m.keys(), ...o.keys()])];
+    return { Z: r.Z, moves: keys.map((k) => [k, (o.get(k) ?? 0) - (m.get(k) ?? 0)]).filter(([, v]) => v) }; }).filter((x) => x.moves.length);
+}
+const moveText = (mv) => { const from = mv.find(([, v]) => v < 0), to = mv.find(([, v]) => v > 0); return `${from[0]} → ${to[0]}${to[1] > 1 ? ` ×${to[1]}` : ""}`; };
+
 function ledger(t3, t4, files, refs) {
   const { periods } = layout(TABLE, 4), rows = periods.map((p) => p.length), whole = rows.slice(0, -1), predicted = madelungRows(4, 140).slice(0, whole.length);
   const nobles = t4.filter((r) => r.noble), nobleZ = nobles.map((r) => r.Z);
@@ -213,6 +227,11 @@ function ledger(t3, t4, files, refs) {
         holds: e4 > 2.5 && e4 < 2.56 && e3 > 7 / 3 && e3 < 2.42 && e4 - 2.5 < e3 - 7 / 3 + 0.03, section: "4.5", gate: [67] }; })(),
     { id: "rows", part: "table", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule predicts for D = 4",
       value: `solved ${whole.join(", ")} (and ${rows.at(-1)} of the next by Z = 140); the rule ${predicted.join(", ")}`, holds: whole.join() === predicted.join() && whole.join() === "2,10,10,28,28,60", section: "5", gate: [7, 27, 67] },
+    (() => { const dv = madelungDiff(t4, 4), pair = dv.every((x) => x.moves.length === 2 && x.moves.reduce((t, [, v]) => t + v, 0) === 0 && Math.abs(x.moves[0][1]) <= 2);
+      const ours = madelungDiff(t3.filter((r) => r.Z <= 36), 3), real = madelungDiff(t3.filter((r) => r.Z <= 36), 3, (r) => r.config_measured);
+      return { id: "madelungfill", part: "table", claim: "Inside the rows the rule is followed less strictly: most 4D atoms fill exactly in its order, and every other moves one or two electrons between two subshells, nearly always from an outer s into the d or f below it, as our chromium and copper do",
+        value: `${t4.length - dv.length} of ${t4.length} exactly the rule's; the rest: ${dv.map((x) => `${x.Z} ${moveText(x.moves)}`).join(", ")}. Ours 1–36: the solver departs at ${ours.map((x) => x.Z).join(", ")}, measured at ${real.map((x) => x.Z).join(", ")}`,
+        holds: pair && dv.length < 45 && t4.length - dv.length > 95, section: "8.1", gate: [67] }; })(),
     { id: "nobles", part: "table", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
       value: `noble gases ${nobleZ.join(", ")}; each above both neighbours: ${peaks ? "yes" : "no"}`, holds: nobleZ.join() === "2,12,22,50,78,138" && peaks, section: "5", gate: [7, 27, 67] },
     { id: "fulld", part: "table", claim: "The hardest-held electron in the table isn't a noble gas's: element 128, whose 18-electron d shell is full with nothing outside it (our palladium's kind), out-holds its row's noble gas 138, and element 68, the same kind a row up, comes within a volt of its row's noble gas 78 (in ours palladium holds far less hard than xenon, 8.3 against 12.1 eV)",
@@ -369,6 +388,11 @@ function tableTokens(t3, t4, CF, cfOk) {
   const far = t4.filter((r) => r.noble).map((r) => { const f = farPull(TABLE[4][r.Z - 1], RPLOT); return Math.abs(f.U(30) / f.far(30) - 1); });
   const sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");
   return {
+    ...(() => { const dv = madelungDiff(t4, 4), sd = dv.filter((x) => /s$/.test(x.moves.find(([, v]) => v < 0)[0])), other = dv.filter((x) => !sd.includes(x));
+      const ours = madelungDiff(t3.filter((r) => r.Z <= 36), 3), real = madelungDiff(t3.filter((r) => r.Z <= 36), 3, (r) => r.config_measured), SY = (z) => SYM[z - 1];
+      return { "nk.match": String(t4.length - dv.length), "nk.n": String(dv.length), "nk.sd": String(sd.length), "nk.sd2": String(sd.filter((x) => x.moves.some(([, v]) => v === 2)).length),
+        "nk.otherN": String(other.length), "nk.other": other.map((x) => `${x.Z} (${moveText(x.moves)})`).join(", ").replace(/, ([^,]*)$/, " and $1"), "nk.ours": String(ours.length), "nk.oursList": ours.map((x) => SY(x.Z)).join(", "),
+        "nk.real": String(real.length), "nk.realList": real.map((x) => SY(x.Z)).join(" and ") }; })(),
     "table.rows": rws.join(", "), "table.nobles": nob.join(", "), "table.lastRow": String(periods.at(-1).length),
     "ion.128": t4[127].ion_eV.toFixed(2), "ion.138": t4[137].ion_eV.toFixed(2), "ion.68": t4[67].ion_eV.toFixed(2), "ion.78": t4[77].ion_eV.toFixed(2),
     "ion3.max": `${errs.at(-1).toFixed(1)} %`, "misses3": t3.filter((r) => !r.config_match).map((r) => r.name).join(", ").replace(/, ([^,]+)$/, " and $1"),
@@ -459,7 +483,7 @@ function drafts(t3, t4, L) {
    the paragraph that first cites it, then the supplement and the references. paper.html is rendered from it like every section */
 function assemble(parts, L) {
   const get = (f) => (parts.get(`draft/${f}`) || "").replace(/<!--[\s\S]*?-->\n?/g, "").trim(), strip = (t) => t.replace(/^# .*\n+/, ""), undraft = (t) => t.replace(/ \(draft\)/g, "");
-  const methods = strip(get("methods.md")).replace(/^## /gm, "### ");
+  const methods = strip(get("methods.md")); // carries its own "## 5 · Methods"
   const table = get("table.md").replace(/^# .*\n+/, "");
   return placeFigures(`<!-- Generated by papers/p1/build.mjs from text/*.md: the whole paper in one draft. -->
 # Paper 1 · the whole draft
@@ -478,8 +502,6 @@ ${undraft(strip(get("notation.md")))}
 ${undraft(get("law.md"))}
 
 # Part II · The table
-
-## 5 · Methods
 
 ${methods}
 

@@ -98,7 +98,14 @@ configuration with a competitor holding fewer d and f electrons within a volt of
 **8.1 Rows and noble gases.** The table's rows hold {{table.rows}} elements (and {{table.lastRow}} of the next by
 element 140), and its noble gases are elements {{table.nobles}}, each a peak of the first ionization energy (figures
 2 and 3). Those are the rows the generalized Madelung rule of @negadi1996 predicts for four dimensions.
-To our knowledge this is the first self-consistent table that confirms them. Part III asks how much of that the law
+To our knowledge this is the first self-consistent table that confirms them. The rule also predicts how each row
+fills, and there the agreement is close but not exact. {{nk.match}} of the 140 ground configurations are exactly the
+rule's. Each of the other {{nk.n}} moves one or two electrons from one subshell to another: {{nk.sd}} from the outer s
+into the d or f subshell below it ({{nk.sd2}} of them two electrons), as our chromium, copper and palladium do, and
+the other {{nk.otherN}} between other pairs: {{nk.other}}. Ours has exceptions of the same kind, and the solver finds more of them than there are. Over our
+first 36 elements it departs from the rule {{nk.ours}} times ({{nk.oursList}}), where the measured configurations depart
+{{nk.real}} times ({{nk.realList}}). The reason is its lean toward d (section 6.3), so the 4D count is likely too high,
+and these departures, not the rows, are where the table is least sure. Part III asks how much of the table the law
 decides.
 
 **8.2 The hardest-held electron isn't a noble gas's.** Element 128 has an 18-electron d shell, full, with nothing

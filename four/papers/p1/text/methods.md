@@ -3,9 +3,9 @@
 <!-- Source. Display maths in $$ TeX $$ (pandoc renders it: page.mjs). Every {{token}} is filled by papers/p1/build.mjs from the code or the ledger; the build fails on a token it
      doesn't know, so a number here can't drift from what the solver does. The rendered draft is ../draft/methods.md. -->
 
-## The code
+## 5 · Methods
 
-Everything in this paper is computed by code written for it: JavaScript with no outside libraries, run under Node.js,
+**5.1 The code.** Everything in this paper is computed by code written for it: JavaScript with no outside libraries, run under Node.js,
 and the same files run in a browser (four.mino.mobi/atom). The atom is `atom/js/atom.js`, with the shell kernel in
 `kernel.js`. One electron in any law is `papers/p1/laws.js`, and the terms of open subshells are `atom/tools/hund.mjs`
 and `termtable.mjs`. Nothing is taken from a quantum-chemistry package. Two independent codes check it (section 6.2):
@@ -13,9 +13,7 @@ and `termtable.mjs`. Nothing is taken from a quantum-chemistry package. Two inde
 Davidson [-@mcmurchie1978], and in ours PySCF [@sun2018; @sun2020]. Every number quoted is read from the code's output by the paper's build
 (appendix E).
 
-## The law inside an atom
-
-An atom here is a point nucleus of charge $Z$ and $Z$ electrons, non-relativistic, with every pair of charges interacting
+**5.2 The law inside an atom.** An atom here is a point nucleus of charge $Z$ and $Z$ electrons, non-relativistic, with every pair of charges interacting
 through the pinned potential $q_1q_2/r$ in four spatial dimensions. The same law acts between an electron and the nucleus
 and between two electrons; nothing in the method borrows Gauss's law. Atomic units throughout (hartree, bohr).
 
@@ -30,7 +28,7 @@ subshell of angular momentum $l$ holds $2(2l + 1)$ electrons in ours and $2(l + 
 $V = -Z/r$ the levels are $-Z^2/2(n + (D - 3)/2)^2$, so 4D hydrogen's ground state is $-2/9$ hartree; the solver gives
 {{h4.E}} (section 6.1).
 
-**The clouds' potential.** A spherical shell of charge at radius $s$, felt at radius $r$, gives in ours
+**5.3 The clouds' potential.** A spherical shell of charge at radius $s$, felt at radius $r$, gives in ours
 $1/\max(r, s)$ (the shell theorem). In four dimensions under $1/r$ it gives $\kappa(t)/\max(r, s)$,
 $t = \min/\max$, with $\kappa$ the $1/r$ kernel averaged over a 3-sphere,
 
@@ -41,18 +39,16 @@ table of {{kernel.table}} points with linear interpolation). Every electron–el
 field, its energy and the ionized atom's goes through this kernel. That is where the missing shell theorem enters the
 atom: an inner cloud screens the nucleus from an outer electron only partly.
 
-**Exchange.** Local exchange from the uniform electron gas of the same dimension and the same law,
+**5.4 Exchange.** Local exchange from the uniform electron gas of the same dimension and the same law,
 $\varepsilon_x(\rho) = -A_D\,\rho^{1/D}$ per electron for an electron density $\rho$, with
 $A_3 = \tfrac34(3/\pi)^{1/3}$ = {{exchange.c3}} and $A_4 = 16/15\sqrt\pi$ = {{exchange.c4}}, as in the general-$D$ formulas
 of @loos2016 for $1/r$ jellium (appendix B). Spins are polarized by Hund's rule (a subshell fills one spin first),
 and each electron's own share is removed from both its Hartree and its exchange potential: the Hartree term by its own
 orbital's cloud, the exchange term by the fully polarized exchange of that orbital alone, in the manner of the self-interaction correction of @perdew1981. There is no correlation term.
 
-## Solving one configuration
-
-The radial equation is solved on a logarithmic grid of {{grid.N}} points from r₀ = {{grid.r0}} to {{grid.rmax}} bohr
-(step $h$ = {{grid.h}} in $\ln r$) by Numerov's method on y = u/√r, with each level found by Sturm bisection on the node
-count of the outward solution ({{solve.bisect}} halvings), the outward integration stopped where h²f/12 > ½ so that
+**5.5 Solving one configuration.** The radial equation is solved on a logarithmic grid of {{grid.N}} points from $r_0$ = {{grid.r0}} to {{grid.rmax}} bohr
+(step $h$ = {{grid.h}} in $\ln r$) by Numerov's method on $y = u/\sqrt r$, with each level found by Sturm bisection on the node
+count of the outward solution ({{solve.bisect}} halvings), the outward integration stopped where $h^2 f/12 > \tfrac12$ (for $y'' = f\,y$) so that
 Numerov cannot fake nodes in the forbidden region, and the orbital matched to an inward solution at the turning point.
 
 For a fixed configuration (occupations of each subshell, every orbital of a subshell sharing one radial function) the
@@ -60,28 +56,26 @@ field is iterated to self-consistency: each orbital solved in the potential of t
 exchange; the new clouds mixed into the old at {{scf.mix}}; up to {{scf.iters}} iterations, stopping when the total
 energy changes by less than {{scf.tol}} hartree between iterations.
 
-**Is the stop tight enough?** A stop on the energy can leave the far density less converged than the energy is; the
+**5.6 Is the stop tight enough?** A stop on the energy can leave the far density less converged than the energy is; the
 plane-wave work met exactly that in its pseudopotentials' all-electron atom, where exchange carried an unconverged tail
 into the potential. So {{audit.n}} atoms across every row of both worlds were re-solved in their baked configurations
 and then driven on from that field to a stop of {{audit.tightTol}} hartree (appendix C, `audit-scf.mjs`). Total
 energies and first ionization energies moved by at most {{audit.dE}} and {{audit.dIon}} hartree, the outermost orbital
 energy by {{audit.dEps}}, and $Q = \sum\langle r^2\rangle$ (the far pull's, and the forces between atoms') by {{audit.dS}} of itself; the
-baked ⟨r²⟩ agree with the tight ones to {{audit.bakeS}}. The density beyond about 15 bohr is not converged relatively,
+baked $\langle r^2\rangle$ agree with the tight ones to {{audit.bakeS}}. The density beyond about 15 bohr is not converged relatively,
 but it is noise there: off by large factors only where it is 10⁻¹³ to 10⁻¹⁷ electrons per bohr, and converged to
 10⁻⁶ where an atom has a loosely held s electron that puts real charge out that far. Nothing the paper quotes depends
 on it; a calculation that builds a potential from the far density through exchange must converge the density
 pointwise, as the pseudopotentials now do.
 
-**Is the grid fine enough?** {{conv.n}} atoms from every row of both worlds were re-solved in their baked
+**5.7 Is the grid fine enough?** {{conv.n}} atoms from every row of both worlds were re-solved in their baked
 configurations on six other grids, changing one of the number of points (500, 1000), the inner end (10⁻⁴, 10⁻⁶ bohr) and
 the outer end (100, 250 bohr) at a time (appendix C, `convergence.mjs`). First ionization energies moved by at most
 {{conv.dIon}} hartree on any of them. Total energies moved by at most {{conv.dE}} hartree, {{conv.dErel}} of themselves,
 the largest for our own krypton, whose 1s sits deeper than any four-dimensional atom's and is the grid's hardest case.
 The paper quotes ionization energies and energy differences, not total energies.
 
-## The ground configuration
-
-For each Z the ground configuration is searched, not assumed. The search starts from the hydrogenic filling (subshells
+**5.8 The ground configuration.** For each $Z$ the ground configuration is searched, not assumed. The search starts from the hydrogenic filling (subshells
 in order of n, then l), solves it, and refills by the orbital energies of every subshell, occupied or not, in the field
 it has just found, up to {{ground.rounds}} rounds or until the filling stops changing. It then tries moving one or two
 electrons between the open subshells, the two highest filled ones and the two lowest empty ones, solving each
@@ -93,26 +87,22 @@ For {{table.repairedCount}} elements of the 4D table ({{table.repaired}}) the fi
 field. They were searched again seeded from both neighbours' configurations with one or two electrons added or taken,
 each seed solved from scratch, and the lowest settled one kept.
 
-The first ionization energy is ΔSCF: the ion's own ground state with an electron taken from whichever of the
+The first ionization energy is ΔSCF, a difference of two self-consistent energies: the ion's own ground state with an electron taken from whichever of the
 {{ion.candidates}} least-bound occupied subshells leaves it lowest, relaxed from the atom's field, minus the atom's
 energy. Koopmans' orbital energies are not used.
 
 The table is {{table.n4}} elements in four dimensions and {{table.n3}} in ours, baked once (on GitHub's runners past
-Z ≈ 80) into a single generated file, which a selftest re-solves in sample on every change.
+$Z \approx 80$) into a single generated file, which a selftest re-solves in sample on every change.
 
-## The terms of open subshells
-
-The search above gives every open subshell Hund spins. Section 7 finds where that's wrong, and the table is corrected
+**5.9 The terms of open subshells.** The search above gives every open subshell Hund spins. Section 7 finds where that's wrong, and the table is corrected
 for it. Each d- and f-block element is searched again, seeded as the repair pass seeds, and every settled candidate's
 energy gets its open subshells' term correction: the lowest term less the lowest maximum-spin term. That comes from
 the subshell's own repulsion on that candidate's own orbital (`atom/tools/termtable.mjs`). It is zero wherever Hund's
 first rule holds. The ionization is corrected the same way on both sides. Fillings whose spin blocks are too large to
 solve per candidate take the survey's verdict (section 7.2), which for them is that the rule holds.
 
-## The counterfactual
-
-To separate what the table owes to the law from what it owes to the geometry, every 4D element is solved a second time
-with the shell theorem forced on: the clouds' potential taken as 1/max(r, s) (our kernel) while everything else, the
+**5.10 The counterfactual.** To separate what the table owes to the law from what it owes to the geometry, every 4D element is solved a second time
+with the shell theorem forced on: the clouds' potential taken as $1/\max(r, s)$ (our kernel) while everything else, the
 4D kinetic operator, the degeneracies, exchange, the search, stays as it was. Each element's search is seeded with the
 real table's configuration and its neighbours' ± one electron, so the counterfactual isn't a weaker search; and the real
 law is re-solved in each counterfactual configuration, to check that the real table's configuration is still the lower
@@ -123,17 +113,13 @@ iterations. A counterfactual atom counts as settled only if its field converged 
 positive (a negative one means an electron would rather leave: the search missed a lower configuration). By that rule
 {{cf.settled}} of {{cf.n}} settle, every atom up to {{cf.through}}; the rest ({{cf.unsettled}}) are row 6's f block and the first elements after it.
 
-## One electron, any law
-
-The arguments of section 2 use a separate solver for one electron in any central potential (`laws.js`): the same
+**5.11 One electron, any law.** The arguments of section 2 use a separate solver for one electron in any central potential (`laws.js`): the same
 radial equation and Numerov–Sturm method on a grid whose inner end can be moved, which is what tests a fall to the
-centre. For V = −α/r² it finds no level below α = ½ on any grid and, above it, a lowest level that scales as 1/r₀²
+centre. For $V = -\alpha/r^2$ it finds no level below $\alpha = \tfrac12$ on any grid and, above it, a lowest level that scales as $1/r_0^2$
 (section 2.1); for $V = -1/r^\eta$ it gives the splittings within each shell (section 3.1). Its check is 4D hydrogen:
-{{laws.h4}} against −2/9.
+{{laws.h4}} against $-2/9$.
 
-## Checks
-
-Every method above has a known-answer test in the selftest, run on every change: hydrogen in both worlds (block 1), the
+**5.12 Checks.** Every method above has a known-answer test in the selftest, run on every change: hydrogen in both worlds (block 1), the
 radial solver (2), the kernel against direct integration (3), exchange against the electron-gas constants (4, 18), the
 ground search (5, 7), two-electron atoms against an independent Gaussian Hartree–Fock code in four dimensions and MP2
 against PySCF in ours (17, 43), our table against measured values (6: {{configs3}} configurations; ionization to a
