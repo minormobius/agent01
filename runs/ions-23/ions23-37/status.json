@@ -1,0 +1,33 @@
+{
+ "group": "ions23-37",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 34/35/36 3 2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 239
+  },
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 4 3 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1
+  },
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 5/6/7/8 3 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 113
+  },
+  {
+   "cmd": "node four/atom/tools/termtable.mjs 9/10/11/12 3 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 155
+  }
+ ]
+}

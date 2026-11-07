@@ -1,0 +1,7 @@
+$ node four/atom/tools/termtable.mjs 13/129 4 2
+{"Z":13,"D":4,"q":2,"nel":11,"raw":{"config":"1s2 2s2 2p7","E":-125.14394,"es":[-22.25841,-2.95545,-2.13407,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p7","E":-125.14394,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p7","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":113.012}
+{"Z":129,"D":4,"q":2,"nel":127,"raw":{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d17","E":-41741.49995,"es":[-2986.57433,-729.17841,-704.06937,-205.08589,-189.2232,-162.78742,-51.88216,-43.54376,-29.94569,-11.56952,-10.31482,-7.07568,-2.55026,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d17","E":-41741.49995,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d17","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":384.336}
+(node:2378) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

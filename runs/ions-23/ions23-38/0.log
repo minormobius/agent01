@@ -1,0 +1,9 @@
+$ node four/atom/tools/termtable.mjs 13/14/15/16 3 3
+{"Z":13,"D":3,"q":3,"nel":10,"raw":{"config":"1s2 2s2 2p6","E":-240.42865,"es":[-59.59203,-5.6759,-4.38285,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p6","E":-240.42865,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p6","dEc_eV":0,"delta_eV":0}],"candidates":53,"s":53.434}
+{"Z":14,"D":3,"q":3,"nel":11,"raw":{"config":"1s2 2s2 2p6 3s1","E":-287.31089,"es":[-69.95802,-6.94107,-5.48007,-1.64395,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p6 3s1","E":-287.31089,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p6 3s1","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":54.623}
+{"Z":15,"D":3,"q":3,"nel":12,"raw":{"config":"1s2 2s2 2p6 3s2","E":-339.11866,"es":[-81.18356,-8.32992,-6.69743,-1.83503,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p6 3s2","E":-339.11866,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p6 3s2","dEc_eV":0,"delta_eV":0}],"candidates":53,"s":62.512}
+{"Z":16,"D":3,"q":3,"nel":13,"raw":{"config":"1s2 2s2 2p6 3s2 3p1","E":-395.68764,"es":[-93.29553,-9.87428,-8.06536,-2.08685,-1.67727,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},"corrected":{"config":"1s2 2s2 2p6 3s2 3p1","E":-395.68764,"delta_eV":0,"parts":[],"changed":false},"within1eV":[{"config":"1s2 2s2 2p6 3s2 3p1","dEc_eV":0,"delta_eV":0}],"candidates":59,"s":73.193}
+(node:2347) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
