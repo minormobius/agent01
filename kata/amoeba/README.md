@@ -140,6 +140,24 @@ The 4D membrane is a closed 3-dimensional mesh of tetrahedra. It starts as the 6
   straight under the collapse threshold, and the remesher churned (~200 splits and ~180 collapses per pass).
 - **Speed.** Checking the link condition cheapest-level first took a pass from 1.1 s to 0.05 s.
 
+**Curvature-adaptive refinement (4D).** A trailing 4D foot wouldn't retract. Adhesion wasn't holding it (not stuck)
+and myosin was there (fully loaded); 3D on 4D's settings retracted fine. The real physics says the opposite should
+happen: a tail's tip is pulled in at σ(d − 1)(1/r − 1/R), half again as hard in 4D. The cause was resolution. The
+tail was one mesh edge thick (0.34), and a tube that thin can't register its own curvature: the model read 1.4–2.3
+where the geometry said ~9. Its tip came in at 0.03 radii/s against a predicted 0.65.
+
+So in 4D an edge also splits where the surface bends sharply: its two ends' normals more than 50° apart, down to half
+the target length, at most 2% of the points a pass (a midpoint lies on the chord, so unbounded, this ran away to 41,000
+points in 3 s). Such an edge isn't collapsed. Now the tip reads 3.6 against the geometry's 4.3 and retracts at 0.09
+against a predicted 0.13. A foot left behind shrinks (reach 1.4 → 1.2 over 12 s) instead of growing (2.8 → 4.6). 3D
+doesn't need it: its mesh is fine enough, and refining it changed its gait.
+
+**Would a 4D foot separate?** More readily than a 3D one, physically. A 4D tube beads for kr < √2, not kr < 1 (the
+LAVALAMP threshold), and its own tension squeezes it at 2σ/r, not σ/r, so a long thin trailing foot would tend to neck
+and pinch off, leaving a fragment behind (3D cells do this on long retraction fibres). The model can't: its membrane is
+one surface for good, so the most it could show is a neck thinning to a thread. At this resolution the tails stay
+~0.35–0.7 thick.
+
 Two findings, both kept in 3D too:
 
 - **Polymerisation stalls under load,** as a Brownian ratchet does. Its speed falls exponentially with the tension the

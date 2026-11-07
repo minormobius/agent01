@@ -140,7 +140,8 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   second solve, linear), polymerisation as a speed where the signalling fires, floor adhesion/stick/flatten, a
   membrane budget (polymerisation stalls exponentially once it's spent). **Remeshed** (`js/remesh.js`, any d: split
   > 1.5 L, collapse < 0.6 L with the full link condition checked vertex/edge/triangle and fold checks, flips in 3D;
-  u, v carried; every 5 steps in 3D, 10 in 4D), edge springs between. 4D has its own settings (`PAR4`). Signalling: Barkley with
+  u, v carried; every 5 steps in 3D, 10 in 4D; in 4D also split where vertex normals differ > 50°, capped 2% a pass,
+  so thin feet read their curvature and retract), edge springs between. 4D has its own settings (`PAR4`). Signalling: Barkley with
   nucleated patches, slow recovery, global inhibition, curvature feedback, one polarity axis (absolute units), myosin
   at the rear. Settings were found by contact sheets (README: the path, including the failures). Physics in a worker
   (`js/worker.js`, mesh re-sent when remeshed); the page ray-marches floor, food and nucleus with depth, then
