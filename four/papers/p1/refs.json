@@ -1,5 +1,5 @@
 {
- "about": "Paper 1's references. status: read (the source itself was read), index (bibliographic details confirmed from a publisher's or index's record, Crossref unless 'source' says otherwise; the text not read), cited (seen only as a citation in another work), memory (not yet looked up). The text cites by pandoc key ([@key]); build.mjs makes CSL JSON from Crossref's record of each DOI (data/crossref.json, refs-crossref.mjs) and refs.json, with `csl` overriding, and page.mjs marks anything not read or index as unchecked; selftest 67 checks this file's shape. The working notes behind each entry are in atom/LITERATURE.md.",
+ "about": "Paper 1's references. status: read (the source itself was read), index (bibliographic details confirmed from a publisher's or index's record, Crossref unless 'source' says otherwise; the text not read), cited (seen only as a citation in another work), memory (not yet looked up). The text cites by pandoc key ([@key]); build.mjs makes CSL JSON from Crossref's record of each DOI (data/crossref.json, refs-crossref.mjs) and refs.json, with `csl` overriding, and page.mjs marks anything not read or index as unchecked; selftest 67 checks this file's shape. The working notes behind each entry are in atom/LITERATURE.md. Proposed merge from the 2026-11-08 literature audit. Added/updated entries have verification and flag_notes; untouched entries retain their previous verification status and were not re-audited.",
  "refs": [
   {
    "key": "ehrenfest1917",
@@ -84,15 +84,31 @@
   },
   {
    "key": "kventsel1981",
-   "authors": "G. F. Kventsel & J. Katriel",
-   "title": "Thomas–Fermi atom in N dimensions",
-   "venue": "Phys. Rev. A",
+   "authors": "G. F. Kventsel, J. Katriel",
+   "title": "Thomas–Fermi atom in n dimensions",
+   "venue": "Physical Review A",
    "volume": "24",
-   "pages": "2299–2301",
+   "pages": "2299-2301",
    "year": 1981,
-   "doi": "10.1103/PhysRevA.24.2299",
+   "doi": "10.1103/physreva.24.2299",
    "status": "index",
-   "role": "intro: many-electron atoms in D dimensions (Thomas–Fermi)"
+   "role": "1, 7: many-electron prior art and §4.5 scaling",
+   "relevance": [
+    "An established arbitrary-dimensional Thomas-Fermi atomic model predates this project.",
+    "Relevant to the many-electron continuum approximation; it does not supply a shell-resolved D=4 periodic table."
+   ],
+   "flag_notes": [
+    "PRECEDENT: avoid claiming the first self-consistent atom or first many-electron calculation in D>3.",
+    "OPEN: the precise interaction convention and scaling theorem should be checked in the original before using it as proof of a specific asymptotic exponent."
+   ],
+   "verification": {
+    "extent": "Bibliographic record checked; full text not obtained",
+    "source_url": "https://doi.org/10.1103/PhysRevA.24.2299",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Bibliographic record checked; full text not obtained. https://doi.org/10.1103/PhysRevA.24.2299",
+   "url": "https://doi.org/10.1103/PhysRevA.24.2299"
   },
   {
    "key": "negadi1996",
@@ -105,7 +121,7 @@
    "doi": "10.1002/(SICI)1097-461X(1996)57:1<53::AID-QUA6>3.0.CO;2-Y",
    "arxiv": "atom-ph/9512001",
    "status": "read",
-   "role": "intro, results: the generalized Madelung rule for any D (they work it out for D = 2 and recover D = 3; applied to D = 4 it gives the rows)",
+   "role": "1: prior art; introduction, generalized Madelung rows",
    "csl": {
     "author": [
      {
@@ -117,7 +133,22 @@
       "given": "M."
      }
     ]
-   }
+   },
+   "relevance": [
+    "Generalizes hydrogenic shells and a Madelung-type ordering to arbitrary spatial D.",
+    "Works out Flatland; your D=4 row capacities are an application of the general construction, not a new rule."
+   ],
+   "flag_notes": [
+    "PRECEDENT: pre-empts a claim to the generalized D-dimensional shell/row construction; does not establish an earlier self-consistent D=4 numerical table."
+   ],
+   "verification": {
+    "extent": "Read relevant full text",
+    "source_url": "https://arxiv.org/abs/atom-ph/9512001",
+    "locator": "General-D construction and worked D=2 case",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full text: General-D construction and worked D=2 case. https://arxiv.org/abs/atom-ph/9512001",
+   "url": "https://arxiv.org/abs/atom-ph/9512001"
   },
   {
    "key": "pyykko1991",
@@ -129,26 +160,68 @@
    "year": 1991,
    "doi": "10.1002/qua.560400408",
    "status": "index",
-   "source": "Crossref; Wiley",
-   "role": "intro: the self-consistent table in D = 2"
+   "source": "Read publisher abstract; indexed citation lists checked. https://doi.org/10.1002/qua.560400408",
+   "role": "1: prior art; introduction",
+   "relevance": [
+    "Self-consistent Hartree-Fock atomic ground states for Z=1–24 in two spatial dimensions.",
+    "The closest established table precedent; distinguish physical D=2 from D=4."
+   ],
+   "flag_notes": [
+    "PRECEDENT: self-consistent periodic tables in dimensions other than three are not new; the D=4 restriction matters."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract; indexed citation lists checked",
+    "source_url": "https://doi.org/10.1002/qua.560400408",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "url": "https://doi.org/10.1002/qua.560400408"
   },
   {
    "key": "madelung1936",
-   "authors": "E. Madelung",
+   "authors": "Erwin Madelung",
    "title": "Die mathematischen Hilfsmittel des Physikers",
    "venue": "Springer, Berlin",
    "year": 1936,
-   "status": "cited",
-   "source": "3rd ed., Springer, Berlin 1936 (library catalogues; Springer DOI 10.1007/978-3-662-41816-1); the page of the n + l rule not yet checked, so cited via Négadi & Kibler",
-   "role": "intro: the Madelung rule",
+   "status": "read",
+   "source": "Read original scanned title page and p. 359; visually inspected p. 359: Third edition; appendix §15, Atombau (Elektronenkatalog), p. 359; catalogue continues on p. 360. https://link.springer.com/book/10.1007/978-3-662-02177-4",
+   "role": "6: original page of the Madelung ordering rule",
    "csl": {
     "type": "book",
     "container-title": null,
     "edition": "3",
     "publisher": "Springer",
     "publisher-place": "Berlin",
-    "language": "de"
-   }
+    "language": "de",
+    "issued": {
+     "date-parts": [
+      [
+       1936
+      ]
+     ]
+    },
+    "collection-title": "Grundlehren der mathematischen Wissenschaften",
+    "collection-number": "4",
+    "editor": null
+   },
+   "pages": "359",
+   "doi": "10.1007/978-3-662-02177-4",
+   "relevance": [
+    "Page 359 explicitly states a lexicographic ordering by (n+l), n, s, m.",
+    "Madelung calls it an empirical rule and says a theoretical justification of that ordering is not available."
+   ],
+   "flag_notes": [
+    "CORRECTION: 10.1007/978-3-662-41816-1 in the current reference note is the 1922 first edition.",
+    "METADATA ERROR: Springer’s landing page labels the 1936 book “2nd edition”; the scanned title page says DRITTE. Use a CSL edition=3 override.",
+    "RENDERING: series moved from volume to collection-title/number; Crossref's editors (Boehle, Flügge) dropped from the citation pending a check of their title-page role (collaborators on the third edition, not editors of the book)."
+   ],
+   "verification": {
+    "extent": "Read original scanned title page and p. 359; visually inspected p. 359",
+    "source_url": "https://link.springer.com/book/10.1007/978-3-662-02177-4",
+    "locator": "Third edition; appendix §15, Atombau (Elektronenkatalog), p. 359; catalogue continues on p. 360",
+    "checked": "2026-11-08"
+   },
+   "url": "https://link.springer.com/book/10.1007/978-3-662-02177-4"
   },
   {
    "key": "herschbach1992",
@@ -167,43 +240,90 @@
   },
   {
    "key": "loeser1986hf",
-   "authors": "J. G. Loeser & D. R. Herschbach",
+   "authors": "J. G. Loeser, D. R. Herschbach",
    "title": "Hartree–Fock approximation for D-dimensional two-electron atoms",
-   "venue": "J. Chem. Phys.",
+   "venue": "The Journal of Chemical Physics",
    "volume": "84",
-   "pages": "3893–3900",
+   "pages": "3893-3900",
    "year": 1986,
    "doi": "10.1063/1.450100",
    "status": "index",
-   "role": "validation: two-electron atoms against D"
+   "role": "1, 3: D-dimensional SCF precedent and HF benchmark",
+   "relevance": [
+    "Generalizes the two-electron Hartree-Fock problem to arbitrary D, with numerical energies for Z=1–6 and a wide range of dimensions.",
+    "The appropriate primary source for a converged D=4 HF regression energy, once its table and units are inspected."
+   ],
+   "flag_notes": [
+    "PRECEDENT: self-consistent two-electron atoms in D>3 already exist.",
+    "OPEN: I did not verify which D values are tabulated or extract a D=4 HF number; do not substitute a single-exponent variational result."
+   ],
+   "verification": {
+    "extent": "Read abstract and Crossref metadata; original tables inaccessible",
+    "source_url": "https://doi.org/10.1063/1.450100",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read abstract and Crossref metadata; original tables inaccessible. https://doi.org/10.1063/1.450100",
+   "url": "https://doi.org/10.1063/1.450100"
   },
   {
    "key": "loeser1986hp",
-   "authors": "J. G. Loeser & D. R. Herschbach",
+   "authors": "J. G. Loeser, D. R. Herschbach",
    "title": "Hylleraas–Pekeris treatment of D-dimensional two-electron atoms",
-   "venue": "J. Chem. Phys.",
+   "venue": "The Journal of Chemical Physics",
    "volume": "84",
-   "pages": "3882–3892",
+   "pages": "3882-3892",
    "year": 1986,
    "doi": "10.1063/1.450099",
    "status": "index",
-   "role": "validation: exact two-electron energies against D"
+   "role": "3: correlated two-electron benchmark",
+   "relevance": [
+    "Extends the Hylleraas–Pekeris method to general D for the ground and first two excited S states, Z=1–6.",
+    "Potentially supplies the precise correlated reference needed alongside the HF calculation."
+   ],
+   "flag_notes": [
+    "OPEN: D=4 table entries and their nuclear-mass/scaled-unit convention remain uninspected.",
+    "METADATA: the verified DOI is 10.1063/1.450099; do not copy conflicting DOIs from later reference lists."
+   ],
+   "verification": {
+    "extent": "Read abstract and Crossref metadata; original tables inaccessible",
+    "source_url": "https://doi.org/10.1063/1.450099",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read abstract and Crossref metadata; original tables inaccessible. https://doi.org/10.1063/1.450099",
+   "url": "https://doi.org/10.1063/1.450099"
   },
   {
    "key": "ghosh2020",
-   "authors": "A. Ghosh, S. Kais & D. R. Herschbach",
-   "title": "Unorthodox dimensional interpolations for He, Li, Be atoms and hydrogen molecule",
-   "venue": "Front. Phys.",
+   "authors": "Kumar J. B. Ghosh, Sabre Kais, Dudley R. Herschbach",
+   "title": "Unorthodox Dimensional Interpolations for He, Li, Be Atoms and Hydrogen Molecule",
+   "venue": "Frontiers in Physics",
    "volume": "8",
    "pages": "331",
    "year": 2020,
    "doi": "10.3389/fphy.2020.00331",
    "arxiv": "2004.11489",
-   "status": "index",
-   "role": "intro: dimensional scaling, recent",
+   "status": "read",
+   "role": "3: He/Li/Be dimensional scaling",
    "csl": {
     "page": "331"
-   }
+   },
+   "relevance": [
+    "Interpolates D=1 and D→infinity results to obtain D=3 energies for He, Li and Be.",
+    "Useful as a method and unit-convention reference; it is not a table of accurate D=4 Li/Be benchmarks."
+   ],
+   "flag_notes": [
+    "SCOPE: E_D = [Z/((D−1)/2)]² epsilon_D; do not compare epsilon_D directly with unscaled hartrees."
+   ],
+   "verification": {
+    "extent": "Read relevant full-text methods and atomic sections",
+    "source_url": "https://arxiv.org/abs/2004.11489",
+    "locator": "Sections 2–5; reduced-energy convention",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full-text methods and atomic sections: Sections 2–5; reduced-energy convention. https://arxiv.org/abs/2004.11489",
+   "url": "https://arxiv.org/abs/2004.11489"
   },
   {
    "key": "loos2016",
@@ -216,7 +336,23 @@
    "doi": "10.1002/wcms.1257",
    "arxiv": "1601.03544",
    "status": "read",
-   "role": "method, appendix B: the D-dimensional electron gas's kinetic and exchange constants"
+   "role": "4: local-exchange constant; methods and Appendix B",
+   "relevance": [
+    "Gives general-D 1/r uniform-gas exchange in terms of density, spin polarization and Fermi momentum.",
+    "Substitution of D=4 gives epsilon_x = −16/(15 sqrt(pi)) rho^(1/4) for the unpolarized total density rho."
+   ],
+   "flag_notes": [
+    "CONFIRMED: the constant is correct. The D=4 value is derived from the general formula, not printed in its D=1–3 summary table.",
+    "CONVENTION: this is energy per electron; the exchange potential has an additional factor 5/4, and spin-resolved densities require the spin-scaling factor."
+   ],
+   "verification": {
+    "extent": "Read full-text density convention and exchange equations",
+    "source_url": "https://arxiv.org/abs/1601.03544",
+    "locator": "Eqs. (3)–(4), (8)–(11), (16)–(17)",
+    "checked": "2026-11-08"
+   },
+   "source": "Read full-text density convention and exchange equations: Eqs. (3)–(4), (8)–(11), (16)–(17). https://arxiv.org/abs/1601.03544",
+   "url": "https://arxiv.org/abs/1601.03544"
   },
   {
    "key": "perdew1981",
@@ -451,11 +587,25 @@
    "volume": "34",
    "pages": "1559–2259",
    "year": 2005,
-   "status": "index",
-   "source": "physics.nist.gov/PhysRefData/Handbook/Tables/palladiumtable1.htm: Pd I 8.3369 eV; the same tables: Xe I 12.1298 eV",
-   "role": "palladium's and xenon's first ionization energies (section 8.2)",
+   "status": "read",
+   "source": "Read and extracted all nine neutral-atom level tables: Tables/scandiumtable5.htm through coppertable5.htm; exact URLs in nist-promotions.json. https://physics.nist.gov/PhysRefData/Handbook/",
+   "role": "6: §6.3 measured Sc–Cu promotion energies",
    "doi": "10.1063/1.1800011",
-   "url": "https://physics.nist.gov/PhysRefData/Handbook"
+   "url": "https://physics.nist.gov/PhysRefData/Handbook/",
+   "relevance": [
+    "Supplies measured configuration assignments, terms, J values and energies for the low levels used in Sc–Cu promotions.",
+    "The accompanying dataset gives both lowest-level differences and (2J+1)-weighted lowest-term centroid differences."
+   ],
+   "flag_notes": [
+    "DEFINITION: neither column is an average over every term of the configuration.",
+    "MATERIAL: Ni is +0.025390 eV by lowest levels but −0.029799 eV by lowest-term centroids. Specify the observable before fitting the method’s bias."
+   ],
+   "verification": {
+    "extent": "Read and extracted all nine neutral-atom level tables",
+    "source_url": "https://physics.nist.gov/PhysRefData/Handbook/",
+    "locator": "Tables/scandiumtable5.htm through coppertable5.htm; exact URLs in nist-promotions.json",
+    "checked": "2026-11-08"
+   }
   },
   {
    "key": "rienstra2002",
@@ -469,6 +619,1003 @@
    "source": "Crossref",
    "role": "measured electron affinities of our atoms (section 6)",
    "doi": "10.1021/cr990044u"
+  },
+  {
+   "authors": "Tidjani Négadi",
+   "title": "On the planar periodic table",
+   "venue": "International Journal of Quantum Chemistry",
+   "volume": "78",
+   "pages": "206-211",
+   "year": 2000,
+   "doi": "10.1002/(sici)1097-461x(2000)78:4<206::aid-qua2>3.0.co;2-v",
+   "key": "negadi2000",
+   "status": "index",
+   "role": "1: forward-citation follow-up; comparison of interaction laws",
+   "relevance": [
+    "Revisits a two-dimensional periodic table using the logarithmic Coulomb interaction and a q-deformed ordering model.",
+    "A useful example that the choice of interaction changes the table; this is not a four-dimensional SCF calculation."
+   ],
+   "flag_notes": [
+    "SCOPE: do not conflate this logarithmic D=2 construction with a 1/r model."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract",
+    "source_url": "https://doi.org/10.1002/(SICI)1097-461X(2000)78:4<206::AID-QUA2>3.0.CO;2-V",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract. https://doi.org/10.1002/(SICI)1097-461X(2000)78:4<206::AID-QUA2>3.0.CO;2-V",
+   "url": "https://doi.org/10.1002/(SICI)1097-461X(2000)78:4<206::AID-QUA2>3.0.CO;2-V",
+   "csl": {
+    "author": [
+     {
+      "family": "Négadi",
+      "given": "Tidjani"
+     }
+    ]
+   }
+  },
+  {
+   "authors": "J. G. Loeser",
+   "title": "Atomic energies from the large-dimension limit",
+   "venue": "The Journal of Chemical Physics",
+   "volume": "86",
+   "pages": "5635-5646",
+   "year": 1987,
+   "doi": "10.1063/1.452540",
+   "key": "loeser1987atomic",
+   "status": "index",
+   "role": "1, 3: larger-atom dimensional-scaling prior art",
+   "relevance": [
+    "Develops many-electron atomic energies from the D→infinity limit and the first 1/D correction.",
+    "Its comparison with physical atoms uses antisymmetry at D=3; an arbitrary-D model is not itself a computed D=4 SCF table."
+   ],
+   "flag_notes": [
+    "PRECEDENT: many-electron dimensional scaling is established."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract through Crossref",
+    "source_url": "https://doi.org/10.1063/1.452540",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract through Crossref. https://doi.org/10.1063/1.452540",
+   "url": "https://doi.org/10.1063/1.452540"
+  },
+  {
+   "authors": "J. G. Loeser, J. H. Summerfield, A. L. Tan, Z. Zheng",
+   "title": "Correlated electronic structure models suggested by the large-dimension limit",
+   "venue": "The Journal of Chemical Physics",
+   "volume": "100",
+   "pages": "5036-5053",
+   "year": 1994,
+   "doi": "10.1063/1.467221",
+   "key": "loeser1994",
+   "status": "index",
+   "role": "1, 3, 9: large-Z atoms, correlation and affinity precedents",
+   "relevance": [
+    "Introduces dimension-parameterized electronic-structure models with energies through Z=92.",
+    "Reports correlation corrections to ionization potentials and electron affinities through Z=54, with D ordinarily set to three."
+   ],
+   "flag_notes": [
+    "SCOPE: important prior art, but the abstract does not establish a D=4 affinity table or a D=4 SCF sequence."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract through Crossref",
+    "source_url": "https://doi.org/10.1063/1.467221",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract through Crossref. https://doi.org/10.1063/1.467221",
+   "url": "https://doi.org/10.1063/1.467221"
+  },
+  {
+   "authors": "Dudley R. Herschbach, John G. Loeser, Wilton L. Virgo",
+   "title": "Exploring Unorthodox Dimensions for Two-Electron Atoms",
+   "venue": "The Journal of Physical Chemistry A",
+   "volume": "121",
+   "pages": "6336–6340",
+   "year": 2017,
+   "doi": "10.1021/acs.jpca.7b06148",
+   "key": "herschbach2017",
+   "status": "index",
+   "role": "3: later dimensional interpolation of two-electron energies",
+   "relevance": [
+    "Constructs approximate dimension-dependent energies from hydrogenic scaling, first-order repulsion and the large-D limit.",
+    "A later guide into the Loeser–Herschbach literature, not an independently extracted D=4 HF-limit value."
+   ],
+   "flag_notes": [
+    "OPEN: full numerical tables not inspected."
+   ],
+   "verification": {
+    "extent": "Read publisher/PubMed abstract and metadata",
+    "source_url": "https://pubmed.ncbi.nlm.nih.gov/28758745/",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher/PubMed abstract and metadata. https://pubmed.ncbi.nlm.nih.gov/28758745/",
+   "url": "https://pubmed.ncbi.nlm.nih.gov/28758745/"
+  },
+  {
+   "authors": "David R. Herrick, Frank H. Stillinger",
+   "title": "Variable dimensionality in atoms and its effect on the ground state of the helium isoelectronic sequence",
+   "venue": "Physical Review A",
+   "volume": "11",
+   "pages": "42-53",
+   "year": 1975,
+   "doi": "10.1103/physreva.11.42",
+   "key": "herrick1975",
+   "status": "index",
+   "role": "3, 9: variable dimensionality and the helium sequence",
+   "relevance": [
+    "The original Herrick–Stillinger variable-dimensional helium-isoelectronic-sequence study.",
+    "Provides the historical basis for treating D as a continuous parameter in atomic calculations."
+   ],
+   "flag_notes": [
+    "PRECEDENT: variable-dimensional helium is not new.",
+    "OPEN: original numerical tables were not obtained."
+   ],
+   "verification": {
+    "extent": "Bibliographic record checked; abstract context and later citations inspected",
+    "source_url": "https://doi.org/10.1103/PhysRevA.11.42",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Bibliographic record checked; abstract context and later citations inspected. https://doi.org/10.1103/PhysRevA.11.42",
+   "url": "https://doi.org/10.1103/PhysRevA.11.42"
+  },
+  {
+   "authors": "Frank H. Stillinger",
+   "title": "Axiomatic basis for spaces with noninteger dimension",
+   "venue": "Journal of Mathematical Physics",
+   "volume": "18",
+   "pages": "1224-1234",
+   "year": 1977,
+   "doi": "10.1063/1.523395",
+   "key": "stillinger1977",
+   "status": "index",
+   "role": "9: meaning of noninteger dimensionality",
+   "relevance": [
+    "Gives an axiomatic construction of spaces with noninteger dimension, including an integration measure.",
+    "Useful for distinguishing formal dimensional continuation from ordinary Euclidean R^4."
+   ],
+   "flag_notes": [],
+   "verification": {
+    "extent": "Read publisher abstract through Crossref",
+    "source_url": "https://doi.org/10.1063/1.523395",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract through Crossref. https://doi.org/10.1063/1.523395",
+   "url": "https://doi.org/10.1063/1.523395"
+  },
+  {
+   "authors": "Tokuei Sako, Josef Paldus, Atsushi Ichimura, Geerd H F Diercksen",
+   "title": "Origin of the first Hund rule and the structure of Fermi holes in two-dimensional He-like atoms and two-electron quantum dots",
+   "venue": "Journal of Physics B: Atomic, Molecular and Optical Physics",
+   "volume": "45",
+   "pages": "235001",
+   "year": 2012,
+   "doi": "10.1088/0953-4075/45/23/235001",
+   "key": "sako2012",
+   "status": "read",
+   "role": "2: Hund discussion and orbital-relaxation caveats",
+   "relevance": [
+    "Studies singlet–triplet ordering in two-dimensional helium-like atoms and quantum dots with full configuration interaction.",
+    "The helium model explicitly uses 1/r; its 1s2p analysis is adjacent to, rather than the same as, a 4D equivalent-d-electron multiplet calculation."
+   ],
+   "flag_notes": [
+    "PRECEDENT: there is literature on Hund’s first rule in D≠3.",
+    "SCOPE: an inversion of the repulsion-energy contribution is not an inversion of the total singlet–triplet order."
+   ],
+   "verification": {
+    "extent": "Read relevant full-text model, methods and singlet–triplet analysis",
+    "source_url": "https://wwwmpa.mpa-garching.mpg.de/mol_physics/Highlights/2012-05-highlights-ms.pdf",
+    "locator": "Sections 1–3; Hamiltonian (1)",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full-text model, methods and singlet–triplet analysis: Sections 1–3; Hamiltonian (1). https://wwwmpa.mpa-garching.mpg.de/mol_physics/Highlights/2012-05-highlights-ms.pdf",
+   "url": "https://wwwmpa.mpa-garching.mpg.de/mol_physics/Highlights/2012-05-highlights-ms.pdf"
+  },
+  {
+   "authors": "Tokuei Sako, Josef Paldus, Geerd H. F. Diercksen",
+   "title": "Origin of Hund’s multiplicity rule in quasi-two-dimensional two-electron quantum dots",
+   "venue": "Physical Review A",
+   "volume": "81",
+   "pages": "022501",
+   "year": 2010,
+   "doi": "10.1103/physreva.81.022501",
+   "key": "sako2010",
+   "status": "index",
+   "role": "2: quasi-2D quantum-dot Hund precedent",
+   "relevance": [
+    "Analyzes Hund’s multiplicity rule in quasi-two-dimensional two-electron quantum dots.",
+    "Useful comparison for confinement and orbital relaxation, with a different one-body potential from an atom."
+   ],
+   "flag_notes": [
+    "SCOPE: not evidence for or against the specific SO(4) d² term."
+   ],
+   "verification": {
+    "extent": "Bibliographic record and abstract context checked",
+    "source_url": "https://doi.org/10.1103/PhysRevA.81.022501",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Bibliographic record and abstract context checked. https://doi.org/10.1103/PhysRevA.81.022501",
+   "url": "https://doi.org/10.1103/PhysRevA.81.022501"
+  },
+  {
+   "authors": "Augusto González",
+   "title": "The quantum few-body problem and the 1/D method",
+   "venue": "Few-Body Systems",
+   "volume": "10",
+   "pages": "43-57",
+   "year": 1991,
+   "doi": "10.1007/bf01352401",
+   "key": "gonzalez1991",
+   "status": "index",
+   "role": "2, 3: Hund’s rule in dimensional scaling",
+   "relevance": [
+    "The abstract explicitly includes Hund’s rule in a two-electron atom among consequences of a 1/D analysis.",
+    "A closer theoretical precedent that should be checked before asserting an exhaustive novelty claim for dimensional Hund calculations."
+   ],
+   "flag_notes": [
+    "POTENTIAL OVERLAP: I did not establish whether the full text treats the SO(4) degree-2 pair or any inversion.",
+    "CAUTION: the paper has a published comment by Bao and Ruan (1992); its scope cannot be inferred to concern Hund’s rule from the abstract alone."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract; full text inaccessible",
+    "source_url": "https://doi.org/10.1007/BF01352401",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract; full text inaccessible. https://doi.org/10.1007/BF01352401",
+   "url": "https://doi.org/10.1007/BF01352401",
+   "csl": {
+    "author": [
+     {
+      "family": "González",
+      "given": "Augusto"
+     }
+    ]
+   }
+  },
+  {
+   "authors": "C. -G. Bao, W. -Y. Ruan",
+   "title": "Comment on “the quantum few-body problem and the 1/D method”",
+   "venue": "Few-Body Systems",
+   "volume": "13",
+   "pages": "57-58",
+   "year": 1992,
+   "doi": "10.1007/bf01080210",
+   "key": "bao1992",
+   "status": "index",
+   "role": "2, 3: qualification of González (1991)",
+   "relevance": [
+    "Comments on an inadequate statement and supplies a more complete spectrum for comparison with 1/D calculations.",
+    "Retrieve together with González before relying on a detailed claim from that paper."
+   ],
+   "flag_notes": [
+    "OPEN: the abstract does not identify the disputed statement as a Hund-rule result; no such attribution is made here."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract",
+    "source_url": "https://doi.org/10.1007/BF01080210",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract. https://doi.org/10.1007/BF01080210",
+   "url": "https://doi.org/10.1007/BF01080210"
+  },
+  {
+   "authors": "J.H. Summerfield, J.G. Loeser",
+   "title": "Dimension‐dependent two‐electron Hamiltonian matrix elements",
+   "venue": "Journal of Mathematical Chemistry",
+   "volume": "25",
+   "pages": "309-315",
+   "year": 1999,
+   "doi": "10.1023/a:1019196719751",
+   "key": "summerfield1999",
+   "status": "index",
+   "role": "2: nearest arbitrary-D equivalent-electron integral precedent",
+   "relevance": [
+    "Derives closed-form two-electron Hamiltonian matrix elements in arbitrary D using hydrogenic 1s², 2p², 3d² and 4f² basis functions.",
+    "An important independent source against which to check radial/angular repulsion integrals."
+   ],
+   "flag_notes": [
+    "POTENTIAL OVERLAP: directly overlaps arbitrary-D d² matrix elements; the abstract does not establish a complete multiplet spectrum or the (2,0)⊕(0,2) ground term.",
+    "OPEN: do not clear the specific Hund novelty claim until the full text has been inspected."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract and reference list; full text inaccessible",
+    "source_url": "https://doi.org/10.1023/A:1019196719751",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract and reference list; full text inaccessible. https://doi.org/10.1023/A:1019196719751",
+   "url": "https://doi.org/10.1023/A:1019196719751"
+  },
+  {
+   "authors": "Shun S. Lo, Daniel A. Morales",
+   "title": "A Closed-Form Relation for Dimension-Dependent Two-Electron Matrix Elements of the Interelectronic Distance",
+   "venue": "Journal of Mathematical Chemistry",
+   "volume": "35",
+   "pages": "21-28",
+   "year": 2004,
+   "doi": "10.1023/b:jomc.0000007810.35417.20",
+   "key": "lo2004",
+   "status": "index",
+   "role": "2: forward citation of Summerfield–Loeser",
+   "relevance": [
+    "Continues the dimension-dependent two-electron matrix-element literature.",
+    "A targeted follow-up for verifying analytic interelectronic-distance integrals."
+   ],
+   "flag_notes": [
+    "OPEN: title/index evidence only; no multiplet-ordering claim is attributed to it."
+   ],
+   "verification": {
+    "extent": "Bibliographic record and citation-index link checked; full text not read",
+    "source_url": "https://doi.org/10.1023/B:JOMC.0000007810.35417.20",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Bibliographic record and citation-index link checked; full text not read. https://doi.org/10.1023/B:JOMC.0000007810.35417.20",
+   "url": "https://doi.org/10.1023/B:JOMC.0000007810.35417.20"
+  },
+  {
+   "authors": "M. Dunn, D.K. Watson",
+   "title": "Continuation of the Schrödinger Equation for Higher Angular-Momentum States to D Dimensions and Interdimensional Degeneracies",
+   "venue": "Few-Body Systems",
+   "volume": "21",
+   "pages": "187-209",
+   "year": 1996,
+   "doi": "10.1007/s006010050047",
+   "key": "dunn1996",
+   "status": "index",
+   "role": "2: higher-angular-momentum and interdimensional multiplets",
+   "relevance": [
+    "Continues higher-angular-momentum two-electron Schrödinger equations to D dimensions and describes interdimensional degeneracies.",
+    "Relevant representation-theoretic machinery for classifying states beyond S waves."
+   ],
+   "flag_notes": [
+    "POTENTIAL OVERLAP: broader angular-momentum prior art; no verified prediction of the claimed 4D d² inversion."
+   ],
+   "verification": {
+    "extent": "Read abstract reproduced in the dimensional-scaling index; DOI metadata checked",
+    "source_url": "https://doi.org/10.1007/s006010050047",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read abstract reproduced in the dimensional-scaling index; DOI metadata checked. https://doi.org/10.1007/s006010050047",
+   "url": "https://doi.org/10.1007/s006010050047"
+  },
+  {
+   "authors": "A M Escobar-Ruiz, H Olivares-Pilón, N Aquino, S A Cruz",
+   "title": "Helium-like ions in d-dimensions: analyticity and generalized ground state Majorana solutions",
+   "venue": "Journal of Physics B: Atomic, Molecular and Optical Physics",
+   "volume": "54",
+   "pages": "235002",
+   "year": 2021,
+   "doi": "10.1088/1361-6455/ac3fbf",
+   "key": "escobar2021",
+   "status": "read",
+   "role": "3, 9: accessible D=4 helium-like energies and approximate critical charge",
+   "relevance": [
+    "Tabulates fixed-nucleus two-parameter Hylleraas variational energies for D=2–5 and Z=2–10; D=4, Z=2 gives −1.26809 Ha.",
+    "Also quotes −1.27364 Ha from Duan–Ma and estimates a D=4 critical charge of about 1.023."
+   ],
+   "flag_notes": [
+    "BENCHMARK: its two-parameter energies are neither the HF limit nor essentially exact.",
+    "MASS CONVENTION: Duan–Ma’s abstract specifies finite nuclear mass; the quoted −1.27364 is not cleared for an infinite-mass regression test.",
+    "THRESHOLD: Zc≈1.023 is a restricted variational estimate, not proof that 4D H− is unbound. The arXiv v2 percentage-error statement for its 3D Zc is inconsistent with the displayed numbers.",
+    "METADATA: publication is J. Phys. B 54, 235002 (2021), not 2022."
+   ],
+   "verification": {
+    "extent": "Read full-text relevant sections and numerical tables",
+    "source_url": "https://arxiv.org/abs/2108.09439",
+    "locator": "arXiv v2, Sec. III.C, Table I, Sec. IV.B and reference 32",
+    "checked": "2026-11-08"
+   },
+   "source": "Read full-text relevant sections and numerical tables: arXiv v2, Sec. III.C, Table I, Sec. IV.B and reference 32. https://arxiv.org/abs/2108.09439",
+   "url": "https://arxiv.org/abs/2108.09439",
+   "arxiv": "2108.09439"
+  },
+  {
+   "authors": "Bin Duan, Zhong-Qi Ma",
+   "title": "Energies of the ground states of S-wave for a D-dimensional helium atom",
+   "venue": "Physics Letters A",
+   "volume": "312",
+   "pages": "363-368",
+   "year": 2003,
+   "doi": "10.1016/s0375-9601(03)00680-7",
+   "key": "duan2003",
+   "status": "index",
+   "role": "2, 3: D-dimensional helium S-state numerical benchmark lead",
+   "relevance": [
+    "Computes lowest singlet and triplet S-state energies in D-dimensional helium and checks interdimensional degeneracies.",
+    "The original source cited for the rounded D=4 energy −1.27364 Ha."
+   ],
+   "flag_notes": [
+    "BENCHMARK HOLD: explicitly finite nuclear mass in the abstract; inspect the original table before comparing with a fixed nucleus."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract/snippets; numerical value seen quoted in Escobar-Ruiz et al.; original table not read",
+    "source_url": "https://doi.org/10.1016/S0375-9601(03)00680-7",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract/snippets; numerical value seen quoted in Escobar-Ruiz et al.; original table not read. https://doi.org/10.1016/S0375-9601(03)00680-7",
+   "url": "https://doi.org/10.1016/S0375-9601(03)00680-7"
+  },
+  {
+   "authors": "M. L. Glasser, J. Boersma",
+   "title": "Exchange Energy of an Electron Gas of Arbitrary Dimensionality",
+   "venue": "SIAM Journal on Applied Mathematics",
+   "volume": "43",
+   "pages": "535-545",
+   "year": 1983,
+   "doi": "10.1137/0143034",
+   "key": "glasser1983",
+   "status": "index",
+   "role": "4: original arbitrary-D exchange precedent",
+   "relevance": [
+    "Calculates exchange thermodynamics of a neutralized electron gas of arbitrary dimension with a 1/r interaction.",
+    "A useful original citation alongside the Loos–Gill review."
+   ],
+   "flag_notes": [
+    "PRECEDENT: general-D exchange is established."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract through Crossref",
+    "source_url": "https://doi.org/10.1137/0143034",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract through Crossref. https://doi.org/10.1137/0143034",
+   "url": "https://doi.org/10.1137/0143034"
+  },
+  {
+   "authors": "Robert Schlesier, Carlos L. Benavides-Riveros, Miguel A. L. Marques",
+   "title": "Homogeneous electron gas in arbitrary dimensions",
+   "venue": "Physical Review B",
+   "volume": "102",
+   "pages": "035123",
+   "year": 2020,
+   "doi": "10.1103/physrevb.102.035123",
+   "key": "schlesier2020",
+   "status": "read",
+   "role": "4: D=4 correlation; methods and limitations",
+   "relevance": [
+    "Studies arbitrary-dimensional homogeneous electron gas with the same real-space 1/r interaction; at D=4 its Fourier transform is 4 pi²/k³.",
+    "Gives D>3 high-density RPA correlation scaling r_s^−(D−3)/(D−1), hence r_s^−1/3 at D=4, and tabulates a D=4 coefficient."
+   ],
+   "flag_notes": [
+    "LITERATURE FOUND: answers the missing D=4 1/r-jellium correlation request; rules out any claim that this literature does not exist.",
+    "NUMERICAL CAUTION: Pham et al. report correcting a numerical error in this Table I; do not copy the original D=4 coefficient into a functional without checking the correction.",
+    "SCOPE: high-density jellium RPA is not an atom-validated correlation functional."
+   ],
+   "verification": {
+    "extent": "Read full-text interaction convention, exchange and RPA correlation sections and Table I",
+    "source_url": "https://arxiv.org/abs/2005.04934",
+    "locator": "Eqs. (11), (16), general-D high-density correlation and Table I",
+    "checked": "2026-11-08"
+   },
+   "source": "Read full-text interaction convention, exchange and RPA correlation sections and Table I: Eqs. (11), (16), general-D high-density correlation and Table I. https://arxiv.org/abs/2005.04934",
+   "url": "https://arxiv.org/abs/2005.04934",
+   "arxiv": "2005.04934"
+  },
+  {
+   "authors": "L V Duc Pham, Pascal Sattler, Miguel A L Marques, Carlos L Benavides-Riveros",
+   "title": "Homogeneous electron liquid in arbitrary dimensions beyond the random phase approximation",
+   "venue": "New Journal of Physics",
+   "volume": "25",
+   "pages": "083040",
+   "year": 2023,
+   "doi": "10.1088/1367-2630/acef4c",
+   "key": "pham2023",
+   "status": "read",
+   "role": "4: beyond-RPA correlation and correction to Schlesier et al.",
+   "relevance": [
+    "Generalizes the STLS approximation to arbitrary-dimensional electron liquids; displayed new higher-dimensional calculations focus on D=5 and D=7.",
+    "Reports a correction to the numerical coefficients in Schlesier et al. Table I."
+   ],
+   "flag_notes": [
+    "LITERATURE FOUND: higher-D correlation methods beyond RPA exist.",
+    "SCOPE: not a verified D=4 QMC parametrization; the exact corrected D=4 numerical coefficient was not extracted."
+   ],
+   "verification": {
+    "extent": "Read arXiv v3 full-text relevant sections; published citation metadata checked",
+    "source_url": "https://arxiv.org/abs/2210.03024",
+    "locator": "Sections V–VI, conclusion, and note [61] in arXiv v3",
+    "checked": "2026-11-08"
+   },
+   "source": "Read arXiv v3 full-text relevant sections; published citation metadata checked: Sections V–VI, conclusion, and note [61] in arXiv v3. https://arxiv.org/abs/2210.03024",
+   "url": "https://arxiv.org/abs/2210.03024",
+   "arxiv": "2210.03024"
+  },
+  {
+   "authors": "S. P. Alliluev",
+   "title": "On the relation between “accidental” degeneracy and “hidden” symmetry of a system",
+   "venue": "Soviet Physics JETP",
+   "volume": "6",
+   "pages": "156–158",
+   "year": 1958,
+   "doi": null,
+   "key": "alliluev1958",
+   "status": "read",
+   "role": "5: §3 general-D hidden symmetry and Fock projection",
+   "relevance": [
+    "Explicitly treats the f-dimensional hydrogenic problem and uses stereographic projection to exhibit the orthogonal symmetry in f+1 dimensions.",
+    "This is a direct primary citation for the general-D extension of Fock’s construction."
+   ],
+   "flag_notes": [
+    "ATTRIBUTION: credit Fock for the original three-dimensional construction and Alliluev for this verified general-D treatment.",
+    "IDENTIFIER: no DOI or arXiv identifier located; the official journal scan is the source. Earliest general-D text verified in this search, not a proof of absolute historical priority."
+   ],
+   "verification": {
+    "extent": "Read original English journal scan",
+    "source_url": "https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf",
+    "locator": "Section 1, especially Eqs. (5)–(8), pp. 157–158; Russian original ZhETF 33, 200–203 (1957)",
+    "checked": "2026-11-08"
+   },
+   "source": "Read original English journal scan: Section 1, especially Eqs. (5)–(8), pp. 157–158; Russian original ZhETF 33, 200–203 (1957). https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf",
+   "url": "https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf"
+  },
+  {
+   "authors": "Emanuele Fiorani",
+   "title": "Momentum maps, independent first integrals and integrability for central potentials",
+   "venue": "International Journal of Geometric Methods in Modern Physics",
+   "volume": "06",
+   "pages": "1323-1341",
+   "year": 2009,
+   "doi": "10.1142/s0219887809004247",
+   "key": "fiorani2009",
+   "status": "index",
+   "role": "5: §3 Bertrand theorem in any Euclidean D≥2",
+   "relevance": [
+    "Proves planarity of motions for central potentials in R^n and discusses their conserved quantities.",
+    "Planarity reduces the any-D closed-orbit question to the ordinary planar Bertrand theorem."
+   ],
+   "flag_notes": [
+    "SCOPE: this extension keeps V(r) fixed as D changes; it is not the same as keeping Gauss’s dimension-dependent potential."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract through Crossref; indexed full-text passage located",
+    "source_url": "https://doi.org/10.1142/S0219887809004247",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract through Crossref; indexed full-text passage located. https://doi.org/10.1142/S0219887809004247",
+   "url": "https://doi.org/10.1142/S0219887809004247"
+  },
+  {
+   "authors": "F. C. Santos, V. Soares, A. C. Tort",
+   "title": "An English translation of Bertrand’s theorem",
+   "venue": "arXiv",
+   "volume": "",
+   "pages": "",
+   "year": 2007,
+   "doi": null,
+   "key": "bertrand2007",
+   "status": "read",
+   "role": "5: §3 closed-orbit theorem",
+   "relevance": [
+    "Accessible English translation of Bertrand’s 1873 result: inverse-distance and harmonic potentials are the two cases with all bounded orbits closed under the theorem’s hypotheses.",
+    "Cite together with Fiorani’s R^n planarity result for the D-independent statement."
+   ],
+   "flag_notes": [
+    "SCOPE: the harmonic oscillator is also a Bertrand potential; the unique 1/r choice additionally assumes a decaying attractive potential."
+   ],
+   "verification": {
+    "extent": "Read translated theorem and introduction",
+    "source_url": "https://arxiv.org/abs/0704.2396",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read translated theorem and introduction. https://arxiv.org/abs/0704.2396",
+   "url": "https://arxiv.org/abs/0704.2396",
+   "arxiv": "0704.2396"
+  },
+  {
+   "authors": "S. A. Goudsmit, Paul I. Richards",
+   "title": "The order of electron shells in ionized atoms",
+   "venue": "Proceedings of the National Academy of Sciences",
+   "volume": "51",
+   "pages": "664-671",
+   "year": 1964,
+   "doi": "10.1073/pnas.51.4.664",
+   "key": "goudsmit1964",
+   "status": "read",
+   "role": "6: historical corroboration of Madelung page 359",
+   "relevance": [
+    "Explicitly cites Madelung’s third edition, Berlin 1936, page 359.",
+    "Discusses shell-ordering and multiplet effects, helping distinguish empirical filling rules from exact level ordering."
+   ],
+   "flag_notes": [
+    "VERSION: text read was the OSTI report with a different title, not the final PNAS typeset article."
+   ],
+   "verification": {
+    "extent": "Read associated prepublication report; published DOI metadata checked",
+    "source_url": "https://www.osti.gov/servlets/purl/4007960",
+    "locator": "Report titled Madelung’s rule and its generalization, reference 1",
+    "checked": "2026-11-08"
+   },
+   "source": "Read associated prepublication report; published DOI metadata checked: Report titled Madelung’s rule and its generalization, reference 1. https://www.osti.gov/servlets/purl/4007960",
+   "url": "https://www.osti.gov/servlets/purl/4007960"
+  },
+  {
+   "authors": "Christian Hainzl, Robert Seiringer",
+   "title": "General Decomposition of Radial Functions on Rn and Applications to N-Body Quantum Systems",
+   "venue": "Letters in Mathematical Physics",
+   "volume": "61",
+   "pages": "75-84",
+   "year": 2002,
+   "doi": "10.1023/a:1020204818938",
+   "key": "hainzl2002",
+   "status": "read",
+   "role": "7: §4.5 proof route beyond harmonic Coulomb kernels",
+   "relevance": [
+    "Generalizes the Fefferman–de la Llave ball decomposition to radial interactions in R^n.",
+    "Provides tools for electrostatic and exchange-correlation bounds without requiring the exact Coulomb shell theorem."
+   ],
+   "flag_notes": [
+    "PROOF ROUTE: loss of the shell theorem does not exhaust available interaction-bound techniques.",
+    "SCOPE: this paper is not itself a verified stability-of-the-second-kind theorem for the paper’s full D=4 two-sign matter Hamiltonian."
+   ],
+   "verification": {
+    "extent": "Read introduction and general decomposition theorem",
+    "source_url": "https://arxiv.org/abs/math-ph/0107011",
+    "locator": "Theorem 1 and discussion of indirect-energy estimates",
+    "checked": "2026-11-08"
+   },
+   "source": "Read introduction and general decomposition theorem: Theorem 1 and discussion of indirect-energy estimates. https://arxiv.org/abs/math-ph/0107011",
+   "url": "https://arxiv.org/abs/math-ph/0107011",
+   "arxiv": "math-ph/0107011"
+  },
+  {
+   "authors": "Mathieu Lewin",
+   "title": "Coulomb and Riesz gases: The known and the unknown",
+   "venue": "Journal of Mathematical Physics",
+   "volume": "63",
+   "pages": "061101",
+   "year": 2022,
+   "doi": "10.1063/5.0086835",
+   "key": "lewin2022",
+   "status": "index",
+   "role": "7: Riesz thermodynamic-limit literature",
+   "relevance": [
+    "Reviews mathematical results and open problems for Coulomb and Riesz gases with inverse-power interactions in R^d.",
+    "Useful terminology and a route into thermodynamic limits for the 4D Riesz kernel r^−1."
+   ],
+   "flag_notes": [
+    "SCOPE: a one-component Riesz gas/background problem does not by itself establish stability of electrons plus arbitrary point nuclei."
+   ],
+   "verification": {
+    "extent": "Read publisher abstract through Crossref",
+    "source_url": "https://doi.org/10.1063/5.0086835",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read publisher abstract through Crossref. https://doi.org/10.1063/5.0086835",
+   "url": "https://doi.org/10.1063/5.0086835"
+  },
+  {
+   "authors": "Gabriele La Nave, Kridsanaphong Limtragool, Philip W. Phillips",
+   "title": "Colloquium : Fractional electromagnetism in quantum matter and high-energy physics",
+   "venue": "Reviews of Modern Physics",
+   "volume": "91",
+   "pages": "021003",
+   "year": 2019,
+   "doi": "10.1103/revmodphys.91.021003",
+   "key": "lanave2019",
+   "status": "read",
+   "role": "8: §4.3 fractional Maxwell prior art",
+   "relevance": [
+    "Reviews fractional electromagnetism, generalized gauge transformations and fractional Maxwell actions.",
+    "Establishes that nonlocal electromagnetic constructions are a developed literature, while their operators and source coupling require careful specification."
+   ],
+   "flag_notes": [
+    "PRECEDENT: fractional Maxwell theory and power-law nonlocality are not new.",
+    "SCOPE: not a verified publication of the exact spatial ε=ε0ℓk, μ=μ0/(ℓk) pair in R^4."
+   ],
+   "verification": {
+    "extent": "Read relevant full-text fractional-gauge and causality sections",
+    "source_url": "https://arxiv.org/abs/1904.01023",
+    "locator": "Sections II and IV, especially Eqs. (48)–(57)",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full-text fractional-gauge and causality sections: Sections II and IV, especially Eqs. (48)–(57). https://arxiv.org/abs/1904.01023",
+   "url": "https://arxiv.org/abs/1904.01023",
+   "arxiv": "1904.01023"
+  },
+  {
+   "authors": "Vasily E. Tarasov, Juan J. Trujillo",
+   "title": "Fractional power-law spatial dispersion in electrodynamics",
+   "venue": "Annals of Physics",
+   "volume": "334",
+   "pages": "1-23",
+   "year": 2013,
+   "doi": "10.1016/j.aop.2013.03.014",
+   "key": "tarasov2013",
+   "status": "read",
+   "role": "8: §4.3 route 3 static fractional electrostatics",
+   "relevance": [
+    "Derives Riesz-fractional electrostatic equations from wavevector-dependent longitudinal permittivity.",
+    "The operator family includes a k³ static denominator; applying that operator in R^4 gives a 1/r Green function."
+   ],
+   "flag_notes": [
+    "PRECEDENT: static power-law permittivity/fractional-Poisson route already exists.",
+    "SCOPE: the paper’s spatial examples are three-dimensional; the R^4 specialization here is a deduction, and no matching inverse-permeability law is verified."
+   ],
+   "verification": {
+    "extent": "Read full-text formulation and power-law permittivity equations",
+    "source_url": "https://theory.sinp.msu.ru/~tarasov/PDF/AP2013.pdf",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read full-text formulation and power-law permittivity equations. https://theory.sinp.msu.ru/~tarasov/PDF/AP2013.pdf",
+   "url": "https://theory.sinp.msu.ru/~tarasov/PDF/AP2013.pdf"
+  },
+  {
+   "authors": "Vasily E. Tarasov",
+   "title": "Electric field in media with power-law spatial dispersion",
+   "venue": "Modern Physics Letters B",
+   "volume": "30",
+   "pages": "1650132",
+   "year": 2016,
+   "doi": "10.1142/s0217984916501323",
+   "key": "tarasov2016",
+   "status": "read",
+   "role": "8: §4.3 explicit constitutive-law comparison",
+   "relevance": [
+    "Writes ε_parallel(k) with a k^(α−2) term and a fractional-Poisson operator of order α.",
+    "Setting α=3 and omitting the screening term gives the static ε proportional to k mechanism, up to units and dimension."
+   ],
+   "flag_notes": [
+    "PRECEDENT: the static ε(k) mechanism should not be claimed as newly invented.",
+    "OPEN: exact lens-vacuum magnetic constitutive partner not located."
+   ],
+   "verification": {
+    "extent": "Read relevant full-text electrostatic equations",
+    "source_url": "https://theory.sinp.msu.ru/~tarasov/PDF/MPLB2016.pdf",
+    "locator": "Eqs. (6), (12)–(14)",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full-text electrostatic equations: Eqs. (6), (12)–(14). https://theory.sinp.msu.ru/~tarasov/PDF/MPLB2016.pdf",
+   "url": "https://theory.sinp.msu.ru/~tarasov/PDF/MPLB2016.pdf"
+  },
+  {
+   "authors": "Matthew Heydeman, Christian B. Jepsen, Ziming Ji, Amos Yarom",
+   "title": "Renormalization and conformal invariance of non-local quantum electrodynamics",
+   "venue": "Journal of High Energy Physics",
+   "volume": "2020",
+   "pages": "7",
+   "year": 2020,
+   "doi": "10.1007/jhep08(2020)007",
+   "key": "heydeman2020",
+   "status": "read",
+   "role": "8: §4.3 route 2 and its unitarity obstruction",
+   "relevance": [
+    "Defines a nonlocal Maxwell action F D^(s−2) F with momentum-space photon kernel of order s.",
+    "Its d=s+2, d≥5 discussion includes d=5, s=3 exactly: field-strength dimension 2 violates the rank-two unitarity bound 3."
+   ],
+   "flag_notes": [
+    "DIRECT PRECEDENT: cite this for the relativistic cubic-kernel ansatz and the obstruction in the stated conformal framework.",
+    "CORRECTION: use a gauge-invariant field-strength argument; a scalar-primary unitarity bound cannot simply be applied to A_mu.",
+    "SCOPE: this does not exclude every conceivable nonlocal theory or establish the uniqueness of the preferred-time lens construction."
+   ],
+   "verification": {
+    "extent": "Read full-text defining action and unitarity section",
+    "source_url": "https://arxiv.org/abs/2003.07895",
+    "locator": "Eqs. (1.1)–(1.2), section 4; d denotes spacetime dimension",
+    "checked": "2026-11-08"
+   },
+   "source": "Read full-text defining action and unitarity section: Eqs. (1.1)–(1.2), section 4; d denotes spacetime dimension. https://arxiv.org/abs/2003.07895",
+   "url": "https://arxiv.org/abs/2003.07895",
+   "arxiv": "2003.07895"
+  },
+  {
+   "authors": "E. C. Marino, Leandro O. Nascimento, Van Sérgio Alves, C. Morais Smith",
+   "title": "Unitarity of theories containing fractional powers of the d’Alembertian operator",
+   "venue": "Physical Review D",
+   "volume": "90",
+   "pages": "105003",
+   "year": 2014,
+   "doi": "10.1103/physrevd.90.105003",
+   "key": "marino2014",
+   "status": "read",
+   "role": "8: fractional propagators and unitary reduced QED",
+   "relevance": [
+    "Analyzes optical-theorem unitarity for a family of fractional d’Alembertian gauge theories in 2+1 dimensions.",
+    "Its unitary pseudo-QED case is an explicit reminder that fractional or nonlocal does not automatically mean nonunitary."
+   ],
+   "flag_notes": [
+    "SCOPE: not a direct analysis of five-spacetime-dimensional cubic-kernel electrodynamics."
+   ],
+   "verification": {
+    "extent": "Read relevant full-text defining action and unitarity setup",
+    "source_url": "https://arxiv.org/abs/1408.1637",
+    "locator": "Generalized PQED, Eqs. (13)–(14) and conclusion",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full-text defining action and unitarity setup: Generalized PQED, Eqs. (13)–(14) and conclusion. https://arxiv.org/abs/1408.1637",
+   "url": "https://arxiv.org/abs/1408.1637",
+   "arxiv": "1408.1637"
+  },
+  {
+   "authors": "Benjamin Grinstein, Kenneth Intriligator, Ira Z. Rothstein",
+   "title": "Comments on unparticles",
+   "venue": "Physics Letters B",
+   "volume": "662",
+   "pages": "367-374",
+   "year": 2008,
+   "doi": "10.1016/j.physletb.2008.03.020",
+   "key": "grinstein2008",
+   "status": "read",
+   "role": "8: unparticle propagators and correct unitarity qualifications",
+   "relevance": [
+    "Derives and clarifies unitarity constraints for gauge-invariant primary scalar, vector and tensor unparticle operators.",
+    "Useful for stating precisely which operator and which positivity assumptions constrain a fractional propagator."
+   ],
+   "flag_notes": [
+    "SCOPE: do not import the bound for a gauge-invariant primary vector as a bound on a gauge-dependent electromagnetic potential."
+   ],
+   "verification": {
+    "extent": "Read full-text operator-bound and momentum-propagator sections",
+    "source_url": "https://arxiv.org/abs/0801.1140",
+    "locator": "Sections 2–4",
+    "checked": "2026-11-08"
+   },
+   "source": "Read full-text operator-bound and momentum-propagator sections: Sections 2–4. https://arxiv.org/abs/0801.1140",
+   "url": "https://arxiv.org/abs/0801.1140",
+   "arxiv": "0801.1140"
+  },
+  {
+   "authors": "Howard Georgi",
+   "title": "Unparticle Physics",
+   "venue": "Physical Review Letters",
+   "volume": "98",
+   "pages": "221601",
+   "year": 2007,
+   "doi": "10.1103/physrevlett.98.221601",
+   "key": "georgi2007",
+   "status": "index",
+   "role": "8: original unparticle context",
+   "relevance": [
+    "Introduces the unparticle framework for scale-invariant sectors with noninteger scaling dimensions.",
+    "Historical context for fractional-power propagators; use Grinstein et al. and Heydeman et al. for the specific bounds."
+   ],
+   "flag_notes": [
+    "SCOPE: not a publication of the proposed lens vacuum."
+   ],
+   "verification": {
+    "extent": "Bibliographic metadata checked; not full-text read in this audit",
+    "source_url": "https://doi.org/10.1103/PhysRevLett.98.221601",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Bibliographic metadata checked; not full-text read in this audit. https://doi.org/10.1103/PhysRevLett.98.221601",
+   "url": "https://doi.org/10.1103/PhysRevLett.98.221601",
+   "arxiv": "hep-ph/0703260"
+  },
+  {
+   "authors": "Peter Lindqvist",
+   "title": "Notes on the p-Laplace equation, second edition",
+   "venue": "University of Jyväskylä, Department of Mathematics and Statistics, Report",
+   "volume": "161",
+   "pages": "",
+   "year": 2017,
+   "doi": null,
+   "key": "lindqvist2017",
+   "status": "read",
+   "role": "8: §4.3 nonlinear p-Laplacian route",
+   "relevance": [
+    "Gives the fundamental solution of the p-Laplacian and explains its nonlinear structure.",
+    "In n=4, requiring exponent −1 gives p=5/2, confirming the proposed nonlinear route and loss of superposition."
+   ],
+   "flag_notes": [
+    "SCOPE: this route is a consistent nonlinear alternative; it fails the paper’s additive pair-potential requirement, not mathematics itself.",
+    "IDENTIFIER: no DOI/arXiv identifier verified; stable university publication and ISBN provided."
+   ],
+   "verification": {
+    "extent": "Read relevant full-text fundamental-solution and superposition discussion",
+    "source_url": "https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download",
+    "locator": "Fundamental solution |x|^((p−n)/(p−1)); p. 51; ISBN 978-951-39-7120-5",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full-text fundamental-solution and superposition discussion: Fundamental solution |x|^((p−n)/(p−1)); p. 51; ISBN 978-951-39-7120-5. https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download",
+   "url": "https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download",
+   "csl": {
+    "type": "book",
+    "container-title": null,
+    "collection-title": "Report, Department of Mathematics and Statistics",
+    "publisher": "University of Jyväskylä",
+    "edition": "2"
+   }
+  },
+  {
+   "authors": "Xiao-Yan Gu, Zhong-Qi Ma, Shi-Hai Dong",
+   "title": "Exact solutions to the Dirac equation for a Coulomb potential in D + 1 dimensions",
+   "venue": "International Journal of Modern Physics E",
+   "volume": "11",
+   "pages": "335-346",
+   "year": 2002,
+   "doi": "10.1142/s0218301302000879",
+   "key": "gu2002",
+   "status": "read",
+   "role": "9: §12 Dirac hydrogen with a prescribed 1/r potential",
+   "relevance": [
+    "Derives arbitrary-D Dirac angular spinors and exact energies for a prescribed Coulomb 1/r potential.",
+    "Supports a dimension-dependent point-source critical coupling and makes the spin representation assumptions explicit."
+   ],
+   "flag_notes": [
+    "SCOPE: a Dirac potential problem does not supply a relativistic completion of the preferred-time interaction."
+   ],
+   "verification": {
+    "extent": "Read relevant full-text angular separation and energy formula",
+    "source_url": "https://arxiv.org/abs/physics/0209039",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read relevant full-text angular separation and energy formula. https://arxiv.org/abs/physics/0209039",
+   "url": "https://arxiv.org/abs/physics/0209039",
+   "arxiv": "physics/0209039"
+  },
+  {
+   "authors": "Hosho Katsura, Hideo Aoki",
+   "title": "Exact supersymmetry in the relativistic hydrogen atom in general dimensions—supercharge and the generalized Johnson-Lippmann operator",
+   "venue": "Journal of Mathematical Physics",
+   "volume": "47",
+   "pages": "032301",
+   "year": 2006,
+   "doi": "10.1063/1.2173173",
+   "key": "katsura2006",
+   "status": "read",
+   "role": "9: §12 point-Dirac critical coupling and hidden symmetry",
+   "relevance": [
+    "Gives arbitrary-dimensional Dirac-Coulomb energies and an explicit condition Zα<(D−1)/2 for the ordinary point-source branch.",
+    "For D=4 the lowest |κ| is 3/2, giving Z≈205.6 if the usual α is adopted."
+   ],
+   "flag_notes": [
+    "DEFINITION: this point-source threshold is not a finite-size level-diving charge and not the essential-self-adjointness threshold.",
+    "OPEN: the draft’s finite-nucleus Z≈230 at 4–5 fm needs its own source or reproducible calculation."
+   ],
+   "verification": {
+    "extent": "Read full text, including eigenenergy and stability condition",
+    "source_url": "https://arxiv.org/abs/quant-ph/0410174",
+    "locator": "p. 3, κ=±[l+(D−1)/2] and condition Zα<(D−1)/2",
+    "checked": "2026-11-08"
+   },
+   "source": "Read full text, including eigenenergy and stability condition: p. 3, κ=±[l+(D−1)/2] and condition Zα<(D−1)/2. https://arxiv.org/abs/quant-ph/0410174",
+   "url": "https://arxiv.org/abs/quant-ph/0410174",
+   "arxiv": "quant-ph/0410174"
+  },
+  {
+   "authors": "Sabre Kais, Juan Pablo Neirotti, Pablo Serra",
+   "title": "Phase transitions and the stability of atomic and molecular ions",
+   "venue": "International Journal of Mass Spectrometry",
+   "volume": "182-183",
+   "pages": "23-29",
+   "year": 1999,
+   "doi": "10.1016/s1387-3806(98)14224-0",
+   "key": "kais1999",
+   "status": "index",
+   "role": "9: negative ions and critical-charge methodology",
+   "relevance": [
+    "Discusses critical nuclear charges and transitions between bound ions and the continuum using dimensional/finite-size scaling methods.",
+    "A methodological reference for affinities and threshold certification rather than a verified D=4 dianion dataset."
+   ],
+   "flag_notes": [
+    "OPEN: no reliable D=4 multi-electron affinity or dianion table was located in this audit."
+   ],
+   "verification": {
+    "extent": "Read abstract in the dimensional-scaling bibliography; DOI metadata checked",
+    "source_url": "https://doi.org/10.1016/S1387-3806(98)14224-0",
+    "locator": "",
+    "checked": "2026-11-08"
+   },
+   "source": "Read abstract in the dimensional-scaling bibliography; DOI metadata checked. https://doi.org/10.1016/S1387-3806(98)14224-0",
+   "url": "https://doi.org/10.1016/S1387-3806(98)14224-0"
   }
  ]
 }

@@ -150,7 +150,7 @@
  },
  {
   "type": "article-journal",
-  "title": "Thomas–Fermi atom in N dimensions",
+  "title": "Thomas–Fermi atom in n dimensions",
   "author": [
    {
     "family": "Kventsel",
@@ -175,7 +175,7 @@
    ]
   },
   "publisher": "American Physical Society (APS)",
-  "DOI": "10.1103/PhysRevA.24.2299",
+  "DOI": "10.1103/physreva.24.2299",
   "id": "kventsel1981"
  },
  {
@@ -239,12 +239,11 @@
  },
  {
   "type": "book",
-  "id": "madelung1936",
   "title": "Die mathematischen Hilfsmittel des Physikers",
   "author": [
    {
-    "given": "E.",
-    "family": "Madelung"
+    "family": "Madelung",
+    "given": "Erwin"
    }
   ],
   "issued": {
@@ -254,10 +253,15 @@
     ]
    ]
   },
-  "edition": "3",
   "publisher": "Springer",
+  "DOI": "10.1007/978-3-662-02177-4",
+  "id": "madelung1936",
+  "page": "359",
+  "edition": "3",
   "publisher-place": "Berlin",
-  "language": "de"
+  "language": "de",
+  "collection-title": "Grundlehren der mathematischen Wissenschaften",
+  "collection-number": "4"
  },
  {
   "type": "book",
@@ -350,7 +354,7 @@
  },
  {
   "type": "article-journal",
-  "title": "Unorthodox dimensional interpolations for He, Li, Be atoms and hydrogen molecule",
+  "title": "Unorthodox Dimensional Interpolations for He, Li, Be Atoms and Hydrogen Molecule",
   "author": [
    {
     "family": "Ghosh",
@@ -1111,5 +1115,1063 @@
   "publisher": "American Chemical Society (ACS)",
   "DOI": "10.1021/cr990044u",
   "id": "rienstra2002"
+ },
+ {
+  "type": "article-journal",
+  "title": "On the planar periodic table",
+  "author": [
+   {
+    "family": "Négadi",
+    "given": "Tidjani"
+   }
+  ],
+  "container-title": "International Journal of Quantum Chemistry",
+  "volume": "78",
+  "issue": "4",
+  "page": "206-211",
+  "issued": {
+   "date-parts": [
+    [
+     2000
+    ]
+   ]
+  },
+  "publisher": "Wiley",
+  "DOI": "10.1002/(sici)1097-461x(2000)78:4<206::aid-qua2>3.0.co;2-v",
+  "id": "negadi2000"
+ },
+ {
+  "type": "article-journal",
+  "title": "Atomic energies from the large-dimension limit",
+  "author": [
+   {
+    "family": "Loeser",
+    "given": "J. G."
+   }
+  ],
+  "container-title": "The Journal of Chemical Physics",
+  "volume": "86",
+  "issue": "10",
+  "page": "5635-5646",
+  "issued": {
+   "date-parts": [
+    [
+     1987,
+     5,
+     15
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.452540",
+  "id": "loeser1987atomic"
+ },
+ {
+  "type": "article-journal",
+  "title": "Correlated electronic structure models suggested by the large-dimension limit",
+  "author": [
+   {
+    "family": "Loeser",
+    "given": "J. G."
+   },
+   {
+    "family": "Summerfield",
+    "given": "J. H."
+   },
+   {
+    "family": "Tan",
+    "given": "A. L."
+   },
+   {
+    "family": "Zheng",
+    "given": "Z."
+   }
+  ],
+  "container-title": "The Journal of Chemical Physics",
+  "volume": "100",
+  "issue": "7",
+  "page": "5036-5053",
+  "issued": {
+   "date-parts": [
+    [
+     1994,
+     4,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.467221",
+  "id": "loeser1994"
+ },
+ {
+  "type": "article-journal",
+  "title": "Exploring Unorthodox Dimensions for Two-Electron Atoms",
+  "author": [
+   {
+    "family": "Herschbach",
+    "given": "Dudley R."
+   },
+   {
+    "family": "Loeser",
+    "given": "John G."
+   },
+   {
+    "family": "Virgo",
+    "given": "Wilton L."
+   }
+  ],
+  "container-title": "The Journal of Physical Chemistry A",
+  "volume": "121",
+  "issue": "33",
+  "page": "6336-6340",
+  "issued": {
+   "date-parts": [
+    [
+     2017,
+     8,
+     15
+    ]
+   ]
+  },
+  "publisher": "American Chemical Society (ACS)",
+  "DOI": "10.1021/acs.jpca.7b06148",
+  "id": "herschbach2017"
+ },
+ {
+  "type": "article-journal",
+  "title": "Variable dimensionality in atoms and its effect on the ground state of the helium isoelectronic sequence",
+  "author": [
+   {
+    "family": "Herrick",
+    "given": "David R."
+   },
+   {
+    "family": "Stillinger",
+    "given": "Frank H."
+   }
+  ],
+  "container-title": "Physical Review A",
+  "volume": "11",
+  "issue": "1",
+  "page": "42-53",
+  "issued": {
+   "date-parts": [
+    [
+     1975,
+     1,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/physreva.11.42",
+  "id": "herrick1975"
+ },
+ {
+  "type": "article-journal",
+  "title": "Axiomatic basis for spaces with noninteger dimension",
+  "author": [
+   {
+    "family": "Stillinger",
+    "given": "Frank H."
+   }
+  ],
+  "container-title": "Journal of Mathematical Physics",
+  "volume": "18",
+  "issue": "6",
+  "page": "1224-1234",
+  "issued": {
+   "date-parts": [
+    [
+     1977,
+     6,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.523395",
+  "id": "stillinger1977"
+ },
+ {
+  "type": "article-journal",
+  "title": "Origin of the first Hund rule and the structure of Fermi holes in two-dimensional He-like atoms and two-electron quantum dots",
+  "author": [
+   {
+    "family": "Sako",
+    "given": "Tokuei"
+   },
+   {
+    "family": "Paldus",
+    "given": "Josef"
+   },
+   {
+    "family": "Ichimura",
+    "given": "Atsushi"
+   },
+   {
+    "family": "Diercksen",
+    "given": "Geerd H F"
+   }
+  ],
+  "container-title": "Journal of Physics B: Atomic, Molecular and Optical Physics",
+  "volume": "45",
+  "issue": "23",
+  "page": "235001",
+  "issued": {
+   "date-parts": [
+    [
+     2012,
+     11,
+     15
+    ]
+   ]
+  },
+  "publisher": "IOP Publishing",
+  "DOI": "10.1088/0953-4075/45/23/235001",
+  "id": "sako2012"
+ },
+ {
+  "type": "article-journal",
+  "title": "Origin of Hund’s multiplicity rule in quasi-two-dimensional two-electron quantum dots",
+  "author": [
+   {
+    "family": "Sako",
+    "given": "Tokuei"
+   },
+   {
+    "family": "Paldus",
+    "given": "Josef"
+   },
+   {
+    "family": "Diercksen",
+    "given": "Geerd H. F."
+   }
+  ],
+  "container-title": "Physical Review A",
+  "volume": "81",
+  "issue": "2",
+  "issued": {
+   "date-parts": [
+    [
+     2010,
+     2,
+     3
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/physreva.81.022501",
+  "id": "sako2010",
+  "page": "022501"
+ },
+ {
+  "type": "article-journal",
+  "title": "The quantum few-body problem and the 1/D method",
+  "author": [
+   {
+    "family": "González",
+    "given": "Augusto"
+   }
+  ],
+  "container-title": "Few-Body Systems",
+  "volume": "10",
+  "issue": "2",
+  "page": "43-57",
+  "issued": {
+   "date-parts": [
+    [
+     1991,
+     6
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/bf01352401",
+  "id": "gonzalez1991"
+ },
+ {
+  "type": "article-journal",
+  "title": "Comment on “the quantum few-body problem and the 1/D method”",
+  "author": [
+   {
+    "family": "Bao",
+    "given": "C. -G."
+   },
+   {
+    "family": "Ruan",
+    "given": "W. -Y."
+   }
+  ],
+  "container-title": "Few-Body Systems",
+  "volume": "13",
+  "issue": "1",
+  "page": "57-58",
+  "issued": {
+   "date-parts": [
+    [
+     1992
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/bf01080210",
+  "id": "bao1992"
+ },
+ {
+  "type": "article-journal",
+  "title": "Dimension‐dependent two‐electron Hamiltonian matrix elements",
+  "author": [
+   {
+    "family": "Summerfield",
+    "given": "J.H."
+   },
+   {
+    "family": "Loeser",
+    "given": "J.G."
+   }
+  ],
+  "container-title": "Journal of Mathematical Chemistry",
+  "volume": "25",
+  "issue": "2-3",
+  "page": "309-315",
+  "issued": {
+   "date-parts": [
+    [
+     1999,
+     6
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1023/a:1019196719751",
+  "id": "summerfield1999"
+ },
+ {
+  "type": "article-journal",
+  "title": "A Closed-Form Relation for Dimension-Dependent Two-Electron Matrix Elements of the Interelectronic Distance",
+  "author": [
+   {
+    "family": "Lo",
+    "given": "Shun S."
+   },
+   {
+    "family": "Morales",
+    "given": "Daniel A."
+   }
+  ],
+  "container-title": "Journal of Mathematical Chemistry",
+  "volume": "35",
+  "issue": "1",
+  "page": "21-28",
+  "issued": {
+   "date-parts": [
+    [
+     2004,
+     1
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1023/b:jomc.0000007810.35417.20",
+  "id": "lo2004"
+ },
+ {
+  "type": "article-journal",
+  "title": "Continuation of the Schrödinger Equation for Higher Angular-Momentum States to D Dimensions and Interdimensional Degeneracies",
+  "author": [
+   {
+    "family": "Dunn",
+    "given": "M."
+   },
+   {
+    "family": "Watson",
+    "given": "D.K."
+   }
+  ],
+  "container-title": "Few-Body Systems",
+  "volume": "21",
+  "issue": "3-4",
+  "page": "187-209",
+  "issued": {
+   "date-parts": [
+    [
+     1996,
+     12,
+     1
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/s006010050047",
+  "id": "dunn1996"
+ },
+ {
+  "type": "article-journal",
+  "title": "Helium-like ions in d-dimensions: analyticity and generalized ground state Majorana solutions",
+  "author": [
+   {
+    "family": "Escobar-Ruiz",
+    "given": "A M"
+   },
+   {
+    "family": "Olivares-Pilón",
+    "given": "H"
+   },
+   {
+    "family": "Aquino",
+    "given": "N"
+   },
+   {
+    "family": "Cruz",
+    "given": "S A"
+   }
+  ],
+  "container-title": "Journal of Physics B: Atomic, Molecular and Optical Physics",
+  "volume": "54",
+  "issue": "23",
+  "page": "235002",
+  "issued": {
+   "date-parts": [
+    [
+     2021,
+     12,
+     8
+    ]
+   ]
+  },
+  "publisher": "IOP Publishing",
+  "DOI": "10.1088/1361-6455/ac3fbf",
+  "id": "escobar2021"
+ },
+ {
+  "type": "article-journal",
+  "title": "Energies of the ground states of S-wave for a D-dimensional helium atom",
+  "author": [
+   {
+    "family": "Duan",
+    "given": "Bin"
+   },
+   {
+    "family": "Ma",
+    "given": "Zhong-Qi"
+   }
+  ],
+  "container-title": "Physics Letters A",
+  "volume": "312",
+  "issue": "5-6",
+  "page": "363-368",
+  "issued": {
+   "date-parts": [
+    [
+     2003,
+     6
+    ]
+   ]
+  },
+  "publisher": "Elsevier BV",
+  "DOI": "10.1016/s0375-9601(03)00680-7",
+  "id": "duan2003"
+ },
+ {
+  "type": "article-journal",
+  "title": "Exchange Energy of an Electron Gas of Arbitrary Dimensionality",
+  "author": [
+   {
+    "family": "Glasser",
+    "given": "M. L."
+   },
+   {
+    "family": "Boersma",
+    "given": "J."
+   }
+  ],
+  "container-title": "SIAM Journal on Applied Mathematics",
+  "volume": "43",
+  "issue": "3",
+  "page": "535-545",
+  "issued": {
+   "date-parts": [
+    [
+     1983,
+     6
+    ]
+   ]
+  },
+  "publisher": "Society for Industrial & Applied Mathematics (SIAM)",
+  "DOI": "10.1137/0143034",
+  "id": "glasser1983"
+ },
+ {
+  "type": "article-journal",
+  "title": "Homogeneous electron gas in arbitrary dimensions",
+  "author": [
+   {
+    "family": "Schlesier",
+    "given": "Robert"
+   },
+   {
+    "family": "Benavides-Riveros",
+    "given": "Carlos L."
+   },
+   {
+    "family": "Marques",
+    "given": "Miguel A. L."
+   }
+  ],
+  "container-title": "Physical Review B",
+  "volume": "102",
+  "issue": "3",
+  "issued": {
+   "date-parts": [
+    [
+     2020,
+     7,
+     10
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/physrevb.102.035123",
+  "id": "schlesier2020",
+  "page": "035123"
+ },
+ {
+  "type": "article-journal",
+  "title": "Homogeneous electron liquid in arbitrary dimensions beyond the random phase approximation",
+  "author": [
+   {
+    "family": "Duc Pham",
+    "given": "L V"
+   },
+   {
+    "family": "Sattler",
+    "given": "Pascal"
+   },
+   {
+    "family": "Marques",
+    "given": "Miguel A L"
+   },
+   {
+    "family": "Benavides-Riveros",
+    "given": "Carlos L"
+   }
+  ],
+  "container-title": "New Journal of Physics",
+  "volume": "25",
+  "issue": "8",
+  "page": "083040",
+  "issued": {
+   "date-parts": [
+    [
+     2023,
+     8,
+     1
+    ]
+   ]
+  },
+  "publisher": "IOP Publishing",
+  "DOI": "10.1088/1367-2630/acef4c",
+  "id": "pham2023"
+ },
+ {
+  "type": "article-journal",
+  "container-title": "Soviet Physics JETP",
+  "volume": "6",
+  "page": "156–158",
+  "id": "alliluev1958",
+  "title": "On the relation between “accidental” degeneracy and “hidden” symmetry of a system",
+  "author": [
+   {
+    "given": "S. P.",
+    "family": "Alliluev"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     1958
+    ]
+   ]
+  },
+  "URL": "https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf"
+ },
+ {
+  "type": "article-journal",
+  "title": "Momentum maps, independent first integrals and integrability for central potentials",
+  "author": [
+   {
+    "family": "FIORANI",
+    "given": "EMANUELE"
+   }
+  ],
+  "container-title": "International Journal of Geometric Methods in Modern Physics",
+  "volume": "06",
+  "issue": "08",
+  "page": "1323-1341",
+  "issued": {
+   "date-parts": [
+    [
+     2009,
+     12
+    ]
+   ]
+  },
+  "publisher": "World Scientific Pub Co Pte Lt",
+  "DOI": "10.1142/s0219887809004247",
+  "id": "fiorani2009"
+ },
+ {
+  "type": "webpage",
+  "container-title": "arXiv",
+  "id": "bertrand2007",
+  "title": "An English translation of Bertrand’s theorem",
+  "author": [
+   {
+    "given": "F. C.",
+    "family": "Santos"
+   },
+   {
+    "given": "V.",
+    "family": "Soares"
+   },
+   {
+    "given": "A. C.",
+    "family": "Tort"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2007
+    ]
+   ]
+  },
+  "URL": "https://arxiv.org/abs/0704.2396"
+ },
+ {
+  "type": "article-journal",
+  "title": "The order of electron shells in ionized atoms",
+  "author": [
+   {
+    "family": "Goudsmit",
+    "given": "S. A."
+   },
+   {
+    "family": "Richards",
+    "given": "Paul I."
+   }
+  ],
+  "container-title": "Proceedings of the National Academy of Sciences",
+  "volume": "51",
+  "issue": "4",
+  "page": "664-671",
+  "issued": {
+   "date-parts": [
+    [
+     1964,
+     4
+    ]
+   ]
+  },
+  "publisher": "National Academy of Sciences",
+  "DOI": "10.1073/pnas.51.4.664",
+  "id": "goudsmit1964"
+ },
+ {
+  "type": "article-journal",
+  "title": "General Decomposition of Radial Functions on Rn and Applications to N-Body Quantum Systems",
+  "author": [
+   {
+    "family": "Hainzl",
+    "given": "Christian"
+   },
+   {
+    "family": "Seiringer",
+    "given": "Robert"
+   }
+  ],
+  "container-title": "Letters in Mathematical Physics",
+  "volume": "61",
+  "issue": "1",
+  "page": "75-84",
+  "issued": {
+   "date-parts": [
+    [
+     2002,
+     7
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1023/a:1020204818938",
+  "id": "hainzl2002"
+ },
+ {
+  "type": "article-journal",
+  "title": "Coulomb and Riesz gases: The known and the unknown",
+  "author": [
+   {
+    "family": "Lewin",
+    "given": "Mathieu"
+   }
+  ],
+  "container-title": "Journal of Mathematical Physics",
+  "volume": "63",
+  "issue": "6",
+  "issued": {
+   "date-parts": [
+    [
+     2022,
+     6,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/5.0086835",
+  "id": "lewin2022",
+  "page": "061101"
+ },
+ {
+  "type": "article-journal",
+  "title": "Colloquium : Fractional electromagnetism in quantum matter and high-energy physics",
+  "author": [
+   {
+    "family": "La Nave",
+    "given": "Gabriele"
+   },
+   {
+    "family": "Limtragool",
+    "given": "Kridsanaphong"
+   },
+   {
+    "family": "Phillips",
+    "given": "Philip W."
+   }
+  ],
+  "container-title": "Reviews of Modern Physics",
+  "volume": "91",
+  "issue": "2",
+  "issued": {
+   "date-parts": [
+    [
+     2019,
+     6,
+     25
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/revmodphys.91.021003",
+  "id": "lanave2019",
+  "page": "021003"
+ },
+ {
+  "type": "article-journal",
+  "title": "Fractional power-law spatial dispersion in electrodynamics",
+  "author": [
+   {
+    "family": "Tarasov",
+    "given": "Vasily E."
+   },
+   {
+    "family": "Trujillo",
+    "given": "Juan J."
+   }
+  ],
+  "container-title": "Annals of Physics",
+  "volume": "334",
+  "page": "1-23",
+  "issued": {
+   "date-parts": [
+    [
+     2013,
+     7
+    ]
+   ]
+  },
+  "publisher": "Elsevier BV",
+  "DOI": "10.1016/j.aop.2013.03.014",
+  "id": "tarasov2013"
+ },
+ {
+  "type": "article-journal",
+  "title": "Electric field in media with power-law spatial dispersion",
+  "author": [
+   {
+    "family": "Tarasov",
+    "given": "Vasily E."
+   }
+  ],
+  "container-title": "Modern Physics Letters B",
+  "volume": "30",
+  "issue": "10",
+  "page": "1650132",
+  "issued": {
+   "date-parts": [
+    [
+     2016,
+     4,
+     20
+    ]
+   ]
+  },
+  "publisher": "World Scientific Pub Co Pte Ltd",
+  "DOI": "10.1142/s0217984916501323",
+  "id": "tarasov2016"
+ },
+ {
+  "type": "article-journal",
+  "title": "Renormalization and conformal invariance of non-local quantum electrodynamics",
+  "author": [
+   {
+    "family": "Heydeman",
+    "given": "Matthew"
+   },
+   {
+    "family": "Jepsen",
+    "given": "Christian B."
+   },
+   {
+    "family": "Ji",
+    "given": "Ziming"
+   },
+   {
+    "family": "Yarom",
+    "given": "Amos"
+   }
+  ],
+  "container-title": "Journal of High Energy Physics",
+  "volume": "2020",
+  "issue": "8",
+  "issued": {
+   "date-parts": [
+    [
+     2020,
+     8,
+     4
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/jhep08(2020)007",
+  "id": "heydeman2020",
+  "page": "7"
+ },
+ {
+  "type": "article-journal",
+  "title": "Unitarity of theories containing fractional powers of the d’Alembertian operator",
+  "author": [
+   {
+    "family": "Marino",
+    "given": "E. C."
+   },
+   {
+    "family": "Nascimento",
+    "given": "Leandro O."
+   },
+   {
+    "family": "Alves",
+    "given": "Van Sérgio"
+   },
+   {
+    "family": "Morais Smith",
+    "given": "C."
+   }
+  ],
+  "container-title": "Physical Review D",
+  "volume": "90",
+  "issue": "10",
+  "issued": {
+   "date-parts": [
+    [
+     2014,
+     11,
+     5
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/physrevd.90.105003",
+  "id": "marino2014",
+  "page": "105003"
+ },
+ {
+  "type": "article-journal",
+  "title": "Comments on unparticles",
+  "author": [
+   {
+    "family": "Grinstein",
+    "given": "Benjamin"
+   },
+   {
+    "family": "Intriligator",
+    "given": "Kenneth"
+   },
+   {
+    "family": "Rothstein",
+    "given": "Ira Z."
+   }
+  ],
+  "container-title": "Physics Letters B",
+  "volume": "662",
+  "issue": "4",
+  "page": "367-374",
+  "issued": {
+   "date-parts": [
+    [
+     2008,
+     5
+    ]
+   ]
+  },
+  "publisher": "Elsevier BV",
+  "DOI": "10.1016/j.physletb.2008.03.020",
+  "id": "grinstein2008"
+ },
+ {
+  "type": "article-journal",
+  "title": "Unparticle Physics",
+  "author": [
+   {
+    "family": "Georgi",
+    "given": "Howard"
+   }
+  ],
+  "container-title": "Physical Review Letters",
+  "volume": "98",
+  "issue": "22",
+  "issued": {
+   "date-parts": [
+    [
+     2007,
+     5,
+     29
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/physrevlett.98.221601",
+  "id": "georgi2007",
+  "page": "221601"
+ },
+ {
+  "type": "book",
+  "volume": "161",
+  "id": "lindqvist2017",
+  "title": "Notes on the p-Laplace equation, second edition",
+  "author": [
+   {
+    "literal": "Peter Lindqvist"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2017
+    ]
+   ]
+  },
+  "URL": "https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download",
+  "collection-title": "Report, Department of Mathematics and Statistics",
+  "publisher": "University of Jyväskylä",
+  "edition": "2"
+ },
+ {
+  "type": "article-journal",
+  "title": "Exact solutions to the Dirac equation for a Coulomb potential in D + 1 dimensions",
+  "author": [
+   {
+    "family": "GU",
+    "given": "XIAO-YAN"
+   },
+   {
+    "family": "MA",
+    "given": "ZHONG-QI"
+   },
+   {
+    "family": "DONG",
+    "given": "SHI-HAI"
+   }
+  ],
+  "container-title": "International Journal of Modern Physics E",
+  "volume": "11",
+  "issue": "04",
+  "page": "335-346",
+  "issued": {
+   "date-parts": [
+    [
+     2002,
+     8
+    ]
+   ]
+  },
+  "publisher": "World Scientific Pub Co Pte Lt",
+  "DOI": "10.1142/s0218301302000879",
+  "id": "gu2002"
+ },
+ {
+  "type": "article-journal",
+  "title": "Exact supersymmetry in the relativistic hydrogen atom in general dimensions—supercharge and the generalized Johnson-Lippmann operator",
+  "author": [
+   {
+    "family": "Katsura",
+    "given": "Hosho"
+   },
+   {
+    "family": "Aoki",
+    "given": "Hideo"
+   }
+  ],
+  "container-title": "Journal of Mathematical Physics",
+  "volume": "47",
+  "issue": "3",
+  "issued": {
+   "date-parts": [
+    [
+     2006,
+     3,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.2173173",
+  "id": "katsura2006",
+  "page": "032301"
+ },
+ {
+  "type": "article-journal",
+  "title": "Phase transitions and the stability of atomic and molecular ions",
+  "author": [
+   {
+    "family": "Kais",
+    "given": "Sabre"
+   },
+   {
+    "family": "Neirotti",
+    "given": "Juan Pablo"
+   },
+   {
+    "family": "Serra",
+    "given": "Pablo"
+   }
+  ],
+  "container-title": "International Journal of Mass Spectrometry",
+  "volume": "182-183",
+  "page": "23-29",
+  "issued": {
+   "date-parts": [
+    [
+     1999,
+     3
+    ]
+   ]
+  },
+  "publisher": "Elsevier BV",
+  "DOI": "10.1016/s1387-3806(98)14224-0",
+  "id": "kais1999"
  }
 ]
