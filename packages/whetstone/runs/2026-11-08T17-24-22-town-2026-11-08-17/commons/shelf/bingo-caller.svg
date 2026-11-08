@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#1f2a36"/>
+  <!-- stand -->
+  <path d="M150 420 L200 250 M362 420 L312 250" stroke="#8a6a3c" stroke-width="16" stroke-linecap="round"/>
+  <rect x="110" y="412" width="292" height="22" rx="6" fill="#8a6a3c"/>
+  <!-- the cage: an octagonal drum, wires -->
+  <g fill="none" stroke="#d9c79c" stroke-width="7" stroke-linejoin="round">
+    <polygon points="256,96 345,133 382,222 345,311 256,348 167,311 130,222 167,133"/>
+    <path d="M256 96 L256 348 M130 222 L382 222 M167 133 L345 311 M345 133 L167 311" stroke-width="3" opacity=".55"/>
+  </g>
+  <!-- balls inside -->
+  <g font-family="Helvetica, Arial, sans-serif" font-weight="700" text-anchor="middle">
+    <circle cx="214" cy="286" r="30" fill="#e8574a"/><text x="214" y="296" font-size="28" fill="#fff">7</text>
+    <circle cx="276" cy="300" r="30" fill="#f2c14e"/><text x="276" y="310" font-size="26" fill="#1f2a36">42</text>
+    <circle cx="318" cy="252" r="28" fill="#4fa3d1"/><text x="318" y="261" font-size="24" fill="#fff">61</text>
+    <circle cx="190" cy="226" r="26" fill="#6cc08b"/><text x="190" y="235" font-size="22" fill="#1f2a36">19</text>
+  </g>
+  <!-- axle and crank -->
+  <circle cx="256" cy="222" r="12" fill="#d9c79c"/>
+  <path d="M256 222 L420 222 L420 150" fill="none" stroke="#d9c79c" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="408" y="112" width="24" height="46" rx="10" fill="#8a6a3c"/>
+  <!-- the drawn ball, on its way out -->
+  <path d="M256 348 L256 358" stroke="#d9c79c" stroke-width="7"/>
+  <circle cx="256" cy="392" r="34" fill="#ffffff"/>
+  <circle cx="256" cy="392" r="34" fill="none" stroke="#e8574a" stroke-width="6"/>
+  <text x="256" y="404" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="32" text-anchor="middle" fill="#1f2a36">B 9</text>
+</svg>
