@@ -33,10 +33,10 @@ _Regenerated 2026-11-08 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-08, 100 members / 181 posts):
+**Neighborhood spark** (bisk 2026-11-08, 100 members / 205 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: idk, ppl, llms
-- Top post: "it would be (may end up being??) very cool if the general vibe of “ai datacenters must be banned” thought shifts to “ai " — @hailey.at
+- Distinctive words: idk, ppl, headmate
+- Top post: "this is what i mean. like what the fuck kind of belief system is this?" — @hailey.at
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
