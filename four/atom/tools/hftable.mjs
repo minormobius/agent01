@@ -14,6 +14,7 @@ import { TABLE } from "../js/table.js";
 import { SOLVER } from "./bake.mjs";
 import { angularL, slaterL, groundSpin } from "./hund.mjs";
 import { hfAtom } from "../js/hf.js";
+import { readFileSync } from "node:fs";
 
 const HA = 27.211386245988, Lof = { s: 0, p: 1, d: 2, f: 3 };
 const [mode, zs, dS = "4", wS = "4"] = process.argv.slice(2), D = +dS, WIN = +wS / HA;
@@ -48,12 +49,18 @@ if (mode === "check") {
   console.log(out.every((o) => o.ok) ? "hf check passed" : "hf check FAILED"); process.exit(out.every((o) => o.ok) ? 0 : 1);
 }
 
+/* past the baked table (ours stops at 36), the element and its neighbours are taken from the measured configurations
+   of papers/p1/data/nist-lanthanides.json (Cs–Hf): the lanthanide calibration. They only seed the search, which ranks
+   whatever settles, so the measured answer gets no say in either method's ranking. */
+const MEASURED = new Map(D === 3 ? JSON.parse(readFileSync(new URL("../../papers/p1/data/nist-lanthanides.json", import.meta.url), "utf8")).rows.map((r) => [r.Z, { Z: r.Z, config: r.config }]) : []);
+const entry = (Z) => TABLE[D].find((e) => e.Z === Z) ?? MEASURED.get(Z);
+
 if (mode === "rank") {
   const sh = subshells(D);
   for (const Z of zs.split("/").map(Number)) {
-    const t0 = Date.now(), baked = TABLE[D].find((e) => e.Z === Z), seeds = [], same = (a, b) => a.every((v, i) => v === b[i]);
+    const t0 = Date.now(), baked = entry(Z), seeds = [], same = (a, b) => a.every((v, i) => v === b[i]);
     const add = (o) => { if (o.reduce((t, x) => t + x, 0) === Z && o.every((x, i) => x >= 0 && x <= sh[i].cap) && !seeds.some((x) => same(x, o))) seeds.push(o); };
-    for (let Zn = Z - 2; Zn <= Z + 2; Zn++) { const e = TABLE[D].find((x) => x.Z === Zn); if (!e) continue; const base = occOf(sh, e.config), k = Z - Zn; for (let i = 0; i < sh.length; i++) { const o = base.slice(); o[i] += k; add(o); } }
+    for (let Zn = Z - 2; Zn <= Z + 2; Zn++) { const e = entry(Zn); if (!e) continue; const base = occOf(sh, e.config), k = Z - Zn; for (let i = 0; i < sh.length; i++) { const o = base.slice(); o[i] += k; add(o); } }
     add(occOf(sh, baked.config));
     const collect = []; ground(Z, D, { ...SOLVER, seeds, collect });
     const cands = []; for (const c of collect) { const k = cands.findIndex((x) => same(x.occ, c.occ)); if (k >= 0) { if (c.E < cands[k].E) cands[k] = c; } else cands.push(c); }
