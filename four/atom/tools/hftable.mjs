@@ -57,8 +57,8 @@ const MEASURED = new Map(D === 3 ? JSON.parse(readFileSync(new URL("../../papers
 const entry = (Z) => TABLE[D].find((e) => e.Z === Z) ?? MEASURED.get(Z);
 
 /* map: an element's valence states. From its ground configuration in the table (js/tablec.js), every one-electron move
-   from an open subshell (or the outermost s) to a subshell within one of the outermost n + l, compact only, each solved
-   by both methods: local exchange (its own SCF, Hund-corrected) and Hartree–Fock (term-corrected), energies from each
+   from any occupied subshell within one of the outermost n + l (full ones too) to a subshell within one of it, compact
+   only, each solved by both methods: local exchange (its own SCF, Hund-corrected) and Hartree–Fock (term-corrected), energies from each
    method's own ground; and each open subshell's spin ladder on the ground (the lowest energy of each M_S block, which
    holds every spin S ≥ M_S), by Hartree–Fock's orbitals.
      node four/atom/tools/hftable.mjs map <Z/Z/…> [D] */
@@ -68,7 +68,7 @@ if (mode === "map") {
   const gappedOcc = (o) => sh.some((s, i) => o[i] > 0 && sh.some((t, j) => t.l === s.l && nOf(t) < nOf(s) && o[j] === 0));
   for (const Z of zs.split("/").map(Number)) {
     const t0 = Date.now(), g = occOf(sh, TC[D][Z - 1].config), list = [{ occ: g, ground: true }], top = Math.max(...sh.map((s, i) => (g[i] > 0 ? nl(s) : -1)));
-    const donors = sh.map((_, i) => i).filter((i) => g[i] > 0 && (g[i] < sh[i].cap || (sh[i].l === 0 && nl(sh[i]) >= top - 1)));
+    const donors = sh.map((_, i) => i).filter((i) => g[i] > 0 && nl(sh[i]) >= top - 1); // every occupied subshell near the top, full ones too (Cu's 3d, a noble gas's p)
     const accept = sh.map((_, i) => i).filter((i) => g[i] < sh[i].cap && sh[i].l <= 3 && Math.abs(nl(sh[i]) - top) <= 1);
     for (const a of donors) for (const b of accept) { if (a === b) continue; const m = g.slice(); m[a]--; m[b]++; if (!gappedOcc(m) && !list.some((x) => same(x.occ, m))) list.push({ occ: m }); }
     for (const c of list) {

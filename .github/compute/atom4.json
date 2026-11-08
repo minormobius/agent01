@@ -1,102 +1,30 @@
 {
- "run": "hf-climb-1",
- "why": "Paper 1: a 10 eV window in local-exchange energy (hf-wide-1) still leaves Hartree–Fock's competitors out in the 4D f row (93–104: only fⁿs² and fⁿ⁺¹s¹ in range), because local exchange misprices f by volts. hftable.mjs rank … climb adds Hartree–Fock's own neighbourhood: from its best, every one-electron move among the outer subshells, solved by Hartree–Fock, repeated until nothing improves (terbium: finds 4f8 5d 6s2 at +0.92 eV, measured 0.035, and 4f9 6s 6p at +0.80, 7 min). Ours Cs–Hf and the 4D f row 81–112.",
+ "run": "valence-1",
+ "why": "Paper 1 (the atomic reference): a direct test of the valence rule on darbon's hydride DH5 (4D element 7), which the census settles by counting, closed-shell Hartree–Fock and three random nudges. Here: the full 24 × 24 Cartesian curvature matrix at the census geometry by central differences (eight shares), and balanced alternatives DH5 → DH4 + H and → DH3 + H2 with each fragment in its lowest spin (both tried), by UHF and UMP2.",
  "minutes": 340,
  "groups": [
   {
-   "name": "hfc-l0",
+   "name": "val-h0",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 55/56 3 10 climb",
-    "node four/atom/tools/hftable.mjs rank 57/58 3 10 climb",
-    "node four/atom/tools/hftable.mjs rank 59/60 3 10 climb"
+    "node four/atom/tools/valencetest.mjs hessian 7 0/8",
+    "node four/atom/tools/valencetest.mjs hessian 7 1/8",
+    "node four/atom/tools/valencetest.mjs hessian 7 2/8",
+    "node four/atom/tools/valencetest.mjs hessian 7 3/8"
    ]
   },
   {
-   "name": "hfc-l1",
+   "name": "val-h1",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 61/62 3 10 climb",
-    "node four/atom/tools/hftable.mjs rank 63/64 3 10 climb",
-    "node four/atom/tools/hftable.mjs rank 65/66 3 10 climb"
+    "node four/atom/tools/valencetest.mjs hessian 7 4/8",
+    "node four/atom/tools/valencetest.mjs hessian 7 5/8",
+    "node four/atom/tools/valencetest.mjs hessian 7 6/8",
+    "node four/atom/tools/valencetest.mjs hessian 7 7/8"
    ]
   },
   {
-   "name": "hfc-l2",
+   "name": "val-r",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 67/68 3 10 climb",
-    "node four/atom/tools/hftable.mjs rank 69/70 3 10 climb",
-    "node four/atom/tools/hftable.mjs rank 71/72 3 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f0",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 81 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 82 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 83 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 84 4 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f1",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 85 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 86 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 87 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 88 4 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f2",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 89 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 90 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 91 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 92 4 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f3",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 93 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 94 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 95 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 96 4 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f4",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 97 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 98 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 99 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 100 4 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f5",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 101 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 102 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 103 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 104 4 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f6",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 105 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 106 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 107 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 108 4 10 climb"
-   ]
-  },
-  {
-   "name": "hfc-f7",
-   "cmds": [
-    "node four/atom/tools/hftable.mjs rank 109 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 110 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 111 4 10 climb",
-    "node four/atom/tools/hftable.mjs rank 112 4 10 climb"
+    "node four/atom/tools/valencetest.mjs reactions 7"
    ]
   }
  ]
