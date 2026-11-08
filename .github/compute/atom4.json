@@ -1,364 +1,193 @@
 {
- "run": "ions-23",
- "why": "The +2 and +3 ions of every element, both worlds, each searched for its own ground configuration and Hund-corrected, as ions-1 did for ±1. They give the second and third ionization energies (which charges an element gives up cheaply: 4D salts and minerals, Bluminium's Bl³⁺), whether 4D's transition metals shed s before d as ours do (sandbox: element 26 goes 3d²4s² → 3d²4s¹ → 3d² → 3d¹, our Fe → 3d⁶ → 3d⁵ as measured), and the ions for the big table's 'Inside the atom'. Ours (to 36) is the check against measured second and third ionizations.",
+ "run": "hf-table-1",
+ "why": "Paper 1's second table: every element's candidate configurations (the local-exchange search's settled ones within 4 eV of its ground) solved by Hartree–Fock (js/hf.js: numerical, one radial function per subshell, the max-spin average, any D; checked against the numerical Hartree–Fock limits of our He–Kr and against gauss.js in 4D), each with its open subshells' full term correction. Both worlds: in ours the Hartree–Fock ranking gets all ten 3d configurations (Sc–Zn) where the local exchange gets six, and where the two agree both are right. In 4D, agreement marks a configuration as firm and disagreement marks it open, with Hartree–Fock the better-founded side.",
  "minutes": 340,
  "groups": [
   {
-   "name": "ions23-0",
+   "name": "hft-0",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 140 4 2",
-    "node four/atom/tools/termtable.mjs 3/139 4 2",
-    "node four/atom/tools/termtable.mjs 4/138 4 2",
-    "node four/atom/tools/termtable.mjs 5/137 4 2"
+    "node four/atom/tools/hftable.mjs rank 1/140 4 4",
+    "node four/atom/tools/hftable.mjs rank 2/139 4 4",
+    "node four/atom/tools/hftable.mjs rank 3/138 4 4",
+    "node four/atom/tools/hftable.mjs rank 4/137 4 4"
    ]
   },
   {
-   "name": "ions23-1",
+   "name": "hft-1",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 6/136 4 2",
-    "node four/atom/tools/termtable.mjs 7/135 4 2",
-    "node four/atom/tools/termtable.mjs 8/134 4 2",
-    "node four/atom/tools/termtable.mjs 9/133 4 2"
+    "node four/atom/tools/hftable.mjs rank 5/136 4 4",
+    "node four/atom/tools/hftable.mjs rank 6/135 4 4",
+    "node four/atom/tools/hftable.mjs rank 7/134 4 4",
+    "node four/atom/tools/hftable.mjs rank 8/133 4 4"
    ]
   },
   {
-   "name": "ions23-2",
+   "name": "hft-2",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 10/132 4 2",
-    "node four/atom/tools/termtable.mjs 11/131 4 2",
-    "node four/atom/tools/termtable.mjs 12/130 4 2",
-    "node four/atom/tools/termtable.mjs 13/129 4 2"
+    "node four/atom/tools/hftable.mjs rank 9/132 4 4",
+    "node four/atom/tools/hftable.mjs rank 10/131 4 4",
+    "node four/atom/tools/hftable.mjs rank 11/130 4 4",
+    "node four/atom/tools/hftable.mjs rank 12/129 4 4"
    ]
   },
   {
-   "name": "ions23-3",
+   "name": "hft-3",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 14/128 4 2",
-    "node four/atom/tools/termtable.mjs 15/127 4 2",
-    "node four/atom/tools/termtable.mjs 16/126 4 2",
-    "node four/atom/tools/termtable.mjs 17/125 4 2"
+    "node four/atom/tools/hftable.mjs rank 13/128 4 4",
+    "node four/atom/tools/hftable.mjs rank 14/127 4 4",
+    "node four/atom/tools/hftable.mjs rank 15/126 4 4",
+    "node four/atom/tools/hftable.mjs rank 16/125 4 4"
    ]
   },
   {
-   "name": "ions23-4",
+   "name": "hft-4",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 18/124 4 2",
-    "node four/atom/tools/termtable.mjs 19/123 4 2",
-    "node four/atom/tools/termtable.mjs 20/122 4 2",
-    "node four/atom/tools/termtable.mjs 21/121 4 2"
+    "node four/atom/tools/hftable.mjs rank 17/124 4 4",
+    "node four/atom/tools/hftable.mjs rank 18/123 4 4",
+    "node four/atom/tools/hftable.mjs rank 19/122 4 4",
+    "node four/atom/tools/hftable.mjs rank 20/121 4 4"
    ]
   },
   {
-   "name": "ions23-5",
+   "name": "hft-5",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 22/120 4 2",
-    "node four/atom/tools/termtable.mjs 23/119 4 2",
-    "node four/atom/tools/termtable.mjs 24/118 4 2",
-    "node four/atom/tools/termtable.mjs 25/117 4 2"
+    "node four/atom/tools/hftable.mjs rank 21/120 4 4",
+    "node four/atom/tools/hftable.mjs rank 22/119 4 4",
+    "node four/atom/tools/hftable.mjs rank 23/118 4 4",
+    "node four/atom/tools/hftable.mjs rank 24/117 4 4"
    ]
   },
   {
-   "name": "ions23-6",
+   "name": "hft-6",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 26/116 4 2",
-    "node four/atom/tools/termtable.mjs 27/115 4 2",
-    "node four/atom/tools/termtable.mjs 28/114 4 2",
-    "node four/atom/tools/termtable.mjs 29/113 4 2"
+    "node four/atom/tools/hftable.mjs rank 25/116 4 4",
+    "node four/atom/tools/hftable.mjs rank 26/115 4 4",
+    "node four/atom/tools/hftable.mjs rank 27/114 4 4",
+    "node four/atom/tools/hftable.mjs rank 28/113 4 4"
    ]
   },
   {
-   "name": "ions23-7",
+   "name": "hft-7",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 30/112 4 2",
-    "node four/atom/tools/termtable.mjs 31/111 4 2",
-    "node four/atom/tools/termtable.mjs 32/110 4 2",
-    "node four/atom/tools/termtable.mjs 33/109 4 2"
+    "node four/atom/tools/hftable.mjs rank 29/112 4 4",
+    "node four/atom/tools/hftable.mjs rank 30/111 4 4",
+    "node four/atom/tools/hftable.mjs rank 31/110 4 4",
+    "node four/atom/tools/hftable.mjs rank 32/109 4 4"
    ]
   },
   {
-   "name": "ions23-8",
+   "name": "hft-8",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 34/108 4 2",
-    "node four/atom/tools/termtable.mjs 35/107 4 2",
-    "node four/atom/tools/termtable.mjs 36/106 4 2",
-    "node four/atom/tools/termtable.mjs 37/105 4 2"
+    "node four/atom/tools/hftable.mjs rank 33/108 4 4",
+    "node four/atom/tools/hftable.mjs rank 34/107 4 4",
+    "node four/atom/tools/hftable.mjs rank 35/106 4 4",
+    "node four/atom/tools/hftable.mjs rank 36/105 4 4"
    ]
   },
   {
-   "name": "ions23-9",
+   "name": "hft-9",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 38/104 4 2",
-    "node four/atom/tools/termtable.mjs 39/103 4 2",
-    "node four/atom/tools/termtable.mjs 40/102 4 2",
-    "node four/atom/tools/termtable.mjs 41/101 4 2"
+    "node four/atom/tools/hftable.mjs rank 37/104 4 4",
+    "node four/atom/tools/hftable.mjs rank 38/103 4 4",
+    "node four/atom/tools/hftable.mjs rank 39/102 4 4",
+    "node four/atom/tools/hftable.mjs rank 40/101 4 4"
    ]
   },
   {
-   "name": "ions23-10",
+   "name": "hft-10",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 42/100 4 2",
-    "node four/atom/tools/termtable.mjs 43/99 4 2",
-    "node four/atom/tools/termtable.mjs 44/98 4 2",
-    "node four/atom/tools/termtable.mjs 45/97 4 2"
+    "node four/atom/tools/hftable.mjs rank 41/100 4 4",
+    "node four/atom/tools/hftable.mjs rank 42/99 4 4",
+    "node four/atom/tools/hftable.mjs rank 43/98 4 4",
+    "node four/atom/tools/hftable.mjs rank 44/97 4 4"
    ]
   },
   {
-   "name": "ions23-11",
+   "name": "hft-11",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 46/96 4 2",
-    "node four/atom/tools/termtable.mjs 47/95 4 2",
-    "node four/atom/tools/termtable.mjs 48/94 4 2",
-    "node four/atom/tools/termtable.mjs 49/93 4 2"
+    "node four/atom/tools/hftable.mjs rank 45/96 4 4",
+    "node four/atom/tools/hftable.mjs rank 46/95 4 4",
+    "node four/atom/tools/hftable.mjs rank 47/94 4 4",
+    "node four/atom/tools/hftable.mjs rank 48/93 4 4"
    ]
   },
   {
-   "name": "ions23-12",
+   "name": "hft-12",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 50/92 4 2",
-    "node four/atom/tools/termtable.mjs 51/91 4 2",
-    "node four/atom/tools/termtable.mjs 52/90 4 2",
-    "node four/atom/tools/termtable.mjs 53/89 4 2"
+    "node four/atom/tools/hftable.mjs rank 49/92 4 4",
+    "node four/atom/tools/hftable.mjs rank 50/91 4 4",
+    "node four/atom/tools/hftable.mjs rank 51/90 4 4",
+    "node four/atom/tools/hftable.mjs rank 52/89 4 4"
    ]
   },
   {
-   "name": "ions23-13",
+   "name": "hft-13",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 54/88 4 2",
-    "node four/atom/tools/termtable.mjs 55/87 4 2",
-    "node four/atom/tools/termtable.mjs 56/86 4 2",
-    "node four/atom/tools/termtable.mjs 57/85 4 2"
+    "node four/atom/tools/hftable.mjs rank 53/88 4 4",
+    "node four/atom/tools/hftable.mjs rank 54/87 4 4",
+    "node four/atom/tools/hftable.mjs rank 55/86 4 4",
+    "node four/atom/tools/hftable.mjs rank 56/85 4 4"
    ]
   },
   {
-   "name": "ions23-14",
+   "name": "hft-14",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 58/84 4 2",
-    "node four/atom/tools/termtable.mjs 59/83 4 2",
-    "node four/atom/tools/termtable.mjs 60/82 4 2",
-    "node four/atom/tools/termtable.mjs 61/81 4 2"
+    "node four/atom/tools/hftable.mjs rank 57/84 4 4",
+    "node four/atom/tools/hftable.mjs rank 58/83 4 4",
+    "node four/atom/tools/hftable.mjs rank 59/82 4 4",
+    "node four/atom/tools/hftable.mjs rank 60/81 4 4"
    ]
   },
   {
-   "name": "ions23-15",
+   "name": "hft-15",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 62/80 4 2",
-    "node four/atom/tools/termtable.mjs 63/79 4 2",
-    "node four/atom/tools/termtable.mjs 64/78 4 2",
-    "node four/atom/tools/termtable.mjs 65/77 4 2"
+    "node four/atom/tools/hftable.mjs rank 61/80 4 4",
+    "node four/atom/tools/hftable.mjs rank 62/79 4 4",
+    "node four/atom/tools/hftable.mjs rank 63/78 4 4",
+    "node four/atom/tools/hftable.mjs rank 64/77 4 4"
    ]
   },
   {
-   "name": "ions23-16",
+   "name": "hft-16",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 66/76 4 2",
-    "node four/atom/tools/termtable.mjs 67/75 4 2",
-    "node four/atom/tools/termtable.mjs 68/74 4 2",
-    "node four/atom/tools/termtable.mjs 69/73 4 2"
+    "node four/atom/tools/hftable.mjs rank 65/76 4 4",
+    "node four/atom/tools/hftable.mjs rank 66/75 4 4",
+    "node four/atom/tools/hftable.mjs rank 67/74 4 4",
+    "node four/atom/tools/hftable.mjs rank 68/73 4 4"
    ]
   },
   {
-   "name": "ions23-17",
+   "name": "hft-17",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 70/72 4 2",
-    "node four/atom/tools/termtable.mjs 71 4 2",
-    "node four/atom/tools/termtable.mjs 140 4 3",
-    "node four/atom/tools/termtable.mjs 139 4 3"
+    "node four/atom/tools/hftable.mjs rank 69/72 4 4",
+    "node four/atom/tools/hftable.mjs rank 70/71 4 4",
+    "node four/atom/tools/hftable.mjs rank 1/2/3 3 4",
+    "node four/atom/tools/hftable.mjs rank 4/5/6 3 4"
    ]
   },
   {
-   "name": "ions23-18",
+   "name": "hft-18",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 138 4 3",
-    "node four/atom/tools/termtable.mjs 4/137 4 3",
-    "node four/atom/tools/termtable.mjs 5/136 4 3",
-    "node four/atom/tools/termtable.mjs 6/135 4 3"
+    "node four/atom/tools/hftable.mjs rank 7/8/9 3 4",
+    "node four/atom/tools/hftable.mjs rank 10/11/12 3 4",
+    "node four/atom/tools/hftable.mjs rank 13/14/15 3 4",
+    "node four/atom/tools/hftable.mjs rank 16/17/18 3 4"
    ]
   },
   {
-   "name": "ions23-19",
+   "name": "hft-19",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 7/134 4 3",
-    "node four/atom/tools/termtable.mjs 8/133 4 3",
-    "node four/atom/tools/termtable.mjs 9/132 4 3",
-    "node four/atom/tools/termtable.mjs 10/131 4 3"
+    "node four/atom/tools/hftable.mjs rank 19/20/21 3 4",
+    "node four/atom/tools/hftable.mjs rank 22/23/24 3 4",
+    "node four/atom/tools/hftable.mjs rank 25/26/27 3 4",
+    "node four/atom/tools/hftable.mjs rank 28/29/30 3 4"
    ]
   },
   {
-   "name": "ions23-20",
+   "name": "hft-20",
    "cmds": [
-    "node four/atom/tools/termtable.mjs 11/130 4 3",
-    "node four/atom/tools/termtable.mjs 12/129 4 3",
-    "node four/atom/tools/termtable.mjs 13/128 4 3",
-    "node four/atom/tools/termtable.mjs 14/127 4 3"
-   ]
-  },
-  {
-   "name": "ions23-21",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 15/126 4 3",
-    "node four/atom/tools/termtable.mjs 16/125 4 3",
-    "node four/atom/tools/termtable.mjs 17/124 4 3",
-    "node four/atom/tools/termtable.mjs 18/123 4 3"
-   ]
-  },
-  {
-   "name": "ions23-22",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 19/122 4 3",
-    "node four/atom/tools/termtable.mjs 20/121 4 3",
-    "node four/atom/tools/termtable.mjs 21/120 4 3",
-    "node four/atom/tools/termtable.mjs 22/119 4 3"
-   ]
-  },
-  {
-   "name": "ions23-23",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 23/118 4 3",
-    "node four/atom/tools/termtable.mjs 24/117 4 3",
-    "node four/atom/tools/termtable.mjs 25/116 4 3",
-    "node four/atom/tools/termtable.mjs 26/115 4 3"
-   ]
-  },
-  {
-   "name": "ions23-24",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 27/114 4 3",
-    "node four/atom/tools/termtable.mjs 28/113 4 3",
-    "node four/atom/tools/termtable.mjs 29/112 4 3",
-    "node four/atom/tools/termtable.mjs 30/111 4 3"
-   ]
-  },
-  {
-   "name": "ions23-25",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 31/110 4 3",
-    "node four/atom/tools/termtable.mjs 32/109 4 3",
-    "node four/atom/tools/termtable.mjs 33/108 4 3",
-    "node four/atom/tools/termtable.mjs 34/107 4 3"
-   ]
-  },
-  {
-   "name": "ions23-26",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 35/106 4 3",
-    "node four/atom/tools/termtable.mjs 36/105 4 3",
-    "node four/atom/tools/termtable.mjs 37/104 4 3",
-    "node four/atom/tools/termtable.mjs 38/103 4 3"
-   ]
-  },
-  {
-   "name": "ions23-27",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 39/102 4 3",
-    "node four/atom/tools/termtable.mjs 40/101 4 3",
-    "node four/atom/tools/termtable.mjs 41/100 4 3",
-    "node four/atom/tools/termtable.mjs 42/99 4 3"
-   ]
-  },
-  {
-   "name": "ions23-28",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 43/98 4 3",
-    "node four/atom/tools/termtable.mjs 44/97 4 3",
-    "node four/atom/tools/termtable.mjs 45/96 4 3",
-    "node four/atom/tools/termtable.mjs 46/95 4 3"
-   ]
-  },
-  {
-   "name": "ions23-29",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 47/94 4 3",
-    "node four/atom/tools/termtable.mjs 48/93 4 3",
-    "node four/atom/tools/termtable.mjs 49/92 4 3",
-    "node four/atom/tools/termtable.mjs 50/91 4 3"
-   ]
-  },
-  {
-   "name": "ions23-30",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 51/90 4 3",
-    "node four/atom/tools/termtable.mjs 52/89 4 3",
-    "node four/atom/tools/termtable.mjs 53/88 4 3",
-    "node four/atom/tools/termtable.mjs 54/87 4 3"
-   ]
-  },
-  {
-   "name": "ions23-31",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 55/86 4 3",
-    "node four/atom/tools/termtable.mjs 56/85 4 3",
-    "node four/atom/tools/termtable.mjs 57/84 4 3",
-    "node four/atom/tools/termtable.mjs 58/83 4 3"
-   ]
-  },
-  {
-   "name": "ions23-32",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 59/82 4 3",
-    "node four/atom/tools/termtable.mjs 60/81 4 3",
-    "node four/atom/tools/termtable.mjs 61/80 4 3",
-    "node four/atom/tools/termtable.mjs 62/79 4 3"
-   ]
-  },
-  {
-   "name": "ions23-33",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 63/78 4 3",
-    "node four/atom/tools/termtable.mjs 64/77 4 3",
-    "node four/atom/tools/termtable.mjs 65/76 4 3",
-    "node four/atom/tools/termtable.mjs 66/75 4 3"
-   ]
-  },
-  {
-   "name": "ions23-34",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 67/74 4 3",
-    "node four/atom/tools/termtable.mjs 68/73 4 3",
-    "node four/atom/tools/termtable.mjs 69/72 4 3",
-    "node four/atom/tools/termtable.mjs 70/71 4 3"
-   ]
-  },
-  {
-   "name": "ions23-35",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 3/4/5 3 2",
-    "node four/atom/tools/termtable.mjs 6/7/8/9 3 2",
-    "node four/atom/tools/termtable.mjs 10/11/12/13 3 2",
-    "node four/atom/tools/termtable.mjs 14/15/16/17 3 2"
-   ]
-  },
-  {
-   "name": "ions23-36",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 18/19/20/21 3 2",
-    "node four/atom/tools/termtable.mjs 22/23/24/25 3 2",
-    "node four/atom/tools/termtable.mjs 26/27/28/29 3 2",
-    "node four/atom/tools/termtable.mjs 30/31/32/33 3 2"
-   ]
-  },
-  {
-   "name": "ions23-37",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 34/35/36 3 2",
-    "node four/atom/tools/termtable.mjs 4 3 3",
-    "node four/atom/tools/termtable.mjs 5/6/7/8 3 3",
-    "node four/atom/tools/termtable.mjs 9/10/11/12 3 3"
-   ]
-  },
-  {
-   "name": "ions23-38",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 13/14/15/16 3 3",
-    "node four/atom/tools/termtable.mjs 17/18/19/20 3 3",
-    "node four/atom/tools/termtable.mjs 21/22/23/24 3 3",
-    "node four/atom/tools/termtable.mjs 25/26/27/28 3 3"
-   ]
-  },
-  {
-   "name": "ions23-39",
-   "cmds": [
-    "node four/atom/tools/termtable.mjs 29/30/31/32 3 3",
-    "node four/atom/tools/termtable.mjs 33/34/35/36 3 3"
+    "node four/atom/tools/hftable.mjs rank 31/32/33 3 4",
+    "node four/atom/tools/hftable.mjs rank 34/35/36 3 4"
    ]
   }
  ]

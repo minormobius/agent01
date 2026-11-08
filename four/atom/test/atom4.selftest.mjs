@@ -1289,5 +1289,16 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the table's profiles: ${PR.atoms.length} elements${wrong.length ? `, configurations differ for ${wrong.join(", ")} (node four/atom/tools/profiles.mjs bake)` : ", every configuration the table's"}; each subshell holds one electron to ${(100 * worst).toFixed(2)} %; ions ${ionNote.join(", ") || "none"}, each in its searched configuration`);
 }
 
+/* 71 · the Hartree–Fock atom (js/hf.js), paper 1's second table: the numerical Hartree–Fock limits of our Ne and N ⁴S
+   (Richardson from h = 0.02 and 0.01), and 4D element 12, 1s² 2s² 2p⁸, where gauss.js in a large even-tempered basis agrees
+   to 4 × 10⁻⁶ (−102.965895) */
+{
+  const { hfAtom } = await import("../js/hf.js"), c = (s) => s.split(" ").map((t) => { const m = t.match(/^(\d)([spdf])(\d+)$/); return { n: +m[1], l: "spdf".indexOf(m[2]), q: +m[3] }; });
+  const x = (D, Z, s) => { const a = hfAtom(D, Z, c(s), { grid: { h: 0.02 } }), b = hfAtom(D, Z, c(s), { grid: { h: 0.01 } }); return (4 * b.E - a.E) / 3; };
+  const ne = x(3, 10, "1s2 2s2 2p6"), n = x(3, 7, "1s2 2s2 2p3"), e12 = hfAtom(4, 12, c("1s2 2s2 2p8"), { grid: { h: 0.02 } }).E; // 4D is converged at h = 0.02 (to 2 × 10⁻⁶)
+  ok(Math.abs(ne + 128.547098) < 2e-6 && Math.abs(n + 54.400934) < 2e-6 && Math.abs(e12 + 102.9659) < 1e-5,
+    `the Hartree–Fock atom: Ne ${ne.toFixed(6)} (−128.547098), N ⁴S ${n.toFixed(6)} (−54.400934); 4D element 12 ${e12.toFixed(6)} (gauss.js −102.965895)`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

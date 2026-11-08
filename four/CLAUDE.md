@@ -834,6 +834,18 @@ for games, and this is a modelling programme with publications to come. The game
   A1–A2: a figure has to carry an argument. `papers/p1/profiles.mjs` (seconds) re-solves the profiled atoms in their
   baked configurations with their radial functions kept → `data/profiles.json`; `build.mjs` stops if one drifts from the
   bake, so re-run it after a bake. Figures 4 and 5 for every element are the big table's "Inside the atom"; figure 5's hydrogen twin is kata.mino.mobi/orbital (the kata branch's ORBITAL).
+  **The Hartree–Fock atom (2026-11-08), paper 1's second table.** `atom/js/hf.js` (no DOM, mirrored, selftest 71):
+  `hfAtom(D, Z, [{n, l, q}], { grid: { h } })`, numerical Hartree–Fock with one radial function per subshell, the energy the
+  average over max-spin determinants (exact for full or one-electron spin-subshells: C ³P, N ⁴S, Fe ⁵D). Exchange by the
+  Gegenbauer coefficients a_k(t) of 1/|x−y| (3D t^k; 4D tabulated by graded quadrature; a_0 is κ), each radial kernel a
+  convolution on the log grid (FFT); angular weights `angularB` by one zonal integral (4D: (l+1)(l'+1) for every allowed k).
+  Own grid from 10⁻¹¹ bohr (s waves in 3D need it); the energy's error is O(h²) from the kernel's kink, so absolute
+  energies take Richardson from h = 0.02 and 0.01 (He–Kr to 10⁻⁶ of the numerical limits); differences converge at 0.02.
+  Checks: 4D closed shells against `gauss.js` (elements 2, 4, 12, 22); angular weights against brute-force harmonics.
+  `atom/tools/hftable.mjs check | rank <Z/…> [D] [window_eV]`: the local-exchange search's candidates within the window,
+  each by Hartree–Fock with the full term correction (lowest term − max-spin average) on its own orbitals, against the
+  local exchange with the Hund-only correction. Our 3d row: Hartree–Fock 10/10, local exchange 6/10, agreement always
+  right. Runner run `hf-table-1` (both worlds, all elements) queued.
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).

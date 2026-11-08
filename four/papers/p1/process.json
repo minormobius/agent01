@@ -409,6 +409,10 @@
   {
    "date": "2026-11-08",
    "what": "Scoping a Hartree–Fock run of the table (hf-scope.py, PySCF in our world). High-spin ROHF with the configuration held gets 8 of 9 of our 3d configurations (misses V), against the local-exchange solver's 5 (misses Ti, V, Co, Ni). Where the two agree they're right 5 of 6; where they disagree ROHF is right 3 of 3. So the second 4D table should be Hartree–Fock, used both as a bracket (agreement = confident) and as the better-founded answer where they differ. Routes in 4D: gauss.js (Gaussian HF, any D, already checked against PySCF) with a held configuration covers Z ≤ 80, the 3d and 4d blocks; exact exchange in the radial solver would cover all 140. Lit hunt delegated to Astra (prior art, Hund in D dims, D = 4 benchmarks, promotion energies)."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "Built the Hartree–Fock atom (atom/js/hf.js): numerical, one radial function per subshell, the energy the average over max-spin determinants, any D, the pinned 1/r. Exchange by the Gegenbauer expansion of 1/|x−y| (a_k(t), in 3D t^k), whose radial kernels are convolutions on the log grid (FFT), and angular weights B_k reduced to one zonal integral (in 4D every allowed k weighs (l+1)(l'+1)); Davidson on each subshell's Fock operator. Checks: our He, Be, C ³P, N ⁴S, Ne, Ar, Fe ⁵D, Cu ²S, Kr reproduce the numerical Hartree–Fock limits to 10⁻⁶ hartree or better (Richardson from h = 0.02, 0.01); 4D elements 2, 4, 12, 22 agree with gauss.js (an independent Gaussian code) to its basis limit; all 40 angular weights (s–f, both D) match brute-force harmonics to 10⁻¹⁴; the 4D kernels to 3 × 10⁻⁷. The bracket on our 3d row (atom/tools/hftable.mjs, with the full term correction on Hartree–Fock orbitals): Hartree–Fock 10 of 10 ground configurations (Sc–Zn), local exchange 6; where they agree both right, where they differ Hartree–Fock right. Queued hf-table-1: both worlds, every element. Selftest 71; hf.js mirrored."
   }
  ]
 }
