@@ -405,6 +405,10 @@
   {
    "date": "2026-11-08",
    "what": "ions-23 (runner, 158 commands all exit 0, 342 ions all settled): every +2 and +3 ion of both worlds searched for its own ground state. Against NIST (now fetched: data/nist-ie.json, H–Kr; it also confirms the paper's measured first ionizations to 0.01 eV), ours' second and third ionizations are off by a median 2.0 % and 1.4 % (worst V 7 %, C 4 %), better than the first's 4.3 %, and our ions lose 4s before 3d as measured. In 4D the 3d row's ions do the same; the first halves of the 4d and 5d blocks, and 81–82, give up a d electron at +1 or +2 while keeping the outer s, as our Y⁺ (5s²) and Lu⁺ (6s²) do (both checked against NIST). §6.4 says so (claim ions23). The nist-asd reference is now read for ionization energies; §6.3's promotion energies are still from memory and the text says so. The big table's 'Inside the atom' offers every element at −1 (where bound), 0, +1, +2 and +3."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "Scoping a Hartree–Fock run of the table (hf-scope.py, PySCF in our world). High-spin ROHF with the configuration held gets 8 of 9 of our 3d configurations (misses V), against the local-exchange solver's 5 (misses Ti, V, Co, Ni). Where the two agree they're right 5 of 6; where they disagree ROHF is right 3 of 3. So the second 4D table should be Hartree–Fock, used both as a bracket (agreement = confident) and as the better-founded answer where they differ. Routes in 4D: gauss.js (Gaussian HF, any D, already checked against PySCF) with a held configuration covers Z ≤ 80, the 3d and 4d blocks; exact exchange in the radial solver would cover all 140. Lit hunt delegated to Astra (prior art, Hund in D dims, D = 4 benchmarks, promotion energies)."
   }
  ]
 }
