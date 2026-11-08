@@ -1,49 +1,102 @@
 {
- "run": "hf-lanth-1",
- "why": "Paper 1: calibrating Hartree–Fock against the local exchange on an f block we can measure, ours Cs–Hf (Z = 55–72). In 4D Hartree–Fock separates f-row configurations by 5–9 eV and disagrees with the local exchange on elements 107–111; ours has no f block in the baked table, so atom/tools/hftable.mjs rank now seeds Z > 36 from the measured configurations in papers/p1/data/nist-lanthanides.json (NIST Handbook). Each element: the local-exchange search's settled candidates within 4 eV, each solved by js/hf.js with the full term correction (europium took 3.4 min here).",
- "minutes": 150,
+ "run": "hf-wide-1",
+ "why": "Paper 1: the lanthanide calibration (hf-lanth-1) showed the 4 eV window, set in local-exchange energy, leaves out every configuration with one f electron fewer, because local exchange overbinds f by 4.3–4.7 eV in ours. Terbium's measured 4f8 5d 6s2 (0.035 eV up) sat at +4.45 for local exchange and was never solved by Hartree–Fock, which puts it at +0.92 with a 10 eV window. Rerun with a 10 eV window: ours Cs–Hf, and the 4D f row 81–112, where Hartree–Fock's margins (2.4–5.8 eV) were measured against only fⁿ⁺¹s¹.",
+ "minutes": 340,
  "groups": [
   {
-   "name": "hfl-0",
+   "name": "hfw-l0",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 55 3 4",
-    "node four/atom/tools/hftable.mjs rank 56 3 4",
-    "node four/atom/tools/hftable.mjs rank 57 3 4",
-    "node four/atom/tools/hftable.mjs rank 58 3 4"
+    "node four/atom/tools/hftable.mjs rank 55/56 3 10",
+    "node four/atom/tools/hftable.mjs rank 57/58 3 10",
+    "node four/atom/tools/hftable.mjs rank 59/60 3 10"
    ]
   },
   {
-   "name": "hfl-1",
+   "name": "hfw-l1",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 59 3 4",
-    "node four/atom/tools/hftable.mjs rank 60 3 4",
-    "node four/atom/tools/hftable.mjs rank 61 3 4",
-    "node four/atom/tools/hftable.mjs rank 62 3 4"
+    "node four/atom/tools/hftable.mjs rank 61/62 3 10",
+    "node four/atom/tools/hftable.mjs rank 63/64 3 10",
+    "node four/atom/tools/hftable.mjs rank 65/66 3 10"
    ]
   },
   {
-   "name": "hfl-2",
+   "name": "hfw-l2",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 63 3 4",
-    "node four/atom/tools/hftable.mjs rank 64 3 4",
-    "node four/atom/tools/hftable.mjs rank 65 3 4",
-    "node four/atom/tools/hftable.mjs rank 66 3 4"
+    "node four/atom/tools/hftable.mjs rank 67/68 3 10",
+    "node four/atom/tools/hftable.mjs rank 69/70 3 10",
+    "node four/atom/tools/hftable.mjs rank 71/72 3 10"
    ]
   },
   {
-   "name": "hfl-3",
+   "name": "hfw-f0",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 67 3 4",
-    "node four/atom/tools/hftable.mjs rank 68 3 4",
-    "node four/atom/tools/hftable.mjs rank 69 3 4",
-    "node four/atom/tools/hftable.mjs rank 70 3 4"
+    "node four/atom/tools/hftable.mjs rank 81 4 10",
+    "node four/atom/tools/hftable.mjs rank 82 4 10",
+    "node four/atom/tools/hftable.mjs rank 83 4 10",
+    "node four/atom/tools/hftable.mjs rank 84 4 10"
    ]
   },
   {
-   "name": "hfl-4",
+   "name": "hfw-f1",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 71 3 4",
-    "node four/atom/tools/hftable.mjs rank 72 3 4"
+    "node four/atom/tools/hftable.mjs rank 85 4 10",
+    "node four/atom/tools/hftable.mjs rank 86 4 10",
+    "node four/atom/tools/hftable.mjs rank 87 4 10",
+    "node four/atom/tools/hftable.mjs rank 88 4 10"
+   ]
+  },
+  {
+   "name": "hfw-f2",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs rank 89 4 10",
+    "node four/atom/tools/hftable.mjs rank 90 4 10",
+    "node four/atom/tools/hftable.mjs rank 91 4 10",
+    "node four/atom/tools/hftable.mjs rank 92 4 10"
+   ]
+  },
+  {
+   "name": "hfw-f3",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs rank 93 4 10",
+    "node four/atom/tools/hftable.mjs rank 94 4 10",
+    "node four/atom/tools/hftable.mjs rank 95 4 10",
+    "node four/atom/tools/hftable.mjs rank 96 4 10"
+   ]
+  },
+  {
+   "name": "hfw-f4",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs rank 97 4 10",
+    "node four/atom/tools/hftable.mjs rank 98 4 10",
+    "node four/atom/tools/hftable.mjs rank 99 4 10",
+    "node four/atom/tools/hftable.mjs rank 100 4 10"
+   ]
+  },
+  {
+   "name": "hfw-f5",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs rank 101 4 10",
+    "node four/atom/tools/hftable.mjs rank 102 4 10",
+    "node four/atom/tools/hftable.mjs rank 103 4 10",
+    "node four/atom/tools/hftable.mjs rank 104 4 10"
+   ]
+  },
+  {
+   "name": "hfw-f6",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs rank 105 4 10",
+    "node four/atom/tools/hftable.mjs rank 106 4 10",
+    "node four/atom/tools/hftable.mjs rank 107 4 10",
+    "node four/atom/tools/hftable.mjs rank 108 4 10"
+   ]
+  },
+  {
+   "name": "hfw-f7",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs rank 109 4 10",
+    "node four/atom/tools/hftable.mjs rank 110 4 10",
+    "node four/atom/tools/hftable.mjs rank 111 4 10",
+    "node four/atom/tools/hftable.mjs rank 112 4 10"
    ]
   }
  ]

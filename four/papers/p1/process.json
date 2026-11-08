@@ -425,6 +425,10 @@
   {
    "date": "2026-11-08",
    "what": "Queued hf-lanth-1: the lanthanide calibration, ours Cs–Hf by both methods, measured ground configurations from NIST's Handbook (papers/p1/nist-levels.py → data/nist-lanthanides.json), to test Hartree–Fock's large f-row margins on an f block that has been measured."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "hf-lanth-1 collected (18 of 18 exit 0): ours Cs–Hf, Hartree–Fock 15/18, local exchange 12/18; they agree on 14, but two agreements are wrong (Ce: both 4f² 6s², measured 4f¹5d¹6s²; Hf: both 5d³6s¹, measured 5d²6s²), so in the f block agreement is not proof. Against measured levels both make an extra f electron too cheap (local exchange by 4.3–4.7 eV for La, Ce, Gd; Hartree–Fock by 0.2–2.4). The 4 eV window, set in local-exchange energy, therefore left out the configurations with one f fewer: terbium's measured 4f⁸5d6s² (0.035 eV up) sat at +4.45 for local exchange and, with a 10 eV window, +0.92 for Hartree–Fock, against the 5.82 margin reported. The 4D f row (81–112) had the same blind spot: §6.6 now calls its configurations provisional, the table page marks them so, and hf-wide-1 reruns ours Cs–Hf and the 4D f row with a 10 eV window."
   }
  ]
 }

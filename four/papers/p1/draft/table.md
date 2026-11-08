@@ -65,10 +65,12 @@ more in d than Hartree–Fock, as in ours; 5 at the end of row 6's f block (107,
 in f; and 2 at the start of a block (53, 83). For the d rows, ours gives a lean. Before half filling
 (30, 31, 58) Hartree–Fock's error in ours was small and in the same direction as local exchange's, so its
 preference for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08 eV, are inside the volt by which it
-overprices d in ours. Hartree–Fock separates f configurations far more widely than d ones (its margins in the f row are
-2.35 to 5.80 eV), and this paper's table of ours has no f block to test that against. No Hartree–Fock ground
-configuration lies near the edge of the window of candidates, so none is likely to have been missed by the window
-alone. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
+overprices d in ours. In the f row the comparison is incomplete. The candidates are those within the window of local
+exchange's ground, and local exchange overbinds f, so in our lanthanides the configurations with one f electron fewer
+fell outside it, the measured ground's nearest competitor among them. Hartree–Fock's margins in the 4D f row
+(2.35 to 5.80 eV) are measured only against local exchange's own choice, and the f row's configurations, agreed or not,
+are provisional until a wider window has been run. In the d rows no Hartree–Fock ground configuration lies near the
+window's edge. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
 
 ## 7 · Hund's first rule in four dimensions
 
