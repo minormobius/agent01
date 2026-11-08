@@ -1,0 +1,6 @@
+$ node four/atom/tools/hftable.mjs rank 100 4 10
+{"Z":100,"D":4,"baked":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f20 5s2 5p8 6s2","lda":{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f20 5s2 5p8 6s2","E":-21892.79179},"hf":{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f20 5s2 5p8 6s2","E":-21879.53849,"raw":-21879.35558,"parts":[{"shell":"4f","n":20,"groundS":6,"eV":-4.9775,"complete":false}]},"agree":true,"candidates":59,"solved":3,"unconverged":0,"hfSecond":{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f21 5s2 5p8 6s1","dE_eV":8.0413},"rows":[{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f21 5s2 5p8 6s1","lda_eV":2.8194,"hf_eV":8.0413,"hfRaw":-21879.041138},{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f20 5s2 5p8 6s2","lda_eV":0,"hf_eV":0,"hfRaw":-21879.355577},{"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f21 5s2 5p8 5d1","lda_eV":9.5712,"hf_eV":14.2409,"hfRaw":-21878.813074}],"s":6981.465}
+(node:2551) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

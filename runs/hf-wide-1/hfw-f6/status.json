@@ -1,0 +1,33 @@
+{
+ "group": "hfw-f6",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 105 4 10",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 15552
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 106 4 10",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 20400
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 107 4 10",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 13618
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 108 4 10",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 18296
+  }
+ ]
+}
