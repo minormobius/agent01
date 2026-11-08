@@ -57,7 +57,7 @@ agree to {{far.dev}}. Between two atoms the same failure gives a permanent attra
 $-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$. The papers
 that follow take it up: noble gases that condense far above where ours do, and molecules held differently.
 
-**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 1) the
+**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 2) the
 static polarizability $\alpha_\mathrm p(0)$, the polarizability at imaginary frequency and from it the dispersion
 coefficient $C_6$ by Casimir and Polder's integral are computed by the coupled response of the same solver (Hartree plus
 local exchange, each electron's own share removed; exact for hydrogen in both worlds). The set is the atoms for which
@@ -77,7 +77,7 @@ every distance where a far-field form applies at all.
 
 {{resp.table}}
 
-Table: **Table 1.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
+Table: **Table 2.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
 \sum\langle r^2\rangle$, in four dimensions $C_5 = 3Q^2/64$ and $R^* = C_6/C_5$; for ours, beside each, the reference value
 (ref.) of @derevianko2010. Data: `data/response.json`, with $\alpha_\mathrm p(\mathrm i\omega)$ on the quadrature nodes and each
 atom's convergence.
@@ -87,6 +87,27 @@ distribution's second moment is dropped from multipole expansions, because $1/r$
 carries no field. Here it is the leading field of a neutral atom ($-Q/8R^3$ on a charge, $-C_5/R^5$ between two atoms),
 so a four-dimensional force field has to keep it. The force fields of the later papers do, as a cloud term on every
 atom.
+
+**11.2 Joining and separating atoms.** A molecule's binding energy is measured from its atoms, so the atoms the
+molecular codes reach when a bond is pulled apart have to be the atoms of this paper. The light atoms of both worlds
+({{sep.nA}} of them) were computed by every method the later papers use: numerical Hartree–Fock, the local exchange of
+the table, and the Gaussian code (`gauss.js`, unrestricted Hartree–Fock and MP2) in the basis the molecular work uses.
+For the closed shells that basis lies {{sep.closed}} mHa above the numerical Hartree–Fock limit. For the open shells the
+unrestricted energy lies {{sep.open}} mHa from the restricted numerical one; below it mostly, because an unrestricted
+determinant can polarize its spins, which is not a better basis. Then pairs of like atoms (ours {{sep.pairs3}}; in four
+dimensions elements {{sep.pairs4}}) were stretched from 6 to 16 bohr, each started three ways (from bare nuclei and from
+the two atoms with parallel and with antiparallel spins) and the lowest kept. Every pair separates into neutral atoms
+(Mulliken charges {{sep.maxQ}}) with each atom's own spin, but not from every start: the bare-nuclei start lands up to
+{{sep.worst}} hartree too high, on ion pairs and wrong spin states. A molecular code that starts one way only can report
+a binding energy measured from the wrong atoms. In ours the separated pairs meet the atoms to {{sep.ours16}} mHa at 16
+bohr. In four dimensions they don't meet them at all, as section 11 says they shouldn't. Two closed-shell atoms keep the
+permanent pull, and Hartree–Fock reproduces its far form: element 12's pair at 16 bohr is bound by {{sep.e12}} mHa, and
+the closed shells sit at {{sep.rClosed}} times the far form there. Hydrogen, whose four-dimensional orbital is diffuse,
+is at {{sep.rH}}, still approaching it; its excess over the far form falls by five between 10 and 16 bohr, as
+shorter-ranged terms do. The open p shells are at
+{{sep.rOpen}}: an unrestricted atom with a partly filled p shell is not round, and the ordinary quadrupole that ours has
+too adds a pull of the same order, one that depends on how the two atoms are turned. The atomic energies, the curves and
+each atom's charge and spin are in `data/separate.json`.
 
 ## 12 · Limitations
 

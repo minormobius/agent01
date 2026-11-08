@@ -189,3 +189,25 @@ the interactive table, where picking an element draws them and any of its subshe
 of four-dimensional space ([four.mino.mobi/table](https://four.mino.mobi/table/#128); a link ending `#Z` opens on
 element Z). Where the filling departs from the simple order, and how the ionization energy and the radius run with Z,
 are in the data files (table4.csv).
+
+**8.4 Valence states.** Chemistry can pay to move an electron if the bonds it then makes pay more, so the reference
+records the cost. For each of {{val.n4}} representative atoms, every configuration one electron away from the ground
+(any electron near the top moved to any subshell near the top) was solved by local exchange and by Hartree–Fock (table
+1; all {{val.n4}} with the ground's spin ladder in `data/valence.json`). Ours is the calibration, {{val.nCal}} states
+against NIST's levels [@nist-handbook]. Moving an electron into a higher shell of the kind that makes a Rydberg series
+is good to a median {{val.ryd}} eV ({{val.nRyd}} states). The s→p promotion, the price of hybrid bonding, is not. For
+atoms whose p shell is less than half full ({{val.spEarlyEl}}) both methods make it too cheap, by {{val.spEarly}} eV,
+the near-degeneracy of an s² pair with p² that neither method holds; past half full ({{val.spLateEl}}) they make it too
+dear ({{val.spLate}} eV), where the measured state mixes with others. In four dimensions the p subshell holds eight, so
+every second-row atom up to element 8 is in the first group: element 4's 2s→2p costs {{val.d4}} eV by the two methods,
+darbon's (element 7) {{val.d7}} eV, element 14's 3s→3p {{val.d14}} eV, and on our evidence each is probably a volt or
+two short of the true cost. Element 26's three lowest moves (into 4p, from 4s into 3d, from 3d into 4p) lie within
+0.2 eV of each other by Hartree–Fock and a volt apart by local exchange, so its chemistry has several states to draw
+on and the methods disagree about which is cheapest. For element {{val.below}} Hartree–Fock finds a state below the
+table's ground, the open configuration of section 6.6.
+
+{{val.table}}
+
+Table: **Table 1.** Valence states of representative four-dimensional atoms: the ground configuration (outer subshells)
+and the three lowest configurations one electron away by Hartree–Fock, each labelled by the move and given by local
+exchange and Hartree–Fock (eV above each method's own ground; a negative value is a state below the table's ground).

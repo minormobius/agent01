@@ -244,6 +244,36 @@ export function ligandTokens() {
     "lf.coCross": `${before.delta_eV.toFixed(1)}–${co.groundChangesAt.delta_eV.toFixed(1)}`, "lf.coGap": Math.abs(last(co).low[1].eV).toFixed(2), "lf.coDmax": last(co).delta_eV.toFixed(1), "lf.R": String(ax.R),
     "lf.c24": c24.oneElectronSpread_eV < 1e-6 ? "none" : `${c24.oneElectronSpread_eV} eV`, "lf.free": ax.scan[0].low[1].eV.toFixed(2) };
 }
+/* section 11.2: joining and separating atoms (separate-collect.mjs → data/separate.json) */
+export function sepTokens() {
+  const S = JSON.parse(readFileSync(join(HERE, "data/separate.json"), "utf8")), A = S.atoms, P = S.pairs, f2 = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
+  const closed = A.filter((a) => a.twoS === 0), open = A.filter((a) => a.twoS > 0), r4 = (zs) => P.filter((p) => p.D === 4 && zs.includes(p.Z)).map((p) => p.at16.ratio);
+  const worst = Math.max(...P.flatMap((p) => p.points.map((q) => q.worstStart_mHa))) / 1000, sym = (p) => (p.D === 3 ? ["H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"][p.Z - 1] : String(p.Z));
+  return { "sep.nA": String(A.length), "sep.closed": `${f2(Math.min(...closed.map((a) => a.basisError_mHa)))} to ${f2(Math.max(...closed.map((a) => a.basisError_mHa)))}`,
+    "sep.open": `${f2(Math.min(...open.map((a) => a.basisError_mHa)))} to ${f2(Math.max(...open.map((a) => a.basisError_mHa)))}`,
+    "sep.pairs3": P.filter((p) => p.D === 3).map((p) => `${sym(p)}₂`).join(", "), "sep.pairs4": P.filter((p) => p.D === 4).map((p) => p.Z).join(", "),
+    "sep.maxQ": Math.max(...P.map((p) => p.maxCharge)) === 0 ? "below 10⁻⁵" : Math.max(...P.map((p) => p.maxCharge)).toExponential(0), "sep.worst": worst.toFixed(0),
+    "sep.ours16": Math.max(...P.filter((p) => p.D === 3).map((p) => Math.abs(p.at16.hf))).toFixed(3),
+    "sep.rClosed": `${Math.min(...r4([2, 12])).toFixed(2)}–${Math.max(...r4([2, 12])).toFixed(2)}`, "sep.rH": r4([1])[0].toFixed(2), "sep.rOpen": `${Math.min(...r4([7, 10, 11])).toFixed(1)}–${Math.max(...r4([7, 10, 11])).toFixed(1)}`,
+    "sep.e12": (() => { const p = P.find((x) => x.D === 4 && x.Z === 12), q = p.points.at(-1); return `${q.int_hf_mHa.toFixed(4).replace("-", "−")} against ${q.far_mHa.toFixed(4).replace("-", "−")}`; })() };
+}
+/* section 8.4: valence states (valence-collect.mjs → data/valence.json) */
+export function valTokens() {
+  const V = JSON.parse(readFileSync(join(HERE, "data/valence.json"), "utf8")), C = V.calibration, f2 = (v) => (v == null ? "—" : (v < 0 ? "−" : "") + Math.abs(v).toFixed(1));
+  const sup = (c) => c.split(" ").slice(-3).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" "), mv = (m) => m.replace(/(\d[spdf])/g, "$1");
+  const sp = C.filter((c) => c.kind === "s→p"), early = sp.filter((c) => ![7, 15, 16].includes(c.Z)), late = sp.filter((c) => [7, 15, 16].includes(c.Z)), ryd = C.filter((c) => c.kind === "Rydberg");
+  const rng = (a, k) => `${f2(Math.min(...a.map((x) => x[k])))} to ${f2(Math.max(...a.map((x) => x[k])))}`, med = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+  const rows = V.rows.filter((r) => r.D === 4), head = "| element | ground | lowest states by Hartree–Fock: move, local exchange / Hartree–Fock (eV) |\n|--:|:--|:--|";
+  const line = (r) => { const st = r.states.filter((s) => s.hf_eV != null).sort((a, b) => a.hf_eV - b.hf_eV).slice(0, 3); return `| ${r.Z} | ${sup(r.ground)} | ${st.map((s) => `${mv(s.move)} ${f2(s.lda_eV)} / ${f2(s.hf_eV)}`).join("; ")} |`; };
+  const z = (Z, move) => V.rows.find((r) => r.D === 4 && r.Z === Z)?.states.find((s) => s.move === move);
+  const below = rows.filter((r) => r.states.some((s) => s.hf_eV != null && s.hf_eV < 0)).map((r) => r.Z);
+  return { "val.table": [head, ...rows.map(line)].join("\n"), "val.n4": String(rows.length), "val.nCal": String(C.length),
+    "val.spEarly": `${rng(early, "ldaError_eV")} (local exchange) and ${rng(early, "hfError_eV")} (Hartree–Fock)`, "val.spEarlyEl": early.map((c) => c.symbol).join(", "),
+    "val.spLate": `${rng(late, "ldaError_eV")} and ${rng(late, "hfError_eV")}`, "val.spLateEl": late.map((c) => c.symbol).join(", "),
+    "val.ryd": `${f2(med(ryd.map((c) => Math.abs(c.ldaError_eV))))} and ${f2(med(ryd.map((c) => Math.abs(c.hfError_eV))))}`, "val.nRyd": String(ryd.length),
+    "val.d7": (() => { const s = z(7, "2s→2p"); return `${f2(s.lda_eV)} and ${f2(s.hf_eV)}`; })(), "val.d4": (() => { const s = z(4, "2s→2p"); return `${f2(s.lda_eV)} and ${f2(s.hf_eV)}`; })(),
+    "val.d14": (() => { const s = z(14, "3s→3p"); return `${f2(s.lda_eV)} and ${f2(s.hf_eV)}`; })(), "val.below": below.join(", ") || "none" };
+}
 const citedKeys = (t) => new Set([...t.replace(/<!--[\s\S]*?-->/g, "").matchAll(/(?<![\w.])-?@([a-z][\w-]*\d{4}[a-z]*|[a-z]+-[a-z-]+)/gi)].map((m) => m[1]));
 
 /* Négadi & Kibler's generalized Madelung rule for D dimensions: subshells fill in order of n + l (then n), each holding
@@ -385,6 +415,16 @@ function ledger(t3, t4, files, refs) {
         value: `axes: ground singlet at every s (last ${ax.scan.at(-1).ground.mult}×${ax.scan.at(-1).ground.g}); corners: triplet from Δ ${co.groundChangesAt?.delta_eV} eV; 24-cell spread ${g(4, "24-cell").oneElectronSpread_eV}; ours' grounds ${g(3, "axes").scan.every((x) => x.ground.mult === 3)}, ${g(3, "corners").scan.every((x) => x.ground.mult === 3)}`,
         holds: ax.scan.every((x) => x.ground.mult === 1) && co.groundChangesAt?.to.mult === 3 && g(4, "24-cell").oneElectronSpread_eV < 1e-6 && g(3, "axes").scan.every((x) => x.ground.mult === 3) && g(3, "corners").scan.every((x) => x.ground.mult === 3),
         section: "7.5", gate: [67] }; })(),
+    (() => { const S = JSON.parse(readFileSync(join(HERE, "data/separate.json"), "utf8")), T = sepTokens(), p4 = (z) => S.pairs.find((p) => p.D === 4 && p.Z === z);
+      return { id: "separate", part: "consequence", claim: "Stretched pairs of light atoms come apart into neutral atoms with their own spins in both worlds; in 4D the separated limit of closed-shell atoms is the permanent pull −3Q²/64R⁵, which Hartree–Fock reproduces",
+        value: `pairs ours ${T["sep.pairs3"]}, 4D ${T["sep.pairs4"]}: charges ${T["sep.maxQ"]}, ours' interaction at 16 bohr ≤ ${T["sep.ours16"]} mHa; 4D at 16 bohr, Hartree–Fock over the far form: closed ${T["sep.rClosed"]}, H ${T["sep.rH"]}, open p ${T["sep.rOpen"]}; basis error closed ${T["sep.closed"]} mHa`,
+        holds: S.pairs.every((p) => p.maxCharge < 1e-4 && p.spinsRight) && [2, 12].every((z) => Math.abs(p4(z).at16.ratio - 1) < 0.1) && S.pairs.filter((p) => p.D === 3).every((p) => Math.abs(p.at16.hf) < 0.01),
+        section: "11.2", gate: [67] }; })(),
+    (() => { const V = JSON.parse(readFileSync(join(HERE, "data/valence.json"), "utf8")), C = V.calibration, T = valTokens(), sp = C.filter((c) => c.kind === "s→p" && ![7, 15, 16].includes(c.Z)), ryd = C.filter((c) => c.kind === "Rydberg");
+      return { id: "valence", part: "table", claim: "Valence states: one-electron moves from the ground by both methods; on ours the Rydberg moves hold to a few tenths of an eV, and the s→p promotion of an atom with its p shell under half full is too cheap in both methods",
+        value: `${T["val.nCal"]} calibration states; Rydberg medians ${T["val.ryd"]} eV; s→p (${T["val.spEarlyEl"]}) ${T["val.spEarly"]}; 4D 2s→2p of element 4 ${T["val.d4"]}, darbon ${T["val.d7"]} eV`,
+        holds: sp.length >= 5 && sp.every((c) => c.ldaError_eV < 0 && c.hfError_eV < 0) && ryd.length >= 10 && ryd.map((c) => Math.abs(c.hfError_eV)).sort((a, b) => a - b)[Math.floor(ryd.length / 2)] < 0.5,
+        section: "8.4", gate: [67] }; })(),
     (() => { const S = HFT.summary, T = hfTokens(), P = S.promotion3.filter((x) => !x.missing);
       return { id: "hfcheck", part: "table", claim: "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
         value: `ours: Hartree–Fock ${S.ours.hfRight}, local exchange ${S.ours.ldaRight} of ${S.ours.n}; agree ${S.ours.agree}, right ${S.ours.agreeRight}; 4s→3d errors (local exchange/Hartree–Fock) ${T["hf.promList"]}; 4D: agree ${S.fourD.agree} of ${S.fourD.n}, open ${T["hf.4d"]} (d), ${T["hf.4f"]} (f), ${T["hf.4o"]}`,
@@ -457,6 +497,8 @@ function hundTokens() {
     ...hfTokens(),
     ...respTokens(),
     ...ligandTokens(),
+    ...sepTokens(),
+    ...valTokens(),
     ...(() => { const R = JSON.parse(readFileSync(join(HERE, "data/he4check.json"), "utf8")).rows, g = R.map((r) => r.gap); return { "he4.gap": `${Math.min(...g).toFixed(3)}–${Math.max(...g).toFixed(3)}` }; })(),
     ...(() => { const P = JSON.parse(readFileSync(join(HERE, "data/promotion3.json"), "utf8")), ok = P.promotion.filter((x) => !x.missing), sgn = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
       const dc = (cfg) => [...cfg.matchAll(/\d[df](\d+)/g)].reduce((t, m) => t + +m[1], 0), sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");

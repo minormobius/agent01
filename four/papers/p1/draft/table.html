@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="ef7f9b5736725b6209718cdf447bd70b43f4e05fe168919494475aa0292d6ecb" />
+<meta name="source-sha256" content="f4d434803f02153d0564c3760f0df3c3e24d02ac98c92ae4535675144b2a2042" />
 <title>Paper 1 · Part II · The table (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -432,6 +432,114 @@ is positive round one plane and negative round another. Any element’s
 orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen’s exact ones,
 turned live: kata.mino.mobi/orbital.</figcaption>
 </figure>
+<p><strong>8.4 Valence states.</strong> Chemistry can pay to move an
+electron if the bonds it then makes pay more, so the reference records
+the cost. For each of 10 representative atoms, every configuration one
+electron away from the ground (any electron near the top moved to any
+subshell near the top) was solved by local exchange and by Hartree–Fock
+(table 1; all 10 with the ground’s spin ladder in
+<code>data/valence.json</code>). Ours is the calibration, 33 states
+against NIST’s levels <span class="citation"
+data-cites="nist-handbook">(<a href="#ref-nist-handbook"
+role="doc-biblioref">Sansonetti and Martin 2005</a>)</span>. Moving an
+electron into a higher shell of the kind that makes a Rydberg series is
+good to a median 0.4 and 0.3 eV (18 states). The s→p promotion, the
+price of hybrid bonding, is not. For atoms whose p shell is less than
+half full (Be, B, C, Mg, Al, Si) both methods make it too cheap, by −2.3
+to −0.6 (local exchange) and −1.7 to −0.9 (Hartree–Fock) eV, the
+near-degeneracy of an s² pair with p² that neither method holds; past
+half full (N, P, S) they make it too dear (−0.2 to 1.0 and 0.3 to 2.7
+eV), where the measured state mixes with others. In four dimensions the
+p subshell holds eight, so every second-row atom up to element 8 is in
+the first group: element 4’s 2s→2p costs 1.3 and 1.5 eV by the two
+methods, darbon’s (element 7) 3.4 and 4.0 eV, element 14’s 3s→3p 3.1 and
+2.9 eV, and on our evidence each is probably a volt or two short of the
+true cost. Element 26’s three lowest moves (into 4p, from 4s into 3d,
+from 3d into 4p) lie within 0.2 eV of each other by Hartree–Fock and a
+volt apart by local exchange, so its chemistry has several states to
+draw on and the methods disagree about which is cheapest. For element 53
+Hartree–Fock finds a state below the table’s ground, the open
+configuration of section 6.6.</p>
+<table>
+<caption><strong>Table 1.</strong> Valence states of representative
+four-dimensional atoms: the ground configuration (outer subshells) and
+the three lowest configurations one electron away by Hartree–Fock, each
+labelled by the move and given by local exchange and Hartree–Fock (eV
+above each method’s own ground; a negative value is a state below the
+table’s ground).</caption>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">element</th>
+<th style="text-align: left;">ground</th>
+<th style="text-align: left;">lowest states by Hartree–Fock: move, local
+exchange / Hartree–Fock (eV)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">1s² 2s²</td>
+<td style="text-align: left;">2s→2p 1.3 / 1.5; 2s→3s 3.4 / 3.4</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">7</td>
+<td style="text-align: left;">1s² 2s² 2p³</td>
+<td style="text-align: left;">2s→2p 3.4 / 4.0; 2p→3s 6.1 / 5.5; 2p→3p
+7.2 / 6.7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">10</td>
+<td style="text-align: left;">1s² 2s² 2p⁶</td>
+<td style="text-align: left;">2p→3s 8.9 / 8.2; 2p→3p 10.8 / 10.0; 2s→2p
+14.0 / 17.4</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">12</td>
+<td style="text-align: left;">1s² 2s² 2p⁸</td>
+<td style="text-align: left;">2p→3s 13.7 / 12.9</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">14</td>
+<td style="text-align: left;">2s² 2p⁸ 3s²</td>
+<td style="text-align: left;">3s→3p 3.1 / 2.9; 3s→4s 4.3 / 4.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">26</td>
+<td style="text-align: left;">3p⁸ 3d² 4s²</td>
+<td style="text-align: left;">4s→4p 3.3 / 3.1; 4s→3d 2.3 / 3.1; 3d→4p
+4.3 / 3.3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">39</td>
+<td style="text-align: left;">3p⁸ 3d¹⁶ 4s¹</td>
+<td style="text-align: left;">3d→4s 2.5 / 0.4; 4s→3d 3.2 / 5.0; 4s→4p
+7.8 / 7.1</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">42</td>
+<td style="text-align: left;">3p⁸ 3d¹⁸ 4s²</td>
+<td style="text-align: left;">4s→4p 9.3 / 8.3; 4s→5s 11.1 / 9.9; 4s→4d
+13.0 / 11.8</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">53</td>
+<td style="text-align: left;">4p⁸ 4d¹ 5s²</td>
+<td style="text-align: left;">4d→5p 0.0 / −0.8; 4d→6s 1.8 / 1.1; 4d→4f
+3.8 / 2.9</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">82</td>
+<td style="text-align: left;">5p⁸ 5d¹ 6s²</td>
+<td style="text-align: left;">4f→5d 4.7 / 1.5; 5d→4f 0.4 / 1.8; 5d→6p
+2.5 / 1.9</td>
+</tr>
+</tbody>
+</table>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">

@@ -862,8 +862,13 @@ for games, and this is a modelling programme with publications to come. The game
   read from arXiv; hand-kept with table locators). Table 1 in §11.1 is generated (`respTokens`). `atom/tools/ligandd2.mjs`
   (seconds) → `data/ligandd2.json`: 26²⁺ 3d² in point charges on the 16-cell, tesseract and 24-cell (§7.5).
   `hftable.mjs map <Z/…> [D]`: an element's valence states (every one-electron move from its table ground, both methods,
-  the ground's spin ladder). Still to do for the reference: the valence map in the text, atomic reference energies for
-  molecular codes (separation limits), and one valence-rule test.
+  the ground's spin ladder) → `papers/p1/valence-collect.mjs` → `data/valence.json` (§8.4, table 1; ours calibrated on
+  `data/nist-light.json` and `nist-third.json` from `nist-levels.py light|third`). `atom/tools/separate.mjs atoms <D>` /
+  `stretch <D> <Z> [R,…]` → `papers/p1/separate-collect.mjs` → `data/separate.json` (§11.2): the molecular codes' atoms
+  and basis errors, and stretched pairs (charges, spins, starts; in 4D the far form −3Q²/64R⁵). `atom/tools/valencetest.mjs
+  reactions|hessian|assemble` (run `valence-1`): darbon's DH₅ by balanced alternatives and its full curvature matrix.
+  **A pending atom4-compute run is replaced by a newer push of the queue** (GitHub concurrency): don't push
+  `.github/compute/atom4.json` while a run waits behind another.
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).

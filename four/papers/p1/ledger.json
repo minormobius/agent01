@@ -327,6 +327,28 @@
    ]
   },
   {
+   "id": "separate",
+   "part": "consequence",
+   "claim": "Stretched pairs of light atoms come apart into neutral atoms with their own spins in both worlds; in 4D the separated limit of closed-shell atoms is the permanent pull −3Q²/64R⁵, which Hartree–Fock reproduces",
+   "value": "pairs ours H₂, N₂, F₂, Ne₂, 4D 1, 2, 7, 10, 11, 12: charges below 10⁻⁵, ours' interaction at 16 bohr ≤ 0.001 mHa; 4D at 16 bohr, Hartree–Fock over the far form: closed 1.02–1.06, H 1.15, open p 1.4–1.9; basis error closed 0.00 to 6.60 mHa",
+   "holds": true,
+   "section": "11.2",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "valence",
+   "part": "table",
+   "claim": "Valence states: one-electron moves from the ground by both methods; on ours the Rydberg moves hold to a few tenths of an eV, and the s→p promotion of an atom with its p shell under half full is too cheap in both methods",
+   "value": "33 calibration states; Rydberg medians 0.4 and 0.3 eV; s→p (Be, B, C, Mg, Al, Si) −2.3 to −0.6 (local exchange) and −1.7 to −0.9 (Hartree–Fock); 4D 2s→2p of element 4 1.3 and 1.5, darbon 3.4 and 4.0 eV",
+   "holds": true,
+   "section": "8.4",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hfcheck",
    "part": "table",
    "claim": "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",

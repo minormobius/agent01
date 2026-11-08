@@ -40,7 +40,7 @@ shell theorem forced back on (section 9), and follows the law into partial scree
 neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of 36 claims. The code, the data and the paper's own making are public at
+against a ledger of 38 claims. The code, the data and the paper's own making are public at
 four.mino.mobi/papers.
 
 ## Notation
@@ -641,6 +641,39 @@ are in the data files (table4.csv).
 
 ![**Figure 5.** Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Any element's orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen's exact ones, turned live: kata.mino.mobi/orbital.](../figures/5.svg){#fig-5}
 
+**8.4 Valence states.** Chemistry can pay to move an electron if the bonds it then makes pay more, so the reference
+records the cost. For each of 10 representative atoms, every configuration one electron away from the ground
+(any electron near the top moved to any subshell near the top) was solved by local exchange and by Hartree–Fock (table
+1; all 10 with the ground's spin ladder in `data/valence.json`). Ours is the calibration, 33 states
+against NIST's levels [@nist-handbook]. Moving an electron into a higher shell of the kind that makes a Rydberg series
+is good to a median 0.4 and 0.3 eV (18 states). The s→p promotion, the price of hybrid bonding, is not. For
+atoms whose p shell is less than half full (Be, B, C, Mg, Al, Si) both methods make it too cheap, by −2.3 to −0.6 (local exchange) and −1.7 to −0.9 (Hartree–Fock) eV,
+the near-degeneracy of an s² pair with p² that neither method holds; past half full (N, P, S) they make it too
+dear (−0.2 to 1.0 and 0.3 to 2.7 eV), where the measured state mixes with others. In four dimensions the p subshell holds eight, so
+every second-row atom up to element 8 is in the first group: element 4's 2s→2p costs 1.3 and 1.5 eV by the two methods,
+darbon's (element 7) 3.4 and 4.0 eV, element 14's 3s→3p 3.1 and 2.9 eV, and on our evidence each is probably a volt or
+two short of the true cost. Element 26's three lowest moves (into 4p, from 4s into 3d, from 3d into 4p) lie within
+0.2 eV of each other by Hartree–Fock and a volt apart by local exchange, so its chemistry has several states to draw
+on and the methods disagree about which is cheapest. For element 53 Hartree–Fock finds a state below the
+table's ground, the open configuration of section 6.6.
+
+| element | ground | lowest states by Hartree–Fock: move, local exchange / Hartree–Fock (eV) |
+|--:|:--|:--|
+| 4 | 1s² 2s² | 2s→2p 1.3 / 1.5; 2s→3s 3.4 / 3.4 |
+| 7 | 1s² 2s² 2p³ | 2s→2p 3.4 / 4.0; 2p→3s 6.1 / 5.5; 2p→3p 7.2 / 6.7 |
+| 10 | 1s² 2s² 2p⁶ | 2p→3s 8.9 / 8.2; 2p→3p 10.8 / 10.0; 2s→2p 14.0 / 17.4 |
+| 12 | 1s² 2s² 2p⁸ | 2p→3s 13.7 / 12.9 |
+| 14 | 2s² 2p⁸ 3s² | 3s→3p 3.1 / 2.9; 3s→4s 4.3 / 4.2 |
+| 26 | 3p⁸ 3d² 4s² | 4s→4p 3.3 / 3.1; 4s→3d 2.3 / 3.1; 3d→4p 4.3 / 3.3 |
+| 39 | 3p⁸ 3d¹⁶ 4s¹ | 3d→4s 2.5 / 0.4; 4s→3d 3.2 / 5.0; 4s→4p 7.8 / 7.1 |
+| 42 | 3p⁸ 3d¹⁸ 4s² | 4s→4p 9.3 / 8.3; 4s→5s 11.1 / 9.9; 4s→4d 13.0 / 11.8 |
+| 53 | 4p⁸ 4d¹ 5s² | 4d→5p 0.0 / −0.8; 4d→6s 1.8 / 1.1; 4d→4f 3.8 / 2.9 |
+| 82 | 5p⁸ 5d¹ 6s² | 4f→5d 4.7 / 1.5; 5d→4f 0.4 / 1.8; 5d→6p 2.5 / 1.9 |
+
+Table: **Table 1.** Valence states of representative four-dimensional atoms: the ground configuration (outer subshells)
+and the three lowest configurations one electron away by Hartree–Fock, each labelled by the move and given by local
+exchange and Hartree–Fock (eV above each method's own ground; a negative value is a state below the table's ground).
+
 # Part III · What the law does
 
 ## 9 · The table again, with the shell theorem forced on
@@ -700,7 +733,7 @@ agree to 0.22 %. Between two atoms the same failure gives a permanent attraction
 $-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$. The papers
 that follow take it up: noble gases that condense far above where ours do, and molecules held differently.
 
-**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 1) the
+**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 2) the
 static polarizability $\alpha_\mathrm p(0)$, the polarizability at imaginary frequency and from it the dispersion
 coefficient $C_6$ by Casimir and Polder's integral are computed by the coupled response of the same solver (Hartree plus
 local exchange, each electron's own share removed; exact for hydrogen in both worlds). The set is the atoms for which
@@ -748,7 +781,7 @@ every distance where a far-field form applies at all.
 | 4D | 52 | 4p⁸ 5s² | 67.1 |  | 758 |  | 57.4 | 154 | 4.92 |
 | 4D | 78 | 5s² 5p⁸ | 8.39 |  | 67.3 |  | 49.3 | 114 | 0.591 |
 
-Table: **Table 1.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
+Table: **Table 2.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
 \sum\langle r^2\rangle$, in four dimensions $C_5 = 3Q^2/64$ and $R^* = C_6/C_5$; for ours, beside each, the reference value
 (ref.) of @derevianko2010. Data: `data/response.json`, with $\alpha_\mathrm p(\mathrm i\omega)$ on the quadrature nodes and each
 atom's convergence.
@@ -758,6 +791,27 @@ distribution's second moment is dropped from multipole expansions, because $1/r$
 carries no field. Here it is the leading field of a neutral atom ($-Q/8R^3$ on a charge, $-C_5/R^5$ between two atoms),
 so a four-dimensional force field has to keep it. The force fields of the later papers do, as a cloud term on every
 atom.
+
+**11.2 Joining and separating atoms.** A molecule's binding energy is measured from its atoms, so the atoms the
+molecular codes reach when a bond is pulled apart have to be the atoms of this paper. The light atoms of both worlds
+(22 of them) were computed by every method the later papers use: numerical Hartree–Fock, the local exchange of
+the table, and the Gaussian code (`gauss.js`, unrestricted Hartree–Fock and MP2) in the basis the molecular work uses.
+For the closed shells that basis lies 0.00 to 6.60 mHa above the numerical Hartree–Fock limit. For the open shells the
+unrestricted energy lies −5.50 to 2.30 mHa from the restricted numerical one; below it mostly, because an unrestricted
+determinant can polarize its spins, which is not a better basis. Then pairs of like atoms (ours H₂, N₂, F₂, Ne₂; in four
+dimensions elements 1, 2, 7, 10, 11, 12) were stretched from 6 to 16 bohr, each started three ways (from bare nuclei and from
+the two atoms with parallel and with antiparallel spins) and the lowest kept. Every pair separates into neutral atoms
+(Mulliken charges below 10⁻⁵) with each atom's own spin, but not from every start: the bare-nuclei start lands up to
+16 hartree too high, on ion pairs and wrong spin states. A molecular code that starts one way only can report
+a binding energy measured from the wrong atoms. In ours the separated pairs meet the atoms to 0.001 mHa at 16
+bohr. In four dimensions they don't meet them at all, as section 11 says they shouldn't. Two closed-shell atoms keep the
+permanent pull, and Hartree–Fock reproduces its far form: element 12's pair at 16 bohr is bound by −0.0119 against −0.0116 mHa, and
+the closed shells sit at 1.02–1.06 times the far form there. Hydrogen, whose four-dimensional orbital is diffuse,
+is at 1.15, still approaching it; its excess over the far form falls by five between 10 and 16 bohr, as
+shorter-ranged terms do. The open p shells are at
+1.4–1.9: an unrestricted atom with a partly filled p shell is not round, and the ordinary quadrupole that ours has
+too adds a pull of the same order, one that depends on how the two atoms are turned. The atomic energies, the curves and
+each atom's charge and spin are in `data/separate.json`.
 
 ## 12 · Limitations
 
@@ -900,7 +954,7 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 ## Supplement and data
 
 Supplement S1 is the table with every open subshell given Hund spins (`data/table4-hundspin.csv`). The
-36 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
+38 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
 
 ## References
 
