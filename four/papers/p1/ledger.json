@@ -82,6 +82,17 @@
    ]
   },
   {
+   "id": "ions23",
+   "part": "table",
+   "claim": "The +2 and +3 ions, each searched for its own ground state: ours' second and third ionizations agree with NIST more closely than the first; in 4D the 3d row's ions lose their outer s electrons first, as ours do, while the first elements of the 4d and 5d blocks give up a d electron first at +1 or +2, as our yttrium and lutetium do",
+   "value": "ours vs NIST, median |err|: 1st 4.3 % (n 35), 2nd 2.0 % (n 34), 3rd 1.4 % (n 33); 4D removals taking d/f with the valence s held: 53(1+), 54(1+), 54(2+), 55(1+), 56(1+), 58(1+), 61(1+), 81(1+), 82(1+), 114(1+), 114(2+), 115(1+), 115(2+), 116(1+), 116(2+), 117(1+), 118(2+), 120(1+), 120(2+), 122(1+), 122(2+); s first: 96",
+   "holds": true,
+   "section": "6.4",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "nobles",
    "part": "table",
    "claim": "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
@@ -469,9 +480,8 @@
   }
  ],
  "refs": {
-  "read": 3,
+  "read": 4,
   "index": 26,
-  "cited": 1,
-  "memory": 1
+  "cited": 1
  }
 }

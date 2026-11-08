@@ -1029,7 +1029,16 @@
    ]
   },
   "URL": "https://physics.nist.gov/asd",
-  "publisher": "National Institute of Standards and Technology"
+  "publisher": "National Institute of Standards and Technology",
+  "accessed": {
+   "date-parts": [
+    [
+     2026,
+     11,
+     8
+    ]
+   ]
+  }
  },
  {
   "type": "article-journal",

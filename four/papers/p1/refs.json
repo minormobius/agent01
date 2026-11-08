@@ -423,15 +423,24 @@
    "venue": "National Institute of Standards and Technology",
    "volume": "",
    "pages": "",
-   "year": "2026",
-   "status": "memory",
-   "source": "not yet accessed: the values in sections 6.3 and 8.2 are from memory; cite with the access date once checked",
-   "role": "measured 4s→3d promotion energies of the 3d atoms (section 6.3)",
+   "year": 2026,
+   "status": "read",
+   "source": "read: the ground states and ionization energies, H–Kr, retrieved 2026-11-08 (papers/p1/data/nist-ie.json; Y, La, Lu and Fe ions checked by hand); the 4s→3d promotion energies of §6.3 are still from memory and not yet checked against its levels",
+   "role": "measured ionization energies (§6.4) and, still to check, the 3d atoms' 4s→3d promotion energies (§6.3)",
    "url": "https://physics.nist.gov/asd",
    "csl": {
     "type": "webpage",
     "container-title": null,
-    "publisher": "National Institute of Standards and Technology"
+    "publisher": "National Institute of Standards and Technology",
+    "accessed": {
+     "date-parts": [
+      [
+       2026,
+       11,
+       8
+      ]
+     ]
+    }
    }
   },
   {

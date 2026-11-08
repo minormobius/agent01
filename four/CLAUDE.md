@@ -465,6 +465,12 @@ for games, and this is a modelling programme with publications to come. The game
     - **Noble gases:** 2, 12 and 22 don't hold an extra electron; 50, 78 and 138 come out barely bound, too little to
       call.
     - Claims `ions3`, `ions4` and `halogens4`; the paper's §6.4, §8.2 and §10.3.
+    - **+2 and +3 (`ions-23`, 2026-11-08, 342 ions, all settled):** `ions-collect.mjs` now keeps every charge's
+      configuration, corrected E and SCF E (`ions[q]`) and the 2nd/3rd ionizations. Against NIST (fetched:
+      `papers/p1/data/nist-ie.json`, H–Kr; `IE_REAL` agrees with it to 0.01 eV) ours' 2nd and 3rd are off a median 2.0 %
+      and 1.4 %, the 1st 4.3 %. 4D's 3d-row ions lose s before d as ours do; the first halves of the 4d and 5d blocks
+      (and 81–82) lose a d electron first at +1/+2, as our Y⁺ and Lu⁺. Claim `ions23`, §6.4. The table page's ions:
+      `profiles.mjs bake <q>` → `table/profiles-p1/p2/p3/m1.json` (anions only where bound), checked by selftest 70.
   - **The site shows the corrected table (2026-11-06).** **Generated** `js/terms.js` (`tools/terms.mjs bake`, from
     paper 1's `data/termtable.json`; element 82 re-solved for its orbitals and density) is laid over the bake by
     `js/tablec.js`. **Pages import the table from `tablec.js`, never `table.js`** (main.js, shapes.js, table/viewer.js,

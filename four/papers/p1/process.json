@@ -401,6 +401,10 @@
   {
    "date": "2026-11-07",
    "what": "Négadi and Kibler re-read (arXiv atom-ph/9512001): they state the generalized Madelung rule for any D and work it out for D = 2 (recovering D = 3); they publish no 4D table. The paper had said they 'predicted the rows of a four-dimensional table'; it now says their rule, applied to D = 4, gives those rows (intro, §3.2, §8.1, figure 2, claim rows, refs role, the site's table chapter). §8.1 also now says the rule is a filling order, like Madelung's in ours, which has exceptions (chromium and copper the first of about twenty), so the 37 departures aren't a disagreement with them."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "ions-23 (runner, 158 commands all exit 0, 342 ions all settled): every +2 and +3 ion of both worlds searched for its own ground state. Against NIST (now fetched: data/nist-ie.json, H–Kr; it also confirms the paper's measured first ionizations to 0.01 eV), ours' second and third ionizations are off by a median 2.0 % and 1.4 % (worst V 7 %, C 4 %), better than the first's 4.3 %, and our ions lose 4s before 3d as measured. In 4D the 3d row's ions do the same; the first halves of the 4d and 5d blocks, and 81–82, give up a d electron at +1 or +2 while keeping the outer s, as our Y⁺ (5s²) and Lu⁺ (6s²) do (both checked against NIST). §6.4 says so (claim ions23). The nist-asd reference is now read for ionization energies; §6.3's promotion energies are still from memory and the text says so. The big table's 'Inside the atom' offers every element at −1 (where bound), 0, +1, +2 and +3."
   }
  ]
 }

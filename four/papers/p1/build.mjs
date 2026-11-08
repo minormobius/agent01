@@ -37,6 +37,25 @@ const norm = (c) => c.split(" ").sort().join(" "); // configurations compared as
    (supplement S1) */
 const TERM = new Map(JSON.parse(readFileSync(join(HERE, "data/termtable.json"), "utf8")).rows.map((r) => [r.Z, r]));
 const IONS = JSON.parse(readFileSync(join(HERE, "data/ions.json"), "utf8")).rows; // the ions' own ground states (ions-collect.mjs): electron affinities, and the ionizations folded into termtable.json
+const NIST_IE = JSON.parse(readFileSync(join(HERE, "data/nist-ie.json"), "utf8")).rows; // NIST ASD ionization energies, H–Kr (retrieved 2026-11-08)
+/* the ions' ladder (runner runs ions-1, ions-23): ours' second and third ionizations against NIST, and in 4D which
+   removals take a d or f electron while the valence s (the highest occupied s) is still held */
+export function ionLadder(t4 = TABLE[4].map((el) => ({ ...el, config: TERM.get(el.Z)?.config ?? el.config }))) {
+  const occ = (c) => Object.fromEntries([...c.matchAll(/(\d+[spdf])(\d+)/g)].map((m) => [m[1], +m[2]])), nist = (Z, q) => NIST_IE.find((r) => r.Z === Z && r.q === q)?.eV;
+  const cmp = (k, q) => IONS.filter((r) => r.D === 3 && r[k] != null && nist(r.Z, q)).map((r) => ({ Z: r.Z, pct: (100 * (r[k] - nist(r.Z, q))) / nist(r.Z, q) }));
+  const med = (a) => { const v = a.map((x) => Math.abs(x.pct)).sort((x, y) => x - y); return v[Math.floor(v.length / 2)]; }, worst = (a) => a.reduce((x, y) => (Math.abs(y.pct) > Math.abs(x.pct) ? y : x));
+  const dFirst = [], sFirst = [];
+  for (const r of IONS.filter((x) => x.D === 4)) {
+    const seq = [t4[r.Z - 1].config, ...[1, 2, 3].map((q) => r.ions?.[q]?.config)]; if (seq.includes(undefined)) continue;
+    for (let i = 0; i < 3; i++) {
+      const a = occ(seq[i]), b = occ(seq[i + 1]), vs = Object.keys(a).filter((k) => k.endsWith("s")).sort((x, y) => parseInt(y) - parseInt(x))[0], n = parseInt(vs);
+      const inner = [`${n - 1}d`, `${n - 2}f`].filter((k) => k in a && a[k] > 0 && a[k] < (k.endsWith("d") ? 18 : 32)); if (!inner.length) continue; // an open d or f shell under the valence s
+      const lost = Object.keys({ ...a, ...b }).filter((k) => (a[k] ?? 0) > (b[k] ?? 0));
+      if (lost.some((k) => inner.includes(k)) && (b[vs] ?? 0) > 0) dFirst.push({ Z: r.Z, q: i + 1 }); else if (lost.includes(vs)) sFirst.push({ Z: r.Z, q: i + 1 });
+    }
+  }
+  return { c1: cmp("ion_full_eV", 0), c2: cmp("ion2_eV", 1), c3: cmp("ion3_eV", 2), med, worst, dFirst, sFirst };
+}
 function rows(d, { hundspin = false } = {}) {
   const nm = names(TABLE, d), { cells } = layout(TABLE, d), period = new Map(cells.map((c) => [c.el.Z, c.period]));
   return TABLE[d].map((bel) => { const t = d === 4 && !hundspin ? TERM.get(bel.Z) : null;
@@ -232,6 +251,10 @@ function ledger(t3, t4, files, refs) {
       return { id: "madelungfill", part: "table", claim: "Inside the rows, read as a ground-configuration rule (which, like Madelung's in ours, it isn't meant to be exactly): most 4D atoms fill exactly in its order, and every other moves one or two electrons between two subshells, nearly always from an outer s into the d or f below it, as our chromium and copper do",
         value: `${t4.length - dv.length} of ${t4.length} exactly the rule's; the rest: ${dv.map((x) => `${x.Z} ${moveText(x.moves)}`).join(", ")}. Ours 1–36: the solver departs at ${ours.map((x) => x.Z).join(", ")}, measured at ${real.map((x) => x.Z).join(", ")}`,
         holds: pair && dv.length < 45 && t4.length - dv.length > 95, section: "8.1", gate: [67] }; })(),
+    (() => { const L = ionLadder(t4), zs = [...new Set(L.dFirst.map((x) => x.Z))];
+      return { id: "ions23", part: "table", claim: "The +2 and +3 ions, each searched for its own ground state: ours' second and third ionizations agree with NIST more closely than the first; in 4D the 3d row's ions lose their outer s electrons first, as ours do, while the first elements of the 4d and 5d blocks give up a d electron first at +1 or +2, as our yttrium and lutetium do",
+        value: `ours vs NIST, median |err|: 1st ${L.med(L.c1).toFixed(1)} % (n ${L.c1.length}), 2nd ${L.med(L.c2).toFixed(1)} % (n ${L.c2.length}), 3rd ${L.med(L.c3).toFixed(1)} % (n ${L.c3.length}); 4D removals taking d/f with the valence s held: ${L.dFirst.map((x) => `${x.Z}(${x.q}+)`).join(", ")}; s first: ${L.sFirst.length}`,
+        holds: L.med(L.c2) < L.med(L.c1) && L.med(L.c3) < L.med(L.c1) && !zs.some((z) => z >= 23 && z <= 42), section: "6.4", gate: [67] }; })(),
     { id: "nobles", part: "table", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
       value: `noble gases ${nobleZ.join(", ")}; each above both neighbours: ${peaks ? "yes" : "no"}`, holds: nobleZ.join() === "2,12,22,50,78,138" && peaks, section: "5", gate: [7, 27, 67] },
     { id: "fulld", part: "table", claim: "The hardest-held electron in the table isn't a noble gas's: element 128, whose 18-electron d shell is full with nothing outside it (our palladium's kind), out-holds its row's noble gas 138, and element 68, the same kind a row up, comes within a volt of its row's noble gas 78 (in ours palladium holds far less hard than xenon, 8.3 against 12.1 eV)",
@@ -375,6 +398,11 @@ function hundTokens() {
         "ea.pOurs": ["C", "Si", "Ge", "Al", "F", "Cl", "O"].map((sy) => { const r = o3.find((x) => x.symbol === sy); return `${sy} ${r.ea_eV.toFixed(2)} against ${r.ea_measured_eV}`; }).join(", "),
         "ea.fail": ["H", "Li", "Na", "P"].map((sy) => { const r = o3.find((x) => x.symbol === sy); return `${sy} ${r.ea_eV.toFixed(2)} against ${r.ea_measured_eV}`; }).join(", "),
         "ion.re4": re4.map((r) => `${r.Z} (${r.ion_byRemoval_eV.toFixed(2)} → ${r.ion_eV.toFixed(2)})`).join(", ") }; })(),
+    ...(() => { const L = ionLadder(), SY = (z) => SYM[z - 1], zs = [...new Set(L.dFirst.map((x) => x.Z))], row = (lo, hi) => zs.filter((z) => z >= lo && z <= hi);
+      const ranges = (a) => { const out = []; for (const z of a) { const last = out.at(-1); if (last && z === last[1] + 1) last[1] = z; else out.push([z, z]); } return out.map(([x, y]) => (x === y ? `${x}` : `${x}–${y}`)).join(", "); };
+      return { "ion23.m1": `${L.med(L.c1).toFixed(1)} %`, "ion23.m2": `${L.med(L.c2).toFixed(1)} %`, "ion23.m3": `${L.med(L.c3).toFixed(1)} %`, "ion23.n2": String(L.c2.length), "ion23.n3": String(L.c3.length),
+        "ion23.w2": `${SY(L.worst(L.c2).Z)}, ${Math.abs(L.worst(L.c2).pct).toFixed(0)} %`, "ion23.w3": `${SY(L.worst(L.c3).Z)}, ${Math.abs(L.worst(L.c3).pct).toFixed(0)} %`,
+        "ion23.nd": String(L.dFirst.length), "ion23.dZ": ranges(zs), "ion23.d3": String(row(23, 42).length) }; })(),
     "hl.law": gap("law"), "hl.gauss": gap("gauss"), "hl.f2": gap("f2only"), "hl.ours": tiS.eV.toFixed(2),
     ...(() => { const W = hundWeights(); return { "hl.cosS4": W.s4.cos2.toFixed(3), "hl.cosT4": W.t4.cos2.toFixed(3), "hl.cosF3": W.f3.cos2.toFixed(3), "hl.cosD3": W.d3.cos2.toFixed(3), "hl.crit": Math.abs(W.crit - 5 / 3) < 1e-4 ? "5/3" : W.crit.toFixed(3), "hl.rLaw": W.rLaw.toFixed(2), "hl.rGauss": W.rGauss.toFixed(2), "hl.rOurs": W.rOurs.toFixed(2) }; })(),
   };

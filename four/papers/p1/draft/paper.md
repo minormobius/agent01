@@ -34,7 +34,7 @@ shell theorem forced back on (section 9), and follows the law into partial scree
 neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of 32 claims. The code, the data and the paper's own making are public at
+against a ledger of 33 claims. The code, the data and the paper's own making are public at
 four.mino.mobi/papers.
 
 ## Notation
@@ -408,7 +408,7 @@ Gaussian basis written for any dimension (`gauss.js`), and the same atoms in our
 **6.3 Our own table.** The same solver, the same law (in ours 1/r is Gauss's) and the same search, run in three
 dimensions, gives 32 of 36 of our measured ground configurations. The four it misses, titanium, vanadium, cobalt and nickel, each take one
 d electron too many against 4s, the known lean of local exchange toward d. The misses have one cause. Moving an electron from 4s into 3d comes out
-too cheap in every 3d atom we can compare (eV, the solver against measured [@nist-asd]: Sc 0.14 against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.86, Co −0.35 against 0.43, Ni −1.16 against 0.03), short by 0.35–1.70
+too cheap in every 3d atom we can compare (eV, the solver against measured, from memory and still to be checked against NIST's levels [@nist-asd]: Sc 0.14 against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.86, Co −0.35 against 0.43, Ni −1.16 against 0.03), short by 0.35–1.70
 eV and a mean 1.06, always in d's favour. That is local exchange without correlation. Resolving every open
 subshell's whole term structure doesn't remove it. With that correction (the lowest term less the average of the
 maximum-spin arrangements, which is what a spherically averaged field stands for), the bias stays at 1.07 eV and
@@ -420,7 +420,12 @@ that gets our transition metals mostly right and our ionizations to a few percen
 ![**Figure A2.** The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z.](../figures/A2.svg){#fig-A2}
 
 **6.4 Ions.** Each ion of ours searched for its own ground state, rather than made by taking one electron from the
-atom's configuration, changes no first ionization. The same search for anions gives our electron affinities where
+atom's configuration, changes no first ionization. Searched the same way, our +2 and +3 ions give second and
+third ionization energies within a median 2.0 % and 1.4 % of measured ones [@nist-asd] (worst
+V, 7 % and C, 4 %), closer than the first ionizations' 4.3 %, and they lose their 4s electrons before
+3d, as measured (Fe⁺ 3d⁶4s, Fe²⁺ 3d⁶, Fe³⁺ 3d⁵). In four dimensions the 3d row's ions do the same. Elements in the first half
+of the 4d and 5d blocks, and the two that open row 6's f block with a 5d electron, instead give up a d electron at +1
+or +2 while keeping the outer s (53–56, 58, 61, 81–82, 114–118, 120, 122), as our yttrium and lutetium do (Y⁺ 5s², Lu⁺ 6s²). The same search for anions gives our electron affinities where
 the extra electron is bound by the field and exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against 1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against 3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second). It
 also finds every anion that should be unbound to be unbound: the noble gases, beryllium, magnesium and nitrogen. It
 fails where correlation does the binding (H -0.33 against 0.754, Li -0.08 against 0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In four dimensions, then, an affinity above about 0.7 eV is to
@@ -724,7 +729,7 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 ## Supplement and data
 
 Supplement S1 is the table with every open subshell given Hund spins (`data/table4-hundspin.csv`). The
-32 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
+33 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
 
 ## References
 
