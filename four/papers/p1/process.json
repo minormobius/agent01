@@ -429,6 +429,10 @@
   {
    "date": "2026-11-08",
    "what": "hf-lanth-1 collected (18 of 18 exit 0): ours Cs–Hf, Hartree–Fock 15/18, local exchange 12/18; they agree on 14, but two agreements are wrong (Ce: both 4f² 6s², measured 4f¹5d¹6s²; Hf: both 5d³6s¹, measured 5d²6s²), so in the f block agreement is not proof. Against measured levels both make an extra f electron too cheap (local exchange by 4.3–4.7 eV for La, Ce, Gd; Hartree–Fock by 0.2–2.4). The 4 eV window, set in local-exchange energy, therefore left out the configurations with one f fewer: terbium's measured 4f⁸5d6s² (0.035 eV up) sat at +4.45 for local exchange and, with a 10 eV window, +0.92 for Hartree–Fock, against the 5.82 margin reported. The 4D f row (81–112) had the same blind spot: §6.6 now calls its configurations provisional, the table page marks them so, and hf-wide-1 reruns ours Cs–Hf and the 4D f row with a 10 eV window."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "Paper 1 becomes the atomic reference (the PI: everything but the nucleus). First pieces: §11.1 and table 1, the atoms' response (response-table.mjs → data/response.json): α(0), α(iω), C6, Q, and in 4D C5 = 3Q²/64 and R* = C6/C5 for 27 closed-shell and one-s-electron atoms of both worlds, converged (quadrature 2 × 10⁻⁶, grids 0.5 %), ours against Derevianko–Porsev–Babb 2010 (read from arXiv; noble gases −8 to +4 %, alkalis and alkaline earths +7 to +25 % in α); in 4D R* is under 1.6 bohr for every closed shell from element 12 on, so the permanent pull leads outside the atom, and the trace of the second moment is a requirement on every later force field. §7.5, d² in a ligand field (atom/tools/ligandd2.mjs): on the axes (16-cell) the singlet holds at every field, its ground an orbital doublet; at the tesseract's corners a triplet takes over at Δ ≈ 2.4 eV and only by 0.07 eV; the 24-cell doesn't split d at all. Claims response and ligandd2. hftable.mjs gains a map mode (every one-electron move from the ground, both methods) for the valence energy map, running."
   }
  ]
 }

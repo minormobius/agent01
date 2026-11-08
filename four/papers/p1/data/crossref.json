@@ -508,6 +508,38 @@
    "publisher": "Elsevier",
    "DOI": "10.1016/c2013-0-02793-4"
   },
+  "10.1016/j.adt.2009.12.002": {
+   "type": "journal-article",
+   "title": "Electric dipole polarizabilities at imaginary frequencies for hydrogen, the alkali–metal, alkaline–earth, and noble gas atoms",
+   "author": [
+    {
+     "family": "Derevianko",
+     "given": "Andrei"
+    },
+    {
+     "family": "Porsev",
+     "given": "Sergey G."
+    },
+    {
+     "family": "Babb",
+     "given": "James F."
+    }
+   ],
+   "container-title": "Atomic Data and Nuclear Data Tables",
+   "volume": "96",
+   "issue": "3",
+   "page": "323-331",
+   "issued": {
+    "date-parts": [
+     [
+      2010,
+      5
+     ]
+    ]
+   },
+   "publisher": "Elsevier BV",
+   "DOI": "10.1016/j.adt.2009.12.002"
+  },
   "10.1016/j.aop.2013.03.014": {
    "type": "journal-article",
    "title": "Fractional power-law spatial dispersion in electrodynamics",
@@ -1926,6 +1958,34 @@
    },
    "publisher": "World Scientific Pub Co Pte Lt",
    "DOI": "10.1142/s0219887809004247"
+  },
+  "10.1143/jpsj.9.753": {
+   "type": "journal-article",
+   "title": "On the Absorption Spectra of Complex Ions. I",
+   "author": [
+    {
+     "family": "Tanabe",
+     "given": "Yukito"
+    },
+    {
+     "family": "Sugano",
+     "given": "Satoru"
+    }
+   ],
+   "container-title": "Journal of the Physical Society of Japan",
+   "volume": "9",
+   "issue": "5",
+   "page": "753-766",
+   "issued": {
+    "date-parts": [
+     [
+      1954,
+      9
+     ]
+    ]
+   },
+   "publisher": "Physical Society of Japan",
+   "DOI": "10.1143/jpsj.9.753"
   },
   "10.3389/fphy.2020.00331": {
    "type": "journal-article",

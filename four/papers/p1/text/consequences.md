@@ -57,6 +57,37 @@ agree to {{far.dev}}. Between two atoms the same failure gives a permanent attra
 $-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$. The papers
 that follow take it up: noble gases that condense far above where ours do, and molecules held differently.
 
+**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 1) the
+static polarizability $\alpha_\mathrm p(0)$, the polarizability at imaginary frequency and from it the dispersion
+coefficient $C_6$ by Casimir and Polder's integral are computed by the coupled response of the same solver (Hartree plus
+local exchange, each electron's own share removed; exact for hydrogen in both worlds). The set is the atoms for which
+that response's angular bookkeeping is exact: full subshells and a single s electron. Doubling the frequency
+quadrature moves $C_6$ by at most {{resp.quad}}, and the other radial grids move $\alpha_\mathrm p(0)$ and $C_6$ by at most
+{{resp.grid}}. The sum rule $\omega^2\alpha_\mathrm p(\mathrm i\omega) \to Z$, read at $\omega$ = 300 hartree, holds to
+{{resp.sumMin}} or better; the shortfall in the heaviest atoms is core response at higher frequencies still. In ours,
+against the reference values of @derevianko2010, the noble gases' $\alpha_\mathrm p(0)$ is off by {{resp.nobA}}, and the
+alkalis and alkaline earths are too easily polarized, by {{resp.sA}} in $\alpha_\mathrm p(0)$ and {{resp.sC}} in $C_6$
+(median errors {{resp.medA}} and {{resp.medC}}), as local exchange without correlation is known to make them.
+
+In four dimensions the permanent pull has its own coefficient, $C_5 = 3Q^2/64$ for two like atoms, and the distance
+$R^* = C_6/C_5$ inside which dispersion is the larger. For hydrogen and helium $R^*$ is {{resp.rH}} bohr; for the
+alkali-like and alkaline-earth-like atoms {{resp.rS}}; for every other atom in the table {{resp.rClosed}}, which is
+inside the atom. Past contact, for most of the table, the permanent term is the leading pull between neutral atoms at
+every distance where a far-field form applies at all.
+
+{{resp.table}}
+
+Table: **Table 1.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
+\sum\langle r^2\rangle$, in four dimensions $C_5 = 3Q^2/64$ and $R^* = C_6/C_5$; for ours, beside each, the reference value
+(ref.) of @derevianko2010. Data: `data/response.json`, with $\alpha_\mathrm p(\mathrm i\omega)$ on the quadrature nodes and each
+atom's convergence.
+
+One consequence is a requirement on every later model of four-dimensional matter. In ours the trace of a charge
+distribution's second moment is dropped from multipole expansions, because $1/r$ is harmonic there and the trace
+carries no field. Here it is the leading field of a neutral atom ($-Q/8R^3$ on a charge, $-C_5/R^5$ between two atoms),
+so a four-dimensional force field has to keep it. The force fields of the later papers do, as a cloud term on every
+atom.
+
 ## 12 · Limitations
 
 **The law's own.** The force acts instantly (section 4.3), so only statics are safe; this paper has nothing that

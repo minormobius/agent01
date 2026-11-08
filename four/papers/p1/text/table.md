@@ -140,6 +140,24 @@ How far to trust each configuration follows from section 6.3. Take a bias of abo
 configuration with a competitor holding fewer d and f electrons within a volt of it could be the other way round.
 {{tt.sensN}} of the {{tt.n}} d- and f-block elements have one: {{tt.sens}}.
 
+**7.5 In a ligand field.** A spin singlet is not orbitally inert: the ten states of (2,0) ⊕ (0,2) still carry orbital
+structure, and in a compound a ligand field splits them, and might hand the ground to a triplet. The ion here is
+element 26's 2+, 3d² over closed shells, with point charges −1 at {{lf.R}} bohr in three arrangements of four
+dimensions: along the axes (eight, the 16-cell, four dimensions' octahedron), at a tesseract's corners (sixteen), and at
+the 24-cell's vertices (twenty-four). The field is projected exactly onto the degrees a d × d product holds, scaled from
+zero, and every determinant of the two electrons is diagonalized, as in section 7.2. A four-dimensional d subshell
+splits {{lf.axSplit}} on the axes and {{lf.coSplit}} at the corners (ours' octahedron {{lf.oursAx}}, cube
+{{lf.oursCo}}). On the axes the two electrons go into the six-fold set, and the singlet stays the ground at every field
+strength: its ten states split, the lowest of them {{lf.axGround}}-fold, an orbital doublet that a distortion could act
+on, and the lowest triplet stays {{lf.axTrip}} eV up, the free ion's gap. At the corners the three-fold set is lowest,
+and two electrons in it favour a triplet: the singlet holds until the one-electron spread $\Delta$ reaches
+{{lf.coCross}} eV, and a triplet is the ground beyond, but only just, {{lf.coGap}} eV below the singlet even at $\Delta$ =
+{{lf.coDmax}} eV. The 24-cell splits the d subshell not at all ({{lf.c24}}): its vertices average every harmonic of
+degree 2 and 4 to zero, as the icosahedron does for ours, so a d ion in that site keeps its free-ion terms. Ours'
+Ti²⁺ (3d²) is the check, with its triplet the ground at every field in both shapes, as @tanabe1954 found for d².
+These are point charges, a model of the field's symmetry rather than of its size (`atom/tools/ligandd2.mjs`,
+`data/ligandd2.json`).
+
 ## 8 · The table
 
 **8.1 Rows and noble gases.** The table's rows hold {{table.rows}} elements (and {{table.lastRow}} of the next by

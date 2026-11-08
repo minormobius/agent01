@@ -40,7 +40,7 @@ shell theorem forced back on (section 9), and follows the law into partial scree
 neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of 34 claims. The code, the data and the paper's own making are public at
+against a ledger of 36 claims. The code, the data and the paper's own making are public at
 four.mino.mobi/papers.
 
 ## Notation
@@ -76,6 +76,10 @@ holds $2(l + 1)^2$ electrons. Bold letters are vectors.
 | $\kappa(t)$ | the shell kernel: a shell's potential over the shell theorem's, $\kappa = 1$ in ours | §4.2 |
 | $R$ | the distance from an atom to an outside charge, or between two atoms | §4.2 |
 | $Q$ | an atom's $\sum\langle r^2\rangle$ over its electrons; $Q_A$, $Q_B$ for atoms A and B | §4.2 |
+| $\alpha_\mathrm p(\mathrm i\omega)$ | an atom's dipole polarizability at imaginary frequency; $\alpha_\mathrm p(0)$ the static one | §11.1 |
+| $C_6$, $C_5$ | the coefficients of two like atoms' dispersion $-C_6/R^6$ and permanent pull $-C_5/R^5$, $C_5 = 3Q^2/64$ | §11.1 |
+| $R^*$ | $C_6/C_5$, the distance inside which dispersion is the larger | §11.1 |
+| $\Delta$ | the spread of a d subshell's one-electron levels in a ligand field | §7.5 |
 | $\varphi$ | an electric potential | §4.3 |
 | $\omega$, $c$ | angular frequency; the speed of light | §4.3 |
 | $\rho$ | a density: of charge in §4.3, of electrons in an atom from §5 | §4.3 |
@@ -579,6 +583,24 @@ How far to trust each configuration follows from section 6.3. Take a bias of abo
 configuration with a competitor holding fewer d and f electrons within a volt of it could be the other way round.
 11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s², 0.55 eV up), 37 (3d¹³ 4s², 0.55 eV up), 53 (5s² 5p¹, 0.01 eV up), 58 (4d⁶ 5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV up), 107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s², 0.57 eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).
 
+**7.5 In a ligand field.** A spin singlet is not orbitally inert: the ten states of (2,0) ⊕ (0,2) still carry orbital
+structure, and in a compound a ligand field splits them, and might hand the ground to a triplet. The ion here is
+element 26's 2+, 3d² over closed shells, with point charges −1 at 4 bohr in three arrangements of four
+dimensions: along the axes (eight, the 16-cell, four dimensions' octahedron), at a tesseract's corners (sixteen), and at
+the 24-cell's vertices (twenty-four). The field is projected exactly onto the degrees a d × d product holds, scaled from
+zero, and every determinant of the two electrons is diagonalized, as in section 7.2. A four-dimensional d subshell
+splits 6 + 3 on the axes and 3 + 6 at the corners (ours' octahedron 3 + 2, cube
+2 + 3). On the axes the two electrons go into the six-fold set, and the singlet stays the ground at every field
+strength: its ten states split, the lowest of them 2-fold, an orbital doublet that a distortion could act
+on, and the lowest triplet stays 0.44 eV up, the free ion's gap. At the corners the three-fold set is lowest,
+and two electrons in it favour a triplet: the singlet holds until the one-electron spread $\Delta$ reaches
+2.4–2.5 eV, and a triplet is the ground beyond, but only just, 0.07 eV below the singlet even at $\Delta$ =
+7.6 eV. The 24-cell splits the d subshell not at all (none): its vertices average every harmonic of
+degree 2 and 4 to zero, as the icosahedron does for ours, so a d ion in that site keeps its free-ion terms. Ours'
+Ti²⁺ (3d²) is the check, with its triplet the ground at every field in both shapes, as @tanabe1954 found for d².
+These are point charges, a model of the field's symmetry rather than of its size (`atom/tools/ligandd2.mjs`,
+`data/ligandd2.json`).
+
 ## 8 · The table
 
 **8.1 Rows and noble gases.** The table's rows hold 2, 10, 10, 28, 28, 60 elements (and 2 of the next by
@@ -677,6 +699,65 @@ over the atom's electrons. The solved noble gases follow it: at 30 bohr the full
 agree to 0.22 %. Between two atoms the same failure gives a permanent attraction
 $-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$. The papers
 that follow take it up: noble gases that condense far above where ours do, and molecules held differently.
+
+**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 1) the
+static polarizability $\alpha_\mathrm p(0)$, the polarizability at imaginary frequency and from it the dispersion
+coefficient $C_6$ by Casimir and Polder's integral are computed by the coupled response of the same solver (Hartree plus
+local exchange, each electron's own share removed; exact for hydrogen in both worlds). The set is the atoms for which
+that response's angular bookkeeping is exact: full subshells and a single s electron. Doubling the frequency
+quadrature moves $C_6$ by at most 2 × 10⁻⁶, and the other radial grids move $\alpha_\mathrm p(0)$ and $C_6$ by at most
+0.5 %. The sum rule $\omega^2\alpha_\mathrm p(\mathrm i\omega) \to Z$, read at $\omega$ = 300 hartree, holds to
+0.90 or better; the shortfall in the heaviest atoms is core response at higher frequencies still. In ours,
+against the reference values of @derevianko2010, the noble gases' $\alpha_\mathrm p(0)$ is off by −8 % to +4 %, and the
+alkalis and alkaline earths are too easily polarized, by +7 % to +25 % in $\alpha_\mathrm p(0)$ and +11 % to +35 % in $C_6$
+(median errors 9 % and 13 %), as local exchange without correlation is known to make them.
+
+In four dimensions the permanent pull has its own coefficient, $C_5 = 3Q^2/64$ for two like atoms, and the distance
+$R^* = C_6/C_5$ inside which dispersion is the larger. For hydrogen and helium $R^*$ is 28 and 9.26 bohr; for the
+alkali-like and alkaline-earth-like atoms 4.9–94; for every other atom in the table 0.59–1.5, which is
+inside the atom. Past contact, for most of the table, the permanent term is the leading pull between neutral atoms at
+every distance where a far-field form applies at all.
+
+| world | element | outer subshells | $\alpha_\mathrm p(0)$ | ref. | $C_6$ | ref. | $Q$ | $C_5$ | $R^*$ |
+|:--|--:|:--|--:|--:|--:|--:|--:|--:|--:|
+| ours | 1 | 1s¹ | 4.5 | 4.5 | 6.5 | 6.5 | 3 | 0 |  |
+| ours | 2 | 1s² | 1.32 | 1.38 | 1.38 | 1.46 | 2.37 | 0 |  |
+| ours | 3 | 1s² 2s¹ | 184 | 164 | 1 600 | 1 389 | 18.8 | 0 |  |
+| ours | 4 | 1s² 2s² | 47.1 | 37.8 | 288 | 214 | 17.5 | 0 |  |
+| ours | 10 | 2s² 2p⁶ | 2.45 | 2.67 | 5.68 | 6.38 | 9.51 | 0 |  |
+| ours | 11 | 2p⁶ 3s¹ | 174 | 163 | 1 722 | 1 556 | 26.3 | 0 |  |
+| ours | 12 | 2p⁶ 3s² | 78.6 | 71.3 | 721 | 627 | 29 | 0 |  |
+| ours | 18 | 3s² 3p⁶ | 11.4 | 11.1 | 66.4 | 64.3 | 26.5 | 0 |  |
+| ours | 19 | 3p⁶ 4s¹ | 357 | 290 | 5 215 | 3 897 | 49.1 | 0 |  |
+| ours | 20 | 3p⁶ 4s² | 171 | 157 | 2 442 | 2 121 | 54.7 | 0 |  |
+| ours | 30 | 3d¹⁰ 4s² | 45.5 |  | 338 |  | 33.7 | 0 |  |
+| ours | 36 | 4s² 4p⁶ | 17.5 | 16.8 | 136 | 130 | 40.1 | 0 |  |
+| 4D | 1 | 1s¹ | 34.8 |  | 166 |  | 11.3 | 5.93 | 28 |
+| 4D | 2 | 1s² | 9.92 |  | 33.8 |  | 8.82 | 3.65 | 9.26 |
+| 4D | 3 | 1s² 2s¹ | 471 |  | 7 518 |  | 41.3 | 79.9 | 94.1 |
+| 4D | 4 | 1s² 2s² | 132 |  | 1 548 |  | 37.1 | 64.5 | 24 |
+| 4D | 12 | 2s² 2p⁸ | 3.54 |  | 13.3 |  | 16.3 | 12.4 | 1.07 |
+| 4D | 13 | 2p⁸ 3s¹ | 122 |  | 1 184 |  | 34.2 | 54.7 | 21.7 |
+| 4D | 14 | 2p⁸ 3s² | 74.9 |  | 785 |  | 37.6 | 66.4 | 11.8 |
+| 4D | 22 | 3s² 3p⁸ | 9.9 |  | 71.7 |  | 34.2 | 54.9 | 1.3 |
+| 4D | 23 | 3p⁸ 4s¹ | 129 |  | 1 393 |  | 51.4 | 124 | 11.2 |
+| 4D | 24 | 3p⁸ 4s² | 97.5 |  | 1 257 |  | 57.2 | 153 | 8.2 |
+| 4D | 42 | 3d¹⁸ 4s² | 11.7 |  | 58.7 |  | 28.6 | 38.4 | 1.53 |
+| 4D | 50 | 4s² 4p⁸ | 7.7 |  | 53.2 |  | 37 | 64.3 | 0.827 |
+| 4D | 51 | 4p⁸ 5s¹ | 77.2 |  | 688 |  | 51.1 | 123 | 5.61 |
+| 4D | 52 | 4p⁸ 5s² | 67.1 |  | 758 |  | 57.4 | 154 | 4.92 |
+| 4D | 78 | 5s² 5p⁸ | 8.39 |  | 67.3 |  | 49.3 | 114 | 0.591 |
+
+Table: **Table 1.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
+\sum\langle r^2\rangle$, in four dimensions $C_5 = 3Q^2/64$ and $R^* = C_6/C_5$; for ours, beside each, the reference value
+(ref.) of @derevianko2010. Data: `data/response.json`, with $\alpha_\mathrm p(\mathrm i\omega)$ on the quadrature nodes and each
+atom's convergence.
+
+One consequence is a requirement on every later model of four-dimensional matter. In ours the trace of a charge
+distribution's second moment is dropped from multipole expansions, because $1/r$ is harmonic there and the trace
+carries no field. Here it is the leading field of a neutral atom ($-Q/8R^3$ on a charge, $-C_5/R^5$ between two atoms),
+so a four-dimensional force field has to keep it. The force fields of the later papers do, as a cloud term on every
+atom.
 
 ## 12 · Limitations
 
@@ -819,7 +900,7 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 ## Supplement and data
 
 Supplement S1 is the table with every open subshell given Hund spins (`data/table4-hundspin.csv`). The
-34 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
+36 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
 
 ## References
 

@@ -58,6 +58,65 @@ agree to 0.22 %. Between two atoms the same failure gives a permanent attraction
 $-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$. The papers
 that follow take it up: noble gases that condense far above where ours do, and molecules held differently.
 
+**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 1) the
+static polarizability $\alpha_\mathrm p(0)$, the polarizability at imaginary frequency and from it the dispersion
+coefficient $C_6$ by Casimir and Polder's integral are computed by the coupled response of the same solver (Hartree plus
+local exchange, each electron's own share removed; exact for hydrogen in both worlds). The set is the atoms for which
+that response's angular bookkeeping is exact: full subshells and a single s electron. Doubling the frequency
+quadrature moves $C_6$ by at most 2 × 10⁻⁶, and the other radial grids move $\alpha_\mathrm p(0)$ and $C_6$ by at most
+0.5 %. The sum rule $\omega^2\alpha_\mathrm p(\mathrm i\omega) \to Z$, read at $\omega$ = 300 hartree, holds to
+0.90 or better; the shortfall in the heaviest atoms is core response at higher frequencies still. In ours,
+against the reference values of @derevianko2010, the noble gases' $\alpha_\mathrm p(0)$ is off by −8 % to +4 %, and the
+alkalis and alkaline earths are too easily polarized, by +7 % to +25 % in $\alpha_\mathrm p(0)$ and +11 % to +35 % in $C_6$
+(median errors 9 % and 13 %), as local exchange without correlation is known to make them.
+
+In four dimensions the permanent pull has its own coefficient, $C_5 = 3Q^2/64$ for two like atoms, and the distance
+$R^* = C_6/C_5$ inside which dispersion is the larger. For hydrogen and helium $R^*$ is 28 and 9.26 bohr; for the
+alkali-like and alkaline-earth-like atoms 4.9–94; for every other atom in the table 0.59–1.5, which is
+inside the atom. Past contact, for most of the table, the permanent term is the leading pull between neutral atoms at
+every distance where a far-field form applies at all.
+
+| world | element | outer subshells | $\alpha_\mathrm p(0)$ | ref. | $C_6$ | ref. | $Q$ | $C_5$ | $R^*$ |
+|:--|--:|:--|--:|--:|--:|--:|--:|--:|--:|
+| ours | 1 | 1s¹ | 4.5 | 4.5 | 6.5 | 6.5 | 3 | 0 |  |
+| ours | 2 | 1s² | 1.32 | 1.38 | 1.38 | 1.46 | 2.37 | 0 |  |
+| ours | 3 | 1s² 2s¹ | 184 | 164 | 1 600 | 1 389 | 18.8 | 0 |  |
+| ours | 4 | 1s² 2s² | 47.1 | 37.8 | 288 | 214 | 17.5 | 0 |  |
+| ours | 10 | 2s² 2p⁶ | 2.45 | 2.67 | 5.68 | 6.38 | 9.51 | 0 |  |
+| ours | 11 | 2p⁶ 3s¹ | 174 | 163 | 1 722 | 1 556 | 26.3 | 0 |  |
+| ours | 12 | 2p⁶ 3s² | 78.6 | 71.3 | 721 | 627 | 29 | 0 |  |
+| ours | 18 | 3s² 3p⁶ | 11.4 | 11.1 | 66.4 | 64.3 | 26.5 | 0 |  |
+| ours | 19 | 3p⁶ 4s¹ | 357 | 290 | 5 215 | 3 897 | 49.1 | 0 |  |
+| ours | 20 | 3p⁶ 4s² | 171 | 157 | 2 442 | 2 121 | 54.7 | 0 |  |
+| ours | 30 | 3d¹⁰ 4s² | 45.5 |  | 338 |  | 33.7 | 0 |  |
+| ours | 36 | 4s² 4p⁶ | 17.5 | 16.8 | 136 | 130 | 40.1 | 0 |  |
+| 4D | 1 | 1s¹ | 34.8 |  | 166 |  | 11.3 | 5.93 | 28 |
+| 4D | 2 | 1s² | 9.92 |  | 33.8 |  | 8.82 | 3.65 | 9.26 |
+| 4D | 3 | 1s² 2s¹ | 471 |  | 7 518 |  | 41.3 | 79.9 | 94.1 |
+| 4D | 4 | 1s² 2s² | 132 |  | 1 548 |  | 37.1 | 64.5 | 24 |
+| 4D | 12 | 2s² 2p⁸ | 3.54 |  | 13.3 |  | 16.3 | 12.4 | 1.07 |
+| 4D | 13 | 2p⁸ 3s¹ | 122 |  | 1 184 |  | 34.2 | 54.7 | 21.7 |
+| 4D | 14 | 2p⁸ 3s² | 74.9 |  | 785 |  | 37.6 | 66.4 | 11.8 |
+| 4D | 22 | 3s² 3p⁸ | 9.9 |  | 71.7 |  | 34.2 | 54.9 | 1.3 |
+| 4D | 23 | 3p⁸ 4s¹ | 129 |  | 1 393 |  | 51.4 | 124 | 11.2 |
+| 4D | 24 | 3p⁸ 4s² | 97.5 |  | 1 257 |  | 57.2 | 153 | 8.2 |
+| 4D | 42 | 3d¹⁸ 4s² | 11.7 |  | 58.7 |  | 28.6 | 38.4 | 1.53 |
+| 4D | 50 | 4s² 4p⁸ | 7.7 |  | 53.2 |  | 37 | 64.3 | 0.827 |
+| 4D | 51 | 4p⁸ 5s¹ | 77.2 |  | 688 |  | 51.1 | 123 | 5.61 |
+| 4D | 52 | 4p⁸ 5s² | 67.1 |  | 758 |  | 57.4 | 154 | 4.92 |
+| 4D | 78 | 5s² 5p⁸ | 8.39 |  | 67.3 |  | 49.3 | 114 | 0.591 |
+
+Table: **Table 1.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
+\sum\langle r^2\rangle$, in four dimensions $C_5 = 3Q^2/64$ and $R^* = C_6/C_5$; for ours, beside each, the reference value
+(ref.) of @derevianko2010. Data: `data/response.json`, with $\alpha_\mathrm p(\mathrm i\omega)$ on the quadrature nodes and each
+atom's convergence.
+
+One consequence is a requirement on every later model of four-dimensional matter. In ours the trace of a charge
+distribution's second moment is dropped from multipole expansions, because $1/r$ is harmonic there and the trace
+carries no field. Here it is the leading field of a neutral atom ($-Q/8R^3$ on a charge, $-C_5/R^5$ between two atoms),
+so a four-dimensional force field has to keep it. The force fields of the later papers do, as a cloud term on every
+atom.
+
 ## 12 · Limitations
 
 **The law's own.** The force acts instantly (section 4.3), so only statics are safe; this paper has nothing that

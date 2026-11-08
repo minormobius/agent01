@@ -1616,6 +1616,32 @@
    },
    "source": "Read abstract in the dimensional-scaling bibliography; DOI metadata checked. https://doi.org/10.1016/S1387-3806(98)14224-0",
    "url": "https://doi.org/10.1016/S1387-3806(98)14224-0"
+  },
+  {
+   "key": "derevianko2010",
+   "authors": "Andrei Derevianko, Sergey G. Porsev, James F. Babb",
+   "title": "Electric dipole polarizabilities at imaginary frequencies for hydrogen, the alkali-metal, alkaline-earth, and noble gas atoms",
+   "venue": "Atomic Data and Nuclear Data Tables",
+   "volume": "96",
+   "pages": "323-331",
+   "year": 2010,
+   "doi": "10.1016/j.adt.2009.12.002",
+   "status": "read",
+   "source": "arXiv:0902.3929v1 (PDF and TeX source) read for the static polarizabilities (Tables I–III, ω = 0 rows) and the homonuclear C6 (Tables B–D of the preprint); the published version's table numbering not checked. https://arxiv.org/abs/0902.3929",
+   "role": "§11: the measured-quality reference for α(0) and C6 of H, the alkalis, the alkaline earths and the noble gases"
+  },
+  {
+   "key": "tanabe1954",
+   "authors": "Yukito Tanabe, Satoru Sugano",
+   "title": "On the absorption spectra of complex ions I",
+   "venue": "Journal of the Physical Society of Japan",
+   "volume": "9",
+   "pages": "753-766",
+   "year": 1954,
+   "doi": "10.1143/JPSJ.9.753",
+   "status": "index",
+   "source": "Crossref record checked; the d² diagram's triplet ground at every field is the standard reading of their figures (text not reread)",
+   "role": "§7.5: the d² check in ours"
   }
  ]
 }

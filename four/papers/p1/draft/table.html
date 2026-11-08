@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="a039f261b352fd0103279c4a1b8b9e52d953f65e2c42dec43496013842edfd1c" />
+<meta name="source-sha256" content="ef7f9b5736725b6209718cdf447bd70b43f4e05fe168919494475aa0292d6ecb" />
 <title>Paper 1 · Part II · The table (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -292,6 +292,38 @@ way round. 11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s²,
 (4d⁶ 5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV
 up), 107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s²,
 0.57 eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).</p>
+<p><strong>7.5 In a ligand field.</strong> A spin singlet is not
+orbitally inert: the ten states of (2,0) ⊕ (0,2) still carry orbital
+structure, and in a compound a ligand field splits them, and might hand
+the ground to a triplet. The ion here is element 26’s 2+, 3d² over
+closed shells, with point charges −1 at 4 bohr in three arrangements of
+four dimensions: along the axes (eight, the 16-cell, four dimensions’
+octahedron), at a tesseract’s corners (sixteen), and at the 24-cell’s
+vertices (twenty-four). The field is projected exactly onto the degrees
+a d × d product holds, scaled from zero, and every determinant of the
+two electrons is diagonalized, as in section 7.2. A four-dimensional d
+subshell splits 6 + 3 on the axes and 3 + 6 at the corners (ours’
+octahedron 3 + 2, cube 2 + 3). On the axes the two electrons go into the
+six-fold set, and the singlet stays the ground at every field strength:
+its ten states split, the lowest of them 2-fold, an orbital doublet that
+a distortion could act on, and the lowest triplet stays 0.44 eV up, the
+free ion’s gap. At the corners the three-fold set is lowest, and two
+electrons in it favour a triplet: the singlet holds until the
+one-electron spread
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>
+reaches 2.4–2.5 eV, and a triplet is the ground beyond, but only just,
+0.07 eV below the singlet even at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>
+= 7.6 eV. The 24-cell splits the d subshell not at all (none): its
+vertices average every harmonic of degree 2 and 4 to zero, as the
+icosahedron does for ours, so a d ion in that site keeps its free-ion
+terms. Ours’ Ti²⁺ (3d²) is the check, with its triplet the ground at
+every field in both shapes, as <span class="citation"
+data-cites="tanabe1954">Tanabe and Sugano (<a href="#ref-tanabe1954"
+role="doc-biblioref">1954</a>)</span> found for d². These are point
+charges, a model of the field’s symmetry rather than of its size
+(<code>atom/tools/ligandd2.mjs</code>,
+<code>data/ligandd2.json</code>).</p>
 <h2 id="the-table">8 · The table</h2>
 <p><strong>8.1 Rows and noble gases.</strong> The table’s rows hold 2,
 10, 10, 28, 28, 60 elements (and 2 of the next by element 140), and its
@@ -466,6 +498,12 @@ Summerfield, J.H., and J.G. Loeser. 1999. <span>“Dimension‐dependent
 Two‐electron Hamiltonian Matrix Elements.”</span> <em>Journal of
 Mathematical Chemistry</em> 25 (2-3): 309–15. <a
 href="https://doi.org/10.1023/a:1019196719751">https://doi.org/10.1023/a:1019196719751</a>.
+</div>
+<div id="ref-tanabe1954" class="csl-entry" role="listitem">
+Tanabe, Yukito, and Satoru Sugano. 1954. <span>“On the Absorption
+Spectra of Complex Ions I.”</span> <em>Journal of the Physical Society
+of Japan</em> 9 (5): 753–66. <a
+href="https://doi.org/10.1143/JPSJ.9.753">https://doi.org/10.1143/JPSJ.9.753</a>.
 </div>
 </div>
 

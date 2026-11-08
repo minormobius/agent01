@@ -1,0 +1,82 @@
+{
+ "about": "Reference static polarizabilities and homonuclear C6 (atomic units) for ours, from Derevianko, Porsev and Babb, At. Data Nucl. Data Tables 96, 323 (2010) (refs.json derevianko2010), read from arXiv:0902.3929v1; table letters are the preprint's. Hand-kept from that source; Zn left out (its C6 is unsettled across sources, 225–359).",
+ "rows": [
+  {
+   "Z": 1,
+   "alpha0": 4.5,
+   "alpha_locator": "Table I, ω = 0",
+   "C6": 6.498,
+   "C6_locator": "Table B, homonuclear"
+  },
+  {
+   "Z": 2,
+   "alpha0": 1.383,
+   "alpha_locator": "Table III, ω = 0",
+   "C6": 1.461,
+   "C6_locator": "Table D, homonuclear"
+  },
+  {
+   "Z": 3,
+   "alpha0": 164.0,
+   "alpha_locator": "Table I, ω = 0",
+   "C6": 1389,
+   "C6_locator": "Table B, homonuclear"
+  },
+  {
+   "Z": 4,
+   "alpha0": 37.76,
+   "alpha_locator": "Table II, ω = 0",
+   "C6": 214,
+   "C6_locator": "Table C, homonuclear"
+  },
+  {
+   "Z": 10,
+   "alpha0": 2.669,
+   "alpha_locator": "Table III, ω = 0",
+   "C6": 6.38,
+   "C6_locator": "Table D, homonuclear"
+  },
+  {
+   "Z": 11,
+   "alpha0": 162.6,
+   "alpha_locator": "Table I, ω = 0",
+   "C6": 1556,
+   "C6_locator": "Table B, homonuclear"
+  },
+  {
+   "Z": 12,
+   "alpha0": 71.26,
+   "alpha_locator": "Table II, ω = 0",
+   "C6": 627,
+   "C6_locator": "Table C, homonuclear"
+  },
+  {
+   "Z": 18,
+   "alpha0": 11.08,
+   "alpha_locator": "Table III, ω = 0",
+   "C6": 64.3,
+   "C6_locator": "Table D, homonuclear"
+  },
+  {
+   "Z": 19,
+   "alpha0": 290.2,
+   "alpha_locator": "Table I, ω = 0",
+   "C6": 3897,
+   "C6_locator": "Table B, homonuclear"
+  },
+  {
+   "Z": 20,
+   "alpha0": 157.1,
+   "alpha_locator": "Table II, ω = 0",
+   "C6": 2121,
+   "C6_locator": "Table C, homonuclear"
+  },
+  {
+   "Z": 36,
+   "alpha0": 16.79,
+   "alpha_locator": "Table III, ω = 0",
+   "C6": 130,
+   "C6_locator": "Table D, homonuclear"
+  }
+ ]
+}

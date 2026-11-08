@@ -856,6 +856,14 @@ for games, and this is a modelling programme with publications to come. The game
   promotions in `data/nist-promotions.json` (lowest-term centroids, which `promotion-collect.mjs` now uses). Route 2's
   unitarity argument is stated for the field strength (`fields.js` `fieldStrengthDim`, Heydeman et al. 2020); the site's
   force chapter still states it for the potential: to update.
+  **Paper 1 is the atomic reference (PI, 2026-11-08): everything but the nucleus.** `papers/p1/response-table.mjs`
+  (6 min, 4 processes) → `data/response.json`: α(0), α(iω), C₆, Q, C₅, R* for closed-shell and one-s-electron atoms of
+  both worlds with quadrature and grid convergence; ours against `data/response-ref.json` (Derevianko–Porsev–Babb 2010,
+  read from arXiv; hand-kept with table locators). Table 1 in §11.1 is generated (`respTokens`). `atom/tools/ligandd2.mjs`
+  (seconds) → `data/ligandd2.json`: 26²⁺ 3d² in point charges on the 16-cell, tesseract and 24-cell (§7.5).
+  `hftable.mjs map <Z/…> [D]`: an element's valence states (every one-electron move from its table ground, both methods,
+  the ground's spin ladder). Still to do for the reference: the valence map in the text, atomic reference energies for
+  molecular codes (separation limits), and one valence-rule test.
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).

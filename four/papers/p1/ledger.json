@@ -305,6 +305,28 @@
    ]
   },
   {
+   "id": "response",
+   "part": "consequence",
+   "claim": "Atomic response, converged: the coupled response gives hydrogen exactly and our closed-shell atoms within about 10 % of reference values (alkalis and alkaline earths too polarizable); in four dimensions the permanent pull C5 = 3Q²/64 outranges dispersion everywhere outside the atom except for hydrogen, helium and the alkali-like atoms",
+   "value": "27 atoms; quadrature 2 × 10⁻⁶, grid 0.5 %, sum rule ≥ 0.90; ours' median error α 9 %, C6 13 %; R* (bohr): H, He 28 and 9.26, s-like 4.9–94, the rest 0.59–1.5",
+   "holds": true,
+   "section": "11.1",
+   "gate": [
+    67
+   ]
+  },
+  {
+   "id": "ligandd2",
+   "part": "table",
+   "claim": "4D's d² singlet survives a ligand field on the axes at every strength, gives way to a triplet only narrowly at the tesseract's corners, and the 24-cell doesn't split d at all; ours' d² keeps its triplet",
+   "value": "axes: ground singlet at every s (last 1×2); corners: triplet from Δ 2.4707 eV; 24-cell spread 0; ours' grounds true, true",
+   "holds": true,
+   "section": "7.5",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hfcheck",
    "part": "table",
    "claim": "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
@@ -492,7 +514,7 @@
   }
  ],
  "refs": {
-  "read": 24,
-  "index": 42
+  "read": 25,
+  "index": 43
  }
 }

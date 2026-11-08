@@ -215,6 +215,35 @@ export function hfTokens(H = HFT) {
     "hf.4dLateM": rng(late.map((r) => r.hfMargin_eV)), "hf.4fM": rng(fR.map((r) => r.hfMargin_eV)),
   };
 }
+/* section 11.1: the atoms' response (response-table.mjs → data/response.json; ours against derevianko2010) */
+export function respTokens() {
+  const R = JSON.parse(readFileSync(join(HERE, "data/response.json"), "utf8")).rows, REF = new Map(JSON.parse(readFileSync(join(HERE, "data/response-ref.json"), "utf8")).rows.map((r) => [r.Z, r]));
+  const f = (v, p = 3) => (v >= 1000 ? String(Math.round(v)).replace(/\B(?=(\d{3})+$)/g, " ") : String(+v.toPrecision(p))), pct = (v) => `${v < 0 ? "−" : "+"}${Math.abs(100 * v).toFixed(0)} %`;
+  const ours = R.filter((r) => r.D === 3 && REF.has(r.Z)).map((r) => ({ ...r, ea: r.alpha0 / REF.get(r.Z).alpha0 - 1, ec: r.C6 / REF.get(r.Z).C6 - 1 }));
+  const nob = ours.filter((r) => [2, 10, 18, 36].includes(r.Z)), sAt = ours.filter((r) => [3, 4, 11, 12, 19, 20].includes(r.Z));
+  const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b.length % 2 ? b[(b.length - 1) / 2] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2; };
+  const r4 = R.filter((r) => r.D === 4), sZ = [3, 4, 13, 14, 23, 24, 51, 52], closed = r4.filter((r) => r.Z >= 12 && !sZ.includes(r.Z)), sLike = r4.filter((r) => sZ.includes(r.Z));
+  const rng = (a, k) => `${f(Math.min(...a.map((x) => x[k])), 2)}–${f(Math.max(...a.map((x) => x[k])), 2)}`;
+  const sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");
+  const head = "| world | element | outer subshells | $\\alpha_\\mathrm p(0)$ | ref. | $C_6$ | ref. | $Q$ | $C_5$ | $R^*$ |\n|:--|--:|:--|--:|--:|--:|--:|--:|--:|--:|";
+  const ref = (r, k) => (r.D === 3 && REF.has(r.Z) ? f(REF.get(r.Z)[k]) : "");
+  const line = (r) => `| ${r.D === 3 ? "ours" : "4D"} | ${r.Z} | ${sup(r.config)} | ${f(r.alpha0)} | ${ref(r, "alpha0")} | ${f(r.C6)} | ${ref(r, "C6")} | ${f(r.Q)} | ${r.D === 4 ? f(r.C5) : "0"} | ${r.Rstar != null ? f(r.Rstar) : ""} |`;
+  return { "resp.table": [head, ...R.filter((r) => r.D === 3).map(line), ...r4.map(line)].join("\n"),
+    "resp.n": String(R.length), "resp.quad": Math.max(...R.map((r) => r.quadrature)).toExponential(0).replace(/e-(\d+)/, (_, e) => ` × 10⁻${supN(e)}`), "resp.grid": `${(100 * Math.max(...R.map((r) => Math.max(r.grid.alpha0, r.grid.C6)))).toFixed(1)} %`,
+    "resp.sumMin": Math.min(...R.map((r) => r.sumRule)).toFixed(2), "resp.nobA": `${pct(Math.min(...nob.map((r) => r.ea)))} to ${pct(Math.max(...nob.map((r) => r.ea)))}`,
+    "resp.sA": `${pct(Math.min(...sAt.map((r) => r.ea)))} to ${pct(Math.max(...sAt.map((r) => r.ea)))}`, "resp.sC": `${pct(Math.min(...sAt.map((r) => r.ec)))} to ${pct(Math.max(...sAt.map((r) => r.ec)))}`,
+    "resp.medA": `${(100 * med(ours.filter((r) => r.Z > 1).map((r) => Math.abs(r.ea)))).toFixed(0)} %`, "resp.medC": `${(100 * med(ours.filter((r) => r.Z > 1).map((r) => Math.abs(r.ec)))).toFixed(0)} %`,
+    "resp.rClosed": rng(closed, "Rstar"), "resp.rS": rng(sLike, "Rstar"), "resp.rH": `${f(r4.find((r) => r.Z === 1).Rstar)} and ${f(r4.find((r) => r.Z === 2).Rstar)}` };
+}
+/* section 7.5: d² in a ligand field (atom/tools/ligandd2.mjs → data/ligandd2.json) */
+export function ligandTokens() {
+  const L = JSON.parse(readFileSync(join(HERE, "data/ligandd2.json"), "utf8")).rows, g = (D, k) => L.find((r) => r.D === D && r.ligands === k), one = (r) => r.oneElectron.map((x) => x.n).join(" + ");
+  const ax = g(4, "axes"), co = g(4, "corners"), c24 = g(4, "24-cell"), last = (r) => r.scan.at(-1), trip = (r) => r.scan.at(-1).low.find((x) => x.mult === 3);
+  const before = co.scan.filter((x) => x.s < co.groundChangesAt.s).at(-1);
+  return { "lf.axSplit": one(ax), "lf.coSplit": one(co), "lf.oursAx": one(g(3, "axes")), "lf.oursCo": one(g(3, "corners")), "lf.axGround": String(last(ax).ground.g), "lf.axTrip": trip(ax).eV.toFixed(2),
+    "lf.coCross": `${before.delta_eV.toFixed(1)}–${co.groundChangesAt.delta_eV.toFixed(1)}`, "lf.coGap": Math.abs(last(co).low[1].eV).toFixed(2), "lf.coDmax": last(co).delta_eV.toFixed(1), "lf.R": String(ax.R),
+    "lf.c24": c24.oneElectronSpread_eV < 1e-6 ? "none" : `${c24.oneElectronSpread_eV} eV`, "lf.free": ax.scan[0].low[1].eV.toFixed(2) };
+}
 const citedKeys = (t) => new Set([...t.replace(/<!--[\s\S]*?-->/g, "").matchAll(/(?<![\w.])-?@([a-z][\w-]*\d{4}[a-z]*|[a-z]+-[a-z-]+)/gi)].map((m) => m[1]));
 
 /* Négadi & Kibler's generalized Madelung rule for D dimensions: subshells fill in order of n + l (then n), each holding
@@ -346,6 +375,16 @@ function ledger(t3, t4, files, refs) {
       return { id: "promotion", part: "table", claim: "In ours the solver's misses have one cause, a bias toward d: moving a 4s electron into 3d comes out too cheap in every 3d atom measured, by about a volt; resolving the open subshells' whole term structure doesn't remove it, and gets fewer configurations right",
         value: `4s→3d, solver against measured (eV): ${ok.map((x) => `${x.symbol} ${x.solver_eV} vs ${x.measured_eV}`).join(", ")}; mean error ${P.solverMeanError_eV}, with the full term correction ${P.fullMeanError_eV}; configurations right ${P.configs.bake} (bake) and ${P.configs.fullCorrection} (full correction) of ${P.configs.elements}`,
         holds: ok.length >= 5 && ok.every((x) => x.solverError_eV < 0) && P.fullMeanAbs_eV >= P.solverMeanAbs_eV - 0.05 && P.configs.fullCorrection < P.configs.bake, section: "6", gate: [67] }; })(),
+    (() => { const R = JSON.parse(readFileSync(join(HERE, "data/response.json"), "utf8")).rows, T = respTokens(), r4 = R.filter((r) => r.D === 4);
+      return { id: "response", part: "consequence", claim: "Atomic response, converged: the coupled response gives hydrogen exactly and our closed-shell atoms within about 10 % of reference values (alkalis and alkaline earths too polarizable); in four dimensions the permanent pull C5 = 3Q²/64 outranges dispersion everywhere outside the atom except for hydrogen, helium and the alkali-like atoms",
+        value: `${R.length} atoms; quadrature ${T["resp.quad"]}, grid ${T["resp.grid"]}, sum rule ≥ ${T["resp.sumMin"]}; ours' median error α ${T["resp.medA"]}, C6 ${T["resp.medC"]}; R* (bohr): H, He ${T["resp.rH"]}, s-like ${T["resp.rS"]}, the rest ${T["resp.rClosed"]}`,
+        holds: R.every((r) => r.quadrature < 1e-4 && r.grid.alpha0 < 0.01 && r.grid.C6 < 0.01 && r.sumRule > 0.88) && Math.abs(R.find((r) => r.D === 3 && r.Z === 1).alpha0 - 4.5) < 1e-3 && r4.filter((r) => r.Z >= 12 && ![13, 14, 23, 24, 51, 52].includes(r.Z)).every((r) => r.Rstar < 2),
+        section: "11.1", gate: [67] }; })(),
+    (() => { const L = JSON.parse(readFileSync(join(HERE, "data/ligandd2.json"), "utf8")).rows, g = (D, k) => L.find((r) => r.D === D && r.ligands === k), ax = g(4, "axes"), co = g(4, "corners");
+      return { id: "ligandd2", part: "table", claim: "4D's d² singlet survives a ligand field on the axes at every strength, gives way to a triplet only narrowly at the tesseract's corners, and the 24-cell doesn't split d at all; ours' d² keeps its triplet",
+        value: `axes: ground singlet at every s (last ${ax.scan.at(-1).ground.mult}×${ax.scan.at(-1).ground.g}); corners: triplet from Δ ${co.groundChangesAt?.delta_eV} eV; 24-cell spread ${g(4, "24-cell").oneElectronSpread_eV}; ours' grounds ${g(3, "axes").scan.every((x) => x.ground.mult === 3)}, ${g(3, "corners").scan.every((x) => x.ground.mult === 3)}`,
+        holds: ax.scan.every((x) => x.ground.mult === 1) && co.groundChangesAt?.to.mult === 3 && g(4, "24-cell").oneElectronSpread_eV < 1e-6 && g(3, "axes").scan.every((x) => x.ground.mult === 3) && g(3, "corners").scan.every((x) => x.ground.mult === 3),
+        section: "7.5", gate: [67] }; })(),
     (() => { const S = HFT.summary, T = hfTokens(), P = S.promotion3.filter((x) => !x.missing);
       return { id: "hfcheck", part: "table", claim: "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
         value: `ours: Hartree–Fock ${S.ours.hfRight}, local exchange ${S.ours.ldaRight} of ${S.ours.n}; agree ${S.ours.agree}, right ${S.ours.agreeRight}; 4s→3d errors (local exchange/Hartree–Fock) ${T["hf.promList"]}; 4D: agree ${S.fourD.agree} of ${S.fourD.n}, open ${T["hf.4d"]} (d), ${T["hf.4f"]} (f), ${T["hf.4o"]}`,
@@ -416,6 +455,8 @@ function hundTokens() {
       return { "tt.n": String(T.length), "tt.up": up.map(f).join(", "), "tt.down": dn.map(f).join(", "), "tt.range": `${Math.min(...moved.map((r) => Math.abs(r.ion_eV - r.bake.ion_eV))).toFixed(2)}–${Math.max(...moved.map((r) => Math.abs(r.ion_eV - r.bake.ion_eV))).toFixed(2)}`,
         "tt.82": Math.abs((z82.uncorrected.E_hartree - z82.bake.E) * EV).toFixed(2), "tt.82ion": `${z82.bake.ion_eV.toFixed(2)} → ${z82.ion_eV.toFixed(2)}`, "tt.cands": `${Math.min(...T.map((r) => r.candidates))}–${Math.max(...T.map((r) => r.candidates))}` }; })(),
     ...hfTokens(),
+    ...respTokens(),
+    ...ligandTokens(),
     ...(() => { const R = JSON.parse(readFileSync(join(HERE, "data/he4check.json"), "utf8")).rows, g = R.map((r) => r.gap); return { "he4.gap": `${Math.min(...g).toFixed(3)}–${Math.max(...g).toFixed(3)}` }; })(),
     ...(() => { const P = JSON.parse(readFileSync(join(HERE, "data/promotion3.json"), "utf8")), ok = P.promotion.filter((x) => !x.missing), sgn = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
       const dc = (cfg) => [...cfg.matchAll(/\d[df](\d+)/g)].reduce((t, m) => t + +m[1], 0), sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");
@@ -424,7 +465,6 @@ function hundTokens() {
         "prom.bake": `${P.configs.bake} of ${P.configs.elements}`, "prom.full": `${P.configs.fullCorrection} of ${P.configs.elements}`, "prom.min": Math.min(...ok.map((x) => Math.abs(x.solverError_eV))).toFixed(2), "prom.max": Math.max(...ok.map((x) => Math.abs(x.solverError_eV))).toFixed(2),
         "prom.levelShift": Math.max(...ok.map((x) => Math.abs(x.measuredLowest_eV - x.measured_eV))).toFixed(2), "prom.ni": sgn(P.promotion.find((x) => x.Z === 28).measured_eV).replace(/^(?!−)/, "+"), "prom.niLow": sgn(P.promotion.find((x) => x.Z === 28).measuredLowest_eV).replace(/^(?!−)/, "+"),
         "tt.sensN": String(sens.length), "tt.sens": sens.map((x) => `${x.Z} (${sup(x.c)}, ${x.e.toFixed(2)} eV up)`).join(", ") }; })(),
-    ...hfTokens(),
     ...(() => { const I = IONS, o3 = I.filter((r) => r.D === 3), i4 = I.filter((r) => r.D === 4), f = (z, D = 4) => I.find((r) => r.D === D && r.Z === z), re4 = [...TERM.values()].filter((r) => r.cation);
       return { "ea.hal4": [11, 21, 49, 77, 137].map((z) => `${f(z).ea_eV.toFixed(1)}`).join(", "), "ea.halOurs": [9, 17, 35].map((z) => `${f(z, 3).symbol} ${f(z, 3).ea_measured_eV}`).join(", "),
         "ea.nob4": [50, 78, 138].map((z) => `${z}: ${f(z).ea_eV.toFixed(2)}`).join(", "), "ea.nobUn": [2, 12, 22].map((z) => `${Math.abs(f(z).ea_eV).toFixed(0)}`).join(", "),

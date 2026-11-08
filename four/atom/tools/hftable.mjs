@@ -10,7 +10,7 @@
    term correction: for the local exchange, Hund's first rule only (lowest term − lowest max-spin term, as the main table
    does); for Hartree–Fock, whose energy is exactly the average over the max-spin determinants, the whole of it (lowest
    term − that average). Both from tools/hund.mjs on the candidate's own orbitals. */
-import { ground, subshells, configString, R as AR, N as AN, H as AH } from "../js/atom.js";
+import { ground, scf, subshells, configString, R as AR, N as AN, H as AH } from "../js/atom.js";
 import { TABLE } from "../js/table.js";
 import { SOLVER } from "./bake.mjs";
 import { angularL, slaterL, groundSpin } from "./hund.mjs";
@@ -32,7 +32,7 @@ function correction(occ, qs, full, sh) {
   let delta = 0; const parts = [];
   sh.forEach((s, i) => { const n = occ[i], l = Lof[s.name[1]]; if (l < (full ? 1 : 2) || n < 2 || n > s.cap - 2) return;
     const a = ang(l), F = slaterL(D, qs[i], a.ns), r = groundSpin(a.m, n, a, F, full ? { limit: 3000, limitMax: 20000 } : {});
-    const eV = full ? r.full_eV : (r.belowMax_eV ?? 0); delta += eV / HA; parts.push({ shell: s.name, n, groundS: r.groundS, eV: +eV.toFixed(4), complete: r.complete }); });
+    const eV = full ? r.full_eV : (r.belowMax_eV ?? 0); delta += eV / HA; parts.push({ shell: s.name, n, groundS: r.groundS, eV: +eV.toFixed(4), complete: r.complete, blocks: r.blocks?.map((b) => ({ M: b.M, E: b.E })) }); });
   return { delta, parts };
 }
 const occOf = (sh, cfg) => { const by = Object.fromEntries(sh.map((s, i) => [s.name, i])), o = sh.map(() => 0); for (const t of cfg.split(" ")) { const m = t.match(/^(\d+[a-z])(\d+)$/); o[by[m[1]]] = +m[2]; } return o; };
@@ -55,6 +55,34 @@ if (mode === "check") {
    whatever settles, so the measured answer gets no say in either method's ranking. */
 const MEASURED = new Map(D === 3 ? JSON.parse(readFileSync(new URL("../../papers/p1/data/nist-lanthanides.json", import.meta.url), "utf8")).rows.map((r) => [r.Z, { Z: r.Z, config: r.config }]) : []);
 const entry = (Z) => TABLE[D].find((e) => e.Z === Z) ?? MEASURED.get(Z);
+
+/* map: an element's valence states. From its ground configuration in the table (js/tablec.js), every one-electron move
+   from an open subshell (or the outermost s) to a subshell within one of the outermost n + l, compact only, each solved
+   by both methods: local exchange (its own SCF, Hund-corrected) and Hartree–Fock (term-corrected), energies from each
+   method's own ground; and each open subshell's spin ladder on the ground (the lowest energy of each M_S block, which
+   holds every spin S ≥ M_S), by Hartree–Fock's orbitals.
+     node four/atom/tools/hftable.mjs map <Z/Z/…> [D] */
+if (mode === "map") {
+  const { TABLE: TC } = await import("../js/tablec.js"), { SOLVER: SV } = await import("./bake.mjs"), sh = subshells(D);
+  const nOf = (s) => +s.name.match(/^\d+/)[0], nl = (s) => nOf(s) + s.l, same = (a, b) => a.every((v, i) => v === b[i]);
+  const gappedOcc = (o) => sh.some((s, i) => o[i] > 0 && sh.some((t, j) => t.l === s.l && nOf(t) < nOf(s) && o[j] === 0));
+  for (const Z of zs.split("/").map(Number)) {
+    const t0 = Date.now(), g = occOf(sh, TC[D][Z - 1].config), list = [{ occ: g, ground: true }], top = Math.max(...sh.map((s, i) => (g[i] > 0 ? nl(s) : -1)));
+    const donors = sh.map((_, i) => i).filter((i) => g[i] > 0 && (g[i] < sh[i].cap || (sh[i].l === 0 && nl(sh[i]) >= top - 1)));
+    const accept = sh.map((_, i) => i).filter((i) => g[i] < sh[i].cap && sh[i].l <= 3 && Math.abs(nl(sh[i]) - top) <= 1);
+    for (const a of donors) for (const b of accept) { if (a === b) continue; const m = g.slice(); m[a]--; m[b]++; if (!gappedOcc(m) && !list.some((x) => same(x.occ, m))) list.push({ occ: m }); }
+    for (const c of list) {
+      const s0 = scf(Z, c.occ, D, { ...SV, iters: 400 }); c.ldaConv = s0.converged;
+      if (s0.converged) { const lc = correction(c.occ, s0.qs, false, sh); c.lda = s0.E + lc.delta; }
+      const h = hfAtom(D, Z, hfOcc(sh, c.occ), { grid: { h: 0.02 } }); c.hfConv = h.converged;
+      if (h.converged) { const qs = sh.map((s, i) => { const k = h.subshells.find((x) => x.name === s.name); return k ? toAtomGrid(h.S, k.z) : null; }); const hc = correction(c.occ, qs, true, sh); c.hf = h.E + hc.delta; c.parts = hc.parts; }
+    }
+    const G = list[0], cs = (c) => configString(c.occ, D);
+    console.log(JSON.stringify({ Z, D, ground: cs(G), groundParts: G.parts ?? null,
+      states: list.map((c) => ({ config: cs(c), lda_eV: c.lda != null && G.lda != null ? +((c.lda - G.lda) * HA).toFixed(4) : null, hf_eV: c.hf != null && G.hf != null ? +((c.hf - G.hf) * HA).toFixed(4) : null, ldaConv: c.ldaConv, hfConv: c.hfConv })),
+      s: (Date.now() - t0) / 1000 }));
+  }
+}
 
 if (mode === "rank") {
   const sh = subshells(D);

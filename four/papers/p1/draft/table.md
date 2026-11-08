@@ -140,6 +140,24 @@ How far to trust each configuration follows from section 6.3. Take a bias of abo
 configuration with a competitor holding fewer d and f electrons within a volt of it could be the other way round.
 11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s², 0.55 eV up), 37 (3d¹³ 4s², 0.55 eV up), 53 (5s² 5p¹, 0.01 eV up), 58 (4d⁶ 5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV up), 107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s², 0.57 eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).
 
+**7.5 In a ligand field.** A spin singlet is not orbitally inert: the ten states of (2,0) ⊕ (0,2) still carry orbital
+structure, and in a compound a ligand field splits them, and might hand the ground to a triplet. The ion here is
+element 26's 2+, 3d² over closed shells, with point charges −1 at 4 bohr in three arrangements of four
+dimensions: along the axes (eight, the 16-cell, four dimensions' octahedron), at a tesseract's corners (sixteen), and at
+the 24-cell's vertices (twenty-four). The field is projected exactly onto the degrees a d × d product holds, scaled from
+zero, and every determinant of the two electrons is diagonalized, as in section 7.2. A four-dimensional d subshell
+splits 6 + 3 on the axes and 3 + 6 at the corners (ours' octahedron 3 + 2, cube
+2 + 3). On the axes the two electrons go into the six-fold set, and the singlet stays the ground at every field
+strength: its ten states split, the lowest of them 2-fold, an orbital doublet that a distortion could act
+on, and the lowest triplet stays 0.44 eV up, the free ion's gap. At the corners the three-fold set is lowest,
+and two electrons in it favour a triplet: the singlet holds until the one-electron spread $\Delta$ reaches
+2.4–2.5 eV, and a triplet is the ground beyond, but only just, 0.07 eV below the singlet even at $\Delta$ =
+7.6 eV. The 24-cell splits the d subshell not at all (none): its vertices average every harmonic of
+degree 2 and 4 to zero, as the icosahedron does for ours, so a d ion in that site keeps its free-ion terms. Ours'
+Ti²⁺ (3d²) is the check, with its triplet the ground at every field in both shapes, as @tanabe1954 found for d².
+These are point charges, a model of the field's symmetry rather than of its size (`atom/tools/ligandd2.mjs`,
+`data/ligandd2.json`).
+
 ## 8 · The table
 
 **8.1 Rows and noble gases.** The table's rows hold 2, 10, 10, 28, 28, 60 elements (and 2 of the next by
