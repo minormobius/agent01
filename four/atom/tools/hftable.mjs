@@ -3,7 +3,8 @@
    don't. In our world (tools/../papers/p1/hf-scope.py) Hartree–Fock gets 8 of 9 3d configurations against the local
    exchange's 5, the two are right where they agree, and Hartree–Fock is right where they differ.
      node four/atom/tools/hftable.mjs check                          the solver against known answers (seconds to a minute)
-     node four/atom/tools/hftable.mjs rank <Z/Z/…> [D] [window_eV]   one JSON line per element (D = 4, window 4 eV)
+     node four/atom/tools/hftable.mjs rank <Z/Z/…> [D] [window_eV] [climb]   one JSON line per element (D = 4, window 4 eV);
+       climb adds Hartree–Fock's own one-electron neighbourhood (below)
    The candidates are termtable.mjs's: ground() with the neighbours' configurations as seeds, every settled one kept,
    those within the window of the local-exchange ground solved by Hartree–Fock. Each energy carries its open subshells'
    term correction: for the local exchange, Hund's first rule only (lowest term − lowest max-spin term, as the main table
@@ -17,7 +18,7 @@ import { hfAtom } from "../js/hf.js";
 import { readFileSync } from "node:fs";
 
 const HA = 27.211386245988, Lof = { s: 0, p: 1, d: 2, f: 3 };
-const [mode, zs, dS = "4", wS = "4"] = process.argv.slice(2), D = +dS, WIN = +wS / HA;
+const [mode, zs, dS = "4", wS = "4"] = process.argv.slice(2), D = +dS, WIN = +wS / HA, CLIMB = process.argv.includes("climb");
 
 /* the Hartree–Fock orbital as atom.js's radial charge per grid point (q_j = u(r_j)² r_j h_atom = z(x_j)² h_atom) */
 function toAtomGrid(S, z) {
@@ -66,17 +67,39 @@ if (mode === "rank") {
     const cands = []; for (const c of collect) { const k = cands.findIndex((x) => same(x.occ, c.occ)); if (k >= 0) { if (c.E < cands[k].E) cands[k] = c; } else cands.push(c); }
     if (!cands.length) { console.log(JSON.stringify({ Z, D, unsettled: true })); continue; }
     const best = Math.min(...cands.map((c) => c.E)), near = cands.filter((c) => c.E < best + WIN);
-    for (const c of near) {
-      const lc = correction(c.occ, c.qs, false, sh); c.lda = c.E + lc.delta; c.ldaParts = lc.parts;
-      const h = hfAtom(D, Z, hfOcc(sh, c.occ), { grid: { h: 0.02 } }); c.hfRaw = h.E; c.hfConv = h.converged;
-      if (h.converged) { const qs = sh.map((s, i) => { const k = h.subshells.find((x) => x.name === s.name); return k ? toAtomGrid(h.S, k.z) : null; }); const hc = correction(c.occ, qs, true, sh); c.hf = h.E + hc.delta; c.hfParts = hc.parts; c.hfEps = Object.fromEntries(h.subshells.map((x) => [x.name, +x.eps.toFixed(5)])); }
+    /* `above`: skip the term correction when the raw energy is more than 6 eV above it; the correction (lowest term −
+       the max-spin average) is never positive and a few eV at most, so such a configuration can't take part in the ranking */
+    const hfSolve = (c, above) => { const h = hfAtom(D, Z, hfOcc(sh, c.occ), { grid: { h: 0.02 } }); c.hfRaw = h.E; c.hfConv = h.converged;
+      if (h.converged && above != null && h.E - above > 6 / HA) { c.hf = h.E; c.hfParts = null; c.far = true; return; }
+      if (h.converged) { const qs = sh.map((s, i) => { const k = h.subshells.find((x) => x.name === s.name); return k ? toAtomGrid(h.S, k.z) : null; }); const hc = correction(c.occ, qs, true, sh); c.hf = h.E + hc.delta; c.hfParts = hc.parts; c.hfEps = Object.fromEntries(h.subshells.map((x) => [x.name, +x.eps.toFixed(5)])); } };
+    for (const c of near) { const lc = correction(c.occ, c.qs, false, sh); c.lda = c.E + lc.delta; c.ldaParts = lc.parts; hfSolve(c); }
+    /* climb: Hartree–Fock's own neighbourhood, so that its candidates aren't chosen by the local exchange alone (which
+       misprices f by volts, and so leaves Hartree–Fock's competitors out of any window set in its energy). From
+       Hartree–Fock's best, every one-electron move from an open subshell (or the outermost s) to a subshell within one of
+       the outermost n + l, compact configurations only, each solved by Hartree–Fock; move to the best and repeat. A
+       configuration found this way has no local-exchange energy unless the search also settled it. */
+    if (CLIMB) {
+      const nOf = (s) => +s.name.match(/^\d+/)[0], nl = (s) => nOf(s) + s.l, tried = new Set(near.map((c) => c.occ.join()));
+      const gappedOcc = (o) => sh.some((s, i) => o[i] > 0 && sh.some((t, j) => t.l === s.l && nOf(t) < nOf(s) && o[j] === 0));
+      let cur = near.filter((c) => c.hfConv).sort((a, b) => a.hf - b.hf)[0];
+      for (let round = 0; round < 4 && cur; round++) {
+        const o = cur.occ, top = Math.max(...sh.map((s, i) => (o[i] > 0 ? nl(s) : -1)));
+        const donors = sh.map((_, i) => i).filter((i) => o[i] > 0 && (o[i] < sh[i].cap || (sh[i].l === 0 && nl(sh[i]) >= top - 1)));
+        const accept = sh.map((_, i) => i).filter((i) => o[i] < sh[i].cap && sh[i].l <= 3 && Math.abs(nl(sh[i]) - top) <= 1);
+        for (const a of donors) for (const b of accept) { if (a === b) continue; const m = o.slice(); m[a]--; m[b]++;
+          if (gappedOcc(m) || tried.has(m.join())) continue; tried.add(m.join());
+          const c = cands.find((x) => same(x.occ, m)) ?? { occ: m, E: null }; if (c.E != null && c.lda == null) { const lc = correction(c.occ, c.qs, false, sh); c.lda = c.E + lc.delta; }
+          hfSolve(c, cur.hf); c.climbed = true; near.push(c); }
+        const nb = near.filter((c) => c.hfConv).sort((a, b) => a.hf - b.hf)[0]; if (nb === cur) break; cur = nb;
+      }
     }
-    const ok = near.filter((c) => c.hfConv), byL = near.slice().sort((a, b) => a.lda - b.lda), byH = ok.slice().sort((a, b) => a.hf - b.hf);
+    const ok = near.filter((c) => c.hfConv), byL = near.filter((c) => c.lda != null).sort((a, b) => a.lda - b.lda), byH = ok.slice().sort((a, b) => a.hf - b.hf);
     const cs = (c) => configString(c.occ, D), lg = byL[0], hg = byH[0];
     console.log(JSON.stringify({ Z, D, baked: baked.config, lda: { config: cs(lg), E: +lg.lda.toFixed(5) }, hf: hg ? { config: cs(hg), E: +hg.hf.toFixed(5), raw: +hg.hfRaw.toFixed(5), parts: hg.hfParts } : null,
       agree: !!hg && cs(lg) === cs(hg), candidates: cands.length, solved: near.length, unconverged: near.length - ok.length,
       hfSecond: byH[1] ? { config: cs(byH[1]), dE_eV: +((byH[1].hf - hg.hf) * HA).toFixed(4) } : null,
-      rows: near.map((c) => ({ config: cs(c), lda_eV: +((c.lda - lg.lda) * HA).toFixed(4), hf_eV: c.hfConv && hg ? +((c.hf - hg.hf) * HA).toFixed(4) : null, hfRaw: c.hfConv ? +c.hfRaw.toFixed(6) : null })),
+      climb: CLIMB || undefined, climbed: CLIMB ? near.filter((c) => c.climbed).length : undefined,
+      rows: near.map((c) => ({ config: cs(c), lda_eV: c.lda != null ? +((c.lda - lg.lda) * HA).toFixed(4) : null, climbed: c.climbed || undefined, far: c.far || undefined, hf_eV: c.hfConv && hg ? +((c.hf - hg.hf) * HA).toFixed(4) : null, hfRaw: c.hfConv ? +c.hfRaw.toFixed(6) : null })),
       s: (Date.now() - t0) / 1000 }));
   }
 }

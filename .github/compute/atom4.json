@@ -1,102 +1,102 @@
 {
- "run": "hf-wide-1",
- "why": "Paper 1: the lanthanide calibration (hf-lanth-1) showed the 4 eV window, set in local-exchange energy, leaves out every configuration with one f electron fewer, because local exchange overbinds f by 4.3–4.7 eV in ours. Terbium's measured 4f8 5d 6s2 (0.035 eV up) sat at +4.45 for local exchange and was never solved by Hartree–Fock, which puts it at +0.92 with a 10 eV window. Rerun with a 10 eV window: ours Cs–Hf, and the 4D f row 81–112, where Hartree–Fock's margins (2.4–5.8 eV) were measured against only fⁿ⁺¹s¹.",
+ "run": "hf-climb-1",
+ "why": "Paper 1: a 10 eV window in local-exchange energy (hf-wide-1) still leaves Hartree–Fock's competitors out in the 4D f row (93–104: only fⁿs² and fⁿ⁺¹s¹ in range), because local exchange misprices f by volts. hftable.mjs rank … climb adds Hartree–Fock's own neighbourhood: from its best, every one-electron move among the outer subshells, solved by Hartree–Fock, repeated until nothing improves (terbium: finds 4f8 5d 6s2 at +0.92 eV, measured 0.035, and 4f9 6s 6p at +0.80, 7 min). Ours Cs–Hf and the 4D f row 81–112.",
  "minutes": 340,
  "groups": [
   {
-   "name": "hfw-l0",
+   "name": "hfc-l0",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 55/56 3 10",
-    "node four/atom/tools/hftable.mjs rank 57/58 3 10",
-    "node four/atom/tools/hftable.mjs rank 59/60 3 10"
+    "node four/atom/tools/hftable.mjs rank 55/56 3 10 climb",
+    "node four/atom/tools/hftable.mjs rank 57/58 3 10 climb",
+    "node four/atom/tools/hftable.mjs rank 59/60 3 10 climb"
    ]
   },
   {
-   "name": "hfw-l1",
+   "name": "hfc-l1",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 61/62 3 10",
-    "node four/atom/tools/hftable.mjs rank 63/64 3 10",
-    "node four/atom/tools/hftable.mjs rank 65/66 3 10"
+    "node four/atom/tools/hftable.mjs rank 61/62 3 10 climb",
+    "node four/atom/tools/hftable.mjs rank 63/64 3 10 climb",
+    "node four/atom/tools/hftable.mjs rank 65/66 3 10 climb"
    ]
   },
   {
-   "name": "hfw-l2",
+   "name": "hfc-l2",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 67/68 3 10",
-    "node four/atom/tools/hftable.mjs rank 69/70 3 10",
-    "node four/atom/tools/hftable.mjs rank 71/72 3 10"
+    "node four/atom/tools/hftable.mjs rank 67/68 3 10 climb",
+    "node four/atom/tools/hftable.mjs rank 69/70 3 10 climb",
+    "node four/atom/tools/hftable.mjs rank 71/72 3 10 climb"
    ]
   },
   {
-   "name": "hfw-f0",
+   "name": "hfc-f0",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 81 4 10",
-    "node four/atom/tools/hftable.mjs rank 82 4 10",
-    "node four/atom/tools/hftable.mjs rank 83 4 10",
-    "node four/atom/tools/hftable.mjs rank 84 4 10"
+    "node four/atom/tools/hftable.mjs rank 81 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 82 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 83 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 84 4 10 climb"
    ]
   },
   {
-   "name": "hfw-f1",
+   "name": "hfc-f1",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 85 4 10",
-    "node four/atom/tools/hftable.mjs rank 86 4 10",
-    "node four/atom/tools/hftable.mjs rank 87 4 10",
-    "node four/atom/tools/hftable.mjs rank 88 4 10"
+    "node four/atom/tools/hftable.mjs rank 85 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 86 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 87 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 88 4 10 climb"
    ]
   },
   {
-   "name": "hfw-f2",
+   "name": "hfc-f2",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 89 4 10",
-    "node four/atom/tools/hftable.mjs rank 90 4 10",
-    "node four/atom/tools/hftable.mjs rank 91 4 10",
-    "node four/atom/tools/hftable.mjs rank 92 4 10"
+    "node four/atom/tools/hftable.mjs rank 89 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 90 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 91 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 92 4 10 climb"
    ]
   },
   {
-   "name": "hfw-f3",
+   "name": "hfc-f3",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 93 4 10",
-    "node four/atom/tools/hftable.mjs rank 94 4 10",
-    "node four/atom/tools/hftable.mjs rank 95 4 10",
-    "node four/atom/tools/hftable.mjs rank 96 4 10"
+    "node four/atom/tools/hftable.mjs rank 93 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 94 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 95 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 96 4 10 climb"
    ]
   },
   {
-   "name": "hfw-f4",
+   "name": "hfc-f4",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 97 4 10",
-    "node four/atom/tools/hftable.mjs rank 98 4 10",
-    "node four/atom/tools/hftable.mjs rank 99 4 10",
-    "node four/atom/tools/hftable.mjs rank 100 4 10"
+    "node four/atom/tools/hftable.mjs rank 97 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 98 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 99 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 100 4 10 climb"
    ]
   },
   {
-   "name": "hfw-f5",
+   "name": "hfc-f5",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 101 4 10",
-    "node four/atom/tools/hftable.mjs rank 102 4 10",
-    "node four/atom/tools/hftable.mjs rank 103 4 10",
-    "node four/atom/tools/hftable.mjs rank 104 4 10"
+    "node four/atom/tools/hftable.mjs rank 101 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 102 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 103 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 104 4 10 climb"
    ]
   },
   {
-   "name": "hfw-f6",
+   "name": "hfc-f6",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 105 4 10",
-    "node four/atom/tools/hftable.mjs rank 106 4 10",
-    "node four/atom/tools/hftable.mjs rank 107 4 10",
-    "node four/atom/tools/hftable.mjs rank 108 4 10"
+    "node four/atom/tools/hftable.mjs rank 105 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 106 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 107 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 108 4 10 climb"
    ]
   },
   {
-   "name": "hfw-f7",
+   "name": "hfc-f7",
    "cmds": [
-    "node four/atom/tools/hftable.mjs rank 109 4 10",
-    "node four/atom/tools/hftable.mjs rank 110 4 10",
-    "node four/atom/tools/hftable.mjs rank 111 4 10",
-    "node four/atom/tools/hftable.mjs rank 112 4 10"
+    "node four/atom/tools/hftable.mjs rank 109 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 110 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 111 4 10 climb",
+    "node four/atom/tools/hftable.mjs rank 112 4 10 climb"
    ]
   }
  ]
