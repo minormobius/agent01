@@ -6,7 +6,9 @@ import { engineWalls } from "./game.js";
 
 /* a cell at the level's start, its walls, its food, its energy */
 export function setup(level, opts = {}) {
-  const A = makeAmoeba(4, undefined, opts);
+  // (the game's cell runs at half AMOEBA's measured cost, pushing and living alike: people steer less efficiently than
+  // the bot, wander and pause while the cell fidgets, and the first cut, at the full cost, was too hard to play)
+  const A = makeAmoeba(4, undefined, { eWork: 0.065, eBase: 0.01, ...opts });
   // (move the cell to the start)
   const s = level.start; for (let i = 0; i < A.nv; i++) { A.P[i * 4] += s[0]; A.P[i * 4 + 2] += s[1]; A.P[i * 4 + 3] += s[2]; } A.nuc.c[0] += s[0]; A.nuc.c[2] += s[1]; A.nuc.c[3] += s[2];
   A.obstacles = engineWalls(level); A.foods = level.foods.map((f) => Float64Array.from([f[0], 0.12, f[1], f[2]])); A.keepFood = 0;

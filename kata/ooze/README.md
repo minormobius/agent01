@@ -11,8 +11,10 @@ goal.
 - **Steer** by pressing and holding the smell sphere (bottom right). Its directions are the floor's, so you can steer
   ana and kata, out of your slice. The cell answers with pseudopods. It is the real AMOEBA cell (a remeshed membrane of
   tetrahedra, signalling, myosin, adhesion), steered and nothing more.
-- **Energy.** Every pseudopod costs energy: the work of polymerisation, the membrane pushed out, at a rate measured to
-  be about one unit a radius, plus a little for being alive. Food (green) refills it; crawl over a morsel and close
+- **Energy.** Every pseudopod costs energy: the work of polymerisation, the membrane pushed out, plus a little for
+  being alive. At AMOEBA's measured rate that is about one unit a radius, but the game's cell runs at half that (about
+  half a unit a radius). The first cut, at the full rate, was too hard to play: people steer less efficiently than the
+  bot, and the cell fidgets while they think. Food (green) refills it; crawl over a morsel and close
   round it to eat it. With none left you can't push a pseudopod, and after three seconds you have starved. Left alone
   the cell still fidgets (its own pseudopods fire now and then), and those cost too: don't dawdle.
 - **Walls** are 4D boxes the membrane and the nucleus can't enter. A wall across your whole view may stop short in w,
@@ -26,8 +28,10 @@ It says whether a level can be done, and how hard it is. It is a model of the ce
    the nucleus is the rigid part, and the membrane flows round anything.
 2. **Distances** between the start, each food and the goal, by Dijkstra over that grid (26 neighbours).
 3. **Which food, in what order.** States are (where, which eaten), holding the most energy you can have there. A level
-   is solvable if some state reaches the goal with energy to spare. Each leg costs 1.45 a radius: the measured cost,
-   plus a margin for the turning and waiting a real pilot does.
+   is solvable if some state reaches the goal with energy to spare. Each leg costs 1.45 a radius: the full measured
+   cost plus a margin. Against the game's halved cost that is about 2.4× what the cell really spends, so the oracle's
+   "solvable" has a wide margin, and its "needs food" means needs it for a pilot who isn't perfect (a perfect one
+   might scrape by without).
 
 It gives back:
 
@@ -80,7 +84,8 @@ All ten were flown once to confirm them:
 | 9 Kata and back | 55.4 s | 1/1 | 2.9 |
 | 10 Hyphae | 61.6 s | 3/3 | 12.1 (7.4) |
 
-Every level was won, and every level's margin held. The tightest were Ana (2.8 left of 9) and Kata and back (2.9 of
+(Flown at the full cost, before the game's was halved. At the halved cost every margin is wider.) Every level was
+won, and every level's margin held. The tightest were Ana (2.8 left of 9) and Kata and back (2.9 of
 15.5). The oracle's 1.45 a radius is conservative against the real ~1.2. The mesh grows over a long level (to ~4,000
 points by a minute), so a step slows from ~40 to ~60 ms here.
 
