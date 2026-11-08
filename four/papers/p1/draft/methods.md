@@ -42,7 +42,11 @@ $\varepsilon_x(\rho) = -A_D\,\rho^{1/D}$ per electron for an electron density $\
 $A_3 = \tfrac34(3/\pi)^{1/3}$ = 0.738559 and $A_4 = 16/15\sqrt\pi$ = 0.601802, as in the general-$D$ formulas
 of @loos2016 for $1/r$ jellium (appendix B). Spins are polarized by Hund's rule (a subshell fills one spin first),
 and each electron's own share is removed from both its Hartree and its exchange potential: the Hartree term by its own
-orbital's cloud, the exchange term by the fully polarized exchange of that orbital alone, in the manner of the self-interaction correction of @perdew1981. There is no correlation term.
+orbital's cloud, the exchange term by the fully polarized exchange of that orbital alone, in the manner of the self-interaction correction of @perdew1981. There is no correlation term. That is an omission, not a gap in what is known:
+the arbitrary-dimensional exchange is old [@glasser1983], and the correlation of the $1/r$ electron gas has been
+computed in any dimension, four included, by the random-phase approximation [@schlesier2020] and beyond it
+[@pham2023]. We have not implemented or tested a four-dimensional correlation functional; the later paper's numbers
+carry a correction to the earlier one's coefficients that would have to be settled first.
 
 **5.5 Solving one configuration.** The radial equation is solved on a logarithmic grid of 700 points from $r_0$ = 10⁻⁵ to 150 bohr
 (step $h$ = 0.02364 in $\ln r$) by Numerov's method on $y = u/\sqrt r$, with each level found by Sturm bisection on the node
@@ -117,8 +121,24 @@ centre. For $V = -\alpha/r^2$ it finds no level below $\alpha = \tfrac12$ on any
 (section 2.1); for $V = -1/r^\eta$ it gives the splittings within each shell (section 3.1). Its check is 4D hydrogen:
 −0.22222222 against $-2/9$.
 
-**5.12 Checks.** Every method above has a known-answer test in the selftest, run on every change: hydrogen in both worlds (block 1), the
+**5.12 A second method: Hartree–Fock.** To see which configurations depend on the choice of method, every element
+is solved a second way, by numerical Hartree–Fock (`hf.js`): one radial function per subshell on its own logarithmic
+grid, exact exchange instead of local exchange, and the energy the average over the subshells' maximum-spin
+arrangements, to which each open subshell's whole term correction (its lowest term less that average, section 5.9's
+machinery on the Hartree–Fock orbitals) is added. Exchange between subshells is expanded in the Gegenbauer
+coefficients of $1/|\mathbf x - \mathbf y|$, each radial kernel a convolution on the logarithmic grid; in four
+dimensions the coefficients are tabulated by quadrature, $a_0$ being the shell kernel $\kappa$. The candidates are the
+local-exchange search's settled configurations within 4 eV of its ground, so both methods rank the same
+set. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
+left out of the Hartree–Fock ranking: the variational solve drops the electron into the empty lower subshell and
+returns the compact configuration's energy under the other name. The energies carry an $O(h^2)$ error from the
+kernel's kink at $r = r'$, so absolute energies are extrapolated from steps 0.02 and 0.01; differences converge at
+0.02, where the ranking is done. Checks (block 71): our He, Ne, N ⁴S, C ³P and Fe ⁵D against the numerical
+Hartree–Fock limits to 2 × 10⁻⁵ hartree, and four-dimensional closed shells against the Gaussian code.
+
+**5.13 Checks.** Every method above has a known-answer test in the selftest, run on every change: hydrogen in both worlds (block 1), the
 radial solver (2), the kernel against direct integration (3), exchange against the electron-gas constants (4, 18), the
 ground search (5, 7), two-electron atoms against an independent Gaussian Hartree–Fock code in four dimensions and MP2
-against PySCF in ours (17, 43), our table against measured values (6: 32 of 36 configurations; ionization to a
-4.3 % median error), and this paper's own claims recomputed from the bake (67).
+against PySCF in ours (17, 43), Hartree–Fock against its known limits (71), our table against measured values (6:
+32 of 36 configurations; ionization to a 4.3 % median error), and this paper's own claims recomputed from
+the bake (67).

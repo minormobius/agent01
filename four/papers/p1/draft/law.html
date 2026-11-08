@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="85962ff977614a24c49bcbd32fd7f5fb4801c5caab09597727fa48a8d5d6f411" />
+<meta name="source-sha256" content="2d2a4cad1d54365b59c9b1dd79324d3288eaa5f15312a1a9e8c9b52c093cc9b4" />
 <title>Paper 1 · Part I · The law (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -167,12 +167,19 @@ every bound orbit is a closed ellipse. By Bertrand’s theorem only
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mn>2</mn></msup><annotation encoding="application/x-tex">r^2</annotation></semantics></math>
-do that, and
+do that <span class="citation" data-cites="bertrand2007">(<a
+href="#ref-bertrand2007" role="doc-biblioref">Santos, Soares, and Tort
+2007</a>)</span>, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mn>2</mn></msup><annotation encoding="application/x-tex">r^2</annotation></semantics></math>
-confines rather than falling off. An orbit lies in a plane in any number
-of dimensions, so this holds in four. A closed ellipse keeps a fixed
-direction, its long axis. So the motion conserves a vector besides the
-angular momentum, the Runge–Lenz vector
+confines rather than falling off; asking for closed orbits is a
+criterion for choosing the law, not something every atom needs. An orbit
+in a central potential lies in the plane of its starting position and
+velocity in any number of dimensions <span class="citation"
+data-cites="fiorani2009">(<a href="#ref-fiorani2009"
+role="doc-biblioref">FIORANI 2009</a>)</span>, so the planar theorem
+holds in four. A closed ellipse keeps a fixed direction, its long axis.
+So the motion conserves a vector besides the angular momentum, the
+Runge–Lenz vector
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>L</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>j</mi></msub><mo>−</mo><mi>Z</mi><msub><mi>x</mi><mi>i</mi></msub><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">A_i = \sum_j L_{ij}\,p_j - Z x_i/r</annotation></semantics></math>,
 where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msub><mi>p</mi><mi>j</mi></msub><mo>−</mo><msub><mi>x</mi><mi>j</mi></msub><msub><mi>p</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">L_{ij} = x_i p_j - x_j p_i</annotation></semantics></math>
@@ -193,9 +200,13 @@ generate the rotations of a space with one dimension more,
 SO(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D + 1</annotation></semantics></math>).
 Fock found this by carrying momentum space onto a sphere one dimension
 up <span class="citation" data-cites="fock1935">(<a href="#ref-fock1935"
-role="doc-biblioref">Fock 1935</a>)</span>, and Bander and Itzykson
-worked out the group theory <span class="citation"
-data-cites="bander1966">(<a href="#ref-bander1966"
+role="doc-biblioref">Fock 1935</a>)</span>, Alliluev carried the
+construction to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions <span class="citation" data-cites="alliluev1958">(<a
+href="#ref-alliluev1958" role="doc-biblioref">Alliluev 1958</a>)</span>,
+and Bander and Itzykson worked out the group theory <span
+class="citation" data-cites="bander1966">(<a href="#ref-bander1966"
 role="doc-biblioref">Bander and Itzykson 1966</a>)</span>. Why it
 happens only for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
@@ -398,24 +409,42 @@ so the pinned
 needs
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>k</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">1/k^3</annotation></semantics></math>.
 There are five ways to get it (the site’s force chapter,
-four.mino.mobi/atom/force.html, works through each). Four fail outright.
-The third survives with a flaw that can be removed, and it is the one
-this paper takes.</p>
+four.mino.mobi/atom/force.html, works through each). Four fail something
+we ask of the law, and each failure is stated with what it assumes. The
+third survives with a flaw that can be removed, and it is the one this
+paper takes.</p>
 <ol type="1">
-<li><em>A local, relativistic field:</em> impossible. A local field
-equation is a polynomial in
+<li><em>A local, relativistic field:</em> impossible for a quadratic
+field equation with finitely many derivatives. Such an equation is a
+polynomial in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>k</mi><mn>2</mn></msup><annotation encoding="application/x-tex">k^2</annotation></semantics></math>,
 a whole number of pairs of derivatives, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>k</mi><mn>3</mn></msup><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>k</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">k^3 = (k^2)^{3/2}</annotation></semantics></math>
-isn’t one.</li>
+isn’t one. (A non-local kernel can arise from integrating out other
+fields; that is route 2 or 3.)</li>
 <li><em>Relativistic but non-local:</em> the potential obeys
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>k</mi><mn>2</mn></msup><mo>−</mo><msup><mi>ω</mi><mn>2</mn></msup><mi>/</mi><msup><mi>c</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow></msup><mspace width="0.167em"></mspace><mi>φ</mi><mo>∝</mo><mi>ρ</mi></mrow><annotation encoding="application/x-tex">(k^2 - \omega^2/c^2)^{3/2}\,\varphi \propto \rho</annotation></semantics></math>,
 Maxwell’s wave operator raised to the power
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">3/2</annotation></semantics></math>,
-which in space and time is an integral over all of both. The field’s
-scaling dimension is then 1 in five-dimensional spacetime. Positive
-probabilities need at least 1.5 (the unitarity bound, where an ordinary
-free field sits), so the theory has states of negative probability.</li>
+which in space and time is an integral over all of both. This is the
+non-local electrodynamics
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mspace width="0.167em"></mspace><msup><mi>D</mi><mrow><mi>s</mi><mo>−</mo><mn>2</mn></mrow></msup><mi>F</mi></mrow><annotation encoding="application/x-tex">F\,D^{s-2}F</annotation></semantics></math>
+of <span class="citation" data-cites="heydeman2020">Heydeman et al. (<a
+href="#ref-heydeman2020" role="doc-biblioref">2020</a>)</span> with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">s = 3</annotation></semantics></math>
+in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">d = 5</annotation></semantics></math>
+spacetime dimensions, a case their analysis covers
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mi>s</mi><mo>+</mo><mn>2</mn><mo>≥</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">d = s + 2 \ge 5</annotation></semantics></math>).
+There the gauge-invariant field strength has scaling dimension 2, below
+the 3 that unitarity requires of it in a conformal theory, and they
+expect time evolution not to be unitary: states of negative probability.
+Fractional and non-local gauge theories are not non-unitary as a class
+<span class="citation" data-cites="marino2014 lanave2019">(<a
+href="#ref-marino2014" role="doc-biblioref">Marino et al. 2014</a>; <a
+href="#ref-lanave2019" role="doc-biblioref">La Nave, Limtragool, and
+Phillips 2019</a>)</span>; it is this one, in the framework where the
+bound applies, that fails.</li>
 <li><em>A vacuum whose permittivity grows with wavenumber,</em>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ε</mi><mn>0</mn></msub><mspace width="0.167em"></mspace><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\varepsilon_0\,\ell k</annotation></semantics></math>
 with
@@ -432,8 +461,18 @@ light obeys
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>k</mi><mn>2</mn></msup><mo>=</mo><mo>ℓ</mo><mi>k</mi><mspace width="0.167em"></mspace><msup><mi>ω</mi><mn>2</mn></msup><mi>/</mi><msup><mi>c</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">k^2 = \ell k\,\omega^2/c^2</annotation></semantics></math>,
 so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ω</mi><mo>=</mo><mi>c</mi><msqrt><mrow><mi>k</mi><mi>/</mi><mo>ℓ</mo></mrow></msqrt></mrow><annotation encoding="application/x-tex">\omega = c\sqrt{k/\ell}</annotation></semantics></math>.
-It disperses like deep-water waves, and there is no speed of light. This
-is the route we take, and the flaw is removed below.</li>
+It disperses like deep-water waves, and there is no speed of light. A
+permittivity rising as a power of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+and the fractional Poisson equation it gives, is known from media with
+power-law spatial dispersion <span class="citation"
+data-cites="tarasov2013 tarasov2016">(<a href="#ref-tarasov2013"
+role="doc-biblioref">Tarasov and Trujillo 2013</a>; <a
+href="#ref-tarasov2016" role="doc-biblioref">Tarasov 2016</a>)</span>;
+their power
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">\alpha = 3</annotation></semantics></math>
+without screening is this one, applied here in four dimensions. This is
+the route we take, and the flaw is removed below.</li>
 <li><em>A nonlinear vacuum,</em>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mo>⋅</mo><mrow><mo stretchy="true" form="prefix">(</mo><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝐄</mi><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mi>β</mi><mo>−</mo><mn>2</mn></mrow></msup><mi>𝐄</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>ρ</mi></mrow><annotation encoding="application/x-tex">\nabla\cdot(|\mathbf E|^{\beta-2}\mathbf E) = \rho</annotation></semantics></math>.
 It keeps a Gauss’s law, for the flux of
@@ -448,15 +487,25 @@ potential
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝐄</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>∝</mo><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">|\mathbf E| \propto 1/r^2</annotation></semantics></math>)
 needs
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">\beta = (D + 1)/2</annotation></semantics></math>
-= 2.5. But fields no longer add: the field of two charges isn’t the sum
-of each one’s.</li>
+= 2.5, the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-Laplacian
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>5</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">p = 5/2</annotation></semantics></math>,
+whose point solution is exactly that <span class="citation"
+data-cites="lindqvist2017">(<a href="#ref-lindqvist2017"
+role="doc-biblioref">Peter Lindqvist 2017</a>)</span>. It is a
+consistent theory, but fields no longer add: the field of two charges
+isn’t the sum of each one’s, so there is no pair potential, which an
+atom’s Hamiltonian as written here needs.</li>
 <li><em>A small fourth dimension:</em>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 far away, but then atoms are three-dimensional (section 2.2).</li>
 </ol>
-<p>Route 1 doesn’t exist, route 2 has states of negative probability,
-route 4 gives up fields that add, and route 5 gives back
-three-dimensional atoms. That leaves route 3. The permittivity fixes the
+<p>Route 1 doesn’t exist under its assumptions, route 2 has states of
+negative probability in the framework where that can be shown, route 4
+gives up a pair potential, and route 5 gives back three-dimensional
+atoms. That leaves route 3. This is a choice among the routes found, not
+a proof that no other theory gives the law. The permittivity fixes the
 statics, and the statics are all that the pinned law asks of it. The
 permeability is still free, and it decides only how fields move. Left at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>μ</mi><mn>0</mn></msub><annotation encoding="application/x-tex">\mu_0</annotation></semantics></math>
@@ -491,7 +540,11 @@ the pinned
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>.
 The price is relativity, for the force between charges only. The blur
 acts across all of space at once, so there is an absolute “now”, and a
-charge feels another’s change instantly, a little, everywhere.</p>
+charge feels another’s change instantly, a little, everywhere. We have
+not found this pair of constitutive laws in the literature we read.
+Light at one speed and an energy that is never negative do not by
+themselves make the lens vacuum a causal or quantum theory; that is for
+the later paper.</p>
 <p>This paper uses only route 3’s statics: charges at rest and the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 between them, which is all an atom’s ground state needs. Every choice of
@@ -513,13 +566,23 @@ The fine-structure constant is small, so atoms are solved without
 relativity (section 12). No other long-range field acts on charges.</p>
 <p><strong>4.5 Is matter stable?</strong> In ours it is a theorem that
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
-atoms have an energy proportional to
+atoms have an energy bounded below by a constant times
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
 <span class="citation" data-cites="dyson1967 lieb1975">(<a
 href="#ref-dyson1967" role="doc-biblioref">Dyson and Lenard 1967</a>; <a
 href="#ref-lieb1975" role="doc-biblioref">Lieb and Thirring
-1975</a>)</span>, and the proofs lean on the shell theorem, which fails
-here. So we give evidence, not a proof. Atoms don’t collapse.
+1975</a>)</span>, whatever the nuclei’s positions. The usual proofs lean
+on the shell theorem, which fails here. That doesn’t close the question:
+decompositions of radial interactions that need no shell theorem exist
+in any dimension <span class="citation" data-cites="hainzl2002">(<a
+href="#ref-hainzl2002" role="doc-biblioref">Hainzl and Seiringer
+2002</a>)</span>, and Riesz gases, of which a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+law in four dimensions is one, have their own mathematics <span
+class="citation" data-cites="lewin2022">(<a href="#ref-lewin2022"
+role="doc-biblioref">Lewin 2022</a>)</span>, though neither is a proof
+for electrons and nuclei here. So we give evidence, not a proof, and the
+evidence is narrower than the theorem. Single atoms don’t collapse.
 Thomas–Fermi scaling gives total energies growing as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>3</mn><mo>−</mo><mn>2</mn><mi>/</mi><mi>D</mi></mrow></msup><annotation encoding="application/x-tex">Z^{3-2/D}</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>7</mn><mi>/</mi><mn>3</mn></mrow></msup><annotation encoding="application/x-tex">Z^{7/3}</annotation></semantics></math>
@@ -533,15 +596,17 @@ exponent of 2.527 over
 = 10–140 (ours: 2.387 over 10–36; both a little above the asymptotic
 value, as
 finite-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
-corrections make them). Many atoms don’t run away either. Every force
-between neutral atoms here (the permanent
+corrections make them). Separated neutral atoms don’t run away either.
+Every force between them here (the permanent
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>Q</mi><mi>A</mi></msub><msub><mi>Q</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3Q_AQ_B/64R^5</annotation></semantics></math>
 of section 11, dispersion’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>)
 falls faster than
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>4</mn></mrow></msup><annotation encoding="application/x-tex">R^{-4}</annotation></semantics></math>,
-so summed over four-dimensional space each atom’s share is finite. This
-is argued, not proved, and the paper says so.</p>
+so summed over four-dimensional space each atom’s share of the far field
+is finite. That says nothing about atoms that overlap, trade charge or
+crowd together, which is where a proof of stability has its work.
+Stability of matter here is open.</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">
@@ -550,6 +615,12 @@ Al-Jaber, Sami M. 1998. <span>“Hydrogen Atom in N Dimensions.”</span>
 <em>International Journal of Theoretical Physics</em> 37 (4): 1289–98.
 <a
 href="https://doi.org/10.1023/A:1026679921970">https://doi.org/10.1023/A:1026679921970</a>.
+</div>
+<div id="ref-alliluev1958" class="csl-entry" role="listitem">
+Alliluev, S. P. 1958. <span>“On the Relation Between
+<span>‘Accidental’</span> Degeneracy and <span>‘Hidden’</span> Symmetry
+of a System.”</span> <em>Soviet Physics JETP</em> 6: 156–58. <a
+href="https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf">https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf</a>.
 </div>
 <div id="ref-bander1966" class="csl-entry" role="listitem">
 Bander, M., and C. Itzykson. 1966. <span>“Group Theory and the Hydrogen
@@ -579,20 +650,48 @@ Fundamental Laws of Physics That Space Has Three Dimensions?”</span>
 Amsterdam</em> 20: 200–209. <a
 href="https://dwc.knaw.nl/DL/publications/PU00012213.pdf">https://dwc.knaw.nl/DL/publications/PU00012213.pdf</a>.
 </div>
+<div id="ref-fiorani2009" class="csl-entry" role="listitem">
+FIORANI, EMANUELE. 2009. <span>“Momentum Maps, Independent First
+Integrals and Integrability for Central Potentials.”</span>
+<em>International Journal of Geometric Methods in Modern Physics</em> 06
+(08): 1323–41. <a
+href="https://doi.org/10.1142/s0219887809004247">https://doi.org/10.1142/s0219887809004247</a>.
+</div>
 <div id="ref-fock1935" class="csl-entry" role="listitem">
 Fock, V. 1935. <span>“Zur Theorie des Wasserstoffatoms.”</span>
 <em>Zeitschrift für Physik</em> 98 (3-4): 145–54. <a
 href="https://doi.org/10.1007/BF01336904">https://doi.org/10.1007/BF01336904</a>.
+</div>
+<div id="ref-hainzl2002" class="csl-entry" role="listitem">
+Hainzl, Christian, and Robert Seiringer. 2002. <span>“General
+Decomposition of Radial Functions on Rn and Applications to N-Body
+Quantum Systems.”</span> <em>Letters in Mathematical Physics</em> 61
+(1): 75–84. <a
+href="https://doi.org/10.1023/a:1020204818938">https://doi.org/10.1023/a:1020204818938</a>.
 </div>
 <div id="ref-herschbach1992" class="csl-entry" role="listitem">
 Herschbach, Dudley R., John Avery, and Osvaldo Goscinski, eds. 1993.
 <em>Dimensional Scaling in Chemical Physics</em>. Dordrecht: Kluwer. <a
 href="https://doi.org/10.1007/978-94-011-1836-1">https://doi.org/10.1007/978-94-011-1836-1</a>.
 </div>
+<div id="ref-heydeman2020" class="csl-entry" role="listitem">
+Heydeman, Matthew, Christian B. Jepsen, Ziming Ji, and Amos Yarom. 2020.
+<span>“Renormalization and Conformal Invariance of Non-Local Quantum
+Electrodynamics.”</span> <em>Journal of High Energy Physics</em> 2020
+(8): 7. <a
+href="https://doi.org/10.1007/jhep08(2020)007">https://doi.org/10.1007/jhep08(2020)007</a>.
+</div>
 <div id="ref-kventsel1981" class="csl-entry" role="listitem">
 Kventsel, G. F., and J. Katriel. 1981. <span>“Thomas–Fermi Atom in n
 Dimensions.”</span> <em>Physical Review A</em> 24 (5): 2299–2301. <a
 href="https://doi.org/10.1103/physreva.24.2299">https://doi.org/10.1103/physreva.24.2299</a>.
+</div>
+<div id="ref-lanave2019" class="csl-entry" role="listitem">
+La Nave, Gabriele, Kridsanaphong Limtragool, and Philip W. Phillips.
+2019. <span>“Colloquium : Fractional Electromagnetism in Quantum Matter
+and High-Energy Physics.”</span> <em>Reviews of Modern Physics</em> 91
+(2): 021003. <a
+href="https://doi.org/10.1103/revmodphys.91.021003">https://doi.org/10.1103/revmodphys.91.021003</a>.
 </div>
 <div id="ref-landau-qm" class="csl-entry" role="listitem">
 Landau, L. D., and E. M. Lifshitz. 1977. <em>Quantum Mechanics:
@@ -600,11 +699,24 @@ Non-Relativistic Theory</em>. 3rd ed. Course of Theoretical Physics 3.
 Oxford: Pergamon. <a
 href="https://doi.org/10.1016/C2013-0-02793-4">https://doi.org/10.1016/C2013-0-02793-4</a>.
 </div>
+<div id="ref-lewin2022" class="csl-entry" role="listitem">
+Lewin, Mathieu. 2022. <span>“Coulomb and Riesz Gases: The Known and the
+Unknown.”</span> <em>Journal of Mathematical Physics</em> 63 (6):
+061101. <a
+href="https://doi.org/10.1063/5.0086835">https://doi.org/10.1063/5.0086835</a>.
+</div>
 <div id="ref-lieb1975" class="csl-entry" role="listitem">
 Lieb, Elliott H., and Walter E. Thirring. 1975. <span>“Bound for the
 Kinetic Energy of Fermions Which Proves the Stability of Matter.”</span>
 <em>Physical Review Letters</em> 35 (11): 687–89. <a
 href="https://doi.org/10.1103/PhysRevLett.35.687">https://doi.org/10.1103/PhysRevLett.35.687</a>.
+</div>
+<div id="ref-marino2014" class="csl-entry" role="listitem">
+Marino, E. C., Leandro O. Nascimento, Van Sérgio Alves, and C. Morais
+Smith. 2014. <span>“Unitarity of Theories Containing Fractional Powers
+of the d’Alembertian Operator.”</span> <em>Physical Review D</em> 90
+(10): 105003. <a
+href="https://doi.org/10.1103/physrevd.90.105003">https://doi.org/10.1103/physrevd.90.105003</a>.
 </div>
 <div id="ref-negadi1996" class="csl-entry" role="listitem">
 Négadi, T., and M. Kibler. 1996. <span>“The Periodic Table in
@@ -617,6 +729,29 @@ Nieto, Michael Martin. 1979. <span>“Hydrogen Atom and Relativistic
 Pi-Mesic Atom in N-Space Dimensions.”</span> <em>American Journal of
 Physics</em> 47 (12): 1067–72. <a
 href="https://doi.org/10.1119/1.11976">https://doi.org/10.1119/1.11976</a>.
+</div>
+<div id="ref-lindqvist2017" class="csl-entry" role="listitem">
+Peter Lindqvist. 2017. <em>Notes on the p-Laplace Equation, Second
+Edition</em>. 2nd ed. Vol. 161. Report, Department of Mathematics and
+Statistics. University of Jyväskylä. <a
+href="https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download">https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download</a>.
+</div>
+<div id="ref-bertrand2007" class="csl-entry" role="listitem">
+Santos, F. C., V. Soares, and A. C. Tort. 2007. <span>“An English
+Translation of Bertrand’s Theorem.”</span> arXiv. 2007. <a
+href="https://arxiv.org/abs/0704.2396">https://arxiv.org/abs/0704.2396</a>.
+</div>
+<div id="ref-tarasov2016" class="csl-entry" role="listitem">
+Tarasov, Vasily E. 2016. <span>“Electric Field in Media with Power-Law
+Spatial Dispersion.”</span> <em>Modern Physics Letters B</em> 30 (10):
+1650132. <a
+href="https://doi.org/10.1142/s0217984916501323">https://doi.org/10.1142/s0217984916501323</a>.
+</div>
+<div id="ref-tarasov2013" class="csl-entry" role="listitem">
+Tarasov, Vasily E., and Juan J. Trujillo. 2013. <span>“Fractional
+Power-Law Spatial Dispersion in Electrodynamics.”</span> <em>Annals of
+Physics</em> 334 (July): 1–23. <a
+href="https://doi.org/10.1016/j.aop.2013.03.014">https://doi.org/10.1016/j.aop.2013.03.014</a>.
 </div>
 </div>
 

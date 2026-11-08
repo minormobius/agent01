@@ -8,15 +8,23 @@ $-Z^2/2(n + \tfrac12)^2$ hartree, so $-2/9$ for the ground state. The solver giv
 
 **6.2 Two electrons.** Helium-like atoms in four dimensions are checked against an independent code, Hartree–Fock in a
 Gaussian basis written for any dimension (`gauss.js`), and the same atoms in ours against PySCF at the MP2 level
-(selftest blocks 17 and 43). The two codes share no part of the radial solver.
+(selftest blocks 17 and 43). The two codes share no part of the radial solver. From outside, the only accurate
+four-dimensional numbers we have been able to read are correlated variational energies for helium-like ions
+[@escobar2021]. Hartree–Fock (`hf.js`, section 5.12) lies above them by 0.012–0.014 hartree for $Z$ = 2–10, as it must,
+since they include correlation; that is the size and sign of a correlation energy, a consistency check rather than a
+benchmark. A four-dimensional Hartree–Fock limit to test against [@loeser1986hf] is in tables we have not obtained.
 
 **6.3 Our own table.** The same solver, the same law (in ours 1/r is Gauss's) and the same search, run in three
 dimensions, gives 32 of 36 of our measured ground configurations. The four it misses, titanium, vanadium, cobalt and nickel, each take one
 d electron too many against 4s, the known lean of local exchange toward d. The misses have one cause. Moving an electron from 4s into 3d comes out
-too cheap in every 3d atom we can compare (eV, the solver against measured, from memory and still to be checked against NIST's levels [@nist-asd]: Sc 0.14 against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.86, Co −0.35 against 0.43, Ni −1.16 against 0.03), short by 0.35–1.70
-eV and a mean 1.06, always in d's favour. That is local exchange without correlation. Resolving every open
+too cheap in every 3d atom we can compare (eV, the solver against measured: Sc 0.14 against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.87, Co −0.35 against 0.42, Ni −1.16 against −0.03), short by 0.37–1.70
+eV and a mean 1.05, always in d's favour. The measured values are differences of each configuration's lowest
+term, its levels averaged with weights $2J + 1$, from NIST's level tables [@nist-handbook], because the solver has no
+spin–orbit coupling and lands each configuration in its lowest term. Taking the lowest level of each instead moves them
+by at most 0.06 eV and turns nickel's sign (+0.03 rather than −0.03). That is local
+exchange without correlation. Resolving every open
 subshell's whole term structure doesn't remove it. With that correction (the lowest term less the average of the
-maximum-spin arrangements, which is what a spherically averaged field stands for), the bias stays at 1.07 eV and
+maximum-spin arrangements, which is what a spherically averaged field stands for), the bias stays at 1.05 eV and
 the configurations get worse, 26 of 32 against 28 of 32. So the paper corrects only Hund's first rule
 (section 7), the one thing a spin-polarized averaged field cannot represent. Its first ionization energies are off by a
 median 4.3 % and at most 16.2 % (figure A2). That is the accuracy to expect of the 4D table: a method
@@ -33,11 +41,34 @@ of the 4d and 5d blocks, and the two that open row 6's f block with a 5d electro
 or +2 while keeping the outer s (53–56, 58, 61, 81–82, 114–118, 120, 122), as our yttrium and lutetium do (Y⁺ 5s², Lu⁺ 6s²). The same search for anions gives our electron affinities where
 the extra electron is bound by the field and exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against 1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against 3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second). It
 also finds every anion that should be unbound to be unbound: the noble gases, beryllium, magnesium and nitrogen. It
-fails where correlation does the binding (H -0.33 against 0.754, Li -0.08 against 0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In four dimensions, then, an affinity above about 0.7 eV is to
-be believed and a smaller one is not (the measured values are from @rienstra2002).
+fails where correlation does the binding (H -0.33 against 0.754, Li -0.08 against 0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In ours, then, the method's affinities hold above about 0.7 eV
+and not below (the measured values are from @rienstra2002). That is a calibration in our world, not an error bar for
+four dimensions: an affinity near threshold there would need its own checks, a wider radial grid for the extra
+electron, the anion's and the atom's fields both converged, and correlation.
 
 **6.5 Numbers.** Tightening the solver's stop or changing its grid moves no ionization energy by a millihartree
 (section 5 and appendix C).
+
+**6.6 A second method.** Hartree–Fock (section 5.12) on the same candidates gets 36 of 36 ground
+configurations of ours right, against local exchange's 32. The two agree on 32, and every one of those is
+right; they differ on Ti, V, Co and Ni, and on each of these Hartree–Fock is right. The promotion of a 4s electron
+into 3d shows what each method does, against the same measured centroids as section 6.3 (eV, error of local exchange
+and of Hartree–Fock: Sc −1.29/−0.42, Ti −1.70/−0.27, V −2.09/−0.12, Cr −1.73/−0.26, Mn −0.72/+1.19, Fe −0.37/+0.93, Co −0.76/+1.11, Ni −1.13/+1.31, Cu −0.44/+1.12). Local exchange makes d too cheap in all nine. Hartree–Fock makes it a little too
+cheap up to half filling (Sc–Cr, −0.42 to −0.12) and too dear after it (Mn–Cu, 0.93 to 1.31). So the two do not
+bracket the measured value; from scandium to chromium both lie on the same side of it. Their difference is a measure
+of how much an answer depends on the method, not an error bar: neither method bounds the other, and both omit the
+correlation that would move each toward the measured values.
+
+In four dimensions the two agree on 126 of the 140 elements, and these are the table's firm configurations.
+They differ on 14, which are open: 7 in the d rows (30, 31, 37, 38, 40, 58, 61), where local exchange puts one electron
+more in d than Hartree–Fock, as in ours; 5 at the end of row 6's f block (107, 108, 109, 110, 111), where it puts one more
+in f; and 2 at the start of a block (53, 83). For the d rows, ours gives a lean. Before half filling
+(30, 31, 58) Hartree–Fock's error in ours was small and in the same direction as local exchange's, so its
+preference for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08 eV, are inside the volt by which it
+overprices d in ours. Hartree–Fock separates f configurations far more widely than d ones (its margins in the f row are
+2.35 to 5.80 eV), and this paper's table of ours has no f block to test that against. No Hartree–Fock ground
+configuration lies near the edge of the window of candidates, so none is likely to have been missed by the window
+alone. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
 
 ## 7 · Hund's first rule in four dimensions
 
@@ -58,17 +89,18 @@ Cr³⁺, Mn²⁺, Pr³⁺ and Gd³⁺. Over all 23 open subshells of our table, 
 fillings d¹, d³–d¹², d¹⁴, d¹⁵, d¹⁷. The two exceptions are d² and its mirror d¹⁶, in all three d rows: element 26 (3d², 0.40 eV), element 39 (3d¹⁶, 0.77 eV), element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58 eV), element 114 (5d², 0.36 eV), element 126 (5d¹⁶, 0.63 eV). In each the ground
 term is a spin singlet of ten states, and the triplet the solver assumed lies 0.30–0.77 eV above it. In the f block
 4f³ (element 83) fails too, and so does its mirror 4f²⁹ (element 108), three short of a full shell. Both have a
-ground term of spin ½, 0.15 and 0.26 eV below the quartet. Every other f filling keeps the rule. For
-f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was checked; for f⁶–f²⁵ only the highest two or three, because the lower-spin
-blocks run to 10⁶–10⁸ arrangements. There the result is a bound: no lower term among the spins that could be run.
-Two fillings (elements 102 and 106) didn't finish in the runner's time.
+ground term of spin ½, 0.15 and 0.26 eV below the quartet. No other f filling was found to break the rule,
+but the search is not complete. For f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was checked. For f⁶–f²⁵ only the highest two
+or three were, because the lower-spin blocks run to 10⁶–10⁸ arrangements; there the result is a bound, no lower term
+among the spins that could be run. Two fillings (elements 102 and 106) didn't finish in the runner's time.
 
 **7.3 Why it fails.** It isn't the law. On element 26's own orbital Gauss's $1/r^2$ gives the same order, with the
 singlet 0.82 eV below the triplet, against 0.40 eV under $1/r$; the pinned law makes the failure smaller,
 not larger. The cause is the shell itself. Four-dimensional d orbitals form the representation (1,1) of SO(4) ≅
 SU(2) × SU(2)/ℤ₂. Two electrons in them make spatially symmetric states (2,2) ⊕ (2,0) ⊕ (0,2) ⊕ (1,1) ⊕ (0,0), all spin
 singlets (25, 10, 9 and 1 states), and antisymmetric ones (2,1) ⊕ (1,2) ⊕ (1,0) ⊕ (0,1), triplets (30 and 6). The
-singlet that comes lowest is the ten-state (2,0) ⊕ (0,2). For two electrons in a d subshell each term's energy is
+singlet that comes lowest is the ten-state (2,0) ⊕ (0,2): two irreducible representations of SO(4), exchanged by a
+reflection, so a single level once reflections are counted. For two electrons in a d subshell each term's energy is
 exactly $F^0 + a_2F^2 + a_4F^4$. The $F^n$ are the radial parts of the repulsion and depend on the orbital. The
 $a_n = \langle C_n(\cos\gamma)\rangle$ over the term ($\gamma$ is the angle between the two electrons seen from the
 nucleus) depend only on the term. $a_2$ measures how much the term lets the electrons line up along a common axis. The
@@ -82,6 +114,14 @@ rule; four-dimensional space gives paired spins a way to stay apart that is bett
 rotation splits into a left and a right half, and a d orbital carries one unit of each. The singlet adds the two
 electrons' left halves and cancels their right ones, or the other way round. Three-dimensional rotations don't split,
 so ours has no such state. An interactive version is at four.mino.mobi/atom/hund.html.
+
+What this establishes is narrower than a whole-atom ground term. The term energies are computed within one subshell on
+the atom's own maximum-spin orbital, which is neither relaxed term by term nor correlated beyond the subshell, and the
+correction they give the table (section 7.4) is first order. The inversion holds under both laws tested, and for any
+orbital whose $F^4/F^2$ is below 5/3. Hund's first rule has been studied away from three dimensions, in
+two-dimensional helium-like atoms and quantum dots [@sako2012; @sako2010] and by dimensional scaling [@gonzalez1991],
+and two-electron matrix elements for hydrogenic d² and f² pairs have been derived for any $D$ [@summerfield1999]. We
+have not been able to read the last two in full, and none of the sources we could read states this inversion.
 
 **7.4 What it does to the table.** Where the rule fails, the solver's energy for that configuration is the
 maximum-spin state's, too high by the gap. The table in section 8 corrects that. Every d- and f-block element
@@ -104,7 +144,7 @@ configuration with a competitor holding fewer d and f electrons within a volt of
 element 140), and its noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the first ionization energy (figures
 2 and 3). Those are the rows the generalized Madelung rule of @negadi1996 gives when it is applied to four
 dimensions, which they stated for any dimension and worked out for two. To our knowledge this is the first
-self-consistent table that confirms them. The rule is a filling order. It builds the table's skeleton of rows and
+self-consistent table that confirms them in four dimensions. The rule is a filling order. It builds the table's skeleton of rows and
 blocks, which is how figure 2 is drawn. Like Madelung's rule in ours, it doesn't promise each
 atom's ground configuration, and ours has exceptions to it, chromium and copper the first of about twenty. Read
 that way, 103 of the 140 ground configurations are exactly the rule's. Each of the other 37 moves one

@@ -297,11 +297,23 @@
    "id": "promotion",
    "part": "table",
    "claim": "In ours the solver's misses have one cause, a bias toward d: moving a 4s electron into 3d comes out too cheap in every 3d atom measured, by about a volt; resolving the open subshells' whole term structure doesn't remove it, and gets fewer configurations right",
-   "value": "4s→3d, solver against measured (eV): Sc 0.138 vs 1.43, Ti -0.894 vs 0.81, Fe 0.509 vs 0.86, Co -0.346 vs 0.43, Ni -1.155 vs 0.03; mean error -1.062, with the full term correction -1.066; configurations right 28 (bake) and 26 (full correction) of 32",
+   "value": "4s→3d, solver against measured (eV): Sc 0.138 vs 1.4269, Ti -0.894 vs 0.8058, Fe 0.509 vs 0.8749, Co -0.346 vs 0.4171, Ni -1.155 vs -0.0298; mean error -1.048, with the full term correction -1.052; configurations right 28 (bake) and 26 (full correction) of 32",
    "holds": true,
    "section": "6",
    "gate": [
     67
+   ]
+  },
+  {
+   "id": "hfcheck",
+   "part": "table",
+   "claim": "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
+   "value": "ours: Hartree–Fock 36, local exchange 32 of 36; agree 32, right 32; 4s→3d errors (local exchange/Hartree–Fock) Sc −1.29/−0.42, Ti −1.70/−0.27, V −2.09/−0.12, Cr −1.73/−0.26, Mn −0.72/+1.19, Fe −0.37/+0.93, Co −0.76/+1.11, Ni −1.13/+1.31, Cu −0.44/+1.12; 4D: agree 126 of 140, open 30, 31, 37, 38, 40, 58, 61 (d), 107, 108, 109, 110, 111 (f), 53, 83",
+   "holds": true,
+   "section": "6.6",
+   "gate": [
+    67,
+    71
    ]
   },
   {

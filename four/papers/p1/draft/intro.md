@@ -15,8 +15,14 @@ They needn't. The literature on the hydrogen atom in $D$ dimensions [@nieto1979;
 scaling [@herschbach1992; @loeser1986hf; @loeser1986hp; @ghosh2020] keeps the potential at $1/r$ in every $D$,
 mostly as a convention that keeps the problem solvable. With it, hydrogen has a Bohr radius in any dimension. @negadi1996 used the $D$-dimensional hydrogen atom to extend Madelung's filling rule [@madelung1936] to any
 dimension and worked it out for two. Applied to four, their rule gives rows of 2, 10, 10, 28, 28, 60. @pyykko1991 solved the atoms of a
-two-dimensional world self-consistently. To our knowledge no one has solved the atoms of a four-dimensional one, nor
-asked what the choice of $1/r$ itself does to them.
+two-dimensional world self-consistently, by Hartree–Fock for $Z$ = 1–24. Above three dimensions there are
+self-consistent atoms too, but not a table: Hartree–Fock for two-electron atoms in any $D$ [@loeser1986hf], the
+Thomas–Fermi atom in $n$ dimensions [@kventsel1981], and many-electron models built from the limit of large $D$
+[@loeser1987atomic; @loeser1994]. To our knowledge this paper is the first shell-resolved self-consistent survey of the
+neutral atoms through $Z = 140$ in four Euclidean dimensions, for a pairwise $1/r$ interaction and electrons with two
+spin states. Its approximations are stated with it: spherical subshells, local exchange, no correlation, and a
+first-order correction for the open subshells' terms (section 5), cross-checked by Hartree–Fock (section 6.6). Nor, to
+our knowledge, has anyone asked what the choice of $1/r$ itself does to the atoms.
 
 This paper does both. Part I treats the law as a choice. It shows why one has to be made (section 2), why $1/r$ exactly
 (section 3), and what it costs in four dimensions (section 4). Part II solves every neutral atom to $Z = 140$ under it
@@ -27,5 +33,5 @@ shell theorem forced back on (section 9), and follows the law into partial scree
 neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of 33 claims. The code, the data and the paper's own making are public at
+against a ledger of 34 claims. The code, the data and the paper's own making are public at
 four.mino.mobi/papers.

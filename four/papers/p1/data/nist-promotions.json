@@ -1,0 +1,740 @@
+{
+ "about": "From paper 1's independent literature audit (Astra, 8 November 2026): NIST's Handbook of Basic Atomic Spectroscopic Data (refs.json nist-handbook), its neutral-atom level tables for Sc–Cu, extracted level by level with each level's reference code. Read by promotion-collect.mjs; do not edit.",
+ "definition": "Signed promotion E(3d^(n+1) 4s) - E(3d^n 4s^2), neutral Sc I through Cu I, [Ar] core omitted.",
+ "source": "NIST Handbook of Basic Atomic Spectroscopic Data, online neutral-atom level tables. A fresh ASD CGI query returned HTTP 403; these are not represented as a fresh ASD export.",
+ "centroid_definition": "Sum (2J+1) E_J / sum (2J+1), within each configuration's lowest listed LS term. These are NOT averages over all terms of a configuration.",
+ "conversion_eV_per_cm1": 0.00012398419843320026,
+ "records": [
+  {
+   "element": "Sc",
+   "from_state": {
+    "configuration": "3d4s2",
+    "term": "2D",
+    "lowest_J": "3/2",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 101.00399999999999,
+    "levels": [
+     {
+      "configuration": "3d4s2",
+      "term": "2D",
+      "J": "3/2",
+      "energy_cm1": 0.0,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d4s2",
+      "term": "2D",
+      "J": "5/2",
+      "energy_cm1": 168.34,
+      "reference": "SC85"
+     }
+    ],
+    "reference_codes": [
+     "SC85"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d24s",
+    "term": "4F",
+    "lowest_J": "3/2",
+    "lowest_cm1": 11519.99,
+    "term_centroid_cm1": 11610.076428571429,
+    "levels": [
+     {
+      "configuration": "3d2(3F)4s",
+      "term": "4F",
+      "J": "3/2",
+      "energy_cm1": 11519.99,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d2(3F)4s",
+      "term": "4F",
+      "J": "5/2",
+      "energy_cm1": 11557.69,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d2(3F)4s",
+      "term": "4F",
+      "J": "7/2",
+      "energy_cm1": 11610.28,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d2(3F)4s",
+      "term": "4F",
+      "J": "9/2",
+      "energy_cm1": 11677.38,
+      "reference": "SC85"
+     }
+    ],
+    "reference_codes": [
+     "SC85"
+    ]
+   },
+   "delta_lowest_cm1": 11519.99,
+   "delta_lowest_eV": 1.4282967261084827,
+   "delta_lowest_term_centroid_cm1": 11509.072428571428,
+   "delta_lowest_term_centroid_eV": 1.426943119766074,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/scandiumtable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "Ti",
+   "from_state": {
+    "configuration": "3d24s2",
+    "term": "a 3F",
+    "lowest_J": "2",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 222.51490476190477,
+    "levels": [
+     {
+      "configuration": "3d24s2",
+      "term": "a 3F",
+      "J": "2",
+      "energy_cm1": 0.0,
+      "reference": "F91"
+     },
+     {
+      "configuration": "3d24s2",
+      "term": "a 3F",
+      "J": "3",
+      "energy_cm1": 170.134,
+      "reference": "F91"
+     },
+     {
+      "configuration": "3d24s2",
+      "term": "a 3F",
+      "J": "4",
+      "energy_cm1": 386.875,
+      "reference": "F91"
+     }
+    ],
+    "reference_codes": [
+     "F91"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d34s",
+    "term": "a 5F",
+    "lowest_J": "1",
+    "lowest_cm1": 6556.833,
+    "term_centroid_cm1": 6721.393057142857,
+    "levels": [
+     {
+      "configuration": "3d3(4F)4s",
+      "term": "a 5F",
+      "J": "1",
+      "energy_cm1": 6556.833,
+      "reference": "F91"
+     },
+     {
+      "configuration": "3d3(4F)4s",
+      "term": "a 5F",
+      "J": "2",
+      "energy_cm1": 6598.764,
+      "reference": "F91"
+     },
+     {
+      "configuration": "3d3(4F)4s",
+      "term": "a 5F",
+      "J": "3",
+      "energy_cm1": 6661.004,
+      "reference": "F91"
+     },
+     {
+      "configuration": "3d3(4F)4s",
+      "term": "a 5F",
+      "J": "4",
+      "energy_cm1": 6742.755,
+      "reference": "F91"
+     },
+     {
+      "configuration": "3d3(4F)4s",
+      "term": "a 5F",
+      "J": "5",
+      "energy_cm1": 6842.965,
+      "reference": "F91"
+     }
+    ],
+    "reference_codes": [
+     "F91"
+    ]
+   },
+   "delta_lowest_cm1": 6556.833,
+   "delta_lowest_eV": 0.8129436837653558,
+   "delta_lowest_term_centroid_cm1": 6498.878152380952,
+   "delta_lowest_term_centroid_eV": 0.8057581984379899,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/titaniumtable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "V",
+   "from_state": {
+    "configuration": "3d34s2",
+    "term": "a 4F",
+    "lowest_J": "3/2",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 319.34142857142854,
+    "levels": [
+     {
+      "configuration": "3d34s2",
+      "term": "a 4F",
+      "J": "3/2",
+      "energy_cm1": 0.0,
+      "reference": "DA78"
+     },
+     {
+      "configuration": "3d34s2",
+      "term": "a 4F",
+      "J": "5/2",
+      "energy_cm1": 137.38,
+      "reference": "DA78"
+     },
+     {
+      "configuration": "3d34s2",
+      "term": "a 4F",
+      "J": "7/2",
+      "energy_cm1": 323.46,
+      "reference": "DA78"
+     },
+     {
+      "configuration": "3d34s2",
+      "term": "a 4F",
+      "J": "9/2",
+      "energy_cm1": 552.96,
+      "reference": "DA78"
+     }
+    ],
+    "reference_codes": [
+     "DA78"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d44s",
+    "term": "a 6D",
+    "lowest_J": "1/2",
+    "lowest_cm1": 2112.28,
+    "term_centroid_cm1": 2296.558,
+    "levels": [
+     {
+      "configuration": "3d4(5D)4s",
+      "term": "a 6D",
+      "J": "1/2",
+      "energy_cm1": 2112.28,
+      "reference": "DA78"
+     },
+     {
+      "configuration": "3d4(5D)4s",
+      "term": "a 6D",
+      "J": "3/2",
+      "energy_cm1": 2153.21,
+      "reference": "DA78"
+     },
+     {
+      "configuration": "3d4(5D)4s",
+      "term": "a 6D",
+      "J": "5/2",
+      "energy_cm1": 2220.11,
+      "reference": "DA78"
+     },
+     {
+      "configuration": "3d4(5D)4s",
+      "term": "a 6D",
+      "J": "7/2",
+      "energy_cm1": 2311.36,
+      "reference": "DA78"
+     },
+     {
+      "configuration": "3d4(5D)4s",
+      "term": "a 6D",
+      "J": "9/2",
+      "energy_cm1": 2424.78,
+      "reference": "DA78"
+     }
+    ],
+    "reference_codes": [
+     "DA78"
+    ]
+   },
+   "delta_lowest_cm1": 2112.28,
+   "delta_lowest_eV": 0.2618893426664803,
+   "delta_lowest_term_centroid_cm1": 1977.2165714285716,
+   "delta_lowest_term_centroid_eV": 0.2451436117374119,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/vanadiumtable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "Cr",
+   "from_state": {
+    "configuration": "3d44s2",
+    "term": "a 5D",
+    "lowest_J": "0",
+    "lowest_cm1": 7750.78,
+    "term_centroid_cm1": 8090.2076,
+    "levels": [
+     {
+      "configuration": "3d44s2",
+      "term": "a 5D",
+      "J": "0",
+      "energy_cm1": 7750.78,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d44s2",
+      "term": "a 5D",
+      "J": "1",
+      "energy_cm1": 7810.82,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d44s2",
+      "term": "a 5D",
+      "J": "2",
+      "energy_cm1": 7927.47,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d44s2",
+      "term": "a 5D",
+      "J": "3",
+      "energy_cm1": 8095.21,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d44s2",
+      "term": "a 5D",
+      "J": "4",
+      "energy_cm1": 8307.57,
+      "reference": "SC85"
+     }
+    ],
+    "reference_codes": [
+     "SC85"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d54s",
+    "term": "a 7S",
+    "lowest_J": "3",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 0.0,
+    "levels": [
+     {
+      "configuration": "3d5(6S)4s",
+      "term": "a 7S",
+      "J": "3",
+      "energy_cm1": 0.0,
+      "reference": "SC85"
+     }
+    ],
+    "reference_codes": [
+     "SC85"
+    ]
+   },
+   "delta_lowest_cm1": -7750.78,
+   "delta_lowest_eV": -0.9609742455320799,
+   "delta_lowest_term_centroid_cm1": -8090.2076,
+   "delta_lowest_term_centroid_eV": -1.0030579044441847,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/chromiumtable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "Mn",
+   "from_state": {
+    "configuration": "3d54s2",
+    "term": "a 6S",
+    "lowest_J": "5/2",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 0.0,
+    "levels": [
+     {
+      "configuration": "3d54s2",
+      "term": "a 6S",
+      "J": "5/2",
+      "energy_cm1": 0.0,
+      "reference": "SC85"
+     }
+    ],
+    "reference_codes": [
+     "SC85"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d64s",
+    "term": "a 6D",
+    "lowest_J": "9/2",
+    "lowest_cm1": 17052.29,
+    "term_centroid_cm1": 17301.208,
+    "levels": [
+     {
+      "configuration": "3d6(5D)4s",
+      "term": "a 6D",
+      "J": "9/2",
+      "energy_cm1": 17052.29,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d6(5D)4s",
+      "term": "a 6D",
+      "J": "7/2",
+      "energy_cm1": 17282.0,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d6(5D)4s",
+      "term": "a 6D",
+      "J": "5/2",
+      "energy_cm1": 17451.52,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d6(5D)4s",
+      "term": "a 6D",
+      "J": "3/2",
+      "energy_cm1": 17568.48,
+      "reference": "SC85"
+     },
+     {
+      "configuration": "3d6(5D)4s",
+      "term": "a 6D",
+      "J": "1/2",
+      "energy_cm1": 17637.15,
+      "reference": "SC85"
+     }
+    ],
+    "reference_codes": [
+     "SC85"
+    ]
+   },
+   "delta_lowest_cm1": 17052.29,
+   "delta_lowest_eV": 2.1142145071004768,
+   "delta_lowest_term_centroid_cm1": 17301.208,
+   "delta_lowest_term_centroid_eV": 2.145076405806072,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/manganesetable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "Fe",
+   "from_state": {
+    "configuration": "3d64s2",
+    "term": "a 5D",
+    "lowest_J": "4",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 402.96144,
+    "levels": [
+     {
+      "configuration": "3d64s2",
+      "term": "a 5D",
+      "J": "4",
+      "energy_cm1": 0.0,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d64s2",
+      "term": "a 5D",
+      "J": "3",
+      "energy_cm1": 415.933,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d64s2",
+      "term": "a 5D",
+      "J": "2",
+      "energy_cm1": 704.007,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d64s2",
+      "term": "a 5D",
+      "J": "1",
+      "energy_cm1": 888.132,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d64s2",
+      "term": "a 5D",
+      "J": "0",
+      "energy_cm1": 978.074,
+      "reference": "NJLT94"
+     }
+    ],
+    "reference_codes": [
+     "NJLT94"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d74s",
+    "term": "a 5F",
+    "lowest_J": "5",
+    "lowest_cm1": 6928.268,
+    "term_centroid_cm1": 7459.751314285714,
+    "levels": [
+     {
+      "configuration": "3d7(4F)4s",
+      "term": "a 5F",
+      "J": "5",
+      "energy_cm1": 6928.268,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d7(4F)4s",
+      "term": "a 5F",
+      "J": "4",
+      "energy_cm1": 7376.764,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d7(4F)4s",
+      "term": "a 5F",
+      "J": "3",
+      "energy_cm1": 7728.059,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d7(4F)4s",
+      "term": "a 5F",
+      "J": "2",
+      "energy_cm1": 7985.784,
+      "reference": "NJLT94"
+     },
+     {
+      "configuration": "3d7(4F)4s",
+      "term": "a 5F",
+      "J": "1",
+      "energy_cm1": 8154.713,
+      "reference": "NJLT94"
+     }
+    ],
+    "reference_codes": [
+     "NJLT94"
+    ]
+   },
+   "delta_lowest_cm1": 6928.268,
+   "delta_lowest_eV": 0.8589957545103916,
+   "delta_lowest_term_centroid_cm1": 7056.789874285714,
+   "delta_lowest_term_centroid_eV": 0.8749304360748383,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/irontable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "Co",
+   "from_state": {
+    "configuration": "3d74s2",
+    "term": "a 4F",
+    "lowest_J": "9/2",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 793.0844285714286,
+    "levels": [
+     {
+      "configuration": "3d74s2",
+      "term": "a 4F",
+      "J": "9/2",
+      "energy_cm1": 0.0,
+      "reference": "PT96"
+     },
+     {
+      "configuration": "3d74s2",
+      "term": "a 4F",
+      "J": "7/2",
+      "energy_cm1": 816.0,
+      "reference": "PT96"
+     },
+     {
+      "configuration": "3d74s2",
+      "term": "a 4F",
+      "J": "5/2",
+      "energy_cm1": 1406.852,
+      "reference": "PT96"
+     },
+     {
+      "configuration": "3d74s2",
+      "term": "a 4F",
+      "J": "3/2",
+      "energy_cm1": 1809.313,
+      "reference": "PT96"
+     }
+    ],
+    "reference_codes": [
+     "PT96"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d84s",
+    "term": "b 4F",
+    "lowest_J": "9/2",
+    "lowest_cm1": 3482.78,
+    "term_centroid_cm1": 4157.601642857143,
+    "levels": [
+     {
+      "configuration": "3d8(3F)4s",
+      "term": "b 4F",
+      "J": "9/2",
+      "energy_cm1": 3482.78,
+      "reference": "PT96"
+     },
+     {
+      "configuration": "3d8(3F)4s",
+      "term": "b 4F",
+      "J": "7/2",
+      "energy_cm1": 4142.631,
+      "reference": "PT96"
+     },
+     {
+      "configuration": "3d8(3F)4s",
+      "term": "b 4F",
+      "J": "5/2",
+      "energy_cm1": 4690.141,
+      "reference": "PT96"
+     },
+     {
+      "configuration": "3d8(3F)4s",
+      "term": "b 4F",
+      "J": "3/2",
+      "energy_cm1": 5075.788,
+      "reference": "PT96"
+     }
+    ],
+    "reference_codes": [
+     "PT96"
+    ]
+   },
+   "delta_lowest_cm1": 3482.78,
+   "delta_lowest_eV": 0.43180968661918123,
+   "delta_lowest_term_centroid_cm1": 3364.5172142857145,
+   "delta_lowest_term_centroid_eV": 0.4171469699279182,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/cobalttable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "Ni",
+   "from_state": {
+    "configuration": "3d84s2",
+    "term": "3F",
+    "lowest_J": "4",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 971.8046666666667,
+    "levels": [
+     {
+      "configuration": "3d8(3F)4s2",
+      "term": "3F",
+      "J": "4",
+      "energy_cm1": 0.0,
+      "reference": "LBT93"
+     },
+     {
+      "configuration": "3d8(3F)4s2",
+      "term": "3F",
+      "J": "3",
+      "energy_cm1": 1332.164,
+      "reference": "LBT93"
+     },
+     {
+      "configuration": "3d8(3F)4s2",
+      "term": "3F",
+      "J": "2",
+      "energy_cm1": 2216.55,
+      "reference": "LBT93"
+     }
+    ],
+    "reference_codes": [
+     "LBT93"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d94s",
+    "term": "3D",
+    "lowest_J": "3",
+    "lowest_cm1": 204.787,
+    "term_centroid_cm1": 731.4566666666667,
+    "levels": [
+     {
+      "configuration": "3d9(2D)4s",
+      "term": "3D",
+      "J": "3",
+      "energy_cm1": 204.787,
+      "reference": "LBT93"
+     },
+     {
+      "configuration": "3d9(2D)4s",
+      "term": "3D",
+      "J": "2",
+      "energy_cm1": 879.816,
+      "reference": "LBT93"
+     },
+     {
+      "configuration": "3d9(2D)4s",
+      "term": "3D",
+      "J": "1",
+      "energy_cm1": 1713.087,
+      "reference": "LBT93"
+     }
+    ],
+    "reference_codes": [
+     "LBT93"
+    ]
+   },
+   "delta_lowest_cm1": 204.787,
+   "delta_lowest_eV": 0.025390352044539783,
+   "delta_lowest_term_centroid_cm1": -240.34799999999996,
+   "delta_lowest_term_centroid_eV": -0.02979935412502281,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/nickeltable5.htm",
+   "retrieved": "2026-11-08"
+  },
+  {
+   "element": "Cu",
+   "from_state": {
+    "configuration": "3d94s2",
+    "term": "2D",
+    "lowest_J": "5/2",
+    "lowest_cm1": 11202.565,
+    "term_centroid_cm1": 12019.7082,
+    "levels": [
+     {
+      "configuration": "3d94s2",
+      "term": "2D",
+      "J": "5/2",
+      "energy_cm1": 11202.565,
+      "reference": "SM90"
+     },
+     {
+      "configuration": "3d94s2",
+      "term": "2D",
+      "J": "3/2",
+      "energy_cm1": 13245.423,
+      "reference": "SM90"
+     }
+    ],
+    "reference_codes": [
+     "SM90"
+    ]
+   },
+   "to_state": {
+    "configuration": "3d104s",
+    "term": "2S",
+    "lowest_J": "1/2",
+    "lowest_cm1": 0.0,
+    "term_centroid_cm1": 0.0,
+    "levels": [
+     {
+      "configuration": "3d10(1S)4s",
+      "term": "2S",
+      "J": "1/2",
+      "energy_cm1": 0.0,
+      "reference": "SM90"
+     }
+    ],
+    "reference_codes": [
+     "SM90"
+    ]
+   },
+   "delta_lowest_cm1": -11202.565,
+   "delta_lowest_eV": -1.3889410419208241,
+   "delta_lowest_term_centroid_cm1": -12019.7082,
+   "delta_lowest_term_centroid_eV": -1.4902538865779642,
+   "source_url": "https://physics.nist.gov/PhysRefData/Handbook/Tables/coppertable5.htm",
+   "retrieved": "2026-11-08"
+  }
+ ]
+}

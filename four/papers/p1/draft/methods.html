@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="7b657ebeaaff1e417b2f3bac2c9adf9886edd02dd2e845b239f2cf59c1ae2d50" />
+<meta name="source-sha256" content="e0667b1937def6dffeb248143c164ba179d3e425d682701b3c81e86eccbfa4d2" />
 <title>Paper 1 · Methods (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -126,7 +126,22 @@ orbital’s cloud, the exchange term by the fully polarized exchange of
 that orbital alone, in the manner of the self-interaction correction of
 <span class="citation" data-cites="perdew1981">Perdew and Zunger (<a
 href="#ref-perdew1981" role="doc-biblioref">1981</a>)</span>. There is
-no correlation term.</p>
+no correlation term. That is an omission, not a gap in what is known:
+the arbitrary-dimensional exchange is old <span class="citation"
+data-cites="glasser1983">(<a href="#ref-glasser1983"
+role="doc-biblioref">Glasser and Boersma 1983</a>)</span>, and the
+correlation of the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+electron gas has been computed in any dimension, four included, by the
+random-phase approximation <span class="citation"
+data-cites="schlesier2020">(<a href="#ref-schlesier2020"
+role="doc-biblioref">Schlesier, Benavides-Riveros, and Marques
+2020</a>)</span> and beyond it <span class="citation"
+data-cites="pham2023">(<a href="#ref-pham2023" role="doc-biblioref">Duc
+Pham et al. 2023</a>)</span>. We have not implemented or tested a
+four-dimensional correlation functional; the later paper’s numbers carry
+a correction to the earlier one’s coefficients that would have to be
+settled first.</p>
 <p><strong>5.5 Solving one configuration.</strong> The radial equation
 is solved on a logarithmic grid of 700 points from
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>r</mi><mn>0</mn></msub><annotation encoding="application/x-tex">r_0</annotation></semantics></math>
@@ -256,15 +271,50 @@ on any grid and, above it, a lowest level that scales as
 it gives the splittings within each shell (section 3.1). Its check is 4D
 hydrogen: −0.22222222 against
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>.</p>
-<p><strong>5.12 Checks.</strong> Every method above has a known-answer
+<p><strong>5.12 A second method: Hartree–Fock.</strong> To see which
+configurations depend on the choice of method, every element is solved a
+second way, by numerical Hartree–Fock (<code>hf.js</code>): one radial
+function per subshell on its own logarithmic grid, exact exchange
+instead of local exchange, and the energy the average over the
+subshells’ maximum-spin arrangements, to which each open subshell’s
+whole term correction (its lowest term less that average, section 5.9’s
+machinery on the Hartree–Fock orbitals) is added. Exchange between
+subshells is expanded in the Gegenbauer coefficients of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝐱</mi><mo>−</mo><mi>𝐲</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">1/|\mathbf x - \mathbf y|</annotation></semantics></math>,
+each radial kernel a convolution on the logarithmic grid; in four
+dimensions the coefficients are tabulated by quadrature,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>0</mn></msub><annotation encoding="application/x-tex">a_0</annotation></semantics></math>
+being the shell kernel
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>.
+The candidates are the local-exchange search’s settled configurations
+within 4 eV of its ground, so both methods rank the same set. A
+configuration with an empty subshell below an occupied one of the same
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
+(sodium’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><msup><mi>s</mi><mn>1</mn></msup></mrow><annotation encoding="application/x-tex">4s^1</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>s</mi></mrow><annotation encoding="application/x-tex">3s</annotation></semantics></math>
+empty) is left out of the Hartree–Fock ranking: the variational solve
+drops the electron into the empty lower subshell and returns the compact
+configuration’s energy under the other name. The energies carry an
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>h</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(h^2)</annotation></semantics></math>
+error from the kernel’s kink at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>r</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">r = r&#39;</annotation></semantics></math>,
+so absolute energies are extrapolated from steps 0.02 and 0.01;
+differences converge at 0.02, where the ranking is done. Checks (block
+71): our He, Ne, N ⁴S, C ³P and Fe ⁵D against the numerical Hartree–Fock
+limits to 2 × 10⁻⁵ hartree, and four-dimensional closed shells against
+the Gaussian code.</p>
+<p><strong>5.13 Checks.</strong> Every method above has a known-answer
 test in the selftest, run on every change: hydrogen in both worlds
 (block 1), the radial solver (2), the kernel against direct integration
 (3), exchange against the electron-gas constants (4, 18), the ground
 search (5, 7), two-electron atoms against an independent Gaussian
 Hartree–Fock code in four dimensions and MP2 against PySCF in ours (17,
-43), our table against measured values (6: 32 of 36 configurations;
-ionization to a 4.3 % median error), and this paper’s own claims
-recomputed from the bake (67).</p>
+43), Hartree–Fock against its known limits (71), our table against
+measured values (6: 32 of 36 configurations; ionization to a 4.3 %
+median error), and this paper’s own claims recomputed from the bake
+(67).</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">
@@ -274,6 +324,19 @@ of Calculation for the Stationary States of Any Molecular
 System.”</span> <em>Proceedings of the Royal Society of London. Series
 A. Mathematical and Physical Sciences</em> 200 (1063): 542–54. <a
 href="https://doi.org/10.1098/rspa.1950.0036">https://doi.org/10.1098/rspa.1950.0036</a>.
+</div>
+<div id="ref-pham2023" class="csl-entry" role="listitem">
+Duc Pham, L V, Pascal Sattler, Miguel A L Marques, and Carlos L
+Benavides-Riveros. 2023. <span>“Homogeneous Electron Liquid in Arbitrary
+Dimensions Beyond the Random Phase Approximation.”</span> <em>New
+Journal of Physics</em> 25 (8): 083040. <a
+href="https://doi.org/10.1088/1367-2630/acef4c">https://doi.org/10.1088/1367-2630/acef4c</a>.
+</div>
+<div id="ref-glasser1983" class="csl-entry" role="listitem">
+Glasser, M. L., and J. Boersma. 1983. <span>“Exchange Energy of an
+Electron Gas of Arbitrary Dimensionality.”</span> <em>SIAM Journal on
+Applied Mathematics</em> 43 (3): 535–45. <a
+href="https://doi.org/10.1137/0143034">https://doi.org/10.1137/0143034</a>.
 </div>
 <div id="ref-loos2016" class="csl-entry" role="listitem">
 Loos, Pierre‐François, and Peter M. W. Gill. 2016. <span>“The Uniform
@@ -292,6 +355,12 @@ Perdew, J. P., and Alex Zunger. 1981. <span>“Self-Interaction Correction
 to Density-Functional Approximations for Many-Electron Systems.”</span>
 <em>Physical Review B</em> 23 (10): 5048–79. <a
 href="https://doi.org/10.1103/PhysRevB.23.5048">https://doi.org/10.1103/PhysRevB.23.5048</a>.
+</div>
+<div id="ref-schlesier2020" class="csl-entry" role="listitem">
+Schlesier, Robert, Carlos L. Benavides-Riveros, and Miguel A. L.
+Marques. 2020. <span>“Homogeneous Electron Gas in Arbitrary
+Dimensions.”</span> <em>Physical Review B</em> 102 (3): 035123. <a
+href="https://doi.org/10.1103/physrevb.102.035123">https://doi.org/10.1103/physrevb.102.035123</a>.
 </div>
 <div id="ref-sun2018" class="csl-entry" role="listitem">
 Sun, Qiming, Timothy C. Berkelbach, Nick S. Blunt, George H. Booth,

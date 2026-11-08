@@ -36,6 +36,7 @@ const norm = (c) => c.split(" ").sort().join(" "); // configurations compared as
    again carry their corrected configuration, energy and ionization; the rest are the bake's. hundspin: the bake alone
    (supplement S1) */
 const TERM = new Map(JSON.parse(readFileSync(join(HERE, "data/termtable.json"), "utf8")).rows.map((r) => [r.Z, r]));
+const HFT = JSON.parse(readFileSync(join(HERE, "data/hftable.json"), "utf8")); // the Hartree–Fock cross-check (hf-collect.mjs)
 const IONS = JSON.parse(readFileSync(join(HERE, "data/ions.json"), "utf8")).rows; // the ions' own ground states (ions-collect.mjs): electron affinities, and the ionizations folded into termtable.json
 const NIST_IE = JSON.parse(readFileSync(join(HERE, "data/nist-ie.json"), "utf8")).rows; // NIST ASD ionization energies, H–Kr (retrieved 2026-11-08)
 /* the ions' ladder (runner runs ions-1, ions-23): ours' second and third ionizations against NIST, and in 4D which
@@ -190,6 +191,30 @@ export function cslRefs(refs = JSON.parse(readFileSync(join(HERE, "refs.json"), 
     return e;
   });
 }
+/* section 6.6: Hartree–Fock against local exchange. A 4D disagreement is a d-row one when local exchange has one more d
+   electron and one fewer s, f-row likewise with f, else it opens a block; a d-row one is early when local exchange's
+   d count is at most half the shell (18 in 4D), where ours' Hartree–Fock erred little (Sc–Cr) */
+export function hfTokens(H = HFT) {
+  const S = H.summary, occ = (c) => Object.fromEntries(c.split(" ").map((t) => { const m = t.match(/^(\d+[a-z])(\d+)$/); return [m[1], +m[2]]; }));
+  const kind = (r) => { const a = occ(r.lda), b = occ(r.hf), d = {}; for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const v = (a[k] || 0) - (b[k] || 0); if (v) d[k] = v; }
+    const up = Object.entries(d).filter(([, v]) => v > 0), dn = Object.entries(d).filter(([, v]) => v < 0);
+    if (up.length === 1 && dn.length === 1 && up[0][1] === 1 && dn[0][0].endsWith("s")) { const l = up[0][0].slice(-1); if (l === "d" || l === "f") return { l, shell: up[0][0], n: a[up[0][0]] }; }
+    return { l: "o" }; };
+  const rows4 = H.rows.filter((r) => r.D === 4 && !r.missing && !r.unsettled), diff = rows4.filter((r) => !r.agree).map((r) => ({ ...r, k: kind(r) }));
+  const dR = diff.filter((r) => r.k.l === "d"), fR = diff.filter((r) => r.k.l === "f"), oR = diff.filter((r) => r.k.l === "o");
+  const early = dR.filter((r) => r.k.n <= 9), late = dR.filter((r) => r.k.n > 9), rng = (v) => `${Math.min(...v).toFixed(2)} to ${Math.max(...v).toFixed(2)}`.replace(/-/g, "−");
+  const sgn = (v) => (v < 0 ? "−" : "+") + Math.abs(v).toFixed(2), P = S.promotion3.filter((x) => !x.missing), list = (a) => a.map((r) => r.Z).join(", ");
+  const SYMS = S.ours.differ.map((d) => SYM[d.Z - 1]);
+  return {
+    "hf.window": "4", "hf.oursHf": `${S.ours.hfRight} of ${S.ours.n}`, "hf.oursLda": String(S.ours.ldaRight), "hf.oursAgree": String(S.ours.agree),
+    "hf.oursDiffer": SYMS.length > 1 ? `${SYMS.slice(0, -1).join(", ")} and ${SYMS.at(-1)}` : SYMS.join(""),
+    "hf.promList": P.map((x) => `${x.symbol} ${sgn(x.ldaError_eV)}/${sgn(x.hfError_eV)}`).join(", "),
+    "hf.hfEarly": rng(P.filter((x) => x.Z <= 24).map((x) => x.hfError_eV)), "hf.hfLate": rng(P.filter((x) => x.Z >= 25).map((x) => x.hfError_eV)),
+    "hf.4agree": String(S.fourD.agree), "hf.4n": String(diff.length), "hf.4dN": String(dR.length), "hf.4fN": String(fR.length), "hf.4oN": String(oR.length),
+    "hf.4d": list(dR), "hf.4f": list(fR), "hf.4o": list(oR), "hf.4dEarly": list(early), "hf.4dLate": list(late),
+    "hf.4dLateM": rng(late.map((r) => r.hfMargin_eV)), "hf.4fM": rng(fR.map((r) => r.hfMargin_eV)),
+  };
+}
 const citedKeys = (t) => new Set([...t.replace(/<!--[\s\S]*?-->/g, "").matchAll(/(?<![\w.])-?@([a-z][\w-]*\d{4}[a-z]*|[a-z]+-[a-z-]+)/gi)].map((m) => m[1]));
 
 /* Négadi & Kibler's generalized Madelung rule for D dimensions: subshells fill in order of n + l (then n), each holding
@@ -321,6 +346,11 @@ function ledger(t3, t4, files, refs) {
       return { id: "promotion", part: "table", claim: "In ours the solver's misses have one cause, a bias toward d: moving a 4s electron into 3d comes out too cheap in every 3d atom measured, by about a volt; resolving the open subshells' whole term structure doesn't remove it, and gets fewer configurations right",
         value: `4s→3d, solver against measured (eV): ${ok.map((x) => `${x.symbol} ${x.solver_eV} vs ${x.measured_eV}`).join(", ")}; mean error ${P.solverMeanError_eV}, with the full term correction ${P.fullMeanError_eV}; configurations right ${P.configs.bake} (bake) and ${P.configs.fullCorrection} (full correction) of ${P.configs.elements}`,
         holds: ok.length >= 5 && ok.every((x) => x.solverError_eV < 0) && P.fullMeanAbs_eV >= P.solverMeanAbs_eV - 0.05 && P.configs.fullCorrection < P.configs.bake, section: "6", gate: [67] }; })(),
+    (() => { const S = HFT.summary, T = hfTokens(), P = S.promotion3.filter((x) => !x.missing);
+      return { id: "hfcheck", part: "table", claim: "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
+        value: `ours: Hartree–Fock ${S.ours.hfRight}, local exchange ${S.ours.ldaRight} of ${S.ours.n}; agree ${S.ours.agree}, right ${S.ours.agreeRight}; 4s→3d errors (local exchange/Hartree–Fock) ${T["hf.promList"]}; 4D: agree ${S.fourD.agree} of ${S.fourD.n}, open ${T["hf.4d"]} (d), ${T["hf.4f"]} (f), ${T["hf.4o"]}`,
+        holds: S.ours.n === 36 && S.fourD.n === 140 && S.ours.agree === S.ours.agreeRight && S.ours.hfRight >= S.ours.ldaRight && P.length === 9 && P.every((x) => x.ldaError_eV < 0) && P.filter((x) => x.Z <= 24).every((x) => x.hfError_eV < 0) && P.filter((x) => x.Z >= 25).every((x) => x.hfError_eV > 0) && !S.missing.length,
+        section: "6.6", gate: [67, 71] }; })(),
     (() => { const ts = [0.1, 0.3, 0.5, 0.7, 0.9], err = Math.max(...ts.map((t) => Math.abs(kClosed(t) / k4(t) - 1)));
       return { id: "kernelclosed", part: "law", claim: "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/3π and κ = 1 − t²/8 − t⁴/64 − …",
         value: `closed form against the solver's quadrature at t = 0.1 … 0.9: largest relative difference ${err.toExponential(1)}; at t = 1: ${kClosed(1 - 1e-12).toFixed(6)} against 8/3π = ${(8 / (3 * Math.PI)).toFixed(6)}`,
@@ -385,12 +415,16 @@ function hundTokens() {
     ...(() => { const T = [...TERM.values()], moved = T.filter((r) => r.ion_eV != null && Math.abs((r.ion_byRemoval_eV ?? r.ion_eV) - r.bake.ion_eV) > 0.02 && !r.configChangedBySearch).map((r) => ({ ...r, ion_eV: r.ion_byRemoval_eV ?? r.ion_eV })), up = moved.filter((r) => r.ion_eV > r.bake.ion_eV), dn = moved.filter((r) => r.ion_eV < r.bake.ion_eV), z82 = TERM.get(82), f = (r) => `${r.Z} (${r.bake.ion_eV.toFixed(2)} → ${r.ion_eV.toFixed(2)})`;
       return { "tt.n": String(T.length), "tt.up": up.map(f).join(", "), "tt.down": dn.map(f).join(", "), "tt.range": `${Math.min(...moved.map((r) => Math.abs(r.ion_eV - r.bake.ion_eV))).toFixed(2)}–${Math.max(...moved.map((r) => Math.abs(r.ion_eV - r.bake.ion_eV))).toFixed(2)}`,
         "tt.82": Math.abs((z82.uncorrected.E_hartree - z82.bake.E) * EV).toFixed(2), "tt.82ion": `${z82.bake.ion_eV.toFixed(2)} → ${z82.ion_eV.toFixed(2)}`, "tt.cands": `${Math.min(...T.map((r) => r.candidates))}–${Math.max(...T.map((r) => r.candidates))}` }; })(),
+    ...hfTokens(),
+    ...(() => { const R = JSON.parse(readFileSync(join(HERE, "data/he4check.json"), "utf8")).rows, g = R.map((r) => r.gap); return { "he4.gap": `${Math.min(...g).toFixed(3)}–${Math.max(...g).toFixed(3)}` }; })(),
     ...(() => { const P = JSON.parse(readFileSync(join(HERE, "data/promotion3.json"), "utf8")), ok = P.promotion.filter((x) => !x.missing), sgn = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
       const dc = (cfg) => [...cfg.matchAll(/\d[df](\d+)/g)].reduce((t, m) => t + +m[1], 0), sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");
       const sens = [...TERM.values()].map((r) => { const comp = (r.within1eV || []).filter((c) => c.dEc_eV > 0 && dc(c.config) < dc(r.config)).sort((x, y) => x.dEc_eV - y.dEc_eV)[0]; return comp ? { Z: r.Z, g: r.config, c: comp.config, e: comp.dEc_eV } : null; }).filter(Boolean);
-      return { "prom.list": ok.map((x) => `${x.symbol} ${sgn(x.solver_eV)} against ${x.measured_eV.toFixed(2)}`).join(", "), "prom.bias": Math.abs(P.solverMeanError_eV).toFixed(2), "prom.fullbias": Math.abs(P.fullMeanError_eV).toFixed(2),
+      return { "prom.list": ok.map((x) => `${x.symbol} ${sgn(x.solver_eV)} against ${sgn(x.measured_eV)}`).join(", "), "prom.bias": Math.abs(P.solverMeanError_eV).toFixed(2), "prom.fullbias": Math.abs(P.fullMeanError_eV).toFixed(2),
         "prom.bake": `${P.configs.bake} of ${P.configs.elements}`, "prom.full": `${P.configs.fullCorrection} of ${P.configs.elements}`, "prom.min": Math.min(...ok.map((x) => Math.abs(x.solverError_eV))).toFixed(2), "prom.max": Math.max(...ok.map((x) => Math.abs(x.solverError_eV))).toFixed(2),
+        "prom.levelShift": Math.max(...ok.map((x) => Math.abs(x.measuredLowest_eV - x.measured_eV))).toFixed(2), "prom.ni": sgn(P.promotion.find((x) => x.Z === 28).measured_eV).replace(/^(?!−)/, "+"), "prom.niLow": sgn(P.promotion.find((x) => x.Z === 28).measuredLowest_eV).replace(/^(?!−)/, "+"),
         "tt.sensN": String(sens.length), "tt.sens": sens.map((x) => `${x.Z} (${sup(x.c)}, ${x.e.toFixed(2)} eV up)`).join(", ") }; })(),
+    ...hfTokens(),
     ...(() => { const I = IONS, o3 = I.filter((r) => r.D === 3), i4 = I.filter((r) => r.D === 4), f = (z, D = 4) => I.find((r) => r.D === D && r.Z === z), re4 = [...TERM.values()].filter((r) => r.cation);
       return { "ea.hal4": [11, 21, 49, 77, 137].map((z) => `${f(z).ea_eV.toFixed(1)}`).join(", "), "ea.halOurs": [9, 17, 35].map((z) => `${f(z, 3).symbol} ${f(z, 3).ea_measured_eV}`).join(", "),
         "ea.nob4": [50, 78, 138].map((z) => `${z}: ${f(z).ea_eV.toFixed(2)}`).join(", "), "ea.nobUn": [2, 12, 22].map((z) => `${Math.abs(f(z).ea_eV).toFixed(0)}`).join(", "),
@@ -451,7 +485,7 @@ function numbers(t3, t4, L) {
     "gauss.c3": minus((g7[0].e * 1e-6).toFixed(5)), "gauss.c5": minus((g7[2].e * 1e-10).toFixed(5)),
     "split.p08": pct(spl[0.8].split2), "split.p1": `${Math.abs(100 * spl[1].split2).toExponential(0).replace(/e-?(\d+)/, (_, n) => ` × 10⁻${n.replace(/\d/g, (c) => SUP[c])}`)} %`, "split.p12": pct(spl[1.2].split2), "split.p15": pct(spl[1.5].split2), "split3.p15": pct(spl[1.5].split3),
     "lap.r1": minus(lapAt(1).toFixed(5)), "lap.r2": minus(lapAt(2).toFixed(5)), "cage.ratio": (1 / k4(1)).toFixed(6),
-    "fields.delta": String(FIELDS.scalingDim(a3, 4)), "fields.floor": String(FIELDS.unitarityFloor(4)), "fields.m": String(FIELDS.nonlinearExponent(4)),
+    "fields.delta": String(FIELDS.scalingDim(a3, 4)), "fields.floor": String(FIELDS.unitarityFloor(4)), "fields.fdim": String(FIELDS.fieldStrengthDim(a3, 4)), "fields.ffloor": String(FIELDS.fieldStrengthFloor(4)), "fields.m": String(FIELDS.nonlinearExponent(4)),
     "tf.exp4": tfFit(TABLE[4].filter((e) => e.Z >= 10)).toFixed(3), "tf.exp3": tfFit(TABLE[3].filter((e) => e.Z >= 10)).toFixed(3),
     "conv.n": String(CV.base.atoms.length), "conv.dIon": e1(CV.summary.maxAbs_dIon), "conv.dE": e1(CV.summary.maxAbs_dE), "conv.dErel": e1(cvRel),
     "repair.mix": rep[1], "repair.iters": rep[2], "cf.settled": String(cfOk.length), "cf.n": String(CF.length), "cf.through": String(CF.findIndex((r) => !cfOk.includes(r))), "cf.unsettled": (() => { const u = CF.filter((r) => !cfOk.includes(r)).map((r) => r.Z); return `${u[0]}–${u.at(-1)}`; })(),

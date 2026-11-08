@@ -14,6 +14,12 @@ export const propagatorPower = (p, Ds) => (Ds - p) / 2;
 export const scalingDim = (a, Ds) => (Ds + 1) / 2 - a;
 export const unitarityFloor = (Ds) => (Ds - 1) / 2;
 export const unitary = (a, Ds) => scalingDim(a, Ds) >= unitarityFloor(Ds) - 1e-12;
+/* the same bound stated for the gauge-invariant field strength, as Heydeman, Jepsen, Ji and Yarom (JHEP 2020) do for the
+   action F D^(s−2) F in d spacetime dimensions (s = 2a): F has scaling dimension (d − s + 2)/2, and a conformal theory
+   needs at least max(2, d − 2) for an antisymmetric rank-two field. For d = s + 2 ≥ 5 it fails; the pinned law is
+   d = 5, s = 3, F of dimension 2 against 3. (The potential's own dimension, above, isn't gauge invariant.) */
+export const fieldStrengthDim = (a, Ds) => (Ds + 1 - 2 * a + 2) / 2;
+export const fieldStrengthFloor = (Ds) => Math.max(2, Ds + 1 - 2);
 
 /* The potential of a unit charge spread evenly over a sphere of radius a, at distance s from the centre. In 3D it's
    Newton's shell theorem: flat inside, a point charge outside. With 1/r in 4D it's neither: inside, the

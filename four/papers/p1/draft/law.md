@@ -58,8 +58,10 @@ own. The squeeze $\hbar^2/2m_e r^2$ beats the pull close in, the pull beats it f
 that scales as $(\hbar^2/m_e)^{1/(2-\eta)}$. So $\eta = 1.5$ would give atoms with a size, and so would $\eta = 0.8$. What
 singles out $\eta = 1$ is a symmetry that no other exponent has.
 
-Classically, under $1/r$ every bound orbit is a closed ellipse. By Bertrand's theorem only $1/r$ and $r^2$ do that, and
-$r^2$ confines rather than falling off. An orbit lies in a plane in any number of dimensions, so this holds in four. A
+Classically, under $1/r$ every bound orbit is a closed ellipse. By Bertrand's theorem only $1/r$ and $r^2$ do that
+[@bertrand2007], and $r^2$ confines rather than falling off; asking for closed orbits is a criterion for choosing the
+law, not something every atom needs. An orbit in a central potential lies in the plane of its starting position and
+velocity in any number of dimensions [@fiorani2009], so the planar theorem holds in four. A
 closed ellipse keeps a fixed direction, its long axis. So the motion conserves a vector besides the angular momentum,
 the Runge–Lenz vector $A_i = \sum_j L_{ij}\,p_j - Z x_i/r$, where $L_{ij} = x_i p_j - x_j p_i$ is the angular
 momentum in the plane $ij$. Under any other exponent the ellipse precesses, its axis turns, and $\mathbf A$ isn't
@@ -67,7 +69,8 @@ conserved.
 
 In quantum mechanics the rotations of $D$-dimensional space, SO($D$), together with the $D$ components of $\mathbf A$
 generate the rotations of a space with one dimension more, SO($D + 1$). Fock found this by carrying momentum space onto
-a sphere one dimension up [@fock1935], and Bander and Itzykson worked out the group theory [@bander1966]. Why it
+a sphere one dimension up [@fock1935], Alliluev carried the construction to $D$ dimensions [@alliluev1958], and Bander
+and Itzykson worked out the group theory [@bander1966]. Why it
 happens only for $1/r$ can be put in one line. The Schrödinger equation in momentum space contains the potential's
 Fourier transform. For $1/r^\eta$ in $D$ dimensions that is $1/k^{D-\eta}$, which for $\eta = 1$ is $1/k^{D-1}$. Carried
 onto the sphere, $1/k^{D-1}$ becomes, up to factors the projection itself supplies, Gauss's potential of a point
@@ -127,29 +130,38 @@ and the equation is simplest in Fourier space, where each pair of derivatives be
 $k$. Maxwell's statics give a point charge the potential $\varphi \propto 1/k^2$, and that transforms back to
 $1/r^{D-2}$ in space, so $1/r^2$ in four dimensions. A potential $1/r^\eta$ in $D$ dimensions is the transform of
 $1/k^{D-\eta}$, so the pinned $1/r$ needs $1/k^3$. There are five ways to get it (the site's force chapter,
-four.mino.mobi/atom/force.html, works through each). Four fail outright. The third survives with a flaw that can be
-removed, and it is the one this paper takes.
+four.mino.mobi/atom/force.html, works through each). Four fail something we ask of the law, and each failure is stated
+with what it assumes. The third survives with a flaw that can be removed, and it is the one this paper takes.
 
-1. *A local, relativistic field:* impossible. A local field equation is a polynomial in $k^2$, a whole number of pairs
-   of derivatives, and $k^3 = (k^2)^{3/2}$ isn't one.
+1. *A local, relativistic field:* impossible for a quadratic field equation with finitely many derivatives. Such an
+   equation is a polynomial in $k^2$, a whole number of pairs of derivatives, and $k^3 = (k^2)^{3/2}$ isn't one. (A
+   non-local kernel can arise from integrating out other fields; that is route 2 or 3.)
 2. *Relativistic but non-local:* the potential obeys $(k^2 - \omega^2/c^2)^{3/2}\,\varphi \propto \rho$,
-   Maxwell's wave operator raised to the power $3/2$, which in space and time is an integral over all of both. The
-   field's scaling dimension is then 1 in five-dimensional spacetime. Positive probabilities need at
-   least 1.5 (the unitarity bound, where an ordinary free field sits), so the theory has states of
-   negative probability.
+   Maxwell's wave operator raised to the power $3/2$, which in space and time is an integral over all of both. This is
+   the non-local electrodynamics $F\,D^{s-2}F$ of @heydeman2020 with $s = 3$ in $d = 5$ spacetime dimensions, a case
+   their analysis covers ($d = s + 2 \ge 5$). There the gauge-invariant field strength has scaling dimension
+   2, below the 3 that unitarity requires of it in a conformal theory, and they expect time
+   evolution not to be unitary: states of negative probability. Fractional and non-local gauge theories are not
+   non-unitary as a class [@marino2014; @lanave2019]; it is this one, in the framework where the bound applies, that
+   fails.
 3. *A vacuum whose permittivity grows with wavenumber,* $\varepsilon_0\,\ell k$ with $\ell$ a length. The static
    equation becomes $\varepsilon_0\ell k \cdot k^2\varphi = \rho$, which is $1/k^3$, the pinned $1/r$. With the
    permeability left at $\mu_0$, light obeys $k^2 = \ell k\,\omega^2/c^2$, so $\omega = c\sqrt{k/\ell}$. It
-   disperses like deep-water waves, and there is no speed of light. This is the route we take, and the flaw is
-   removed below.
+   disperses like deep-water waves, and there is no speed of light. A permittivity rising as a power of $k$, and the
+   fractional Poisson equation it gives, is known from media with power-law spatial dispersion
+   [@tarasov2013; @tarasov2016]; their power $\alpha = 3$ without screening is this one, applied here in four
+   dimensions. This is the route we take, and the flaw is removed below.
 4. *A nonlinear vacuum,* $\nabla\cdot(|\mathbf E|^{\beta-2}\mathbf E) = \rho$. It keeps a Gauss's law, for the flux of
    $|\mathbf E|^{\beta-2}\mathbf E$ instead of $\mathbf E$. A point charge then has $|\mathbf E|^{\beta-1}r^{D-1}$
-   constant, and a $1/r$ potential ($|\mathbf E| \propto 1/r^2$) needs $\beta = (D + 1)/2$ = 2.5. But fields
-   no longer add: the field of two charges isn't the sum of each one's.
+   constant, and a $1/r$ potential ($|\mathbf E| \propto 1/r^2$) needs $\beta = (D + 1)/2$ = 2.5, the
+   $p$-Laplacian with $p = 5/2$, whose point solution is exactly that [@lindqvist2017]. It is a consistent theory, but
+   fields no longer add: the field of two charges isn't the sum of each one's, so there is no pair potential, which an
+   atom's Hamiltonian as written here needs.
 5. *A small fourth dimension:* $1/r$ far away, but then atoms are three-dimensional (section 2.2).
 
-Route 1 doesn't exist, route 2 has states of negative probability, route 4 gives up fields that add, and route 5
-gives back three-dimensional atoms. That leaves route 3. The
+Route 1 doesn't exist under its assumptions, route 2 has states of negative probability in the framework where that
+can be shown, route 4 gives up a pair potential, and route 5 gives back three-dimensional atoms. That leaves route 3.
+This is a choice among the routes found, not a proof that no other theory gives the law. The
 permittivity fixes the statics, and the statics are all that the pinned law asks of it. The permeability is still
 free, and it decides only how fields move. Left at $\mu_0$ it gives the dispersive light above. We choose
 $\mu_0/\ell k$, and call the result the **lens vacuum**. The product of permittivity and permeability is then
@@ -159,7 +171,9 @@ pushes a charge is $\mathbf E = (\mathbf D/\varepsilon_0)/\ell k$, that light se
 Fourier space is, in space, spreading over a kernel $1/r^3$ (the transform of $1/k$ in four dimensions), so
 $\mathbf E$ at a point is a blur of $\mathbf D$ over all of space. Its statics are $1/\ell k^3$, the pinned $1/r$. The
 price is relativity, for the force between charges only. The blur acts across all of space at once, so there is an
-absolute "now", and a charge feels another's change instantly, a little, everywhere.
+absolute "now", and a charge feels another's change instantly, a little, everywhere. We have not found this pair of
+constitutive laws in the literature we read. Light at one speed and an energy that is never negative do not by
+themselves make the lens vacuum a causal or quantum theory; that is for the later paper.
 
 This paper uses only route 3's statics: charges at rest and the $1/r$ between them, which is all an atom's ground
 state needs. Every choice of permeability gives the same statics, so nothing here depends on that choice, on $\ell$,
@@ -172,11 +186,15 @@ are point charges $+Z$, stable for every $Z$ to 140 (declared: nuclear physics i
 fine-structure constant is small, so atoms are solved without relativity (section 12). No other long-range field acts
 on charges.
 
-**4.5 Is matter stable?** In ours it is a theorem that $N$ atoms have an energy proportional to $N$
-[@dyson1967; @lieb1975], and the proofs lean on the shell theorem, which fails here. So we give evidence, not a proof.
-Atoms don't collapse. Thomas–Fermi scaling gives total energies growing as $Z^{3-2/D}$, $Z^{7/3}$ in ours and $Z^{5/2}$
+**4.5 Is matter stable?** In ours it is a theorem that $N$ atoms have an energy bounded below by a constant times $N$
+[@dyson1967; @lieb1975], whatever the nuclei's positions. The usual proofs lean on the shell theorem, which fails here.
+That doesn't close the question: decompositions of radial interactions that need no shell theorem exist in any
+dimension [@hainzl2002], and Riesz gases, of which a $1/r$ law in four dimensions is one, have their own mathematics
+[@lewin2022], though neither is a proof for electrons and nuclei here. So we give evidence, not a proof, and the
+evidence is narrower than the theorem. Single atoms don't collapse. Thomas–Fermi scaling gives total energies growing as $Z^{3-2/D}$, $Z^{7/3}$ in ours and $Z^{5/2}$
 in four dimensions [@kventsel1981], and the solved table follows it, with a fitted exponent of 2.527 over $Z$ =
 10–140 (ours: 2.387 over 10–36; both a little above the asymptotic value, as finite-$Z$ corrections make them).
-Many atoms don't run away either. Every force between neutral atoms here (the permanent $-3Q_AQ_B/64R^5$ of section
-11, dispersion's $R^{-6}$) falls faster than $R^{-4}$, so summed over four-dimensional space each atom's share is
-finite. This is argued, not proved, and the paper says so.
+Separated neutral atoms don't run away either. Every force between them here (the permanent $-3Q_AQ_B/64R^5$ of
+section 11, dispersion's $R^{-6}$) falls faster than $R^{-4}$, so summed over four-dimensional space each atom's share
+of the far field is finite. That says nothing about atoms that overlap, trade charge or crowd together, which is
+where a proof of stability has its work. Stability of matter here is open.

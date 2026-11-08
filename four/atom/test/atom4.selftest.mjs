@@ -133,6 +133,7 @@ for (const d of [3, 4]) {
 {
   ok(F.propagatorPower(1, 3) === 1 && F.propagatorPower(2, 4) === 1 && F.propagatorPower(1, 4) === 1.5, "Maxwell's 1/k² gives 1/r in 3D and 1/r² in 4D; 1/r in 4D needs 1/k³");
   ok(F.unitary(1, 3) && F.unitary(1, 4) && !F.unitary(1.5, 4) && F.scalingDim(1.5, 4) === 1 && F.unitarityFloor(4) === 1.5, "a = 1 meets the unitarity bound in any dimension; a = 3/2 in 4+1 has Δ = 1 < 3/2");
+  ok(F.fieldStrengthDim(1, 3) === 2 && F.fieldStrengthFloor(3) === 2 && F.fieldStrengthDim(1.5, 4) === 2 && F.fieldStrengthFloor(4) === 3, "the field strength: Maxwell in 3+1 sits on its bound (2); the pinned law's in 4+1 has dimension 2 < 3 (Heydeman et al. 2020)");
   ok(F.laplacianPowerCoeff(-1, 3) === 0 && F.laplacianPowerCoeff(-1, 4) === -1 && F.laplacianPowerCoeff(-2, 4) === 0 && F.fluxGrowth(3) === 0 && F.fluxGrowth(4) === 1, "1/r is harmonic in 3D, not in 4D (∇² 1/r = −1/r³), where 1/r² is; its flux grows as r");
   // the shell theorem, by brute force: average the point potential over a sphere and compare with shellPotential
   let worst3 = 0, worst4 = 0; const gauss = normal(rng(11));

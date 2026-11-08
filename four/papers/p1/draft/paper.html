@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="c11e208578a6e574248584309872f970ce2e2ca0ba7445c882fd423be59bee24" />
+<meta name="source-sha256" content="0bf36e6bd4cd46dd3b6357fed9241e500e58fe8186f9118b16707b793d72d06d" />
 <title>Paper 1 · Paper 1 · the whole draft</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -68,10 +68,34 @@ worked it out for two. Applied to four, their rule gives rows of 2, 10,
 10, 28, 28, 60. <span class="citation" data-cites="pyykko1991">Pyykkö
 and Zhao (<a href="#ref-pyykko1991"
 role="doc-biblioref">1991</a>)</span> solved the atoms of a
-two-dimensional world self-consistently. To our knowledge no one has
-solved the atoms of a four-dimensional one, nor asked what the choice of
+two-dimensional world self-consistently, by Hartree–Fock for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+= 1–24. Above three dimensions there are self-consistent atoms too, but
+not a table: Hartree–Fock for two-electron atoms in any
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+<span class="citation" data-cites="loeser1986hf">(<a
+href="#ref-loeser1986hf" role="doc-biblioref">Loeser and Herschbach
+1986a</a>)</span>, the Thomas–Fermi atom in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
+dimensions <span class="citation" data-cites="kventsel1981">(<a
+href="#ref-kventsel1981" role="doc-biblioref">Kventsel and Katriel
+1981</a>)</span>, and many-electron models built from the limit of large
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+<span class="citation" data-cites="loeser1987atomic loeser1994">(<a
+href="#ref-loeser1987atomic" role="doc-biblioref">Loeser 1987</a>; <a
+href="#ref-loeser1994" role="doc-biblioref">Loeser et al.
+1994</a>)</span>. To our knowledge this paper is the first
+shell-resolved self-consistent survey of the neutral atoms through
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
+in four Euclidean dimensions, for a pairwise
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
-itself does to them.</p>
+interaction and electrons with two spin states. Its approximations are
+stated with it: spherical subshells, local exchange, no correlation, and
+a first-order correction for the open subshells’ terms (section 5),
+cross-checked by Hartree–Fock (section 6.6). Nor, to our knowledge, has
+anyone asked what the choice of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+itself does to the atoms.</p>
 <p>This paper does both. Part I treats the law as a choice. It shows why
 one has to be made (section 2), why
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
@@ -88,7 +112,7 @@ partial screening (section 10) and into the pull of neutral atoms
 (section 11). Section 12 states the limitations; section 13
 concludes.</p>
 <p>Every number in the text is recomputed from the code and its baked
-data each time anything changes, and is checked against a ledger of 33
+data each time anything changes, and is checked against a ledger of 34
 claims. The code, the data and the paper’s own making are public at
 four.mino.mobi/papers.</p>
 <h2 id="notation">Notation</h2>
@@ -580,12 +604,19 @@ every bound orbit is a closed ellipse. By Bertrand’s theorem only
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mn>2</mn></msup><annotation encoding="application/x-tex">r^2</annotation></semantics></math>
-do that, and
+do that <span class="citation" data-cites="bertrand2007">(<a
+href="#ref-bertrand2007" role="doc-biblioref">Santos, Soares, and Tort
+2007</a>)</span>, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mn>2</mn></msup><annotation encoding="application/x-tex">r^2</annotation></semantics></math>
-confines rather than falling off. An orbit lies in a plane in any number
-of dimensions, so this holds in four. A closed ellipse keeps a fixed
-direction, its long axis. So the motion conserves a vector besides the
-angular momentum, the Runge–Lenz vector
+confines rather than falling off; asking for closed orbits is a
+criterion for choosing the law, not something every atom needs. An orbit
+in a central potential lies in the plane of its starting position and
+velocity in any number of dimensions <span class="citation"
+data-cites="fiorani2009">(<a href="#ref-fiorani2009"
+role="doc-biblioref">FIORANI 2009</a>)</span>, so the planar theorem
+holds in four. A closed ellipse keeps a fixed direction, its long axis.
+So the motion conserves a vector besides the angular momentum, the
+Runge–Lenz vector
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>A</mi><mi>i</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>L</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mspace width="0.167em"></mspace><msub><mi>p</mi><mi>j</mi></msub><mo>−</mo><mi>Z</mi><msub><mi>x</mi><mi>i</mi></msub><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">A_i = \sum_j L_{ij}\,p_j - Z x_i/r</annotation></semantics></math>,
 where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>L</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msub><mi>p</mi><mi>j</mi></msub><mo>−</mo><msub><mi>x</mi><mi>j</mi></msub><msub><mi>p</mi><mi>i</mi></msub></mrow><annotation encoding="application/x-tex">L_{ij} = x_i p_j - x_j p_i</annotation></semantics></math>
@@ -606,9 +637,13 @@ generate the rotations of a space with one dimension more,
 SO(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D + 1</annotation></semantics></math>).
 Fock found this by carrying momentum space onto a sphere one dimension
 up <span class="citation" data-cites="fock1935">(<a href="#ref-fock1935"
-role="doc-biblioref">Fock 1935</a>)</span>, and Bander and Itzykson
-worked out the group theory <span class="citation"
-data-cites="bander1966">(<a href="#ref-bander1966"
+role="doc-biblioref">Fock 1935</a>)</span>, Alliluev carried the
+construction to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions <span class="citation" data-cites="alliluev1958">(<a
+href="#ref-alliluev1958" role="doc-biblioref">Alliluev 1958</a>)</span>,
+and Bander and Itzykson worked out the group theory <span
+class="citation" data-cites="bander1966">(<a href="#ref-bander1966"
 role="doc-biblioref">Bander and Itzykson 1966</a>)</span>. Why it
 happens only for
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
@@ -802,24 +837,42 @@ so the pinned
 needs
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>k</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">1/k^3</annotation></semantics></math>.
 There are five ways to get it (the site’s force chapter,
-four.mino.mobi/atom/force.html, works through each). Four fail outright.
-The third survives with a flaw that can be removed, and it is the one
-this paper takes.</p>
+four.mino.mobi/atom/force.html, works through each). Four fail something
+we ask of the law, and each failure is stated with what it assumes. The
+third survives with a flaw that can be removed, and it is the one this
+paper takes.</p>
 <ol type="1">
-<li><em>A local, relativistic field:</em> impossible. A local field
-equation is a polynomial in
+<li><em>A local, relativistic field:</em> impossible for a quadratic
+field equation with finitely many derivatives. Such an equation is a
+polynomial in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>k</mi><mn>2</mn></msup><annotation encoding="application/x-tex">k^2</annotation></semantics></math>,
 a whole number of pairs of derivatives, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>k</mi><mn>3</mn></msup><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>k</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow></msup></mrow><annotation encoding="application/x-tex">k^3 = (k^2)^{3/2}</annotation></semantics></math>
-isn’t one.</li>
+isn’t one. (A non-local kernel can arise from integrating out other
+fields; that is route 2 or 3.)</li>
 <li><em>Relativistic but non-local:</em> the potential obeys
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>k</mi><mn>2</mn></msup><mo>−</mo><msup><mi>ω</mi><mn>2</mn></msup><mi>/</mi><msup><mi>c</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow></msup><mspace width="0.167em"></mspace><mi>φ</mi><mo>∝</mo><mi>ρ</mi></mrow><annotation encoding="application/x-tex">(k^2 - \omega^2/c^2)^{3/2}\,\varphi \propto \rho</annotation></semantics></math>,
 Maxwell’s wave operator raised to the power
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">3/2</annotation></semantics></math>,
-which in space and time is an integral over all of both. The field’s
-scaling dimension is then 1 in five-dimensional spacetime. Positive
-probabilities need at least 1.5 (the unitarity bound, where an ordinary
-free field sits), so the theory has states of negative probability.</li>
+which in space and time is an integral over all of both. This is the
+non-local electrodynamics
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>F</mi><mspace width="0.167em"></mspace><msup><mi>D</mi><mrow><mi>s</mi><mo>−</mo><mn>2</mn></mrow></msup><mi>F</mi></mrow><annotation encoding="application/x-tex">F\,D^{s-2}F</annotation></semantics></math>
+of <span class="citation" data-cites="heydeman2020">Heydeman et al. (<a
+href="#ref-heydeman2020" role="doc-biblioref">2020</a>)</span> with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">s = 3</annotation></semantics></math>
+in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">d = 5</annotation></semantics></math>
+spacetime dimensions, a case their analysis covers
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>d</mi><mo>=</mo><mi>s</mi><mo>+</mo><mn>2</mn><mo>≥</mo><mn>5</mn></mrow><annotation encoding="application/x-tex">d = s + 2 \ge 5</annotation></semantics></math>).
+There the gauge-invariant field strength has scaling dimension 2, below
+the 3 that unitarity requires of it in a conformal theory, and they
+expect time evolution not to be unitary: states of negative probability.
+Fractional and non-local gauge theories are not non-unitary as a class
+<span class="citation" data-cites="marino2014 lanave2019">(<a
+href="#ref-marino2014" role="doc-biblioref">Marino et al. 2014</a>; <a
+href="#ref-lanave2019" role="doc-biblioref">La Nave, Limtragool, and
+Phillips 2019</a>)</span>; it is this one, in the framework where the
+bound applies, that fails.</li>
 <li><em>A vacuum whose permittivity grows with wavenumber,</em>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ε</mi><mn>0</mn></msub><mspace width="0.167em"></mspace><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\varepsilon_0\,\ell k</annotation></semantics></math>
 with
@@ -836,8 +889,18 @@ light obeys
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>k</mi><mn>2</mn></msup><mo>=</mo><mo>ℓ</mo><mi>k</mi><mspace width="0.167em"></mspace><msup><mi>ω</mi><mn>2</mn></msup><mi>/</mi><msup><mi>c</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">k^2 = \ell k\,\omega^2/c^2</annotation></semantics></math>,
 so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>ω</mi><mo>=</mo><mi>c</mi><msqrt><mrow><mi>k</mi><mi>/</mi><mo>ℓ</mo></mrow></msqrt></mrow><annotation encoding="application/x-tex">\omega = c\sqrt{k/\ell}</annotation></semantics></math>.
-It disperses like deep-water waves, and there is no speed of light. This
-is the route we take, and the flaw is removed below.</li>
+It disperses like deep-water waves, and there is no speed of light. A
+permittivity rising as a power of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>,
+and the fractional Poisson equation it gives, is known from media with
+power-law spatial dispersion <span class="citation"
+data-cites="tarasov2013 tarasov2016">(<a href="#ref-tarasov2013"
+role="doc-biblioref">Tarasov and Trujillo 2013</a>; <a
+href="#ref-tarasov2016" role="doc-biblioref">Tarasov 2016</a>)</span>;
+their power
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>α</mi><mo>=</mo><mn>3</mn></mrow><annotation encoding="application/x-tex">\alpha = 3</annotation></semantics></math>
+without screening is this one, applied here in four dimensions. This is
+the route we take, and the flaw is removed below.</li>
 <li><em>A nonlinear vacuum,</em>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>∇</mi><mo>⋅</mo><mrow><mo stretchy="true" form="prefix">(</mo><msup><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝐄</mi><mo stretchy="true" form="postfix">|</mo></mrow><mrow><mi>β</mi><mo>−</mo><mn>2</mn></mrow></msup><mi>𝐄</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mi>ρ</mi></mrow><annotation encoding="application/x-tex">\nabla\cdot(|\mathbf E|^{\beta-2}\mathbf E) = \rho</annotation></semantics></math>.
 It keeps a Gauss’s law, for the flux of
@@ -852,15 +915,25 @@ potential
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝐄</mi><mo stretchy="true" form="postfix">|</mo></mrow><mo>∝</mo><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">|\mathbf E| \propto 1/r^2</annotation></semantics></math>)
 needs
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>β</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">\beta = (D + 1)/2</annotation></semantics></math>
-= 2.5. But fields no longer add: the field of two charges isn’t the sum
-of each one’s.</li>
+= 2.5, the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>-Laplacian
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mo>=</mo><mn>5</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">p = 5/2</annotation></semantics></math>,
+whose point solution is exactly that <span class="citation"
+data-cites="lindqvist2017">(<a href="#ref-lindqvist2017"
+role="doc-biblioref">Peter Lindqvist 2017</a>)</span>. It is a
+consistent theory, but fields no longer add: the field of two charges
+isn’t the sum of each one’s, so there is no pair potential, which an
+atom’s Hamiltonian as written here needs.</li>
 <li><em>A small fourth dimension:</em>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 far away, but then atoms are three-dimensional (section 2.2).</li>
 </ol>
-<p>Route 1 doesn’t exist, route 2 has states of negative probability,
-route 4 gives up fields that add, and route 5 gives back
-three-dimensional atoms. That leaves route 3. The permittivity fixes the
+<p>Route 1 doesn’t exist under its assumptions, route 2 has states of
+negative probability in the framework where that can be shown, route 4
+gives up a pair potential, and route 5 gives back three-dimensional
+atoms. That leaves route 3. This is a choice among the routes found, not
+a proof that no other theory gives the law. The permittivity fixes the
 statics, and the statics are all that the pinned law asks of it. The
 permeability is still free, and it decides only how fields move. Left at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>μ</mi><mn>0</mn></msub><annotation encoding="application/x-tex">\mu_0</annotation></semantics></math>
@@ -895,7 +968,11 @@ the pinned
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>.
 The price is relativity, for the force between charges only. The blur
 acts across all of space at once, so there is an absolute “now”, and a
-charge feels another’s change instantly, a little, everywhere.</p>
+charge feels another’s change instantly, a little, everywhere. We have
+not found this pair of constitutive laws in the literature we read.
+Light at one speed and an energy that is never negative do not by
+themselves make the lens vacuum a causal or quantum theory; that is for
+the later paper.</p>
 <p>This paper uses only route 3’s statics: charges at rest and the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 between them, which is all an atom’s ground state needs. Every choice of
@@ -917,13 +994,23 @@ The fine-structure constant is small, so atoms are solved without
 relativity (section 12). No other long-range field acts on charges.</p>
 <p><strong>4.5 Is matter stable?</strong> In ours it is a theorem that
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
-atoms have an energy proportional to
+atoms have an energy bounded below by a constant times
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
 <span class="citation" data-cites="dyson1967 lieb1975">(<a
 href="#ref-dyson1967" role="doc-biblioref">Dyson and Lenard 1967</a>; <a
 href="#ref-lieb1975" role="doc-biblioref">Lieb and Thirring
-1975</a>)</span>, and the proofs lean on the shell theorem, which fails
-here. So we give evidence, not a proof. Atoms don’t collapse.
+1975</a>)</span>, whatever the nuclei’s positions. The usual proofs lean
+on the shell theorem, which fails here. That doesn’t close the question:
+decompositions of radial interactions that need no shell theorem exist
+in any dimension <span class="citation" data-cites="hainzl2002">(<a
+href="#ref-hainzl2002" role="doc-biblioref">Hainzl and Seiringer
+2002</a>)</span>, and Riesz gases, of which a
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+law in four dimensions is one, have their own mathematics <span
+class="citation" data-cites="lewin2022">(<a href="#ref-lewin2022"
+role="doc-biblioref">Lewin 2022</a>)</span>, though neither is a proof
+for electrons and nuclei here. So we give evidence, not a proof, and the
+evidence is narrower than the theorem. Single atoms don’t collapse.
 Thomas–Fermi scaling gives total energies growing as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>3</mn><mo>−</mo><mn>2</mn><mi>/</mi><mi>D</mi></mrow></msup><annotation encoding="application/x-tex">Z^{3-2/D}</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>7</mn><mi>/</mi><mn>3</mn></mrow></msup><annotation encoding="application/x-tex">Z^{7/3}</annotation></semantics></math>
@@ -937,15 +1024,17 @@ exponent of 2.527 over
 = 10–140 (ours: 2.387 over 10–36; both a little above the asymptotic
 value, as
 finite-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
-corrections make them). Many atoms don’t run away either. Every force
-between neutral atoms here (the permanent
+corrections make them). Separated neutral atoms don’t run away either.
+Every force between them here (the permanent
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>Q</mi><mi>A</mi></msub><msub><mi>Q</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3Q_AQ_B/64R^5</annotation></semantics></math>
 of section 11, dispersion’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>)
 falls faster than
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>4</mn></mrow></msup><annotation encoding="application/x-tex">R^{-4}</annotation></semantics></math>,
-so summed over four-dimensional space each atom’s share is finite. This
-is argued, not proved, and the paper says so.</p>
+so summed over four-dimensional space each atom’s share of the far field
+is finite. That says nothing about atoms that overlap, trade charge or
+crowd together, which is where a proof of stability has its work.
+Stability of matter here is open.</p>
 <h1 id="part-ii-the-table">Part II · The table</h1>
 <h2 id="methods">5 · Methods</h2>
 <p><strong>5.1 The code.</strong> Everything in this paper is computed
@@ -1059,7 +1148,22 @@ orbital’s cloud, the exchange term by the fully polarized exchange of
 that orbital alone, in the manner of the self-interaction correction of
 <span class="citation" data-cites="perdew1981">Perdew and Zunger (<a
 href="#ref-perdew1981" role="doc-biblioref">1981</a>)</span>. There is
-no correlation term.</p>
+no correlation term. That is an omission, not a gap in what is known:
+the arbitrary-dimensional exchange is old <span class="citation"
+data-cites="glasser1983">(<a href="#ref-glasser1983"
+role="doc-biblioref">Glasser and Boersma 1983</a>)</span>, and the
+correlation of the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+electron gas has been computed in any dimension, four included, by the
+random-phase approximation <span class="citation"
+data-cites="schlesier2020">(<a href="#ref-schlesier2020"
+role="doc-biblioref">Schlesier, Benavides-Riveros, and Marques
+2020</a>)</span> and beyond it <span class="citation"
+data-cites="pham2023">(<a href="#ref-pham2023" role="doc-biblioref">Duc
+Pham et al. 2023</a>)</span>. We have not implemented or tested a
+four-dimensional correlation functional; the later paper’s numbers carry
+a correction to the earlier one’s coefficients that would have to be
+settled first.</p>
 <p><strong>5.5 Solving one configuration.</strong> The radial equation
 is solved on a logarithmic grid of 700 points from
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>r</mi><mn>0</mn></msub><annotation encoding="application/x-tex">r_0</annotation></semantics></math>
@@ -1189,15 +1293,50 @@ on any grid and, above it, a lowest level that scales as
 it gives the splittings within each shell (section 3.1). Its check is 4D
 hydrogen: −0.22222222 against
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>.</p>
-<p><strong>5.12 Checks.</strong> Every method above has a known-answer
+<p><strong>5.12 A second method: Hartree–Fock.</strong> To see which
+configurations depend on the choice of method, every element is solved a
+second way, by numerical Hartree–Fock (<code>hf.js</code>): one radial
+function per subshell on its own logarithmic grid, exact exchange
+instead of local exchange, and the energy the average over the
+subshells’ maximum-spin arrangements, to which each open subshell’s
+whole term correction (its lowest term less that average, section 5.9’s
+machinery on the Hartree–Fock orbitals) is added. Exchange between
+subshells is expanded in the Gegenbauer coefficients of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">|</mo><mi>𝐱</mi><mo>−</mo><mi>𝐲</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">1/|\mathbf x - \mathbf y|</annotation></semantics></math>,
+each radial kernel a convolution on the logarithmic grid; in four
+dimensions the coefficients are tabulated by quadrature,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>0</mn></msub><annotation encoding="application/x-tex">a_0</annotation></semantics></math>
+being the shell kernel
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>.
+The candidates are the local-exchange search’s settled configurations
+within 4 eV of its ground, so both methods rank the same set. A
+configuration with an empty subshell below an occupied one of the same
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
+(sodium’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><msup><mi>s</mi><mn>1</mn></msup></mrow><annotation encoding="application/x-tex">4s^1</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>s</mi></mrow><annotation encoding="application/x-tex">3s</annotation></semantics></math>
+empty) is left out of the Hartree–Fock ranking: the variational solve
+drops the electron into the empty lower subshell and returns the compact
+configuration’s energy under the other name. The energies carry an
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo stretchy="true" form="prefix">(</mo><msup><mi>h</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(h^2)</annotation></semantics></math>
+error from the kernel’s kink at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>r</mi><mo>=</mo><mi>r</mi><mi>′</mi></mrow><annotation encoding="application/x-tex">r = r&#39;</annotation></semantics></math>,
+so absolute energies are extrapolated from steps 0.02 and 0.01;
+differences converge at 0.02, where the ranking is done. Checks (block
+71): our He, Ne, N ⁴S, C ³P and Fe ⁵D against the numerical Hartree–Fock
+limits to 2 × 10⁻⁵ hartree, and four-dimensional closed shells against
+the Gaussian code.</p>
+<p><strong>5.13 Checks.</strong> Every method above has a known-answer
 test in the selftest, run on every change: hydrogen in both worlds
 (block 1), the radial solver (2), the kernel against direct integration
 (3), exchange against the electron-gas constants (4, 18), the ground
 search (5, 7), two-electron atoms against an independent Gaussian
 Hartree–Fock code in four dimensions and MP2 against PySCF in ours (17,
-43), our table against measured values (6: 32 of 36 configurations;
-ionization to a 4.3 % median error), and this paper’s own claims
-recomputed from the bake (67).</p>
+43), Hartree–Fock against its known limits (71), our table against
+measured values (6: 32 of 36 configurations; ionization to a 4.3 %
+median error), and this paper’s own claims recomputed from the bake
+(67).</p>
 <h2 id="checks-against-what-is-known">6 · Checks against what is
 known</h2>
 <p><strong>6.1 Hydrogen.</strong> One electron needs no search and no
@@ -1210,30 +1349,49 @@ for the ground state. The solver gives −0.22222.</p>
 dimensions are checked against an independent code, Hartree–Fock in a
 Gaussian basis written for any dimension (<code>gauss.js</code>), and
 the same atoms in ours against PySCF at the MP2 level (selftest blocks
-17 and 43). The two codes share no part of the radial solver.</p>
+17 and 43). The two codes share no part of the radial solver. From
+outside, the only accurate four-dimensional numbers we have been able to
+read are correlated variational energies for helium-like ions <span
+class="citation" data-cites="escobar2021">(<a href="#ref-escobar2021"
+role="doc-biblioref">Escobar-Ruiz et al. 2021</a>)</span>. Hartree–Fock
+(<code>hf.js</code>, section 5.12) lies above them by 0.012–0.014
+hartree for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+= 2–10, as it must, since they include correlation; that is the size and
+sign of a correlation energy, a consistency check rather than a
+benchmark. A four-dimensional Hartree–Fock limit to test against <span
+class="citation" data-cites="loeser1986hf">(<a href="#ref-loeser1986hf"
+role="doc-biblioref">Loeser and Herschbach 1986a</a>)</span> is in
+tables we have not obtained.</p>
 <p><strong>6.3 Our own table.</strong> The same solver, the same law (in
 ours 1/r is Gauss’s) and the same search, run in three dimensions, gives
 32 of 36 of our measured ground configurations. The four it misses,
 titanium, vanadium, cobalt and nickel, each take one d electron too many
 against 4s, the known lean of local exchange toward d. The misses have
 one cause. Moving an electron from 4s into 3d comes out too cheap in
-every 3d atom we can compare (eV, the solver against measured, from
-memory and still to be checked against NIST’s levels <span
-class="citation" data-cites="nist-asd">(<a href="#ref-nist-asd"
-role="doc-biblioref">Kramida et al. 2026</a>)</span>: Sc 0.14 against
-1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.86, Co −0.35 against
-0.43, Ni −1.16 against 0.03), short by 0.35–1.70 eV and a mean 1.06,
-always in d’s favour. That is local exchange without correlation.
-Resolving every open subshell’s whole term structure doesn’t remove it.
-With that correction (the lowest term less the average of the
-maximum-spin arrangements, which is what a spherically averaged field
-stands for), the bias stays at 1.07 eV and the configurations get worse,
-26 of 32 against 28 of 32. So the paper corrects only Hund’s first rule
-(section 7), the one thing a spin-polarized averaged field cannot
-represent. Its first ionization energies are off by a median 4.3 % and
-at most 16.2 % (figure A2). That is the accuracy to expect of the 4D
-table: a method that gets our transition metals mostly right and our
-ionizations to a few percent, not a spectroscopic one.</p>
+every 3d atom we can compare (eV, the solver against measured: Sc 0.14
+against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.87, Co −0.35
+against 0.42, Ni −1.16 against −0.03), short by 0.37–1.70 eV and a mean
+1.05, always in d’s favour. The measured values are differences of each
+configuration’s lowest term, its levels averaged with weights
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>J</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">2J + 1</annotation></semantics></math>,
+from NIST’s level tables <span class="citation"
+data-cites="nist-handbook">(<a href="#ref-nist-handbook"
+role="doc-biblioref">Sansonetti and Martin 2005</a>)</span>, because the
+solver has no spin–orbit coupling and lands each configuration in its
+lowest term. Taking the lowest level of each instead moves them by at
+most 0.06 eV and turns nickel’s sign (+0.03 rather than −0.03). That is
+local exchange without correlation. Resolving every open subshell’s
+whole term structure doesn’t remove it. With that correction (the lowest
+term less the average of the maximum-spin arrangements, which is what a
+spherically averaged field stands for), the bias stays at 1.05 eV and
+the configurations get worse, 26 of 32 against 28 of 32. So the paper
+corrects only Hund’s first rule (section 7), the one thing a
+spin-polarized averaged field cannot represent. Its first ionization
+energies are off by a median 4.3 % and at most 16.2 % (figure A2). That
+is the accuracy to expect of the 4D table: a method that gets our
+transition metals mostly right and our ionizations to a few percent, not
+a spectroscopic one.</p>
 <figure id="fig-A2">
 <img src="../figures/A2.svg"
 alt="Figure A2. The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z." />
@@ -1265,14 +1423,50 @@ exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against
 It also finds every anion that should be unbound to be unbound: the
 noble gases, beryllium, magnesium and nitrogen. It fails where
 correlation does the binding (H -0.33 against 0.754, Li -0.08 against
-0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In four
-dimensions, then, an affinity above about 0.7 eV is to be believed and a
-smaller one is not (the measured values are from <span class="citation"
+0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In ours, then,
+the method’s affinities hold above about 0.7 eV and not below (the
+measured values are from <span class="citation"
 data-cites="rienstra2002">Rienstra-Kiracofe et al. (<a
-href="#ref-rienstra2002" role="doc-biblioref">2002</a>)</span>).</p>
+href="#ref-rienstra2002" role="doc-biblioref">2002</a>)</span>). That is
+a calibration in our world, not an error bar for four dimensions: an
+affinity near threshold there would need its own checks, a wider radial
+grid for the extra electron, the anion’s and the atom’s fields both
+converged, and correlation.</p>
 <p><strong>6.5 Numbers.</strong> Tightening the solver’s stop or
 changing its grid moves no ionization energy by a millihartree (section
 5 and appendix C).</p>
+<p><strong>6.6 A second method.</strong> Hartree–Fock (section 5.12) on
+the same candidates gets 36 of 36 ground configurations of ours right,
+against local exchange’s 32. The two agree on 32, and every one of those
+is right; they differ on Ti, V, Co and Ni, and on each of these
+Hartree–Fock is right. The promotion of a 4s electron into 3d shows what
+each method does, against the same measured centroids as section 6.3
+(eV, error of local exchange and of Hartree–Fock: Sc −1.29/−0.42, Ti
+−1.70/−0.27, V −2.09/−0.12, Cr −1.73/−0.26, Mn −0.72/+1.19, Fe
+−0.37/+0.93, Co −0.76/+1.11, Ni −1.13/+1.31, Cu −0.44/+1.12). Local
+exchange makes d too cheap in all nine. Hartree–Fock makes it a little
+too cheap up to half filling (Sc–Cr, −0.42 to −0.12) and too dear after
+it (Mn–Cu, 0.93 to 1.31). So the two do not bracket the measured value;
+from scandium to chromium both lie on the same side of it. Their
+difference is a measure of how much an answer depends on the method, not
+an error bar: neither method bounds the other, and both omit the
+correlation that would move each toward the measured values.</p>
+<p>In four dimensions the two agree on 126 of the 140 elements, and
+these are the table’s firm configurations. They differ on 14, which are
+open: 7 in the d rows (30, 31, 37, 38, 40, 58, 61), where local exchange
+puts one electron more in d than Hartree–Fock, as in ours; 5 at the end
+of row 6’s f block (107, 108, 109, 110, 111), where it puts one more in
+f; and 2 at the start of a block (53, 83). For the d rows, ours gives a
+lean. Before half filling (30, 31, 58) Hartree–Fock’s error in ours was
+small and in the same direction as local exchange’s, so its preference
+for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08
+eV, are inside the volt by which it overprices d in ours. Hartree–Fock
+separates f configurations far more widely than d ones (its margins in
+the f row are 2.35 to 5.80 eV), and this paper’s table of ours has no f
+block to test that against. No Hartree–Fock ground configuration lies
+near the edge of the window of candidates, so none is likely to have
+been missed by the window alone. Every element’s verdict, both methods’
+rankings and the margins are in <code>data/hftable.json</code>.</p>
 <h2 id="hunds-first-rule-in-four-dimensions">7 · Hund’s first rule in
 four dimensions</h2>
 <p>The solver gives each open subshell the most parallel spins it can
@@ -1314,12 +1508,13 @@ element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58 eV), element 114 (5d²,
 singlet of ten states, and the triplet the solver assumed lies 0.30–0.77
 eV above it. In the f block 4f³ (element 83) fails too, and so does its
 mirror 4f²⁹ (element 108), three short of a full shell. Both have a
-ground term of spin ½, 0.15 and 0.26 eV below the quartet. Every other f
-filling keeps the rule. For f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was
-checked; for f⁶–f²⁵ only the highest two or three, because the
-lower-spin blocks run to 10⁶–10⁸ arrangements. There the result is a
-bound: no lower term among the spins that could be run. Two fillings
-(elements 102 and 106) didn’t finish in the runner’s time.</p>
+ground term of spin ½, 0.15 and 0.26 eV below the quartet. No other f
+filling was found to break the rule, but the search is not complete. For
+f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was checked. For f⁶–f²⁵ only the
+highest two or three were, because the lower-spin blocks run to 10⁶–10⁸
+arrangements; there the result is a bound, no lower term among the spins
+that could be run. Two fillings (elements 102 and 106) didn’t finish in
+the runner’s time.</p>
 <p><strong>7.3 Why it fails.</strong> It isn’t the law. On element 26’s
 own orbital Gauss’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
@@ -1332,8 +1527,9 @@ of SO(4) ≅ SU(2) × SU(2)/ℤ₂. Two electrons in them make spatially
 symmetric states (2,2) ⊕ (2,0) ⊕ (0,2) ⊕ (1,1) ⊕ (0,0), all spin
 singlets (25, 10, 9 and 1 states), and antisymmetric ones (2,1) ⊕ (1,2)
 ⊕ (1,0) ⊕ (0,1), triplets (30 and 6). The singlet that comes lowest is
-the ten-state (2,0) ⊕ (0,2). For two electrons in a d subshell each
-term’s energy is exactly
+the ten-state (2,0) ⊕ (0,2): two irreducible representations of SO(4),
+exchanged by a reflection, so a single level once reflections are
+counted. For two electrons in a d subshell each term’s energy is exactly
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>0</mn></msup><mo>+</mo><msub><mi>a</mi><mn>2</mn></msub><msup><mi>F</mi><mn>2</mn></msup><mo>+</mo><msub><mi>a</mi><mn>4</mn></msub><msup><mi>F</mi><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">F^0 + a_2F^2 + a_4F^4</annotation></semantics></math>.
 The
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>F</mi><mi>n</mi></msup><annotation encoding="application/x-tex">F^n</annotation></semantics></math>
@@ -1366,6 +1562,27 @@ the two electrons’ left halves and cancels their right ones, or the
 other way round. Three-dimensional rotations don’t split, so ours has no
 such state. An interactive version is at
 four.mino.mobi/atom/hund.html.</p>
+<p>What this establishes is narrower than a whole-atom ground term. The
+term energies are computed within one subshell on the atom’s own
+maximum-spin orbital, which is neither relaxed term by term nor
+correlated beyond the subshell, and the correction they give the table
+(section 7.4) is first order. The inversion holds under both laws
+tested, and for any orbital whose
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>
+is below 5/3. Hund’s first rule has been studied away from three
+dimensions, in two-dimensional helium-like atoms and quantum dots <span
+class="citation" data-cites="sako2012 sako2010">(<a href="#ref-sako2012"
+role="doc-biblioref">Sako et al. 2012</a>; <a href="#ref-sako2010"
+role="doc-biblioref">Sako, Paldus, and Diercksen 2010</a>)</span> and by
+dimensional scaling <span class="citation" data-cites="gonzalez1991">(<a
+href="#ref-gonzalez1991" role="doc-biblioref">González 1991</a>)</span>,
+and two-electron matrix elements for hydrogenic d² and f² pairs have
+been derived for any
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+<span class="citation" data-cites="summerfield1999">(<a
+href="#ref-summerfield1999" role="doc-biblioref">Summerfield and Loeser
+1999</a>)</span>. We have not been able to read the last two in full,
+and none of the sources we could read states this inversion.</p>
 <p><strong>7.4 What it does to the table.</strong> Where the rule fails,
 the solver’s energy for that configuration is the maximum-spin state’s,
 too high by the gap. The table in section 8 corrects that. Every d- and
@@ -1404,21 +1621,22 @@ data-cites="negadi1996">Négadi and Kibler (<a href="#ref-negadi1996"
 role="doc-biblioref">1996</a>)</span> gives when it is applied to four
 dimensions, which they stated for any dimension and worked out for two.
 To our knowledge this is the first self-consistent table that confirms
-them. The rule is a filling order. It builds the table’s skeleton of
-rows and blocks, which is how figure 2 is drawn. Like Madelung’s rule in
-ours, it doesn’t promise each atom’s ground configuration, and ours has
-exceptions to it, chromium and copper the first of about twenty. Read
-that way, 103 of the 140 ground configurations are exactly the rule’s.
-Each of the other 37 moves one or two electrons from one subshell to
-another: 34 from the outer s into the d or f subshell below it (10 of
-them two electrons), as our chromium, copper and palladium do, and the
-other 3 between other pairs: 81 (4f → 5d), 82 (4f → 5d) and 113 (5d →
-6p). The solver finds more of these than there are. Over our first 36
-elements it departs from the rule 6 times (Ti, V, Cr, Co, Ni, Cu), where
-the measured configurations depart 2 times (Cr and Cu). The reason is
-its lean toward d (section 6.3), so the 4D count is likely too high, and
-these departures, not the rows, are where the table is least sure. Part
-III asks how much of the table the law decides.</p>
+them in four dimensions. The rule is a filling order. It builds the
+table’s skeleton of rows and blocks, which is how figure 2 is drawn.
+Like Madelung’s rule in ours, it doesn’t promise each atom’s ground
+configuration, and ours has exceptions to it, chromium and copper the
+first of about twenty. Read that way, 103 of the 140 ground
+configurations are exactly the rule’s. Each of the other 37 moves one or
+two electrons from one subshell to another: 34 from the outer s into the
+d or f subshell below it (10 of them two electrons), as our chromium,
+copper and palladium do, and the other 3 between other pairs: 81 (4f →
+5d), 82 (4f → 5d) and 113 (5d → 6p). The solver finds more of these than
+there are. Over our first 36 elements it departs from the rule 6 times
+(Ti, V, Cr, Co, Ni, Cu), where the measured configurations depart 2
+times (Cr and Cu). The reason is its lean toward d (section 6.3), so the
+4D count is likely too high, and these departures, not the rows, are
+where the table is least sure. Part III asks how much of the table the
+law decides.</p>
 <figure id="fig-2">
 <img src="../figures/2.svg"
 alt="Figure 2. The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler’s generalized Madelung rule gives when applied to four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6’s f block 32 (drawn below, as ours is). An element takes our element’s name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 4. Hover a cell for its configuration and ionization." />
@@ -1577,11 +1795,12 @@ dimensions), atoms bind an extra electron by 3.4, 5.7, 7.8, 10.3, 12.9
 eV going down the group, rising with every row, where ours stay level (F
 3.401, Cl 3.613, Br 3.364 eV, measured). The largest affinity in the
 table is 12.9 eV (element 137), and 80 of the 140 atoms bind an extra
-electron by more than the 0.7 eV section 6.4 trusts. The light noble
-gases (2, 12, 22) don’t hold one at all: their anions lie 7, 14, 12 eV
-above the atom. The heavier ones come out barely bound (50: 0.05, 78:
-0.23, 138: 0.45 eV), too little to call. In ours this method underbinds
-anions like these, whose extra electron is s.</p>
+electron by more than 0.7 eV, the level above which the method held in
+ours (section 6.4). The light noble gases (2, 12, 22) don’t hold one at
+all: their anions lie 7, 14, 12 eV above the atom. The heavier ones come
+out barely bound (50: 0.05, 78: 0.23, 138: 0.45 eV), too little to call.
+In ours this method underbinds anions like these, whose extra electron
+is s.</p>
 <h2 id="neutral-atoms-arent-silent">11 · Neutral atoms aren’t
 silent</h2>
 <p>Under the shell theorem a neutral atom is invisible from outside its
@@ -1616,9 +1835,20 @@ where ours do, and molecules held differently.</p>
 4.3), so only statics are safe; this paper has nothing that moves. Heavy
 atoms would need relativity, which the law has given up for the force
 between charges; the table past about element 100 is first-pass for that
-reason, and the innermost Dirac level of a bare nucleus would dive near
-Z ≈ 230 for a nucleus of 4–5 fm, as a potential problem, not one met
-here. Nuclei are declared stable to Z = 140.</p>
+reason. Round a point nucleus the innermost Dirac level fails at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mi>α</mi><mo>=</mo><mn>3</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">Z\alpha = 3/2</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>≈</mo><mn>205</mn></mrow><annotation encoding="application/x-tex">Z \approx 205</annotation></semantics></math>
+in four dimensions <span class="citation"
+data-cites="katsura2006 gu2002">(<a href="#ref-katsura2006"
+role="doc-biblioref">Katsura and Aoki 2006</a>; <a href="#ref-gu2002"
+role="doc-biblioref">GU, MA, and DONG 2002</a>)</span>; round a nucleus
+of 4–5 fm it instead dives into the negative continuum near Z ≈ 230 (our
+own finite-nucleus solution, <code>dirac.js</code>, which gives ours’
+170). Both are potential problems, not ones met here, and a Dirac
+equation in a prescribed
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+is not the relativistic completion the lens vacuum lacks. Nuclei are
+declared stable to Z = 140.</p>
 <p><strong>The method’s.</strong> Local exchange and no correlation,
 which in ours favours d by about a volt (section 6.3); in four
 dimensions that leaves the configurations section 7.4 lists in doubt.
@@ -1643,8 +1873,8 @@ isn’t harmonic and an inner cloud screens only partly: outer electrons
 are held about two and a half times harder, the table’s hardest-held
 electron belongs to a full d shell rather than a noble gas, and a
 neutral atom pulls from afar. And four-dimensional space breaks Hund’s
-first rule for the d² and d¹⁶ fillings and for 4f³ and 4f²⁹, whatever
-the law.</p>
+first rule for the d² and d¹⁶ fillings and for 4f³ and 4f²⁹, under both
+laws tested.</p>
 <h1 id="appendices">Appendices</h1>
 <h2 id="a-the-4d-kernel">A · The 4D kernel</h2>
 <p>A thin spherical shell of unit charge and radius
@@ -1977,7 +2207,7 @@ under <code>runs/</code>. The code is mirrored at a tagged version for
 citation.</p>
 <h2 id="supplement-and-data">Supplement and data</h2>
 <p>Supplement S1 is the table with every open subshell given Hund spins
-(<code>data/table4-hundspin.csv</code>). The 33 claims this text rests
+(<code>data/table4-hundspin.csv</code>). The 34 claims this text rests
 on, and the data behind them, are in <code>ledger.json</code> and
 <code>data/</code>.</p>
 <h2 id="references">References</h2>
@@ -1988,6 +2218,12 @@ Al-Jaber, Sami M. 1998. <span>“Hydrogen Atom in N Dimensions.”</span>
 <em>International Journal of Theoretical Physics</em> 37 (4): 1289–98.
 <a
 href="https://doi.org/10.1023/A:1026679921970">https://doi.org/10.1023/A:1026679921970</a>.
+</div>
+<div id="ref-alliluev1958" class="csl-entry" role="listitem">
+Alliluev, S. P. 1958. <span>“On the Relation Between
+<span>‘Accidental’</span> Degeneracy and <span>‘Hidden’</span> Symmetry
+of a System.”</span> <em>Soviet Physics JETP</em> 6: 156–58. <a
+href="https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf">https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf</a>.
 </div>
 <div id="ref-bander1966" class="csl-entry" role="listitem">
 Bander, M., and C. Itzykson. 1966. <span>“Group Theory and the Hydrogen
@@ -2019,6 +2255,13 @@ Case, K. M. 1950. <span>“Singular Potentials.”</span> <em>Physical
 Review</em> 80 (5): 797–806. <a
 href="https://doi.org/10.1103/PhysRev.80.797">https://doi.org/10.1103/PhysRev.80.797</a>.
 </div>
+<div id="ref-pham2023" class="csl-entry" role="listitem">
+Duc Pham, L V, Pascal Sattler, Miguel A L Marques, and Carlos L
+Benavides-Riveros. 2023. <span>“Homogeneous Electron Liquid in Arbitrary
+Dimensions Beyond the Random Phase Approximation.”</span> <em>New
+Journal of Physics</em> 25 (8): 083040. <a
+href="https://doi.org/10.1088/1367-2630/acef4c">https://doi.org/10.1088/1367-2630/acef4c</a>.
+</div>
 <div id="ref-dyson1967" class="csl-entry" role="listitem">
 Dyson, Freeman J., and A. Lenard. 1967. <span>“Stability of Matter.
 I.”</span> <em>Journal of Mathematical Physics</em> 8 (3): 423–34. <a
@@ -2037,6 +2280,20 @@ in den Grundgesetzen der Physik?”</span> <em>Annalen der Physik</em> 366
 (5): 440–46. <a
 href="https://doi.org/10.1002/andp.19203660503">https://doi.org/10.1002/andp.19203660503</a>.
 </div>
+<div id="ref-escobar2021" class="csl-entry" role="listitem">
+Escobar-Ruiz, A M, H Olivares-Pilón, N Aquino, and S A Cruz. 2021.
+<span>“Helium-Like Ions in d-Dimensions: Analyticity and Generalized
+Ground State Majorana Solutions.”</span> <em>Journal of Physics B:
+Atomic, Molecular and Optical Physics</em> 54 (23): 235002. <a
+href="https://doi.org/10.1088/1361-6455/ac3fbf">https://doi.org/10.1088/1361-6455/ac3fbf</a>.
+</div>
+<div id="ref-fiorani2009" class="csl-entry" role="listitem">
+FIORANI, EMANUELE. 2009. <span>“Momentum Maps, Independent First
+Integrals and Integrability for Central Potentials.”</span>
+<em>International Journal of Geometric Methods in Modern Physics</em> 06
+(08): 1323–41. <a
+href="https://doi.org/10.1142/s0219887809004247">https://doi.org/10.1142/s0219887809004247</a>.
+</div>
 <div id="ref-fock1935" class="csl-entry" role="listitem">
 Fock, V. 1935. <span>“Zur Theorie des Wasserstoffatoms.”</span>
 <em>Zeitschrift für Physik</em> 98 (3-4): 145–54. <a
@@ -2049,10 +2306,49 @@ Hydrogen Molecule.”</span> <em>Frontiers in Physics</em> 8 (August):
 331. <a
 href="https://doi.org/10.3389/fphy.2020.00331">https://doi.org/10.3389/fphy.2020.00331</a>.
 </div>
+<div id="ref-glasser1983" class="csl-entry" role="listitem">
+Glasser, M. L., and J. Boersma. 1983. <span>“Exchange Energy of an
+Electron Gas of Arbitrary Dimensionality.”</span> <em>SIAM Journal on
+Applied Mathematics</em> 43 (3): 535–45. <a
+href="https://doi.org/10.1137/0143034">https://doi.org/10.1137/0143034</a>.
+</div>
+<div id="ref-gonzalez1991" class="csl-entry" role="listitem">
+González, Augusto. 1991. <span>“The Quantum Few-Body Problem and the 1/D
+Method.”</span> <em>Few-Body Systems</em> 10 (2): 43–57. <a
+href="https://doi.org/10.1007/bf01352401">https://doi.org/10.1007/bf01352401</a>.
+</div>
+<div id="ref-gu2002" class="csl-entry" role="listitem">
+GU, XIAO-YAN, ZHONG-QI MA, and SHI-HAI DONG. 2002. <span>“Exact
+Solutions to the Dirac Equation for a Coulomb Potential in D + 1
+Dimensions.”</span> <em>International Journal of Modern Physics E</em>
+11 (04): 335–46. <a
+href="https://doi.org/10.1142/s0218301302000879">https://doi.org/10.1142/s0218301302000879</a>.
+</div>
+<div id="ref-hainzl2002" class="csl-entry" role="listitem">
+Hainzl, Christian, and Robert Seiringer. 2002. <span>“General
+Decomposition of Radial Functions on Rn and Applications to N-Body
+Quantum Systems.”</span> <em>Letters in Mathematical Physics</em> 61
+(1): 75–84. <a
+href="https://doi.org/10.1023/a:1020204818938">https://doi.org/10.1023/a:1020204818938</a>.
+</div>
 <div id="ref-herschbach1992" class="csl-entry" role="listitem">
 Herschbach, Dudley R., John Avery, and Osvaldo Goscinski, eds. 1993.
 <em>Dimensional Scaling in Chemical Physics</em>. Dordrecht: Kluwer. <a
 href="https://doi.org/10.1007/978-94-011-1836-1">https://doi.org/10.1007/978-94-011-1836-1</a>.
+</div>
+<div id="ref-heydeman2020" class="csl-entry" role="listitem">
+Heydeman, Matthew, Christian B. Jepsen, Ziming Ji, and Amos Yarom. 2020.
+<span>“Renormalization and Conformal Invariance of Non-Local Quantum
+Electrodynamics.”</span> <em>Journal of High Energy Physics</em> 2020
+(8): 7. <a
+href="https://doi.org/10.1007/jhep08(2020)007">https://doi.org/10.1007/jhep08(2020)007</a>.
+</div>
+<div id="ref-katsura2006" class="csl-entry" role="listitem">
+Katsura, Hosho, and Hideo Aoki. 2006. <span>“Exact Supersymmetry in the
+Relativistic Hydrogen Atom in General Dimensions—Supercharge and the
+Generalized Johnson-Lippmann Operator.”</span> <em>Journal of
+Mathematical Physics</em> 47 (3): 032301. <a
+href="https://doi.org/10.1063/1.2173173">https://doi.org/10.1063/1.2173173</a>.
 </div>
 <div id="ref-nist-asd" class="csl-entry" role="listitem">
 Kramida, A., Yu. Ralchenko, J. Reader, and NIST ASD Team. 2026.
@@ -2065,17 +2361,36 @@ Kventsel, G. F., and J. Katriel. 1981. <span>“Thomas–Fermi Atom in n
 Dimensions.”</span> <em>Physical Review A</em> 24 (5): 2299–2301. <a
 href="https://doi.org/10.1103/physreva.24.2299">https://doi.org/10.1103/physreva.24.2299</a>.
 </div>
+<div id="ref-lanave2019" class="csl-entry" role="listitem">
+La Nave, Gabriele, Kridsanaphong Limtragool, and Philip W. Phillips.
+2019. <span>“Colloquium : Fractional Electromagnetism in Quantum Matter
+and High-Energy Physics.”</span> <em>Reviews of Modern Physics</em> 91
+(2): 021003. <a
+href="https://doi.org/10.1103/revmodphys.91.021003">https://doi.org/10.1103/revmodphys.91.021003</a>.
+</div>
 <div id="ref-landau-qm" class="csl-entry" role="listitem">
 Landau, L. D., and E. M. Lifshitz. 1977. <em>Quantum Mechanics:
 Non-Relativistic Theory</em>. 3rd ed. Course of Theoretical Physics 3.
 Oxford: Pergamon. <a
 href="https://doi.org/10.1016/C2013-0-02793-4">https://doi.org/10.1016/C2013-0-02793-4</a>.
 </div>
+<div id="ref-lewin2022" class="csl-entry" role="listitem">
+Lewin, Mathieu. 2022. <span>“Coulomb and Riesz Gases: The Known and the
+Unknown.”</span> <em>Journal of Mathematical Physics</em> 63 (6):
+061101. <a
+href="https://doi.org/10.1063/5.0086835">https://doi.org/10.1063/5.0086835</a>.
+</div>
 <div id="ref-lieb1975" class="csl-entry" role="listitem">
 Lieb, Elliott H., and Walter E. Thirring. 1975. <span>“Bound for the
 Kinetic Energy of Fermions Which Proves the Stability of Matter.”</span>
 <em>Physical Review Letters</em> 35 (11): 687–89. <a
 href="https://doi.org/10.1103/PhysRevLett.35.687">https://doi.org/10.1103/PhysRevLett.35.687</a>.
+</div>
+<div id="ref-loeser1987atomic" class="csl-entry" role="listitem">
+Loeser, J. G. 1987. <span>“Atomic Energies from the Large-Dimension
+Limit.”</span> <em>The Journal of Chemical Physics</em> 86 (10):
+5635–46. <a
+href="https://doi.org/10.1063/1.452540">https://doi.org/10.1063/1.452540</a>.
 </div>
 <div id="ref-loeser1986hf" class="csl-entry" role="listitem">
 Loeser, J. G., and D. R. Herschbach. 1986a. <span>“Hartree–Fock
@@ -2089,6 +2404,13 @@ Two-Electron Atoms.”</span> <em>The Journal of Chemical Physics</em> 84
 (7): 3882–92. <a
 href="https://doi.org/10.1063/1.450099">https://doi.org/10.1063/1.450099</a>.
 </div>
+<div id="ref-loeser1994" class="csl-entry" role="listitem">
+Loeser, J. G., J. H. Summerfield, A. L. Tan, and Z. Zheng. 1994.
+<span>“Correlated Electronic Structure Models Suggested by the
+Large-Dimension Limit.”</span> <em>The Journal of Chemical Physics</em>
+100 (7): 5036–53. <a
+href="https://doi.org/10.1063/1.467221">https://doi.org/10.1063/1.467221</a>.
+</div>
 <div id="ref-loos2016" class="csl-entry" role="listitem">
 Loos, Pierre‐François, and Peter M. W. Gill. 2016. <span>“The Uniform
 Electron Gas.”</span> <em>WIREs Computational Molecular Science</em> 6
@@ -2100,6 +2422,13 @@ Madelung, Erwin. 1936. <em>Die mathematischen Hilfsmittel des
 Physikers</em>. 3rd ed. Grundlehren der mathematischen Wissenschaften 4.
 Berlin: Springer. <a
 href="https://doi.org/10.1007/978-3-662-02177-4">https://doi.org/10.1007/978-3-662-02177-4</a>.
+</div>
+<div id="ref-marino2014" class="csl-entry" role="listitem">
+Marino, E. C., Leandro O. Nascimento, Van Sérgio Alves, and C. Morais
+Smith. 2014. <span>“Unitarity of Theories Containing Fractional Powers
+of the d’Alembertian Operator.”</span> <em>Physical Review D</em> 90
+(10): 105003. <a
+href="https://doi.org/10.1103/physrevd.90.105003">https://doi.org/10.1103/physrevd.90.105003</a>.
 </div>
 <div id="ref-mcmurchie1978" class="csl-entry" role="listitem">
 McMurchie, Larry E, and Ernest R Davidson. 1978. <span>“One- and
@@ -2125,6 +2454,12 @@ to Density-Functional Approximations for Many-Electron Systems.”</span>
 <em>Physical Review B</em> 23 (10): 5048–79. <a
 href="https://doi.org/10.1103/PhysRevB.23.5048">https://doi.org/10.1103/PhysRevB.23.5048</a>.
 </div>
+<div id="ref-lindqvist2017" class="csl-entry" role="listitem">
+Peter Lindqvist. 2017. <em>Notes on the p-Laplace Equation, Second
+Edition</em>. 2nd ed. Vol. 161. Report, Department of Mathematics and
+Statistics. University of Jyväskylä. <a
+href="https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download">https://jyx.jyu.fi/bitstreams/2a8cbc94-58e9-4e75-94d6-0f1f5bc22ac1/download</a>.
+</div>
 <div id="ref-pyykko1991" class="csl-entry" role="listitem">
 Pyykkö, Pekka, and Yongfang Zhao. 1991. <span>“The Elements of Flatland:
 Hartree–Fock Atomic Ground States in Two Dimensions for Z =
@@ -2139,11 +2474,43 @@ Electron Affinities: Photoelectron Experiments and Theoretical
 Computations.”</span> <em>Chemical Reviews</em> 102 (1): 231–82. <a
 href="https://doi.org/10.1021/cr990044u">https://doi.org/10.1021/cr990044u</a>.
 </div>
+<div id="ref-sako2010" class="csl-entry" role="listitem">
+Sako, Tokuei, Josef Paldus, and Geerd H. F. Diercksen. 2010.
+<span>“Origin of Hund’s Multiplicity Rule in Quasi-Two-Dimensional
+Two-Electron Quantum Dots.”</span> <em>Physical Review A</em> 81 (2):
+022501. <a
+href="https://doi.org/10.1103/physreva.81.022501">https://doi.org/10.1103/physreva.81.022501</a>.
+</div>
+<div id="ref-sako2012" class="csl-entry" role="listitem">
+Sako, Tokuei, Josef Paldus, Atsushi Ichimura, and Geerd H F Diercksen.
+2012. <span>“Origin of the First Hund Rule and the Structure of Fermi
+Holes in Two-Dimensional He-Like Atoms and Two-Electron Quantum
+Dots.”</span> <em>Journal of Physics B: Atomic, Molecular and Optical
+Physics</em> 45 (23): 235001. <a
+href="https://doi.org/10.1088/0953-4075/45/23/235001">https://doi.org/10.1088/0953-4075/45/23/235001</a>.
+</div>
 <div id="ref-nist-handbook" class="csl-entry" role="listitem">
 Sansonetti, J. E., and W. C. Martin. 2005. <span>“Handbook of Basic
 Atomic Spectroscopic Data.”</span> <em>Journal of Physical and Chemical
 Reference Data</em> 34 (4): 1559–2259. <a
 href="https://doi.org/10.1063/1.1800011">https://doi.org/10.1063/1.1800011</a>.
+</div>
+<div id="ref-bertrand2007" class="csl-entry" role="listitem">
+Santos, F. C., V. Soares, and A. C. Tort. 2007. <span>“An English
+Translation of Bertrand’s Theorem.”</span> arXiv. 2007. <a
+href="https://arxiv.org/abs/0704.2396">https://arxiv.org/abs/0704.2396</a>.
+</div>
+<div id="ref-schlesier2020" class="csl-entry" role="listitem">
+Schlesier, Robert, Carlos L. Benavides-Riveros, and Miguel A. L.
+Marques. 2020. <span>“Homogeneous Electron Gas in Arbitrary
+Dimensions.”</span> <em>Physical Review B</em> 102 (3): 035123. <a
+href="https://doi.org/10.1103/physrevb.102.035123">https://doi.org/10.1103/physrevb.102.035123</a>.
+</div>
+<div id="ref-summerfield1999" class="csl-entry" role="listitem">
+Summerfield, J.H., and J.G. Loeser. 1999. <span>“Dimension‐dependent
+Two‐electron Hamiltonian Matrix Elements.”</span> <em>Journal of
+Mathematical Chemistry</em> 25 (2-3): 309–15. <a
+href="https://doi.org/10.1023/a:1019196719751">https://doi.org/10.1023/a:1019196719751</a>.
 </div>
 <div id="ref-sun2018" class="csl-entry" role="listitem">
 Sun, Qiming, Timothy C. Berkelbach, Nick S. Blunt, George H. Booth,
@@ -2164,6 +2531,18 @@ Tangherlini, F. R. 1963. <span>“Schwarzschild Field in n Dimensions and
 the Dimensionality of Space Problem.”</span> <em>Il Nuovo Cimento</em>
 27 (3): 636–51. <a
 href="https://doi.org/10.1007/BF02784569">https://doi.org/10.1007/BF02784569</a>.
+</div>
+<div id="ref-tarasov2016" class="csl-entry" role="listitem">
+Tarasov, Vasily E. 2016. <span>“Electric Field in Media with Power-Law
+Spatial Dispersion.”</span> <em>Modern Physics Letters B</em> 30 (10):
+1650132. <a
+href="https://doi.org/10.1142/s0217984916501323">https://doi.org/10.1142/s0217984916501323</a>.
+</div>
+<div id="ref-tarasov2013" class="csl-entry" role="listitem">
+Tarasov, Vasily E., and Juan J. Trujillo. 2013. <span>“Fractional
+Power-Law Spatial Dispersion in Electrodynamics.”</span> <em>Annals of
+Physics</em> 334 (July): 1–23. <a
+href="https://doi.org/10.1016/j.aop.2013.03.014">https://doi.org/10.1016/j.aop.2013.03.014</a>.
 </div>
 </div>
 

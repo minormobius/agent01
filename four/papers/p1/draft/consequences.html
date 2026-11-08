@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="8d86312dae362f5e20a16a10784aaead0c9c23d7eca6dbaae4008c5d94bba9e2" />
+<meta name="source-sha256" content="ba1156bcc97bbb980dd156161f1a3485a0f83297c97c639503612b4b5e408473" />
 <title>Paper 1 · Part III · What the law does (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -90,11 +90,12 @@ dimensions), atoms bind an extra electron by 3.4, 5.7, 7.8, 10.3, 12.9
 eV going down the group, rising with every row, where ours stay level (F
 3.401, Cl 3.613, Br 3.364 eV, measured). The largest affinity in the
 table is 12.9 eV (element 137), and 80 of the 140 atoms bind an extra
-electron by more than the 0.7 eV section 6.4 trusts. The light noble
-gases (2, 12, 22) don’t hold one at all: their anions lie 7, 14, 12 eV
-above the atom. The heavier ones come out barely bound (50: 0.05, 78:
-0.23, 138: 0.45 eV), too little to call. In ours this method underbinds
-anions like these, whose extra electron is s.</p>
+electron by more than 0.7 eV, the level above which the method held in
+ours (section 6.4). The light noble gases (2, 12, 22) don’t hold one at
+all: their anions lie 7, 14, 12 eV above the atom. The heavier ones come
+out barely bound (50: 0.05, 78: 0.23, 138: 0.45 eV), too little to call.
+In ours this method underbinds anions like these, whose extra electron
+is s.</p>
 <h2 id="neutral-atoms-arent-silent">11 · Neutral atoms aren’t
 silent</h2>
 <p>Under the shell theorem a neutral atom is invisible from outside its
@@ -129,9 +130,20 @@ where ours do, and molecules held differently.</p>
 4.3), so only statics are safe; this paper has nothing that moves. Heavy
 atoms would need relativity, which the law has given up for the force
 between charges; the table past about element 100 is first-pass for that
-reason, and the innermost Dirac level of a bare nucleus would dive near
-Z ≈ 230 for a nucleus of 4–5 fm, as a potential problem, not one met
-here. Nuclei are declared stable to Z = 140.</p>
+reason. Round a point nucleus the innermost Dirac level fails at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mi>α</mi><mo>=</mo><mn>3</mn><mi>/</mi><mn>2</mn></mrow><annotation encoding="application/x-tex">Z\alpha = 3/2</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>≈</mo><mn>205</mn></mrow><annotation encoding="application/x-tex">Z \approx 205</annotation></semantics></math>
+in four dimensions <span class="citation"
+data-cites="katsura2006 gu2002">(<a href="#ref-katsura2006"
+role="doc-biblioref">Katsura and Aoki 2006</a>; <a href="#ref-gu2002"
+role="doc-biblioref">GU, MA, and DONG 2002</a>)</span>; round a nucleus
+of 4–5 fm it instead dives into the negative continuum near Z ≈ 230 (our
+own finite-nucleus solution, <code>dirac.js</code>, which gives ours’
+170). Both are potential problems, not ones met here, and a Dirac
+equation in a prescribed
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+is not the relativistic completion the lens vacuum lacks. Nuclei are
+declared stable to Z = 140.</p>
 <p><strong>The method’s.</strong> Local exchange and no correlation,
 which in ours favours d by about a volt (section 6.3); in four
 dimensions that leaves the configurations section 7.4 lists in doubt.
@@ -156,8 +168,26 @@ isn’t harmonic and an inner cloud screens only partly: outer electrons
 are held about two and a half times harder, the table’s hardest-held
 electron belongs to a full d shell rather than a noble gas, and a
 neutral atom pulls from afar. And four-dimensional space breaks Hund’s
-first rule for the d² and d¹⁶ fillings and for 4f³ and 4f²⁹, whatever
-the law.</p>
+first rule for the d² and d¹⁶ fillings and for 4f³ and 4f²⁹, under both
+laws tested.</p>
+<h1 class="unnumbered" id="bibliography">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent"
+role="list">
+<div id="ref-gu2002" class="csl-entry" role="listitem">
+GU, XIAO-YAN, ZHONG-QI MA, and SHI-HAI DONG. 2002. <span>“Exact
+Solutions to the Dirac Equation for a Coulomb Potential in D + 1
+Dimensions.”</span> <em>International Journal of Modern Physics E</em>
+11 (04): 335–46. <a
+href="https://doi.org/10.1142/s0218301302000879">https://doi.org/10.1142/s0218301302000879</a>.
+</div>
+<div id="ref-katsura2006" class="csl-entry" role="listitem">
+Katsura, Hosho, and Hideo Aoki. 2006. <span>“Exact Supersymmetry in the
+Relativistic Hydrogen Atom in General Dimensions—Supercharge and the
+Generalized Johnson-Lippmann Operator.”</span> <em>Journal of
+Mathematical Physics</em> 47 (3): 032301. <a
+href="https://doi.org/10.1063/1.2173173">https://doi.org/10.1063/1.2173173</a>.
+</div>
+</div>
 
 </div>
 <div class="p-source">Generated from <code>papers/p1/text/consequences.md</code>: every number in it is read by <code>build.mjs</code> from the solver, the bake or the runs, so this text says what the code does. Rendered by pandoc with MathML.</div>

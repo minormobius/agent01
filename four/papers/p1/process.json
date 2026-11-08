@@ -413,6 +413,18 @@
   {
    "date": "2026-11-08",
    "what": "Built the Hartree–Fock atom (atom/js/hf.js): numerical, one radial function per subshell, the energy the average over max-spin determinants, any D, the pinned 1/r. Exchange by the Gegenbauer expansion of 1/|x−y| (a_k(t), in 3D t^k), whose radial kernels are convolutions on the log grid (FFT), and angular weights B_k reduced to one zonal integral (in 4D every allowed k weighs (l+1)(l'+1)); Davidson on each subshell's Fock operator. Checks: our He, Be, C ³P, N ⁴S, Ne, Ar, Fe ⁵D, Cu ²S, Kr reproduce the numerical Hartree–Fock limits to 10⁻⁶ hartree or better (Richardson from h = 0.02, 0.01); 4D elements 2, 4, 12, 22 agree with gauss.js (an independent Gaussian code) to its basis limit; all 40 angular weights (s–f, both D) match brute-force harmonics to 10⁻¹⁴; the 4D kernels to 3 × 10⁻⁷. The bracket on our 3d row (atom/tools/hftable.mjs, with the full term correction on Hartree–Fock orbitals): Hartree–Fock 10 of 10 ground configurations (Sc–Zn), local exchange 6; where they agree both right, where they differ Hartree–Fock right. Queued hf-table-1: both worlds, every element. Selftest 71; hf.js mirrored."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "hf-table-1 collected (all 84 commands exit 0): every element of both worlds ranked by Hartree–Fock and by local exchange over the same candidates. Gapped configurations (Na 4s¹ with 3s empty) are left out of the Hartree–Fock ranking, since the variational solve returns the compact configuration under another name. Ours: Hartree–Fock 36/36, local exchange 32/36; they agree on 32, all right; they differ on Ti, V, Co, Ni, where Hartree–Fock is right. 4D: agree on 126 of 140; open 30, 31, 37, 38, 40, 58, 61 (d row), 107–111 (f row), 53, 83. data/hftable.json, table/hfverdict.js (the table page's firm/open line), claim hfcheck, §5.12 and §6.6."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "The independent literature audit (Astra) checked and imported: 66 references (24 read, 42 index, none unchecked), Madelung now the 1936 third edition, p. 359. Revisions it asked for: a bounded novelty sentence with the earlier D-dimensional atoms; §6.3's measured promotions from NIST's Handbook (lowest-term centroids; the remembered values matched the lowest levels to 0.01 eV; Ni changes sign between the two); the 3d promotion errors show local exchange and Hartree–Fock do not bracket the measured value (both too cheap Sc–Cr), so §6.6 calls their spread method sensitivity; §7.2/7.3 state the f search's real coverage, the fixed-orbital scope and the two-irrep singlet, 'whatever the law' becomes 'under both laws tested'; §6.4's 0.7 eV is a calibration in ours, not a 4D error bar; §4.5 limited to single atoms and separated atoms' tails; §4.3 cites Heydeman et al. for route 2 (the field-strength bound, now in fields.js and selftest 33), Tarasov for route 3's statics, Lindqvist for route 4, and states each exclusion's assumptions; correlation literature cited as omitted, not unknown; Alliluev, Fiorani and Bertrand's translation, Katsura–Aoki (Z ≈ 205 point; 230 is our dirac.js). §6.2 gains Hartree–Fock against Escobar-Ruiz et al.'s correlated 4D helium-like energies (0.012–0.014 Ha above, as it must)."
+  },
+  {
+   "date": "2026-11-08",
+   "what": "Queued hf-lanth-1: the lanthanide calibration, ours Cs–Hf by both methods, measured ground configurations from NIST's Handbook (papers/p1/nist-levels.py → data/nist-lanthanides.json), to test Hartree–Fock's large f-row margins on an f block that has been measured."
   }
  ]
 }

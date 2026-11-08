@@ -41,7 +41,8 @@ screening at its strongest: a full shell whose own cloud hides the nucleus from 
 **10.3 Negative ions.** Partial screening holds an extra electron harder too. One electron short of a full p shell
 (p⁷ in four dimensions), atoms bind an extra electron by {{ea.hal4}} eV going down the group, rising with every row,
 where ours stay level ({{ea.halOurs}} eV, measured). The largest affinity in the table is {{ea.max4}}, and
-{{ea.bound4}} of the 140 atoms bind an extra electron by more than the 0.7 eV section 6.4 trusts. The light noble gases
+{{ea.bound4}} of the 140 atoms bind an extra electron by more than 0.7 eV, the level above which the method held in
+ours (section 6.4). The light noble gases
 (2, 12, 22) don't hold one at all: their anions lie {{ea.nobUn}} eV above the atom. The heavier ones come out barely
 bound ({{ea.nob4}} eV), too little to call. In ours this method underbinds anions like these, whose extra electron is s.
 
@@ -60,8 +61,11 @@ that follow take it up: noble gases that condense far above where ours do, and m
 
 **The law's own.** The force acts instantly (section 4.3), so only statics are safe; this paper has nothing that
 moves. Heavy atoms would need relativity, which the law has given up for the force between charges; the table past
-about element 100 is first-pass for that reason, and the innermost Dirac level of a bare nucleus would dive near
-Z ≈ 230 for a nucleus of 4–5 fm, as a potential problem, not one met here. Nuclei are declared stable to Z = 140.
+about element 100 is first-pass for that reason. Round a point nucleus the innermost Dirac level fails at
+$Z\alpha = 3/2$, $Z \approx 205$ in four dimensions [@katsura2006; @gu2002]; round a nucleus of 4–5 fm it instead
+dives into the negative continuum near Z ≈ 230 (our own finite-nucleus solution, `dirac.js`, which gives ours' 170).
+Both are potential problems, not ones met here, and a Dirac equation in a prescribed $1/r$ is not the relativistic
+completion the lens vacuum lacks. Nuclei are declared stable to Z = 140.
 
 **The method's.** Local exchange and no correlation, which in ours favours d by about a volt (section 6.3); in four
 dimensions that leaves the configurations section 7.4 lists in doubt. Every subshell's cloud is
@@ -80,4 +84,4 @@ The rows are the geometry's. Everything that fills inside them from the first d 
 four dimensions $1/r$ isn't harmonic and an inner cloud screens only partly: outer electrons are held about two and a
 half times harder, the table's hardest-held electron belongs to a full d shell rather than a noble gas, and a neutral
 atom pulls from afar. And four-dimensional space breaks Hund's first rule for the d² and d¹⁶ fillings and for 4f³ and 4f²⁹,
-whatever the law.
+under both laws tested.

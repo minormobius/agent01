@@ -844,8 +844,18 @@ for games, and this is a modelling programme with publications to come. The game
   Checks: 4D closed shells against `gauss.js` (elements 2, 4, 12, 22); angular weights against brute-force harmonics.
   `atom/tools/hftable.mjs check | rank <Z/…> [D] [window_eV]`: the local-exchange search's candidates within the window,
   each by Hartree–Fock with the full term correction (lowest term − max-spin average) on its own orbitals, against the
-  local exchange with the Hund-only correction. Our 3d row: Hartree–Fock 10/10, local exchange 6/10, agreement always
-  right. Runner run `hf-table-1` (both worlds, all elements) queued.
+  local exchange with the Hund-only correction. **`hf-table-1` (all exit 0; `papers/p1/hf-collect.mjs` → `data/hftable.json`
+  and **generated** `table/hfverdict.js`, the table page's firm/open line):** ours Hartree–Fock 36/36, local exchange 32/36,
+  agreement always right; 4D agree on 126 of 140, open 30, 31, 37, 38, 40, 58, 61, 107–111, 53, 83. Gapped
+  configurations (an empty subshell below an occupied one of the same l) are dropped from the Hartree–Fock ranking: the
+  solve collapses them onto the compact one. **Not a bracket:** against NIST's 3d promotions both methods are too cheap
+  for d from Sc to Cr; paper 1 calls the spread method sensitivity (§6.6, claim `hfcheck`). Past element 36 in ours the
+  tool seeds from `papers/p1/data/nist-lanthanides.json` (NIST Handbook, `nist-levels.py`): run `hf-lanth-1`, Cs–Hf,
+  the f-block calibration.
+  **The literature audit (Astra, 2026-11-08)** is imported: `refs.json` (66) and `data/crossref.json`; measured 3d
+  promotions in `data/nist-promotions.json` (lowest-term centroids, which `promotion-collect.mjs` now uses). Route 2's
+  unitarity argument is stated for the field strength (`fields.js` `fieldStrengthDim`, Heydeman et al. 2020); the site's
+  force chapter still states it for the potential: to update.
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).

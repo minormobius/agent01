@@ -5,6 +5,7 @@ import { TABLE, RPLOT } from "../atom/js/tablec.js";
 import { IE_REAL, layout } from "../atom/js/periodic.js";
 import { names, OURS } from "../atom/js/names.js";
 import { CENSUS } from "../atom/js/census.js";
+import { HF } from "./hfverdict.js";
 import { svg as fillSvg, order as fillOrder, ourOccupancy, parseConfig, nobles } from "./filling.js";
 import { inside } from "./inside.js";
 
@@ -115,6 +116,7 @@ function detail() {
       ? `<div class="kv newt"><b>New: nothing in our world does what it does.</b> ${e.why}.</div>`
       : `<div class="kv">4D's counterpart of our <b>${o.name}</b> (${o.sym}, element ${o.Z}): ${e.why}.</div>`}
     <div class="cfg">${el.config}</div>
+    ${HF[z] ? `<div class="kv">${HF[z][0] ? "<b>firm:</b> Hartree–Fock gives the same configuration" : `<b>open:</b> Hartree–Fock prefers ${HF[z][1].split(" ").slice(-3).join(" ")}${HF[z][2] != null ? `, ${HF[z][2].toFixed(2)} eV below this one` : ""} (<a href="../papers/p1/draft/paper#checks-against-what-is-known">paper 1, §6.6</a>)`}</div>` : ""}
     <div class="kv">first ionization <b>${(el.ion * EV).toFixed(2)} eV</b>${o ? ` · our ${o.name}: ${IE_REAL[o.Z - 1]} eV measured` : ""}</div>
     <div class="kv">outermost electron <b>${el.top}</b> at <b>${top.r.toFixed(2)} bohr</b>${o3 ? ` · our ${o.name}'s at ${o3.orb.find((q) => q.s === o3.top).r.toFixed(2)} (same solver)` : ""}</div>
     ${h ? `<div class="kv">its hydride, from the census: <b>XH${sub(h.bonds)}</b>${h.lp ? `, ${h.lp} lone pair${h.lp > 1 ? "s" : ""}` : ""}, ${h.shape === "pyramid" && Math.abs(h.param - 90) < 0.5 ? "flat: its hydrogens in one 3D slice, the lone pair straight across it" : h.shape === "fixed" ? "fully symmetric" : `${h.shape}${h.param != null ? ` (${h.param.toFixed(0)}°)` : ""}`}, dipole <b>${h.dipole.toFixed(2)}</b> au, hydrogen ${h.qH > 0 ? "positive" : "negative"}${h.dimer && h.dimer.E ? `; a hydrogen-bonded pair holds at <b>${(-h.dimer.E * KCAL).toFixed(1)} kcal/mol</b> (the census's linear bond)` : ""}</div>` : ""}
