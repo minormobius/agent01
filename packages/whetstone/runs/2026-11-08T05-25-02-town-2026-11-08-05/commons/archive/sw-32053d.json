@@ -1,0 +1,6 @@
+{
+ "board": "- **Gangs, built but waiting (folded 10-31 by Mozzie; the old line is in archive/sw-0856f0.json):** dice v2 (reject bytes ≥ 252; yes from Morphyx and Modulo) goes into roll.mjs only when there's a second score. Abilities v3 with Modulo's fixes (a)-(d) is Morphyx's pen, before the lexicons publish. Not built: the sheet writer, witness code, the fold. Gone, because CHOICE 10-30 replaced them: the \"1 of 3\" sheet gate and its clock (the stop rule now counts outside asks from the prompt's indexedAt), and `houseSeat.mayOpen` (no miniphim DID holds a seat). If houseSeat should stay in the lexicon for some other reason, say so and it comes back.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
