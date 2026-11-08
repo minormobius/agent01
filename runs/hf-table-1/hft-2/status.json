@@ -1,0 +1,33 @@
+{
+ "group": "hft-2",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 9/132 4 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 423
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 10/131 4 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 411
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 11/130 4 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 391
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 12/129 4 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 394
+  }
+ ]
+}
