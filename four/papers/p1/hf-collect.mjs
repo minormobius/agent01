@@ -3,6 +3,10 @@
    table) and Hartree–Fock's (fully term-corrected), whether they agree, Hartree–Fock's margin to its runner-up, and a
    flag where Hartree–Fock's best sits high in the local exchange's ranking (more than 3 eV of the 4 eV window), where a
    candidate the window left out could have beaten it. Ours carries the measured ground configuration for the check.
+   A gapped configuration (an occupied subshell with an empty one of the same l below it: Na 1s2 2s2 2p6 4s1) is left out
+   of Hartree–Fock's ranking. js/hf.js projects out only the occupied lower subshells, so its 4s falls to the empty 3s and
+   the solve returns the compact configuration's energy under the other name; a single determinant has no excited state
+   to give. The local exchange ranks them as solved (atom.js takes the right root), and they never win there.
      node four/papers/p1/hf-collect.mjs hf-table-1.jsonl     → data/hftable.json */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -12,13 +16,18 @@ import { realConfig } from "../../atom/js/periodic.js";
 const HERE = dirname(fileURLToPath(import.meta.url)), rows = new Map();
 for (const f of process.argv.slice(2)) for (const l of readFileSync(f, "utf8").split("\n")) { if (!l.startsWith("{")) continue; const r = JSON.parse(l); if (r.Z != null) rows.set(`${r.D}:${r.Z}`, r); }
 const set = (c) => (c ? c.split(" ").sort().join(" ") : null), out = [];
+const gapped = (c) => { const by = {}; for (const t of c.split(" ")) { const m = t.match(/^(\d+)([a-z])\d+$/); (by[m[2]] ??= new Set()).add(+m[1]); }
+  return Object.entries(by).some(([l, ns]) => { const l0 = "spdfgh".indexOf(l) + 1; for (let n = l0; n < Math.max(...ns); n++) if (!ns.has(n)) return true; return false; }); };
 for (const D of [3, 4]) for (let Z = 1; Z <= (D === 3 ? 36 : 140); Z++) {
   const r = rows.get(`${D}:${Z}`); if (!r) { out.push({ D, Z, missing: true }); continue; }
   if (r.unsettled || !r.hf) { out.push({ D, Z, unsettled: true }); continue; }
-  const hfRow = r.rows.find((x) => x.config === r.hf.config), edge = hfRow ? hfRow.lda_eV > 3 : null;
-  const row = { D, Z, lda: r.lda.config, hf: r.hf.config, agree: r.agree, hfMargin_eV: r.hfSecond?.dE_eV ?? null, hfSecond: r.hfSecond?.config ?? null,
-    hfLdaRank_eV: hfRow?.lda_eV ?? null, nearWindowEdge: edge, candidates: r.candidates, solved: r.solved, unconverged: r.unconverged, hfParts: r.hf.parts, rows: r.rows };
-  if (D === 3) { const m = realConfig(Z); row.measured = m; row.ldaRight = set(m) === set(r.lda.config); row.hfRight = set(m) === set(r.hf.config); }
+  const rk = r.rows.filter((x) => x.hf_eV != null && !gapped(x.config)).sort((a, b) => a.hf_eV - b.hf_eV);
+  if (!rk.length) { out.push({ D, Z, unsettled: true }); continue; }
+  const hfRow = rk[0], z0 = hfRow.hf_eV, rs = r.rows.map((x) => ({ ...x, gapped: gapped(x.config) || undefined, hf_eV: x.hf_eV == null || gapped(x.config) ? null : +(x.hf_eV - z0).toFixed(4) }));
+  const row = { D, Z, lda: r.lda.config, hf: hfRow.config, agree: r.lda.config === hfRow.config, hfMargin_eV: rk[1] ? +(rk[1].hf_eV - z0).toFixed(4) : null, hfSecond: rk[1]?.config ?? null,
+    hfLdaRank_eV: hfRow.lda_eV, nearWindowEdge: hfRow.lda_eV > 3, candidates: r.candidates, solved: r.solved, unconverged: r.unconverged, gappedDropped: rs.filter((x) => x.gapped).length,
+    hfParts: hfRow.config === r.hf.config ? r.hf.parts : null, rows: rs };
+  if (D === 3) { const m = realConfig(Z); row.measured = m; row.ldaRight = set(m) === set(r.lda.config); row.hfRight = set(m) === set(row.hf); }
   out.push(row);
 }
 const o3 = out.filter((r) => r.D === 3 && !r.missing && !r.unsettled), o4 = out.filter((r) => r.D === 4 && !r.missing && !r.unsettled);
