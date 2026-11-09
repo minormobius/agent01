@@ -1,0 +1,33 @@
+{
+ "group": "hfc-f5",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 101 4 10 climb",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 20400
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 102 4 10 climb",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5010
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 103 4 10 climb",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 8060
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs rank 104 4 10 climb",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 9113
+  }
+ ]
+}
