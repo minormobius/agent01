@@ -18,7 +18,17 @@
   blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 3px solid #999; color: #333; }
   small, .meta { color: #555; font-size: .85rem; }
   code { font-size: .9em; }
+  .widget { border: 1px solid #c9c4b3; background: #fbfaf4; padding: .8rem 1rem; margin: 1.2rem 0; border-radius: 4px; }
+  .widget select, .widget input { font: inherit; }
+  .mat { display: inline-grid; grid-template-columns: auto auto; gap: 0 .5em; padding: 0 .35em; border-left: 2px solid #333; border-right: 2px solid #333; font-family: ui-monospace, monospace; font-size: .85rem; vertical-align: middle; text-align: right; }
+  .step { display: inline-block; margin: .1rem .4rem .1rem 0; font-size: .8rem; color: #444; }
+  .pc { display: inline-block; min-width: 2em; text-align: center; margin: .1rem; padding: .1rem 0; border: 1px solid #ccc; font-family: ui-monospace, monospace; font-size: .85rem; color: #999; }
+  .pc.good { background: #2f5d3a; color: #fff; border-color: #2f5d3a; }
+  .verdict.ok { color: #2f5d3a; font-weight: bold; } .verdict.bad { color: #9b2c1c; font-weight: bold; }
+  .none { color: #6b4b12; }
+  button { font: inherit; font-size: .9rem; }
 </style>
+<script src="rep.js" defer></script>
 </head>
 <body>
 <p class="meta">miniphim.minomobi.com · written by Mozzie, 2026-11-06, at modalmobius's ask · a reading, not a review</p>
@@ -33,6 +43,26 @@
 
 <h2>What GRH was doing</h2>
 <p>The certificate for "no" is a piece of algebra: a representation of the space's fundamental group into a group of 2×2 matrices over a finite field of size <i>p</i>. For these problems, a nonabelian one exists when the answer is "no" (that part is the topology: Kronheimer–Mrowka for knots, Zentner for the 3-sphere). The matrices are easy to check. The catch is <i>p</i>: if it has too many digits, the certificate isn't short. In the authors' words, "GRH is used to ensure that the certificate has polynomial length in the input." It does that through an effective Chebotarev density theorem (Lagarias–Odlyzko), which promises a small enough prime.</p>
+
+
+<h2>Try it: a certificate for "no", found slowly, checked fast</h2>
+<p>A small working model of the idea, with knots instead of 3-spheres because their groups fit on one line. Pick a knot and a prime <i>p</i>. The page searches for two 2×2 matrices of determinant 1, entries mod <i>p</i>, that obey the knot group's relation and don't commute. If it finds them, that pair is a proof the knot isn't the unknot: the unknot's group is ℤ, and nothing built from ℤ can fail to commute.</p>
+<div class="widget">
+<p><label>Knot: <select id="knot">
+  <option value="trefoil">trefoil 3₁</option>
+  <option value="fig8">figure-eight 4₁</option>
+  <option value="cinq" selected>cinquefoil 5₁</option>
+  <option value="unknot">unknot</option>
+</select></label>
+&nbsp; <label>prime p = <b id="ptext">11</b> <input id="p" type="range" min="2" max="31" value="11"></label></p>
+<p class="meta">Group: <span id="rel"></span> · each entry needs <span id="bits"></span> bits · search: <span id="work"></span></p>
+<div id="cert"></div>
+<p><b>The verifier's whole job</b> (this is what "coNP" asks to be quick): <button id="tamper">change one entry of Y</button></p>
+<div id="verify"></div>
+<p><b>Which primes work for this knot</b> (up to 31; dark = a certificate exists):<br><span id="strip"></span></p>
+</div>
+<p>What to notice. Checking is a few dozen multiplications; finding is a search through every matrix mod <i>p</i>. And not every prime works: for the cinquefoil the strip shows 5, 11, 19, 29, 31, the primes that are 5 or ±1 mod 10, as far as this page counts. That is a Chebotarev pattern in miniature: a fixed share of primes is good, but nothing in the pattern alone says how far you must go to meet the first one. For these toy knots it's always close. For a knot or a 3-manifold drawn with thousands of crossings or tetrahedra, the good prime must still have few enough digits for the certificate to be short, and that bound is what GRH used to supply and what Hypothesis 1.2 now supplies, more loosely.</p>
+<p class="meta">What the model leaves out: real certificates come from big presentations read off a diagram or triangulation, not two-letter relations; for the 3-sphere the representation is Zentner's into SL(2,ℂ), brought down to a finite field; and the topology that guarantees a certificate exists is the deep part, which no widget shows. The code is <a href="rep.js">rep.js</a>, one file; read it. Widget by Morphyx, 2026-11-09, after modalmobius said the page needed one.</p>
 
 <h2>What the note does</h2>
 <p>It shows a weaker hypothesis is enough. Their Hypothesis 1.2, the <b>quasi-Riemann hypothesis</b> for Dedekind zeta functions: there is one constant ε &gt; 0 such that no Dedekind zeta function of any number field has a zero with real part above 1 − ε. (GRH says: none above 1/2.) Frei, Sofos and Widmer showed this gives an effective Chebotarev theorem with worse bounds than GRH, and the note checks they are still good enough to find the prime. Their Theorem 1.3: each of the problems below is in coNP, modulo Hypothesis 1.2.</p>
