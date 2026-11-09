@@ -34,14 +34,14 @@ our knowledge, has anyone asked what the choice of $1/r$ itself does to the atom
 This paper does both. Part I treats the law as a choice: why one has to be made (section 2), why $1/r$ exactly
 (section 3), and what it costs in four dimensions (section 4). Part II solves every neutral atom to $Z = 140$ under it:
 the methods (section 5); Hund's first rule, which four-dimensional space breaks and the solver corrects for (section
-6); and the table, with each atom's valence states (section 7). Part III asks which of the table's features the law
+6); and the table, with each atom's valence states and a test of the valence rule on one hydride (section 7). Part III asks which of the table's features the law
 decides. It solves the table a second time with the shell theorem forced back on (section 8), follows the law into
 partial screening (section 9), and gives the response of atoms and the pull between them, the reference later work on
 molecules starts from (section 10). Section 11 states the limitations; section 12 concludes. Every method is first run
 on our own world against measured values; those checks are appendix E.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of 38 claims. The code, the data and the paper's own making are public at
+against a ledger of 40 claims. The code, the data and the paper's own making are public at
 four.mino.mobi/papers.
 
 ## Notation
@@ -431,7 +431,9 @@ machinery on the Hartree–Fock orbitals) is added. Exchange between subshells i
 coefficients of $1/|\mathbf x - \mathbf y|$, each radial kernel a convolution on the logarithmic grid; in four
 dimensions the coefficients are tabulated by quadrature, $a_0$ being the shell kernel $\kappa$. The candidates are the
 local-exchange search's settled configurations within 4 eV of its ground, so both methods rank the same
-set. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
+set. For row 6's f block and our lanthanides, where local exchange's bias toward f can push the right configuration
+out of that window, the window is 10 eV, and Hartree–Fock then climbs from its own ground through every configuration
+one electron away, those more than 6 eV up ranked without the term correction. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
 left out of the Hartree–Fock ranking: the variational solve drops the electron into the empty lower subshell and
 returns the compact configuration's energy under the other name. The energies carry an $O(h^2)$ error from the
 kernel's kink at $r = r'$, so absolute energies are extrapolated from steps 0.02 and 0.01; differences converge at
@@ -604,6 +606,23 @@ table's ground, the open configuration of appendix E.6.
 Table: **Table 1.** Valence states of representative four-dimensional atoms: the ground configuration (outer subshells)
 and the three lowest configurations one electron away by Hartree–Fock, each labelled by the move and given by local
 exchange and Hartree–Fock (eV above each method's own ground; a negative value is a state below the table's ground).
+
+**7.5 Darbon's hydride holds five hydrogens.** The table implies a valence rule: an atom with $v$ electrons outside its
+core makes $v$ bonds, up to $D + 1$ of them, and $2(D + 1) - v$ past that. That is a claim about molecules, and one
+hydride tests it directly. Darbon (element 7, 2s²2p³) should make five bonds, so DH₅ should exist, its hydrogens at the
+corners of the 5-cell, the simplest regular figure in four dimensions. Making five bonds takes the s→p promotion of
+section 7.4. At that geometry (D–H 3.23 bohr, by Hartree–Fock) we computed the whole curvature matrix of the energy
+by central differences, in all 24 coordinates of six atoms in four dimensions. With the 10 translations and
+rotations set apart, the 14 curvatures fall in groups of 5 + 4 + 1 + 4, as the 5-cell's symmetry requires. None
+is negative: the lowest is 0.020 hartree/bohr², and the gradient is 5 × 10⁻⁶. So DH₅ is a true minimum, not a saddle
+that a symmetric search could settle on. It also lies below both balanced ways of coming apart. Losing one hydrogen,
+DH₅ → DH₄ + H, costs 1.55 eV by Hartree–Fock and 2.32 eV with MP2. Losing two as a molecule, DH₅ → DH₃ + H₂, costs 2.13 and 3.43 eV.
+Each fragment is in its lowest spin: DH₄ is a doublet and DH₃ a triplet, with DH₃'s singlet 1.01 (Hartree–Fock) and 0.85 eV (MP2) higher. Energies
+are by unrestricted Hartree–Fock and MP2 in the molecular basis. The fragments' geometries were optimized only within
+symmetric shapes, with their hydrogens equivalent; DH₃ and DH₄ settle flat, their hydrogens in a plane or a 3-space
+through darbon. A lower, less symmetric fragment could lower both costs, and the curvature matrix, which describes DH₅
+only, says nothing about that. The systematic test, every hydride and its fragments searched without symmetry,
+belongs to the chemistry this table starts.
 
 # Part III · What the law does
 
@@ -923,12 +942,28 @@ more in d than Hartree–Fock, as in ours; 5 at the end of row 6's f block (107,
 in f; and 2 at the start of a block (53, 83). For the d rows, ours gives a lean. Before half filling
 (30, 31, 58) Hartree–Fock's error in ours was small and in the same direction as local exchange's, so its
 preference for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08 eV, are inside the volt by which it
-overprices d in ours. In the f row the comparison is incomplete. The candidates are those within the window of local
-exchange's ground, and local exchange overbinds f, so in our lanthanides the configurations with one f electron fewer
-fell outside it, the measured ground's nearest competitor among them. Hartree–Fock's margins in the 4D f row
-(2.35 to 5.80 eV) are measured only against local exchange's own choice, and the f row's configurations, agreed or not,
-are provisional until a wider window has been run. In the d rows no Hartree–Fock ground configuration lies near the
-window's edge. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
+overprices d in ours. In the f row the first comparison was incomplete. Its candidates lay within the window of local exchange's ground, and
+local exchange overbinds f, so configurations with one f electron fewer fell outside it. A window of 10 eV and a climb
+through Hartree–Fock's own neighbourhood (section 5.12) close that gap, and our lanthanides calibrate what remains.
+Against the measured levels [@nist-handbook], Hartree–Fock gets 15 of 18 lanthanide ground configurations right
+(lanthanum to hafnium) and local exchange 12; where the two agree they are right 12 times in 14. In each of the
+17 measured states that change the f count, Hartree–Fock makes f too stable, by 0.15 to 4.1 eV. So a
+configuration with one f electron fewer than Hartree–Fock's ground could truly lie below it only if Hartree–Fock puts
+it less than $B$ = 4.1 eV up; one with more f only moves further up. In four dimensions f is bound far more deeply.
+The cheapest move of an f electron out of Hartree–Fock's ground costs 5.8 eV in element 90, 12.6 in 100 and
+19.9 in 109, against 0.9 eV in our terbium, where the measured cost is 0.04. Hence four verdicts on row 6's f block:
+
+- **Firm** where the methods agree and every competitor with fewer f lies more than $B$ up, or the ground has no f:
+  81, 88–100 and 102–104.
+- **Open though the methods agree** where such a competitor lies within $B$: 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86). Element 84 is
+  the case of our cerium, whose measured 4f¹5d¹6s² both methods miss, agreeing on 4f²6s².
+- **Leaning to Hartree–Fock** where local exchange's choice holds one f electron more: 83 and 107–111. Local exchange
+  overbinds f by more still, so its extra f electron is the less likely.
+- **Untested** where no configuration with fewer f was solved: 101, 105, 106 and 112.
+
+So 17 of the block's 32 are firm, because in four dimensions the f shell's binding outruns the calibration's
+error; the open cases sit at the block's two ends, where f competes with d and s at the start and is about to close at
+the end. In the d rows no Hartree–Fock ground configuration lies near the window's edge. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
 
 ## F · Reproducing every number
 
@@ -945,6 +980,14 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 | `data/shelltable.json` | `atom/tools/lawtable.mjs shell`, `repair`, `bake` | runner runs `lawtable-shell`, `lawtable-repair` |
 | `data/audit-scf.json`, `data/convergence.json` | `audit-scf.mjs`, `convergence.mjs` | runner |
 | `data/profiles.json` | `profiles.mjs` | sandbox |
+| `data/ions.json` | `atom/tools/termtable.mjs` with a charge, collected by `ions-collect.mjs` | runner runs `ions-1`, `ions-23` |
+| `data/hftable.json` | `atom/tools/hftable.mjs rank`, collected by `hf-collect.mjs` | runner runs `hf-table-1`, `hf-lanth-1`, `hf-wide-1`, `hf-climb-1` |
+| `data/valence.json` | `atom/tools/hftable.mjs map`, collected by `valence-collect.mjs` | sandbox |
+| `data/valencetest.json` | `atom/tools/valencetest.mjs`, collected by `valencetest-collect.mjs` | runner run `valence-1` |
+| `data/response.json` | `response-table.mjs` | sandbox, six minutes |
+| `data/ligandd2.json` | `atom/tools/ligandd2.mjs` | sandbox, seconds |
+| `data/separate.json` | `atom/tools/separate.mjs`, collected by `separate-collect.mjs` | sandbox |
+| `data/nist-*.json`, `data/response-ref.json` (measured and reference values) | fetched from NIST (the levels by `nist-levels.py`); the reference by hand from its source | by hand |
 | `data/table3.*`, `data/table4.*`, `figdata/`, `figures/`, `ledger.json`, `draft/` | `build.mjs` | seconds |
 | `data/crossref.json` (the references' metadata) | `refs-crossref.mjs`, from each DOI's Crossref record | by hand, when a DOI is added |
 | `draft/*.html`, `draft/paper.pdf` | `page.mjs` (pandoc, with citeproc), `pdf.cjs` | seconds |
@@ -956,7 +999,7 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 ## Supplement and data
 
 Supplement S1 is the table with every open subshell given Hund spins (`data/table4-hundspin.csv`). The
-38 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
+40 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
 
 ## References
 

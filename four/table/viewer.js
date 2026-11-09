@@ -116,7 +116,7 @@ function detail() {
       ? `<div class="kv newt"><b>New: nothing in our world does what it does.</b> ${e.why}.</div>`
       : `<div class="kv">4D's counterpart of our <b>${o.name}</b> (${o.sym}, element ${o.Z}): ${e.why}.</div>`}
     <div class="cfg">${el.config}</div>
-    ${HF[z] ? `<div class="kv">${HF[z][0] ? (e.block === "f" ? "<b>provisional:</b> Hartree–Fock gives the same configuration, but the f row's comparison left out configurations with one f electron fewer" : "<b>firm:</b> Hartree–Fock gives the same configuration") : `<b>open:</b> Hartree–Fock prefers ${HF[z][1].split(" ").slice(-3).join(" ")}${HF[z][2] != null ? `, ${HF[z][2].toFixed(2)} eV below this one` : ""} (<a href="../papers/p1/draft/paper#e-checks-against-our-world">paper 1, appendix E.6</a>)`}</div>` : ""}
+    ${HF[z] ? `<div class="kv">${hfLine(HF[z], e)} (<a href="../papers/p1/draft/paper#e-checks-against-our-world">paper 1, appendix E.6</a>)</div>` : ""}
     <div class="kv">first ionization <b>${(el.ion * EV).toFixed(2)} eV</b>${o ? ` · our ${o.name}: ${IE_REAL[o.Z - 1]} eV measured` : ""}</div>
     <div class="kv">outermost electron <b>${el.top}</b> at <b>${top.r.toFixed(2)} bohr</b>${o3 ? ` · our ${o.name}'s at ${o3.orb.find((q) => q.s === o3.top).r.toFixed(2)} (same solver)` : ""}</div>
     ${h ? `<div class="kv">its hydride, from the census: <b>XH${sub(h.bonds)}</b>${h.lp ? `, ${h.lp} lone pair${h.lp > 1 ? "s" : ""}` : ""}, ${h.shape === "pyramid" && Math.abs(h.param - 90) < 0.5 ? "flat: its hydrogens in one 3D slice, the lone pair straight across it" : h.shape === "fixed" ? "fully symmetric" : `${h.shape}${h.param != null ? ` (${h.param.toFixed(0)}°)` : ""}`}, dipole <b>${h.dipole.toFixed(2)}</b> au, hydrogen ${h.qH > 0 ? "positive" : "negative"}${h.dimer && h.dimer.E ? `; a hydrogen-bonded pair holds at <b>${(-h.dimer.E * KCAL).toFixed(1)} kcal/mol</b> (the census's linear bond)` : ""}</div>` : ""}
@@ -136,6 +136,15 @@ function fill(e, el, o) {
   return `<div class="fl-pair"><figure><figcaption class="d3">ours${o ? `: ${o.name}` : ""}</figcaption>${fillSvg(3, occ3, last(occ3, 3), "#ffb46b")}</figure>
     <figure><figcaption class="d4">4D: ${e.name ?? `element ${e.Z}`}</figcaption>${fillSvg(4, occ4, el.top, "#6fe0ff")}</figure></div>
     <p class="read">${lent ? ` <b>This atom lends ${lent[2] - lent[1] > 1 ? "both its" : "an"} ${lent[0]} electron${lent[2] - lent[1] > 1 ? "s" : ""} to its d shell</b>, as our chromium, copper and palladium do. 20 of 4D's d-block atoms do, and the solver leans toward d, so these are its least sure.` : ""}</p>`;
+}
+/* Hartree–Fock's verdict on the table's configuration (table/hfverdict.js) */
+const tailCfg = (c) => { const t = c.split(" "), f = t.filter((x) => /f\d+$/.test(x)); return [...f, ...t.slice(-2).filter((x) => !f.includes(x) && !/p[68]$/.test(x))].join(" "); };
+function hfLine(v, e) {
+  if (v[0] === 1) return "<b>firm:</b> Hartree–Fock gives the same configuration";
+  if (v[0] === 2) return `<b>open:</b> Hartree–Fock agrees, but puts ${tailCfg(v[1])} only ${v[2].toFixed(2)} eV up, inside its lean toward f in our lanthanides`;
+  if (v[0] === 3) return `<b>open, leaning Hartree–Fock:</b> it prefers ${tailCfg(v[1])}${v[2] != null ? `, ${v[2].toFixed(2)} eV below this one` : ""}, and in our lanthanides local exchange leans further toward f than Hartree–Fock`;
+  if (v[0] === 4) return "<b>untested:</b> Hartree–Fock agrees, but no configuration with fewer f electrons was solved";
+  return `<b>open:</b> Hartree–Fock prefers ${tailCfg(v[1])}${v[2] != null ? `, ${v[2].toFixed(2)} eV below this one` : ""}`;
 }
 const sub = (n) => (n > 1 ? String(n).split("").map((c) => "₀₁₂₃₄₅₆₇₈₉"[+c]).join("") : "");
 

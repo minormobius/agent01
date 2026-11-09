@@ -139,12 +139,28 @@ more in d than Hartree–Fock, as in ours; {{hf.4fN}} at the end of row 6's f bl
 in f; and {{hf.4oN}} at the start of a block ({{hf.4o}}). For the d rows, ours gives a lean. Before half filling
 ({{hf.4dEarly}}) Hartree–Fock's error in ours was small and in the same direction as local exchange's, so its
 preference for s² should hold. After it ({{hf.4dLate}}) its margins, {{hf.4dLateM}} eV, are inside the volt by which it
-overprices d in ours. In the f row the comparison is incomplete. The candidates are those within the window of local
-exchange's ground, and local exchange overbinds f, so in our lanthanides the configurations with one f electron fewer
-fell outside it, the measured ground's nearest competitor among them. Hartree–Fock's margins in the 4D f row
-({{hf.4fM}} eV) are measured only against local exchange's own choice, and the f row's configurations, agreed or not,
-are provisional until a wider window has been run. In the d rows no Hartree–Fock ground configuration lies near the
-window's edge. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
+overprices d in ours. In the f row the first comparison was incomplete. Its candidates lay within the window of local exchange's ground, and
+local exchange overbinds f, so configurations with one f electron fewer fell outside it. A window of 10 eV and a climb
+through Hartree–Fock's own neighbourhood (section 5.12) close that gap, and our lanthanides calibrate what remains.
+Against the measured levels [@nist-handbook], Hartree–Fock gets {{hf.lanHf}} of {{hf.lanN}} lanthanide ground configurations right
+(lanthanum to hafnium) and local exchange {{hf.lanLda}}; where the two agree they are right {{hf.lanAgreeRight}} times in {{hf.lanAgree}}. In each of the
+{{hf.fCalN}} measured states that change the f count, Hartree–Fock makes f too stable, by {{hf.fCalMin}} to {{hf.fB}} eV. So a
+configuration with one f electron fewer than Hartree–Fock's ground could truly lie below it only if Hartree–Fock puts
+it less than $B$ = {{hf.fB}} eV up; one with more f only moves further up. In four dimensions f is bound far more deeply.
+The cheapest move of an f electron out of Hartree–Fock's ground costs {{hf.fOut90}} eV in element 90, {{hf.fOut100}} in 100 and
+{{hf.fOut109}} in 109, against {{hf.fOutTb}} eV in our terbium, where the measured cost is {{hf.fOutTbM}}. Hence four verdicts on row 6's f block:
+
+- **Firm** where the methods agree and every competitor with fewer f lies more than $B$ up, or the ground has no f:
+  {{hf.fFirm}}.
+- **Open though the methods agree** where such a competitor lies within $B$: {{hf.fOpenAgree}}. Element 84 is
+  the case of our cerium, whose measured 4f¹5d¹6s² both methods miss, agreeing on 4f²6s².
+- **Leaning to Hartree–Fock** where local exchange's choice holds one f electron more: {{hf.fLean}}. Local exchange
+  overbinds f by more still, so its extra f electron is the less likely.
+- **Untested** where no configuration with fewer f was solved: {{hf.fUntested}}.
+
+So {{hf.fFirmN}} of the block's 32 are firm, because in four dimensions the f shell's binding outruns the calibration's
+error; the open cases sit at the block's two ends, where f competes with d and s at the start and is about to close at
+the end. In the d rows no Hartree–Fock ground configuration lies near the window's edge. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
 
 ## F · Reproducing every number
 
@@ -161,6 +177,14 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 | `data/shelltable.json` | `atom/tools/lawtable.mjs shell`, `repair`, `bake` | runner runs `lawtable-shell`, `lawtable-repair` |
 | `data/audit-scf.json`, `data/convergence.json` | `audit-scf.mjs`, `convergence.mjs` | runner |
 | `data/profiles.json` | `profiles.mjs` | sandbox |
+| `data/ions.json` | `atom/tools/termtable.mjs` with a charge, collected by `ions-collect.mjs` | runner runs `ions-1`, `ions-23` |
+| `data/hftable.json` | `atom/tools/hftable.mjs rank`, collected by `hf-collect.mjs` | runner runs `hf-table-1`, `hf-lanth-1`, `hf-wide-1`, `hf-climb-1` |
+| `data/valence.json` | `atom/tools/hftable.mjs map`, collected by `valence-collect.mjs` | sandbox |
+| `data/valencetest.json` | `atom/tools/valencetest.mjs`, collected by `valencetest-collect.mjs` | runner run `valence-1` |
+| `data/response.json` | `response-table.mjs` | sandbox, six minutes |
+| `data/ligandd2.json` | `atom/tools/ligandd2.mjs` | sandbox, seconds |
+| `data/separate.json` | `atom/tools/separate.mjs`, collected by `separate-collect.mjs` | sandbox |
+| `data/nist-*.json`, `data/response-ref.json` (measured and reference values) | fetched from NIST (the levels by `nist-levels.py`); the reference by hand from its source | by hand |
 | `data/table3.*`, `data/table4.*`, `figdata/`, `figures/`, `ledger.json`, `draft/` | `build.mjs` | seconds |
 | `data/crossref.json` (the references' metadata) | `refs-crossref.mjs`, from each DOI's Crossref record | by hand, when a DOI is added |
 | `draft/*.html`, `draft/paper.pdf` | `page.mjs` (pandoc, with citeproc), `pdf.cjs` | seconds |

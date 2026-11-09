@@ -129,7 +129,9 @@ machinery on the Hartree–Fock orbitals) is added. Exchange between subshells i
 coefficients of $1/|\mathbf x - \mathbf y|$, each radial kernel a convolution on the logarithmic grid; in four
 dimensions the coefficients are tabulated by quadrature, $a_0$ being the shell kernel $\kappa$. The candidates are the
 local-exchange search's settled configurations within 4 eV of its ground, so both methods rank the same
-set. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
+set. For row 6's f block and our lanthanides, where local exchange's bias toward f can push the right configuration
+out of that window, the window is 10 eV, and Hartree–Fock then climbs from its own ground through every configuration
+one electron away, those more than 6 eV up ranked without the term correction. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
 left out of the Hartree–Fock ranking: the variational solve drops the electron into the empty lower subshell and
 returns the compact configuration's energy under the other name. The energies carry an $O(h^2)$ error from the
 kernel's kink at $r = r'$, so absolute energies are extrapolated from steps 0.02 and 0.01; differences converge at

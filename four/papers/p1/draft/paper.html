@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="81b3a1e6c14f8a99a4335f4ebf31b96be04f74cfba334f67aaf412e8b2a47ca4" />
+<meta name="source-sha256" content="07d0bf659cbfcb6d7600f95027c5c51a2b6acac4195a53eaf072c62286b9df2b" />
 <title>Paper 1 · Paper 1 · the whole draft</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -104,16 +104,17 @@ Part II solves every neutral atom to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
 under it: the methods (section 5); Hund’s first rule, which
 four-dimensional space breaks and the solver corrects for (section 6);
-and the table, with each atom’s valence states (section 7). Part III
-asks which of the table’s features the law decides. It solves the table
-a second time with the shell theorem forced back on (section 8), follows
-the law into partial screening (section 9), and gives the response of
-atoms and the pull between them, the reference later work on molecules
-starts from (section 10). Section 11 states the limitations; section 12
-concludes. Every method is first run on our own world against measured
-values; those checks are appendix E.</p>
+and the table, with each atom’s valence states and a test of the valence
+rule on one hydride (section 7). Part III asks which of the table’s
+features the law decides. It solves the table a second time with the
+shell theorem forced back on (section 8), follows the law into partial
+screening (section 9), and gives the response of atoms and the pull
+between them, the reference later work on molecules starts from (section
+10). Section 11 states the limitations; section 12 concludes. Every
+method is first run on our own world against measured values; those
+checks are appendix E.</p>
 <p>Every number in the text is recomputed from the code and its baked
-data each time anything changes, and is checked against a ledger of 38
+data each time anything changes, and is checked against a ledger of 40
 claims. The code, the data and the paper’s own making are public at
 four.mino.mobi/papers.</p>
 <h2 id="notation">Notation</h2>
@@ -1342,8 +1343,13 @@ dimensions the coefficients are tabulated by quadrature,
 being the shell kernel
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>.
 The candidates are the local-exchange search’s settled configurations
-within 4 eV of its ground, so both methods rank the same set. A
-configuration with an empty subshell below an occupied one of the same
+within 4 eV of its ground, so both methods rank the same set. For row
+6’s f block and our lanthanides, where local exchange’s bias toward f
+can push the right configuration out of that window, the window is 10
+eV, and Hartree–Fock then climbs from its own ground through every
+configuration one electron away, those more than 6 eV up ranked without
+the term correction. A configuration with an empty subshell below an
+occupied one of the same
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
 (sodium’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>4</mn><msup><mi>s</mi><mn>1</mn></msup></mrow><annotation encoding="application/x-tex">4s^1</annotation></semantics></math>
@@ -1770,6 +1776,39 @@ exchange / Hartree–Fock (eV)</th>
 </tr>
 </tbody>
 </table>
+<p><strong>7.5 Darbon’s hydride holds five hydrogens.</strong> The table
+implies a valence rule: an atom with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+electrons outside its core makes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+bonds, up to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D + 1</annotation></semantics></math>
+of them, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>v</mi></mrow><annotation encoding="application/x-tex">2(D + 1) - v</annotation></semantics></math>
+past that. That is a claim about molecules, and one hydride tests it
+directly. Darbon (element 7, 2s²2p³) should make five bonds, so DH₅
+should exist, its hydrogens at the corners of the 5-cell, the simplest
+regular figure in four dimensions. Making five bonds takes the s→p
+promotion of section 7.4. At that geometry (D–H 3.23 bohr, by
+Hartree–Fock) we computed the whole curvature matrix of the energy by
+central differences, in all 24 coordinates of six atoms in four
+dimensions. With the 10 translations and rotations set apart, the 14
+curvatures fall in groups of 5 + 4 + 1 + 4, as the 5-cell’s symmetry
+requires. None is negative: the lowest is 0.020 hartree/bohr², and the
+gradient is 5 × 10⁻⁶. So DH₅ is a true minimum, not a saddle that a
+symmetric search could settle on. It also lies below both balanced ways
+of coming apart. Losing one hydrogen, DH₅ → DH₄ + H, costs 1.55 eV by
+Hartree–Fock and 2.32 eV with MP2. Losing two as a molecule, DH₅ → DH₃ +
+H₂, costs 2.13 and 3.43 eV. Each fragment is in its lowest spin: DH₄ is
+a doublet and DH₃ a triplet, with DH₃’s singlet 1.01 (Hartree–Fock) and
+0.85 eV (MP2) higher. Energies are by unrestricted Hartree–Fock and MP2
+in the molecular basis. The fragments’ geometries were optimized only
+within symmetric shapes, with their hydrogens equivalent; DH₃ and DH₄
+settle flat, their hydrogens in a plane or a 3-space through darbon. A
+lower, less symmetric fragment could lower both costs, and the curvature
+matrix, which describes DH₅ only, says nothing about that. The
+systematic test, every hydride and its fragments searched without
+symmetry, belongs to the chemistry this table starts.</p>
 <h1 id="part-iii-what-the-law-does">Part III · What the law does</h1>
 <h2 id="the-table-again-with-the-shell-theorem-forced-on">8 · The table
 again, with the shell theorem forced on</h2>
@@ -2754,15 +2793,50 @@ lean. Before half filling (30, 31, 58) Hartree–Fock’s error in ours was
 small and in the same direction as local exchange’s, so its preference
 for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08
 eV, are inside the volt by which it overprices d in ours. In the f row
-the comparison is incomplete. The candidates are those within the window
-of local exchange’s ground, and local exchange overbinds f, so in our
-lanthanides the configurations with one f electron fewer fell outside
-it, the measured ground’s nearest competitor among them. Hartree–Fock’s
-margins in the 4D f row (2.35 to 5.80 eV) are measured only against
-local exchange’s own choice, and the f row’s configurations, agreed or
-not, are provisional until a wider window has been run. In the d rows no
-Hartree–Fock ground configuration lies near the window’s edge. Every
-element’s verdict, both methods’ rankings and the margins are in
+the first comparison was incomplete. Its candidates lay within the
+window of local exchange’s ground, and local exchange overbinds f, so
+configurations with one f electron fewer fell outside it. A window of 10
+eV and a climb through Hartree–Fock’s own neighbourhood (section 5.12)
+close that gap, and our lanthanides calibrate what remains. Against the
+measured levels <span class="citation" data-cites="nist-handbook">(<a
+href="#ref-nist-handbook" role="doc-biblioref">Sansonetti and Martin
+2005</a>)</span>, Hartree–Fock gets 15 of 18 lanthanide ground
+configurations right (lanthanum to hafnium) and local exchange 12; where
+the two agree they are right 12 times in 14. In each of the 17 measured
+states that change the f count, Hartree–Fock makes f too stable, by 0.15
+to 4.1 eV. So a configuration with one f electron fewer than
+Hartree–Fock’s ground could truly lie below it only if Hartree–Fock puts
+it less than
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+= 4.1 eV up; one with more f only moves further up. In four dimensions f
+is bound far more deeply. The cheapest move of an f electron out of
+Hartree–Fock’s ground costs 5.8 eV in element 90, 12.6 in 100 and 19.9
+in 109, against 0.9 eV in our terbium, where the measured cost is 0.04.
+Hence four verdicts on row 6’s f block:</p>
+<ul>
+<li><strong>Firm</strong> where the methods agree and every competitor
+with fewer f lies more than
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+up, or the ground has no f: 81, 88–100 and 102–104.</li>
+<li><strong>Open though the methods agree</strong> where such a
+competitor lies within
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>:
+82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86). Element 84
+is the case of our cerium, whose measured 4f¹5d¹6s² both methods miss,
+agreeing on 4f²6s².</li>
+<li><strong>Leaning to Hartree–Fock</strong> where local exchange’s
+choice holds one f electron more: 83 and 107–111. Local exchange
+overbinds f by more still, so its extra f electron is the less
+likely.</li>
+<li><strong>Untested</strong> where no configuration with fewer f was
+solved: 101, 105, 106 and 112.</li>
+</ul>
+<p>So 17 of the block’s 32 are firm, because in four dimensions the f
+shell’s binding outruns the calibration’s error; the open cases sit at
+the block’s two ends, where f competes with d and s at the start and is
+about to close at the end. In the d rows no Hartree–Fock ground
+configuration lies near the window’s edge. Every element’s verdict, both
+methods’ rankings and the margins are in
 <code>data/hftable.json</code>.</p>
 <h2 id="f-reproducing-every-number">F · Reproducing every number</h2>
 <p>Every number in the text is read by <code>papers/p1/build.mjs</code>
@@ -2831,6 +2905,54 @@ stale. What made each file:</p>
 <td>sandbox</td>
 </tr>
 <tr class="odd">
+<td><code>data/ions.json</code></td>
+<td><code>atom/tools/termtable.mjs</code> with a charge, collected by
+<code>ions-collect.mjs</code></td>
+<td>runner runs <code>ions-1</code>, <code>ions-23</code></td>
+</tr>
+<tr class="even">
+<td><code>data/hftable.json</code></td>
+<td><code>atom/tools/hftable.mjs rank</code>, collected by
+<code>hf-collect.mjs</code></td>
+<td>runner runs <code>hf-table-1</code>, <code>hf-lanth-1</code>,
+<code>hf-wide-1</code>, <code>hf-climb-1</code></td>
+</tr>
+<tr class="odd">
+<td><code>data/valence.json</code></td>
+<td><code>atom/tools/hftable.mjs map</code>, collected by
+<code>valence-collect.mjs</code></td>
+<td>sandbox</td>
+</tr>
+<tr class="even">
+<td><code>data/valencetest.json</code></td>
+<td><code>atom/tools/valencetest.mjs</code>, collected by
+<code>valencetest-collect.mjs</code></td>
+<td>runner run <code>valence-1</code></td>
+</tr>
+<tr class="odd">
+<td><code>data/response.json</code></td>
+<td><code>response-table.mjs</code></td>
+<td>sandbox, six minutes</td>
+</tr>
+<tr class="even">
+<td><code>data/ligandd2.json</code></td>
+<td><code>atom/tools/ligandd2.mjs</code></td>
+<td>sandbox, seconds</td>
+</tr>
+<tr class="odd">
+<td><code>data/separate.json</code></td>
+<td><code>atom/tools/separate.mjs</code>, collected by
+<code>separate-collect.mjs</code></td>
+<td>sandbox</td>
+</tr>
+<tr class="even">
+<td><code>data/nist-*.json</code>, <code>data/response-ref.json</code>
+(measured and reference values)</td>
+<td>fetched from NIST (the levels by <code>nist-levels.py</code>); the
+reference by hand from its source</td>
+<td>by hand</td>
+</tr>
+<tr class="odd">
 <td><code>data/table3.*</code>, <code>data/table4.*</code>,
 <code>figdata/</code>, <code>figures/</code>, <code>ledger.json</code>,
 <code>draft/</code></td>
@@ -2858,7 +2980,7 @@ under <code>runs/</code>. The code is mirrored at a tagged version for
 citation.</p>
 <h2 id="supplement-and-data">Supplement and data</h2>
 <p>Supplement S1 is the table with every open subshell given Hund spins
-(<code>data/table4-hundspin.csv</code>). The 38 claims this text rests
+(<code>data/table4-hundspin.csv</code>). The 40 claims this text rests
 on, and the data behind them, are in <code>ledger.json</code> and
 <code>data/</code>.</p>
 <h2 id="references">References</h2>

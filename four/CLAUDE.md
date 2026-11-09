@@ -851,7 +851,11 @@ for games, and this is a modelling programme with publications to come. The game
   solve collapses them onto the compact one. **Not a bracket:** against NIST's 3d promotions both methods are too cheap
   for d from Sc to Cr; paper 1 calls the spread method sensitivity (appendix E.6, claim `hfcheck`). Past element 36 in ours the
   tool seeds from `papers/p1/data/nist-lanthanides.json` (NIST Handbook, `nist-levels.py`): run `hf-lanth-1`, Cs–Hf,
-  the f-block calibration.
+  the f-block calibration. **The f row's verdicts** (`hf-collect.mjs hf-table-1 hf-lanth-1 wide hf-climb-1`, later files
+  overriding earlier ones; claim `frow`, appendix E.6): `rank … 10 climb` widens the window and climbs Hartree–Fock's own
+  one-electron neighbourhood. Our lanthanides give B = 4.1 eV, the most Hartree–Fock overstabilizes f against a measured
+  state; a 4D f-row element is firm when no fewer-f competitor lies within B (17 of 32), open though agreed (82, 84–87),
+  leaning Hartree–Fock (83, 107–111) or untested (101, 105, 106, 112). `table/hfverdict.js` codes them 0–4 for the viewer.
   **The literature audit (Astra, 2026-11-08)** is imported: `refs.json` (66) and `data/crossref.json`; measured 3d
   promotions in `data/nist-promotions.json` (lowest-term centroids, which `promotion-collect.mjs` now uses). Route 2's
   unitarity argument is stated for the field strength (`fields.js` `fieldStrengthDim`, Heydeman et al. 2020); the site's
@@ -866,7 +870,9 @@ for games, and this is a modelling programme with publications to come. The game
   `data/nist-light.json` and `nist-third.json` from `nist-levels.py light|third`). `atom/tools/separate.mjs atoms <D>` /
   `stretch <D> <Z> [R,…]` → `papers/p1/separate-collect.mjs` → `data/separate.json` (§10.2): the molecular codes' atoms
   and basis errors, and stretched pairs (charges, spins, starts; in 4D the far form −3Q²/64R⁵). `atom/tools/valencetest.mjs
-  reactions|hessian|assemble` (run `valence-1`): darbon's DH₅ by balanced alternatives and its full curvature matrix.
+  reactions|hessian|assemble` (run `valence-1`): darbon's DH₅ by balanced alternatives and its full curvature matrix → `papers/p1/valencetest-collect.mjs` → `data/valencetest.json` (§7.5, claim `valencetest`): a true minimum (14
+  curvatures, none negative) below DH₄ + H and DH₃ + H₂ by 1.55/2.32 and 2.13/3.43 eV (Hartree–Fock/MP2); fragments only in
+  symmetric shapes.
   **A pending atom4-compute run is replaced by a newer push of the queue** (GitHub concurrency): don't push
   `.github/compute/atom4.json` while a run waits behind another.
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's

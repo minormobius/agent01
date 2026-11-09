@@ -142,3 +142,20 @@ table's ground, the open configuration of appendix E.6.
 Table: **Table 1.** Valence states of representative four-dimensional atoms: the ground configuration (outer subshells)
 and the three lowest configurations one electron away by Hartree–Fock, each labelled by the move and given by local
 exchange and Hartree–Fock (eV above each method's own ground; a negative value is a state below the table's ground).
+
+**7.5 Darbon's hydride holds five hydrogens.** The table implies a valence rule: an atom with $v$ electrons outside its
+core makes $v$ bonds, up to $D + 1$ of them, and $2(D + 1) - v$ past that. That is a claim about molecules, and one
+hydride tests it directly. Darbon (element 7, 2s²2p³) should make five bonds, so DH₅ should exist, its hydrogens at the
+corners of the 5-cell, the simplest regular figure in four dimensions. Making five bonds takes the s→p promotion of
+section 7.4. At that geometry (D–H {{vt.R}} bohr, by Hartree–Fock) we computed the whole curvature matrix of the energy
+by central differences, in all {{vt.n}} coordinates of six atoms in four dimensions. With the {{vt.rigid}} translations and
+rotations set apart, the {{vt.nVib}} curvatures fall in groups of {{vt.groups}}, as the 5-cell's symmetry requires. None
+is negative: the lowest is {{vt.low}} hartree/bohr², and the gradient is {{vt.grad}}. So DH₅ is a true minimum, not a saddle
+that a symmetric search could settle on. It also lies below both balanced ways of coming apart. Losing one hydrogen,
+DH₅ → DH₄ + H, costs {{vt.h1}}. Losing two as a molecule, DH₅ → DH₃ + H₂, costs {{vt.h2}}.
+Each fragment is in its lowest spin: DH₄ is {{vt.s4}} and DH₃ {{vt.s3}}, with DH₃'s singlet {{vt.gap3}} higher. Energies
+are by unrestricted Hartree–Fock and MP2 in the molecular basis. The fragments' geometries were optimized only within
+symmetric shapes, with their hydrogens equivalent; DH₃ and DH₄ settle flat, their hydrogens in a plane or a 3-space
+through darbon. A lower, less symmetric fragment could lower both costs, and the curvature matrix, which describes DH₅
+only, says nothing about that. The systematic test, every hydride and its fragments searched without symmetry,
+belongs to the chemistry this table starts.

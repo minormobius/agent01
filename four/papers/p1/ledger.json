@@ -349,10 +349,33 @@
    ]
   },
   {
+   "id": "valencetest",
+   "part": "table",
+   "claim": "The valence rule tested on one hydride: darbon's DH₅, with the five bonds the rule counts, is a true minimum (every curvature in four dimensions positive) and lies below both balanced alternatives, DH₄ + H and DH₃ + H₂, each fragment in its lowest spin",
+   "value": "24 coordinates, 10 rigid, 14 curvatures in groups 5 + 4 + 1 + 4, lowest 0.020 Ha/bohr², none negative, gradient 0.00000459; DH₅ → DH₄ + H 1.551/2.321 eV, → DH₃ + H₂ 2.135/3.433 eV (Hartree–Fock/MP2)",
+   "holds": true,
+   "section": "7.5",
+   "gate": [
+    67
+   ]
+  },
+  {
    "id": "hfcheck",
    "part": "table",
    "claim": "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
    "value": "ours: Hartree–Fock 36, local exchange 32 of 36; agree 32, right 32; 4s→3d errors (local exchange/Hartree–Fock) Sc −1.29/−0.42, Ti −1.70/−0.27, V −2.09/−0.12, Cr −1.73/−0.26, Mn −0.72/+1.19, Fe −0.37/+0.93, Co −0.76/+1.11, Ni −1.13/+1.31, Cu −0.44/+1.12; 4D: agree 126 of 140, open 30, 31, 37, 38, 40, 58, 61 (d), 107, 108, 109, 110, 111 (f), 53, 83",
+   "holds": true,
+   "section": "E.6",
+   "gate": [
+    67,
+    71
+   ]
+  },
+  {
+   "id": "frow",
+   "part": "table",
+   "claim": "Our lanthanides calibrate Hartree–Fock on the f row: it makes f too stable in every measured state that changes the f count, by at most B ≈ 4 eV. In 4D, f is bound so deeply that over half of row 6's f block is firm against that bias; the open cases sit at the block's two ends",
+   "value": "lanthanides: Hartree–Fock 15, local exchange 12 of 18; f too stable in 17 of 17, by 0.15–4.1 eV; f out of the ground: 90 5.8, 100 12.6, 109 19.9 eV, Tb 0.9 (measured 0.04); firm 81, 88–100 and 102–104; open though agreed 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86); leaning Hartree–Fock 83 and 107–111; untested 101, 105, 106 and 112",
    "holds": true,
    "section": "E.6",
    "gate": [

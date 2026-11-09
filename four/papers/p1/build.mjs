@@ -212,8 +212,22 @@ export function hfTokens(H = HFT) {
     "hf.hfEarly": rng(P.filter((x) => x.Z <= 24).map((x) => x.hfError_eV)), "hf.hfLate": rng(P.filter((x) => x.Z >= 25).map((x) => x.hfError_eV)),
     "hf.4agree": String(S.fourD.agree), "hf.4n": String(diff.length), "hf.4dN": String(dR.length), "hf.4fN": String(fR.length), "hf.4oN": String(oR.length),
     "hf.4d": list(dR), "hf.4f": list(fR), "hf.4o": list(oR), "hf.4dEarly": list(early), "hf.4dLate": list(late),
-    "hf.4dLateM": rng(late.map((r) => r.hfMargin_eV)), "hf.4fM": rng(fR.map((r) => r.hfMargin_eV)),
+    "hf.4dLateM": rng(late.map((r) => r.hfMargin_eV)), ...fRowTokens(H),
   };
+}
+/* appendix E.6's f row: the lanthanide calibration B and each 4D f-row element's verdict (hf-collect.mjs summary.fRow);
+   the cheapest move of one f electron out of Hartree–Fock's ground, in 4D and in our terbium */
+function fRowTokens(H) {
+  const F = H.summary.fRow, L = H.summary.lanthanides, fN = (c) => c.split(" ").reduce((t, x) => { const m = x.match(/^\d+f(\d+)$/); return t + (m ? +m[1] : 0); }, 0);
+  const runs = (zs) => { const out = []; for (const z of zs) { const l = out.at(-1); if (l && z === l[1] + 1) l[1] = z; else out.push([z, z]); } return out.map(([a, b]) => (a === b ? String(a) : b === a + 1 ? `${a}, ${b}` : `${a}–${b}`)); };
+  const and = (a) => (a.length > 1 ? `${a.slice(0, -1).join(", ")} and ${a.at(-1)}` : a.join(""));
+  const out = (D, Z) => { const r = H.rows.find((x) => x.D === D && x.Z === Z), f = fN(r.hf); return Math.min(...r.rows.filter((x) => x.hf_eV != null && !x.gapped && fN(x.config) === f - 1).map((x) => x.hf_eV)); };
+  const tb = F.calibration.find((c) => c.Z === 65 && c.df === -1), tbHf = out(3, 65);
+  return { "hf.fB": F.B_eV.toFixed(1), "hf.fCalN": String(F.calibration.length), "hf.fCalMin": Math.min(...F.calibration.map((c) => c.lean_eV)).toFixed(2),
+    "hf.lanN": String(L.n), "hf.lanHf": String(L.hfRight), "hf.lanLda": String(L.ldaRight), "hf.lanAgree": String(L.agree), "hf.lanAgreeRight": String(L.agreeRight),
+    "hf.fFirm": and(runs(F.firm)), "hf.fFirmN": String(F.firm.length), "hf.fOpenAgree": and(F.openAgree.map((x, i) => `${x.Z} (${x.gap.toFixed(2)}${i ? "" : " eV"})`)),
+    "hf.fLean": and(runs(F.lean)), "hf.fUntested": and(runs(F.untested)), "hf.fOut90": out(4, 90).toFixed(1), "hf.fOut100": out(4, 100).toFixed(1), "hf.fOut109": out(4, 109).toFixed(1),
+    "hf.fOutTb": tbHf.toFixed(1), "hf.fOutTbM": (tbHf - tb.error_eV).toFixed(2) };
 }
 /* section 10.1: the atoms' response (response-table.mjs → data/response.json; ours against derevianko2010) */
 export function respTokens() {
@@ -258,6 +272,17 @@ export function sepTokens() {
     "sep.e12": (() => { const p = P.find((x) => x.D === 4 && x.Z === 12), q = p.points.at(-1); return `${q.int_hf_mHa.toFixed(4).replace("-", "−")} against ${q.far_mHa.toFixed(4).replace("-", "−")}`; })() };
 }
 /* section 7.4: valence states (valence-collect.mjs → data/valence.json) */
+/* section 7.5: darbon's hydride DH₅ against its balanced alternatives, and its curvature matrix (valencetest-collect.mjs) */
+export function vtTokens() {
+  const V = JSON.parse(readFileSync(join(HERE, "data/valencetest.json"), "utf8")), R = V.reactions, H = V.hessian, f = (x) => x.toFixed(2);
+  const groups = []; for (const x of H.vibrational) { const g = groups.at(-1); if (g && Math.abs(x - g.v) < 1e-4) g.n++; else groups.push({ v: x, n: 1 }); }
+  const xh = (b) => R.fragments.filter((x) => x.formula === `XH${b}`).sort((a, c) => a.mp2 - c.mp2);
+  return { "vt.R": R.fragments.find((x) => x.formula === "XH5").R.toFixed(2), "vt.rH2": R.H2.R.toFixed(2), "vt.n": String(H.coordinates), "vt.rigid": String(H.rigidModes.length), "vt.nVib": String(H.vibrational.length),
+    "vt.groups": groups.map((g) => g.n).join(" + "), "vt.low": H.lowest.toFixed(3), "vt.grad": H.gradientMax.toExponential(0).replace(/e-(\d+)/, (_, e) => ` × 10⁻${supN(e)}`), "vt.neg": String(H.negative),
+    "vt.h1": `${f(R.toXHn1_H.hf)} eV by Hartree–Fock and ${f(R.toXHn1_H.mp2)} eV with MP2`, "vt.h2": `${f(R.toXHn2_H2.hf)} and ${f(R.toXHn2_H2.mp2)} eV`,
+    "vt.s4": String(xh(4)[0].twoS / 2 === 0.5 ? "a doublet" : `spin ${xh(4)[0].twoS / 2}`), "vt.s3": xh(3)[0].twoS === 2 ? "a triplet" : xh(3)[0].twoS === 0 ? "a singlet" : `spin ${xh(3)[0].twoS / 2}`,
+    "vt.gap3": `${f(R.spinGap_XHn2_eV.hf)} (Hartree–Fock) and ${f(R.spinGap_XHn2_eV.mp2)} eV (MP2)`, "vt.ang": String(xh(3)[0].param) };
+}
 export function valTokens() {
   const V = JSON.parse(readFileSync(join(HERE, "data/valence.json"), "utf8")), C = V.calibration, f2 = (v) => (v == null ? "—" : (v < 0 ? "−" : "") + Math.abs(v).toFixed(1));
   const sup = (c) => c.split(" ").slice(-3).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" "), mv = (m) => m.replace(/(\d[spdf])/g, "$1");
@@ -425,10 +450,20 @@ function ledger(t3, t4, files, refs) {
         value: `${T["val.nCal"]} calibration states; Rydberg medians ${T["val.ryd"]} eV; s→p (${T["val.spEarlyEl"]}) ${T["val.spEarly"]}; 4D 2s→2p of element 4 ${T["val.d4"]}, darbon ${T["val.d7"]} eV`,
         holds: sp.length >= 5 && sp.every((c) => c.ldaError_eV < 0 && c.hfError_eV < 0) && ryd.length >= 10 && ryd.map((c) => Math.abs(c.hfError_eV)).sort((a, b) => a - b)[Math.floor(ryd.length / 2)] < 0.5,
         section: "7.4", gate: [67] }; })(),
+    (() => { const V = JSON.parse(readFileSync(join(HERE, "data/valencetest.json"), "utf8")), R = V.reactions, H = V.hessian, T = vtTokens();
+      return { id: "valencetest", part: "table", claim: "The valence rule tested on one hydride: darbon's DH₅, with the five bonds the rule counts, is a true minimum (every curvature in four dimensions positive) and lies below both balanced alternatives, DH₄ + H and DH₃ + H₂, each fragment in its lowest spin",
+        value: `${H.coordinates} coordinates, ${H.rigidModes.length} rigid, ${H.vibrational.length} curvatures in groups ${T["vt.groups"]}, lowest ${T["vt.low"]} Ha/bohr², none negative, gradient ${H.gradientMax}; DH₅ → DH₄ + H ${R.toXHn1_H.hf}/${R.toXHn1_H.mp2} eV, → DH₃ + H₂ ${R.toXHn2_H2.hf}/${R.toXHn2_H2.mp2} eV (Hartree–Fock/MP2)`,
+        holds: R.Z === 7 && R.n === 5 && H.missing === 0 && H.negative === 0 && H.lowest > 0.01 && H.gradientMax < 1e-4 && H.rigidModes.every((x) => Math.abs(x) < 1e-4) && R.toXHn1_H.hf > 0 && R.toXHn1_H.mp2 > 0 && R.toXHn2_H2.hf > 0 && R.toXHn2_H2.mp2 > 0 && R.fragments.every((x) => x.converged),
+        section: "7.5", gate: [67] }; })(),
     (() => { const S = HFT.summary, T = hfTokens(), P = S.promotion3.filter((x) => !x.missing);
       return { id: "hfcheck", part: "table", claim: "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
         value: `ours: Hartree–Fock ${S.ours.hfRight}, local exchange ${S.ours.ldaRight} of ${S.ours.n}; agree ${S.ours.agree}, right ${S.ours.agreeRight}; 4s→3d errors (local exchange/Hartree–Fock) ${T["hf.promList"]}; 4D: agree ${S.fourD.agree} of ${S.fourD.n}, open ${T["hf.4d"]} (d), ${T["hf.4f"]} (f), ${T["hf.4o"]}`,
         holds: S.ours.n === 36 && S.fourD.n === 140 && S.ours.agree === S.ours.agreeRight && S.ours.hfRight >= S.ours.ldaRight && P.length === 9 && P.every((x) => x.ldaError_eV < 0) && P.filter((x) => x.Z <= 24).every((x) => x.hfError_eV < 0) && P.filter((x) => x.Z >= 25).every((x) => x.hfError_eV > 0) && !S.missing.length,
+        section: "E.6", gate: [67, 71] }; })(),
+    (() => { const F = HFT.summary.fRow, L = HFT.summary.lanthanides, T = hfTokens();
+      return { id: "frow", part: "table", claim: "Our lanthanides calibrate Hartree–Fock on the f row: it makes f too stable in every measured state that changes the f count, by at most B ≈ 4 eV. In 4D, f is bound so deeply that over half of row 6's f block is firm against that bias; the open cases sit at the block's two ends",
+        value: `lanthanides: Hartree–Fock ${L.hfRight}, local exchange ${L.ldaRight} of ${L.n}; f too stable in ${F.calibration.filter((c) => c.lean_eV > 0).length} of ${F.calibration.length}, by ${T["hf.fCalMin"]}–${T["hf.fB"]} eV; f out of the ground: 90 ${T["hf.fOut90"]}, 100 ${T["hf.fOut100"]}, 109 ${T["hf.fOut109"]} eV, Tb ${T["hf.fOutTb"]} (measured ${T["hf.fOutTbM"]}); firm ${T["hf.fFirm"]}; open though agreed ${T["hf.fOpenAgree"]}; leaning Hartree–Fock ${T["hf.fLean"]}; untested ${T["hf.fUntested"]}`,
+        holds: L.n === 18 && L.hfRight > L.ldaRight && F.calibration.length >= 10 && F.calibration.every((c) => c.lean_eV > 0) && F.firm.length > 16 && F.firm.length + F.openAgree.length + F.lean.length + F.open.length + F.untested.length === 32 && F.openAgree.every((x) => x.gap <= F.B_eV),
         section: "E.6", gate: [67, 71] }; })(),
     (() => { const ts = [0.1, 0.3, 0.5, 0.7, 0.9], err = Math.max(...ts.map((t) => Math.abs(kClosed(t) / k4(t) - 1)));
       return { id: "kernelclosed", part: "law", claim: "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/3π and κ = 1 − t²/8 − t⁴/64 − …",
@@ -499,6 +534,7 @@ function hundTokens() {
     ...ligandTokens(),
     ...sepTokens(),
     ...valTokens(),
+    ...vtTokens(),
     ...(() => { const R = JSON.parse(readFileSync(join(HERE, "data/he4check.json"), "utf8")).rows, g = R.map((r) => r.gap); return { "he4.gap": `${Math.min(...g).toFixed(3)}–${Math.max(...g).toFixed(3)}` }; })(),
     ...(() => { const P = JSON.parse(readFileSync(join(HERE, "data/promotion3.json"), "utf8")), ok = P.promotion.filter((x) => !x.missing), sgn = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
       const dc = (cfg) => [...cfg.matchAll(/\d[df](\d+)/g)].reduce((t, m) => t + +m[1], 0), sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");

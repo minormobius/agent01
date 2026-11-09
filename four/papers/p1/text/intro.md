@@ -28,7 +28,7 @@ our knowledge, has anyone asked what the choice of $1/r$ itself does to the atom
 This paper does both. Part I treats the law as a choice: why one has to be made (section 2), why $1/r$ exactly
 (section 3), and what it costs in four dimensions (section 4). Part II solves every neutral atom to $Z = 140$ under it:
 the methods (section 5); Hund's first rule, which four-dimensional space breaks and the solver corrects for (section
-6); and the table, with each atom's valence states (section 7). Part III asks which of the table's features the law
+6); and the table, with each atom's valence states and a test of the valence rule on one hydride (section 7). Part III asks which of the table's features the law
 decides. It solves the table a second time with the shell theorem forced back on (section 8), follows the law into
 partial screening (section 9), and gives the response of atoms and the pull between them, the reference later work on
 molecules starts from (section 10). Section 11 states the limitations; section 12 concludes. Every method is first run

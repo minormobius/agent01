@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="2c89879d2e0b0655321c5122be061eeb98dd43247b24eaa0bcd3ae390b13526a" />
+<meta name="source-sha256" content="c8451b91c52a8356799ebfc43e8c503edebb480e455ddb61a12e33704ce69be2" />
 <title>Paper 1 · Appendices (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -376,15 +376,50 @@ lean. Before half filling (30, 31, 58) Hartree–Fock’s error in ours was
 small and in the same direction as local exchange’s, so its preference
 for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08
 eV, are inside the volt by which it overprices d in ours. In the f row
-the comparison is incomplete. The candidates are those within the window
-of local exchange’s ground, and local exchange overbinds f, so in our
-lanthanides the configurations with one f electron fewer fell outside
-it, the measured ground’s nearest competitor among them. Hartree–Fock’s
-margins in the 4D f row (2.35 to 5.80 eV) are measured only against
-local exchange’s own choice, and the f row’s configurations, agreed or
-not, are provisional until a wider window has been run. In the d rows no
-Hartree–Fock ground configuration lies near the window’s edge. Every
-element’s verdict, both methods’ rankings and the margins are in
+the first comparison was incomplete. Its candidates lay within the
+window of local exchange’s ground, and local exchange overbinds f, so
+configurations with one f electron fewer fell outside it. A window of 10
+eV and a climb through Hartree–Fock’s own neighbourhood (section 5.12)
+close that gap, and our lanthanides calibrate what remains. Against the
+measured levels <span class="citation" data-cites="nist-handbook">(<a
+href="#ref-nist-handbook" role="doc-biblioref">Sansonetti and Martin
+2005</a>)</span>, Hartree–Fock gets 15 of 18 lanthanide ground
+configurations right (lanthanum to hafnium) and local exchange 12; where
+the two agree they are right 12 times in 14. In each of the 17 measured
+states that change the f count, Hartree–Fock makes f too stable, by 0.15
+to 4.1 eV. So a configuration with one f electron fewer than
+Hartree–Fock’s ground could truly lie below it only if Hartree–Fock puts
+it less than
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+= 4.1 eV up; one with more f only moves further up. In four dimensions f
+is bound far more deeply. The cheapest move of an f electron out of
+Hartree–Fock’s ground costs 5.8 eV in element 90, 12.6 in 100 and 19.9
+in 109, against 0.9 eV in our terbium, where the measured cost is 0.04.
+Hence four verdicts on row 6’s f block:</p>
+<ul>
+<li><strong>Firm</strong> where the methods agree and every competitor
+with fewer f lies more than
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>
+up, or the ground has no f: 81, 88–100 and 102–104.</li>
+<li><strong>Open though the methods agree</strong> where such a
+competitor lies within
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>B</mi><annotation encoding="application/x-tex">B</annotation></semantics></math>:
+82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86). Element 84
+is the case of our cerium, whose measured 4f¹5d¹6s² both methods miss,
+agreeing on 4f²6s².</li>
+<li><strong>Leaning to Hartree–Fock</strong> where local exchange’s
+choice holds one f electron more: 83 and 107–111. Local exchange
+overbinds f by more still, so its extra f electron is the less
+likely.</li>
+<li><strong>Untested</strong> where no configuration with fewer f was
+solved: 101, 105, 106 and 112.</li>
+</ul>
+<p>So 17 of the block’s 32 are firm, because in four dimensions the f
+shell’s binding outruns the calibration’s error; the open cases sit at
+the block’s two ends, where f competes with d and s at the start and is
+about to close at the end. In the d rows no Hartree–Fock ground
+configuration lies near the window’s edge. Every element’s verdict, both
+methods’ rankings and the margins are in
 <code>data/hftable.json</code>.</p>
 <h2 id="f-reproducing-every-number">F · Reproducing every number</h2>
 <p>Every number in the text is read by <code>papers/p1/build.mjs</code>
@@ -451,6 +486,54 @@ stale. What made each file:</p>
 <td><code>data/profiles.json</code></td>
 <td><code>profiles.mjs</code></td>
 <td>sandbox</td>
+</tr>
+<tr class="odd">
+<td><code>data/ions.json</code></td>
+<td><code>atom/tools/termtable.mjs</code> with a charge, collected by
+<code>ions-collect.mjs</code></td>
+<td>runner runs <code>ions-1</code>, <code>ions-23</code></td>
+</tr>
+<tr class="even">
+<td><code>data/hftable.json</code></td>
+<td><code>atom/tools/hftable.mjs rank</code>, collected by
+<code>hf-collect.mjs</code></td>
+<td>runner runs <code>hf-table-1</code>, <code>hf-lanth-1</code>,
+<code>hf-wide-1</code>, <code>hf-climb-1</code></td>
+</tr>
+<tr class="odd">
+<td><code>data/valence.json</code></td>
+<td><code>atom/tools/hftable.mjs map</code>, collected by
+<code>valence-collect.mjs</code></td>
+<td>sandbox</td>
+</tr>
+<tr class="even">
+<td><code>data/valencetest.json</code></td>
+<td><code>atom/tools/valencetest.mjs</code>, collected by
+<code>valencetest-collect.mjs</code></td>
+<td>runner run <code>valence-1</code></td>
+</tr>
+<tr class="odd">
+<td><code>data/response.json</code></td>
+<td><code>response-table.mjs</code></td>
+<td>sandbox, six minutes</td>
+</tr>
+<tr class="even">
+<td><code>data/ligandd2.json</code></td>
+<td><code>atom/tools/ligandd2.mjs</code></td>
+<td>sandbox, seconds</td>
+</tr>
+<tr class="odd">
+<td><code>data/separate.json</code></td>
+<td><code>atom/tools/separate.mjs</code>, collected by
+<code>separate-collect.mjs</code></td>
+<td>sandbox</td>
+</tr>
+<tr class="even">
+<td><code>data/nist-*.json</code>, <code>data/response-ref.json</code>
+(measured and reference values)</td>
+<td>fetched from NIST (the levels by <code>nist-levels.py</code>); the
+reference by hand from its source</td>
+<td>by hand</td>
 </tr>
 <tr class="odd">
 <td><code>data/table3.*</code>, <code>data/table4.*</code>,

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="04ed59e5620c571c4388d7cc163ce4ebab690d0def9d2fac7725bf1a18eb773b" />
+<meta name="source-sha256" content="b50485a9723b0243911b4565666a7a2b6ae46d2b0513f4e27d42f2599502dfa4" />
 <title>Paper 1 · Part II · The table (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -414,6 +414,39 @@ exchange / Hartree–Fock (eV)</th>
 </tr>
 </tbody>
 </table>
+<p><strong>7.5 Darbon’s hydride holds five hydrogens.</strong> The table
+implies a valence rule: an atom with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+electrons outside its core makes
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
+bonds, up to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D + 1</annotation></semantics></math>
+of them, and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>v</mi></mrow><annotation encoding="application/x-tex">2(D + 1) - v</annotation></semantics></math>
+past that. That is a claim about molecules, and one hydride tests it
+directly. Darbon (element 7, 2s²2p³) should make five bonds, so DH₅
+should exist, its hydrogens at the corners of the 5-cell, the simplest
+regular figure in four dimensions. Making five bonds takes the s→p
+promotion of section 7.4. At that geometry (D–H 3.23 bohr, by
+Hartree–Fock) we computed the whole curvature matrix of the energy by
+central differences, in all 24 coordinates of six atoms in four
+dimensions. With the 10 translations and rotations set apart, the 14
+curvatures fall in groups of 5 + 4 + 1 + 4, as the 5-cell’s symmetry
+requires. None is negative: the lowest is 0.020 hartree/bohr², and the
+gradient is 5 × 10⁻⁶. So DH₅ is a true minimum, not a saddle that a
+symmetric search could settle on. It also lies below both balanced ways
+of coming apart. Losing one hydrogen, DH₅ → DH₄ + H, costs 1.55 eV by
+Hartree–Fock and 2.32 eV with MP2. Losing two as a molecule, DH₅ → DH₃ +
+H₂, costs 2.13 and 3.43 eV. Each fragment is in its lowest spin: DH₄ is
+a doublet and DH₃ a triplet, with DH₃’s singlet 1.01 (Hartree–Fock) and
+0.85 eV (MP2) higher. Energies are by unrestricted Hartree–Fock and MP2
+in the molecular basis. The fragments’ geometries were optimized only
+within symmetric shapes, with their hydrogens equivalent; DH₃ and DH₄
+settle flat, their hydrogens in a plane or a 3-space through darbon. A
+lower, less symmetric fragment could lower both costs, and the curvature
+matrix, which describes DH₅ only, says nothing about that. The
+systematic test, every hydride and its fragments searched without
+symmetry, belongs to the chemistry this table starts.</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">

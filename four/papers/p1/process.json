@@ -441,6 +441,10 @@
   {
    "date": "2026-11-09",
    "what": "PI's notes, first batch: the checks against our world (old §6) move to appendix E, as supporting evidence rather than part of the argument; sections 7–13 become 6–12, appendix E (reproducing) becomes F, and every cross-reference, the ledger's section fields, the table page's link and the notation table follow. Headings framed as questions or as dances round the section are rewritten to say what the section does (4.5 'Stability: shown for single atoms, open for matter in bulk', 5.6 'The stop, against one 10⁵ times tighter', 6.2 'd², d¹⁶, 4f³ and 4f²⁹ break the rule', 6.3 'The four-dimensional shell breaks it, not the law', …). The introduction's road map is rewritten for the new order."
+  },
+  {
+   "date": "2026-11-09",
+   "what": "PI approved both pending results. The f row (appendix E.6, claim frow): runs hf-wide-1 (10 eV window) and hf-climb-1 (Hartree–Fock's own one-electron neighbourhood) close the window gap; our lanthanides calibrate the rest: Hartree–Fock 15 of 18 grounds right, local exchange 12, and in all 17 measured states that change the f count Hartree–Fock makes f too stable, by 0.15–4.1 eV (B). In 4D moving an f electron out costs 5.8 eV (element 90), 12.6 (100), 19.9 (109) against 0.9 in our terbium, so 17 of the 32 f-row elements are firm (81, 88–100, 102–104); open though agreed 82, 84–87; leaning Hartree–Fock 83, 107–111; untested 101, 105, 106, 112. The table page shows each verdict. §7.5, darbon's DH5 (run valence-1, valencetest-collect.mjs → data/valencetest.json, claim valencetest): a true minimum (24 coordinates, 14 curvatures in groups 5 + 4 + 1 + 4, none negative) and below DH4 + H (1.55/2.32 eV, Hartree–Fock/MP2) and DH3 + H2 (2.13/3.43 eV); fragments optimized only in symmetric shapes, so the costs are upper bounds on that count. Appendix F now lists every data file."
   }
  ]
 }
