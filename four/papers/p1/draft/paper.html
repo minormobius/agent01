@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="4a34db32cf2d72b7063ef3aa1a1218083f12a289983b51d7620db066d0c78813" />
+<meta name="source-sha256" content="81b3a1e6c14f8a99a4335f4ebf31b96be04f74cfba334f67aaf412e8b2a47ca4" />
 <title>Paper 1 · Paper 1 · the whole draft</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -92,25 +92,26 @@ in four Euclidean dimensions, for a pairwise
 interaction and electrons with two spin states. Its approximations are
 stated with it: spherical subshells, local exchange, no correlation, and
 a first-order correction for the open subshells’ terms (section 5),
-cross-checked by Hartree–Fock (section 6.6). Nor, to our knowledge, has
+cross-checked by Hartree–Fock (appendix E.6). Nor, to our knowledge, has
 anyone asked what the choice of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 itself does to the atoms.</p>
-<p>This paper does both. Part I treats the law as a choice. It shows why
-one has to be made (section 2), why
+<p>This paper does both. Part I treats the law as a choice: why one has
+to be made (section 2), why
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 exactly (section 3), and what it costs in four dimensions (section 4).
 Part II solves every neutral atom to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
-under it (sections 5–8). It checks the same solver against our own table
-(section 6). It finds that four-dimensional space breaks Hund’s first
-rule, which the solver had assumed, and corrects for it (section 7), and
-it gives the table (section 8). Part III asks which of the table’s
-features the law decides. It solves the table a second time with the
-shell theorem forced back on (section 9), and follows the law into
-partial screening (section 10) and into the pull of neutral atoms
-(section 11). Section 12 states the limitations; section 13
-concludes.</p>
+under it: the methods (section 5); Hund’s first rule, which
+four-dimensional space breaks and the solver corrects for (section 6);
+and the table, with each atom’s valence states (section 7). Part III
+asks which of the table’s features the law decides. It solves the table
+a second time with the shell theorem forced back on (section 8), follows
+the law into partial screening (section 9), and gives the response of
+atoms and the pull between them, the reference later work on molecules
+starts from (section 10). Section 11 states the limitations; section 12
+concludes. Every method is first run on our own world against measured
+values; those checks are appendix E.</p>
 <p>Every number in the text is recomputed from the code and its baked
 data each time anything changes, and is checked against a ledger of 38
 claims. The code, the data and the paper’s own making are public at
@@ -315,7 +316,7 @@ for atoms A and B</td>
 <td>an atom’s dipole polarizability at imaginary frequency;
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mi mathvariant="normal">p</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\alpha_\mathrm p(0)</annotation></semantics></math>
 the static one</td>
-<td>§11.1</td>
+<td>§10.1</td>
 </tr>
 <tr class="even">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mn>6</mn></msub><annotation encoding="application/x-tex">C_6</annotation></semantics></math>,
@@ -325,19 +326,19 @@ the static one</td>
 and permanent pull
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msub><mi>C</mi><mn>5</mn></msub><mi>/</mi><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-C_5/R^5</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>5</mn></msub><mo>=</mo><mn>3</mn><msup><mi>Q</mi><mn>2</mn></msup><mi>/</mi><mn>64</mn></mrow><annotation encoding="application/x-tex">C_5 = 3Q^2/64</annotation></semantics></math></td>
-<td>§11.1</td>
+<td>§10.1</td>
 </tr>
 <tr class="odd">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mo>*</mo></msup><annotation encoding="application/x-tex">R^*</annotation></semantics></math></td>
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>6</mn></msub><mi>/</mi><msub><mi>C</mi><mn>5</mn></msub></mrow><annotation encoding="application/x-tex">C_6/C_5</annotation></semantics></math>,
 the distance inside which dispersion is the larger</td>
-<td>§11.1</td>
+<td>§10.1</td>
 </tr>
 <tr class="even">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math></td>
 <td>the spread of a d subshell’s one-electron levels in a ligand
 field</td>
-<td>§7.5</td>
+<td>§6.5</td>
 </tr>
 <tr class="odd">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>φ</mi><annotation encoding="application/x-tex">\varphi</annotation></semantics></math></td>
@@ -422,13 +423,13 @@ constant:
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>S</mi></msub><annotation encoding="application/x-tex">M_S</annotation></semantics></math></td>
 <td>an open subshell’s total spin and its projection</td>
-<td>§7</td>
+<td>§6</td>
 </tr>
 <tr class="even">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>F</mi><mi>n</mi></msup><annotation encoding="application/x-tex">F^n</annotation></semantics></math></td>
 <td>the radial (Slater) integrals of the repulsion within a subshell,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>n</mi><mo>=</mo><mn>0</mn><mo>,</mo><mn>2</mn><mo>,</mo><mn>4</mn><mo>,</mo><mi>…</mi></mrow><annotation encoding="application/x-tex">n = 0, 2, 4, \dots</annotation></semantics></math></td>
-<td>§7.3</td>
+<td>§6.3</td>
 </tr>
 <tr class="odd">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>C</mi><mi>n</mi></msub><annotation encoding="application/x-tex">C_n</annotation></semantics></math></td>
@@ -436,19 +437,19 @@ constant:
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msubsup><mi>C</mi><mi>n</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow></msubsup><annotation encoding="application/x-tex">C^{(1)}_n</annotation></semantics></math>,
 the 3-sphere’s analogue of Legendre’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>P</mi><mi>n</mi></msub><annotation encoding="application/x-tex">P_n</annotation></semantics></math></td>
-<td>§7.3</td>
+<td>§6.3</td>
 </tr>
 <tr class="even">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math></td>
 <td>the angle between two electrons, seen from the nucleus</td>
-<td>§7.3</td>
+<td>§6.3</td>
 </tr>
 <tr class="odd">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mi>n</mi></msub><annotation encoding="application/x-tex">a_n</annotation></semantics></math></td>
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msub><mi>C</mi><mi>n</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>cos</mo><mi>γ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle C_n(\cos\gamma)\rangle</annotation></semantics></math>
 over a term, its share of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>F</mi><mi>n</mi></msup><annotation encoding="application/x-tex">F^n</annotation></semantics></math></td>
-<td>§7.3</td>
+<td>§6.3</td>
 </tr>
 <tr class="even">
 <td><math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>θ</mi><annotation encoding="application/x-tex">\theta</annotation></semantics></math></td>
@@ -750,8 +751,8 @@ wouldn’t apply. Under
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 the rows come from counting harmonics, and that is what lets part III
 tell the geometry’s share of the table from the law’s.</p>
-<p><strong>3.2 The convention it agrees with.</strong> The literature on
-hydrogen in
+<p><strong>3.2 Dimensional scaling already uses it.</strong> The
+literature on hydrogen in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
 dimensions <span class="citation" data-cites="nieto1979 aljaber1998">(<a
 href="#ref-nieto1979" role="doc-biblioref">Nieto 1979</a>; <a
@@ -840,12 +841,12 @@ at a distance
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math>,
 where
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">Q = \sum\langle r^2\rangle</annotation></semantics></math>
-over its electrons (section 11). Everything distinctive in part III
+over its electrons (section 10). Everything distinctive in part III
 comes from here.</p>
-<p><strong>4.3 Which field theory gives 1/r.</strong> A potential is
-what a field theory’s static equation gives for a point charge, and the
-equation is simplest in Fourier space, where each pair of derivatives
-becomes a factor
+<p><strong>4.3 Five field theories that give 1/r, and the one
+taken.</strong> A potential is what a field theory’s static equation
+gives for a point charge, and the equation is simplest in Fourier space,
+where each pair of derivatives becomes a factor
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>k</mi><mn>2</mn></msup><annotation encoding="application/x-tex">k^2</annotation></semantics></math>
 of the wavenumber
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>.
@@ -1011,17 +1012,19 @@ choice, on
 on how the lens vacuum’s fields move and radiate, or on the absolute
 now. Those dynamics, of the same lens vacuum, are the subject of a later
 paper.</p>
-<p><strong>4.4 What is declared with it.</strong> Electrons are spin-½
-fermions, two to an orbital. That is stated, not derived: in our world
-it follows from relativity and spin together, and this universe has
-given up relativity for the force. Nuclei are point charges
+<p><strong>4.4 Electrons, nuclei and the fine-structure constant,
+declared.</strong> Electrons are spin-½ fermions, two to an orbital.
+That is stated, not derived: in our world it follows from relativity and
+spin together, and this universe has given up relativity for the force.
+Nuclei are point charges
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">+Z</annotation></semantics></math>,
 stable for every
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
 to 140 (declared: nuclear physics in four dimensions is another paper).
 The fine-structure constant is small, so atoms are solved without
-relativity (section 12). No other long-range field acts on charges.</p>
-<p><strong>4.5 Is matter stable?</strong> In ours it is a theorem that
+relativity (section 11). No other long-range field acts on charges.</p>
+<p><strong>4.5 Stability: shown for single atoms, open for matter in
+bulk.</strong> In ours it is a theorem that
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
 atoms have an energy bounded below by a constant times
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
@@ -1056,7 +1059,7 @@ finite-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semant
 corrections make them). Separated neutral atoms don’t run away either.
 Every force between them here (the permanent
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>Q</mi><mi>A</mi></msub><msub><mi>Q</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3Q_AQ_B/64R^5</annotation></semantics></math>
-of section 11, dispersion’s
+of section 10, dispersion’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>)
 falls faster than
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>4</mn></mrow></msup><annotation encoding="application/x-tex">R^{-4}</annotation></semantics></math>,
@@ -1074,7 +1077,7 @@ atom is <code>atom/js/atom.js</code>, with the shell kernel in
 <code>papers/p1/laws.js</code>, and the terms of open subshells are
 <code>atom/tools/hund.mjs</code> and <code>termtable.mjs</code>. Nothing
 is taken from a quantum-chemistry package. Two independent codes check
-it (section 6.2): <code>atom/js/gauss.js</code>, Hartree–Fock in a
+it (appendix E.2): <code>atom/js/gauss.js</code>, Hartree–Fock in a
 Gaussian basis <span class="citation" data-cites="boys1950">(<a
 href="#ref-boys1950" role="doc-biblioref">Boys 1950</a>)</span> for any
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>,
@@ -1084,7 +1087,7 @@ role="doc-biblioref">1978</a>)</span>, and in ours PySCF <span
 class="citation" data-cites="sun2018 sun2020">(<a href="#ref-sun2018"
 role="doc-biblioref">Sun et al. 2018</a>, <a href="#ref-sun2020"
 role="doc-biblioref">2020</a>)</span>. Every number quoted is read from
-the code’s output by the paper’s build (appendix E).</p>
+the code’s output by the paper’s build (appendix F).</p>
 <p><strong>5.2 The law inside an atom.</strong> An atom here is a point
 nucleus of charge
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
@@ -1127,7 +1130,7 @@ the levels are
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>−</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + (D - 3)/2)^2</annotation></semantics></math>,
 so 4D hydrogen’s ground state is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
-hartree; the solver gives −0.22222 (section 6.1).</p>
+hartree; the solver gives −0.22222 (appendix E.1).</p>
 <p><strong>5.3 The clouds’ potential.</strong> A spherical shell of
 charge at radius
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>,
@@ -1215,15 +1218,15 @@ to self-consistency: each orbital solved in the potential of the
 nucleus, the others’ clouds and exchange; the new clouds mixed into the
 old at 0.4; up to 80 iterations, stopping when the total energy changes
 by less than 10⁻⁷ hartree between iterations.</p>
-<p><strong>5.6 Is the stop tight enough?</strong> A stop on the energy
-can leave the far density less converged than the energy is; the
-plane-wave work met exactly that in its pseudopotentials’ all-electron
-atom, where exchange carried an unconverged tail into the potential. So
-19 atoms across every row of both worlds were re-solved in their baked
-configurations and then driven on from that field to a stop of 10⁻¹²
-hartree (appendix C, <code>audit-scf.mjs</code>). Total energies and
-first ionization energies moved by at most 2.7 × 10⁻⁷ and 2.8 × 10⁻⁷
-hartree, the outermost orbital energy by 1.7 × 10⁻⁶, and
+<p><strong>5.6 The stop, against one 10⁵ times tighter.</strong> A stop
+on the energy can leave the far density less converged than the energy
+is; the plane-wave work met exactly that in its pseudopotentials’
+all-electron atom, where exchange carried an unconverged tail into the
+potential. So 19 atoms across every row of both worlds were re-solved in
+their baked configurations and then driven on from that field to a stop
+of 10⁻¹² hartree (appendix C, <code>audit-scf.mjs</code>). Total
+energies and first ionization energies moved by at most 2.7 × 10⁻⁷ and
+2.8 × 10⁻⁷ hartree, the outermost orbital energy by 1.7 × 10⁻⁶, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">Q = \sum\langle r^2\rangle</annotation></semantics></math>
 (the far pull’s, and the forces between atoms’) by 1.9 × 10⁻⁵ of itself;
 the baked
@@ -1236,16 +1239,17 @@ real charge out that far. Nothing the paper quotes depends on it; a
 calculation that builds a potential from the far density through
 exchange must converge the density pointwise, as the pseudopotentials
 now do.</p>
-<p><strong>5.7 Is the grid fine enough?</strong> 11 atoms from every row
-of both worlds were re-solved in their baked configurations on six other
-grids, changing one of the number of points (500, 1000), the inner end
-(10⁻⁴, 10⁻⁶ bohr) and the outer end (100, 250 bohr) at a time (appendix
-C, <code>convergence.mjs</code>). First ionization energies moved by at
-most 1.4 × 10⁻⁴ hartree on any of them. Total energies moved by at most
-6.7 × 10⁻² hartree, 2.4 × 10⁻⁵ of themselves, the largest for our own
-krypton, whose 1s sits deeper than any four-dimensional atom’s and is
-the grid’s hardest case. The paper quotes ionization energies and energy
-differences, not total energies.</p>
+<p><strong>5.7 The radial grid, against six others.</strong> 11 atoms
+from every row of both worlds were re-solved in their baked
+configurations on six other grids, changing one of the number of points
+(500, 1000), the inner end (10⁻⁴, 10⁻⁶ bohr) and the outer end (100, 250
+bohr) at a time (appendix C, <code>convergence.mjs</code>). First
+ionization energies moved by at most 1.4 × 10⁻⁴ hartree on any of them.
+Total energies moved by at most 6.7 × 10⁻² hartree, 2.4 × 10⁻⁵ of
+themselves, the largest for our own krypton, whose 1s sits deeper than
+any four-dimensional atom’s and is the grid’s hardest case. The paper
+quotes ionization energies and energy differences, not total
+energies.</p>
 <p><strong>5.8 The ground configuration.</strong> For each
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
 the ground configuration is searched, not assumed. The search starts
@@ -1275,7 +1279,7 @@ once (on GitHub’s runners past
 into a single generated file, which a selftest re-solves in sample on
 every change.</p>
 <p><strong>5.9 The terms of open subshells.</strong> The search above
-gives every open subshell Hund spins. Section 7 finds where that’s
+gives every open subshell Hund spins. Section 6 finds where that’s
 wrong, and the table is corrected for it. Each d- and f-block element is
 searched again, seeded as the repair pass seeds, and every settled
 candidate’s energy gets its open subshells’ term correction: the lowest
@@ -1284,7 +1288,7 @@ own repulsion on that candidate’s own orbital
 (<code>atom/tools/termtable.mjs</code>). It is zero wherever Hund’s
 first rule holds. The ionization is corrected the same way on both
 sides. Fillings whose spin blocks are too large to solve per candidate
-take the survey’s verdict (section 7.2), which for them is that the rule
+take the survey’s verdict (section 6.2), which for them is that the rule
 holds.</p>
 <p><strong>5.10 The counterfactual.</strong> To separate what the table
 owes to the law from what it owes to the geometry, every 4D element is
@@ -1356,158 +1360,25 @@ differences converge at 0.02, where the ranking is done. Checks (block
 71): our He, Ne, N ⁴S, C ³P and Fe ⁵D against the numerical Hartree–Fock
 limits to 2 × 10⁻⁵ hartree, and four-dimensional closed shells against
 the Gaussian code.</p>
-<p><strong>5.13 Checks.</strong> Every method above has a known-answer
-test in the selftest, run on every change: hydrogen in both worlds
-(block 1), the radial solver (2), the kernel against direct integration
-(3), exchange against the electron-gas constants (4, 18), the ground
-search (5, 7), two-electron atoms against an independent Gaussian
-Hartree–Fock code in four dimensions and MP2 against PySCF in ours (17,
-43), Hartree–Fock against its known limits (71), our table against
-measured values (6: 32 of 36 configurations; ionization to a 4.3 %
-median error), and this paper’s own claims recomputed from the bake
-(67).</p>
-<h2 id="checks-against-what-is-known">6 · Checks against what is
-known</h2>
-<p><strong>6.1 Hydrogen.</strong> One electron needs no search and no
-exchange, and four-dimensional hydrogen has an exact answer:
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + \tfrac12)^2</annotation></semantics></math>
-hartree, so
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
-for the ground state. The solver gives −0.22222.</p>
-<p><strong>6.2 Two electrons.</strong> Helium-like atoms in four
-dimensions are checked against an independent code, Hartree–Fock in a
-Gaussian basis written for any dimension (<code>gauss.js</code>), and
-the same atoms in ours against PySCF at the MP2 level (selftest blocks
-17 and 43). The two codes share no part of the radial solver. From
-outside, the only accurate four-dimensional numbers we have been able to
-read are correlated variational energies for helium-like ions <span
-class="citation" data-cites="escobar2021">(<a href="#ref-escobar2021"
-role="doc-biblioref">Escobar-Ruiz et al. 2021</a>)</span>. Hartree–Fock
-(<code>hf.js</code>, section 5.12) lies above them by 0.012–0.014
-hartree for
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
-= 2–10, as it must, since they include correlation; that is the size and
-sign of a correlation energy, a consistency check rather than a
-benchmark. A four-dimensional Hartree–Fock limit to test against <span
-class="citation" data-cites="loeser1986hf">(<a href="#ref-loeser1986hf"
-role="doc-biblioref">Loeser and Herschbach 1986a</a>)</span> is in
-tables we have not obtained.</p>
-<p><strong>6.3 Our own table.</strong> The same solver, the same law (in
-ours 1/r is Gauss’s) and the same search, run in three dimensions, gives
-32 of 36 of our measured ground configurations. The four it misses,
-titanium, vanadium, cobalt and nickel, each take one d electron too many
-against 4s, the known lean of local exchange toward d. The misses have
-one cause. Moving an electron from 4s into 3d comes out too cheap in
-every 3d atom we can compare (eV, the solver against measured: Sc 0.14
-against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.87, Co −0.35
-against 0.42, Ni −1.16 against −0.03), short by 0.37–1.70 eV and a mean
-1.05, always in d’s favour. The measured values are differences of each
-configuration’s lowest term, its levels averaged with weights
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>J</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">2J + 1</annotation></semantics></math>,
-from NIST’s level tables <span class="citation"
-data-cites="nist-handbook">(<a href="#ref-nist-handbook"
-role="doc-biblioref">Sansonetti and Martin 2005</a>)</span>, because the
-solver has no spin–orbit coupling and lands each configuration in its
-lowest term. Taking the lowest level of each instead moves them by at
-most 0.06 eV and turns nickel’s sign (+0.03 rather than −0.03). That is
-local exchange without correlation. Resolving every open subshell’s
-whole term structure doesn’t remove it. With that correction (the lowest
-term less the average of the maximum-spin arrangements, which is what a
-spherically averaged field stands for), the bias stays at 1.05 eV and
-the configurations get worse, 26 of 32 against 28 of 32. So the paper
-corrects only Hund’s first rule (section 7), the one thing a
-spin-polarized averaged field cannot represent. Its first ionization
-energies are off by a median 4.3 % and at most 16.2 % (figure A2). That
-is the accuracy to expect of the 4D table: a method that gets our
-transition metals mostly right and our ionizations to a few percent, not
-a spectroscopic one.</p>
-<figure id="fig-A2">
-<img src="../figures/A2.svg"
-alt="Figure A2. The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z." />
-<figcaption aria-hidden="true"><strong>Figure A2.</strong> The solver in
-our three dimensions. (a) Computed against measured first ionization
-energies (NIST), with the four elements whose ground configuration it
-misses (Ti, V, Co, Ni: one d electron too many against 4s, the known
-lean of local exchange). (b) The percentage error against
-Z.</figcaption>
-</figure>
-<p><strong>6.4 Ions.</strong> Each ion of ours searched for its own
-ground state, rather than made by taking one electron from the atom’s
-configuration, changes no first ionization. Searched the same way, our
-+2 and +3 ions give second and third ionization energies within a median
-2.0 % and 1.4 % of measured ones <span class="citation"
-data-cites="nist-asd">(<a href="#ref-nist-asd"
-role="doc-biblioref">Kramida et al. 2026</a>)</span> (worst V, 7 % and
-C, 4 %), closer than the first ionizations’ 4.3 %, and they lose their
-4s electrons before 3d, as measured (Fe⁺ 3d⁶4s, Fe²⁺ 3d⁶, Fe³⁺ 3d⁵). In
-four dimensions the 3d row’s ions do the same. Elements in the first
-half of the 4d and 5d blocks, and the two that open row 6’s f block with
-a 5d electron, instead give up a d electron at +1 or +2 while keeping
-the outer s (53–56, 58, 61, 81–82, 114–118, 120, 122), as our yttrium
-and lutetium do (Y⁺ 5s², Lu⁺ 6s²). The same search for anions gives our
-electron affinities where the extra electron is bound by the field and
-exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against
-1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against
-3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second).
-It also finds every anion that should be unbound to be unbound: the
-noble gases, beryllium, magnesium and nitrogen. It fails where
-correlation does the binding (H -0.33 against 0.754, Li -0.08 against
-0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In ours, then,
-the method’s affinities hold above about 0.7 eV and not below (the
-measured values are from <span class="citation"
-data-cites="rienstra2002">Rienstra-Kiracofe et al. (<a
-href="#ref-rienstra2002" role="doc-biblioref">2002</a>)</span>). That is
-a calibration in our world, not an error bar for four dimensions: an
-affinity near threshold there would need its own checks, a wider radial
-grid for the extra electron, the anion’s and the atom’s fields both
-converged, and correlation.</p>
-<p><strong>6.5 Numbers.</strong> Tightening the solver’s stop or
-changing its grid moves no ionization energy by a millihartree (section
-5 and appendix C).</p>
-<p><strong>6.6 A second method.</strong> Hartree–Fock (section 5.12) on
-the same candidates gets 36 of 36 ground configurations of ours right,
-against local exchange’s 32. The two agree on 32, and every one of those
-is right; they differ on Ti, V, Co and Ni, and on each of these
-Hartree–Fock is right. The promotion of a 4s electron into 3d shows what
-each method does, against the same measured centroids as section 6.3
-(eV, error of local exchange and of Hartree–Fock: Sc −1.29/−0.42, Ti
-−1.70/−0.27, V −2.09/−0.12, Cr −1.73/−0.26, Mn −0.72/+1.19, Fe
-−0.37/+0.93, Co −0.76/+1.11, Ni −1.13/+1.31, Cu −0.44/+1.12). Local
-exchange makes d too cheap in all nine. Hartree–Fock makes it a little
-too cheap up to half filling (Sc–Cr, −0.42 to −0.12) and too dear after
-it (Mn–Cu, 0.93 to 1.31). So the two do not bracket the measured value;
-from scandium to chromium both lie on the same side of it. Their
-difference is a measure of how much an answer depends on the method, not
-an error bar: neither method bounds the other, and both omit the
-correlation that would move each toward the measured values.</p>
-<p>In four dimensions the two agree on 126 of the 140 elements, and
-these are the table’s firm configurations. They differ on 14, which are
-open: 7 in the d rows (30, 31, 37, 38, 40, 58, 61), where local exchange
-puts one electron more in d than Hartree–Fock, as in ours; 5 at the end
-of row 6’s f block (107, 108, 109, 110, 111), where it puts one more in
-f; and 2 at the start of a block (53, 83). For the d rows, ours gives a
-lean. Before half filling (30, 31, 58) Hartree–Fock’s error in ours was
-small and in the same direction as local exchange’s, so its preference
-for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08
-eV, are inside the volt by which it overprices d in ours. In the f row
-the comparison is incomplete. The candidates are those within the window
-of local exchange’s ground, and local exchange overbinds f, so in our
-lanthanides the configurations with one f electron fewer fell outside
-it, the measured ground’s nearest competitor among them. Hartree–Fock’s
-margins in the 4D f row (2.35 to 5.80 eV) are measured only against
-local exchange’s own choice, and the f row’s configurations, agreed or
-not, are provisional until a wider window has been run. In the d rows no
-Hartree–Fock ground configuration lies near the window’s edge. Every
-element’s verdict, both methods’ rankings and the margins are in
-<code>data/hftable.json</code>.</p>
-<h2 id="hunds-first-rule-in-four-dimensions">7 · Hund’s first rule in
+<p><strong>5.13 A known-answer test for every method.</strong> Every
+method above has a known-answer test in the selftest, run on every
+change: hydrogen in both worlds (block 1), the radial solver (2), the
+kernel against direct integration (3), exchange against the electron-gas
+constants (4, 18), the ground search (5, 7), two-electron atoms against
+an independent Gaussian Hartree–Fock code in four dimensions and MP2
+against PySCF in ours (17, 43), Hartree–Fock against its known limits
+(71), our table against measured values (6: 32 of 36 configurations;
+ionization to a 4.3 % median error), and this paper’s own claims
+recomputed from the bake (67).</p>
+<h2 id="hunds-first-rule-in-four-dimensions">6 · Hund’s first rule in
 four dimensions</h2>
 <p>The solver gives each open subshell the most parallel spins it can
 hold. That is Hund’s first rule, and in ours it is the known answer for
 the ground terms of free atoms. In four dimensions it is an assumption,
 and for some fillings it is wrong.</p>
-<p><strong>7.1 How the terms are found.</strong> For each open subshell
-of each ground configuration, its orbitals are the
+<p><strong>6.1 Every term, from the open subshell’s
+determinants.</strong> For each open subshell of each ground
+configuration, its orbitals are the
 degree-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
 harmonics on the 3-sphere,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">(l + 1)^2</annotation></semantics></math>
@@ -1532,24 +1403,24 @@ whose block still reaches the lowest energy. In ours this reproduces
 Racah’s term separations for d² and d³ to the wavenumber, and the known
 ground terms of Cr³⁺, Mn²⁺, Pr³⁺ and Gd³⁺. Over all 23 open subshells of
 our table, maximum spin is lowest, as it should be.</p>
-<p><strong>7.2 Where it fails.</strong> In four dimensions all 36 open p
-subshells of the table keep the rule, and so do the d fillings d¹,
-d³–d¹², d¹⁴, d¹⁵, d¹⁷. The two exceptions are d² and its mirror d¹⁶, in
-all three d rows: element 26 (3d², 0.40 eV), element 39 (3d¹⁶, 0.77 eV),
-element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58 eV), element 114 (5d²,
-0.36 eV), element 126 (5d¹⁶, 0.63 eV). In each the ground term is a spin
-singlet of ten states, and the triplet the solver assumed lies 0.30–0.77
-eV above it. In the f block 4f³ (element 83) fails too, and so does its
-mirror 4f²⁹ (element 108), three short of a full shell. Both have a
-ground term of spin ½, 0.15 and 0.26 eV below the quartet. No other f
-filling was found to break the rule, but the search is not complete. For
-f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was checked. For f⁶–f²⁵ only the
-highest two or three were, because the lower-spin blocks run to 10⁶–10⁸
-arrangements; there the result is a bound, no lower term among the spins
-that could be run. Two fillings (elements 102 and 106) didn’t finish in
-the runner’s time.</p>
-<p><strong>7.3 Why it fails.</strong> It isn’t the law. On element 26’s
-own orbital Gauss’s
+<p><strong>6.2 d², d¹⁶, 4f³ and 4f²⁹ break the rule.</strong> In four
+dimensions all 36 open p subshells of the table keep the rule, and so do
+the d fillings d¹, d³–d¹², d¹⁴, d¹⁵, d¹⁷. The two exceptions are d² and
+its mirror d¹⁶, in all three d rows: element 26 (3d², 0.40 eV), element
+39 (3d¹⁶, 0.77 eV), element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58
+eV), element 114 (5d², 0.36 eV), element 126 (5d¹⁶, 0.63 eV). In each
+the ground term is a spin singlet of ten states, and the triplet the
+solver assumed lies 0.30–0.77 eV above it. In the f block 4f³ (element
+83) fails too, and so does its mirror 4f²⁹ (element 108), three short of
+a full shell. Both have a ground term of spin ½, 0.15 and 0.26 eV below
+the quartet. No other f filling was found to break the rule, but the
+search is not complete. For f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was
+checked. For f⁶–f²⁵ only the highest two or three were, because the
+lower-spin blocks run to 10⁶–10⁸ arrangements; there the result is a
+bound, no lower term among the spins that could be run. Two fillings
+(elements 102 and 106) didn’t finish in the runner’s time.</p>
+<p><strong>6.3 The four-dimensional shell breaks it, not the
+law.</strong> It isn’t the law. On element 26’s own orbital Gauss’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
 gives the same order, with the singlet 0.82 eV below the triplet,
 against 0.40 eV under
@@ -1599,7 +1470,7 @@ four.mino.mobi/atom/hund.html.</p>
 term energies are computed within one subshell on the atom’s own
 maximum-spin orbital, which is neither relaxed term by term nor
 correlated beyond the subshell, and the correction they give the table
-(section 7.4) is first order. The inversion holds under both laws
+(section 6.4) is first order. The inversion holds under both laws
 tested, and for any orbital whose
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>
 is below 5/3. Hund’s first rule has been studied away from three
@@ -1616,52 +1487,53 @@ been derived for any
 href="#ref-summerfield1999" role="doc-biblioref">Summerfield and Loeser
 1999</a>)</span>. We have not been able to read the last two in full,
 and none of the sources we could read states this inversion.</p>
-<p><strong>7.4 What it does to the table.</strong> Where the rule fails,
-the solver’s energy for that configuration is the maximum-spin state’s,
-too high by the gap. The table in section 8 corrects that. Every d- and
-f-block element (92 of them) was searched again, with the neighbours’
-configurations as extra seeds (49–65 settled candidates each). Every
-candidate got its open subshells’ gaps added, and the candidates were
-ranked again, with and without the correction, so that a change from the
-wider search is told apart from one from the terms. <strong>The terms
-change no ground configuration.</strong> They lower the eight
-Hund-breaking atoms’ energies, and they move first ionizations in pairs.
-An atom whose own ground term gains the gap holds its electron harder:
-54 (6.41 → 6.71), 66 (18.82 → 19.40), 114 (6.92 → 7.27), 126 (24.92 →
-25.55) eV. The next element, whose ion lands on the broken filling,
-gives one up more easily: 55 (8.28 → 7.91), 67 (20.56 → 19.93), 115
-(9.28 → 8.83), 127 (27.23 → 26.56) eV. That is 0.30–0.67 eV either way.
-The wider search found one configuration the bake had missed. Element 82
-is 4f¹ 5d¹ 6s², 0.36 eV below the bake’s 4f² 6s², which is our cerium’s
-kind; its ionization goes 7.03 → 7.39 eV. The table that follows is the
-corrected one (<code>data/table4.csv</code>). The Hund-spin table it
-replaces is supplement S1 (<code>data/table4-hundspin.csv</code>). How
-far to trust each configuration follows from section 6.3. Take a bias of
-about a volt toward d and f: a ground configuration with a competitor
-holding fewer d and f electrons within a volt of it could be the other
-way round. 11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s²,
-0.55 eV up), 37 (3d¹³ 4s², 0.55 eV up), 53 (5s² 5p¹, 0.01 eV up), 58
-(4d⁶ 5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV
-up), 107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s²,
-0.57 eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).</p>
-<p><strong>7.5 In a ligand field.</strong> A spin singlet is not
-orbitally inert: the ten states of (2,0) ⊕ (0,2) still carry orbital
-structure, and in a compound a ligand field splits them, and might hand
-the ground to a triplet. The ion here is element 26’s 2+, 3d² over
-closed shells, with point charges −1 at 4 bohr in three arrangements of
-four dimensions: along the axes (eight, the 16-cell, four dimensions’
-octahedron), at a tesseract’s corners (sixteen), and at the 24-cell’s
-vertices (twenty-four). The field is projected exactly onto the degrees
-a d × d product holds, scaled from zero, and every determinant of the
-two electrons is diagonalized, as in section 7.2. A four-dimensional d
-subshell splits 6 + 3 on the axes and 3 + 6 at the corners (ours’
-octahedron 3 + 2, cube 2 + 3). On the axes the two electrons go into the
-six-fold set, and the singlet stays the ground at every field strength:
-its ten states split, the lowest of them 2-fold, an orbital doublet that
-a distortion could act on, and the lowest triplet stays 0.44 eV up, the
-free ion’s gap. At the corners the three-fold set is lowest, and two
-electrons in it favour a triplet: the singlet holds until the
-one-electron spread
+<p><strong>6.4 The correction moves energies and ionizations, no
+configuration.</strong> Where the rule fails, the solver’s energy for
+that configuration is the maximum-spin state’s, too high by the gap. The
+table in section 7 corrects that. Every d- and f-block element (92 of
+them) was searched again, with the neighbours’ configurations as extra
+seeds (49–65 settled candidates each). Every candidate got its open
+subshells’ gaps added, and the candidates were ranked again, with and
+without the correction, so that a change from the wider search is told
+apart from one from the terms. <strong>The terms change no ground
+configuration.</strong> They lower the eight Hund-breaking atoms’
+energies, and they move first ionizations in pairs. An atom whose own
+ground term gains the gap holds its electron harder: 54 (6.41 → 6.71),
+66 (18.82 → 19.40), 114 (6.92 → 7.27), 126 (24.92 → 25.55) eV. The next
+element, whose ion lands on the broken filling, gives one up more
+easily: 55 (8.28 → 7.91), 67 (20.56 → 19.93), 115 (9.28 → 8.83), 127
+(27.23 → 26.56) eV. That is 0.30–0.67 eV either way. The wider search
+found one configuration the bake had missed. Element 82 is 4f¹ 5d¹ 6s²,
+0.36 eV below the bake’s 4f² 6s², which is our cerium’s kind; its
+ionization goes 7.03 → 7.39 eV. The table that follows is the corrected
+one (<code>data/table4.csv</code>). The Hund-spin table it replaces is
+supplement S1 (<code>data/table4-hundspin.csv</code>). How far to trust
+each configuration follows from appendix E.3. Take a bias of about a
+volt toward d and f: a ground configuration with a competitor holding
+fewer d and f electrons within a volt of it could be the other way
+round. 11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s², 0.55
+eV up), 37 (3d¹³ 4s², 0.55 eV up), 53 (5s² 5p¹, 0.01 eV up), 58 (4d⁶
+5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV up),
+107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s², 0.57
+eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).</p>
+<p><strong>6.5 The d² singlet in a ligand field.</strong> A spin singlet
+is not orbitally inert: the ten states of (2,0) ⊕ (0,2) still carry
+orbital structure, and in a compound a ligand field splits them, and
+might hand the ground to a triplet. The ion here is element 26’s 2+, 3d²
+over closed shells, with point charges −1 at 4 bohr in three
+arrangements of four dimensions: along the axes (eight, the 16-cell,
+four dimensions’ octahedron), at a tesseract’s corners (sixteen), and at
+the 24-cell’s vertices (twenty-four). The field is projected exactly
+onto the degrees a d × d product holds, scaled from zero, and every
+determinant of the two electrons is diagonalized, as in section 6.2. A
+four-dimensional d subshell splits 6 + 3 on the axes and 3 + 6 at the
+corners (ours’ octahedron 3 + 2, cube 2 + 3). On the axes the two
+electrons go into the six-fold set, and the singlet stays the ground at
+every field strength: its ten states split, the lowest of them 2-fold,
+an orbital doublet that a distortion could act on, and the lowest
+triplet stays 0.44 eV up, the free ion’s gap. At the corners the
+three-fold set is lowest, and two electrons in it favour a triplet: the
+singlet holds until the one-electron spread
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>
 reaches 2.4–2.5 eV, and a triplet is the ground beyond, but only just,
 0.07 eV below the singlet even at
@@ -1676,8 +1548,8 @@ role="doc-biblioref">1954</a>)</span> found for d². These are point
 charges, a model of the field’s symmetry rather than of its size
 (<code>atom/tools/ligandd2.mjs</code>,
 <code>data/ligandd2.json</code>).</p>
-<h2 id="the-table">8 · The table</h2>
-<p><strong>8.1 Rows and noble gases.</strong> The table’s rows hold 2,
+<h2 id="the-table">7 · The table</h2>
+<p><strong>7.1 Rows and noble gases.</strong> The table’s rows hold 2,
 10, 10, 28, 28, 60 elements (and 2 of the next by element 140), and its
 noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the
 first ionization energy (figures 2 and 3). Those are the rows the
@@ -1698,8 +1570,8 @@ copper and palladium do, and the other 3 between other pairs: 81 (4f →
 5d), 82 (4f → 5d) and 113 (5d → 6p). The solver finds more of these than
 there are. Over our first 36 elements it departs from the rule 6 times
 (Ti, V, Cr, Co, Ni, Cu), where the measured configurations depart 2
-times (Cr and Cu). The reason is its lean toward d (section 6.3), so the
-4D count is likely too high, and these departures, not the rows, are
+times (Cr and Cu). The reason is its lean toward d (appendix E.3), so
+the 4D count is likely too high, and these departures, not the rows, are
 where the table is least sure. Part III asks how much of the table the
 law decides.</p>
 <figure id="fig-2">
@@ -1730,7 +1602,7 @@ within a volt of its row’s. In ours palladium holds far less hard than
 xenon. Across row 6’s 32-wide f block (81–112) the binding barely
 moves.</figcaption>
 </figure>
-<p><strong>8.2 The hardest-held electron isn’t a noble gas’s.</strong>
+<p><strong>7.2 The hardest-held electron isn’t a noble gas’s.</strong>
 Element 128 has an 18-electron d shell, full, with nothing outside it.
 It holds its outermost electron at 29.56 eV, harder than its row’s noble
 gas 138 (26.71 eV) and harder than any other atom in the table. Element
@@ -1743,13 +1615,14 @@ each ion for its own ground state leaves element 128’s ionization where
 it was. Seven other ions do rearrange, and their ionizations drop: 36
 (11.42 → 10.94), 93 (9.14 → 8.90), 94 (9.20 → 8.43), 95 (9.27 → 7.99),
 103 (9.96 → 9.67), 104 (10.05 → 9.29), 105 (10.13 → 8.92) eV. The main
-table carries those. Section 9 shows the law does it.</p>
-<p><strong>8.3 Inside the rows.</strong> Figure 4 draws six atoms in
-profile: their radial densities, and what each one’s outermost orbital
-looks like on the 3-sphere (figure 5). The same two pictures for every
-element, from the same solver, are on the interactive table, where
-picking an element draws them and any of its subshells can be cut by any
-of the six planes of four-dimensional space (<a
+table carries those. Section 8 shows the law does it.</p>
+<p><strong>7.3 Every element in profile, on the interactive
+table.</strong> Figure 4 draws six atoms in profile: their radial
+densities, and what each one’s outermost orbital looks like on the
+3-sphere (figure 5). The same two pictures for every element, from the
+same solver, are on the interactive table, where picking an element
+draws them and any of its subshells can be cut by any of the six planes
+of four-dimensional space (<a
 href="https://four.mino.mobi/table/#128">four.mino.mobi/table</a>; a
 link ending <code>#Z</code> opens on element Z). Where the filling
 departs from the simple order, and how the ionization energy and the
@@ -1784,7 +1657,7 @@ is positive round one plane and negative round another. Any element’s
 orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen’s exact ones,
 turned live: kata.mino.mobi/orbital.</figcaption>
 </figure>
-<p><strong>8.4 Valence states.</strong> Chemistry can pay to move an
+<p><strong>7.4 Valence states.</strong> Chemistry can pay to move an
 electron if the bonds it then makes pay more, so the reference records
 the cost. For each of 11 representative atoms, every configuration one
 electron away from the ground (any electron near the top moved to any
@@ -1811,7 +1684,7 @@ from 3d into 4p) lie within 0.2 eV of each other by Hartree–Fock and a
 volt apart by local exchange, so its chemistry has several states to
 draw on and the methods disagree about which is cheapest. For element 53
 Hartree–Fock finds a state below the table’s ground, the open
-configuration of section 6.6.</p>
+configuration of appendix E.6.</p>
 <table>
 <caption><strong>Table 1.</strong> Valence states of representative
 four-dimensional atoms: the ground configuration (outer subshells) and
@@ -1898,7 +1771,7 @@ exchange / Hartree–Fock (eV)</th>
 </tbody>
 </table>
 <h1 id="part-iii-what-the-law-does">Part III · What the law does</h1>
-<h2 id="the-table-again-with-the-shell-theorem-forced-on">9 · The table
+<h2 id="the-table-again-with-the-shell-theorem-forced-on">8 · The table
 again, with the shell theorem forced on</h2>
 <p>Part I chose the law; Part II solved the table under it. To see which
 of the table’s features the law decides, every 4D element was solved a
@@ -1912,7 +1785,7 @@ degeneracies, exchange, the search, left as it was (section 5). Of the
 ground state under the shell theorem from any starting configuration
 tried. They are left out, so this part’s statements about the rows hold
 through row 5.</p>
-<p><strong>9.1 The rows are the geometry’s.</strong> With the shell
+<p><strong>8.1 The rows are the geometry’s.</strong> With the shell
 theorem forced on, the first 24 elements keep every configuration, and
 the noble gases close the same rows at elements 2, 12, 22, 50, 78, 138
 (figure 6). The lengths of the rows, 2, 10, 10, 28, 28, come from
@@ -1937,14 +1810,14 @@ a median 2.5 times harder, and element 128 nearly ten times (29.6 eV
 against 3.1); with the shell theorem the noble gases hold hardest, as
 ours do.</figcaption>
 </figure>
-<p><strong>9.2 What fills inside the rows is the law’s.</strong> Of the
+<p><strong>8.2 What fills inside the rows is the law’s.</strong> Of the
 settled atoms, 57 change configuration, and the first is element 25, the
 first d element. Under the shell theorem p beats d. Element 25 takes 4s²
 4p¹ where the law gives 3d¹ 4s², and the change runs on through the d
 and f blocks. In every changed atom the law’s own configuration is still
 the lower one when solved under the law, so the difference is the law’s,
 not a weaker search.</p>
-<h2 id="partial-screening">10 · Partial screening</h2>
+<h2 id="partial-screening">9 · Partial screening</h2>
 <p>In ours an outer electron sees the nucleus screened by every inner
 electron whole: the shell theorem makes an inner cloud act as its charge
 at the centre. In four dimensions an inner cloud screens only partly,
@@ -1955,31 +1828,31 @@ is
 of a point charge’s with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\kappa &lt; 1</annotation></semantics></math>
 (section 4.2). The outer electrons see more of the nucleus.</p>
-<p><strong>10.1 How much harder.</strong> Across the 110 atoms past
-helium that settle under both, the law holds the outermost electron a
-median 2.54 times as hard as the shell theorem would, from 1.06 to 9.55
-times. Among the noble gases the ratio grows from 1.09 (helium) to 2.90
-(element 138).</p>
-<p><strong>10.2 Element 128.</strong> The largest ratio is element
-128’s. Its 5d¹⁸ shell, full with nothing outside it, holds its electron
-at 29.56 eV under the law and at 3.1 eV under the shell theorem. With
-the shell theorem the noble gases are again the hardest-held atoms, as
-ours are. The table’s hardest-held electron (section 8.2) is partial
-screening at its strongest: a full shell whose own cloud hides the
-nucleus from it least.</p>
-<p><strong>10.3 Negative ions.</strong> Partial screening holds an extra
+<p><strong>9.1 The law holds outer electrons harder.</strong> Across the
+110 atoms past helium that settle under both, the law holds the
+outermost electron a median 2.54 times as hard as the shell theorem
+would, from 1.06 to 9.55 times. Among the noble gases the ratio grows
+from 1.09 (helium) to 2.90 (element 138).</p>
+<p><strong>9.2 Element 128 holds hardest of all.</strong> The largest
+ratio is element 128’s. Its 5d¹⁸ shell, full with nothing outside it,
+holds its electron at 29.56 eV under the law and at 3.1 eV under the
+shell theorem. With the shell theorem the noble gases are again the
+hardest-held atoms, as ours are. The table’s hardest-held electron
+(section 7.2) is partial screening at its strongest: a full shell whose
+own cloud hides the nucleus from it least.</p>
+<p><strong>9.3 Negative ions.</strong> Partial screening holds an extra
 electron harder too. One electron short of a full p shell (p⁷ in four
 dimensions), atoms bind an extra electron by 3.4, 5.7, 7.8, 10.3, 12.9
 eV going down the group, rising with every row, where ours stay level (F
 3.401, Cl 3.613, Br 3.364 eV, measured). The largest affinity in the
 table is 12.9 eV (element 137), and 80 of the 140 atoms bind an extra
 electron by more than 0.7 eV, the level above which the method held in
-ours (section 6.4). The light noble gases (2, 12, 22) don’t hold one at
+ours (appendix E.4). The light noble gases (2, 12, 22) don’t hold one at
 all: their anions lie 7, 14, 12 eV above the atom. The heavier ones come
 out barely bound (50: 0.05, 78: 0.23, 138: 0.45 eV), too little to call.
 In ours this method underbinds anions like these, whose extra electron
 is s.</p>
-<h2 id="neutral-atoms-arent-silent">11 · Neutral atoms aren’t
+<h2 id="neutral-atoms-arent-silent">10 · Neutral atoms aren’t
 silent</h2>
 <p>Under the shell theorem a neutral atom is invisible from outside its
 cloud. Here it isn’t. A spherical shell of charge
@@ -2008,9 +1881,9 @@ with no dipole needed, which outranges London’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>.
 The papers that follow take it up: noble gases that condense far above
 where ours do, and molecules held differently.</p>
-<p><strong>11.1 How atoms respond.</strong> For the closed-shell atoms
-and the one-s-electron alkalis of both worlds (table 2) the static
-polarizability
+<p><strong>10.1 Polarizability, dispersion and the permanent
+pull.</strong> For the closed-shell atoms and the one-s-electron alkalis
+of both worlds (table 2) the static polarizability
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>α</mi><mi mathvariant="normal">p</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\alpha_\mathrm p(0)</annotation></semantics></math>,
 the polarizability at imaginary frequency and from it the dispersion
 coefficient
@@ -2440,7 +2313,7 @@ on a charge,
 between two atoms), so a four-dimensional force field has to keep it.
 The force fields of the later papers do, as a cloud term on every
 atom.</p>
-<p><strong>11.2 Joining and separating atoms.</strong> A molecule’s
+<p><strong>10.2 Joining and separating atoms.</strong> A molecule’s
 binding energy is measured from its atoms, so the atoms the molecular
 codes reach when a bond is pulled apart have to be the atoms of this
 paper. The light atoms of both worlds (22 of them) were computed by
@@ -2461,7 +2334,7 @@ bare-nuclei start lands up to 16 hartree too high, on ion pairs and
 wrong spin states. A molecular code that starts one way only can report
 a binding energy measured from the wrong atoms. In ours the separated
 pairs meet the atoms to 0.001 mHa at 16 bohr. In four dimensions they
-don’t meet them at all, as section 11 says they shouldn’t. Two
+don’t meet them at all, as section 10 says they shouldn’t. Two
 closed-shell atoms keep the permanent pull, and Hartree–Fock reproduces
 its far form: element 12’s pair at 16 bohr is bound by −0.0119 against
 −0.0116 mHa, and the closed shells sit at 1.02–1.06 times the far form
@@ -2473,7 +2346,7 @@ and the ordinary quadrupole that ours has too adds a pull of the same
 order, one that depends on how the two atoms are turned. The atomic
 energies, the curves and each atom’s charge and spin are in
 <code>data/separate.json</code>.</p>
-<h2 id="limitations">12 · Limitations</h2>
+<h2 id="limitations">11 · Limitations</h2>
 <p><strong>The law’s own.</strong> The force acts instantly (section
 4.3), so only statics are safe; this paper has nothing that moves. Heavy
 atoms would need relativity, which the law has given up for the force
@@ -2493,16 +2366,16 @@ equation in a prescribed
 is not the relativistic completion the lens vacuum lacks. Nuclei are
 declared stable to Z = 140.</p>
 <p><strong>The method’s.</strong> Local exchange and no correlation,
-which in ours favours d by about a volt (section 6.3); in four
-dimensions that leaves the configurations section 7.4 lists in doubt.
+which in ours favours d by about a volt (appendix E.3); in four
+dimensions that leaves the configurations section 6.4 lists in doubt.
 Every subshell’s cloud is averaged over the sphere. The terms of open
 subshells are resolved only to first order, on the solver’s orbitals,
-and only where the rule fails (section 7). The counterfactual table
-leaves row 6’s f block unsettled (section 9).</p>
+and only where the rule fails (section 6). The counterfactual table
+leaves row 6’s f block unsettled (section 8).</p>
 <p><strong>What isn’t claimed.</strong> That four-dimensional chemistry
 looks like ours: the next papers take up bonds, liquids and crystals
 under the same law.</p>
-<h2 id="conclusion">13 · Conclusion</h2>
+<h2 id="conclusion">12 · Conclusion</h2>
 <p>A world with four large dimensions of space has to choose its law
 between charges, because Gauss’s law gives it no atoms. Pinned at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>,
@@ -2571,7 +2444,7 @@ and interpolated. The closed form agrees with that quadrature to 2.7 ×
 up to 0.9 (ledger <code>kernelclosed</code>); nearer 1 the quadrature’s
 own error dominates, a few parts in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mn>7</mn></msup><annotation encoding="application/x-tex">10^7</annotation></semantics></math>.</p>
-<p>The series’ first correction is the far pull of section 11. A cloud
+<p>The series’ first correction is the far pull of section 10. A cloud
 of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
 electrons around a nucleus
@@ -2586,7 +2459,7 @@ with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">Q = \sum\langle r^2\rangle</annotation></semantics></math>,
 and two neutral atoms on each other through
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>Q</mi><mi>A</mi></msub><msub><mi>Q</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3Q_AQ_B/64R^5</annotation></semantics></math>
-(section 11). Figure A1 draws
+(section 10). Figure A1 draws
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>,
 and the potential inside and outside a shell.</p>
 <figure id="fig-A1">
@@ -2756,7 +2629,142 @@ For 3d against 3s it is −9.2 %, +21.9 % and +78.3 % (ledger
 <code>uniqueness</code>). Only
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\eta = 1</annotation></semantics></math>
 keeps a shell together.</p>
-<h2 id="e-reproducing-every-number">E · Reproducing every number</h2>
+<h2 id="e-checks-against-our-world">E · Checks against our world</h2>
+<p><strong>E.1 Hydrogen.</strong> One electron needs no search and no
+exchange, and four-dimensional hydrogen has an exact answer:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + \tfrac12)^2</annotation></semantics></math>
+hartree, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
+for the ground state. The solver gives −0.22222.</p>
+<p><strong>E.2 Two electrons.</strong> Helium-like atoms in four
+dimensions are checked against an independent code, Hartree–Fock in a
+Gaussian basis written for any dimension (<code>gauss.js</code>), and
+the same atoms in ours against PySCF at the MP2 level (selftest blocks
+17 and 43). The two codes share no part of the radial solver. From
+outside, the only accurate four-dimensional numbers we have been able to
+read are correlated variational energies for helium-like ions <span
+class="citation" data-cites="escobar2021">(<a href="#ref-escobar2021"
+role="doc-biblioref">Escobar-Ruiz et al. 2021</a>)</span>. Hartree–Fock
+(<code>hf.js</code>, section 5.12) lies above them by 0.012–0.014
+hartree for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+= 2–10, as it must, since they include correlation; that is the size and
+sign of a correlation energy, a consistency check rather than a
+benchmark. A four-dimensional Hartree–Fock limit to test against <span
+class="citation" data-cites="loeser1986hf">(<a href="#ref-loeser1986hf"
+role="doc-biblioref">Loeser and Herschbach 1986a</a>)</span> is in
+tables we have not obtained.</p>
+<p><strong>E.3 Our own table, and the solver’s lean toward d.</strong>
+The same solver, the same law (in ours 1/r is Gauss’s) and the same
+search, run in three dimensions, gives 32 of 36 of our measured ground
+configurations. The four it misses, titanium, vanadium, cobalt and
+nickel, each take one d electron too many against 4s, the known lean of
+local exchange toward d. The misses have one cause. Moving an electron
+from 4s into 3d comes out too cheap in every 3d atom we can compare (eV,
+the solver against measured: Sc 0.14 against 1.43, Ti −0.89 against
+0.81, Fe 0.51 against 0.87, Co −0.35 against 0.42, Ni −1.16 against
+−0.03), short by 0.37–1.70 eV and a mean 1.05, always in d’s favour. The
+measured values are differences of each configuration’s lowest term, its
+levels averaged with weights
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>J</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">2J + 1</annotation></semantics></math>,
+from NIST’s level tables <span class="citation"
+data-cites="nist-handbook">(<a href="#ref-nist-handbook"
+role="doc-biblioref">Sansonetti and Martin 2005</a>)</span>, because the
+solver has no spin–orbit coupling and lands each configuration in its
+lowest term. Taking the lowest level of each instead moves them by at
+most 0.06 eV and turns nickel’s sign (+0.03 rather than −0.03). That is
+local exchange without correlation. Resolving every open subshell’s
+whole term structure doesn’t remove it. With that correction (the lowest
+term less the average of the maximum-spin arrangements, which is what a
+spherically averaged field stands for), the bias stays at 1.05 eV and
+the configurations get worse, 26 of 32 against 28 of 32. So the paper
+corrects only Hund’s first rule (section 6), the one thing a
+spin-polarized averaged field cannot represent. Its first ionization
+energies are off by a median 4.3 % and at most 16.2 % (figure A2). That
+is the accuracy to expect of the 4D table: a method that gets our
+transition metals mostly right and our ionizations to a few percent, not
+a spectroscopic one.</p>
+<figure id="fig-A2">
+<img src="../figures/A2.svg"
+alt="Figure A2. The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z." />
+<figcaption aria-hidden="true"><strong>Figure A2.</strong> The solver in
+our three dimensions. (a) Computed against measured first ionization
+energies (NIST), with the four elements whose ground configuration it
+misses (Ti, V, Co, Ni: one d electron too many against 4s, the known
+lean of local exchange). (b) The percentage error against
+Z.</figcaption>
+</figure>
+<p><strong>E.4 Ions.</strong> Each ion of ours searched for its own
+ground state, rather than made by taking one electron from the atom’s
+configuration, changes no first ionization. Searched the same way, our
++2 and +3 ions give second and third ionization energies within a median
+2.0 % and 1.4 % of measured ones <span class="citation"
+data-cites="nist-asd">(<a href="#ref-nist-asd"
+role="doc-biblioref">Kramida et al. 2026</a>)</span> (worst V, 7 % and
+C, 4 %), closer than the first ionizations’ 4.3 %, and they lose their
+4s electrons before 3d, as measured (Fe⁺ 3d⁶4s, Fe²⁺ 3d⁶, Fe³⁺ 3d⁵). In
+four dimensions the 3d row’s ions do the same. Elements in the first
+half of the 4d and 5d blocks, and the two that open row 6’s f block with
+a 5d electron, instead give up a d electron at +1 or +2 while keeping
+the outer s (53–56, 58, 61, 81–82, 114–118, 120, 122), as our yttrium
+and lutetium do (Y⁺ 5s², Lu⁺ 6s²). The same search for anions gives our
+electron affinities where the extra electron is bound by the field and
+exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against
+1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against
+3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second).
+It also finds every anion that should be unbound to be unbound: the
+noble gases, beryllium, magnesium and nitrogen. It fails where
+correlation does the binding (H -0.33 against 0.754, Li -0.08 against
+0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In ours, then,
+the method’s affinities hold above about 0.7 eV and not below (the
+measured values are from <span class="citation"
+data-cites="rienstra2002">Rienstra-Kiracofe et al. (<a
+href="#ref-rienstra2002" role="doc-biblioref">2002</a>)</span>). That is
+a calibration in our world, not an error bar for four dimensions: an
+affinity near threshold there would need its own checks, a wider radial
+grid for the extra electron, the anion’s and the atom’s fields both
+converged, and correlation.</p>
+<p><strong>E.5 Ionizations are converged in stop and grid.</strong>
+Tightening the solver’s stop or changing its grid moves no ionization
+energy by a millihartree (section 5 and appendix C).</p>
+<p><strong>E.6 Hartree–Fock as a second method.</strong> Hartree–Fock
+(section 5.12) on the same candidates gets 36 of 36 ground
+configurations of ours right, against local exchange’s 32. The two agree
+on 32, and every one of those is right; they differ on Ti, V, Co and Ni,
+and on each of these Hartree–Fock is right. The promotion of a 4s
+electron into 3d shows what each method does, against the same measured
+centroids as appendix E.3 (eV, error of local exchange and of
+Hartree–Fock: Sc −1.29/−0.42, Ti −1.70/−0.27, V −2.09/−0.12, Cr
+−1.73/−0.26, Mn −0.72/+1.19, Fe −0.37/+0.93, Co −0.76/+1.11, Ni
+−1.13/+1.31, Cu −0.44/+1.12). Local exchange makes d too cheap in all
+nine. Hartree–Fock makes it a little too cheap up to half filling
+(Sc–Cr, −0.42 to −0.12) and too dear after it (Mn–Cu, 0.93 to 1.31). So
+the two do not bracket the measured value; from scandium to chromium
+both lie on the same side of it. Their difference is a measure of how
+much an answer depends on the method, not an error bar: neither method
+bounds the other, and both omit the correlation that would move each
+toward the measured values.</p>
+<p>In four dimensions the two agree on 126 of the 140 elements, and
+these are the table’s firm configurations. They differ on 14, which are
+open: 7 in the d rows (30, 31, 37, 38, 40, 58, 61), where local exchange
+puts one electron more in d than Hartree–Fock, as in ours; 5 at the end
+of row 6’s f block (107, 108, 109, 110, 111), where it puts one more in
+f; and 2 at the start of a block (53, 83). For the d rows, ours gives a
+lean. Before half filling (30, 31, 58) Hartree–Fock’s error in ours was
+small and in the same direction as local exchange’s, so its preference
+for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08
+eV, are inside the volt by which it overprices d in ours. In the f row
+the comparison is incomplete. The candidates are those within the window
+of local exchange’s ground, and local exchange overbinds f, so in our
+lanthanides the configurations with one f electron fewer fell outside
+it, the measured ground’s nearest competitor among them. Hartree–Fock’s
+margins in the 4D f row (2.35 to 5.80 eV) are measured only against
+local exchange’s own choice, and the f row’s configurations, agreed or
+not, are provisional until a wider window has been run. In the d rows no
+Hartree–Fock ground configuration lies near the window’s edge. Every
+element’s verdict, both methods’ rankings and the margins are in
+<code>data/hftable.json</code>.</p>
+<h2 id="f-reproducing-every-number">F · Reproducing every number</h2>
 <p>Every number in the text is read by <code>papers/p1/build.mjs</code>
 from one of the files below, and the selftest (block 67) fails if any
 claim in <code>ledger.json</code> stops holding or any generated file is

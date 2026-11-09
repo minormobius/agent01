@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="d72cdd0a31febfe0c27d98ff3e26f970e59eb48e54e176ee5bb2b3bc7031b3af" />
+<meta name="source-sha256" content="0a429e2f4ec68ca235a498bdf362addc0c647637160d5abfeafdb4332972ae67" />
 <title>Paper 1 · Methods (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -23,7 +23,7 @@ atom is <code>atom/js/atom.js</code>, with the shell kernel in
 <code>papers/p1/laws.js</code>, and the terms of open subshells are
 <code>atom/tools/hund.mjs</code> and <code>termtable.mjs</code>. Nothing
 is taken from a quantum-chemistry package. Two independent codes check
-it (section 6.2): <code>atom/js/gauss.js</code>, Hartree–Fock in a
+it (appendix E.2): <code>atom/js/gauss.js</code>, Hartree–Fock in a
 Gaussian basis <span class="citation" data-cites="boys1950">(<a
 href="#ref-boys1950" role="doc-biblioref">Boys 1950</a>)</span> for any
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>,
@@ -33,7 +33,7 @@ role="doc-biblioref">1978</a>)</span>, and in ours PySCF <span
 class="citation" data-cites="sun2018 sun2020">(<a href="#ref-sun2018"
 role="doc-biblioref">Sun et al. 2018</a>, <a href="#ref-sun2020"
 role="doc-biblioref">2020</a>)</span>. Every number quoted is read from
-the code’s output by the paper’s build (appendix E).</p>
+the code’s output by the paper’s build (appendix F).</p>
 <p><strong>5.2 The law inside an atom.</strong> An atom here is a point
 nucleus of charge
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
@@ -76,7 +76,7 @@ the levels are
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>−</mo><mn>3</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + (D - 3)/2)^2</annotation></semantics></math>,
 so 4D hydrogen’s ground state is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
-hartree; the solver gives −0.22222 (section 6.1).</p>
+hartree; the solver gives −0.22222 (appendix E.1).</p>
 <p><strong>5.3 The clouds’ potential.</strong> A spherical shell of
 charge at radius
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>,
@@ -164,15 +164,15 @@ to self-consistency: each orbital solved in the potential of the
 nucleus, the others’ clouds and exchange; the new clouds mixed into the
 old at 0.4; up to 80 iterations, stopping when the total energy changes
 by less than 10⁻⁷ hartree between iterations.</p>
-<p><strong>5.6 Is the stop tight enough?</strong> A stop on the energy
-can leave the far density less converged than the energy is; the
-plane-wave work met exactly that in its pseudopotentials’ all-electron
-atom, where exchange carried an unconverged tail into the potential. So
-19 atoms across every row of both worlds were re-solved in their baked
-configurations and then driven on from that field to a stop of 10⁻¹²
-hartree (appendix C, <code>audit-scf.mjs</code>). Total energies and
-first ionization energies moved by at most 2.7 × 10⁻⁷ and 2.8 × 10⁻⁷
-hartree, the outermost orbital energy by 1.7 × 10⁻⁶, and
+<p><strong>5.6 The stop, against one 10⁵ times tighter.</strong> A stop
+on the energy can leave the far density less converged than the energy
+is; the plane-wave work met exactly that in its pseudopotentials’
+all-electron atom, where exchange carried an unconverged tail into the
+potential. So 19 atoms across every row of both worlds were re-solved in
+their baked configurations and then driven on from that field to a stop
+of 10⁻¹² hartree (appendix C, <code>audit-scf.mjs</code>). Total
+energies and first ionization energies moved by at most 2.7 × 10⁻⁷ and
+2.8 × 10⁻⁷ hartree, the outermost orbital energy by 1.7 × 10⁻⁶, and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">Q = \sum\langle r^2\rangle</annotation></semantics></math>
 (the far pull’s, and the forces between atoms’) by 1.9 × 10⁻⁵ of itself;
 the baked
@@ -185,16 +185,17 @@ real charge out that far. Nothing the paper quotes depends on it; a
 calculation that builds a potential from the far density through
 exchange must converge the density pointwise, as the pseudopotentials
 now do.</p>
-<p><strong>5.7 Is the grid fine enough?</strong> 11 atoms from every row
-of both worlds were re-solved in their baked configurations on six other
-grids, changing one of the number of points (500, 1000), the inner end
-(10⁻⁴, 10⁻⁶ bohr) and the outer end (100, 250 bohr) at a time (appendix
-C, <code>convergence.mjs</code>). First ionization energies moved by at
-most 1.4 × 10⁻⁴ hartree on any of them. Total energies moved by at most
-6.7 × 10⁻² hartree, 2.4 × 10⁻⁵ of themselves, the largest for our own
-krypton, whose 1s sits deeper than any four-dimensional atom’s and is
-the grid’s hardest case. The paper quotes ionization energies and energy
-differences, not total energies.</p>
+<p><strong>5.7 The radial grid, against six others.</strong> 11 atoms
+from every row of both worlds were re-solved in their baked
+configurations on six other grids, changing one of the number of points
+(500, 1000), the inner end (10⁻⁴, 10⁻⁶ bohr) and the outer end (100, 250
+bohr) at a time (appendix C, <code>convergence.mjs</code>). First
+ionization energies moved by at most 1.4 × 10⁻⁴ hartree on any of them.
+Total energies moved by at most 6.7 × 10⁻² hartree, 2.4 × 10⁻⁵ of
+themselves, the largest for our own krypton, whose 1s sits deeper than
+any four-dimensional atom’s and is the grid’s hardest case. The paper
+quotes ionization energies and energy differences, not total
+energies.</p>
 <p><strong>5.8 The ground configuration.</strong> For each
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
 the ground configuration is searched, not assumed. The search starts
@@ -224,7 +225,7 @@ once (on GitHub’s runners past
 into a single generated file, which a selftest re-solves in sample on
 every change.</p>
 <p><strong>5.9 The terms of open subshells.</strong> The search above
-gives every open subshell Hund spins. Section 7 finds where that’s
+gives every open subshell Hund spins. Section 6 finds where that’s
 wrong, and the table is corrected for it. Each d- and f-block element is
 searched again, seeded as the repair pass seeds, and every settled
 candidate’s energy gets its open subshells’ term correction: the lowest
@@ -233,7 +234,7 @@ own repulsion on that candidate’s own orbital
 (<code>atom/tools/termtable.mjs</code>). It is zero wherever Hund’s
 first rule holds. The ionization is corrected the same way on both
 sides. Fillings whose spin blocks are too large to solve per candidate
-take the survey’s verdict (section 7.2), which for them is that the rule
+take the survey’s verdict (section 6.2), which for them is that the rule
 holds.</p>
 <p><strong>5.10 The counterfactual.</strong> To separate what the table
 owes to the law from what it owes to the geometry, every 4D element is
@@ -305,16 +306,16 @@ differences converge at 0.02, where the ranking is done. Checks (block
 71): our He, Ne, N ⁴S, C ³P and Fe ⁵D against the numerical Hartree–Fock
 limits to 2 × 10⁻⁵ hartree, and four-dimensional closed shells against
 the Gaussian code.</p>
-<p><strong>5.13 Checks.</strong> Every method above has a known-answer
-test in the selftest, run on every change: hydrogen in both worlds
-(block 1), the radial solver (2), the kernel against direct integration
-(3), exchange against the electron-gas constants (4, 18), the ground
-search (5, 7), two-electron atoms against an independent Gaussian
-Hartree–Fock code in four dimensions and MP2 against PySCF in ours (17,
-43), Hartree–Fock against its known limits (71), our table against
-measured values (6: 32 of 36 configurations; ionization to a 4.3 %
-median error), and this paper’s own claims recomputed from the bake
-(67).</p>
+<p><strong>5.13 A known-answer test for every method.</strong> Every
+method above has a known-answer test in the selftest, run on every
+change: hydrogen in both worlds (block 1), the radial solver (2), the
+kernel against direct integration (3), exchange against the electron-gas
+constants (4, 18), the ground search (5, 7), two-electron atoms against
+an independent Gaussian Hartree–Fock code in four dimensions and MP2
+against PySCF in ours (17, 43), Hartree–Fock against its known limits
+(71), our table against measured values (6: 32 of 36 configurations;
+ionization to a 4.3 % median error), and this paper’s own claims
+recomputed from the bake (67).</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">

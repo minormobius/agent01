@@ -437,6 +437,10 @@
   {
    "date": "2026-11-08",
    "what": "The atomic reference, continued. §8.4 and table 1, valence states (hftable.mjs map → valence-collect.mjs → data/valence.json): every configuration one electron from the ground by both methods, for 10 representative 4D atoms; ours calibrated against NIST's levels (nist-levels.py light and third, 33 states): Rydberg moves to a median 0.3–0.4 eV, but the s→p promotion of atoms with the p shell under half full is too cheap in both methods (by 0.6–2.3 eV), so 4D's second-row promotions (darbon's 2s→2p 3.4/4.0 eV) are probably a volt or two short. §11.2, joining and separating atoms (atom/tools/separate.mjs → separate-collect.mjs → data/separate.json): the light atoms by every method the molecular codes use, with the Gaussian basis's error against numerical Hartree–Fock; homonuclear pairs stretched to 16 bohr from three starts separate into neutral atoms with their own spins, but the bare-nuclei start misses by up to 16 hartree; in 4D two closed-shell atoms keep the permanent pull and Hartree–Fock reproduces −3Q²/64R⁵ (element 12: −0.0119 against −0.0116 mHa at 16 bohr). Claims valence and separate. Queued valence-1 (darbon's DH5: full curvature matrix, balanced alternatives) behind hf-climb-1."
+  },
+  {
+   "date": "2026-11-09",
+   "what": "PI's notes, first batch: the checks against our world (old §6) move to appendix E, as supporting evidence rather than part of the argument; sections 7–13 become 6–12, appendix E (reproducing) becomes F, and every cross-reference, the ledger's section fields, the table page's link and the notation table follow. Headings framed as questions or as dances round the section are rewritten to say what the section does (4.5 'Stability: shown for single atoms, open for matter in bulk', 5.6 'The stop, against one 10⁵ times tighter', 6.2 'd², d¹⁶, 4f³ and 4f²⁹ break the rule', 6.3 'The four-dimensional shell breaks it, not the law', …). The introduction's road map is rewritten for the new order."
   }
  ]
 }

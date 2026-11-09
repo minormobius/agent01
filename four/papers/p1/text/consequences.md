@@ -2,7 +2,7 @@
 
 <!-- Source. Every {{token}} is filled by papers/p1/build.mjs from the bake, data/shelltable.json or the ledger. -->
 
-## 9 · The table again, with the shell theorem forced on
+## 8 · The table again, with the shell theorem forced on
 
 Part I chose the law; Part II solved the table under it. To see which of the table's features the law decides, every
 4D element was solved a second time with one thing changed: the clouds' potential taken as if the shell theorem held
@@ -12,41 +12,41 @@ the search, left as it was (section 5). Of the {{cf.n}} elements, {{cf.settled}}
 ground state under the shell theorem from any starting configuration tried. They are left out, so this part's
 statements about the rows hold through row 5.
 
-**9.1 The rows are the geometry's.** With the shell theorem forced on, the first 24 elements keep every configuration,
+**8.1 The rows are the geometry's.** With the shell theorem forced on, the first 24 elements keep every configuration,
 and the noble gases close the same rows at elements {{table.nobles}} (figure 6). The lengths of the rows, 2, 10, 10,
 28, 28, come from four-dimensional space's degeneracies, $2(l + 1)^2$ to a subshell. They don't come from the law
 between charges, so long as that law keeps a shell together (section 3.1).
 
-**9.2 What fills inside the rows is the law's.** Of the settled atoms, {{cf.changed}} change configuration, and the
+**8.2 What fills inside the rows is the law's.** Of the settled atoms, {{cf.changed}} change configuration, and the
 first is element {{cf.first}}, the first d element. Under the shell theorem p beats d. Element 25 takes {{cf.25}}
 where the law gives 3d¹ 4s², and the change runs on through the d and f blocks. In every changed atom the law's own
 configuration is still the lower one when solved under the law, so the difference is the law's, not a weaker search.
 
-## 10 · Partial screening
+## 9 · Partial screening
 
 In ours an outer electron sees the nucleus screened by every inner electron whole: the shell theorem makes an inner
 cloud act as its charge at the centre. In four dimensions an inner cloud screens only partly, because its pull at
 radius $r$ is $\kappa(t)/r$ of a point charge's with $\kappa < 1$ (section 4.2). The outer electrons see more of the nucleus.
 
-**10.1 How much harder.** Across the {{cf.holdN}} atoms past helium that settle under both, the law holds the
+**9.1 The law holds outer electrons harder.** Across the {{cf.holdN}} atoms past helium that settle under both, the law holds the
 outermost electron a median {{cf.holdMedian}} times as hard as the shell theorem would, from {{cf.holdMin}} to
 {{cf.holdMax}} times. Among the noble gases the ratio grows from {{screen.he}} (helium) to {{screen.top}} (element
 138).
 
-**10.2 Element 128.** The largest ratio is element 128's. Its 5d¹⁸ shell, full with nothing outside it, holds its
+**9.2 Element 128 holds hardest of all.** The largest ratio is element 128's. Its 5d¹⁸ shell, full with nothing outside it, holds its
 electron at {{ion.128}} eV under the law and at {{cf.128}} eV under the shell theorem. With the shell theorem the
-noble gases are again the hardest-held atoms, as ours are. The table's hardest-held electron (section 8.2) is partial
+noble gases are again the hardest-held atoms, as ours are. The table's hardest-held electron (section 7.2) is partial
 screening at its strongest: a full shell whose own cloud hides the nucleus from it least.
 
-**10.3 Negative ions.** Partial screening holds an extra electron harder too. One electron short of a full p shell
+**9.3 Negative ions.** Partial screening holds an extra electron harder too. One electron short of a full p shell
 (p⁷ in four dimensions), atoms bind an extra electron by {{ea.hal4}} eV going down the group, rising with every row,
 where ours stay level ({{ea.halOurs}} eV, measured). The largest affinity in the table is {{ea.max4}}, and
 {{ea.bound4}} of the 140 atoms bind an extra electron by more than 0.7 eV, the level above which the method held in
-ours (section 6.4). The light noble gases
+ours (appendix E.4). The light noble gases
 (2, 12, 22) don't hold one at all: their anions lie {{ea.nobUn}} eV above the atom. The heavier ones come out barely
 bound ({{ea.nob4}} eV), too little to call. In ours this method underbinds anions like these, whose extra electron is s.
 
-## 11 · Neutral atoms aren't silent
+## 10 · Neutral atoms aren't silent
 
 Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A spherical shell
 of charge $q$ and radius $s$, felt at a distance $R$ outside it, gives $q\,\kappa(s/R)/R$ with
@@ -57,7 +57,7 @@ agree to {{far.dev}}. Between two atoms the same failure gives a permanent attra
 $-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$. The papers
 that follow take it up: noble gases that condense far above where ours do, and molecules held differently.
 
-**11.1 How atoms respond.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 2) the
+**10.1 Polarizability, dispersion and the permanent pull.** For the closed-shell atoms and the one-s-electron alkalis of both worlds (table 2) the
 static polarizability $\alpha_\mathrm p(0)$, the polarizability at imaginary frequency and from it the dispersion
 coefficient $C_6$ by Casimir and Polder's integral are computed by the coupled response of the same solver (Hartree plus
 local exchange, each electron's own share removed; exact for hydrogen in both worlds). The set is the atoms for which
@@ -88,7 +88,7 @@ carries no field. Here it is the leading field of a neutral atom ($-Q/8R^3$ on a
 so a four-dimensional force field has to keep it. The force fields of the later papers do, as a cloud term on every
 atom.
 
-**11.2 Joining and separating atoms.** A molecule's binding energy is measured from its atoms, so the atoms the
+**10.2 Joining and separating atoms.** A molecule's binding energy is measured from its atoms, so the atoms the
 molecular codes reach when a bond is pulled apart have to be the atoms of this paper. The light atoms of both worlds
 ({{sep.nA}} of them) were computed by every method the later papers use: numerical Hartree–Fock, the local exchange of
 the table, and the Gaussian code (`gauss.js`, unrestricted Hartree–Fock and MP2) in the basis the molecular work uses.
@@ -100,7 +100,7 @@ the two atoms with parallel and with antiparallel spins) and the lowest kept. Ev
 (Mulliken charges {{sep.maxQ}}) with each atom's own spin, but not from every start: the bare-nuclei start lands up to
 {{sep.worst}} hartree too high, on ion pairs and wrong spin states. A molecular code that starts one way only can report
 a binding energy measured from the wrong atoms. In ours the separated pairs meet the atoms to {{sep.ours16}} mHa at 16
-bohr. In four dimensions they don't meet them at all, as section 11 says they shouldn't. Two closed-shell atoms keep the
+bohr. In four dimensions they don't meet them at all, as section 10 says they shouldn't. Two closed-shell atoms keep the
 permanent pull, and Hartree–Fock reproduces its far form: element 12's pair at 16 bohr is bound by {{sep.e12}} mHa, and
 the closed shells sit at {{sep.rClosed}} times the far form there. Hydrogen, whose four-dimensional orbital is diffuse,
 is at {{sep.rH}}, still approaching it; its excess over the far form falls by five between 10 and 16 bohr, as
@@ -109,7 +109,7 @@ shorter-ranged terms do. The open p shells are at
 too adds a pull of the same order, one that depends on how the two atoms are turned. The atomic energies, the curves and
 each atom's charge and spin are in `data/separate.json`.
 
-## 12 · Limitations
+## 11 · Limitations
 
 **The law's own.** The force acts instantly (section 4.3), so only statics are safe; this paper has nothing that
 moves. Heavy atoms would need relativity, which the law has given up for the force between charges; the table past
@@ -119,15 +119,15 @@ dives into the negative continuum near Z ≈ 230 (our own finite-nucleus solutio
 Both are potential problems, not ones met here, and a Dirac equation in a prescribed $1/r$ is not the relativistic
 completion the lens vacuum lacks. Nuclei are declared stable to Z = 140.
 
-**The method's.** Local exchange and no correlation, which in ours favours d by about a volt (section 6.3); in four
-dimensions that leaves the configurations section 7.4 lists in doubt. Every subshell's cloud is
+**The method's.** Local exchange and no correlation, which in ours favours d by about a volt (appendix E.3); in four
+dimensions that leaves the configurations section 6.4 lists in doubt. Every subshell's cloud is
 averaged over the sphere. The terms of open subshells are resolved only to first order, on the solver's orbitals, and
-only where the rule fails (section 7). The counterfactual table leaves row 6's f block unsettled (section 9).
+only where the rule fails (section 6). The counterfactual table leaves row 6's f block unsettled (section 8).
 
 **What isn't claimed.** That four-dimensional chemistry looks like ours: the next papers take up bonds, liquids and
 crystals under the same law.
 
-## 13 · Conclusion
+## 12 · Conclusion
 
 A world with four large dimensions of space has to choose its law between charges, because Gauss's law gives it no
 atoms. Pinned at $1/r$, the only power law that keeps a shell together, it has atoms, and they have a periodic table:

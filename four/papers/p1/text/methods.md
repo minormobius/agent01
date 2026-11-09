@@ -8,10 +8,10 @@
 **5.1 The code.** Everything in this paper is computed by code written for it: JavaScript with no outside libraries, run under Node.js,
 and the same files run in a browser (four.mino.mobi/atom). The atom is `atom/js/atom.js`, with the shell kernel in
 `kernel.js`. One electron in any law is `papers/p1/laws.js`, and the terms of open subshells are `atom/tools/hund.mjs`
-and `termtable.mjs`. Nothing is taken from a quantum-chemistry package. Two independent codes check it (section 6.2):
+and `termtable.mjs`. Nothing is taken from a quantum-chemistry package. Two independent codes check it (appendix E.2):
 `atom/js/gauss.js`, Hartree–Fock in a Gaussian basis [@boys1950] for any $D$, with the integrals of McMurchie and
 Davidson [-@mcmurchie1978], and in ours PySCF [@sun2018; @sun2020]. Every number quoted is read from the code's output by the paper's build
-(appendix E).
+(appendix F).
 
 **5.2 The law inside an atom.** An atom here is a point nucleus of charge $Z$ and $Z$ electrons, non-relativistic, with every pair of charges interacting
 through the pinned potential $q_1q_2/r$ in four spatial dimensions. The same law acts between an electron and the nucleus
@@ -26,7 +26,7 @@ $$-\tfrac12\,u'' + \Big[\frac{L(L+1)}{2r^2} + V(r)\Big]\,u = \varepsilon\,u, \qq
 so four dimensions differ from ours by the half-integer shift of $L$ ($L = l + \tfrac12$) and by the degeneracies: a
 subshell of angular momentum $l$ holds $2(2l + 1)$ electrons in ours and $2(l + 1)^2$ in four dimensions. With
 $V = -Z/r$ the levels are $-Z^2/2(n + (D - 3)/2)^2$, so 4D hydrogen's ground state is $-2/9$ hartree; the solver gives
-{{h4.E}} (section 6.1).
+{{h4.E}} (appendix E.1).
 
 **5.3 The clouds' potential.** A spherical shell of charge at radius $s$, felt at radius $r$, gives in ours
 $1/\max(r, s)$ (the shell theorem). In four dimensions under $1/r$ it gives $\kappa(t)/\max(r, s)$,
@@ -60,7 +60,7 @@ field is iterated to self-consistency: each orbital solved in the potential of t
 exchange; the new clouds mixed into the old at {{scf.mix}}; up to {{scf.iters}} iterations, stopping when the total
 energy changes by less than {{scf.tol}} hartree between iterations.
 
-**5.6 Is the stop tight enough?** A stop on the energy can leave the far density less converged than the energy is; the
+**5.6 The stop, against one 10⁵ times tighter.** A stop on the energy can leave the far density less converged than the energy is; the
 plane-wave work met exactly that in its pseudopotentials' all-electron atom, where exchange carried an unconverged tail
 into the potential. So {{audit.n}} atoms across every row of both worlds were re-solved in their baked configurations
 and then driven on from that field to a stop of {{audit.tightTol}} hartree (appendix C, `audit-scf.mjs`). Total
@@ -72,7 +72,7 @@ but it is noise there: off by large factors only where it is 10⁻¹³ to 10⁻�
 on it; a calculation that builds a potential from the far density through exchange must converge the density
 pointwise, as the pseudopotentials now do.
 
-**5.7 Is the grid fine enough?** {{conv.n}} atoms from every row of both worlds were re-solved in their baked
+**5.7 The radial grid, against six others.** {{conv.n}} atoms from every row of both worlds were re-solved in their baked
 configurations on six other grids, changing one of the number of points (500, 1000), the inner end (10⁻⁴, 10⁻⁶ bohr) and
 the outer end (100, 250 bohr) at a time (appendix C, `convergence.mjs`). First ionization energies moved by at most
 {{conv.dIon}} hartree on any of them. Total energies moved by at most {{conv.dE}} hartree, {{conv.dErel}} of themselves,
@@ -98,12 +98,12 @@ energy. Koopmans' orbital energies are not used.
 The table is {{table.n4}} elements in four dimensions and {{table.n3}} in ours, baked once (on GitHub's runners past
 $Z \approx 80$) into a single generated file, which a selftest re-solves in sample on every change.
 
-**5.9 The terms of open subshells.** The search above gives every open subshell Hund spins. Section 7 finds where that's wrong, and the table is corrected
+**5.9 The terms of open subshells.** The search above gives every open subshell Hund spins. Section 6 finds where that's wrong, and the table is corrected
 for it. Each d- and f-block element is searched again, seeded as the repair pass seeds, and every settled candidate's
 energy gets its open subshells' term correction: the lowest term less the lowest maximum-spin term. That comes from
 the subshell's own repulsion on that candidate's own orbital (`atom/tools/termtable.mjs`). It is zero wherever Hund's
 first rule holds. The ionization is corrected the same way on both sides. Fillings whose spin blocks are too large to
-solve per candidate take the survey's verdict (section 7.2), which for them is that the rule holds.
+solve per candidate take the survey's verdict (section 6.2), which for them is that the rule holds.
 
 **5.10 The counterfactual.** To separate what the table owes to the law from what it owes to the geometry, every 4D element is solved a second time
 with the shell theorem forced on: the clouds' potential taken as $1/\max(r, s)$ (our kernel) while everything else, the
@@ -138,7 +138,7 @@ kernel's kink at $r = r'$, so absolute energies are extrapolated from steps 0.02
 0.02, where the ranking is done. Checks (block 71): our He, Ne, N ⁴S, C ³P and Fe ⁵D against the numerical
 Hartree–Fock limits to 2 × 10⁻⁵ hartree, and four-dimensional closed shells against the Gaussian code.
 
-**5.13 Checks.** Every method above has a known-answer test in the selftest, run on every change: hydrogen in both worlds (block 1), the
+**5.13 A known-answer test for every method.** Every method above has a known-answer test in the selftest, run on every change: hydrogen in both worlds (block 1), the
 radial solver (2), the kernel against direct integration (3), exchange against the electron-gas constants (4, 18), the
 ground search (5, 7), two-electron atoms against an independent Gaussian Hartree–Fock code in four dimensions and MP2
 against PySCF in ours (17, 43), Hartree–Fock against its known limits (71), our table against measured values (6:

@@ -446,7 +446,7 @@ for games, and this is a modelling programme with publications to come. The game
     none of Ti, V, Co, Ni, and breaks Sc and Fe. The 4s→3d promotion energies against measured ones show why. The solver
     is too cheap for d in every 3d atom, by 0.35–1.70 eV (mean 1.06), from local exchange without correlation, and the
     full correction leaves the mean at 1.07. **So paper 1 corrects only Hund's first rule** and states the bias. 11 of the
-    92 4D d/f elements have a fewer-d competitor within 1 eV, flagged in §7.4 (`data/promotion3.json`,
+    92 4D d/f elements have a fewer-d competitor within 1 eV, flagged in §6.4 (`data/promotion3.json`,
     `promotion-collect.mjs`, claim `promotion`).
   - **Ions (`termtable.mjs <Z/…> <D> <q>`, 2026-11-06).** A charge argument searches each cation (q = +1) or anion
     (q = −1) for its own ground configuration. `ground({ nelec })` is new: an ion's electron count, nucleus unchanged.
@@ -464,12 +464,12 @@ for games, and this is a modelling programme with publications to come. The game
     - **p⁷ affinities rise down the group:** 3.4, 5.7, 7.8, 10.3, 12.9 eV, against ours near 3.4 throughout.
     - **Noble gases:** 2, 12 and 22 don't hold an extra electron; 50, 78 and 138 come out barely bound, too little to
       call.
-    - Claims `ions3`, `ions4` and `halogens4`; the paper's §6.4, §8.2 and §10.3.
+    - Claims `ions3`, `ions4` and `halogens4`; the paper's appendix E.4, §7.2 and §9.3.
     - **+2 and +3 (`ions-23`, 2026-11-08, 342 ions, all settled):** `ions-collect.mjs` now keeps every charge's
       configuration, corrected E and SCF E (`ions[q]`) and the 2nd/3rd ionizations. Against NIST (fetched:
       `papers/p1/data/nist-ie.json`, H–Kr; `IE_REAL` agrees with it to 0.01 eV) ours' 2nd and 3rd are off a median 2.0 %
       and 1.4 %, the 1st 4.3 %. 4D's 3d-row ions lose s before d as ours do; the first halves of the 4d and 5d blocks
-      (and 81–82) lose a d electron first at +1/+2, as our Y⁺ and Lu⁺. Claim `ions23`, §6.4. The table page's ions:
+      (and 81–82) lose a d electron first at +1/+2, as our Y⁺ and Lu⁺. Claim `ions23`, appendix E.4. The table page's ions:
       `profiles.mjs bake <q>` → `table/profiles-p1/p2/p3/m1.json` (anions only where bound), checked by selftest 70.
   - **The site shows the corrected table (2026-11-06).** **Generated** `js/terms.js` (`tools/terms.mjs bake`, from
     paper 1's `data/termtable.json`; element 82 re-solved for its orbitals and density) is laid over the bake by
@@ -479,7 +479,7 @@ for games, and this is a modelling programme with publications to come. The game
     paper's figures lay the same data over the bake (`figures/make.mjs`). The table chapter gains a section, `#hund`,
     and its landing card a bullet. All of this stands on point charges ×
   a factor carried from ruby.
-  **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §7.3) has five
+  **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §6.3) has five
   parts:
   - orbitals as boxes, with each filling's verdict from the survey;
   - the d orbitals on the sphere, and on slices of the 3-sphere;
@@ -849,7 +849,7 @@ for games, and this is a modelling programme with publications to come. The game
   agreement always right; 4D agree on 126 of 140, open 30, 31, 37, 38, 40, 58, 61, 107–111, 53, 83. Gapped
   configurations (an empty subshell below an occupied one of the same l) are dropped from the Hartree–Fock ranking: the
   solve collapses them onto the compact one. **Not a bracket:** against NIST's 3d promotions both methods are too cheap
-  for d from Sc to Cr; paper 1 calls the spread method sensitivity (§6.6, claim `hfcheck`). Past element 36 in ours the
+  for d from Sc to Cr; paper 1 calls the spread method sensitivity (appendix E.6, claim `hfcheck`). Past element 36 in ours the
   tool seeds from `papers/p1/data/nist-lanthanides.json` (NIST Handbook, `nist-levels.py`): run `hf-lanth-1`, Cs–Hf,
   the f-block calibration.
   **The literature audit (Astra, 2026-11-08)** is imported: `refs.json` (66) and `data/crossref.json`; measured 3d
@@ -859,12 +859,12 @@ for games, and this is a modelling programme with publications to come. The game
   **Paper 1 is the atomic reference (PI, 2026-11-08): everything but the nucleus.** `papers/p1/response-table.mjs`
   (6 min, 4 processes) → `data/response.json`: α(0), α(iω), C₆, Q, C₅, R* for closed-shell and one-s-electron atoms of
   both worlds with quadrature and grid convergence; ours against `data/response-ref.json` (Derevianko–Porsev–Babb 2010,
-  read from arXiv; hand-kept with table locators). Table 1 in §11.1 is generated (`respTokens`). `atom/tools/ligandd2.mjs`
-  (seconds) → `data/ligandd2.json`: 26²⁺ 3d² in point charges on the 16-cell, tesseract and 24-cell (§7.5).
+  read from arXiv; hand-kept with table locators). Table 1 in §10.1 is generated (`respTokens`). `atom/tools/ligandd2.mjs`
+  (seconds) → `data/ligandd2.json`: 26²⁺ 3d² in point charges on the 16-cell, tesseract and 24-cell (§6.5).
   `hftable.mjs map <Z/…> [D]`: an element's valence states (every one-electron move from its table ground, both methods,
-  the ground's spin ladder) → `papers/p1/valence-collect.mjs` → `data/valence.json` (§8.4, table 1; ours calibrated on
+  the ground's spin ladder) → `papers/p1/valence-collect.mjs` → `data/valence.json` (§7.4, table 1; ours calibrated on
   `data/nist-light.json` and `nist-third.json` from `nist-levels.py light|third`). `atom/tools/separate.mjs atoms <D>` /
-  `stretch <D> <Z> [R,…]` → `papers/p1/separate-collect.mjs` → `data/separate.json` (§11.2): the molecular codes' atoms
+  `stretch <D> <Z> [R,…]` → `papers/p1/separate-collect.mjs` → `data/separate.json` (§10.2): the molecular codes' atoms
   and basis errors, and stretched pairs (charges, spins, starts; in 4D the far form −3Q²/64R⁵). `atom/tools/valencetest.mjs
   reactions|hessian|assemble` (run `valence-1`): darbon's DH₅ by balanced alternatives and its full curvature matrix.
   **A pending atom4-compute run is replaced by a newer push of the queue** (GitHub concurrency): don't push

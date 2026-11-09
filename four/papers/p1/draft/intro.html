@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="b4ed6fe6ccfa2c9a15ec1efe015205962faf2a1564bc3e97daefe3f101af3438" />
+<meta name="source-sha256" content="164efb154623c713c58de1525bf90594ec48d4a4e69b291ce530c198cc9a2560" />
 <title>Paper 1 · Introduction (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -86,25 +86,26 @@ in four Euclidean dimensions, for a pairwise
 interaction and electrons with two spin states. Its approximations are
 stated with it: spherical subshells, local exchange, no correlation, and
 a first-order correction for the open subshells’ terms (section 5),
-cross-checked by Hartree–Fock (section 6.6). Nor, to our knowledge, has
+cross-checked by Hartree–Fock (appendix E.6). Nor, to our knowledge, has
 anyone asked what the choice of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 itself does to the atoms.</p>
-<p>This paper does both. Part I treats the law as a choice. It shows why
-one has to be made (section 2), why
+<p>This paper does both. Part I treats the law as a choice: why one has
+to be made (section 2), why
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 exactly (section 3), and what it costs in four dimensions (section 4).
 Part II solves every neutral atom to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
-under it (sections 5–8). It checks the same solver against our own table
-(section 6). It finds that four-dimensional space breaks Hund’s first
-rule, which the solver had assumed, and corrects for it (section 7), and
-it gives the table (section 8). Part III asks which of the table’s
-features the law decides. It solves the table a second time with the
-shell theorem forced back on (section 9), and follows the law into
-partial screening (section 10) and into the pull of neutral atoms
-(section 11). Section 12 states the limitations; section 13
-concludes.</p>
+under it: the methods (section 5); Hund’s first rule, which
+four-dimensional space breaks and the solver corrects for (section 6);
+and the table, with each atom’s valence states (section 7). Part III
+asks which of the table’s features the law decides. It solves the table
+a second time with the shell theorem forced back on (section 8), follows
+the law into partial screening (section 9), and gives the response of
+atoms and the pull between them, the reference later work on molecules
+starts from (section 10). Section 11 states the limitations; section 12
+concludes. Every method is first run on our own world against measured
+values; those checks are appendix E.</p>
 <p>Every number in the text is recomputed from the code and its baked
 data each time anything changes, and is checked against a ledger of 38
 claims. The code, the data and the paper’s own making are public at

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="93e8982a06aab7d1877fa248cba6d3fa94b415c2610487c08409055a14f0a37e" />
+<meta name="source-sha256" content="2c89879d2e0b0655321c5122be061eeb98dd43247b24eaa0bcd3ae390b13526a" />
 <title>Paper 1 · Appendices (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -66,7 +66,7 @@ and interpolated. The closed form agrees with that quadrature to 2.7 ×
 up to 0.9 (ledger <code>kernelclosed</code>); nearer 1 the quadrature’s
 own error dominates, a few parts in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mn>10</mn><mn>7</mn></msup><annotation encoding="application/x-tex">10^7</annotation></semantics></math>.</p>
-<p>The series’ first correction is the far pull of section 11. A cloud
+<p>The series’ first correction is the far pull of section 10. A cloud
 of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math>
 electrons around a nucleus
@@ -81,7 +81,7 @@ with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">Q = \sum\langle r^2\rangle</annotation></semantics></math>,
 and two neutral atoms on each other through
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>Q</mi><mi>A</mi></msub><msub><mi>Q</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3Q_AQ_B/64R^5</annotation></semantics></math>
-(section 11). Figure A1 draws
+(section 10). Figure A1 draws
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>κ</mi><annotation encoding="application/x-tex">\kappa</annotation></semantics></math>,
 and the potential inside and outside a shell.</p>
 <figure id="fig-A1">
@@ -251,7 +251,142 @@ For 3d against 3s it is −9.2 %, +21.9 % and +78.3 % (ledger
 <code>uniqueness</code>). Only
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\eta = 1</annotation></semantics></math>
 keeps a shell together.</p>
-<h2 id="e-reproducing-every-number">E · Reproducing every number</h2>
+<h2 id="e-checks-against-our-world">E · Checks against our world</h2>
+<p><strong>E.1 Hydrogen.</strong> One electron needs no search and no
+exchange, and four-dimensional hydrogen has an exact answer:
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + \tfrac12)^2</annotation></semantics></math>
+hartree, so
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>2</mn><mi>/</mi><mn>9</mn></mrow><annotation encoding="application/x-tex">-2/9</annotation></semantics></math>
+for the ground state. The solver gives −0.22222.</p>
+<p><strong>E.2 Two electrons.</strong> Helium-like atoms in four
+dimensions are checked against an independent code, Hartree–Fock in a
+Gaussian basis written for any dimension (<code>gauss.js</code>), and
+the same atoms in ours against PySCF at the MP2 level (selftest blocks
+17 and 43). The two codes share no part of the radial solver. From
+outside, the only accurate four-dimensional numbers we have been able to
+read are correlated variational energies for helium-like ions <span
+class="citation" data-cites="escobar2021">(<a href="#ref-escobar2021"
+role="doc-biblioref">Escobar-Ruiz et al. 2021</a>)</span>. Hartree–Fock
+(<code>hf.js</code>, section 5.12) lies above them by 0.012–0.014
+hartree for
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
+= 2–10, as it must, since they include correlation; that is the size and
+sign of a correlation energy, a consistency check rather than a
+benchmark. A four-dimensional Hartree–Fock limit to test against <span
+class="citation" data-cites="loeser1986hf">(<a href="#ref-loeser1986hf"
+role="doc-biblioref">Loeser and Herschbach 1986</a>)</span> is in tables
+we have not obtained.</p>
+<p><strong>E.3 Our own table, and the solver’s lean toward d.</strong>
+The same solver, the same law (in ours 1/r is Gauss’s) and the same
+search, run in three dimensions, gives 32 of 36 of our measured ground
+configurations. The four it misses, titanium, vanadium, cobalt and
+nickel, each take one d electron too many against 4s, the known lean of
+local exchange toward d. The misses have one cause. Moving an electron
+from 4s into 3d comes out too cheap in every 3d atom we can compare (eV,
+the solver against measured: Sc 0.14 against 1.43, Ti −0.89 against
+0.81, Fe 0.51 against 0.87, Co −0.35 against 0.42, Ni −1.16 against
+−0.03), short by 0.37–1.70 eV and a mean 1.05, always in d’s favour. The
+measured values are differences of each configuration’s lowest term, its
+levels averaged with weights
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>J</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">2J + 1</annotation></semantics></math>,
+from NIST’s level tables <span class="citation"
+data-cites="nist-handbook">(<a href="#ref-nist-handbook"
+role="doc-biblioref">Sansonetti and Martin 2005</a>)</span>, because the
+solver has no spin–orbit coupling and lands each configuration in its
+lowest term. Taking the lowest level of each instead moves them by at
+most 0.06 eV and turns nickel’s sign (+0.03 rather than −0.03). That is
+local exchange without correlation. Resolving every open subshell’s
+whole term structure doesn’t remove it. With that correction (the lowest
+term less the average of the maximum-spin arrangements, which is what a
+spherically averaged field stands for), the bias stays at 1.05 eV and
+the configurations get worse, 26 of 32 against 28 of 32. So the paper
+corrects only Hund’s first rule (section 6), the one thing a
+spin-polarized averaged field cannot represent. Its first ionization
+energies are off by a median 4.3 % and at most 16.2 % (figure A2). That
+is the accuracy to expect of the 4D table: a method that gets our
+transition metals mostly right and our ionizations to a few percent, not
+a spectroscopic one.</p>
+<figure id="fig-A2">
+<img src="../figures/A2.svg"
+alt="Figure A2. The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z." />
+<figcaption aria-hidden="true"><strong>Figure A2.</strong> The solver in
+our three dimensions. (a) Computed against measured first ionization
+energies (NIST), with the four elements whose ground configuration it
+misses (Ti, V, Co, Ni: one d electron too many against 4s, the known
+lean of local exchange). (b) The percentage error against
+Z.</figcaption>
+</figure>
+<p><strong>E.4 Ions.</strong> Each ion of ours searched for its own
+ground state, rather than made by taking one electron from the atom’s
+configuration, changes no first ionization. Searched the same way, our
++2 and +3 ions give second and third ionization energies within a median
+2.0 % and 1.4 % of measured ones <span class="citation"
+data-cites="nist-asd">(<a href="#ref-nist-asd"
+role="doc-biblioref">Kramida et al. 2026</a>)</span> (worst V, 7 % and
+C, 4 %), closer than the first ionizations’ 4.3 %, and they lose their
+4s electrons before 3d, as measured (Fe⁺ 3d⁶4s, Fe²⁺ 3d⁶, Fe³⁺ 3d⁵). In
+four dimensions the 3d row’s ions do the same. Elements in the first
+half of the 4d and 5d blocks, and the two that open row 6’s f block with
+a 5d electron, instead give up a d electron at +1 or +2 while keeping
+the outer s (53–56, 58, 61, 81–82, 114–118, 120, 122), as our yttrium
+and lutetium do (Y⁺ 5s², Lu⁺ 6s²). The same search for anions gives our
+electron affinities where the extra electron is bound by the field and
+exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against
+1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against
+3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second).
+It also finds every anion that should be unbound to be unbound: the
+noble gases, beryllium, magnesium and nitrogen. It fails where
+correlation does the binding (H -0.33 against 0.754, Li -0.08 against
+0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In ours, then,
+the method’s affinities hold above about 0.7 eV and not below (the
+measured values are from <span class="citation"
+data-cites="rienstra2002">Rienstra-Kiracofe et al. (<a
+href="#ref-rienstra2002" role="doc-biblioref">2002</a>)</span>). That is
+a calibration in our world, not an error bar for four dimensions: an
+affinity near threshold there would need its own checks, a wider radial
+grid for the extra electron, the anion’s and the atom’s fields both
+converged, and correlation.</p>
+<p><strong>E.5 Ionizations are converged in stop and grid.</strong>
+Tightening the solver’s stop or changing its grid moves no ionization
+energy by a millihartree (section 5 and appendix C).</p>
+<p><strong>E.6 Hartree–Fock as a second method.</strong> Hartree–Fock
+(section 5.12) on the same candidates gets 36 of 36 ground
+configurations of ours right, against local exchange’s 32. The two agree
+on 32, and every one of those is right; they differ on Ti, V, Co and Ni,
+and on each of these Hartree–Fock is right. The promotion of a 4s
+electron into 3d shows what each method does, against the same measured
+centroids as appendix E.3 (eV, error of local exchange and of
+Hartree–Fock: Sc −1.29/−0.42, Ti −1.70/−0.27, V −2.09/−0.12, Cr
+−1.73/−0.26, Mn −0.72/+1.19, Fe −0.37/+0.93, Co −0.76/+1.11, Ni
+−1.13/+1.31, Cu −0.44/+1.12). Local exchange makes d too cheap in all
+nine. Hartree–Fock makes it a little too cheap up to half filling
+(Sc–Cr, −0.42 to −0.12) and too dear after it (Mn–Cu, 0.93 to 1.31). So
+the two do not bracket the measured value; from scandium to chromium
+both lie on the same side of it. Their difference is a measure of how
+much an answer depends on the method, not an error bar: neither method
+bounds the other, and both omit the correlation that would move each
+toward the measured values.</p>
+<p>In four dimensions the two agree on 126 of the 140 elements, and
+these are the table’s firm configurations. They differ on 14, which are
+open: 7 in the d rows (30, 31, 37, 38, 40, 58, 61), where local exchange
+puts one electron more in d than Hartree–Fock, as in ours; 5 at the end
+of row 6’s f block (107, 108, 109, 110, 111), where it puts one more in
+f; and 2 at the start of a block (53, 83). For the d rows, ours gives a
+lean. Before half filling (30, 31, 58) Hartree–Fock’s error in ours was
+small and in the same direction as local exchange’s, so its preference
+for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08
+eV, are inside the volt by which it overprices d in ours. In the f row
+the comparison is incomplete. The candidates are those within the window
+of local exchange’s ground, and local exchange overbinds f, so in our
+lanthanides the configurations with one f electron fewer fell outside
+it, the measured ground’s nearest competitor among them. Hartree–Fock’s
+margins in the 4D f row (2.35 to 5.80 eV) are measured only against
+local exchange’s own choice, and the f row’s configurations, agreed or
+not, are provisional until a wider window has been run. In the d rows no
+Hartree–Fock ground configuration lies near the window’s edge. Every
+element’s verdict, both methods’ rankings and the margins are in
+<code>data/hftable.json</code>.</p>
+<h2 id="f-reproducing-every-number">F · Reproducing every number</h2>
 <p>Every number in the text is read by <code>papers/p1/build.mjs</code>
 from one of the files below, and the selftest (block 67) fails if any
 claim in <code>ledger.json</code> stops holding or any generated file is
@@ -352,17 +487,49 @@ In <em>Modern Problems in PDEs and Applications</em>, 3–11. Trends in
 Mathematics. Birkhäuser. <a
 href="https://doi.org/10.1007/978-3-031-56732-2_1">https://doi.org/10.1007/978-3-031-56732-2_1</a>.
 </div>
+<div id="ref-escobar2021" class="csl-entry" role="listitem">
+Escobar-Ruiz, A M, H Olivares-Pilón, N Aquino, and S A Cruz. 2021.
+<span>“Helium-Like Ions in d-Dimensions: Analyticity and Generalized
+Ground State Majorana Solutions.”</span> <em>Journal of Physics B:
+Atomic, Molecular and Optical Physics</em> 54 (23): 235002. <a
+href="https://doi.org/10.1088/1361-6455/ac3fbf">https://doi.org/10.1088/1361-6455/ac3fbf</a>.
+</div>
+<div id="ref-nist-asd" class="csl-entry" role="listitem">
+Kramida, A., Yu. Ralchenko, J. Reader, and NIST ASD Team. 2026.
+<span>“NIST Atomic Spectra Database.”</span> National Institute of
+Standards and Technology. 2026. <a
+href="https://physics.nist.gov/asd">https://physics.nist.gov/asd</a>.
+</div>
 <div id="ref-landau-qm" class="csl-entry" role="listitem">
 Landau, L. D., and E. M. Lifshitz. 1977. <em>Quantum Mechanics:
 Non-Relativistic Theory</em>. 3rd ed. Course of Theoretical Physics 3.
 Oxford: Pergamon. <a
 href="https://doi.org/10.1016/C2013-0-02793-4">https://doi.org/10.1016/C2013-0-02793-4</a>.
 </div>
+<div id="ref-loeser1986hf" class="csl-entry" role="listitem">
+Loeser, J. G., and D. R. Herschbach. 1986. <span>“Hartree–Fock
+Approximation for D-Dimensional Two-Electron Atoms.”</span> <em>The
+Journal of Chemical Physics</em> 84 (7): 3893–3900. <a
+href="https://doi.org/10.1063/1.450100">https://doi.org/10.1063/1.450100</a>.
+</div>
 <div id="ref-loos2016" class="csl-entry" role="listitem">
 Loos, Pierre‐François, and Peter M. W. Gill. 2016. <span>“The Uniform
 Electron Gas.”</span> <em>WIREs Computational Molecular Science</em> 6
 (4): 410–29. <a
 href="https://doi.org/10.1002/wcms.1257">https://doi.org/10.1002/wcms.1257</a>.
+</div>
+<div id="ref-rienstra2002" class="csl-entry" role="listitem">
+Rienstra-Kiracofe, Jonathan C., Gregory S. Tschumper, Henry F. Schaefer,
+Sreela Nandi, and G. Barney Ellison. 2002. <span>“Atomic and Molecular
+Electron Affinities: Photoelectron Experiments and Theoretical
+Computations.”</span> <em>Chemical Reviews</em> 102 (1): 231–82. <a
+href="https://doi.org/10.1021/cr990044u">https://doi.org/10.1021/cr990044u</a>.
+</div>
+<div id="ref-nist-handbook" class="csl-entry" role="listitem">
+Sansonetti, J. E., and W. C. Martin. 2005. <span>“Handbook of Basic
+Atomic Spectroscopic Data.”</span> <em>Journal of Physical and Chemical
+Reference Data</em> 34 (4): 1559–2259. <a
+href="https://doi.org/10.1063/1.1800011">https://doi.org/10.1063/1.1800011</a>.
 </div>
 </div>
 

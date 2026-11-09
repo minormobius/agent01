@@ -1,4 +1,4 @@
-/* Paper 1 §6.2's outside check on the Hartree–Fock atom: four-dimensional helium-like ions Z = 2–10 by js/hf.js
+/* Paper 1 appendix E.2's outside check on the Hartree–Fock atom: four-dimensional helium-like ions Z = 2–10 by js/hf.js
    (Richardson from h = 0.02 and 0.01), against the two-parameter correlated (Hylleraas-type) variational energies of
    Escobar-Ruiz, Olivares-Pilón, Aquino and Cruz, J. Phys. B 54, 235002 (2021), Table I (refs.json escobar2021, read by
    the literature audit). Those include correlation, so a Hartree–Fock limit must lie above them; the gap is a lower

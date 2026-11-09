@@ -34,10 +34,10 @@ holds $2(l + 1)^2$ electrons. Bold letters are vectors.
 | $\kappa(t)$ | the shell kernel: a shell's potential over the shell theorem's, $\kappa = 1$ in ours | §4.2 |
 | $R$ | the distance from an atom to an outside charge, or between two atoms | §4.2 |
 | $Q$ | an atom's $\sum\langle r^2\rangle$ over its electrons; $Q_A$, $Q_B$ for atoms A and B | §4.2 |
-| $\alpha_\mathrm p(\mathrm i\omega)$ | an atom's dipole polarizability at imaginary frequency; $\alpha_\mathrm p(0)$ the static one | §11.1 |
-| $C_6$, $C_5$ | the coefficients of two like atoms' dispersion $-C_6/R^6$ and permanent pull $-C_5/R^5$, $C_5 = 3Q^2/64$ | §11.1 |
-| $R^*$ | $C_6/C_5$, the distance inside which dispersion is the larger | §11.1 |
-| $\Delta$ | the spread of a d subshell's one-electron levels in a ligand field | §7.5 |
+| $\alpha_\mathrm p(\mathrm i\omega)$ | an atom's dipole polarizability at imaginary frequency; $\alpha_\mathrm p(0)$ the static one | §10.1 |
+| $C_6$, $C_5$ | the coefficients of two like atoms' dispersion $-C_6/R^6$ and permanent pull $-C_5/R^5$, $C_5 = 3Q^2/64$ | §10.1 |
+| $R^*$ | $C_6/C_5$, the distance inside which dispersion is the larger | §10.1 |
+| $\Delta$ | the spread of a d subshell's one-electron levels in a ligand field | §6.5 |
 | $\varphi$ | an electric potential | §4.3 |
 | $\omega$, $c$ | angular frequency; the speed of light | §4.3 |
 | $\rho$ | a density: of charge in §4.3, of electrons in an atom from §5 | §4.3 |
@@ -50,11 +50,11 @@ holds $2(l + 1)^2$ electrons. Bold letters are vectors.
 | $L$ | $l + (D - 3)/2$, the angular momentum the radial equation sees | §5 |
 | $\varepsilon_x$, $v_x$, $A_D$ | exchange energy per electron, exchange potential, and the exchange constant: $\varepsilon_x = -A_D\,\rho^{1/D}$ | §5 |
 | $h$ | the grid's step in $\ln r$ | §5 |
-| $S$, $M_S$ | an open subshell's total spin and its projection | §7 |
-| $F^n$ | the radial (Slater) integrals of the repulsion within a subshell, $n = 0, 2, 4, \dots$ | §7.3 |
-| $C_n$ | the Gegenbauer polynomial $C^{(1)}_n$, the 3-sphere's analogue of Legendre's $P_n$ | §7.3 |
-| $\gamma$ | the angle between two electrons, seen from the nucleus | §7.3 |
-| $a_n$ | $\langle C_n(\cos\gamma)\rangle$ over a term, its share of $F^n$ | §7.3 |
+| $S$, $M_S$ | an open subshell's total spin and its projection | §6 |
+| $F^n$ | the radial (Slater) integrals of the repulsion within a subshell, $n = 0, 2, 4, \dots$ | §6.3 |
+| $C_n$ | the Gegenbauer polynomial $C^{(1)}_n$, the 3-sphere's analogue of Legendre's $P_n$ | §6.3 |
+| $\gamma$ | the angle between two electrons, seen from the nucleus | §6.3 |
+| $a_n$ | $\langle C_n(\cos\gamma)\rangle$ over a term, its share of $F^n$ | §6.3 |
 | $\theta$ | the polar angle on a sphere | App. A |
 | $\mathrm K$, $\mathrm E$ (upright) | complete elliptic integrals of the first and second kind | App. A |
 | $P_n$ | the Legendre polynomial | App. A |

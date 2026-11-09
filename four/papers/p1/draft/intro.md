@@ -21,16 +21,17 @@ Thomas–Fermi atom in $n$ dimensions [@kventsel1981], and many-electron models 
 [@loeser1987atomic; @loeser1994]. To our knowledge this paper is the first shell-resolved self-consistent survey of the
 neutral atoms through $Z = 140$ in four Euclidean dimensions, for a pairwise $1/r$ interaction and electrons with two
 spin states. Its approximations are stated with it: spherical subshells, local exchange, no correlation, and a
-first-order correction for the open subshells' terms (section 5), cross-checked by Hartree–Fock (section 6.6). Nor, to
+first-order correction for the open subshells' terms (section 5), cross-checked by Hartree–Fock (appendix E.6). Nor, to
 our knowledge, has anyone asked what the choice of $1/r$ itself does to the atoms.
 
-This paper does both. Part I treats the law as a choice. It shows why one has to be made (section 2), why $1/r$ exactly
-(section 3), and what it costs in four dimensions (section 4). Part II solves every neutral atom to $Z = 140$ under it
-(sections 5–8). It checks the same solver against our own table (section 6). It finds that four-dimensional space
-breaks Hund's first rule, which the solver had assumed, and corrects for it (section 7), and it gives the table
-(section 8). Part III asks which of the table's features the law decides. It solves the table a second time with the
-shell theorem forced back on (section 9), and follows the law into partial screening (section 10) and into the pull of
-neutral atoms (section 11). Section 12 states the limitations; section 13 concludes.
+This paper does both. Part I treats the law as a choice: why one has to be made (section 2), why $1/r$ exactly
+(section 3), and what it costs in four dimensions (section 4). Part II solves every neutral atom to $Z = 140$ under it:
+the methods (section 5); Hund's first rule, which four-dimensional space breaks and the solver corrects for (section
+6); and the table, with each atom's valence states (section 7). Part III asks which of the table's features the law
+decides. It solves the table a second time with the shell theorem forced back on (section 8), follows the law into
+partial screening (section 9), and gives the response of atoms and the pull between them, the reference later work on
+molecules starts from (section 10). Section 11 states the limitations; section 12 concludes. Every method is first run
+on our own world against measured values; those checks are appendix E.
 
 Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
 against a ledger of 38 claims. The code, the data and the paper's own making are public at

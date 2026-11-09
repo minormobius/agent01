@@ -95,7 +95,7 @@ nucleus, and would have to be found again for every $\eta$. The generalized Made
 degeneracy, wouldn't apply. Under $1/r$ the rows come from counting harmonics, and that is what lets part III tell the
 geometry's share of the table from the law's.
 
-**3.2 The convention it agrees with.** The literature on hydrogen in $D$ dimensions [@nieto1979; @aljaber1998] and on
+**3.2 Dimensional scaling already uses it.** The literature on hydrogen in $D$ dimensions [@nieto1979; @aljaber1998] and on
 dimensional scaling [@herschbach1992] takes $1/r$ in every $D$, mostly as a convention that keeps the problem
 solvable. Négadi and Kibler's generalized Madelung rule [-@negadi1996], which gives the four-dimensional rows when it is
 applied to $D = 4$, builds on the same $D$-dimensional hydrogen atom. Section 3.1 is why that convention is more than one: it is the only
@@ -123,9 +123,9 @@ less than its value at the centre. So $\kappa < 1$: it falls from 1 at the centr
 {{kernel.k1}} at the shell (figure A1). That has three consequences. A cloud of charge never acts as if it sat at its
 centre. A hollow conductor's centre sits at $3\pi/8$ = {{cage.ratio}} of its wall's potential, and a charge inside is
 pushed toward the wall. And a neutral atom is felt from outside, as $-Q/8R^3$ at a distance $R$, where
-$Q = \sum\langle r^2\rangle$ over its electrons (section 11). Everything distinctive in part III comes from here.
+$Q = \sum\langle r^2\rangle$ over its electrons (section 10). Everything distinctive in part III comes from here.
 
-**4.3 Which field theory gives 1/r.** A potential is what a field theory's static equation gives for a point charge,
+**4.3 Five field theories that give 1/r, and the one taken.** A potential is what a field theory's static equation gives for a point charge,
 and the equation is simplest in Fourier space, where each pair of derivatives becomes a factor $k^2$ of the wavenumber
 $k$. Maxwell's statics give a point charge the potential $\varphi \propto 1/k^2$, and that transforms back to
 $1/r^{D-2}$ in space, so $1/r^2$ in four dimensions. A potential $1/r^\eta$ in $D$ dimensions is the transform of
@@ -180,13 +180,13 @@ state needs. Every choice of permeability gives the same statics, so nothing her
 on how the lens vacuum's fields move and radiate, or on the absolute now. Those dynamics, of the same lens vacuum, are
 the subject of a later paper.
 
-**4.4 What is declared with it.** Electrons are spin-½ fermions, two to an orbital. That is stated, not derived: in our
+**4.4 Electrons, nuclei and the fine-structure constant, declared.** Electrons are spin-½ fermions, two to an orbital. That is stated, not derived: in our
 world it follows from relativity and spin together, and this universe has given up relativity for the force. Nuclei
 are point charges $+Z$, stable for every $Z$ to 140 (declared: nuclear physics in four dimensions is another paper). The
-fine-structure constant is small, so atoms are solved without relativity (section 12). No other long-range field acts
+fine-structure constant is small, so atoms are solved without relativity (section 11). No other long-range field acts
 on charges.
 
-**4.5 Is matter stable?** In ours it is a theorem that $N$ atoms have an energy bounded below by a constant times $N$
+**4.5 Stability: shown for single atoms, open for matter in bulk.** In ours it is a theorem that $N$ atoms have an energy bounded below by a constant times $N$
 [@dyson1967; @lieb1975], whatever the nuclei's positions. The usual proofs lean on the shell theorem, which fails here.
 That doesn't close the question: decompositions of radial interactions that need no shell theorem exist in any
 dimension [@hainzl2002], and Riesz gases, of which a $1/r$ law in four dimensions is one, have their own mathematics
@@ -195,6 +195,6 @@ evidence is narrower than the theorem. Single atoms don't collapse. Thomas–Fer
 in four dimensions [@kventsel1981], and the solved table follows it, with a fitted exponent of {{tf.exp4}} over $Z$ =
 10–140 (ours: {{tf.exp3}} over 10–36; both a little above the asymptotic value, as finite-$Z$ corrections make them).
 Separated neutral atoms don't run away either. Every force between them here (the permanent $-3Q_AQ_B/64R^5$ of
-section 11, dispersion's $R^{-6}$) falls faster than $R^{-4}$, so summed over four-dimensional space each atom's share
+section 10, dispersion's $R^{-6}$) falls faster than $R^{-4}$, so summed over four-dimensional space each atom's share
 of the far field is finite. That says nothing about atoms that overlap, trade charge or crowd together, which is
 where a proof of stability has its work. Stability of matter here is open.

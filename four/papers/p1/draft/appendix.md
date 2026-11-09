@@ -23,10 +23,10 @@ vanish. The solver evaluates $\kappa$ by Simpson's rule in $\theta$ with 400 int
 2001 points of $t$ and interpolated. The closed form agrees with that quadrature to 2.7 × 10⁻¹⁵
 for $t$ up to 0.9 (ledger `kernelclosed`); nearer 1 the quadrature's own error dominates, a few parts in $10^7$.
 
-The series' first correction is the far pull of section 11. A cloud of $N$ electrons around a nucleus $+Z$, seen from
+The series' first correction is the far pull of section 10. A cloud of $N$ electrons around a nucleus $+Z$, seen from
 a distance $R$ outside it, gives $\big(Z - N + \sum_i \langle r_i^2\rangle / 8R^2 + \dots\big)/R$. A neutral atom
 therefore acts on an electron through $-Q/8R^3$ with $Q = \sum\langle r^2\rangle$, and two neutral atoms on each other
-through $-3Q_AQ_B/64R^5$ (section 11). Figure A1 draws $\kappa$, and the potential inside and outside a shell.
+through $-3Q_AQ_B/64R^5$ (section 10). Figure A1 draws $\kappa$, and the potential inside and outside a shell.
 
 ![**Figure A1.** The pull of a thin shell of charge on a point at another radius, over a point charge's at the shell's centre, as κ(t) of the ratio t of the two radii. The shell theorem makes it 1; under the pinned 1/r in four dimensions it falls to 8/3π at the shell itself.](../figures/A1.svg){#fig-A1}
 
@@ -85,7 +85,78 @@ puts the critical $\alpha$ at $\tfrac12$ [@landau-qm, §35].
 $\eta = 0.8$, 5 × 10⁻¹⁰ % at $\eta = 1$, +15.4 % at $\eta = 1.2$ and +64.0 % at $\eta = 1.5$. For 3d against 3s
 it is −9.2 %, +21.9 % and +78.3 % (ledger `uniqueness`). Only $\eta = 1$ keeps a shell together.
 
-## E · Reproducing every number
+## E · Checks against our world
+
+**E.1 Hydrogen.** One electron needs no search and no exchange, and four-dimensional hydrogen has an exact answer:
+$-Z^2/2(n + \tfrac12)^2$ hartree, so $-2/9$ for the ground state. The solver gives −0.22222.
+
+**E.2 Two electrons.** Helium-like atoms in four dimensions are checked against an independent code, Hartree–Fock in a
+Gaussian basis written for any dimension (`gauss.js`), and the same atoms in ours against PySCF at the MP2 level
+(selftest blocks 17 and 43). The two codes share no part of the radial solver. From outside, the only accurate
+four-dimensional numbers we have been able to read are correlated variational energies for helium-like ions
+[@escobar2021]. Hartree–Fock (`hf.js`, section 5.12) lies above them by 0.012–0.014 hartree for $Z$ = 2–10, as it must,
+since they include correlation; that is the size and sign of a correlation energy, a consistency check rather than a
+benchmark. A four-dimensional Hartree–Fock limit to test against [@loeser1986hf] is in tables we have not obtained.
+
+**E.3 Our own table, and the solver's lean toward d.** The same solver, the same law (in ours 1/r is Gauss's) and the same search, run in three
+dimensions, gives 32 of 36 of our measured ground configurations. The four it misses, titanium, vanadium, cobalt and nickel, each take one
+d electron too many against 4s, the known lean of local exchange toward d. The misses have one cause. Moving an electron from 4s into 3d comes out
+too cheap in every 3d atom we can compare (eV, the solver against measured: Sc 0.14 against 1.43, Ti −0.89 against 0.81, Fe 0.51 against 0.87, Co −0.35 against 0.42, Ni −1.16 against −0.03), short by 0.37–1.70
+eV and a mean 1.05, always in d's favour. The measured values are differences of each configuration's lowest
+term, its levels averaged with weights $2J + 1$, from NIST's level tables [@nist-handbook], because the solver has no
+spin–orbit coupling and lands each configuration in its lowest term. Taking the lowest level of each instead moves them
+by at most 0.06 eV and turns nickel's sign (+0.03 rather than −0.03). That is local
+exchange without correlation. Resolving every open
+subshell's whole term structure doesn't remove it. With that correction (the lowest term less the average of the
+maximum-spin arrangements, which is what a spherically averaged field stands for), the bias stays at 1.05 eV and
+the configurations get worse, 26 of 32 against 28 of 32. So the paper corrects only Hund's first rule
+(section 6), the one thing a spin-polarized averaged field cannot represent. Its first ionization energies are off by a
+median 4.3 % and at most 16.2 % (figure A2). That is the accuracy to expect of the 4D table: a method
+that gets our transition metals mostly right and our ionizations to a few percent, not a spectroscopic one.
+
+![**Figure A2.** The solver in our three dimensions. (a) Computed against measured first ionization energies (NIST), with the four elements whose ground configuration it misses (Ti, V, Co, Ni: one d electron too many against 4s, the known lean of local exchange). (b) The percentage error against Z.](../figures/A2.svg){#fig-A2}
+
+**E.4 Ions.** Each ion of ours searched for its own ground state, rather than made by taking one electron from the
+atom's configuration, changes no first ionization. Searched the same way, our +2 and +3 ions give second and
+third ionization energies within a median 2.0 % and 1.4 % of measured ones [@nist-asd] (worst
+V, 7 % and C, 4 %), closer than the first ionizations' 4.3 %, and they lose their 4s electrons before
+3d, as measured (Fe⁺ 3d⁶4s, Fe²⁺ 3d⁶, Fe³⁺ 3d⁵). In four dimensions the 3d row's ions do the same. Elements in the first half
+of the 4d and 5d blocks, and the two that open row 6's f block with a 5d electron, instead give up a d electron at +1
+or +2 while keeping the outer s (53–56, 58, 61, 81–82, 114–118, 120, 122), as our yttrium and lutetium do (Y⁺ 5s², Lu⁺ 6s²). The same search for anions gives our electron affinities where
+the extra electron is bound by the field and exchange: the p-block acceptors (C 1.32 against 1.262, Si 1.30 against 1.39, Ge 1.25 against 1.233, Al 0.40 against 0.433, F 2.80 against 3.401, Cl 3.15 against 3.613, O 0.71 against 1.461 eV, measured second). It
+also finds every anion that should be unbound to be unbound: the noble gases, beryllium, magnesium and nitrogen. It
+fails where correlation does the binding (H -0.33 against 0.754, Li -0.08 against 0.618, Na -0.02 against 0.548, P -0.10 against 0.746). In ours, then, the method's affinities hold above about 0.7 eV
+and not below (the measured values are from @rienstra2002). That is a calibration in our world, not an error bar for
+four dimensions: an affinity near threshold there would need its own checks, a wider radial grid for the extra
+electron, the anion's and the atom's fields both converged, and correlation.
+
+**E.5 Ionizations are converged in stop and grid.** Tightening the solver's stop or changing its grid moves no ionization energy by a millihartree
+(section 5 and appendix C).
+
+**E.6 Hartree–Fock as a second method.** Hartree–Fock (section 5.12) on the same candidates gets 36 of 36 ground
+configurations of ours right, against local exchange's 32. The two agree on 32, and every one of those is
+right; they differ on Ti, V, Co and Ni, and on each of these Hartree–Fock is right. The promotion of a 4s electron
+into 3d shows what each method does, against the same measured centroids as appendix E.3 (eV, error of local exchange
+and of Hartree–Fock: Sc −1.29/−0.42, Ti −1.70/−0.27, V −2.09/−0.12, Cr −1.73/−0.26, Mn −0.72/+1.19, Fe −0.37/+0.93, Co −0.76/+1.11, Ni −1.13/+1.31, Cu −0.44/+1.12). Local exchange makes d too cheap in all nine. Hartree–Fock makes it a little too
+cheap up to half filling (Sc–Cr, −0.42 to −0.12) and too dear after it (Mn–Cu, 0.93 to 1.31). So the two do not
+bracket the measured value; from scandium to chromium both lie on the same side of it. Their difference is a measure
+of how much an answer depends on the method, not an error bar: neither method bounds the other, and both omit the
+correlation that would move each toward the measured values.
+
+In four dimensions the two agree on 126 of the 140 elements, and these are the table's firm configurations.
+They differ on 14, which are open: 7 in the d rows (30, 31, 37, 38, 40, 58, 61), where local exchange puts one electron
+more in d than Hartree–Fock, as in ours; 5 at the end of row 6's f block (107, 108, 109, 110, 111), where it puts one more
+in f; and 2 at the start of a block (53, 83). For the d rows, ours gives a lean. Before half filling
+(30, 31, 58) Hartree–Fock's error in ours was small and in the same direction as local exchange's, so its
+preference for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08 eV, are inside the volt by which it
+overprices d in ours. In the f row the comparison is incomplete. The candidates are those within the window of local
+exchange's ground, and local exchange overbinds f, so in our lanthanides the configurations with one f electron fewer
+fell outside it, the measured ground's nearest competitor among them. Hartree–Fock's margins in the 4D f row
+(2.35 to 5.80 eV) are measured only against local exchange's own choice, and the f row's configurations, agreed or not,
+are provisional until a wider window has been run. In the d rows no Hartree–Fock ground configuration lies near the
+window's edge. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
+
+## F · Reproducing every number
 
 Every number in the text is read by `papers/p1/build.mjs` from one of the files below, and the selftest (block 67)
 fails if any claim in `ledger.json` stops holding or any generated file is stale. What made each file:
