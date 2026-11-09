@@ -199,9 +199,9 @@ are in the data files (table4.csv).
 ![**Figure 5.** Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Any element's orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen's exact ones, turned live: kata.mino.mobi/orbital.](../figures/5.svg){#fig-5}
 
 **8.4 Valence states.** Chemistry can pay to move an electron if the bonds it then makes pay more, so the reference
-records the cost. For each of 10 representative atoms, every configuration one electron away from the ground
+records the cost. For each of 11 representative atoms, every configuration one electron away from the ground
 (any electron near the top moved to any subshell near the top) was solved by local exchange and by Hartree–Fock (table
-1; all 10 with the ground's spin ladder in `data/valence.json`). Ours is the calibration, 33 states
+1; all 11 with the ground's spin ladder in `data/valence.json`). Ours is the calibration, 33 states
 against NIST's levels [@nist-handbook]. Moving an electron into a higher shell of the kind that makes a Rydberg series
 is good to a median 0.4 and 0.3 eV (18 states). The s→p promotion, the price of hybrid bonding, is not. For
 atoms whose p shell is less than half full (Be, B, C, Mg, Al, Si) both methods make it too cheap, by −2.3 to −0.6 (local exchange) and −1.7 to −0.9 (Hartree–Fock) eV,
@@ -226,6 +226,7 @@ table's ground, the open configuration of section 6.6.
 | 42 | 3p⁸ 3d¹⁸ 4s² | 4s→4p 9.3 / 8.3; 4s→5s 11.1 / 9.9; 4s→4d 13.0 / 11.8 |
 | 53 | 4p⁸ 4d¹ 5s² | 4d→5p 0.0 / −0.8; 4d→6s 1.8 / 1.1; 4d→4f 3.8 / 2.9 |
 | 82 | 5p⁸ 5d¹ 6s² | 4f→5d 4.7 / 1.5; 5d→4f 0.4 / 1.8; 5d→6p 2.5 / 1.9 |
+| 128 | 5s² 5p⁸ 5d¹⁸ | 5d→6s 8.0 / 8.6 |
 
 Table: **Table 1.** Valence states of representative four-dimensional atoms: the ground configuration (outer subshells)
 and the three lowest configurations one electron away by Hartree–Fock, each labelled by the move and given by local

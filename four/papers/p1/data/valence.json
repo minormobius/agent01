@@ -1986,6 +1986,23 @@
      "kind": "Rydberg"
     }
    ]
+  },
+  {
+   "D": 4,
+   "Z": 128,
+   "ground": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d18",
+   "spin": [],
+   "states": [
+    {
+     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f32 5s2 5p8 5d17 6s1",
+     "lda_eV": 7.9737,
+     "hf_eV": 8.56,
+     "ldaConv": true,
+     "hfConv": true,
+     "move": "5d→6s",
+     "kind": "d→s"
+    }
+   ]
   }
  ]
 }
