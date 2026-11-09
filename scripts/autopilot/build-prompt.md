@@ -33,10 +33,10 @@ _Regenerated 2026-11-09 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-09, 100 members / 249 posts):
+**Neighborhood spark** (bisk 2026-11-09, 100 members / 256 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: bluesky, reddit, idk
-- Top post: "Jensen may have misunderstood what we meant by 'Chinese models'" — @eriskii.net
+- Distinctive words: idk, fable, bluesky
+- Top post: "I love you all so here's a link to the last 3 minutes, if you want to see Trump confronting his own mortality while Ross" — @hikikomorphism.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
