@@ -1,0 +1,33 @@
+{
+ "group": "val-h1",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/valencetest.mjs hessian 7 4/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1330
+  },
+  {
+   "cmd": "node four/atom/tools/valencetest.mjs hessian 7 5/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1257
+  },
+  {
+   "cmd": "node four/atom/tools/valencetest.mjs hessian 7 6/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1184
+  },
+  {
+   "cmd": "node four/atom/tools/valencetest.mjs hessian 7 7/8",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1082
+  }
+ ]
+}

@@ -1,0 +1,12 @@
+{
+ "group": "val-r",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/valencetest.mjs reactions 7",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 804
+  }
+ ]
+}
