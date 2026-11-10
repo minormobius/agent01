@@ -722,7 +722,7 @@ export function linkRefs(md, where) {
     `${w}${sp}${items.replace(/A?\d+[a-z]?/g, (x) => { const k = x.replace(/^(\d+)[a-z]$/, "$1"); return `[${x}](${on(k.startsWith("A") ? "supp" : "main")}#fig-${k})`; })}`);
   t = t.replace(/\b([Tt]ables?)(\s+)(\d+(?:(?:,\s*|,?\s+and\s+)\d+)*)\b/g, (_, w, sp, items) => `${w}${sp}${items.replace(/\d+/g, (x) => `[${x}](${on("supp")}#tab-${x})`)}`);
   // bare mentions of our sites and the repository
-  t = t.replace(/(?<![\[(\/\w.])((?:four|kata)\.mino\.mobi(?:\/[^\s)\]>,;"\u0000]*[^\s)\]>,;".\u0000])?|tangled\.org\/[^\s)\]>,;"\u0000]*[^\s)\]>,;".\u0000])/g, (u) => `[${u}](https://${u.replace(/^four\.mino\.mobi\/table\/?#Z$/, "four.mino.mobi/table/")})`);
+  t = t.replace(/(?<![\[\/\w.])((?:four|kata)\.mino\.mobi(?:\/[^\s)\]>,;"\u0000]*[^\s)\]>,;".\u0000])?|tangled\.org\/[^\s)\]>,;"\u0000]*[^\s)\]>,;".\u0000])/g, (u) => `[${u}](https://${u.replace(/^four\.mino\.mobi\/table\/?#Z$/, "four.mino.mobi/table/")})`);
   return t.replace(/\u0000(\d+)\u0000/g, (_, k) => keep[+k]);
 }
 function assemble(parts, L) {

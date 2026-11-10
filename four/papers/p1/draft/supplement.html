@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="52622c2ff354a20cf9cc221d254cb2c2befa6698d732bc115feb4d2d5e387322" />
+<meta name="source-sha256" content="e95da2db474300573dd048eee736cd354624bc4a58879ebfe6d9c6fd18e459b4" />
 <title>Paper 1 · Paper 1 · supplement</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -1275,8 +1275,9 @@ serves as time’s (the site’s selftest builds them). A slow electron
 keeps the two components on which that matrix is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">+1</annotation></semantics></math>,
 and they carry one half of the rotations only: two spin states, and a
-handed spin that a right-isoclinic turn leaves alone
-(four.mino.mobi/atom/motion.html#spin). A four-state electron,
+handed spin that a right-isoclinic turn leaves alone (<a
+href="https://four.mino.mobi/atom/motion.html#spin">four.mino.mobi/atom/motion.html#spin</a>).
+A four-state electron,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>⊕</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">(\tfrac12, 0) \oplus (0, \tfrac12)</annotation></semantics></math>,
 would need two such Dirac fields with the same charge and mass, two
 species in all but name. It would hold four to an orbital: the hydrogen
@@ -1418,9 +1419,10 @@ readout.</p>
 <p><span id="app-g-1"></span><strong>G.1 The code.</strong> Everything
 in this paper is computed by code written for it: JavaScript with no
 outside libraries, run under Node.js, and the same files run in a
-browser (four.mino.mobi/atom). The atom is <code>atom/js/atom.js</code>,
-with the shell kernel in <code>kernel.js</code>. One electron in any law
-is <code>papers/p1/laws.js</code>, and the terms of open subshells are
+browser (<a href="https://four.mino.mobi/atom">four.mino.mobi/atom</a>).
+The atom is <code>atom/js/atom.js</code>, with the shell kernel in
+<code>kernel.js</code>. One electron in any law is
+<code>papers/p1/laws.js</code>, and the terms of open subshells are
 <code>atom/tools/hund.mjs</code> and <code>termtable.mjs</code>. Nothing
 is taken from a quantum-chemistry package. Two independent codes check
 it (appendix <a href="#app-e-2">E.2</a>): <code>atom/js/gauss.js</code>,

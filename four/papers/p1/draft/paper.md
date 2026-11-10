@@ -193,7 +193,7 @@ a block (53, 83). In ours Hartree–Fock gets 36 of 36 configurations right agai
 agree they are right. Agreement is not a guarantee, though: in our lanthanides both overbind f, Hartree–Fock by up to
 4.1 eV in the measured states. Taking that as a sensitivity scale (an assumption, not a bound), 17 of the 32
 elements of row 6's f block have no competitor with fewer f within it, 5 agree with one inside it, and 4 agree with
-none solved. The interactive table gives each element's group.
+none solved. The [interactive table](https://four.mino.mobi/table/) gives each element's group.
 
 []{#sec-4-4}**4.4 Every element in profile.** Figure [4](#fig-4) draws six atoms' radial densities, and figure [5](#fig-5) what their outermost
 orbitals look like on the 3-sphere. The same two pictures for every element are on the interactive table, where any

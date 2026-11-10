@@ -400,7 +400,7 @@ can keep its relativity, which the lens vacuum gives up only for the force betwe
 dimensions has four components, and the product of the four spatial Dirac matrices squares to one and anticommutes with
 each of them, so it serves as time's (the site's selftest builds them). A slow electron keeps the two components on
 which that matrix is $+1$, and they carry one half of the rotations only: two spin states, and a handed spin that a
-right-isoclinic turn leaves alone (four.mino.mobi/atom/motion.html#spin). A four-state electron,
+right-isoclinic turn leaves alone ([four.mino.mobi/atom/motion.html#spin](https://four.mino.mobi/atom/motion.html#spin)). A four-state electron,
 $(\tfrac12, 0) \oplus (0, \tfrac12)$, would need two such Dirac fields with the same charge and mass, two species in
 all but name. It would hold four to an orbital: the hydrogen shells would hold 4, 20, 56 and 120, every row of the
 table would be twice as long, and the noble gases would sit elsewhere. The vector $(\tfrac12, \tfrac12)$ also has
@@ -453,7 +453,7 @@ the noble gases, which turn on large ionization steps, are the robust readout.
 ## G · The methods in full {#app-g}
 
 []{#app-g-1}**G.1 The code.** Everything in this paper is computed by code written for it: JavaScript with no outside libraries, run under Node.js,
-and the same files run in a browser (four.mino.mobi/atom). The atom is `atom/js/atom.js`, with the shell kernel in
+and the same files run in a browser ([four.mino.mobi/atom](https://four.mino.mobi/atom)). The atom is `atom/js/atom.js`, with the shell kernel in
 `kernel.js`. One electron in any law is `papers/p1/laws.js`, and the terms of open subshells are `atom/tools/hund.mjs`
 and `termtable.mjs`. Nothing is taken from a quantum-chemistry package. Two independent codes check it (appendix [E.2](#app-e-2)):
 `atom/js/gauss.js`, Hartree–Fock in a Gaussian basis [@boys1950] for any $D$, with the integrals of McMurchie and
