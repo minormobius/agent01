@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="VOLLEY — one archer on a 4D bicycle against the many, who live in a single 3D slice. They see you only when you cross their world; your arrows arrive inside their closed bunkers from a direction they don't have." />
+<title>VOLLEY — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/volley.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="The course: tap one of the many to loose an arrow at it"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="bar">
+    <b>VOLLEY</b>
+    <div id="exps">
+      <button type="button" id="waveB" class="on">wave 1</button><button type="button" id="restartB">restart</button><button type="button" id="demoB">demo</button><button type="button" id="pauseB">pause</button><button type="button" id="gearB" aria-label="help">?</button>
+    </div>
+  </div>
+  <div id="hud"><span id="hp"></span><span id="left"></span><span id="where"></span></div>
+  <div id="cap"></div>
+  <div id="banner" hidden><b id="bTitle"></b><p id="bText"></p><div><button type="button" id="bRetry">again</button><button type="button" id="bNext">next wave</button></div></div>
+  <div id="panes">
+    <div class="pane"><canvas id="p1"></canvas><div class="t" id="p1T">their world (w = 0), from above</div><div class="s" id="p1S"></div></div>
+    <div class="pane"><canvas id="p2"></canvas><div class="t" id="p2T">from the side: x across, w up</div><div class="s" id="p2S"></div></div>
+  </div>
+  <div id="panel" hidden>
+    <p class="foot"><b>VOLLEY.</b> You are an archer on a four-dimensional bicycle. The many live in one 3D slice of the world, w = 0: they stand, see and shoot there and nowhere else. Your track leaves their slice (teal where it runs ana of them, rose where kata) and crosses it twice a lap (the red gates). <b>Tap one of them to loose an arrow.</b> The bicycle rides itself; the bow solves the arc. Out of their slice they can't see you and their arrows can't reach you; at a gate they can, and do. Your arrows cross w, so they don't pass a bunker's walls: they arrive inside. The ring over each of them says whether a shot from here would land (green), catch a wall (amber: get closer, or further out in w) or fall short (grey). Drag to look round, pinch or scroll to zoom. In the main view the ground and your bicycle are your own slice; the many, their bunkers and all arrows are drawn where they'd be if w were flattened away. <a href="./README.md">how it works</a> · <a href="../lean/">Lean</a> · <a href="../">kata</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -158,6 +158,12 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   starved), `bot` (pure pursuit on the oracle's path). The engine hooks (`A.obstacles`, `A.energy`) are AMOEBA's,
   off unless set. Walls reach below the floor and points leave by the side they entered. See
   [`ooze/README.md`](ooze/README.md).
+- **VOLLEY at `/volley/`** (a demo): a 4D bicycle archer against the many, who live in the slice w = 0. `js/game.js`
+  (no DOM) **imports Lean's `dyn.js` and `bike.js`**, so **a change to Lean's dynamics or bike shapes runs VOLLEY's
+  selftest too**. The track is an ellipse in x–z with w = 9 sin t (two crossings a lap); the bike rides on autopilot;
+  arrows are ballistic points (`arc()`), bunkers five slabs with ±0.3 of w, hits swept in 4D. They shoot only while
+  |w| < `SEE`, with w = 0 arrows. `js/main.js` has its own shader (bike cut by your slice; the many and bunkers
+  drawn with w flattened; arrows on the overlay). See [`volley/README.md`](volley/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -223,6 +229,7 @@ node kata/lamp/test/lamp.selftest.mjs # ~50 s
 node kata/cell/test/cell.selftest.mjs # ~85 s
 node kata/amoeba/test/amoeba.selftest.mjs # ~70 s
 node kata/ooze/test/ooze.selftest.mjs # ~60 s
+node kata/volley/test/volley.selftest.mjs # ~1 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

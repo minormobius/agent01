@@ -5959,6 +5959,23 @@
       ]
     },
     {
+      "n": "kata-volley",
+      "u": "https://kata.mino.mobi/volley/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-10",
+      "b": "2026-11-10",
+      "p": "kata",
+      "surface": "kata",
+      "d": "VOLLEY: one archer on a 4D bicycle against the many, who live in a single 3D slice of the world. They see you and can shoot you only when your track crosses their slice; your arrows cross w, so they arrive inside closed bunkers without passing the walls. Tap to loose; the bicycle rides itself. A demo.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",
