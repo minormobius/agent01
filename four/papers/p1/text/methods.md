@@ -26,9 +26,10 @@ iterated to self-consistency. The ground configuration is searched, not assumed:
 by the orbital energies, then every move of one or two electrons among the open subshells, a candidate counting only if
 its field settles. First ionization energies are differences of two self-consistent energies, the ion searched for its
 own ground state. Hund's first rule, which the search assumes, is checked on every open subshell by diagonalizing its
-terms, and the table is corrected where it fails (section 5). Two further calculations bound the table. The
-counterfactual solves every element again with the shell theorem forced on, $\kappa \to 1$, everything else unchanged
-(section 6). Numerical Hartree–Fock, with exact exchange, ranks the same candidates a second way: where it agrees with
-local exchange a configuration is firm, where it doesn't, open (section 4.3, appendix E.6). The grid, the stop and the
+terms, and the table is corrected where it fails (section 5). Two further calculations test how much
+of the table depends on the method and on the law. The counterfactual solves every element again with the shell theorem
+forced on, $\kappa \to 1$, everything else unchanged (section 6). Numerical Hartree–Fock, with exact exchange, ranks the
+same candidates a second way; its agreement with local exchange, the candidates it covers and its margins are reported
+separately (section 4.3, appendix E.6). The grid, the stop and the
 quadratures are converged well past what the text quotes (appendix C), every method has a known-answer test run on
 every change, and appendix G gives the methods in full.

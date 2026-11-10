@@ -20,11 +20,46 @@ const HERE = dirname(fileURLToPath(import.meta.url)), rows = new Map();
 const FAR = []; // hftable.mjs farcorr lines: the term corrections `rank` skipped for candidates more than 6 eV up
 for (const f of process.argv.slice(2)) for (const l of readFileSync(f, "utf8").split("\n")) { if (!l.startsWith("{")) continue; const r = JSON.parse(l); if (r.Z == null) continue; if ("corr_eV" in r || (r.config && !r.rows)) FAR.push(r); else rows.set(`${r.D}:${r.Z}`, r); }
 /* fold them in: a far candidate's stored energy is its raw one (relative to the run's corrected best), so its correction
-   adds to it; each row keeps its provenance (term: "corrected after" / "partial" where a spin block was too big to finish,
-   so the true correction could be more negative still / "uncorrected" where farcorr didn't settle or hasn't run) */
-for (const r of rows.values()) for (const x of r.rows ?? []) { if (!x.far) continue; const c = FAR.find((y) => y.D === r.D && y.Z === r.Z && y.config === x.config);
-  if (c && c.converged !== false && x.hf_eV != null) { x.hf_eV = +(x.hf_eV + c.corr_eV).toFixed(4); x.farCorr_eV = c.corr_eV; x.term = c.partial ? "partial" : "corrected after"; x.farParts = c.parts; }
-  else x.term = "uncorrected"; }
+   adds to it, but only once farcorr's re-solved raw energy matches the stored one (to 1e-5 hartree): otherwise the
+   correction would land on a different energy. Each row keeps its provenance (term: "corrected after" / "partial" where a
+   spin block was too big to finish, so the true correction could be more negative still / "uncorrected" where farcorr
+   didn't settle, didn't match or hasn't run). farCheck accounts for every record. */
+const RAW_TOL = 1e-5, farCheck = { records: FAR.length, farRows: 0, complete: 0, partial: 0, failed: 0, rawMismatch: [], missing: [], maxRawDiff_Ha: 0 };
+for (const r of rows.values()) for (const x of r.rows ?? []) { if (!x.far) continue; farCheck.farRows++; const c = FAR.find((y) => y.D === r.D && y.Z === r.Z && y.config === x.config);
+  if (!c) { x.term = "uncorrected"; farCheck.missing.push(`${r.D}:${r.Z} ${x.config}`); continue; }
+  if (c.converged === false || x.hf_eV == null) { x.term = "uncorrected"; farCheck.failed++; continue; }
+  const d = Math.abs(c.hfRaw - (c.storedRaw ?? x.hfRaw)); farCheck.maxRawDiff_Ha = Math.max(farCheck.maxRawDiff_Ha, +d.toExponential(2));
+  if (c.storedRaw !== x.hfRaw || d > RAW_TOL) { x.term = "uncorrected"; farCheck.rawMismatch.push(`${r.D}:${r.Z} ${x.config}`); continue; }
+  x.hf_eV = +(x.hf_eV + c.corr_eV).toFixed(4); x.farCorr_eV = c.corr_eV; x.term = c.partial ? "partial" : "corrected after"; x.termSource = "farcorr"; x.farParts = c.parts;
+  farCheck[c.partial ? "partial" : "complete"]++; }
+/* every other candidate's term correction. `rank` recorded its completeness only for each element's Hartree–Fock ground
+   (hfParts), and farcorr for the far ones; for the rest it is reconstructed. That is exact, not a guess: correction()
+   skips a spin block only for its size (an open p, d or f subshell with 2 ≤ n ≤ cap − 2; the maximum-spin block above
+   20 000 determinants, any other above 3000, limits unchanged since hftable.mjs's first commit; a block of n↑ up and
+   n↓ down electrons in m orbitals holds C(m, n↑)·C(m, n↓)). The reconstruction is checked against every recorded case
+   below and the collection stops if one disagrees. "complete" means every spin block ran, as the code defines it; the
+   Lanczos convergence of each block was not recorded for these. A configuration that can't be read is "unknown". */
+const LIMIT = 3000, LIMIT_MAX = 20000, LQ = { s: 0, p: 1, d: 2, f: 3 }, binom = (n, k) => { let b = 1; for (let i = 1; i <= k; i++) b = (b * (n - k + i)) / i; return Math.round(b); };
+function spinCoverage(D, config) {
+  const skipped = []; for (const t of (config ?? "").split(" ")) { const m = t.match(/^\d+([spdf])(\d+)$/); if (!m) return null;
+    const l = LQ[m[1]], n = +m[2], mo = D === 4 ? (l + 1) ** 2 : 2 * l + 1; if (l < 1 || n < 2 || n > 2 * mo - 2) continue;
+    const Smax = Math.min(n, 2 * mo - n) / 2;
+    for (let M = Smax; M >= (n % 2) / 2 - 1e-9; M -= 1) { const nu = (n + 2 * M) / 2, dim = binom(mo, nu) * binom(mo, n - nu);
+      if (dim > (M === Smax ? LIMIT_MAX : LIMIT)) skipped.push({ shell: t.replace(/\d+$/, ""), M, dim }); } }
+  return { complete: !skipped.length, skipped };
+}
+const termCheck = { recorded: 0, agree: 0 };
+for (const r of rows.values()) { const rec = []; // farcorr's records here; each ground's (hfParts) and rank's own per-candidate records below
+  for (const c of FAR.filter((y) => y.D === r.D && y.Z === r.Z && y.parts)) rec.push([c.config, !c.partial]);
+  for (const [cfg, done] of rec) { const k = spinCoverage(r.D, cfg); termCheck.recorded++; if (k && k.complete === done) termCheck.agree++; else throw new Error(`term provenance: reconstruction disagrees with the record for ${r.D}:${r.Z} ${cfg}`); }
+  for (const x of r.rows ?? []) { if (x.far || x.hf_eV == null) continue; const k = spinCoverage(r.D, x.config), got = k ? (k.complete ? "complete" : "partial") : "unknown";
+    // rank records each candidate's term since 2026-11-10; older runs' rows carry none, and the ground's is in hfParts
+    const rec = x.term ?? (r.hf && x.config === r.hf.config ? (r.hf.parts.every((p) => p.complete !== false) ? "complete" : "partial") : null);
+    if (rec) { termCheck.recorded++; if (rec !== got) throw new Error(`term provenance: reconstruction disagrees with the record for ${r.D}:${r.Z} ${x.config}`); termCheck.agree++; }
+    x.term = rec ?? got; x.termSource = rec ? "recorded" : "reconstructed"; if (k && !k.complete) x.skippedBlocks = k.skipped; } }
+/* a far candidate whose correction takes it below the run's ground would be a new minimum whose own neighbourhood was
+   never searched: named here, never silently re-ranked */
+const newMinima = [...rows.values()].flatMap((r) => (r.rows ?? []).filter((x) => x.farCorr_eV != null && x.hf_eV < 0).map((x) => `${r.D}:${r.Z} ${x.config} (${x.hf_eV} eV)`));
 const set = (c) => (c ? c.split(" ").sort().join(" ") : null), out = [];
 const LAN = new Map(JSON.parse(readFileSync(join(HERE, "data/nist-lanthanides.json"), "utf8")).rows.map((r) => [r.Z, r.config]));
 const measured = (Z) => (Z <= 36 ? realConfig(Z) : LAN.get(Z));
@@ -73,15 +108,18 @@ const fBias = oL.flatMap((r) => { const lev = LANL.get(r.Z), g = r.rows.find((x)
     .map((x) => { const err = x.hf_eV - g.hf_eV - lev.get(set(x.config)); return { Z: r.Z, config: x.config, df: fN(x.config) - fN(r.measured), error_eV: +err.toFixed(3), lean_eV: +(fN(x.config) < fN(r.measured) ? err : -err).toFixed(3) }; }); });
 const B = fBias.length ? Math.max(...fBias.map((x) => x.lean_eV)) : null;
 const fRow = o4.filter((r) => r.Z >= 81 && r.Z <= 112).map((r) => { const fh = fN(r.hf), fewer = r.rows.filter((x) => x.hf_eV != null && !x.gapped && fN(x.config) < fh), gap = fewer.length ? Math.min(...fewer.map((x) => x.hf_eV)) : null;
-  const nearRow = gap != null ? fewer.find((x) => x.hf_eV === gap) : null, near = nearRow?.config ?? null, nearTerm = nearRow?.term ?? (nearRow ? "full" : null);
+  const nearRow = gap != null ? fewer.find((x) => x.hf_eV === gap) : null, near = nearRow?.config ?? null, nearTerm = nearRow?.term ?? (nearRow ? "unknown" : null);
   const verdict = !r.agree ? (fN(r.lda) > fh ? "lean" : "open") : fh === 0 || (gap != null && gap > B) ? "firm" : gap != null ? "openAgree" : "untested";
   return { Z: r.Z, verdict, fewerGap_eV: gap, fewerConfig: near, fewerTerm: nearTerm, groundPartial: (r.hfParts ?? []).some((p) => p.complete === false) }; });
 summary.fRow = { B_eV: B, calibration: fBias, firm: fRow.filter((x) => x.verdict === "firm").map((x) => x.Z), openAgree: fRow.filter((x) => x.verdict === "openAgree").map((x) => ({ Z: x.Z, gap: x.fewerGap_eV })),
   lean: fRow.filter((x) => x.verdict === "lean").map((x) => x.Z), open: fRow.filter((x) => x.verdict === "open").map((x) => x.Z), untested: fRow.filter((x) => x.verdict === "untested").map((x) => x.Z),
-  /* provenance of what decides each verdict: the nearest fewer-f competitor's term correction (full, corrected after,
-     partial, uncorrected) and whether the ground's own correction finished every spin block */
-  decidedBy: Object.fromEntries(["full", "corrected after", "partial", "uncorrected"].map((t) => [t, fRow.filter((x) => x.fewerTerm === t).map((x) => x.Z)])), groundPartial: fRow.filter((x) => x.groundPartial).map((x) => x.Z),
-  farCandidates: { all: out.flatMap((r) => r.rows ?? []).filter((x) => x.far).length, corrected: out.flatMap((r) => r.rows ?? []).filter((x) => x.term === "corrected after").length, partial: out.flatMap((r) => r.rows ?? []).filter((x) => x.term === "partial").length, uncorrected: out.flatMap((r) => r.rows ?? []).filter((x) => x.term === "uncorrected").length } };
+  /* provenance of what decides each verdict: the nearest fewer-f competitor's term correction (complete, corrected
+     after, partial, uncorrected, unknown) and whether the ground's own correction finished every spin block */
+  decidedBy: Object.fromEntries(["complete", "corrected after", "partial", "uncorrected", "unknown"].map((t) => [t, fRow.filter((x) => x.fewerTerm === t).map((x) => x.Z)])), groundPartial: fRow.filter((x) => x.groundPartial).map((x) => x.Z),
+  farCandidates: { all: out.flatMap((r) => r.rows ?? []).filter((x) => x.far).length, corrected: out.flatMap((r) => r.rows ?? []).filter((x) => x.far && x.term === "corrected after").length, partial: out.flatMap((r) => r.rows ?? []).filter((x) => x.far && x.term === "partial").length, uncorrected: out.flatMap((r) => r.rows ?? []).filter((x) => x.far && x.term === "uncorrected").length } };
+const allRows = out.flatMap((r) => r.rows ?? []).filter((x) => x.hf_eV != null), tally = (src) => Object.fromEntries(["complete", "corrected after", "partial", "uncorrected", "unknown"].map((t) => [t, allRows.filter((x) => x.term === t && (!src || x.termSource === src)).length]));
+summary.provenance = { about: "every ranked candidate's term correction: farCheck accounts for each far record (raw energies checked before the correction is added); termCheck tests the reconstruction against every recorded case; newMinima lists far candidates corrected below their ground (none may be re-ranked silently)",
+  farCheck, termCheck, newMinima, candidates: allRows.length, byTerm: tally(), reconstructed: tally("reconstructed") };
 writeFileSync(join(HERE, "data/hftable.json"), JSON.stringify({ about: "Generated by papers/p1/hf-collect.mjs from atom/tools/hftable.mjs rank (runner runs hf-table-1, hf-lanth-1, hf-wide-1, hf-climb-1; later runs override earlier ones element by element); do not edit. lda: the local-exchange ground configuration (Hund-corrected); hf: Hartree–Fock's (js/hf.js, max-spin average plus the full term correction) over the local-exchange search's settled candidates within its window and, where climbed, Hartree–Fock's own one-electron neighbourhood. summary.fRow: the f row's verdicts against the lanthanide calibration B.", summary, rows: out }, null, 1) + "\n");
 /* the big table's detail panel (table/viewer.js): each 4D element's verdict, compact: [1] firm; [0, Hartree–Fock's
    configuration, how far above it Hartree–Fock puts the table's] open; [2, the fewer-f competitor, its gap] open though

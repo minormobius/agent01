@@ -885,7 +885,7 @@ for games, and this is a modelling programme with publications to come. The game
   pipeline that made it (bake outside the d/f blocks; `termtable.mjs` for 23–42, 51–70, 79–130, with the ion search where
   `cation_rearranged`); `--s1` checks the bake against supplement S1; in the mirror (no termtable/hund/bake) those rows are
   named "not reproduced here". 26, 39, 54, 55 now reproduce to Δ 0. F03: `hftable.mjs rank` skipped the term correction
-  for candidates > 6 eV up, though corrections reach −7.7 eV; `farcorr` computed all 182 (run `farcorr-eta-repair-1`: 54 complete, 128 partial; no ranking or verdict changed, deciding gaps fell by up to 7.8 eV, closest partial 99 at 7.0 eV) and
+  for candidates > 6 eV up, though corrections reach −7.7 eV; `farcorr` computed all 182 (run `farcorr-eta-repair-1`: 54 complete, 128 partial; no ranking or verdict changed, deciding gaps fell by up to 7.8 eV) and
   `hf-collect.mjs` folds them in with provenance per candidate (`term`: corrected after / partial / uncorrected) and per
   f-row verdict (`decidedBy`, `groundPartial`). F02: "firm" is gone from the paper and the table page: agreement, coverage
   and margins are reported separately, and B (4.1 eV) is a sensitivity scale, not a bound. F04: subshell size (rotations,
@@ -893,6 +893,17 @@ for games, and this is a modelling programme with publications to come. The game
   "survive the shell theorem", not "are the geometry's". F05: Hund under both laws is d² on element 26's fixed orbital
   only. F06: the response results are for the 15 round-cloud atoms sampled. F07, F08: wording, explicit fractions,
   `abbrConfig` (every open subshell kept in table abbreviations), figure 5 and table 1 captions.
+  **Astra's follow-up audit (2026-11-10).** F03's provenance: `rank` recorded term completeness only for each ground
+  (`hfParts`), and `hf-collect.mjs` had defaulted every other candidate to "full". Now `rank` writes `term` on every row,
+  and for older runs the collector reconstructs it from the configuration: `correction()` skips a spin block only for
+  its size (open p/d/f, 2 ≤ n ≤ cap − 2; the max-spin block over 20 000 determinants, any other over 3000, limits
+  unchanged since the tool's first commit; a block holds C(m, n↑)·C(m, n↓)). The reconstruction agrees with all 376
+  recorded cases (182 farcorr, 194 grounds) and the collection stops if one disagrees; unreadable is "unknown", never
+  "full". `summary.provenance` accounts for every far record (raw energies checked before a correction is added) and
+  names any far candidate corrected below its ground (none); claim `frow` gates all of it. Result: 786 candidates, 503
+  complete, 283 partial; 20 f-row verdicts rest on a partial competitor (85–100, 102–104, 109; Z = 90's 4f⁹ 5d¹ 6s² is
+  one), the closest 85 at 1.1 eV; no verdict, ranking or gap changed. F02: Methods no longer says agreement makes a
+  configuration firm. F04 (figure 1's "need exactly 1/r") was already gone in f67debed9.
   **The bracket of the pinned law (PI, 2026-11-10): the table under 1/r^η, η = 0.5 and 1.5.** `atom.js` takes `eta`
   (scf/ground/potentials options; default 1, which is untouched and bit-identical): the nucleus −Z/r^η, the clouds through
   `kernel.js`'s `kEtaTab(eta)` (the 3-sphere average of 1/|x−y|^η, kη(t)/max^η), the local exchange of that law's own

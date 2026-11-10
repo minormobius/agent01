@@ -147,7 +147,8 @@ if (mode === "rank") {
       agree: !!hg && cs(lg) === cs(hg), candidates: cands.length, solved: near.length, unconverged: near.length - ok.length,
       hfSecond: byH[1] ? { config: cs(byH[1]), dE_eV: +((byH[1].hf - hg.hf) * HA).toFixed(4) } : null,
       climb: CLIMB || undefined, climbed: CLIMB ? near.filter((c) => c.climbed).length : undefined,
-      rows: near.map((c) => ({ config: cs(c), lda_eV: c.lda != null ? +((c.lda - lg.lda) * HA).toFixed(4) : null, climbed: c.climbed || undefined, far: c.far || undefined, hf_eV: c.hfConv && hg ? +((c.hf - hg.hf) * HA).toFixed(4) : null, hfRaw: c.hfConv ? +c.hfRaw.toFixed(6) : null })),
+      rows: near.map((c) => ({ config: cs(c), lda_eV: c.lda != null ? +((c.lda - lg.lda) * HA).toFixed(4) : null, climbed: c.climbed || undefined, far: c.far || undefined, hf_eV: c.hfConv && hg ? +((c.hf - hg.hf) * HA).toFixed(4) : null, hfRaw: c.hfConv ? +c.hfRaw.toFixed(6) : null,
+        term: c.hfConv && c.hfParts ? (c.hfParts.every((p) => p.complete !== false) ? "complete" : "partial") : undefined })),
       s: (Date.now() - t0) / 1000 }));
   }
 }

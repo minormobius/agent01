@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="e95da2db474300573dd048eee736cd354624bc4a58879ebfe6d9c6fd18e459b4" />
+<meta name="source-sha256" content="ad65122e6fab709a0feb7f9ff4b588fcb47d88aa976081af30ea141669451fda" />
 <title>Paper 1 · Paper 1 · supplement</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -769,7 +769,13 @@ href="#app-g-12">G.12</a>). Candidates more than 6 eV above the best
 were first ranked on their raw energies; their term corrections, which
 reach −7.8 eV in the f row, were computed afterwards for all 182: 54
 completely and 128 partially (a spin block too big to finish, so the
-true energy could be lower still). They change no ranking.
+true energy could be lower still). Each was re-solved first and its raw
+energy matched the stored one before the correction was added; none
+falls below its element’s ground, and they change no ranking. Of all 786
+candidates ranked, 503 have a complete term correction and 283 a partial
+one. Where a run didn’t record which, it follows from the configuration
+alone, because a spin block is skipped only for its size; that
+reconstruction agrees with all 376 recorded cases.
 <strong>Margins:</strong> how far above each method’s ground its nearest
 competitor lies.</p>
 <p>For the d rows, ours gives a lean. Before half filling (30, 31, 58)
@@ -818,13 +824,13 @@ was solved: 101, 105, 106 and 112.</li>
 </ul>
 <p>Which competitor decides each verdict matters too. The corrections
 computed afterwards change no verdict, but they bring the deciding gaps
-down by each competitor’s own correction, as much as −7.8 eV. For 13
-verdicts (91–96, 98–100, 102–104 and 109) the deciding competitor’s
-correction is partial, so it could lie lower still; the smallest of
-those gaps is element 99’s, 7.0 eV. For 25 the ground’s own correction
-is partial too, which moves the gap the other way. Every element’s three
-numbers, each candidate’s raw and corrected energies, and whether its
-correction is complete, partial, computed afterwards or missing are in
+down by each competitor’s own correction, as much as −7.8 eV. For 20
+verdicts (85–100, 102–104 and 109) the deciding competitor’s correction
+is partial, so it could lie lower still; the smallest of those gaps is
+element 85’s, 1.1 eV. For 25 the ground’s own correction is partial too,
+which moves the gap the other way. Every element’s three numbers, each
+candidate’s raw and corrected energies, and whether its correction is
+complete, partial, computed afterwards or missing are in
 <code>data/hftable.json</code>.</p>
 <h2 id="app-f">F · The law in full</h2>
 <p><span id="app-f-1"></span><strong>F.1 The fall to the

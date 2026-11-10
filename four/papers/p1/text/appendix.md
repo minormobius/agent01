@@ -143,7 +143,11 @@ guarantee: both methods share the missing correlation, and in our lanthanides th
 f block and our lanthanides the window is 10 eV and Hartree–Fock also climbs its own one-electron neighbourhood
 (appendix G.12). Candidates more than 6 eV above the best were first ranked on their raw energies; their term
 corrections, which reach {{hf.corrMax}} eV in the f row, were computed afterwards for all {{hf.farAll}}: {{hf.farCorr}} completely and {{hf.farPartial}}
-partially (a spin block too big to finish, so the true energy could be lower still). They change no ranking. **Margins:** how
+partially (a spin block too big to finish, so the true energy could be lower still). Each was re-solved first and its raw
+energy matched the stored one before the correction was added; none falls below its element's ground, and they change no
+ranking. Of all {{hf.candN}} candidates ranked, {{hf.candComplete}} have a complete term correction and {{hf.candPartial}} a
+partial one. Where a run didn't record which, it follows from the configuration alone, because a spin block is skipped
+only for its size; that reconstruction agrees with all {{hf.termChecked}} recorded cases. **Margins:** how
 far above each method's ground its nearest competitor lies.
 
 For the d rows, ours gives a lean. Before half filling ({{hf.4dEarly}}) Hartree–Fock's error in ours was small and in the

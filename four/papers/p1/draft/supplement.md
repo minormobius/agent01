@@ -216,7 +216,11 @@ guarantee: both methods share the missing correlation, and in our lanthanides th
 f block and our lanthanides the window is 10 eV and Hartree–Fock also climbs its own one-electron neighbourhood
 (appendix [G.12](#app-g-12)). Candidates more than 6 eV above the best were first ranked on their raw energies; their term
 corrections, which reach −7.8 eV in the f row, were computed afterwards for all 182: 54 completely and 128
-partially (a spin block too big to finish, so the true energy could be lower still). They change no ranking. **Margins:** how
+partially (a spin block too big to finish, so the true energy could be lower still). Each was re-solved first and its raw
+energy matched the stored one before the correction was added; none falls below its element's ground, and they change no
+ranking. Of all 786 candidates ranked, 503 have a complete term correction and 283 a
+partial one. Where a run didn't record which, it follows from the configuration alone, because a spin block is skipped
+only for its size; that reconstruction agrees with all 376 recorded cases. **Margins:** how
 far above each method's ground its nearest competitor lies.
 
 For the d rows, ours gives a lean. Before half filling (30, 31, 58) Hartree–Fock's error in ours was small and in the
@@ -243,8 +247,8 @@ element 90, 9.3 in 100 and 14.1 in 109, against 0.9 eV in our terbium, where the
 - **agree, untested** (4): no configuration with fewer f was solved: 101, 105, 106 and 112.
 
 Which competitor decides each verdict matters too. The corrections computed afterwards change no verdict, but they
-bring the deciding gaps down by each competitor's own correction, as much as −7.8 eV. For 13 verdicts (91–96, 98–100, 102–104 and 109) the deciding competitor's correction is
-partial, so it could lie lower still; the smallest of those gaps is element 99's, 7.0 eV. For 25 the ground's own
+bring the deciding gaps down by each competitor's own correction, as much as −7.8 eV. For 20 verdicts (85–100, 102–104 and 109) the deciding competitor's correction is
+partial, so it could lie lower still; the smallest of those gaps is element 85's, 1.1 eV. For 25 the ground's own
 correction is partial too, which moves the gap the other way. Every element's three numbers, each candidate's raw and corrected energies,
 and whether its correction is complete, partial, computed afterwards or missing are in `data/hftable.json`.
 

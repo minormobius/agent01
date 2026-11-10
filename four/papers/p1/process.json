@@ -465,6 +465,10 @@
   {
    "date": "2026-11-10",
    "what": "The paper and its supplement split (PI): draft/paper.html is abstract to conclusion with the six main figures and the references; draft/supplement.html holds the notation, appendices A–K, figures A1–A2 and tables 1–2, with its own PDF. Every reference to an appendix, section, figure or table on either page links to its anchor (build.mjs linkRefs; 231 internal links, none broken), and the paper links its own work: the interactive table (and #128), kata.mino.mobi/orbital, the Hund explainer, the MIT-licensed mirror on tangled, the ledger and supplement S1. The main text stays at 6 two-column pages."
+  },
+  {
+   "date": "2026-11-10",
+   "what": "Astra's follow-up audit of the F01–F08 pass (reviewed at 9ac683ed). F01 independently reproduced (11/11 sample, Z = 82, S1). F02: Methods' last 'firm' sentence replaced (agreement, coverage and margins reported separately). F03: hf-collect.mjs defaulted unrecorded term provenance to 'full'; rank now records it on every candidate, and for older runs it is reconstructed from the configuration (blocks are skipped only for their size), agreeing with all 376 recorded cases; unreadable is 'unknown'. Every far record accounted for (182: 54 complete, 128 partial, raw energies matched exactly), no corrected candidate below its ground; claim frow gates it. 20 f-row verdicts now rest on a partial competitor (was 13: Z = 90's 4f9 5d1 6s2 among the new), no verdict changed. F04 was already fixed in f67debed9."
   }
  ]
 }
