@@ -167,6 +167,20 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   only while |w| < `SEE`, with w = 0 arrows. Lean's shader has **`props()`** for it: figures (4D balls) and boxes
   (4D slabs) of one slice, cut by your slice, and that slice's trace on the ground; off unless set, like water and
   buoys. Two 2D instruments in the rider's frame (radar; ahead vs unseen). See [`volley/README.md`](volley/README.md).
+- **CAD⁴ at `/cad4/`** (a tool): a solid-modelling kernel for 4D. `js/kernel.js` (no DOM) is implicit: a feature
+  tree (JSON) compiles to a JavaScript distance function **and the same thing in GLSL** (parameters as the uniform
+  array `uP`), node by node, so every op is written twice: change one, change the other. Ops climb the dimension
+  ladder (interval, disc, rect, ngon, ball, box → product, extrude, revolve), then union/cut/intersect (optional blend
+  r), move, rotate (a plane), scale, round, shell, ref; a lower-dimensional shape in a higher boolean is an infinite
+  prism (unbounded sides are ±1e9, `fin()` tests them). `measure` (cells wholly in or out skipped by the Lipschitz
+  bound, the rest cut `sub` ways; the boundary by a hat two samples wide, weighted by |∇f| for slices, whose function
+  isn't a 3D distance), `slice`, `mesh` (marching tetrahedra, closed), `stl`, `fit` (sharp overlap + gap) and `sweep`.
+  Expressions are arithmetic on declared parameters only: `num()` refuses any other identifier before `Function` sees
+  it; keep that. `js/parts.js` is the library (primitives, bracket, hinge, chain, lock); `js/main.js` sphere-traces
+  the slice (redrawn only when dirty), tints the surface by the 4D normal's unseen component, and asks `js/worker.js`
+  for numbers (latest request wins; a fine measure is killed rather than waited for); the strip is each part's
+  cross-section along the unseen direction. `cli.mjs` is the kernel from a terminal. `window.CAD4` exposes the state.
+  See [`cad4/README.md`](cad4/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -233,6 +247,7 @@ node kata/cell/test/cell.selftest.mjs # ~85 s
 node kata/amoeba/test/amoeba.selftest.mjs # ~70 s
 node kata/ooze/test/ooze.selftest.mjs # ~60 s
 node kata/volley/test/volley.selftest.mjs # ~1 s
+node kata/cad4/test/cad4.selftest.mjs # ~60 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

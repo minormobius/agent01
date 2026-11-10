@@ -5959,6 +5959,23 @@
       ]
     },
     {
+      "n": "kata-cad4",
+      "u": "https://kata.mino.mobi/cad4/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-10",
+      "b": "2026-11-10",
+      "p": "kata",
+      "surface": "kata",
+      "d": "CAD⁴: a solid-modelling kernel for four dimensions. A part is a feature tree in JSON: shapes start in 1D and 2D and climb by product, extrude and revolve, then cut, join, blend and drill. It measures 4-volume, boundary, centroid and inertia in six planes, checks an assembly for interference through a motion, and exports any 3D slice as STL. In the library: a hinge whose pin is a plane, two linked rings that part without touching, and the ring-and-sphere lock that does hold.",
+      "tags": [
+        "cad",
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "kata-volley",
       "u": "https://kata.mino.mobi/volley/",
       "c": "games",

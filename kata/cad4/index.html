@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="CAD⁴ — a solid-modelling kernel for four dimensions. Parts are feature trees: shapes start in 1D and 2D and climb by product, extrude and revolve, then cut, join, blend, drill. Measure 4-volume, boundary, centroid and inertia in six planes; check an assembly for interference through a motion; slice it, turn the slice, export the slice as STL." />
+<title>CAD⁴ — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/cad4.css" />
+</head>
+<body>
+<div id="stage">
+  <canvas id="gl" aria-label="Your 3D slice of the 4D part"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div id="bar">
+    <b>CAD⁴</b>
+    <select id="partS" aria-label="part"></select>
+    <button type="button" id="runB" aria-label="run the motion">▶ run</button>
+    <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
+    <button type="button" id="stlB">slice → STL</button>
+  </div>
+  <div id="cap"></div>
+  <div id="miss" hidden>your slice misses the part</div>
+  <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+  <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+</div>
+<div id="panel">
+  <section><h2>parameters</h2><div id="params"></div></section>
+  <section><h2>fit</h2><div id="fit" class="rows"></div></section>
+  <section><h2>this slice</h2><div id="sl" class="rows"></div><canvas id="prof" aria-label="each part's cross-section along the direction you cannot see, and where your slice is"></canvas></section>
+  <section><h2>measure <em id="mState"></em></h2><div id="meas" class="rows"></div></section>
+  <section><h2>feature tree</h2>
+    <textarea id="treeT" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="the feature tree, as JSON"></textarea>
+    <div class="btns"><button type="button" id="buildB">build</button><button type="button" id="linkB">copy link</button><span id="err"></span></div>
+  </section>
+  <p class="foot"><b>CAD⁴.</b> A part is a tree of features, and the tree is the model: 1D and 2D shapes climb to 4D by <b>product</b>, <b>extrude</b> and <b>revolve</b>, then <b>union</b>, <b>cut</b>, <b>intersect</b>, <b>move</b>, <b>rotate</b> (in a plane: 4D has no axes of rotation), <b>round</b>, <b>shell</b>. You see a 3D slice: drag to look round it, pinch to zoom, the pad twists the slice into w, the lever moves it ana and kata. Where the surface leans into the unseen it is tinted <i class="ana">teal</i> (it grows as you go ana) or <i class="kata">rose</i>. The numbers are of the whole 4D part. <a href="./README.md">how it works</a> · <a href="../">kata</a></p>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
