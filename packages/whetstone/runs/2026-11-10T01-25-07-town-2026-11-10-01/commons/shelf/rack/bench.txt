@@ -1,0 +1,9 @@
+64 voices held for 5 s of audio at 48000 Hz, 128-sample blocks; "x real time" = audio seconds per CPU second for all 64 together
+wasm organ     477 ms for 320 voice-s  ≈ 671 voices per core
+wasm pluck      63 ms for 320 voice-s  ≈ 5105 voices per core
+wasm bell      200 ms for 176 voice-s  ≈ 879 voices per core
+wasm reed       94 ms for 320 voice-s  ≈ 3419 voices per core
+wasm kick       16 ms for  25 voice-s  ≈ 1527 voices per core
+wasm strings    83 ms for 320 voice-s  ≈ 3858 voices per core
+js   organ     463 ms for 320 voice-s  ≈ 690 voices per core
+js   pluck      85 ms for 320 voice-s  ≈ 3764 voices per core
