@@ -28,7 +28,7 @@ This paper does both. Part I treats the law as a choice: why one has to be made,
 in four dimensions (section 2). Part II solves every neutral atom to $Z = 140$ under it (sections 3 and 4) and finds
 that four-dimensional space breaks Hund's first rule (section 5). Part III solves the table again with the shell
 theorem forced back on, to find which of its features the law decides (section 6), and gives the pull between neutral
-atoms that later work on molecules starts from (section 7). The appendices hold the arguments and methods in full,
+atoms that later work on molecules starts from (section 7). The appendices, in the [supplement](supplement.html), hold the arguments and methods in full,
 every check of every method against our own world, and the starting data for chemistry: valence states, the atoms'
 response, and a test of the valence rule. Every number in the text is recomputed from the code and its data whenever
 anything changes, and checked against a ledger of {{ledger.n}} claims. The solvers, with their known-answer tests and a

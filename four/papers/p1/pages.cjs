@@ -1,7 +1,7 @@
 /* Paper 1's length in a journal's pages: draft/paper.html laid out as a two-column letter page at 10 pt (Physical
    Review's measure, roughly), each figure one column wide and each table across both, then printed by headless
-   Chromium. It counts the main text's pages (title to the conclusion, without the notation table, which a journal
-   would set as an appendix) and the whole paper's. Needs Playwright; sandbox-only, like pdf.cjs.
+   Chromium. It counts the main text's pages (title to the conclusion; the notation and appendices are on
+   draft/supplement.html) and the whole page's, references included. Needs Playwright; sandbox-only, like pdf.cjs.
      node four/papers/p1/pages.cjs        → draft/paper-journal.pdf, and the counts */
 const { chromium } = require("playwright");
 const path = require("node:path"), fs = require("node:fs");
@@ -28,8 +28,8 @@ const count = (file) => (fs.readFileSync(file, "latin1").match(/\/Type\s*\/Page[
   await pg.pdf({ path: whole, preferCSSPageSize: true, printBackground: true });
   // the main text alone: drop the notation table, the appendices and everything after them
   const words = await pg.evaluate(() => {
-    const body = document.querySelector(".p-body"), kids = [...body.children], app = kids.findIndex((e) => e.id === "appendices");
-    kids.slice(app).forEach((e) => e.remove());
+    const body = document.querySelector(".p-body"), kids = [...body.children], app = kids.findIndex((e) => e.id === "appendices" || e.id === "supplementary-material");
+    if (app >= 0) kids.slice(app).forEach((e) => e.remove());
     const n = kids.findIndex((e) => e.id === "notation"), nEnd = kids.findIndex((e, i) => i > n && /^H[12]$/.test(e.tagName));
     if (n >= 0) kids.slice(n, nEnd).forEach((e) => e.remove());
     const text = [...body.querySelectorAll("p, li, h1, h2")].map((e) => e.textContent).join(" ");

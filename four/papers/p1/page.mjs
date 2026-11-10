@@ -31,7 +31,7 @@ export function stalePages() {
 function render(f) {
   const src = readFileSync(path.join(DRAFT, f), "utf8"), md = src.replace(/<!--[\s\S]*?-->\n?/g, "");
   const args = ["-f", "markdown", "-t", "html5", "--mathml", "--citeproc", `--bibliography=${CSL}`, "-M", "link-citations=true", "-M", "link-bibliography=true"];
-  if (f !== "paper.md") args.push("-M", "reference-section-title=References");
+  if (f !== "paper.md" && f !== "supplement.md") args.push("-M", "reference-section-title=References");
   let body = execFileSync("pandoc", args, { input: md, encoding: "utf8" });
   // flag what hasn't been checked against its source (refs.json status cited or memory)
   for (const r of JSON.parse(readFileSync(REFS, "utf8")).refs.filter((x) => x.status !== "read" && x.status !== "index"))
@@ -48,13 +48,13 @@ function render(f) {
 <link rel="stylesheet" href="../paper.css" />
 </head>
 <body>
-<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 1 · ${f === "paper.md" ? "the whole draft" : "draft section"}</span><span class="grow" style="flex:1"></span>${f === "paper.md" ? `<a href="paper.pdf">PDF</a>&nbsp;·&nbsp;` : ""}<a href="${f}">source with its numbers</a></div>
+<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 1 · ${f === "paper.md" ? "the paper" : f === "supplement.md" ? "supplement" : "draft section"}</span><span class="grow" style="flex:1"></span>${f === "paper.md" ? `<a href="supplement.html">supplement →</a>&nbsp;·&nbsp;<a href="paper.pdf">PDF</a>&nbsp;·&nbsp;` : f === "supplement.md" ? `<a href="paper.html">← paper</a>&nbsp;·&nbsp;<a href="supplement.pdf">PDF</a>&nbsp;·&nbsp;` : ""}<a href="${f}">source with its numbers</a></div>
 <article class="sheet">
 <div class="p-venue">four.mino.mobi · paper 1 · in preparation</div>
 <div class="p-body single">
 ${body}
 </div>
-<div class="p-source">Generated from <code>papers/p1/text/${f}</code>: every number in it is read by <code>build.mjs</code> from the solver, the bake or the runs, so this text says what the code does. Rendered by pandoc with MathML.</div>
+<div class="p-source">Generated from <code>papers/p1/${f === "paper.md" || f === "supplement.md" ? "text/" : "text/" + f}</code>: every number in it is read by <code>build.mjs</code> from the solver, the bake or the runs, so this text says what the code does. Rendered by pandoc with MathML.</div>
 </article>
 </body>
 </html>

@@ -920,6 +920,12 @@ for games, and this is a modelling programme with publications to come. The game
   4 300 words, six pages); the arguments and methods in full are appendices F–H, the chemistry starting data (valence states,
   DH₅) I, response and separation J, reproducing K, and the notation table opens the appendices. Ledger claims carry
   their new sections. A new result goes to an appendix unless it changes the spine.
+  **The paper and its supplement (PI, 2026-11-10):** `draft/paper.md` is abstract to conclusion, the main figures and
+  the references; `draft/supplement.md` (`assembleSupplement`) is the notation, the appendices and figures A1–A2 with
+  their own references. `linkRefs` turns every "appendix X.N", "section N.M", "figure N" and "table N" into a link to its
+  anchor on the right page (`anchorHeads` writes `#sec-2-4`, `#app-f-8`, `#fig-1`, `#tab-2`, `#notation`), and bare
+  four/kata.mino.mobi and tangled.org addresses into links. Write cross-references as plain words in `text/*.md`; the
+  build links them. After a change, check every `href="…#id"` resolves (done by hand so far). `pdf.cjs` prints both PDFs.
   **Pages:** `page.mjs` renders each `draft/*.md` to `draft/*.html` with pandoc (`--mathml`; display maths in the text
   sources as `$$ TeX $$`, inline as `$…$`) on `paper.css` (forked from wormhole's); each page carries its source's SHA-256
   and selftest 67 fails on a stale one, so after changing a text source run `build.mjs` then `page.mjs`.
