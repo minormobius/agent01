@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="VOLLEY — one archer on a 4D bicycle against the many, who live in a single 3D slice. They see you only when you cross their world; your arrows arrive inside their closed bunkers from a direction they don't have." />
+<meta name="description" content="VOLLEY — one archer on a 4D bicycle against the many, who live in a single 3D slice. You ride and steer in four dimensions, see only your own slice, and have to find them: turn until your slice holds them, then shoot." />
 <title>VOLLEY — kata.mino.mobi</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/volley.css" />
 </head>
 <body>
 <div id="view">
-  <canvas id="gl" aria-label="The course: tap one of the many to loose an arrow at it"></canvas>
+  <canvas id="gl" aria-label="Your slice of the arena: steer with the stick, tap one of the many to loose an arrow"></canvas>
   <canvas id="ov" aria-hidden="true"></canvas>
   <div id="bar">
     <b>VOLLEY</b>
@@ -23,11 +23,12 @@
   <div id="cap"></div>
   <div id="banner" hidden><b id="bTitle"></b><p id="bText"></p><div><button type="button" id="bRetry">again</button><button type="button" id="bNext">next wave</button></div></div>
   <div id="panes">
-    <div class="pane"><canvas id="p1"></canvas><div class="t" id="p1T">their world (w = 0), from above</div><div class="s" id="p1S"></div></div>
-    <div class="pane"><canvas id="p2"></canvas><div class="t" id="p2T">from the side: x across, w up</div><div class="s" id="p2S"></div></div>
+    <div class="pane"><canvas id="p1"></canvas><div class="t" id="p1T">radar: from above, in your frame</div><div class="s" id="p1S"></div></div>
+    <div class="pane"><canvas id="p2"></canvas><div class="t" id="p2T">ahead against the direction you can't see</div><div class="s" id="p2S"></div></div>
   </div>
+  <div id="stick" class="pad" aria-label="the handlebars: across turns you, up and down turns you into the direction you can't see"><div id="stickKnob"></div><span>steer · ↕ into the unseen</span></div>
   <div id="panel" hidden>
-    <p class="foot"><b>VOLLEY.</b> You are an archer on a four-dimensional bicycle. The many live in one 3D slice of the world, w = 0: they stand, see and shoot there and nowhere else. You ride Lean's track in Lean's arena; it leaves their slice (the kerbs turn teal where it runs ana of you, rose where kata) and crosses it four times a lap. <b>Tap one of them to loose an arrow.</b> The bicycle rides itself; the bow solves the arc. Out of their slice they can't see you and their arrows can't reach you; at a crossing they can, and do. Your arrows cross w, so they don't pass a bunker's walls: they arrive inside. The ring over each of them says whether a shot from here would land (green), catch a wall (amber: get closer, or further out in w) or fall short (grey). Drag to look round, pinch or scroll to zoom. In the main view the land is your own slice; the many, their bunkers, your bicycle and all arrows are drawn where they'd be if w were flattened away. <a href="./README.md">how it works</a> · <a href="../lean/">Lean</a> · <a href="../">kata</a></p>
+    <p class="foot"><b>VOLLEY.</b> A game of orientation. You are an archer on a four-dimensional bicycle in Lean's arena, whose floor is a 3D space. The many live in one 3D slice of it: they stand, see and shoot there and nowhere else. You see only <b>your own slice</b>: ahead, across and up. <b>Steer with the stick</b> (or WASD / arrows): left and right turn you the ordinary way; up and down turn you into the direction you can't see, and your whole slice turns with you. The <b>red line</b> on the ground is where their world crosses your slice: the many are along it. Ride to them and turn until your slice holds them, then <b>tap one to loose an arrow</b> (the bow solves the arc). In their world they see you and shoot; out of it you don't exist for them. An arrow loosed across w arrives inside a closed bunker without passing its walls. The two instruments below are in your own frame: a radar from above, and ahead against the direction you can't see; the many are coloured by which side of your slice they are (teal ana, rose kata, white in it). Drag the view to look round, pinch or scroll to zoom. <a href="./README.md">how it works</a> · <a href="../lean/">Lean</a> · <a href="../">kata</a></p>
   </div>
 </div>
 <script type="module" src="js/main.js"></script>

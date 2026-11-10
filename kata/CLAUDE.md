@@ -158,14 +158,15 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   starved), `bot` (pure pursuit on the oracle's path). The engine hooks (`A.obstacles`, `A.energy`) are AMOEBA's,
   off unless set. Walls reach below the floor and points leave by the side they entered. See
   [`ooze/README.md`](ooze/README.md).
-- **VOLLEY at `/volley/`** (a demo): a 4D bicycle archer against the many, who live in the slice w = 0. `js/game.js`
+- **VOLLEY at `/volley/`** (a demo): a game of orientation. A 4D bicycle archer hunts the many, who live in the slice
+  w = 0 of Lean's basin; you steer (stick: lean along c and along the unseen d, Lean's easy rider), see only your own
+  slice (camera frame F, c, up; N = d), and must turn until your slice holds them, then tap to shoot. `js/game.js`
   (no DOM) **imports Lean's `dyn.js`, `bike.js` and `world.js`**, and the page Lean's `render.js`, so **a change to
-  Lean's engine runs VOLLEY's selftest too**. The arena is Lean's basin and track (four crossings of their slice a
-  lap), in game coordinates (basin middle = origin, their slice w = 0; `ORIGIN` maps to Lean's); the bike rides on
-  autopilot; arrows are ballistic points (`arc()`), bunkers five slabs with ±0.3 of w, hits swept in 4D. They shoot
-  only while |w| < `SEE`, with w = 0 arrows. Drawn by Lean's `Renderer` with **`props()`** (added to Lean's shader for
-  this: figures and boxes of one slice, flattened along `uN`; off unless set, like water and buoys), a ride-behind
-  camera square to the grid (N = w), arrows on the overlay. See [`volley/README.md`](volley/README.md).
+  Lean's engine runs VOLLEY's selftest too**. Game coordinates: basin middle = origin, their slice w = 0 (`ORIGIN`
+  maps to Lean's). Arrows are ballistic points (`arc()`), bunkers five slabs ±0.3 in w, hits swept in 4D; they shoot
+  only while |w| < `SEE`, with w = 0 arrows. Lean's shader has **`props()`** for it: figures (4D balls) and boxes
+  (4D slabs) of one slice, cut by your slice, and that slice's trace on the ground; off unless set, like water and
+  buoys. Two 2D instruments in the rider's frame (radar; ahead vs unseen). See [`volley/README.md`](volley/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`

@@ -2,7 +2,7 @@
    crosses their world twice a lap; the page's claims: an arrow loosed from ana arrives inside a closed bunker, and the
    same shot from inside their slice is stopped by the wall; they never shoot while you are out of their slice, their
    arrows never leave w = 0, and an arrow of theirs through your (x, y, z) misses you unless you are in their slice; a
-   bot clears a wave.   node kata/volley/test/volley.selftest.mjs   (~2 s) */
+   bot that rides and turns its slice onto them finds and clears a wave.   node kata/volley/test/volley.selftest.mjs   (~2 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), V = await import(path.join(here, "../js/game.js"));
@@ -14,9 +14,15 @@ const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg)
   ok(worst < 1e-9 && V.arc([0, 1, 0, 0], [200, 1, 0, 0], V.V_ARROW) === null, `the bow's arc lands on its mark, w and all (worst ${worst.toExponential(1)} m), and there is no arc past its range`);
 }
 {
-  const g = V.makeGame(1, 1); g.enemies.forEach((e) => (e.alive = false)); g.kills = 0; g.total = 99; let off = 0, cross = 0, pw = g.w, wmax = 0;
-  while (g.laps < 2 && g.t < 120) { V.step(g, 1 / 60); off = Math.max(off, g.off); if (pw * g.w < 0) cross++; pw = g.w; wmax = Math.max(wmax, Math.abs(g.w)); }
-  ok(g.laps === 2 && off < 0.5 && cross >= 7 && cross <= 8 && wmax > 9.5, `the bicycle rides two laps of Lean's track on its autopilot (${g.t.toFixed(0)} s, never more than ${off.toFixed(2)} m off the line), out to ${wmax.toFixed(1)} m from their world and through it four times a lap (${cross} crossings)`);
+  // at the start their world is beside you, parallel to your slice: none of the many is in it
+  const g = V.makeGame(1, 2), none = g.enemies.every((e) => Math.abs(V.offSlice(g, e)) > V.BODY);
+  ok(none && Math.abs(g.w - 10) < 0.5 && Math.abs(g.frame.N[3]) > 0.99, `you start ${g.w.toFixed(1)} m ana of their world with your slice parallel to it: none of the ${g.total} is in your slice`);
+  // the stick's second axis turns your heading, and with it your slice, into the direction you couldn't see
+  g.enemies.forEach((e) => (e.cool = 1e9)); g.stick = [0, -1]; let turned = 0; while (g.t < 4) { V.step(g, 1 / 60); turned = Math.max(turned, Math.abs(g.frame.F[3])); }
+  ok(turned > 0.5 && Math.abs(g.frame.N[3]) < 0.9, `the stick's ↕ turns you into the unseen: after 4 s your heading is ${(turned * 100).toFixed(0)}% along w, your slice ${(Math.acos(Math.min(1, Math.abs(g.frame.N[3]))) * 180 / Math.PI).toFixed(0)}° off theirs`);
+  // and the rim holds whatever you ask
+  g.stick = [0.3, 1]; let far = 0; while (g.t < 60) { V.step(g, 1 / 60); far = Math.max(far, g.edge); }
+  ok(far <= 0.9301, `held hard over for a minute, you never pass the rim (furthest ${far.toFixed(2)} of the basin)`);
 }
 {
   // a bunker at the origin, one of them inside; you at w = 8, 12 m off: the arrow arrives. From w = 0 it hits the wall
@@ -29,17 +35,14 @@ const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg)
   ok(!b.killed && b.wall && pIn === "wall", `the same shot from inside their slice is stopped by the wall (and the ring says so)`);
 }
 {
-  const g = V.makeGame(3, 2); let unseen = 0, seenShots = 0, offSlice = 0;
-  while (g.laps < 2 && g.t < 120) { const n0 = g.arrows.length; V.step(g, 1 / 60); for (const a of g.arrows.slice(n0)) if (!a.mine) { if (Math.abs(g.w) >= V.SEE) unseen++; else seenShots++; } for (const a of g.arrows) if (!a.mine && (a.p[3] !== 0 || a.v[3] !== 0)) offSlice++; }
-  ok(unseen === 0 && seenShots > 0 && offSlice === 0, `over two laps they loose ${seenShots} arrows, every one while you are in their slice, and none ever leaves w = 0`);
+  const g = V.makeGame(1, 2); let unseen = 0, seenShots = 0, offSlice = 0;
+  while (g.state === "playing" && g.t < 120) { const n0 = g.arrows.length; V.bot(g); V.step(g, 1 / 60); for (const a of g.arrows.slice(n0)) if (!a.mine) { if (Math.abs(g.w) >= V.SEE) unseen++; else seenShots++; } for (const a of g.arrows) if (!a.mine && (a.p[3] !== 0 || a.v[3] !== 0)) offSlice++; }
+  ok(unseen === 0 && seenShots > 0 && offSlice === 0, `while a bot hunts them they loose ${seenShots} arrows, every one while it is in their slice, and none ever leaves w = 0`);
+  ok(g.state === "won" && g.kills === g.total, `the bot, riding and turning its slice onto them, finds and clears wave 2: ${g.total} of them, ${g.bunkers.length} in bunkers, in ${g.t.toFixed(0)} s with ${g.loosed} arrows, ${g.hits} hits taken`);
 }
 {
   const hit = (w) => { const g = V.makeGame(1, 1); g.enemies.forEach((e) => (e.cool = 1e9)); V.step(g, 1 / 60); const r = g.rider.slice(); r[3] = 0; g.rider[3] = w; const from = [r[0] - 6, r[1], r[2], 0]; g.arrows.push({ p: from, v: [30, 0.3, 0, 0], mine: false, age: 0 });
     for (let k = 0; k < 30; k++) { const keep = g.rider.slice(); V.step(g, 1 / 120); g.rider = keep; } return g.hp; };
   ok(hit(5) === V.HP, `an arrow of theirs through your (x, y, z) while you are 5 m ana passes you by`);
-}
-{
-  const g = V.makeGame(1, 2); while (g.state === "playing" && g.t < 120) { V.bot(g); V.step(g, 1 / 60); }
-  ok(g.state === "won" && g.kills === g.total, `a bot clears wave 2: ${g.total} of them, ${g.bunkers.length} in bunkers, in ${g.t.toFixed(0)} s with ${g.loosed} arrows, ${g.hits} hits taken`);
 }
 console.log(`${checks - fails}/${checks} checks`); process.exit(fails ? 1 : 0);
