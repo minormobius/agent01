@@ -9885,10 +9885,10 @@
   {
    "eta": 1.5,
    "Z": 44,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d8 4s2 4p8 5s2 6s2",
-   "E": null,
-   "ion": null,
-   "top": "3d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d1 4s2 4p8 5s2 5p7 6s2",
+   "E": -1252997.59124,
+   "ion": 0.49435,
+   "top": "5p",
    "orb": [
     {
      "s": "1s",
@@ -9961,12 +9961,24 @@
      "r2": 0.5866
     }
    ],
-   "g": null,
+   "g": {
+    "e5g": 0,
+    "top": -0.60551,
+    "gIntrudes": false
+   },
    "real": {
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p2"
    },
    "sameConfig": false,
-   "s": 366.735
+   "s": 366.735,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 44,
+    "settled": true,
+    "ionSettled": true,
+    "s": 1905.737
+   }
   },
   {
    "eta": 1.5,
@@ -10052,7 +10064,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p3"
    },
    "sameConfig": false,
-   "s": 365.608
+   "s": 365.608,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1871.275
+   }
   },
   {
    "eta": 1.5,
@@ -10138,7 +10157,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p4"
    },
    "sameConfig": false,
-   "s": 374.127
+   "s": 374.127,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1871.631
+   }
   },
   {
    "eta": 1.5,
@@ -10217,7 +10243,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p5"
    },
    "sameConfig": false,
-   "s": 355.573
+   "s": 355.573,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1864.157
+   }
   },
   {
    "eta": 1.5,
@@ -10296,7 +10329,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p6"
    },
    "sameConfig": false,
-   "s": 371.873
+   "s": 371.873,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1871.741
+   }
   },
   {
    "eta": 1.5,
@@ -10375,7 +10415,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p7"
    },
    "sameConfig": false,
-   "s": 372.218
+   "s": 372.218,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1873.293
+   }
   },
   {
    "eta": 1.5,
@@ -10454,7 +10501,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8"
    },
    "sameConfig": false,
-   "s": 383.519
+   "s": 383.519,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1923.296
+   }
   },
   {
    "eta": 1.5,
@@ -10533,7 +10587,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s1"
    },
    "sameConfig": false,
-   "s": 372.556
+   "s": 372.556,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 26,
+    "settled": false,
+    "s": 1851.62
+   }
   },
   {
    "eta": 1.5,
@@ -10612,7 +10673,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s2"
    },
    "sameConfig": true,
-   "s": 370.98
+   "s": 370.98,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 1936.916
+   }
   },
   {
    "eta": 1.5,
@@ -10698,14 +10766,21 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d1 5s2"
    },
    "sameConfig": false,
-   "s": 390.646
+   "s": 390.646,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 2172.084
+   }
   },
   {
    "eta": 1.5,
    "Z": 54,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s2 6s2",
-   "E": null,
-   "ion": null,
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d4",
+   "E": -2889551.05397,
+   "ion": -0.78616,
    "top": "3d",
    "orb": [
     {
@@ -10784,15 +10859,23 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d2 5s2"
    },
    "sameConfig": false,
-   "s": 393.489
+   "s": 393.489,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": true,
+    "ionSettled": true,
+    "s": 2316.008
+   }
   },
   {
    "eta": 1.5,
    "Z": 55,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s2 5p1 6s2",
-   "E": null,
-   "ion": null,
-   "top": "3d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d5",
+   "E": -3113801.31424,
+   "ion": 0.01602,
+   "top": "4d",
    "orb": [
     {
      "s": "1s",
@@ -10877,15 +10960,23 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d3 5s2"
    },
    "sameConfig": false,
-   "s": 422.131
+   "s": 422.131,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": true,
+    "ionSettled": true,
+    "s": 2250.95
+   }
   },
   {
    "eta": 1.5,
    "Z": 56,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s2 5p2 6s2",
-   "E": null,
-   "ion": null,
-   "top": "3d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d17 4s2 4p8 4d5 5s2",
+   "E": -3351178.31843,
+   "ion": 0.01497,
+   "top": "4d",
    "orb": [
     {
      "s": "1s",
@@ -10970,14 +11061,22 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d4 5s2"
    },
    "sameConfig": false,
-   "s": 351.232
+   "s": 351.232,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": true,
+    "ionSettled": true,
+    "s": 1439.595
+   }
   },
   {
    "eta": 1.5,
    "Z": 57,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s2 5p3 6s2",
-   "E": null,
-   "ion": null,
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d4 5s2 6s1",
+   "E": -3601557.55664,
+   "ion": -1.07446,
    "top": "3d",
    "orb": [
     {
@@ -11063,15 +11162,23 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d5 5s2"
    },
    "sameConfig": false,
-   "s": 352.24
+   "s": 352.24,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": true,
+    "ionSettled": true,
+    "s": 367.095
+   }
   },
   {
    "eta": 1.5,
    "Z": 58,
    "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 5s2 5p4 6s2",
-   "E": null,
-   "ion": null,
-   "top": "5p",
+   "E": -3865714.25591,
+   "ion": -3.67143,
+   "top": "3d",
    "orb": [
     {
      "s": "1s",
@@ -11156,7 +11263,15 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d7 5s1"
    },
    "sameConfig": false,
-   "s": 351.067
+   "s": 351.067,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 38,
+    "settled": true,
+    "ionSettled": true,
+    "s": 1290.642
+   }
   },
   {
    "eta": 1.5,
@@ -13020,10 +13135,10 @@
   {
    "eta": 1.5,
    "Z": 76,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d12 5s2 5p8 6s2 7s2",
-   "E": null,
-   "ion": null,
-   "top": "4d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d3 4f1 5s2 5p8 6s2 6p8 7s2",
+   "E": -11565260.194,
+   "ion": 0,
+   "top": "4f",
    "orb": [
     {
      "s": "1s",
@@ -13117,12 +13232,24 @@
      "r2": 0.2358
     }
    ],
-   "g": null,
+   "g": {
+    "e5g": 0,
+    "top": 0,
+    "gIntrudes": false
+   },
    "real": {
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p6"
    },
    "sameConfig": false,
-   "s": 475.483
+   "s": 475.483,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 41,
+    "settled": true,
+    "ionSettled": true,
+    "s": 2402.032
+   }
   },
   {
    "eta": 1.5,
@@ -13229,7 +13356,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p7"
    },
    "sameConfig": false,
-   "s": 475.782
+   "s": 475.782,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 2517.816
+   }
   },
   {
    "eta": 1.5,
@@ -13336,7 +13470,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8"
    },
    "sameConfig": false,
-   "s": 487.686
+   "s": 487.686,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 2346.342
+   }
   },
   {
    "eta": 1.5,
@@ -13443,7 +13584,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8 6s1"
    },
    "sameConfig": false,
-   "s": 484.268
+   "s": 484.268,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 2371.232
+   }
   },
   {
    "eta": 1.5,
@@ -13550,7 +13698,14 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8 6s2"
    },
    "sameConfig": false,
-   "s": 538.219
+   "s": 538.219,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": false,
+    "s": 1749.77
+   }
   },
   {
    "eta": 1.5,
@@ -13657,15 +13812,22 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8 5d1 6s2"
    },
    "sameConfig": false,
-   "s": 515.736
+   "s": 515.736,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 27,
+    "settled": false,
+    "s": 2096.702
+   }
   },
   {
    "eta": 1.5,
    "Z": 82,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8 6s2 7s2",
-   "E": null,
-   "ion": null,
-   "top": "4d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d17 4f3 5s2 5p8 6s2",
+   "E": -15706970.67955,
+   "ion": 0.00061,
+   "top": "4f",
    "orb": [
     {
      "s": "1s",
@@ -13764,14 +13926,22 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f2 5s2 5p8 6s2"
    },
    "sameConfig": false,
-   "s": 528.753
+   "s": 528.753,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 29,
+    "settled": true,
+    "ionSettled": true,
+    "s": 1340.598
+   }
   },
   {
    "eta": 1.5,
    "Z": 83,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8 6s2 6p1 7s2",
-   "E": null,
-   "ion": null,
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f2 5s2 5p8 6s2 6p1",
+   "E": -16491201.73425,
+   "ion": -1.3382,
    "top": "4d",
    "orb": [
     {
@@ -13878,15 +14048,23 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f3 5s2 5p8 6s2"
    },
    "sameConfig": false,
-   "s": 545.114
+   "s": 545.114,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 28,
+    "settled": true,
+    "ionSettled": true,
+    "s": 567.427
+   }
   },
   {
    "eta": 1.5,
    "Z": 84,
-   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 5s2 5p8 6s2 6p2 7s2",
-   "E": null,
-   "ion": null,
-   "top": "4d",
+   "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f3 5s2 5p8 6s2 7s1",
+   "E": -17303950.78827,
+   "ion": 0.00061,
+   "top": "4f",
    "orb": [
     {
      "s": "1s",
@@ -13992,7 +14170,15 @@
     "config": "1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f4 5s2 5p8 6s2"
    },
    "sameConfig": false,
-   "s": 531.819
+   "s": 531.819,
+   "repair": {
+    "mix": 0.15,
+    "iters": 1500,
+    "candidates": 42,
+    "settled": true,
+    "ionSettled": true,
+    "s": 656.616
+   }
   },
   {
    "eta": 1.5,

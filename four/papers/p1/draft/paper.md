@@ -14,7 +14,8 @@ through $Z = 140$ self-consistently with local exchange, cross-checked by numeri
 first on our own world. The table has rows of 2, 10, 10, 28, 28, 60 elements and noble gases at 2, 12, 22, 50, 78, 138, as the
 generalized Madelung rule predicts, and its larger subshells make room for 52 elements with no counterpart
 in ours. Solving it again with the shell theorem forced back on shows what that loss decides: the rows survive it, but what
-fills inside them from the first d element on does not. Partial screening holds outer
+fills inside them from the first d element on does not; solving it under $1/r^{0.5}$ and $1/r^{1.5}$ moves the noble gases, so
+the rows themselves need the exponent 1/r. Partial screening holds outer
 electrons a median 2.54 times harder, so the hardest-held electron belongs to a full d shell rather than a
 noble gas; closed-shell atoms attract with a permanent $-\tfrac{3Q_AQ_B}{64R^5}$ that outranges dispersion; and four-dimensional
 space breaks Hund's first rule for d², d¹⁶, 4f³ and 4f²⁹.
@@ -48,7 +49,7 @@ theorem forced back on, to find which of its features the law decides (section 6
 atoms that later work on molecules starts from (section 7). The appendices hold the arguments and methods in full,
 every check of every method against our own world, and the starting data for chemistry: valence states, the atoms'
 response, and a test of the valence rule. Every number in the text is recomputed from the code and its data whenever
-anything changes, and checked against a ledger of 40 claims. The solvers, with their known-answer tests and a
+anything changes, and checked against a ledger of 41 claims. The solvers, with their known-answer tests and a
 script that solves the paper's atoms again, are released under the MIT licence at
 tangled.org/morphyxmino.bsky.social/four-atom; the data and the paper's making are public at four.mino.mobi/papers.
 
@@ -73,7 +74,7 @@ no level on any grid. For $\alpha = 0.7$ the lowest level is −5.87 × 10³, �
 grid's inner end moves from $10^{-3}$ to $10^{-5}$ bohr: set by where the calculation stops, not by the electron. There
 is no Bohr radius, and classically no stable orbit either [@ehrenfest1917].
 
-![**Figure 1.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 2, need exactly 1/r.](../figures/1.svg){#fig-1}
+![**Figure 1.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 2.3). (c) The whole table, elements 1–100, solved under each exponent (every pair of charges alike; appendix F.8): first ionization against Z, each law's noble gases marked by one rule (a closed configuration, a local maximum, the next atom at least 30 % lower and at least half as hard as any before). Under η = 0.5 they fall at hydrogen's shells, 2, 12, 40, 100; under η = 1.5 at 2, 14, 24, 34, 72, with 18 atoms unsettled; only the pinned law gives the generalized Madelung rule's rows (2, 12, 22, 50, 78, with the closed d-and-s atoms 42 and 70, zinc's kind).](../figures/1.svg){#fig-1}
 
 **2.2 The way out taken.** Something has to give: the squeeze $\tfrac{\hbar^2}{2m_e r^2}$ that resists the pull, or the pull.
 An electron whose energy grows faster than $p^2$ binds under Gauss's law, at the cost of Galilean relativity for all
@@ -278,6 +279,14 @@ in four dimensions), atoms bind an extra electron by 3.4, 5.7, 7.8, 10.3, 12.9 e
 (F 3.401, Cl 3.613, Br 3.364 eV, measured). 80 of the 140 bind one by more than 0.7 eV, the level above which the method
 held in ours (appendix E.4); the light noble gases don't hold one at all.
 
+**6.5 The rows need the exponent 1/r.** The rows survive the shell theorem, but not a change of exponent. Solved again
+under $1/r^\eta$ with $\eta = 0.5$ and $1.5$, every pair of charges alike, elements 1–100 (figure 1c, appendix F.8),
+the table's noble gases move. Under $\eta = 0.5$ an electron with more angular momentum is the more bound, element 4 is
+1s² 2p², each shell fills whole before the next begins, and the noble gases fall at 2, 12, 40 and 100: hydrogen's shells. Under
+$\eta = 1.5$ the next shell's s sinks below the current p (element 5 is 1s² 2s² 3s¹, 14 is 1s² 2s² 2p⁸ 3s²), and they fall at
+2, 14, 24, 34 and 72 (82 of 100 settle). By the same rule the pinned law's fall at 2, 12, 22, 42, 50, 70 and 78: its noble gases and two closed d-and-s
+atoms of zinc's kind. Only $1/r$ gives the rows the generalized Madelung rule predicts.
+
 ## 7 · Neutral atoms aren't silent
 
 Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A shell of charge $q$ and
@@ -318,7 +327,8 @@ liquids and crystals under the same law.
 **Conclusion.** A world with four large dimensions of space has to choose its law between charges, because Gauss's law
 gives it no atoms. Pinned at $1/r$, the only power law that keeps a shell together, it has atoms, and they have a
 periodic table: rows of 2, 10, 10, 28, 28, 60, noble gases at 2, 12, 22, 50, 78, 138, as the generalized Madelung rule predicts. The
-rows survive the shell theorem forced back on. What fills inside them from the first d element on doesn't, because in
+rows survive the shell theorem forced back on but not a change of exponent: they need $1/r$ itself. What fills inside
+them from the first d element on doesn't survive the shell theorem, because in
 four dimensions
 $1/r$ isn't harmonic and an inner cloud screens only partly: outer electrons are held about two and a half times
 harder, the hardest-held electron belongs to a full d shell rather than a noble gas, and a neutral atom pulls from
@@ -358,6 +368,7 @@ holds $2(l + 1)^2$ electrons. Bold letters are vectors.
 | $s$ | the radius of a spherical shell of charge | §2.4 |
 | $t$ | $\min(r, s)/\max(r, s)$, the ratio of the two radii | §2.4 |
 | $\kappa(t)$ | the shell kernel: a shell's potential over the shell theorem's, $\kappa = 1$ in ours | §2.4 |
+| $\kappa_\eta(t)$, $C_\eta$ | the shell kernel and the local-exchange constant under a law $1/r^\eta$; $\kappa_1 = \kappa$, $C_1 = A_4$ | App. F.8 |
 | $R$ | the distance from an atom to an outside charge, or between two atoms | §2.4 |
 | $Q$ | an atom's $\sum\langle r^2\rangle$ over its electrons; $Q_A$, $Q_B$ for atoms A and B | §2.4 |
 | $\alpha_\mathrm p(\mathrm i\omega)$ | an atom's dipole polarizability at imaginary frequency; $\alpha_\mathrm p(0)$ the static one | App. J.1 |
@@ -537,8 +548,8 @@ guarantee: both methods share the missing correlation, and in our lanthanides th
 **Coverage:** Hartree–Fock ranks the local-exchange search's settled candidates within 4 eV of its ground; for row 6's
 f block and our lanthanides the window is 10 eV and Hartree–Fock also climbs its own one-electron neighbourhood
 (appendix G.12). Candidates more than 6 eV above the best were first ranked on their raw energies; their term
-corrections, which reach −7.7 eV in the f row, were computed afterwards: 0 of the 182 completely, 0
-partially (a spin block too big to finish, so the true energy could be lower still), and 182 not yet. **Margins:** how
+corrections, which reach −7.8 eV in the f row, were computed afterwards for all 182: 54 completely and 128
+partially (a spin block too big to finish, so the true energy could be lower still). They change no ranking. **Margins:** how
 far above each method's ground its nearest competitor lies.
 
 For the d rows, ours gives a lean. Before half filling (30, 31, 58) Hartree–Fock's error in ours was small and in the
@@ -553,7 +564,7 @@ four-dimensional f row. That is an assumption, not a bound: seventeen states in 
 far the method errs in another. Under it, a configuration with one f electron fewer than Hartree–Fock's ground could
 lie below it if Hartree–Fock puts it less than $B$ up; one with more f only moves further up. Four-dimensional f
 electrons are bound far more deeply than ours: the cheapest move of one out of Hartree–Fock's ground costs 5.8 eV in
-element 90, 12.6 in 100 and 19.9 in 109, against 0.9 eV in our terbium, where the measured cost is 0.04. The
+element 90, 9.3 in 100 and 14.1 in 109, against 0.9 eV in our terbium, where the measured cost is 0.04. The
 32 elements of row 6's f block then fall into four groups:
 
 - **agree, nothing within $B$**: the methods agree and every fewer-f competitor lies more than $B$ up, or the ground
@@ -564,9 +575,10 @@ element 90, 12.6 in 100 and 19.9 in 109, against 0.9 eV in our terbium, where th
   exchange overbinds f by more still, so its extra f electron is the less likely;
 - **agree, untested** (4): no configuration with fewer f was solved: 101, 105, 106 and 112.
 
-Which competitor decides each verdict matters too: for 16 of them (83, 91–96, 98–100, 102–104 and 109–111) it is a candidate whose term
-correction has not been computed, and for 25 the ground's own correction is partial; those verdicts are
-provisional until the corrections are in. Every element's three numbers, each candidate's raw and corrected energies,
+Which competitor decides each verdict matters too. The corrections computed afterwards change no verdict, but they
+bring the deciding gaps down by each competitor's own correction, as much as −7.8 eV. For 13 verdicts (91–96, 98–100, 102–104 and 109) the deciding competitor's correction is
+partial, so it could lie lower still; the smallest of those gaps is element 99's, 7.0 eV. For 25 the ground's own
+correction is partial too, which moves the gap the other way. Every element's three numbers, each candidate's raw and corrected energies,
 and whether its correction is complete, partial, computed afterwards or missing are in `data/hftable.json`.
 
 ## F · The law in full
@@ -748,6 +760,29 @@ section 7, dispersion's $R^{-6}$) falls faster than $R^{-4}$, so summed over fou
 of the far field is finite. That says nothing about atoms that overlap, trade charge or crowd together, which is
 where a proof of stability has its work. Stability of matter here is open.
 
+**F.8 The table under other exponents.** To test whether the rows need $1/r$, every element from 1 to 100 was solved
+again under $V = q_1q_2/r^\eta$ with $\eta = 0.5$ and $1.5$, for every pair of charges alike: the nucleus pulls as
+$-Z/r^\eta$, the clouds act through the shell kernel of $1/|x - y|^\eta$ (the 3-sphere average of $(1 + t^2 - 2t\cos\theta)^{-\eta/2}$,
+$\kappa_\eta(t)/\max(r, s)^\eta$), and the local exchange is that of the four-dimensional electron gas under the same law,
+$\varepsilon_x = -C_\eta\,\rho^{\eta/4}$ per electron with $C_\eta = 2(16\pi^2)^{\eta/4}\int_0^\infty x^{-1-\eta}J_2(x)^2\,dx$ (Weber and Schafheitlin's
+integral in closed form, $A_4$ at $\eta = 1$). Everything else is the table's method: each element searched as the bake
+searches, seeded from the real table, its neighbours and the bare $\eta$-nucleus's filling order, then searched again
+more widely where it didn't settle (`atom/tools/etatable.mjs`, `data/etatable.json`). Checks (block 72): the constant
+against quadrature, the kernel, and one electron against the independent one-electron solver at both exponents, to
+10⁻⁶. The solver stops at f, and under $\eta < 1$ a higher $l$ is the more bound, so the empty 5g level was solved in
+every atom's own field; it never lies below the outermost occupied level (0 atoms). Under $\eta = 0.5$ all 100
+settle; under $\eta = 1.5$ 82 do, and 45–54, 57–58, 77–81, 83 have no settled ground state from any start tried.
+
+The noble gases are found by one rule for every law: a closed configuration whose first ionization is a local maximum,
+after which the next atom's is at least 30 % lower, and which holds at least half as hard as any atom before it. Under
+$\eta = 0.5$ they are 2, 12, 40 and 100, the hydrogen shells of 2, 10, 28 and 60: since higher $l$ is more bound, each shell fills
+before the next begins. Under $\eta = 1.5$ they are 2, 14, 24, 34 and 72: s levels sink below the p of the shell before (2s, 3s, then 2p;
+4s, then 3p; 5s, then 4p), so each p closes on top of the next shell's s, and d enters late. Under $1/r$ the rule gives
+2, 12, 22, 42, 50, 70 and 78, the generalized Madelung rule's noble gases with the two closed d-and-s atoms. Two cautions. Nothing physical
+stands behind $\eta \neq 1$: no field theory is offered for it, and the exponent is varied as a test, not a proposal. And the
+method is the table's, with its lean toward d and f, so configurations inside a row are no surer here than under $1/r$;
+the noble gases, which turn on large ionization steps, are the robust readout.
+
 ## G · The methods in full
 
 **G.1 The code.** Everything in this paper is computed by code written for it: JavaScript with no outside libraries, run under Node.js,
@@ -878,7 +913,7 @@ dimensions the coefficients are tabulated by quadrature, $a_0$ being the shell k
 local-exchange search's settled configurations within 4 eV of its ground, so both methods rank the same
 set. For row 6's f block and our lanthanides, where local exchange's bias toward f can push the right configuration
 out of that window, the window is 10 eV, and Hartree–Fock then climbs from its own ground through every configuration
-one electron away, those more than 6 eV up ranked without the term correction. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
+one electron away, those more than 6 eV up ranked first on their raw energies and corrected afterwards (`hftable.mjs farcorr`), since the correction is never positive and reaches several eV. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
 left out of the Hartree–Fock ranking: the variational solve drops the electron into the empty lower subshell and
 returns the compact configuration's energy under the other name. The energies carry an $O(h^2)$ error from the
 kernel's kink at $r = r'$, so absolute energies are extrapolated from steps 0.02 and 0.01; differences converge at
@@ -1120,7 +1155,7 @@ mirror doesn't carry, so there those rows are named as not reproduced), refreshe
 ## Supplement and data
 
 Supplement S1 is the table with every open subshell given Hund spins (`data/table4-hundspin.csv`). The
-40 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
+41 claims this text rests on, and the data behind them, are in `ledger.json` and `data/`.
 
 ## References
 

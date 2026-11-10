@@ -36,6 +36,16 @@ in four dimensions), atoms bind an extra electron by 3.4, 5.7, 7.8, 10.3, 12.9 e
 (F 3.401, Cl 3.613, Br 3.364 eV, measured). 80 of the 140 bind one by more than 0.7 eV, the level above which the method
 held in ours (appendix E.4); the light noble gases don't hold one at all.
 
+**6.5 The rows need the exponent 1/r.** The rows survive the shell theorem, but not a change of exponent. Solved again
+under $1/r^\eta$ with $\eta = 0.5$ and $1.5$, every pair of charges alike, elements 1–100 (figure 1c, appendix F.8),
+the table's noble gases move. Under $\eta = 0.5$ an electron with more angular momentum is the more bound, element 4 is
+1s² 2p², each shell fills whole before the next begins, and the noble gases fall at 2, 12, 40 and 100: hydrogen's shells. Under
+$\eta = 1.5$ the next shell's s sinks below the current p (element 5 is 1s² 2s² 3s¹, 14 is 1s² 2s² 2p⁸ 3s²), and they fall at
+2, 14, 24, 34 and 72 (82 of 100 settle). By the same rule the pinned law's fall at 2, 12, 22, 42, 50, 70 and 78: its noble gases and two closed d-and-s
+atoms of zinc's kind. Only $1/r$ gives the rows the generalized Madelung rule predicts.
+
+![**Figure 1.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 2.3). (c) The whole table, elements 1–100, solved under each exponent (every pair of charges alike; appendix F.8): first ionization against Z, each law's noble gases marked by one rule (a closed configuration, a local maximum, the next atom at least 30 % lower and at least half as hard as any before). Under η = 0.5 they fall at hydrogen's shells, 2, 12, 40, 100; under η = 1.5 at 2, 14, 24, 34, 72, with 18 atoms unsettled; only the pinned law gives the generalized Madelung rule's rows (2, 12, 22, 50, 78, with the closed d-and-s atoms 42 and 70, zinc's kind).](../figures/1.svg){#fig-1}
+
 ## 7 · Neutral atoms aren't silent
 
 Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A shell of charge $q$ and
@@ -76,7 +86,8 @@ liquids and crystals under the same law.
 **Conclusion.** A world with four large dimensions of space has to choose its law between charges, because Gauss's law
 gives it no atoms. Pinned at $1/r$, the only power law that keeps a shell together, it has atoms, and they have a
 periodic table: rows of 2, 10, 10, 28, 28, 60, noble gases at 2, 12, 22, 50, 78, 138, as the generalized Madelung rule predicts. The
-rows survive the shell theorem forced back on. What fills inside them from the first d element on doesn't, because in
+rows survive the shell theorem forced back on but not a change of exponent: they need $1/r$ itself. What fills inside
+them from the first d element on doesn't survive the shell theorem, because in
 four dimensions
 $1/r$ isn't harmonic and an inner cloud screens only partly: outer electrons are held about two and a half times
 harder, the hardest-held electron belongs to a full d shell rather than a noble gas, and a neutral atom pulls from

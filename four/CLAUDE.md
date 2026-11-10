@@ -885,7 +885,7 @@ for games, and this is a modelling programme with publications to come. The game
   pipeline that made it (bake outside the d/f blocks; `termtable.mjs` for 23–42, 51–70, 79–130, with the ion search where
   `cation_rearranged`); `--s1` checks the bake against supplement S1; in the mirror (no termtable/hund/bake) those rows are
   named "not reproduced here". 26, 39, 54, 55 now reproduce to Δ 0. F03: `hftable.mjs rank` skipped the term correction
-  for candidates > 6 eV up, though corrections reach −7.7 eV; `farcorr` computes them (run `farcorr-eta-repair-1`) and
+  for candidates > 6 eV up, though corrections reach −7.7 eV; `farcorr` computed all 182 (run `farcorr-eta-repair-1`: 54 complete, 128 partial; no ranking or verdict changed, deciding gaps fell by up to 7.8 eV, closest partial 99 at 7.0 eV) and
   `hf-collect.mjs` folds them in with provenance per candidate (`term`: corrected after / partial / uncorrected) and per
   f-row verdict (`decidedBy`, `groundPartial`). F02: "firm" is gone from the paper and the table page: agreement, coverage
   and margins are reported separately, and B (4.1 eV) is a sensitivity scale, not a bound. F04: subshell size (rotations,
@@ -904,6 +904,11 @@ for games, and this is a modelling programme with publications to come. The game
   each atom's field (`gIntrudes`: the solver stops at f, and under η < 1 higher l is more bound); `repair` re-searches
   the unsettled; `bake` → `papers/p1/data/etatable.json`. First look (sandbox, 1–6): η = 0.5 fills 2p before 2s
   (1s² 2p² at 4), η = 1.5 puts 3s before 2p (1s² 2s² 3s¹ at 5).
+  **Result (runs `eta-table-1`, `farcorr-eta-repair-1`; paper 1 §6.5, appendix F.8, figure 1c, claim `etarows`):** η = 0.5:
+  all 100 settle, 5g never intrudes, noble gases (one rule, `papers/p1/eta.js`) at 2, 12, 40, 100, hydrogen's shells;
+  η = 1.5: 82 settle (45–54, 57–58, 77–81, 83 never do), noble gases at 2, 14, 24, 34, 72, each p closing on the next
+  shell's s. Under 1/r the rule gives 2, 12, 22, 42, 50, 70, 78 (with the zinc-kind 42, 70). So the rows survive the shell
+  theorem but need the exponent 1/r.
   **The electron's two states (PI, 2026-11-10):** paper 1 §2.5 and appendix F.6 now derive what can be derived (the smallest
   4 + 1 Dirac electron's slow limit is two states of one chirality, the selftest's γ matrices) and name what stays declared
   (that the electron is that smallest spinor, and Pauli's exclusion, which spin-statistics can't supply here). A four-state

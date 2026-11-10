@@ -26,6 +26,7 @@ import { k4 } from "../../atom/js/kernel.js";
 import * as FIELDS from "../../atom/js/fields.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout } from "../../atom/js/periodic.js";
 import { names } from "../../atom/js/names.js";
+import { peaks as etaPeaks, settled as etaSettled } from "./eta.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const EV = 27.211386245988; // eV per hartree (CODATA 2018)
@@ -231,7 +232,9 @@ function fRowTokens(H) {
     "hf.fOpenAgreeN": String(F.openAgree.length), "hf.fUntestedN": String(F.untested.length), "hf.fLeanN": String(F.lean.length),
     "hf.farAll": String(F.farCandidates.all), "hf.farCorr": String(F.farCandidates.corrected), "hf.farPartial": String(F.farCandidates.partial), "hf.farUncorr": String(F.farCandidates.uncorrected),
     "hf.fDecidedPartial": F.decidedBy.partial.length ? and(runs(F.decidedBy.partial)) : "none", "hf.fDecidedUncorr": F.decidedBy.uncorrected.length ? and(runs(F.decidedBy.uncorrected)) : "none",
-    "hf.fDecidedUncorrN": String(F.decidedBy.uncorrected.length), "hf.fGroundPartialN": String(F.groundPartial.length),
+    "hf.fDecidedUncorrN": String(F.decidedBy.uncorrected.length), "hf.fDecidedPartialN": String(F.decidedBy.partial.length),
+    "hf.fPartialMinGap": (() => { const g = F.decidedBy.partial.map((z) => { const r = H.rows.find((x) => x.D === 4 && x.Z === z), fh = fN(r.hf); return Math.min(...r.rows.filter((x) => x.hf_eV != null && !x.gapped && fN(x.config) < fh).map((x) => x.hf_eV)); }); return g.length ? Math.min(...g).toFixed(1) : "—"; })(),
+    "hf.fPartialMinZ": (() => { let best = null; for (const z of F.decidedBy.partial) { const r = H.rows.find((x) => x.D === 4 && x.Z === z), fh = fN(r.hf), g = Math.min(...r.rows.filter((x) => x.hf_eV != null && !x.gapped && fN(x.config) < fh).map((x) => x.hf_eV)); if (!best || g < best.g) best = { z, g }; } return best ? String(best.z) : "—"; })(), "hf.fGroundPartialN": String(F.groundPartial.length),
     "hf.corrMax": (() => { const v = H.rows.flatMap((r) => [(r.hfParts ?? []).reduce((t, p) => t + (p.eV ?? 0), 0), ...(r.rows ?? []).map((x) => x.farCorr_eV ?? 0)]); return Math.min(...v).toFixed(1).replace("-", "−"); })() };
 }
 /* section 10.1: the atoms' response (response-table.mjs → data/response.json; ours against derevianko2010) */
@@ -287,6 +290,18 @@ export function vtTokens() {
     "vt.h1": `${f(R.toXHn1_H.hf)} eV by Hartree–Fock and ${f(R.toXHn1_H.mp2)} eV with MP2`, "vt.h2": `${f(R.toXHn2_H2.hf)} and ${f(R.toXHn2_H2.mp2)} eV`,
     "vt.s4": String(xh(4)[0].twoS / 2 === 0.5 ? "a doublet" : `spin ${xh(4)[0].twoS / 2}`), "vt.s3": xh(3)[0].twoS === 2 ? "a triplet" : xh(3)[0].twoS === 0 ? "a singlet" : `spin ${xh(3)[0].twoS / 2}`,
     "vt.gap3": `${f(R.spinGap_XHn2_eV.hf)} (Hartree–Fock) and ${f(R.spinGap_XHn2_eV.mp2)} eV (MP2)`, "vt.ang": String(xh(3)[0].param) };
+}
+/* section 6.5 and appendix F.8: the table under 1/r^η, η = 0.5 and 1.5 (atom/tools/etatable.mjs → data/etatable.json),
+   its noble gases by eta.js's rule, and 1/r's own by the same rule for comparison */
+export const ETA = JSON.parse(readFileSync(join(HERE, "data/etatable.json"), "utf8")).rows;
+export function etaTokens() {
+  const of = (eta) => ETA.filter((r) => r.eta === eta), list = (rs) => rs.map((r) => r.Z).join(", ").replace(/, ([^,]*)$/, " and $1");
+  const t1 = JSON.parse(readFileSync(join(HERE, "data/table4.json"), "utf8")).filter((r) => r.Z <= 100).map((r) => ({ Z: r.Z, config: r.config, E: r.E_hartree, ion: r.ion_hartree }));
+  const uns = (eta) => of(eta).filter((r) => !etaSettled(r)).map((r) => r.Z), runs = (zs) => { const o = []; for (const z of zs) { const l = o.at(-1); if (l && z === l[1] + 1) l[1] = z; else o.push([z, z]); } return o.map(([a, b]) => (a === b ? String(a) : `${a}–${b}`)).join(", "); };
+  const p15 = etaPeaks(of(1.5)), cfg = (eta, Z) => of(eta).find((r) => r.Z === Z).config;
+  return { "eta.n05": list(etaPeaks(of(0.5))), "eta.n15": list(p15), "eta.n1": list(etaPeaks(t1)), "eta.settled05": String(of(0.5).filter(etaSettled).length), "eta.settled15": String(of(1.5).filter(etaSettled).length),
+    "eta.uns15": runs(uns(1.5)), "eta.gIntrude": String(ETA.filter((r) => r.g?.gIntrudes).length), "eta.c4": cfg(0.5, 4).replace(/(\d)([spdf])(\d+)/g, (_, n, l, q) => `${n}${l}${supN(q)}`), "eta.c5": cfg(1.5, 5).replace(/(\d)([spdf])(\d+)/g, (_, n, l, q) => `${n}${l}${supN(q)}`),
+    "eta.c14": cfg(1.5, 14).replace(/(\d)([spdf])(\d+)/g, (_, n, l, q) => `${n}${l}${supN(q)}`), "eta.zmax": String(Math.max(...ETA.map((r) => r.Z))) };
 }
 export function valTokens() {
   const V = JSON.parse(readFileSync(join(HERE, "data/valence.json"), "utf8")), C = V.calibration, f2 = (v) => (v == null ? "—" : (v < 0 ? "−" : "") + Math.abs(v).toFixed(1));
@@ -470,6 +485,11 @@ function ledger(t3, t4, files, refs) {
         value: `lanthanides: Hartree–Fock ${L.hfRight}, local exchange ${L.ldaRight} of ${L.n}; f too stable in ${F.calibration.filter((c) => c.lean_eV > 0).length} of ${F.calibration.length}, by ${T["hf.fCalMin"]}–${T["hf.fB"]} eV; f out of the ground: 90 ${T["hf.fOut90"]}, 100 ${T["hf.fOut100"]}, 109 ${T["hf.fOut109"]} eV, Tb ${T["hf.fOutTb"]} (measured ${T["hf.fOutTbM"]}); firm ${T["hf.fFirm"]}; open though agreed ${T["hf.fOpenAgree"]}; leaning Hartree–Fock ${T["hf.fLean"]}; untested ${T["hf.fUntested"]}; deciding competitor uncorrected: ${T["hf.fDecidedUncorr"]}`,
         holds: L.n === 18 && L.hfRight > L.ldaRight && F.calibration.length >= 10 && F.calibration.every((c) => c.lean_eV > 0) && F.firm.length > 16 && F.firm.length + F.openAgree.length + F.lean.length + F.open.length + F.untested.length === 32 && F.openAgree.every((x) => x.gap <= F.B_eV),
         section: "4.3, E.6", gate: [67, 71] }; })(),
+    (() => { const T = etaTokens(), o5 = ETA.filter((r) => r.eta === 0.5), o15 = ETA.filter((r) => r.eta === 1.5);
+      return { id: "etarows", part: "consequence", claim: "The rows need the exponent 1/r: the table solved again under 1/r^0.5 and 1/r^1.5 (every pair of charges alike, elements 1–100) puts its noble gases elsewhere, at hydrogen's shells (2, 12, 40, 100) under η = 0.5 and at 2, 14, 24, 34, 72 under η = 1.5, where only 1/r gives the generalized Madelung rule's",
+        value: `noble gases by one rule: η = 0.5 ${T["eta.n05"]}; η = 1 ${T["eta.n1"]}; η = 1.5 ${T["eta.n15"]}; settled ${T["eta.settled05"]} and ${T["eta.settled15"]} of ${T["eta.zmax"]}; 5g below the outermost level in ${T["eta.gIntrude"]} atoms`,
+        holds: T["eta.n05"] === "2, 12, 40 and 100" && T["eta.n15"] === "2, 14, 24, 34 and 72" && T["eta.n1"].startsWith("2, 12, 22") && o5.length === 100 && o15.length === 100 && T["eta.gIntrude"] === "0" && +T["eta.settled05"] === 100 && +T["eta.settled15"] >= 80,
+        section: "6.5, F.8", gate: [67, 72] }; })(),
     (() => { const ts = [0.1, 0.3, 0.5, 0.7, 0.9], err = Math.max(...ts.map((t) => Math.abs(kClosed(t) / k4(t) - 1)));
       return { id: "kernelclosed", part: "law", claim: "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/(3π) and κ = 1 − t²/8 − t⁴/64 − …",
         value: `closed form against the solver's quadrature at t = 0.1 … 0.9: largest relative difference ${err.toExponential(1)}; at t = 1: ${kClosed(1 - 1e-12).toFixed(6)} against 8/(3π) = ${(8 / (3 * Math.PI)).toFixed(6)}`,
@@ -547,6 +567,7 @@ function hundTokens() {
     ...sepTokens(),
     ...valTokens(),
     ...vtTokens(),
+    ...etaTokens(),
     ...(() => { const R = JSON.parse(readFileSync(join(HERE, "data/he4check.json"), "utf8")).rows, g = R.map((r) => r.gap); return { "he4.gap": `${Math.min(...g).toFixed(3)}–${Math.max(...g).toFixed(3)}` }; })(),
     ...(() => { const P = JSON.parse(readFileSync(join(HERE, "data/promotion3.json"), "utf8")), ok = P.promotion.filter((x) => !x.missing), sgn = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
       const dc = (cfg) => [...cfg.matchAll(/\d[df](\d+)/g)].reduce((t, m) => t + +m[1], 0), sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");

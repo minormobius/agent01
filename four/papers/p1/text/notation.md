@@ -34,6 +34,7 @@ holds $2(l + 1)^2$ electrons. Bold letters are vectors.
 | $s$ | the radius of a spherical shell of charge | §2.4 |
 | $t$ | $\min(r, s)/\max(r, s)$, the ratio of the two radii | §2.4 |
 | $\kappa(t)$ | the shell kernel: a shell's potential over the shell theorem's, $\kappa = 1$ in ours | §2.4 |
+| $\kappa_\eta(t)$, $C_\eta$ | the shell kernel and the local-exchange constant under a law $1/r^\eta$; $\kappa_1 = \kappa$, $C_1 = A_4$ | App. F.8 |
 | $R$ | the distance from an atom to an outside charge, or between two atoms | §2.4 |
 | $Q$ | an atom's $\sum\langle r^2\rangle$ over its electrons; $Q_A$, $Q_B$ for atoms A and B | §2.4 |
 | $\alpha_\mathrm p(\mathrm i\omega)$ | an atom's dipole polarizability at imaginary frequency; $\alpha_\mathrm p(0)$ the static one | App. J.1 |

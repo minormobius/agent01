@@ -36,6 +36,14 @@ in four dimensions), atoms bind an extra electron by {{ea.hal4}} eV going down t
 ({{ea.halOurs}} eV, measured). {{ea.bound4}} of the 140 bind one by more than 0.7 eV, the level above which the method
 held in ours (appendix E.4); the light noble gases don't hold one at all.
 
+**6.5 The rows need the exponent 1/r.** The rows survive the shell theorem, but not a change of exponent. Solved again
+under $1/r^\eta$ with $\eta = 0.5$ and $1.5$, every pair of charges alike, elements 1–{{eta.zmax}} (figure 1c, appendix F.8),
+the table's noble gases move. Under $\eta = 0.5$ an electron with more angular momentum is the more bound, element 4 is
+{{eta.c4}}, each shell fills whole before the next begins, and the noble gases fall at {{eta.n05}}: hydrogen's shells. Under
+$\eta = 1.5$ the next shell's s sinks below the current p (element 5 is {{eta.c5}}, 14 is {{eta.c14}}), and they fall at
+{{eta.n15}} ({{eta.settled15}} of {{eta.zmax}} settle). By the same rule the pinned law's fall at {{eta.n1}}: its noble gases and two closed d-and-s
+atoms of zinc's kind. Only $1/r$ gives the rows the generalized Madelung rule predicts.
+
 ## 7 · Neutral atoms aren't silent
 
 Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A shell of charge $q$ and
@@ -76,7 +84,8 @@ liquids and crystals under the same law.
 **Conclusion.** A world with four large dimensions of space has to choose its law between charges, because Gauss's law
 gives it no atoms. Pinned at $1/r$, the only power law that keeps a shell together, it has atoms, and they have a
 periodic table: rows of {{table.rows}}, noble gases at {{table.nobles}}, as the generalized Madelung rule predicts. The
-rows survive the shell theorem forced back on. What fills inside them from the first d element on doesn't, because in
+rows survive the shell theorem forced back on but not a change of exponent: they need $1/r$ itself. What fills inside
+them from the first d element on doesn't survive the shell theorem, because in
 four dimensions
 $1/r$ isn't harmonic and an inner cloud screens only partly: outer electrons are held about two and a half times
 harder, the hardest-held electron belongs to a full d shell rather than a noble gas, and a neutral atom pulls from

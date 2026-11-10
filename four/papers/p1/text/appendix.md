@@ -142,8 +142,8 @@ guarantee: both methods share the missing correlation, and in our lanthanides th
 **Coverage:** Hartree–Fock ranks the local-exchange search's settled candidates within {{hf.window}} eV of its ground; for row 6's
 f block and our lanthanides the window is 10 eV and Hartree–Fock also climbs its own one-electron neighbourhood
 (appendix G.12). Candidates more than 6 eV above the best were first ranked on their raw energies; their term
-corrections, which reach {{hf.corrMax}} eV in the f row, were computed afterwards: {{hf.farCorr}} of the {{hf.farAll}} completely, {{hf.farPartial}}
-partially (a spin block too big to finish, so the true energy could be lower still), and {{hf.farUncorr}} not yet. **Margins:** how
+corrections, which reach {{hf.corrMax}} eV in the f row, were computed afterwards for all {{hf.farAll}}: {{hf.farCorr}} completely and {{hf.farPartial}}
+partially (a spin block too big to finish, so the true energy could be lower still). They change no ranking. **Margins:** how
 far above each method's ground its nearest competitor lies.
 
 For the d rows, ours gives a lean. Before half filling ({{hf.4dEarly}}) Hartree–Fock's error in ours was small and in the
@@ -169,9 +169,10 @@ element 90, {{hf.fOut100}} in 100 and {{hf.fOut109}} in 109, against {{hf.fOutTb
   exchange overbinds f by more still, so its extra f electron is the less likely;
 - **agree, untested** ({{hf.fUntestedN}}): no configuration with fewer f was solved: {{hf.fUntested}}.
 
-Which competitor decides each verdict matters too: for {{hf.fDecidedUncorrN}} of them ({{hf.fDecidedUncorr}}) it is a candidate whose term
-correction has not been computed, and for {{hf.fGroundPartialN}} the ground's own correction is partial; those verdicts are
-provisional until the corrections are in. Every element's three numbers, each candidate's raw and corrected energies,
+Which competitor decides each verdict matters too. The corrections computed afterwards change no verdict, but they
+bring the deciding gaps down by each competitor's own correction, as much as {{hf.corrMax}} eV. For {{hf.fDecidedPartialN}} verdicts ({{hf.fDecidedPartial}}) the deciding competitor's correction is
+partial, so it could lie lower still; the smallest of those gaps is element {{hf.fPartialMinZ}}'s, {{hf.fPartialMinGap}} eV. For {{hf.fGroundPartialN}} the ground's own
+correction is partial too, which moves the gap the other way. Every element's three numbers, each candidate's raw and corrected energies,
 and whether its correction is complete, partial, computed afterwards or missing are in `data/hftable.json`.
 
 ## F · The law in full
@@ -353,6 +354,29 @@ section 7, dispersion's $R^{-6}$) falls faster than $R^{-4}$, so summed over fou
 of the far field is finite. That says nothing about atoms that overlap, trade charge or crowd together, which is
 where a proof of stability has its work. Stability of matter here is open.
 
+**F.8 The table under other exponents.** To test whether the rows need $1/r$, every element from 1 to {{eta.zmax}} was solved
+again under $V = q_1q_2/r^\eta$ with $\eta = 0.5$ and $1.5$, for every pair of charges alike: the nucleus pulls as
+$-Z/r^\eta$, the clouds act through the shell kernel of $1/|x - y|^\eta$ (the 3-sphere average of $(1 + t^2 - 2t\cos\theta)^{-\eta/2}$,
+$\kappa_\eta(t)/\max(r, s)^\eta$), and the local exchange is that of the four-dimensional electron gas under the same law,
+$\varepsilon_x = -C_\eta\,\rho^{\eta/4}$ per electron with $C_\eta = 2(16\pi^2)^{\eta/4}\int_0^\infty x^{-1-\eta}J_2(x)^2\,dx$ (Weber and Schafheitlin's
+integral in closed form, $A_4$ at $\eta = 1$). Everything else is the table's method: each element searched as the bake
+searches, seeded from the real table, its neighbours and the bare $\eta$-nucleus's filling order, then searched again
+more widely where it didn't settle (`atom/tools/etatable.mjs`, `data/etatable.json`). Checks (block 72): the constant
+against quadrature, the kernel, and one electron against the independent one-electron solver at both exponents, to
+10⁻⁶. The solver stops at f, and under $\eta < 1$ a higher $l$ is the more bound, so the empty 5g level was solved in
+every atom's own field; it never lies below the outermost occupied level ({{eta.gIntrude}} atoms). Under $\eta = 0.5$ all {{eta.settled05}}
+settle; under $\eta = 1.5$ {{eta.settled15}} do, and {{eta.uns15}} have no settled ground state from any start tried.
+
+The noble gases are found by one rule for every law: a closed configuration whose first ionization is a local maximum,
+after which the next atom's is at least 30 % lower, and which holds at least half as hard as any atom before it. Under
+$\eta = 0.5$ they are {{eta.n05}}, the hydrogen shells of 2, 10, 28 and 60: since higher $l$ is more bound, each shell fills
+before the next begins. Under $\eta = 1.5$ they are {{eta.n15}}: s levels sink below the p of the shell before (2s, 3s, then 2p;
+4s, then 3p; 5s, then 4p), so each p closes on top of the next shell's s, and d enters late. Under $1/r$ the rule gives
+{{eta.n1}}, the generalized Madelung rule's noble gases with the two closed d-and-s atoms. Two cautions. Nothing physical
+stands behind $\eta \neq 1$: no field theory is offered for it, and the exponent is varied as a test, not a proposal. And the
+method is the table's, with its lean toward d and f, so configurations inside a row are no surer here than under $1/r$;
+the noble gases, which turn on large ionization steps, are the robust readout.
+
 ## G · The methods in full
 
 **G.1 The code.** Everything in this paper is computed by code written for it: JavaScript with no outside libraries, run under Node.js,
@@ -483,7 +507,7 @@ dimensions the coefficients are tabulated by quadrature, $a_0$ being the shell k
 local-exchange search's settled configurations within {{hf.window}} eV of its ground, so both methods rank the same
 set. For row 6's f block and our lanthanides, where local exchange's bias toward f can push the right configuration
 out of that window, the window is 10 eV, and Hartree–Fock then climbs from its own ground through every configuration
-one electron away, those more than 6 eV up ranked without the term correction. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
+one electron away, those more than 6 eV up ranked first on their raw energies and corrected afterwards (`hftable.mjs farcorr`), since the correction is never positive and reaches several eV. A configuration with an empty subshell below an occupied one of the same $l$ (sodium's $4s^1$ with $3s$ empty) is
 left out of the Hartree–Fock ranking: the variational solve drops the electron into the empty lower subshell and
 returns the compact configuration's energy under the other name. The energies carry an $O(h^2)$ error from the
 kernel's kink at $r = r'$, so absolute energies are extrapolated from steps 0.02 and 0.01; differences converge at

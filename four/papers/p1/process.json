@@ -457,6 +457,10 @@
   {
    "date": "2026-11-10",
    "what": "Astra's final audit, eight findings; the correction pass. F01: the reproducer compared the bake with the corrected table; it now re-solves each row by the pipeline that made it, and 26, 39, 54, 55 reproduce exactly. F02: 'firm' replaced by separate reports of agreement, coverage and margins; B is a sensitivity scale, not a bound. F03: the Hartree–Fock climb skipped term corrections more than 6 eV up although they reach −7.7 eV; hftable.mjs farcorr computes them (queued, 182 candidates) and every candidate and verdict carries its provenance; 16 f-row verdicts are provisional until they're in. F04: degeneracy, shells and rows kept apart; the rows survive the shell theorem, and eta-table-1 shows they change with the exponent (η = 0.5: peaks at 2, 12, 40, the hydrogen shells; η = 1.5 still repairing). F05–F08: scoped claims and presentation."
+  },
+  {
+   "date": "2026-11-10",
+   "what": "Run farcorr-eta-repair-1 collected. F03: all 182 skipped term corrections computed (54 complete, 128 partial); no ranking and no verdict changed; the f-row deciding gaps fell by the competitors' own corrections, up to 7.8 eV, and 13 verdicts rest on a partial one (closest: element 99, 7.0 eV, 2.9 above B). The bracket of the law, finishing F04: the table solved under 1/r^0.5 (all 100 settle) and 1/r^1.5 (82 settle) puts its noble gases at 2, 12, 40, 100 (hydrogen's shells) and at 2, 14, 24, 34, 72; only 1/r gives the generalized Madelung rule's rows. §6.5, appendix F.8, figure 1c, claim etarows; the abstract and conclusion say the rows need the exponent 1/r."
   }
  ]
 }

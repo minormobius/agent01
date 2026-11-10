@@ -13,7 +13,8 @@ through $Z = 140$ self-consistently with local exchange, cross-checked by numeri
 first on our own world. The table has rows of {{table.rows}} elements and noble gases at {{table.nobles}}, as the
 generalized Madelung rule predicts, and its larger subshells make room for {{table.newN}} elements with no counterpart
 in ours. Solving it again with the shell theorem forced back on shows what that loss decides: the rows survive it, but what
-fills inside them from the first d element on does not. Partial screening holds outer
+fills inside them from the first d element on does not; solving it under $1/r^{0.5}$ and $1/r^{1.5}$ moves the noble gases, so
+the rows themselves need the exponent 1/r. Partial screening holds outer
 electrons a median {{cf.holdMedian}} times harder, so the hardest-held electron belongs to a full d shell rather than a
 noble gas; closed-shell atoms attract with a permanent $-\tfrac{3Q_AQ_B}{64R^5}$ that outranges dispersion; and four-dimensional
 space breaks Hund's first rule for d², d¹⁶, 4f³ and 4f²⁹.

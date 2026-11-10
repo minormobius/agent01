@@ -9,6 +9,7 @@ import { farPull } from "../far.js";
 import { k4 } from "../../../atom/js/kernel.js";
 import { TABLE as BAKE, RPLOT, SHELL_COUNTERFACTUAL } from "../../../atom/js/table.js";
 import { readFileSync as readTerm } from "node:fs";
+import { peaks as etaPeaks, settled as etaSettled } from "../eta.js";
 /* the paper's main 4D table is the term-corrected one (data/termtable.json over the bake, as build.mjs's rows): its
    configurations, energies, ionizations and (where the configuration changed) orbitals */
 const TERM = new Map(JSON.parse(readTerm(new URL("../data/termtable.json", import.meta.url), "utf8")).rows.map((r) => [r.Z, r]));
@@ -64,7 +65,20 @@ function figLaw() {
   s += series(b, { pts: sp.map((x) => [x.p, 100 * x.split3, `η = ${x.p.toFixed(2)}: 3d − 3s = ${(100 * x.split3).toFixed(2)} %`]), c: V, dots: true });
   s += `<line x1="${b.sx(1)}" y1="${b.sy(-20)}" x2="${b.sx(1)}" y2="${b.sy(80)}" stroke="${MUTE}" stroke-dasharray="4,3"/>` + text(b.sx(1) + 5, b.sy(72), "η = 1: both 0", { size: 10, fill: MUTE });
   s += legend(b, [{ label: "2p − 2s", c: B }, { label: "3d − 3s", c: V }], "tl");
-  return figure(800, 300, [a, b, s], "The choice of law: Gauss's 1/r² gives no atom, and only 1/r keeps a shell's levels together");
+  // c · the whole table under each exponent: first ionization against Z, 1–100, its noble gases marked (eta.js's rule)
+  const ETA = JSON.parse(readTerm(new URL("../data/etatable.json", import.meta.url), "utf8")).rows;
+  const T1 = TABLE[4].filter((e) => e.Z <= 100).map((e) => ({ Z: e.Z, config: e.config, E: e.E, ion: e.ion, eta: 1 }));
+  const c = panel({ oy: 320, w: 790, h: 260, x: [0, 100], y: [0, 56], xl: "Z", yl: "first ionization energy (eV)", tag: " ", xticks: [0, 20, 40, 60, 80, 100] });
+  s += `<text x="6" y="${320 + 14}" font-size="12" fill="${INK}" font-weight="700">c   the table under V = −1/r<tspan dy="-5" font-size="9">η</tspan><tspan dy="5">: η = 0.5, 1, 1.5</tspan></text>`;
+  for (const [eta, rows, col] of [[0.5, ETA.filter((r) => r.eta === 0.5), G], [1, T1, B], [1.5, ETA.filter((r) => r.eta === 1.5), O]]) {
+    const ok = rows.filter(etaSettled).sort((x, y) => x.Z - y.Z), runs = []; for (const r of ok) { const l = runs.at(-1); if (l && r.Z === l.at(-1).Z + 1) l.push(r); else runs.push([r]); }
+    for (const run of runs) s += series(c, { pts: run.map((r) => [r.Z, r.ion * EV, `η = ${eta}, ${r.Z}: ${(r.ion * EV).toFixed(2)} eV, ${r.config}`]), c: col, w: 1.3 });
+    const pk = etaPeaks(rows); s += series(c, { pts: pk.map((r) => [r.Z, r.ion * EV, `η = ${eta}: noble gas ${r.Z}, ${(r.ion * EV).toFixed(2)} eV`]), c: col, dots: true, lineOn: false });
+    for (const r of pk) { if (r.Z === 2 && eta !== 1) continue; // labelled once, by the pinned law's (below its point)
+      s += text(c.sx(r.Z), c.sy(r.ion * EV) + (eta === 1 ? 15 : -7), String(r.Z), { size: 9, anchor: "middle", fill: col }); }
+  }
+  s += legend(c, [{ label: "η = 0.5", c: G }, { label: "η = 1, the pinned law", c: B }, { label: "η = 1.5 (gaps: no settled ground state)", c: O }], "tl");
+  return figure(800, 580, [a, b, c, s], "The choice of law: Gauss's 1/r² gives no atom, only 1/r keeps a shell's levels together, and the table's noble gases move with the exponent");
 }
 
 /* 5 · orbitals only four dimensions has, cut through the nucleus by a plane, on the solved atoms' radial functions */
@@ -193,7 +207,7 @@ function A1() {
 }
 
 export const CAPTIONS = {
-  "1": "The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 2, need exactly 1/r.",
+  "1": "The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 2.3). (c) The whole table, elements 1–100, solved under each exponent (every pair of charges alike; appendix F.8): first ionization against Z, each law's noble gases marked by one rule (a closed configuration, a local maximum, the next atom at least 30 % lower and at least half as hard as any before). Under η = 0.5 they fall at hydrogen's shells, 2, 12, 40, 100; under η = 1.5 at 2, 14, 24, 34, 72, with 18 atoms unsettled; only the pinned law gives the generalized Madelung rule's rows (2, 12, 22, 50, 78, with the closed d-and-s atoms 42 and 70, zinc's kind).",
   "2": "The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler's generalized Madelung rule gives when applied to four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6's f block 32 (drawn below, as ours is). An element takes our element's name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 4. Hover a cell for its configuration and ionization.",
   "3": "First ionization energy against Z across the four-dimensional table. The noble gases close their rows, but the hardest-held electron isn't a noble gas's: element 128, a full 18-electron d shell with nothing outside it (our palladium's kind), holds its outermost electron at 29.6 eV against its row's noble gas at 26.7; element 68, the same kind a row up, comes within a volt of its row's. In ours palladium holds far less hard than xenon. Across row 6's 32-wide f block (81–112) the binding barely moves.",
   "4": "Six four-dimensional atoms in profile: each subshell's electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon's place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table. Every element's profile: four.mino.mobi/table/#Z.",

@@ -375,12 +375,24 @@
    "id": "frow",
    "part": "table",
    "claim": "Our lanthanides calibrate Hartree–Fock on the f row: it makes f too stable in every measured state that changes the f count, by up to B ≈ 4 eV, which the paper takes as a sensitivity scale for 4D, not a bound. Under that scale, over half of row 6's f block has no competitor with fewer f within B, because 4D f electrons are bound far more deeply; the rest sit at the block's two ends. Verdicts whose deciding competitor's term correction is missing or partial are provisional",
-   "value": "lanthanides: Hartree–Fock 15, local exchange 12 of 18; f too stable in 17 of 17, by 0.15–4.1 eV; f out of the ground: 90 5.8, 100 12.6, 109 19.9 eV, Tb 0.9 (measured 0.04); firm 81, 88–100 and 102–104; open though agreed 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86); leaning Hartree–Fock 83 and 107–111; untested 101, 105, 106 and 112; deciding competitor uncorrected: 83, 91–96, 98–100, 102–104 and 109–111",
+   "value": "lanthanides: Hartree–Fock 15, local exchange 12 of 18; f too stable in 17 of 17, by 0.15–4.1 eV; f out of the ground: 90 5.8, 100 9.3, 109 14.1 eV, Tb 0.9 (measured 0.04); firm 81, 88–100 and 102–104; open though agreed 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86); leaning Hartree–Fock 83 and 107–111; untested 101, 105, 106 and 112; deciding competitor uncorrected: none",
    "holds": true,
    "section": "4.3, E.6",
    "gate": [
     67,
     71
+   ]
+  },
+  {
+   "id": "etarows",
+   "part": "consequence",
+   "claim": "The rows need the exponent 1/r: the table solved again under 1/r^0.5 and 1/r^1.5 (every pair of charges alike, elements 1–100) puts its noble gases elsewhere, at hydrogen's shells (2, 12, 40, 100) under η = 0.5 and at 2, 14, 24, 34, 72 under η = 1.5, where only 1/r gives the generalized Madelung rule's",
+   "value": "noble gases by one rule: η = 0.5 2, 12, 40 and 100; η = 1 2, 12, 22, 42, 50, 70 and 78; η = 1.5 2, 14, 24, 34 and 72; settled 100 and 82 of 100; 5g below the outermost level in 0 atoms",
+   "holds": true,
+   "section": "6.5, F.8",
+   "gate": [
+    67,
+    72
    ]
   },
   {
@@ -514,8 +526,8 @@
   },
   {
    "path": "figures/1.svg",
-   "bytes": 19084,
-   "sha256": "2c10cd1038e7296a1221f6941dd1624ef7934b5b35cef288fd2571edcc259901"
+   "bytes": 31348,
+   "sha256": "93d41a60b2c662a0c8eb782a70e2c959bf80ee049e59edc04517142b184affb6"
   },
   {
    "path": "figures/2.svg",
@@ -554,8 +566,8 @@
   },
   {
    "path": "figures/captions.json",
-   "bytes": 4826,
-   "sha256": "dedc59e99478b7254989b44acbed897f90c054315e351a2cd8e2f732b2e25dcf"
+   "bytes": 5322,
+   "sha256": "96457e9327bd58de20b6eda2d837e5da381e151eac3ffaf3c24fc6e45af38186"
   }
  ],
  "refs": {
