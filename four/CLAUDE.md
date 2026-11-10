@@ -446,7 +446,7 @@ for games, and this is a modelling programme with publications to come. The game
     none of Ti, V, Co, Ni, and breaks Sc and Fe. The 4s→3d promotion energies against measured ones show why. The solver
     is too cheap for d in every 3d atom, by 0.35–1.70 eV (mean 1.06), from local exchange without correlation, and the
     full correction leaves the mean at 1.07. **So paper 1 corrects only Hund's first rule** and states the bias. 11 of the
-    92 4D d/f elements have a fewer-d competitor within 1 eV, flagged in §6.4 (`data/promotion3.json`,
+    92 4D d/f elements have a fewer-d competitor within 1 eV, flagged in appendix H.4 (`data/promotion3.json`,
     `promotion-collect.mjs`, claim `promotion`).
   - **Ions (`termtable.mjs <Z/…> <D> <q>`, 2026-11-06).** A charge argument searches each cation (q = +1) or anion
     (q = −1) for its own ground configuration. `ground({ nelec })` is new: an ion's electron count, nucleus unchanged.
@@ -464,7 +464,7 @@ for games, and this is a modelling programme with publications to come. The game
     - **p⁷ affinities rise down the group:** 3.4, 5.7, 7.8, 10.3, 12.9 eV, against ours near 3.4 throughout.
     - **Noble gases:** 2, 12 and 22 don't hold an extra electron; 50, 78 and 138 come out barely bound, too little to
       call.
-    - Claims `ions3`, `ions4` and `halogens4`; the paper's appendix E.4, §7.2 and §9.3.
+    - Claims `ions3`, `ions4` and `halogens4`; the paper's appendix E.4, §4.2 and §6.4.
     - **+2 and +3 (`ions-23`, 2026-11-08, 342 ions, all settled):** `ions-collect.mjs` now keeps every charge's
       configuration, corrected E and SCF E (`ions[q]`) and the 2nd/3rd ionizations. Against NIST (fetched:
       `papers/p1/data/nist-ie.json`, H–Kr; `IE_REAL` agrees with it to 0.01 eV) ours' 2nd and 3rd are off a median 2.0 %
@@ -479,7 +479,7 @@ for games, and this is a modelling programme with publications to come. The game
     paper's figures lay the same data over the bake (`figures/make.mjs`). The table chapter gains a section, `#hund`,
     and its landing card a bullet. All of this stands on point charges ×
   a factor carried from ruby.
-  **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §6.3) has five
+  **The Hund explainer, `atom/hund.html`** (`js/hundpage.js`; linked from the landing and from paper 1 §5.2) has five
   parts:
   - orbitals as boxes, with each filling's verdict from the survey;
   - the d orbitals on the sphere, and on slices of the 3-sphere;
@@ -863,14 +863,14 @@ for games, and this is a modelling programme with publications to come. The game
   **Paper 1 is the atomic reference (PI, 2026-11-08): everything but the nucleus.** `papers/p1/response-table.mjs`
   (6 min, 4 processes) → `data/response.json`: α(0), α(iω), C₆, Q, C₅, R* for closed-shell and one-s-electron atoms of
   both worlds with quadrature and grid convergence; ours against `data/response-ref.json` (Derevianko–Porsev–Babb 2010,
-  read from arXiv; hand-kept with table locators). Table 1 in §10.1 is generated (`respTokens`). `atom/tools/ligandd2.mjs`
-  (seconds) → `data/ligandd2.json`: 26²⁺ 3d² in point charges on the 16-cell, tesseract and 24-cell (§6.5).
+  read from arXiv; hand-kept with table locators). Table 2, appendix J.1, is generated (`respTokens`). `atom/tools/ligandd2.mjs`
+  (seconds) → `data/ligandd2.json`: 26²⁺ 3d² in point charges on the 16-cell, tesseract and 24-cell (appendix H.5).
   `hftable.mjs map <Z/…> [D]`: an element's valence states (every one-electron move from its table ground, both methods,
-  the ground's spin ladder) → `papers/p1/valence-collect.mjs` → `data/valence.json` (§7.4, table 1; ours calibrated on
+  the ground's spin ladder) → `papers/p1/valence-collect.mjs` → `data/valence.json` (appendix I.1, table 1; ours calibrated on
   `data/nist-light.json` and `nist-third.json` from `nist-levels.py light|third`). `atom/tools/separate.mjs atoms <D>` /
-  `stretch <D> <Z> [R,…]` → `papers/p1/separate-collect.mjs` → `data/separate.json` (§10.2): the molecular codes' atoms
+  `stretch <D> <Z> [R,…]` → `papers/p1/separate-collect.mjs` → `data/separate.json` (appendix J.2): the molecular codes' atoms
   and basis errors, and stretched pairs (charges, spins, starts; in 4D the far form −3Q²/64R⁵). `atom/tools/valencetest.mjs
-  reactions|hessian|assemble` (run `valence-1`): darbon's DH₅ by balanced alternatives and its full curvature matrix → `papers/p1/valencetest-collect.mjs` → `data/valencetest.json` (§7.5, claim `valencetest`): a true minimum (14
+  reactions|hessian|assemble` (run `valence-1`): darbon's DH₅ by balanced alternatives and its full curvature matrix → `papers/p1/valencetest-collect.mjs` → `data/valencetest.json` (appendix I.2, claim `valencetest`): a true minimum (14
   curvatures, none negative) below DH₄ + H and DH₃ + H₂ by 1.55/2.32 and 2.13/3.43 eV (Hartree–Fock/MP2); fragments only in
   symmetric shapes.
   **A pending atom4-compute run is replaced by a newer push of the queue** (GitHub concurrency): don't push
@@ -878,6 +878,13 @@ for games, and this is a modelling programme with publications to come. The game
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).
+  **Length (PI, 2026-11-10): the main text is at most seven two-column journal pages, with generous appendices.**
+  `pages.cjs` (sandbox, Playwright) lays `draft/paper.html` out as a two-column letter page at 10 pt and prints the main
+  text's page count and words (`draft/paper-journal.pdf`); check it after any change to the body. The body is §1–8 (the law,
+  a methods summary, the table, Hund, what the law decides, the neutral atoms' pull, limitations and conclusion, about
+  4 300 words, six pages); the arguments and methods in full are appendices F–H, the chemistry starting data (valence states,
+  DH₅) I, response and separation J, reproducing K, and the notation table opens the appendices. Ledger claims carry
+  their new sections. A new result goes to an appendix unless it changes the spine.
   **Pages:** `page.mjs` renders each `draft/*.md` to `draft/*.html` with pandoc (`--mathml`; display maths in the text
   sources as `$$ TeX $$`, inline as `$…$`) on `paper.css` (forked from wormhole's); each page carries its source's SHA-256
   and selftest 67 fails on a stale one, so after changing a text source run `build.mjs` then `page.mjs`.

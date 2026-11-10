@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="b50485a9723b0243911b4565666a7a2b6ae46d2b0513f4e27d42f2599502dfa4" />
+<meta name="source-sha256" content="e8c9bbe7b0049ade7ec3e340d6bb2f5ef62a48064d363d1f641e7d8bc1085499" />
 <title>Paper 1 · Part II · The table (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -14,210 +14,24 @@
 <div class="p-venue">four.mino.mobi · paper 1 · in preparation</div>
 <div class="p-body single">
 <h1 id="part-ii-the-table-draft">Part II · The table (draft)</h1>
-<h2 id="hunds-first-rule-in-four-dimensions">6 · Hund’s first rule in
-four dimensions</h2>
-<p>The solver gives each open subshell the most parallel spins it can
-hold. That is Hund’s first rule, and in ours it is the known answer for
-the ground terms of free atoms. In four dimensions it is an assumption,
-and for some fillings it is wrong.</p>
-<p><strong>6.1 Every term, from the open subshell’s
-determinants.</strong> For each open subshell of each ground
-configuration, its orbitals are the
-degree-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
-harmonics on the 3-sphere,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">(l + 1)^2</annotation></semantics></math>
-of them (4 for p, 9 for d, 16 for f). The repulsion between two of its
-electrons is the law’s
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">|</mo><mi>x</mi><mo>−</mo><mi>y</mi><mo stretchy="true" form="postfix">|</mo></mrow></mrow><annotation encoding="application/x-tex">1/|x - y|</annotation></semantics></math>,
-projected exactly onto the harmonics of degree
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mn>0</mn><annotation encoding="application/x-tex">0</annotation></semantics></math>
-to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>l</mi></mrow><annotation encoding="application/x-tex">2l</annotation></semantics></math>,
-with the radial parts integrated over the atom’s own orbital. Every
-arrangement of the subshell’s electrons with a given
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>S</mi></msub><annotation encoding="application/x-tex">M_S</annotation></semantics></math>
-is set up and the lowest energy found (Lanczos, matrix-free; a 4D d⁹
-block has 15 876 arrangements). A term of spin
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>S</mi><annotation encoding="application/x-tex">S</annotation></semantics></math>
-appears in every block with
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>M</mi><mi>S</mi></msub><mo>≤</mo><mi>S</mi></mrow><annotation encoding="application/x-tex">M_S \le S</annotation></semantics></math>,
-so the ground term’s spin is the largest
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mi>S</mi></msub><annotation encoding="application/x-tex">M_S</annotation></semantics></math>
-whose block still reaches the lowest energy. In ours this reproduces
-Racah’s term separations for d² and d³ to the wavenumber, and the known
-ground terms of Cr³⁺, Mn²⁺, Pr³⁺ and Gd³⁺. Over all 23 open subshells of
-our table, maximum spin is lowest, as it should be.</p>
-<p><strong>6.2 d², d¹⁶, 4f³ and 4f²⁹ break the rule.</strong> In four
-dimensions all 36 open p subshells of the table keep the rule, and so do
-the d fillings d¹, d³–d¹², d¹⁴, d¹⁵, d¹⁷. The two exceptions are d² and
-its mirror d¹⁶, in all three d rows: element 26 (3d², 0.40 eV), element
-39 (3d¹⁶, 0.77 eV), element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58
-eV), element 114 (5d², 0.36 eV), element 126 (5d¹⁶, 0.63 eV). In each
-the ground term is a spin singlet of ten states, and the triplet the
-solver assumed lies 0.30–0.77 eV above it. In the f block 4f³ (element
-83) fails too, and so does its mirror 4f²⁹ (element 108), three short of
-a full shell. Both have a ground term of spin ½, 0.15 and 0.26 eV below
-the quartet. No other f filling was found to break the rule, but the
-search is not complete. For f², f⁴, f⁵, f²⁸, f³⁰, f³¹ every spin was
-checked. For f⁶–f²⁵ only the highest two or three were, because the
-lower-spin blocks run to 10⁶–10⁸ arrangements; there the result is a
-bound, no lower term among the spins that could be run. Two fillings
-(elements 102 and 106) didn’t finish in the runner’s time.</p>
-<p><strong>6.3 The four-dimensional shell breaks it, not the
-law.</strong> It isn’t the law. On element 26’s own orbital Gauss’s
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
-gives the same order, with the singlet 0.82 eV below the triplet,
-against 0.40 eV under
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>;
-the pinned law makes the failure smaller, not larger. The cause is the
-shell itself. Four-dimensional d orbitals form the representation (1,1)
-of SO(4) ≅ SU(2) × SU(2)/ℤ₂. Two electrons in them make spatially
-symmetric states (2,2) ⊕ (2,0) ⊕ (0,2) ⊕ (1,1) ⊕ (0,0), all spin
-singlets (25, 10, 9 and 1 states), and antisymmetric ones (2,1) ⊕ (1,2)
-⊕ (1,0) ⊕ (0,1), triplets (30 and 6). The singlet that comes lowest is
-the ten-state (2,0) ⊕ (0,2): two irreducible representations of SO(4),
-exchanged by a reflection, so a single level once reflections are
-counted. For two electrons in a d subshell each term’s energy is exactly
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>0</mn></msup><mo>+</mo><msub><mi>a</mi><mn>2</mn></msub><msup><mi>F</mi><mn>2</mn></msup><mo>+</mo><msub><mi>a</mi><mn>4</mn></msub><msup><mi>F</mi><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">F^0 + a_2F^2 + a_4F^4</annotation></semantics></math>.
-The
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>F</mi><mi>n</mi></msup><annotation encoding="application/x-tex">F^n</annotation></semantics></math>
-are the radial parts of the repulsion and depend on the orbital. The
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>n</mi></msub><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><msub><mi>C</mi><mi>n</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>cos</mo><mi>γ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">a_n = \langle C_n(\cos\gamma)\rangle</annotation></semantics></math>
-over the term
-(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math>
-is the angle between the two electrons seen from the nucleus) depend
-only on the term.
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>a</mi><mn>2</mn></msub><annotation encoding="application/x-tex">a_2</annotation></semantics></math>
-measures how much the term lets the electrons line up along a common
-axis. The ten-state singlet holds them nearest right angles,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msup><mo>cos</mo><mn>2</mn></msup><mi>γ</mi><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle\cos^2\gamma\rangle</annotation></semantics></math>
-= 0.125, half of random (0.250), where the best triplet reaches 0.188.
-It lies below every triplet whenever
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup><mo>&lt;</mo></mrow><annotation encoding="application/x-tex">F^4/F^2 &lt;</annotation></semantics></math>
-5/3. Element 26’s orbital has
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>
-= 0.39 under the law and 0.65 under Gauss’s, so the rule breaks either
-way. In ours the triplet ³F is the term that keeps the electrons nearest
-right angles (0.225, against ¹D’s 0.292 and random’s 0.333), and it is
-the lowest for every value of
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>.
-Titanium’s d² has ³F lowest and its first singlet 1.25 eV up. Pauli
-keeps same-spin electrons apart, which is the usual reason for Hund’s
-rule; four-dimensional space gives paired spins a way to stay apart that
-is better still. In SO(4) terms, every rotation splits into a left and a
-right half, and a d orbital carries one unit of each. The singlet adds
-the two electrons’ left halves and cancels their right ones, or the
-other way round. Three-dimensional rotations don’t split, so ours has no
-such state. An interactive version is at
-four.mino.mobi/atom/hund.html.</p>
-<p>What this establishes is narrower than a whole-atom ground term. The
-term energies are computed within one subshell on the atom’s own
-maximum-spin orbital, which is neither relaxed term by term nor
-correlated beyond the subshell, and the correction they give the table
-(section 6.4) is first order. The inversion holds under both laws
-tested, and for any orbital whose
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>
-is below 5/3. Hund’s first rule has been studied away from three
-dimensions, in two-dimensional helium-like atoms and quantum dots <span
-class="citation" data-cites="sako2012 sako2010">(<a href="#ref-sako2012"
-role="doc-biblioref">Sako et al. 2012</a>; <a href="#ref-sako2010"
-role="doc-biblioref">Sako, Paldus, and Diercksen 2010</a>)</span> and by
-dimensional scaling <span class="citation" data-cites="gonzalez1991">(<a
-href="#ref-gonzalez1991" role="doc-biblioref">González 1991</a>)</span>,
-and two-electron matrix elements for hydrogenic d² and f² pairs have
-been derived for any
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
-<span class="citation" data-cites="summerfield1999">(<a
-href="#ref-summerfield1999" role="doc-biblioref">Summerfield and Loeser
-1999</a>)</span>. We have not been able to read the last two in full,
-and none of the sources we could read states this inversion.</p>
-<p><strong>6.4 The correction moves energies and ionizations, no
-configuration.</strong> Where the rule fails, the solver’s energy for
-that configuration is the maximum-spin state’s, too high by the gap. The
-table in section 7 corrects that. Every d- and f-block element (92 of
-them) was searched again, with the neighbours’ configurations as extra
-seeds (49–65 settled candidates each). Every candidate got its open
-subshells’ gaps added, and the candidates were ranked again, with and
-without the correction, so that a change from the wider search is told
-apart from one from the terms. <strong>The terms change no ground
-configuration.</strong> They lower the eight Hund-breaking atoms’
-energies, and they move first ionizations in pairs. An atom whose own
-ground term gains the gap holds its electron harder: 54 (6.41 → 6.71),
-66 (18.82 → 19.40), 114 (6.92 → 7.27), 126 (24.92 → 25.55) eV. The next
-element, whose ion lands on the broken filling, gives one up more
-easily: 55 (8.28 → 7.91), 67 (20.56 → 19.93), 115 (9.28 → 8.83), 127
-(27.23 → 26.56) eV. That is 0.30–0.67 eV either way. The wider search
-found one configuration the bake had missed. Element 82 is 4f¹ 5d¹ 6s²,
-0.36 eV below the bake’s 4f² 6s², which is our cerium’s kind; its
-ionization goes 7.03 → 7.39 eV. The table that follows is the corrected
-one (<code>data/table4.csv</code>). The Hund-spin table it replaces is
-supplement S1 (<code>data/table4-hundspin.csv</code>). How far to trust
-each configuration follows from appendix E.3. Take a bias of about a
-volt toward d and f: a ground configuration with a competitor holding
-fewer d and f electrons within a volt of it could be the other way
-round. 11 of the 92 d- and f-block elements have one: 30 (3d⁶ 4s², 0.55
-eV up), 37 (3d¹³ 4s², 0.55 eV up), 53 (5s² 5p¹, 0.01 eV up), 58 (4d⁶
-5s², 0.20 eV up), 61 (4d⁹ 5s², 0.25 eV up), 64 (4d¹³ 5s¹, 0.95 eV up),
-107 (5p⁸ 6s², 0.20 eV up), 108 (5p⁸ 6s², 0.79 eV up), 109 (5p⁸ 6s², 0.57
-eV up), 122 (5d¹⁰ 6s², 0.54 eV up), 124 (5d¹³ 6s¹, 0.55 eV up).</p>
-<p><strong>6.5 The d² singlet in a ligand field.</strong> A spin singlet
-is not orbitally inert: the ten states of (2,0) ⊕ (0,2) still carry
-orbital structure, and in a compound a ligand field splits them, and
-might hand the ground to a triplet. The ion here is element 26’s 2+, 3d²
-over closed shells, with point charges −1 at 4 bohr in three
-arrangements of four dimensions: along the axes (eight, the 16-cell,
-four dimensions’ octahedron), at a tesseract’s corners (sixteen), and at
-the 24-cell’s vertices (twenty-four). The field is projected exactly
-onto the degrees a d × d product holds, scaled from zero, and every
-determinant of the two electrons is diagonalized, as in section 6.2. A
-four-dimensional d subshell splits 6 + 3 on the axes and 3 + 6 at the
-corners (ours’ octahedron 3 + 2, cube 2 + 3). On the axes the two
-electrons go into the six-fold set, and the singlet stays the ground at
-every field strength: its ten states split, the lowest of them 2-fold,
-an orbital doublet that a distortion could act on, and the lowest
-triplet stays 0.44 eV up, the free ion’s gap. At the corners the
-three-fold set is lowest, and two electrons in it favour a triplet: the
-singlet holds until the one-electron spread
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>
-reaches 2.4–2.5 eV, and a triplet is the ground beyond, but only just,
-0.07 eV below the singlet even at
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Δ</mi><annotation encoding="application/x-tex">\Delta</annotation></semantics></math>
-= 7.6 eV. The 24-cell splits the d subshell not at all (none): its
-vertices average every harmonic of degree 2 and 4 to zero, as the
-icosahedron does for ours, so a d ion in that site keeps its free-ion
-terms. Ours’ Ti²⁺ (3d²) is the check, with its triplet the ground at
-every field in both shapes, as <span class="citation"
-data-cites="tanabe1954">Tanabe and Sugano (<a href="#ref-tanabe1954"
-role="doc-biblioref">1954</a>)</span> found for d². These are point
-charges, a model of the field’s symmetry rather than of its size
-(<code>atom/tools/ligandd2.mjs</code>,
-<code>data/ligandd2.json</code>).</p>
-<h2 id="the-table">7 · The table</h2>
-<p><strong>7.1 Rows and noble gases.</strong> The table’s rows hold 2,
+<h2 id="the-table">4 · The table</h2>
+<p><strong>4.1 Rows and noble gases.</strong> The table’s rows hold 2,
 10, 10, 28, 28, 60 elements (and 2 of the next by element 140), and its
 noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the
 first ionization energy (figures 2 and 3). Those are the rows the
 generalized Madelung rule of <span class="citation"
 data-cites="negadi1996">Négadi and Kibler (<a href="#ref-negadi1996"
-role="doc-biblioref">1996</a>)</span> gives when it is applied to four
-dimensions, which they stated for any dimension and worked out for two.
-To our knowledge this is the first self-consistent table that confirms
-them in four dimensions. The rule is a filling order. It builds the
-table’s skeleton of rows and blocks, which is how figure 2 is drawn.
-Like Madelung’s rule in ours, it doesn’t promise each atom’s ground
-configuration, and ours has exceptions to it, chromium and copper the
-first of about twenty. Read that way, 103 of the 140 ground
-configurations are exactly the rule’s. Each of the other 37 moves one or
-two electrons from one subshell to another: 34 from the outer s into the
-d or f subshell below it (10 of them two electrons), as our chromium,
-copper and palladium do, and the other 3 between other pairs: 81 (4f →
-5d), 82 (4f → 5d) and 113 (5d → 6p). The solver finds more of these than
-there are. Over our first 36 elements it departs from the rule 6 times
-(Ti, V, Cr, Co, Ni, Cu), where the measured configurations depart 2
-times (Cr and Cu). The reason is its lean toward d (appendix E.3), so
-the 4D count is likely too high, and these departures, not the rows, are
-where the table is least sure. Part III asks how much of the table the
-law decides.</p>
+role="doc-biblioref">1996</a>)</span> gives in four dimensions; to our
+knowledge this is the first self-consistent table that confirms them.
+The rule is a filling order, and like Madelung’s in ours it doesn’t
+promise each atom’s ground configuration. Read that way, 103 of the 140
+are exactly the rule’s. Each of the other 37 moves one or two electrons
+between two subshells, 34 of them from the outer s into the d or f below
+it, as our chromium, copper and palladium do. The solver finds more of
+these departures than there are: over our first 36 elements it makes 6
+where the measured configurations make 2, from its lean toward d
+(appendix E.3). So the 4D count is likely too high, and these
+departures, not the rows, are where the table is least sure.</p>
 <figure id="fig-2">
 <img src="../figures/2.svg"
 alt="Figure 2. The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler’s generalized Madelung rule gives when applied to four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6’s f block 32 (drawn below, as ours is). An element takes our element’s name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 4. Hover a cell for its configuration and ionization." />
@@ -246,7 +60,7 @@ within a volt of its row’s. In ours palladium holds far less hard than
 xenon. Across row 6’s 32-wide f block (81–112) the binding barely
 moves.</figcaption>
 </figure>
-<p><strong>7.2 The hardest-held electron isn’t a noble gas’s.</strong>
+<p><strong>4.2 The hardest-held electron isn’t a noble gas’s.</strong>
 Element 128 has an 18-electron d shell, full, with nothing outside it.
 It holds its outermost electron at 29.56 eV, harder than its row’s noble
 gas 138 (26.71 eV) and harder than any other atom in the table. Element
@@ -255,22 +69,32 @@ gas 138 (26.71 eV) and harder than any other atom in the table. Element
 gives up an electron at 8.3 eV, xenon at 12.1 <span class="citation"
 data-cites="nist-handbook">(<a href="#ref-nist-handbook"
 role="doc-biblioref">Sansonetti and Martin 2005</a>)</span>. Searching
-each ion for its own ground state leaves element 128’s ionization where
-it was. Seven other ions do rearrange, and their ionizations drop: 36
-(11.42 → 10.94), 93 (9.14 → 8.90), 94 (9.20 → 8.43), 95 (9.27 → 7.99),
-103 (9.96 → 9.67), 104 (10.05 → 9.29), 105 (10.13 → 8.92) eV. The main
-table carries those. Section 8 shows the law does it.</p>
-<p><strong>7.3 Every element in profile, on the interactive
-table.</strong> Figure 4 draws six atoms in profile: their radial
-densities, and what each one’s outermost orbital looks like on the
-3-sphere (figure 5). The same two pictures for every element, from the
-same solver, are on the interactive table, where picking an element
-draws them and any of its subshells can be cut by any of the six planes
-of four-dimensional space (<a
-href="https://four.mino.mobi/table/#128">four.mino.mobi/table</a>; a
-link ending <code>#Z</code> opens on element Z). Where the filling
-departs from the simple order, and how the ionization energy and the
-radius run with Z, are in the data files (table4.csv).</p>
+each ion for its own ground state leaves 128’s ionization where it was.
+Section 6 shows the law does it.</p>
+<p><strong>4.3 How firm each configuration is.</strong> Hartree–Fock and
+local exchange agree on 126 of the 140 ground configurations, and these
+are firm. The 14 they don’t agree on are open: 30, 31, 37, 38, 40, 58,
+61 in the d rows, where local exchange puts one electron more in d than
+Hartree–Fock, as it does in ours; 107, 108, 109, 110, 111 at the end of
+row 6’s f block, where it puts one more in f; and 2 at the start of a
+block (53, 83). Our own table is the calibration (appendix E.6): there
+Hartree–Fock gets 36 of 36 configurations right against local exchange’s
+32, and where the two agree they are right. In row 6’s f block both
+methods overbind f, and our lanthanides measure by how much:
+Hartree–Fock makes f too stable by at most 4.1 eV. Four-dimensional f
+electrons are bound so deeply that 17 of the block’s 32 elements hold
+against that bias. The interactive table gives each element’s
+verdict.</p>
+<p><strong>4.4 Every element in profile.</strong> Figure 4 draws six
+atoms’ radial densities, and figure 5 what their outermost orbitals look
+like on the 3-sphere. The same two pictures for every element are on the
+interactive table, where any subshell can be cut by any of the six
+planes of four-dimensional space (<a
+href="https://four.mino.mobi/table/#128">four.mino.mobi/table</a>;
+<code>#Z</code> opens on element Z). The configurations, energies,
+ionizations and radii are in <code>data/table4.csv</code>. What
+chemistry starts from, each atom’s valence states and a direct test of
+the valence rule on darbon’s hydride DH₅, is in appendix I.</p>
 <figure id="fig-4">
 <img src="../figures/4.svg"
 alt="Figure 4. Six four-dimensional atoms in profile: each subshell’s electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon’s place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table. Every element’s profile: four.mino.mobi/table/#Z." />
@@ -301,198 +125,90 @@ is positive round one plane and negative round another. Any element’s
 orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen’s exact ones,
 turned live: kata.mino.mobi/orbital.</figcaption>
 </figure>
-<p><strong>7.4 Valence states.</strong> Chemistry can pay to move an
-electron if the bonds it then makes pay more, so the reference records
-the cost. For each of 11 representative atoms, every configuration one
-electron away from the ground (any electron near the top moved to any
-subshell near the top) was solved by local exchange and by Hartree–Fock
-(table 1; all 11 with the ground’s spin ladder in
-<code>data/valence.json</code>). Ours is the calibration, 33 states
-against NIST’s levels <span class="citation"
-data-cites="nist-handbook">(<a href="#ref-nist-handbook"
-role="doc-biblioref">Sansonetti and Martin 2005</a>)</span>. Moving an
-electron into a higher shell of the kind that makes a Rydberg series is
-good to a median 0.4 and 0.3 eV (18 states). The s→p promotion, the
-price of hybrid bonding, is not. For atoms whose p shell is less than
-half full (Be, B, C, Mg, Al, Si) both methods make it too cheap, by −2.3
-to −0.6 (local exchange) and −1.7 to −0.9 (Hartree–Fock) eV, the
-near-degeneracy of an s² pair with p² that neither method holds; past
-half full (N, P, S) they make it too dear (−0.2 to 1.0 and 0.3 to 2.7
-eV), where the measured state mixes with others. In four dimensions the
-p subshell holds eight, so every second-row atom up to element 8 is in
-the first group: element 4’s 2s→2p costs 1.3 and 1.5 eV by the two
-methods, darbon’s (element 7) 3.4 and 4.0 eV, element 14’s 3s→3p 3.1 and
-2.9 eV, and on our evidence each is probably a volt or two short of the
-true cost. Element 26’s three lowest moves (into 4p, from 4s into 3d,
-from 3d into 4p) lie within 0.2 eV of each other by Hartree–Fock and a
-volt apart by local exchange, so its chemistry has several states to
-draw on and the methods disagree about which is cheapest. For element 53
-Hartree–Fock finds a state below the table’s ground, the open
-configuration of appendix E.6.</p>
-<table>
-<caption><strong>Table 1.</strong> Valence states of representative
-four-dimensional atoms: the ground configuration (outer subshells) and
-the three lowest configurations one electron away by Hartree–Fock, each
-labelled by the move and given by local exchange and Hartree–Fock (eV
-above each method’s own ground; a negative value is a state below the
-table’s ground).</caption>
-<colgroup>
-<col style="width: 33%" />
-<col style="width: 33%" />
-<col style="width: 33%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">element</th>
-<th style="text-align: left;">ground</th>
-<th style="text-align: left;">lowest states by Hartree–Fock: move, local
-exchange / Hartree–Fock (eV)</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">4</td>
-<td style="text-align: left;">1s² 2s²</td>
-<td style="text-align: left;">2s→2p 1.3 / 1.5; 2s→3s 3.4 / 3.4</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">7</td>
-<td style="text-align: left;">1s² 2s² 2p³</td>
-<td style="text-align: left;">2s→2p 3.4 / 4.0; 2p→3s 6.1 / 5.5; 2p→3p
-7.2 / 6.7</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">10</td>
-<td style="text-align: left;">1s² 2s² 2p⁶</td>
-<td style="text-align: left;">2p→3s 8.9 / 8.2; 2p→3p 10.8 / 10.0; 2s→2p
-14.0 / 17.4</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">12</td>
-<td style="text-align: left;">1s² 2s² 2p⁸</td>
-<td style="text-align: left;">2p→3s 13.7 / 12.9</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">14</td>
-<td style="text-align: left;">2s² 2p⁸ 3s²</td>
-<td style="text-align: left;">3s→3p 3.1 / 2.9; 3s→4s 4.3 / 4.2</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">26</td>
-<td style="text-align: left;">3p⁸ 3d² 4s²</td>
-<td style="text-align: left;">4s→4p 3.3 / 3.1; 4s→3d 2.3 / 3.1; 3d→4p
-4.3 / 3.3</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">39</td>
-<td style="text-align: left;">3p⁸ 3d¹⁶ 4s¹</td>
-<td style="text-align: left;">3d→4s 2.5 / 0.4; 4s→3d 3.2 / 5.0; 4s→4p
-7.8 / 7.1</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">42</td>
-<td style="text-align: left;">3p⁸ 3d¹⁸ 4s²</td>
-<td style="text-align: left;">4s→4p 9.3 / 8.3; 4s→5s 11.1 / 9.9; 4s→4d
-13.0 / 11.8</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">53</td>
-<td style="text-align: left;">4p⁸ 4d¹ 5s²</td>
-<td style="text-align: left;">4d→5p 0.0 / −0.8; 4d→6s 1.8 / 1.1; 4d→4f
-3.8 / 2.9</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">82</td>
-<td style="text-align: left;">5p⁸ 5d¹ 6s²</td>
-<td style="text-align: left;">4f→5d 4.7 / 1.5; 5d→4f 0.4 / 1.8; 5d→6p
-2.5 / 1.9</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">128</td>
-<td style="text-align: left;">5s² 5p⁸ 5d¹⁸</td>
-<td style="text-align: left;">5d→6s 8.0 / 8.6</td>
-</tr>
-</tbody>
-</table>
-<p><strong>7.5 Darbon’s hydride holds five hydrogens.</strong> The table
-implies a valence rule: an atom with
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
-electrons outside its core makes
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>v</mi><annotation encoding="application/x-tex">v</annotation></semantics></math>
-bonds, up to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">D + 1</annotation></semantics></math>
-of them, and
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mrow><mo stretchy="true" form="prefix">(</mo><mi>D</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>−</mo><mi>v</mi></mrow><annotation encoding="application/x-tex">2(D + 1) - v</annotation></semantics></math>
-past that. That is a claim about molecules, and one hydride tests it
-directly. Darbon (element 7, 2s²2p³) should make five bonds, so DH₅
-should exist, its hydrogens at the corners of the 5-cell, the simplest
-regular figure in four dimensions. Making five bonds takes the s→p
-promotion of section 7.4. At that geometry (D–H 3.23 bohr, by
-Hartree–Fock) we computed the whole curvature matrix of the energy by
-central differences, in all 24 coordinates of six atoms in four
-dimensions. With the 10 translations and rotations set apart, the 14
-curvatures fall in groups of 5 + 4 + 1 + 4, as the 5-cell’s symmetry
-requires. None is negative: the lowest is 0.020 hartree/bohr², and the
-gradient is 5 × 10⁻⁶. So DH₅ is a true minimum, not a saddle that a
-symmetric search could settle on. It also lies below both balanced ways
-of coming apart. Losing one hydrogen, DH₅ → DH₄ + H, costs 1.55 eV by
-Hartree–Fock and 2.32 eV with MP2. Losing two as a molecule, DH₅ → DH₃ +
-H₂, costs 2.13 and 3.43 eV. Each fragment is in its lowest spin: DH₄ is
-a doublet and DH₃ a triplet, with DH₃’s singlet 1.01 (Hartree–Fock) and
-0.85 eV (MP2) higher. Energies are by unrestricted Hartree–Fock and MP2
-in the molecular basis. The fragments’ geometries were optimized only
-within symmetric shapes, with their hydrogens equivalent; DH₃ and DH₄
-settle flat, their hydrogens in a plane or a 3-space through darbon. A
-lower, less symmetric fragment could lower both costs, and the curvature
-matrix, which describes DH₅ only, says nothing about that. The
-systematic test, every hydride and its fragments searched without
-symmetry, belongs to the chemistry this table starts.</p>
+<h2 id="hunds-first-rule-in-four-dimensions">5 · Hund’s first rule in
+four dimensions</h2>
+<p>The solver gives each open subshell the most parallel spins it can
+hold. That is Hund’s first rule, the known answer for the ground terms
+of free atoms in ours. In four dimensions it is an assumption, and for
+some fillings it is wrong. To test it, every arrangement of each open
+subshell’s electrons is diagonalized under the law, on the atom’s own
+orbital (appendix H.1). In ours this reproduces Racah’s term separations
+to the wavenumber, and maximum spin is lowest in all 23 open subshells
+of our table.</p>
+<p><strong>5.1 d², d¹⁶, 4f³ and 4f²⁹ break the rule.</strong> In four
+dimensions all 36 open p subshells keep the rule, and so do the d
+fillings d¹, d³–d¹², d¹⁴, d¹⁵, d¹⁷. The exceptions are d² and its mirror
+d¹⁶, in all three d rows: element 26 (3d², 0.40 eV), element 39 (3d¹⁶,
+0.77 eV), element 54 (4d², 0.30 eV), element 66 (4d¹⁶, 0.58 eV), element
+114 (5d², 0.36 eV), element 126 (5d¹⁶, 0.63 eV). In each the ground term
+is a spin singlet of ten states, and the triplet the solver assumed lies
+0.30–0.77 eV above it. In the f block 4f³ (element 83) fails too, and so
+does its mirror 4f²⁹ (element 108), each with a ground term of spin ½,
+0.15 and 0.26 eV below the quartet. No other f filling was found to
+break the rule, though for the fullest blocks only the highest spins
+could be run (appendix H.2).</p>
+<p><strong>5.2 The four-dimensional shell breaks it, not the
+law.</strong> On element 26’s own orbital Gauss’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+gives the same order, the singlet 0.82 eV below the triplet against 0.40
+eV under
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>.
+The cause is the shell. For two electrons in a d subshell each term’s
+energy is exactly
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>0</mn></msup><mo>+</mo><msub><mi>a</mi><mn>2</mn></msub><msup><mi>F</mi><mn>2</mn></msup><mo>+</mo><msub><mi>a</mi><mn>4</mn></msub><msup><mi>F</mi><mn>4</mn></msup></mrow><annotation encoding="application/x-tex">F^0 + a_2F^2 + a_4F^4</annotation></semantics></math>:
+the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>F</mi><mi>n</mi></msup><annotation encoding="application/x-tex">F^n</annotation></semantics></math>
+are the radial parts of the repulsion and depend on the orbital, and the
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>n</mi></msub><mo>=</mo><mo stretchy="false" form="prefix">⟨</mo><msub><mi>C</mi><mi>n</mi></msub><mrow><mo stretchy="true" form="prefix">(</mo><mo>cos</mo><mi>γ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">a_n = \langle C_n(\cos\gamma)\rangle</annotation></semantics></math>
+over the term depend only on the term
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>γ</mi><annotation encoding="application/x-tex">\gamma</annotation></semantics></math>
+the angle between the two electrons seen from the nucleus). The
+ten-state singlet,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mn>2</mn><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>⊕</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">(2,0) \oplus (0,2)</annotation></semantics></math>
+of SO(4), holds the electrons nearest right angles,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="false" form="prefix">⟨</mo><msup><mo>cos</mo><mn>2</mn></msup><mi>γ</mi><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">\langle\cos^2\gamma\rangle</annotation></semantics></math>
+= 0.125 against random’s 0.250 and the best triplet’s 0.188, and lies
+below every triplet whenever
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup><mo>&lt;</mo></mrow><annotation encoding="application/x-tex">F^4/F^2 &lt;</annotation></semantics></math>
+5/3. Element 26’s orbital has 0.39 under the law and 0.65 under Gauss’s,
+so the rule breaks either way. In ours the triplet ³F is the term that
+keeps the electrons nearest right angles, and it is the lowest for every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>.
+Pauli keeps same-spin electrons apart, which is the usual reason for
+Hund’s rule; four-dimensional space gives paired spins a better way.
+Every four-dimensional rotation splits into a left and a right half, a d
+orbital carries one unit of each, and the singlet adds the two
+electrons’ left halves and cancels their right ones, or the other way
+round. Three-dimensional rotations don’t split, so ours has no such
+state (appendix H.3; interactive at four.mino.mobi/atom/hund.html).</p>
+<p><strong>5.3 The correction moves energies and ionizations, no
+configuration.</strong> Where the rule fails, the solver’s energy is the
+maximum-spin state’s, too high by the gap. Every d- and f-block element
+was searched again with each candidate’s gaps added (appendix H.4).
+<strong>The terms change no ground configuration.</strong> They lower
+the eight Hund-breaking atoms’ energies and move first ionizations in
+pairs, by 0.30–0.67 eV: up for an atom whose own ground term gains the
+gap, down for the next, whose ion lands on the broken filling. The wider
+search found one configuration the bake had missed, element 82’s 4f¹ 5d¹
+6s², our cerium’s kind. The table of section 4 is the corrected one
+(<code>data/table4.csv</code>); the Hund-spin table is supplement S1. In
+a ligand field the singlet survives on the 16-cell’s eight axes and
+gives way to a triplet, barely, at a tesseract’s sixteen corners
+(appendix H.5).</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">
-<div id="ref-gonzalez1991" class="csl-entry" role="listitem">
-González, Augusto. 1991. <span>“The Quantum Few-Body Problem and the 1/D
-Method.”</span> <em>Few-Body Systems</em> 10 (2): 43–57. <a
-href="https://doi.org/10.1007/bf01352401">https://doi.org/10.1007/bf01352401</a>.
-</div>
 <div id="ref-negadi1996" class="csl-entry" role="listitem">
 Négadi, T., and M. Kibler. 1996. <span>“The Periodic Table in
 Flatland.”</span> <em>International Journal of Quantum Chemistry</em> 57
 (1): 53–61. <a
 href="https://doi.org/10.1002/(SICI)1097-461X(1996)57:1&lt;53::AID-QUA6&gt;3.0.CO;2-Y">https://doi.org/10.1002/(SICI)1097-461X(1996)57:1&lt;53::AID-QUA6&gt;3.0.CO;2-Y</a>.
 </div>
-<div id="ref-sako2010" class="csl-entry" role="listitem">
-Sako, Tokuei, Josef Paldus, and Geerd H. F. Diercksen. 2010.
-<span>“Origin of Hund’s Multiplicity Rule in Quasi-Two-Dimensional
-Two-Electron Quantum Dots.”</span> <em>Physical Review A</em> 81 (2):
-022501. <a
-href="https://doi.org/10.1103/physreva.81.022501">https://doi.org/10.1103/physreva.81.022501</a>.
-</div>
-<div id="ref-sako2012" class="csl-entry" role="listitem">
-Sako, Tokuei, Josef Paldus, Atsushi Ichimura, and Geerd H F Diercksen.
-2012. <span>“Origin of the First Hund Rule and the Structure of Fermi
-Holes in Two-Dimensional He-Like Atoms and Two-Electron Quantum
-Dots.”</span> <em>Journal of Physics B: Atomic, Molecular and Optical
-Physics</em> 45 (23): 235001. <a
-href="https://doi.org/10.1088/0953-4075/45/23/235001">https://doi.org/10.1088/0953-4075/45/23/235001</a>.
-</div>
 <div id="ref-nist-handbook" class="csl-entry" role="listitem">
 Sansonetti, J. E., and W. C. Martin. 2005. <span>“Handbook of Basic
 Atomic Spectroscopic Data.”</span> <em>Journal of Physical and Chemical
 Reference Data</em> 34 (4): 1559–2259. <a
 href="https://doi.org/10.1063/1.1800011">https://doi.org/10.1063/1.1800011</a>.
-</div>
-<div id="ref-summerfield1999" class="csl-entry" role="listitem">
-Summerfield, J.H., and J.G. Loeser. 1999. <span>“Dimension‐dependent
-Two‐electron Hamiltonian Matrix Elements.”</span> <em>Journal of
-Mathematical Chemistry</em> 25 (2-3): 309–15. <a
-href="https://doi.org/10.1023/a:1019196719751">https://doi.org/10.1023/a:1019196719751</a>.
-</div>
-<div id="ref-tanabe1954" class="csl-entry" role="listitem">
-Tanabe, Yukito, and Satoru Sugano. 1954. <span>“On the Absorption
-Spectra of Complex Ions I.”</span> <em>Journal of the Physical Society
-of Japan</em> 9 (5): 753–66. <a
-href="https://doi.org/10.1143/JPSJ.9.753">https://doi.org/10.1143/JPSJ.9.753</a>.
 </div>
 </div>
 

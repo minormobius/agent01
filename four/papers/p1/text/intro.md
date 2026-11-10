@@ -14,26 +14,22 @@ unchanged.
 
 They needn't. The literature on the hydrogen atom in $D$ dimensions [@nieto1979; @aljaber1998] and on dimensional
 scaling [@herschbach1992; @loeser1986hf; @loeser1986hp; @ghosh2020] keeps the potential at $1/r$ in every $D$,
-mostly as a convention that keeps the problem solvable. With it, hydrogen has a Bohr radius in any dimension. @negadi1996 used the $D$-dimensional hydrogen atom to extend Madelung's filling rule [@madelung1936] to any
-dimension and worked it out for two. Applied to four, their rule gives rows of {{nk.rows}}. @pyykko1991 solved the atoms of a
-two-dimensional world self-consistently, by Hartree–Fock for $Z$ = 1–24. Above three dimensions there are
-self-consistent atoms too, but not a table: Hartree–Fock for two-electron atoms in any $D$ [@loeser1986hf], the
-Thomas–Fermi atom in $n$ dimensions [@kventsel1981], and many-electron models built from the limit of large $D$
-[@loeser1987atomic; @loeser1994]. To our knowledge this paper is the first shell-resolved self-consistent survey of the
-neutral atoms through $Z = 140$ in four Euclidean dimensions, for a pairwise $1/r$ interaction and electrons with two
-spin states. Its approximations are stated with it: spherical subshells, local exchange, no correlation, and a
-first-order correction for the open subshells' terms (section 5), cross-checked by Hartree–Fock (appendix E.6). Nor, to
-our knowledge, has anyone asked what the choice of $1/r$ itself does to the atoms.
+mostly as a convention that keeps the problem solvable. @negadi1996 used the $D$-dimensional hydrogen atom to extend
+Madelung's filling rule [@madelung1936] to any dimension; applied to four, it gives rows of {{nk.rows}}. @pyykko1991
+solved the atoms of a two-dimensional world by Hartree–Fock. Above three dimensions there are self-consistent atoms,
+but not a table: Hartree–Fock for two-electron atoms in any $D$ [@loeser1986hf], the Thomas–Fermi atom in $n$
+dimensions [@kventsel1981], and many-electron models from the limit of large $D$ [@loeser1987atomic; @loeser1994]. To
+our knowledge this paper is the first shell-resolved self-consistent survey of the neutral atoms through $Z = 140$ in
+four Euclidean dimensions, for a pairwise $1/r$ interaction and electrons with two spin states, with local exchange,
+no correlation and a first-order correction for open subshells' terms, cross-checked by Hartree–Fock. Nor, to our
+knowledge, has anyone asked what the choice of $1/r$ itself does to the atoms.
 
-This paper does both. Part I treats the law as a choice: why one has to be made (section 2), why $1/r$ exactly
-(section 3), and what it costs in four dimensions (section 4). Part II solves every neutral atom to $Z = 140$ under it:
-the methods (section 5); Hund's first rule, which four-dimensional space breaks and the solver corrects for (section
-6); and the table, with each atom's valence states and a test of the valence rule on one hydride (section 7). Part III asks which of the table's features the law
-decides. It solves the table a second time with the shell theorem forced back on (section 8), follows the law into
-partial screening (section 9), and gives the response of atoms and the pull between them, the reference later work on
-molecules starts from (section 10). Section 11 states the limitations; section 12 concludes. Every method is first run
-on our own world against measured values; those checks are appendix E.
-
-Every number in the text is recomputed from the code and its baked data each time anything changes, and is checked
-against a ledger of {{ledger.n}} claims. The code, the data and the paper's own making are public at
-four.mino.mobi/papers.
+This paper does both. Part I treats the law as a choice: why one has to be made, why $1/r$ exactly, and what it costs
+in four dimensions (section 2). Part II solves every neutral atom to $Z = 140$ under it (sections 3 and 4) and finds
+that four-dimensional space breaks Hund's first rule (section 5). Part III solves the table again with the shell
+theorem forced back on, to find which of its features the law decides (section 6), and gives the pull between neutral
+atoms that later work on molecules starts from (section 7). The appendices hold the arguments and methods in full,
+every check of every method against our own world, and the starting data for chemistry: valence states, the atoms'
+response, and a test of the valence rule. Every number in the text is recomputed from the code and its data whenever
+anything changes, and checked against a ledger of {{ledger.n}} claims; the code, the data and the paper's making are
+public at four.mino.mobi/papers.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="9a1f4138102eeca22b82c1552a84c8b1839758874c508234403985944699e4e6" />
+<meta name="source-sha256" content="55563e99c6195c8d39b26bf6b578452fa5ecb913e11c12b61b77cc25dcdd35a0" />
 <title>Paper 1 · Introduction (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -50,22 +50,19 @@ href="#ref-ghosh2020" role="doc-biblioref">Ghosh, Kais, and Herschbach
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 in every
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>,
-mostly as a convention that keeps the problem solvable. With it,
-hydrogen has a Bohr radius in any dimension. <span class="citation"
-data-cites="negadi1996">Négadi and Kibler (<a href="#ref-negadi1996"
-role="doc-biblioref">1996</a>)</span> used the
+mostly as a convention that keeps the problem solvable. <span
+class="citation" data-cites="negadi1996">Négadi and Kibler (<a
+href="#ref-negadi1996" role="doc-biblioref">1996</a>)</span> used the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>-dimensional
 hydrogen atom to extend Madelung’s filling rule <span class="citation"
 data-cites="madelung1936">(<a href="#ref-madelung1936"
-role="doc-biblioref">Madelung 1936</a>)</span> to any dimension and
-worked it out for two. Applied to four, their rule gives rows of 2, 10,
-10, 28, 28, 60. <span class="citation" data-cites="pyykko1991">Pyykkö
-and Zhao (<a href="#ref-pyykko1991"
+role="doc-biblioref">Madelung 1936</a>)</span> to any dimension; applied
+to four, it gives rows of 2, 10, 10, 28, 28, 60. <span class="citation"
+data-cites="pyykko1991">Pyykkö and Zhao (<a href="#ref-pyykko1991"
 role="doc-biblioref">1991</a>)</span> solved the atoms of a
-two-dimensional world self-consistently, by Hartree–Fock for
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
-= 1–24. Above three dimensions there are self-consistent atoms too, but
-not a table: Hartree–Fock for two-electron atoms in any
+two-dimensional world by Hartree–Fock. Above three dimensions there are
+self-consistent atoms, but not a table: Hartree–Fock for two-electron
+atoms in any
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
 <span class="citation" data-cites="loeser1986hf">(<a
 href="#ref-loeser1986hf" role="doc-biblioref">Loeser and Herschbach
@@ -73,7 +70,7 @@ href="#ref-loeser1986hf" role="doc-biblioref">Loeser and Herschbach
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
 dimensions <span class="citation" data-cites="kventsel1981">(<a
 href="#ref-kventsel1981" role="doc-biblioref">Kventsel and Katriel
-1981</a>)</span>, and many-electron models built from the limit of large
+1981</a>)</span>, and many-electron models from the limit of large
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
 <span class="citation" data-cites="loeser1987atomic loeser1994">(<a
 href="#ref-loeser1987atomic" role="doc-biblioref">Loeser 1987</a>; <a
@@ -83,34 +80,29 @@ shell-resolved self-consistent survey of the neutral atoms through
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
 in four Euclidean dimensions, for a pairwise
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
-interaction and electrons with two spin states. Its approximations are
-stated with it: spherical subshells, local exchange, no correlation, and
-a first-order correction for the open subshells’ terms (section 5),
-cross-checked by Hartree–Fock (appendix E.6). Nor, to our knowledge, has
-anyone asked what the choice of
+interaction and electrons with two spin states, with local exchange, no
+correlation and a first-order correction for open subshells’ terms,
+cross-checked by Hartree–Fock. Nor, to our knowledge, has anyone asked
+what the choice of
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 itself does to the atoms.</p>
 <p>This paper does both. Part I treats the law as a choice: why one has
-to be made (section 2), why
+to be made, why
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
-exactly (section 3), and what it costs in four dimensions (section 4).
-Part II solves every neutral atom to
+exactly, and what it costs in four dimensions (section 2). Part II
+solves every neutral atom to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>
-under it: the methods (section 5); Hund’s first rule, which
-four-dimensional space breaks and the solver corrects for (section 6);
-and the table, with each atom’s valence states and a test of the valence
-rule on one hydride (section 7). Part III asks which of the table’s
-features the law decides. It solves the table a second time with the
-shell theorem forced back on (section 8), follows the law into partial
-screening (section 9), and gives the response of atoms and the pull
-between them, the reference later work on molecules starts from (section
-10). Section 11 states the limitations; section 12 concludes. Every
-method is first run on our own world against measured values; those
-checks are appendix E.</p>
-<p>Every number in the text is recomputed from the code and its baked
-data each time anything changes, and is checked against a ledger of 40
-claims. The code, the data and the paper’s own making are public at
-four.mino.mobi/papers.</p>
+under it (sections 3 and 4) and finds that four-dimensional space breaks
+Hund’s first rule (section 5). Part III solves the table again with the
+shell theorem forced back on, to find which of its features the law
+decides (section 6), and gives the pull between neutral atoms that later
+work on molecules starts from (section 7). The appendices hold the
+arguments and methods in full, every check of every method against our
+own world, and the starting data for chemistry: valence states, the
+atoms’ response, and a test of the valence rule. Every number in the
+text is recomputed from the code and its data whenever anything changes,
+and checked against a ledger of 40 claims; the code, the data and the
+paper’s making are public at four.mino.mobi/papers.</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">

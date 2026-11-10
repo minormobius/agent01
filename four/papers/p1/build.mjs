@@ -340,47 +340,47 @@ function ledger(t3, t4, files, refs) {
   const claims = [
     { id: "gauss", part: "law", claim: "Gauss's law in 4D (a 1/r² potential) has no atom: below a critical strength nothing binds, above it the ground state falls to the centre, its energy set by wherever the calculation stops (no Bohr radius either way)",
       value: `α = 0.45: bound on no grid; α = 0.7: ε = ${strong.map((g) => g.e.toExponential(3)).join(", ")} hartree for r₀ = 10⁻³, 10⁻⁴, 10⁻⁵ (×${ratioR0.toExponential(2)} over 10⁻² in r₀: ε ∝ 1/r₀²); the critical strength is ½ (Hardy's inequality in 4D)`,
-      holds: weak.every((g) => !g.bound) && strong.every((g) => g.bound) && Math.abs(ratioR0 / 1e4 - 1) < 0.01, section: "2", gate: [67] },
+      holds: weak.every((g) => !g.bound) && strong.every((g) => g.bound) && Math.abs(ratioR0 / 1e4 - 1) < 0.01, section: "2.1", gate: [67] },
     { id: "uniqueness", part: "law", claim: "Among power laws 1/r^η only η = 1 keeps a shell's levels together (2s with 2p, 3s with 3d), the degeneracy that makes shells of 2(l + 1)² and rows of 2, 10, 10, 28 …",
       value: splits.map((s) => `η = ${s.p}: 2p − 2s ${(100 * s.split2).toFixed(s.p === 1 ? 9 : 1)} %, 3d − 3s ${(100 * s.split3).toFixed(s.p === 1 ? 9 : 1)} %`).join("; "),
-      holds: Math.abs(splits[1].split2) < 1e-8 && Math.abs(splits[1].split3) < 1e-8 && splits[0].split2 < -0.01 && splits[2].split2 > 0.01, section: "2", gate: [67] },
+      holds: Math.abs(splits[1].split2) < 1e-8 && Math.abs(splits[1].split3) < 1e-8 && splits[0].split2 < -0.01 && splits[2].split2 > 0.01, section: "2.3", gate: [67] },
     { id: "harmonic", part: "law", claim: "Pinned in 4D, 1/r isn't harmonic: ∇²(1/r) = −1/r³ in empty space, so there is no Gauss's law for it",
-      value: `∇²(1/r) at r = 1, 2: ${lap(1).toFixed(5)}, ${lap(2).toFixed(5)} (−1/r³: −1, −0.125)`, holds: Math.abs(lap(1) + 1) < 1e-4 && Math.abs(lap(2) + 0.125) < 1e-4, section: "2", gate: [3, 33] },
+      value: `∇²(1/r) at r = 1, 2: ${lap(1).toFixed(5)}, ${lap(2).toFixed(5)} (−1/r³: −1, −0.125)`, holds: Math.abs(lap(1) + 1) < 1e-4 && Math.abs(lap(2) + 0.125) < 1e-4, section: "2.4", gate: [3, 33] },
     { id: "shell", part: "law", claim: "… and no shell theorem: a shell of charge is felt at its own radius at k(1) = 8/3π of a point charge's pull, and a hollow conductor's centre sits at 3π/8 of its wall's potential (no Faraday cage)",
-      value: `k(1) = ${k1.toFixed(6)} (8/3π = ${(8 / (3 * Math.PI)).toFixed(6)}); centre over wall ${(1 / k1).toFixed(6)} (3π/8 = ${((3 * Math.PI) / 8).toFixed(6)})`, holds: Math.abs(k1 - 8 / (3 * Math.PI)) < 1e-6, section: "2", gate: [3] },
+      value: `k(1) = ${k1.toFixed(6)} (8/3π = ${(8 / (3 * Math.PI)).toFixed(6)}); centre over wall ${(1 / k1).toFixed(6)} (3π/8 = ${((3 * Math.PI) / 8).toFixed(6)})`, holds: Math.abs(k1 - 8 / (3 * Math.PI)) < 1e-6, section: "2.4", gate: [3] },
     (() => { const fit = (rows) => { const x = rows.map((e) => Math.log(e.Z)), y = rows.map((e) => Math.log(-e.E)), n = x.length, mx = x.reduce((p, q) => p + q) / n, my = y.reduce((p, q) => p + q) / n; let sxy = 0, sxx = 0; for (let i = 0; i < n; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; } return sxy / sxx; };
       const e4 = fit(TABLE[4].filter((e) => e.Z >= 10)), e3 = fit(TABLE[3].filter((e) => e.Z >= 10));
       return { id: "tf", part: "law", claim: "Atoms don't collapse: total energies follow each world's Thomas–Fermi law, Z^(3−2/D) (Z^(5/2) in four dimensions, Z^(7/3) in ours), as the shell theorem's absence would have to break if matter were unstable",
         value: `fitted exponent ${e4.toFixed(3)} over Z = 10–140 in 4D (5/2 = 2.5); ${e3.toFixed(3)} over Z = 10–36 in ours (7/3 = 2.333); both a little above, as finite-Z corrections make them`,
-        holds: e4 > 2.5 && e4 < 2.56 && e3 > 7 / 3 && e3 < 2.42 && e4 - 2.5 < e3 - 7 / 3 + 0.03, section: "4.5", gate: [67] }; })(),
+        holds: e4 > 2.5 && e4 < 2.56 && e3 > 7 / 3 && e3 < 2.42 && e4 - 2.5 < e3 - 7 / 3 + 0.03, section: "2.5", gate: [67] }; })(),
     { id: "rows", part: "table", claim: "The 4D table's rows hold 2, 10, 10, 28, 28, 60 elements: the rows Négadi and Kibler's generalized Madelung rule (stated for any D, worked out by them for D = 2) gives when applied to D = 4",
-      value: `solved ${whole.join(", ")} (and ${rows.at(-1)} of the next by Z = 140); the rule ${predicted.join(", ")}`, holds: whole.join() === predicted.join() && whole.join() === "2,10,10,28,28,60", section: "5", gate: [7, 27, 67] },
+      value: `solved ${whole.join(", ")} (and ${rows.at(-1)} of the next by Z = 140); the rule ${predicted.join(", ")}`, holds: whole.join() === predicted.join() && whole.join() === "2,10,10,28,28,60", section: "4.1", gate: [7, 27, 67] },
     (() => { const dv = madelungDiff(t4, 4), pair = dv.every((x) => x.moves.length === 2 && x.moves.reduce((t, [, v]) => t + v, 0) === 0 && Math.abs(x.moves[0][1]) <= 2);
       const ours = madelungDiff(t3.filter((r) => r.Z <= 36), 3), real = madelungDiff(t3.filter((r) => r.Z <= 36), 3, (r) => r.config_measured);
       return { id: "madelungfill", part: "table", claim: "Inside the rows, read as a ground-configuration rule (which, like Madelung's in ours, it isn't meant to be exactly): most 4D atoms fill exactly in its order, and every other moves one or two electrons between two subshells, nearly always from an outer s into the d or f below it, as our chromium and copper do",
         value: `${t4.length - dv.length} of ${t4.length} exactly the rule's; the rest: ${dv.map((x) => `${x.Z} ${moveText(x.moves)}`).join(", ")}. Ours 1–36: the solver departs at ${ours.map((x) => x.Z).join(", ")}, measured at ${real.map((x) => x.Z).join(", ")}`,
-        holds: pair && dv.length < 45 && t4.length - dv.length > 95, section: "7.1", gate: [67] }; })(),
+        holds: pair && dv.length < 45 && t4.length - dv.length > 95, section: "4.1", gate: [67] }; })(),
     (() => { const L = ionLadder(t4), zs = [...new Set(L.dFirst.map((x) => x.Z))];
       return { id: "ions23", part: "table", claim: "The +2 and +3 ions, each searched for its own ground state: ours' second and third ionizations agree with NIST more closely than the first; in 4D the 3d row's ions lose their outer s electrons first, as ours do, while the first elements of the 4d and 5d blocks give up a d electron first at +1 or +2, as our yttrium and lutetium do",
         value: `ours vs NIST, median |err|: 1st ${L.med(L.c1).toFixed(1)} % (n ${L.c1.length}), 2nd ${L.med(L.c2).toFixed(1)} % (n ${L.c2.length}), 3rd ${L.med(L.c3).toFixed(1)} % (n ${L.c3.length}); 4D removals taking d/f with the valence s held: ${L.dFirst.map((x) => `${x.Z}(${x.q}+)`).join(", ")}; s first: ${L.sFirst.length}`,
         holds: L.med(L.c2) < L.med(L.c1) && L.med(L.c3) < L.med(L.c1) && !zs.some((z) => z >= 23 && z <= 42), section: "E.4", gate: [67] }; })(),
     { id: "nobles", part: "table", claim: "Its noble gases are elements 2, 12, 22, 50, 78 and 138, each a peak of the first ionization energy",
-      value: `noble gases ${nobleZ.join(", ")}; each above both neighbours: ${peaks ? "yes" : "no"}`, holds: nobleZ.join() === "2,12,22,50,78,138" && peaks, section: "5", gate: [7, 27, 67] },
+      value: `noble gases ${nobleZ.join(", ")}; each above both neighbours: ${peaks ? "yes" : "no"}`, holds: nobleZ.join() === "2,12,22,50,78,138" && peaks, section: "4.1", gate: [7, 27, 67] },
     { id: "fulld", part: "table", claim: "The hardest-held electron in the table isn't a noble gas's: element 128, whose 18-electron d shell is full with nothing outside it (our palladium's kind), out-holds its row's noble gas 138, and element 68, the same kind a row up, comes within a volt of its row's noble gas 78 (in ours palladium holds far less hard than xenon, 8.3 against 12.1 eV)",
       value: `128: ${t4[127].ion_eV.toFixed(2)} eV (${t4[127].config.split(" ").slice(-2).join(" ")}) against 138: ${t4[137].ion_eV.toFixed(2)}; 68: ${t4[67].ion_eV.toFixed(2)} eV (${t4[67].config.split(" ").slice(-2).join(" ")}) against 78: ${t4[77].ion_eV.toFixed(2)}; the table's highest is element ${[...t4].sort((x, y) => y.ion_hartree - x.ion_hartree)[0].Z}`,
-      holds: t4[127].ion_hartree > t4[137].ion_hartree && [...t4].sort((x, y) => y.ion_hartree - x.ion_hartree)[0].Z === 128 && /5d18$/.test(t4[127].config) && /4d18$/.test(t4[67].config) && t4[77].ion_eV - t4[67].ion_eV < 1 && t4[77].ion_eV > t4[67].ion_eV, section: "7", gate: [67] },
+      holds: t4[127].ion_hartree > t4[137].ion_hartree && [...t4].sort((x, y) => y.ion_hartree - x.ion_hartree)[0].Z === 128 && /5d18$/.test(t4[127].config) && /4d18$/.test(t4[67].config) && t4[77].ion_eV - t4[67].ion_eV < 1 && t4[77].ion_eV > t4[67].ion_eV, section: "4.2", gate: [67] },
     (() => { const AU = JSON.parse(readFileSync(join(HERE, "data/audit-scf.json"), "utf8")), m = AU.summary; return { id: "converged", part: "table", claim: "The table's numbers are converged in the solver's stop: tightening it a hundred-thousandfold moves no total or ionization energy by a microhartree, nor Σ⟨r²⟩ by 10⁻⁴ of itself",
       value: `${AU.rows.length} atoms, both worlds: |ΔE| ≤ ${m.maxAbs_dE.toExponential(1)}, |Δion| ≤ ${m.maxAbs_dIon.toExponential(1)} hartree; Σ⟨r²⟩ ≤ ${m.maxSRel.toExponential(1)} relative, the bake's against the tight ${m.maxBakeSRel.toExponential(1)}`,
-      holds: m.allTight && m.maxAbs_dE < 1e-6 && m.maxAbs_dIon < 1e-6 && m.maxSRel < 1e-4 && m.maxBakeSRel < 1e-4 && AU.rows.every((r) => Math.abs(r.bakeE - r.tightE) < 1e-5), section: "E, C", gate: [67] }; })(),
+      holds: m.allTight && m.maxAbs_dE < 1e-6 && m.maxAbs_dIon < 1e-6 && m.maxSRel < 1e-4 && m.maxBakeSRel < 1e-4 && AU.rows.every((r) => Math.abs(r.bakeE - r.tightE) < 1e-5), section: "C, G.6", gate: [67] }; })(),
     (() => { const CV = JSON.parse(readFileSync(join(HERE, "data/convergence.json"), "utf8")), m = CV.summary; return { id: "grid", part: "table", claim: "The table's ionization energies don't depend on the radial grid: halving or doubling its points, or moving either end by a factor of ten in or out, moves none by a millihartree",
       value: `${CV.base.atoms.length} atoms, both worlds, six grids: |Δion| ≤ ${m.maxAbs_dIon.toExponential(1)} hartree; total energies ≤ ${m.maxAbs_dE.toExponential(1)}`,
-      holds: m.allConverged && m.maxAbs_dIon < 1e-3, section: "E, C", gate: [67] }; })(),
+      holds: m.allConverged && m.maxAbs_dIon < 1e-3, section: "C, G.7", gate: [67] }; })(),
     { id: "hydrogen", part: "table", claim: "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
-      value: `${h} hartree against ${hExact.toFixed(5)}`, holds: Math.abs(h - hExact) < 1e-5, section: "4", gate: [1] },
+      value: `${h} hartree against ${hExact.toFixed(5)}`, holds: Math.abs(h - hExact) < 1e-5, section: "3, E.1", gate: [1] },
     { id: "configs3", part: "table", claim: "The same solver in our three dimensions gets 32 of our 36 ground configurations",
-      value: `${hits} of ${t3.length}; missed ${misses.join(", ")} (one d electron too many against 4s: local exchange leans to d)`, holds: hits === 32, section: "4", gate: [6, 67] },
+      value: `${hits} of ${t3.length}; missed ${misses.join(", ")} (one d electron too many against 4s: local exchange leans to d)`, holds: hits === 32, section: "E.3", gate: [6, 67] },
     { id: "ion3", part: "table", claim: "… and our first ionization energies to a few percent",
-      value: `median error ${med.toFixed(1)} %, largest ${errs.at(-1).toFixed(1)} %`, holds: med < 6, section: "4", gate: [6] },
+      value: `median error ${med.toFixed(1)} %, largest ${errs.at(-1).toFixed(1)} %`, holds: med < 6, section: "E.3", gate: [6] },
     ...(() => { // the counterfactual table (data/shelltable.json, lawtable.mjs): only settled atoms count
       // unsettled: no field converged (E null), or a "ground state" an electron would rather leave (negative ionization:
       // the search missed a lower configuration); neither counts as a result
@@ -391,80 +391,80 @@ function ledger(t3, t4, files, refs) {
       return [
         { id: "geometry", part: "consequence", claim: "The rows are the geometry's, not the law's: solved with the shell theorem forced on, the first 24 elements keep every configuration, and the noble gases close the same rows at 2, 12, 22, 50, 78 and 138",
           value: `with the shell theorem: 1–24 unchanged (${ST.slice(0, 24).every((r) => settledRow(r) && r.sameConfig) ? "all settled, all the same" : "not all"}); every atom to 88 settled; noble gases ${nobles.map((z) => `${z} ${settledRow(ST[z - 1]) && ST[z - 1].sameConfig ? "same" : "changed"}`).join(", ")}. ${uns.length} atoms of row 6's f block don't settle under the shell theorem (${uns.length ? `${uns[0]}–${uns.at(-1)}` : ""}), so whether row 6 splits is open`,
-          holds: ST.slice(0, 24).every((r) => settledRow(r) && r.sameConfig) && nobles.every((z) => settledRow(ST[z - 1]) && ST[z - 1].sameConfig) && ST.slice(0, 88).every(settledRow), section: "8", gate: [67] },
+          holds: ST.slice(0, 24).every((r) => settledRow(r) && r.sameConfig) && nobles.every((z) => settledRow(ST[z - 1]) && ST[z - 1].sameConfig) && ST.slice(0, 88).every(settledRow), section: "6.1", gate: [67] },
         { id: "reorders", part: "consequence", claim: "The law decides what fills inside the rows: of the atoms settled under both, every change of configuration begins at the first d element, and under the shell theorem p beats d (element 25 takes 4s² 4p¹ where the law gives 3d¹ 4s²)",
           value: `${ok.length} settled under the shell theorem; ${diff.length} differ, the first at ${Math.min(...diff.map((r) => r.Z))}; in every one the law's own configuration stays lower under the law (${ok.every((r) => r.tableStillLower) ? "checked" : "NOT"})`,
-          holds: Math.min(...diff.map((r) => r.Z)) === 25 && ok.every((r) => r.tableStillLower) && /4p1$/.test(ST[24].config), section: "8", gate: [67] },
+          holds: Math.min(...diff.map((r) => r.Z)) === 25 && ok.every((r) => r.tableStillLower) && /4p1$/.test(ST[24].config), section: "6.2", gate: [67] },
         { id: "law128", part: "consequence", claim: "Element 128's hold on its outermost electron is the law's: with the shell theorem forced on it falls from the table's highest to a few volts, and the noble gases hold hardest, as ours do",
           value: `128: ${(z128.ion * 27.211386).toFixed(2)} eV with the shell theorem against ${t4[127].ion_eV.toFixed(2)} under the law; the shell theorem's five highest are ${[...ok].filter((r) => r.ion !== null).sort((x, y) => y.ion - x.ion).slice(0, 5).map((r) => r.Z).join(", ")}`,
-          holds: z128.E !== null && z128.ion * 27.211386 < 10 && [...ok].filter((r) => r.ion !== null).sort((x, y) => y.ion - x.ion).slice(0, 5).map((r) => r.Z).sort((x, y) => x - y).join() === "12,22,50,78,138", section: "8", gate: [67] },
+          holds: z128.E !== null && z128.ion * 27.211386 < 10 && [...ok].filter((r) => r.ion !== null).sort((x, y) => y.ion - x.ion).slice(0, 5).map((r) => r.Z).sort((x, y) => x - y).join() === "12,22,50,78,138", section: "6.3", gate: [67] },
         { id: "holdratio", part: "consequence", claim: "Across the table the law holds outer electrons about two and a half times harder than the shell theorem would, and up to ten times",
           value: `first ionization, the law over the shell theorem, ${both.length} atoms past helium settled under both: median ${both[both.length >> 1].toFixed(2)}, from ${both[0].toFixed(2)} to ${both.at(-1).toFixed(2)}`,
-          holds: both[both.length >> 1] > 2 && both[both.length >> 1] < 3 && both.at(-1) > 9 && both[0] > 1, section: "9", gate: [67] },
+          holds: both[both.length >> 1] > 2 && both[both.length >> 1] < 3 && both.at(-1) > 9 && both[0] > 1, section: "6.3", gate: [67] },
       ];
     })(),
     ...(() => { const { HU, HL } = hundData(), r4 = HU.filter((r) => r.d === 4), r3 = HU.filter((r) => r.d === 3), fails = r4.filter((r) => !r.hund);
       const gauss = HL.find((x) => x.id === "gauss"), law = HL.find((x) => x.id === "law"), single = (c) => c.terms[0].mult === 1 && c.terms[0].g === 10;
       return [
         { id: "hund3", part: "table", claim: "In ours every open subshell of the table has its maximum spin lowest (Hund's first rule), from the subshell's own repulsion",
-          value: `${r3.length} subshells (p and d) of our 36 atoms: ${r3.every((r) => r.hund && r.complete) ? "all hold" : "NOT all"}`, holds: r3.length > 20 && r3.every((r) => r.hund && r.complete), section: "6", gate: [67] },
+          value: `${r3.length} subshells (p and d) of our 36 atoms: ${r3.every((r) => r.hund && r.complete) ? "all hold" : "NOT all"}`, holds: r3.length > 20 && r3.every((r) => r.hund && r.complete), section: "5", gate: [67] },
         { id: "hund4", part: "table", claim: "In four dimensions Hund's first rule fails for d² and d¹⁶ in every d row, and holds for every other p and d filling of the table",
           value: `${r4.filter((r) => r.l <= 2).length} p and d subshells; fails: ${fails.filter((r) => r.l === 2).map((r) => `${r.Z} ${r.shell}${r.n} by ${Math.abs(r.belowMax_eV).toFixed(3)} eV`).join(", ")}`,
-          holds: r4.filter((r) => r.l <= 2 && !r.hund).every((r) => r.l === 2 && (r.n === 2 || r.n === 16) && r.groundS === 0) && [2, 16].every((n) => r4.filter((r) => r.l === 2 && r.n === n).length === 3 && r4.filter((r) => r.l === 2 && r.n === n).every((r) => !r.hund)) && r4.filter((r) => r.l === 1).every((r) => r.hund), section: "6", gate: [67] },
+          holds: r4.filter((r) => r.l <= 2 && !r.hund).every((r) => r.l === 2 && (r.n === 2 || r.n === 16) && r.groundS === 0) && [2, 16].every((n) => r4.filter((r) => r.l === 2 && r.n === n).length === 3 && r4.filter((r) => r.l === 2 && r.n === n).every((r) => !r.hund)) && r4.filter((r) => r.l === 1).every((r) => r.hund), section: "5.1", gate: [67] },
         { id: "hund4f29", part: "table", claim: "… and so does its mirror 4f²⁹, three short of a full f shell: spin ½ again",
           value: (() => { const r = r4.find((x) => x.l === 3 && x.n === 29); return r ? `108 4f29: S ${r.groundS} of ${r.Smax}, ${Math.abs(r.belowMax_eV).toFixed(3)} eV below${r.complete ? "" : " (bound)"}` : "not run"; })(),
-          holds: r4.some((r) => r.l === 3 && r.n === 29 && !r.hund && r.groundS === 0.5 && r.complete), section: "6", gate: [67] },
+          holds: r4.some((r) => r.l === 3 && r.n === 29 && !r.hund && r.groundS === 0.5 && r.complete), section: "5.1", gate: [67] },
         { id: "hund4f3", part: "table", claim: "In four dimensions 4f³ breaks it too: its ground term has spin ½",
-          value: r4.filter((r) => r.l === 3).map((r) => `${r.Z} ${r.shell}${r.n}: S ${r.groundS} of ${r.Smax}${r.complete ? "" : " (bound)"}`).join("; "), holds: r4.some((r) => r.l === 3 && r.n === 3 && !r.hund && r.groundS === 0.5), section: "6", gate: [67] },
+          value: r4.filter((r) => r.l === 3).map((r) => `${r.Z} ${r.shell}${r.n}: S ${r.groundS} of ${r.Smax}${r.complete ? "" : " (bound)"}`).join("; "), holds: r4.some((r) => r.l === 3 && r.n === 3 && !r.hund && r.groundS === 0.5), section: "5.1", gate: [67] },
         (() => { const W = hundWeights(); return { id: "hundcrit", part: "table", claim: "Why: two d electrons' terms have energies F⁰ + a₂F² + a₄F⁴ exactly; in 4D the ten-state singlet keeps the electrons nearer right angles than any triplet (⟨cos²γ⟩ 1/8, half of random) and lies lowest whenever F⁴/F² < 5/3, which every real orbital meets; in ours ³F is lowest for every F⁴/F²",
           value: `4D: singlet ⟨cos²γ⟩ ${W.s4.cos2}, best triplet ${W.t4.cos2} (random 0.25); singlet lowest for F⁴/F² < ${W.crit.toFixed(4)}; element 26's F⁴/F² ${W.rLaw.toFixed(3)} (1/r), ${W.rGauss.toFixed(3)} (Gauss). Ours: ³F ${W.f3.cos2}, ¹D ${W.d3.cos2} (random 1/3); ³F lowest for all F⁴/F² ≥ 0: ${W.ours3}`,
-          holds: Math.abs(W.crit - 5 / 3) < 1e-4 && W.rLaw < W.crit && W.rGauss < W.crit && W.s4.cos2 < W.t4.cos2 && Math.abs(W.s4.cos2 - 0.125) < 1e-4 && W.ours3, section: "6", gate: [67] }; })(),
+          holds: Math.abs(W.crit - 5 / 3) < 1e-4 && W.rLaw < W.crit && W.rGauss < W.crit && W.s4.cos2 < W.t4.cos2 && Math.abs(W.s4.cos2 - 0.125) < 1e-4 && W.ours3, section: "5.2", gate: [67] }; })(),
         { id: "hundlaw", part: "table", claim: "The failure is the 4D shell's, not the law's: Gauss's 1/r² gives d² the same singlet ground term, further below its triplet",
-          value: `element 26's orbital: triplet above the singlet by ${law.terms.find((t) => t.mult === 3 && t.g === 30).eV} eV under 1/r, ${gauss.terms.find((t) => t.mult === 3 && t.g === 30).eV} eV under 1/r²`, holds: single(law) && single(gauss), section: "6", gate: [67] },
+          value: `element 26's orbital: triplet above the singlet by ${law.terms.find((t) => t.mult === 3 && t.g === 30).eV} eV under 1/r, ${gauss.terms.find((t) => t.mult === 3 && t.g === 30).eV} eV under 1/r²`, holds: single(law) && single(gauss), section: "5.2", gate: [67] },
       ]; })(),
     (() => { const T = [...TERM.values()], byS = T.filter((r) => r.configChangedBySearch), byT = T.filter((r) => r.configChangedByTerms), moved = T.filter((r) => r.ion_eV != null && Math.abs((r.ion_byRemoval_eV ?? r.ion_eV) - r.bake.ion_eV) > 0.02 && !r.configChangedBySearch).map((r) => ({ ...r, ion_eV: r.ion_byRemoval_eV ?? r.ion_eV }));
       return { id: "termtable", part: "table", claim: "Resolving the terms changes no ground configuration: it lowers the eight Hund-breaking atoms' energies and moves eight first ionizations by 0.3–0.7 eV; the wider search behind it finds one configuration the bake missed (element 82: 4f¹ 5d¹ 6s², our cerium's kind)",
         value: `${T.length} elements searched again; configurations changed by the terms: ${byT.map((r) => r.Z).join(", ") || "none"}; by the wider search: ${byS.map((r) => `${r.Z} (${r.bake.config.split(" ").slice(-3).join(" ")} → ${r.config.split(" ").slice(-4).join(" ")}, ${((r.uncorrected.E_hartree - r.bake.E) * EV).toFixed(3)} eV)`).join(", ")}; ionizations moved: ${moved.map((r) => `${r.Z} ${r.bake.ion_eV.toFixed(2)}→${r.ion_eV.toFixed(2)}`).join(", ")}`,
-        holds: byT.length === 0 && byS.map((r) => r.Z).join() === "82" && moved.length === 8 && moved.every((r) => Math.abs(r.ion_eV - r.bake.ion_eV) < 0.7), section: "6", gate: [67] }; })(),
+        holds: byT.length === 0 && byS.map((r) => r.Z).join() === "82" && moved.length === 8 && moved.every((r) => Math.abs(r.ion_eV - r.bake.ion_eV) < 0.7), section: "5.3", gate: [67] }; })(),
     (() => { const P = JSON.parse(readFileSync(join(HERE, "data/promotion3.json"), "utf8")), ok = P.promotion.filter((x) => !x.missing);
       return { id: "promotion", part: "table", claim: "In ours the solver's misses have one cause, a bias toward d: moving a 4s electron into 3d comes out too cheap in every 3d atom measured, by about a volt; resolving the open subshells' whole term structure doesn't remove it, and gets fewer configurations right",
         value: `4s→3d, solver against measured (eV): ${ok.map((x) => `${x.symbol} ${x.solver_eV} vs ${x.measured_eV}`).join(", ")}; mean error ${P.solverMeanError_eV}, with the full term correction ${P.fullMeanError_eV}; configurations right ${P.configs.bake} (bake) and ${P.configs.fullCorrection} (full correction) of ${P.configs.elements}`,
-        holds: ok.length >= 5 && ok.every((x) => x.solverError_eV < 0) && P.fullMeanAbs_eV >= P.solverMeanAbs_eV - 0.05 && P.configs.fullCorrection < P.configs.bake, section: "E", gate: [67] }; })(),
+        holds: ok.length >= 5 && ok.every((x) => x.solverError_eV < 0) && P.fullMeanAbs_eV >= P.solverMeanAbs_eV - 0.05 && P.configs.fullCorrection < P.configs.bake, section: "E.3", gate: [67] }; })(),
     (() => { const R = JSON.parse(readFileSync(join(HERE, "data/response.json"), "utf8")).rows, T = respTokens(), r4 = R.filter((r) => r.D === 4);
       return { id: "response", part: "consequence", claim: "Atomic response, converged: the coupled response gives hydrogen exactly and our closed-shell atoms within about 10 % of reference values (alkalis and alkaline earths too polarizable); in four dimensions the permanent pull C5 = 3Q²/64 outranges dispersion everywhere outside the atom except for hydrogen, helium and the alkali-like atoms",
         value: `${R.length} atoms; quadrature ${T["resp.quad"]}, grid ${T["resp.grid"]}, sum rule ≥ ${T["resp.sumMin"]}; ours' median error α ${T["resp.medA"]}, C6 ${T["resp.medC"]}; R* (bohr): H, He ${T["resp.rH"]}, s-like ${T["resp.rS"]}, the rest ${T["resp.rClosed"]}`,
         holds: R.every((r) => r.quadrature < 1e-4 && r.grid.alpha0 < 0.01 && r.grid.C6 < 0.01 && r.sumRule > 0.88) && Math.abs(R.find((r) => r.D === 3 && r.Z === 1).alpha0 - 4.5) < 1e-3 && r4.filter((r) => r.Z >= 12 && ![13, 14, 23, 24, 51, 52].includes(r.Z)).every((r) => r.Rstar < 2),
-        section: "10.1", gate: [67] }; })(),
+        section: "7, J.1", gate: [67] }; })(),
     (() => { const L = JSON.parse(readFileSync(join(HERE, "data/ligandd2.json"), "utf8")).rows, g = (D, k) => L.find((r) => r.D === D && r.ligands === k), ax = g(4, "axes"), co = g(4, "corners");
       return { id: "ligandd2", part: "table", claim: "4D's d² singlet survives a ligand field on the axes at every strength, gives way to a triplet only narrowly at the tesseract's corners, and the 24-cell doesn't split d at all; ours' d² keeps its triplet",
         value: `axes: ground singlet at every s (last ${ax.scan.at(-1).ground.mult}×${ax.scan.at(-1).ground.g}); corners: triplet from Δ ${co.groundChangesAt?.delta_eV} eV; 24-cell spread ${g(4, "24-cell").oneElectronSpread_eV}; ours' grounds ${g(3, "axes").scan.every((x) => x.ground.mult === 3)}, ${g(3, "corners").scan.every((x) => x.ground.mult === 3)}`,
         holds: ax.scan.every((x) => x.ground.mult === 1) && co.groundChangesAt?.to.mult === 3 && g(4, "24-cell").oneElectronSpread_eV < 1e-6 && g(3, "axes").scan.every((x) => x.ground.mult === 3) && g(3, "corners").scan.every((x) => x.ground.mult === 3),
-        section: "6.5", gate: [67] }; })(),
+        section: "H.5", gate: [67] }; })(),
     (() => { const S = JSON.parse(readFileSync(join(HERE, "data/separate.json"), "utf8")), T = sepTokens(), p4 = (z) => S.pairs.find((p) => p.D === 4 && p.Z === z);
       return { id: "separate", part: "consequence", claim: "Stretched pairs of light atoms come apart into neutral atoms with their own spins in both worlds; in 4D the separated limit of closed-shell atoms is the permanent pull −3Q²/64R⁵, which Hartree–Fock reproduces",
         value: `pairs ours ${T["sep.pairs3"]}, 4D ${T["sep.pairs4"]}: charges ${T["sep.maxQ"]}, ours' interaction at 16 bohr ≤ ${T["sep.ours16"]} mHa; 4D at 16 bohr, Hartree–Fock over the far form: closed ${T["sep.rClosed"]}, H ${T["sep.rH"]}, open p ${T["sep.rOpen"]}; basis error closed ${T["sep.closed"]} mHa`,
         holds: S.pairs.every((p) => p.maxCharge < 1e-4 && p.spinsRight) && [2, 12].every((z) => Math.abs(p4(z).at16.ratio - 1) < 0.1) && S.pairs.filter((p) => p.D === 3).every((p) => Math.abs(p.at16.hf) < 0.01),
-        section: "10.2", gate: [67] }; })(),
+        section: "7, J.2", gate: [67] }; })(),
     (() => { const V = JSON.parse(readFileSync(join(HERE, "data/valence.json"), "utf8")), C = V.calibration, T = valTokens(), sp = C.filter((c) => c.kind === "s→p" && ![7, 15, 16].includes(c.Z)), ryd = C.filter((c) => c.kind === "Rydberg");
       return { id: "valence", part: "table", claim: "Valence states: one-electron moves from the ground by both methods; on ours the Rydberg moves hold to a few tenths of an eV, and the s→p promotion of an atom with its p shell under half full is too cheap in both methods",
         value: `${T["val.nCal"]} calibration states; Rydberg medians ${T["val.ryd"]} eV; s→p (${T["val.spEarlyEl"]}) ${T["val.spEarly"]}; 4D 2s→2p of element 4 ${T["val.d4"]}, darbon ${T["val.d7"]} eV`,
         holds: sp.length >= 5 && sp.every((c) => c.ldaError_eV < 0 && c.hfError_eV < 0) && ryd.length >= 10 && ryd.map((c) => Math.abs(c.hfError_eV)).sort((a, b) => a - b)[Math.floor(ryd.length / 2)] < 0.5,
-        section: "7.4", gate: [67] }; })(),
+        section: "I.1", gate: [67] }; })(),
     (() => { const V = JSON.parse(readFileSync(join(HERE, "data/valencetest.json"), "utf8")), R = V.reactions, H = V.hessian, T = vtTokens();
       return { id: "valencetest", part: "table", claim: "The valence rule tested on one hydride: darbon's DH₅, with the five bonds the rule counts, is a true minimum (every curvature in four dimensions positive) and lies below both balanced alternatives, DH₄ + H and DH₃ + H₂, each fragment in its lowest spin",
         value: `${H.coordinates} coordinates, ${H.rigidModes.length} rigid, ${H.vibrational.length} curvatures in groups ${T["vt.groups"]}, lowest ${T["vt.low"]} Ha/bohr², none negative, gradient ${H.gradientMax}; DH₅ → DH₄ + H ${R.toXHn1_H.hf}/${R.toXHn1_H.mp2} eV, → DH₃ + H₂ ${R.toXHn2_H2.hf}/${R.toXHn2_H2.mp2} eV (Hartree–Fock/MP2)`,
         holds: R.Z === 7 && R.n === 5 && H.missing === 0 && H.negative === 0 && H.lowest > 0.01 && H.gradientMax < 1e-4 && H.rigidModes.every((x) => Math.abs(x) < 1e-4) && R.toXHn1_H.hf > 0 && R.toXHn1_H.mp2 > 0 && R.toXHn2_H2.hf > 0 && R.toXHn2_H2.mp2 > 0 && R.fragments.every((x) => x.converged),
-        section: "7.5", gate: [67] }; })(),
+        section: "I.2", gate: [67] }; })(),
     (() => { const S = HFT.summary, T = hfTokens(), P = S.promotion3.filter((x) => !x.missing);
       return { id: "hfcheck", part: "table", claim: "A second method, numerical Hartree–Fock, on the same candidates: in ours it gets more ground configurations than local exchange, and where the two agree they are right; its 4s→3d promotion errors change sign at half filling, so the two methods don't bracket the measured value. In 4D the two agree on most of the table, and the rest are open",
         value: `ours: Hartree–Fock ${S.ours.hfRight}, local exchange ${S.ours.ldaRight} of ${S.ours.n}; agree ${S.ours.agree}, right ${S.ours.agreeRight}; 4s→3d errors (local exchange/Hartree–Fock) ${T["hf.promList"]}; 4D: agree ${S.fourD.agree} of ${S.fourD.n}, open ${T["hf.4d"]} (d), ${T["hf.4f"]} (f), ${T["hf.4o"]}`,
         holds: S.ours.n === 36 && S.fourD.n === 140 && S.ours.agree === S.ours.agreeRight && S.ours.hfRight >= S.ours.ldaRight && P.length === 9 && P.every((x) => x.ldaError_eV < 0) && P.filter((x) => x.Z <= 24).every((x) => x.hfError_eV < 0) && P.filter((x) => x.Z >= 25).every((x) => x.hfError_eV > 0) && !S.missing.length,
-        section: "E.6", gate: [67, 71] }; })(),
+        section: "4.3, E.6", gate: [67, 71] }; })(),
     (() => { const F = HFT.summary.fRow, L = HFT.summary.lanthanides, T = hfTokens();
       return { id: "frow", part: "table", claim: "Our lanthanides calibrate Hartree–Fock on the f row: it makes f too stable in every measured state that changes the f count, by at most B ≈ 4 eV. In 4D, f is bound so deeply that over half of row 6's f block is firm against that bias; the open cases sit at the block's two ends",
         value: `lanthanides: Hartree–Fock ${L.hfRight}, local exchange ${L.ldaRight} of ${L.n}; f too stable in ${F.calibration.filter((c) => c.lean_eV > 0).length} of ${F.calibration.length}, by ${T["hf.fCalMin"]}–${T["hf.fB"]} eV; f out of the ground: 90 ${T["hf.fOut90"]}, 100 ${T["hf.fOut100"]}, 109 ${T["hf.fOut109"]} eV, Tb ${T["hf.fOutTb"]} (measured ${T["hf.fOutTbM"]}); firm ${T["hf.fFirm"]}; open though agreed ${T["hf.fOpenAgree"]}; leaning Hartree–Fock ${T["hf.fLean"]}; untested ${T["hf.fUntested"]}`,
         holds: L.n === 18 && L.hfRight > L.ldaRight && F.calibration.length >= 10 && F.calibration.every((c) => c.lean_eV > 0) && F.firm.length > 16 && F.firm.length + F.openAgree.length + F.lean.length + F.open.length + F.untested.length === 32 && F.openAgree.every((x) => x.gap <= F.B_eV),
-        section: "E.6", gate: [67, 71] }; })(),
+        section: "4.3, E.6", gate: [67, 71] }; })(),
     (() => { const ts = [0.1, 0.3, 0.5, 0.7, 0.9], err = Math.max(...ts.map((t) => Math.abs(kClosed(t) / k4(t) - 1)));
       return { id: "kernelclosed", part: "law", claim: "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/3π and κ = 1 − t²/8 − t⁴/64 − …",
         value: `closed form against the solver's quadrature at t = 0.1 … 0.9: largest relative difference ${err.toExponential(1)}; at t = 1: ${kClosed(1 - 1e-12).toFixed(6)} against 8/3π = ${(8 / (3 * Math.PI)).toFixed(6)}`,
@@ -474,18 +474,18 @@ function ledger(t3, t4, files, refs) {
       return [
         { id: "ions3", part: "table", claim: "In ours, searching each ion for its own ground state changes no ionization; the anion search gets every unbound anion unbound and every p-block acceptor bound, and fails only where correlation does the binding (H⁻, the alkalis, P and As)",
           value: `cations: largest change ${Math.max(...camp).toFixed(3)} eV over ${camp.length}; anions: ${unb.filter((r) => r.ea_eV < 0).length} of ${unb.length} unbound right; p-block ${pblock.map((z) => { const r = o3.find((x) => x.Z === z); return `${r.symbol} ${r.ea_eV.toFixed(2)}/${r.ea_measured_eV}`; }).join(", ")}; failing ${["H", "Li", "Na", "K", "P", "As"].map((sy) => { const r = o3.find((x) => x.symbol === sy); return `${sy} ${r.ea_eV.toFixed(2)}/${r.ea_measured_eV}`; }).join(", ")}`,
-          holds: Math.max(...camp) < 0.02 && unb.every((r) => r.ea_eV < 0) && pblock.every((z) => o3.find((x) => x.Z === z).ea_eV > 0), section: "E", gate: [67] },
+          holds: Math.max(...camp) < 0.02 && unb.every((r) => r.ea_eV < 0) && pblock.every((z) => o3.find((x) => x.Z === z).ea_eV > 0), section: "E.4", gate: [67] },
         { id: "ions4", part: "table", claim: "In 4D, seven ions rearrange when searched for their own ground states, lowering those ionizations by up to 1.3 eV; element 128's is unchanged",
           value: `${re4.map((r) => `${r.Z} ${r.ion_byRemoval_eV.toFixed(2)}→${r.ion_eV.toFixed(2)}`).join(", ")}; 128: ${i4.find((r) => r.Z === 128).ion_full_eV.toFixed(2)} against ${i4.find((r) => r.Z === 128).ion_main_eV.toFixed(2)}`,
-          holds: re4.length === 7 && Math.abs(i4.find((r) => r.Z === 128).ion_full_eV - i4.find((r) => r.Z === 128).ion_main_eV) < 0.01 && re4.every((r) => r.ion_byRemoval_eV - r.ion_eV < 1.5), section: "7", gate: [67] },
+          holds: re4.length === 7 && Math.abs(i4.find((r) => r.Z === 128).ion_full_eV - i4.find((r) => r.Z === 128).ion_main_eV) < 0.01 && re4.every((r) => r.ion_byRemoval_eV - r.ion_eV < 1.5), section: "4.2", gate: [67] },
         { id: "halogens4", part: "consequence", claim: "One electron short of a full 4D p shell, atoms hold an extra electron harder and harder down the group, where ours hold it about equally: partial screening again",
           value: `p⁷ electron affinities (eV): ${hal.map((r) => `${r.Z}: ${r.ea_eV.toFixed(2)}`).join(", ")}; ours (2p⁵, 3p⁵, 4p⁵): ${ourHal.map((r) => `${r.symbol} ${r.ea_eV.toFixed(2)} (measured ${r.ea_measured_eV})`).join(", ")}`,
-          holds: hal.every((r, i) => i === 0 || r.ea_eV > hal[i - 1].ea_eV) && hal.at(-1).ea_eV > 3 * hal[0].ea_eV && Math.max(...ourHal.map((r) => r.ea_measured_eV)) - Math.min(...ourHal.map((r) => r.ea_measured_eV)) < 0.3, section: "9", gate: [67] },
+          holds: hal.every((r, i) => i === 0 || r.ea_eV > hal[i - 1].ea_eV) && hal.at(-1).ea_eV > 3 * hal[0].ea_eV && Math.max(...ourHal.map((r) => r.ea_measured_eV)) - Math.min(...ourHal.map((r) => r.ea_measured_eV)) < 0.3, section: "6.4", gate: [67] },
       ]; })(),
     { id: "screening", part: "consequence", claim: "Without a shell theorem outer electrons are held much harder than shell-theorem screening allows",
-      value: ratios.map((r) => `${r.Z}: ${r.ratio}×`).join(", "), holds: ratios.filter((r) => r.Z > 2).every((r) => r.ratio > 1.5), section: "E", gate: [8] },
+      value: ratios.map((r) => `${r.Z}: ${r.ratio}×`).join(", "), holds: ratios.filter((r) => r.Z > 2).every((r) => r.ratio > 1.5), section: "6.3", gate: [8] },
     { id: "farpull", part: "consequence", claim: "A neutral atom pulls on a distant electron as −Σ⟨r²⟩/8s³",
-      value: `the full cloud over the far form at 30 bohr: ${far.map((f) => `${f.Z}: ${f.ratio30}`).join(", ")}`, holds: far.every((f) => Math.abs(f.ratio30 - 1) < 0.01), section: "E", gate: [8, 67] },
+      value: `the full cloud over the far form at 30 bohr: ${far.map((f) => `${f.Z}: ${f.ratio30}`).join(", ")}`, holds: far.every((f) => Math.abs(f.ratio30 - 1) < 0.01), section: "7", gate: [8, 67] },
   ];
   const sha = (t) => createHash("sha256").update(t).digest("hex");
   const data = [...files].map(([path, text]) => ({ path, bytes: Buffer.byteLength(text), sha256: sha(text) }));
@@ -659,7 +659,7 @@ function drafts(t3, t4, L) {
   if (out.size) out.set("draft/paper.md", assemble(plain, L));
   return out;
 }
-/* the whole paper in one draft: the parts in reading order (the methods open Part II as section 5), each figure after
+/* the whole paper in one draft: the parts in reading order (the methods open Part II as section 3; the notation table opens the appendices), each figure after
    the paragraph that first cites it, then the supplement and the references. paper.html is rendered from it like every section */
 function assemble(parts, L) {
   const get = (f) => (parts.get(`draft/${f}`) || "").replace(/<!--[\s\S]*?-->\n?/g, "").trim(), strip = (t) => t.replace(/^# .*\n+/, ""), undraft = (t) => t.replace(/ \(draft\)/g, "");
@@ -677,8 +677,6 @@ regenerated from the code and its data on every change; the making is public at 
 
 ${undraft(strip(get("intro.md")))}
 
-${undraft(strip(get("notation.md")))}
-
 ${undraft(get("law.md"))}
 
 # Part II · The table
@@ -689,7 +687,7 @@ ${undraft(table)}
 
 ${undraft(get("consequences.md"))}
 
-${undraft(get("appendix.md"))}
+${undraft(get("appendix.md")).replace(/^# Appendices\n+/, `# Appendices\n\n${undraft(strip(get("notation.md")))}\n\n`)}
 
 ## Supplement and data
 
