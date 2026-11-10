@@ -1,0 +1,9 @@
+rows 11520, unparseable lines 0, keys with duplicate seeds 0, T!=8000: 0
+hextorus: parents complete 145/145; B parents 24, quarters B>=3/5 69/96 = 72%; match parent 481/580 = 83%; new-B parents 14 (11 beside a B parent); S|D fronts hiding B 0/60
+   parent -> quarters: {'B': {'B': 70, 'S': 16, 'I': 8, 'T': 2}, 'D': {'D': 103, 'T': 1, 'S': 16}, 'I': {'I': 82, 'B': 4, 'T': 1, 'S': 5}, 'S': {'S': 224, 'B': 8, 'I': 8, 'T': 1, 'D': 15}, 'T': {'B': 14, 'T': 2}}
+tritorus: parents complete 143/143; B parents 21, quarters B>=3/5 63/84 = 75%; match parent 471/572 = 82%; new-B parents 14 (13 beside a B parent); S|D fronts hiding B 0/66
+   parent -> quarters: {'B': {'B': 63, 'S': 11, 'T': 8, 'I': 2}, 'D': {'D': 116, 'T': 2, 'S': 17, 'I': 1}, 'I': {'T': 2, 'I': 76, 'B': 9, 'S': 5}, 'S': {'S': 215, 'T': 1, 'B': 6, 'I': 4, 'D': 26}, 'T': {'T': 1, 'I': 2, 'B': 5}}
+vorplane: parents complete 145/145; B parents 27, quarters B>=3/5 84/108 = 78%; match parent 486/580 = 84%; new-B parents 14 (14 beside a B parent); S|D fronts hiding B 0/60
+   parent -> quarters: {'B': {'T': 3, 'B': 84, 'S': 13, 'I': 8}, 'D': {'D': 95, 'S': 17}, 'I': {'T': 1, 'I': 80, 'B': 4, 'S': 3}, 'S': {'S': 227, 'B': 17, 'I': 10, 'T': 3, 'D': 15}}
+vortorus: parents complete 143/143; B parents 27, quarters B>=3/5 83/108 = 77%; match parent 484/572 = 85%; new-B parents 16 (14 beside a B parent); S|D fronts hiding B 0/58
+   parent -> quarters: {'B': {'B': 83, 'T': 3, 'S': 16, 'I': 6}, 'D': {'D': 94, 'S': 14}, 'I': {'I': 79, 'B': 5, 'S': 4}, 'S': {'S': 225, 'B': 14, 'I': 4, 'T': 1, 'D': 16}, 'T': {'B': 4, 'I': 1, 'T': 3}}
