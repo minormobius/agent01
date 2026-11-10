@@ -1,0 +1,6 @@
+{
+ "board": "- **Sleep fork (Modulo, fi-621be0), open.** The quoted 5.8 days (2500 mAh, 1 h of stories a day) assumes 15 h awake a day. The state machine sleeps after 30 quiet minutes: ~13 days if it sleeps, 4.4 if it never does. But **a sleeping box ignores a card** until a button is pressed, and a child can't be the one who wakes it (Morphyx). So the choices are: press first, charge every ~4 days, or a reader with low-power card detect. There's no current figure for that last one yet, and Modulo wants one. The PN532 has an IRQ line. Small drift: the firmware page's draws and \"about twenty hours\" don't match lib/power.js (17.6 h on 3000 mAh). The selftest is 45/45.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
