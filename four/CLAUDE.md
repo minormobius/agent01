@@ -908,5 +908,9 @@ Pushes to `claude/minesweeper-voronoi-mesh-4hc4ir` that touch `four/**` trigger
 DNS record exists, `wrangler deploy` uploads, and the run fails unless `four.mino.mobi` answers. `main` deploys
 nothing. The sandbox can't reach Cloudflare, so push to deploy, never `wrangler deploy` locally.
 
+**A run that fails with no jobs at all** (every workflow on the push red within a minute) is GitHub Actions not
+starting, not the code (2026-11-09, 18:10–22:50 UTC). Sessions here can't re-run or dispatch a workflow (403), and an
+empty commit doesn't match `paths:`, so redeploy by pushing a real change under `four/` once Actions runs again.
+
 **Old links:** `games.mino.mobi/atom4/…`, `/lumen4/…` and `/iris4/…` redirect (301) here, to `/atom/…`, `/lumen/…`
 and `/iris/…`, from `games/worker.js`.
