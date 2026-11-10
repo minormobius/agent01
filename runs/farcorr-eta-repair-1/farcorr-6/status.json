@@ -1,0 +1,33 @@
+{
+ "group": "farcorr-6",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/hftable.mjs farcorr 82 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 133
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs farcorr 81 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 23
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs farcorr 69 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 77
+  },
+  {
+   "cmd": "node four/atom/tools/hftable.mjs farcorr 68 3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 58
+  }
+ ]
+}

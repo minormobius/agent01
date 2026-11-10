@@ -1,0 +1,7 @@
+$ node four/atom/tools/hftable.mjs farcorr 58 3
+{"Z":58,"D":3,"config":"1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 4f1 5s2 5p6 5f1 6s2","hfRaw":-8566.621778,"storedRaw":-8566.621778,"corr_eV":0,"parts":[],"partial":false,"converged":true,"s":13.846}
+{"Z":58,"D":3,"config":"1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 4f1 5s2 5p6 6s2 7s1","hfRaw":-8566.660379,"storedRaw":-8566.660379,"corr_eV":0,"parts":[],"partial":false,"converged":true,"s":24.417}
+(node:2363) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

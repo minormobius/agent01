@@ -1,0 +1,9 @@
+$ node four/atom/tools/hftable.mjs farcorr 63 3
+{"Z":63,"D":3,"config":"1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 4f6 5s2 5p6 5f1 6s2","hfRaw":-10423.073267,"storedRaw":-10423.073267,"corr_eV":0,"parts":[{"shell":"4f","n":6,"groundS":3,"eV":0,"complete":true}],"partial":false,"converged":true,"s":27.722}
+{"Z":63,"D":3,"config":"1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 4f6 5s2 5p6 6s2 6p1","hfRaw":-10423.191414,"storedRaw":-10423.191414,"corr_eV":0,"parts":[{"shell":"4f","n":6,"groundS":3,"eV":0,"complete":true}],"partial":false,"converged":true,"s":33.948}
+{"Z":63,"D":3,"config":"1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 4f6 5s2 5p6 6s2 7s1","hfRaw":-10423.114752,"storedRaw":-10423.114752,"corr_eV":0,"parts":[{"shell":"4f","n":6,"groundS":3,"eV":0,"complete":true}],"partial":false,"converged":true,"s":21.006}
+{"Z":63,"D":3,"config":"1s2 2s2 2p6 3s2 3p6 3d10 4s2 4p6 4d10 4f8 5s2 5p6 6s1","hfRaw":-10423.20313,"storedRaw":-10423.20313,"corr_eV":0,"parts":[{"shell":"4f","n":8,"groundS":3,"eV":0,"complete":true}],"partial":false,"converged":true,"s":32.838}
+(node:2370) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

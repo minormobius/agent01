@@ -1,0 +1,13 @@
+$ node four/atom/tools/hftable.mjs farcorr 104 4
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f23 5s2 5p8 5d1 6s2","hfRaw":-24158.199643,"storedRaw":-24158.199643,"corr_eV":-7.7922,"parts":[{"shell":"4f","n":23,"groundS":4.5,"eV":-7.7922,"complete":false}],"partial":true,"converged":true,"s":563.254}
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f23 5s2 5p8 5f1 6s2","hfRaw":-24158.028234,"storedRaw":-24158.028234,"corr_eV":-7.8092,"parts":[{"shell":"4f","n":23,"groundS":4.5,"eV":-7.8092,"complete":false}],"partial":true,"converged":true,"s":434.886}
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f23 5s2 5p8 6s2 6p1","hfRaw":-24158.200157,"storedRaw":-24158.200157,"corr_eV":-7.807,"parts":[{"shell":"4f","n":23,"groundS":4.5,"eV":-7.807,"complete":false}],"partial":true,"converged":true,"s":422.512}
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f23 5s2 5p8 6s2 7s1","hfRaw":-24158.121108,"storedRaw":-24158.121108,"corr_eV":-7.8086,"parts":[{"shell":"4f","n":23,"groundS":4.5,"eV":-7.8086,"complete":false}],"partial":true,"converged":true,"s":440.975}
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8 5d1 6s1","hfRaw":-24158.358042,"storedRaw":-24158.358042,"corr_eV":-7.5153,"parts":[{"shell":"4f","n":24,"groundS":4,"eV":-7.5153,"complete":false}],"partial":true,"converged":true,"s":694.55}
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8 5f1 6s1","hfRaw":-24158.307288,"storedRaw":-24158.307288,"corr_eV":-7.5224,"parts":[{"shell":"4f","n":24,"groundS":4,"eV":-7.5224,"complete":false}],"partial":true,"converged":true,"s":670.33}
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8 6s1 6p1","hfRaw":-24158.446791,"storedRaw":-24158.446791,"corr_eV":-7.5202,"parts":[{"shell":"4f","n":24,"groundS":4,"eV":-7.5202,"complete":false}],"partial":true,"converged":true,"s":698.621}
+{"Z":104,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f24 5s2 5p8 6s1 7s1","hfRaw":-24158.387679,"storedRaw":-24158.387679,"corr_eV":-7.5216,"parts":[{"shell":"4f","n":24,"groundS":4,"eV":-7.5216,"complete":false}],"partial":true,"converged":true,"s":687.953}
+(node:2372) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

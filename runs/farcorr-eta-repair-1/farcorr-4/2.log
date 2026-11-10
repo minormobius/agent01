@@ -1,0 +1,11 @@
+$ node four/atom/tools/hftable.mjs farcorr 88 4
+{"Z":88,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f7 5s2 5p8 5f1 6s2","hfRaw":-15857.787356,"storedRaw":-15857.787356,"corr_eV":-5.7944,"parts":[{"shell":"4f","n":7,"groundS":3.5,"eV":-5.7944,"complete":false}],"partial":true,"converged":true,"s":241.489}
+{"Z":88,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f7 5s2 5p8 6s2 7s1","hfRaw":-15857.859739,"storedRaw":-15857.859739,"corr_eV":-5.793,"parts":[{"shell":"4f","n":7,"groundS":3.5,"eV":-5.793,"complete":false}],"partial":true,"converged":true,"s":237.257}
+{"Z":88,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f8 5s2 5p8 5d1 6s1","hfRaw":-15858.003762,"storedRaw":-15858.003762,"corr_eV":-5.426,"parts":[{"shell":"4f","n":8,"groundS":4,"eV":-5.426,"complete":false}],"partial":true,"converged":true,"s":369.558}
+{"Z":88,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f8 5s2 5p8 5f1 6s1","hfRaw":-15857.89837,"storedRaw":-15857.89837,"corr_eV":-5.4643,"parts":[{"shell":"4f","n":8,"groundS":4,"eV":-5.4643,"complete":false}],"partial":true,"converged":true,"s":347.102}
+{"Z":88,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f8 5s2 5p8 6s1 6p1","hfRaw":-15858.026433,"storedRaw":-15858.026433,"corr_eV":-5.4584,"parts":[{"shell":"4f","n":8,"groundS":4,"eV":-5.4584,"complete":false}],"partial":true,"converged":true,"s":269.425}
+{"Z":88,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f8 5s2 5p8 6s1 7s1","hfRaw":-15857.963784,"storedRaw":-15857.963784,"corr_eV":-5.4624,"parts":[{"shell":"4f","n":8,"groundS":4,"eV":-5.4624,"complete":false}],"partial":true,"converged":true,"s":273.501}
+(node:2579) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

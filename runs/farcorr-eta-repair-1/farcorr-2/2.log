@@ -1,0 +1,12 @@
+$ node four/atom/tools/hftable.mjs farcorr 96 4
+{"Z":96,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8 5d1 6s2","hfRaw":-19738.75862,"storedRaw":-19738.75862,"corr_eV":0,"parts":[{"shell":"4f","n":15,"groundS":7.5,"eV":0,"complete":false}],"partial":true,"converged":true,"s":85.428}
+{"Z":96,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8 5f1 6s2","hfRaw":-19738.554622,"storedRaw":-19738.554622,"corr_eV":0,"parts":[{"shell":"4f","n":15,"groundS":7.5,"eV":0,"complete":false}],"partial":true,"converged":true,"s":87.678}
+{"Z":96,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8 6s2 6p1","hfRaw":-19738.712393,"storedRaw":-19738.712393,"corr_eV":0,"parts":[{"shell":"4f","n":15,"groundS":7.5,"eV":0,"complete":false}],"partial":true,"converged":true,"s":85.558}
+{"Z":96,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f15 5s2 5p8 6s2 7s1","hfRaw":-19738.630836,"storedRaw":-19738.630836,"corr_eV":0,"parts":[{"shell":"4f","n":15,"groundS":7.5,"eV":0,"complete":false}],"partial":true,"converged":true,"s":71.595}
+{"Z":96,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f16 5s2 5p8 5d1 6s1","hfRaw":-19739.01836,"storedRaw":-19739.01836,"corr_eV":0,"parts":[{"shell":"4f","n":16,"groundS":8,"eV":0,"complete":false}],"partial":true,"converged":true,"s":77.838}
+{"Z":96,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f16 5s2 5p8 5f1 6s1","hfRaw":-19738.941401,"storedRaw":-19738.941401,"corr_eV":0,"parts":[{"shell":"4f","n":16,"groundS":8,"eV":0,"complete":false}],"partial":true,"converged":true,"s":51.921}
+{"Z":96,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f16 5s2 5p8 6s1 7s1","hfRaw":-19739.010316,"storedRaw":-19739.010316,"corr_eV":0,"parts":[{"shell":"4f","n":16,"groundS":8,"eV":0,"complete":false}],"partial":true,"converged":true,"s":41.314}
+(node:3187) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

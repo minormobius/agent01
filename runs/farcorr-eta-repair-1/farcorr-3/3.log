@@ -1,0 +1,11 @@
+$ node four/atom/tools/hftable.mjs farcorr 91 4
+{"Z":91,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f10 5s2 5p8 5d1 6s2","hfRaw":-17251.832866,"storedRaw":-17251.832866,"corr_eV":-5.3253,"parts":[{"shell":"4f","n":10,"groundS":5,"eV":-5.3253,"complete":false}],"partial":true,"converged":true,"s":340.616}
+{"Z":91,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f10 5s2 5p8 5f1 6s2","hfRaw":-17251.613488,"storedRaw":-17251.613488,"corr_eV":-5.3526,"parts":[{"shell":"4f","n":10,"groundS":5,"eV":-5.3526,"complete":false}],"partial":true,"converged":true,"s":335.717}
+{"Z":91,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f10 5s2 5p8 6s2 6p1","hfRaw":-17251.769295,"storedRaw":-17251.769295,"corr_eV":-5.3492,"parts":[{"shell":"4f","n":10,"groundS":5,"eV":-5.3492,"complete":false}],"partial":true,"converged":true,"s":244.326}
+{"Z":91,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f10 5s2 5p8 6s2 7s1","hfRaw":-17251.687417,"storedRaw":-17251.687417,"corr_eV":-5.3516,"parts":[{"shell":"4f","n":10,"groundS":5,"eV":-5.3516,"complete":false}],"partial":true,"converged":true,"s":241.921}
+{"Z":91,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f11 5s2 5p8 5f1 6s1","hfRaw":-17251.836566,"storedRaw":-17251.836566,"corr_eV":-4.7738,"parts":[{"shell":"4f","n":11,"groundS":5.5,"eV":-4.7738,"complete":false}],"partial":true,"converged":true,"s":107.402}
+{"Z":91,"D":4,"config":"1s2 2s2 2p8 3s2 3p8 3d18 4s2 4p8 4d18 4f11 5s2 5p8 6s1 7s1","hfRaw":-17251.903393,"storedRaw":-17251.903393,"corr_eV":-4.7727,"parts":[{"shell":"4f","n":11,"groundS":5.5,"eV":-4.7727,"complete":false}],"partial":true,"converged":true,"s":91.438}
+(node:2572) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/atom.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
