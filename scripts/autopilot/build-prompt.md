@@ -33,9 +33,9 @@ _Regenerated 2026-11-10 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-10, 100 members / 265 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: fable, llm, idk
+**Neighborhood spark** (bisk 2026-11-10, 100 members / 276 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: llm, fable, ppl
 - Top post: "I have found the table of writing tics that instantly drives a person to madness" — @eugenevinitsky.bsky.social
 <!-- BRIEF_END -->
 
