@@ -784,7 +784,10 @@ for games, and this is a modelling programme with publications to come. The game
   updates the ledger:** `git fetch origin atom4-data && node four/atom/tools/ledger.mjs` writes **generated**
   `js/ledger.js`, then regenerate the pages. The code has no licence yet (packaging for free use waits on one).
 - **the tangled mirror, `four/mirror/`**: the solvers as their own MIT-licensed repo,
-  `tangled.org/morphyxmino.bsky.social/four` (the monorepo itself has no licence; only the mirror is licensed).
+  `tangled.org/morphyxmino.bsky.social/four-atom` (repo DID `did:plc:r4ziwpsesst5ykm3afo3rkfq`, on knot1.tangled.sh,
+  SHA-1; created 2026-11-10; the monorepo itself has no licence, only the mirror is licensed). The workflow pushes by the
+  DID (falling back to the name) and takes the object format from the remote, since Tangled's Rust knot makes new repos
+  SHA-256 and a SHA-1 repo can't push to one.
   `mirror/build.mjs` decides what ships: the no-DOM modules (`MODULES`) at their own paths, the 4D viewer, Lumen⁴'s
   optics, a known-answer test assembled from the selftest's method blocks (`BLOCKS`: no baked data; 57 checks, 7 s),
   its fixture, `mirror/README.md` and `mirror/LICENSE`. `node four/mirror/build.mjs --check` stages and runs it;

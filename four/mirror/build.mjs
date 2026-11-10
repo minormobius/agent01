@@ -1,4 +1,4 @@
-/* Stages the tangled mirror of four.mino.mobi's solvers (tangled.org/morphyxmino.bsky.social/four, MIT): the no-DOM
+/* Stages the tangled mirror of four.mino.mobi's solvers (tangled.org/morphyxmino.bsky.social/four-atom, MIT): the no-DOM
    modules at their own paths (so their imports work unchanged), a known-answer test assembled from the site's
    selftest blocks that check methods rather than baked data, its one fixture, the README and the licence.
      node four/mirror/build.mjs <outdir>        # stage into outdir (it must not exist, or be empty)

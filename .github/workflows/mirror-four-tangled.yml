@@ -4,7 +4,8 @@ name: Mirror four's solvers to Tangled
 # methods (atoms, Hartree–Fock, molecular dynamics, searches, stars, orbits, nebulae, geometry, all for any number of
 # dimensions) clones a few hundred kilobytes instead of the monorepo, under a licence the monorepo doesn't carry.
 #
-#   git@tangled.org:<TANGLED_HANDLE>/<TANGLED_REPO>
+#   git@tangled.org:<TANGLED_REPO_DID>       (the repo's own did:plc, which survives renames; the named form
+#   git@tangled.org:<TANGLED_HANDLE>/<TANGLED_REPO> is tried if it doesn't answer)
 #
 # What ships is decided by four/mirror/build.mjs: the no-DOM modules at their own paths, a known-answer test assembled
 # from the site's selftest (the blocks that check methods, not baked data), its fixture, README.md and LICENSE (MIT).
@@ -40,7 +41,8 @@ jobs:
     env:
       TANGLED_KNOT: tangled.org
       TANGLED_HANDLE: morphyxmino.bsky.social
-      TANGLED_REPO: four
+      TANGLED_REPO: four-atom
+      TANGLED_REPO_DID: did:plc:r4ziwpsesst5ykm3afo3rkfq   # four-atom, created 2026-11-10 on knot1.tangled.sh
     steps:
       - uses: actions/checkout@v4
 
@@ -71,14 +73,24 @@ jobs:
         run: |
           set -euo pipefail
           export GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519"
-          REMOTE="git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}"
-          if ! git ls-remote "$REMOTE" >/dev/null 2>&1; then
-            echo "::notice::tangled repo ${TANGLED_HANDLE}/${TANGLED_REPO} not reachable yet: create it on tangled, then push again. Staged and tested; nothing pushed."
-            echo "### four: staged and tested, not pushed (create ${TANGLED_HANDLE}/${TANGLED_REPO} on tangled)" >> "$GITHUB_STEP_SUMMARY"
+          # the repo's DID first (rename-safe), then its name
+          REMOTE=""
+          for r in "git@${TANGLED_KNOT}:${TANGLED_REPO_DID}" "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}"; do
+            if git ls-remote "$r" >/dev/null 2>&1; then REMOTE="$r"; break; fi
+            echo "  $r did not answer over SSH"
+          done
+          if [ -z "$REMOTE" ]; then
+            echo "::warning::tangled repo ${TANGLED_HANDLE}/${TANGLED_REPO} (${TANGLED_REPO_DID}) not reachable over SSH: is TANGLED_SSH_KEY_MORPHYX's public key in morphyxmino.bsky.social's Tangled keys (the knot reads them from the PDS, cached up to an hour)? Staged and tested; nothing pushed."
+            echo "### four: staged and tested, not pushed (${TANGLED_HANDLE}/${TANGLED_REPO} not reachable over SSH)" >> "$GITHUB_STEP_SUMMARY"
+            ( set +e; ssh -4 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519 -T "git@${TANGLED_KNOT}" 2>&1 | head -5 )
             exit 0
           fi
+          # Tangled's Rust knot makes new repos SHA-256 and a SHA-1 repo can't push to one: take the remote's format
+          FMT="$(GIT_TRACE_PACKET=1 git -c protocol.version=2 ls-remote "$REMOTE" 2>&1 | grep -o 'git< object-format=sha[0-9]*' | head -1 | cut -d= -f2)"
+          FMT="${FMT:-sha1}"
+          echo "remote ${REMOTE}, object format ${FMT}"
           cd "$OUT"
-          git init -q -b main
+          git init -q -b main --object-format="$FMT"
           git add -A
           git -c user.name='four-mirror' -c user.email='mirror@morphyxmino.bsky.social' \
             commit -qm "mirror four's solvers — ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d)"
