@@ -118,7 +118,7 @@ for games, and this is a modelling programme with publications to come. The game
   configuration with radial functions kept, checked against the table's energy; selftest 70). Re-run it after a bake or
   `terms.mjs bake`. `/table/#Z` opens on element Z (the paper links it). **Every tile is a link to `#Z`** (ours to its 4D counterpart): a click or tap navigates, the `hashchange` handler pins it and redraws the detail panel and Inside the atom, and the back button walks the history. Hover previews answer `pointerType === "mouse"` only: Safari on a phone treats a tap whose mouseover changes the page as a hover and never sends the click, which once left Inside the atom on the old element (PI, 2026-11-10). The names come from `atom/js/names.js` (no DOM): an element takes our name with its first
   letter moved on when its place answers to one of ours (before a block's half-full element count from the left,
-  the half-full one is ours, after it count from the full shell); 24 answer to nothing and are new, elements 6 and 8
+  the half-full one is ours, after it count from the full shell); 52 of the 140 answer to nothing and are new (paper 1's `table.newN`), elements 6 and 8
   either side of darbon among them. Symbols keep the chapters' H, D, Px and Mi and otherwise avoid all 118 of ours.
   `table/filling.js` (no DOM) draws the filling diagram for both worlds (Madelung's diagonals of n + l; boxes of
   2(2l + 1) in ours, 2(l + 1)² in 4D, dashed past 140 where the solver hasn't been), filled to the selected element
