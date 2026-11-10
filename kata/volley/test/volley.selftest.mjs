@@ -15,8 +15,8 @@ const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg)
 }
 {
   const g = V.makeGame(1, 1); g.enemies.forEach((e) => (e.alive = false)); g.kills = 0; g.total = 99; let off = 0, cross = 0, pw = g.w, wmax = 0;
-  while (g.laps < 2 && g.t < 80) { V.step(g, 1 / 60); off = Math.max(off, g.off); if (pw * g.w < 0) cross++; pw = g.w; wmax = Math.max(wmax, Math.abs(g.w)); }
-  ok(g.laps === 2 && off < 0.5 && cross === 4 && wmax > 8.5, `the bicycle rides two laps on its autopilot (${g.t.toFixed(0)} s, never more than ${off.toFixed(2)} m off the line), out to ${wmax.toFixed(1)} m from their world and through it twice a lap`);
+  while (g.laps < 2 && g.t < 120) { V.step(g, 1 / 60); off = Math.max(off, g.off); if (pw * g.w < 0) cross++; pw = g.w; wmax = Math.max(wmax, Math.abs(g.w)); }
+  ok(g.laps === 2 && off < 0.5 && cross >= 7 && cross <= 8 && wmax > 9.5, `the bicycle rides two laps of Lean's track on its autopilot (${g.t.toFixed(0)} s, never more than ${off.toFixed(2)} m off the line), out to ${wmax.toFixed(1)} m from their world and through it four times a lap (${cross} crossings)`);
 }
 {
   // a bunker at the origin, one of them inside; you at w = 8, 12 m off: the arrow arrives. From w = 0 it hits the wall
@@ -30,7 +30,7 @@ const ok = (c, msg) => { checks++; if (!c) { fails++; console.log("FAIL " + msg)
 }
 {
   const g = V.makeGame(3, 2); let unseen = 0, seenShots = 0, offSlice = 0;
-  while (g.laps < 2 && g.t < 80) { const n0 = g.arrows.length; V.step(g, 1 / 60); for (const a of g.arrows.slice(n0)) if (!a.mine) { if (Math.abs(g.w) >= V.SEE) unseen++; else seenShots++; } for (const a of g.arrows) if (!a.mine && (a.p[3] !== 0 || a.v[3] !== 0)) offSlice++; }
+  while (g.laps < 2 && g.t < 120) { const n0 = g.arrows.length; V.step(g, 1 / 60); for (const a of g.arrows.slice(n0)) if (!a.mine) { if (Math.abs(g.w) >= V.SEE) unseen++; else seenShots++; } for (const a of g.arrows) if (!a.mine && (a.p[3] !== 0 || a.v[3] !== 0)) offSlice++; }
   ok(unseen === 0 && seenShots > 0 && offSlice === 0, `over two laps they loose ${seenShots} arrows, every one while you are in their slice, and none ever leaves w = 0`);
 }
 {

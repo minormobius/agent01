@@ -22,6 +22,10 @@ uniform int uHillMode, uGrain, uNRel; uniform highp sampler3D uHillT, uTrailT; u
 uniform mat4 uBm, uBinv; uniform vec4 uRel[30];
 // water (WAKE): the surface y = uWaterY over the whole ground, its swell, a boat's wake (the spheres of Kelvin's
 // construction, wake.js: centre x z w, radius; their crests' heights four to a vec4) and the buoys (x z w, state)
+// props (VOLLEY): figures standing on the ground at one w (uPropW), drawn where they'd be with the direction you can't
+// see (uN) flattened away, so they show from any slice, tinted by which side of you they are; and closed boxes of that
+// same slice (glass from outside it, solid from in it). Off unless a page sets them
+uniform int uNProp, uNPBox; uniform vec4 uProp[16], uPBox[6]; uniform float uPropY, uPropW, uPropSolid; // uProp: x, z, state (0 fallen, 1, 2); uPBox: x, z, half-width, height
 uniform int uWater, uNWk, uNBuoy; uniform float uWaterY; uniform vec4 uWk[32], uWkT[32], uBuoy[12]; // uWkT: the heading then, and the crest's height
 // the bike (bike.js's parts(), in metres): two tyres (centre, the wheel's plane, radii) and capsules (ends, radius, part)
 uniform int uBike, uNCap;
@@ -290,6 +294,32 @@ void main() {
     float fog = 1.0 - exp(-t * uVS / 150.0);
     c = mix(c, sky(d) * 0.9 + 0.08, fog); tc = t * uVS;
   }
+  if (uNProp > 0 || uNPBox > 0) {
+    vec4 E = uEye * uVS; float side = uPropW - dot(E, uN) * 1.0; vec3 way = side > 0.0 ? vec3(0.22, 0.95, 0.88) : vec3(1.0, 0.4, 0.72); float far = clamp(abs(side) / 10.0, 0.0, 1.0);
+    for (int i = 0; i < 16; i++) { // each figure: three balls (fallen: one), flattened into your slice
+      if (i >= uNProp) break; vec4 pr = uProp[i]; vec4 C0 = vec4(pr.x, uPropY, pr.y, uPropW); C0 -= dot(C0 - E, uN) * uN;
+      for (int k = 0; k < 3; k++) {
+        if (pr.z < 0.5 && k > 0) break;
+        float hy = pr.z < 0.5 ? 0.24 : k == 0 ? 0.42 : k == 1 ? 1.0 : 1.62, rr = pr.z < 0.5 ? 0.32 : k == 2 ? 0.21 : 0.36;
+        vec4 C = C0 + vec4(0.0, hy, 0.0, 0.0), oc = E - C; float b = dot(oc, d), cc = dot(oc, oc) - rr * rr, hh = b * b - cc; if (hh < 0.0) continue;
+        float tt = -b - sqrt(hh); if (tt <= 0.0 || tt >= tc) continue;
+        vec4 nb = normalize(E + d * tt - C);
+        vec3 base = pr.z < 0.5 ? vec3(0.32) : k == 2 ? vec3(0.9, 0.75, 0.62) : pr.z < 1.5 ? vec3(0.85, 0.22, 0.18) : vec3(0.58, 0.32, 0.85);
+        base = mix(base, way, far * 0.4);
+        float lam = max(dot(nb, uSun), 0.0);
+        c = base * (vec3(0.42, 0.47, 0.62) * (0.75 + 0.25 * nb.y) + vec3(1.0, 0.85, 0.64) * lam) + way * 0.25 * far * pow(1.0 - abs(dot(nb, d)), 2.0);
+        c = mix(c, sky(d) * 0.9 + 0.08, 1.0 - exp(-tt / 150.0)); tc = tt;
+      }
+    }
+    for (int i = 0; i < 6; i++) { // each box, by slabs in x, y, z (your slice square to the grid)
+      if (i >= uNPBox) break; vec4 bx = uPBox[i]; vec3 lo = vec3(bx.x - bx.z, uPropY, bx.y - bx.z), hi = vec3(bx.x + bx.z, uPropY + bx.w, bx.y + bx.z), inv = 1.0 / d.xyz, t0 = (lo - E.xyz) * inv, t1 = (hi - E.xyz) * inv, mn = min(t0, t1), mx = max(t0, t1);
+      float tN = max(max(mn.x, mn.y), mn.z), tX = min(min(mx.x, mx.y), mx.z); if (tN > tX || tX < 0.0 || tN > tc) continue;
+      vec3 pb = E.xyz + d.xyz * max(tN, 0.0), l = abs((pb - 0.5 * (lo + hi)) / (0.5 * (hi - lo))); float e = (l.x > 0.93 ? 1.0 : 0.0) + (l.y > 0.93 ? 1.0 : 0.0) + (l.z > 0.93 ? 1.0 : 0.0);
+      vec3 fn = -sign(d.xyz) * step(mn.yzx, mn.xyz) * step(mn.zxy, mn.xyz);
+      vec3 wall = vec3(0.6, 0.62, 0.68) * (vec3(0.42, 0.47, 0.62) * 0.9 + vec3(1.0, 0.85, 0.64) * max(dot(fn, uSun.xyz), 0.0));
+      c = mix(c, wall, mix(0.22, 0.95, uPropSolid)); c = mix(c, vec3(0.9, 0.94, 1.0), step(1.5, e) * 0.8);
+    }
+  }
   if (uWater == 1) {
     vec4 E = uEye * uVS; const float BR = 0.9;
     for (int i = 0; i < 12; i++) { // the buoys: 4D balls riding the water, cut by your slice (only those within BR of it show)
@@ -333,7 +363,7 @@ export class Renderer {
     gl.useProgram(p); this.p = p;
     const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(p, "aPos"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uAux", "uBinT", "uHasAux", "uN", "uHillMode", "uWater", "uNWk", "uNBuoy", "uWaterY", "uWk", "uWkT", "uBuoy", "uGrain", "uNRel", "uHillT", "uTrailT", "uHN", "uHL", "uTrailR", "uBm", "uBinv", "uRel", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
+    this.u = {}; for (const n of ["uH", "uM", "uEye", "uR", "uU", "uF", "uSun", "uRes", "uTan", "uTime", "uFae", "uFar", "uVS", "uAux", "uBinT", "uHasAux", "uN", "uHillMode", "uWater", "uNWk", "uNBuoy", "uNProp", "uNPBox", "uProp", "uPBox", "uPropY", "uPropW", "uPropSolid", "uWaterY", "uWk", "uWkT", "uBuoy", "uGrain", "uNRel", "uHillT", "uTrailT", "uHN", "uHL", "uTrailR", "uBm", "uBinv", "uRel", "uBike", "uNCap", "uTor", "uTorR", "uCapA", "uCapB", "uCapR", "uBC", "uBR", "uBikeCol", "uCat", "uNCC", "uNCE", "uCatO", "uCatM", "uCK", "uCA", "uCB", "uCCp", "uCEc", "uCEr", "uCEp", "uCatBC", "uCatBR"]) this.u[n] = gl.getUniformLocation(p, n);
     /* every sampler on its own unit from the start, each with a one-texel placeholder of its own type. A sampler never
        set defaults to unit 0, and WebGL refuses a draw (silently: a black view) where two samplers of different types
        share a unit; Lean and TAILSPIN never call hill(), so without this its 3D samplers sat on the voxel atlas's unit */
@@ -425,6 +455,13 @@ export class Renderer {
     const gl = this.gl, u = this.u, n = Math.min(12, Bs.length), a = new Float32Array(48);
     for (let i = 0; i < n; i++) a.set([...Bs[i].p, Bs[i].s], 4 * i);
     gl.uniform4fv(u.uBuoy, a); gl.uniform1i(u.uNBuoy, n);
+  }
+  /* props (VOLLEY): figures [{ x, z, s }] (s: 0 fallen, 1, 2) standing at height y in the slice w, and boxes
+     [{ x, z, h, H }] of that slice; solid 0..1 (how much you are in their slice). Up to 16 and 6; none turns them off */
+  props(P = [], boxes = [], y = 0, w = 0, solid = 0) {
+    const gl = this.gl, u = this.u, a = new Float32Array(64), b = new Float32Array(24), n = Math.min(16, P.length), m = Math.min(6, boxes.length);
+    for (let i = 0; i < n; i++) a.set([P[i].x, P[i].z, P[i].s, 0], 4 * i); for (let i = 0; i < m; i++) b.set([boxes[i].x, boxes[i].z, boxes[i].h, boxes[i].H], 4 * i);
+    gl.uniform4fv(u.uProp, a); gl.uniform4fv(u.uPBox, b); gl.uniform1i(u.uNProp, n); gl.uniform1i(u.uNPBox, m); gl.uniform1f(u.uPropY, y); gl.uniform1f(u.uPropW, w); gl.uniform1f(u.uPropSolid, solid);
   }
   /* the bike: bike.js's parts() (metres), the middle and radius of a ball holding it, and the frame's colour; null hides it */
   bike(P, mid, rad, col) {

@@ -2,8 +2,9 @@
 
    THE WORLD: 4D, (x, y, z, w), y up, flat ground at y = 0. The MANY are 3D people: they stand, see and shoot in the slice
    w = 0 and nowhere else. Some stand in the open; some sit in BUNKERS, closed boxes of their own 3D world (four walls and
-   a roof, each a slab with a little thickness in w). You ride a closed track that leaves their slice: an ellipse in
-   (x, z) whose w is C·sin t, so half a lap is ana of them (w > 0), half kata, and twice a lap you cross their world.
+   a roof, each a slab with a little thickness in w). You ride Lean's track, which leaves their slice: an oval in
+   (x, z) whose w is C·sin 2t, so it swings ana of them (w > 0), then kata, twice a lap, and crosses their world four
+   times.
 
    WHAT FOLLOWS FROM THAT, and is all this game is:
    - They see you only while your body cuts their slice (|w| < SEE). The rest of the lap you don't exist for them.
@@ -19,14 +20,15 @@
 import { Bike, followLean, lookahead } from "../../lean/js/dyn.js";
 import { parts, BIKE } from "../../lean/js/bike.js";
 
-export const COURSE = { A: 40, B: 28, C: 9, N: 1440 };
+import { PTS as LEAN_PTS, S as LEAN_S, NS, LAP as LEAN_LAP, BASIN, OVAL } from "../../lean/js/world.js";
+/* the arena is Lean's: its basin, its track (an oval 55 × 48 m whose w swings ±10 m, twice a lap: four crossings of
+   w = 0). Everything here is in the arena's own coordinates: the basin's middle is the origin and their slice is w = 0;
+   ORIGIN takes them to Lean's world (and the ground there is 11 m up) */
+export const ORIGIN = [BASIN.c[0], BASIN.c[1], BASIN.c[2]]; // (x, z, w)
+export const COURSE = { A: OVAL.a, B: OVAL.b, C: OVAL.c, N: NS };
 export const G = 9.81, V_BIKE = 8, V_ARROW = 22, V_THEIRS = 24, SEE = 0.6, BODY = 0.65, RIDER = 0.6, DRAW = 0.5, RANGE_THEIRS = 40, WALL_W = 0.3, WALL_T = 0.25, HP = 5;
 const { A, B, C, N } = COURSE;
-export const ground = (t) => [A * Math.cos(t), B * Math.sin(t), C * Math.sin(t)]; // (x, z, w)
-export const PTS = [], S = [0];
-for (let i = 0; i < N; i++) PTS.push(ground((2 * Math.PI * i) / N));
-for (let i = 0; i < N; i++) { const p = PTS[i], q = PTS[(i + 1) % N]; S.push(S[i] + Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2])); }
-export const LAP = S[N];
+export const PTS = LEAN_PTS.slice(0, N).map((p) => [p[0] - ORIGIN[0], p[1] - ORIGIN[1], p[2] - ORIGIN[2]]), S = LEAN_S, LAP = LEAN_LAP; // (x, z, w)
 const to4 = (g, y = 0) => [g[0], y, g[1], g[2]];
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]), sc = (a, k) => a.map((v) => v * k), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0), unit = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
 function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6d2b79f5) >>> 0; let t = Math.imul(s ^ (s >>> 15), s | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -66,8 +68,8 @@ export function makeGame(seed = 1, wave = 1) {
   g.slabs = [];
   for (const b of g.bunkers) { const { x, z, h, H } = b, T = WALL_T, W = WALL_W, S4 = (lo, hi) => g.slabs.push({ lo, hi });
     S4([x - h, 0, z - h, -W], [x - h + T, H, z + h, W]); S4([x + h - T, 0, z - h, -W], [x + h, H, z + h, W]); S4([x - h, 0, z - h, -W], [x + h, H, z - h + T, W]); S4([x - h, 0, z + h - T, -W], [x + h, H, z + h, W]); S4([x - h, H - T, z - h, -W], [x + h, H, z + h, W]); }
-  // the bicycle, starting at the top of the lap, furthest ana
-  g.bike = new Bike({ mech: "two-axis", v: V_BIKE }); g.bike.limits = false; g.idx = N / 4; place(g, g.idx);
+  // the bicycle, starting an eighth of the way round, furthest ana
+  g.bike = new Bike({ mech: "two-axis", v: V_BIKE }); g.bike.limits = false; g.idx = N / 8; place(g, g.idx);
   g.total = g.enemies.length; pose(g);
   return g;
 }
