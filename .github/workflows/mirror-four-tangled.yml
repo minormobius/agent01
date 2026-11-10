@@ -86,8 +86,9 @@ jobs:
             exit 0
           fi
           # Tangled's Rust knot makes new repos SHA-256 and a SHA-1 repo can't push to one: take the remote's format
-          FMT="$(GIT_TRACE_PACKET=1 git -c protocol.version=2 ls-remote "$REMOTE" 2>&1 | grep -o 'git< object-format=sha[0-9]*' | head -1 | cut -d= -f2)"
-          FMT="${FMT:-sha1}"
+          # (grep -m1, not | head: under pipefail a head that closes the pipe early kills the step with SIGPIPE)
+          FMT="$( { GIT_TRACE_PACKET=1 git -c protocol.version=2 ls-remote "$REMOTE" 2>&1 || true; } | grep -m1 -o 'git< object-format=sha[0-9]*' || true)"
+          FMT="${FMT##*=}"; FMT="${FMT:-sha1}"
           echo "remote ${REMOTE}, object format ${FMT}"
           cd "$OUT"
           git init -q -b main --object-format="$FMT"
