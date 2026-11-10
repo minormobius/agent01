@@ -37,8 +37,9 @@ theorem forced back on, to find which of its features the law decides (section 6
 atoms that later work on molecules starts from (section 7). The appendices hold the arguments and methods in full,
 every check of every method against our own world, and the starting data for chemistry: valence states, the atoms'
 response, and a test of the valence rule. Every number in the text is recomputed from the code and its data whenever
-anything changes, and checked against a ledger of 40 claims; the code, the data and the paper's making are
-public at four.mino.mobi/papers.
+anything changes, and checked against a ledger of 40 claims. The solvers, with their known-answer tests and a
+script that solves the paper's atoms again, are released under the MIT licence at
+tangled.org/morphyxmino.bsky.social/four-atom; the data and the paper's making are public at four.mino.mobi/papers.
 
 # Part I · The law
 
@@ -101,9 +102,15 @@ wavenumber, $\varepsilon_0\ell k$ with $\ell$ a length [@tarasov2013]. With the 
 $\mathbf D/\varepsilon_0$ and $\mu_0\mathbf H$ obey four-dimensional Maxwell's equations exactly, and what pushes a
 charge is that light seen through a lens, $\mathbf E = (\mathbf D/\varepsilon_0)/\ell k$; we call it the **lens
 vacuum**. Its price is relativity, for the force between charges only: the static $1/r$ acts across space at once.
-This paper uses only its statics, which are all an atom's ground state needs. Declared rather than derived: electrons
-are spin-½ fermions, two to an orbital; nuclei are point charges stable to $Z = 140$; the fine-structure constant is
-small, so atoms are solved without relativity. Single atoms don't collapse (their energies follow the Thomas–Fermi
+This paper uses only its statics, which are all an atom's ground state needs. The free electron keeps its own
+relativity, which the lens vacuum gives up only for the force between charges, and that fixes how many electrons an
+orbital holds. In 4 + 1 dimensions the smallest Dirac electron has four components, the product of the four spatial
+Dirac matrices serves as time's, and a slow electron keeps the two components of one chirality, which turn with one
+half of a four-dimensional rotation only: two spin states, two to an orbital (appendix F.6). A four-state electron is
+possible in principle and would double every shell. What stays declared is that the electron is the smallest spinor and
+that it obeys Pauli's exclusion, which in ours the spin-statistics theorem derives from a local, relativistic theory, as
+the force here is not. Nuclei are point charges stable to $Z = 140$, and the fine-structure constant is small, so atoms
+are solved without relativity. Single atoms don't collapse (their energies follow the Thomas–Fermi
 $Z^{5/2}$ [@kventsel1981], fitted exponent 2.527), but the stability of matter in bulk, whose proofs in ours lean
 on the shell theorem, is open (appendix F.7).
 
@@ -675,8 +682,24 @@ state needs. Every choice of permeability gives the same statics, so nothing her
 on how the lens vacuum's fields move and radiate, or on the absolute now. Those dynamics, of the same lens vacuum, are
 the subject of a later paper.
 
-**F.6 Electrons, nuclei and the fine-structure constant, declared.** Electrons are spin-½ fermions, two to an orbital. That is stated, not derived: in our
-world it follows from relativity and spin together, and this universe has given up relativity for the force. Nuclei
+**F.6 Electrons: what is derived and what is declared; nuclei and the fine-structure constant.** An electron's spin is a
+representation of the rotations, and in four dimensions they split: so(4) = so(3) ⊕ so(3), a turn's left half and right
+half. The spinors of Spin(4) = SU(2) × SU(2) come as $(\tfrac12, 0)$, two states that turn with the left half only,
+$(0, \tfrac12)$, two that turn with the right, and their sum, four. The smallest have two states. The free electron
+can keep its relativity, which the lens vacuum gives up only for the force between charges. Its Dirac equation in 4 + 1
+dimensions has four components, and the product of the four spatial Dirac matrices squares to one and anticommutes with
+each of them, so it serves as time's (the site's selftest builds them). A slow electron keeps the two components on
+which that matrix is $+1$, and they carry one half of the rotations only: two spin states, and a handed spin that a
+right-isoclinic turn leaves alone (four.mino.mobi/atom/motion.html#spin). A four-state electron,
+$(\tfrac12, 0) \oplus (0, \tfrac12)$, would need two such Dirac fields with the same charge and mass, two species in
+all but name. It would hold four to an orbital: the hydrogen shells would hold 4, 20, 56 and 120, every row of the
+table would be twice as long, and the noble gases would sit elsewhere. The vector $(\tfrac12, \tfrac12)$ also has
+four states, but a full turn leaves it unchanged; it is integer spin, not an electron's. So two states is what the
+smallest relativistic electron gives, and that is the choice made. Two things remain declared. One is that the electron
+is that smallest spinor. The other is Pauli's exclusion: in ours the spin-statistics theorem derives it from relativity
+and locality together, and the force here is neither, so the theorem can't be borrowed. The exclusion is what the proofs
+of stability in ours lean on [@dyson1967; @lieb1975], so without it bulk matter would have no claim to stability here
+either. Nuclei
 are point charges $+Z$, stable for every $Z$ to 140 (declared: nuclear physics in four dimensions is another paper). The
 fine-structure constant is small, so atoms are solved without relativity (section 8). No other long-range field acts
 on charges.
@@ -1053,7 +1076,9 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 
 `papers/p1/reproduce.mjs` re-solves a sample of atoms from the solver and checks them against the paper's data;
 `--all` re-solves every element. The runner's logs, with each command's exit status, are kept on the repository's
-`atom4-data` branch under `runs/`. The code is mirrored at a tagged version for citation.
+`atom4-data` branch under `runs/`. The solvers, the known-answer test assembled from the selftest's method blocks, `reproduce.mjs` and the paper's
+tables are mirrored under the MIT licence at tangled.org/morphyxmino.bsky.social/four-atom (`npm test` runs the
+known-answer test; `node papers/p1/reproduce.mjs` re-solves the sample), refreshed on every change to them.
 
 ## Supplement and data
 

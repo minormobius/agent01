@@ -46,17 +46,23 @@ function colourOf(e, el) {
   return `hsl(${200 - 160 * t} ${30 + 40 * t}% ${12 + 26 * t}%)`;
 }
 
+/* each tile is a link to its 4D element's view (#Z), so a click or tap navigates and the hashchange handler pins it; ours
+   links to its counterpart, and the few of ours with none pin in place. Hover previews (the detail panel follows the
+   pointer) answer a mouse only: Safari on a phone or tablet treats a tap whose mouseover changes the page as a hover and
+   never sends the click, which left the inside view on the old element while the panel above changed */
 function tile(e, el, which) {
-  const b = document.createElement("button"); b.type = "button";
+  const target = which === 4 ? e.Z : counterpart4.get(e.Z) ?? -e.Z, b = document.createElement("a");
+  if (target > 0) b.href = `#${target}`; else { b.href = "#"; b.setAttribute("role", "button"); }
   b.className = `el ${e.block}${e.noble ? " noble" : ""}${e.isNew ? " new" : ""}`;
   b.style.gridRow = e.row + 2; b.style.gridColumn = e.col + 1; b.style.background = colourOf(e, el);
   const name = which === 4 ? (e.name ?? `element ${e.Z}`) : e.name;
   b.innerHTML = `<span class="z">${e.Z}</span><span class="sym">${which === 4 ? (e.sym ?? "new") : e.sym}</span><span class="nm">${e.isNew ? "" : name}</span>`;
   b.dataset.z = e.Z; b.dataset.w = which;
   b.setAttribute("aria-label", `${name}, element ${e.Z}${e.isNew ? ", new: no counterpart in our world" : ""}`);
-  b.onmouseenter = () => { hover = which === 4 ? e.Z : counterpart4.get(e.Z) ?? -e.Z; mark(); detail(); };
-  b.onmouseleave = () => { hover = null; mark(); detail(); };
-  b.onclick = () => { pinned = which === 4 ? e.Z : counterpart4.get(e.Z) ?? -e.Z; hover = null; mark(); detail(); pinned4(); };
+  b.onpointerenter = (ev) => { if (ev.pointerType !== "mouse") return; hover = target; mark(); detail(); };
+  b.onpointerleave = (ev) => { if (ev.pointerType !== "mouse") return; hover = null; mark(); detail(); };
+  b.onclick = (ev) => { if (target > 0 && target !== pinned) return; // a link to another element: the hash change pins it
+    ev.preventDefault(); pinned = target; hover = null; mark(); detail(); pinned4(); };
   return b;
 }
 

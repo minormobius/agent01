@@ -116,7 +116,7 @@ for games, and this is a modelling programme with publications to come. The game
   profile and any of its orbitals cut by any of the six planes, paper 1's figures 4 and 5 for every element, from
   **generated** `table/profiles.json` (`atom/tools/profiles.mjs bake`, ~2.5 min: each element re-solved in `tablec.js`'s
   configuration with radial functions kept, checked against the table's energy; selftest 70). Re-run it after a bake or
-  `terms.mjs bake`. `/table/#Z` opens on element Z (the paper links it). The names come from `atom/js/names.js` (no DOM): an element takes our name with its first
+  `terms.mjs bake`. `/table/#Z` opens on element Z (the paper links it). **Every tile is a link to `#Z`** (ours to its 4D counterpart): a click or tap navigates, the `hashchange` handler pins it and redraws the detail panel and Inside the atom, and the back button walks the history. Hover previews answer `pointerType === "mouse"` only: Safari on a phone treats a tap whose mouseover changes the page as a hover and never sends the click, which once left Inside the atom on the old element (PI, 2026-11-10). The names come from `atom/js/names.js` (no DOM): an element takes our name with its first
   letter moved on when its place answers to one of ours (before a block's half-full element count from the left,
   the half-full one is ours, after it count from the full shell); 24 answer to nothing and are new, elements 6 and 8
   either side of darbon among them. Symbols keep the chapters' H, D, Px and Mi and otherwise avoid all 118 of ours.
@@ -892,6 +892,10 @@ for games, and this is a modelling programme with publications to come. The game
   each atom's field (`gIntrudes`: the solver stops at f, and under η < 1 higher l is more bound); `repair` re-searches
   the unsettled; `bake` → `papers/p1/data/etatable.json`. First look (sandbox, 1–6): η = 0.5 fills 2p before 2s
   (1s² 2p² at 4), η = 1.5 puts 3s before 2p (1s² 2s² 3s¹ at 5).
+  **The electron's two states (PI, 2026-11-10):** paper 1 §2.5 and appendix F.6 now derive what can be derived (the smallest
+  4 + 1 Dirac electron's slow limit is two states of one chirality, the selftest's γ matrices) and name what stays declared
+  (that the electron is that smallest spinor, and Pauli's exclusion, which spin-statistics can't supply here). A four-state
+  electron, (½,0)⊕(0,½), would double every shell (4, 20, 56, 120); a table under it is the natural next bracket, not built.
   **Length (PI, 2026-11-10): the main text is at most seven two-column journal pages, with generous appendices.**
   `pages.cjs` (sandbox, Playwright) lays `draft/paper.html` out as a two-column letter page at 10 pt and prints the main
   text's page count and words (`draft/paper-journal.pdf`); check it after any change to the body. The body is §1–8 (the law,

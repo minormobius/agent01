@@ -62,8 +62,14 @@ wavenumber, $\varepsilon_0\ell k$ with $\ell$ a length [@tarasov2013]. With the 
 $\mathbf D/\varepsilon_0$ and $\mu_0\mathbf H$ obey four-dimensional Maxwell's equations exactly, and what pushes a
 charge is that light seen through a lens, $\mathbf E = (\mathbf D/\varepsilon_0)/\ell k$; we call it the **lens
 vacuum**. Its price is relativity, for the force between charges only: the static $1/r$ acts across space at once.
-This paper uses only its statics, which are all an atom's ground state needs. Declared rather than derived: electrons
-are spin-½ fermions, two to an orbital; nuclei are point charges stable to $Z = 140$; the fine-structure constant is
-small, so atoms are solved without relativity. Single atoms don't collapse (their energies follow the Thomas–Fermi
+This paper uses only its statics, which are all an atom's ground state needs. The free electron keeps its own
+relativity, which the lens vacuum gives up only for the force between charges, and that fixes how many electrons an
+orbital holds. In 4 + 1 dimensions the smallest Dirac electron has four components, the product of the four spatial
+Dirac matrices serves as time's, and a slow electron keeps the two components of one chirality, which turn with one
+half of a four-dimensional rotation only: two spin states, two to an orbital (appendix F.6). A four-state electron is
+possible in principle and would double every shell. What stays declared is that the electron is the smallest spinor and
+that it obeys Pauli's exclusion, which in ours the spin-statistics theorem derives from a local, relativistic theory, as
+the force here is not. Nuclei are point charges stable to $Z = 140$, and the fine-structure constant is small, so atoms
+are solved without relativity. Single atoms don't collapse (their energies follow the Thomas–Fermi
 $Z^{5/2}$ [@kventsel1981], fitted exponent 2.527), but the stability of matter in bulk, whose proofs in ours lean
 on the shell theorem, is open (appendix F.7).

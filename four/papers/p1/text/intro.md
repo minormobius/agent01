@@ -31,5 +31,6 @@ theorem forced back on, to find which of its features the law decides (section 6
 atoms that later work on molecules starts from (section 7). The appendices hold the arguments and methods in full,
 every check of every method against our own world, and the starting data for chemistry: valence states, the atoms'
 response, and a test of the valence rule. Every number in the text is recomputed from the code and its data whenever
-anything changes, and checked against a ledger of {{ledger.n}} claims; the code, the data and the paper's making are
-public at four.mino.mobi/papers.
+anything changes, and checked against a ledger of {{ledger.n}} claims. The solvers, with their known-answer tests and a
+script that solves the paper's atoms again, are released under the MIT licence at
+tangled.org/morphyxmino.bsky.social/four-atom; the data and the paper's making are public at four.mino.mobi/papers.

@@ -7,6 +7,12 @@ in a browser or in node 20+.
 
 How each method works, what checks it and its limits: [four.mino.mobi/atom/methods.html](https://four.mino.mobi/atom/methods.html).
 
+```bash
+git clone https://tangled.org/morphyxmino.bsky.social/four-atom
+cd four-atom && npm test        # the known-answer test: every method against its checks
+node papers/p1/reproduce.mjs     # paper 1's atoms, solved again and set against its data
+```
+
 ## What's here
 
 | module | computes |

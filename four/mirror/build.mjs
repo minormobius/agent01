@@ -65,7 +65,7 @@ process.exit(fails ? 1 : 0);
   copyFileSync(path.join(FOUR, "atom/test/fixtures/nist-spce-1.txt"), path.join(out, "atom/test/fixtures/nist-spce-1.txt"));
   for (const f of ["README.md", "LICENSE"]) copyFileSync(path.join(here, f), path.join(out, f));
   for (const f of DATA) { mkdirSync(path.join(out, path.dirname(f)), { recursive: true }); copyFileSync(path.join(FOUR, f), path.join(out, f)); }
-  writeFileSync(path.join(out, "package.json"), JSON.stringify({ name: "four", private: true, type: "module", license: "MIT", description: "Solvers for any number of dimensions, from four.mino.mobi", scripts: { test: "node atom/test/methods.selftest.mjs" } }, null, 2) + "\n");
+  writeFileSync(path.join(out, "package.json"), JSON.stringify({ name: "four-atom", private: true, type: "module", license: "MIT", description: "Solvers for any number of dimensions, from four.mino.mobi", scripts: { test: "node atom/test/methods.selftest.mjs" } }, null, 2) + "\n");
   return out;
 }
 

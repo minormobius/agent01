@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="08d07541c35ceea1d516d546862d03654409edfd165f92e5536bb0d77aff4f08" />
+<meta name="source-sha256" content="da4f2fbe78495c5e5c61220ebe4ef962d8b92ac50b5ad7733dcce7ce5d6f0213" />
 <title>Paper 1 · Paper 1 · the whole draft</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -107,8 +107,11 @@ arguments and methods in full, every check of every method against our
 own world, and the starting data for chemistry: valence states, the
 atoms’ response, and a test of the valence rule. Every number in the
 text is recomputed from the code and its data whenever anything changes,
-and checked against a ledger of 40 claims; the code, the data and the
-paper’s making are public at four.mino.mobi/papers.</p>
+and checked against a ledger of 40 claims. The solvers, with their
+known-answer tests and a script that solves the paper’s atoms again, are
+released under the MIT licence at
+tangled.org/morphyxmino.bsky.social/four-atom; the data and the paper’s
+making are public at four.mino.mobi/papers.</p>
 <h1 id="part-i-the-law">Part I · The law</h1>
 <h2 id="the-law-between-charges">2 · The law between charges</h2>
 <p>Ask what the atoms are in a world with four dimensions of space and
@@ -318,11 +321,20 @@ we call it the <strong>lens vacuum</strong>. Its price is relativity,
 for the force between charges only: the static
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 acts across space at once. This paper uses only its statics, which are
-all an atom’s ground state needs. Declared rather than derived:
-electrons are spin-½ fermions, two to an orbital; nuclei are point
-charges stable to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>;
-the fine-structure constant is small, so atoms are solved without
+all an atom’s ground state needs. The free electron keeps its own
+relativity, which the lens vacuum gives up only for the force between
+charges, and that fixes how many electrons an orbital holds. In 4 + 1
+dimensions the smallest Dirac electron has four components, the product
+of the four spatial Dirac matrices serves as time’s, and a slow electron
+keeps the two components of one chirality, which turn with one half of a
+four-dimensional rotation only: two spin states, two to an orbital
+(appendix F.6). A four-state electron is possible in principle and would
+double every shell. What stays declared is that the electron is the
+smallest spinor and that it obeys Pauli’s exclusion, which in ours the
+spin-statistics theorem derives from a local, relativistic theory, as
+the force here is not. Nuclei are point charges stable to
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>,
+and the fine-structure constant is small, so atoms are solved without
 relativity. Single atoms don’t collapse (their energies follow the
 Thomas–Fermi
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>Z</mi><mrow><mn>5</mn><mi>/</mi><mn>2</mn></mrow></msup><annotation encoding="application/x-tex">Z^{5/2}</annotation></semantics></math>
@@ -1928,11 +1940,44 @@ choice, on
 on how the lens vacuum’s fields move and radiate, or on the absolute
 now. Those dynamics, of the same lens vacuum, are the subject of a later
 paper.</p>
-<p><strong>F.6 Electrons, nuclei and the fine-structure constant,
-declared.</strong> Electrons are spin-½ fermions, two to an orbital.
-That is stated, not derived: in our world it follows from relativity and
-spin together, and this universe has given up relativity for the force.
-Nuclei are point charges
+<p><strong>F.6 Electrons: what is derived and what is declared; nuclei
+and the fine-structure constant.</strong> An electron’s spin is a
+representation of the rotations, and in four dimensions they split:
+so(4) = so(3) ⊕ so(3), a turn’s left half and right half. The spinors of
+Spin(4) = SU(2) × SU(2) come as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\tfrac12, 0)</annotation></semantics></math>,
+two states that turn with the left half only,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(0, \tfrac12)</annotation></semantics></math>,
+two that turn with the right, and their sum, four. The smallest have two
+states. The free electron can keep its relativity, which the lens vacuum
+gives up only for the force between charges. Its Dirac equation in 4 + 1
+dimensions has four components, and the product of the four spatial
+Dirac matrices squares to one and anticommutes with each of them, so it
+serves as time’s (the site’s selftest builds them). A slow electron
+keeps the two components on which that matrix is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">+1</annotation></semantics></math>,
+and they carry one half of the rotations only: two spin states, and a
+handed spin that a right-isoclinic turn leaves alone
+(four.mino.mobi/atom/motion.html#spin). A four-state electron,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>,</mo><mn>0</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>⊕</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>0</mn><mo>,</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">(\tfrac12, 0) \oplus (0, \tfrac12)</annotation></semantics></math>,
+would need two such Dirac fields with the same charge and mass, two
+species in all but name. It would hold four to an orbital: the hydrogen
+shells would hold 4, 20, 56 and 120, every row of the table would be
+twice as long, and the noble gases would sit elsewhere. The vector
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo stretchy="true" form="prefix">(</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo>,</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><annotation encoding="application/x-tex">(\tfrac12, \tfrac12)</annotation></semantics></math>
+also has four states, but a full turn leaves it unchanged; it is integer
+spin, not an electron’s. So two states is what the smallest relativistic
+electron gives, and that is the choice made. Two things remain declared.
+One is that the electron is that smallest spinor. The other is Pauli’s
+exclusion: in ours the spin-statistics theorem derives it from
+relativity and locality together, and the force here is neither, so the
+theorem can’t be borrowed. The exclusion is what the proofs of stability
+in ours lean on <span class="citation"
+data-cites="dyson1967 lieb1975">(<a href="#ref-dyson1967"
+role="doc-biblioref">Dyson and Lenard 1967</a>; <a href="#ref-lieb1975"
+role="doc-biblioref">Lieb and Thirring 1975</a>)</span>, so without it
+bulk matter would have no claim to stability here either. Nuclei are
+point charges
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>+</mo><mi>Z</mi></mrow><annotation encoding="application/x-tex">+Z</annotation></semantics></math>,
 stable for every
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Z</mi><annotation encoding="application/x-tex">Z</annotation></semantics></math>
@@ -3147,8 +3192,12 @@ reference by hand from its source</td>
 the solver and checks them against the paper’s data; <code>--all</code>
 re-solves every element. The runner’s logs, with each command’s exit
 status, are kept on the repository’s <code>atom4-data</code> branch
-under <code>runs/</code>. The code is mirrored at a tagged version for
-citation.</p>
+under <code>runs/</code>. The solvers, the known-answer test assembled
+from the selftest’s method blocks, <code>reproduce.mjs</code> and the
+paper’s tables are mirrored under the MIT licence at
+tangled.org/morphyxmino.bsky.social/four-atom (<code>npm test</code>
+runs the known-answer test; <code>node papers/p1/reproduce.mjs</code>
+re-solves the sample), refreshed on every change to them.</p>
 <h2 id="supplement-and-data">Supplement and data</h2>
 <p>Supplement S1 is the table with every open subshell given Hund spins
 (<code>data/table4-hundspin.csv</code>). The 40 claims this text rests
