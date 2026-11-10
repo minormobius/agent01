@@ -5,6 +5,10 @@
      node four/atom/tools/hftable.mjs check                          the solver against known answers (seconds to a minute)
      node four/atom/tools/hftable.mjs rank <Z/Z/…> [D] [window_eV] [climb]   one JSON line per element (D = 4, window 4 eV);
        climb adds Hartree–Fock's own one-electron neighbourhood (below)
+     node four/atom/tools/hftable.mjs farcorr <Z/Z/…> [D]           the term corrections `rank` skipped: every candidate of
+       Z that papers/p1/data/hftable.json marks `far` (ranked on its raw energy, more than 6 eV above the best), solved
+       by Hartree–Fock again and corrected; one JSON line per candidate, `partial` where a spin block was too big to finish
+       (papers/p1/hf-collect.mjs folds them in, keeping which energies were raw, corrected or partial)
    The candidates are termtable.mjs's: ground() with the neighbours' configurations as seeds, every settled one kept,
    those within the window of the local-exchange ground solved by Hartree–Fock. Each energy carries its open subshells'
    term correction: for the local exchange, Hund's first rule only (lowest term − lowest max-spin term, as the main table
@@ -84,6 +88,20 @@ if (mode === "map") {
   }
 }
 
+if (mode === "farcorr") {
+  const sh = subshells(D), HFT = JSON.parse(readFileSync(new URL("../../papers/p1/data/hftable.json", import.meta.url), "utf8"));
+  for (const Z of zs.split("/").map(Number)) {
+    const r = HFT.rows.find((x) => x.D === D && x.Z === Z); if (!r?.rows) continue;
+    for (const c of r.rows.filter((x) => x.far)) {
+      const t0 = Date.now(), occ = occOf(sh, c.config), h = hfAtom(D, Z, hfOcc(sh, occ), { grid: { h: 0.02 } });
+      if (!h.converged) { console.log(JSON.stringify({ Z, D, config: c.config, converged: false, s: (Date.now() - t0) / 1000 })); continue; }
+      const qs = sh.map((s, i) => { const k = h.subshells.find((x) => x.name === s.name); return k ? toAtomGrid(h.S, k.z) : null; }), hc = correction(occ, qs, true, sh);
+      console.log(JSON.stringify({ Z, D, config: c.config, hfRaw: +h.E.toFixed(6), storedRaw: c.hfRaw, corr_eV: +(hc.delta * HA).toFixed(4), parts: hc.parts.map(({ blocks, ...p }) => p),
+        partial: hc.parts.some((p) => p.complete === false), converged: true, s: (Date.now() - t0) / 1000 }));
+    }
+  }
+}
+
 if (mode === "rank") {
   const sh = subshells(D);
   for (const Z of zs.split("/").map(Number)) {
@@ -95,8 +113,10 @@ if (mode === "rank") {
     const cands = []; for (const c of collect) { const k = cands.findIndex((x) => same(x.occ, c.occ)); if (k >= 0) { if (c.E < cands[k].E) cands[k] = c; } else cands.push(c); }
     if (!cands.length) { console.log(JSON.stringify({ Z, D, unsettled: true })); continue; }
     const best = Math.min(...cands.map((c) => c.E)), near = cands.filter((c) => c.E < best + WIN);
-    /* `above`: skip the term correction when the raw energy is more than 6 eV above it; the correction (lowest term −
-       the max-spin average) is never positive and a few eV at most, so such a configuration can't take part in the ranking */
+    /* `above`: skip the term correction when the raw energy is more than 6 eV above it, to save time. That is NOT safe on
+       its own: the correction is never positive and reaches −7.7 eV in the 4D f row, so a skipped configuration's raw
+       energy overstates its place by its own correction. The skipped ones are marked `far` and corrected afterwards by
+       `farcorr` (Astra's audit, 2026-11-10) */
     const hfSolve = (c, above) => { const h = hfAtom(D, Z, hfOcc(sh, c.occ), { grid: { h: 0.02 } }); c.hfRaw = h.E; c.hfConv = h.converged;
       if (h.converged && above != null && h.E - above > 6 / HA) { c.hf = h.E; c.hfParts = null; c.far = true; return; }
       if (h.converged) { const qs = sh.map((s, i) => { const k = h.subshells.find((x) => x.name === s.name); return k ? toAtomGrid(h.S, k.z) : null; }); const hc = correction(c.occ, qs, true, sh); c.hf = h.E + hc.delta; c.hfParts = hc.parts; c.hfEps = Object.fromEntries(h.subshells.map((x) => [x.name, +x.eps.toFixed(5)])); } };

@@ -1,78 +1,113 @@
 {
- "run": "eta-table-1",
- "why": "Paper 1's bracket of the pinned law: the 4D table, elements 1–100, solved under a law 1/r^η with η = 0.5 and 1.5 (nucleus, clouds through the η kernel, and the local exchange of that law's own electron gas), each element seeded from the real table, its neighbours and the bare η-nucleus's filling order, with a check that the empty 5g level stays above the outermost occupied one. Asks which rows and noble gases survive on either side of 1/r (section 2.3, figure 1).",
+ "run": "farcorr-eta-repair-1",
+ "why": "Astra's final audit (F03): the Hartree–Fock ranking skipped the term correction for candidates more than 6 eV above the best, but the correction reaches −7.7 eV, so a skipped candidate's place is overstated; every such candidate (182, in 39 elements of both worlds) is solved again and corrected (hftable.mjs farcorr). And the η = 1.5 table's 24 unsettled elements (44–58, 76–84) searched again more widely (etatable.mjs repair).",
  "minutes": 340,
  "groups": [
   {
-   "name": "eta05-0",
+   "name": "farcorr-0",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 0.5 0 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 1 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 2 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 3 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 111 4",
+    "node four/atom/tools/hftable.mjs farcorr 110 4",
+    "node four/atom/tools/hftable.mjs farcorr 109 4",
+    "node four/atom/tools/hftable.mjs farcorr 104 4"
    ]
   },
   {
-   "name": "eta05-1",
+   "name": "farcorr-1",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 0.5 4 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 5 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 6 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 7 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 103 4",
+    "node four/atom/tools/hftable.mjs farcorr 102 4",
+    "node four/atom/tools/hftable.mjs farcorr 100 4",
+    "node four/atom/tools/hftable.mjs farcorr 99 4"
    ]
   },
   {
-   "name": "eta05-2",
+   "name": "farcorr-2",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 0.5 8 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 9 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 10 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 11 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 98 4",
+    "node four/atom/tools/hftable.mjs farcorr 97 4",
+    "node four/atom/tools/hftable.mjs farcorr 96 4",
+    "node four/atom/tools/hftable.mjs farcorr 95 4"
    ]
   },
   {
-   "name": "eta05-3",
+   "name": "farcorr-3",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 0.5 12 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 13 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 14 16 100",
-    "node four/atom/tools/etatable.mjs run 0.5 15 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 94 4",
+    "node four/atom/tools/hftable.mjs farcorr 93 4",
+    "node four/atom/tools/hftable.mjs farcorr 92 4",
+    "node four/atom/tools/hftable.mjs farcorr 91 4"
    ]
   },
   {
-   "name": "eta15-0",
+   "name": "farcorr-4",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 1.5 0 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 1 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 2 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 3 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 90 4",
+    "node four/atom/tools/hftable.mjs farcorr 89 4",
+    "node four/atom/tools/hftable.mjs farcorr 88 4",
+    "node four/atom/tools/hftable.mjs farcorr 87 4"
    ]
   },
   {
-   "name": "eta15-1",
+   "name": "farcorr-5",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 1.5 4 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 5 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 6 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 7 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 86 4",
+    "node four/atom/tools/hftable.mjs farcorr 85 4",
+    "node four/atom/tools/hftable.mjs farcorr 84 4",
+    "node four/atom/tools/hftable.mjs farcorr 83 4"
    ]
   },
   {
-   "name": "eta15-2",
+   "name": "farcorr-6",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 1.5 8 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 9 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 10 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 11 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 82 4",
+    "node four/atom/tools/hftable.mjs farcorr 81 4",
+    "node four/atom/tools/hftable.mjs farcorr 69 3",
+    "node four/atom/tools/hftable.mjs farcorr 68 3"
    ]
   },
   {
-   "name": "eta15-3",
+   "name": "farcorr-7",
    "cmds": [
-    "node four/atom/tools/etatable.mjs run 1.5 12 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 13 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 14 16 100",
-    "node four/atom/tools/etatable.mjs run 1.5 15 16 100"
+    "node four/atom/tools/hftable.mjs farcorr 67 3",
+    "node four/atom/tools/hftable.mjs farcorr 66 3",
+    "node four/atom/tools/hftable.mjs farcorr 65 3",
+    "node four/atom/tools/hftable.mjs farcorr 63 3"
+   ]
+  },
+  {
+   "name": "farcorr-8",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs farcorr 62 3",
+    "node four/atom/tools/hftable.mjs farcorr 61 3",
+    "node four/atom/tools/hftable.mjs farcorr 60 3",
+    "node four/atom/tools/hftable.mjs farcorr 59 3"
+   ]
+  },
+  {
+   "name": "farcorr-9",
+   "cmds": [
+    "node four/atom/tools/hftable.mjs farcorr 58 3",
+    "node four/atom/tools/hftable.mjs farcorr 56 3",
+    "node four/atom/tools/hftable.mjs farcorr 55 3"
+   ]
+  },
+  {
+   "name": "eta15-repair-a",
+   "cmds": [
+    "node four/atom/tools/etatable.mjs repair 1.5 0 8",
+    "node four/atom/tools/etatable.mjs repair 1.5 1 8",
+    "node four/atom/tools/etatable.mjs repair 1.5 2 8",
+    "node four/atom/tools/etatable.mjs repair 1.5 3 8"
+   ]
+  },
+  {
+   "name": "eta15-repair-b",
+   "cmds": [
+    "node four/atom/tools/etatable.mjs repair 1.5 4 8",
+    "node four/atom/tools/etatable.mjs repair 1.5 5 8",
+    "node four/atom/tools/etatable.mjs repair 1.5 6 8",
+    "node four/atom/tools/etatable.mjs repair 1.5 7 8"
    ]
   }
  ]
