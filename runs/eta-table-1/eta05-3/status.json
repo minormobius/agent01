@@ -1,0 +1,33 @@
+{
+ "group": "eta05-3",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/etatable.mjs run 0.5 12 16 100",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 698
+  },
+  {
+   "cmd": "node four/atom/tools/etatable.mjs run 0.5 13 16 100",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 708
+  },
+  {
+   "cmd": "node four/atom/tools/etatable.mjs run 0.5 14 16 100",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 717
+  },
+  {
+   "cmd": "node four/atom/tools/etatable.mjs run 0.5 15 16 100",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 714
+  }
+ ]
+}
