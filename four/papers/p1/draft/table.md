@@ -25,14 +25,15 @@ harder than any other atom in the table. Element 68, the same kind a row up, com
 xenon at 12.1 [@nist-handbook]. Searching each ion for its own ground state leaves 128's ionization where it was.
 Section 6 shows the law does it.
 
-**4.3 How firm each configuration is.** Hartree–Fock and local exchange agree on 126 of the 140 ground
-configurations, and these are firm. The 14 they don't agree on are open: 30, 31, 37, 38, 40, 58, 61 in the d rows, where local
-exchange puts one electron more in d than Hartree–Fock, as it does in ours; 107, 108, 109, 110, 111 at the end of row 6's f block,
-where it puts one more in f; and 2 at the start of a block (53, 83). Our own table is the calibration (appendix E.6): there Hartree–Fock gets
-36 of 36 configurations right against local exchange's 32, and where the two agree they are right. In
-row 6's f block both methods overbind f, and our lanthanides measure by how much: Hartree–Fock makes f too stable by at
-most 4.1 eV. Four-dimensional f electrons are bound so deeply that 17 of the block's 32 elements hold
-against that bias. The interactive table gives each element's verdict.
+**4.3 How firm each configuration is.** A second method, numerical Hartree–Fock, ranks the same candidates (appendix
+E.6). Agreement, the search's coverage and the margins are reported separately. Hartree–Fock and local exchange agree on
+126 of the 140 ground configurations and differ on 14: 30, 31, 37, 38, 40, 58, 61 in the d rows, where local exchange puts one electron
+more in d, as it does in ours; 107, 108, 109, 110, 111 at the end of row 6's f block, where it puts one more in f; and 2 at the start of
+a block (53, 83). In ours Hartree–Fock gets 36 of 36 configurations right against local exchange's 32, and where the two
+agree they are right. Agreement is not a guarantee, though: in our lanthanides both overbind f, Hartree–Fock by up to
+4.1 eV in the measured states. Taking that as a sensitivity scale (an assumption, not a bound), 17 of the 32
+elements of row 6's f block have no competitor with fewer f within it, 5 agree with one inside it, and 4 agree with
+none solved. The interactive table gives each element's group.
 
 **4.4 Every element in profile.** Figure 4 draws six atoms' radial densities, and figure 5 what their outermost
 orbitals look like on the 3-sphere. The same two pictures for every element are on the interactive table, where any
@@ -42,7 +43,7 @@ starts from, each atom's valence states and a direct test of the valence rule on
 
 ![**Figure 4.** Six four-dimensional atoms in profile: each subshell's electrons per unit ln r against distance, from the solved atoms; the area under a curve is its electron count, and the outermost subshell is drawn thick. Darbon (7), our carbon's place, five electrons of a ten-electron shell; element 8, which answers to nothing of ours; oeon (12), the first noble gas past helium, its p shell holding eight; uitanium (26), where the d block starts; element 101, 21 electrons into an f shell that holds 32; and element 128, the hardest-held electron in the table. Every element's profile: four.mino.mobi/table/#Z.](../figures/4.svg){#fig-4}
 
-![**Figure 5.** Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, so any three-dimensional slice through the nucleus misses it entirely. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Any element's orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen's exact ones, turned live: kata.mino.mobi/orbital.](../figures/5.svg){#fig-5}
+![**Figure 5.** Orbitals four dimensions has and ours doesn't, cut through the nucleus by a plane, on the solved atoms' own radial functions. (a) The fourth p orbital, p_w, in the x–w plane: a dumbbell along w, which vanishes on the slice w = 0, so the three-dimensional slice through the nucleus that is our own space misses it entirely; a slice tilted into w meets it. (b–d) One of the nine 4D d orbitals, x² + y² − z² − w², in three planes: positive all the way round the x–y plane, negative all the way round the z–w plane, and a four-leaf clover in a plane that mixes them. The x–y and z–w planes are completely perpendicular and meet only at the nucleus; nothing in three dimensions is positive round one plane and negative round another. Any element's orbitals, in any plane: four.mino.mobi/table/#Z; hydrogen's exact ones, turned live: kata.mino.mobi/orbital.](../figures/5.svg){#fig-5}
 
 ## 5 · Hund's first rule in four dimensions
 
@@ -59,7 +60,7 @@ the f block 4f³ (element 83) fails too, and so does its mirror 4f²⁹ (element
 0.15 and 0.26 eV below the quartet. No other f filling was found to break the rule, though for the
 fullest blocks only the highest spins could be run (appendix H.2).
 
-**5.2 The four-dimensional shell breaks it, not the law.** On element 26's own orbital Gauss's $1/r^2$ gives the same
+**5.2 For d², the four-dimensional shell breaks it, not the law.** On element 26's own orbital, held fixed, Gauss's $1/r^2$ gives the same
 order, the singlet 0.82 eV below the triplet against 0.40 eV under $1/r$. The cause is the shell. For two
 electrons in a d subshell each term's energy is exactly $F^0 + a_2F^2 + a_4F^4$: the $F^n$ are the radial parts of the
 repulsion and depend on the orbital, and the $a_n = \langle C_n(\cos\gamma)\rangle$ over the term depend only on the

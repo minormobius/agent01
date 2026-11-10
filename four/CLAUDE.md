@@ -881,6 +881,18 @@ for games, and this is a modelling programme with publications to come. The game
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).
+  **Astra's final audit (2026-11-10), the correction pass.** F01: `reproduce.mjs` re-solves each main-table row by the
+  pipeline that made it (bake outside the d/f blocks; `termtable.mjs` for 23–42, 51–70, 79–130, with the ion search where
+  `cation_rearranged`); `--s1` checks the bake against supplement S1; in the mirror (no termtable/hund/bake) those rows are
+  named "not reproduced here". 26, 39, 54, 55 now reproduce to Δ 0. F03: `hftable.mjs rank` skipped the term correction
+  for candidates > 6 eV up, though corrections reach −7.7 eV; `farcorr` computes them (run `farcorr-eta-repair-1`) and
+  `hf-collect.mjs` folds them in with provenance per candidate (`term`: corrected after / partial / uncorrected) and per
+  f-row verdict (`decidedBy`, `groundPartial`). F02: "firm" is gone from the paper and the table page: agreement, coverage
+  and margins are reported separately, and B (4.1 eV) is a sensitivity scale, not a bound. F04: subshell size (rotations,
+  any potential), shared shell energies (1/r, SO(5)) and row lengths (a many-electron result) are kept apart; the rows
+  "survive the shell theorem", not "are the geometry's". F05: Hund under both laws is d² on element 26's fixed orbital
+  only. F06: the response results are for the 15 round-cloud atoms sampled. F07, F08: wording, explicit fractions,
+  `abbrConfig` (every open subshell kept in table abbreviations), figure 5 and table 1 captions.
   **The bracket of the pinned law (PI, 2026-11-10): the table under 1/r^η, η = 0.5 and 1.5.** `atom.js` takes `eta`
   (scf/ground/potentials options; default 1, which is untouched and bit-identical): the nucleus −Z/r^η, the clouds through
   `kernel.js`'s `kEtaTab(eta)` (the 3-sphere average of 1/|x−y|^η, kη(t)/max^η), the local exchange of that law's own

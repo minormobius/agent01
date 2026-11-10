@@ -11,12 +11,12 @@ the law's, not a weaker search (appendix G.10). Of the 140 elements, 112 settle,
 88; the rest, 89–116, have no settled ground state under the shell theorem from any start tried,
 so what follows about the rows holds through row 5.
 
-**6.1 The rows are the geometry's.** With the shell theorem forced on, the first 24 elements keep every configuration,
-and the noble gases close the same rows at elements 2, 12, 22, 50, 78, 138 (figure 6). The rows' lengths, 2, 10, 10, 28, 28,
-come from four-dimensional space's $2(l + 1)^2$ to a subshell, not from the law, so long as the law keeps a shell
-together (section 2.3).
+**6.1 The rows survive the shell theorem.** With the shell theorem forced on, the first 24 elements keep every
+configuration, and the noble gases close the same rows at elements 2, 12, 22, 50, 78, 138 (figure 6). So the rows don't come
+from the shell theorem's failure. Their lengths, 2, 10, 10, 28, 28, are sums of subshells of $2(l + 1)^2$, filled in
+the order these calculations find under $1/r$; whether they survive a change of the exponent is a separate question.
 
-![**Figure 6.** What the law does. Every 4D atom solved a second time with the shell theorem forced on (the clouds' pull as if each sat at the centre), everything else held. (a) The table: grey, the same ground configuration under both laws; orange, changed; a question mark in place of the element's number, no settled ground state under the shell theorem (row 6's f block, 89–116, after a second, wider search). Every atom up to 88 settles. The first 24 elements and all six noble gases are unchanged: the rows are the geometry's, at least through row 5. Every change starts at the first d element: without the law, p beats d inside each row. (b) First ionization under both: the law holds outer electrons a median 2.5 times harder, and element 128 nearly ten times (29.6 eV against 3.1); with the shell theorem the noble gases hold hardest, as ours do.](../figures/6.svg){#fig-6}
+![**Figure 6.** What the law does. Every 4D atom solved a second time with the shell theorem forced on (the clouds' pull as if each sat at the centre), everything else held. (a) The table: grey, the same ground configuration under both laws; orange, changed; a question mark in place of the element's number, no settled ground state under the shell theorem (row 6's f block, 89–116, after a second, wider search). Every atom up to 88 settles. The first 24 elements and all six noble gases are unchanged: the rows survive the shell theorem, at least through row 5. Every change starts at the first d element: without the law, p beats d inside each row. (b) First ionization under both: the law holds outer electrons a median 2.5 times harder, and element 128 nearly ten times (29.6 eV against 3.1); with the shell theorem the noble gases hold hardest, as ours do.](../figures/6.svg){#fig-6}
 
 **6.2 What fills inside the rows is the law's.** Of the settled atoms, 57 change configuration, the first at
 element 25, the first d element. Under the shell theorem p beats d: element 25 takes 4s² 4p¹ where the law
@@ -41,16 +41,19 @@ held in ours (appendix E.4); the light noble gases don't hold one at all.
 Under the shell theorem a neutral atom is invisible from outside its cloud. Here it isn't. A shell of charge $q$ and
 radius $s$, felt at a distance $R$ outside it, gives $q\,\kappa(s/R)/R$ with $\kappa = 1 - t^2/8 - \dots$ (appendix A).
 Summed over the nucleus and the electrons the leading terms cancel, and what remains, for an electron at distance $R$,
-is a pull $-Q/8R^3$ with $Q = \sum\langle r^2\rangle$. The solved noble gases follow it: at 30 bohr the full cloud's
-potential and the far form agree to 0.22 %. Between two atoms the same failure gives a permanent attraction
-$-3Q_AQ_B/64R^5$, with no dipole needed, which outranges London's $R^{-6}$.
+is a pull $-\tfrac{Q}{8R^3}$ with $Q = \sum\langle r^2\rangle$. The solved noble gases follow it: at 30 bohr the full cloud's
+potential and the far form agree to 0.22 %. Between two atoms with round clouds (closed shells, or
+a single s electron) the same failure gives a permanent attraction $-\tfrac{3Q_AQ_B}{64R^5}$, with no dipole needed, which
+outranges London's $R^{-6}$; an open p, d or f shell isn't round, and adds an ordinary quadrupole pull of the same
+order that depends on how the atoms are turned (appendix J.2).
 
 For two like atoms the permanent pull's coefficient is $C_5 = 3Q^2/64$, and $R^* = C_6/C_5$ is the distance inside
 which dispersion is the larger, with $C_6$ from the solver's coupled response by Casimir and Polder's integral
 (appendix J.1, table 2; in ours its noble gases' polarizabilities are off by −8 % to +4 % against @derevianko2010).
-For hydrogen and helium $R^*$ is 28 and 9.26 bohr, for the alkali-like and alkaline-earth-like atoms 4.9–94, and
-for every other atom in the table 0.59–1.5, inside the atom. Past contact, for most of the table, the permanent
-term is the leading pull between neutral atoms at every distance where a far-field form applies. Pulled apart by
+These are computed for 15 four-dimensional atoms, those whose clouds are round: for hydrogen and helium
+$R^*$ is 28 and 9.26 bohr, for the alkali-like and alkaline-earth-like atoms sampled 4.9–94, and for the other
+5 closed-shell atoms sampled 0.59–1.5, inside the atom. Among them, past contact, the permanent
+term is the leading pull at every distance where a far-field form applies. Pulled apart by
 Hartree–Fock, two closed-shell atoms follow it (1.02–1.06 times the far form at 16 bohr), so the atoms the
 molecular codes separate into are this paper's (appendix J.2).
 
@@ -73,7 +76,9 @@ liquids and crystals under the same law.
 **Conclusion.** A world with four large dimensions of space has to choose its law between charges, because Gauss's law
 gives it no atoms. Pinned at $1/r$, the only power law that keeps a shell together, it has atoms, and they have a
 periodic table: rows of 2, 10, 10, 28, 28, 60, noble gases at 2, 12, 22, 50, 78, 138, as the generalized Madelung rule predicts. The
-rows are the geometry's. What fills inside them from the first d element on is the law's, because in four dimensions
+rows survive the shell theorem forced back on. What fills inside them from the first d element on doesn't, because in
+four dimensions
 $1/r$ isn't harmonic and an inner cloud screens only partly: outer electrons are held about two and a half times
 harder, the hardest-held electron belongs to a full d shell rather than a noble gas, and a neutral atom pulls from
-afar. And four-dimensional space breaks Hund's first rule for d², d¹⁶, 4f³ and 4f²⁹, under both laws tested.
+afar. And four-dimensional space breaks Hund's first rule for d², d¹⁶, 4f³ and 4f²⁹; for d², on element 26's orbital, Gauss's
+$1/r^2$ breaks it too.

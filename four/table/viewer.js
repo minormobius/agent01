@@ -146,11 +146,12 @@ function fill(e, el, o) {
 /* Hartree–Fock's verdict on the table's configuration (table/hfverdict.js) */
 const tailCfg = (c) => { const t = c.split(" "), f = t.filter((x) => /f\d+$/.test(x)); return [...f, ...t.slice(-2).filter((x) => !f.includes(x) && !/p[68]$/.test(x))].join(" "); };
 function hfLine(v, e) {
-  if (v[0] === 1) return "<b>firm:</b> Hartree–Fock gives the same configuration";
-  if (v[0] === 2) return `<b>open:</b> Hartree–Fock agrees, but puts ${tailCfg(v[1])} only ${v[2].toFixed(2)} eV up, inside its lean toward f in our lanthanides`;
-  if (v[0] === 3) return `<b>open, leaning Hartree–Fock:</b> it prefers ${tailCfg(v[1])}${v[2] != null ? `, ${v[2].toFixed(2)} eV below this one` : ""}, and in our lanthanides local exchange leans further toward f than Hartree–Fock`;
-  if (v[0] === 4) return "<b>untested:</b> Hartree–Fock agrees, but no configuration with fewer f electrons was solved";
-  return `<b>open:</b> Hartree–Fock prefers ${tailCfg(v[1])}${v[2] != null ? `, ${v[2].toFixed(2)} eV below this one` : ""}`;
+  const fRow = e.Z >= 81 && e.Z <= 112;
+  if (v[0] === 1) return `<b>methods agree:</b> Hartree–Fock gives the same configuration${fRow ? ", and puts every configuration with fewer f electrons more than 4.1 eV up (the largest f error in our lanthanides, taken as a sensitivity scale)" : ""}`;
+  if (v[0] === 2) return `<b>methods agree, a competitor close:</b> Hartree–Fock puts ${tailCfg(v[1])} only ${v[2].toFixed(2)} eV up, inside the 4.1 eV by which it overbinds f in our lanthanides`;
+  if (v[0] === 3) return `<b>methods differ, leaning Hartree–Fock:</b> it prefers ${tailCfg(v[1])}${v[2] != null ? `, ${v[2].toFixed(2)} eV below this one` : ""}, and in our lanthanides local exchange leans further toward f than Hartree–Fock`;
+  if (v[0] === 4) return "<b>methods agree, untested:</b> no configuration with fewer f electrons was solved";
+  return `<b>methods differ:</b> Hartree–Fock prefers ${tailCfg(v[1])}${v[2] != null ? `, ${v[2].toFixed(2)} eV below this one` : ""}`;
 }
 const sub = (n) => (n > 1 ? String(n).split("").map((c) => "₀₁₂₃₄₅₆₇₈₉"[+c]).join("") : "");
 

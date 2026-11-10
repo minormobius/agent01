@@ -453,6 +453,10 @@
   {
    "date": "2026-11-10",
    "what": "PI's notes while reviewing. (1) The bracket of the pinned law: atom.js takes a law 1/r^η, and run eta-table-1 solves elements 1–100 under η = 0.5 and 1.5 (selftest 72; first look: η = 0.5 fills p before s, η = 1.5 sinks s below p). (2) The electron's two spin states were only declared; §2.5 and appendix F.6 now derive them from the smallest 4 + 1 Dirac electron (a slow one keeps two components of one chirality) and name what stays declared: that the electron is that smallest spinor, and Pauli's exclusion. A four-state electron would double every shell. (3) The solvers' MIT-licensed mirror, tangled.org/morphyxmino.bsky.social/four-atom, is cited in the introduction and appendix K. (4) The interactive table's tiles are links to #Z, and hover previews answer a mouse only, so a tap on a phone pins the element and Inside the atom follows."
+  },
+  {
+   "date": "2026-11-10",
+   "what": "Astra's final audit, eight findings; the correction pass. F01: the reproducer compared the bake with the corrected table; it now re-solves each row by the pipeline that made it, and 26, 39, 54, 55 reproduce exactly. F02: 'firm' replaced by separate reports of agreement, coverage and margins; B is a sensitivity scale, not a bound. F03: the Hartree–Fock climb skipped term corrections more than 6 eV up although they reach −7.7 eV; hftable.mjs farcorr computes them (queued, 182 candidates) and every candidate and verdict carries its provenance; 16 f-row verdicts are provisional until they're in. F04: degeneracy, shells and rows kept apart; the rows survive the shell theorem, and eta-table-1 shows they change with the exponent (η = 0.5: peaks at 2, 12, 40, the hydrogen shells; η = 1.5 still repairing). F05–F08: scoped claims and presentation."
   }
  ]
 }

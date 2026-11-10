@@ -16,7 +16,7 @@ so four dimensions differ from ours by the half-integer shift of $L$ and by the 
 a subshell. Four-dimensional hydrogen's ground state is $-2/9$ hartree; the solver gives −0.22222. Every
 electron–electron term goes through the kernel $\kappa$ of section 2.4, which is where the missing shell theorem enters
 the atom. Exchange is local, from the uniform electron gas of the same dimension and law,
-$\varepsilon_x = -A_D\,\rho^{1/D}$ with $A_4 = 16/15\sqrt\pi$ [@loos2016] (appendix B), each electron's own share
+$\varepsilon_x = -A_D\,\rho^{1/D}$ with $A_4 = \tfrac{16}{15\sqrt\pi}$ [@loos2016] (appendix B), each electron's own share
 removed [@perdew1981]; there is no correlation term.
 
 The radial equation is solved by Numerov's method on a logarithmic grid, each level by Sturm bisection, and the field

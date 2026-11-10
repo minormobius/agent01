@@ -38,8 +38,8 @@
   {
    "id": "shell",
    "part": "law",
-   "claim": "… and no shell theorem: a shell of charge is felt at its own radius at k(1) = 8/3π of a point charge's pull, and a hollow conductor's centre sits at 3π/8 of its wall's potential (no Faraday cage)",
-   "value": "k(1) = 0.848826 (8/3π = 0.848826); centre over wall 1.178097 (3π/8 = 1.178097)",
+   "claim": "… and no shell theorem: a shell of charge is felt at its own radius at k(1) = 8/(3π) of a point charge's pull, and a hollow conductor's centre sits at 3π/8 of its wall's potential (no Faraday cage)",
+   "value": "k(1) = 0.848826 (8/(3π) = 0.848826); centre over wall 1.178097 (3π/8 = 1.178097)",
    "holds": true,
    "section": "2.4",
    "gate": [
@@ -141,7 +141,7 @@
   {
    "id": "hydrogen",
    "part": "table",
-   "claim": "4D hydrogen comes out exact: −Z²/2(n + ½)² hartree, so −2/9 for the ground state",
+   "claim": "4D hydrogen comes out exact: −Z²/[2(n + ½)²] hartree, so −2/9 for the ground state",
    "value": "-0.22222 hartree against -0.22222",
    "holds": true,
    "section": "3, E.1",
@@ -175,7 +175,7 @@
   {
    "id": "geometry",
    "part": "consequence",
-   "claim": "The rows are the geometry's, not the law's: solved with the shell theorem forced on, the first 24 elements keep every configuration, and the noble gases close the same rows at 2, 12, 22, 50, 78 and 138",
+   "claim": "The rows survive the shell theorem: solved with it forced on, the first 24 elements keep every configuration, and the noble gases close the same rows at 2, 12, 22, 50, 78 and 138",
    "value": "with the shell theorem: 1–24 unchanged (all settled, all the same); every atom to 88 settled; noble gases 2 same, 12 same, 22 same, 50 same, 78 same, 138 same. 28 atoms of row 6's f block don't settle under the shell theorem (89–116), so whether row 6 splits is open",
    "holds": true,
    "section": "6.1",
@@ -329,7 +329,7 @@
   {
    "id": "separate",
    "part": "consequence",
-   "claim": "Stretched pairs of light atoms come apart into neutral atoms with their own spins in both worlds; in 4D the separated limit of closed-shell atoms is the permanent pull −3Q²/64R⁵, which Hartree–Fock reproduces",
+   "claim": "Stretched pairs of light atoms come apart into neutral atoms with their own spins in both worlds; in 4D the separated limit of closed-shell atoms is the permanent pull −3Q²/(64R⁵), which Hartree–Fock reproduces",
    "value": "pairs ours H₂, N₂, F₂, Ne₂, 4D 1, 2, 7, 10, 11, 12: charges below 10⁻⁵, ours' interaction at 16 bohr ≤ 0.001 mHa; 4D at 16 bohr, Hartree–Fock over the far form: closed 1.02–1.06, H 1.15, open p 1.4–1.9; basis error closed 0.00 to 6.60 mHa",
    "holds": true,
    "section": "7, J.2",
@@ -374,8 +374,8 @@
   {
    "id": "frow",
    "part": "table",
-   "claim": "Our lanthanides calibrate Hartree–Fock on the f row: it makes f too stable in every measured state that changes the f count, by at most B ≈ 4 eV. In 4D, f is bound so deeply that over half of row 6's f block is firm against that bias; the open cases sit at the block's two ends",
-   "value": "lanthanides: Hartree–Fock 15, local exchange 12 of 18; f too stable in 17 of 17, by 0.15–4.1 eV; f out of the ground: 90 5.8, 100 12.6, 109 19.9 eV, Tb 0.9 (measured 0.04); firm 81, 88–100 and 102–104; open though agreed 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86); leaning Hartree–Fock 83 and 107–111; untested 101, 105, 106 and 112",
+   "claim": "Our lanthanides calibrate Hartree–Fock on the f row: it makes f too stable in every measured state that changes the f count, by up to B ≈ 4 eV, which the paper takes as a sensitivity scale for 4D, not a bound. Under that scale, over half of row 6's f block has no competitor with fewer f within B, because 4D f electrons are bound far more deeply; the rest sit at the block's two ends. Verdicts whose deciding competitor's term correction is missing or partial are provisional",
+   "value": "lanthanides: Hartree–Fock 15, local exchange 12 of 18; f too stable in 17 of 17, by 0.15–4.1 eV; f out of the ground: 90 5.8, 100 12.6, 109 19.9 eV, Tb 0.9 (measured 0.04); firm 81, 88–100 and 102–104; open though agreed 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86); leaning Hartree–Fock 83 and 107–111; untested 101, 105, 106 and 112; deciding competitor uncorrected: 83, 91–96, 98–100, 102–104 and 109–111",
    "holds": true,
    "section": "4.3, E.6",
    "gate": [
@@ -386,8 +386,8 @@
   {
    "id": "kernelclosed",
    "part": "law",
-   "claim": "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/3π and κ = 1 − t²/8 − t⁴/64 − …",
-   "value": "closed form against the solver's quadrature at t = 0.1 … 0.9: largest relative difference 2.7e-15; at t = 1: 0.848826 against 8/3π = 0.848826",
+   "claim": "The 4D shell kernel has a closed form, κ(t) = 4[(1 + t²)E(t) − (1 − t²)K(t)]/3πt² in complete elliptic integrals, with κ(1) = 8/(3π) and κ = 1 − t²/8 − t⁴/64 − …",
+   "value": "closed form against the solver's quadrature at t = 0.1 … 0.9: largest relative difference 2.7e-15; at t = 1: 0.848826 against 8/(3π) = 0.848826",
    "holds": true,
    "section": "A",
    "gate": [
@@ -441,7 +441,7 @@
   {
    "id": "farpull",
    "part": "consequence",
-   "claim": "A neutral atom pulls on a distant electron as −Σ⟨r²⟩/8s³",
+   "claim": "A neutral atom pulls on a distant electron as −Σ⟨r²⟩/(8s³)",
    "value": "the full cloud over the far form at 30 bohr: 2: 1.0022, 12: 1.0012, 22: 1.0016, 50: 1.0016, 78: 1.0011, 138: 1.0014",
    "holds": true,
    "section": "7",
@@ -544,8 +544,8 @@
   },
   {
    "path": "figures/A1.svg",
-   "bytes": 5356,
-   "sha256": "d17395b2818aff22bf98dbcfd1ffc7be4824c21a67e21ea1a02b9058bbc05934"
+   "bytes": 5358,
+   "sha256": "a3964419b1dbc1e4fda58d4c938737df0220031d6f098f79e5fd2d1f76d38010"
   },
   {
    "path": "figures/A2.svg",
@@ -554,8 +554,8 @@
   },
   {
    "path": "figures/captions.json",
-   "bytes": 4728,
-   "sha256": "f52330561e476791db8ab265dfe6f9d241c212a7cead9b3919a16c576ca337a1"
+   "bytes": 4826,
+   "sha256": "dedc59e99478b7254989b44acbed897f90c054315e351a2cd8e2f732b2e25dcf"
   }
  ],
  "refs": {

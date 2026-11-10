@@ -12,8 +12,8 @@ an inner cloud screens the nucleus only partly, and a neutral atom is felt from 
 through $Z = 140$ self-consistently with local exchange, cross-checked by numerical Hartree–Fock, each method tested
 first on our own world. The table has rows of {{table.rows}} elements and noble gases at {{table.nobles}}, as the
 generalized Madelung rule predicts, and its larger subshells make room for {{table.newN}} elements with no counterpart
-in ours. Solving it again with the shell theorem forced back on separates the geometry from the law: the rows are the
-geometry's, but what fills inside them from the first d element on is the law's. Partial screening holds outer
+in ours. Solving it again with the shell theorem forced back on shows what that loss decides: the rows survive it, but what
+fills inside them from the first d element on does not. Partial screening holds outer
 electrons a median {{cf.holdMedian}} times harder, so the hardest-held electron belongs to a full d shell rather than a
-noble gas; neutral atoms attract with a permanent $-3Q_AQ_B/64R^5$ that outranges dispersion; and four-dimensional
+noble gas; closed-shell atoms attract with a permanent $-\tfrac{3Q_AQ_B}{64R^5}$ that outranges dispersion; and four-dimensional
 space breaks Hund's first rule for d², d¹⁶, 4f³ and 4f²⁹.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="28c2632caa6aa393039c9d35918cfb49d0faaa19a97d6b1aea72124a8cb8586a" />
+<meta name="source-sha256" content="f4a1873b694cbfeb4973731e04644a4a4374a7ad01b107fbf16bd0c2e35c3057" />
 <title>Paper 1 · Part I · The law (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -89,7 +89,7 @@ exactly 1/r.</figcaption>
 </figure>
 <p><strong>2.2 The way out taken.</strong> Something has to give: the
 squeeze
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>ℏ</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msub><mi>m</mi><mi>e</mi></msub><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">\hbar^2/2m_e r^2</annotation></semantics></math>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mfrac displaystyle="false"><msup><mi>ℏ</mi><mn>2</mn></msup><mrow><mn>2</mn><msub><mi>m</mi><mi>e</mi></msub><msup><mi>r</mi><mn>2</mn></msup></mrow></mfrac><annotation encoding="application/x-tex">\tfrac{\hbar^2}{2m_e r^2}</annotation></semantics></math>
 that resists the pull, or the pull. An electron whose energy grows
 faster than
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>p</mi><mn>2</mn></msup><annotation encoding="application/x-tex">p^2</annotation></semantics></math>
@@ -131,27 +131,32 @@ harmonics on a sphere one dimension up, so every
 below
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
 shares the energy, in four dimensions
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><msup><mi>Z</mi><mn>2</mn></msup><mi>/</mi><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac displaystyle="false"><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">-Z^2/2(n + \tfrac12)^2</annotation></semantics></math>.
-With
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mfrac><msup><mi>Z</mi><mn>2</mn></msup><mrow><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>n</mi><mo>+</mo><mfrac><mn>1</mn><mn>2</mn></mfrac><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">-\frac{Z^2}{2(n + \frac12)^2}</annotation></semantics></math>.
+Three things should be kept apart here. That each
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
+has
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><annotation encoding="application/x-tex">(l + 1)^2</annotation></semantics></math>
-orbitals to each
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>,
-shell
+orbitals is the four-dimensional rotations’ doing, in any central
+potential. That every
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
+below
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>n</mi><annotation encoding="application/x-tex">n</annotation></semantics></math>
-holds 2, 10, 28, 60 electrons: a group of levels with a gap above it.
-Without the symmetry nothing holds the
+shares one energy is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>’s,
+through SO(5); together they make hydrogen’s shells of 2, 10, 28 and 60
+electrons, each a group of levels with a gap above it. The table’s rows
+are a third thing, many electrons filling subshells in an order only a
+calculation finds (section 4.1). Without the symmetry nothing holds the
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math>
 together. On the same solver 2p sits −6.2 % from 2s at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi><mo>=</mo><mn>0.8</mn></mrow><annotation encoding="application/x-tex">\eta = 0.8</annotation></semantics></math>,
 5 × 10⁻¹⁰ % at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>η</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\eta = 1</annotation></semantics></math>,
 +15.4 % at 1.2 and +64.0 % at 1.5, as a fraction of the shell’s binding
-(figure 1b). Rows would still form under another exponent, but they
-would have to be found anew for each, and the generalized Madelung rule,
-which starts from hydrogen’s degeneracy, wouldn’t apply. Under
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
-the rows come from counting harmonics, which is what lets Part III tell
-the geometry’s share of the table from the law’s (appendix F.3).</p>
+(figure 1b). Rows would still form under another exponent, but nothing
+guarantees they would be the same, and the generalized Madelung rule,
+which starts from hydrogen’s degeneracy, wouldn’t apply (appendix
+F.3).</p>
 <p><strong>2.4 What 1/r costs: the shell theorem.</strong> In four
 dimensions
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>∇</mi><mn>2</mn></msup><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mi>/</mi><mi>r</mi><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mo>−</mo><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">\nabla^2(1/r) = -1/r^3</annotation></semantics></math>
@@ -176,14 +181,14 @@ is harmonic and a harmonic function averages over a sphere to its value
 at the centre. Here the Laplacian is negative, so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\kappa &lt; 1</annotation></semantics></math>:
 it falls from 1 to
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mn>8</mn><mi>/</mi><mn>3</mn><mi>π</mi></mrow><annotation encoding="application/x-tex">\kappa(1) = 8/3\pi</annotation></semantics></math>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac displaystyle="false"><mn>8</mn><mrow><mn>3</mn><mi>π</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">\kappa(1) = \tfrac{8}{3\pi}</annotation></semantics></math>
 = 0.848826 at the shell (appendix A, figure A1). Three things follow. An
 inner cloud screens the nucleus from an outer electron only partly. A
 hollow conductor’s centre sits at
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>3</mn><mi>π</mi><mi>/</mi><mn>8</mn></mrow><annotation encoding="application/x-tex">3\pi/8</annotation></semantics></math>
 = 1.178097 of its wall’s potential, so there is no Faraday cage. And a
 neutral atom is felt from outside, as
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>Q</mi><mi>/</mi><mn>8</mn><msup><mi>R</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">-Q/8R^3</annotation></semantics></math>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mfrac displaystyle="false"><mi>Q</mi><mrow><mn>8</mn><msup><mi>R</mi><mn>3</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">-\tfrac{Q}{8R^3}</annotation></semantics></math>
 at a distance
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math>,
 with
@@ -192,12 +197,12 @@ over its electrons (section 7). Everything distinctive in Part III comes
 from here.</p>
 <figure id="fig-A1">
 <img src="../figures/A1.svg"
-alt="Figure A1. The pull of a thin shell of charge on a point at another radius, over a point charge’s at the shell’s centre, as κ(t) of the ratio t of the two radii. The shell theorem makes it 1; under the pinned 1/r in four dimensions it falls to 8/3π at the shell itself." />
+alt="Figure A1. The pull of a thin shell of charge on a point at another radius, over a point charge’s at the shell’s centre, as κ(t) of the ratio t of the two radii. The shell theorem makes it 1; under the pinned 1/r in four dimensions it falls to 8/(3π) at the shell itself." />
 <figcaption aria-hidden="true"><strong>Figure A1.</strong> The pull of a
 thin shell of charge on a point at another radius, over a point charge’s
 at the shell’s centre, as κ(t) of the ratio t of the two radii. The
 shell theorem makes it 1; under the pinned 1/r in four dimensions it
-falls to 8/3π at the shell itself.</figcaption>
+falls to 8/(3π) at the shell itself.</figcaption>
 </figure>
 <p><strong>2.5 Where 1/r comes from, and what is declared.</strong> A
 potential
@@ -219,14 +224,14 @@ with
 a length <span class="citation" data-cites="tarasov2013">(<a
 href="#ref-tarasov2013" role="doc-biblioref">Tarasov and Trujillo
 2013</a>)</span>. With the permeability
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>0</mn></msub><mi>/</mi><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\mu_0/\ell k</annotation></semantics></math>,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>0</mn></msub><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mu_0/(\ell k)</annotation></semantics></math>,
 the fields
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐃</mi><mi>/</mi><msub><mi>ε</mi><mn>0</mn></msub></mrow><annotation encoding="application/x-tex">\mathbf D/\varepsilon_0</annotation></semantics></math>
 and
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>μ</mi><mn>0</mn></msub><mi>𝐇</mi></mrow><annotation encoding="application/x-tex">\mu_0\mathbf H</annotation></semantics></math>
 obey four-dimensional Maxwell’s equations exactly, and what pushes a
 charge is that light seen through a lens,
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐄</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐃</mi><mi>/</mi><msub><mi>ε</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mo>ℓ</mo><mi>k</mi></mrow><annotation encoding="application/x-tex">\mathbf E = (\mathbf D/\varepsilon_0)/\ell k</annotation></semantics></math>;
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐄</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>𝐃</mi><mi>/</mi><msub><mi>ε</mi><mn>0</mn></msub><mo stretchy="true" form="postfix">)</mo></mrow><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mo>ℓ</mo><mi>k</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">\mathbf E = (\mathbf D/\varepsilon_0)/(\ell k)</annotation></semantics></math>;
 we call it the <strong>lens vacuum</strong>. Its price is relativity,
 for the force between charges only: the static
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>

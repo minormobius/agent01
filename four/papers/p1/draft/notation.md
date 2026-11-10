@@ -42,7 +42,7 @@ holds $2(l + 1)^2$ electrons. Bold letters are vectors.
 | $\omega$, $c$ | angular frequency; the speed of light | App. F.5 |
 | $\rho$ | a density: of charge in §2.5, of electrons in an atom from §3 | §2.5 |
 | $\varepsilon_0$, $\mu_0$ | the vacuum's permittivity and permeability | §2.5 |
-| $\ell$ | the lens vacuum's length: permittivity $\varepsilon_0\ell k$, permeability $\mu_0/\ell k$ | §2.5 |
+| $\ell$ | the lens vacuum's length: permittivity $\varepsilon_0\ell k$, permeability $\mu_0/(\ell k)$ | §2.5 |
 | $\beta$ | the exponent of the nonlinear vacuum, $\nabla\cdot(\lvert\mathbf E\rvert^{\beta-2}\mathbf E) = \rho$ | App. F.5 |
 | $\mathbf E$, $\mathbf D$, $\mathbf H$ | electric field, displacement, magnetic field | §2.5 |
 | $N$ | a number of electrons, or of atoms | App. F.7 |

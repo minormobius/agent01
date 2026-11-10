@@ -14,7 +14,7 @@ four dimensions it isn't. The integral has a closed form in the complete ellipti
 
 $$\kappa(t) = \frac{4\,[(1 + t^2)\,\mathrm E(t) - (1 - t^2)\,\mathrm K(t)]}{3\pi t^2},$$
 
-which gives $\kappa(1) = 8/3\pi$ (since $\mathrm E(1) = 1$), and the series
+which gives $\kappa(1) = \tfrac{8}{3\pi}$ (since $\mathrm E(1) = 1$), and the series
 
 $$\kappa(t) = 1 - \frac{t^2}{8} - \frac{t^4}{64} - \frac{5t^6}{1024} - \frac{35t^8}{16384} - \dots$$
 
@@ -24,11 +24,11 @@ vanish. The solver evaluates $\kappa$ by Simpson's rule in $\theta$ with 400 int
 for $t$ up to 0.9 (ledger `kernelclosed`); nearer 1 the quadrature's own error dominates, a few parts in $10^7$.
 
 The series' first correction is the far pull of section 7. A cloud of $N$ electrons around a nucleus $+Z$, seen from
-a distance $R$ outside it, gives $\big(Z - N + \sum_i \langle r_i^2\rangle / 8R^2 + \dots\big)/R$. A neutral atom
-therefore acts on an electron through $-Q/8R^3$ with $Q = \sum\langle r^2\rangle$, and two neutral atoms on each other
-through $-3Q_AQ_B/64R^5$ (section 7). Figure A1 draws $\kappa$, and the potential inside and outside a shell.
+a distance $R$ outside it, gives $\big(Z - N + \sum_i \tfrac{\langle r_i^2\rangle}{8R^2} + \dots\big)/R$. A neutral atom
+therefore acts on an electron through $-\tfrac{Q}{8R^3}$ with $Q = \sum\langle r^2\rangle$, and two neutral atoms on each other
+through $-\tfrac{3Q_AQ_B}{64R^5}$ (section 7). Figure A1 draws $\kappa$, and the potential inside and outside a shell.
 
-![**Figure A1.** The pull of a thin shell of charge on a point at another radius, over a point charge's at the shell's centre, as κ(t) of the ratio t of the two radii. The shell theorem makes it 1; under the pinned 1/r in four dimensions it falls to 8/3π at the shell itself.](../figures/A1.svg){#fig-A1}
+![**Figure A1.** The pull of a thin shell of charge on a point at another radius, over a point charge's at the shell's centre, as κ(t) of the ratio t of the two radii. The shell theorem makes it 1; under the pinned 1/r in four dimensions it falls to 8/(3π) at the shell itself.](../figures/A1.svg){#fig-A1}
 
 ## B · The 4D electron gas
 
@@ -38,7 +38,7 @@ volume of the unit ball ($\pi^2/2$ for $D = 4$). Its kinetic energy per volume i
 $\tfrac{3}{10}(3\pi^2)^{2/3}\rho^{5/3}$ in ours (Thomas–Fermi's 2.8712), $\tfrac{4\pi}{3}\rho^{3/2}$ in four dimensions.
 Its exchange energy per volume is $-A_D\,\rho^{1 + 1/D}$. In ours $A_3 = \tfrac34(3/\pi)^{1/3}$ = 0.738559,
 Dirac's constant. In four dimensions under the pinned $1/r$, with the Fermi sea's density matrix built on the Bessel
-function $J_2$ and the integral $\int_0^\infty J_2(x)^2\,x^{-2}\,dx = 4/15\pi$, it is $A_4 = 16/15\sqrt\pi$ =
+function $J_2$ and the integral $\int_0^\infty J_2(x)^2\,x^{-2}\,dx = \tfrac{4}{15\pi}$, it is $A_4 = \tfrac{16}{15\sqrt\pi}$ =
 0.601802. These agree with Loos and Gill's expressions for the $D$-dimensional gas [-@loos2016]. The selftest checks
 the textbook values in ours and the 4D integral (blocks 4 and 18). The potential each electron feels is
 $v_x = -(1 + 1/D)\,A_D\,\rho^{1/D}$, spin-polarized as in section 3 (each spin's own density doubled), with each
@@ -88,15 +88,16 @@ it is −9.2 %, +21.9 % and +78.3 % (ledger `uniqueness`). Only $\eta = 1$ keeps
 ## E · Checks against our world
 
 **E.1 Hydrogen.** One electron needs no search and no exchange, and four-dimensional hydrogen has an exact answer:
-$-Z^2/2(n + \tfrac12)^2$ hartree, so $-2/9$ for the ground state. The solver gives −0.22222.
+$-\frac{Z^2}{2(n + \frac12)^2}$ hartree, so $-2/9$ for the ground state. The solver gives −0.22222.
 
 **E.2 Two electrons.** Helium-like atoms in four dimensions are checked against an independent code, Hartree–Fock in a
 Gaussian basis written for any dimension (`gauss.js`), and the same atoms in ours against PySCF at the MP2 level
 (selftest blocks 17 and 43). The two codes share no part of the radial solver. From outside, the only accurate
 four-dimensional numbers we have been able to read are correlated variational energies for helium-like ions
-[@escobar2021]. Hartree–Fock (`hf.js`, appendix G.12) lies above them by 0.012–0.014 hartree for $Z$ = 2–10, as it must,
-since they include correlation; that is the size and sign of a correlation energy, a consistency check rather than a
-benchmark. A four-dimensional Hartree–Fock limit to test against [@loeser1986hf] is in tables we have not obtained.
+[@escobar2021]. Hartree–Fock (`hf.js`, appendix G.12) lies above them by 0.012–0.014 hartree for $Z$ = 2–10. That order is
+expected but not compelled: two restricted variational families need not be nested, so a correlated trial energy is not
+bound to lie below Hartree–Fock's. The gap has the size and sign of a correlation energy, which makes it a consistency
+check rather than a benchmark against a Hartree–Fock limit. A four-dimensional Hartree–Fock limit to test against [@loeser1986hf] is in tables we have not obtained.
 
 **E.3 Our own table, and the solver's lean toward d.** The same solver, the same law (in ours 1/r is Gauss's) and the same search, run in three
 dimensions, gives 32 of 36 of our measured ground configurations. The four it misses, titanium, vanadium, cobalt and nickel, each take one
@@ -143,34 +144,45 @@ bracket the measured value; from scandium to chromium both lie on the same side 
 of how much an answer depends on the method, not an error bar: neither method bounds the other, and both omit the
 correlation that would move each toward the measured values.
 
-In four dimensions the two agree on 126 of the 140 elements, and these are the table's firm configurations.
-They differ on 14, which are open: 7 in the d rows (30, 31, 37, 38, 40, 58, 61), where local exchange puts one electron
-more in d than Hartree–Fock, as in ours; 5 at the end of row 6's f block (107, 108, 109, 110, 111), where it puts one more
-in f; and 2 at the start of a block (53, 83). For the d rows, ours gives a lean. Before half filling
-(30, 31, 58) Hartree–Fock's error in ours was small and in the same direction as local exchange's, so its
-preference for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08 eV, are inside the volt by which it
-overprices d in ours. In the f row the first comparison was incomplete. Its candidates lay within the window of local exchange's ground, and
-local exchange overbinds f, so configurations with one f electron fewer fell outside it. A window of 10 eV and a climb
-through Hartree–Fock's own neighbourhood (appendix G.12) close that gap, and our lanthanides calibrate what remains.
-Against the measured levels [@nist-handbook], Hartree–Fock gets 15 of 18 lanthanide ground configurations right
-(lanthanum to hafnium) and local exchange 12; where the two agree they are right 12 times in 14. In each of the
-17 measured states that change the f count, Hartree–Fock makes f too stable, by 0.15 to 4.1 eV. So a
-configuration with one f electron fewer than Hartree–Fock's ground could truly lie below it only if Hartree–Fock puts
-it less than $B$ = 4.1 eV up; one with more f only moves further up. In four dimensions f is bound far more deeply.
-The cheapest move of an f electron out of Hartree–Fock's ground costs 5.8 eV in element 90, 12.6 in 100 and
-19.9 in 109, against 0.9 eV in our terbium, where the measured cost is 0.04. Hence four verdicts on row 6's f block:
+In four dimensions three things are reported separately, element by element, in `data/hftable.json`. **Agreement:** the
+two methods pick the same ground configuration for 126 of the 140 elements and differ on 14: 7 in the d
+rows (30, 31, 37, 38, 40, 58, 61), where local exchange puts one electron more in d than Hartree–Fock, as in ours; 5 at the end of
+row 6's f block (107, 108, 109, 110, 111), where it puts one more in f; and 2 at the start of a block (53, 83). Agreement is not a
+guarantee: both methods share the missing correlation, and in our lanthanides they agree and are both wrong 2 times.
+**Coverage:** Hartree–Fock ranks the local-exchange search's settled candidates within 4 eV of its ground; for row 6's
+f block and our lanthanides the window is 10 eV and Hartree–Fock also climbs its own one-electron neighbourhood
+(appendix G.12). Candidates more than 6 eV above the best were first ranked on their raw energies; their term
+corrections, which reach −7.7 eV in the f row, were computed afterwards: 0 of the 182 completely, 0
+partially (a spin block too big to finish, so the true energy could be lower still), and 182 not yet. **Margins:** how
+far above each method's ground its nearest competitor lies.
 
-- **Firm** where the methods agree and every competitor with fewer f lies more than $B$ up, or the ground has no f:
-  81, 88–100 and 102–104.
-- **Open though the methods agree** where such a competitor lies within $B$: 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86). Element 84 is
-  the case of our cerium, whose measured 4f¹5d¹6s² both methods miss, agreeing on 4f²6s².
-- **Leaning to Hartree–Fock** where local exchange's choice holds one f electron more: 83 and 107–111. Local exchange
-  overbinds f by more still, so its extra f electron is the less likely.
-- **Untested** where no configuration with fewer f was solved: 101, 105, 106 and 112.
+For the d rows, ours gives a lean. Before half filling (30, 31, 58) Hartree–Fock's error in ours was small and in the
+same direction as local exchange's, so its preference for s² should hold. After it (37, 38, 40, 61) its margins, 0.10 to 1.08 eV,
+are inside the volt by which it overprices d in ours. In the d rows no Hartree–Fock ground lies near the window's edge.
 
-So 17 of the block's 32 are firm, because in four dimensions the f shell's binding outruns the calibration's
-error; the open cases sit at the block's two ends, where f competes with d and s at the start and is about to close at
-the end. In the d rows no Hartree–Fock ground configuration lies near the window's edge. Every element's verdict, both methods' rankings and the margins are in `data/hftable.json`.
+In the f row, our lanthanides calibrate the methods. Against the measured levels [@nist-handbook], Hartree–Fock gets
+15 of 18 lanthanide ground configurations right (lanthanum to hafnium) and local exchange 12; where the two agree
+they are right 12 times in 14. In each of the 17 measured states that change the f count, Hartree–Fock makes f
+too stable, by 0.15 to 4.1 eV. We take the largest of these, $B$ = 4.1 eV, as a sensitivity scale for the
+four-dimensional f row. That is an assumption, not a bound: seventeen states in our world say nothing certain about how
+far the method errs in another. Under it, a configuration with one f electron fewer than Hartree–Fock's ground could
+lie below it if Hartree–Fock puts it less than $B$ up; one with more f only moves further up. Four-dimensional f
+electrons are bound far more deeply than ours: the cheapest move of one out of Hartree–Fock's ground costs 5.8 eV in
+element 90, 12.6 in 100 and 19.9 in 109, against 0.9 eV in our terbium, where the measured cost is 0.04. The
+32 elements of row 6's f block then fall into four groups:
+
+- **agree, nothing within $B$**: the methods agree and every fewer-f competitor lies more than $B$ up, or the ground
+  has no f: 81, 88–100 and 102–104;
+- **agree, a competitor within $B$** (5): 82 (1.53 eV), 84 (0.40), 85 (1.12), 86 (2.21) and 87 (3.86). Element 84 is the case of our cerium, whose
+  measured 4f¹5d¹6s² both methods miss, agreeing on 4f²6s²;
+- **differ, leaning to Hartree–Fock** (6): local exchange's choice holds one f electron more: 83 and 107–111. Local
+  exchange overbinds f by more still, so its extra f electron is the less likely;
+- **agree, untested** (4): no configuration with fewer f was solved: 101, 105, 106 and 112.
+
+Which competitor decides each verdict matters too: for 16 of them (83, 91–96, 98–100, 102–104 and 109–111) it is a candidate whose term
+correction has not been computed, and for 25 the ground's own correction is partial; those verdicts are
+provisional until the corrections are in. Every element's three numbers, each candidate's raw and corrected energies,
+and whether its correction is complete, partial, computed afterwards or missing are in `data/hftable.json`.
 
 ## F · The law in full
 
@@ -201,7 +213,7 @@ either.
 ![**Figure 1.** The choice of law. (a) Gauss's law in four dimensions gives a potential −α/r². One electron in it, solved on grids whose inner end r₀ is moved in: for every α above ½ the lowest level scales as 1/r₀², set by where the calculation stops rather than by the electron (the fall to the centre); at or below ½ there is no level on any grid (Hardy's inequality). Either way there is no Bohr radius and no atom. (b) With a pull −1/r^η^ instead, the splitting between 2p and 2s (and 3d and 3s) as a fraction of the shell's binding vanishes only at η = 1, to 10⁻¹¹: the hidden SO(5) symmetry of 1/r, which no other exponent has (section 3.1). Shells of 2(l + 1)², and the rows of figure 2, need exactly 1/r.](../figures/1.svg){#fig-1}
 
 **F.2 The ways out, and what each costs.** Something has to give. The squeeze that resists the pull costs
-$\hbar^2/2m_e r^2$, because the electron's energy grows as the square of its momentum $p$. The pull goes as $1/r^2$
+$\tfrac{\hbar^2}{2m_e r^2}$, because the electron's energy grows as the square of its momentum $p$. The pull goes as $1/r^2$
 because of Gauss. Change either and a length comes back. One way is to change the electron: an energy growing as
 $p^3$ or $p^4$ outgrows a $1/r^2$ pull close in, so atoms bind at every strength. It keeps Gauss's law, and with it
 the shell theorem and the Faraday cage. But it gives up Galilean relativity for all matter: a moving laboratory and a
@@ -233,7 +245,7 @@ larger symmetry is lost.
 The symmetry does the work. States that the larger rotations carry into one another must have the same energy. A
 level of hydrogen is the set of degree-$(n - 1)$ harmonics on that sphere, and the ordinary rotations split this set
 into $l = 0, 1, \dots, n - 1$. So every $l$ below $n$ shares the energy, which in four dimensions is
-$-Z^2/2(n + \tfrac12)^2$. With $(l + 1)^2$ orbitals to each $l$, shell $n$ holds $\sum_{l<n} 2(l + 1)^2$ electrons:
+$-\frac{Z^2}{2(n + \frac12)^2}$. With $(l + 1)^2$ orbitals to each $l$, shell $n$ holds $\sum_{l<n} 2(l + 1)^2$ electrons:
 2, 10, 28, 60. That degeneracy is what makes a shell, a group of levels with a gap above it.
 
 Without the symmetry nothing holds the $l$ together. On the same solver, 2p sits −6.2 % from 2s at $\eta = 0.8$,
@@ -243,8 +255,8 @@ angular momentum is the more bound, above it the less. So under $\eta = 1.5$ a o
 more than a third as hard as its 2s, and each $l$ is a level of its own. A table would still have rows, since many
 electrons split the $l$ in ours too. But the rows would be set by how the exponent treats electrons that come near the
 nucleus, and would have to be found again for every $\eta$. The generalized Madelung rule, which starts from hydrogen's
-degeneracy, wouldn't apply. Under $1/r$ the rows come from counting harmonics, and that is what lets part III tell the
-geometry's share of the table from the law's.
+degeneracy, wouldn't apply. Under $1/r$ hydrogen's shells come from counting harmonics; the table's rows still have to
+be found by solving the atoms, which is what sections 4 and 6 do.
 
 The literature on hydrogen in $D$ dimensions [@nieto1979; @aljaber1998] and on
 dimensional scaling [@herschbach1992] takes $1/r$ in every $D$, mostly as a convention that keeps the problem
@@ -302,12 +314,12 @@ can be shown, route 4 gives up a pair potential, and route 5 gives back three-di
 This is a choice among the routes found, not a proof that no other theory gives the law. The
 permittivity fixes the statics, and the statics are all that the pinned law asks of it. The permeability is still
 free, and it decides only how fields move. Left at $\mu_0$ it gives the dispersive light above. We choose
-$\mu_0/\ell k$, and call the result the **lens vacuum**. The product of permittivity and permeability is then
+$\mu_0/(\ell k)$, and call the result the **lens vacuum**. The product of permittivity and permeability is then
 $\varepsilon_0\mu_0$ at every wavenumber, so light keeps the one speed $c$. The fields $\mathbf D/\varepsilon_0$ and $\mu_0\mathbf H$ obey Maxwell's equations of empty four-dimensional space
 exactly, so light is ordinary four-dimensional light at every wavelength, and the energy is never negative. What
-pushes a charge is $\mathbf E = (\mathbf D/\varepsilon_0)/\ell k$, that light seen through a lens. Dividing by $k$ in
+pushes a charge is $\mathbf E = (\mathbf D/\varepsilon_0)/(\ell k)$, that light seen through a lens. Dividing by $k$ in
 Fourier space is, in space, spreading over a kernel $1/r^3$ (the transform of $1/k$ in four dimensions), so
-$\mathbf E$ at a point is a blur of $\mathbf D$ over all of space. Its statics are $1/\ell k^3$, the pinned $1/r$. The
+$\mathbf E$ at a point is a blur of $\mathbf D$ over all of space. Its statics are $1/(\ell k^3)$, the pinned $1/r$. The
 price is relativity, for the force between charges only. The blur acts across all of space at once, so there is an
 absolute "now", and a charge feels another's change instantly, a little, everywhere. We have not found this pair of
 constitutive laws in the literature we read. Light at one speed and an energy that is never negative do not by
@@ -348,7 +360,7 @@ dimension [@hainzl2002], and Riesz gases, of which a $1/r$ law in four dimension
 evidence is narrower than the theorem. Single atoms don't collapse. Thomas–Fermi scaling gives total energies growing as $Z^{3-2/D}$, $Z^{7/3}$ in ours and $Z^{5/2}$
 in four dimensions [@kventsel1981], and the solved table follows it, with a fitted exponent of 2.527 over $Z$ =
 10–140 (ours: 2.387 over 10–36; both a little above the asymptotic value, as finite-$Z$ corrections make them).
-Separated neutral atoms don't run away either. Every force between them here (the permanent $-3Q_AQ_B/64R^5$ of
+Separated neutral atoms don't run away either. Every force between them here (the permanent $-\tfrac{3Q_AQ_B}{64R^5}$ of
 section 7, dispersion's $R^{-6}$) falls faster than $R^{-4}$, so summed over four-dimensional space each atom's share
 of the far field is finite. That says nothing about atoms that overlap, trade charge or crowd together, which is
 where a proof of stability has its work. Stability of matter here is open.
@@ -375,7 +387,7 @@ $$-\tfrac12\,u'' + \Big[\frac{L(L+1)}{2r^2} + V(r)\Big]\,u = \varepsilon\,u, \qq
 
 so four dimensions differ from ours by the half-integer shift of $L$ ($L = l + \tfrac12$) and by the degeneracies: a
 subshell of angular momentum $l$ holds $2(2l + 1)$ electrons in ours and $2(l + 1)^2$ in four dimensions. With
-$V = -Z/r$ the levels are $-Z^2/2(n + (D - 3)/2)^2$, so 4D hydrogen's ground state is $-2/9$ hartree; the solver gives
+$V = -Z/r$ the levels are $-\frac{Z^2}{2\,(n + (D - 3)/2)^2}$, so 4D hydrogen's ground state is $-2/9$ hartree; the solver gives
 −0.22222 (appendix E.1).
 
 **G.3 The clouds' potential.** A spherical shell of charge at radius $s$, felt at radius $r$, gives in ours
@@ -384,14 +396,14 @@ $t = \min/\max$, with $\kappa$ the $1/r$ kernel averaged over a 3-sphere,
 
 $$\kappa(t) = \frac{2}{\pi}\int_0^\pi \frac{\sin^2\theta\,d\theta}{\sqrt{1 + t^2 - 2t\cos\theta}},$$
 
-which falls from $\kappa(0) = 1$ to $\kappa(1) = 8/3\pi$ = 0.848826 (appendix A; Simpson's rule on 400 intervals, then a
+which falls from $\kappa(0) = 1$ to $\kappa(1) = \tfrac{8}{3\pi}$ = 0.848826 (appendix A; Simpson's rule on 400 intervals, then a
 table of 2001 points with linear interpolation). Every electron–electron term in the self-consistent
 field, its energy and the ionized atom's goes through this kernel. That is where the missing shell theorem enters the
 atom: an inner cloud screens the nucleus from an outer electron only partly.
 
 **G.4 Exchange.** Local exchange from the uniform electron gas of the same dimension and the same law,
 $\varepsilon_x(\rho) = -A_D\,\rho^{1/D}$ per electron for an electron density $\rho$, with
-$A_3 = \tfrac34(3/\pi)^{1/3}$ = 0.738559 and $A_4 = 16/15\sqrt\pi$ = 0.601802, as in the general-$D$ formulas
+$A_3 = \tfrac34(3/\pi)^{1/3}$ = 0.738559 and $A_4 = \tfrac{16}{15\sqrt\pi}$ = 0.601802, as in the general-$D$ formulas
 of @loos2016 for $1/r$ jellium (appendix B). Spins are polarized by Hund's rule (a subshell fills one spin first),
 and each electron's own share is removed from both its Hartree and its exchange potential: the Hartree term by its own
 orbital's cloud, the exchange term by the fully polarized exchange of that orbital alone, in the manner of the self-interaction correction of @perdew1981. There is no correlation term. That is an omission, not a gap in what is known:
@@ -523,8 +535,9 @@ and its first singlet 1.25 eV up.
 
 What this establishes is narrower than a whole-atom ground term. The term energies are computed within one subshell on
 the atom's own maximum-spin orbital, which is neither relaxed term by term nor correlated beyond the subshell, and the
-correction they give the table (section 5.3) is first order. The inversion holds under both laws tested, and for any
-orbital whose $F^4/F^2$ is below 5/3. Hund's first rule has been studied away from three dimensions, in
+correction they give the table (section 5.3) is first order. For d² the inversion holds under both laws tested, on element 26's own
+orbital held fixed (Gauss's $1/r^2$ was not given its own self-consistent orbital), and for any orbital whose $F^4/F^2$
+is below 5/3. The f-shell inversions (4f³, 4f²⁹) were computed under the pinned law only. Hund's first rule has been studied away from three dimensions, in
 two-dimensional helium-like atoms and quantum dots [@sako2012; @sako2010] and by dimensional scaling [@gonzalez1991],
 and two-electron matrix elements for hydrogenic d² and f² pairs have been derived for any $D$ [@summerfield1999]. We
 have not been able to read the last two in full, and none of the sources we could read states this inversion.
@@ -580,21 +593,23 @@ table's ground, the open configuration of appendix E.6.
 
 | element | ground | lowest states by Hartree–Fock: move, local exchange / Hartree–Fock (eV) |
 |--:|:--|:--|
-| 4 | 1s² 2s² | 2s→2p 1.3 / 1.5; 2s→3s 3.4 / 3.4 |
-| 7 | 1s² 2s² 2p³ | 2s→2p 3.4 / 4.0; 2p→3s 6.1 / 5.5; 2p→3p 7.2 / 6.7 |
-| 10 | 1s² 2s² 2p⁶ | 2p→3s 8.9 / 8.2; 2p→3p 10.8 / 10.0; 2s→2p 14.0 / 17.4 |
-| 12 | 1s² 2s² 2p⁸ | 2p→3s 13.7 / 12.9 |
-| 14 | 2s² 2p⁸ 3s² | 3s→3p 3.1 / 2.9; 3s→4s 4.3 / 4.2 |
-| 26 | 3p⁸ 3d² 4s² | 4s→4p 3.3 / 3.1; 4s→3d 2.3 / 3.1; 3d→4p 4.3 / 3.3 |
-| 39 | 3p⁸ 3d¹⁶ 4s¹ | 3d→4s 2.5 / 0.4; 4s→3d 3.2 / 5.0; 4s→4p 7.8 / 7.1 |
-| 42 | 3p⁸ 3d¹⁸ 4s² | 4s→4p 9.3 / 8.3; 4s→5s 11.1 / 9.9; 4s→4d 13.0 / 11.8 |
-| 53 | 4p⁸ 4d¹ 5s² | 4d→5p 0.0 / −0.8; 4d→6s 1.8 / 1.1; 4d→4f 3.8 / 2.9 |
-| 82 | 5p⁸ 5d¹ 6s² | 4f→5d 4.7 / 1.5; 5d→4f 0.4 / 1.8; 5d→6p 2.5 / 1.9 |
+| 4 | 2s² | 2s→2p 1.3 / 1.5; 2s→3s 3.4 / 3.4 |
+| 7 | 2s² 2p³ | 2s→2p 3.4 / 4.0; 2p→3s 6.1 / 5.5; 2p→3p 7.2 / 6.7 |
+| 10 | 2s² 2p⁶ | 2p→3s 8.9 / 8.2; 2p→3p 10.8 / 10.0; 2s→2p 14.0 / 17.4 |
+| 12 | 2s² 2p⁸ | 2p→3s 13.7 / 12.9 |
+| 14 | 3s² | 3s→3p 3.1 / 2.9; 3s→4s 4.3 / 4.2 |
+| 26 | 3d² 4s² | 4s→4p 3.3 / 3.1; 4s→3d 2.3 / 3.1; 3d→4p 4.3 / 3.3 |
+| 39 | 3d¹⁶ 4s¹ | 3d→4s 2.5 / 0.4; 4s→3d 3.2 / 5.0; 4s→4p 7.8 / 7.1 |
+| 42 | 4s² | 4s→4p 9.3 / 8.3; 4s→5s 11.1 / 9.9; 4s→4d 13.0 / 11.8 |
+| 53 | 4d¹ 5s² | 4d→5p 0.0 / −0.8; 4d→6s 1.8 / 1.1; 4d→4f 3.8 / 2.9 |
+| 82 | 4f¹ 5d¹ 6s² | 4f→5d 4.7 / 1.5; 5d→4f 0.4 / 1.8; 5d→6p 2.5 / 1.9 |
 | 128 | 5s² 5p⁸ 5d¹⁸ | 5d→6s 8.0 / 8.6 |
 
-Table: **Table 1.** Valence states of representative four-dimensional atoms: the ground configuration (outer subshells)
-and the three lowest configurations one electron away by Hartree–Fock, each labelled by the move and given by local
-exchange and Hartree–Fock (eV above each method's own ground; a negative value is a state below the table's ground).
+Table: **Table 1.** Valence states of representative four-dimensional atoms: the ground configuration (every open
+subshell and the outermost shell) and the three lowest configurations one electron away by Hartree–Fock, each labelled
+by the move and given by local exchange and by Hartree–Fock, in eV above the table's ground configuration, each method
+measuring from its own energy for that configuration; a negative value means the method puts the state below the
+table's ground configuration.
 
 **I.2 Darbon's hydride holds five hydrogens.** The table implies a valence rule: an atom with $v$ electrons outside its
 core makes $v$ bonds, up to $D + 1$ of them, and $2(D + 1) - v$ past that. That is a claim about molecules, and one
@@ -627,34 +642,34 @@ against the reference values of @derevianko2010, the noble gases' $\alpha_\mathr
 alkalis and alkaline earths are too easily polarized, by +7 % to +25 % in $\alpha_\mathrm p(0)$ and +11 % to +35 % in $C_6$
 (median errors 9 % and 13 %), as local exchange without correlation is known to make them.
 
-| world | element | outer subshells | $\alpha_\mathrm p(0)$ | ref. | $C_6$ | ref. | $Q$ | $C_5$ | $R^*$ |
+| world | element | open and outermost subshells | $\alpha_\mathrm p(0)$ | ref. | $C_6$ | ref. | $Q$ | $C_5$ | $R^*$ |
 |:--|--:|:--|--:|--:|--:|--:|--:|--:|--:|
 | ours | 1 | 1s¹ | 4.5 | 4.5 | 6.5 | 6.5 | 3 | 0 |  |
 | ours | 2 | 1s² | 1.32 | 1.38 | 1.38 | 1.46 | 2.37 | 0 |  |
-| ours | 3 | 1s² 2s¹ | 184 | 164 | 1 600 | 1 389 | 18.8 | 0 |  |
-| ours | 4 | 1s² 2s² | 47.1 | 37.8 | 288 | 214 | 17.5 | 0 |  |
+| ours | 3 | 2s¹ | 184 | 164 | 1 600 | 1 389 | 18.8 | 0 |  |
+| ours | 4 | 2s² | 47.1 | 37.8 | 288 | 214 | 17.5 | 0 |  |
 | ours | 10 | 2s² 2p⁶ | 2.45 | 2.67 | 5.68 | 6.38 | 9.51 | 0 |  |
-| ours | 11 | 2p⁶ 3s¹ | 174 | 163 | 1 722 | 1 556 | 26.3 | 0 |  |
-| ours | 12 | 2p⁶ 3s² | 78.6 | 71.3 | 721 | 627 | 29 | 0 |  |
+| ours | 11 | 3s¹ | 174 | 163 | 1 722 | 1 556 | 26.3 | 0 |  |
+| ours | 12 | 3s² | 78.6 | 71.3 | 721 | 627 | 29 | 0 |  |
 | ours | 18 | 3s² 3p⁶ | 11.4 | 11.1 | 66.4 | 64.3 | 26.5 | 0 |  |
-| ours | 19 | 3p⁶ 4s¹ | 357 | 290 | 5 215 | 3 897 | 49.1 | 0 |  |
-| ours | 20 | 3p⁶ 4s² | 171 | 157 | 2 442 | 2 121 | 54.7 | 0 |  |
-| ours | 30 | 3d¹⁰ 4s² | 45.5 |  | 338 |  | 33.7 | 0 |  |
+| ours | 19 | 4s¹ | 357 | 290 | 5 215 | 3 897 | 49.1 | 0 |  |
+| ours | 20 | 4s² | 171 | 157 | 2 442 | 2 121 | 54.7 | 0 |  |
+| ours | 30 | 4s² | 45.5 |  | 338 |  | 33.7 | 0 |  |
 | ours | 36 | 4s² 4p⁶ | 17.5 | 16.8 | 136 | 130 | 40.1 | 0 |  |
 | 4D | 1 | 1s¹ | 34.8 |  | 166 |  | 11.3 | 5.93 | 28 |
 | 4D | 2 | 1s² | 9.92 |  | 33.8 |  | 8.82 | 3.65 | 9.26 |
-| 4D | 3 | 1s² 2s¹ | 471 |  | 7 518 |  | 41.3 | 79.9 | 94.1 |
-| 4D | 4 | 1s² 2s² | 132 |  | 1 548 |  | 37.1 | 64.5 | 24 |
+| 4D | 3 | 2s¹ | 471 |  | 7 518 |  | 41.3 | 79.9 | 94.1 |
+| 4D | 4 | 2s² | 132 |  | 1 548 |  | 37.1 | 64.5 | 24 |
 | 4D | 12 | 2s² 2p⁸ | 3.54 |  | 13.3 |  | 16.3 | 12.4 | 1.07 |
-| 4D | 13 | 2p⁸ 3s¹ | 122 |  | 1 184 |  | 34.2 | 54.7 | 21.7 |
-| 4D | 14 | 2p⁸ 3s² | 74.9 |  | 785 |  | 37.6 | 66.4 | 11.8 |
+| 4D | 13 | 3s¹ | 122 |  | 1 184 |  | 34.2 | 54.7 | 21.7 |
+| 4D | 14 | 3s² | 74.9 |  | 785 |  | 37.6 | 66.4 | 11.8 |
 | 4D | 22 | 3s² 3p⁸ | 9.9 |  | 71.7 |  | 34.2 | 54.9 | 1.3 |
-| 4D | 23 | 3p⁸ 4s¹ | 129 |  | 1 393 |  | 51.4 | 124 | 11.2 |
-| 4D | 24 | 3p⁸ 4s² | 97.5 |  | 1 257 |  | 57.2 | 153 | 8.2 |
-| 4D | 42 | 3d¹⁸ 4s² | 11.7 |  | 58.7 |  | 28.6 | 38.4 | 1.53 |
+| 4D | 23 | 4s¹ | 129 |  | 1 393 |  | 51.4 | 124 | 11.2 |
+| 4D | 24 | 4s² | 97.5 |  | 1 257 |  | 57.2 | 153 | 8.2 |
+| 4D | 42 | 4s² | 11.7 |  | 58.7 |  | 28.6 | 38.4 | 1.53 |
 | 4D | 50 | 4s² 4p⁸ | 7.7 |  | 53.2 |  | 37 | 64.3 | 0.827 |
-| 4D | 51 | 4p⁸ 5s¹ | 77.2 |  | 688 |  | 51.1 | 123 | 5.61 |
-| 4D | 52 | 4p⁸ 5s² | 67.1 |  | 758 |  | 57.4 | 154 | 4.92 |
+| 4D | 51 | 5s¹ | 77.2 |  | 688 |  | 51.1 | 123 | 5.61 |
+| 4D | 52 | 5s² | 67.1 |  | 758 |  | 57.4 | 154 | 4.92 |
 | 4D | 78 | 5s² 5p⁸ | 8.39 |  | 67.3 |  | 49.3 | 114 | 0.591 |
 
 Table: **Table 2.** Response of closed-shell and one-s-electron atoms (atomic units): static polarizability, $C_6$, $Q =
@@ -710,8 +725,11 @@ fails if any claim in `ledger.json` stops holding or any generated file is stale
 | `data/crossref.json` (the references' metadata) | `refs-crossref.mjs`, from each DOI's Crossref record | by hand, when a DOI is added |
 | `draft/*.html`, `draft/paper.pdf` | `page.mjs` (pandoc, with citeproc), `pdf.cjs` | seconds |
 
-`papers/p1/reproduce.mjs` re-solves a sample of atoms from the solver and checks them against the paper's data;
-`--all` re-solves every element. The runner's logs, with each command's exit status, are kept on the repository's
+`papers/p1/reproduce.mjs` re-solves a sample of atoms and checks them against the main table to 10⁻⁴ hartree, each row by
+the pipeline that made it: the bake for the elements outside the d and f blocks, and for the d- and f-block elements the
+term-corrected search, with the ion's own ground state where the table took it; `--all` re-solves every element, and
+`--s1` checks the bake alone against supplement S1. The runner's logs, with each command's exit status, are kept on the repository's
 `atom4-data` branch under `runs/`. The solvers, the known-answer test assembled from the selftest's method blocks, `reproduce.mjs` and the paper's
 tables are mirrored under the MIT licence at tangled.org/morphyxmino.bsky.social/four-atom (`npm test` runs the
-known-answer test; `node papers/p1/reproduce.mjs` re-solves the sample), refreshed on every change to them.
+known-answer test; `node papers/p1/reproduce.mjs` re-solves the sample; the term-corrected search needs tools the
+mirror doesn't carry, so there those rows are named as not reproduced), refreshed on every change to them.

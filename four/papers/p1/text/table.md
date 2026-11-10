@@ -24,14 +24,15 @@ harder than any other atom in the table. Element 68, the same kind a row up, com
 xenon at 12.1 [@nist-handbook]. Searching each ion for its own ground state leaves 128's ionization where it was.
 Section 6 shows the law does it.
 
-**4.3 How firm each configuration is.** Hartree–Fock and local exchange agree on {{hf.4agree}} of the 140 ground
-configurations, and these are firm. The {{hf.4n}} they don't agree on are open: {{hf.4d}} in the d rows, where local
-exchange puts one electron more in d than Hartree–Fock, as it does in ours; {{hf.4f}} at the end of row 6's f block,
-where it puts one more in f; and {{hf.4oN}} at the start of a block ({{hf.4o}}). Our own table is the calibration (appendix E.6): there Hartree–Fock gets
-{{hf.oursHf}} configurations right against local exchange's {{hf.oursLda}}, and where the two agree they are right. In
-row 6's f block both methods overbind f, and our lanthanides measure by how much: Hartree–Fock makes f too stable by at
-most {{hf.fB}} eV. Four-dimensional f electrons are bound so deeply that {{hf.fFirmN}} of the block's 32 elements hold
-against that bias. The interactive table gives each element's verdict.
+**4.3 How firm each configuration is.** A second method, numerical Hartree–Fock, ranks the same candidates (appendix
+E.6). Agreement, the search's coverage and the margins are reported separately. Hartree–Fock and local exchange agree on
+{{hf.4agree}} of the 140 ground configurations and differ on {{hf.4n}}: {{hf.4d}} in the d rows, where local exchange puts one electron
+more in d, as it does in ours; {{hf.4f}} at the end of row 6's f block, where it puts one more in f; and {{hf.4oN}} at the start of
+a block ({{hf.4o}}). In ours Hartree–Fock gets {{hf.oursHf}} configurations right against local exchange's {{hf.oursLda}}, and where the two
+agree they are right. Agreement is not a guarantee, though: in our lanthanides both overbind f, Hartree–Fock by up to
+{{hf.fB}} eV in the measured states. Taking that as a sensitivity scale (an assumption, not a bound), {{hf.fFirmN}} of the 32
+elements of row 6's f block have no competitor with fewer f within it, {{hf.fOpenAgreeN}} agree with one inside it, and {{hf.fUntestedN}} agree with
+none solved. The interactive table gives each element's group.
 
 **4.4 Every element in profile.** Figure 4 draws six atoms' radial densities, and figure 5 what their outermost
 orbitals look like on the 3-sphere. The same two pictures for every element are on the interactive table, where any
@@ -54,7 +55,7 @@ the f block 4f³ (element 83) fails too, and so does its mirror 4f²⁹ (element
 {{hund.f3}} and {{hund.f29}} eV below the quartet. No other f filling was found to break the rule, though for the
 fullest blocks only the highest spins could be run (appendix H.2).
 
-**5.2 The four-dimensional shell breaks it, not the law.** On element 26's own orbital Gauss's $1/r^2$ gives the same
+**5.2 For d², the four-dimensional shell breaks it, not the law.** On element 26's own orbital, held fixed, Gauss's $1/r^2$ gives the same
 order, the singlet {{hl.gauss}} eV below the triplet against {{hl.law}} eV under $1/r$. The cause is the shell. For two
 electrons in a d subshell each term's energy is exactly $F^0 + a_2F^2 + a_4F^4$: the $F^n$ are the radial parts of the
 repulsion and depend on the orbital, and the $a_n = \langle C_n(\cos\gamma)\rangle$ over the term depend only on the

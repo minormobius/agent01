@@ -17,7 +17,14 @@ import { fileURLToPath } from "node:url";
 import { realConfig, SYM } from "../../atom/js/periodic.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url)), rows = new Map();
-for (const f of process.argv.slice(2)) for (const l of readFileSync(f, "utf8").split("\n")) { if (!l.startsWith("{")) continue; const r = JSON.parse(l); if (r.Z != null) rows.set(`${r.D}:${r.Z}`, r); }
+const FAR = []; // hftable.mjs farcorr lines: the term corrections `rank` skipped for candidates more than 6 eV up
+for (const f of process.argv.slice(2)) for (const l of readFileSync(f, "utf8").split("\n")) { if (!l.startsWith("{")) continue; const r = JSON.parse(l); if (r.Z == null) continue; if ("corr_eV" in r || (r.config && !r.rows)) FAR.push(r); else rows.set(`${r.D}:${r.Z}`, r); }
+/* fold them in: a far candidate's stored energy is its raw one (relative to the run's corrected best), so its correction
+   adds to it; each row keeps its provenance (term: "corrected after" / "partial" where a spin block was too big to finish,
+   so the true correction could be more negative still / "uncorrected" where farcorr didn't settle or hasn't run) */
+for (const r of rows.values()) for (const x of r.rows ?? []) { if (!x.far) continue; const c = FAR.find((y) => y.D === r.D && y.Z === r.Z && y.config === x.config);
+  if (c && c.converged !== false && x.hf_eV != null) { x.hf_eV = +(x.hf_eV + c.corr_eV).toFixed(4); x.farCorr_eV = c.corr_eV; x.term = c.partial ? "partial" : "corrected after"; x.farParts = c.parts; }
+  else x.term = "uncorrected"; }
 const set = (c) => (c ? c.split(" ").sort().join(" ") : null), out = [];
 const LAN = new Map(JSON.parse(readFileSync(join(HERE, "data/nist-lanthanides.json"), "utf8")).rows.map((r) => [r.Z, r.config]));
 const measured = (Z) => (Z <= 36 ? realConfig(Z) : LAN.get(Z));
@@ -32,7 +39,7 @@ for (const D of [3, 4]) for (const Z of ZS[D]) {
   const hfRow = rk[0], z0 = hfRow.hf_eV, rs = r.rows.map((x) => ({ ...x, gapped: gapped(x.config) || undefined, hf_eV: x.hf_eV == null || gapped(x.config) ? null : +(x.hf_eV - z0).toFixed(4) }));
   const row = { D, Z, lda: r.lda.config, hf: hfRow.config, agree: r.lda.config === hfRow.config, hfMargin_eV: rk[1] ? +(rk[1].hf_eV - z0).toFixed(4) : null, hfSecond: rk[1]?.config ?? null,
     hfLdaRank_eV: hfRow.lda_eV, nearWindowEdge: hfRow.lda_eV > 3, candidates: r.candidates, solved: r.solved, unconverged: r.unconverged, gappedDropped: rs.filter((x) => x.gapped).length,
-    hfParts: hfRow.config === r.hf.config ? r.hf.parts : null, rows: rs };
+    hfParts: hfRow.config === r.hf.config ? r.hf.parts : hfRow.farParts ?? null, rows: rs };
   if (D === 3) { const m = measured(Z); row.measured = m; row.ldaRight = set(m) === set(r.lda.config); row.hfRight = set(m) === set(row.hf); }
   out.push(row);
 }
@@ -66,11 +73,15 @@ const fBias = oL.flatMap((r) => { const lev = LANL.get(r.Z), g = r.rows.find((x)
     .map((x) => { const err = x.hf_eV - g.hf_eV - lev.get(set(x.config)); return { Z: r.Z, config: x.config, df: fN(x.config) - fN(r.measured), error_eV: +err.toFixed(3), lean_eV: +(fN(x.config) < fN(r.measured) ? err : -err).toFixed(3) }; }); });
 const B = fBias.length ? Math.max(...fBias.map((x) => x.lean_eV)) : null;
 const fRow = o4.filter((r) => r.Z >= 81 && r.Z <= 112).map((r) => { const fh = fN(r.hf), fewer = r.rows.filter((x) => x.hf_eV != null && !x.gapped && fN(x.config) < fh), gap = fewer.length ? Math.min(...fewer.map((x) => x.hf_eV)) : null;
-  const near = gap != null ? fewer.find((x) => x.hf_eV === gap).config : null;
+  const nearRow = gap != null ? fewer.find((x) => x.hf_eV === gap) : null, near = nearRow?.config ?? null, nearTerm = nearRow?.term ?? (nearRow ? "full" : null);
   const verdict = !r.agree ? (fN(r.lda) > fh ? "lean" : "open") : fh === 0 || (gap != null && gap > B) ? "firm" : gap != null ? "openAgree" : "untested";
-  return { Z: r.Z, verdict, fewerGap_eV: gap, fewerConfig: near }; });
+  return { Z: r.Z, verdict, fewerGap_eV: gap, fewerConfig: near, fewerTerm: nearTerm, groundPartial: (r.hfParts ?? []).some((p) => p.complete === false) }; });
 summary.fRow = { B_eV: B, calibration: fBias, firm: fRow.filter((x) => x.verdict === "firm").map((x) => x.Z), openAgree: fRow.filter((x) => x.verdict === "openAgree").map((x) => ({ Z: x.Z, gap: x.fewerGap_eV })),
-  lean: fRow.filter((x) => x.verdict === "lean").map((x) => x.Z), open: fRow.filter((x) => x.verdict === "open").map((x) => x.Z), untested: fRow.filter((x) => x.verdict === "untested").map((x) => x.Z) };
+  lean: fRow.filter((x) => x.verdict === "lean").map((x) => x.Z), open: fRow.filter((x) => x.verdict === "open").map((x) => x.Z), untested: fRow.filter((x) => x.verdict === "untested").map((x) => x.Z),
+  /* provenance of what decides each verdict: the nearest fewer-f competitor's term correction (full, corrected after,
+     partial, uncorrected) and whether the ground's own correction finished every spin block */
+  decidedBy: Object.fromEntries(["full", "corrected after", "partial", "uncorrected"].map((t) => [t, fRow.filter((x) => x.fewerTerm === t).map((x) => x.Z)])), groundPartial: fRow.filter((x) => x.groundPartial).map((x) => x.Z),
+  farCandidates: { all: out.flatMap((r) => r.rows ?? []).filter((x) => x.far).length, corrected: out.flatMap((r) => r.rows ?? []).filter((x) => x.term === "corrected after").length, partial: out.flatMap((r) => r.rows ?? []).filter((x) => x.term === "partial").length, uncorrected: out.flatMap((r) => r.rows ?? []).filter((x) => x.term === "uncorrected").length } };
 writeFileSync(join(HERE, "data/hftable.json"), JSON.stringify({ about: "Generated by papers/p1/hf-collect.mjs from atom/tools/hftable.mjs rank (runner runs hf-table-1, hf-lanth-1, hf-wide-1, hf-climb-1; later runs override earlier ones element by element); do not edit. lda: the local-exchange ground configuration (Hund-corrected); hf: Hartree–Fock's (js/hf.js, max-spin average plus the full term correction) over the local-exchange search's settled candidates within its window and, where climbed, Hartree–Fock's own one-electron neighbourhood. summary.fRow: the f row's verdicts against the lanthanide calibration B.", summary, rows: out }, null, 1) + "\n");
 /* the big table's detail panel (table/viewer.js): each 4D element's verdict, compact: [1] firm; [0, Hartree–Fock's
    configuration, how far above it Hartree–Fock puts the table's] open; [2, the fewer-f competitor, its gap] open though

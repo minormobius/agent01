@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="dd8af0279c57032adda02535d54149f82283c80e6561cc6372850be7f7358f91" />
+<meta name="source-sha256" content="de1f29ff6f3c8d2a21083273f1ed826ef938942f178b34e73d4b7985a54cdbc0" />
 <title>Paper 1 · Part III · What the law does (draft)</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -28,17 +28,19 @@ law’s, not a weaker search (appendix G.10). Of the 140 elements, 112
 settle, every one up to element 88; the rest, 89–116, have no settled
 ground state under the shell theorem from any start tried, so what
 follows about the rows holds through row 5.</p>
-<p><strong>6.1 The rows are the geometry’s.</strong> With the shell
-theorem forced on, the first 24 elements keep every configuration, and
-the noble gases close the same rows at elements 2, 12, 22, 50, 78, 138
-(figure 6). The rows’ lengths, 2, 10, 10, 28, 28, come from
-four-dimensional space’s
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">2(l + 1)^2</annotation></semantics></math>
-to a subshell, not from the law, so long as the law keeps a shell
-together (section 2.3).</p>
+<p><strong>6.1 The rows survive the shell theorem.</strong> With the
+shell theorem forced on, the first 24 elements keep every configuration,
+and the noble gases close the same rows at elements 2, 12, 22, 50, 78,
+138 (figure 6). So the rows don’t come from the shell theorem’s failure.
+Their lengths, 2, 10, 10, 28, 28, are sums of subshells of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>l</mi><mo>+</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">2(l + 1)^2</annotation></semantics></math>,
+filled in the order these calculations find under
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>;
+whether they survive a change of the exponent is a separate
+question.</p>
 <figure id="fig-6">
 <img src="../figures/6.svg"
-alt="Figure 6. What the law does. Every 4D atom solved a second time with the shell theorem forced on (the clouds’ pull as if each sat at the centre), everything else held. (a) The table: grey, the same ground configuration under both laws; orange, changed; a question mark in place of the element’s number, no settled ground state under the shell theorem (row 6’s f block, 89–116, after a second, wider search). Every atom up to 88 settles. The first 24 elements and all six noble gases are unchanged: the rows are the geometry’s, at least through row 5. Every change starts at the first d element: without the law, p beats d inside each row. (b) First ionization under both: the law holds outer electrons a median 2.5 times harder, and element 128 nearly ten times (29.6 eV against 3.1); with the shell theorem the noble gases hold hardest, as ours do." />
+alt="Figure 6. What the law does. Every 4D atom solved a second time with the shell theorem forced on (the clouds’ pull as if each sat at the centre), everything else held. (a) The table: grey, the same ground configuration under both laws; orange, changed; a question mark in place of the element’s number, no settled ground state under the shell theorem (row 6’s f block, 89–116, after a second, wider search). Every atom up to 88 settles. The first 24 elements and all six noble gases are unchanged: the rows survive the shell theorem, at least through row 5. Every change starts at the first d element: without the law, p beats d inside each row. (b) First ionization under both: the law holds outer electrons a median 2.5 times harder, and element 128 nearly ten times (29.6 eV against 3.1); with the shell theorem the noble gases hold hardest, as ours do." />
 <figcaption aria-hidden="true"><strong>Figure 6.</strong> What the law
 does. Every 4D atom solved a second time with the shell theorem forced
 on (the clouds’ pull as if each sat at the centre), everything else
@@ -46,12 +48,13 @@ held. (a) The table: grey, the same ground configuration under both
 laws; orange, changed; a question mark in place of the element’s number,
 no settled ground state under the shell theorem (row 6’s f block,
 89–116, after a second, wider search). Every atom up to 88 settles. The
-first 24 elements and all six noble gases are unchanged: the rows are
-the geometry’s, at least through row 5. Every change starts at the first
-d element: without the law, p beats d inside each row. (b) First
-ionization under both: the law holds outer electrons a median 2.5 times
-harder, and element 128 nearly ten times (29.6 eV against 3.1); with the
-shell theorem the noble gases hold hardest, as ours do.</figcaption>
+first 24 elements and all six noble gases are unchanged: the rows
+survive the shell theorem, at least through row 5. Every change starts
+at the first d element: without the law, p beats d inside each row. (b)
+First ionization under both: the law holds outer electrons a median 2.5
+times harder, and element 128 nearly ten times (29.6 eV against 3.1);
+with the shell theorem the noble gases hold hardest, as ours
+do.</figcaption>
 </figure>
 <p><strong>6.2 What fills inside the rows is the law’s.</strong> Of the
 settled atoms, 57 change configuration, the first at element 25, the
@@ -95,15 +98,19 @@ with
 terms cancel, and what remains, for an electron at distance
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>R</mi><annotation encoding="application/x-tex">R</annotation></semantics></math>,
 is a pull
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mi>Q</mi><mi>/</mi><mn>8</mn><msup><mi>R</mi><mn>3</mn></msup></mrow><annotation encoding="application/x-tex">-Q/8R^3</annotation></semantics></math>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mfrac displaystyle="false"><mi>Q</mi><mrow><mn>8</mn><msup><mi>R</mi><mn>3</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">-\tfrac{Q}{8R^3}</annotation></semantics></math>
 with
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Q</mi><mo>=</mo><mo>∑</mo><mo stretchy="false" form="prefix">⟨</mo><msup><mi>r</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">⟩</mo></mrow><annotation encoding="application/x-tex">Q = \sum\langle r^2\rangle</annotation></semantics></math>.
 The solved noble gases follow it: at 30 bohr the full cloud’s potential
-and the far form agree to 0.22 %. Between two atoms the same failure
-gives a permanent attraction
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mn>3</mn><msub><mi>Q</mi><mi>A</mi></msub><msub><mi>Q</mi><mi>B</mi></msub><mi>/</mi><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow><annotation encoding="application/x-tex">-3Q_AQ_B/64R^5</annotation></semantics></math>,
+and the far form agree to 0.22 %. Between two atoms with round clouds
+(closed shells, or a single s electron) the same failure gives a
+permanent attraction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo>−</mo><mfrac displaystyle="false"><mrow><mn>3</mn><msub><mi>Q</mi><mi>A</mi></msub><msub><mi>Q</mi><mi>B</mi></msub></mrow><mrow><mn>64</mn><msup><mi>R</mi><mn>5</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">-\tfrac{3Q_AQ_B}{64R^5}</annotation></semantics></math>,
 with no dipole needed, which outranges London’s
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>.</p>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mrow><mo>−</mo><mn>6</mn></mrow></msup><annotation encoding="application/x-tex">R^{-6}</annotation></semantics></math>;
+an open p, d or f shell isn’t round, and adds an ordinary quadrupole
+pull of the same order that depends on how the atoms are turned
+(appendix J.2).</p>
 <p>For two like atoms the permanent pull’s coefficient is
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>5</mn></msub><mo>=</mo><mn>3</mn><msup><mi>Q</mi><mn>2</mn></msup><mi>/</mi><mn>64</mn></mrow><annotation encoding="application/x-tex">C_5 = 3Q^2/64</annotation></semantics></math>,
 and
@@ -114,16 +121,17 @@ from the solver’s coupled response by Casimir and Polder’s integral
 (appendix J.1, table 2; in ours its noble gases’ polarizabilities are
 off by −8 % to +4 % against <span class="citation"
 data-cites="derevianko2010">Derevianko, Porsev, and Babb (<a
-href="#ref-derevianko2010" role="doc-biblioref">2010</a>)</span>). For
-hydrogen and helium
+href="#ref-derevianko2010" role="doc-biblioref">2010</a>)</span>). These
+are computed for 15 four-dimensional atoms, those whose clouds are
+round: for hydrogen and helium
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>R</mi><mo>*</mo></msup><annotation encoding="application/x-tex">R^*</annotation></semantics></math>
 is 28 and 9.26 bohr, for the alkali-like and alkaline-earth-like atoms
-4.9–94, and for every other atom in the table 0.59–1.5, inside the atom.
-Past contact, for most of the table, the permanent term is the leading
-pull between neutral atoms at every distance where a far-field form
-applies. Pulled apart by Hartree–Fock, two closed-shell atoms follow it
-(1.02–1.06 times the far form at 16 bohr), so the atoms the molecular
-codes separate into are this paper’s (appendix J.2).</p>
+sampled 4.9–94, and for the other 5 closed-shell atoms sampled 0.59–1.5,
+inside the atom. Among them, past contact, the permanent term is the
+leading pull at every distance where a far-field form applies. Pulled
+apart by Hartree–Fock, two closed-shell atoms follow it (1.02–1.06 times
+the far form at 16 bohr), so the atoms the molecular codes separate into
+are this paper’s (appendix J.2).</p>
 <p>That sets a requirement on every later model of four-dimensional
 matter. In ours the trace of a charge distribution’s second moment is
 dropped from multipole expansions, because
@@ -158,14 +166,16 @@ it no atoms. Pinned at
 the only power law that keeps a shell together, it has atoms, and they
 have a periodic table: rows of 2, 10, 10, 28, 28, 60, noble gases at 2,
 12, 22, 50, 78, 138, as the generalized Madelung rule predicts. The rows
-are the geometry’s. What fills inside them from the first d element on
-is the law’s, because in four dimensions
+survive the shell theorem forced back on. What fills inside them from
+the first d element on doesn’t, because in four dimensions
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 isn’t harmonic and an inner cloud screens only partly: outer electrons
 are held about two and a half times harder, the hardest-held electron
 belongs to a full d shell rather than a noble gas, and a neutral atom
 pulls from afar. And four-dimensional space breaks Hund’s first rule for
-d², d¹⁶, 4f³ and 4f²⁹, under both laws tested.</p>
+d², d¹⁶, 4f³ and 4f²⁹; for d², on element 26’s orbital, Gauss’s
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">1/r^2</annotation></semantics></math>
+breaks it too.</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">
