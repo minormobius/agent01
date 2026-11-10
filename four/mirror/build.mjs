@@ -16,7 +16,7 @@ export const MODULES = ["kernel", "atom", "gauss", "md", "landscape", "ffmodel",
 /* paper 1's data, which papers/p1/reproduce.mjs checks the solver against */
 export const DATA = ["papers/p1/data/table3.json", "papers/p1/data/table4.json", "papers/p1/data/README.md", "papers/p1/refs.json"];
 /* the selftest's blocks that check a method against known answers without the site's baked data (by number) */
-export const BLOCKS = [1, 2, 3, 9, 10, 11, 12, 13, 21, 33, 35, 36, 37, 38, 43, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 62, 63, 64, 65, 66, 71];
+export const BLOCKS = [1, 2, 3, 9, 10, 11, 12, 13, 21, 33, 35, 36, 37, 38, 43, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 62, 63, 64, 65, 66, 71, 72];
 
 export function stage(out) {
   mkdirSync(out, { recursive: true }); if (readdirSync(out).length) throw new Error(`${out} isn't empty`);

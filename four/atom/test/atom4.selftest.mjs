@@ -1301,5 +1301,19 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `the Hartree–Fock atom: Ne ${ne.toFixed(6)} (−128.547098), N ⁴S ${n.toFixed(6)} (−54.400934); 4D element 12 ${e12.toFixed(6)} (gauss.js −102.965895)`);
 }
 
+/* 72 · a law 1/r^η other than 1/r (paper 1's bracket, tools/etatable.mjs): η = 1 is untouched (the exchange constant is
+   A₄, the kernel k4); under η = 0.5 and 1.5 the exchange constant's closed form (Weber–Schafheitlin) and the one-electron
+   atom, whose exchange cancels its own exactly, agree with laws.js's independent solver */
+{
+  const A = await import("../js/atom.js"), K = await import("../js/kernel.js"), L = await import("../../papers/p1/laws.js");
+  const sh = A.subshells(4), h1 = sh.map((s, i) => (i === 0 ? 1 : 0));
+  const hyd = [0.5, 1.5].map((eta) => ({ eta, scf: A.scf(1, h1, 4, { exchange: true, eta }).E, ref: L.levels((r) => -Math.pow(r, -eta), 0, 0, 4) }));
+  const c1 = A.exchangeConst(4, 1) === A.EXCHANGE[4] && Math.abs(2 * Math.pow(16 * Math.PI ** 2, 0.25) * A.j2Integral(1) / A.EXCHANGE[4] - 1) < 1e-12;
+  const jq = Math.abs(A.j2Integral(1.5) - 0.0570133) < 2e-7 && Math.abs(A.j2Integral(0.5) - 0.1374957) < 2e-7; // quadrature of ∫x^(−1−η)J₂² (accurate J₂, analytic tail)
+  const kk = Math.abs(K.k4eta(0.7, 1) - K.k4(0.7)) < 1e-9 && K.k4eta(0, 1.5) === 1 && Math.abs(K.k4eta(1, 1.5) - K.k4eta(1, 1.5, 20000)) < 1e-5;
+  ok(c1 && jq && kk && hyd.every((h) => Math.abs(h.scf - h.ref) < 2e-6),
+    `a law 1/r^η: exchange constant at η = 1 is A₄ ${c1 ? "exactly" : "NOT"}; ∫x^(−1−η)J₂² ${jq ? "matches quadrature" : "off"} at η = 0.5, 1.5; kernel ${kk ? "k4 at η = 1, converged at t = 1" : "off"}; one electron ${hyd.map((h) => `η = ${h.eta}: ${h.scf.toFixed(6)} (laws.js ${h.ref.toFixed(6)})`).join(", ")}`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

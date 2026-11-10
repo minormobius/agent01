@@ -881,6 +881,17 @@ for games, and this is a modelling programme with publications to come. The game
   **Methods' supporting runs** (sandbox, seconds to a minute; re-run after a solver change): `audit-scf.mjs` (the SCF's
   stop against one 10⁵ tighter → `data/audit-scf.json`), `convergence.mjs` (six other radial grids, each in its own
   process via `ATOM4_GRID="N,r0,rmax"`, which `atom.js` reads at import and nothing else sets → `data/convergence.json`).
+  **The bracket of the pinned law (PI, 2026-11-10): the table under 1/r^η, η = 0.5 and 1.5.** `atom.js` takes `eta`
+  (scf/ground/potentials options; default 1, which is untouched and bit-identical): the nucleus −Z/r^η, the clouds through
+  `kernel.js`'s `kEtaTab(eta)` (the 3-sphere average of 1/|x−y|^η, kη(t)/max^η), the local exchange of that law's own
+  4D electron gas, e_x = −C ρ^(1+η/4) with C = 2(16π²)^(η/4)∫x^(−1−η)J₂² (`exchangeConst`, `j2Integral`; A₄ at η = 1), and
+  each level's lower bound from the potential's minimum (`lowerBound`; under 1/r it is read off the origin). Selftest 72
+  (mirrored): the constant against quadrature, the kernel, and one electron against `laws.js` at both η.
+  `atom/tools/etatable.mjs run <eta> <i> <m> [zmax]` (runner, run `eta-table-1`: 1–100, 16 shards per η) seeds every
+  search from the real table, its neighbours and the bare η-nucleus's filling order, and solves the empty 5g level in
+  each atom's field (`gIntrudes`: the solver stops at f, and under η < 1 higher l is more bound); `repair` re-searches
+  the unsettled; `bake` → `papers/p1/data/etatable.json`. First look (sandbox, 1–6): η = 0.5 fills 2p before 2s
+  (1s² 2p² at 4), η = 1.5 puts 3s before 2p (1s² 2s² 3s¹ at 5).
   **Length (PI, 2026-11-10): the main text is at most seven two-column journal pages, with generous appendices.**
   `pages.cjs` (sandbox, Playwright) lays `draft/paper.html` out as a two-column letter page at 10 pt and prints the main
   text's page count and words (`draft/paper-journal.pdf`); check it after any change to the body. The body is §1–8 (the law,

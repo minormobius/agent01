@@ -1,30 +1,78 @@
 {
- "run": "valence-1",
- "why": "Paper 1 (the atomic reference): a direct test of the valence rule on darbon's hydride DH5 (4D element 7), which the census settles by counting, closed-shell Hartree–Fock and three random nudges. Here: the full 24 × 24 Cartesian curvature matrix at the census geometry by central differences (eight shares), and balanced alternatives DH5 → DH4 + H and → DH3 + H2 with each fragment in its lowest spin (both tried), by UHF and UMP2.",
+ "run": "eta-table-1",
+ "why": "Paper 1's bracket of the pinned law: the 4D table, elements 1–100, solved under a law 1/r^η with η = 0.5 and 1.5 (nucleus, clouds through the η kernel, and the local exchange of that law's own electron gas), each element seeded from the real table, its neighbours and the bare η-nucleus's filling order, with a check that the empty 5g level stays above the outermost occupied one. Asks which rows and noble gases survive on either side of 1/r (section 2.3, figure 1).",
  "minutes": 340,
  "groups": [
   {
-   "name": "val-h0",
+   "name": "eta05-0",
    "cmds": [
-    "node four/atom/tools/valencetest.mjs hessian 7 0/8",
-    "node four/atom/tools/valencetest.mjs hessian 7 1/8",
-    "node four/atom/tools/valencetest.mjs hessian 7 2/8",
-    "node four/atom/tools/valencetest.mjs hessian 7 3/8"
+    "node four/atom/tools/etatable.mjs run 0.5 0 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 1 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 2 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 3 16 100"
    ]
   },
   {
-   "name": "val-h1",
+   "name": "eta05-1",
    "cmds": [
-    "node four/atom/tools/valencetest.mjs hessian 7 4/8",
-    "node four/atom/tools/valencetest.mjs hessian 7 5/8",
-    "node four/atom/tools/valencetest.mjs hessian 7 6/8",
-    "node four/atom/tools/valencetest.mjs hessian 7 7/8"
+    "node four/atom/tools/etatable.mjs run 0.5 4 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 5 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 6 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 7 16 100"
    ]
   },
   {
-   "name": "val-r",
+   "name": "eta05-2",
    "cmds": [
-    "node four/atom/tools/valencetest.mjs reactions 7"
+    "node four/atom/tools/etatable.mjs run 0.5 8 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 9 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 10 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 11 16 100"
+   ]
+  },
+  {
+   "name": "eta05-3",
+   "cmds": [
+    "node four/atom/tools/etatable.mjs run 0.5 12 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 13 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 14 16 100",
+    "node four/atom/tools/etatable.mjs run 0.5 15 16 100"
+   ]
+  },
+  {
+   "name": "eta15-0",
+   "cmds": [
+    "node four/atom/tools/etatable.mjs run 1.5 0 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 1 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 2 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 3 16 100"
+   ]
+  },
+  {
+   "name": "eta15-1",
+   "cmds": [
+    "node four/atom/tools/etatable.mjs run 1.5 4 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 5 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 6 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 7 16 100"
+   ]
+  },
+  {
+   "name": "eta15-2",
+   "cmds": [
+    "node four/atom/tools/etatable.mjs run 1.5 8 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 9 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 10 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 11 16 100"
+   ]
+  },
+  {
+   "name": "eta15-3",
+   "cmds": [
+    "node four/atom/tools/etatable.mjs run 1.5 12 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 13 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 14 16 100",
+    "node four/atom/tools/etatable.mjs run 1.5 15 16 100"
    ]
   }
  ]
