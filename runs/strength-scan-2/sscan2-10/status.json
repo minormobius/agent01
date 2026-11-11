@@ -1,0 +1,33 @@
+{
+ "group": "sscan2-10",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.8 7 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 218
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.8 8 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 255
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.85 2 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 64
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs ladder 4 1.85 3 MN",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 127
+  }
+ ]
+}
