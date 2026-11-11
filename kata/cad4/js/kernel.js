@@ -26,7 +26,7 @@
    for marching, and for the measures, which read only the sign and the near field). */
 
 const EXPR = /^[0-9a-zA-Z_+\-*/(). ]+$/, IDENT = /[a-zA-Z_][a-zA-Z_0-9]*/g;
-function num(v, params) {
+export function num(v, params) {
   if (typeof v === "number") return v;
   if (typeof v !== "string" || !EXPR.test(v)) throw new Error(`not a number or expression: ${JSON.stringify(v)}`);
   const names = Object.keys(params); for (const m of v.match(IDENT) || []) if (!names.includes(m) && !/^e\d*$/.test(m)) throw new Error(`unknown parameter ${m}`); // (nothing but parameters and arithmetic ever reaches Function)

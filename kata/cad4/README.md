@@ -75,7 +75,14 @@ Beside it: a slider per parameter; **fit**, each checked pair clear or overlappi
 rough at once and refined a moment later; this slice's volume and area, and **the strip**, each part's cross-section
 along the direction you can't see with a line where your slice is (a part that has left your picture is a bump
 further along the strip); and the tree, editable: **build** compiles what you typed, **copy link** carries it in the
-address. **slice → STL** downloads the cross-section you are looking at. **▶ run** plays a part's motion.
+address. **linked?** (on the chain assemblies) is the test a slice can't make. A ring is filled in with a film and what comes
+through it is drawn; then the ring is lifted along each of the four axes, a disc a step. If the piercing ends with the
+rim untouched, the ring is free that way; if the other part reaches the rim, that is a collision. The two plain rings
+are free along ±w and nowhere else; the lock and both chains are held all eight ways. Why: a curve need not meet a
+film in 4D (1 + 2 < 4), a surface meets one at points no nudge removes (2 + 2 = 4). It tests straight lifts along the
+axes, which shows the mechanism; it is not a proof.
+
+**slice → STL** downloads the cross-section you are looking at. **▶ run** plays a part's motion.
 
 ## The library
 

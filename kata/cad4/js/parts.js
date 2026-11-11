@@ -51,7 +51,7 @@ export const PARTS = {
       /* the second ring stands in the x–z plane, threaded through the first */
       b: { op: "move", by: ["R+pull", 0, 0, "lift"], of: { op: "rotate", plane: [1, 2], deg: 90, of: loop("R", "r") } },
     },
-    show: ["a", "b"], check: [["a", "b"]], path: [{ lift: 0, pull: 0 }, { lift: 1, pull: 0 }, { lift: 1, pull: 3 }, { lift: 0, pull: 3 }] },
+    show: ["a", "b"], check: [["a", "b"]], films: [{ loop: "b", other: "a", plane: [0, 2], centre: ["R+pull", 0, 0, "lift"], rad: "R", tube: "r", kind: "curve", loopName: "the second ring", otherName: "the first ring" }], path: [{ lift: 0, pull: 0 }, { lift: 1, pull: 0 }, { lift: 1, pull: 3 }, { lift: 0, pull: 3 }] },
   lock: { title: "lock", note: "What does link a ring in 4D: a sphere. The ring passes into the hollow sphere and out again through w, and no slide in any direction frees it without a collision.",
     params: { sx: 0, sy: 0, sz: 0, sw: 0, R: 1.2, rho: 0.7, r: 0.12 }, ranges: { sx: [-2.5, 2.5], sy: [-2.5, 2.5], sz: [-2.5, 2.5], sw: [-2.5, 2.5], R: [0.9, 1.5], rho: [0.5, 0.9], r: [0.08, 0.2] },
     parts: {
@@ -60,7 +60,7 @@ export const PARTS = {
       /* a ring in the x–w plane, centred on the sphere's skin */
       ring: { op: "move", by: ["R+sx", "sy", "sz", "sw"], of: { op: "rotate", plane: [1, 3], deg: 90, of: loop("rho", "r") } },
     },
-    show: ["sphere", "ring"], check: [["sphere", "ring"]], path: [{ sx: 0, sw: 0 }, { sx: 0, sw: 1.5 }, { sx: 0, sw: 0 }, { sx: 1.5, sw: 0 }] },
+    show: ["sphere", "ring"], check: [["sphere", "ring"]], films: [{ loop: "ring", other: "sphere", plane: [0, 3], centre: ["R+sx", "sy", "sz", "sw"], rad: "rho", tube: "r", kind: "surface", loopName: "the ring", otherName: "the sphere" }], path: [{ sx: 0, sw: 0 }, { sx: 0, sw: 1.5 }, { sx: 0, sw: 0 }, { sx: 1.5, sw: 0 }] },
   tigers: { title: "tiger chain", note: "A chain that is one: three tigers, big, small, big. One circle of the small tiger threads both big ones as surfaces, the way a loop threads the sphere in the lock. Pull an end or push the middle in any direction and something collides.",
     params: { pull: 0, bx: 0, by: 0, bz: 0, bw: 0, b: 0.4, r: 0.13 }, ranges: { pull: [0, 1.5], bx: [-2, 2], by: [-2, 2], bz: [-2, 2], bw: [-2, 2], b: [0.3, 0.6], r: [0.06, 0.18] },
     parts: {
@@ -72,7 +72,7 @@ export const PARTS = {
       m: { op: "move", by: ["1.25+bx", "1+by", "bz", "bw"], of: { op: "round", r: "r", of: { op: "product", of: [circle(1), circle("b")] } } },
       c: { op: "move", by: ["2.5+pull", 0, 0, 0], of: "big" },
     },
-    show: ["a", "m", "c"], check: [["a", "m"], ["m", "c"], ["a", "c"]], path: [{ pull: 0, bw: 0 }, { pull: 0.9, bw: 0 }, { pull: 0, bw: 0 }, { pull: 0, bw: 1.4 }, { pull: 0, bw: 0 }] },
+    show: ["a", "m", "c"], check: [["a", "m"], ["m", "c"], ["a", "c"]], films: [{ loop: "m", other: "a", plane: [0, 1], centre: ["1.25+bx", "1+by", "bz+b", "bw"], rad: 1, tube: "r", kind: "surface", loopName: "one circle of the small tiger", otherName: "the first big tiger" }, { loop: "m", other: "c", plane: [0, 1], centre: ["1.25+bx", "1+by", "bz+b", "bw"], rad: 1, tube: "r", kind: "surface", loopName: "the same circle", otherName: "the other big tiger" }], path: [{ pull: 0, bw: 0 }, { pull: 0.9, bw: 0 }, { pull: 0, bw: 0 }, { pull: 0, bw: 1.4 }, { pull: 0, bw: 0 }] },
   links: { title: "ring–sphere chain", note: "The other chain that holds: ring, hollow sphere, ring. Each ring passes through the sphere's skin by way of w. Push the sphere or pull a ring in any direction and something collides.",
   params: { pull: 0, sx: 0, sy: 0, sz: 0, sw: 0, R: 1.2, rho: 0.7, r: 0.12 }, ranges: { pull: [0, 2], sx: [-2.5, 2.5], sy: [-2.5, 2.5], sz: [-2.5, 2.5], sw: [-2.5, 2.5], R: [0.9, 1.5], rho: [0.5, 0.9], r: [0.08, 0.2] },
   parts: {
@@ -84,6 +84,6 @@ export const PARTS = {
     a: { op: "move", by: ["0-R", 0, 0, 0], of: "ring" },
     c: { op: "move", by: ["R+pull", 0, 0, 0], of: "ring" },
   },
-  show: ["a", "sphere", "c"], check: [["a", "sphere"], ["sphere", "c"], ["a", "c"]], path: [{ pull: 0, sw: 0 }, { pull: 1.2, sw: 0 }, { pull: 0, sw: 0 }, { pull: 0, sw: 1.6 }, { pull: 0, sw: 0 }] },
+  show: ["a", "sphere", "c"], check: [["a", "sphere"], ["sphere", "c"], ["a", "c"]], films: [{ loop: "a", other: "sphere", plane: [0, 3], centre: ["0-R", 0, 0, 0], rad: "rho", tube: "r", kind: "surface", loopName: "the first ring", otherName: "the sphere" }, { loop: "c", other: "sphere", plane: [0, 3], centre: ["R+pull", 0, 0, 0], rad: "rho", tube: "r", kind: "surface", loopName: "the second ring", otherName: "the sphere" }], path: [{ pull: 0, sw: 0 }, { pull: 1.2, sw: 0 }, { pull: 0, sw: 0 }, { pull: 0, sw: 1.6 }, { pull: 0, sw: 0 }] },
 };
 export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers"];

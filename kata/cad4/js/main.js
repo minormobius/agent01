@@ -1,7 +1,7 @@
 /* CAD⁴'s page: the tree compiled twice by the kernel (a JavaScript function for the numbers, GLSL for the picture),
    your 3D slice of it sphere-traced, the parameters as uniforms (a slider moves the part without a recompile), the
    numbers from a worker. Drawn only when something changed. */
-import { compile, slice, mesh, stl } from "./kernel.js";
+import { compile, slice, mesh, stl, num } from "./kernel.js";
 import { PARTS, ORDER } from "./parts.js";
 
 const $ = (id) => document.getElementById(id), canvas = $("gl"), ov = $("ov"), octx = ov.getContext("2d");
@@ -102,12 +102,12 @@ function setTree(tree, name, keepView) {
   S.tree = tree; S.name = name; S.vals = vals; S.shape = shape; S.measure = S.fit = S.slice = S.profile = null; build();
   frameIt(); if (!keepView) { E = ident(); off = 0; zoom = 1; }
   $("cap").textContent = tree.note || (tree.title ? tree.title : "your own part"); $("cap").classList.remove("min");
-  $("runB").hidden = !tree.path; params(); showTree(); numbers(); dirty = true;
+  $("runB").hidden = !tree.path; params(); showTree(); filmsBuild(); numbers(); dirty = true;
 }
 function frameIt() { const { lo, hi } = S.shape.bbox, ok = (v) => Math.abs(v) < 1e8; C4 = [0, 1, 2, 3].map((i) => (ok(lo[i] ?? 1e9) && ok(hi[i] ?? 1e9) ? (lo[i] + hi[i]) / 2 : 0)); R = Math.max(0.2, Math.hypot(...[0, 1, 2, 3].map((i) => (ok(lo[i] ?? 1e9) && ok(hi[i] ?? 1e9) ? (hi[i] - lo[i]) / 2 : 0)))); }
 function setVals(next, quiet) {
   try { S.shape = compile(S.tree, next); S.vals = next; S.err = ""; } catch (e) { S.err = e.message; }
-  $("err").textContent = S.err; dirty = true; if (!quiet) numbers();
+  $("err").textContent = S.err; dirty = true; filmsDraw(); if (!quiet) numbers();
 }
 function params() {
   const box = $("params"); box.textContent = "";
@@ -169,6 +169,49 @@ function strip() {
   x.font = "10px ui-monospace, Menlo, monospace"; x.textBaseline = "bottom"; x.fillStyle = "#ff66b8"; x.textAlign = "left"; x.fillText("kata", 0, h); x.fillStyle = "#38f2e0"; x.textAlign = "right"; x.fillText("ana", w, h); x.fillStyle = "#9a958c"; x.textAlign = "center"; x.fillText("along the direction you can't see", w / 2, h);
 }
 
+/* ------------------------------------------------------------------ linked?
+   The test a slice can't make. A film is the disc a loop bounds. What comes through it at rest is drawn in the middle
+   disc of each row; to either side the loop is lifted along one axis, a step a disc. Between discs the rim is watched
+   (finely): the other part touching it is a collision, and nothing past that is reachable. If instead the piercing
+   ends with the rim untouched, the loop is free that way. */
+const FK = 4, FSUB = 24;
+function filmTest(f, d) {
+  const v = S.vals, c = f.centre.map((x) => num(x, v)), Rf = num(f.rad, v), t = num(f.tube, v), [i, j] = f.plane, idx = S.tree.show.indexOf(f.other), X = S.shape.parts[idx].sdf, U = 2 * Rf;
+  const at = (u, a, b) => { const p = c.slice(); p[d] += u; p[i] += a; p[j] += b; return X(p[0], p[1], p[2], p[3]); };
+  const rimHit = (u) => { for (let k = 0; k < 48; k++) { const a = (k / 48) * 2 * Math.PI; if (at(u, Rf * Math.cos(a), Rf * Math.sin(a)) < t) return true; } return false; };
+  const N = 19, disc = (u) => { const m = []; let any = false; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const a = ((x + 0.5) / N * 2 - 1) * Rf, b = ((y + 0.5) / N * 2 - 1) * Rf, inside = a * a + b * b < Rf * Rf && at(u, a, b) < 0; m.push(inside); any = any || inside; } return { m, any }; };
+  const cells = Array(2 * FK + 1).fill(null), side = {}; cells[FK] = { ...disc(0), state: rimHit(0) ? "hit" : "rest" };
+  for (const sg of [1, -1]) { let done = "";
+    for (let k = 1; k <= FK; k++) { const at0 = FK + sg * k; if (done) { cells[at0] = { state: done === "hit" ? "blocked" : "gone" }; continue; }
+      let hit = false; for (let q = 1; q <= FSUB && !hit; q++) hit = rimHit((sg * (k - 1 + q / FSUB) * U) / FK);
+      const dd = disc((sg * k * U) / FK); if (hit) { cells[at0] = { ...dd, state: "hit" }; done = "hit"; } else if (!dd.any) { cells[at0] = { ...dd, state: "clear" }; done = "free"; } else cells[at0] = { ...dd, state: "pierced" }; }
+    side[sg] = done || "pierced"; }
+  return { cells, side, N, inPlane: d === i || d === j };
+}
+function filmsBuild() {
+  const F = S.tree.films, box = $("films"); $("filmSec").hidden = !F; box.textContent = ""; if (!F) return;
+  F.forEach((f, n) => { const h = document.createElement("h3"), c = document.createElement("canvas"), p = document.createElement("p"); h.textContent = `the film of ${f.loopName}, and ${f.otherName} through it`; c.id = "film" + n; p.id = "filmV" + n; box.append(h, c, p); });
+  filmsDraw();
+}
+function filmsDraw() {
+  const F = S.tree && S.tree.films; if (!F || S.err) return;
+  F.forEach((f, n) => { const c = $("film" + n); if (!c) return; const w = c.clientWidth || 320, lab = 50, cell = Math.min(36, (w - lab - 4) / (2 * FK + 1)), rowH = cell + 4, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    c.style.height = 4 * rowH + 6 + "px"; c.width = Math.round(w * dpr); c.height = Math.round((4 * rowH + 6) * dpr); const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, 4 * rowH + 6);
+    const li = S.tree.show.indexOf(f.loop), oi = S.tree.show.indexOf(f.other), free = [], held = [];
+    for (let d = 0; d < 4; d++) { const T = filmTest(f, d), y = 3 + d * rowH + rowH / 2, r = cell / 2 - 3;
+      x.font = "600 11px ui-monospace, Menlo, monospace"; x.textBaseline = "middle"; x.textAlign = "left"; x.fillStyle = T.inPlane ? "#9a958c" : "#ffd27a"; x.fillText("xyzw"[d] + (T.inPlane ? " in" : " out"), 6, y);
+      T.cells.forEach((cl, k) => { const cx = lab + (k + 0.5) * cell;
+        if (cl.state === "blocked" || cl.state === "gone") { x.globalAlpha = 0.25; x.strokeStyle = cl.state === "gone" ? "#38f2e0" : "#9a958c"; x.lineWidth = 1; x.setLineDash([2, 3]); x.beginPath(); x.arc(cx, y, r, 0, 7); x.stroke(); x.setLineDash([]); x.globalAlpha = 1; return; }
+        x.fillStyle = HEX[oi % 6]; const px = (2 * r) / T.N; for (let q = 0; q < cl.m.length; q++) if (cl.m[q]) x.fillRect(cx - r + (q % T.N) * px - 0.4, y - r + Math.floor(q / T.N) * px - 0.4, px + 0.8, px + 0.8);
+        x.lineWidth = cl.state === "hit" ? 2.6 : cl.state === "rest" ? 2.2 : 1.6; x.strokeStyle = cl.state === "hit" ? "#ff6a4a" : cl.state === "clear" ? "#38f2e0" : HEX[li % 6]; x.beginPath(); x.arc(cx, y, r, 0, 7); x.stroke();
+        if (cl.state === "hit") { x.strokeStyle = "#ff6a4a"; x.lineWidth = 1.6; x.beginPath(); x.moveTo(cx - 4, y - 4); x.lineTo(cx + 4, y + 4); x.moveTo(cx + 4, y - 4); x.lineTo(cx - 4, y + 4); x.stroke(); } });
+      for (const sg of [1, -1]) (T.side[sg] === "free" ? free : T.side[sg] === "hit" ? held : []).push((sg > 0 ? "+" : "−") + "xyzw"[d]); }
+    const cap = (t) => t[0].toUpperCase() + t.slice(1), why = f.kind === "curve" ? `${cap(f.otherName)} is a curve, and a curve has no need to meet a film in 4D (1 + 2 < 4): the piercing at rest is an accident of position.` : `${cap(f.otherName)} is a surface, and a surface meets a film at points no nudge removes (2 + 2 = 4): the point can only leave through the rim.`;
+    const p = $("filmV" + n); p.textContent = ""; const b = document.createElement("b");
+    if (free.length) { b.className = "free"; b.textContent = `Free along ${free.join(", ")}. `; p.append(b, `The piercing ends and the rim was never touched${held.length ? "; the other " + held.length + " ways hit it" : ""}. ${why}`); }
+    else { b.className = "held"; b.textContent = held.length === 8 ? "Held, all eight ways. " : `Held (${held.length} of 8 ways end at the rim; the rest are still pierced at the end of the strip). `; p.append(b, why); } });
+}
+
 /* ------------------------------------------------------------------ controls */
 { // drag to orbit, pinch or wheel to zoom
   const pts = new Map(); let pinch = 0;
@@ -227,7 +270,7 @@ function tick(now) {
     if (moving) { slow = raw > 45 ? slow + 1 : Math.max(0, slow - 1); if (slow > 8 && scale > 0.45) { scale *= 0.8; slow = 0; } } }
   requestAnimationFrame(tick);
 }
-addEventListener("resize", () => (dirty = true));
+addEventListener("resize", () => { dirty = true; filmsDraw(); });
 
 /* ------------------------------------------------------------------ start: #name, #t=<a tree>, or the hinge */
 spawn();
