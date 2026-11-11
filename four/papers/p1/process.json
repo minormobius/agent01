@@ -481,6 +481,10 @@
   {
    "date": "2026-11-11",
    "what": "Title and byline (PI). Title, law first: 'Choosing a charge law for four dimensions: what 1/r does to atoms and the periodic table'. Byline Claude · Astra · minor mobius (last, PI), on the paper and the supplement, with an author-contributions statement before the supplementary-material note. The journal layout sets the title block across both columns and leaves the back matter out of the count: the main text is seven pages."
+  },
+  {
+   "date": "2026-11-11",
+   "what": "Version 1 frozen (PI): papers/p1/v1/, from commit e3c84d792, by the new freeze.cjs. Its own copies of the paper and supplement, the figures, the stylesheet, the ledger and S1's data, both PDFs and the link card; relative links rewritten to the version's copies, the card tags and the PDFs' links pointing at v1, and a line under the byline naming the commit and linking the living draft. v1 is the copy to share; the draft keeps moving with stars and nuclei."
   }
  ]
 }

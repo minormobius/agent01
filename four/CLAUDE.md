@@ -950,7 +950,10 @@ for games, and this is a modelling programme with publications to come. The game
   their own references. `linkRefs` turns every "appendix X.N", "section N.M", "figure N" and "table N" into a link to its
   anchor on the right page (`anchorHeads` writes `#sec-2-4`, `#app-f-8`, `#fig-1`, `#tab-2`, `#notation`), and bare
   four/kata.mino.mobi and tangled.org addresses into links. Write cross-references as plain words in `text/*.md`; the
-  build links them, a bare address after "(" included. After a change, check every `href="…#id"` resolves (done by hand so far). **The link card:** the paper and supplement pages carry og/twitter tags (`page.mjs`, `CARD_DESC`) pointing at
+  build links them, a bare address after "(" included. After a change, check every `href="…#id"` resolves (done by hand so far). **Versions (2026-11-11):** `freeze.cjs <n>` copies the committed draft to `papers/p1/v<n>/` (paper, supplement, sources,
+  figures, stylesheet, ledger, S1's data, PDFs, card), rewrites its links to its own copies and its card to its own
+  address, and refuses to overwrite a version. **A version is never edited**; corrections go in the draft and a new
+  version. v1 (commit e3c84d792) is the one shared; the hub and the process page link it. **The link card:** the paper and supplement pages carry og/twitter tags (`page.mjs`, `CARD_DESC`) pointing at
   `draft/og.png`, which `pdf.cjs` renders (1200 × 630: figure 2, the whole table, under the title and byline); rerun it
   after the table or the title changes. `pdf.cjs` prints both PDFs, rewriting every relative link to the live `four.mino.mobi/papers/p1/draft/` copy first (printed from disk, they would point at `file:///home/…`).
   **Pages:** `page.mjs` renders each `draft/*.md` to `draft/*.html` with pandoc (`--mathml`; display maths in the text
