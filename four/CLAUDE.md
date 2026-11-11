@@ -692,7 +692,7 @@ for games, and this is a modelling programme with publications to come. The game
   `nuclei.mjs hburn pp=3.73 s=1.5152` (writes `hburn-pp3.73.json`, leaving `hburn.json`) and `ppfusion.mjs sunpace`:
   a Sun-paced core burns at 15.2–17.4 MK into oitrogen (element 9) 36–79%, pxygen 18–64% by the core's draw. Below a
   deuteron binding of 1.80 MeV (the window's lowest 20–22%) p + p makes no deuteron; at the top it runs ~10⁷× faster.
-  Element 9 is **oitrogen**, not gluorine (element 11). `ppfusion.mjs sunpace <tag>` stores each run under `sunPace[s]`; `nuclei.mjs hburn` takes `pp=<fm> s=<s> ppx=<factor> T=<MK,…>` (the file name carries all three). Next: giveback/starmix/cores at 3.73 fm need main-sequence runs
+  Element 9 is **oitrogen**, not gluorine (element 11). `ppfusion.mjs sunpace <tag>` stores each run under `sunPace[s]`; `nuclei.mjs hburn` takes `pp=<fm> s=<s> ppx=<factor> T=<MK,…>` (the file name carries all three). With `trace` it records the climb as it happens instead (`burnNetwork({ trace })`: mass fractions at 10–99% of the hydrogen burned, to `hburn-trace-….json`; the zones' files are left alone): the ladder's lower rungs (4–6) stay under 0.5% throughout, material piles up at the slowest capture and moves on, so a core's intermediates live in its cooler outer zones, not its history. Next: giveback/starmix/cores at 3.73 fm need main-sequence runs
   at that radius (runner), and the strong force's strength is now the knob that matters.
   `nuclei.mjs giveback` (seconds) averages hburn's zones over the lifetimes of stars that finish before a Sun-like one
   forms (declared mass function, lifetime slope, range): gluorine, oeon and pxygen lead, pxygen ahead of oitrogen in every
