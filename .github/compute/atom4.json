@@ -1,498 +1,120 @@
 {
- "run": "strength-scan-1",
- "why": "The strong-force dial (four.mino.mobi/strong/): fill in the nuclear chain at seven more Minnesota strengths between where proton + proton opens (s = 1.4984, the deuteron bound by 1.80 MeV) and where the diproton binds (1.8909): helium-4 by diffusion Monte Carlo, Brink's clusters, and a nucleon on each ladder nucleus (both draws of the core), so capture, protonflow and the burning zones can follow at each strength. The helium-4 ladder needs these helium-4s and follows in strength-scan-2.",
+ "run": "strength-scan-2",
+ "why": "The strong-force dial (four.mino.mobi/strong/), second half: the helium-4 ladder (2 to 8 helium-4s, beryllium-8 then elements 6 to 16, diffusion Monte Carlo on the folded pair potential) at the seven Minnesota strengths s = 1.55-1.85 whose helium-4s strength-scan-1 computed (all 217 commands exit 0). With these, rungcap, capture, protonflow and hburn can follow in the sandbox at each strength.",
  "minutes": 340,
  "groups": [
   {
-   "name": "sscan-00",
+   "name": "sscan2-00",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 4 1.55 none MN",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 2 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 2 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 0.7 2"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.55 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.55 3 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.55 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.55 5 MN"
    ]
   },
   {
-   "name": "sscan-01",
+   "name": "sscan2-01",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 2 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 2 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 3 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 0.7 3"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.55 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.55 7 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.55 8 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.6 2 MN"
    ]
   },
   {
-   "name": "sscan-02",
+   "name": "sscan2-02",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 3 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 3 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 3 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 0.7 4"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.6 3 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.6 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.6 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.6 6 MN"
    ]
   },
   {
-   "name": "sscan-03",
+   "name": "sscan2-03",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 4 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 4 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 4 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 0.7 5"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.6 7 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.6 8 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.65 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.65 3 MN"
    ]
   },
   {
-   "name": "sscan-04",
+   "name": "sscan2-04",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 4 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 5 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 5 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.0 2"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.65 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.65 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.65 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.65 7 MN"
    ]
   },
   {
-   "name": "sscan-05",
+   "name": "sscan2-05",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 5 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 5 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 3 0 40",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.0 3"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.65 8 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.7 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.7 3 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.7 4 MN"
    ]
   },
   {
-   "name": "sscan-06",
+   "name": "sscan2-06",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.55 4 1 40",
-    "node four/atom/tools/nuclei.mjs he4 4 1.60 none MN",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 2 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.0 4"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.7 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.7 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.7 7 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.7 8 MN"
    ]
   },
   {
-   "name": "sscan-07",
+   "name": "sscan2-07",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 2 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 2 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 2 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.0 5"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.75 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.75 3 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.75 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.75 5 MN"
    ]
   },
   {
-   "name": "sscan-08",
+   "name": "sscan2-08",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 3 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 3 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 3 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.4 2"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.75 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.75 7 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.75 8 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8 2 MN"
    ]
   },
   {
-   "name": "sscan-09",
+   "name": "sscan2-09",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 3 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 4 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 4 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.4 3"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8 3 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8 6 MN"
    ]
   },
   {
-   "name": "sscan-10",
+   "name": "sscan2-10",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 4 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 4 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 5 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.4 4"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8 7 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.8 8 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.85 2 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.85 3 MN"
    ]
   },
   {
-   "name": "sscan-11",
+   "name": "sscan2-11",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 5 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 5 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 5 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.55 1.4 5"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.85 4 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.85 5 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.85 6 MN",
+    "node four/atom/tools/nuclei.mjs ladder 4 1.85 7 MN"
    ]
   },
   {
-   "name": "sscan-12",
+   "name": "sscan2-12",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 3 0 40",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.60 4 1 40",
-    "node four/atom/tools/nuclei.mjs he4 4 1.65 none MN",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 0.7 2"
-   ]
-  },
-  {
-   "name": "sscan-13",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 2 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 2 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 2 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 0.7 3"
-   ]
-  },
-  {
-   "name": "sscan-14",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 2 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 3 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 3 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 0.7 4"
-   ]
-  },
-  {
-   "name": "sscan-15",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 3 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 3 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 4 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 0.7 5"
-   ]
-  },
-  {
-   "name": "sscan-16",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 4 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 4 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 4 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.0 2"
-   ]
-  },
-  {
-   "name": "sscan-17",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 5 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 5 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 5 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.0 3"
-   ]
-  },
-  {
-   "name": "sscan-18",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 5 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 3 0 40",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.65 4 1 40",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.0 4"
-   ]
-  },
-  {
-   "name": "sscan-19",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 4 1.70 none MN",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 2 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 2 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.0 5"
-   ]
-  },
-  {
-   "name": "sscan-20",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 2 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 2 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 3 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.4 2"
-   ]
-  },
-  {
-   "name": "sscan-21",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 3 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 3 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 3 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.4 3"
-   ]
-  },
-  {
-   "name": "sscan-22",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 4 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 4 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 4 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.4 4"
-   ]
-  },
-  {
-   "name": "sscan-23",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 4 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 5 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 5 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.60 1.4 5"
-   ]
-  },
-  {
-   "name": "sscan-24",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 5 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 5 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 3 0 40",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 0.7 2"
-   ]
-  },
-  {
-   "name": "sscan-25",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.70 4 1 40",
-    "node four/atom/tools/nuclei.mjs he4 4 1.75 none MN",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 2 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 0.7 3"
-   ]
-  },
-  {
-   "name": "sscan-26",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 2 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 2 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 2 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 0.7 4"
-   ]
-  },
-  {
-   "name": "sscan-27",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 3 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 3 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 3 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 0.7 5"
-   ]
-  },
-  {
-   "name": "sscan-28",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 3 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 4 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 4 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.0 2"
-   ]
-  },
-  {
-   "name": "sscan-29",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 4 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 4 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 5 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.0 3"
-   ]
-  },
-  {
-   "name": "sscan-30",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 5 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 5 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 5 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.0 4"
-   ]
-  },
-  {
-   "name": "sscan-31",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 3 0 40",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.75 4 1 40",
-    "node four/atom/tools/nuclei.mjs he4 4 1.80 none MN",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.0 5"
-   ]
-  },
-  {
-   "name": "sscan-32",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 2 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 2 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 2 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.4 2"
-   ]
-  },
-  {
-   "name": "sscan-33",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 2 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 3 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 3 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.4 3"
-   ]
-  },
-  {
-   "name": "sscan-34",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 3 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 3 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 4 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.4 4"
-   ]
-  },
-  {
-   "name": "sscan-35",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 4 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 4 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 4 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.65 1.4 5"
-   ]
-  },
-  {
-   "name": "sscan-36",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 5 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 5 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 5 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 0.7 2"
-   ]
-  },
-  {
-   "name": "sscan-37",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 5 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 3 0 40",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.80 4 1 40",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 0.7 3"
-   ]
-  },
-  {
-   "name": "sscan-38",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs he4 4 1.85 none MN",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 2 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 2 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 0.7 4"
-   ]
-  },
-  {
-   "name": "sscan-39",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 2 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 2 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 3 0",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 0.7 5"
-   ]
-  },
-  {
-   "name": "sscan-40",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 3 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 3 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 3 1 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.0 2"
-   ]
-  },
-  {
-   "name": "sscan-41",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 4 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 4 0 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 4 1",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.0 3"
-   ]
-  },
-  {
-   "name": "sscan-42",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 4 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 5 0",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 5 0 compact",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.0 4"
-   ]
-  },
-  {
-   "name": "sscan-43",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 5 1",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 5 1 compact",
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 3 0 40",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.0 5"
-   ]
-  },
-  {
-   "name": "sscan-44",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs plusone 4 1.85 4 1 40",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.4 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.4 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.4 4"
-   ]
-  },
-  {
-   "name": "sscan-45",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.70 1.4 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 0.7 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 0.7 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 0.7 4"
-   ]
-  },
-  {
-   "name": "sscan-46",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 0.7 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.0 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.0 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.0 4"
-   ]
-  },
-  {
-   "name": "sscan-47",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.0 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.4 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.4 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.4 4"
-   ]
-  },
-  {
-   "name": "sscan-48",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.75 1.4 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 0.7 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 0.7 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 0.7 4"
-   ]
-  },
-  {
-   "name": "sscan-49",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 0.7 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.0 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.0 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.0 4"
-   ]
-  },
-  {
-   "name": "sscan-50",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.0 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.4 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.4 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.4 4"
-   ]
-  },
-  {
-   "name": "sscan-51",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.80 1.4 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 0.7 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 0.7 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 0.7 4"
-   ]
-  },
-  {
-   "name": "sscan-52",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 0.7 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.0 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.0 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.0 4"
-   ]
-  },
-  {
-   "name": "sscan-53",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.0 5",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.4 2",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.4 3",
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.4 4"
-   ]
-  },
-  {
-   "name": "sscan-54",
-   "cmds": [
-    "node four/atom/tools/nuclei.mjs brink 4 1.85 1.4 5"
+    "node four/atom/tools/nuclei.mjs ladder 4 1.85 8 MN"
    ]
   }
  ]
