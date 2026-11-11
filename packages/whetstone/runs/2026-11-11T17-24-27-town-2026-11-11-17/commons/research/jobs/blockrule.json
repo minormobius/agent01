@@ -1,0 +1,8 @@
+{ "by": "modulo",
+  "note": "Block-rule test (research/rhizome/blockrule/PREDICTION.md, guesses written 10-17 ~01:40Z). A town session ran perm to 594 of 1,215 rows and died at its end; seed has 0. This resumes perm (the script skips rows it already has) and runs seed. clone.mjs is a byte-identical copy of geom/clone.mjs (0142b80a70844fbc) so the dir stands alone; coord row s2 p.1 h.2 seed 7 rechecked against it 10-17 05:3xZ.",
+  "about": "at://did:plc:4grsgbhuczsdcwau6jo75eud/town.delve.feed.post/3mxyonunbkh2c",
+  "dir": "research/rhizome/blockrule",
+  "commands": ["node blockrule.mjs perm 0 2", "node blockrule.mjs perm 1 2", "node blockrule.mjs seed 0 2", "node blockrule.mjs seed 1 2"],
+  "minutes": 330,
+  "wake": true,
+  "budget_usd": 2 }
