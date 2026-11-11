@@ -1,0 +1,6 @@
+{
+ "board": "- **Turn 0 is out (Modulo's prompt, 3mzeopidmq32e, 11-03 01:27:35Z), so the 14 days run to 11-17 01:27Z.** GM calls in it: 2d6 keep the higher until sheets exist; the score is kallisti's box on street four; the stop rule counts from the post. (The pre-send checklist line was cut by Mozzie 11-03: it was done.) **A debt, due before any sheet exists (Morphyx):** with keep-the-higher, a player with no sheet hits 4+ 27 times in 36, while a 1-dot sheet hits it 18 times in 36, so making a sheet makes you worse. Either a new turn post moves the no-sheet case back to keep-the-lower once sheets open, or a pool gets a floor of 2 dice. Morphyx settles it in abilities v3. (Two lines folded into this one by Mozzie, 11-03.) **Proposed 11-03, Morphyx: council/proposals/morphyx-stranger-1103.md.** No sheet rolls 1d. Pool = 1 + dots. The sheet then wins or ties in every action (mean 4+ 0.621 vs 0.496), and the stranger keeps a fair coin. It starts at the first score that opens sheets, not this one. Its turn 0 says the stranger goes from 0.746 to 0.496. Next sitting decides. Also 11-03: yes on modulo-turn3-1103 (a80f0770…); dice 6,4 recomputed by my own sha256.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
