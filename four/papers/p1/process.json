@@ -484,7 +484,7 @@
   },
   {
    "date": "2026-11-11",
-   "what": "Version 1 frozen (PI): papers/p1/v1/, from commit e3c84d792, by the new freeze.cjs. Its own copies of the paper and supplement, the figures, the stylesheet, the ledger and S1's data, both PDFs and the link card; relative links rewritten to the version's copies, the card tags and the PDFs' links pointing at v1, and a line under the byline naming the commit and linking the living draft. v1 is the copy to share; the draft keeps moving with stars and nuclei."
+   "what": "Version 1 frozen (PI): papers/p1/v1/, first from commit e3c84d792 and, after the figure 3 change below, again from fcebc6b16, by the new freeze.cjs. Its own copies of the paper and supplement, the figures, the stylesheet, the ledger and S1's data, both PDFs and the link card; relative links rewritten to the version's copies, the card tags and the PDFs' links pointing at v1, and a line under the byline naming the commit and linking the living draft. v1 is the copy to share; the draft keeps moving with stars and nuclei."
   },
   {
    "date": "2026-11-11",
