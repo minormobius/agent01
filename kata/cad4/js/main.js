@@ -153,7 +153,7 @@ function show() {
   if (m) { const pl = []; for (let i = 0; i < d; i++) for (let j = i + 1; j < d; j++) pl.push("xyzw"[i] + "xyzw"[j] + " " + f3(m.moments[i][i] + m.moments[j][j]));
     rows($("meas"), [[nm[d], f3(m.volume)], [bn[d], f3(m.boundary)], ["centroid", m.centroid.map(f3).join(", ")], ["inertia, by plane", pl.join(" · ")], ["extent", m.bbox.lo.map((v, i) => f3(m.bbox.hi[i] - v)).join(" × ")]]);
     $("mState").textContent = S.fine ? `· to ${f3(m.h)}` : $("mState").textContent; }
-  rows($("fit"), (S.fit || []).map((f) => [`${f.a} · ${f.b}`, f.overlap > 0 ? `OVERLAP ${f.overlap.toPrecision(2)}` : `clear, gap ≈ ${f.gap === Infinity ? "far" : f.gap.toFixed(2)}`, f.overlap > 0 ? "bad" : "good"]));
+  rows($("fit"), (S.fit || []).map((f) => [`${f.a} · ${f.b}`, f.overlap > 0 ? `OVERLAP ${f.overlap.toPrecision(2)}` : (Number.isFinite(f.gap) ? `clear, gap ≈ ${f.gap.toFixed(2)}` : "clear"), f.overlap > 0 ? "bad" : "good"]));
   if (!(S.tree.check || []).length) $("fit").textContent = "one part: nothing to fit. An assembly lists pairs under \"check\".";
   rows($("sl"), S.slice ? [["volume", f3(S.slice.volume)], ["area", f3(S.slice.area)]] : []); strip();
 }

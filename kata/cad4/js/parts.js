@@ -61,5 +61,17 @@ export const PARTS = {
       ring: { op: "move", by: ["R+sx", "sy", "sz", "sw"], of: { op: "rotate", plane: [1, 3], deg: 90, of: loop("rho", "r") } },
     },
     show: ["sphere", "ring"], check: [["sphere", "ring"]], path: [{ sx: 0, sw: 0 }, { sx: 0, sw: 1.5 }, { sx: 0, sw: 0 }, { sx: 1.5, sw: 0 }] },
+  tigers: { title: "tiger chain", note: "A chain that is one: three tigers, big, small, big. One circle of the small tiger threads both big ones as surfaces, the way a loop threads the sphere in the lock. Pull an end or push the middle in any direction and something collides.",
+    params: { pull: 0, bx: 0, by: 0, bz: 0, bw: 0, b: 0.4, r: 0.13 }, ranges: { pull: [0, 1.5], bx: [-2, 2], by: [-2, 2], bz: [-2, 2], bw: [-2, 2], b: [0.3, 0.6], r: [0.06, 0.18] },
+    parts: {
+      /* an end link: circles of radius 1 in x–z and in y–w */
+      big: { op: "rotate", plane: [1, 2], deg: 90, of: { op: "round", r: "r", of: { op: "product", of: [circle(1), circle(1)] } } },
+      a: "big",
+      /* the middle link: a circle of radius 1 in x–y, centred on the gap between the ends at the height of their
+         y–w circles, so it passes through both; times a small circle (b) in z–w, small enough to stay inside both */
+      m: { op: "move", by: ["1.25+bx", "1+by", "bz", "bw"], of: { op: "round", r: "r", of: { op: "product", of: [circle(1), circle("b")] } } },
+      c: { op: "move", by: ["2.5+pull", 0, 0, 0], of: "big" },
+    },
+    show: ["a", "m", "c"], check: [["a", "m"], ["m", "c"], ["a", "c"]], path: [{ pull: 0, bw: 0 }, { pull: 0.9, bw: 0 }, { pull: 0, bw: 0 }, { pull: 0, bw: 1.4 }, { pull: 0, bw: 0 }] },
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "tigers"];
