@@ -179,7 +179,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   it; keep that. `js/parts.js` is the library (primitives, bracket, hinge, chain, lock, ring–sphere chain, tiger chain); `js/main.js` sphere-traces
   the slice (redrawn only when dirty), tints the surface by the 4D normal's unseen component, and asks `js/worker.js`
   for numbers (latest request wins; a fine measure is killed rather than waited for); the strip is each part's
-  cross-section along the unseen direction. An assembly's `films` (a loop's plane, centre, radius, tube, and the part through it) drive the page's **linked?** rows (`filmTest`: the film lifted along each axis, the rim watched between discs). `cli.mjs` is the kernel from a terminal. `window.CAD4` exposes the state.
+  cross-section along the unseen direction. An assembly's `films` (a loop's plane, centre, radius, tube, and the part through it) drive the page's **linked?** rows (`filmTest`: the film lifted along each axis, the rim watched between discs). ▶ run plays `path` only as far as it is possible (`reach()` in the worker: each leg walked to contact, bisected back). `cli.mjs` is the kernel from a terminal. `window.CAD4` exposes the state.
   See [`cad4/README.md`](cad4/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track

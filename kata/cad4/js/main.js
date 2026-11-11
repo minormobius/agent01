@@ -99,7 +99,7 @@ function overlay(v) {
 /* ------------------------------------------------------------------ the model */
 function setTree(tree, name, keepView) {
   const vals = { ...(tree.params || {}) }, shape = compile(tree, vals); // (throws before anything is replaced)
-  S.tree = tree; S.name = name; S.vals = vals; S.shape = shape; S.measure = S.fit = S.slice = S.profile = null; build();
+  waiting = false; S.bound = ""; S.tree = tree; S.name = name; S.vals = vals; S.shape = shape; S.measure = S.fit = S.slice = S.profile = null; build();
   frameIt(); if (!keepView) { E = ident(); off = 0; zoom = 1; }
   $("cap").textContent = tree.note || (tree.title ? tree.title : "your own part"); $("cap").classList.remove("min");
   $("runB").hidden = !tree.path; params(); showTree(); filmsBuild(); numbers(); dirty = true;
@@ -132,7 +132,7 @@ function pretty(v, ind = "") {
 let worker = null, busy = null, want = null, reqId = 0, fineT = 0, sliceT = 0;
 function spawn() { worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" }); worker.onmessage = (ev) => got(ev.data); busy = null; }
 function ask(mode, wait) {
-  const req = { id: ++reqId, tree: S.tree, vals: S.vals, mode, O: origin(), E: E.slice(0, 3), C: C4, N4: E[3], R };
+  const req = { id: ++reqId, tree: S.tree, vals: S.vals, path: S.tree.path, mode, O: origin(), E: E.slice(0, 3), C: C4, N4: E[3], R };
   if (busy && busy.mode === "fine" && !wait) { worker.terminate(); spawn(); }
   if (busy) { want = req; return; }
   busy = req; worker.postMessage(req);
@@ -140,7 +140,7 @@ function ask(mode, wait) {
 function got(m) {
   const mine = busy; busy = null;
   if (m.error) { $("err").textContent = m.error; } else if (mine && m.id === mine.id) { $("err").textContent = S.err;
-    if (m.fit) S.fit = m.fit; if (m.measure) { S.measure = m.measure; S.fine = m.mode === "fine"; } if (m.slice) S.slice = m.slice; if (m.profile) S.profile = m.profile; show();
+    if (m.reach) begin(m.reach); if (m.fit) S.fit = m.fit; if (m.measure) { S.measure = m.measure; S.fine = m.mode === "fine"; } if (m.slice) S.slice = m.slice; if (m.profile) S.profile = m.profile; show();
   }
   if (want) { const r = want; want = null; busy = r; worker.postMessage(r); }
 }
@@ -154,6 +154,7 @@ function show() {
     rows($("meas"), [[nm[d], f3(m.volume)], [bn[d], f3(m.boundary)], ["centroid", m.centroid.map(f3).join(", ")], ["inertia, by plane", pl.join(" · ")], ["extent", m.bbox.lo.map((v, i) => f3(m.bbox.hi[i] - v)).join(" × ")]]);
     $("mState").textContent = S.fine ? `· to ${f3(m.h)}` : $("mState").textContent; }
   rows($("fit"), (S.fit || []).map((f) => [`${f.a} · ${f.b}`, f.overlap > 0 ? `OVERLAP ${f.overlap.toPrecision(2)}` : (Number.isFinite(f.gap) ? `clear, gap ≈ ${f.gap.toFixed(2)}` : "clear"), f.overlap > 0 ? "bad" : "good"]));
+  if (S.bound) { const a = document.createElement("i"), b = document.createElement("span"); a.textContent = "run"; b.textContent = S.bound; b.className = S.bound.startsWith("free") ? "good" : "held"; $("fit").append(a, b); }
   if (!(S.tree.check || []).length) $("fit").textContent = "one part: nothing to fit. An assembly lists pairs under \"check\".";
   rows($("sl"), S.slice ? [["volume", f3(S.slice.volume)], ["area", f3(S.slice.area)]] : []); strip();
 }
@@ -247,10 +248,16 @@ $("linkB").addEventListener("click", async () => { try { await navigator.clipboa
 
 /* ▶ run: the part's own motion (its "path": a list of parameter settings), there and back */
 let playing = null;
-function stop() { if (playing) { playing = null; $("runB").classList.remove("on"); $("runB").textContent = "▶ run"; numbers(); } }
-$("runB").addEventListener("click", () => { if (playing) return stop(); playing = { t: 0, from: { ...S.vals } }; $("runB").classList.add("on"); $("runB").textContent = "■ stop"; });
+function stop() { if (playing) { playing = null; S.bound = ""; $("runB").classList.remove("on"); $("runB").textContent = "▶ run"; numbers(); } }
+/* a run never goes where the parts can't: the worker first walks the path to each contact, and the run plays that */
+let waiting = false;
+$("runB").addEventListener("click", () => { if (playing || waiting) { waiting = false; return stop() || ($("runB").textContent = "▶ run"); }
+  if (!(S.tree.check || []).length) return begin({ path: S.tree.path, stopped: [] });
+  waiting = true; $("runB").textContent = "… finding contact"; clearTimeout(fineT); ask("reach"); });
+function begin(r) { if (!waiting && (S.tree.check || []).length) return; waiting = false; S.bound = r.stuck ? "already touching: nothing moves" : r.stopped.some(Boolean) ? "bound: the run stops at contact" : "free: the whole motion is clear";
+  playing = { t: 0, path: r.stuck ? [r.path[0], r.path[0]] : r.path }; $("runB").classList.add("on"); $("runB").textContent = "■ stop"; show(); }
 function play(dt) {
-  const path = S.tree.path, legs = path.length - 1, T = 2.2; playing.t += dt; let u = playing.t / T; if (u >= 2 * legs) { u = 0; playing.t = 0; }
+  const path = playing.path, legs = path.length - 1, T = 2.2; playing.t += dt; let u = playing.t / T; if (u >= 2 * legs) { u = 0; playing.t = 0; }
   if (u > legs) u = 2 * legs - u; const s = Math.min(legs - 1, Math.floor(u)), x = u - s, e = x * x * (3 - 2 * x), next = { ...S.vals };
   for (const k of Object.keys(path[s + 1])) { const a = path[s][k] ?? S.tree.params[k]; next[k] = a + (path[s + 1][k] - a) * e; }
   setVals(next, true); syncSliders(); if (!busy) ask("fit");

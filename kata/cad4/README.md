@@ -82,7 +82,9 @@ are free along ±w and nowhere else; the lock and both chains are held all eight
 film in 4D (1 + 2 < 4), a surface meets one at points no nudge removes (2 + 2 = 4). It tests straight lifts along the
 axes, which shows the mechanism; it is not a proof.
 
-**slice → STL** downloads the cross-section you are looking at. **▶ run** plays a part's motion.
+**slice → STL** downloads the cross-section you are looking at. **▶ run** plays a part's motion, and only as far as it can go: the worker first walks the path to each contact
+(a checked pair within 0.05, or overlapping where the fit is closer than that by design), and the run stops there and
+comes back. The fake chain runs its whole path; the lock and both real chains move a few tenths and are bound.
 
 ## The library
 
