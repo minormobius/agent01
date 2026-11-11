@@ -176,7 +176,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   bound, the rest cut `sub` ways; the boundary by a hat two samples wide, weighted by |∇f| for slices, whose function
   isn't a 3D distance), `slice`, `mesh` (marching tetrahedra, closed), `stl`, `fit` (sharp overlap + gap) and `sweep`.
   Expressions are arithmetic on declared parameters only: `num()` refuses any other identifier before `Function` sees
-  it; keep that. `js/parts.js` is the library (primitives, bracket, hinge, chain, lock, tiger chain); `js/main.js` sphere-traces
+  it; keep that. `js/parts.js` is the library (primitives, bracket, hinge, chain, lock, ring–sphere chain, tiger chain); `js/main.js` sphere-traces
   the slice (redrawn only when dirty), tints the surface by the 4D normal's unseen component, and asks `js/worker.js`
   for numbers (latest request wins; a fine measure is killed rather than waited for); the strip is each part's
   cross-section along the unseen direction. `cli.mjs` is the kernel from a terminal. `window.CAD4` exposes the state.

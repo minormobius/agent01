@@ -80,7 +80,7 @@ address. **slice → STL** downloads the cross-section you are looking at. **▶
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then four assemblies that are the reason to have a 4D workshop:
+holes), then five assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -88,7 +88,9 @@ holes), then four assemblies that are the reason to have a 4D workshop:
   and lowered, they never touch: loops don't link in 4D.
 - **lock.** What does hold a ring: a hollow sphere. The ring enters it through w, and all twenty straight ways out
   that the selftest tries pass through the sphere's skin.
-- **tiger chain.** A chain that is one. Three tigers, big, small, big, in a line. One circle of the small tiger threads
+- **ring–sphere chain.** The lock, repeated: ring, hollow sphere, ring, each ring through the sphere's skin by way of
+  w. The sphere cannot leave either ring; a pulled ring bears on the sphere.
+- **tiger chain.** A chain of one kind of link. Three tigers, big, small, big, in a line. One circle of the small tiger threads
   both big ones as surfaces (a loop and a surface are what link in 4D: 1 + 2 = 3). At rest nothing touches; the middle
   link cannot leave either end by any straight way; the ends alone slide apart freely, so they hold each other only
   through the middle; pull an end and it bears on the middle link. Three things we learned placing it: two surfaces in
@@ -115,5 +117,5 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 ## Test
 
 ```bash
-node kata/cad4/test/cad4.selftest.mjs   # ~75 s, 25 checks
+node kata/cad4/test/cad4.selftest.mjs   # ~80 s, 26 checks
 ```

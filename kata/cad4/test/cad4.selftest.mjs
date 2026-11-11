@@ -92,5 +92,12 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
   const ends = K.sweep(T, "a", "c", "pull", 0, 3, 10, 20), load = K.sweep(T, "m", "c", "pull", 0, 1.2, 10, 20);
   ok(ends.worst === 0 && load.worst > 1e-3, `its ends hold each other only through the middle: alone they slide apart untouched, but pulled, the end runs into the middle link (overlap ${load.worst.toFixed(3)})`);
 }
+{ // and the other: ring, sphere, ring
+  const T = PARTS.links, rest = T.check.map(([a, b]) => K.fit(T, a, b)), dirs = [[1, 0, 0, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, -1, 0], [0, 0, 0, 1], [0, 0, 0, -1]];
+  let seed = 7; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32) * 2 - 1; while (dirs.length < 16) { const v = [rnd(), rnd(), rnd(), rnd()], l = Math.hypot(...v); if (l > 0.2 && l < 1) dirs.push(v.map((x) => x / l)); }
+  let free = 0; for (const end of ["a", "c"]) for (const v of dirs) if (K.sweep(T, "sphere", end, [{ sx: 0, sy: 0, sz: 0, sw: 0 }, { sx: 4 * v[0], sy: 4 * v[1], sz: 4 * v[2], sw: 4 * v[3] }], 18, 20).worst === 0) free++;
+  const ends = K.sweep(T, "a", "c", "pull", 0, 2, 6, 20), load = K.sweep(T, "sphere", "c", "pull", 0, 2, 10, 22);
+  ok(rest.every((f) => f.overlap === 0) && rest[0].gap > 0.3 && free === 0 && ends.worst === 0 && load.worst > 1e-4, `the ring–sphere chain: nothing touches at rest (gap ${rest[0].gap.toFixed(2)}); the sphere cannot leave either ring (all ${dirs.length} straight ways collide, each ring alone); the rings alone never meet, but a pulled ring bears on the sphere (overlap ${load.worst.toFixed(4)})`);
+}
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

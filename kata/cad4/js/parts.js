@@ -73,5 +73,17 @@ export const PARTS = {
       c: { op: "move", by: ["2.5+pull", 0, 0, 0], of: "big" },
     },
     show: ["a", "m", "c"], check: [["a", "m"], ["m", "c"], ["a", "c"]], path: [{ pull: 0, bw: 0 }, { pull: 0.9, bw: 0 }, { pull: 0, bw: 0 }, { pull: 0, bw: 1.4 }, { pull: 0, bw: 0 }] },
+  links: { title: "ring–sphere chain", note: "The other chain that holds: ring, hollow sphere, ring. Each ring passes through the sphere's skin by way of w. Push the sphere or pull a ring in any direction and something collides.",
+  params: { pull: 0, sx: 0, sy: 0, sz: 0, sw: 0, R: 1.2, rho: 0.7, r: 0.12 }, ranges: { pull: [0, 2], sx: [-2.5, 2.5], sy: [-2.5, 2.5], sz: [-2.5, 2.5], sw: [-2.5, 2.5], R: [0.9, 1.5], rho: [0.5, 0.9], r: [0.08, 0.2] },
+  parts: {
+    /* a ring in the x–w plane */
+    ring: { op: "rotate", plane: [1, 3], deg: 90, of: loop("rho", "r") },
+    /* the middle link: a hollow 2-sphere in x, y, z, thickened in all four directions */
+    sphere: { op: "move", by: ["sx", "sy", "sz", "sw"], of: { op: "round", r: "r", of: { op: "product", of: [{ op: "shell", t: 0, of: { op: "ball", dim: 3, r: "R" } }, { op: "interval", h: 0 }] } } },
+    /* each ring is centred on the sphere's skin, on opposite sides */
+    a: { op: "move", by: ["0-R", 0, 0, 0], of: "ring" },
+    c: { op: "move", by: ["R+pull", 0, 0, 0], of: "ring" },
+  },
+  show: ["a", "sphere", "c"], check: [["a", "sphere"], ["sphere", "c"], ["a", "c"]], path: [{ pull: 0, sw: 0 }, { pull: 1.2, sw: 0 }, { pull: 0, sw: 0 }, { pull: 0, sw: 1.6 }, { pull: 0, sw: 0 }] },
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "tigers"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers"];
