@@ -132,7 +132,14 @@ for games, and this is a modelling programme with publications to come. The game
   every temperature to 150 MK: helium + helium beats helium + ceryllium-8 by 10⁵–10¹⁸ (protons carried the climb in
   hydrogen burning). Ceryllium + itself (heavy's convention, barrier-only at our O + O pace) lights at 0.27 GK from 0.59
   M_Ch (element 5: 0.63 GK, 0.85; 6 and up need the full M_Ch), releasing Q = 2E₂ − E₄ from the ladder: 158–391 MeV, 10–24
-  MeV a nucleon at s = 1.6–1.89 (6.6 at 1.5152). Open: calm or runaway at ignition, and what the mass-16 product sheds.
+  MeV a nucleon at s = 1.6–1.89 (6.6 at 1.5152). `nuclei.mjs cerburn` (~3 min) → `cerburn.json`: at ignition (runaway's
+  method) Fermi/kT 3.3 at the smallest core, 1.6 at 0.75, 1.0 at 0.99, 0.3 at 2 M_Ch, bound 0.03 MeV a nucleon; ours'
+  helium at 10⁸ K the check (3.0 at its smallest core, 0.29 M_Ch, the helium flash; ≤ 1.1 from 0.44). So a flash, then calm,
+  not the runaway class (41–115 at M_Ch). The mass-16 product: a helium-4 out costs S_α(16) = E₃ − E₄ (77–288 MeV),
+  leaving element 6 short of the next; a nucleon out costs S_n(16) = S_n(He-4) + S_α(16) − V₃, with S_n(He-4) 61–123 MeV
+  from helium-3 (`he4 4 <s> none 3 MN`, B₃ 16–57 MeV) and V₃ (mass 3 on the core) not computed, so the channel is open;
+  either way the product is mass 12–15, elements 6–8. The same ladder cascade has element 6 + itself → element 8 + 2
+  helium-4s and element 8 + itself → oeon + 2 (heavy's liquid drops say todium, shedding nucleons): both near 12–13.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

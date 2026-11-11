@@ -408,6 +408,29 @@ if (cmd === "fit") {
   const energy = { ours: { H: 6.7, He: [0.61, 0.91], late: 0.8, total: 8.79 }, ash: [Math.min(...ashDrop), Math.max(...ashDrop)], brink: br, rock: [Math.min(...d4.flatMap((r) => r.Qn)), Math.max(...d4.flatMap((r) => r.Qn))], peak: hv.peaks.map((p) => p.ba), nu: [Math.min(...nu), Math.max(...nu)] };
   console.log(`energy per nucleon: ash ${energy.ash.map((x) => x.toFixed(1)).join("–")} (Brink pxygen-20 ${br.map((b) => `${b.s}: ${b.ba.toFixed(1)}`).join(", ")}), ash fusing ${energy.rock.map((x) => x.toFixed(1)).join("–")}, peak ${Math.min(...energy.peak).toFixed(1)}–${Math.max(...energy.peak).toFixed(1)}; burning ∝ T^${energy.nu.map((x) => x.toFixed(0)).join("–")}`);
   save("runaway.json", { ours, ms, d4, energy });
+} else if (cmd === "cerburn") {
+  // ceryllium burning, where the strong force leaves helium cores that burn to ceryllium-8 (hburn he): ceryllium with
+  // itself at heavy's convention (barrier-only at our oxygen + oxygen's pace), then, as runaway does, how degenerate a
+  // contracting core is when it first gets that hot and how tightly it is bound per nucleon, against the energy the
+  // fusion releases (Q = 2E₂ − E₄ from the ladder). Ours as the check: helium cores lighting at 10⁸ K, which flash near the
+  // smallest core that lights (about 0.45 M☉, 0.31 M_Ch) and burn calmly well above it
+  const SIc = { hbar: 1.054571817e-34, c: 2.99792458e8, me: 9.1093837015e-31, mu: 1.66053906660e-27, k: 1.380649e-23 }, MEV = 1.602176634e-13, VD = { 3: (4 * Math.PI) / 3, 4: Math.PI ** 2 / 2 };
+  const { polytrope } = await import("../js/stars.js"), PL = { 3: polytrope("newton", 1.5, { N: 300 }), 4: polytrope("pinned4", 2, { N: 300 }) };
+  const ignite = (d, m, T, { mue = 2, mui, G }) => { const M = m * BU.chandraMass(d, { G, mue }), Mt = PL[d].M, Rc = Math.pow(M / (Mt * mue * SIc.mu * (SIc.me * SIc.c / SIc.hbar) ** d), 1 / d);
+    for (let i = 30; i >= -12; i -= 0.02) { const R = Rc * Math.pow(10, i / 6); if (BU.coreT(d, M, R, { G, mue, mui }) < T) continue;
+      const ne = M / (Mt * R ** d) / (mue * SIc.mu), pF = 2 * Math.PI * SIc.hbar * Math.pow(ne / (2 * VD[d]), 1 / d), EF = Math.sqrt((pF * SIc.c) ** 2 + (SIc.me * SIc.c ** 2) ** 2) - SIc.me * SIc.c ** 2;
+      return { m, psi: EF / (SIc.k * T), bind: (Math.abs(PL[d].W) * G * M * SIc.mu) / (Mt * Mt * R) / MEV }; } return { m, psi: null, bind: null }; };
+  const AMU = 931.494, op = (d, Z, A, r0) => ({ Z1: Z, Z2: Z, mu: (A / 2) * AMU, rn: 2 * r0 * Math.pow(A, 1 / d), d }), tgt = logRate(2e9, op(3, 8, 16, 1.2));
+  const Tfor = (o) => { let lo = 1e7, hi = 1e12; for (let i = 0; i < 60; i++) { const m = Math.sqrt(lo * hi); if (logRate(m, o) < tgt) lo = m; else hi = m; } return Math.sqrt(lo * hi); };
+  const T = Tfor(op(4, 4, 8, 1.0)), mmin = BU.massFor(4, T, { mue: 2, mui: 8, G: 1e-20 }), mHe = BU.massFor(3, 1e8, { mue: 2, mui: 4, G: 6.6743e-11 });
+  const ours = [mHe * 1.02, mHe * 1.2, mHe * 1.5, 0.75, 1.1, 2].map((m) => ignite(3, m, 1e8, { mui: 4, G: 6.6743e-11 }));
+  console.log(`ours, helium cores at 10⁸ K (smallest ${mHe.toFixed(3)} M_Ch): ${ours.map((c) => `${c.m.toFixed(2)}: Fermi/kT ${c.psi?.toFixed(1)}, bound ${c.bind?.toFixed(3)} MeV`).join("; ")}`);
+  const ms = [mmin * 1.02, 0.65, 0.75, 0.9, 0.99, 1.1, 1.5, 2], d4 = ms.map((m) => ignite(4, m, T, { mui: 8, G: 1e-20 }));
+  console.log(`4D ceryllium + itself at ${(T / 1e9).toFixed(3)} billion K (smallest core ${mmin.toFixed(3)} M_Ch): ${d4.map((c) => `${c.m.toFixed(2)}: Fermi/kT ${c.psi?.toFixed(1)}, bound ${c.bind?.toFixed(3)} MeV`).join("; ")}`);
+  const Q = []; for (const sv of [1.5152, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85, 1.8909]) { const E = (N) => load(`MN-ladder-4-${tag(sv)}-${N}.json`)?.E; if (E(2) == null || E(4) == null) continue;
+    const q = 2 * E(2) - E(4), Sa16 = E(3) - E(4), Sa12 = E(2) - E(3); Q.push({ s: sv, Q: q, perNucleon: q / 16, Sa16, Sa12, left: q - Sa16 });
+    console.log(`s ${sv}: Q ${q.toFixed(0)} MeV (${(q / 16).toFixed(1)} a nucleon); a helium-4 out of the mass-16 costs ${Sa16.toFixed(0)}, leaving ${(q - Sa16).toFixed(0)} in element 6, whose next helium-4 costs ${Sa12.toFixed(0)}`); }
+  save("cerburn.json", { T, mmin, ours, oursMin: mHe, ms, d4, Q });
 } else if (cmd === "explode") {
   // how far an exploding core burns. Each shell of the core at ignition (runaway's state: the gas polytrope where a
   // contracting core first reaches its ash's temperature) takes the ash's fusing energy as heat, shared by the electrons
