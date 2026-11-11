@@ -77,7 +77,8 @@ export function massFor(d, T, opts = {}) {
    each rate is a ratio to proton–proton's (rp[Z], ra[Z], raa). Nuclei pushed past Zmax stay at Zmax. Backward Euler with
    Newton's method, since the rates span sixty orders of magnitude. Steps grow by `grow` (1.15 puts s_half within 5%, the compositions within a percent). Runs until the hydrogen falls to `until` of its start;
    returns abundances per baryon, s then and s when half the hydrogen was gone. */
-export function burnNetwork({ rp, ra, raa, Zmax, Yp = 0.75, Ya = 0.0625, seeds = {}, until = 1e-3, smax = 1e9, grow = 1.15, trace = null }) {
+export function burnNetwork({ rp, ra, raa, Zmax, Yp = 0.75, Ya = 0.0625, seeds = {}, until = 1e-3, smax = 1e9, grow = 1.15, trace = null, fuel = 0 }) {
+  // fuel 0: burn until the protons are gone (hydrogen burning); 1: until the helium-4s are (a helium core, after it)
   const n = Zmax - 1, iZ = (Z) => Z - 2, m = (Z) => (Z % 2 ? 1 : 3); // 0 protons, 1 helium-4s, then Z
   let Y = new Float64Array(n); Y[0] = Yp; Y[1] = Ya; for (const [Z, v] of Object.entries(seeds)) Y[iZ(+Z)] = v;
   const f = new Float64Array(n), J = Array.from({ length: n }, () => new Float64Array(n));
@@ -92,11 +93,12 @@ export function burnNetwork({ rp, ra, raa, Zmax, Yp = 0.75, Ya = 0.0625, seeds =
       for (let r = c + 1; r < N; r++) { const q = A[r][c] / A[c][c]; if (!q) continue; for (let k = c; k < N; k++) A[r][k] -= q * A[c][k]; b[r] -= q * b[c]; } }
     const x = new Float64Array(N); for (let r = N - 1; r >= 0; r--) { let s = b[r]; for (let k = r + 1; k < N; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x; };
   let s = 0, ds = 1e-12, shalf = null;
-  while (Y[0] > until * Yp && s < smax) {
+  const Y0 = Y[fuel];
+  while (Y[fuel] > until * Y0 && s < smax) {
     const X = Float64Array.from(Y);
     for (let it = 0; it < 30; it++) { rhs(X); const A = J.map((r, i) => r.map((v, j) => (i === j ? 1 : 0) - ds * v)), dx = solve(A, Array.from(X, (v, i) => -(v - Y[i] - ds * f[i])));
       let mx = 0; for (let i = 0; i < n; i++) { X[i] = Math.max(0, X[i] + dx[i]); mx = Math.max(mx, Math.abs(dx[i])); } if (mx < 1e-13) break; }
-    if (shalf === null && X[0] < Yp / 2) shalf = s + (ds * (Y[0] - Yp / 2)) / (Y[0] - X[0]);
+    if (shalf === null && X[fuel] < Y0 / 2) shalf = s + (ds * (Y[fuel] - Y0 / 2)) / (Y[fuel] - X[fuel]);
     Y = X; s += ds; ds *= grow; if (trace) trace.push({ s, Y: Float64Array.from(Y) }); } // trace: every step, protons, helium-4s, then Z = 4 …
   const Z = {}; for (let z = 4; z <= Zmax; z++) Z[z] = Y[iZ(z)];
   return { s, shalf, Yp: Y[0], Ya: Y[1], Z };

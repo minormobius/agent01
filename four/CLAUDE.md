@@ -125,7 +125,14 @@ for games, and this is a modelling programme with publications to come. The game
   sunpace <tag>` per s. **Result:** a Sun-paced core burns past helium only up to s ≈ 1.55 (10.7 MK: helium 33–38%,
   darbon 36–39%, elements 6 and 8); from 1.6 (7.0 MK) up it is ≥ 96% helium, down to 2.6 MK at 1.85 and 2.2 at 1.8909.
   So heavier burning needs s in about 1.50–1.6 (the chain not run 1.4984–1.5152, nor for Malfliet–Tjon). Every point,
-  1.8909 included, uses its own strength's captures (an earlier note here said otherwise: it was wrong).
+  1.8909 included, uses its own strength's captures (an earlier note here said otherwise: it was wrong). **After hydrogen (2026-11-11):** `nuclei.mjs hburn he
+  pp=4 s=<s> T=<MK,…>` burns the helium core left by each strength's Sun-paced ash (`burnNetwork({ fuel: 1 })`, seeds from
+  `ppfusion.json` sunPace, same draw; the ignition temperature is capture's rate-matched one, the core mass `massFor`) →
+  `heburn-s<s>.json`. From s = 1.6 up the core ignites at 15–24 MK (cores ≥ 0.11–0.15 M_Ch) and ends 96–100% ceryllium-8 at
+  every temperature to 150 MK: helium + helium beats helium + ceryllium-8 by 10⁵–10¹⁸ (protons carried the climb in
+  hydrogen burning). Ceryllium + itself (heavy's convention, barrier-only at our O + O pace) lights at 0.27 GK from 0.59
+  M_Ch (element 5: 0.63 GK, 0.85; 6 and up need the full M_Ch), releasing Q = 2E₂ − E₄ from the ladder: 158–391 MeV, 10–24
+  MeV a nucleon at s = 1.6–1.89 (6.6 at 1.5152). Open: calm or runaway at ignition, and what the mass-16 product sheds.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

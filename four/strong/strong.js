@@ -97,6 +97,8 @@ function steps() {
     ["a nucleon on the ladder", "whether the odd nuclei between helium-4 rungs bind, loose and close draws", "done", "strength-scan-1, at the same seven strengths"],
     ["the ladder past helium", "beryllium-8, ceryllium-12 … by helium-4 clusters and Brink's determinants", "done", "Brink's (strength-scan-1) and the helium-4 ladder (strength-scan-2)"],
     ["captures and the core", "helium-4 and proton captures up the ladder, then a Sun-paced zone burning its hydrogen to the end", "done", "Minnesota at nine strengths, from where the deuteron binds as ours to the window's top; Malfliet–Tjon not run"],
+    ["the helium core after", "where hydrogen burning leaves helium (s ≥ 1.55), the core contracts to 15–24 million K and burns it: helium + helium wins over every capture by 10⁵–10¹⁸, so it all becomes ceryllium-8 (element 4)", "done", "Minnesota at s = 1.55–1.89; cores from 0.11–0.15 × the Chandrasekhar mass"],
+    ["ceryllium + ceryllium", "lights at 0.27 billion K in cores from 0.59 × the Chandrasekhar mass (heavier ash needs the whole mass), releasing 10–24 MeV a nucleon; whether it burns calmly or explodes, and what it makes", "open", "next"],
   ];
   $("steps").innerHTML = rows.map(([a, b, t, c]) => `<tr><td>${a}<span class="tag ${t === "done" ? "done" : t === "queued" ? "queued" : "open"}">${t === "open" ? "to do" : t}</span></td><td>${b}<br><span style="opacity:.8">${c}</span></td></tr>`).join("");
 }

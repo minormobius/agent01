@@ -289,7 +289,10 @@ if (cmd === "fit") {
   // computes the radius that reproduces p + p from the strong force: 3.68–3.73 fm where the deuteron binds as ours);
   // written to hburn-pp<r>.json, leaving the baked hburn.json as it was
   const argv = (k) => process.argv.find((x) => x.startsWith(`${k}=`))?.slice(k.length + 1).split(",").map(Number);
-  var PP_RN = argv("pp"), PP_S = argv("s"), PP_X = argv("ppx")?.[0] ?? 1, TRACE = process.argv.includes("trace"), traces = []; // ppx: proton + proton's rate × this at the given radius (where no radius reaches the computed rate)
+  var PP_RN = argv("pp"), PP_S = argv("s"), PP_X = argv("ppx")?.[0] ?? 1, TRACE = process.argv.includes("trace"), traces = [], HE = process.argv.includes("he");
+  // `he`: the helium core after hydrogen burning, from each strength's Sun-paced ash (ppfusion.json sunPace, the same draw),
+  // burnt until its helium-4s are gone; the time unit stays proton + proton's, so only the make-up and T are meaningful
+  const ASH = HE ? JSON.parse(readFileSync(new URL("./ppfusion.json", import.meta.url), "utf8")).sunPace : null; // ppx: proton + proton's rate × this at the given radius (where no radius reaches the computed rate)
   // hydrogen and helium burning together, measured against the zone's own hydrogen burning rather than our stars' clock.
   // Proton + proton takes the weak force, ours (S = 4.01 × 10⁻²² keV b, the stated choice), through 4D's barrier (the
   // protons' nuclear radius 1 to 4 fm); helium-4 + helium-4 from the first capture's table; a proton or a helium-4 onto
@@ -320,7 +323,9 @@ if (cmd === "fit") {
       const Fp = gm(own.map((r) => Stab(r.tp.E, r.tp.sv, T, op(4, 1, 1, 2 * r.k, 4 * r.k, 1.0)) / Sbp)), Fa = gm(own.map((r) => Stab(r.ta.E, r.ta.sv, T, op(4, 2, 4, 2 * r.k, 4 * r.k, 1.0)) / Sba));
       const rp = [], ra = []; for (let Z = 4; Z < Zmax; Z++) { const c = own.find((r) => 2 * r.k === Z), oP = op(4, 1, 1, Z, D(Z), 1.0), oA = op(4, 2, 4, Z, D(Z), 1.0); rp[Z] = R(oP, c ? Stab(c.tp.E, c.tp.sv, T, oP) : Fp * Sbp); ra[Z] = R(oA, c ? Stab(c.ta.E, c.ta.sv, T, oA) : Fa * Sba); }
       const raa = R(oaa, Stab(cap.table.E, cap.table.aa, T, oaa)); ratios.push(raa);
-      const tr = TRACE ? [] : null, res = BU.burnNetwork({ rp, ra, raa, Zmax, trace: tr }), mass = {};
+      let net = {}; if (HE) { const a = ASH[String(s)]?.rows.find((r) => r.draw === (pf.compact ? "close" : "loose")); if (!a) throw new Error(`no hydrogen-burning ash at s = ${s}: run ppfusion.mjs sunpace first`);
+        const seeds = {}; let Ya = (a.mix.He ?? 0) / 4; for (const [z, x] of Object.entries(a.mix)) if (z !== "He") seeds[z] = x / D(+z); net = { Yp: 0, Ya, seeds, fuel: 1 }; }
+      const tr = TRACE ? [] : null, res = BU.burnNetwork({ rp, ra, raa, Zmax, trace: tr, ...net }), mass = {};
       if (tr) { // the climb as it happens: mass fractions when 10, 25, 50, 75, 90 and 99% of the hydrogen is gone
         const mf = (Y) => { let t = Y[0] + 4 * Y[1]; for (let Z = 4; Z <= Zmax; Z++) t += Y[Z - 2] * D(Z); const o = { H: Y[0] / t, He: (4 * Y[1]) / t }; for (let Z = 4; Z <= Zmax; Z++) o[Z] = (Y[Z - 2] * D(Z)) / t; return o; };
         const snaps = [0.1, 0.25, 0.5, 0.75, 0.9, 0.99].map((g) => { const k = tr.findIndex((x) => x.Y[0] <= (1 - g) * 0.75); const m = mf(tr[k].Y); return { burned: g, mass: Object.fromEntries(Object.entries(m).filter(([, v]) => v > 1e-3).map(([z, v]) => [z, +v.toPrecision(3)])) }; });
@@ -330,6 +335,9 @@ if (cmd === "fit") {
       rows.push({ T, compact: !!pf.compact, s, rnp, Fp, Fa, shalf: res.shalf, life: lpp + Math.log(Spp) - Math.log(res.shalf), he: (4 * res.Ya) / tot, mass });
       console.log(`${(T / 1e6).toFixed(0)} MK ${pf.compact ? "close" : "loose"} s=${s} p–p ${rnp} fm: helium left ${((400 * res.Ya) / tot).toFixed(0)}%, ${Object.entries(mass).filter(([, v]) => v > 0.01).map(([Z, v]) => `element ${Z} ${(100 * v).toFixed(0)}%`).join(", ")}; pace ${(rows.at(-1).life - sun).toFixed(1)} against the Sun's`); }
     aa.push({ T, lo: Math.min(...ratios), hi: Math.max(...ratios) }); }
+  if (HE) { const ig = caps.filter((c) => (PP_S ?? FORCES.MN.s4).includes(c.s)).map((c) => ({ s: c.s, T: c.T, core: c.T.map((t) => BU.massFor(4, t, { mue: 2, mui: 4, G: 1e-20 })) }));
+    for (const g of ig) console.log(`s ${g.s}: helium ignites at ${g.T.map((t) => (t / 1e6).toFixed(1)).join("–")} MK, in helium cores from ${g.core.map((m) => m.toFixed(3)).join("–")} × M_Ch`);
+    save(`heburn${PP_S ? `-s${PP_S.join("_")}` : ""}.json`, { ignite: ig, rows: rows.map(({ T, compact, s, he, mass }) => ({ T, compact, s, he, mass })) }); process.exit(0); }
   if (TRACE) { save(`hburn-trace${PP_RN ? `-pp${PP_RN.join("_")}` : ""}${PP_X !== 1 ? `x${PP_X}` : ""}${PP_S ? `-s${PP_S.join("_")}` : ""}.json`, { traces }); process.exit(0); } // a trace run leaves the zones' files alone
   save(PP_RN ? `hburn-pp${PP_RN.join("_")}${PP_X !== 1 ? `x${PP_X}` : ""}${PP_S ? `-s${PP_S.join("_")}` : ""}.json` : "hburn.json", { check, sun, aa, rows });
 } else if (cmd === "giveback") {
