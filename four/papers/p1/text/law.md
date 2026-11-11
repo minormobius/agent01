@@ -50,7 +50,8 @@ would be the same, and the generalized Madelung rule, which starts from hydrogen
 is no Gauss's law for it: the flux through a sphere round a charge grows with the sphere (appendix F.4). A thin
 spherical shell of charge with radius $s$, felt at radius $r$, gives $\kappa(t)/\max(r, s)$, $t = \min(r, s)/\max(r, s)$,
 with $\kappa$ the law's $1/|x - y|$ averaged over the shell. In ours $\kappa = 1$, the shell theorem, because $1/r$ is
-harmonic and a harmonic function averages over a sphere to its value at the centre. Here the Laplacian is negative, so
+harmonic and a harmonic function averages over a sphere to its value at the centre; in flat space of any dimension
+the only potentials with one are Gauss's, plus at most $r^2$ and a constant [@tse2026; @landkof1972]. Here the Laplacian is negative, so
 $\kappa < 1$: it falls from 1 to $\kappa(1) = \tfrac{8}{3\pi}$ = {{kernel.k1}} at the shell (appendix A, figure A1). Three things
 follow. An inner cloud screens the nucleus from an outer electron only partly. A hollow conductor's centre sits at
 $3\pi/8$ = {{cage.ratio}} of its wall's potential, so there is no Faraday cage. And a neutral atom is felt from

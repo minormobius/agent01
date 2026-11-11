@@ -35,13 +35,14 @@ They needn't. The literature on the hydrogen atom in $D$ dimensions [@nieto1979;
 scaling [@herschbach1992; @loeser1986hf; @loeser1986hp; @ghosh2020] keeps the potential at $1/r$ in every $D$,
 mostly as a convention that keeps the problem solvable. @negadi1996 used the $D$-dimensional hydrogen atom to extend
 Madelung's filling rule [@madelung1936] to any dimension; applied to four, it gives rows of 2, 10, 10, 28, 28, 60. @pyykko1991
-solved the atoms of a two-dimensional world by Hartree–Fock. Above three dimensions there are self-consistent atoms,
+solved the atoms of a two-dimensional world by Hartree–Fock, after a table from hydrogen's filling [@asturias1985]. Above three dimensions there are self-consistent atoms,
 but not a table: Hartree–Fock for two-electron atoms in any $D$ [@loeser1986hf], the Thomas–Fermi atom in $n$
 dimensions [@kventsel1981], and many-electron models from the limit of large $D$ [@loeser1987atomic; @loeser1994]. To
 our knowledge this paper is the first shell-resolved self-consistent survey of the neutral atoms through $Z = 140$ in
 four Euclidean dimensions, for a pairwise $1/r$ interaction and electrons with two spin states, with local exchange,
-no correlation and a first-order correction for open subshells' terms, cross-checked by Hartree–Fock. Nor, to our
-knowledge, has anyone asked what the choice of $1/r$ itself does to the atoms.
+no correlation and a first-order correction for open subshells' terms, cross-checked by Hartree–Fock. For hydrogen,
+@burgbacher1999 set Gauss's law against $1/r$ in $D$ dimensions; to our knowledge nobody has asked what the choice of
+$1/r$ does to atoms with many electrons.
 
 This paper does both. Part I treats the law as a choice: why one has to be made, why $1/r$ exactly, and what it costs
 in four dimensions (section [2](#sec-2)). Part II solves every neutral atom to $Z = 140$ under it (sections [3](#sec-3) and [4](#sec-4)) and finds
@@ -103,7 +104,8 @@ would be the same, and the generalized Madelung rule, which starts from hydrogen
 is no Gauss's law for it: the flux through a sphere round a charge grows with the sphere (appendix [F.4](supplement.html#app-f-4)). A thin
 spherical shell of charge with radius $s$, felt at radius $r$, gives $\kappa(t)/\max(r, s)$, $t = \min(r, s)/\max(r, s)$,
 with $\kappa$ the law's $1/|x - y|$ averaged over the shell. In ours $\kappa = 1$, the shell theorem, because $1/r$ is
-harmonic and a harmonic function averages over a sphere to its value at the centre. Here the Laplacian is negative, so
+harmonic and a harmonic function averages over a sphere to its value at the centre; in flat space of any dimension
+the only potentials with one are Gauss's, plus at most $r^2$ and a constant [@tse2026; @landkof1972]. Here the Laplacian is negative, so
 $\kappa < 1$: it falls from 1 to $\kappa(1) = \tfrac{8}{3\pi}$ = 0.848826 at the shell (appendix [A](supplement.html#app-a), figure [A1](supplement.html#fig-A1)). Three things
 follow. An inner cloud screens the nucleus from an outer electron only partly. A hollow conductor's centre sits at
 $3\pi/8$ = 1.178097 of its wall's potential, so there is no Faraday cage. And a neutral atom is felt from
@@ -168,8 +170,8 @@ every change, and appendix [G](supplement.html#app-g) gives the methods in full.
 
 []{#sec-4-1}**4.1 Rows and noble gases.** The table's rows hold 2, 10, 10, 28, 28, 60 elements (and 2 of the next by
 element 140), and its noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the first ionization energy (figures
-[2](#fig-2) and [3](#fig-3)). Those are the rows the generalized Madelung rule of @negadi1996 gives in four dimensions; to our knowledge
-this is the first self-consistent table that confirms them. The rule is a filling order, and like Madelung's in ours it
+[2](#fig-2) and [3](#fig-3)). Those are the rows the generalized Madelung rule of @negadi1996 gives when applied to four dimensions (they
+tabulate two and three); to our knowledge this is the first self-consistent table that confirms them. The rule is a filling order, and like Madelung's in ours it
 doesn't promise each atom's ground configuration. Read that way, 103 of the 140 are exactly the rule's. Each
 of the other 37 moves one or two electrons between two subshells, 34 of them from the outer s into the d
 or f below it, as our chromium, copper and palladium do. The solver finds more of these departures than there are:
@@ -231,7 +233,8 @@ term ($\gamma$ the angle between the two electrons seen from the nucleus). The t
 of SO(4), holds the electrons nearest right angles, $\langle\cos^2\gamma\rangle$ = 0.125 against random's 0.250
 and the best triplet's 0.188, and lies below every triplet whenever $F^4/F^2 <$ 5/3. Element 26's orbital
 has 0.39 under the law and 0.65 under Gauss's, so the rule breaks either way. In ours the triplet ³F is
-the term that keeps the electrons nearest right angles, and it is the lowest for every $F^4/F^2$. Pauli keeps same-spin
+the term that keeps the electrons nearest right angles [see @morgan1993, on Hund's rules and the angles between
+electrons], and it is the lowest for every $F^4/F^2$. Pauli keeps same-spin
 electrons apart, which is the usual reason for Hund's rule; four-dimensional space gives paired spins a better way. Every
 four-dimensional rotation splits into a left and a right half, a d orbital carries one unit of each, and the singlet
 adds the two electrons' left halves and cancels their right ones, or the other way round. Three-dimensional rotations

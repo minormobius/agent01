@@ -16,13 +16,14 @@ They needn't. The literature on the hydrogen atom in $D$ dimensions [@nieto1979;
 scaling [@herschbach1992; @loeser1986hf; @loeser1986hp; @ghosh2020] keeps the potential at $1/r$ in every $D$,
 mostly as a convention that keeps the problem solvable. @negadi1996 used the $D$-dimensional hydrogen atom to extend
 Madelung's filling rule [@madelung1936] to any dimension; applied to four, it gives rows of {{nk.rows}}. @pyykko1991
-solved the atoms of a two-dimensional world by Hartree–Fock. Above three dimensions there are self-consistent atoms,
+solved the atoms of a two-dimensional world by Hartree–Fock, after a table from hydrogen's filling [@asturias1985]. Above three dimensions there are self-consistent atoms,
 but not a table: Hartree–Fock for two-electron atoms in any $D$ [@loeser1986hf], the Thomas–Fermi atom in $n$
 dimensions [@kventsel1981], and many-electron models from the limit of large $D$ [@loeser1987atomic; @loeser1994]. To
 our knowledge this paper is the first shell-resolved self-consistent survey of the neutral atoms through $Z = 140$ in
 four Euclidean dimensions, for a pairwise $1/r$ interaction and electrons with two spin states, with local exchange,
-no correlation and a first-order correction for open subshells' terms, cross-checked by Hartree–Fock. Nor, to our
-knowledge, has anyone asked what the choice of $1/r$ itself does to the atoms.
+no correlation and a first-order correction for open subshells' terms, cross-checked by Hartree–Fock. For hydrogen,
+@burgbacher1999 set Gauss's law against $1/r$ in $D$ dimensions; to our knowledge nobody has asked what the choice of
+$1/r$ does to atoms with many electrons.
 
 This paper does both. Part I treats the law as a choice: why one has to be made, why $1/r$ exactly, and what it costs
 in four dimensions (section 2). Part II solves every neutral atom to $Z = 140$ under it (sections 3 and 4) and finds

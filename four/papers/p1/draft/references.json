@@ -2320,5 +2320,289 @@
   "publisher": "Springer Science and Business Media LLC",
   "DOI": "10.1007/BF02727953",
   "id": "leinaas1977"
+ },
+ {
+  "type": "article-journal",
+  "title": "The hydrogenic atom and the periodic table of the elements in two spatial dimensions",
+  "author": [
+   {
+    "family": "Asturias",
+    "given": "Francisco J."
+   },
+   {
+    "family": "Aragón",
+    "given": "Sergio R."
+   }
+  ],
+  "container-title": "American Journal of Physics",
+  "volume": "53",
+  "issue": "9",
+  "page": "893-899",
+  "issued": {
+   "date-parts": [
+    [
+     1985,
+     9,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Association of Physics Teachers (AAPT)",
+  "DOI": "10.1119/1.14360",
+  "id": "asturias1985"
+ },
+ {
+  "type": "article-journal",
+  "title": "Is there a stable hydrogen atom in higher dimensions?",
+  "author": [
+   {
+    "family": "Burgbacher",
+    "given": "Frank"
+   },
+   {
+    "family": "Lämmerzahl",
+    "given": "Claus"
+   },
+   {
+    "family": "Macias",
+    "given": "Alfredo"
+   }
+  ],
+  "container-title": "Journal of Mathematical Physics",
+  "volume": "40",
+  "issue": "2",
+  "page": "625-634",
+  "issued": {
+   "date-parts": [
+    [
+     1999,
+     2,
+     1
+    ]
+   ]
+  },
+  "publisher": "AIP Publishing",
+  "DOI": "10.1063/1.532679",
+  "id": "burgbacher1999"
+ },
+ {
+  "type": "article-journal",
+  "title": "Hund's rules, the alternating rule, and symmetry holes",
+  "author": [
+   {
+    "family": "Morgan",
+    "given": "John D."
+   },
+   {
+    "family": "Kutzelnigg",
+    "given": "Werner"
+   }
+  ],
+  "container-title": "The Journal of Physical Chemistry",
+  "volume": "97",
+  "issue": "10",
+  "page": "2425-2434",
+  "issued": {
+   "date-parts": [
+    [
+     1993,
+     3
+    ]
+   ]
+  },
+  "publisher": "American Chemical Society (ACS)",
+  "DOI": "10.1021/j100112a051",
+  "id": "morgan1993"
+ },
+ {
+  "type": "book",
+  "title": "Foundations of Modern Potential Theory",
+  "author": [
+   {
+    "family": "Landkof",
+    "given": "N. S."
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     1972
+    ]
+   ]
+  },
+  "publisher": "Springer Berlin Heidelberg",
+  "DOI": "10.1007/978-3-642-65183-0",
+  "id": "landkof1972"
+ },
+ {
+  "type": "article-journal",
+  "title": "Generalizing shell theorem to constant curvature spaces in all dimensions and topologies",
+  "author": [
+   {
+    "family": "Tse",
+    "given": "Ava K."
+   },
+   {
+    "family": "Markowich",
+    "given": "Olivia M."
+   },
+   {
+    "family": "Phan",
+    "given": "Trung V."
+   }
+  ],
+  "container-title": "Gravitation and Cosmology",
+  "volume": "32",
+  "issue": "3",
+  "page": "383-389",
+  "issued": {
+   "date-parts": [
+    [
+     2026,
+     8,
+     24
+    ]
+   ]
+  },
+  "publisher": "Pleiades Publishing Ltd",
+  "DOI": "10.1134/S0202289326700180",
+  "id": "tse2026"
+ },
+ {
+  "type": "article-journal",
+  "title": "Dielectric screening in two-dimensional insulators: implications for excitonic and impurity states in graphane",
+  "author": [
+   {
+    "family": "Cudazzo",
+    "given": "Pierluigi"
+   },
+   {
+    "family": "Tokatly",
+    "given": "Ilya V."
+   },
+   {
+    "family": "Rubio",
+    "given": "Angel"
+   }
+  ],
+  "container-title": "Physical Review B",
+  "volume": "84",
+  "issue": "8",
+  "issued": {
+   "date-parts": [
+    [
+     2011,
+     8,
+     19
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/PhysRevB.84.085406",
+  "id": "cudazzo2011",
+  "page": "085406"
+ },
+ {
+  "type": "article",
+  "container-title": "arXiv",
+  "volume": "2506.20784",
+  "id": "lasaalonso2025",
+  "title": "Lorentz invariant materials and metamaterials",
+  "author": [
+   {
+    "given": "J.",
+    "family": "Lasa-Alonso"
+   },
+   {
+    "given": "G.",
+    "family": "Molina-Terriza"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2025
+    ]
+   ]
+  },
+  "URL": "https://arxiv.org/abs/2506.20784",
+  "number": "2506.20784"
+ },
+ {
+  "type": "article-journal",
+  "title": "The fundamental theorem on the relation between spin and statistics",
+  "author": [
+   {
+    "family": "Sudarshan",
+    "given": "E. C. G."
+   }
+  ],
+  "container-title": "Proceedings of the Indian Academy of Sciences - Section A",
+  "volume": "67",
+  "issue": "5",
+  "page": "284-293",
+  "issued": {
+   "date-parts": [
+    [
+     1968,
+     5
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/BF03049366",
+  "id": "sudarshan1968"
+ },
+ {
+  "type": "article",
+  "container-title": "arXiv",
+  "volume": "1208.2744",
+  "id": "lian2012",
+  "title": "The cornerstone of spin statistics connection: the SU(2) × C × T symmetry",
+  "author": [
+   {
+    "given": "B.",
+    "family": "Lian"
+   }
+  ],
+  "issued": {
+   "date-parts": [
+    [
+     2012
+    ]
+   ]
+  },
+  "URL": "https://arxiv.org/abs/1208.2744",
+  "number": "1208.2744"
+ },
+ {
+  "type": "article-journal",
+  "title": "On the interaction of two electrons",
+  "author": [
+   {
+    "family": "Brown",
+    "given": "G. E."
+   },
+   {
+    "family": "Ravenhall",
+    "given": "D. G."
+   }
+  ],
+  "container-title": "Proceedings of the Royal Society of London. Series A. Mathematical and Physical Sciences",
+  "volume": "208",
+  "issue": "1095",
+  "page": "552-559",
+  "issued": {
+   "date-parts": [
+    [
+     1951,
+     9,
+     24
+    ]
+   ]
+  },
+  "publisher": "The Royal Society",
+  "DOI": "10.1098/rspa.1951.0181",
+  "id": "brown1951"
  }
 ]

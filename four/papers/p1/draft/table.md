@@ -5,8 +5,8 @@
 
 **4.1 Rows and noble gases.** The table's rows hold 2, 10, 10, 28, 28, 60 elements (and 2 of the next by
 element 140), and its noble gases are elements 2, 12, 22, 50, 78, 138, each a peak of the first ionization energy (figures
-2 and 3). Those are the rows the generalized Madelung rule of @negadi1996 gives in four dimensions; to our knowledge
-this is the first self-consistent table that confirms them. The rule is a filling order, and like Madelung's in ours it
+2 and 3). Those are the rows the generalized Madelung rule of @negadi1996 gives when applied to four dimensions (they
+tabulate two and three); to our knowledge this is the first self-consistent table that confirms them. The rule is a filling order, and like Madelung's in ours it
 doesn't promise each atom's ground configuration. Read that way, 103 of the 140 are exactly the rule's. Each
 of the other 37 moves one or two electrons between two subshells, 34 of them from the outer s into the d
 or f below it, as our chromium, copper and palladium do. The solver finds more of these departures than there are:
@@ -68,7 +68,8 @@ term ($\gamma$ the angle between the two electrons seen from the nucleus). The t
 of SO(4), holds the electrons nearest right angles, $\langle\cos^2\gamma\rangle$ = 0.125 against random's 0.250
 and the best triplet's 0.188, and lies below every triplet whenever $F^4/F^2 <$ 5/3. Element 26's orbital
 has 0.39 under the law and 0.65 under Gauss's, so the rule breaks either way. In ours the triplet ³F is
-the term that keeps the electrons nearest right angles, and it is the lowest for every $F^4/F^2$. Pauli keeps same-spin
+the term that keeps the electrons nearest right angles [see @morgan1993, on Hund's rules and the angles between
+electrons], and it is the lowest for every $F^4/F^2$. Pauli keeps same-spin
 electrons apart, which is the usual reason for Hund's rule; four-dimensional space gives paired spins a better way. Every
 four-dimensional rotation splits into a left and a right half, a d orbital carries one unit of each, and the singlet
 adds the two electrons' left halves and cancels their right ones, or the other way round. Three-dimensional rotations

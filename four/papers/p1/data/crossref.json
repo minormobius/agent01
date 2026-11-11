@@ -223,6 +223,25 @@
    "publisher": "Springer Nature Switzerland",
    "DOI": "10.1007/978-3-031-56732-2_1"
   },
+  "10.1007/978-3-642-65183-0": {
+   "type": "book",
+   "title": "Foundations of Modern Potential Theory",
+   "author": [
+    {
+     "family": "Landkof",
+     "given": "N. S."
+    }
+   ],
+   "issued": {
+    "date-parts": [
+     [
+      1972
+     ]
+    ]
+   },
+   "publisher": "Springer Berlin Heidelberg",
+   "DOI": "10.1007/978-3-642-65183-0"
+  },
   "10.1007/978-3-662-02177-4": {
    "type": "book",
    "title": "Die Mathematischen Hilfsmittel des Physikers",
@@ -405,6 +424,30 @@
    },
    "publisher": "Springer Science and Business Media LLC",
    "DOI": "10.1007/bf02784569"
+  },
+  "10.1007/bf03049366": {
+   "type": "journal-article",
+   "title": "The fundamental theorem on the relation between spin and statistics",
+   "author": [
+    {
+     "family": "Sudarshan",
+     "given": "E. C. G."
+    }
+   ],
+   "container-title": "Proceedings of the Indian Academy of Sciences - Section A",
+   "volume": "67",
+   "issue": "5",
+   "page": "284-293",
+   "issued": {
+    "date-parts": [
+     [
+      1968,
+      5
+     ]
+    ]
+   },
+   "publisher": "Springer Science and Business Media LLC",
+   "DOI": "10.1007/bf03049366"
   },
   "10.1007/jhep08(2020)007": {
    "type": "journal-article",
@@ -784,6 +827,34 @@
    "publisher": "American Chemical Society (ACS)",
    "DOI": "10.1021/cr990044u"
   },
+  "10.1021/j100112a051": {
+   "type": "journal-article",
+   "title": "Hund's rules, the alternating rule, and symmetry holes",
+   "author": [
+    {
+     "family": "Morgan",
+     "given": "John D."
+    },
+    {
+     "family": "Kutzelnigg",
+     "given": "Werner"
+    }
+   ],
+   "container-title": "The Journal of Physical Chemistry",
+   "volume": "97",
+   "issue": "10",
+   "page": "2425-2434",
+   "issued": {
+    "date-parts": [
+     [
+      1993,
+      3
+     ]
+    ]
+   },
+   "publisher": "American Chemical Society (ACS)",
+   "DOI": "10.1021/j100112a051"
+  },
   "10.1023/a:1019196719751": {
    "type": "journal-article",
    "title": "Dimension‐dependent two‐electron Hamiltonian matrix elements",
@@ -1122,6 +1193,39 @@
    },
    "publisher": "AIP Publishing",
    "DOI": "10.1063/1.523395"
+  },
+  "10.1063/1.532679": {
+   "type": "journal-article",
+   "title": "Is there a stable hydrogen atom in higher dimensions?",
+   "author": [
+    {
+     "family": "Burgbacher",
+     "given": "Frank"
+    },
+    {
+     "family": "Lämmerzahl",
+     "given": "Claus"
+    },
+    {
+     "family": "Macias",
+     "given": "Alfredo"
+    }
+   ],
+   "container-title": "Journal of Mathematical Physics",
+   "volume": "40",
+   "issue": "2",
+   "page": "625-634",
+   "issued": {
+    "date-parts": [
+     [
+      1999,
+      2,
+      1
+     ]
+    ]
+   },
+   "publisher": "AIP Publishing",
+   "DOI": "10.1063/1.532679"
   },
   "10.1063/5.0006074": {
    "type": "journal-article",
@@ -1527,6 +1631,35 @@
    "publisher": "The Royal Society",
    "DOI": "10.1098/rspa.1950.0036"
   },
+  "10.1098/rspa.1951.0181": {
+   "type": "journal-article",
+   "title": "On the interaction of two electrons",
+   "author": [
+    {
+     "family": "Brown",
+     "given": "G. E."
+    },
+    {
+     "family": "Ravenhall",
+     "given": "D. G."
+    }
+   ],
+   "container-title": "Proceedings of the Royal Society of London. Series A. Mathematical and Physical Sciences",
+   "volume": "208",
+   "issue": "1095",
+   "page": "552-559",
+   "issued": {
+    "date-parts": [
+     [
+      1951,
+      9,
+      24
+     ]
+    ]
+   },
+   "publisher": "The Royal Society",
+   "DOI": "10.1098/rspa.1951.0181"
+  },
   "10.1103/physrev.58.716": {
    "type": "journal-article",
    "title": "The Connection Between Spin and Statistics",
@@ -1728,6 +1861,38 @@
    "publisher": "American Physical Society (APS)",
    "DOI": "10.1103/physrevb.23.5048"
   },
+  "10.1103/physrevb.84.085406": {
+   "type": "journal-article",
+   "title": "Dielectric screening in two-dimensional insulators: Implications for excitonic and impurity states in graphane",
+   "author": [
+    {
+     "family": "Cudazzo",
+     "given": "Pierluigi"
+    },
+    {
+     "family": "Tokatly",
+     "given": "Ilya V."
+    },
+    {
+     "family": "Rubio",
+     "given": "Angel"
+    }
+   ],
+   "container-title": "Physical Review B",
+   "volume": "84",
+   "issue": "8",
+   "issued": {
+    "date-parts": [
+     [
+      2011,
+      8,
+      19
+     ]
+    ]
+   },
+   "publisher": "American Physical Society (APS)",
+   "DOI": "10.1103/physrevb.84.085406"
+  },
   "10.1103/physrevd.90.105003": {
    "type": "journal-article",
    "title": "Unitarity of theories containing fractional powers of the d’Alembertian operator",
@@ -1903,6 +2068,35 @@
    "publisher": "American Association of Physics Teachers (AAPT)",
    "DOI": "10.1119/1.11976"
   },
+  "10.1119/1.14360": {
+   "type": "journal-article",
+   "title": "The hydrogenic atom and the periodic table of the elements in two spatial dimensions",
+   "author": [
+    {
+     "family": "Asturias",
+     "given": "Francisco J."
+    },
+    {
+     "family": "Aragón",
+     "given": "Sergio R."
+    }
+   ],
+   "container-title": "American Journal of Physics",
+   "volume": "53",
+   "issue": "9",
+   "page": "893-899",
+   "issued": {
+    "date-parts": [
+     [
+      1985,
+      9,
+      1
+     ]
+    ]
+   },
+   "publisher": "American Association of Physics Teachers (AAPT)",
+   "DOI": "10.1119/1.14360"
+  },
   "10.1119/1.18860": {
    "type": "journal-article",
    "title": "Toward an understanding of the spin-statistics theorem",
@@ -1931,6 +2125,39 @@
    },
    "publisher": "American Association of Physics Teachers (AAPT)",
    "DOI": "10.1119/1.18860"
+  },
+  "10.1134/s0202289326700180": {
+   "type": "journal-article",
+   "title": "Generalizing the Shell Theorem to Constant Curvature Spaces in All Dimensions and Topologies",
+   "author": [
+    {
+     "family": "Tse",
+     "given": "Ava K."
+    },
+    {
+     "family": "Markowich",
+     "given": "Olivia M."
+    },
+    {
+     "family": "Phan",
+     "given": "Trung V."
+    }
+   ],
+   "container-title": "Gravitation and Cosmology",
+   "volume": "32",
+   "issue": "3",
+   "page": "383-389",
+   "issued": {
+    "date-parts": [
+     [
+      2026,
+      8,
+      24
+     ]
+    ]
+   },
+   "publisher": "Pleiades Publishing Ltd",
+   "DOI": "10.1134/s0202289326700180"
   },
   "10.1137/0143034": {
    "type": "journal-article",

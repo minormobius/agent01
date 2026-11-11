@@ -409,8 +409,10 @@ for games, and this is a modelling programme with publications to come. The game
   - **`check`** passes: ours' Cr³⁺ d³ ⁴F, Mn²⁺ d⁵ ⁶S, Pr³⁺ f² ³H and Gd³⁺ f⁷ ⁸S; 4D element 26's singlet at 0.396 eV, as
     the dense solver gives.
   - **Commands:** `survey <D> [Z/Z/…|all] [limit]` and `one <D> <Z> <config,with,commas> <shell>`.
-  - **No prior art found:** three web searches (Hund's rules in D dimensions, dimensional scaling, 4D multiplet
-    structure). A citation-index search is still owed before the paper claims it.
+  - **Prior art (2026-11-11, `papers/p1/PRIOR-ART.md`):** none found for Hund's rule in four (or any other) dimensions,
+    nor for a self-consistent 4D table; the closest are Morgan & Kutzelnigg 1993 (Hund's rules from electron angles, in
+    ours) and Burgbacher et al. 1999 (hydrogen under Gauss's law against 1/r). About 25 web searches plus arXiv, OpenAlex
+    and Crossref; Google Scholar, INSPIRE and ADS weren't reachable, so "not found" means by those searches.
 
   **The 4D survey so far (sandbox):**
   - **d² and d¹⁶ break Hund's rule:** elements 26, 39, 54 and 66, as above.

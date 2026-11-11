@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="cefc6d05e246e0d7fe10c9a93c619862ece59cb1750a242126968d9c45effac4" />
+<meta name="source-sha256" content="e9d08a5baa3450028ac69aacda7bb6c28162a22622b5fe40028cf01b2f174d0f" />
 <title>Paper 1 · Paper 1 · the whole draft</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -98,9 +98,11 @@ role="doc-biblioref">Madelung 1936</a>)</span> to any dimension; applied
 to four, it gives rows of 2, 10, 10, 28, 28, 60. <span class="citation"
 data-cites="pyykko1991">Pyykkö and Zhao (<a href="#ref-pyykko1991"
 role="doc-biblioref">1991</a>)</span> solved the atoms of a
-two-dimensional world by Hartree–Fock. Above three dimensions there are
-self-consistent atoms, but not a table: Hartree–Fock for two-electron
-atoms in any
+two-dimensional world by Hartree–Fock, after a table from hydrogen’s
+filling <span class="citation" data-cites="asturias1985">(<a
+href="#ref-asturias1985" role="doc-biblioref">Asturias and Aragón
+1985</a>)</span>. Above three dimensions there are self-consistent
+atoms, but not a table: Hartree–Fock for two-electron atoms in any
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
 <span class="citation" data-cites="loeser1986hf">(<a
 href="#ref-loeser1986hf" role="doc-biblioref">Loeser and Herschbach
@@ -120,10 +122,16 @@ in four Euclidean dimensions, for a pairwise
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 interaction and electrons with two spin states, with local exchange, no
 correlation and a first-order correction for open subshells’ terms,
-cross-checked by Hartree–Fock. Nor, to our knowledge, has anyone asked
-what the choice of
+cross-checked by Hartree–Fock. For hydrogen, <span class="citation"
+data-cites="burgbacher1999">Burgbacher, Lämmerzahl, and Macias (<a
+href="#ref-burgbacher1999" role="doc-biblioref">1999</a>)</span> set
+Gauss’s law against
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
-itself does to the atoms.</p>
+in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math>
+dimensions; to our knowledge nobody has asked what the choice of
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+does to atoms with many electrons.</p>
 <p>This paper does both. Part I treats the law as a choice: why one has
 to be made, why
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
@@ -326,7 +334,14 @@ averaged over the shell. In ours
 the shell theorem, because
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 is harmonic and a harmonic function averages over a sphere to its value
-at the centre. Here the Laplacian is negative, so
+at the centre; in flat space of any dimension the only potentials with
+one are Gauss’s, plus at most
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>r</mi><mn>2</mn></msup><annotation encoding="application/x-tex">r^2</annotation></semantics></math>
+and a constant <span class="citation"
+data-cites="tse2026 landkof1972">(<a href="#ref-tse2026"
+role="doc-biblioref">Tse, Markowich, and Phan 2026</a>; <a
+href="#ref-landkof1972" role="doc-biblioref">Landkof 1972</a>)</span>.
+Here the Laplacian is negative, so
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mo>&lt;</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\kappa &lt; 1</annotation></semantics></math>:
 it falls from 1 to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>κ</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mo stretchy="true" form="postfix">)</mo></mrow><mo>=</mo><mfrac displaystyle="false"><mn>8</mn><mrow><mn>3</mn><mi>π</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">\kappa(1) = \tfrac{8}{3\pi}</annotation></semantics></math>
@@ -485,18 +500,19 @@ by element 140), and its noble gases are elements 2, 12, 22, 50, 78,
 href="#fig-2">2</a> and <a href="#fig-3">3</a>). Those are the rows the
 generalized Madelung rule of <span class="citation"
 data-cites="negadi1996">Négadi and Kibler (<a href="#ref-negadi1996"
-role="doc-biblioref">1996</a>)</span> gives in four dimensions; to our
-knowledge this is the first self-consistent table that confirms them.
-The rule is a filling order, and like Madelung’s in ours it doesn’t
-promise each atom’s ground configuration. Read that way, 103 of the 140
-are exactly the rule’s. Each of the other 37 moves one or two electrons
-between two subshells, 34 of them from the outer s into the d or f below
-it, as our chromium, copper and palladium do. The solver finds more of
-these departures than there are: over our first 36 elements it makes 6
-where the measured configurations make 2, from its lean toward d
-(appendix <a href="supplement.html#app-e-3">E.3</a>). So the 4D count is
-likely too high, and these departures, not the rows, are where the table
-is least sure.</p>
+role="doc-biblioref">1996</a>)</span> gives when applied to four
+dimensions (they tabulate two and three); to our knowledge this is the
+first self-consistent table that confirms them. The rule is a filling
+order, and like Madelung’s in ours it doesn’t promise each atom’s ground
+configuration. Read that way, 103 of the 140 are exactly the rule’s.
+Each of the other 37 moves one or two electrons between two subshells,
+34 of them from the outer s into the d or f below it, as our chromium,
+copper and palladium do. The solver finds more of these departures than
+there are: over our first 36 elements it makes 6 where the measured
+configurations make 2, from its lean toward d (appendix <a
+href="supplement.html#app-e-3">E.3</a>). So the 4D count is likely too
+high, and these departures, not the rows, are where the table is least
+sure.</p>
 <figure id="fig-2">
 <img src="../figures/2.svg"
 alt="Figure 2. The periodic table of four dimensions, Z = 1 to 140, each atom solved self-consistently under the pinned 1/r. Rows close at the noble gases 2, 12, 22, 50, 78 and 138, and hold 2, 10, 10, 28, 28 and 60 elements, as Négadi and Kibler’s generalized Madelung rule gives when applied to four dimensions. A subshell holds 2(l + 1)² electrons, so the p block is 8 wide, the d block 18 and row 6’s f block 32 (drawn below, as ours is). An element takes our element’s name with its first letter moved on where its place answers to one of ours; the rest (·) have no counterpart. Dots: the elements in figure 4. Hover a cell for its configuration and ionization." />
@@ -649,7 +665,10 @@ below every triplet whenever
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup><mo>&lt;</mo></mrow><annotation encoding="application/x-tex">F^4/F^2 &lt;</annotation></semantics></math>
 5/3. Element 26’s orbital has 0.39 under the law and 0.65 under Gauss’s,
 so the rule breaks either way. In ours the triplet ³F is the term that
-keeps the electrons nearest right angles, and it is the lowest for every
+keeps the electrons nearest right angles <span class="citation"
+data-cites="morgan1993">(see <a href="#ref-morgan1993"
+role="doc-biblioref">Morgan and Kutzelnigg 1993</a>, on Hund’s rules and
+the angles between electrons)</span>, and it is the lowest for every
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>F</mi><mn>4</mn></msup><mi>/</mi><msup><mi>F</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">F^4/F^2</annotation></semantics></math>.
 Pauli keeps same-spin electrons apart, which is the usual reason for
 Hund’s rule; four-dimensional space gives paired spins a better way.
@@ -903,6 +922,13 @@ Alliluev, S. P. 1958. <span>“On the Relation Between
 of a System.”</span> <em>Soviet Physics JETP</em> 6: 156–58. <a
 href="https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf">https://www.jetp.ras.ru/cgi-bin/dn/e_006_01_0156.pdf</a>.
 </div>
+<div id="ref-asturias1985" class="csl-entry" role="listitem">
+Asturias, Francisco J., and Sergio R. Aragón. 1985. <span>“The
+Hydrogenic Atom and the Periodic Table of the Elements in Two Spatial
+Dimensions.”</span> <em>American Journal of Physics</em> 53 (9): 893–99.
+<a
+href="https://doi.org/10.1119/1.14360">https://doi.org/10.1119/1.14360</a>.
+</div>
 <div id="ref-bander1966" class="csl-entry" role="listitem">
 Bander, M., and C. Itzykson. 1966. <span>“Group Theory and the Hydrogen
 Atom (I).”</span> <em>Reviews of Modern Physics</em> 38 (2): 330–45. <a
@@ -913,6 +939,12 @@ Barbatis, Gerassimos. 2024. <span>“The Hardy Constant: A Review.”</span>
 In <em>Modern Problems in PDEs and Applications</em>, 3–11. Trends in
 Mathematics. Birkhäuser. <a
 href="https://doi.org/10.1007/978-3-031-56732-2_1">https://doi.org/10.1007/978-3-031-56732-2_1</a>.
+</div>
+<div id="ref-burgbacher1999" class="csl-entry" role="listitem">
+Burgbacher, Frank, Claus Lämmerzahl, and Alfredo Macias. 1999. <span>“Is
+There a Stable Hydrogen Atom in Higher Dimensions?”</span> <em>Journal
+of Mathematical Physics</em> 40 (2): 625–34. <a
+href="https://doi.org/10.1063/1.532679">https://doi.org/10.1063/1.532679</a>.
 </div>
 <div id="ref-callender2005" class="csl-entry" role="listitem">
 Callender, Craig. 2005. <span>“Answers in Search of a Question:
@@ -988,6 +1020,11 @@ Non-Relativistic Theory</em>. 3rd ed. Course of Theoretical Physics 3.
 Oxford: Pergamon. <a
 href="https://doi.org/10.1016/C2013-0-02793-4">https://doi.org/10.1016/C2013-0-02793-4</a>.
 </div>
+<div id="ref-landkof1972" class="csl-entry" role="listitem">
+Landkof, N. S. 1972. <em>Foundations of Modern Potential Theory</em>.
+Springer Berlin Heidelberg. <a
+href="https://doi.org/10.1007/978-3-642-65183-0">https://doi.org/10.1007/978-3-642-65183-0</a>.
+</div>
 <div id="ref-loeser1987atomic" class="csl-entry" role="listitem">
 Loeser, J. G. 1987. <span>“Atomic Energies from the Large-Dimension
 Limit.”</span> <em>The Journal of Chemical Physics</em> 86 (10):
@@ -1030,6 +1067,12 @@ McMurchie, Larry E, and Ernest R Davidson. 1978. <span>“One- and
 Two-Electron Integrals over Cartesian Gaussian Functions.”</span>
 <em>Journal of Computational Physics</em> 26 (2): 218–31. <a
 href="https://doi.org/10.1016/0021-9991(78)90092-X">https://doi.org/10.1016/0021-9991(78)90092-X</a>.
+</div>
+<div id="ref-morgan1993" class="csl-entry" role="listitem">
+Morgan, John D., and Werner Kutzelnigg. 1993. <span>“Hund’s Rules, the
+Alternating Rule, and Symmetry Holes.”</span> <em>The Journal of
+Physical Chemistry</em> 97 (10): 2425–34. <a
+href="https://doi.org/10.1021/j100112a051">https://doi.org/10.1021/j100112a051</a>.
 </div>
 <div id="ref-negadi1996" class="csl-entry" role="listitem">
 Négadi, T., and M. Kibler. 1996. <span>“The Periodic Table in
@@ -1085,6 +1128,13 @@ Tarasov, Vasily E., and Juan J. Trujillo. 2013. <span>“Fractional
 Power-Law Spatial Dispersion in Electrodynamics.”</span> <em>Annals of
 Physics</em> 334 (July): 1–23. <a
 href="https://doi.org/10.1016/j.aop.2013.03.014">https://doi.org/10.1016/j.aop.2013.03.014</a>.
+</div>
+<div id="ref-tse2026" class="csl-entry" role="listitem">
+Tse, Ava K., Olivia M. Markowich, and Trung V. Phan. 2026.
+<span>“Generalizing Shell Theorem to Constant Curvature Spaces in All
+Dimensions and Topologies.”</span> <em>Gravitation and Cosmology</em> 32
+(3): 383–89. <a
+href="https://doi.org/10.1134/S0202289326700180">https://doi.org/10.1134/S0202289326700180</a>.
 </div>
 </div>
 

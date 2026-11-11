@@ -391,8 +391,10 @@ pushes a charge is $\mathbf E = (\mathbf D/\varepsilon_0)/(\ell k)$, that light 
 Fourier space is, in space, spreading over a kernel $1/r^3$ (the transform of $1/k$ in four dimensions), so
 $\mathbf E$ at a point is a blur of $\mathbf D$ over all of space. Its statics are $1/(\ell k^3)$, the pinned $1/r$. The
 price is relativity, for the force between charges only. The blur acts across all of space at once, so there is an
-absolute "now", and a charge feels another's change instantly, a little, everywhere. We have not found this pair of
-constitutive laws in the literature we read. Light at one speed and an energy that is never negative do not by
+absolute "now", and a charge feels another's change instantly, a little, everywhere. Each half has a precedent: a
+permittivity linear in wavenumber is how a thin film screens [@cudazzo2011], and a product $\varepsilon\mu$ held at the
+vacuum's is what makes a medium look the same to every inertial observer [@lasaalonso2025]; here it is held at every
+wavenumber, which keeps the speed $c$ but not that symmetry. We have not found the pair in the literature we read. Light at one speed and an energy that is never negative do not by
 themselves make the lens vacuum a causal or quantum theory; that is for the later paper.
 
 This paper uses only route 3's statics: charges at rest and the $1/r$ between them, which is all an atom's ground
@@ -442,8 +444,13 @@ So electrons that commute have no ground state. Identical particles in three or 
 fermions [@leinaas1977], so the electron is a fermion. Any repulsion that weakens with distance gives the same result;
 Gauss's law would change only how wide the packet must be.
 
-This is the theorem at the level of Pauli's own proof: free fields, with the interaction added to them. The general
-theorem of axiomatic field theory assumes that the whole theory is local, and it still doesn't apply here. The argument
+That this half of the theorem needs no locality, and for free fields not even Lorentz invariance, is known
+[@sudarshan1968; @lian2012]; what is shown here is that it survives the pinned law, with the bound explicit. That an
+interaction doesn't keep Dirac electrons out of the negative-energy states is known too: it is what makes two
+interacting electrons' Dirac Hamiltonian unbounded [@brown1951]. In ours the Coulomb gauge carries an instantaneous
+charge–charge term of the same kind, and Pauli's argument goes through there as well. This is the theorem at the level
+of Pauli's own proof: free fields, with the interaction added to them. The general theorem of axiomatic field theory
+assumes that the whole theory is local, and it still doesn't apply here. The argument
 also leaves two things open. It doesn't show that anticommuting electrons have a ground state in bulk; that is F.7's
 question, and exclusion is what the proofs of stability in ours lean on [@dyson1967; @lieb1975]. Nor does it make the
 electron the smallest spinor: a four-state electron would be a fermion too.

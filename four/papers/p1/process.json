@@ -473,6 +473,10 @@
   {
    "date": "2026-11-11",
    "what": "Pauli's exclusion derived, not declared (PI). The half of spin-statistics that makes half-integer spin a fermion needs only a Dirac equation and an energy bounded below, which the lens vacuum keeps; it gives up locality only for the force. atom/js/pauli.js and selftest 73: the 4 + 1 Dirac levels ±E, and commuting electrons in one negative-energy packet of width b = N², whose pinned 1/r repulsion is at most √π/(4bν²), have energy at most −Nmc² + √π/2: no ground state. §2.5 and F.6 rewritten, three references (Pauli 1940, Duck–Sudarshan 1998, Leinaas–Myrheim 1977), claim pauli; the site's force and motion chapters and /start/ step 6 changed to match. What stays declared: that the electron is the smallest spinor."
+  },
+  {
+   "date": "2026-11-11",
+   "what": "Prior-art search (PI): about 25 web searches plus arXiv, OpenAlex and Crossref (papers/p1/PRIOR-ART.md). No self-consistent 4D table and no Hund's-rule result in any dimension were found, so §4.1's and §5's claims stand; §4.1 now says Négadi and Kibler tabulate only two and three dimensions. Narrowed: the intro now says nobody has asked what 1/r does to many-electron atoms (Burgbacher et al. 1999 asked it for hydrogen), and F.6 credits the no-locality half of spin-statistics to Sudarshan 1968 and Lian 2012, claiming only that it survives the pinned law with an explicit bound (plus Brown–Ravenhall 1951 and the Coulomb-gauge remark). F.5 names each half of the lens vacuum's precedent (Rytova–Keldysh screening; εμ at the vacuum's value) and keeps 'not found' for the pair. §2.4 cites the shell theorem's uniqueness (Tse et al. 2026, Landkof 1972); §5.2 points to Morgan & Kutzelnigg 1993. Ten references added, each checked against Crossref or arXiv."
   }
  ]
 }
