@@ -117,7 +117,9 @@ for games, and this is a modelling programme with publications to come. The game
   Sun-paced core's make-up at every strength where the full chain has been run (only those; each labelled, nothing
   interpolated). `strong.js` draws only; **generated** `strong/data.js` comes from `atom/tools/ppfusion.mjs dial` (~2.5 min:
   33 strengths a force, helium-4 from `$TMPDIR/atom4-nuclei`, the chain from `ppfusion.json` `sunPace`). Its `QUEUED` list
-  and the chain table name what's on the runner (strength-scan-1); update both and rebake when results land. The 1.8909
+  and the chain table name what's on the runner; update both and rebake when results land. strength-scan-1 (2026-11-11,
+  217 commands, all exit 0) gave helium-4, a nucleon on the ladder and Brink's clusters at Minnesota s = 1.55–1.85 (helium-4
+  85.7 → 166.7 MeV); strength-scan-2, the helium-4 ladder there, is queued. Then rungcap/capture/protonflow/hburn per s. The 1.8909
   point has only p + p recomputed (the captures are still the deuteron-as-ours ones), and the page says so.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel

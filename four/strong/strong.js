@@ -8,7 +8,8 @@ const BETA = 1.29333 + 0.510999, PEP = 1.29333 - 0.510999, OURS_B = DIAL.ours.de
 // 4D names (atom/js/names.js; element 8 is one of the 52 new ones, so it has no name)
 const NAME = { He: "ielium", 2: "ielium", 4: "ceryllium", 6: "element 6", 7: "darbon", 8: "element 8", 9: "oitrogen", 10: "pxygen", 11: "gluorine", 12: "oeon", 13: "todium" };
 const COLOR = { He: "#6fe0ff", 8: "#9a958c", 9: "#ffb46b", 10: "#b48cff", 11: "#7fd88a", 12: "#e3cf7f", 13: "#ff8b8b" };
-// what the runner is computing now (strength-scan-1: helium-4, a nucleon on the ladder, Brink's clusters; then the ladder)
+// strengths whose nuclei are partly computed: strength-scan-1 (helium-4, a nucleon on the ladder, Brink's clusters) is done,
+// strength-scan-2 (the helium-4 ladder) is on the runner; captures and the core follow in the sandbox
 const QUEUED = { MN: [1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85], MT: [] };
 
 let force = "MN", s = DIAL.forces.MN.ours;
@@ -60,6 +61,7 @@ const fmt = (r) => (r >= 100 ? `${(r / 10 ** Math.floor(Math.log10(r))).toFixed(
 function chips(B, rel) {
   const f = F(), out = [];
   out.push(B > 0.005 ? ["yes", `deuteron binds, ${B.toFixed(2)} MeV`] : ["no", "deuteron doesn't bind"]);
+  const he = f.he4.find((h) => Math.abs(h.s - s) < 0.004); if (he) out.push(["yes", `helium-4 binds by ${(-he.E).toFixed(1)} MeV (ours 28.3)`]);
   out.push(s >= f.window[1] - 1e-4 ? ["no", "diproton binds: the window's edge"] : ["yes", "diproton unbound"]);
   out.push(B > BETA ? ["yes", `p + p → d e⁺ ν runs${rel > 0 ? `, ×${fmt(rel)}` : ", barely"}`] : B > PEP ? ["half", "only p + e⁻ + p → d ν"] : ["no", "no deuteron from protons"]);
   $("chips").innerHTML = out.map(([c, t]) => `<span class="chip ${c}">${t}</span>`).join("");
@@ -75,7 +77,7 @@ function bars() {
   const B = at(s).B, here = f.chain.find((c) => Math.abs(c.s - s) < 0.004), queued = QUEUED[force].find((q) => Math.abs(q - s) < 0.026);
   const where = B <= BETA ? `At s = ${s.toFixed(4)} there's <b>no p + p</b>, so no hydrogen burning by the Sun's route.`
     : here ? `Computed at <b>s = ${here.s}</b> (highlighted).`
-    : `Not computed at s = ${s.toFixed(4)}: the full chain has been run at the two strengths below only.` + (queued ? ` The nuclei at s = ${queued} are <span class="tag queued">queued</span> on the runner, then the climb's captures and the core.` : "");
+    : `Not computed at s = ${s.toFixed(4)}: the full chain has been run at the two strengths below only.` + (queued ? ` At s = ${queued} helium-4 and a nucleon on each ladder nucleus are computed; the helium-4 ladder is <span class="tag queued">queued</span> on the runner, then the climb's captures and the core.` : "");
   note.innerHTML = `${where} A star is held as bright as the Sun, so its core sits at whatever temperature makes p + p supply that; two draws of the larger nuclei's helium-4s (loose and close) bracket the answer.`;
   host.innerHTML = f.chain.map((c) => {
     const on = c === here, rel = at(c.s).rel, cav = c.s > 1.6 ? ` <span class="tag open">caveat</span> <span style="font-weight:400">only p + p recomputed at this strength; the captures after it are still the deuteron-as-ours ones (being redone)</span>` : "";
@@ -86,14 +88,14 @@ function bars() {
 }
 
 function steps() {
-  const f = DIAL.forces.MN, he = f.he4.map((h) => `${h.s}: ${(-h.E).toFixed(1)} MeV`).join(", ");
+  const f = DIAL.forces.MN, he = f.he4.map((h) => `${h.s} → ${(-h.E).toFixed(0)}`).join(", ");
   const rows = [
     ["deuteron", "binds across the window; its binding is the gauge above", "done", "both forces, every strength"],
     ["p + p → d e⁺ ν", "the first, slowest step: the chart above", "done", "both forces, every strength (15 MK shown; 5–50 MK in the bake)"],
     ["p + e⁻ + p → d ν", "the only route between 0.78 and 1.80 MeV", "open", "not computed"],
-    ["helium-4", `binding by diffusion Monte Carlo (ours 28.3 MeV); Minnesota at s = ${he}`, "queued", `s = ${QUEUED.MN.join(", ")} (strength-scan-1)`],
-    ["a nucleon on the ladder", "whether the odd nuclei between helium-4 rungs bind, loose and close draws", "queued", "strength-scan-1"],
-    ["the ladder past helium", "beryllium-8, ceryllium-12 … by helium-4 clusters and Brink's determinants", "queued", "strength-scan-1 (Brink), then strength-scan-2 (the ladder)"],
+    ["helium-4", `binding by diffusion Monte Carlo, MeV (ours 28.3); Minnesota s → binding: ${he}`, "done", `Minnesota at ten strengths (strength-scan-1 added ${QUEUED.MN.join(", ")}); Malfliet–Tjon at three`],
+    ["a nucleon on the ladder", "whether the odd nuclei between helium-4 rungs bind, loose and close draws", "done", "strength-scan-1, at the same seven strengths"],
+    ["the ladder past helium", "beryllium-8, ceryllium-12 … by helium-4 clusters and Brink's determinants", "queued", "Brink's done (strength-scan-1); the helium-4 ladder running (strength-scan-2)"],
     ["captures and the core", "helium-4 and proton captures up the ladder, then a Sun-paced zone burning to the end", "open", "in the sandbox once the runner's nuclei land; then this page is rebaked"],
   ];
   $("steps").innerHTML = rows.map(([a, b, t, c]) => `<tr><td>${a}<span class="tag ${t === "done" ? "done" : t === "queued" ? "queued" : "open"}">${t === "open" ? "to do" : t}</span></td><td>${b}<br><span style="opacity:.8">${c}</span></td></tr>`).join("");
