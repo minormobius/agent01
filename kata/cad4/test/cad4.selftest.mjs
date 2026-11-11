@@ -4,7 +4,7 @@
    what must be refused, the GLSL the same tree compiles to, and the page's claims about its assemblies: the hinge
    swings clear and binds when folded flat or when the pin is too fat; two linked rings part through w without
    touching and cannot part inside the slice; a ring through a sphere collides on every way out; three tigers make a chain that holds.
-   node kata/cad4/test/cad4.selftest.mjs   (~75 s) */
+   node kata/cad4/test/cad4.selftest.mjs   (~85 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));
@@ -98,6 +98,17 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
   let free = 0; for (const end of ["a", "c"]) for (const v of dirs) if (K.sweep(T, "sphere", end, [{ sx: 0, sy: 0, sz: 0, sw: 0 }, { sx: 4 * v[0], sy: 4 * v[1], sz: 4 * v[2], sw: 4 * v[3] }], 18, 20).worst === 0) free++;
   const ends = K.sweep(T, "a", "c", "pull", 0, 2, 6, 20), load = K.sweep(T, "sphere", "c", "pull", 0, 2, 10, 22);
   ok(rest.every((f) => f.overlap === 0) && rest[0].gap > 0.3 && free === 0 && ends.worst === 0 && load.worst > 1e-4, `the ring–sphere chain: nothing touches at rest (gap ${rest[0].gap.toFixed(2)}); the sphere cannot leave either ring (all ${dirs.length} straight ways collide, each ring alone); the rings alone never meet, but a pulled ring bears on the sphere (overlap ${load.worst.toFixed(4)})`);
+}
+{ // what catches on what: thread and ribbon, rods and hoops
+  const way = (T, part, k, to) => Math.max(...T.check.filter((c) => c[0] === part).map(([a, b]) => K.sweep(T, a, b, [{ [k]: 0 }, { [k]: to }], 16, 20).worst)) > 0;
+  const W = PARTS.weave, bound = ["tz", "tw"].every((k) => way(W, "thread", k, 2.2) && way(W, "thread", k, -2.2)), slides = ["tx", "ty"].every((k) => !way(W, "thread", k, 2.2) && !way(W, "thread", k, -2.2));
+  const round = (T) => K.sweep(T, "thread", "ribbons", [{ ty: 0, tw: 0 }, { ty: 0.5, tw: 0 }, { ty: 0.5, tw: 2 }], 12, 20).worst, narrow = { ...W, params: { ...W.params, width: 0.15 } };
+  ok(K.fit(W, "thread", "ribbons").overlap === 0 && bound && slides && round(W) > 0 && round(narrow) === 0, `the weave: a thread over, under, over three ribbons cannot move along w or z, and slides freely along the ribbons (x, y); stepped 0.5 aside it is still caught by a ribbon 1.6 wide, and walks free past one 0.15 wide (threads don't weave with threads)`);
+  const H = PARTS.hoop, R = PARTS.ringed, side = (T) => ["ox", "oy", "oz"].map((k) => (way(T, "rod", k, 3) ? "x" : ".") + (way(T, "rod", k, -3) ? "x" : ".")).join(" ");
+  ok(side(H) === "xx xx xx" && !way(H, "rod", "ow", 3) && side(R) === "xx xx .." && K.fit(H, "rod", "hoop").overlap === 0, `a bundle of rods: in a sphere-hoop the outer rod cannot leave sideways (${side(H)} along x, y, z) and slides only along its length; in a ring it walks out along z (${side(R)})`);
+  // the wire is an exact distance: a straight one is a capsule (spherinder with round ends)
+  const cap = K.measure(K.compile({ op: "wire", r: 0.3, pts: [[0, 0, 0, -1], [0, 0, 0, 1]] })), ex = (4 / 3) * P * 0.027 * 2 + (P * P / 2) * 0.0081;
+  ok(off(cap.volume, ex) < 0.02, `wire: a straight run of radius 0.3 and length 2 has the 4-volume of a 3-ball swept plus a 4-ball of ends (${cap.volume.toFixed(4)} against ${ex.toFixed(4)})`);
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

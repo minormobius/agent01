@@ -13,6 +13,7 @@
    and in any dimension:
      union / cut / intersect {of:[…]}   (cut: the first minus the rest), optional r: a rounded (smooth) blend
      move {of, by:[…]}   rotate {of, plane:[i, j], deg}   round {of, r}   shell {of, t}   ref {name}
+     wire {pts:[[x, y, z, w], …], r}    a wire along straight runs (4D)
    A lower-dimensional shape used where a higher one is expected is an infinite prism along the missing axes, so cutting a
    4D part with a disc drills a hole (a disc × a plane of it). Numbers may be parameter names or simple expressions of
    them ("2*r", "R+r").
@@ -65,6 +66,12 @@ export function compile(tree, overrides = {}) {
         emit(`${V} q = abs(p.${sw}) - ${d === 1 ? GN(n.size[0]) + " * 0.5" : `${V}(${n.size.map(GN).join(", ")}) * 0.5`}; return ${d === 1 ? "q" : `length(max(q, 0.0)) + min(${d === 2 ? "max(q.x, q.y)" : d === 3 ? "max(q.x, max(q.y, q.z))" : "max(max(q.x, q.y), max(q.z, q.w))"}, 0.0)`};`);
         const [h0, h1 = 0, h2 = 0, h3 = 0] = h, f = (x, y, z, w) => { let q = Math.abs(x) - h0, o = q > 0 ? q * q : 0, m = q; if (d > 1) { q = Math.abs(y) - h1; if (q > 0) o += q * q; if (q > m) m = q; } if (d > 2) { q = Math.abs(z) - h2; if (q > 0) o += q * q; if (q > m) m = q; } if (d > 3) { q = Math.abs(w) - h3; if (q > 0) o += q * q; if (q > m) m = q; } return Math.sqrt(o) + Math.min(m, 0); };
         return { dim: d, f, lo: h.map((v) => -v), hi: h, name }; }
+      case "wire": { // a wire along a path of straight runs: every point within r of the polyline (4D points; exact)
+        const P = n.pts.map((q) => [0, 1, 2, 3].map((i) => N(q[i] ?? 0))), G = n.pts.map((q) => `vec4(${[0, 1, 2, 3].map((i) => GN(q[i] ?? 0)).join(", ")})`), r = N(n.r); if (P.length < 2) throw new Error("a wire needs two points");
+        emit(`float d = 1e9; vec4 a, b, pa, ba; ${G.slice(1).map((g, k) => `a = ${G[k]}; b = ${g}; pa = p - a; ba = b - a; d = min(d, length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)));`).join(" ")} return d - ${GN(n.r)};`);
+        const f = (x, y, z, w) => { let d = 1e9; for (let k = 0; k + 1 < P.length; k++) { const a = P[k], b = P[k + 1], ax = x - a[0], ay = y - a[1], az = z - a[2], aw = w - a[3], bx = b[0] - a[0], by = b[1] - a[1], bz = b[2] - a[2], bw = b[3] - a[3];
+          let h = (ax * bx + ay * by + az * bz + aw * bw) / (bx * bx + by * by + bz * bz + bw * bw); h = h < 0 ? 0 : h > 1 ? 1 : h; const e = Math.hypot(ax - bx * h, ay - by * h, az - bz * h, aw - bw * h); if (e < d) d = e; } return d - r; };
+        return { dim: 4, f, lo: [0, 1, 2, 3].map((i) => Math.min(...P.map((q) => q[i])) - r), hi: [0, 1, 2, 3].map((i) => Math.max(...P.map((q) => q[i])) + r), name }; }
       case "ngon": { const m = n.n, r = N(n.r), a = Math.PI / m, ap = r * Math.cos(a); // a regular polygon, circumradius r: the max over its sides' half-planes (a bound inside the corners' wedges)
         emit(`float an = atan(p.y, p.x), s = ${lit(2 * a)}; an = mod(an + ${lit(a)}, s) - ${lit(a)}; return length(p.xy) * cos(an) - ${GN(n.r)} * ${lit(Math.cos(a))};`);
         return { dim: 2, f: (x, y) => { let an = Math.atan2(y, x); an = ((((an + a) % (2 * a)) + 2 * a) % (2 * a)) - a; return Math.hypot(x, y) * Math.cos(an) - ap; }, lo: [-r, -r], hi: [r, r], name }; }

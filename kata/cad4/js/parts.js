@@ -60,7 +60,7 @@ export const PARTS = {
       /* a ring in the x–w plane, centred on the sphere's skin */
       ring: { op: "move", by: ["R+sx", "sy", "sz", "sw"], of: { op: "rotate", plane: [1, 3], deg: 90, of: loop("rho", "r") } },
     },
-    show: ["sphere", "ring"], check: [["sphere", "ring"]], films: [{ loop: "ring", other: "sphere", plane: [0, 3], centre: ["R+sx", "sy", "sz", "sw"], rad: "rho", tube: "r", kind: "surface", loopName: "the ring", otherName: "the sphere" }], path: [{ sx: 0, sw: 0 }, { sx: 0, sw: 1.5 }, { sx: 0, sw: 0 }, { sx: 1.5, sw: 0 }] },
+    show: ["sphere", "ring"], check: [["sphere", "ring"]], ways: { name: "the ring", params: ["sx", "sy", "sz", "sw"], reach: 3.5 }, films: [{ loop: "ring", other: "sphere", plane: [0, 3], centre: ["R+sx", "sy", "sz", "sw"], rad: "rho", tube: "r", kind: "surface", loopName: "the ring", otherName: "the sphere" }], path: [{ sx: 0, sw: 0 }, { sx: 0, sw: 1.5 }, { sx: 0, sw: 0 }, { sx: 1.5, sw: 0 }] },
   tigers: { title: "tiger chain", note: "A chain that is one: three tigers, big, small, big. One circle of the small tiger threads both big ones as surfaces, the way a loop threads the sphere in the lock. Pull an end or push the middle in any direction and something collides.",
     params: { pull: 0, bx: 0, by: 0, bz: 0, bw: 0, b: 0.4, r: 0.13 }, ranges: { pull: [0, 1.5], bx: [-2, 2], by: [-2, 2], bz: [-2, 2], bw: [-2, 2], b: [0.3, 0.6], r: [0.06, 0.18] },
     parts: {
@@ -72,7 +72,7 @@ export const PARTS = {
       m: { op: "move", by: ["1.25+bx", "1+by", "bz", "bw"], of: { op: "round", r: "r", of: { op: "product", of: [circle(1), circle("b")] } } },
       c: { op: "move", by: ["2.5+pull", 0, 0, 0], of: "big" },
     },
-    show: ["a", "m", "c"], check: [["a", "m"], ["m", "c"], ["a", "c"]], films: [{ loop: "m", other: "a", plane: [0, 1], centre: ["1.25+bx", "1+by", "bz+b", "bw"], rad: 1, tube: "r", kind: "surface", loopName: "one circle of the small tiger", otherName: "the first big tiger" }, { loop: "m", other: "c", plane: [0, 1], centre: ["1.25+bx", "1+by", "bz+b", "bw"], rad: 1, tube: "r", kind: "surface", loopName: "the same circle", otherName: "the other big tiger" }], path: [{ pull: 0, bw: 0 }, { pull: 0.9, bw: 0 }, { pull: 0, bw: 0 }, { pull: 0, bw: 1.4 }, { pull: 0, bw: 0 }] },
+    show: ["a", "m", "c"], check: [["a", "m"], ["m", "c"], ["a", "c"]], ways: { name: "the middle tiger", params: ["bx", "by", "bz", "bw"], reach: 4 }, films: [{ loop: "m", other: "a", plane: [0, 1], centre: ["1.25+bx", "1+by", "bz+b", "bw"], rad: 1, tube: "r", kind: "surface", loopName: "one circle of the small tiger", otherName: "the first big tiger" }, { loop: "m", other: "c", plane: [0, 1], centre: ["1.25+bx", "1+by", "bz+b", "bw"], rad: 1, tube: "r", kind: "surface", loopName: "the same circle", otherName: "the other big tiger" }], path: [{ pull: 0, bw: 0 }, { pull: 0.9, bw: 0 }, { pull: 0, bw: 0 }, { pull: 0, bw: 1.4 }, { pull: 0, bw: 0 }] },
   links: { title: "ring–sphere chain", note: "The other chain that holds: ring, hollow sphere, ring. Each ring passes through the sphere's skin by way of w. Push the sphere or pull a ring in any direction and something collides.",
   params: { pull: 0, sx: 0, sy: 0, sz: 0, sw: 0, R: 1.2, rho: 0.7, r: 0.12 }, ranges: { pull: [0, 2], sx: [-2.5, 2.5], sy: [-2.5, 2.5], sz: [-2.5, 2.5], sw: [-2.5, 2.5], R: [0.9, 1.5], rho: [0.5, 0.9], r: [0.08, 0.2] },
   parts: {
@@ -84,6 +84,43 @@ export const PARTS = {
     a: { op: "move", by: ["0-R", 0, 0, 0], of: "ring" },
     c: { op: "move", by: ["R+pull", 0, 0, 0], of: "ring" },
   },
-  show: ["a", "sphere", "c"], check: [["a", "sphere"], ["sphere", "c"], ["a", "c"]], films: [{ loop: "a", other: "sphere", plane: [0, 3], centre: ["0-R", 0, 0, 0], rad: "rho", tube: "r", kind: "surface", loopName: "the first ring", otherName: "the sphere" }, { loop: "c", other: "sphere", plane: [0, 3], centre: ["R+pull", 0, 0, 0], rad: "rho", tube: "r", kind: "surface", loopName: "the second ring", otherName: "the sphere" }], path: [{ pull: 0, sw: 0 }, { pull: 1.2, sw: 0 }, { pull: 0, sw: 0 }, { pull: 0, sw: 1.6 }, { pull: 0, sw: 0 }] },
+  show: ["a", "sphere", "c"], check: [["a", "sphere"], ["sphere", "c"], ["a", "c"]], ways: { name: "the sphere", params: ["sx", "sy", "sz", "sw"], reach: 3.5 }, films: [{ loop: "a", other: "sphere", plane: [0, 3], centre: ["0-R", 0, 0, 0], rad: "rho", tube: "r", kind: "surface", loopName: "the first ring", otherName: "the sphere" }, { loop: "c", other: "sphere", plane: [0, 3], centre: ["R+pull", 0, 0, 0], rad: "rho", tube: "r", kind: "surface", loopName: "the second ring", otherName: "the sphere" }], path: [{ pull: 0, sw: 0 }, { pull: 1.2, sw: 0 }, { pull: 0, sw: 0 }, { pull: 0, sw: 1.6 }, { pull: 0, sw: 0 }] },
+  weave: { title: "weave: thread and ribbons", note: "The simplest 4D loom. Three ribbons, and a thread passing ana of the first, kata of the second, ana of the third. It cannot change sides without going round a ribbon's edge. Narrow the ribbons to threads and it just steps aside: threads don't weave with threads.",
+    params: { width: 1.6, tx: 0, ty: 0, tz: 0, tw: 0 }, ranges: { width: [0.1, 1.6], tx: [-1.5, 1.5], ty: [-1.5, 1.5], tz: [-1.5, 1.5], tw: [-1.5, 1.5] },
+    parts: {
+      /* a ribbon: a strip in x–y, long in x, a little thick in the two directions it doesn't span */
+      ribbon: { op: "round", r: 0.05, of: { op: "product", of: [{ op: "rect", size: [2.6, "width"] }, point2] } },
+      ribbons: { op: "union", of: [{ op: "move", by: [0, 0, -1, 0], of: "ribbon" }, "ribbon", { op: "move", by: [0, 0, 1, 0], of: "ribbon" }] },
+      /* the thread runs along z, crimped in w: over, under, over */
+      thread: { op: "move", by: ["tx", "ty", "tz", "tw"], of: { op: "wire", r: 0.07, pts: [[0, 0, -1.7, 0.3], [0, 0, -1, 0.3], [0, 0, 0, -0.3], [0, 0, 1, 0.3], [0, 0, 1.7, 0.3]] } },
+    },
+    /* start looking at x, w and z (y unseen): the ribbons edge-on, the thread's over and under in view */
+    view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0], [0, 1, 0, 0]],
+    show: ["ribbons", "thread"], check: [["thread", "ribbons"]], ways: { name: "the thread", params: ["tx", "ty", "tz", "tw"], reach: 2.2 },
+    path: [{ tw: 0, ty: 0 }, { tw: 0.7, ty: 0 }, { tw: 0, ty: 0 }, { tw: -0.7, ty: 0 }, { tw: 0, ty: 0 }, { tw: 0, ty: 0.5 }, { tw: 0.9, ty: 0.5 }, { tw: 0, ty: 0.5 }, { tw: 0, ty: 0 }] },
+  hoop: { title: "bundle in a sphere-hoop", note: "Seven rods (thin spherinders, the 4D fibre) lying along w (up, in the slice you start in), bound by a hoop that is a sphere, not a ring: a bundle's surroundings are 3D, so only a closed skin goes all the way round. No rod can leave sideways. Along its own length a rod slides: that is friction's job.",
+    params: { ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { ox: [-1.2, 1.2], oy: [-1.2, 1.2], oz: [-1.2, 1.2], ow: [-1.6, 1.6] },
+    parts: {
+      one: { op: "wire", r: 0.12, pts: [[0, 0, 0, -1.1], [0, 0, 0, 1.1]] },
+      /* the bundle: one rod in the middle and five of the six round it (at the corners of an octahedron) */
+      bundle: { op: "union", of: ["one", { op: "move", by: [-0.27, 0, 0, 0], of: "one" }, { op: "move", by: [0, 0.27, 0, 0], of: "one" }, { op: "move", by: [0, -0.27, 0, 0], of: "one" }, { op: "move", by: [0, 0, 0.27, 0], of: "one" }, { op: "move", by: [0, 0, -0.27, 0], of: "one" }] },
+      /* the sixth, the one we try to take out */
+      rod: { op: "move", by: ["0.27+ox", "oy", "oz", "ow"], of: "one" },
+      hoop: { op: "round", r: 0.04, of: { op: "product", of: [{ op: "shell", t: 0, of: { op: "ball", dim: 3, r: 0.46 } }, { op: "interval", h: 0.25 }] } },
+    },
+    view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],
+    show: ["bundle", "rod", "hoop"], check: [["rod", "hoop"], ["rod", "bundle"]], ways: { name: "the outer rod", params: ["ox", "oy", "oz", "ow"], reach: 3 },
+    path: [{ ox: 0, oz: 0, ow: 0 }, { ox: 0.8, oz: 0, ow: 0 }, { ox: 0, oz: 0, ow: 0 }, { ox: 0, oz: 0.8, ow: 0 }, { ox: 0, oz: 0, ow: 0 }, { ox: 0, oz: 0, ow: 1.4 }, { ox: 0, oz: 0, ow: 0 }] },
+  ringed: { title: "bundle in a ring (it falls apart)", note: "The same bundle in the hoop we would use: a ring. In the slice you start in it looks exactly like the sphere-hoop. It goes round the bundle in one plane and leaves the third sideways direction open, so the rod walks out along z.",
+    params: { ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { ox: [-1.2, 1.2], oy: [-1.2, 1.2], oz: [-1.2, 1.2], ow: [-1.6, 1.6] },
+    parts: {
+      one: { op: "wire", r: 0.12, pts: [[0, 0, 0, -1.1], [0, 0, 0, 1.1]] },
+      bundle: { op: "union", of: ["one", { op: "move", by: [-0.27, 0, 0, 0], of: "one" }, { op: "move", by: [0, 0.27, 0, 0], of: "one" }, { op: "move", by: [0, -0.27, 0, 0], of: "one" }, { op: "move", by: [0, 0, 0.27, 0], of: "one" }, { op: "move", by: [0, 0, -0.27, 0], of: "one" }] },
+      rod: { op: "move", by: ["0.27+ox", "oy", "oz", "ow"], of: "one" },
+      hoop: { op: "round", r: 0.04, of: { op: "product", of: [{ op: "shell", t: 0, of: { op: "disc", r: 0.46 } }, { op: "product", of: [{ op: "interval", h: 0 }, { op: "interval", h: 0.25 }] }] } },
+    },
+    view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],
+    show: ["bundle", "rod", "hoop"], check: [["rod", "hoop"], ["rod", "bundle"]], ways: { name: "the outer rod", params: ["ox", "oy", "oz", "ow"], reach: 3 },
+    path: [{ ox: 0, oz: 0, ow: 0 }, { ox: 0.8, oz: 0, ow: 0 }, { ox: 0, oz: 0, ow: 0 }, { ox: 0, oz: 0.8, ow: 0 }, { ox: 0, oz: 0, ow: 0 }] },
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "hoop", "ringed"];

@@ -31,7 +31,8 @@ self.onmessage = (ev) => {
   try {
     const shape = compile(tree, vals), out = { id, mode };
     const cut = () => { if (shape.dim === 4) { const m = measure(slice(shape, O, E), 56, 2); out.slice = { volume: m.volume, area: m.boundary }; out.profile = profile(shape, C, E, N4, R); } };
-    if (mode === "reach") out.reach = reach(tree, vals, ev.data.path);
+    if (mode === "ways") { const W = tree.ways; out.ways = W.params.map((k) => [-1, 1].map((sg) => { const r = reach(tree, vals, [{ [k]: vals[k] }, { [k]: vals[k] + sg * W.reach }]); return r.stuck ? { stuck: true } : { free: !r.stopped[0], at: Math.abs(r.path[1][k] - vals[k]) }; })); }
+    else if (mode === "reach") out.reach = reach(tree, vals, ev.data.path);
     else if (mode === "fit") (out.fit = (tree.check || []).map(([a, b]) => ({ a, b, ...fit(tree, a, b, vals, 16) })), shape.dim === 4 && cost < 90 && (out.profile = profile(shape, C, E, N4, R)));
     else if (mode === "slice") cut();
     else if (mode === "quick") { out.fit = (tree.check || []).map(([a, b]) => ({ a, b, ...fit(tree, a, b, vals) })); out.measure = measure(shape, [0, 1000, 160, 40, 14][shape.dim], 2); cut(); }

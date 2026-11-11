@@ -29,6 +29,7 @@ Nothing is drawn in 4D directly. Shapes start in 1D and 2D and climb the ladder.
 | `union`, `cut`, `intersect {of:[…], r?}` | booleans; `cut` is the first minus the rest; `r` blends |
 | `move {of, by:[…]}`, `rotate {of, plane:[i, j], deg}`, `scale {of, k}` | a rotation has a **plane**, not an axis |
 | `round {of, r}`, `shell {of, t}` | offset outward; the skin, t thick (`t: 0` is the bare surface, for a `round` to thicken) |
+| `wire {pts:[[x,y,z,w],…], r}` | a wire along straight runs, in 4D directly (the one shape that doesn't climb the ladder) |
 | `ref {name}` or just `"name"` | a part from the tree's `parts` |
 
 A lower-dimensional shape where a higher one is expected is an infinite prism along the missing axes. So cutting a 4D
@@ -89,7 +90,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then five assemblies that are the reason to have a 4D workshop:
+holes), then eight assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -106,6 +107,16 @@ holes), then five assemblies that are the reason to have a 4D workshop:
   4D generically meet at points, so most placements collide; identical tigers cannot do it (the threading link's other
   circle must be smaller than the circles of the link it threads); and the stable arrangement is the 3D one, the
   middle link's one loop passing through both neighbours.
+- **weave: thread and ribbons.** What catches on what. In 4D two things obstruct each other only if their dimensions
+  add to 3 or more, so a thread (1) catches on nothing made of threads and on anything with a 2D face. Three ribbons
+  and a thread passing ana, kata, ana of them: the thread cannot move along w or along its own crimp, and slides
+  freely along the ribbons. Narrow the ribbons to threads and it steps aside and leaves.
+- **bundle in a sphere-hoop / in a ring.** Seven rods along w. A bundle's surroundings are 3D, so a ring leaves one
+  sideways direction open and the outer rod walks out along z; a hoop that is a sphere closes all three, and the rod
+  moves only along its own length, which is friction's to hold. The 4D yarn is hooped, not spun.
+
+**ways out** (on assemblies with a part to free) tries that part along each axis, both ways, and says where it stops.
+An assembly may also give `view`, the slice to start in: the weave and the bundles start with w in view.
 
 ## From a terminal
 
@@ -126,5 +137,5 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 ## Test
 
 ```bash
-node kata/cad4/test/cad4.selftest.mjs   # ~80 s, 26 checks
+node kata/cad4/test/cad4.selftest.mjs   # ~85 s, 29 checks
 ```

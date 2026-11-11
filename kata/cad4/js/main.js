@@ -99,8 +99,8 @@ function overlay(v) {
 /* ------------------------------------------------------------------ the model */
 function setTree(tree, name, keepView) {
   const vals = { ...(tree.params || {}) }, shape = compile(tree, vals); // (throws before anything is replaced)
-  waiting = false; S.bound = ""; S.tree = tree; S.name = name; S.vals = vals; S.shape = shape; S.measure = S.fit = S.slice = S.profile = null; build();
-  frameIt(); if (!keepView) { E = ident(); off = 0; zoom = 1; }
+  waiting = false; S.bound = ""; S.ways = null; $("ways").textContent = ""; S.tree = tree; S.name = name; S.vals = vals; S.shape = shape; S.measure = S.fit = S.slice = S.profile = null; build();
+  frameIt(); if (!keepView) { E = tree.view ? tree.view.map((v) => v.slice()) : ident(); off = 0; zoom = 1; }
   $("cap").textContent = tree.note || (tree.title ? tree.title : "your own part"); $("cap").classList.remove("min");
   $("runB").hidden = !tree.path; params(); showTree(); filmsBuild(); numbers(); dirty = true;
 }
@@ -140,11 +140,14 @@ function ask(mode, wait) {
 function got(m) {
   const mine = busy; busy = null;
   if (m.error) { $("err").textContent = m.error; } else if (mine && m.id === mine.id) { $("err").textContent = S.err;
-    if (m.reach) begin(m.reach); if (m.fit) S.fit = m.fit; if (m.measure) { S.measure = m.measure; S.fine = m.mode === "fine"; } if (m.slice) S.slice = m.slice; if (m.profile) S.profile = m.profile; show();
+    if (m.reach) begin(m.reach); if (m.ways) S.ways = m.ways; if (m.fit) S.fit = m.fit; if (m.measure) { S.measure = m.measure; S.fine = m.mode === "fine"; } if (m.slice) S.slice = m.slice; if (m.profile) S.profile = m.profile; show();
   }
   if (want) { const r = want; want = null; busy = r; worker.postMessage(r); }
 }
-function numbers() { clearTimeout(fineT); ask("quick"); $("mState").textContent = "· rough"; fineT = setTimeout(() => { if (!playing) { ask("fine"); $("mState").textContent = "· refining…"; } }, 900); }
+let waysT = 0;
+function numbers() { clearTimeout(fineT); clearTimeout(waysT); ask("quick"); $("mState").textContent = "· rough";
+  if (S.tree.ways) { S.ways = null; $("waysT").textContent = "· trying each…"; waysT = setTimeout(() => { if (!playing && !waiting) ask("ways", true); }, 350); }
+  fineT = setTimeout(() => { if (!playing) { ask("fine", true); $("mState").textContent = "· refining…"; } }, S.tree.ways ? 1500 : 900); }
 function sliceNumbers() { clearTimeout(sliceT); sliceT = setTimeout(() => ask("slice", true), 300); }
 const f3 = (x) => (Math.abs(x) < 5e-4 ? "0" : Math.abs(x) >= 100 ? x.toFixed(1) : x.toFixed(3));
 function rows(el, list) { el.textContent = ""; for (const [k, v, cls] of list) { const a = document.createElement("i"), b = document.createElement("span"); a.textContent = k; b.textContent = v; if (cls) b.className = cls; el.append(a, b); } }
@@ -154,6 +157,10 @@ function show() {
     rows($("meas"), [[nm[d], f3(m.volume)], [bn[d], f3(m.boundary)], ["centroid", m.centroid.map(f3).join(", ")], ["inertia, by plane", pl.join(" · ")], ["extent", m.bbox.lo.map((v, i) => f3(m.bbox.hi[i] - v)).join(" × ")]]);
     $("mState").textContent = S.fine ? `· to ${f3(m.h)}` : $("mState").textContent; }
   rows($("fit"), (S.fit || []).map((f) => [`${f.a} · ${f.b}`, f.overlap > 0 ? `OVERLAP ${f.overlap.toPrecision(2)}` : (Number.isFinite(f.gap) ? `clear, gap ≈ ${f.gap.toFixed(2)}` : "clear"), f.overlap > 0 ? "bad" : "good"]));
+  const W = S.tree.ways; $("waysSec").hidden = !W;
+  if (W && S.ways) { const say = (q) => (q.stuck ? ["touching", "bad"] : q.free ? ["free", "good"] : [`stops at ${q.at.toFixed(2)}`, "held"]), el = $("ways"); el.textContent = "";
+    W.params.forEach((k, i) => { const a = document.createElement("i"), b = document.createElement("span"), [m, p] = S.ways[i].map(say); a.textContent = `along ${k.slice(-1)}`; for (const [t, c, sgn] of [[m[0], m[1], "−"], [p[0], p[1], "+"]]) { const e = document.createElement("b"); e.className = c; e.style.fontWeight = "400"; e.textContent = `${sgn} ${t}`; b.append(e, sgn === "−" ? "  ·  " : ""); } el.append(a, b); });
+    const n = S.ways.flat().filter((q) => q.free).length; $("waysT").textContent = `· ${W.name}: ` + (n ? `${n} of 8 free` : "none, bound"); }
   if (S.bound) { const a = document.createElement("i"), b = document.createElement("span"); a.textContent = "run"; b.textContent = S.bound; b.className = S.bound.startsWith("free") ? "good" : "held"; $("fit").append(a, b); }
   if (!(S.tree.check || []).length) $("fit").textContent = "one part: nothing to fit. An assembly lists pairs under \"check\".";
   rows($("sl"), S.slice ? [["volume", f3(S.slice.volume)], ["area", f3(S.slice.area)]] : []); strip();
@@ -235,7 +242,7 @@ const stick = { x: 0, y: 0 }, lever = { y: 0 }, keys = new Set();
   lv.addEventListener("pointerdown", (e) => { lv.setPointerCapture(e.pointerId); lv.classList.add("live"); lvMove(e); }); lv.addEventListener("pointermove", (e) => { if (lv.classList.contains("live")) lvMove(e); }); lv.addEventListener("pointerup", lvEnd); lv.addEventListener("pointercancel", lvEnd);
   addEventListener("keydown", (e) => { if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return; keys.add(e.key); }); addEventListener("keyup", (e) => { keys.delete(e.key); sliceNumbers(); });
 }
-$("squareB").addEventListener("click", () => { E = ident(); off = 0; dirty = true; strip(); sliceNumbers(); });
+$("squareB").addEventListener("click", () => { E = S.tree.view ? S.tree.view.map((v) => v.slice()) : ident(); off = 0; dirty = true; strip(); sliceNumbers(); });
 $("cap").addEventListener("click", () => $("cap").classList.toggle("min"));
 $("stlB").addEventListener("click", () => { const m = mesh(slice(S.shape, origin(), E.slice(0, 3)), 88); if (!m.count) { $("err").textContent = "nothing in this slice to export"; return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([stl(m, `cad4 ${S.name} slice`)], { type: "model/stl" })); a.download = `cad4-${S.name}-slice.stl`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); });
