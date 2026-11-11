@@ -1,0 +1,4 @@
+maze seed 1: 4801 open squares, solution path 1904 steps, food 14 squares (p = 0.0029), h = 0.9, 1500 steps, seeds 1000r+7
+clone       reached exit   first step (median)   alive at end   path held %   dead ends held %
+splitter        0/20               -              20/20           0.0           0.0     (path − dead: 0.0 ± 0.0 sd; same distance from the entrance: 0.0 ± 0.0)
+integrator      0/20               -              18/20          50.1          12.0     (path − dead: 38.0 ± 13.0 sd; same distance from the entrance: 0.1 ± 1.3)
