@@ -14,6 +14,9 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url)), DRAFT = path.join(here, "draft");
 const sha = (t) => createHash("sha256").update(t).digest("hex");
+/* the link card (pdf.cjs renders draft/og.png: figure 2, the whole table, under the title) */
+const LIVE = "https://four.mino.mobi/papers/p1/draft/";
+const CARD_DESC = "140 elements in four dimensions of space, each solved self-consistently under a 1/r law between charges: the rows it gives, what the law decides, Hund's first rule broken, and neutral atoms that pull from afar.";
 const CSL = path.join(DRAFT, "references.json"), REFS = path.join(here, "refs.json");
 const srcSha = (f) => sha(readFileSync(path.join(DRAFT, f), "utf8") + (existsSync(CSL) ? readFileSync(CSL, "utf8") : ""));
 const sections = () => (existsSync(DRAFT) ? readdirSync(DRAFT).filter((f) => f.endsWith(".md")).sort() : []);
@@ -44,7 +47,17 @@ function render(f) {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="source-sha256" content="${srcSha(f)}" />
 <title>Paper 1 · ${title.replace(/[<>&]/g, "")}</title>
-<link rel="icon" href="data:," />
+${f === "paper.md" || f === "supplement.md" ? `<meta name="description" content="${CARD_DESC}" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="${title.replace(/[<>&"]/g, "")}" />
+<meta property="og:description" content="${CARD_DESC}" />
+<meta property="og:url" content="${LIVE}${f.replace(/\.md$/, "")}" />
+<meta property="og:image" content="${LIVE}og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="The periodic table of four dimensions, 140 elements" />
+<meta name="twitter:card" content="summary_large_image" />
+` : ""}<link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
 </head>
 <body>
