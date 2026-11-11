@@ -668,6 +668,17 @@ for games, and this is a modelling programme with publications to come. The game
   together at each temperature, every rate a ratio to proton + proton's (density drops out); `protonflow compact MN` gives
   it the close-draw capture tables. Result: zones above ~10 MK burn wholly to the element where the climb stops; a Sun-pace
   core makes element 9 or pxygen, decided by proton + proton's nuclear size (ROADMAP step 2).
+  **Proton + proton, computed (PI, 2026-11-11; paper 2's start).** `js/nuclear.js` `ppOverlap`/`deuteron`/`leptonF`
+  (mirrored, selftest 74) and `atom/tools/ppfusion.mjs check|scan|bake|sunpace` replace the guessed p + p nuclear size:
+  σv = K Ω_d |∫u_d u_E dr|² f(W₀), the deuteron and the protons' Coulomb scattering state from the same strong force,
+  K (a rate) ours, set on our S(0) = 4.01 × 10⁻²² keV b, f the positron phase space at each world's deuteron binding.
+  Ours: Λ² 7.04 (realistic 7.035), S'/S 12.7 against 11.2 MeV⁻¹, the Sun's rate within 3% of the old 2.4 fm formula.
+  4D where the deuteron binds as ours: r_eff 3.68 (MT) / 3.73 (MN) fm, flat 5–50 MK, so the old 4 fm side;
+  `nuclei.mjs hburn pp=3.73 s=1.5152` (writes `hburn-pp3.73.json`, leaving `hburn.json`) and `ppfusion.mjs sunpace`:
+  a Sun-paced core burns at 15.2–17.4 MK into oitrogen (element 9) 36–79%, pxygen 18–64% by the core's draw. Below a
+  deuteron binding of 1.80 MeV (the window's lowest 20–22%) p + p makes no deuteron; at the top it runs ~10⁷× faster.
+  Element 9 is **oitrogen**, not gluorine (element 11). Next: giveback/starmix/cores at 3.73 fm need main-sequence runs
+  at that radius (runner), and the strong force's strength is now the knob that matters.
   `nuclei.mjs giveback` (seconds) averages hburn's zones over the lifetimes of stars that finish before a Sun-like one
   forms (declared mass function, lifetime slope, range): gluorine, oeon and pxygen lead, pxygen ahead of oitrogen in every
   case (ROADMAP step 3). `nuclei.mjs heavy` (minutes, `massFor` is slow): the ash fusing pairwise needs cores at M_Ch,

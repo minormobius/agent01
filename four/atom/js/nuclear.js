@@ -456,6 +456,39 @@ const ALPHA_FS = 1 / 137.035999;
    l = 2 harmonics (5 ours, 9 in 4D) */
 export function e2Width(d, u2, u0, h, Egamma) { let I = 0; for (let i = 0; i < Math.min(u2.length, u0.length); i++) { const r = (i + 1) * h; I += u2[i] * u0[i] * r * r * h; } const N2 = d === 3 ? 5 : 9, w = Egamma / 197.327; return 197.327 * E2RATE[d] * ALPHA_FS * w ** 5 * I * I * (1 - 1 / d) / N2; }
 export { boundStates, scatterU };
+/* proton + proton → deuteron + e⁺ + ν, its nuclear part from the strong force alone, in either world (paper 2's start;
+   it replaces the guessed "nuclear size" the burning runs carried, 1 to 4 fm). The rate of a weak conversion from a
+   two-proton state ψ_E (the s-wave of a unit plane wave, Coulomb, the strong singlet force and in 4D the s-wave's own
+   centrifugal term all solved exactly by scatterU) into the deuteron (the triplet force, boundStates) is
+     σv(E) = K · Ω_d · |M(E)|² · f(W₀),   M(E) = ∫ u_d(r) u_E(r) dr,
+   where K is a rate (1/time) in any number of dimensions: "the weak force is ours" is K the same in both worlds,
+   calibrated on our measured S(0). f is the lepton phase space by the endpoint W₀ (positron's kinetic energy at most
+   B_d − (m_n − m_p) − m_e; nothing goes below B_d ≈ 1.80 MeV), taken in our form at the 4D endpoint, which is declared.
+   No radius enters. Our check: Λ² = (γ³/2)|M/C₀|² at low energy, about 7.0 for realistic forces (γ = √(B_d/(ħ²/m_N)),
+   C₀² = 2πη/(e^(2πη) − 1)), and the S-factor's slope. */
+export const NP_MASS = 1.29333, M_E = 0.510999, OMEGA = { 3: 4 * Math.PI, 4: 2 * Math.PI * Math.PI };
+const deutCache = new Map();
+export function deuteron(d, F, s) {
+  const key = `${d}|${s}|${JSON.stringify(F.triplet)}`;
+  if (!deutCache.has(key)) {
+    const E0 = levels(pot(F.triplet, s), { d, rmax: 200, h: 0.02 })[0]; let out = null;
+    if (E0 !== undefined) { const kap = Math.sqrt(-E0 / HB2M), rmax = Math.min(400, Math.max(40, 18 / kap)); const b = boundStates(pot(F.triplet, s), { d, l: 0, c: HB2M, rmax, h: 0.01 })[0]; out = { B: -b.E, u: b.u, h: b.h, rmax, gamma: kap }; }
+    deutCache.set(key, out);
+  }
+  return deutCache.get(key);
+}
+export function ppOverlap({ d, F = MN, s, E }) {
+  const dt = deuteron(d, F, s); if (!dt) return null;
+  const Vs = pot(F.singlet, s), sc = scatterU((r) => Vs(r) + E2 / r, { d, l: 0, c: HB2M, E, h: dt.h, rin: dt.rmax });
+  let M = 0; for (let i = 0; i < dt.u.length && i + 1 < sc.u.length; i++) M += dt.u[i] * sc.u[i + 1] * dt.h;
+  const mu = 938.272 / 2, eta = E2 * Math.sqrt(mu / (2 * E)) / 197.327; // e²/ħv with v = √(2E/μ)
+  return { B: dt.B, M, k: sc.k, eta };
+}
+/* the lepton phase space by the positron's endpoint W₀ − 1 (in m_e), without the Fermi function: ∫ p W (W₀ − W)² dW */
+export function leptonF(B) { const T = B - NP_MASS - M_E; if (T <= 0) return 0; const W0 = 1 + T / M_E, n = 400; let f = 0; for (let i = 0; i < n; i++) { const W = 1 + ((i + 0.5) / n) * (W0 - 1); f += Math.sqrt(W * W - 1) * W * (W0 - W) ** 2; } return (f * (W0 - 1)) / n; }
+/* Λ² from the overlap (our convention, 3D): (γ³/2) |M/C₀|² */
+export function lambda2(o, gamma) { const C02 = (2 * Math.PI * o.eta) / Math.expm1(2 * Math.PI * o.eta); return ((gamma ** 3) / 2) * (o.M ** 2) / C02; }
+
 
 /* ———— the first minutes' captures ———— */
 /* ⟨1/r⟩ for r spread as (ν/π)^(d/2) e^(−ν(r − S)²) about a point S away: a Gaussian charge under the pinned 1/r. Ours

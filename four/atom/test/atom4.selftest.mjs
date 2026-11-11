@@ -1342,5 +1342,18 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `Pauli derived: H_D² = E² to ${dirac.toExponential(0)}, P₋ rank 2, ν = (1 + mc²/E)/2; 1/r between Gaussian clouds ${(J / P.gaussianRepulsion(b)).toFixed(4)} × √π/4b; spinor packet |ρ̂| ${rho.toFixed(3)} ≤ ${rhoMax.toFixed(3)}; bosons at N = 1000: ${(bs[3].E / 1000 / P.C_LIGHT ** 2).toFixed(6)} mc² an electron, no floor`);
 }
 
+/* 74 · proton + proton → deuteron from the strong force (js/nuclear.js ppOverlap, tools/ppfusion.mjs): on ours the overlap
+   of the deuteron with the two protons' Coulomb scattering state gives the measured matrix element, Λ² ≈ 7.0; in 4D at
+   the strength where the deuteron binds as ours the overlap is finite and positive, and the positron's phase space
+   closes below a deuteron binding of 1.80 MeV */
+{
+  const N = await import("../js/nuclear.js");
+  const d3 = N.deuteron(3, N.MN, 1), l2 = N.lambda2(N.ppOverlap({ d: 3, F: N.MN, s: 1, E: 0.002 }), d3.gamma);
+  const d4 = N.deuteron(4, N.MN, 1.5152), o4 = N.ppOverlap({ d: 4, F: N.MN, s: 1.5152, E: 0.003 });
+  const closed = N.leptonF(1.80) === 0 && N.leptonF(1.81) > 0 && Math.abs(N.leptonF(2.224566) / N.leptonF(2.224566) - 1) < 1e-12;
+  ok(Math.abs(l2 - 7.035) < 0.1 && Math.abs(d3.B - 2.20) < 0.02 && Math.abs(d4.B - 2.2246) < 0.01 && o4.M > 0 && isFinite(o4.M) && closed,
+    `proton + proton from the strong force: ours Λ² ${l2.toFixed(3)} (realistic forces 7.035), deuteron ${d3.B.toFixed(3)} MeV; 4D deuteron as ours ${d4.B.toFixed(4)} MeV, overlap ${o4.M.toExponential(2)}; no deuteron by e⁺ below 1.80 MeV`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);
