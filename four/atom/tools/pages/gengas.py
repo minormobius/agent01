@@ -42,7 +42,7 @@ SZ=CX['oe']['sizes'][0]['runs']; SZD=100*max(abs(SZ[0]['l']/SZ[1]['l']-1),abs(SZ
 # what a throttle does near room temperature, at the same crowding: the 4D gases, measured against their own wells
 gas=f'''<section id="ideal">
   <h3>The ideal gas, in any dimension</h3>
-  <p>A gas is atoms flying about and hitting the walls. Pressure is the momentum they carry into a wall each second, per unit of wall, and in 4D a wall is a 3D surface. Count it and you get <b>PV = NkT in any number of dimensions</b>. The <a href="../start/#s11">front page's boxes</a> count it live. What changes with d is where the energy goes: each direction of motion holds kT/2, so a 4D atom carries <b>2kT</b>, not 3/2 kT. Its heat capacities are C_v = d/2 and C_p = d/2 + 1 (in k per atom), and their ratio is <b>γ = (d + 2)/d: 3/2 in 4D</b>, against our 5/3.</p>
+  <p>A gas is atoms flying about and hitting the walls. Pressure is the momentum they carry into a wall each second, per unit of wall, and in 4D a wall is a 3D surface. Count it and you get <b>PV = NkT in any number of dimensions</b>. What changes with d is where the energy goes: each direction of motion holds kT/2, so a 4D atom carries <b>2kT</b>, not 3/2 kT. Its heat capacities are C_v = d/2 and C_p = d/2 + 1 (in k per atom), and their ratio is <b>γ = (d + 2)/d: 3/2 in 4D</b>, against our 5/3.</p>
   <p>The speeds spread as Maxwell's distribution, with the 3-sphere's area 2π²v³ where ours has 4πv²:</p>
   <canvas class="chart" id="cGasSpeeds"></canvas>
   <p class="read" id="rSpeeds"></p>

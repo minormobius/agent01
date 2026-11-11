@@ -541,9 +541,9 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `4D fills along our diagonals (${byHalf.join(" ")}, each by when it's half full), each box holding 2(l + 1)²: rows close at ${F.nobles(4, 6).join(", ")}; to 78 the ${lend} atoms off the plain filling are d-block atoms lending s electrons to d; past it ${past.length} more (${past.join(", ")})`);
 }
 
-/* 28 · the pages outside ATOM⁴'s chapters (where we are, the big table): every element their scripts draw into exists */
+/* 28 · the pages outside ATOM⁴'s chapters (the big table, fields, Bluminium, Hund): every element their scripts draw into exists */
 {
-  for (const [page, script] of [["../../start/index.html", "../../start/start.js"], ["../../table/index.html", "../../table/viewer.js"], ["../../fields/index.html", "../../fields/fields.js"], ["../bluminium.html", "../js/bluminium.js"], ["../hund.html", "../js/hundpage.js"]]) {
+  for (const [page, script] of [["../../table/index.html", "../../table/viewer.js"], ["../../fields/index.html", "../../fields/fields.js"], ["../bluminium.html", "../js/bluminium.js"], ["../hund.html", "../js/hundpage.js"]]) {
     const html = fs.readFileSync(path.join(here, page), "utf8"), js = fs.readFileSync(path.join(here, script), "utf8");
     const want = [...new Set([...js.matchAll(/\$\(\s*["'`]([A-Za-z0-9_-]+)["'`]\s*\)/g)].map((m) => m[1]))], ids = new Set([...(html + js).matchAll(/id="([^"]+)"/g)].map((m) => m[1])); // the page's, and those the script writes itself
     const missing = want.filter((id) => !ids.has(id) && !/\$\{/.test(id));

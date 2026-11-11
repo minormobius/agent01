@@ -5696,7 +5696,7 @@
       "t": "2026-10-26",
       "b": "2026-10-24",
       "surface": "four",
-      "d": "A universe with four dimensions of space, worked out. Its light (Lumen⁴, and IRIS⁴'s rainbow you walk under), its atoms, periodic table and molecules (ATOM⁴, the official position, in sixteen chapters), and which molecule would be its water, computed with solvers written for any dimension and checked first on our own world. Papers to follow, the first a periodic table for four dimensions.",
+      "d": "A universe with four dimensions of space, worked out, in two halves. The model: paper 1, a periodic table for four dimensions, which is the front door; ATOM⁴, the official position, in seventeen chapters; the 140-element table; the methods, and the solvers released under the MIT licence. Then the widgets for making sense of it, grouped by what they teach (charges, light and atoms; moving through four dimensions; shapes; soft matter and life), whether they live here, on kata or in the arcade.",
       "tags": [
         "canvas",
         "math",
@@ -5714,22 +5714,6 @@
       "p": "four",
       "surface": "four",
       "d": "The periodic table of four dimensions, big: all 78 elements as ATOM⁴'s solver finds them, in rows of 2, 10, 10, 28 and 28. The 54 that do what one of ours does take its name with the first letter moved on (iydrogen, darbon, pxygen, oitrogen). The 24 that do nothing ours does are marked new, among them the two either side of darbon, where our carbon alone sits in both places. Our own table sits beside it, linked both ways, with each element's configuration, ionization, size, hydride and electron cloud.",
-      "tags": [
-        "canvas",
-        "math"
-      ]
-    },
-    {
-      "n": "four-start",
-      "u": "https://four.mino.mobi/start/",
-      "c": "data",
-      "k": 2,
-      "a": "hot",
-      "t": "2026-10-26",
-      "b": "2026-10-26",
-      "p": "four",
-      "surface": "four",
-      "d": "Where we are, for anyone arriving cold: a universe with four dimensions of space in eleven steps, each with a toy and a tag (a choice, follows, computed, open). Squeeze an electron and watch 4D lose its atoms, pin the force and get them back, see the hill inside a charged shell that ends Faraday cages, fill the electron boxes element by element in both worlds, and count gas atoms hitting a wall in 2, 3 and 4 dimensions until PV = NkT comes out.",
       "tags": [
         "canvas",
         "math"

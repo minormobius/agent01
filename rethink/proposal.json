@@ -2346,11 +2346,6 @@
           "note": "the door"
         },
         {
-          "u": "four.mino.mobi/start",
-          "action": "new",
-          "note": "for anyone arriving cold"
-        },
-        {
           "u": "four.mino.mobi/lumen",
           "action": "new"
         },

@@ -29,8 +29,11 @@ A universe with four dimensions of space, worked out, as one static site: no bui
 for games, and this is a modelling programme with publications to come. The games built on the same geometry
 (Foam⁴, PLATEAU, KATABASIS, Anakata, Anabasis, Hinton) stay in the arcade, and the hub links to them.
 
-- **the hub at `/`**: `index.html`, one card per part, and the papers card. It borrows ATOM⁴'s stylesheet
-  (`atom/css/atom4.css`).
+- **the hub at `/`**: `index.html`, in two halves (PI, 2026-11-11). Paper 1 leads, as the front door (the paper, the
+  supplement, the PDF, how it's made, the code). **The model**: the table, ATOM⁴, papers, methods. **Making sense of it**:
+  the widgets, grouped by what they teach (charges, light and atoms; moving through four dimensions; shapes and solids;
+  soft matter and life), whether they live here, on kata.mino.mobi (its own branch; linked live, not copied) or in the
+  arcade. A new widget anywhere gets a line in its group. It borrows ATOM⁴'s stylesheet (`atom/css/atom4.css`).
 - **Lumen⁴ at `/lumen/`**: light in
   four dimensions beside our own, 3D warm and 4D ice. `lumen/js/optics.js`
   (no DOM) has falloff by codimension (1/r^(n−k−1)), Gaussian beams (a laser
@@ -68,11 +71,10 @@ for games, and this is a modelling programme with publications to come. The game
   `../../lumen/js/optics.js`, so run Lumen⁴'s selftest after a change there; after a change to Foam⁴'s
   `foam.js` in games, copy it over `iris/js/foam.js`. See
   [`iris/README.md`](iris/README.md).
-- **where we are, at `/start/`**: the front door for a cold reader. The argument in eleven steps, each tagged (a choice /
-  follows / computed / open), each with a toy whose numbers come from the same code as the chapters
-  (`start/start.js`: squeezing an electron, field thinning, the charged shell (`atom/js/fields.js`), hydrogen's lines,
-  the filling diagram (`table/filling.js`), the pair search, an ideal gas in 2–4 dimensions). Keep it in step with
-  the position: when a conclusion changes, its step here changes too. The hub and ATOM⁴'s landing point to it.
+- **`/start/` is retired (PI, 2026-11-11)**: "where we are", the cold reader's eleven steps with toys, was replaced by
+  paper 1 as the front door. `four/_redirects` sends `/start/*` to `/papers/p1/draft/paper` (301; Workers Static
+  Assets honour `_redirects`, as `math/` does). Its toys went with it; the paper's widgets cover the law, screening and
+  the far pull. Don't link `/start/`.
 - **fields at `/fields/`**: electrostatics and magnetism under the pin, as seven toys (`fields/fields.js`, drawing
   only; the physics is `atom/js/fields.js`, checked by ATOM⁴'s selftest 33): point charges in a slice (pinned 4D
   draws exactly as ours), flux that grows with radius, a nucleus-in-shell atom felt from outside (a²/8s³) and the

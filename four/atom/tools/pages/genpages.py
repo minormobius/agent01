@@ -430,7 +430,7 @@ landing=head('ATOM⁴ — the position','ATOM⁴ — the universe we are buildin
   <h2>four.mino.mobi · the official position</h2>
   <h1>ATOM⁴</h1>
   <p class="lede">The universe we're building: <b>four dimensions of space</b>, and the force between charges <b>pinned at 1/r</b>. Its consequences, worked out from there and computed wherever they can be. A selftest checks every number. This page is the position. Each chapter shows the working. As in <a href="../lumen/">Lumen⁴</a>, <b class="d3">3D</b> is warm and <b class="d4">4D</b> is ice.</p>
-  <p class="lede" style="font-size: 14px;">New here? <a href="../start/" style="color: var(--text)">Where we are</a> walks the argument in eleven steps, with toys, before the full working below.</p>
+  <p class="lede" style="font-size: 14px;">New here? <a href="../papers/p1/draft/paper.html" style="color: var(--text)">Paper 1</a>, a periodic table for four dimensions, gives the argument and the main results in six pages, before the full working below.</p>
 </header>
 <section class="position">
   <p class="made"><b>What it's made of:</b> electrons (spin-½ fermions), nuclei (heavy point charges, declared stable up to Z = 140; what that takes is <a href="nuclei.html">chapter 14</a>), the lens vacuum's light, a small fine-structure constant like ours, and the weak force with its neutrino, added so stars can burn hydrogen. Nothing else, and gravity is open. Bulk matter is stable for the same reason ours is, that electrons are fermions: argued from scaling, since the proof for our world leans on the shell theorem. <a href="force.html#contents">The full list</a>.</p>

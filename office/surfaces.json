@@ -3677,15 +3677,6 @@
    "parent": "four"
   },
   {
-   "id": "four-start",
-   "name": "four-start",
-   "url": "https://four.mino.mobi/start/",
-   "cat": "data",
-   "commits": 2,
-   "age": "hot",
-   "parent": "four"
-  },
-  {
    "id": "four-fields",
    "name": "four-fields",
    "url": "https://four.mino.mobi/fields/",

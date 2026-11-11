@@ -4,10 +4,24 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="Four: a universe with four dimensions of space, worked out. Its light, its atoms and molecules, and its water, computed wherever they can be and checked against our own world. ATOM⁴ (the position), Lumen⁴ (light), IRIS⁴ (a rainbow you shape), and the papers to come." />
+<meta name="description" content="Four: a universe with four dimensions of space, worked out. The model (paper 1, a periodic table for four dimensions; ATOM⁴, the position; the table; the code) and the widgets for making sense of it, here, on kata and in the arcade." />
 <title>Four — a universe with four dimensions of space</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="atom/css/atom4.css" />
+<style>
+  .lead { display: block; margin: 6px 0 10px; border-color: var(--d4); }
+  .lead .row { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 8px; font: 600 13px var(--mono); }
+  .lead .row a { color: var(--d4); text-decoration: none; }
+  h3.part { font: 700 13px var(--mono); letter-spacing: 0.08em; color: var(--dim); text-transform: uppercase; margin: 34px 0 4px; }
+  p.part { font-size: 14px; margin-bottom: 10px; }
+  h4.group { color: var(--text); margin-top: 22px; }
+  ul.links { list-style: none; padding: 0; margin: 6px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+  ul.links a { display: block; height: 100%; box-sizing: border-box; text-decoration: none; color: inherit; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; }
+  ul.links a:hover { border-color: var(--d4); }
+  ul.links b { display: block; font: 700 13px var(--mono); color: var(--text); }
+  ul.links span { display: block; font-size: 13px; line-height: 1.45; color: var(--dim); }
+  ul.links i { font-style: normal; font: 600 11px var(--mono); color: var(--d3); margin-left: 6px; }
+</style>
 </head>
 <body>
 <header>
@@ -16,53 +30,82 @@
   <p class="lede">A universe with <b>four dimensions of space</b>, worked out: what its light does, what its atoms are, which molecule is its water, and how they hold together. It's computed wherever it can be, with solvers written for any dimension, and every solver is checked first on our own world, where the answers are known.</p>
 </header>
 <section>
-  <a class="card start" href="start/" style="margin: 6px 0 14px; border-color: var(--d4);"><h3>New here? Start with where we are</h3><ul style="list-style: none; padding-left: 0;">
-      <li>The whole argument in eleven steps, from why big, flat 4D has no atoms to which molecule might be its water. Each step has a toy to try, and a tag saying whether it's a choice we made, something that follows, something computed, or still open.</li>
-    </ul><span class="go">start here →</span></a>
+  <a class="card lead" href="papers/p1/draft/paper.html"><h3>Start here: paper 1 · a periodic table for four dimensions</h3><ul style="list-style: none; padding-left: 0;">
+      <li>The argument and the main results in six pages. Gauss's law gives a big, flat four-dimensional world no atoms, so the law between charges is pinned at 1/r. Then the atoms are solved: rows of 2, 10, 10, 28 and 28, a hardest-held electron that belongs to a full d shell rather than a noble gas, Hund's first rule broken, neutral atoms that pull from afar, and Pauli's exclusion derived rather than assumed.</li>
+    </ul><span class="go">read the paper →</span></a>
+  <p class="read" style="margin: 0 0 6px;"><a href="papers/p1/draft/supplement.html" style="color: var(--text)">the supplement</a> (the arguments and methods in full) · <a href="papers/p1/draft/paper.pdf" style="color: var(--text)">PDF</a> · <a href="papers/" style="color: var(--text)">how it's made</a> · <a href="https://tangled.org/morphyxmino.bsky.social/four-atom" style="color: var(--text)">the code (MIT)</a></p>
+
+  <h3 class="part">The model</h3>
+  <p class="part">Where the numbers come from: every result is computed by the solvers, checked against our own world first, and stated with what it rests on.</p>
   <div class="cards">
     <a class="card" href="table/"><h3>The periodic table · 140 elements</h3><ul>
       <li>Every element to 140, as the solver finds it, in rows of 2, 10, 10, 28, 28 and 60 (an f shell of 32), with our own table beside it.</li>
-      <li>88 do what one of ours does and take its name, a letter on: <b>iydrogen, darbon, pxygen</b>. <b>52 are new</b>, among them the two either side of darbon.</li>
+      <li>Inside each atom: its subshells in profile, and any orbital cut by any of the six planes of four-dimensional space.</li>
+      <li>88 do what one of ours does and take its name, a letter on: <b>iydrogen, darbon, pxygen</b>. <b>52 are new</b>.</li>
     </ul><span class="go">open the table →</span></a>
-    <a class="card" href="fields/"><h3>Fields · charges and magnets in 4D</h3><ul>
-      <li>Point charges look exactly like ours. Field lines sprout from empty space, and a neutral atom can be felt from outside.</li>
-      <li>B is in good standing but made of planes: a current loop's field falls as 1/r³, and a charge in a magnet turns in two planes at once.</li>
-    </ul><span class="go">play with the fields →</span></a>
-    <a class="card" href="plasma/"><h3>Plasma · magnetic fields that are two planes</h3><ul>
-      <li>A 4D magnetic field is two perpendicular planes turning at two rates. Set its six numbers and see them.</li>
-      <li>Frozen into flowing gas, its two-plane twist F∧F/ρ rides with every parcel, a conserved quantity our world doesn't have, and helicity has nowhere to live.</li>
-      <li>And a 4D star can make one: on the textbook dynamo test, helical cells grow a field faster than ours do.</li>
-    </ul><span class="go">turn a field →</span></a>
-    <a class="card" href="drift/"><h3>Drift golf · putt through a 4D magnet</h3><ul>
-      <li>Your ball is a charge; you can only push it, and the field turns every push sideways by how stiff each of its two planes is.</li>
-      <li>Ride one-plane highways, cross slants that tip the ball off the green into z and w. Seven holes, each checked playable in par.</li>
-    </ul><span class="go">tee off →</span></a>
-    <a class="card" href="orrery/"><h3>Orrery · a 4D planetary system, live</h3><ul>
-      <li>A star, planets and moons pulling on each other under pinned gravity, stepped forward live. Turn it, or slice it through w.</li>
-      <li>Its planes come from how a 4D nebula settles, its spacings from a 100,000-orbit stability map, its moons from the one plane the star can't tug.</li>
-    </ul><span class="go">run a system →</span></a>
     <a class="card" href="atom/"><h3>ATOM⁴ · the position</h3><ul>
-      <li>The official position on this universe: four dimensions of space, with the force between charges <b>pinned at 1/r</b>, since Gauss's law in 4D leaves atoms no ground state.</li>
-      <li>Seventeen chapters of working: geometry, the force, light, motion and spin, gravity, hydrogen, the periodic table, shapes, darbon, the forces between molecules, Xater, which molecule is the water, how hard all of this is to search, gases, nuclei, stars, and planetary systems.</li>
-      <li><b>New: stars.</b> If gravity is pinned like charge, a 4D star holds together as ours does, solved and checked. The weak force is added so stars can burn hydrogen, and gravity's routes are laid out beside charge's.</li>
-      <li><b>New: gases.</b> 4D's noble gases are held by the crowd, not their neighbours. A throttle cools them to tens of thousands of kelvin, and they condense thousands of kelvin hotter than their wells suggest.</li>
+      <li>The official position on this universe, every conclusion on one page, and seventeen chapters of working: geometry, the force, light, motion and spin, gravity, hydrogen, the table, shapes, darbon, the forces between molecules, Xater, which molecule is the water, how hard it is to search, gases, nuclei, stars and planetary systems.</li>
     </ul><span class="go">read the position →</span></a>
-    <a class="card" href="lumen/"><h3>Lumen⁴ · light</h3><ul>
-      <li>Light in four dimensions beside our own: 1/r³ falloff, a flash with a negative wake, a round hole's first dark ring at 1.43 λ/D, and radiation as T⁵.</li>
-      <li>The rainbow cut by your slice, and drawn on a flat screen as a conic section.</li>
-    </ul><span class="go">see the light →</span></a>
-    <a class="card" href="iris/"><h3>IRIS⁴ · a rainbow you shape</h3><ul>
-      <li>Walk a four-dimensional landscape after rain, in first person, and turn, twist and look into w.</li>
-      <li>The bow on your screen is the conic Lumen⁴ predicts, drawn over the rendered one.</li>
-    </ul><span class="go">walk under the bow →</span></a>
     <a class="card" href="papers/"><h3>Papers · how one gets made</h3><ul>
-      <li>First, <b>a periodic table for four dimensions</b>, written to the standard of a physics preprint, in the open.</li>
-      <li>Its claims are recomputed from the solver's numbers on every build, its references are checked one by one, and anyone can solve the atoms again.</li>
+      <li>Paper 1 in the open: its claims recomputed from the solver on every build, its references checked one by one, its audits and their answers, and a journal of everything that happened to it.</li>
     </ul><span class="go">watch it being made →</span></a>
+    <a class="card" href="atom/methods.html"><h3>Methods · how the book is computed</h3><ul>
+      <li>One panel per method: what it does, the checks that hold it, its cost and its limits. Every long run on GitHub's runners, in a ledger.</li>
+      <li>The solvers are released under the MIT licence on tangled, with their known-answer tests and a script that solves the paper's atoms again.</li>
+    </ul><span class="go">see the methods →</span></a>
   </div>
-  <h3>Games set in this universe</h3>
-  <p>The arcade has games built on the same geometry: <a href="https://games.mino.mobi/katabasis/" style="color: var(--text)">KATABASIS</a>, a cave walked in 4D; <a href="https://games.mino.mobi/plateau/" style="color: var(--text)">PLATEAU</a>, flight through a 4D foam; <a href="https://games.mino.mobi/foam4/" style="color: var(--text)">Foam⁴</a>, that foam one slice at a time; and <a href="https://games.mino.mobi/anakata/" style="color: var(--text)">Anakata</a>, <a href="https://games.mino.mobi/anabasis/" style="color: var(--text)">Anabasis</a> and <a href="https://games.mino.mobi/hinton/" style="color: var(--text)">Hinton</a>, puzzles you can only solve through w.</p>
-  <p class="foot"><a href="start/">where we are</a> · <a href="table/">the table</a> · <a href="papers/">papers</a> · <a href="fields/">fields</a> · <a href="plasma/">plasma</a> · <a href="drift/">drift golf</a> · <a href="orrery/">orrery</a> · <a href="atom/">ATOM⁴</a> · <a href="lumen/">Lumen⁴</a> · <a href="iris/">IRIS⁴</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
+
+  <h3 class="part">Making sense of it</h3>
+  <p class="part">Widgets for building an intuition: things to turn, slice, fly and play. Some run on the model's own code; others are built on the same geometry. They live here, on <a href="https://kata.mino.mobi/" style="color: var(--text)">kata</a> and in <a href="https://games.mino.mobi/" style="color: var(--text)">the arcade</a>.</p>
+
+  <h4 class="group">Charges, light and atoms</h4>
+  <ul class="links">
+    <li><a href="fields/"><b>Fields</b><span>Charges and magnets under the pinned law: field lines from empty space, a neutral atom felt from outside, a charge turning in two planes at once.</span></a></li>
+    <li><a href="papers/p1/widgets/"><b>The paper's widgets</b><span>Choose a law and watch atoms vanish or appear; turn screening on and off; feel a neutral atom's far pull.</span></a></li>
+    <li><a href="atom/hund.html"><b>Hund's rule, broken</b><span>Why two d electrons here would rather pair their spins: the orbitals, their angles, and the level ladder.</span></a></li>
+    <li><a href="https://kata.mino.mobi/orbital/"><b>ORBITAL<i>kata</i></b><span>Hydrogen's electron cloud in four dimensions: four p orbitals, nine d, sixteen f, and your slice through the nucleus.</span></a></li>
+    <li><a href="lumen/"><b>Lumen⁴</b><span>Light beside our own: 1/r³ falloff, a flash with a negative wake, a round hole's first dark ring at 1.43 λ/D.</span></a></li>
+    <li><a href="iris/"><b>IRIS⁴</b><span>Walk a four-dimensional landscape after rain and shape the rainbow by turning into w.</span></a></li>
+    <li><a href="plasma/"><b>Plasma</b><span>A magnetic field made of two planes, frozen into flowing gas, and a dynamo that grows faster than ours.</span></a></li>
+    <li><a href="https://kata.mino.mobi/wavelab/"><b>WAVELAB<i>kata</i></b><span>Water waves on a surface with three directions in it: a pebble dropped out of your slice, rings appearing from nowhere.</span></a></li>
+  </ul>
+
+  <h4 class="group">Moving through four dimensions</h4>
+  <ul class="links">
+    <li><a href="orrery/"><b>Orrery</b><span>A star, planets and moons under pinned gravity, stepped live. Turn it, or slice it through w.</span></a></li>
+    <li><a href="drift/"><b>Drift golf</b><span>Putt a charge through 4D magnetic fields that turn every push sideways. Seven holes, each checked playable in par.</span></a></li>
+    <li><a href="https://kata.mino.mobi/lean/"><b>LEAN<i>kata</i></b><span>A road made wide in two directions, on the floor of a four-dimensional basin. Walk the track.</span></a></li>
+    <li><a href="https://kata.mino.mobi/tailspin/"><b>TAILSPIN<i>kata</i></b><span>Ride a bicycle through four dimensions and teach yourself to lean into w. Ten levels.</span></a></li>
+    <li><a href="https://kata.mino.mobi/fallline/"><b>FALL LINE<i>kata</i></b><span>Downhill on a hill with three ground directions, along trails benched in as real ones are.</span></a></li>
+    <li><a href="https://kata.mino.mobi/wake/"><b>WAKE<i>kata</i></b><span>A boat on a four-dimensional lake, which heels two ways; its shape decides which way it falls.</span></a></li>
+    <li><a href="https://kata.mino.mobi/squid/"><b>SQUID<i>kata</i></b><span>Jet through an open sea with no down; your funnel aims three ways where ours aims two.</span></a></li>
+    <li><a href="https://kata.mino.mobi/volley/"><b>VOLLEY<i>kata</i></b><span>Hunt the many, who live in one slice of the arena: turn until your slice holds them.</span></a></li>
+    <li><a href="https://games.mino.mobi/hinton/"><b>Hinton<i>arcade</i></b><span>Four-dimensional rooms in first person; turning your sight swings your slice through the fourth dimension.</span></a></li>
+    <li><a href="https://games.mino.mobi/anakata/"><b>Anakata<i>arcade</i></b><span>A puzzle where you walk in x and y and can only see w by turning your sight.</span></a></li>
+    <li><a href="https://games.mino.mobi/anabasis/"><b>Anabasis<i>arcade</i></b><span>A climb with two gravities, down in z and kata in w: you stand only where you're held from both.</span></a></li>
+    <li><a href="https://games.mino.mobi/katabasis/"><b>KATABASIS<i>arcade</i></b><span>A cave in four dimensions by lamplight, seen from one slice; flip a wall to swing into ana or kata.</span></a></li>
+    <li><a href="https://games.mino.mobi/plateau/"><b>PLATEAU<i>arcade</i></b><span>Flight through a four-dimensional foam from the cockpit, where every turn is a double rotation.</span></a></li>
+  </ul>
+
+  <h4 class="group">Shapes and solids</h4>
+  <ul class="links">
+    <li><a href="https://games.mino.mobi/foam4/"><b>Foam⁴<i>arcade</i></b><span>A four-dimensional Voronoi foam one 3D slice at a time, Kelvin's 4D foam and the 24-cell's among them.</span></a></li>
+    <li><a href="https://games.mino.mobi/ziggurat/"><b>ZIGGURAT<i>arcade</i></b><span>The hopping-pyramid game one dimension up, on a staircase of tesseracts.</span></a></li>
+    <li><a href="https://kata.mino.mobi/cad4/"><b>CAD⁴<i>kata</i></b><span>A solid modeller for four dimensions: shapes climbed by extrude and revolve, then cut, joined and measured.</span></a></li>
+  </ul>
+
+  <h4 class="group">Soft matter and life</h4>
+  <ul class="links">
+    <li><a href="https://kata.mino.mobi/phase/"><b>PHASELAB<i>kata</i></b><span>Two liquids un-mixing, ours beside 4D: a 4D droplet is squeezed half again as hard by its own surface.</span></a></li>
+    <li><a href="https://kata.mino.mobi/lamp/"><b>LAVALAMP<i>kata</i></b><span>A lava lamp in the classic glass, ours beside a 4D one turned round its axis.</span></a></li>
+    <li><a href="https://kata.mino.mobi/tentacle/"><b>TENTACLE<i>kata</i></b><span>An arm with no bones, moved by muscle at constant volume: in 4D it bends three ways and twists three ways.</span></a></li>
+    <li><a href="https://kata.mino.mobi/octopus/"><b>OCTOPUS<i>kata</i></b><span>Eight of those arms on a head, rooted at a cube's corners round the mouth.</span></a></li>
+    <li><a href="https://kata.mino.mobi/cell/"><b>CELL<i>kata</i></b><span>A living membrane in 3D and 4D side by side: reach a pseudopod, throw a bleb, divide.</span></a></li>
+    <li><a href="https://kata.mino.mobi/amoeba/"><b>AMOEBA<i>kata</i></b><span>An amoeba built from its mechanics: membrane, cortex, pressure, and a signal that fires in patches.</span></a></li>
+    <li><a href="https://kata.mino.mobi/ooze/"><b>OOZE<i>kata</i></b><span>Pilot a 4D amoeba to the exit, steering on its smell sphere, ana and kata included.</span></a></li>
+  </ul>
+
+  <p class="foot"><a href="papers/p1/draft/paper.html">paper 1</a> · <a href="table/">the table</a> · <a href="atom/">ATOM⁴</a> · <a href="papers/">papers</a> · <a href="atom/methods.html">methods</a> · <a href="fields/">fields</a> · <a href="lumen/">Lumen⁴</a> · <a href="iris/">IRIS⁴</a> · <a href="plasma/">plasma</a> · <a href="orrery/">orrery</a> · <a href="drift/">drift golf</a> · <a href="https://kata.mino.mobi/">kata</a> · <a href="https://games.mino.mobi/">the arcade</a></p>
 </section>
 </body>
 </html>
