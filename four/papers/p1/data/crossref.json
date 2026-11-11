@@ -354,6 +354,34 @@
    "publisher": "Springer Science and Business Media LLC",
    "DOI": "10.1007/bf01352401"
   },
+  "10.1007/bf02727953": {
+   "type": "journal-article",
+   "title": "On the theory of identical particles",
+   "author": [
+    {
+     "family": "Leinaas",
+     "given": "J. M."
+    },
+    {
+     "family": "Myrheim",
+     "given": "J."
+    }
+   ],
+   "container-title": "Il Nuovo Cimento B Series 11",
+   "volume": "37",
+   "issue": "1",
+   "page": "1-23",
+   "issued": {
+    "date-parts": [
+     [
+      1977,
+      1
+     ]
+    ]
+   },
+   "publisher": "Springer Science and Business Media LLC",
+   "DOI": "10.1007/bf02727953"
+  },
   "10.1007/bf02784569": {
    "type": "journal-article",
    "title": "Schwarzschild field inn dimensions and the dimensionality of space problem",
@@ -1499,6 +1527,31 @@
    "publisher": "The Royal Society",
    "DOI": "10.1098/rspa.1950.0036"
   },
+  "10.1103/physrev.58.716": {
+   "type": "journal-article",
+   "title": "The Connection Between Spin and Statistics",
+   "author": [
+    {
+     "family": "Pauli",
+     "given": "W."
+    }
+   ],
+   "container-title": "Physical Review",
+   "volume": "58",
+   "issue": "8",
+   "page": "716-722",
+   "issued": {
+    "date-parts": [
+     [
+      1940,
+      10,
+      15
+     ]
+    ]
+   },
+   "publisher": "American Physical Society (APS)",
+   "DOI": "10.1103/physrev.58.716"
+  },
   "10.1103/physrev.80.797": {
    "type": "journal-article",
    "title": "Singular Potentials",
@@ -1849,6 +1902,35 @@
    },
    "publisher": "American Association of Physics Teachers (AAPT)",
    "DOI": "10.1119/1.11976"
+  },
+  "10.1119/1.18860": {
+   "type": "journal-article",
+   "title": "Toward an understanding of the spin-statistics theorem",
+   "author": [
+    {
+     "family": "Duck",
+     "given": "Ian"
+    },
+    {
+     "family": "Sudarshan",
+     "given": "E. C. G."
+    }
+   ],
+   "container-title": "American Journal of Physics",
+   "volume": "66",
+   "issue": "4",
+   "page": "284-303",
+   "issued": {
+    "date-parts": [
+     [
+      1998,
+      4,
+      1
+     ]
+    ]
+   },
+   "publisher": "American Association of Physics Teachers (AAPT)",
+   "DOI": "10.1119/1.18860"
   },
   "10.1137/0143034": {
    "type": "journal-article",

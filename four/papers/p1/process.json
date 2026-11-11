@@ -469,6 +469,10 @@
   {
    "date": "2026-11-10",
    "what": "Astra's follow-up audit of the F01–F08 pass (reviewed at 9ac683ed). F01 independently reproduced (11/11 sample, Z = 82, S1). F02: Methods' last 'firm' sentence replaced (agreement, coverage and margins reported separately). F03: hf-collect.mjs defaulted unrecorded term provenance to 'full'; rank now records it on every candidate, and for older runs it is reconstructed from the configuration (blocks are skipped only for their size), agreeing with all 376 recorded cases; unreadable is 'unknown'. Every far record accounted for (182: 54 complete, 128 partial, raw energies matched exactly), no corrected candidate below its ground; claim frow gates it. 20 f-row verdicts now rest on a partial competitor (was 13: Z = 90's 4f9 5d1 6s2 among the new), no verdict changed. F04 was already fixed in f67debed9."
+  },
+  {
+   "date": "2026-11-11",
+   "what": "Pauli's exclusion derived, not declared (PI). The half of spin-statistics that makes half-integer spin a fermion needs only a Dirac equation and an energy bounded below, which the lens vacuum keeps; it gives up locality only for the force. atom/js/pauli.js and selftest 73: the 4 + 1 Dirac levels ±E, and commuting electrons in one negative-energy packet of width b = N², whose pinned 1/r repulsion is at most √π/(4bν²), have energy at most −Nmc² + √π/2: no ground state. §2.5 and F.6 rewritten, three references (Pauli 1940, Duck–Sudarshan 1998, Leinaas–Myrheim 1977), claim pauli; the site's force and motion chapters and /start/ step 6 changed to match. What stays declared: that the electron is the smallest spinor."
   }
  ]
 }

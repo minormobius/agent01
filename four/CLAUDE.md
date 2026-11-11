@@ -921,9 +921,18 @@ for games, and this is a modelling programme with publications to come. The game
   shell's s. Under 1/r the rule gives 2, 12, 22, 42, 50, 70, 78 (with the zinc-kind 42, 70). So the rows survive the shell
   theorem but need the exponent 1/r.
   **The electron's two states (PI, 2026-11-10):** paper 1 §2.5 and appendix F.6 now derive what can be derived (the smallest
-  4 + 1 Dirac electron's slow limit is two states of one chirality, the selftest's γ matrices) and name what stays declared
-  (that the electron is that smallest spinor, and Pauli's exclusion, which spin-statistics can't supply here). A four-state
-  electron, (½,0)⊕(0,½), would double every shell (4, 20, 56, 120); a table under it is the natural next bracket, not built.
+  4 + 1 Dirac electron's slow limit is two states of one chirality, the selftest's γ matrices) and name what stays declared:
+  only that the electron is that smallest spinor. A four-state electron, (½,0)⊕(0,½), would double every shell (4, 20, 56,
+  120); a table under it is the natural next bracket, not built.
+  **Pauli's exclusion, derived (PI, 2026-11-11).** `atom/js/pauli.js` (no DOM, mirrored, selftest 73; a methods panel):
+  the half of spin-statistics that makes half-integer spin a fermion needs only the free field's Dirac equation and an
+  energy bounded below, not the locality the lens vacuum lacks. The free 4 + 1 Dirac Hamiltonian
+  H_D = cΣΓ_i p_i + mc²Γ₀ (Γ₀ = Γ₁Γ₂Γ₃Γ₄) has levels ±E; commuting electrons could share one negative-energy packet of
+  width b, whose pinned 1/r repulsion is at most √π/(4bν²) (Cauchy–Schwarz on the amplitude; ν ≥ ½ its negative-energy
+  weight; 1/r's 4D transform is 4π²/k³), so at b = N² the energy is ≤ −Nmc² + √π/2: no floor. Paper 1 §2.5 and F.6, claim
+  `pauli`; the site (force and motion chapters, `/start/` step 6) says exclusion follows. Pauli's own level of proof,
+  not the axiomatic theorem; bulk stability of the fermions stays open (F.7). The 4D "exchange-as-rotation" twist first
+  suspected doesn't exist: the left- and right-isoclinic half-turns differ by 2π, −1 on each electron, +1 on the pair.
   **Length (PI, 2026-11-10): the main text is at most seven two-column journal pages, with generous appendices.**
   `pages.cjs` (sandbox, Playwright) lays `draft/paper.html` out as a two-column letter page at 10 pt and prints the main
   text's page count and words (`draft/paper-journal.pdf`); check it after any change to the body. The body is §1–8 (the law,

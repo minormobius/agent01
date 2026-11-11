@@ -60,3 +60,7 @@ holds $2(l + 1)^2$ electrons. Bold letters are vectors.
 | $\mathrm K$, $\mathrm E$ (upright) | complete elliptic integrals of the first and second kind | App. A |
 | $P_n$ | the Legendre polynomial | App. A |
 | $\Omega_D$ | the volume of the unit ball in $D$ dimensions ($\pi^2/2$ for $D = 4$) | App. B |
+| $\Gamma_1, \dots, \Gamma_4$; $\Gamma_0$ | the spatial Dirac matrices of 4 + 1 dimensions; their product, time's | App. F.6 |
+| $H_\mathrm D$ | the free electron's Dirac Hamiltonian | App. F.6 |
+| $b$; $\nu$ | a wavepacket's width; its weight in the negative-energy states | App. F.6 |
+| $J$ | the $1/r$ repulsion between two copies of one charge density | App. F.6 |

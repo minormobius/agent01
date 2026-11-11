@@ -69,9 +69,11 @@ relativity, which the lens vacuum gives up only for the force between charges, a
 orbital holds. In 4 + 1 dimensions the smallest Dirac electron has four components, the product of the four spatial
 Dirac matrices serves as time's, and a slow electron keeps the two components of one chirality, which turn with one
 half of a four-dimensional rotation only: two spin states, two to an orbital (appendix F.6). A four-state electron is
-possible in principle and would double every shell. What stays declared is that the electron is the smallest spinor and
-that it obeys Pauli's exclusion, which in ours the spin-statistics theorem derives from a local, relativistic theory, as
-the force here is not. Nuclei are point charges stable to $Z = 140$, and the fine-structure constant is small, so atoms
+possible in principle and would double every shell. The same relativity of the free electron gives Pauli's exclusion.
+The half of the spin-statistics theorem that makes half-integer spin a fermion needs only a Dirac equation and an
+energy bounded below, not the locality the force here lacks: electrons that could share a state would have no ground
+state, the pinned $1/r$ between them notwithstanding (appendix F.6). What stays declared is that the electron is that
+smallest spinor. Nuclei are point charges stable to $Z = 140$, and the fine-structure constant is small, so atoms
 are solved without relativity. Single atoms don't collapse (their energies follow the Thomas–Fermi
 $Z^{5/2}$ [@kventsel1981], fitted exponent 2.527), but the stability of matter in bulk, whose proofs in ours lean
 on the shell theorem, is open (appendix F.7).

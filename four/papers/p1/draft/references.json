@@ -2235,5 +2235,90 @@
   "publisher": "Physical Society of Japan",
   "DOI": "10.1143/JPSJ.9.753",
   "id": "tanabe1954"
+ },
+ {
+  "type": "article-journal",
+  "title": "The connection between spin and statistics",
+  "author": [
+   {
+    "family": "Pauli",
+    "given": "W."
+   }
+  ],
+  "container-title": "Physical Review",
+  "volume": "58",
+  "issue": "8",
+  "page": "716-722",
+  "issued": {
+   "date-parts": [
+    [
+     1940,
+     10,
+     15
+    ]
+   ]
+  },
+  "publisher": "American Physical Society (APS)",
+  "DOI": "10.1103/PhysRev.58.716",
+  "id": "pauli1940"
+ },
+ {
+  "type": "article-journal",
+  "title": "Toward an understanding of the spin-statistics theorem",
+  "author": [
+   {
+    "family": "Duck",
+    "given": "Ian"
+   },
+   {
+    "family": "Sudarshan",
+    "given": "E. C. G."
+   }
+  ],
+  "container-title": "American Journal of Physics",
+  "volume": "66",
+  "issue": "4",
+  "page": "284-303",
+  "issued": {
+   "date-parts": [
+    [
+     1998,
+     4,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Association of Physics Teachers (AAPT)",
+  "DOI": "10.1119/1.18860",
+  "id": "duck1998"
+ },
+ {
+  "type": "article-journal",
+  "title": "On the theory of identical particles",
+  "author": [
+   {
+    "family": "Leinaas",
+    "given": "J. M."
+   },
+   {
+    "family": "Myrheim",
+    "given": "J."
+   }
+  ],
+  "container-title": "Il Nuovo Cimento B Series 11",
+  "volume": "37",
+  "issue": "1",
+  "page": "1-23",
+  "issued": {
+   "date-parts": [
+    [
+     1977,
+     1
+    ]
+   ]
+  },
+  "publisher": "Springer Science and Business Media LLC",
+  "DOI": "10.1007/BF02727953",
+  "id": "leinaas1977"
  }
 ]

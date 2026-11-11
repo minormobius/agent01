@@ -65,6 +65,8 @@ M=[
   "Closed forms for each route's kernel and its costs, the unitarity bound, the lens vacuum's response, scattering, and Biot–Savart fields under each kernel.",(9,12,33),("atom/js/fields.js",),("force",),"seconds",""),
  ("turning","Turning and spin","Rotations in planes, handed spin, and tumbling bodies.",
   "so(4) = so(3) ⊕ so(3) by the Hodge star; the spinor representation from 4 + 1 gamma matrices; Euler's equations for a free 4D body in six components.",(13,),("atom/js/turning.js",),("motion",),"seconds",""),
+ ("pauli","Pauli's exclusion, derived","Why electrons can't share a state here, though the force between them isn't relativistic.",
+  "The free electron's 4 + 1 Dirac Hamiltonian has levels ±√(c²p² + m²c⁴). If electrons commuted, N of them could share one negative-energy wavepacket of width b; their pinned 1/r repulsion is at most √π/(4bν²) by Cauchy–Schwarz on the packet's amplitude (ν ≥ ½ its weight in those states), so at b = N² the energy is at most −Nmc² + √π/2 and has no floor. Only the half of spin-statistics that needs positive energy is used, not the locality the lens vacuum lacks.",(73,),("atom/js/pauli.js",),("force","motion"),"under a second","Pauli's own level of proof (free fields, the interaction added), not the axiomatic theorem; says nothing on whether fermionic matter in bulk is stable."),
  ("shapes","Shapes","The six regular 4D polytopes, hybrid bonds and diamond nets.",
   "Built from their vertices, with edges, faces and cells found from them and counted against their known numbers.",(10,11),("atom/js/polytopes.js",),("shapes","darbon"),"seconds",""),
 ]

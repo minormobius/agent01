@@ -50,7 +50,7 @@ theorem forced back on, to find which of its features the law decides (section [
 atoms that later work on molecules starts from (section [7](#sec-7)). The appendices, in the [supplement](supplement.html), hold the arguments and methods in full,
 every check of every method against our own world, and the starting data for chemistry: valence states, the atoms'
 response, and a test of the valence rule. Every number in the text is recomputed from the code and its data whenever
-anything changes, and checked against a ledger of 41 claims. The solvers, with their known-answer tests and a
+anything changes, and checked against a ledger of 42 claims. The solvers, with their known-answer tests and a
 script that solves the paper's atoms again, are released under the MIT licence at
 [tangled.org/morphyxmino.bsky.social/four-atom](https://tangled.org/morphyxmino.bsky.social/four-atom); the data and the paper's making are public at [four.mino.mobi/papers](https://four.mino.mobi/papers).
 
@@ -122,9 +122,11 @@ relativity, which the lens vacuum gives up only for the force between charges, a
 orbital holds. In 4 + 1 dimensions the smallest Dirac electron has four components, the product of the four spatial
 Dirac matrices serves as time's, and a slow electron keeps the two components of one chirality, which turn with one
 half of a four-dimensional rotation only: two spin states, two to an orbital (appendix [F.6](supplement.html#app-f-6)). A four-state electron is
-possible in principle and would double every shell. What stays declared is that the electron is the smallest spinor and
-that it obeys Pauli's exclusion, which in ours the spin-statistics theorem derives from a local, relativistic theory, as
-the force here is not. Nuclei are point charges stable to $Z = 140$, and the fine-structure constant is small, so atoms
+possible in principle and would double every shell. The same relativity of the free electron gives Pauli's exclusion.
+The half of the spin-statistics theorem that makes half-integer spin a fermion needs only a Dirac equation and an
+energy bounded below, not the locality the force here lacks: electrons that could share a state would have no ground
+state, the pinned $1/r$ between them notwithstanding (appendix [F.6](supplement.html#app-f-6)). What stays declared is that the electron is that
+smallest spinor. Nuclei are point charges stable to $Z = 140$, and the fine-structure constant is small, so atoms
 are solved without relativity. Single atoms don't collapse (their energies follow the Thomas–Fermi
 $Z^{5/2}$ [@kventsel1981], fitted exponent 2.527), but the stability of matter in bulk, whose proofs in ours lean
 on the shell theorem, is open (appendix [F.7](supplement.html#app-f-7)).
@@ -342,7 +344,7 @@ $1/r^2$ breaks it too.
 The [supplement](supplement.html) holds the [notation](supplement.html#notation) and [appendices [A](supplement.html#app-a)–K](supplement.html#app-a): the arguments and
 methods in full, every check against our own world, the starting data for chemistry, the atoms' response, and how to
 reproduce every number. Supplement S1 is the table with every open subshell given Hund spins
-([`data/table4-hundspin.csv`](../data/table4-hundspin.csv)). The 41 claims this text rests on, each
+([`data/table4-hundspin.csv`](../data/table4-hundspin.csv)). The 42 claims this text rests on, each
 recomputed from the data behind it, are in [`ledger.json`](../ledger.json) and on the paper's
 [process page](../../); the solvers, MIT-licensed, are at [tangled.org/morphyxmino.bsky.social/four-atom](https://tangled.org/morphyxmino.bsky.social/four-atom), the
 interactive table at [four.mino.mobi/table](https://four.mino.mobi/table), and figure [5](#fig-5)'s hydrogen twin at [kata.mino.mobi/orbital](https://kata.mino.mobi/orbital).

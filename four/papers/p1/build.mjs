@@ -27,6 +27,7 @@ import * as FIELDS from "../../atom/js/fields.js";
 import { SYM, IE_REAL, realConfig, isNoble, layout } from "../../atom/js/periodic.js";
 import { names } from "../../atom/js/names.js";
 import { peaks as etaPeaks, settled as etaSettled } from "./eta.js";
+import * as PAULI from "../../atom/js/pauli.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const EV = 27.211386245988; // eV per hartree (CODATA 2018)
@@ -296,6 +297,11 @@ export function vtTokens() {
 /* section 6.5 and appendix F.8: the table under 1/r^η, η = 0.5 and 1.5 (atom/tools/etatable.mjs → data/etatable.json),
    its noble gases by eta.js's rule, and 1/r's own by the same rule for comparison */
 export const ETA = JSON.parse(readFileSync(join(HERE, "data/etatable.json"), "utf8")).rows;
+/* Pauli's exclusion derived (appendix F.6, atom/js/pauli.js): N bosonic electrons in one negative-energy packet */
+export function pauliTokens() {
+  const r = PAULI.boseBound(10), f = (x) => x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/,/g, " ").replace("-", "−");
+  return { "pauli.e10": f(r.E), "pauli.mc10": f(-10 * PAULI.C_LIGHT ** 2) };
+}
 export function etaTokens() {
   const of = (eta) => ETA.filter((r) => r.eta === eta), list = (rs) => rs.map((r) => r.Z).join(", ").replace(/, ([^,]*)$/, " and $1");
   const t1 = JSON.parse(readFileSync(join(HERE, "data/table4.json"), "utf8")).filter((r) => r.Z <= 100).map((r) => ({ Z: r.Z, config: r.config, E: r.E_hartree, ion: r.ion_hartree }));
@@ -490,6 +496,11 @@ function ledger(t3, t4, files, refs) {
           // below its ground, and the reconstructed term completeness agreeing with every recorded case
           && ((P) => P.farCheck.records === P.farCheck.farRows && !P.farCheck.missing.length && !P.farCheck.rawMismatch.length && !P.newMinima.length && P.termCheck.agree === P.termCheck.recorded && P.termCheck.recorded > 0)(HFT.summary.provenance),
         section: "4.3, E.6", gate: [67, 71] }; })(),
+    (() => { const bs = [1, 10, 100, 1000].map((N) => PAULI.boseBound(N)), c2 = PAULI.C_LIGHT ** 2;
+      return { id: "pauli", part: "law", claim: "Pauli's exclusion follows rather than being declared: the free electron keeps its 4 + 1 Dirac equation, whose levels come in both signs, and electrons that commute could pile into one negative-energy packet, where the pinned 1/r between them (at most √π/4bν² for a packet of width b) can't stop the energy falling by about mc² an electron. Only the half of spin-statistics that needs positive energy is used, not the locality the lens vacuum lacks.",
+        value: `bosonic bound at b = N²: N = 10 ${pauliTokens()["pauli.e10"]} hartree, N = 1000 ${(bs[3].E / 1000 / c2).toFixed(6).replace("-", "−")} mc² an electron; floor −N mc² + √π/2`,
+        holds: bs.every((r) => r.E <= r.floor + 1e-9 && r.nu >= 0.5) && bs.every((r, i) => !i || r.E < bs[i - 1].E) && Math.abs(bs[3].E / 1000 / c2 + 1) < 1e-6,
+        section: "2.5, F.6", gate: [73] }; })(),
     (() => { const T = etaTokens(), o5 = ETA.filter((r) => r.eta === 0.5), o15 = ETA.filter((r) => r.eta === 1.5);
       return { id: "etarows", part: "consequence", claim: "The rows need the exponent 1/r: the table solved again under 1/r^0.5 and 1/r^1.5 (every pair of charges alike, elements 1–100) puts its noble gases elsewhere, at hydrogen's shells (2, 12, 40, 100) under η = 0.5 and at 2, 14, 24, 34, 72 under η = 1.5, where only 1/r gives the generalized Madelung rule's",
         value: `noble gases by one rule: η = 0.5 ${T["eta.n05"]}; η = 1 ${T["eta.n1"]}; η = 1.5 ${T["eta.n15"]}; settled ${T["eta.settled05"]} and ${T["eta.settled15"]} of ${T["eta.zmax"]}; 5g below the outermost level in ${T["eta.gIntrude"]} atoms`,
@@ -573,6 +584,7 @@ function hundTokens() {
     ...valTokens(),
     ...vtTokens(),
     ...etaTokens(),
+    ...pauliTokens(),
     ...(() => { const R = JSON.parse(readFileSync(join(HERE, "data/he4check.json"), "utf8")).rows, g = R.map((r) => r.gap); return { "he4.gap": `${Math.min(...g).toFixed(3)}–${Math.max(...g).toFixed(3)}` }; })(),
     ...(() => { const P = JSON.parse(readFileSync(join(HERE, "data/promotion3.json"), "utf8")), ok = P.promotion.filter((x) => !x.missing), sgn = (v) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(2);
       const dc = (cfg) => [...cfg.matchAll(/\d[df](\d+)/g)].reduce((t, m) => t + +m[1], 0), sup = (c) => c.split(" ").slice(-2).map((t) => t.replace(/(\d[spdf])(\d+)/, (_, a, n) => a + supN(n))).join(" ");

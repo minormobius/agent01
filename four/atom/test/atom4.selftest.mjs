@@ -1315,5 +1315,32 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `a law 1/r^η: exchange constant at η = 1 is A₄ ${c1 ? "exactly" : "NOT"}; ∫x^(−1−η)J₂² ${jq ? "matches quadrature" : "off"} at η = 0.5, 1.5; kernel ${kk ? "k4 at η = 1, converged at t = 1" : "off"}; one electron ${hyd.map((h) => `η = ${h.eta}: ${h.scf.toFixed(6)} (laws.js ${h.ref.toFixed(6)})`).join(", ")}`);
 }
 
+/* 73 · Pauli's exclusion derived (js/pauli.js, paper 1 appendix F.6): the 4 + 1 Dirac Hamiltonian has the levels ±E, twice
+   each; with commutators N electrons can share one negative-energy packet, and the pinned 1/r between them, bounded by
+   Cauchy–Schwarz on the packet's amplitude, can't stop the energy falling by mc² an electron: no ground state */
+{
+  const P = await import("../js/pauli.js");
+  let s = 0x5eed1234; const rnd = () => { s = (s + 0x6d2b79f5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const gauss = () => Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(2 * Math.PI * rnd());
+  // the Dirac Hamiltonian: H_D² = E², traceless (so ±E twice each), its negative-energy projector of rank 2, and the rest spinor's weight
+  let dirac = 0, proj = 0, wt = 0; const chi = P.restNegative();
+  for (let i = 0; i < 20; i++) { const p = [0, 1, 2, 3].map(() => gauss() * 200), E = P.diracE(p), H = P.diracH(p), M = P.negProjector(p);
+    dirac = Math.max(dirac, P.msize(P.mlin(P.mmul(H, H), P.I4, 1, -E * E)) / (E * E), Math.abs(H.reduce((t, r, j) => t + r[j][0], 0)) / E);
+    proj = Math.max(proj, P.msize(P.mlin(P.mmul(M, M), M, 1, -1)), Math.abs(M.reduce((t, r, j) => t + r[j][0], 0) - 2));
+    wt = Math.max(wt, Math.abs(P.vdot(chi, P.mapply(M, chi))[0] - (1 + P.C_LIGHT ** 2 / E) / 2)); }
+  // the pinned 1/r between two Gaussian clouds of width b, by sampling: √π/(4b), so 4π²/k³ is 1/r's transform in 4D
+  const b = 0.8, nmc = 60000; let J = 0; for (let i = 0; i < nmc; i++) J += 1 / Math.hypot(...[0, 1, 2, 3].map(() => (gauss() - gauss()) * b)); J /= nmc;
+  // the bound on a spinor packet's density, at the Compton width where its spin structure matters: |ρ̂(k)| ≤ e^(−b²k²/2)/ν
+  const bc = 1 / P.C_LIGHT, pk = P.packet(bc), kv = [1 / bc, 0, 0, 0]; let re = 0, im = 0;
+  for (let i = 0; i < 20000; i++) { const p = [0, 1, 2, 3].map(() => gauss() / (2 * bc)), q = p.map((x, j) => x + kv[j]);
+    const u = P.mapply(P.negProjector(p), chi), v = P.mapply(P.negProjector(q), chi), d = P.vdot(u, v), f = Math.exp(-bc * bc * (2 * p[0] * kv[0] + kv[0] * kv[0]));
+    re += d[0] * f; im += d[1] * f; }
+  const rho = Math.hypot(re, im) / 20000 / pk.nu, rhoMax = Math.exp(-0.5) / pk.nu;
+  // N bosonic electrons at b = N²: below −N mc² + √π/2, falling by mc² an electron
+  const bs = [1, 10, 100, 1000].map((N) => P.boseBound(N)), falls = bs.every((r) => r.E <= r.floor + 1e-9 && r.kinetic <= -(P.C_LIGHT ** 2) * (1 - 1e-12)) && Math.abs(bs[3].E / 1000 / P.C_LIGHT ** 2 + 1) < 1e-6;
+  ok(dirac < 1e-12 && proj < 1e-12 && wt < 1e-12 && Math.abs(J / P.gaussianRepulsion(b) - 1) < 0.01 && rho <= rhoMax * 1.02 && rho > 0.5 * rhoMax && falls,
+    `Pauli derived: H_D² = E² to ${dirac.toExponential(0)}, P₋ rank 2, ν = (1 + mc²/E)/2; 1/r between Gaussian clouds ${(J / P.gaussianRepulsion(b)).toFixed(4)} × √π/4b; spinor packet |ρ̂| ${rho.toFixed(3)} ≤ ${rhoMax.toFixed(3)}; bosons at N = 1000: ${(bs[3].E / 1000 / P.C_LIGHT ** 2).toFixed(6)} mc² an electron, no floor`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

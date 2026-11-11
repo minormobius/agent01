@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="0effa1f64617b78843e39afd33adcb2e916d2e138970d1ae57c8e4f3f0edce35" />
+<meta name="source-sha256" content="cefc6d05e246e0d7fe10c9a93c619862ece59cb1750a242126968d9c45effac4" />
 <title>Paper 1 · Paper 1 · the whole draft</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../paper.css" />
@@ -142,7 +142,7 @@ full, every check of every method against our own world, and the
 starting data for chemistry: valence states, the atoms’ response, and a
 test of the valence rule. Every number in the text is recomputed from
 the code and its data whenever anything changes, and checked against a
-ledger of 41 claims. The solvers, with their known-answer tests and a
+ledger of 42 claims. The solvers, with their known-answer tests and a
 script that solves the paper’s atoms again, are released under the MIT
 licence at <a
 href="https://tangled.org/morphyxmino.bsky.social/four-atom">tangled.org/morphyxmino.bsky.social/four-atom</a>;
@@ -384,11 +384,16 @@ of the four spatial Dirac matrices serves as time’s, and a slow electron
 keeps the two components of one chirality, which turn with one half of a
 four-dimensional rotation only: two spin states, two to an orbital
 (appendix <a href="supplement.html#app-f-6">F.6</a>). A four-state
-electron is possible in principle and would double every shell. What
-stays declared is that the electron is the smallest spinor and that it
-obeys Pauli’s exclusion, which in ours the spin-statistics theorem
-derives from a local, relativistic theory, as the force here is not.
-Nuclei are point charges stable to
+electron is possible in principle and would double every shell. The same
+relativity of the free electron gives Pauli’s exclusion. The half of the
+spin-statistics theorem that makes half-integer spin a fermion needs
+only a Dirac equation and an energy bounded below, not the locality the
+force here lacks: electrons that could share a state would have no
+ground state, the pinned
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+between them notwithstanding (appendix <a
+href="supplement.html#app-f-6">F.6</a>). What stays declared is that the
+electron is that smallest spinor. Nuclei are point charges stable to
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mn>140</mn></mrow><annotation encoding="application/x-tex">Z = 140</annotation></semantics></math>,
 and the fine-structure constant is small, so atoms are solved without
 relativity. Single atoms don’t collapse (their energies follow the
@@ -874,7 +879,7 @@ every check against our own world, the starting data for chemistry, the
 atoms’ response, and how to reproduce every number. Supplement S1 is the
 table with every open subshell given Hund spins (<a
 href="../data/table4-hundspin.csv"><code>data/table4-hundspin.csv</code></a>).
-The 41 claims this text rests on, each recomputed from the data behind
+The 42 claims this text rests on, each recomputed from the data behind
 it, are in <a href="../ledger.json"><code>ledger.json</code></a> and on
 the paper’s <a href="../../">process page</a>; the solvers,
 MIT-licensed, are at <a

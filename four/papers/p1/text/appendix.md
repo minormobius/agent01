@@ -323,7 +323,7 @@ state needs. Every choice of permeability gives the same statics, so nothing her
 on how the lens vacuum's fields move and radiate, or on the absolute now. Those dynamics, of the same lens vacuum, are
 the subject of a later paper.
 
-**F.6 Electrons: what is derived and what is declared; nuclei and the fine-structure constant.** An electron's spin is a
+**F.6 Electrons: their two states and Pauli's exclusion derived, what is declared; nuclei and the fine-structure constant.** An electron's spin is a
 representation of the rotations, and in four dimensions they split: so(4) = so(3) ⊕ so(3), a turn's left half and right
 half. The spinors of Spin(4) = SU(2) × SU(2) come as $(\tfrac12, 0)$, two states that turn with the left half only,
 $(0, \tfrac12)$, two that turn with the right, and their sum, four. The smallest have two states. The free electron
@@ -336,11 +336,42 @@ $(\tfrac12, 0) \oplus (0, \tfrac12)$, would need two such Dirac fields with the 
 all but name. It would hold four to an orbital: the hydrogen shells would hold 4, 20, 56 and 120, every row of the
 table would be twice as long, and the noble gases would sit elsewhere. The vector $(\tfrac12, \tfrac12)$ also has
 four states, but a full turn leaves it unchanged; it is integer spin, not an electron's. So two states is what the
-smallest relativistic electron gives, and that is the choice made. Two things remain declared. One is that the electron
-is that smallest spinor. The other is Pauli's exclusion: in ours the spin-statistics theorem derives it from relativity
-and locality together, and the force here is neither, so the theorem can't be borrowed. The exclusion is what the proofs
-of stability in ours lean on [@dyson1967; @lieb1975], so without it bulk matter would have no claim to stability here
-either. Nuclei
+smallest relativistic electron gives, and that is the choice made. One thing remains declared: that the electron is
+that smallest spinor.
+
+*Pauli's exclusion, derived.* The spin-statistics theorem has two halves [@pauli1940; @duck1998]. That a field of
+integer spin can't anticommute rests on causality, and so on locality, which the force here doesn't have. That a field
+of half-integer spin can't commute rests only on its Dirac equation and on an energy bounded below. The lens vacuum keeps
+both: it gives up relativity for the force between charges only, and its light never carries negative energy (F.5). The
+argument has three steps, each checked by the selftest's block 73.
+
+1. *The free electron has levels of both signs.* With $\Gamma_1, \dots, \Gamma_4$ the spatial Dirac matrices above and
+   $\Gamma_0 = \Gamma_1\Gamma_2\Gamma_3\Gamma_4$, the free electron's Hamiltonian is
+   $H_\mathrm D(\mathbf p) = c\sum_i\Gamma_i p_i + m_ec^2\,\Gamma_0$. Its square is $c^2p^2 + m_e^2c^4$ times one, so its
+   levels are $\pm\sqrt{c^2p^2 + m_e^2c^4}$, two of each.
+2. *Electrons that commute can share a negative-energy state.* With anticommutators each state holds one electron, and
+   the negative levels are full: the vacuum of the hole theory. With commutators nothing fills them. Put $N$ electrons in
+   one wavepacket of negative-energy states of width $b$ (amplitude $\propto e^{-b^2p^2}$, on a spinor at rest with
+   $\Gamma_0 = -1$). Its weight in those states is $\nu = \langle(1 + m_ec^2/E)/2\rangle \ge \tfrac12$, and each electron
+   brings $\langle H_\mathrm D\rangle \le -m_ec^2$.
+3. *The pinned law can't stop them.* Their repulsion is $\tfrac12N(N - 1)J$, with $J$ the pinned $1/r$ between two copies
+   of the packet's charge density. In four dimensions $1/r$ is the transform of $4\pi^2/k^3$, and the density's transform
+   is at most $e^{-b^2k^2/2}/\nu$ (Cauchy–Schwarz on the amplitude), so $J \le \sqrt\pi/(4b\nu^2)$. For a round Gaussian
+   cloud it is $\sqrt\pi/(4b)$ exactly. At $b = N^2$ bohr, with the light in its vacuum, the energy is at most
+   $-Nm_ec^2 + \sqrt\pi/2$ hartree. It falls without end as $N$ grows: at $N = 10$ it is at most {{pauli.e10}}
+   hartree, the repulsion taking back only a fraction of a hartree from $-10\,m_ec^2$ = {{pauli.mc10}}.
+
+So electrons that commute have no ground state. Identical particles in three or more dimensions can only be bosons or
+fermions [@leinaas1977], so the electron is a fermion. Any repulsion that weakens with distance gives the same result;
+Gauss's law would change only how wide the packet must be.
+
+This is the theorem at the level of Pauli's own proof: free fields, with the interaction added to them. The general
+theorem of axiomatic field theory assumes that the whole theory is local, and it still doesn't apply here. The argument
+also leaves two things open. It doesn't show that anticommuting electrons have a ground state in bulk; that is F.7's
+question, and exclusion is what the proofs of stability in ours lean on [@dyson1967; @lieb1975]. Nor does it make the
+electron the smallest spinor: a four-state electron would be a fermion too.
+
+Nuclei
 are point charges $+Z$, stable for every $Z$ to 140 (declared: nuclear physics in four dimensions is another paper). The
 fine-structure constant is small, so atoms are solved without relativity (section 8). No other long-range field acts
 on charges.

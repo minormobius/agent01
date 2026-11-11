@@ -1642,6 +1642,42 @@
    "status": "index",
    "source": "Crossref record checked; the d² diagram's triplet ground at every field is the standard reading of their figures (text not reread)",
    "role": "§7.5: the d² check in ours"
+  },
+  {
+   "key": "pauli1940",
+   "authors": "W. Pauli",
+   "title": "The connection between spin and statistics",
+   "venue": "Phys. Rev.",
+   "volume": "58",
+   "pages": "716–722",
+   "year": 1940,
+   "doi": "10.1103/PhysRev.58.716",
+   "status": "index",
+   "role": "the law: spin-statistics for free fields; half-integer spin quantized with commutators has no positive energy"
+  },
+  {
+   "key": "duck1998",
+   "authors": "I. Duck & E. C. G. Sudarshan",
+   "title": "Toward an understanding of the spin-statistics theorem",
+   "venue": "Am. J. Phys.",
+   "volume": "66",
+   "pages": "284–303",
+   "year": 1998,
+   "doi": "10.1119/1.18860",
+   "status": "index",
+   "role": "the law: the theorem's two halves and what each assumes"
+  },
+  {
+   "key": "leinaas1977",
+   "authors": "J. M. Leinaas & J. Myrheim",
+   "title": "On the theory of identical particles",
+   "venue": "Il Nuovo Cimento B",
+   "volume": "37",
+   "pages": "1–23",
+   "year": 1977,
+   "doi": "10.1007/BF02727953",
+   "status": "index",
+   "role": "the law: in three or more dimensions identical particles are bosons or fermions"
   }
  ]
 }
