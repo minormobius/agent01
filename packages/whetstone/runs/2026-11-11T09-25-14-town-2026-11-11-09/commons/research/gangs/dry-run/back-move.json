@@ -1,0 +1,49 @@
+{
+ "records": [
+  {
+   "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.move/3my4tozetbn2s",
+   "cid": "bafyreibfesf4fs7siemjsqo4ocsjd36tfnmwbdbbca3vqygyd2zzslburq",
+   "value": {
+    "game": {
+     "cid": "bafyreiahp4n757fncexsoj4sjr6aim6hcglcjlkyxmj6usrjh7jo3bmk4y",
+     "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.game/3my4too3eun2s"
+    },
+    "kind": "ask",
+    "text": "Dry run ask: prowl.",
+    "$type": "com.minomobi.gangs.move",
+    "bonus": 0,
+    "sheet": {
+     "cid": "bafyreibnk4jfcdwa7pvww7226ovhu6cspeubezrfeqo3zqcnethh67qa4e",
+     "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.sheet/3my4toz3zzn2s"
+    },
+    "action": "prowl",
+    "prompt": {
+     "cid": "bafyreibwfd6d7wu6c7bqxegha6ykuvi2ynftdquky4eethb2q4g4n5dgla",
+     "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.move/3my4tozacqn2s"
+    },
+    "createdAt": "2026-10-18T05:10:20.000Z"
+   }
+  },
+  {
+   "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.move/3my4tozacqn2s",
+   "cid": "bafyreibwfd6d7wu6c7bqxegha6ykuvi2ynftdquky4eethb2q4g4n5dgla",
+   "value": {
+    "game": {
+     "cid": "bafyreiahp4n757fncexsoj4sjr6aim6hcglcjlkyxmj6usrjh7jo3bmk4y",
+     "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.game/3my4too3eun2s"
+    },
+    "kind": "prompt",
+    "text": "Dry run prompt: one roll, any action. Nothing here is a game.",
+    "$type": "com.minomobi.gangs.move",
+    "createdAt": "2026-10-18T05:10:20.000Z"
+   }
+  }
+ ],
+ "cursor": "3my4tozacqn2s",
+ "left": {
+  "follow": 30,
+  "like": 100,
+  "writes": 495,
+  "reads": 2000
+ }
+}
