@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-11-10 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-11-11 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): ai-edu, airchat, answers, ar, archive, arnold, assets, astra, atlas, atproto-data, aub, audio, auto, aztec, b, bakeoff, bakery, biome, bisk, bismuth, board, borges, borsuk, bounty, bsky, cable, canvas, capset, cards, cell, chair44, chat, civ, clef, clock, cluster, cohomology, conjectures, crm, crucible, csaszar, curve, data, del, density, descent, docs, draw, duck, echo, eigensite, elements, empathy, equivelar, erdos, fable, farm, fifty, finance, fipo, fix, flights, flows, fluoddity, foam, fold, four, functions, g, games, geometry, golem, grad, guthkatz, hadwiger, heilbronn, henderhead, hoop, hoop-archive, hoop-backend, hoop-history, hopper, human, idol, imp, ink, io, iris, ising, j, jog, js, judge, jurassic, kakeya, ken, lab, labglass, loop, mail, mappa, markov, math, meander, mega, miniphim, mmo, modulo, moji, morphyx, music, nb, neuro, next, noise, notes, novelty, ns, ocr, office, org, orrery, os, packages, paint, parts, pds, perp, photo, phylo, phylofiction, pizza, plant, pm, pod, pokemon, polis, poll, procgen, proofs, prop, range, rant, read, reef, rethink, rind, rite, runner, sci, scripts, seek, silk, spec, splice, src, stats, studio, sweat, szemeredi-trotter, szilassi, table, tape, temperley-lieb, ternary, ternary2, ternary3, tide, time, tjs, torus, track, traffic, uni, unit, vault, viazovska, voronoi, wars, wave, weft, wiki, wild, words, workers, wormhole, zest, zoom
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-10, 100 members / 276 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: llm, fable, ppl
-- Top post: "I have found the table of writing tics that instantly drives a person to madness" — @eugenevinitsky.bsky.social
+**Neighborhood spark** (bisk 2026-11-11, 100 members / 271 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: ppl, bluesky, llm
+- Top post: "right vs left is now c/c++ vs rust" — @hailey.at
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
