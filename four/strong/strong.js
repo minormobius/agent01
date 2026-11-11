@@ -6,11 +6,11 @@ import { DIAL } from "./data.js";
 const $ = (id) => document.getElementById(id);
 const BETA = 1.29333 + 0.510999, PEP = 1.29333 - 0.510999, OURS_B = DIAL.ours.deuteron;
 // 4D names (atom/js/names.js; element 8 is one of the 52 new ones, so it has no name)
-const NAME = { He: "ielium", 2: "ielium", 4: "ceryllium", 6: "element 6", 7: "darbon", 8: "element 8", 9: "oitrogen", 10: "pxygen", 11: "gluorine", 12: "oeon", 13: "todium" };
-const COLOR = { He: "#6fe0ff", 8: "#9a958c", 9: "#ffb46b", 10: "#b48cff", 11: "#7fd88a", 12: "#e3cf7f", 13: "#ff8b8b" };
-// strengths whose nuclei are partly computed: strength-scan-1 (helium-4, a nucleon on the ladder, Brink's clusters) is done,
-// strength-scan-2 (the helium-4 ladder) is on the runner; captures and the core follow in the sandbox
-const QUEUED = { MN: [1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85], MT: [] };
+const NAME = { He: "ielium", 4: "ceryllium", 5: "coron", 6: "element 6", 7: "darbon", 8: "element 8", 9: "oitrogen", 10: "pxygen", 11: "gluorine", 12: "oeon", 13: "todium" };
+const COLOR = { He: "#6fe0ff", 4: "#5f7d8c", 5: "#8fb9a8", 6: "#d9d2c3", 7: "#7fd88a", 8: "#9a958c", 9: "#ffb46b", 10: "#b48cff", 11: "#e58fb8", 12: "#e3cf7f", 13: "#ff8b8b" };
+// the strengths the runner's strength-scan-1 and -2 added (helium-4, a nucleon on the ladder, Brink's clusters, the ladder);
+// the captures and the Sun-paced core at each followed in the sandbox
+const SCANNED = [1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85];
 
 let force = "MN", s = DIAL.forces.MN.ours;
 // the grid plus the deuteron-as-ours point itself (rate ×1 by definition, B ours by construction), so the reference reads exactly
@@ -74,17 +74,17 @@ function chips(B, rel) {
 function bars() {
   const f = F(), note = $("chainnote"), host = $("bars");
   if (!f.chain.length) { note.innerHTML = `Not computed for Malfliet–Tjon's force: the full chain (the captures that climb past helium) has only been run on Minnesota's. Switch force to see it.`; host.innerHTML = ""; return; }
-  const B = at(s).B, here = f.chain.find((c) => Math.abs(c.s - s) < 0.004), queued = QUEUED[force].find((q) => Math.abs(q - s) < 0.026);
-  const where = B <= BETA ? `At s = ${s.toFixed(4)} there's <b>no p + p</b>, so no hydrogen burning by the Sun's route.`
-    : here ? `Computed at <b>s = ${here.s}</b> (highlighted).`
-    : `Not computed at s = ${s.toFixed(4)}: the full chain has been run at the two strengths below only.` + (queued ? ` At s = ${queued} helium-4 and a nucleon on each ladder nucleus are computed; the helium-4 ladder is <span class="tag queued">queued</span> on the runner, then the climb's captures and the core.` : "");
-  note.innerHTML = `${where} A star is held as bright as the Sun, so its core sits at whatever temperature makes p + p supply that; two draws of the larger nuclei's helium-4s (loose and close) bracket the answer.`;
-  host.innerHTML = f.chain.map((c) => {
-    const on = c === here, rel = at(c.s).rel, cav = c.s > 1.6 ? ` <span class="tag open">caveat</span> <span style="font-weight:400">only p + p recomputed at this strength; the captures after it are still the deuteron-as-ours ones (being redone)</span>` : "";
-    return `<div style="border:1px solid ${on ? "var(--d4)" : "var(--border)"};border-radius:8px;padding:8px 10px;opacity:${on || !here ? 1 : 0.55}"><h5 style="font:600 12px var(--mono);margin:0 0 6px;color:var(--text)">s = ${c.s} · p + p ×${fmt(rel)}${Math.abs(c.s - f.ours) < 2e-4 ? " (deuteron as ours)" : c.s >= f.window[1] - 1e-4 ? " (the window's top)" : ""}${cav}</h5>` +
-      c.rows.map((r) => { const parts = Object.entries(r.mix).filter(([, v]) => v > 0.005).sort((a, b) => b[1] - a[1]);
-        return `<div class="bar" style="margin-top:4px"><h5>${r.draw} draw · core <b>${r.T_MK} million K</b></h5><div class="stack">${parts.map(([z, v]) => `<div style="width:${(v * 100).toFixed(1)}%;background:${COLOR[z] ?? "#888"}" title="${NAME[z] ?? z} ${(v * 100).toFixed(0)}%">${v > 0.12 ? `${NAME[z] ?? z} ${(v * 100).toFixed(0)}%` : ""}</div>`).join("")}</div></div>`; }).join("") + `</div>`;
-  }).join("");
+  const B = at(s).B, near = f.chain.reduce((a, c) => (Math.abs(c.s - s) < Math.abs(a.s - s) ? c : a)), here = Math.abs(near.s - s) < 0.004 ? near : null;
+  note.innerHTML = (B <= BETA ? `At s = ${s.toFixed(4)} there's <b>no p + p</b>, so no hydrogen burning by the Sun's route. ` : here ? `<b>s = ${here.s}</b> is highlighted. ` : `Computed at the strengths listed; the nearest to s = ${s.toFixed(4)}, <b>${near.s}</b>, is highlighted, and nothing between them is interpolated. `) +
+    `A star is held as bright as the Sun, so its core sits at whatever temperature makes p + p supply that, and burns at that temperature until its hydrogen is gone. Each strength has two bars, the larger nuclei's helium-4s drawn loose (upper) and close (lower), which bracket the answer.`;
+  const bw = host.clientWidth - (innerWidth < 600 ? 140 : 260), fits = (t, v) => t.length * 6.3 + 8 < v * bw;
+  const bar = (r) => { const parts = Object.entries(r.mix).filter(([, v]) => v > 0.005).sort((a, b) => b[1] - a[1]);
+    return `<div class="stack" title="${r.draw} draw, ${r.T_MK} million K">${parts.map(([z, v]) => `<div style="width:${(v * 100).toFixed(1)}%;background:${COLOR[z] ?? "#888"}" title="${NAME[z] ?? z} ${(v * 100).toFixed(0)}%">${((t) => (fits(t, v) ? t : fits(NAME[z] ?? z, v) ? NAME[z] ?? z : ""))(`${NAME[z] ?? z} ${(v * 100).toFixed(0)}%`)}</div>`).join("")}</div>`; };
+  host.innerHTML = `<div class="crow head"><span>s</span><span>p + p</span><span>core</span><span>what it burns into (loose / close)</span></div>` + f.chain.map((c) => {
+    const on = c === near && B > BETA, rel = at(c.s).rel, T = c.rows.map((r) => r.T_MK), Ts = Math.abs(T[0] - T[1]) < 0.05 ? `${T[0]}` : `${Math.min(...T)}–${Math.max(...T)}`;
+    return `<div class="crow${on ? " on" : ""}" data-s="${c.s}"><span>${c.s}${Math.abs(c.s - f.ours) < 2e-4 ? "<br><small>as ours</small>" : ""}</span><span>×${fmt(rel)}</span><span>${Ts} MK</span><span>${c.rows.map(bar).join("")}</span></div>`;
+  }).join("") + `<div class="legend">${Object.entries(NAME).filter(([z]) => COLOR[z] && z !== "2").map(([z, n]) => `<span><i style="background:${COLOR[z]}"></i>${n}${/^\d+$/.test(z) && !n.startsWith("element") ? ` (${z})` : ""}</span>`).join("")}</div>`;
+  for (const r of host.querySelectorAll(".crow[data-s]")) r.addEventListener("click", () => { s = +r.dataset.s; toSlider(); draw(); });
 }
 
 function steps() {
@@ -93,10 +93,10 @@ function steps() {
     ["deuteron", "binds across the window; its binding is the gauge above", "done", "both forces, every strength"],
     ["p + p → d e⁺ ν", "the first, slowest step: the chart above", "done", "both forces, every strength (15 MK shown; 5–50 MK in the bake)"],
     ["p + e⁻ + p → d ν", "the only route between 0.78 and 1.80 MeV", "open", "not computed"],
-    ["helium-4", `binding by diffusion Monte Carlo, MeV (ours 28.3); Minnesota s → binding: ${he}`, "done", `Minnesota at ten strengths (strength-scan-1 added ${QUEUED.MN.join(", ")}); Malfliet–Tjon at three`],
+    ["helium-4", `binding by diffusion Monte Carlo, MeV (ours 28.3); Minnesota s → binding: ${he}`, "done", `Minnesota at ten strengths (the runner's strength-scan-1 added ${SCANNED.join(", ")}); Malfliet–Tjon at three`],
     ["a nucleon on the ladder", "whether the odd nuclei between helium-4 rungs bind, loose and close draws", "done", "strength-scan-1, at the same seven strengths"],
-    ["the ladder past helium", "beryllium-8, ceryllium-12 … by helium-4 clusters and Brink's determinants", "queued", "Brink's done (strength-scan-1); the helium-4 ladder running (strength-scan-2)"],
-    ["captures and the core", "helium-4 and proton captures up the ladder, then a Sun-paced zone burning to the end", "open", "in the sandbox once the runner's nuclei land; then this page is rebaked"],
+    ["the ladder past helium", "beryllium-8, ceryllium-12 … by helium-4 clusters and Brink's determinants", "done", "Brink's (strength-scan-1) and the helium-4 ladder (strength-scan-2)"],
+    ["captures and the core", "helium-4 and proton captures up the ladder, then a Sun-paced zone burning its hydrogen to the end", "done", "Minnesota at nine strengths, from where the deuteron binds as ours to the window's top; Malfliet–Tjon not run"],
   ];
   $("steps").innerHTML = rows.map(([a, b, t, c]) => `<tr><td>${a}<span class="tag ${t === "done" ? "done" : t === "queued" ? "queued" : "open"}">${t === "open" ? "to do" : t}</span></td><td>${b}<br><span style="opacity:.8">${c}</span></td></tr>`).join("");
 }

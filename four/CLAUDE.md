@@ -116,11 +116,16 @@ for games, and this is a modelling programme with publications to come. The game
   thresholds, the p + p rate at 15 MK against the deuteron-as-ours point (log chart; the bottom ~20% shaded closed), and a
   Sun-paced core's make-up at every strength where the full chain has been run (only those; each labelled, nothing
   interpolated). `strong.js` draws only; **generated** `strong/data.js` comes from `atom/tools/ppfusion.mjs dial` (~2.5 min:
-  33 strengths a force, helium-4 from `$TMPDIR/atom4-nuclei`, the chain from `ppfusion.json` `sunPace`). Its `QUEUED` list
-  and the chain table name what's on the runner; update both and rebake when results land. strength-scan-1 (2026-11-11,
-  217 commands, all exit 0) gave helium-4, a nucleon on the ladder and Brink's clusters at Minnesota s = 1.55–1.85 (helium-4
-  85.7 → 166.7 MeV); strength-scan-2, the helium-4 ladder there, is queued. Then rungcap/capture/protonflow/hburn per s. The 1.8909
-  point has only p + p recomputed (the captures are still the deuteron-as-ours ones), and the page says so.
+  33 strengths a force, helium-4 from `$TMPDIR/atom4-nuclei`, the chain from `ppfusion.json` `sunPace`). Its `SCANNED` list
+  and the chain table say what has been computed. **The scan (2026-11-11):** the runner's strength-scan-1 (217 commands) and
+  -2 (49, the ladder), all exit 0, at Minnesota s = 1.55–1.85 (helium-4 85.7 → 166.7 MeV); then in the sandbox
+  `nuclei.mjs capture|protonflow [compact]|rungcap slist=<s,…> MN` (the window's three replaced by the list, written as
+  `MN-<name>-scan.json` so the baked files stay; hburn reads both), `ppfusion.mjs ppx MN <s,…>` (the computed p + p over the
+  old 4 fm formula's, flat within 9% over 2–50 MK), `nuclei.mjs hburn pp=4 ppx=<x> s=<s> T=1,…,25` and `ppfusion.mjs
+  sunpace <tag>` per s. **Result:** a Sun-paced core burns past helium only up to s ≈ 1.55 (10.7 MK: helium 33–38%,
+  darbon 36–39%, elements 6 and 8); from 1.6 (7.0 MK) up it is ≥ 96% helium, down to 2.6 MK at 1.85 and 2.2 at 1.8909.
+  So heavier burning needs s in about 1.50–1.6 (the chain not run 1.4984–1.5152, nor for Malfliet–Tjon). Every point,
+  1.8909 included, uses its own strength's captures (an earlier note here said otherwise: it was wrong).
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

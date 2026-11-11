@@ -5598,7 +5598,7 @@
       "b": "2026-11-11",
       "p": "four",
       "surface": "four",
-      "d": "Turn up the strong force in a four-dimensional universe and see what it decides. Our own strength doesn't hold a deuteron there, so it is a choice, across a window from where the deuteron first binds to where two protons would bind on their own. Slide it and watch the deuteron's binding cross the two thresholds that matter (0.78 and 1.80 MeV), the first step of hydrogen burning go from impossible to ten million times faster, and a Sun-like star's core change from burning to oitrogen and pxygen at 15 million kelvin to stopping at helium near 2 million. Every number computed from the same nucleon force; the strengths still on the runner are marked queued.",
+      "d": "Turn up the strong force in a four-dimensional universe and see what it decides. Our own strength doesn't hold a deuteron there, so it is a choice, across a window from where the deuteron first binds to where two protons would bind on their own. Slide it and watch the deuteron's binding cross the two thresholds that matter (0.78 and 1.80 MeV), the first step of hydrogen burning go from impossible to ten million times faster, and a Sun-like star's core change from burning to oitrogen and pxygen at 15 million kelvin to stopping at helium near 2 million. Every number is computed from the same nucleon force, and the full chain is run at nine strengths: past helium only up to about s = 1.55.",
       "tags": [
         "canvas",
         "math"

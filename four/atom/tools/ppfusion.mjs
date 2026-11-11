@@ -96,7 +96,7 @@ if (cmd === "check") {
       grid33.push({ s: +sv.toFixed(4), B: +B.toFixed(4), pp: open ? "open" : B > 1.29333 - 0.510999 ? "pep" : "closed", rel: open ? +rate.toPrecision(4) : 0 }); }
     const he4 = []; for (const f of (existsSync(DIR) ? (await import("node:fs")).readdirSync(DIR) : [])) { const m = f.match(new RegExp(`^${name === "MN" ? "MN-" : ""}he-4-(\\d+p\\d+)-none-4\\.json$`)); if (m) { const h = JSON.parse(readFileSync(`${DIR}/${f}`, "utf8")); he4.push({ s: h.s, E: +h.E.toFixed(2), err: +h.err.toFixed(2) }); } }
     he4.sort((a, b) => a.s - b.s);
-    out[name] = { window: [s4[0], s4[2]], ours: s4[1], open: j.opens[name], grid: grid33, he4, chain: name === "MN" ? Object.entries(j.sunPace ?? {}).map(([sv, v]) => ({ s: +sv, ...v })) : [] };
+    out[name] = { window: [s4[0], s4[2]], ours: s4[1], open: j.opens[name], grid: grid33, he4, chain: name === "MN" ? Object.entries(j.sunPace ?? {}).map(([sv, v]) => ({ s: +sv, ...v })).sort((a, b) => a.s - b.s) : [] };
     console.log(`${name}: ${grid33.length} strengths, helium-4 at ${he4.length}, full chain at ${out[name].chain.length}`);
   }
   const ours = { deuteron: 2.224566, he4: 28.30 }, file = new URL("../../strong/data.js", import.meta.url); mkdirSync(new URL("../../strong/", import.meta.url), { recursive: true });
@@ -106,6 +106,12 @@ if (cmd === "check") {
    where computed; and the full chain (a Sun-paced core's temperature and make-up, both draws) where computed. */
 export const DIAL = ${JSON.stringify({ T_MK: 15, ours, forces: out })};\n`);
   console.log("wrote four/strong/data.js");
+} else if (cmd === "ppx") {
+  // `ppx <MN|MT> <s,…>`: the computed p + p rate over the old formula's at 4 fm, at 2–50 MK, for nuclei.mjs hburn pp=4 ppx=<x>
+  // (where no radius reaches the computed rate); the spread over temperature says how well one factor stands for it
+  const args = process.argv.slice(3), F = FORCES[args[0]].F, out = {};
+  for (const sv of args[1].split(",").map(Number)) { const xs = [2e6, 5e6, 1.5e7, 3e7, 5e7].map((T) => { const Es = grid(T, 4), nw = rateNew(4, F, sv, T, Es); return nw?.rate ? nw.rate / rateOld(4, T, 4, Es) : 0; });
+    out[sv] = xs; console.log(`s ${sv}: ÷ old(4 fm) at 2, 5, 15, 30, 50 MK: ${xs.map((x) => x.toPrecision(3)).join(", ")}`); }
 } else if (cmd === "scan") {
   // across each force's window: the deuteron's binding, whether p + p runs, and r_eff at 15 MK (it barely moves with T)
   const bisect = (F, Bt) => { let a = 1, b = 2.5; for (let i = 0; i < 40; i++) { const m = (a + b) / 2, dt = deuteron(4, F, m); if (dt && dt.B > Bt) b = m; else a = m; } return (a + b) / 2; };

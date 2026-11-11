@@ -21,7 +21,7 @@
   canvas.rate { width: 100%; height: 260px; display: block; margin: 6px 0 0; }
   .cap { font: 11px var(--mono); color: var(--dim); margin-top: 2px; }
   .verdict { font: 14px/1.55 var(--sans); color: var(--text); margin: 8px 0 2px; }
-  .bars { display: grid; gap: 10px; margin-top: 8px; }
+  .bars { display: grid; gap: 2px; margin-top: 8px; }
   .bar h5 { font: 600 12px var(--mono); color: var(--dim); margin: 0 0 4px; } .bar h5 b { color: var(--text); }
   .stack { display: flex; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
   .stack div { display: flex; align-items: center; justify-content: center; font: 600 11px var(--mono); color: #07080c; white-space: nowrap; overflow: hidden; }
@@ -30,6 +30,11 @@
   .tag { font: 600 10px var(--mono); border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
   .tag.done { color: var(--d4); border: 1px solid var(--d4); } .tag.queued { color: #e3cf7f; border: 1px solid #b9a35a; } .tag.open { color: var(--dim); border: 1px solid var(--border); }
   p, li { max-width: 760px; }
+  .crow { display: grid; grid-template-columns: 58px 92px 82px 1fr; gap: 8px; align-items: center; font: 12px var(--mono); color: var(--dim); padding: 5px 6px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; }
+  .crow.head { cursor: default; font-weight: 600; padding-bottom: 0; } .crow.on { border-color: var(--d4); color: var(--text); background: rgba(111,224,255,0.05); }
+  .crow small { font-size: 10px; color: var(--d3); } .crow .stack { height: 15px; margin: 1px 0; } .crow .stack div { font-size: 10px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font: 11px var(--mono); color: var(--dim); margin-top: 6px; } .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  @media (max-width: 600px) { .crow { grid-template-columns: 44px 70px 1fr; } .crow > span:nth-child(3) { display: none; } }
   @media (max-width: 600px) { .chain td { display: block; border-top: none; padding: 1px 4px; } .chain td:first-child { border-top: 1px solid var(--border); padding-top: 6px; } }
 </style>
 </head>
@@ -70,7 +75,7 @@
   <p>The force between nucleons is short-ranged, so pinning a law for it, as the law between charges is pinned at 1/r, means keeping its shape as a function of distance; only its strength is open. In four dimensions an s-wave pair feels a barrier it doesn't feel in ours (the extra direction adds a centrifugal term), and with our strength the deuteron falls apart. It binds over a window: from where it first holds (the left end) to where two protons would bind on their own, the diproton (the right end), past which hydrogen would burn in a flash. Inside that window, two things change by orders of magnitude:</p>
   <ul>
     <li><b>The first step.</b> A star's hydrogen burns through p + p → d e⁺ ν, the slowest step there is, which is why the Sun lasts ten billion years. A tighter deuteron overlaps the protons better and leaves the positron more energy, so the rate climbs ten-million-fold across the window. Across its bottom fifth there's no deuteron to make from two protons at all.</li>
-    <li><b>The climb.</b> A star is held at whatever temperature makes it as bright as it must be. Fast first steps mean a cool core, and a cool core can't push helium-4 and protons over the larger nuclei's charge barriers, so the climb stops early. At the deuteron-as-ours strength a Sun-like core sits at 15–17 million kelvin and stops at oitrogen and pxygen, elements 9 and 10; at the window's top it sits near 2 million and stops at helium.</li>
+    <li><b>The climb.</b> A star is held at whatever temperature makes it as bright as it must be. Fast first steps mean a cool core, and a cool core can't push helium-4 and protons over the larger nuclei's charge barriers, so the climb stops early. Where the deuteron binds as ours, a Sun-like core sits at 15–17 million kelvin and climbs to oitrogen and pxygen, elements 9 and 10. A little stronger (s = 1.55, p + p sixty times faster) it sits near 11 million and stops a third of the way, at helium and elements 6 to 8. From s = 1.6 up, below 7 million kelvin, it makes helium and almost nothing else. So if a 4D universe's stars are to burn hydrogen into anything heavier than helium, its strong force has to sit in a band about a fifth of the window wide: above s = 1.50, where two protons first can fuse, and below about 1.6. (The chain hasn't been run between 1.50 and 1.52, or past helium for Malfliet–Tjon.)</li>
   </ul>
   <p>Each step of the chain, and where it stands:</p>
   <table class="chain" id="steps"></table>
