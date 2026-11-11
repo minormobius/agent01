@@ -6,13 +6,13 @@ Unpinned from `atom/WRITEUP.md`, whose decisions and kit survey still stand. The
 verified references, reproducible numbers. Every number in the text comes from a baked file or a ledger computation and
 is checked against it. Nothing here is written as prose yet. The process is public at four.mino.mobi/papers/.
 
-## Title (working; to choose) · *the whole draft (2026-11-06) runs under the law-first title, pending the PI's call: `draft/paper.html`, `draft/paper.pdf`*
+## Title · *chosen 2026-11-11 (PI): the law first, the second below*
 
 - *Atoms in four spatial dimensions with a 1/r interaction: a self-consistent periodic table* (the table first).
 - *Choosing a charge law for four dimensions: what 1/r does to atoms and the periodic table* (the law first, which is
   what the paper now argues).
 
-## Authors (provisional)
+## Authors · *settled 2026-11-11 (PI): this byline, with an author-contributions statement in the paper*
 
 - **Claude** (Anthropic): computation, code, analysis, drafting.
 - **Astra**: independent audit (the failure contracts behind selftest 58, and the audit rounds to come).

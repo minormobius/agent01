@@ -1,7 +1,7 @@
 /* Paper 1's length in a journal's pages: draft/paper.html laid out as a two-column letter page at 10 pt (Physical
    Review's measure, roughly), each figure one column wide and each table across both, then printed by headless
-   Chromium. It counts the main text's pages (title to the conclusion; the notation and appendices are on
-   draft/supplement.html) and the whole page's, references included. Needs Playwright; sandbox-only, like pdf.cjs.
+   Chromium. It counts the main text's pages (title to the conclusion, without the back matter: the author contributions,
+   the supplementary-material note and the references; the notation and appendices are on draft/supplement.html) and the whole page's, references included. Needs Playwright; sandbox-only, like pdf.cjs.
      node four/papers/p1/pages.cjs        → draft/paper-journal.pdf, and the counts */
 const { chromium } = require("playwright");
 const path = require("node:path"), fs = require("node:fs");
@@ -12,6 +12,8 @@ const STYLE = `
   .p-body.single, .p-body { column-count: 2 !important; column-gap: 7mm !important; font-size: 10pt !important; line-height: 1.22 !important; text-align: justify; }
   .p-body p { margin: 0 0 3pt !important; }
   .p-body h1 { column-span: all; font-size: 11pt !important; margin: 8pt 0 4pt !important; }
+  .p-body h1.p-title { font-size: 14pt !important; margin: 0 0 4pt !important; max-width: none !important; }
+  .p-body .p-authors, .p-body .p-affils { column-span: all; margin: 2pt 0 !important; }
   .p-body h2 { font-size: 10pt !important; margin: 7pt 0 3pt !important; break-after: avoid; }
   .p-body figure { margin: 5pt 0 !important; break-inside: avoid; }
   .p-body figure img, .p-body figure svg { width: 100% !important; height: auto !important; }
@@ -28,7 +30,7 @@ const count = (file) => (fs.readFileSync(file, "latin1").match(/\/Type\s*\/Page[
   await pg.pdf({ path: whole, preferCSSPageSize: true, printBackground: true });
   // the main text alone: drop the notation table, the appendices and everything after them
   const words = await pg.evaluate(() => {
-    const body = document.querySelector(".p-body"), kids = [...body.children], app = kids.findIndex((e) => e.id === "appendices" || e.id === "supplementary-material");
+    const body = document.querySelector(".p-body"), kids = [...body.children], app = kids.findIndex((e) => e.id === "appendices" || e.id === "author-contributions" || e.id === "supplementary-material");
     if (app >= 0) kids.slice(app).forEach((e) => e.remove());
     const n = kids.findIndex((e) => e.id === "notation"), nEnd = kids.findIndex((e, i) => i > n && /^H[12]$/.test(e.tagName));
     if (n >= 0) kids.slice(n, nEnd).forEach((e) => e.remove());

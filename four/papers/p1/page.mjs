@@ -36,7 +36,7 @@ function render(f) {
   // flag what hasn't been checked against its source (refs.json status cited or memory)
   for (const r of JSON.parse(readFileSync(REFS, "utf8")).refs.filter((x) => x.status !== "read" && x.status !== "index"))
     body = body.replace(new RegExp(`(<div id="ref-${r.key}"[^>]*>[\\s\\S]*?)(</div>)`), `$1 <em class="unchecked">(Not yet checked against the source.)</em>$2`);
-  const title = (md.match(/^# (.+)$/m) || [, f])[1];
+  const title = (md.match(/^# (.+)$/m) || [, f])[1].replace(/\s*\{[^}]*\}\s*$/, ""); // without pandoc attributes ({.p-title})
   return `<!doctype html>
 <html lang="en">
 <head>

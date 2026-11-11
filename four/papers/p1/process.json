@@ -2,7 +2,7 @@
  "about": "Hand-kept: the stages of paper 1's production, the checklist before prose, and the journal. The numbers live in ledger.json (generated); this file says what has been done and what hasn't. The process page (four/papers/) renders both.",
  "paper": {
   "id": "p1",
-  "title": "Atoms in four spatial dimensions with a 1/r interaction: a self-consistent periodic table",
+  "title": "Choosing a charge law for four dimensions: what 1/r does to atoms and the periodic table",
   "status": "in preparation: restructured around the charge law; seven figures and the methods drafted; the counterfactual table queued",
   "started": "2026-11-04",
   "bar": "arXiv's: checkable claims, verified references, reproducible numbers. Every number in the text comes from a baked file and is checked against it."
@@ -16,7 +16,7 @@
   {
    "name": "Astra",
    "role": "independent audit: the failure contracts behind selftest 58, and the audit rounds for this paper",
-   "note": "the form of credit (author, audit appendix or acknowledgement) is still to settle"
+   "note": "author, second (PI, 2026-11-11)"
   },
   {
    "name": "minor mobius",
@@ -24,7 +24,7 @@
    "role": "direction, judgement of results, PI (last author)"
   }
  ],
- "authorship_note": "arXiv doesn't accept AI models as authors. If the paper goes there, the byline is minor mobius and the AI contributors move to a contribution statement, with the session record. On four.mino.mobi the byline above stands.",
+ "authorship_note": "Settled (PI, 2026-11-11): the paper is published in four.mino.mobi's own journal, byline Claude, Astra, minor mobius (last, PI), with an author-contributions statement saying what each did and that Claude and Astra are AI systems. arXiv doesn't accept AI models as authors; if the paper ever goes there, the byline is minor mobius and the contributions statement carries the rest.",
  "pipeline": [
   {
    "id": "solver",
@@ -477,6 +477,10 @@
   {
    "date": "2026-11-11",
    "what": "Prior-art search (PI): about 25 web searches plus arXiv, OpenAlex and Crossref (papers/p1/PRIOR-ART.md). No self-consistent 4D table and no Hund's-rule result in any dimension were found, so §4.1's and §5's claims stand; §4.1 now says Négadi and Kibler tabulate only two and three dimensions. Narrowed: the intro now says nobody has asked what 1/r does to many-electron atoms (Burgbacher et al. 1999 asked it for hydrogen), and F.6 credits the no-locality half of spin-statistics to Sudarshan 1968 and Lian 2012, claiming only that it survives the pinned law with an explicit bound (plus Brown–Ravenhall 1951 and the Coulomb-gauge remark). F.5 names each half of the lens vacuum's precedent (Rytova–Keldysh screening; εμ at the vacuum's value) and keeps 'not found' for the pair. §2.4 cites the shell theorem's uniqueness (Tse et al. 2026, Landkof 1972); §5.2 points to Morgan & Kutzelnigg 1993. Ten references added, each checked against Crossref or arXiv."
+  },
+  {
+   "date": "2026-11-11",
+   "what": "Title and byline (PI). Title, law first: 'Choosing a charge law for four dimensions: what 1/r does to atoms and the periodic table'. Byline Claude · Astra · minor mobius (last, PI), on the paper and the supplement, with an author-contributions statement before the supplementary-material note. The journal layout sets the title block across both columns and leaves the back matter out of the count: the main text is seven pages."
   }
  ]
 }

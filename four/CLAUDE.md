@@ -803,7 +803,8 @@ for games, and this is a modelling programme with publications to come. The game
   sections (each claim mapped to its baked file and selftest block), the figure plan, the companion objects (paper
   page, data release, `reproduce/p1.mjs` in the mirror, widgets, `refs.json`) and the checklist before prose. The kit
   survey and decisions are in `atom/WRITEUP.md`; sources in `atom/LITERATURE.md`, each tagged by how far it's been
-  verified. Authors: Claude, Astra (audits), minor mobius (last, PI). Papers live at `/papers/`. `papers/p1/widgets/` is the paper's widgets (choose a law, from `laws.js` live; screening on and off, solved
+  verified. Title (PI, 2026-11-11): *Choosing a charge law for four dimensions: what 1/r does to atoms and the periodic table*
+  (`build.mjs` `TITLE`). Byline Claude · Astra · minor mobius (last, PI), with an author-contributions statement. Papers live at `/papers/`. `papers/p1/widgets/` is the paper's widgets (choose a law, from `laws.js` live; screening on and off, solved
   live in a worker, `solve.js`; a neutral atom's far pull from the baked cloud), declared `content` in the catalogue. `papers/p1/reproduce.mjs` re-solves a sample against the paper's data.
   **`papers/` is the process page** (`index.html` + `process.js`): it renders `p1/process.json` (hand-kept: the
   pipeline's stages, the checklist before prose, the journal: add an entry when something happens to the paper),
