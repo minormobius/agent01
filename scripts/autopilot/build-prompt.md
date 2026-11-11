@@ -33,10 +33,10 @@ _Regenerated 2026-11-11 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-11, 100 members / 271 posts):
+**Neighborhood spark** (bisk 2026-11-11, 100 members / 230 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: ppl, bluesky, llm
-- Top post: "right vs left is now c/c++ vs rust" — @hailey.at
+- Distinctive words: bluesky, anthropic, idk
+- Top post: "my most controversial Market Liberal take is that not pricing street parking is *insane*. drive a car if you want, i do," — @avengingfem.me
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
