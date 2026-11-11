@@ -485,6 +485,10 @@
   {
    "date": "2026-11-11",
    "what": "Version 1 frozen (PI): papers/p1/v1/, from commit e3c84d792, by the new freeze.cjs. Its own copies of the paper and supplement, the figures, the stylesheet, the ledger and S1's data, both PDFs and the link card; relative links rewritten to the version's copies, the card tags and the PDFs' links pointing at v1, and a line under the byline naming the commit and linking the living draft. v1 is the copy to share; the draft keeps moving with stars and nuclei."
+  },
+  {
+   "date": "2026-11-11",
+   "what": "Figure 3 (PI): our own world's first ionizations from the same solver, Z = 1–36, drawn over the four-dimensional curve for scale, with its noble gases marked and the caption giving them against measured (23.4, 21.3, 15.2, 13.5 against 24.6, 21.6, 15.8, 14.0 eV); the full-d-shell points move to purple so ours can be orange. Version 1 had been frozen minutes before and not yet shared, so it was cut again from this draft rather than numbered 2."
   }
  ]
 }

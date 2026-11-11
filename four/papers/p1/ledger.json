@@ -547,8 +547,8 @@
   },
   {
    "path": "figures/3.svg",
-   "bytes": 7760,
-   "sha256": "8ac356c83873e3b9f55d70ee4f55e722f634d73baca28b2d9c44569ece0305db"
+   "bytes": 9584,
+   "sha256": "91ba2cfa924a9fa70ef73d3883b239bbee126d7e17af8ebb3b95d50f951d8c4b"
   },
   {
    "path": "figures/4.svg",
@@ -577,8 +577,8 @@
   },
   {
    "path": "figures/captions.json",
-   "bytes": 5322,
-   "sha256": "96457e9327bd58de20b6eda2d837e5da381e151eac3ffaf3c24fc6e45af38186"
+   "bytes": 5512,
+   "sha256": "99971bb61b36eccb890953ad1d092bb493f20783aeeaa422e719107cad396776"
   }
  ],
  "refs": {
