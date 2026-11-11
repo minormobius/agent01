@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="Set the strength of the strong force in a four-dimensional universe and see what it decides: whether the deuteron binds, whether two protons can fuse, how fast, and what a Sun-like star's core burns into. Computed, with what isn't yet marked as queued." />
+<title>Four · the strong-force dial</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section { max-width: 860px; }
+  .toy { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 14px 0 10px; }
+  .dial { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 13px var(--mono); color: var(--dim); }
+  .dial input[type=range] { flex: 1; min-width: 200px; accent-color: var(--d4); }
+  .dial b { color: var(--text); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+  .chip { font: 600 12px var(--mono); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; color: var(--dim); }
+  .chip.yes { border-color: var(--d4); color: var(--d4); } .chip.no { border-color: #6b5f57; color: #c9a68c; } .chip.half { border-color: #b9a35a; color: #e3cf7f; }
+  canvas.gauge { width: 100%; height: 84px; display: block; margin: 6px 0 0; }
+  canvas.rate { width: 100%; height: 260px; display: block; margin: 6px 0 0; }
+  .cap { font: 11px var(--mono); color: var(--dim); margin-top: 2px; }
+  .verdict { font: 14px/1.55 var(--sans); color: var(--text); margin: 8px 0 2px; }
+  .bars { display: grid; gap: 10px; margin-top: 8px; }
+  .bar h5 { font: 600 12px var(--mono); color: var(--dim); margin: 0 0 4px; } .bar h5 b { color: var(--text); }
+  .stack { display: flex; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+  .stack div { display: flex; align-items: center; justify-content: center; font: 600 11px var(--mono); color: #07080c; white-space: nowrap; overflow: hidden; }
+  .chain { border-collapse: collapse; font: 12px/1.5 var(--mono); width: 100%; margin-top: 6px; }
+  .chain td { padding: 3px 6px; border-top: 1px solid var(--border); vertical-align: top; color: var(--dim); } .chain td:first-child { color: var(--text); white-space: nowrap; }
+  .tag { font: 600 10px var(--mono); border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+  .tag.done { color: var(--d4); border: 1px solid var(--d4); } .tag.queued { color: #e3cf7f; border: 1px solid #b9a35a; } .tag.open { color: var(--dim); border: 1px solid var(--border); }
+  p, li { max-width: 760px; }
+  @media (max-width: 600px) { .chain td { display: block; border-top: none; padding: 1px 4px; } .chain td:first-child { border-top: 1px solid var(--border); padding-top: 6px; } }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../papers/p1/draft/paper.html">paper 1</a><a href="../table/">the table</a><a href="./" class="here">strong force</a><a href="../atom/nuclei.html">nuclei</a><a href="../atom/stars.html">stars</a><a href="../atom/">ATOM⁴</a></nav>
+  <h2>four.mino.mobi · the strong-force dial</h2>
+  <h1 class="ch">Turn up the strong force</h1>
+  <p class="lede">In four dimensions of space our own strong force doesn't hold a deuteron together, so its strength is a choice, and it is the choice that decides what stars make. Set it, as <b>s</b>, a multiple of the force's attraction, and see what follows: whether two protons can fuse at all, how fast, and what a star as bright as the Sun burns its core into. Everything shown is computed; what isn't yet is marked <span class="tag queued">queued</span>.</p>
+</header>
+
+<section>
+  <div class="toy">
+    <div class="dial">
+      <span class="seg" id="force"><button data-f="MN" class="on">Minnesota</button><button data-f="MT">Malfliet–Tjon</button></span>
+      <label style="display:flex;align-items:center;gap:8px;flex:1;min-width:240px">s <input type="range" id="s" min="0" max="1000" value="0" /> <b id="sval"></b></label>
+      <button class="fire" id="ours" style="font:600 12px var(--mono);background:none;color:var(--d4);border:1px solid var(--d4);border-radius:999px;padding:4px 12px;cursor:pointer">deuteron as ours</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <p class="verdict" id="verdict"></p>
+
+    <h4>The deuteron's binding</h4>
+    <canvas class="gauge" id="gauge"></canvas>
+    <p class="cap">MeV, on a log scale. Two protons fuse into a deuteron (p + p → d e⁺ ν) only if it binds by more than <b>1.80</b>, the neutron–proton mass difference plus the positron's mass; with an electron captured on the way in (p + e⁻ + p → d ν) more than <b>0.78</b>. Ours binds by 2.22.</p>
+
+    <h4>How fast two protons fuse, at 15 million kelvin</h4>
+    <canvas class="rate" id="rate"></canvas>
+    <p class="cap">The rate per pair against the one where the deuteron binds as ours (×1), from the deuteron and the protons' scattering state solved with the same force, the weak part calibrated on our own Sun. Shaded: no deuteron from two protons.</p>
+  </div>
+
+  <div class="toy">
+    <h4 style="margin-top:4px">What a Sun-like star's core burns into</h4>
+    <p class="read" id="chainnote"></p>
+    <div class="bars" id="bars"></div>
+  </div>
+
+  <h3>Why this is the knob</h3>
+  <p>The force between nucleons is short-ranged, so pinning a law for it, as the law between charges is pinned at 1/r, means keeping its shape as a function of distance; only its strength is open. In four dimensions an s-wave pair feels a barrier it doesn't feel in ours (the extra direction adds a centrifugal term), and with our strength the deuteron falls apart. It binds over a window: from where it first holds (the left end) to where two protons would bind on their own, the diproton (the right end), past which hydrogen would burn in a flash. Inside that window, two things change by orders of magnitude:</p>
+  <ul>
+    <li><b>The first step.</b> A star's hydrogen burns through p + p → d e⁺ ν, the slowest step there is, which is why the Sun lasts ten billion years. A tighter deuteron overlaps the protons better and leaves the positron more energy, so the rate climbs ten-million-fold across the window. Across its bottom fifth there's no deuteron to make from two protons at all.</li>
+    <li><b>The climb.</b> A star is held at whatever temperature makes it as bright as it must be. Fast first steps mean a cool core, and a cool core can't push helium-4 and protons over the larger nuclei's charge barriers, so the climb stops early. At the deuteron-as-ours strength a Sun-like core sits at 15–17 million kelvin and stops at oitrogen and pxygen, elements 9 and 10; at the window's top it sits near 2 million and stops at helium.</li>
+  </ul>
+  <p>Each step of the chain, and where it stands:</p>
+  <table class="chain" id="steps"></table>
+
+  <p class="foot"><a href="../">FOUR</a> · <a href="../atom/nuclei.html">the nuclei chapter</a> · <a href="../atom/stars.html">the stars chapter</a> · <a href="../atom/methods.html#m-ppfusion">the method</a> · <a href="../atom/ROADMAP.md">the road to a 4D Earth</a> · data: <a href="data.js">data.js</a>, made by <code>atom/tools/ppfusion.mjs dial</code></p>
+</section>
+<script type="module" src="strong.js"></script>
+</body>
+</html>

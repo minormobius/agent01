@@ -111,6 +111,14 @@ for games, and this is a modelling programme with publications to come. The game
   temperatures from `orbits.js` `planetT` round a star declared as hot as our Sun (distances in units of 100 star
   radii). Moons' distances are drawn ×8; the URL keeps the seed. Days and seasons are open (a 4D planet spins in two
   planes), so the planets don't turn.
+- **the strong-force dial at `/strong/`** (PI, 2026-11-11): the nucleon force's strength s as a slider across each force's
+  window (Minnesota, Malfliet–Tjon): the deuteron's binding on a log gauge with the pep (0.78) and p + p (1.80 MeV)
+  thresholds, the p + p rate at 15 MK against the deuteron-as-ours point (log chart; the bottom ~20% shaded closed), and a
+  Sun-paced core's make-up at every strength where the full chain has been run (only those; each labelled, nothing
+  interpolated). `strong.js` draws only; **generated** `strong/data.js` comes from `atom/tools/ppfusion.mjs dial` (~2.5 min:
+  33 strengths a force, helium-4 from `$TMPDIR/atom4-nuclei`, the chain from `ppfusion.json` `sunPace`). Its `QUEUED` list
+  and the chain table name what's on the runner (strength-scan-1); update both and rebake when results land. The 1.8909
+  point has only p + p recomputed (the captures are still the deuteron-as-ours ones), and the page says so.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
@@ -677,7 +685,7 @@ for games, and this is a modelling programme with publications to come. The game
   `nuclei.mjs hburn pp=3.73 s=1.5152` (writes `hburn-pp3.73.json`, leaving `hburn.json`) and `ppfusion.mjs sunpace`:
   a Sun-paced core burns at 15.2–17.4 MK into oitrogen (element 9) 36–79%, pxygen 18–64% by the core's draw. Below a
   deuteron binding of 1.80 MeV (the window's lowest 20–22%) p + p makes no deuteron; at the top it runs ~10⁷× faster.
-  Element 9 is **oitrogen**, not gluorine (element 11). Next: giveback/starmix/cores at 3.73 fm need main-sequence runs
+  Element 9 is **oitrogen**, not gluorine (element 11). `ppfusion.mjs sunpace <tag>` stores each run under `sunPace[s]`; `nuclei.mjs hburn` takes `pp=<fm> s=<s> ppx=<factor> T=<MK,…>` (the file name carries all three). Next: giveback/starmix/cores at 3.73 fm need main-sequence runs
   at that radius (runner), and the strong force's strength is now the knob that matters.
   `nuclei.mjs giveback` (seconds) averages hburn's zones over the lifetimes of stars that finish before a Sun-like one
   forms (declared mass function, lifetime slope, range): gluorine, oeon and pxygen lead, pxygen ahead of oitrogen in every

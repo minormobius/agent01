@@ -285,7 +285,7 @@ if (cmd === "fit") {
   // computes the radius that reproduces p + p from the strong force: 3.68–3.73 fm where the deuteron binds as ours);
   // written to hburn-pp<r>.json, leaving the baked hburn.json as it was
   const argv = (k) => process.argv.find((x) => x.startsWith(`${k}=`))?.slice(k.length + 1).split(",").map(Number);
-  var PP_RN = argv("pp"), PP_S = argv("s");
+  var PP_RN = argv("pp"), PP_S = argv("s"), PP_X = argv("ppx")?.[0] ?? 1; // ppx: proton + proton's rate × this at the given radius (where no radius reaches the computed rate)
   // hydrogen and helium burning together, measured against the zone's own hydrogen burning rather than our stars' clock.
   // Proton + proton takes the weak force, ours (S = 4.01 × 10⁻²² keV b, the stated choice), through 4D's barrier (the
   // protons' nuclear radius 1 to 4 fm); helium-4 + helium-4 from the first capture's table; a proton or a helium-4 onto
@@ -307,10 +307,10 @@ if (cmd === "fit") {
   // our Sun's pace in the book's cross-dimension convention (the barrier integral and S̃; ½ of its centre's hydrogen in 4.6 billion years)
   const sun = l3 + Math.log(Spp) - Math.log(1 / 0.35 - 1 / 0.7);
   const caps = load("MN-capture.json").rows, pfs = ["MN-protonflow.json", "MN-protonflow-c.json"].map(load).filter(Boolean), oaa = { Z1: 2, Z2: 2, mu: 2 * AMU, rn: 2 * Math.pow(4, 0.25), d: 4 };
-  const Ts = [5e6, 7e6, 1e7, 1.2e7, 1.3e7, 1.4e7, 1.5e7, 1.6e7, 1.7e7, 1.8e7, 1.9e7, 2e7, 2.2e7, 2.5e7, 2.8e7, 3e7, 3.5e7, 4e7, 5e7], rows = [], aa = [];
+  const Ts = argv("T")?.map((t) => t * 1e6) ?? [5e6, 7e6, 1e7, 1.2e7, 1.3e7, 1.4e7, 1.5e7, 1.6e7, 1.7e7, 1.8e7, 1.9e7, 2e7, 2.2e7, 2.5e7, 2.8e7, 3e7, 3.5e7, 4e7, 5e7], rows = [], aa = []; // T=<MK,…> overrides
   for (const T of Ts) { const ratios = [];
     for (const pf of pfs) for (const s of PP_S ?? FORCES.MN.s4) for (const rnp of PP_RN ?? [1, 4]) {
-      const opp = { ...op(4, 1, 1, 1, 1, 1.0), rn: rnp }, lpp = logRate(T, opp), R = (o, S) => (S / Spp) * Math.pow(opp.mu / o.mu, 2) * Math.exp(logRate(T, o) - lpp);
+      const opp = { ...op(4, 1, 1, 1, 1, 1.0), rn: rnp }, lpp = logRate(T, opp) + Math.log(PP_X), R = (o, S) => (S / Spp) * Math.pow(opp.mu / o.mu, 2) * Math.exp(logRate(T, o) - lpp);
       const own = pf.rows.filter((r) => r.s === s), cap = caps.find((r) => r.s === s), gm = (a) => Math.exp(a.reduce((x, y) => x + Math.log(y), 0) / a.length);
       const Fp = gm(own.map((r) => Stab(r.tp.E, r.tp.sv, T, op(4, 1, 1, 2 * r.k, 4 * r.k, 1.0)) / Sbp)), Fa = gm(own.map((r) => Stab(r.ta.E, r.ta.sv, T, op(4, 2, 4, 2 * r.k, 4 * r.k, 1.0)) / Sba));
       const rp = [], ra = []; for (let Z = 4; Z < Zmax; Z++) { const c = own.find((r) => 2 * r.k === Z), oP = op(4, 1, 1, Z, D(Z), 1.0), oA = op(4, 2, 4, Z, D(Z), 1.0); rp[Z] = R(oP, c ? Stab(c.tp.E, c.tp.sv, T, oP) : Fp * Sbp); ra[Z] = R(oA, c ? Stab(c.ta.E, c.ta.sv, T, oA) : Fa * Sba); }
@@ -320,7 +320,7 @@ if (cmd === "fit") {
       rows.push({ T, compact: !!pf.compact, s, rnp, Fp, Fa, shalf: res.shalf, life: lpp + Math.log(Spp) - Math.log(res.shalf), he: (4 * res.Ya) / tot, mass });
       console.log(`${(T / 1e6).toFixed(0)} MK ${pf.compact ? "close" : "loose"} s=${s} p–p ${rnp} fm: helium left ${((400 * res.Ya) / tot).toFixed(0)}%, ${Object.entries(mass).filter(([, v]) => v > 0.01).map(([Z, v]) => `element ${Z} ${(100 * v).toFixed(0)}%`).join(", ")}; pace ${(rows.at(-1).life - sun).toFixed(1)} against the Sun's`); }
     aa.push({ T, lo: Math.min(...ratios), hi: Math.max(...ratios) }); }
-  save(PP_RN ? `hburn-pp${PP_RN.join("_")}.json` : "hburn.json", { check, sun, aa, rows });
+  save(PP_RN ? `hburn-pp${PP_RN.join("_")}${PP_X !== 1 ? `x${PP_X}` : ""}${PP_S ? `-s${PP_S.join("_")}` : ""}.json` : "hburn.json", { check, sun, aa, rows });
 } else if (cmd === "giveback") {
   // what stars give back, from hburn: a star's lifetime sets its core's temperature (the pace against our Sun's centre,
   // x = ln of how many times faster it burns), and its core's make-up follows. Stars give back if they finish before a

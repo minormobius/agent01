@@ -65,19 +65,47 @@ if (cmd === "check") {
   { const T4 = 1.5e7, w4 = rateNew(4, MN, 1.5152, T4, grid(T4, 4)).rate, W4 = rateNew(4, MN, 1.5152, T4, grid(T4, 4, 0.05, 15, 90)).rate; console.log(`and in 4D (deuteron as ours, 15 MK): ${(100 * w4 / W4).toFixed(2)}%`); }
   console.log(`ours at the Sun's centre: computed ⟨σv⟩ ${nw.toExponential(3)} fm³c, old formula (2.4 fm) ${old.toExponential(3)}: ratio ${(nw / old).toFixed(3)}`);
 } else if (cmd === "sunpace") {
-  // a Sun-paced core at the computed radius: read nuclei.mjs's `hburn pp=<r> s=<s>` zones (the temporary cache) and
-  // interpolate in temperature to where the pace equals our Sun's centre's, for each draw of the core; kept in ppfusion.json
-  const { readFileSync, existsSync } = await import("node:fs"), r = process.argv[3] ?? "3.73", f = `${process.env.TMPDIR ?? "/tmp"}/atom4-nuclei/hburn-pp${r}.json`;
-  if (!existsSync(f)) { console.error(`no ${f}: run node four/atom/tools/nuclei.mjs hburn pp=${r} s=1.5152`); process.exit(1); }
-  const hb = JSON.parse(readFileSync(f, "utf8")), out = [];
+  // a Sun-paced core: read nuclei.mjs's `hburn pp=<r> [ppx=<f>] s=<s> [T=…]` zones (the temporary cache, file tag as it
+  // names it, e.g. 3.73-s1.5152 or 4x14100000-s1.8909) and interpolate in temperature to where the pace equals our Sun's
+  // centre's, for each draw of the core; kept in ppfusion.json under sunPace[s]
+  const { readFileSync, existsSync } = await import("node:fs"), tagArg = process.argv[3] ?? "3.73-s1.5152", f = `${process.env.TMPDIR ?? "/tmp"}/atom4-nuclei/hburn-pp${tagArg}.json`;
+  if (!existsSync(f)) { console.error(`no ${f}: run node four/atom/tools/nuclei.mjs hburn pp=… s=…`); process.exit(1); }
+  const hb = JSON.parse(readFileSync(f, "utf8")), out = [], sv = hb.rows[0].s;
   for (const compact of [false, true]) {
     const rows = hb.rows.filter((q) => q.compact === compact).sort((a, b) => a.T - b.T), pace = rows.map((q) => q.life - hb.sun);
-    const i = pace.findIndex((p, k) => k > 0 && pace[k - 1] < 0 && p >= 0), t = -pace[i - 1] / (pace[i] - pace[i - 1]), A = rows[i - 1], B = rows[i];
-    const T = A.T + t * (B.T - A.T), mix = {}; for (const z of new Set([...Object.keys(A.mass), ...Object.keys(B.mass)])) { const v = (A.mass[z] ?? 0) * (1 - t) + (B.mass[z] ?? 0) * t; if (v > 0.01) mix[z] = +v.toFixed(3); }
+    const i = pace.findIndex((p, k) => k > 0 && pace[k - 1] < 0 && p >= 0); if (i < 1) { console.log(`${compact ? "close" : "loose"}: the Sun's pace is outside the temperatures run`); continue; }
+    const t = -pace[i - 1] / (pace[i] - pace[i - 1]), A = rows[i - 1], B = rows[i], T = A.T + t * (B.T - A.T), mix = {};
+    const he = A.he * (1 - t) + B.he * t; if (he > 0.01) mix.He = +he.toFixed(3);
+    for (const z of new Set([...Object.keys(A.mass), ...Object.keys(B.mass)])) { const v = (A.mass[z] ?? 0) * (1 - t) + (B.mass[z] ?? 0) * t; if (v > 0.01) mix[z] = +v.toFixed(3); }
     out.push({ draw: compact ? "close" : "loose", T_MK: +(T / 1e6).toFixed(2), mix });
-    console.log(`p–p ${r} fm, ${compact ? "close" : "loose"} draw: a Sun-paced core burns at ${(T / 1e6).toFixed(2)} MK into ${Object.entries(mix).map(([z, v]) => `element ${z} ${(100 * v).toFixed(0)}%`).join(", ")}`);
+    console.log(`s ${sv}, p–p ${tagArg}, ${compact ? "close" : "loose"} draw: a Sun-paced core burns at ${(T / 1e6).toFixed(2)} MK into ${Object.entries(mix).map(([z, v]) => `${z === "He" ? "helium" : "element " + z} ${(100 * v).toFixed(0)}%`).join(", ")}`);
   }
-  const file = new URL("./ppfusion.json", import.meta.url), j = JSON.parse(readFileSync(file, "utf8")); j.sunPace = { pp_fm: +r, s: 1.5152, force: "MN", rows: out }; writeFileSync(file, JSON.stringify(j, null, 1) + "\n"); console.log("added to tools/ppfusion.json");
+  const file = new URL("./ppfusion.json", import.meta.url), j = JSON.parse(readFileSync(file, "utf8"));
+  if (!j.sunPace || j.sunPace.rows) j.sunPace = {}; j.sunPace[String(sv)] = { pp: tagArg, force: "MN", rows: out };
+  writeFileSync(file, JSON.stringify(j, null, 1) + "\n"); console.log("added to tools/ppfusion.json");
+} else if (cmd === "dial") {
+  // the strong-force dial's data (four/strong/): across each force's window, the deuteron's binding, whether p + p runs,
+  // its rate at 15 MK against where the deuteron binds as ours; helium-4's binding where diffusion Monte Carlo has run;
+  // and every full-chain point (ppfusion.json sunPace). Generated; the page computes nothing heavy itself.
+  const { readFileSync, existsSync, mkdirSync } = await import("node:fs"), DIR = `${process.env.TMPDIR ?? "/tmp"}/atom4-nuclei`, tag = (x) => String(x).replace(".", "p");
+  const j = JSON.parse(readFileSync(new URL("./ppfusion.json", import.meta.url), "utf8")), T = 1.5e7, out = {};
+  for (const [name, { F, s4 }] of Object.entries(FORCES)) {
+    const ref = rateNew(4, F, s4[1], T, grid(T, 4)).rate, grid33 = [], n = 32;
+    for (let k = 0; k <= n; k++) { const sv = s4[0] + ((s4[2] - s4[0]) * k) / n, dt = deuteron(4, F, sv), B = dt ? dt.B : 0;
+      const open = B > 1.29333 + 0.510999, rate = open ? rateNew(4, F, sv, T, grid(T, 4)).rate / ref : 0;
+      grid33.push({ s: +sv.toFixed(4), B: +B.toFixed(4), pp: open ? "open" : B > 1.29333 - 0.510999 ? "pep" : "closed", rel: open ? +rate.toPrecision(4) : 0 }); }
+    const he4 = []; for (const f of (existsSync(DIR) ? (await import("node:fs")).readdirSync(DIR) : [])) { const m = f.match(new RegExp(`^${name === "MN" ? "MN-" : ""}he-4-(\\d+p\\d+)-none-4\\.json$`)); if (m) { const h = JSON.parse(readFileSync(`${DIR}/${f}`, "utf8")); he4.push({ s: h.s, E: +h.E.toFixed(2), err: +h.err.toFixed(2) }); } }
+    he4.sort((a, b) => a.s - b.s);
+    out[name] = { window: [s4[0], s4[2]], ours: s4[1], open: j.opens[name], grid: grid33, he4, chain: name === "MN" ? Object.entries(j.sunPace ?? {}).map(([sv, v]) => ({ s: +sv, ...v })) : [] };
+    console.log(`${name}: ${grid33.length} strengths, helium-4 at ${he4.length}, full chain at ${out[name].chain.length}`);
+  }
+  const ours = { deuteron: 2.224566, he4: 28.30 }, file = new URL("../../strong/data.js", import.meta.url); mkdirSync(new URL("../../strong/", import.meta.url), { recursive: true });
+  writeFileSync(file, `/* Generated by atom/tools/ppfusion.mjs dial; do not edit. The strong-force dial: per force, the window of strengths s
+   (the deuteron binds .. the diproton binds), the deuteron's binding B (MeV), proton + proton's state (open, only with an
+   electron, closed) and its rate at 15 MK relative to where the deuteron binds as ours; helium-4's binding (MeV, negative)
+   where computed; and the full chain (a Sun-paced core's temperature and make-up, both draws) where computed. */
+export const DIAL = ${JSON.stringify({ T_MK: 15, ours, forces: out })};\n`);
+  console.log("wrote four/strong/data.js");
 } else if (cmd === "scan") {
   // across each force's window: the deuteron's binding, whether p + p runs, and r_eff at 15 MK (it barely moves with T)
   const bisect = (F, Bt) => { let a = 1, b = 2.5; for (let i = 0; i < 40; i++) { const m = (a + b) / 2, dt = deuteron(4, F, m); if (dt && dt.B > Bt) b = m; else a = m; } return (a + b) / 2; };
