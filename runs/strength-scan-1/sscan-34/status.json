@@ -1,0 +1,33 @@
+{
+ "group": "sscan-34",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusone 4 1.80 3 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 463
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusone 4 1.80 3 1 compact",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 504
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusone 4 1.80 4 0",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 792
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs brink 4 1.65 1.4 4",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 182
+  }
+ ]
+}

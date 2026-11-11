@@ -1,0 +1,7 @@
+$ node four/atom/tools/nuclei.mjs plusone 4 1.75 4 1 40
+d=4 s=1.75 k=4 proton (960 states): separation 43.70 MeV, core -595.0 (2590 s)
+wrote plusone-4-1p75-4-1-40.json
+(node:2565) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nuclear.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
