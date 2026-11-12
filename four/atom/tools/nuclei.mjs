@@ -260,7 +260,7 @@ if (cmd === "fit") {
   // neutrons (ours: beryllium-10, carbon-14, oxygen-18); np, pp, t (p n n), h (p p n). Ours as the check
   const compact = args.includes("compact"), rest = args.filter((x) => x !== "compact");
   const [d, s, k, spec] = [+rest[0], +rest[1], +rest[2], rest[3]], ndir = +(rest[4] ?? (d === 3 ? 12 : 24)), split = +(rest[5] ?? 0), nu = BR.bestNu(d, s), t = Date.now();
-  const SP = { nn: [2, 3], np: [0, 2], pp: [0, 1], t: [0, 2, 3], h: [0, 1, 2] }[spec]; if (!SP) throw new Error(`plusmore: ${spec}? (nn, np, pp, t, h)`);
+  const SP = { nn: [2, 3], np: [0, 2], pp: [0, 1], t: [0, 2, 3], h: [0, 1, 2], a: [0, 1, 2, 3] }[spec]; if (!SP) throw new Error(`plusmore: ${spec}? (nn, np, pp, t, h, a)`);
   const r = BR.clusterOnCoreGrid({ d, k, sp: SP, nu, s, u: 0.938, M: 4, ndir, split, ...(compact ? { spread: [0.15, 0.45], minD: 0.4 } : {}) });
   console.log(`d=${d} s=${s} k=${k} + ${spec}${compact ? " compact" : ""} (${r.n} states): separation ${r.S.toFixed(2)} MeV, core ${r.Ec.toFixed(1)} (${((Date.now() - t) / 1000).toFixed(0)} s)`);
   save(`plusmore-${d}-${tag(s)}-${k}-${spec}-${ndir}${split ? `-x${split}` : ""}${compact ? "-c" : ""}.json`, { d, s, k, spec, ndir, split, compact, ...r });
