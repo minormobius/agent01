@@ -92,3 +92,13 @@ table.stress td, table.stress th { padding: 3px 12px 3px 0; text-align: left; co
 table.stress th { color: var(--dim); font-size: 11px; }
 .k { color: var(--dim); }
 @media (min-width: 980px) { .walkpad { margin-left: -52px; } }
+
+.ridehud { position: absolute; top: calc(84px + env(safe-area-inset-top)); left: 12px; font: 12px/1.55 var(--mono); color: #d9d3c8; background: rgba(7, 8, 12, 0.6); border-radius: 10px; padding: 7px 10px; pointer-events: none; max-width: min(360px, 70%); }
+.ridehud:empty, .leangauge:empty { display: none; }
+.ridehud b { color: var(--text); } .ridehud .ana, .ridehud b.ana { color: #38f2e0; } .ridehud .kata, .ridehud b.kata { color: #ff66b8; }
+.leangauge { position: absolute; right: 12px; top: calc(112px + env(safe-area-inset-top)); width: 84px; height: 84px; pointer-events: none; }
+.leangauge svg { width: 100%; height: 100%; } .leangauge text { font: 9px var(--mono); text-anchor: middle; }
+.bike { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 2px; margin: 0 0 12px; }
+.presets { gap: 6px; flex-wrap: wrap; } .presets button { font-size: 11.5px; padding: 6px 9px; }
+.presets button.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
+body:not([data-riding="1"]) .ridingonly, body:not([data-riding="1"]) .thrlbl, body[data-riding="1"] .walklbl, body:not([data-riding="1"]) .leangauge { display: none; }

@@ -128,9 +128,11 @@ export function walk(xhat, m, s, R, vectors) {
 /** Gram–Schmidt the vectors against x̂ and each other (keeps a walked frame exact over a long walk). */
 export function orthonormalTo(xhat, vs) {
   const out = [];
-  for (let v of vs) {
-    v = add(v, xhat, -dot(v, xhat));
-    for (const u of out) v = add(v, u, -dot(v, u));
+  const clear = (v) => { v = add(v, xhat, -dot(v, xhat)); for (const u of out) v = add(v, u, -dot(v, u)); return v; };
+  for (const v0 of vs) {
+    let v = clear(v0);
+    // a vector that was (nearly) in the span of the ones before it: fill the gap from the axes instead
+    if (norm(v) < 1e-6) for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { v = clear(ax); if (norm(v) > 0.3) break; }
     out.push(unit(v));
   }
   return out;
@@ -153,4 +155,74 @@ export function roads() {
   const p = (1 + Math.sqrt(5)) / 2, v = [];
   for (const s1 of [1, -1]) for (const s2 of [1, -1]) { v.push([0, s1, s2 * p], [s1, s2 * p, 0], [s2 * p, 0, s1]); }
   return v.map((x) => { const m = Math.hypot(...x); return x.map((c) => c / m); });
+}
+
+// ------------------------------------------------------------------ riding --
+// A track is a closed curve on the floor. Riding it at speed v, the ground must push with F/m = a − g_app, where a is
+// the path's acceleration (v² times the curve's second derivative in R⁴, which includes the floor's own curvature) and
+// g_app = ω²x − 2ωJv the spin's field. F's part toward the centre is what you weigh; its part sideways (across the
+// track, along the floor) is what the tyres must grip, and a bike balances by leaning so its frame lies along F: the
+// lean is a vector, sideways/normal, in the two-dimensional plane across the track (kata's rule, tan φ = v²κ/g, as a
+// vector). Neither ω²x nor −2ωJv has a part along the track, so the spin never speeds you up or slows you down.
+
+/**
+ * A track through the unit 3-sphere: x(θ) = normalise(cos θ·a + sin θ·b + A sin(kθ)·c + B sin(lθ)·d), θ ∈ [0, 2π), with
+ * a, b, c, d orthonormal (a = where it starts, b its first direction). A = B = 0 is a great circle. Sampled at N points
+ * with arc length (on the unit sphere), unit tangent and second derivative by arc length.
+ */
+export function makeTrack({ a, b, c, d, A = 0, B = 0, k = 0, l = 0 }, N = 4096) {
+  const at = (th) => unit(add(add(add(scale(a, Math.cos(th)), b, Math.sin(th)), c, A * Math.sin(k * th)), d, B * Math.sin(l * th)));
+  const P = [], S = [0];
+  for (let i = 0; i < N; i++) P.push(at((2 * Math.PI * i) / N));
+  for (let i = 1; i <= N; i++) S.push(S[i - 1] + norm(add(P[i % N], P[i - 1], -1)));
+  const len = S[N];
+  // tangent and second derivative by arc length, central differences on the (nearly even) samples
+  const T = [], K = [];
+  for (let i = 0; i < N; i++) {
+    const p0 = P[(i - 1 + N) % N], p1 = P[i], p2 = P[(i + 1) % N];
+    const h1 = norm(add(p1, p0, -1)), h2 = norm(add(p2, p1, -1));
+    T.push(unit(add(p2, p0, -1)));
+    const d1 = scale(add(p2, p1, -1), 1 / h2), d0 = scale(add(p1, p0, -1), 1 / h1);
+    K.push(scale(add(d1, d0, -1), 2 / (h1 + h2)));
+  }
+  return { P, S, T, K, len, N, spec: { a, b, c, d, A, B, k, l } };
+}
+
+/** The track at arc length σ (unit sphere, wrapped): position, tangent, second derivative, interpolated. */
+export function trackAt(tr, sigma) {
+  const s = ((sigma % tr.len) + tr.len) % tr.len;
+  let lo = 0, hi = tr.N;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tr.S[m] <= s) lo = m; else hi = m; }
+  const f = (s - tr.S[lo]) / (tr.S[lo + 1] - tr.S[lo]), j = (lo + 1) % tr.N;
+  const mix = (A, B) => add(scale(A, 1 - f), B, f);
+  return { x: unit(mix(tr.P[lo], tr.P[j])), t: unit(mix(tr.T[lo], tr.T[j])), k: mix(tr.K[lo], tr.K[j]) };
+}
+
+/**
+ * What the ground must do for a rider at unit-sphere point u, unit tangent t, curvature vector κ (d²u/dσ²), riding at
+ * v m/s (negative: backwards along t) in a habitat of radius R spun at ω. Returns the push toward the centre (what you
+ * weigh, m/s²), the sideways push (a vector across the track), the lean (sideways/normal, a vector), its angle, the
+ * grip needed (|sideways|/normal), and the push along the track (zero: the spin never drives you).
+ */
+export function ride(u, t, kappa, v, R, w) {
+  const x = scale(u, R), vel = scale(t, v);
+  const a = scale(kappa, (v * v) / R);                        // d²x/ds² = κ/R for x = R·u, s = R·σ
+  const gApp = add(scale(x, w * w), J(vel), -2 * w);
+  const F = add(a, gApp, -1);
+  const normal = -dot(F, u), along = dot(F, t);
+  const side = add(add(F, t, -along), u, -dot(F, u));
+  const lean = scale(side, 1 / normal);
+  return { normal, side, lean, angle: Math.atan(norm(lean)), grip: norm(side) / normal, along, spinShare: dot(t, J(u)) };
+}
+
+/** The tracks the page offers, built through where you stand (x̂) from your floor frame: the Hopf circle you're on
+ *  (spinward), a great circle across the spin, one at 45°, and a slalom that weaves sideways and through w. */
+export function tracksAt(xhat) {
+  const F = floorFrame(xhat), diag = unit(add(F.f, F.e)), anti = unit(add(F.f, F.e, -1));
+  return {
+    spin: { a: xhat, b: F.f, c: F.e, d: F.Je },
+    across: { a: xhat, b: F.e, c: F.Je, d: F.f },
+    diagonal: { a: xhat, b: diag, c: anti, d: F.Je },
+    slalom: { a: xhat, b: F.e, c: F.Je, d: F.f, k: 9, l: 5 },   // amplitudes set from R by the page: A, B in metres / R
+  };
 }

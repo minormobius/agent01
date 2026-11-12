@@ -15,6 +15,7 @@ const G0 = 9.80665, EYE = 1.7;
 const S = {
   R: 300, g: G0, xh: [1, 0, 0, 0], fwd: [0, 0, 1, 0], right: [0, 1, 0, 0], wS: [0, 0, 0, 1], pitch: 0.18,
   speed: 15, dropH: 20, slow: false, balls: [], t: 0, last: null, vel: [0, 0, 0, 0],
+  ride: null, track: null,    // the bike: { tr, sigma, dir, speed, kind, phys }; the track stays painted after you get off
 };
 const TOWERS = H.towers(), ROADS = H.roads();
 const omega = () => H.spin(S.R, S.g).omega;
@@ -31,6 +32,8 @@ in vec2 ndc;
 out vec4 o;
 uniform float R, tanH, aspect, towerH, towerA, roadW, sunR;
 uniform vec4 E, L, U, Rt, me;
+uniform vec4 tA, tB, tC, tD, tAmp;   // the track: habitat.js makeTrack's a, b, c, d and (A, B, k, l)
+uniform float tOn;
 uniform vec4 towers[24];
 uniform vec3 roads[12];
 
@@ -53,6 +56,19 @@ float n4(vec4 x) {       // value noise in four dimensions: sixteen corners
 float fbm(vec4 x) { return 0.55 * n4(x) + 0.3 * n4(x * 2.03 + 7.1) + 0.15 * n4(x * 4.1 + 3.3); }
 // habitat.js hopf: the same point for every point of one spin circle
 vec3 hopf(vec4 x) { return vec3(2.0 * (x.x * x.z + x.y * x.w), 2.0 * (x.y * x.z - x.x * x.w), dot(x.xy, x.xy) - dot(x.zw, x.zw)); }
+
+// habitat.js makeTrack: x(θ) = normalise(cos θ·a + sin θ·b + A sin(kθ)·c + B sin(lθ)·d)
+vec4 tAt(float th) { return normalize(cos(th) * tA + sin(th) * tB + tAmp.x * sin(tAmp.z * th) * tC + tAmp.y * sin(tAmp.w * th) * tD); }
+// metres from u to the track, and the θ of its nearest point: start from the base circle's angle, refine three times
+vec2 trackNear(vec4 u) {
+  float th = atan(dot(u, tB), dot(u, tA)), best = 1e9, bt = th, step = 0.012;
+  for (int pass = 0; pass < 3; pass++) {
+    float c0 = bt;
+    for (int i = -6; i <= 6; i++) { float t2 = c0 + float(i) * step; float d = length(u - tAt(t2)); if (d < best) { best = d; bt = t2; } }
+    step *= 0.12;
+  }
+  return vec2(best * R, bt);
+}
 
 float capsule(vec4 ro, vec4 rd, vec4 pa, vec4 pb, float ra) {
   vec4 ba = pb - pa, oa = ro - pa;
@@ -83,6 +99,16 @@ vec3 terrain(vec4 u, float t) {
   for (int k = 0; k < 12; k++) {
     float a = acos(clamp(dot(hb, roads[k]), -1.0, 1.0)) * 0.5 * R;   // metres to that circle
     if (a < wide) c = mix(vec3(0.34, 0.34, 0.36), vec3(0.85, 0.84, 0.78), dash * step(a, wide * 0.25));
+  }
+  // the bike track: asphalt 6 m wide, a dashed white centre line, red and white kerbs
+  if (tOn > 0.5) {
+    vec2 tn = trackNear(u);
+    float half_ = max(3.0, px * 1.5), along = R * tn.y;
+    if (tn.x < half_) {
+      c = vec3(0.16, 0.16, 0.18) * (0.9 + 0.2 * k);
+      if (tn.x > half_ - 0.45) c = mix(vec3(0.85, 0.2, 0.2), vec3(0.92), step(0.5, fract(along / 2.0)));
+      if (tn.x < max(0.12, px * 0.6) && fract(along / 6.0) > 0.5) c = vec3(0.92, 0.92, 0.88);
+    }
   }
   // your own spin circle, the one under your feet, gold
   float am = acos(clamp(dot(hb, hopf(me)), -1.0, 1.0)) * 0.5 * R;
@@ -146,8 +172,24 @@ gl.enableVertexAttribArray(0);
 gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
 // ------------------------------------------------------------------ camera --
+// Riding: the bike's frame lies along the ground's push, so "up" tilts by the lean, toward the lean's direction across
+// the track. Lean toward your right and the world rolls; lean into w and your slice itself tilts.
+function rideCamera() {
+  const L = S.ride.phys.lean, m = H.norm(L), phi = Math.atan(m);
+  const base = H.scale(S.xh, -1);
+  const upC = m > 1e-9 ? H.add(H.scale(base, Math.cos(phi)), H.scale(L, 1 / m), Math.sin(phi)) : base;
+  const [right, w] = H.orthonormalTo(S.fwd, [upC, S.right, S.wS]).slice(1);   // right and w kept clear of up and forward
+  const c = Math.cos(S.pitch), s = Math.sin(S.pitch);
+  return {
+    eye: H.add(H.scale(S.xh, S.R), upC, 1.6),
+    look: H.add(H.scale(S.fwd, c), upC, s),
+    up: H.add(H.scale(S.fwd, -s), upC, c),
+    right, w,
+  };
+}
 const TAN = Math.tan((62 * Math.PI) / 360);
 function camera() {
+  if (S.ride && S.ride.phys) return rideCamera();
   const up = H.scale(S.xh, -1), c = Math.cos(S.pitch), s = Math.sin(S.pitch);
   return {
     eye: H.scale(S.xh, S.R - EYE),
@@ -169,6 +211,11 @@ function draw() {
   gl.uniform1f(Un.roadW, Math.max(1.5, 0.004 * S.R)); gl.uniform1f(Un.sunR, 0.04 * S.R);
   gl.uniform4f(Un.E, ...cam.eye); gl.uniform4f(Un.L, ...cam.look); gl.uniform4f(Un.U, ...cam.up); gl.uniform4f(Un.Rt, ...cam.right);
   gl.uniform4f(Un.me, ...S.xh);
+  if (S.track) {
+    const sp = S.track.spec;
+    gl.uniform4f(Un.tA, ...sp.a); gl.uniform4f(Un.tB, ...sp.b); gl.uniform4f(Un.tC, ...sp.c); gl.uniform4f(Un.tD, ...sp.d);
+    gl.uniform4f(Un.tAmp, sp.A, sp.B, sp.k, sp.l); gl.uniform1f(Un.tOn, 1);
+  } else gl.uniform1f(Un.tOn, 0);
   gl.uniform4fv(Un.towers, new Float32Array(TOWERS.flat()));
   gl.uniform3fv(Un.roads, new Float32Array(ROADS.flat()));
   gl.bindVertexArray(vao);
@@ -224,7 +271,16 @@ function overlay(cam) {
   // crosshair
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(W / 2 - 6, Hh / 2); ctx.lineTo(W / 2 + 6, Hh / 2); ctx.moveTo(W / 2, Hh / 2 - 6); ctx.lineTo(W / 2, Hh / 2 + 6); ctx.stroke();
+  if (S.ride) bars(W, Hh);
   compass();
+}
+function bars(W, Hh) {
+  const y = Hh - 18, half = Math.min(W * 0.28, 170);
+  ctx.strokeStyle = 'rgba(20,20,24,0.9)'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(W / 2 - half, y - 8); ctx.quadraticCurveTo(W / 2, y + 6, W / 2 + half, y - 8); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,210,122,0.9)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(W / 2 - half, y - 8); ctx.quadraticCurveTo(W / 2, y + 6, W / 2 + half, y - 8); ctx.stroke();
+  ctx.fillStyle = 'rgba(20,20,24,0.9)'; ctx.fillRect(W / 2 - 7, y - 4, 14, 22);
 }
 
 // spinward, as it lies in your frame: an arrow over forward/right, a bar for the part in w you can't see
@@ -250,7 +306,7 @@ function launch(x0, v0, kind, aim) {
 }
 function throwBall() {
   const cam = camera();
-  launch(cam.eye, H.scale(cam.look, S.speed), 'throw', H.unit(H.add(cam.look, S.xh, -H.dot(cam.look, S.xh))));
+  launch(cam.eye, H.add(H.scale(cam.look, S.speed), S.vel), 'throw', H.unit(H.add(cam.look, S.xh, -H.dot(cam.look, S.xh))));
 }
 function dropBall() {
   // from the drop height, six metres in front of you, at rest on the floor's terms
@@ -289,6 +345,19 @@ const kv = (a, b) => (keys.has(a) ? 1 : 0) - (keys.has(b) ? 1 : 0);
 let last = performance.now();
 function tick(now) {
   const raw = (now - last) / 1000, dt = Math.min(0.05, raw); last = now;
+  if (S.ride) rideStep(dt);
+  else walkStep(dt);
+  // turning: arrow keys and the twist pad (J L I K) turn your view; the pad turns forward and right into w
+  const yaw = S.ride ? 0 : kv('arrowright', 'arrowleft') * 1.4 * dt, pit = kv('arrowup', 'arrowdown') * 1.0 * dt;
+  if (yaw) rot('fwd', 'right', yaw);
+  if (pit) { S.pitch = Math.max(-1.45, Math.min(1.45, S.pitch + pit)); touch(); }
+  const tx = pads.tw[0] + kv('l', 'j'), ty = S.ride ? 0 : pads.tw[1] + kv('i', 'k'), rate = (40 * Math.PI) / 180;
+  if (tx) rot('right', 'wS', tx * rate * dt);
+  if (ty) rot('fwd', 'wS', ty * rate * dt);
+  tickBalls(raw);
+  requestAnimationFrame(tick);
+}
+function walkStep(dt) {
   // walking: the walk pad or W A S D, the lever or R F (ana and kata), shift to run
   const run = keys.has('shift') ? 5 : 1.6;
   const vf = (pads.walk[1] + kv('w', 's')) * run, vr = (pads.walk[0] + kv('d', 'a')) * run, vw = (pads.an + kv('r', 'f')) * run;
@@ -298,13 +367,23 @@ function tick(now) {
     const m = H.scale(S.vel, 1 / sp), r = H.walk(S.xh, m, sp * dt, S.R, [S.fwd, S.right, S.wS]);
     S.xh = r.xhat; [S.fwd, S.right, S.wS] = r.vectors; touch();
   }
-  // turning: arrow keys and the twist pad (J L I K) turn your view; the pad turns forward and right into w
-  const yaw = kv('arrowright', 'arrowleft') * 1.4 * dt, pit = kv('arrowup', 'arrowdown') * 1.0 * dt;
-  if (yaw) rot('fwd', 'right', yaw);
-  if (pit) { S.pitch = Math.max(-1.45, Math.min(1.45, S.pitch + pit)); touch(); }
-  const tx = pads.tw[0] + kv('l', 'j'), ty = pads.tw[1] + kv('i', 'k'), rate = (40 * Math.PI) / 180;
-  if (tx) rot('right', 'wS', tx * rate * dt);
-  if (ty) rot('fwd', 'wS', ty * rate * dt);
+}
+// the bike: the walk pad's forward (or W S) is the throttle, up to 45 m/s; it follows its track and holds the lean
+// that balances it, habitat.js ride()
+const VMAX = 45;
+function rideStep(dt) {
+  const r = S.ride, thr = pads.walk[1] + kv('w', 's');
+  if (thr) { r.speed = Math.max(0, Math.min(VMAX, r.speed + thr * 5 * dt)); $('bikespeed').value = r.speed; }
+  r.sigma += (r.dir * r.speed * dt) / S.R;
+  const q = H.trackAt(r.tr, r.sigma), t = H.scale(q.t, r.dir);
+  S.xh = q.x;
+  [S.fwd, S.right, S.wS] = H.orthonormalTo(S.xh, [t, S.right, S.wS]);
+  r.phys = H.ride(q.x, q.t, q.k, r.dir * r.speed, S.R, omega());
+  S.vel = H.scale(t, r.speed);
+  r.dist += r.speed * dt;
+  touch();
+}
+function tickBalls(raw) {
   // the balls fly
   S.t += Math.min(0.25, raw) * (S.slow ? 0.25 : 1);
   let flying = false;
@@ -315,7 +394,6 @@ function tick(now) {
   }
   if (flying) dirty = true;
   if (dirty || moving()) { draw(); dirty = flying; readout(); }
-  requestAnimationFrame(tick);
 }
 function rot(a, b, th) {
   const c = Math.cos(th), s = Math.sin(th), A = S[a], B = S[b];
@@ -395,6 +473,45 @@ $('clear').onclick = () => { S.balls = []; $('result').textContent = ''; touch()
 $('slow').onchange = (e) => { S.slow = e.target.checked; };
 $('square').onclick = squareUp;
 
+// Mount a bike on a track built through where you stand. Across the spin the lean is along J of your heading: we start
+// you with that in view (your right), so the world rolls; twist it into w with the pad and the lean goes out of sight.
+function mount(kind) {
+  const T = H.tracksAt(S.xh);
+  let spec = T[kind === 'against' ? 'spin' : kind];
+  if (kind === 'slalom') spec = { ...spec, A: 14 / S.R, B: 9 / S.R };
+  S.track = H.makeTrack(spec);
+  const dir = kind === 'against' ? -1 : 1, t0 = H.scale(H.trackAt(S.track, 0).t, dir);
+  const side = H.add(H.J(t0), S.xh, -H.dot(H.J(t0), S.xh));
+  const rightGuess = H.norm(side) > 0.3 ? side : S.right;
+  [S.fwd, S.right, S.wS] = H.orthonormalTo(S.xh, [t0, rightGuess, S.wS]);
+  S.pitch = 0.05;
+  S.ride = { tr: S.track, sigma: 0, dir, speed: +$('bikespeed').value, kind, phys: null, dist: 0 };
+  document.body.dataset.riding = '1';
+  for (const b of document.querySelectorAll('#tracks button')) b.classList.toggle('on', b.dataset.k === kind);
+  touch();
+}
+function dismount() {
+  S.ride = null; S.vel = [0, 0, 0, 0]; S.pitch = 0.18;
+  [S.fwd, S.right, S.wS] = H.orthonormalTo(S.xh, [S.fwd, S.right, S.wS]);
+  document.body.dataset.riding = '';
+  for (const b of document.querySelectorAll('#tracks button')) b.classList.remove('on');
+  $('ridehud').innerHTML = '';
+  touch();
+}
+$('tracks').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) mount(b.dataset.k); });
+$('getoff').onclick = dismount;
+$('bikespeed').oninput = (e) => { if (S.ride) S.ride.speed = +e.target.value; $('bikeOut').textContent = `${(+e.target.value).toFixed(0)} m/s`; };
+$('reverse').onclick = () => { if (S.ride) { S.ride.dir *= -1; touch(); } };
+// turn your slice about your heading so the lean lies wholly in w (or wholly to your right): the bike leans exactly as
+// much either way; only what you can see of it changes
+function leanTo(where) {
+  if (!S.ride || !S.ride.phys || S.ride.phys.angle < 1e-4) return;
+  const L = S.ride.phys.lean, a = Math.atan2(H.dot(L, S.wS), H.dot(L, S.right));
+  rot('right', 'wS', where === 'w' ? a - Math.PI / 2 : a);
+}
+$('hidew').onclick = () => leanTo('w');
+$('showr').onclick = () => leanTo('right');
+
 // ---------------------------------------------------------------- readouts --
 const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(m >= 1e4 ? 0 : 1)} km` : `${Math.round(m)} m`);
 function specs() {
@@ -407,10 +524,36 @@ function specs() {
   const rows = H.MATERIALS.map((m) => `<tr><td>${m.name}</td><td>${km(H.maxRadius.cylinder(m.s, S.g))}</td><td><b>${km(H.maxRadius.hopf(m.s, S.g))}</b></td></tr>`).join('');
   $('stress').innerHTML = `<tr><th>the biggest hull of</th><th>cylinder</th><th>Hopf</th></tr>${rows}`;
 }
+function rideHud() {
+  const r = S.ride, p = r.phys;
+  if (!p) return;
+  const g = S.g, deg = (x) => (x * 180) / Math.PI;
+  const cam = rideCamera();
+  const lr = H.dot(p.lean, cam.right), lw = H.dot(p.lean, S.wS);
+  const visible = deg(Math.atan(Math.abs(lr))), hidden = deg(Math.atan(Math.abs(lw)));
+  const wShare = (lw * lw) / Math.max(1e-12, H.dot(p.lean, p.lean));
+  const where = p.angle < 0.005 ? 'upright' : `${deg(p.angle).toFixed(1)}°` +
+    (wShare > 0.97 ? ` <b class="${lw > 0 ? 'ana' : 'kata'}">into w, ${lw > 0 ? 'ana' : 'kata'}</b> (out of your slice)` :
+      wShare < 0.03 ? ` to your ${lr > 0 ? 'right' : 'left'}` : ` · ${visible.toFixed(0)}° ${lr > 0 ? 'right' : 'left'}, ${hidden.toFixed(0)}° ${lw > 0 ? 'ana' : 'kata'}`);
+  const lap = (S.R * r.tr.len), done = r.dist % lap;
+  $('ridehud').innerHTML =
+    `<b>${(r.speed * 3.6).toFixed(0)} km/h</b> · ${r.kind === 'against' ? 'against the spin' : r.kind === 'spin' ? 'with the spin' : r.kind === 'across' ? 'across the spin' : r.kind === 'diagonal' ? '45° to the spin' : 'slalom'}<br>` +
+    `you weigh <b>${(p.normal / g).toFixed(2)} g</b>${p.normal / g < 0.05 ? ' · <span class="ana">floating</span>' : ''}<br>` +
+    `lean ${where}<br>` +
+    `grip needed ${p.grip.toFixed(2)}${p.grip > 0.8 ? ' · <span class="kata">skidding</span>' : ''} · lap ${(100 * done / lap).toFixed(0)}% of ${(lap / 1000).toFixed(2)} km`;
+  // the lean gauge: across-track right (x) and w (y); the dashed circle is a grip of 0.8
+  const gx = Math.max(-1, Math.min(1, lr)), gy = Math.max(-1, Math.min(1, lw));
+  $('leangauge').innerHTML = `<svg viewBox="-50 -50 100 100"><circle r="40" fill="rgba(7,8,12,0.55)" stroke="rgba(255,255,255,0.3)"/>
+    <circle r="32" fill="none" stroke="rgba(255,134,198,0.6)" stroke-dasharray="3 3"/>
+    <line x1="-40" y1="0" x2="40" y2="0" stroke="rgba(255,255,255,0.18)"/><line x1="0" y1="-40" x2="0" y2="40" stroke="rgba(255,255,255,0.18)"/>
+    <circle cx="${(gx * 40).toFixed(1)}" cy="${(-gy * 40).toFixed(1)}" r="5" fill="#ffd27a"/>
+    <text x="0" y="-42" fill="#38f2e0">ana</text><text x="0" y="48" fill="#ff66b8">kata</text><text x="44" y="3" fill="#9a958c">R</text></svg>`;
+}
 function readout() {
+  if (S.ride) rideHud();
   const w = omega(), wt = H.weight(H.scale(S.xh, S.R), S.vel, w) / S.g;
   const f = H.J(S.xh), wshare = H.dot(f, S.wS);
-  $('live').innerHTML = `<span class="k">you weigh</span> <b>${wt.toFixed(3)} g</b>${H.norm(S.vel) > 0.1 ? (H.dot(S.vel, f) > 0.3 ? ' (walking spinward: heavier)' : H.dot(S.vel, f) < -0.3 ? ' (walking against the spin: lighter)' : ' (walking across the spin)') : ''}<br>` +
+  $('live').innerHTML = `<span class="k">you weigh</span> <b>${wt.toFixed(3)} g</b>${H.norm(S.vel) > 0.1 ? (H.dot(S.vel, f) > 0.3 ? ` (${S.ride ? 'riding' : 'walking'} spinward: heavier)` : H.dot(S.vel, f) < -0.3 ? ` (${S.ride ? 'riding' : 'walking'} against the spin: lighter)` : ` (${S.ride ? 'riding' : 'walking'} across the spin)`) : ''}<br>` +
     `<span class="k">spinward</span> ${Math.abs(wshare) > 0.9 ? `almost all ${wshare > 0 ? 'ana' : 'kata'}, out of your slice` : `${(100 * wshare * wshare).toFixed(0)}% in your hidden w`}`;
 }
 

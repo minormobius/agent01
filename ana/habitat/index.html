@@ -23,16 +23,28 @@
       <div class="wbar"><i></i></div>
       <span>spinward</span>
     </div>
+    <div class="ridehud" id="ridehud"></div>
+    <div class="leangauge" id="leangauge"></div>
     <div class="quick">
       <button id="throw">throw</button><button id="drop">drop</button>
     </div>
     <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
-    <div id="walk" class="pad walkpad" aria-label="walk"><div id="walkKnob"></div><span>walk</span></div>
+    <div id="walk" class="pad walkpad" aria-label="walk, or on the bike the throttle"><div id="walkKnob"></div><span class="walklbl">walk</span><span class="thrlbl">throttle</span></div>
     <div id="ana" class="lever" aria-label="step ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
     <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
   </div>
 
   <div class="panel">
+    <div class="bike">
+      <div class="row"><label>ride a bike</label><button class="ghost small ridingonly" id="getoff">get off</button><button class="ghost small ridingonly" id="reverse">turn round</button></div>
+      <div class="row ridingonly"><button class="ghost small" id="hidew">put the lean in w</button><button class="ghost small" id="showr">put it in view</button></div>
+      <div class="row presets" id="tracks">
+        <button class="ghost" data-k="spin">with the spin</button><button class="ghost" data-k="against">against it</button>
+        <button class="ghost" data-k="across">across it</button><button class="ghost" data-k="diagonal">at 45°</button>
+        <button class="ghost" data-k="slalom">slalom</button>
+      </div>
+      <div class="row col"><label><span>speed <span id="bikeOut">12 m/s</span></span></label><input type="range" id="bikespeed" min="0" max="45" step="0.5" value="12" /></div>
+    </div>
     <div class="readout" id="live"></div>
     <div class="readout result" id="result"></div>
     <div class="row col">
@@ -61,6 +73,13 @@
       <div class="chart" id="chart"></div>
     </details>
     <details open>
+      <summary>ride</summary>
+      <p>Each track is laid through where you're standing. The bike follows it and leans the way a balancing rider would: so the ground's push runs along its frame. The <b>walk pad</b> (or W S) is the throttle.</p>
+      <p><b>With the spin</b>, your speed adds to the floor's and you're heavier; you never lean. <b>Against it</b>, lighter, and at the floor's own speed (about 54 m/s in a 300 m habitat; make it smaller to reach it) you float: from outside you're standing still and the habitat is turning under you.</p>
+      <p><b>Across the spin</b>, the road is dead straight and you still have to lean, hard, the whole way round: Coriolis pushes you sideways. It pushes the same way at every point of the road, toward one turn of your heading. You start with that side to your right, so the world rolls. Now hold the <b>twist pad</b> sideways and turn your slice until the lean lies in w: the world stops rolling, you ride upright as far as you can see, and you're leaning 27° into a direction you can't look.</p>
+      <p>Any straight road keeps the same angle to the spin all the way round, so it rides the same everywhere. The <b>slalom</b> doesn't: it weaves left and right and through w.</p>
+    </details>
+    <details>
       <summary>throw something</summary>
       <p>Seen from outside, anything you let go of flies in a straight line, and the floor turns under it. From inside it curves. <b>Drop</b> a ball and it lands a little against the spin, exactly as in a spinning cylinder of the same size (it's the same problem). <b>Throw</b> one along the spin and it doesn't swerve; it only rises or falls short. Throw it across the spin and it swerves sideways, the same amount whichever way you throw, always turned the same way. In a cylinder, a throw along the axis goes straight; here there's no direction that does.</p>
       <p>And the swerve can be in w. Turn so your hidden direction lies across the spin (<b>face spinward</b> does it), throw across, and the ball curves ana or kata, out of your slice. Your slice still cuts it while it's within its radius of you; past that it's a ring, labelled with how far off it is. Step after it with the lever.</p>
@@ -74,8 +93,8 @@
     </details>
     <details>
       <summary>controls and checks</summary>
-      <p>Drag to look. The <b>walk</b> pad (or W A S D, shift to run) walks you; the <b>twist</b> pad (J L I K) turns your slice into w; the <b>lever</b> (R F) steps you ana and kata. Space or double-tap throws, G drops, Z faces spinward.</p>
-      <p>Checked by <code>test/habitat.selftest.mjs</code>: every point of the equal double rotation accelerates straight at the centre, so the floor's gravity is the same at 500 random points (and an unequal one isn't); exact flights match a numerical integration in the spinning frame; a drop lands the same distance antispinward everywhere, matching the cylinder worked separately; a throw along the spin doesn't swerve and one across it swerves the same in all directions, always turned the same way; the weights walking; the hull's force balance, σ = pR/3t, by sampling; the Hopf circles never meet and stay the same distance apart; a 6.5 km walk keeps your frame true.</p>
+      <p>Drag to look. The <b>walk</b> pad (or W A S D, shift to run) walks you, and on a bike it's the throttle; the <b>twist</b> pad (J L I K) turns your slice into w; the <b>lever</b> (R F) steps you ana and kata. Space or double-tap throws, G drops, Z faces spinward.</p>
+      <p>Checked by <code>test/habitat.selftest.mjs</code>: every point of the equal double rotation accelerates straight at the centre, so the floor's gravity is the same at 500 random points (and an unequal one isn't); exact flights match a numerical integration in the spinning frame; a drop lands the same distance antispinward everywhere, matching the cylinder worked separately; a throw along the spin doesn't swerve and one across it swerves the same in all directions, always turned the same way; the weights walking; the hull's force balance, σ = pR/3t, by sampling; the Hopf circles never meet and stay the same distance apart; a 6.5 km walk keeps your frame true. On the bike: every great circle keeps the same angle to the spin all the way round; the spin never pushes along any track; with the spin no lean and (ωR + v)²/R; against it at the floor's speed, weightless; across it a constant lean, tan φ = 2ωv/(ω²R + v²/R), toward J of your heading; the slalom closes and its lean swings.</p>
     </details>
   </div>
 </div>

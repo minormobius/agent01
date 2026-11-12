@@ -75,15 +75,18 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   24 towers as 4D capsules, Hopf roads with yours gold, sun at the centre, haze) and a 2D overlay for the balls (from
   `flight`; solid where the slice cuts them, an ana/kata ring where not). Walk pad, kata's twist pad and lever (the
   lever *steps you* ana/kata: the eye stays on the floor). Balls keep their own clock (a slow frame advances them up
-  to 0.25 s). Physics is four's pinned world; materials' strengths are ours, assumed. See
-  [`habitat/README.md`](habitat/README.md).
+  to 0.25 s). **The bike**: `makeTrack`/`trackAt`/`ride` (F/m = v²x'' − ω²x + 2ωJv: weight, lean vector, grip);
+  `tracksAt` lays the five tracks through where you stand; the shader paints the track (`trackNear`: base angle, then
+  three refining sweeps). Riding, the walk pad is the throttle, the camera's up tilts by the lean (`rideCamera`), and
+  *put the lean in w* turns right↔w so the lean is wholly hidden. Physics is four's pinned world; materials' strengths
+  are ours, assumed. See [`habitat/README.md`](habitat/README.md).
 
 ## Checks
 
 ```bash
 node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
-node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles
+node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding
 ```
 
 Preflight finds every `*.selftest.mjs` and runs the ones under changed directories.

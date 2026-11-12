@@ -1,6 +1,6 @@
 // The Hopf habitat's claims, held: run `node ana/habitat/test/habitat.selftest.mjs`.
 import { dot, add, scale, norm, unit, J, spin, turn, accel, flight, integrate, floorFrame, decompose, weight,
-  hoopStress, maxRadius, floorGravity, hopf, walk, towers, roads } from '../js/habitat.js';
+  hoopStress, maxRadius, floorGravity, hopf, walk, towers, roads, orthonormalTo, makeTrack, trackAt, ride, tracksAt } from '../js/habitat.js';
 
 let fails = 0, passes = 0;
 const ok = (cond, msg) => { if (cond) passes++; else { fails++; console.error('✗ ' + msg); } };
@@ -156,6 +156,10 @@ const randUnit = () => { const g = () => { const u = rand() + 1e-12, v = rand();
   }
   let err = Math.abs(norm(xh) - 1);
   for (let i = 0; i < 3; i++) { err = Math.max(err, Math.abs(dot(vs[i], xh)), Math.abs(norm(vs[i]) - 1)); for (let j = 0; j < i; j++) err = Math.max(err, Math.abs(dot(vs[i], vs[j]))); }
+  // a frame whose third vector lies in the span of the first two still comes out whole (the bike's mount does this)
+  const fx = [1, 0, 0, 0], fr = orthonormalTo(fx, [[0, 1, 0, 0], [0, 0, 1, 0], [0, 1, 1, 0]]);
+  ok(fr.every((v) => Math.abs(norm(v) - 1) < 1e-12) && Math.abs(dot(fr[2], fr[0])) < 1e-12 && Math.abs(dot(fr[2], fr[1])) < 1e-12 && Math.abs(dot(fr[2], fx)) < 1e-12,
+    'orthonormalTo fills in a direction that was in the span of the others');
   ok(err < 1e-9, `6.5 km of wandering: the frame is still on the floor and orthonormal (${err.toExponential(1)})`);
   const T = towers(), Rd = roads();
   ok(T.length === 24 && T.every((t) => Math.abs(norm(t) - 1) < 1e-12) && Rd.length === 12 && Rd.every((r) => Math.abs(Math.hypot(...r) - 1) < 1e-12), '24 towers at the 24-cell\'s corners, 12 roads');
@@ -163,6 +167,53 @@ const randUnit = () => { const g = () => { const u = rand() + 1e-12, v = rand();
   let minAng = Infinity;
   for (let i = 0; i < 24; i++) for (let j = 0; j < i; j++) minAng = Math.min(minAng, Math.acos(Math.max(-1, Math.min(1, dot(T[i], T[j])))));
   ok(Math.abs(minAng - Math.PI / 3) < 1e-9, `towers 60° apart: a sixth of the way round (${(minAng * 180 / Math.PI).toFixed(6)}°)`);
+}
+
+// --- riding. Every great circle keeps the same angle to the spin all the way round (its spinward share is constant),
+//     so a straight road rides the same everywhere along it.
+{
+  let worst = 0;
+  for (let k = 0; k < 40; k++) {
+    const xh = randUnit(), F = floorFrame(xh), al = rand() * 2 * Math.PI, b = unit(add(scale(F.f, Math.cos(al)), add(scale(F.e, Math.sin(al) * Math.cos(k)), F.Je, Math.sin(al) * Math.sin(k))));
+    const share0 = dot(b, F.f);
+    for (let j = 0; j < 24; j++) {
+      const th = (2 * Math.PI * j) / 24, x = add(scale(xh, Math.cos(th)), b, Math.sin(th)), t = add(scale(xh, -Math.sin(th)), b, Math.cos(th));
+      worst = Math.max(worst, Math.abs(dot(t, J(x)) - share0));
+    }
+  }
+  ok(worst < 1e-12, `a great circle's share of the spin is the same all the way round (40 circles, ${worst.toExponential(1)})`);
+}
+{
+  const R = 300, g = 9.81, { omega: w } = spin(R, g), xh = randUnit(), T = tracksAt(xh), v = 15;
+  const sample = (tr, n = 64) => Array.from({ length: n }, (_, i) => trackAt(tr, (tr.len * i) / n));
+  // the spin never pushes along the track, on any track
+  let along = 0;
+  for (const kind of ['spin', 'across', 'diagonal']) for (const q of sample(makeTrack(T[kind]))) along = Math.max(along, Math.abs(ride(q.x, q.t, q.k, v, R, w).along));
+  const sl = makeTrack({ ...T.slalom, A: 15 / R, B: 10 / R });
+  for (const q of sample(sl, 200)) along = Math.max(along, Math.abs(ride(q.x, q.t, q.k, v, R, w).along));
+  ok(along < 2e-3, `the spin never speeds you up or slows you down, on any track (along-track push ≤ ${along.toExponential(1)} m/s²)`);
+  // spinward: no lean, heavier, (ωR + v)²/R; against at the floor's own speed: weightless
+  const sp = sample(makeTrack(T.spin)).map((q) => ride(q.x, q.t, q.k, v, R, w));
+  ok(sp.every((r) => r.angle < 1e-3 && Math.abs(r.normal - (w * R + v) ** 2 / R) < 1e-3), `the spin road at 15 m/s: no lean, ${(sp[0].normal / g).toFixed(3)} g = (ωR + v)²/R`);
+  const fl = sample(makeTrack(T.spin)).map((q) => ride(q.x, q.t, q.k, -w * R, R, w));
+  ok(fl.every((r) => Math.abs(r.normal) < 1e-3), `against the spin at the floor's speed (${(w * R).toFixed(1)} m/s): weightless (${Math.abs(fl[0].normal).toExponential(1)} m/s²)`);
+  // across: a constant lean on a straight road, tan φ = 2ωv/(ω²R + v²/R), toward ±J of your heading, the same all round
+  const ac = sample(makeTrack(T.across)).map((q) => ({ r: ride(q.x, q.t, q.k, v, R, w), q }));
+  const want = Math.atan((2 * w * v) / (w * w * R + (v * v) / R));
+  const dirOK = ac.every(({ r, q }) => Math.abs(Math.abs(dot(unit(r.lean), J(q.t))) - 1) < 1e-3);
+  ok(ac.every(({ r }) => Math.abs(r.angle - want) < 1e-3) && dirOK,
+    `straight across the spin at 15 m/s: you lean ${(want * 180 / Math.PI).toFixed(1)}° all the way round, toward J of your heading`);
+  // diagonal: between, constant
+  const dg = sample(makeTrack(T.diagonal)).map((q) => ride(q.x, q.t, q.k, v, R, w));
+  ok(dg.every((r) => Math.abs(r.angle - dg[0].angle) < 1e-3 && Math.abs(r.normal - dg[0].normal) < 1e-3) && dg[0].angle > 1e-3 && dg[0].angle < want,
+    `at 45° to the spin: a smaller lean (${(dg[0].angle * 180 / Math.PI).toFixed(1)}°), constant all round`);
+  // the slalom closes, stays on the floor, and its lean swings both ways, partly through J's direction
+  const ss = sample(sl, 400).map((q) => ({ r: ride(q.x, q.t, q.k, v, R, w), q }));
+  const leans = ss.map(({ r }) => r.angle);
+  ok(Math.max(...leans) - Math.min(...leans) > 0.1 && Math.abs(norm(trackAt(sl, sl.len).x) - 1) < 1e-12 && norm(add(trackAt(sl, sl.len).x, trackAt(sl, 0).x, -1)) < 1e-9,
+    `the slalom closes on itself and its lean swings from ${(Math.min(...leans) * 180 / Math.PI).toFixed(0)}° to ${(Math.max(...leans) * 180 / Math.PI).toFixed(0)}°`);
+  // the track's samples: arc length of a great circle is 2π
+  ok(Math.abs(makeTrack(T.across).len - 2 * Math.PI) < 1e-5, 'a great-circle track is 2πR round');
 }
 
 console.log(`${fails ? '✗' : '✓'} habitat: ${passes} passed, ${fails} failed`);

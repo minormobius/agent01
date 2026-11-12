@@ -34,7 +34,23 @@ point accelerates at −ω²x, so in the turning frame the centrifugal field is 
 - Walking at 5 m/s: (ωR + u)²/R spinward, (ωR − u)²/R against, (ω²R² + u²)/R across.
 - The hull's force balance by sampling: half a 3-sphere's projected load is the 3-ball the cut leaves, so σ = pR/3t.
 - Hopf circles: the Hopf map is constant along them; two stay the same distance apart all the way round.
-- A 6.5 km walk keeps the frame on the floor and orthonormal.
+- A 6.5 km walk keeps the frame on the floor and orthonormal; `orthonormalTo` fills in a direction that was in the span
+  of the others (mounting a bike can hand it one).
+- Riding: great circles keep their spin share all round; the spin never pushes along any track (slalom included);
+  with the spin no lean and (ωR + v)²/R; against at the floor's speed weightless; across a constant lean
+  tan φ = 2ωv/(ω²R + v²/R) toward J of your heading; at 45° smaller and constant; the slalom closes and its lean swings.
+
+## Riding
+
+`makeTrack` lays a closed track through where you stand (a great circle, or the slalom: one with two sine wiggles, one
+of them through w); `trackAt` interpolates it; `ride` gives what the ground must do: F/m = v²x'' − ω²x + 2ωJv. Its part
+toward the centre is your weight; its sideways part (a vector across the track: right and w) over that is the lean a
+balancing rider holds, and the grip needed. Neither field has a part along the track, so the spin never speeds you up.
+Every great circle keeps a constant share of the spin (its tangent's component along Jx is constant), so a straight
+road rides the same all the way round. At R = 300 m, 1 g, 15 m/s: with the spin 1.63 g, upright; against 0.52 g, and at
+the floor's speed weightless; across, upright nowhere: a constant 27.2° lean toward J of your heading, grip 0.51; at 45°,
+14.9°. The camera leans with the bike; turn your slice so the lean lies in w (*put the lean in w*) and the world stops
+rolling while you lean 27° into a direction you can't see.
 
 ## The page
 
