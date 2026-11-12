@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="HILBERT⁴ — the Hilbert curve on the unit tesseract: one unbroken path through every cell of a four-dimensional grid, each step to a neighbour. Turn it into w, slide a slice through it, and read its index digit by digit." />
+<title>HILBERT⁴ — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/hilbert.css" />
+</head>
+<body>
+<div class="app">
+  <div class="view">
+    <canvas id="gl"></canvas>
+    <div class="hud">
+      <a class="home" href="../">ana</a>
+      <span class="title">HILBERT<sup>4</sup></span>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
+  </div>
+
+  <div class="panel">
+    <p class="lede">One unbroken path through every cell of the <b>unit tesseract</b> cut into a grid, each step to a cell that shares a face. Cut each cell again and the path is redrawn as sixteen copies of itself, one per sub-tesseract, joined end to end. Drag to turn it; switch the drag to <b>w</b> to turn it ana and kata.</p>
+
+    <div class="row">
+      <label>dimensions</label>
+      <div class="seg" id="dim">
+        <button data-v="2">2</button><button data-v="3">3</button><button data-v="4" class="on">4</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>order</label>
+      <div class="seg" id="order"></div>
+    </div>
+    <div class="row">
+      <label>drag turns</label>
+      <div class="seg" id="drag">
+        <button data-v="3" class="on">in 3D</button><button data-v="w">into w</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>colour</label>
+      <div class="seg" id="colour">
+        <button data-v="t" class="on">along the path</button><button data-v="w">by w</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>4D → 3D</label>
+      <div class="seg" id="proj">
+        <button data-v="p" class="on">perspective</button><button data-v="o">flat</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>spin</label>
+      <div class="seg" id="spin">
+        <button data-v="1" class="on">on</button><button data-v="0">off</button>
+      </div>
+      <button class="ghost" id="reset">reset view</button>
+    </div>
+
+    <div class="row col">
+      <label>draw <span id="traceOut"></span> <button class="ghost small" id="play">▶ trace</button></label>
+      <input type="range" id="trace" min="0" max="1000" value="1000" />
+    </div>
+
+    <div class="row col">
+      <label><input type="checkbox" id="slice" /><span>slice at w = <span id="wOut">0.00</span>, <span id="thkOut"></span> thick</span></label>
+      <input type="range" id="w" min="-1000" max="1000" value="0" />
+      <input type="range" id="thk" min="1" max="100" value="18" />
+    </div>
+
+    <div class="readout" id="readout"></div>
+
+    <details>
+      <summary>how it works</summary>
+      <p>Number the cells along the path, 0 to 16<sup>b</sup> − 1, and write each number in base 16. The first digit says which of the tesseract's sixteen halves-of-halves-of-halves-of-halves the cell is in, the next which sixteenth of that, and so on: each digit is a step deeper. The sixteen sub-tesseracts are visited in the order the order-1 path visits the tesseract's corners, a Gray code that flips one coordinate at a time in the ruler sequence w z w y w z w x w z w y w z w, ending one step along x from where it began; each copy is turned and reflected so that it starts where the last one ended.</p>
+      <p>The coordinates come straight from the digits by John Skilling's bit tricks (<i>Programming the Hilbert curve</i>, 2004): a Gray decode and one sweep of reflections and exchanges, the same code for the square, the cube and the tesseract. Try 2 and 3 dimensions to calibrate your eye.</p>
+      <p>What it's for: cells near each other on the path are near each other in space, so sorting points by their place along it keeps neighbours together. That's how databases index maps and how renderers order their work. The converse fails: neighbours in space can be far apart on the path, across the seams between copies. Slide the slice and watch the path leave it and come back.</p>
+      <p>Checked: <code>test/hilbert.selftest.mjs</code> holds the path to visiting every cell once, stepping only to face-neighbours, starting and ending at corners one edge apart, inverting exactly, and being, at every scale, the coarser path with each cell replaced by a copy.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

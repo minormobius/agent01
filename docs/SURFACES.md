@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **112 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **113 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -31,6 +31,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 |---|---|---|---|---|---|---|
 | `ai-edu` | frontend | `ai-edu` | [ai.mino.mobi](https://ai.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`ai-edu/CLAUDE.md`](../ai-edu/CLAUDE.md) | AI-pair numerics for engineers — an education site (draft) on doing numerical engineering work with an AI pair. |
 | `airchat` | fullstack | `airchat` | [airchat.mino.mobi, yapchat.mino.mobi](https://airchat.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`airchat/CLAUDE.md`](../airchat/CLAUDE.md) | Voice-first social on ATProto. Browser records, Whisper transcribes, PDS holds the audio. Identity via Bluesky OAuth. |
+| `ana` | frontend | `ana` | [ana.mino.mobi](https://ana.mino.mobi) | `claude/epic-mayer-y28tpl` | [`ana/CLAUDE.md`](../ana/CLAUDE.md) | Four-dimensional widgets. Ana and kata are Hinton's words for the two ways along the fourth direction of space… |
 | `answers` | frontend | `answers` | [ask.mino.mobi](https://ask.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`answers/CLAUDE.md`](../answers/CLAUDE.md) | Ask anything. Answered by the ATmosphere—questions, answers, votes, and best-answer picks stored on PDS. |
 | `ar` | fullstack | `ar` | [ar.mino.mobi](https://ar.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`ar/CLAUDE.md`](../ar/CLAUDE.md) | Worker + Room Durable Object (WebSocket relay) + static assets (public/). Two-phone AR Laue diffraction at /crystal/. |
 | `atlas` | frontend | `atlas` | [atlas.mino.mobi](https://atlas.mino.mobi) | `claude/county-level-data-maps-s9u3qx` | [`atlas/CLAUDE.md`](../atlas/CLAUDE.md) | Every county in the United States, every Canadian census division and every Mexican municipio, drawn from the statistical agencies’ own boundary files onto a watertight equal-area map—then redrawn int… |

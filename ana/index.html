@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="ana — four-dimensional widgets. Small instruments for looking at the fourth direction of space, turned, sliced and read off. First, the Hilbert curve on the unit tesseract." />
+<title>ana — four-dimensional widgets</title>
+<link rel="icon" href="data:," />
+<style>
+:root { --bg: #07080c; --panel: #0e1017; --text: #e9e4da; --dim: #9a958c; --border: #262833; --ice: #6fe0ff; --gold: #ffd27a; --rose: #ff86c6;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+main { max-width: 760px; margin: 0 auto; padding: calc(40px + env(safe-area-inset-top)) 20px 60px; }
+h1 { font: 800 56px/1 var(--mono); letter-spacing: 0.14em; margin: 0 0 6px; }
+h1 span { background: linear-gradient(90deg, var(--ice), #b88cff, var(--rose), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sub { font: 600 12px var(--mono); color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 28px; }
+p { line-height: 1.6; color: #c9c3b8; } p b { color: var(--text); }
+h2 { font: 700 12px var(--mono); color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin: 36px 0 12px; }
+.cards { display: grid; gap: 12px; }
+.card { display: grid; grid-template-columns: 1fr; border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; background: var(--panel); color: inherit; text-decoration: none; }
+a.card:hover { border-color: var(--gold); }
+.card h3 { font: 800 18px var(--mono); letter-spacing: 0.08em; margin: 0 0 6px; display: flex; gap: 10px; align-items: baseline; }
+.card h3 sup { font-size: 11px; color: var(--ice); }
+.card h3 em { font: 600 10px var(--mono); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--border); color: var(--dim); }
+.card h3 em.live { color: var(--ice); border-color: var(--ice); }
+.card p { margin: 0; font-size: 14px; }
+ul { padding-left: 20px; color: #c9c3b8; line-height: 1.6; } li { margin-bottom: 6px; } li b { color: var(--text); }
+code { font: 13px var(--mono); color: var(--gold); }
+footer { margin-top: 40px; font: 11px/1.6 var(--mono); color: var(--dim); } footer a { color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+  <h1><span>ana</span></h1>
+  <p class="sub">four-dimensional widgets</p>
+  <p><b>Ana</b> and <b>kata</b> are Hinton's words for the two ways along the fourth direction of space, the way up and down are the two along the third. This is a shelf of small instruments for looking that way: each one a single object or idea in four dimensions that you can turn, slice through and read numbers off, with the 2D and 3D versions beside it to calibrate your eye.</p>
+  <p>Every widget's mathematics lives in a module with no page attached, and a node selftest holds it to what the page claims.</p>
+
+  <h2>Widgets</h2>
+  <div class="cards">
+    <a class="card" href="hilbert/">
+      <h3><span>HILBERT<sup>4</sup></span> <em class="live">turn it</em></h3>
+      <p>One unbroken path through every cell of the unit tesseract, each step to a cell that shares a face. Cut every cell in sixteen and the path becomes sixteen turned copies of itself, joined end to end, down to a million cells. Turn it in 3D and into w, slide a slice through it and watch the path leave the slice and come back, and scrub along it to read each cell's place as base-16 digits, one per level of the nesting. The same code draws the square and the cube.</p>
+    </a>
+  </div>
+
+  <footer>ana.mino.mobi · siblings: <a href="https://four.mino.mobi/">four</a>, a universe with four dimensions of space, worked out · <a href="https://kata.mino.mobi/">kata</a>, four dimensions, ridden</footer>
+</main>
+</body>
+</html>

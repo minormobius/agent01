@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ana",
+  "compatibility_date": "2026-02-20",
+  // ana: four-dimensional widgets. A landing page and its widgets (hilbert/, the Hilbert curve on the unit tesseract).
+  // No build, no worker script, no bindings: the directory IS the site. CLAUDE.md, tests and this file are kept out of
+  // the upload by .assetsignore.
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE, not a custom domain: it costs none of the zone's custom-domain slots. A route makes no DNS, so
+  // deploy-ana.yml runs scripts/route-dns.mjs before wrangler deploy.
+  "routes": [
+    { "pattern": "ana.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}

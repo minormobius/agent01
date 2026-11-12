@@ -5704,6 +5704,38 @@
       ]
     },
     {
+      "n": "ana",
+      "u": "https://ana.mino.mobi/",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "surface": "ana",
+      "d": "Four-dimensional widgets. Ana and kata are Hinton's words for the two ways along the fourth direction of space; this is a shelf of small instruments for looking that way, each a single object or idea in four dimensions that you turn, slice and read numbers off, with its 2D and 3D versions beside it to calibrate your eye. Each widget's mathematics is held to the page's claims by a selftest. First, the Hilbert curve on the unit tesseract.",
+      "tags": [
+        "canvas",
+        "math",
+        "index"
+      ]
+    },
+    {
+      "n": "ana-hilbert",
+      "u": "https://ana.mino.mobi/hilbert/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "ana",
+      "surface": "ana",
+      "d": "The Hilbert curve on the unit tesseract: one unbroken path through every cell of a 4D grid, each step to a face-neighbour, which at every order is sixteen turned copies of the order below joined end to end, up to a million cells. Drawn in WebGL2 with Skilling's bit-trick construction (the same code for the square and the cube). Turn it in 3D and into w, slide a slice through w and watch the path leave it and return, and scrub along it to read each cell's index as base-16 digits, one per level of nesting. Selftested: every cell once, face-neighbour steps, corner endpoints, exact inverse, self-similarity at every scale.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

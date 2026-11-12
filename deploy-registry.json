@@ -1905,6 +1905,21 @@
         ".github/workflows/deploy-four.yml"
       ],
       "status": "NEW (2026-10-26): split out of games, where ATOM⁴, Lumen⁴ and IRIS⁴ lived as /atom4/, /lumen4/ and /iris4/; games.mino.mobi redirects those paths here. A plain route from the start (no custom-domain slot)."
+    },
+    {
+      "surface": "ana",
+      "dir": "ana",
+      "endpoint": "ana.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/epic-mayer-y28tpl",
+      "uses": [],
+      "provides": null,
+      "note": "Four-dimensional widgets: small instruments for looking ana and kata, each turned, sliced and read off beside its 2D and 3D versions. A landing and its widgets; the first, HILBERT⁴, the Hilbert curve on the unit tesseract (full description: ana/CLAUDE.md)",
+      "paths": [
+        "ana/**",
+        ".github/workflows/deploy-ana.yml"
+      ],
+      "status": "NEW (2026-11-12): a plain route from the start (no custom-domain slot). Sibling of four and kata; no shared code with either."
     }
   ],
   "unmanaged": {
