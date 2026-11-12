@@ -2,43 +2,46 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="HILBERT⁴ — the Hilbert curve on the unit tesseract: one unbroken path through every cell of a four-dimensional grid, each step to a neighbour. Turn it into w, slide a slice through it, and read its index digit by digit." />
+<meta name="description" content="HILBERT⁴ — the Hilbert curve on the unit tesseract: one unbroken path through every cell of a four-dimensional grid, each step to a neighbour. See its shadow, or cut its hypertubes with your slice; twist the slice into w and move it ana and kata." />
 <title>HILBERT⁴ — ana</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/hilbert.css" />
 </head>
 <body>
 <div class="app">
-  <div class="view">
-    <canvas id="gl"></canvas>
+  <div class="stage">
+    <canvas id="gl" aria-label="The Hilbert curve on the unit tesseract: its shadow, or your 3D slice through its hypertubes"></canvas>
     <div class="hud">
       <a class="home" href="../">ana</a>
       <span class="title">HILBERT<sup>4</sup></span>
     </div>
+    <div class="seg viewsw" id="view">
+      <button data-v="shadow" class="on">shadow</button><button data-v="slice">slice</button>
+    </div>
     <div class="legend" id="legend"></div>
+    <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+    <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
     <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
   </div>
 
   <div class="panel">
-    <p class="lede">One unbroken path through every cell of the <b>unit tesseract</b> cut into a grid, each step to a cell that shares a face. Cut each cell again and the path is redrawn as sixteen copies of itself, one per sub-tesseract, joined end to end. Drag to turn it; switch the drag to <b>w</b> to turn it ana and kata.</p>
-
-    <div class="row">
-      <label>dimensions</label>
-      <div class="seg" id="dim">
-        <button data-v="2">2</button><button data-v="3">3</button><button data-v="4" class="on">4</button>
-      </div>
+    <div class="row col">
+      <label><span>tube radius <span id="tubeOut"></span></span></label>
+      <input type="range" id="tube" min="2" max="50" value="12" />
     </div>
     <div class="row">
       <label>order</label>
       <div class="seg" id="order"></div>
     </div>
-    <div class="row">
-      <label>drag turns</label>
-      <div class="seg" id="drag">
-        <button data-v="3" class="on">in 3D</button><button data-v="w">into w</button>
-      </div>
+    <div class="row col">
+      <label><span>draw <span id="traceOut"></span></span> <button class="ghost small" id="play">▶ trace</button></label>
+      <input type="range" id="trace" min="0" max="1000" value="1000" />
+    </div>
+    <div class="row col">
+      <label><span>your slice, w = <span id="wOut">0.00</span></span> <button class="ghost small" id="square">square up</button></label>
+      <input type="range" id="w" min="-1000" max="1000" value="0" />
     </div>
     <div class="row">
       <label>colour</label>
@@ -47,9 +50,15 @@
       </div>
     </div>
     <div class="row">
-      <label>4D → 3D</label>
-      <div class="seg" id="proj">
-        <button data-v="p" class="on">perspective</button><button data-v="o">flat</button>
+      <label>dimensions</label>
+      <div class="seg" id="dim">
+        <button data-v="2">2</button><button data-v="3">3</button><button data-v="4" class="on">4</button>
+      </div>
+    </div>
+    <div class="row">
+      <label>drag turns</label>
+      <div class="seg" id="drag">
+        <button data-v="3" class="on">in 3D</button><button data-v="w">into w</button>
       </div>
     </div>
     <div class="row">
@@ -59,26 +68,32 @@
       </div>
       <button class="ghost" id="reset">reset view</button>
     </div>
-
-    <div class="row col">
-      <label>draw <span id="traceOut"></span> <button class="ghost small" id="play">▶ trace</button></label>
-      <input type="range" id="trace" min="0" max="1000" value="1000" />
+    <div class="row shadow-only">
+      <label>4D → 3D</label>
+      <div class="seg" id="proj">
+        <button data-v="p" class="on">perspective</button><button data-v="o">flat</button>
+      </div>
     </div>
-
-    <div class="row col">
-      <label><input type="checkbox" id="slice" /><span>slice at w = <span id="wOut">0.00</span>, <span id="thkOut"></span> thick</span></label>
-      <input type="range" id="w" min="-1000" max="1000" value="0" />
+    <div class="row col shadow-only">
+      <label><input type="checkbox" id="band" /><span>light the band round your slice, <span id="thkOut"></span> thick</span></label>
       <input type="range" id="thk" min="1" max="100" value="18" />
     </div>
 
     <div class="readout" id="readout"></div>
 
+    <details open>
+      <summary>what you're looking at</summary>
+      <p>One unbroken path through every cell of the <b>unit tesseract</b> cut into a grid, each step to a cell that shares a face. Cut each cell again and the path is redrawn as sixteen copies of itself, one per sub-tesseract, joined end to end. The path is drawn as a <b>hypertube</b>: every point within the tube radius of it, in four dimensions.</p>
+      <p><b>Shadow</b> shows the whole thing at once, w squashed into your three directions by perspective (the far side in w drawn smaller, the cube inside the cube). <b>Slice</b> shows only what your 3D slice cuts from the hypertubes, as solids. A tube running along your slice is cut into a tube; one crossing it is cut into a blob that appears, swells and vanishes as you move. Thicken the tubes to see more of them at once.</p>
+      <p>The <b>pad</b> (bottom left) twists your slice into w: hold it and your slice turns, and the cut sweeps through the tesseract. The <b>lever</b> (bottom right) moves your slice ana and kata. Let go and they spring back. <b>Square up</b> turns your slice back to w = constant. Keys: J L and I K twist, R F move, Z squares up, V swaps the view, space traces.</p>
+    </details>
     <details>
       <summary>how it works</summary>
-      <p>Number the cells along the path, 0 to 16<sup>b</sup> − 1, and write each number in base 16. The first digit says which of the tesseract's sixteen halves-of-halves-of-halves-of-halves the cell is in, the next which sixteenth of that, and so on: each digit is a step deeper. The sixteen sub-tesseracts are visited in the order the order-1 path visits the tesseract's corners, a Gray code that flips one coordinate at a time in the ruler sequence w z w y w z w x w z w y w z w, ending one step along x from where it began; each copy is turned and reflected so that it starts where the last one ended.</p>
+      <p>Number the cells along the path, 0 to 16<sup>b</sup> − 1, and write each number in base 16. The first digit says which of the tesseract's sixteen sub-tesseracts the cell is in, the next which sixteenth of that, and so on: each digit is a step deeper. The sixteen are visited in the order the order-1 path visits the tesseract's corners, a Gray code that flips one coordinate at a time in the ruler sequence w z w y w z w x w z w y w z w, ending one step along x from where it began. Each copy is turned and reflected so that it starts where the last one ended.</p>
       <p>The coordinates come straight from the digits by John Skilling's bit tricks (<i>Programming the Hilbert curve</i>, 2004): a Gray decode and one sweep of reflections and exchanges, the same code for the square, the cube and the tesseract. Try 2 and 3 dimensions to calibrate your eye.</p>
-      <p>What it's for: cells near each other on the path are near each other in space, so sorting points by their place along it keeps neighbours together. That's how databases index maps and how renderers order their work. The converse fails: neighbours in space can be far apart on the path, across the seams between copies. Slide the slice and watch the path leave it and come back.</p>
-      <p>Checked: <code>test/hilbert.selftest.mjs</code> holds the path to visiting every cell once, stepping only to face-neighbours, starting and ending at corners one edge apart, inverting exactly, and being, at every scale, the coarser path with each cell replaced by a copy.</p>
+      <p>The slice is ray-traced. Every ray through your view lies in your slice; it is walked through the 4D grid cell by cell, and in each cell it's tested against the two half-tubes that leave the cell's centre for its neighbours on the path. In the slice, colour by w shows how far ana (teal) or kata (rose) of you each tube's core runs.</p>
+      <p>What the curve is for: cells near each other on the path are near each other in space, so sorting points by their place along it keeps neighbours together. That's how databases index maps and how renderers order their work. The converse fails: neighbours in space can be far apart on the path, across the seams between copies.</p>
+      <p>Checked: <code>test/hilbert.selftest.mjs</code> holds the path to visiting every cell once, stepping only to face-neighbours, starting and ending at corners one edge apart, inverting exactly, and being, at every scale, the coarser path with each cell replaced by a copy. It holds the slice's walk to brute force over every segment of the path.</p>
     </details>
   </div>
 </div>

@@ -13,6 +13,16 @@ the last ended.
 Its index in base 2^n reads the nesting: digit k picks which of the 2^n sub-cubes the cell is in at level k. The page's
 readout shows that, and each axis's coordinate in binary.
 
+## Two views
+
+- **Shadow**: the whole path, w folded into your three directions by perspective (eye at w = 4), drawn as tubes whose
+  width is the hypertube's radius at that depth, round-capped and shaded, depth-correct where they cross.
+- **Slice**: only what your 3D slice cuts from the hypertubes. A tube lying in the slice cuts to a capsule; one crossing
+  it to an ellipsoidal blob that appears, swells and vanishes as the slice moves. Colour by w shows how far ana (teal)
+  or kata (rose) of you each tube's core runs.
+
+Both share one frame: twist it into w with the pad, move it ana and kata with the lever (kata's controls).
+
 ## Construction
 
 `js/hilbert.js` follows John Skilling, *Programming the Hilbert curve*, AIP Conf. Proc. 707, 381 (2004):
@@ -39,11 +49,16 @@ For n = 2 and 3 at orders 1–6 and n = 4 at orders 1–4:
 - locality, measured: the worst |Δx|⁴/Δh over all pairs at 4D orders 2 and 3 is held under 100 (17.8, then 44.5).
   The limit isn't computed; this only catches a regression.
 
+The slice's walk: `cellLinks` names each cell's index and its neighbours on the path, consistently; `hitHalf` matches
+closed forms; and `traceTubes` finds the same first hit as brute force over every capsule of the path, on 400 random
+rays per case through random slices (n = 4 at orders 1–3, n = 3 and 2), thin and fat tubes, whole and part-traced.
+The shader in `js/main.js` is its line-for-line twin; the selftest checks the JS, not the GLSL.
+
 And the view maths: rotations stay orthogonal, `turn4` there and back returns home, the n-cube has 2^n corners and
 n·2^(n−1) edges.
 
 ## Controls
 
-Drag turns in xz/yz; "into w" (or shift, or the `w` key) turns in xw/yw. Pinch or wheel zooms. Space plays the trace,
-`r` resets the view. The slice shows cells with |w − w₀| under the thickness, in the turned frame, so turning into w
-moves cells through it.
+Drag turns in xz/yz; "into w" (or shift, or the `w` key) turns in xw/yw. Pinch or wheel zooms. The pad (J L, I K)
+twists your slice into w; the lever (R F) moves it ana and kata; Z squares it up; V swaps shadow and slice; space plays
+the trace; 0 resets the view. The first slider is the tube radius, in cells (0.5: neighbouring tubes touch).

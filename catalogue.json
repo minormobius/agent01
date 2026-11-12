@@ -5729,7 +5729,7 @@
       "b": "2026-11-12",
       "p": "ana",
       "surface": "ana",
-      "d": "The Hilbert curve on the unit tesseract: one unbroken path through every cell of a 4D grid, each step to a face-neighbour, which at every order is sixteen turned copies of the order below joined end to end, up to a million cells. Drawn in WebGL2 with Skilling's bit-trick construction (the same code for the square and the cube). Turn it in 3D and into w, slide a slice through w and watch the path leave it and return, and scrub along it to read each cell's index as base-16 digits, one per level of nesting. Selftested: every cell once, face-neighbour steps, corner endpoints, exact inverse, self-similarity at every scale.",
+      "d": "The Hilbert curve on the unit tesseract: one unbroken path through every cell of a 4D grid, each step to a face-neighbour, sixteen turned copies of the order below at every order, up to a million cells, drawn as hypertubes you can thicken. See its shadow (w folded in by perspective, as shaded tubes), or ray-trace your 3D slice through the hypertubes and watch them cut into capsules and blobs; twist the slice into w with the pad and move it ana and kata with the lever, kata's controls. Scrub along the path to read each cell's index as base-16 digits. Skilling's construction; selftested, the slice's walk against brute force.",
       "tags": [
         "canvas",
         "math"

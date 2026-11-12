@@ -72,12 +72,12 @@ export const cellCount = (n, b) => 2 ** (n * b);
 export const maxOrder = (n) => Math.max(1, Math.floor(20 / n));
 
 /**
- * The whole curve, cell centres in the unit cube [0, 1]^n, padded with zeros to four coordinates so the page draws
- * the square, the cube and the tesseract the same way. Returns a Float32Array of 4 floats a point.
+ * The whole curve, cell centres in the unit cube [0, 1]^n, padded to four coordinates with 0.5 (the middle of the unit
+ * tesseract) so the page draws the square, the cube and the tesseract the same way, centred. A Float32Array, 4 a point.
  */
 export function curve4(n, b) {
   const count = cellCount(n, b), s = 1 / 2 ** b;
-  const out = new Float32Array(count * 4);
+  const out = new Float32Array(count * 4).fill(0.5);
   for (let h = 0; h < count; h++) {
     const X = indexToPoint(h, n, b);
     for (let j = 0; j < n; j++) out[h * 4 + j] = (X[j] + 0.5) * s;
@@ -149,14 +149,120 @@ function orthonormalize(M) {
   return M;
 }
 
-/** The tesseract's (or square's, or cube's) 2^n corners and its n·2^(n−1) edges, in the unit cube, padded to 4D. */
+/** The tesseract's (or square's, or cube's) 2^n corners and its n·2^(n−1) edges, in the unit cube, padded to 4D with 0.5. */
 export function cube4(n) {
   const verts = [], edges = [];
   for (let v = 0; v < 2 ** n; v++) {
-    const p = [0, 0, 0, 0];
+    const p = [0.5, 0.5, 0.5, 0.5];
     for (let j = 0; j < n; j++) p[j] = (v >> j) & 1;
     verts.push(p);
     for (let j = 0; j < n; j++) if (!((v >> j) & 1)) edges.push([v, v | (1 << j)]);
   }
   return { verts, edges };
+}
+
+// ------------------------------------------------------------- the slice --
+// The slice view cuts the curve's hypertubes (every point within ρ of the path, a 4D capsule chain) with a hyperplane
+// and draws the 3D cross-section. The shader finds it by walking each pixel's ray, which lies in the slice, through the
+// 4D grid cell by cell; in each cell it tests the two half-tubes that leave the cell's centre for its neighbours on the
+// path. traceTubes below is that walk, line for line, and the selftest holds it to brute force over every segment.
+
+/** Cells per axis: 2^b along the curve's n axes, one cell spanning [0, 1] along each padded axis. */
+export const gridSize = (n, b) => [0, 1, 2, 3].map((j) => (j < n ? 2 ** b : 1));
+
+/** A cell's place in the links array: x fastest, then y, z, w. */
+export const linearCell = (X, sz) => (X[0] | 0) + sz[0] * ((X[1] | 0) + sz[1] * ((X[2] | 0) + sz[2] * (X[3] | 0)));
+
+/** Direction codes: d = 2·axis + (1 if the step is +, 0 if −); 15 means none (the path's two ends). */
+export const NONE = 15;
+function dirCode(from, to) {
+  for (let j = 0; j < from.length; j++) if (to[j] !== from[j]) return 2 * j + (to[j] > from[j] ? 1 : 0);
+  return NONE;
+}
+
+/**
+ * Per cell, one 32-bit word: (h << 8) | (prev << 4) | next, h the cell's index along the path and prev, next the
+ * direction codes to the cells before and after it. The page uploads it as an R32UI texture `width` texels wide.
+ */
+export function cellLinks(n, b) {
+  const N = cellCount(n, b), sz = gridSize(n, b), out = new Uint32Array(N);
+  let prev = null, cur = indexToPoint(0, n, b);
+  for (let h = 0; h < N; h++) {
+    const next = h < N - 1 ? indexToPoint(h + 1, n, b) : null;
+    const pd = prev ? dirCode(cur, prev) : NONE, nd = next ? dirCode(cur, next) : NONE;
+    out[linearCell([...cur, 0, 0, 0].slice(0, 4), sz)] = ((h << 8) | (pd << 4) | nd) >>> 0;
+    prev = cur; cur = next;
+  }
+  return out;
+}
+
+/** The first t ≥ 0 at which the ray ro + t·rd (rd a unit vector) enters the capsule body from pa to pb, or the ball
+ *  of radius ra round pa; Infinity if neither. The ball at pb is left to the neighbouring cell. */
+export function hitHalf(ro, rd, pa, pb, ra) {
+  let baba = 0, bard = 0, baoa = 0, rdoa = 0, oaoa = 0;
+  for (let j = 0; j < 4; j++) {
+    const ba = pb[j] - pa[j], oa = ro[j] - pa[j];
+    baba += ba * ba; bard += ba * rd[j]; baoa += ba * oa; rdoa += rd[j] * oa; oaoa += oa * oa;
+  }
+  let best = Infinity;
+  const a = baba - bard * bard;
+  if (a > 1e-12) {
+    const bq = baba * rdoa - baoa * bard, c = baba * oaoa - baoa * baoa - ra * ra * baba, h = bq * bq - a * c;
+    if (h >= 0) {
+      const t = (-bq - Math.sqrt(h)) / a, y = baoa + t * bard;
+      if (y >= 0 && y <= baba && t >= 0) best = t;
+    }
+  }
+  const hh = rdoa * rdoa - (oaoa - ra * ra);
+  if (hh >= 0) { const t = -rdoa - Math.sqrt(hh); if (t >= 0 && t < best) best = t; }
+  return best;
+}
+
+/**
+ * Walk the ray through the grid (Amanatides–Woo in four dimensions) and return the first hit on the tubes of radius
+ * rho round the path's first `shown` steps: { t, h, code } (code the half-tube's direction, NONE for the ball), or null.
+ * Coordinates are the unit tesseract's; rd must be a unit vector.
+ */
+export function traceTubes(links, n, b, ro, rd, rho, shown = Infinity) {
+  const sz = gridSize(n, b), cs = sz.map((s) => 1 / s);
+  let t0 = -Infinity, t1 = Infinity;
+  for (let j = 0; j < 4; j++) {
+    if (Math.abs(rd[j]) < 1e-12) { if (ro[j] < 0 || ro[j] > 1) return null; continue; }
+    const a = -ro[j] / rd[j], c = (1 - ro[j]) / rd[j];
+    t0 = Math.max(t0, Math.min(a, c)); t1 = Math.min(t1, Math.max(a, c));
+  }
+  if (t1 < Math.max(t0, 0)) return null;
+  const tStart = Math.max(t0, 0);
+  const cell = [], step = [], tMax = [], tDelta = [];
+  for (let j = 0; j < 4; j++) {
+    const x = ro[j] + rd[j] * (tStart + 1e-9);
+    cell[j] = Math.min(sz[j] - 1, Math.max(0, Math.floor(x / cs[j])));
+    step[j] = rd[j] > 0 ? 1 : -1;
+    if (Math.abs(rd[j]) < 1e-12) { tMax[j] = Infinity; tDelta[j] = Infinity; }
+    else { tMax[j] = ((cell[j] + (rd[j] > 0 ? 1 : 0)) * cs[j] - ro[j]) / rd[j]; tDelta[j] = cs[j] / Math.abs(rd[j]); }
+  }
+  const limit = sz.reduce((s, v) => s + v, 0) + 4;
+  for (let it = 0; it < limit; it++) {
+    const tExit = Math.min(t1, ...tMax);
+    const v = links[linearCell(cell, sz)], h = v >>> 8;
+    if (h <= shown) {
+      const c = cell.map((k, j) => (k + 0.5) * cs[j]);
+      let best = Infinity, bestCode = NONE;
+      for (const [code, isNext] of [[(v >>> 4) & 15, false], [v & 15, true]]) {
+        if (isNext && h >= shown) continue;
+        const pb = c.slice();
+        if (code !== NONE) { const j = code >> 1; pb[j] += (code & 1 ? 0.5 : -0.5) * cs[j]; }
+        const t = hitHalf(ro, rd, c, pb, rho);
+        if (t < best) { best = t; bestCode = code; }
+      }
+      if (best <= tExit + 1e-9) return { t: best, h, code: bestCode };
+    }
+    let k = 0;
+    for (let j = 1; j < 4; j++) if (tMax[j] < tMax[k]) k = j;
+    if (tMax[k] > t1) break;
+    cell[k] += step[k];
+    if (cell[k] < 0 || cell[k] >= sz[k]) break;
+    tMax[k] += tDelta[k];
+  }
+  return null;
 }
