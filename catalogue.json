@@ -5959,6 +5959,23 @@
       ]
     },
     {
+      "n": "kata-twist",
+      "u": "https://kata.mino.mobi/twist/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "kata",
+      "surface": "kata",
+      "d": "TWIST: why you can't spin yarn in four dimensions. The same seven elastic fibres, twisted and pulled, simulated in 3D and in 4D. Ours holds its twist and squeezes its core, which is where a rope's friction comes from. The 4D one slips every whole turn off through the spare direction and squeezes nothing.",
+      "tags": [
+        "math",
+        "canvas",
+        "simulation"
+      ]
+    },
+    {
       "n": "kata-cad4",
       "u": "https://kata.mino.mobi/cad4/",
       "c": "tools",

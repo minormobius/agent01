@@ -181,6 +181,13 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   for numbers (latest request wins; a fine measure is killed rather than waited for); the strip is each part's
   cross-section along the unseen direction. An assembly's `films` (a loop's plane, centre, radius, tube, and the part through it) drive the page's **linked?** rows (`filmTest`: the film lifted along each axis, the rim watched between discs). ▶ run plays `path` only as far as it is possible (`reach()` in the worker: each leg walked to contact, bisected back). `cli.mjs` is the kernel from a terminal. `window.CAD4` exposes the state.
   See [`cad4/README.md`](cad4/README.md).
+- **TWIST at `/twist/`** (a lab): can a 4D yarn get its grip from twist? `js/yarn.js` (no DOM): seven elastic fibres
+  (bead chains, stretch springs, penalty contact between fibres), top end turned in x–y, ends clamped, stretched,
+  relaxed by damped dynamics; the same code with d = 3 or 4 (the yarn lies along the last axis). Measured: squeeze on
+  the core, turns still wound, energy, furthest out of the plane. The result the selftest holds: 3D keeps its twist
+  and squeezes; 4D sheds every whole turn and ends at the untwisted energy; a part turn stays in both; with no jiggle
+  the 4D twist stands (unstable). The page steps both together on 2D canvases, slowly at first (that is when the 4D
+  yarn lets go). `window.TWIST` exposes the worlds. See [`twist/README.md`](twist/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -248,6 +255,7 @@ node kata/amoeba/test/amoeba.selftest.mjs # ~70 s
 node kata/ooze/test/ooze.selftest.mjs # ~60 s
 node kata/volley/test/volley.selftest.mjs # ~1 s
 node kata/cad4/test/cad4.selftest.mjs # ~95 s
+node kata/twist/test/twist.selftest.mjs # ~15 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

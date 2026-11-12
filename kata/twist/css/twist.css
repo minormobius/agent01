@@ -1,0 +1,19 @@
+/* TWIST: two yarns side by side, their numbers under each, the squeeze plotted below */
+:root { --bg: #07080c; --panel: #0d0f15; --text: #e9e4da; --dim: #9a958c; --gold: #ffd27a; --ice: #6fe0ff; --ana: #38f2e0; --kata: #ff66b8; --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+body { max-width: 980px; margin: 0 auto; padding: calc(8px + env(safe-area-inset-top)) 12px calc(18px + env(safe-area-inset-bottom)); }
+#bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 10px; font: 12px var(--mono); color: var(--dim); }
+#bar > b { font: 800 13px var(--mono); letter-spacing: 0.1em; color: var(--text); }
+#bar label { display: flex; gap: 8px; align-items: center; } #bar label span { color: var(--text); min-width: 2.2em; }
+#bar input[type=range] { width: min(200px, 40vw); accent-color: var(--gold); } #bar .chk input { accent-color: var(--gold); }
+#bar button { font: 600 12px var(--mono); background: rgba(255, 255, 255, 0.05); color: var(--gold); border: 1px solid var(--gold); border-radius: 8px; padding: 6px 11px; cursor: pointer; touch-action: manipulation; }
+#worlds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#worlds section { background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 10px; min-width: 0; }
+h2 { font: 700 13px var(--mono); letter-spacing: 0.08em; color: var(--gold); margin: 0 0 6px; } h2 em { font: 400 11px var(--mono); letter-spacing: 0; color: var(--dim); }
+#worlds canvas { display: block; width: 100%; height: min(52vh, 420px); }
+.rows { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font: 12px var(--mono); margin-top: 6px; }
+.rows > i { font-style: normal; color: var(--dim); } .rows > span { text-align: right; } .rows .big { color: var(--gold); font-weight: 700; } .rows .nil { color: var(--kata); font-weight: 700; }
+#plot { display: block; width: 100%; height: 130px; margin-top: 10px; background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; }
+.foot { font: 13px/1.6 var(--sans); color: var(--dim); margin: 12px 2px 0; } .foot a, .foot b { color: var(--text); }
+.foot .ana { color: var(--ana); font-style: normal; } .foot .kata { color: var(--kata); font-style: normal; }
