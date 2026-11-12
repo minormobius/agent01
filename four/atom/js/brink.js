@@ -257,3 +257,26 @@ export function nucleonOnCoreGrid({ d, k, Z = 0, nu, s, u, M = 6, radii = [0.6, 
   const Ec = solve(cores, (x, y) => kernel(x, y, { d, nu, s, u })), EA = solve(full, (x, y) => kernelBlocks(x, y, { d, nu, s, u }));
   return { S: Ec - EA, Ec, EA, n: full.length };
 }
+/* a cluster of extra nucleons on k helium-4s (sp: their species, 0 p↑ 1 p↓ 2 n↑ 3 n↓; [2, 3] two neutrons, [0, 2] a
+   neutron and a proton as the deuteron's spin, [0, 2, 3] the triton's, [0, 1, 2] helium-3's) on nucleonOnCoreGrid's own
+   basis: the same seed, so the same M core placements and the same radii × directions, and with one nucleon exactly
+   plusone's. The cluster's nucleons share one Gaussian at each grid point, as a helium-4's four do, and `split` more
+   placements per core put each at its own grid point, so they can pull apart. Against the core alone on the same
+   placements: S = E(core) − E(core + cluster), what it costs to take all of them away. Variational in the basis */
+export function clusterOnCoreGrid({ d, k, sp, nu, s, u, M = 6, radii = [0.6, 1.3, 2.0, 2.8, 3.7, 4.8], ndir = 12, seed = 1, spread = [0.5, 1.4], minD = 0.9, split = 0, splitSeed = 7 }) {
+  let st = (seed * 2654435761) >>> 0; const rnd = () => { st = (st + 0x6d2b79f5) >>> 0; let z = st; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
+  const gau = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), cores = [];
+  while (cores.length < M) { const spv = spread[0] + (spread[1] - spread[0]) * rnd(), c = Array.from({ length: k }, () => Array.from({ length: d }, () => spv * gau()));
+    let ok = true; for (let i = 0; i < k && ok; i++) for (let j = i + 1; j < k; j++) if (dist2(c[i], c[j]) < minD * minD) { ok = false; break; } if (!ok) continue;
+    const m0 = Array(d).fill(0); for (const p of c) for (let q = 0; q < d; q++) m0[q] += p[q] / k; cores.push(c.map((p) => p.map((x, q) => x - m0[q]))); }
+  const dirs = Array.from({ length: ndir }, () => { const v = Array.from({ length: d }, gau), n = Math.hypot(...v); return v.map((x) => x / n); });
+  const A = 4 * k + sp.length, P = radii.flatMap((r) => dirs.map((e) => e.map((x) => x * r)));
+  const place = (c, ns) => { const cm = Array(d).fill(0); for (const p of c) for (let q = 0; q < d; q++) cm[q] += (4 * p[q]) / A; for (const n of ns) for (let q = 0; q < d; q++) cm[q] += n[q] / A;
+    return [...c.flatMap((p) => alphaOrbitals(p.map((x, q) => x - cm[q]))), ...ns.map((n, i) => ({ R: n.map((x, q) => x - cm[q]), sp: sp[i] }))]; };
+  let s2 = (splitSeed * 2654435761) >>> 0; const r2 = () => { s2 = (s2 + 0x6d2b79f5) >>> 0; let z = s2; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
+  const full = []; for (const c of cores) { for (const p of P) full.push(place(c, sp.map(() => p))); for (let j = 0; j < split; j++) full.push(place(c, sp.map(() => P[Math.floor(r2() * P.length)]))); }
+  const solve = (basis, kern) => { const n = basis.length, Nm = Array.from({ length: n }, () => new Array(n).fill(0)), Hm = Array.from({ length: n }, () => new Array(n).fill(0));
+    for (let i = 0; i < n; i++) for (let j = i; j < n; j++) { const x = kern(basis[i], basis[j]); Nm[i][j] = Nm[j][i] = x.n; Hm[i][j] = Hm[j][i] = x.h; } return hillWheeler(Nm, Hm)[0]; };
+  const Ec = k ? solve(cores, (x, y) => kernel(x, y, { d, nu, s, u })) : 0, E = solve(full, (x, y) => kernelBlocks(x, y, { d, nu, s, u }));
+  return { S: Ec - E, Ec, E, n: full.length };
+}

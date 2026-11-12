@@ -83,6 +83,8 @@ function bake(s) {
       add(["2-4", id(x)], [id(z)], row ? "computed (E2, nuclei.mjs protonflow)" : "ours carried (¹²C + ⁴He × 4D's computed excess)", (T) => twoBody(A4, x, S(T))(T)); }
     // β⁺
     if (x.betaPlus != null && x.betaPlus > 0) { const d = get(x.Z - 1, x.N + 1); if (d) reactions.push({ r: [id(x)], p: [id(d)], how: `β⁺, endpoint ${x.betaPlus.toFixed(2)} MeV, ¹³N's ft`, lam: (Math.LN2 * fBeta(x.betaPlus)) / FT, kind: "beta" }); }
+    // β⁻ (a nucleus with neutrons to spare: plusmore's two-neutron clusters), the same ft and phase space
+    if (x.betaMinus != null && x.betaMinus > 0) { const d = get(x.Z + 1, x.N - 1); if (d) reactions.push({ r: [id(x)], p: [id(d)], how: `β⁻, endpoint ${x.betaMinus.toFixed(2)} MeV, ¹³N's ft`, lam: (Math.LN2 * fBeta(x.betaMinus)) / FT, kind: "beta" }); }
   }
   // ceryllium + ceryllium (heavy's convention: our ¹⁶O + ¹⁶O's factor carried), out as element 6 + ⁴He (the helium-4 channel)
   const ce = get(4, 4), c12a = get(6, 6), oo = oursS(["o16", "o16"], ["he4", "si28"], 2e9) + oursS(["o16", "o16"], ["p", "p31"], 2e9);

@@ -12,13 +12,14 @@
                     same core, nuclear part linear in A_c, Coulomb as δC = V_n − V_p per proton
    Each nucleus carries where its binding came from. Masses: M = Z m_p + N m_n − B.
      node four/fusion/tools/nuc4.mjs <s> [compact]      the table and the questions it settles */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { deuteron, MN, NP_MASS, M_E } from "../../atom/js/nuclear.js";
 
 const DIR = `${process.env.TMPDIR ?? "/tmp"}/atom4-nuclei`, tag = (x) => String(x).replace(".", "p");
 const load = (f) => (existsSync(`${DIR}/${f}`) ? JSON.parse(readFileSync(`${DIR}/${f}`, "utf8")) : null);
 const WINDOW = [1.4002, 1.5152, 1.8909];
-export const CLUSTERS = { "": [0, 0], n: [0, 1], p: [1, 0], d: [1, 1], t: [1, 2], h: [2, 1] }; // [Z, N]
+export const CLUSTERS = { "": [0, 0], n: [0, 1], p: [1, 0], np: [1, 1], t: [1, 2], h: [2, 1], nn: [0, 2], pp: [2, 0] }; // [Z, N]
+const CNAME = { np: "neutron + proton", t: "triton-like", h: "helium-3-like", nn: "two neutrons", pp: "two protons" };
 
 export function table(s, { compact = false } = {}) {
   const he = (A) => load(`MN-he-4-${tag(s)}-none-${A}.json`), h3d = load("MN-he-3-1-none-4.json") ?? load("he-3-1-none-4.json");
@@ -33,6 +34,8 @@ export function table(s, { compact = false } = {}) {
     return v0 == null || v1 == null ? null : { V: v0 + ((s - w0) / (w1 - w0)) * (v1 - v0), how: "interpolated in s" }; };
   const plus = (k, Z) => { const xs = [24, 40].map((nd) => load(`plusone-4-${tag(s)}-${k}-${Z}-${nd}${compact ? "-c" : ""}.json`)).filter(Boolean); return xs.length ? { V: xs.at(-1).S, how: "computed" } : null; };
   const Vn = (k, Z) => (k === 1 ? mass5(Z) : k <= 5 ? plus(k, Z) : null);
+  // two or three nucleons on k helium-4s (nuclei.mjs plusmore), the largest basis run kept
+  const more = (k, c) => { const xs = readdirSync(DIR).filter((f) => new RegExp(`^plusmore-4-${tag(s).replace(".", "\\.")}-${k}-${c}-\\d+(-x\\d+)?${compact ? "-c" : ""}\\.json$`).test(f)).map(load).sort((a, b) => a.n - b.n); return xs.at(-1) ?? null; };
   const out = [];
   const add = (Z, N, B, how, k, c) => out.push({ Z, N, A: Z + N, B, how, k, c, key: `${Z}-${Z + N}` });
   add(1, 0, 0, "free", 0, "p"); add(0, 1, 0, "free", 0, "n"); add(1, 1, Bd, "computed", 0, "d"); add(1, 2, Bt, "computed", 0, "t"); add(2, 1, Bh, "computed (Coulomb estimated)", 0, "h");
@@ -42,9 +45,10 @@ export function table(s, { compact = false } = {}) {
     add(2 * k, 2 * k + 1, Bc + vn.V, `core + neutron ${vn.how}`, k, "n"); add(2 * k + 1, 2 * k, Bc + vp.V, `core + proton ${vp.how}`, k, "p");
     if (Ek1 == null) continue;
     const Va = E - Ek1, dC = vn.V - vp.V, nuc = (Ac) => vn.V + (Va + 2 * dC - vn.V) * (Ac - 1) / 3;
-    add(2 * k + 1, 2 * k + 1, Bc + Bd + nuc(2) - dC, "interpolated cluster", k, "d");
-    add(2 * k + 1, 2 * k + 2, Bc + Bt + nuc(3) - dC, "interpolated cluster", k, "t");
-    add(2 * k + 2, 2 * k + 1, Bc + Bh + nuc(3) - 2 * dC, "interpolated cluster", k, "h");
+    // computed where plusmore has run (the cluster's nucleons all taken away: S = B(core + cluster) − B(core)), else interpolated
+    const cl = (c, Z, N, interp) => { const m = more(k, c); if (m) add(Z, N, Bc + m.S, `core + ${CNAME[c]} computed`, k, c); else if (interp != null) add(Z, N, interp, "interpolated cluster", k, c); };
+    cl("np", 2 * k + 1, 2 * k + 1, Bc + Bd + nuc(2) - dC); cl("t", 2 * k + 1, 2 * k + 2, Bc + Bt + nuc(3) - dC); cl("h", 2 * k + 2, 2 * k + 1, Bc + Bh + nuc(3) - 2 * dC);
+    cl("nn", 2 * k, 2 * k + 2, null); cl("pp", 2 * k + 2, 2 * k, null);
   }
   const by = Object.fromEntries(out.map((x) => [`${x.Z}-${x.N}`, x])), B = (Z, N) => (Z === 2 && N === 2 ? Ba : by[`${Z}-${N}`]?.B), MP = 938.272, MNn = 939.565;
   for (const x of out) { const { Z, N } = x;

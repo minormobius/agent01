@@ -32,6 +32,9 @@
      node four/atom/tools/nuclei.mjs plusone <d> <s> <k> <Z> [dirs]  a nucleon on k helium-4s microscopically (Brink, two-body
                                                                  Minnesota, u set on our ⁸Be): its separation energy, so whether
                                                                  element 2k + 1 at mass 4k + 1 holds together (Z 1 proton, 0 neutron)
+     node four/atom/tools/nuclei.mjs plusmore <d> <s> <k> <nn|np|pp|t|h> [dirs] [split] [compact]  two or three nucleons
+                                                                 on k helium-4s on plusone's basis: neutron-rich nuclei and
+                                                                 the deuteron, triton and helium-3 clusters, computed
      node four/atom/tools/nuclei.mjs protonflow [compact] MN      where hydrogen and helium burn together, does a ladder nucleus
                                                                  catch a proton (toward odd elements) or a helium-4 (on up the
                                                                  ladder)? E1 against E2, both computed, on 2–4 helium-4 cores
@@ -250,6 +253,17 @@ if (cmd === "fit") {
   const r = BR.nucleonOnCoreGrid({ d, k, Z, nu, s, u: 0.938, M: 4, ndir, ...(compact ? { spread: [0.15, 0.45], minD: 0.4 } : {}) });
   console.log(`d=${d} s=${s} k=${k} ${Z ? "proton" : "neutron"}${compact ? " compact" : ""} (${r.n} states): separation ${r.S.toFixed(2)} MeV, core ${r.Ec.toFixed(1)} (${((Date.now() - t) / 1000).toFixed(0)} s)`);
   save(`plusone-${d}-${tag(s)}-${k}-${Z}-${ndir}${compact ? "-c" : ""}.json`, { d, s, k, Z, ndir, compact, ...r });
+} else if (cmd === "plusmore") {
+  // neutron-rich and the clusters between (PI, 2026-11-12: "what governs them going 1:1?"): two or three nucleons on k
+  // helium-4s on plusone's own basis (brink.js clusterOnCoreGrid; the same cores, radii and directions), so with plusone's
+  // separation energies the pair's own binding on the core, S_2n − 2S_n, is measured, not assumed. nn: k helium-4s + 2
+  // neutrons (ours: beryllium-10, carbon-14, oxygen-18); np, pp, t (p n n), h (p p n). Ours as the check
+  const compact = args.includes("compact"), rest = args.filter((x) => x !== "compact");
+  const [d, s, k, spec] = [+rest[0], +rest[1], +rest[2], rest[3]], ndir = +(rest[4] ?? (d === 3 ? 12 : 24)), split = +(rest[5] ?? 0), nu = BR.bestNu(d, s), t = Date.now();
+  const SP = { nn: [2, 3], np: [0, 2], pp: [0, 1], t: [0, 2, 3], h: [0, 1, 2] }[spec]; if (!SP) throw new Error(`plusmore: ${spec}? (nn, np, pp, t, h)`);
+  const r = BR.clusterOnCoreGrid({ d, k, sp: SP, nu, s, u: 0.938, M: 4, ndir, split, ...(compact ? { spread: [0.15, 0.45], minD: 0.4 } : {}) });
+  console.log(`d=${d} s=${s} k=${k} + ${spec}${compact ? " compact" : ""} (${r.n} states): separation ${r.S.toFixed(2)} MeV, core ${r.Ec.toFixed(1)} (${((Date.now() - t) / 1000).toFixed(0)} s)`);
+  save(`plusmore-${d}-${tag(s)}-${k}-${spec}-${ndir}${split ? `-x${split}` : ""}${compact ? "-c" : ""}.json`, { d, s, k, spec, ndir, split, compact, ...r });
 } else if (cmd === "protonflow") {
   // ours as the check: ¹²C + p → ¹³N, the proton bound by 1.944 MeV, against the measured direct capture ~1.3–1.5 keV b.
   // Then 4D on cores of k = 2, 3, 4 helium-4s: the nucleon–core potential set to the microscopic neutron separation
