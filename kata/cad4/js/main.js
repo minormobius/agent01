@@ -99,7 +99,7 @@ function overlay(v) {
 /* ------------------------------------------------------------------ the model */
 function setTree(tree, name, keepView) {
   const vals = { ...(tree.params || {}) }, shape = compile(tree, vals); // (throws before anything is replaced)
-  waiting = false; S.bound = ""; S.ways = null; $("ways").textContent = ""; S.tree = tree; S.name = name; S.vals = vals; S.shape = shape; S.measure = S.fit = S.slice = S.profile = null; build();
+  waiting = false; S.bound = ""; S.ways = null; S.sig = (S.sig || 0) + 1; $("ways").textContent = ""; S.tree = tree; S.name = name; S.vals = vals; S.shape = shape; S.measure = S.fit = S.slice = S.profile = null; build();
   frameIt(); if (!keepView) { E = tree.view ? tree.view.map((v) => v.slice()) : ident(); off = 0; zoom = 1; }
   $("cap").textContent = tree.note || (tree.title ? tree.title : "your own part"); $("cap").classList.remove("min");
   $("runB").hidden = !tree.path; params(); showTree(); filmsBuild(); numbers(); dirty = true;
@@ -132,7 +132,7 @@ function pretty(v, ind = "") {
 let worker = null, busy = null, want = null, reqId = 0, fineT = 0, sliceT = 0;
 function spawn() { worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" }); worker.onmessage = (ev) => got(ev.data); busy = null; }
 function ask(mode, wait) {
-  const req = { id: ++reqId, tree: S.tree, vals: S.vals, path: S.tree.path, mode, O: origin(), E: E.slice(0, 3), C: C4, N4: E[3], R };
+  const req = { id: ++reqId, tree: S.tree, vals: S.vals, path: playing ? playing.path : S.tree.path, sig: S.sig, mode, O: origin(), E: E.slice(0, 3), C: C4, N4: E[3], R };
   if (busy && busy.mode === "fine" && !wait) { worker.terminate(); spawn(); }
   if (busy) { want = req; return; }
   busy = req; worker.postMessage(req);

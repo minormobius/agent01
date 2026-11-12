@@ -4,7 +4,7 @@
    what must be refused, the GLSL the same tree compiles to, and the page's claims about its assemblies: the hinge
    swings clear and binds when folded flat or when the pin is too fat; two linked rings part through w without
    touching and cannot part inside the slice; a ring through a sphere collides on every way out; three tigers make a chain that holds.
-   node kata/cad4/test/cad4.selftest.mjs   (~85 s) */
+   node kata/cad4/test/cad4.selftest.mjs   (~95 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));
@@ -116,6 +116,12 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
   ok(rest.every((v) => v === 0) && held && slides, "the cloth: two families of crimped sheets, chequered over and under along their crossing lines, touch nowhere; a sheet cannot leave along y, z or w, and slides only along x, the direction every sheet runs");
   const w3 = K.measure(K.compile({ op: "wire", dim: 3, r: 0.25, pts: [[0, 0, -1], [0, 0, 1]] })), ex3 = P * 0.0625 * 2 + (4 / 3) * P * 0.015625;
   ok(w3.dim === 3 && off(w3.volume, ex3) < 0.01, `a wire may be 3D, to be extruded into a sheet: a straight one is a capsule (${w3.volume.toFixed(4)} against ${ex3.toFixed(4)})`);
+}
+{ // the rope: a bundle in a sheath woven of sphere-hoops and bands
+  const T = PARTS.rope, rest = T.check.map(([a, b]) => K.fit(T, a, b, {}, 18).overlap), way = (k, to) => Math.max(...T.check.filter((c) => c[0] === "fibre").map(([a, b]) => K.sweep(T, a, b, [{ [k]: 0 }, { [k]: to }], 10, 16).worst)) > 0;
+  const side = ["ox", "oy", "oz"].every((k) => way(k, 1.5) && way(k, -1.5)), along = !way("ow", 3) && !way("ow", -3);
+  const S = { ...T, params: { ...T.params, hx: 0, hy: 0, hw: 0 }, parts: { ...T.parts, moved: { op: "move", by: ["hx", "hy", 0, "hw"], of: "hoops" } } }, sheath = [["hx", 0.2, 2], ["hy", 0.2, 2], ["hw", 0.8, 4]].every(([k, to, n]) => K.sweep(S, "moved", "bands", [{ [k]: 0 }, { [k]: to }], n, 16).worst > 0);
+  ok(rest.every((v) => v === 0) && side && along && sheath, "the rope: nothing touches at rest; a fibre cannot leave the sheath sideways (x, y, z, both ways) and slides only along the rope; the hoops cannot move along or across the bands they are woven with");
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

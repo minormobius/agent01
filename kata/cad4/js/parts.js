@@ -4,6 +4,17 @@ const circle = (r) => ({ op: "shell", t: 0, of: { op: "disc", r } }), point2 = {
 /* a loop of wire in 4D: a circle in the plane of the first two axes, at the origin of the other two, thickened */
 const loop = (R, r) => ({ op: "round", r, of: { op: "product", of: [circle(R), point2] } });
 
+/* the rope's sheath, drawn in a half-plane and turned: in (ρ, y, ℓ), ρ the distance from the sheath's axis and ℓ along
+   the rope, a hoop is an arc from pole to pole at one ℓ and a band is a line along ℓ at one latitude. Where they cross,
+   one is h outside the mean radius and the other h inside, chequered. Turned about the axis, the arcs become spheres
+   and the lines become tubes (a circle long): two families of sheets, the cloth, rolled into a hose. */
+const SHEATH = (() => { const R = 0.58, h = 0.09, t = 0.04, LAT = [-50, 0, 50], AT = [-0.8, 0, 0.8], rad = Math.PI / 180, f = (v) => +v.toFixed(4);
+  const hoop = (k) => ({ op: "wire", dim: 3, r: t, pts: [-90, -70, -50, -25, 0, 25, 50, 70, 90].map((lat) => { const j = LAT.indexOf(lat), rr = R + (j < 0 ? 0 : (j + k) % 2 ? -h : h); return [f(rr * Math.cos(lat * rad)), f(rr * Math.sin(lat * rad)), AT[k]]; }) });
+  const band = (j) => ({ op: "wire", dim: 3, r: t, pts: [-1.25, ...AT, 1.25].map((l, i) => { const k = i - 1, rr = R - ((j + k + 2) % 2 ? -h : h); return [f(rr * Math.cos(LAT[j] * rad)), f(rr * Math.sin(LAT[j] * rad)), l]; }) });
+  /* turn ρ into the plane of the first axis and a new one, then put the rope's length on w */
+  const turn = (of) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "revolve", axis: 0, of } });
+  return { hoops: turn({ op: "union", of: [0, 1, 2].map(hoop) }), bands: turn({ op: "union", of: [0, 1, 2].map(band) }) }; })();
+
 export const PARTS = {
   ball: { title: "ball", note: "Everything within r of a point. Every slice is a ball; move the slice in w and it shrinks to nothing at w = r.",
     params: { r: 1 }, show: { op: "ball", dim: 4, r: "r" } },
@@ -138,5 +149,16 @@ export const PARTS = {
     view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],
     show: ["bundle", "rod", "hoop"], check: [["rod", "hoop"], ["rod", "bundle"]], ways: { name: "the outer rod", params: ["ox", "oy", "oz", "ow"], reach: 3 },
     path: [{ ox: 0, oz: 0, ow: 0 }, { ox: 0.8, oz: 0, ow: 0 }, { ox: 0, oz: 0, ow: 0 }, { ox: 0, oz: 0.8, ow: 0 }, { ox: 0, oz: 0, ow: 0 }] },
+  rope: { title: "rope", note: "The 4D rope: a bundle of fibres in a woven sheath. The sheath is the cloth rolled into a hose: hoops that are spheres, woven with bands that run the rope's length, each hoop outside one band and inside the next. No fibre can leave sideways; the hoops cannot slide along the bands. Along its length a fibre is held by friction alone, as in ours.",
+    params: { ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { ox: [-1.2, 1.2], oy: [-1.2, 1.2], oz: [-1.2, 1.2], ow: [-1.6, 1.6] },
+    parts: {
+      one: { op: "wire", r: 0.12, pts: [[0, 0, 0, -1.2], [0, 0, 0, 1.2]] },
+      core: { op: "union", of: ["one", { op: "move", by: [-0.27, 0, 0, 0], of: "one" }, { op: "move", by: [0, 0.27, 0, 0], of: "one" }, { op: "move", by: [0, -0.27, 0, 0], of: "one" }, { op: "move", by: [0, 0, 0.27, 0], of: "one" }, { op: "move", by: [0, 0, -0.27, 0], of: "one" }] },
+      fibre: { op: "move", by: ["0.27+ox", "oy", "oz", "ow"], of: "one" },
+      hoops: SHEATH.hoops, bands: SHEATH.bands,
+    },
+    view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],
+    show: ["core", "fibre", "hoops", "bands"], check: [["fibre", "hoops"], ["fibre", "bands"], ["fibre", "core"], ["hoops", "bands"]], ways: { name: "one fibre", params: ["ox", "oy", "oz", "ow"], reach: 3 },
+    path: [{ ox: 0, oy: 0, ow: 0 }, { ox: 0.8, oy: 0, ow: 0 }, { ox: 0, oy: 0, ow: 0 }, { ox: 0, oy: 0.8, ow: 0 }, { ox: 0, oy: 0, ow: 0 }, { ox: 0, oy: 0, ow: 1.3 }, { ox: 0, oy: 0, ow: 0 }] },
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope"];

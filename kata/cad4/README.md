@@ -90,7 +90,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then nine assemblies that are the reason to have a 4D workshop:
+holes), then ten assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -122,6 +122,11 @@ holes), then nine assemblies that are the reason to have a 4D workshop:
 - **bundle in a sphere-hoop / in a ring.** Seven rods along w. A bundle's surroundings are 3D, so a ring leaves one
   sideways direction open and the outer rod walks out along z; a hoop that is a sphere closes all three, and the rod
   moves only along its own length, which is friction's to hold. The 4D yarn is hooped, not spun.
+- **rope.** The two put together: a bundle of fibres in a woven sheath. The sheath is the cloth rolled into a hose,
+  drawn in a half-plane (ρ, y, ℓ) and turned about its axis: arcs from pole to pole become hoops that are spheres,
+  lines along ℓ become bands (a circle, the rope's length long), and where they cross one is outside and the other
+  inside, chequered. No fibre can leave sideways; the hoops cannot slide along or across the bands; nothing touches at
+  rest. Along its length a fibre is held by friction alone, which is not modelled.
 
 **ways out** (on assemblies with a part to free) tries that part along each axis, both ways, and says where it stops.
 An assembly may also give `view`, the slice to start in: the weave and the bundles start with w in view.
@@ -145,5 +150,5 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 ## Test
 
 ```bash
-node kata/cad4/test/cad4.selftest.mjs   # ~90 s, 31 checks
+node kata/cad4/test/cad4.selftest.mjs   # ~95 s, 32 checks
 ```
