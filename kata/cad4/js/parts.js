@@ -160,5 +160,25 @@ export const PARTS = {
     view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],
     show: ["core", "fibre", "hoops", "bands"], check: [["fibre", "hoops"], ["fibre", "bands"], ["fibre", "core"], ["hoops", "bands"]], ways: { name: "one fibre", params: ["ox", "oy", "oz", "ow"], reach: 3 },
     path: [{ ox: 0, oy: 0, ow: 0 }, { ox: 0.8, oy: 0, ow: 0 }, { ox: 0, oy: 0, ow: 0 }, { ox: 0, oy: 0.8, ow: 0 }, { ox: 0, oy: 0, ow: 0 }, { ox: 0, oy: 0, ow: 1.3 }, { ox: 0, oy: 0, ow: 0 }] },
+  pulley: { title: "pulley", note: "A wheel that turns in a plane (x–y) on a pin that is a plane (z–w), and a rope over it. A rope on a rim can slip sideways two ways, not one, so the groove has to be a cup: curved across z and across w. Open the groove along w and it is our pulley's groove; the rope walks off through w. Take the flange away and only the block's cheeks stop it, and only in z.",
+    params: { flange: 0.17, open: 0, turn: 0, rx: 0, ry: 0, rz: 0, rw: 0 }, ranges: { flange: [0, 0.2], open: [0, 0.7], turn: [0, 360], rx: [-1, 1], ry: [-1, 1], rz: [-1, 1], rw: [-1, 1] },
+    parts: {
+      /* the rope's seat: everything within 0.15 of the circle the rope's middle runs on (radius 1), stretched by
+         `open` along w. open = 0 is a cup, a ring-shaped groove closed on both sides; open wide and it is a trough */
+      seat: { op: "round", r: 0.15, of: { op: "product", of: [circle(1), { op: "product", of: [{ op: "interval", h: 0 }, { op: "interval", h: "open" }] }] } },
+      /* the wheel: a disc times a square, its rim `flange` above the bottom of the seat, lightened by four holes
+         (so you can see it turn), bored for the pin */
+      blank: { op: "product", of: [{ op: "disc", r: "0.85+flange" }, { op: "rect", size: [0.6, 0.6] }] },
+      hole: { op: "move", by: [0.5, 0], of: { op: "disc", r: 0.17 } },
+      wheel: { op: "rotate", plane: [0, 1], deg: "turn", of: { op: "cut", of: ["blank", "seat", { op: "disc", r: 0.18 }, "hole", { op: "rotate", plane: [0, 1], deg: 90, of: "hole" }, { op: "rotate", plane: [0, 1], deg: 180, of: "hole" }, { op: "rotate", plane: [0, 1], deg: 270, of: "hole" }] } },
+      /* the pin, a disc in x–y and a square in z–w, and the block: two cheeks either side in z, joined over the top */
+      pin: { op: "product", of: [{ op: "disc", r: 0.15 }, { op: "rect", size: [1.1, 0.6] }] },
+      cheek: { op: "cut", of: [{ op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [0.5, 2.1, 0.12, 0.6] } }, { op: "disc", r: 0.15 }] },
+      block: { op: "union", of: [{ op: "move", by: [0, 0, 0.44, 0], of: "cheek" }, { op: "move", by: [0, 0, -0.44, 0], of: "cheek" }, { op: "move", by: [0, 1.74, 0, 0], of: { op: "box", size: [0.5, 0.12, 1, 0.6] } }] },
+      /* the rope: up one side, half way round at radius 1, down the other */
+      rope: { op: "move", by: ["rx", "ry", "rz", "rw"], of: { op: "wire", r: 0.1, pts: [[1, -2.2, 0, 0], [1.0, 0.0, 0, 0], [0.9749, 0.2225, 0, 0], [0.901, 0.4339, 0, 0], [0.7818, 0.6235, 0, 0], [0.6235, 0.7818, 0, 0], [0.4339, 0.901, 0, 0], [0.2225, 0.9749, 0, 0], [0.0, 1.0, 0, 0], [-0.2225, 0.9749, 0, 0], [-0.4339, 0.901, 0, 0], [-0.6235, 0.7818, 0, 0], [-0.7818, 0.6235, 0, 0], [-0.901, 0.4339, 0, 0], [-0.9749, 0.2225, 0, 0], [-1.0, 0.0, 0, 0], [-1, -2.2, 0, 0]] } },
+    },
+    show: ["wheel", "rope", "block", "pin"], check: [["rope", "wheel"], ["rope", "block"], ["wheel", "pin"], ["wheel", "block"]], ways: { name: "the rope", params: ["rx", "ry", "rz", "rw"], reach: 1.6 },
+    path: [{ turn: 0, rz: 0, rw: 0 }, { turn: 180, rz: 0, rw: 0 }, { turn: 180, rz: 0.7, rw: 0 }, { turn: 180, rz: 0, rw: 0 }, { turn: 180, rz: 0, rw: 0.7 }, { turn: 180, rz: 0, rw: 0 }] },
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley"];

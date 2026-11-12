@@ -33,7 +33,7 @@ function reach(tree, vals, path) {
     const len = Math.max(...keys.map((k) => Math.abs(to[k] - cur[k]))), steps = Math.min(24, Math.max(4, Math.ceil(len / 0.1))); let lo = 0, hi = 0, hit = false;
     for (let k = 1; k <= steps && !hit; k++) { if (bad(at(k / steps))) { hit = true; hi = k / steps; } else lo = k / steps; }
     if (hit) for (let q = 0; q < 5; q++) { const m = (lo + hi) / 2; if (bad(at(m))) hi = m; else lo = m; }
-    cur = at(lo); out.push(pick(cur)); stopped.push(hit); }
+    cur = at(hit ? lo * 0.85 : lo); out.push(pick(cur)); stopped.push(hit); } // (stop a little short: the page reads the fit on another grid)
   return { path: out, stopped };
 }
 self.onmessage = (ev) => {

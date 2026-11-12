@@ -4,7 +4,7 @@
    what must be refused, the GLSL the same tree compiles to, and the page's claims about its assemblies: the hinge
    swings clear and binds when folded flat or when the pin is too fat; two linked rings part through w without
    touching and cannot part inside the slice; a ring through a sphere collides on every way out; three tigers make a chain that holds.
-   node kata/cad4/test/cad4.selftest.mjs   (~95 s) */
+   node kata/cad4/test/cad4.selftest.mjs   (~100 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));
@@ -122,6 +122,12 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
   const side = ["ox", "oy", "oz"].every((k) => way(k, 1.5) && way(k, -1.5)), along = !way("ow", 3) && !way("ow", -3);
   const S = { ...T, params: { ...T.params, hx: 0, hy: 0, hw: 0 }, parts: { ...T.parts, moved: { op: "move", by: ["hx", "hy", 0, "hw"], of: "hoops" } } }, sheath = [["hx", 0.2, 2], ["hy", 0.2, 2], ["hw", 0.8, 4]].every(([k, to, n]) => K.sweep(S, "moved", "bands", [{ [k]: 0 }, { [k]: to }], n, 16).worst > 0);
   ok(rest.every((v) => v === 0) && side && along && sheath, "the rope: nothing touches at rest; a fibre cannot leave the sheath sideways (x, y, z, both ways) and slides only along the rope; the hoops cannot move along or across the bands they are woven with");
+}
+{ // the pulley: a rope's seat has to be a cup
+  const T = PARTS.pulley, rest = T.check.map(([a, b]) => K.fit(T, a, b, {}, 18).overlap), way = (k, to, ov = {}) => Math.max(...T.check.filter((c) => c[0] === "rope").map(([a, b]) => K.sweep(T, a, b, [{ ...ov, [k]: 0 }, { ...ov, [k]: to }], 6, 16).worst)) > 0;
+  const cup = ["rz", "rw"].every((k) => way(k, 0.6) && way(k, -0.6)), trough = way("rz", 0.6, { open: 0.7 }) && !way("rw", 1.6, { open: 0.7 }), flat = !way("rw", 1.6, { flange: 0 });
+  const spin = Math.max(...[["wheel", "pin"], ["wheel", "block"], ["rope", "wheel"]].map(([a, b]) => K.sweep(T, a, b, "turn", 0, 90, 3, 16).worst));
+  ok(rest.every((v) => v === 0) && cup && trough && flat && spin === 0, "the pulley: nothing touches, and the wheel turns a quarter turn (it has four-fold symmetry) clear of pin, block and rope; in a cupped groove the rope cannot leave along z or w; open the groove along w (our groove) and it walks off through w; with no flange only the block's cheeks hold it, and only in z");
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);
