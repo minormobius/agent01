@@ -61,10 +61,11 @@ const MEV_ERG = 1.602176634e-6, NA = 6.02214076e23;
 /* energy released, erg per gram per second (Q includes what neutrinos carry off in weak decays) */
 export const energy = (fl) => fl.reduce((s, f, i) => s + f * RX[i].Q, 0) * NA * MEV_ERG;
 
-/* run a stage at fixed T and ρ from mass fractions X0 until `fuel` falls below `until` of its start (or tmax seconds):
+/* run a stage at fixed T and ρ (some rates × mult) from mass fractions X0 until `fuel` falls below `until` of its start (or tmax seconds):
    snapshots of t and Y at every step */
-export function run({ T, rho, X0, fuel, until = 1e-3, tmax = 1e20, Ye = 0.5, maxSteps = 4000 }) {
-  const k = constants(T, rho, Ye), f = new Float64Array(N), J = Array.from({ length: N }, () => new Float64Array(N)), fi = IDX[fuel];
+export function run({ T, rho, X0, fuel, until = 1e-3, tmax = 1e20, Ye = 0.5, maxSteps = 4000, mult = null }) {
+  const k = constants(T, rho, Ye); if (mult) for (const [id, f] of Object.entries(mult)) k[id] *= f; // mult: reaction id → factor
+  const f = new Float64Array(N), J = Array.from({ length: N }, () => new Float64Array(N)), fi = IDX[fuel];
   let Y = toY(X0), t = 0, dt = 1e-12; const Y0f = Y[fi], snaps = [{ t: 0, Y: Float64Array.from(Y) }];
   for (let step = 0; step < maxSteps && Y[fi] > until * Y0f && t < tmax; step++) {
     let X = Float64Array.from(Y), ok = false;

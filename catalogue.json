@@ -5605,6 +5605,22 @@
       ]
     },
     {
+      "n": "four-nuclide-chart",
+      "u": "https://four.mino.mobi/fusion/chart/",
+      "c": "data",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "four",
+      "surface": "four",
+      "d": "The chart of nuclei through a heavy star's whole burning life: every nucleus of a REACLIB reaction network by its neutrons and protons, brighter the more there is, with the flows of matter as arrows. Scrub from the Sun's hydrogen to silicon burning and watch the flow climb the N = Z diagonal to nickel-56; tap any nucleus for what makes it and what destroys it at that moment, and its abundance across every stage.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-strong",
       "u": "https://four.mino.mobi/strong/",
       "c": "data",

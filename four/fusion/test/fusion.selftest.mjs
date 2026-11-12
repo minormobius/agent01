@@ -24,4 +24,8 @@ ok(t.pp > t.cno && t.cno > t.he && t.he > t.c && t.c > t.ne && t.c > t.o && t.o 
 // 5. energy: the pp chains in steady state release ≈ 26.73 MeV per helium-4 made (Q values summed through the chains)
 { const R = done.pp, s = R.snaps.find((x) => x.Y[IDX.p] < 0.6), fl = fluxes(s.Y, R.k), eps = energy(fl), made = fl.reduce((a, f, i) => a + f * (RX[i].p.filter((x) => x === "he4").length - RX[i].r.filter((x) => x === "he4").length), 0);
   const perHe = eps / (made * 6.02214076e23 * 1.602176634e-6); ok(Math.abs(perHe - 26.73) < 0.5, `pp chains: ${perHe.toFixed(2)} MeV released per helium-4 made (4 protons − helium-4: 26.73)`); }
+// 6. the knobs (life.js): carbon + helium → oxygen ×3 leaves less carbon after helium burning, and a rate and its reverse move together
+{ const { runLife, defaults, KNOBS, knobReactions } = await import("../js/life.js"); const c = defaults(); c.mult.c12a = 3; const L = runLife(c), C = toX(L[2].Y)[IDX.c12];
+  ok(C < 0.5 * X("he", "c12"), `¹²C(α,γ) ×3: helium burning leaves carbon ${C.toFixed(2)} against ${X("he", "c12").toFixed(2)}`);
+  const ids = knobReactions(KNOBS.find((k) => k.key === "o16a")); ok(ids.length === 2 && ids.some((i) => RX[i].r.length === 1), "a knob turns a capture and its photodisintegration together"); }
 console.log(fails ? `\n✗ ${fails} failed` : "\n✓ fusion selftest passed"); process.exit(fails ? 1 : 0);

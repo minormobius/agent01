@@ -4,92 +4,109 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="How our stars burn, stage by stage: the proton–proton chains, the CNO cycle, helium, carbon, neon, oxygen and silicon burning to nickel and iron, as cartoon nuclei reacting in the order and proportions the real reaction rates (REACLIB) give, with the Coulomb barrier and tunnelling explained." />
+<meta name="description" content="How our stars burn, as a widget: cartoon nuclei reacting at the real reaction rates (REACLIB) through a heavy star's whole life, from the Sun's hydrogen to silicon burning into nickel, with knobs for temperature, density, composition and the key reaction rates." />
 <title>Four · how stars burn</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../atom/css/atom4.css" />
 <style>
-  header, section { max-width: 980px; }
-  p, li { max-width: 780px; }
-  .toy { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 14px 0 10px; }
-  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 12px var(--mono); color: var(--dim); margin: 4px 0; }
-  .ctl b { color: var(--text); } .ctl input[type=range] { flex: 1; min-width: 140px; max-width: 320px; accent-color: var(--d4); }
-  .ctl select, .ctl button { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 5px 10px; cursor: pointer; }
-  .ctl button.go { border-color: var(--d4); color: var(--d4); }
-  #stages { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
-  #stages button { font: 600 12px var(--mono); background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 999px; padding: 5px 11px; cursor: pointer; }
-  #stages button.on { color: var(--d4); border-color: var(--d4); }
-  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } @media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
-  canvas.plot { width: 100%; height: 220px; display: block; }
-  .main { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 12px; } @media (max-width: 820px) { .main { grid-template-columns: 1fr; } }
-  canvas#gas { width: 100%; height: 380px; display: block; border-radius: 10px; } @media (max-width: 600px) { canvas#gas { height: 300px; } }
-  canvas#chart { width: 100%; height: 300px; display: block; }
-  .read { font: 12px/1.6 var(--mono); color: var(--dim); } .read b { color: var(--text); }
-  #blurb { font: 14px/1.55 var(--sans); color: var(--text); margin: 6px 0; }
-  #log { margin-top: 8px; display: grid; gap: 6px; min-height: 120px; }
-  .ev { font: 12px/1.45 var(--sans); color: var(--dim); border-left: 2px solid var(--border); padding-left: 8px; } .ev b { display: block; font: 600 12px var(--mono); color: var(--text); }
+  body { margin: 0; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 16px 0; }
+  .top h1 { font: 800 18px var(--mono); letter-spacing: 0.06em; margin: 0; }
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; padding: 8px 16px 12px; }
+  @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+  canvas#gas { width: 100%; height: calc(100vh - 250px); min-height: 320px; max-height: 760px; display: block; border-radius: 10px; touch-action: none; }
+  @media (max-width: 900px) { canvas#gas { height: 58vh; } }
+  canvas#timeline { width: 100%; height: 70px; display: block; margin-top: 6px; cursor: pointer; touch-action: none; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font: 12px var(--mono); color: var(--dim); margin-top: 6px; }
+  .bar b { color: var(--text); } .bar input[type=range] { width: 110px; accent-color: var(--d4); }
+  .bar button, .pane button, select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 5px 10px; cursor: pointer; }
+  #play { border-color: var(--d4); color: var(--d4); min-width: 84px; }
+  #stats { font: 11px/1.5 var(--mono); color: var(--dim); margin: 6px 0 0; } #stats b { color: var(--text); }
+  #log { display: grid; gap: 4px; margin-top: 6px; }
+  .ev { font: 12px/1.4 var(--sans); color: var(--dim); border-left: 2px solid var(--border); padding-left: 8px; } .ev b { display: block; font: 600 12px var(--mono); color: var(--text); } .ev b i { font-style: normal; font-weight: 400; color: #e3cf7f; margin-left: 6px; }
   .ev.new { border-color: var(--d3); } .ev.new span { color: var(--text); }
-  #comp { display: grid; gap: 3px; margin-top: 6px; }
-  .cb { display: grid; grid-template-columns: 46px 1fr 44px; align-items: center; gap: 6px; font: 11px var(--mono); color: var(--dim); }
-  .cb i { display: block; height: 10px; background: var(--d4); border-radius: 3px; min-width: 2px; } .cb span { color: var(--text); text-align: right; } .cb em { font-style: normal; }
-  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 11px var(--mono); color: var(--dim); margin-top: 6px; } .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
-  .note { font: 12px/1.55 var(--sans); color: var(--dim); }
+  aside { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; align-self: start; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 8px; } .tabs button { flex: 1; background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 6px; cursor: pointer; } .tabs button.on { color: var(--d4); border-color: var(--d4); }
+  .k { margin: 8px 0; font: 12px var(--mono); color: var(--dim); } .k label { display: flex; justify-content: space-between; } .k b { color: var(--text); } .k input[type=range] { width: 100%; accent-color: var(--d4); }
+  .k select { width: 100%; margin: 4px 0; }
+  .sub { font: 600 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 4px; }
+  .chip { display: inline-block; font: 11px var(--mono); border: 1px solid #b9a35a; color: #e3cf7f; border-radius: 999px; padding: 2px 8px; margin: 2px 4px 2px 0; }
+  .cb { display: grid; grid-template-columns: 40px 1fr 64px; align-items: center; gap: 6px; font: 11px var(--mono); color: var(--dim); margin: 2px 0; }
+  .cb span { color: var(--text); text-align: right; } .cb .tr { position: relative; height: 10px; background: rgba(255,255,255,0.04); border-radius: 3px; }
+  .cb i { display: block; height: 10px; background: var(--d4); border-radius: 3px; min-width: 2px; } .cb u { position: absolute; top: -2px; width: 2px; height: 14px; background: var(--d3); }
+  .cb em { font-style: normal; } .cb small { color: #e3cf7f; margin-left: 4px; }
+  canvas#mini { width: 100%; height: 220px; display: block; margin-top: 4px; }
+  canvas.plot { width: 100%; height: 150px; display: block; margin-top: 6px; }
+  .note { font: 11px/1.5 var(--sans); color: var(--dim); }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font: 10px var(--mono); color: var(--dim); margin-top: 3px; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+  #blurb { font: 12px/1.5 var(--sans); color: var(--text); margin: 0 0 6px; }
+  details.about { margin: 8px 16px 40px; max-width: 900px; } details.about summary { cursor: pointer; font: 600 13px var(--mono); color: var(--dim); }
+  details.about p, details.about li { font-size: 14px; max-width: 820px; }
 </style>
 </head>
 <body>
-<header>
-  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../strong/">strong force</a><a href="../atom/nuclei.html">nuclei</a><a href="../atom/stars.html">stars</a><a href="../atom/">ATOM⁴</a></nav>
-  <h2>four.mino.mobi · how stars burn</h2>
-  <h1 class="ch">How our stars burn</h1>
-  <p class="lede">Before four dimensions, our own world. A star is a ball of gas squeezed by its own weight until its centre is hot enough for nuclei to fuse. Here is what happens at that centre, stage by stage, from the Sun's hydrogen to the silicon at the heart of a star about to explode. The nuclei are cartoons, but which reactions happen, in what order and how often, come from the real reaction rates astrophysicists use.</p>
-</header>
-
-<section>
-  <h3>Why fusion is hard</h3>
-  <p>Nuclei are positively charged, so they push each other away. To fuse, two of them must get close enough, a few femtometres, for the strong force to take over, and to get there they have to climb a hill of electric repulsion. In the Sun's centre the hill is about a thousand times higher than a typical proton's energy. Classically, nothing would ever fuse.</p>
-  <p>Quantum mechanics lets a nucleus <b>tunnel</b> through the hill instead of climbing over it, with a chance that falls steeply the lower its energy and the higher the hill. So fusion happens in a narrow window: fast enough nuclei to have a real chance of tunnelling, but not so fast that hardly any exist. That window, the <b>Gamow peak</b>, decides everything below. Heavier, more charged nuclei face a higher hill, so each stage of a star's life needs it hotter than the last.</p>
-  <div class="toy">
-    <div class="ctl"><label>pair <select id="pair"></select></label><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:240px">temperature <input type="range" id="temp" min="6.8" max="9.6" step="0.01" value="7.2" /> <b id="tval"></b></label></div>
-    <div class="two">
-      <div><canvas class="plot" id="pot"></canvas><p class="note">The hill one nucleus sees coming at another: the electric repulsion outside, the strong force's well inside. The dashed line is the energy they typically fuse at; the orange band is the stretch they have to tunnel through.</p></div>
-      <div><canvas class="plot" id="gamow"></canvas><p class="note">How many nuclei have each energy (grey, falling fast), the chance to tunnel at that energy (blue, rising fast), and their product: the narrow window where fusion actually happens (orange).</p></div>
+<div class="top">
+  <nav class="chapters" style="margin:0"><a href="../" class="home">FOUR</a><a href="chart/" id="open">the chart</a><a href="../strong/">strong force</a><a href="../atom/nuclei.html">nuclei</a></nav>
+  <h1>HOW STARS BURN</h1><span class="note">our world, the anchor for four dimensions · real reaction rates, cartoon nuclei</span>
+</div>
+<div class="app">
+  <div>
+    <canvas id="gas"></canvas>
+    <canvas id="timeline" title="the star's whole life, its core's make-up across each stage: drag to move through it"></canvas>
+    <div class="legend" id="legend"></div>
+    <div class="bar">
+      <button id="play">❚❚ pause</button><button id="back" title="previous stage">⏮</button><button id="fwd" title="next stage">⏭</button>
+      <label>speed <input type="range" id="speed" min="0" max="6" step="1" value="0" /> <b id="sval">×1</b></label>
+      <label>show reactions <select id="rare"><option value="0">as they happen</option><option value="1">rare ones more often</option><option value="2">rare ones often</option><option value="3">every kind about equally</option></select> <b id="rarev" hidden></b></label>
+      <label><input type="checkbox" id="carry" checked /> carry on into the next stage</label>
     </div>
-    <p class="read" id="bnums"></p>
+    <p id="stats"></p>
+    <div id="log"></div>
   </div>
-
-  <h3>A star's core, stage by stage</h3>
-  <p>Pick a stage, or watch them in order: each starts from the ash the one before left. Protons are <span style="color:#ff6f61">red</span>, neutrons <span style="color:#8fb3ff">blue</span>. Wavy lines are gamma rays, yellow dots positrons, dashed lines neutrinos (which leave the star at once). Reactions are drawn one at a time at a steady pace, chosen at random in proportion to how often each really happens at that moment, so common ones show up often and rare ones rarely.</p>
-  <div id="stages"></div>
-  <div class="toy">
-    <p id="blurb"></p>
-    <p class="read" id="cond"></p>
-    <div class="main">
-      <div>
-        <canvas id="gas"></canvas>
-        <div class="ctl" style="margin-top:6px"><button id="play">pause</button><button id="restart">restart stage</button><label style="display:flex;align-items:center;gap:8px">speed <input type="range" id="speed" min="0" max="5" step="1" value="0" /> <b id="sval">×1</b></label><button class="go" id="next" hidden>next stage →</button></div>
-        <p class="read" id="clock"></p>
-        <p class="note" id="scale"></p>
-        <div id="log"></div>
-      </div>
-      <div>
-        <h4 style="margin-top:0">What the core is made of (by mass)</h4>
-        <div id="comp"></div>
-        <h4>The flow, on the chart of nuclei</h4>
-        <canvas id="chart"></canvas>
-        <p class="note">Every nucleus in the network sits at its number of neutrons (across) and protons (up), brighter the more of it there is. The arrows are where the matter is flowing now, thicker the faster; reactions that run both ways count only their difference.</p>
-      </div>
+  <aside>
+    <div class="tabs"><button class="on" data-p="pknob">Knobs</button><button data-p="pmake">Make-up</button><button data-p="pbar">Barrier</button></div>
+    <div class="pane" id="pknob">
+      <div class="sub">this stage · <span id="stagename"></span></div>
+      <div class="k"><label>temperature <b id="Tv"></b></label><input type="range" id="Tk" min="-0.3" max="0.3" step="0.005" value="0" /></div>
+      <div class="k"><label>density <b id="rv"></b></label><input type="range" id="rk" min="-2" max="2" step="0.02" value="0" /></div>
+      <div class="sub">the star it starts as</div>
+      <div class="k"><label>carbon, nitrogen, oxygen <b id="zv"></b></label><input type="range" id="zk" min="-2" max="1" step="0.02" value="0" /></div>
+      <div class="k"><label>helium at birth <b id="hv"></b></label><input type="range" id="hk" min="0.2" max="0.45" step="0.005" value="0.29" /></div>
+      <div class="sub">turn a reaction up or down (and its reverse)</div>
+      <div class="k"><select id="rsel"></select><label>rate <b id="mv"></b></label><input type="range" id="mk" min="-2" max="2" step="0.02" value="0" /></div>
+      <div id="chips"></div>
+      <div class="bar"><button id="reset">reset all</button><span class="note" id="busy"></span></div>
+      <div class="sub" id="ashlabel">What this stage leaves</div>
+      <div id="ash"></div>
+      <p class="note">Bars are your star; the orange tick is the standard one. Every change reruns the network from the stage it touches, and later stages start from the new ash.</p>
     </div>
-  </div>
-
-  <h3>What's real here, and what isn't</h3>
+    <div class="pane" id="pmake" hidden>
+      <p id="blurb"></p>
+      <div class="sub">the core now (by mass)</div>
+      <div id="comp"></div>
+      <div class="sub">the flow on the chart of nuclei</div>
+      <canvas id="mini"></canvas>
+      <p class="note">Neutrons across, protons up; brighter where there's more, arrows where matter flows now. <a href="chart/" id="open2" style="color:var(--text)">Open the chart →</a></p>
+    </div>
+    <div class="pane" id="pbar" hidden>
+      <div class="k"><select id="pair"><option value="0">p + p</option><option value="1">p + ¹⁴N</option><option value="2">⁴He + ⁴He</option><option value="3">⁴He + ¹²C</option><option value="4">¹²C + ¹²C</option><option value="5">⁴He + ²⁰Ne</option><option value="6">¹⁶O + ¹⁶O</option><option value="7">⁴He + ²⁸Si</option></select><label>temperature <b id="tval"></b></label><input type="range" id="temp" min="6.8" max="9.7" step="0.01" value="7.2" /></div>
+      <canvas class="plot" id="pot"></canvas>
+      <canvas class="plot" id="gamow"></canvas>
+      <p class="note" id="bnums"></p>
+      <p class="note">Nuclei repel; to fuse they must tunnel through the electric hill (top). Few have much energy (grey), tunnelling needs a lot (blue): fusion happens in the narrow overlap (orange), the Gamow window.</p>
+    </div>
+  </aside>
+</div>
+<details class="about">
+  <summary>About this widget: what's real, what's cartoon</summary>
+  <p>A star is a ball of gas squeezed by its own weight until its centre is hot enough for nuclei to fuse. Nuclei repel each other, and in the Sun's centre the electric hill between two protons is hundreds of times higher than their typical energy; they fuse only by tunnelling through it, in a narrow window of energies. Heavier nuclei face higher hills, so each stage of a star's life needs it hotter than the last: hydrogen, then helium, carbon, neon, oxygen and silicon, ending at nickel-56, which decays to iron.</p>
   <ul>
-    <li><b>Real:</b> every reaction and its rate, from the REACLIB library (the snapshot <code id="src"></code> that the pynucastro project ships; Cyburt et al. 2010, ApJS 189, 240), 149 reactions among 38 nuclei, integrated as a network; which reactions happen at each moment and how often, relative to each other; the composition, the energy released, and how long each stage lasts at its conditions.</li>
-    <li><b>Simplified:</b> each stage is held at one round temperature and density, typical of the Sun's core for the first and of a star of about twenty Suns for the rest, and run until its fuel is gone, so the times are for those conditions held fixed, not a real star's stage lengths: a real core is stirred, feeding its centre from a larger store, and heats as it goes, and the Sun only burns its hydrogen halfway in its lifetime. Left out: screening by the electrons (which speeds the Sun's reactions by 5–20%), the neutron-capture side channels, partition functions in the reverse rates, and the energy neutrinos carry away (counted in the energy here).</li>
-    <li><b>Cartoon:</b> how nuclei move, and how many are drawn. A real core holds about 10⁵⁰ nuclei, not 64, and rare ones (the CNO cycle's carbon, one in a thousand) are drawn even when they'd be fewer than one. The clock skips, and the page says by how much.</li>
+    <li><b>Real:</b> every reaction and its rate, from the REACLIB library (the snapshot <code id="src"></code> that the pynucastro project ships; Cyburt et al. 2010, ApJS 189, 240), 149 reactions among 38 nuclei integrated as a network; which reactions happen at each moment and how often, relative to each other; the composition, the energy released, and how long each stage takes at its conditions.</li>
+    <li><b>Simplified:</b> each stage is held at one temperature and density (round values for the Sun's core, then for the core of a star of about twenty Suns) and run until its fuel is gone, so the times are for those conditions held fixed, not a real star's stage lengths. Left out: screening by the electrons (5–20% in the Sun), the neutron side channels, partition functions in the reverse rates, and the energy neutrinos carry off (counted here).</li>
+    <li><b>Cartoon:</b> how nuclei move, and how many are drawn (64, where a real core holds about 10⁵⁰; rare ones such as the CNO cycle's carbon are drawn even when they'd be fewer than one). The clock skips, and the stats line says by how much; with "show reactions" turned up, rare reactions are shown more often than they happen, and each says how rare it really is.</li>
   </ul>
-  <p>Next: the same widget for four dimensions, where the steps and the end are different (<a href="../strong/">the strong-force dial</a> has the first of it).</p>
-  <p class="foot"><a href="../">FOUR</a> · <a href="../strong/">the strong-force dial</a> · <a href="../atom/nuclei.html">the nuclei chapter</a> · <a href="../atom/stars.html">the stars chapter</a> · code: <a href="js/net.js">net.js</a> (the network), <a href="js/fusion.js">fusion.js</a> (the page), <a href="reaclib.js">reaclib.js</a> (the rates, made by <code>tools/extract.py</code>)</p>
-</section>
+  <p>Code: <a href="js/net.js">net.js</a> (the network), <a href="js/life.js">life.js</a> (the whole life and the knobs), <a href="js/fusion.js">fusion.js</a> (this page), <a href="reaclib.js">reaclib.js</a> (the rates, made by <code>tools/extract.py</code>). Next: the same for four dimensions (<a href="../strong/">the strong-force dial</a> has its first part).</p>
+</details>
 <script type="module" src="js/fusion.js"></script>
 </body>
 </html>
