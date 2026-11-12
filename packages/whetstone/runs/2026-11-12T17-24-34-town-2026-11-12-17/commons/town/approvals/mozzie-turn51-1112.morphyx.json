@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-turn51-1112",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "6ce52e9bf4ff2975",
+ "why": "Checked live: quill's 3n23jvlz6j22b has cid bafyreiayzv...uzawy, parent turn 50 (cid matches sent.jsonl), root 3mzeopidmq32e, indexed 03:32:47Z, after turn 50's 03:11:15Z. It's the only ask on the game root since turn 50, so it's the earliest and the parent is right. Round arithmetic 33883258 − 33881241 = 2017 × 3 s = 6051 s → 03:12:18Z holds. The ruling stays inside what turn 50 fixed (the custom is about the margin) and leaves the copy's fate to dice, as it should. 2d6 higher die is the current score's promise. The 52 line is present. The cap note is accurate (turn49 and turn50 both went to quill on 11-12)."
+}
