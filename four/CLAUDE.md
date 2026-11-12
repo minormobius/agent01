@@ -170,7 +170,26 @@ for games, and this is a modelling programme with publications to come. The game
   standard tables; unstable boxes carry an orange corner), rows labelled by element. **Follow** (on by default, off when
   you pan or zoom by hand) fills the strip's width and eases the view to the core's matter (√mass-weighted), so playing
   the life walks the view up the chart from hydrogen to nickel. Tap a nucleus for its makers and breakers now (shares of
-  its production and destruction) and its abundance across the whole life. Next: the 4D version beside ours (the strong-force dial's network).
+  its production and destruction) and its abundance across the whole life.
+  **The 4D network (2026-11-12, PI: "now what do we need for 4D"), not yet in the widget.** `fusion/tools/nuc4.mjs <s>
+  [compact]`: the light 4D nuclei by protons and neutrons, each k helium-4s + one cluster c ∈ {∅, n, p, d, t, ³He}:
+  B = kB_α + |E_ladder(k)| + B_c + V_c(k), the pieces from the cache (helium-4 and mass 3 by Monte Carlo less a Coulomb
+  estimate, the deuteron, the ladder k ≤ 8, a nucleon on k helium-4s: Brink's mass 5 for k = 1, plusone for k = 2–5) and
+  **V_d, V_t, V_h interpolated** in the cluster's mass between the nucleon's and helium-4's binding to the same core (flagged
+  per nucleus). The 5-helium-4 core is a closed shell (the 4-simplex: S_α 77 → 107, S_n 25 → 67 MeV at k = 4 → 5, in both
+  draws and the ladder): pxygen-20 is 4D's oxygen-16. `fusion/tools/rates4.mjs <s,…>` → **generated** `fusion/data4.js`:
+  two-body k(T) on 1–400 MK at our Sun's centre density (the book's convention; k_pp fixed by the Sun's pace), from the
+  book's own calculations where they exist (p + p via ppfusion's ppx, ⁴He + ⁴He, p and ⁴He onto 2–4 ⁴He) and otherwise
+  **ours carried**: our analogue's REACLIB rate over our p + p's, through our barrier, put through 4D's (captures with no
+  analogue: ¹⁴N(p,γ) / ¹²C(α,γ) × the geometric mean of 4D's computed excess, as hburn); β⁺ from the endpoint with ¹³N's ft;
+  a capture whose compound sits above its helium-4 threshold also gets (p,α) (¹⁵N(p,α) carried). `fusion/js/net4.js` (no
+  DOM) runs it (stage 1 at the Sun's pace, half the hydrogen in 4.6 Gyr; 2 at capture's rate-matched ignition; 3 at 0.27
+  GK, Ce + Ce out as element 6 + ⁴He). **Result: a 4D CNO cycle on ceryllium-8** (⁸Ce + p → ⁹X →β⁺→ ⁹Ce + p → ¹⁰X + p →
+  ¹¹X →β⁺→ ¹¹X' + p → ⁴He + ⁸Ce, the compound 24 MeV over its helium-4 threshold at s = 1.5152, 8 at 1.7; robust to the
+  draw and to any sane interpolation) turns hydrogen into helium at every strength: s = 1.5152 ends 94% helium + 5%
+  darbon-14 (its nitrogen-14) at 10.8 MK; s ≥ 1.75 strands it as helium-3 (75%). Then helium → ceryllium-8, then element 6
+  (mass 12) 70–97%. **This supersedes hburn's Sun-paced cores (oitrogen/pxygen at 1.5152, darbon at 1.55)**, which climbed
+  by charge with no (p,α) branch; the nuclei chapter, the strong-force dial and ROADMAP still state the old result.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
