@@ -6,7 +6,7 @@
 //     the Mandelbrot set; twist it into w and it turns into the Julia sets.
 // One frame for both: the rotation R (rows: your view's x, y, z, w in the set's coordinates), the centre ctr, the size
 // that fits, and w0, how far ana your slice sits. The pad and lever are kata's, as in HILBERT⁴.
-import { SETS, FRAMES, march } from './fractal.js';
+import { SETS, FRAMES, march, MISIUREWICZ, tangent, twistFrame, hold, patternK } from './fractal.js';
 import { rotation4, turn4 } from '../../hilbert/js/hilbert.js';
 
 const $ = (id) => document.getElementById(id);
@@ -18,6 +18,7 @@ const TILT = [0, 0.55, 0, 0.38, 0, 0];   // a look from above and to the side, n
 const S = {
   set: 'cz', view: 'solid', iters: 24, power: 8, colour: 'orbit', cut: false, spin: false,
   R: rotation4(TILT), ctr: FRAMES.cz.ctr.slice(), size: FRAMES.cz.size, w0: 0, zoom: FRAMES.cz.zoom,
+  autoIter: true, holdOn: true, th: 45, tl: null,
 };
 
 // ------------------------------------------------------------------ shader --
@@ -223,7 +224,7 @@ function draw(scale) {
   gl.viewport(0, 0, w, h);
   gl.useProgram(prog);
   gl.uniform1i(U.set, SETS.indexOf(S.set));
-  gl.uniform1i(U.maxIter, S.iters);
+  gl.uniform1i(U.maxIter, itersNow());
   gl.uniform1i(U.view, S.view === 'plane' ? 1 : 0);
   gl.uniform1i(U.colour, S.colour === 'orbit' ? 0 : 1);
   gl.uniform1i(U.cut, S.cut ? 1 : 0);
@@ -248,14 +249,14 @@ function tick(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   const tx = pads.tw[0] + kv('l', 'j'), ty = pads.tw[1] + kv('i', 'k'), an = pads.an + kv('r', 'f');
   const rate = (35 * Math.PI) / 180;
-  if (tx) { S.R = turn4(S.R, 0, 3, -tx * rate * dt); touch(); }
-  if (ty) { S.R = turn4(S.R, 1, 3, -ty * rate * dt); touch(); }
-  if (an) { S.w0 = Math.max(-1.8, Math.min(1.8, S.w0 + an * 0.5 * dt)); touch(); }
+  if (tx) { S.R = turn4(S.R, 0, 3, -tx * rate * dt); S.tl = null; touch(); }
+  if (ty) { S.R = turn4(S.R, 1, 3, -ty * rate * dt); S.tl = null; touch(); }
+  if (an) { S.w0 = Math.max(-1.8, Math.min(1.8, S.w0 + (an * 0.5 * dt) / S.zoom)); touch(); }   // scaled to what you can see
   if (S.spin) { S.R = turn4(S.R, 0, 3, 0.12 * dt); S.R = turn4(S.R, 0, 2, 0.08 * dt); touch(); }
   if (dirty) {
     const moving = now - lastMove < 180 || dragging;
     if (moving) { draw(0.5); dirty = true; }
-    else { draw(1); dirty = false; sharp = true; }
+    else { draw(1); dirty = false; sharp = true; saveHash(); }
     readout();
   }
   requestAnimationFrame(tick);
@@ -277,7 +278,7 @@ canvas.addEventListener('pointermove', (e) => {
     const [a, b] = [...pointers.values()];
     const other = [...pointers.entries()].find(([id]) => id !== e.pointerId)[1];
     const d1 = Math.hypot(a[0] - b[0], a[1] - b[1]), d0 = Math.hypot(prev[0] - other[0], prev[1] - other[1]);
-    if (d0 > 0) { S.zoom = Math.min(400, Math.max(0.3, S.zoom * d1 / d0)); touch(); }
+    if (d0 > 0) setZoom(S.zoom * d1 / d0);
     return;
   }
   const mx = e.clientX - px, my = e.clientY - py;
@@ -287,8 +288,10 @@ canvas.addEventListener('pointermove', (e) => {
     // in the plane, dragging slides it under your finger: a pixel is 2/(height·zk) of your view's units
     const k = (2 / (canvas.clientHeight * zk())) * S.size;
     for (let j = 0; j < 4; j++) S.ctr[j] -= k * (mx * S.R[j] - my * S.R[4 + j]);
+    S.tl = null;
   } else if (S.drag === 'w' || e.shiftKey) { S.R = turn4(S.R, 0, 3, dx); S.R = turn4(S.R, 1, 3, -dy); }
   else { S.R = turn4(S.R, 0, 2, dx); S.R = turn4(S.R, 1, 2, -dy); }
+  if (!(S.view === 'plane' && S.drag !== 'w' && !e.shiftKey)) S.tl = null;
   touch();
 });
 const up = (e) => { pointers.delete(e.pointerId); if (!pointers.size) { dragging = false; touch(); } };
@@ -296,8 +299,7 @@ canvas.addEventListener('pointerup', up);
 canvas.addEventListener('pointercancel', up);
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  S.zoom = Math.min(400, Math.max(0.3, S.zoom * Math.exp(-e.deltaY * 0.0015)));
-  touch();
+  setZoom(S.zoom * Math.exp(-e.deltaY * 0.0015));
 }, { passive: false });
 
 // Double-tap: centre on the point under your finger (the set's surface in SOLID, the plane's point in PLANE) and zoom
@@ -314,12 +316,11 @@ canvas.addEventListener('dblclick', (e) => {
     const D = 4, rd3 = [nx * aspect / (D * zk()), ny / (D * zk()), -1], m = Math.hypot(...rd3);
     const ro = S.ctr.map((v, j) => v + S.size * Rt([0, 0, D, S.w0])[j]);
     const rd = Rt(rd3.map((v) => v / m).concat(0));
-    const hit = march(S.set, ro, rd, { maxIter: S.iters, power: S.power, tMax: 12 * S.size, eps: 1e-3 * S.size / S.zoom });
+    const hit = march(S.set, ro, rd, { maxIter: itersNow(), power: S.power, tMax: 12 * S.size, eps: 1e-3 * S.size / S.zoom });
     if (!hit) return;
     p = hit.p;
   }
-  S.ctr = p; S.w0 = 0; S.zoom *= 2;
-  touch();
+  S.ctr = p; S.w0 = 0; S.tl = null; setZoom(S.zoom * 2);
 });
 
 function padDrag(el, onMove, onEnd) {
@@ -347,13 +348,11 @@ padDrag($('ana'), (e) => {
 const PERM = (rows) => { const M = new Float32Array(16); rows.forEach((j, i) => { M[i * 4 + j] = 1; }); return M; };
 const PRESETS = {
   solid: () => ({ set: S.set, view: 'solid', R: rotation4(TILT), ctr: FRAMES[S.set].ctr.slice(), w0: 0, zoom: FRAMES[S.set].zoom }),
-  mandel: () => ({ set: 'cz', view: 'plane', R: PERM([0, 1, 2, 3]), ctr: [-0.5, 0, 0, 0], w0: 0, zoom: 1 }),
-  julia: () => ({ set: 'cz', view: 'plane', R: PERM([2, 3, 0, 1]), ctr: [-0.1226, 0.7449, 0, 0], w0: 0, zoom: 1.15 }),
-  between: () => {
-    // halfway: your x is Re c and Re z₀ together, your y Im c and Im z₀ together
-    const s = Math.SQRT1_2, M = new Float32Array([s, 0, s, 0, 0, s, 0, s, -s, 0, s, 0, 0, -s, 0, s]);
-    return { set: 'cz', view: 'plane', R: M, ctr: [-0.25, 0, 0, 0], w0: 0, zoom: 0.9 };
-  },
+  mandel: () => ({ set: 'cz', view: 'plane', R: twistFrame(0, 0), ctr: [-0.5, 0, 0, 0], w0: 0, zoom: 1, th: 0 }),
+  julia: () => ({ set: 'cz', view: 'plane', R: twistFrame(Math.PI / 2, 0), ctr: [-0.1226, 0.7449, 0, 0], w0: 0, zoom: 1.15, th: 90 }),
+  // halfway: the plane z₀ = c (your x is Re c and Re z₀ together, your y Im c and Im z₀), centred on the diagonal.
+  // It is the Mandelbrot set again (starting at c is starting at 0 a step later), √2 larger.
+  between: () => ({ set: 'cz', view: 'plane', R: twistFrame(Math.PI / 4, 0), ctr: [-0.5, 0, -0.5, 0], w0: 0, zoom: 1, th: 45 }),
   julia3d: () => ({ set: 'cz', view: 'solid', R: mulRot(PERM([2, 3, 0, 1])), ctr: [-0.1226, 0.7449, 0, 0], w0: 0, zoom: 1.1 }),
 };
 function mulRot(M) {   // the tilt applied on top of a frame
@@ -364,8 +363,75 @@ function mulRot(M) {   // the tilt applied on top of a frame
 function apply(p) {
   Object.assign(S, p);
   if (p.set) S.size = FRAMES[S.set].size;
+  if (p.ctr || p.R || p.set) S.tl = null;
   syncButtons(); touch();
 }
+
+// ---------------------------------------------------------- zoom helpers --
+// Iterations rise with zoom (deeper detail needs longer orbits): the slider sets the base, +30 per factor of ten.
+function itersNow() {
+  return S.autoIter ? Math.min(512, Math.round(S.iters + 30 * Math.max(0, Math.log10(S.zoom)))) : S.iters;
+}
+// Single precision gives out past ~10⁴×: zoom stops at 2·10⁴.
+function setZoom(z) {
+  const nz = Math.min(2e4, Math.max(0.3, z));
+  if (S.tl) S.tl.zoomRef *= nz / S.zoom;
+  S.zoom = nz; touch();
+}
+
+// ------------------------------------------------------- the c ⇄ z₀ twist --
+// The plane through your centre P = (c, z₀) at angle θ: δc = cos θ·t, δz₀ = sin θ·t. With the hold on, the turn and
+// zoom that undo K(θ) = A cos θ + B sin θ are applied (fractal.js hold), so the picture stays put as you twist: at a
+// Misiurewicz point, that's Tan Lei's theorem, the Mandelbrot plane and the Julia plane two of many.
+function setTheta(deg) {
+  if (S.set !== 'cz') return;
+  const th = (deg * Math.PI) / 180;
+  if (!S.tl || S.tl.hold !== S.holdOn) {
+    // anchor here: the current zoom and a zero turn belong to the current angle
+    const { A, B } = tangent([S.ctr[0], S.ctr[1]], [S.ctr[2], S.ctr[3]]);
+    const th0 = (S.th * Math.PI) / 180, h0 = hold(A, B, th0);
+    S.tl = { A, B, hold: S.holdOn, phi0: S.holdOn ? -h0.phi : 0, zoomRef: S.holdOn ? S.zoom / h0.zoom : S.zoom };
+  }
+  S.th = deg;
+  if (S.holdOn) {
+    const h = hold(S.tl.A, S.tl.B, th);
+    S.R = twistFrame(th, S.tl.phi0 + h.phi);
+    S.zoom = Math.min(2e4, Math.max(0.3, S.tl.zoomRef * h.zoom));
+  } else S.R = twistFrame(th, S.tl.phi0);
+  S.w0 = 0;
+  $('theta').value = deg; $('thOut').textContent = `${(+deg).toFixed(1)}°`;
+  touch();
+}
+
+// ------------------------------------------------------------- the link --
+// Everything that says where you are goes in the address, so a find can be sent.
+const num = (v, d) => +(+v).toFixed(d);
+function toHash() {
+  const q = new URLSearchParams({
+    s: S.set, v: S.view, c: S.ctr.map((v) => num(v, 12)).join(','), R: Array.from(S.R, (v) => num(v, 6)).join(','),
+    w: num(S.w0, 9), z: num(S.zoom, 4), i: S.iters, a: S.autoIter ? 1 : 0, p: S.power, col: S.colour, cut: S.cut ? 1 : 0,
+    th: num(S.th, 2),
+  });
+  return '#' + q.toString();
+}
+function fromHash() {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (!q.has('s') || !SETS.includes(q.get('s'))) return;
+  const nums = (k, n) => { const a = (q.get(k) || '').split(',').map(Number); return a.length === n && a.every(Number.isFinite) ? a : null; };
+  S.set = q.get('s'); S.size = FRAMES[S.set].size;
+  if (['solid', 'plane'].includes(q.get('v'))) S.view = q.get('v');
+  const c = nums('c', 4), R = nums('R', 16);
+  if (c) S.ctr = c;
+  if (R) S.R = new Float32Array(R);
+  for (const [k, key, lo, hi] of [['w', 'w0', -1.8, 1.8], ['z', 'zoom', 0.3, 2e4], ['i', 'iters', 4, 96], ['p', 'power', 2, 10], ['th', 'th', 0, 90]]) {
+    const v = Number(q.get(k)); if (q.has(k) && Number.isFinite(v)) S[key] = Math.min(hi, Math.max(lo, v));
+  }
+  if (q.has('a')) S.autoIter = q.get('a') === '1';
+  if (['orbit', 'w'].includes(q.get('col'))) S.colour = q.get('col');
+  if (q.has('cut')) S.cut = q.get('cut') === '1';
+}
+let lastHash = '';
+function saveHash() { const h = toHash(); if (h !== lastHash) { lastHash = h; history.replaceState(null, '', h); } }
 
 function seg(id, key, parse, after) {
   $(id).addEventListener('click', (e) => {
@@ -381,7 +447,10 @@ function syncButtons() {
     for (const b of $(id).children) b.classList.toggle('on', String(S[key]) === b.dataset.v);
   document.body.dataset.view = S.view;
   document.body.dataset.set = S.set;
-  $('iters').value = S.iters; $('itersOut').textContent = S.iters;
+  $('iters').value = S.iters;
+  $('itersOut').textContent = S.autoIter ? `${S.iters} + zoom → ${itersNow()}` : S.iters;
+  $('autoit').checked = S.autoIter;
+  $('theta').value = S.th; $('thOut').textContent = `${(+S.th).toFixed(1)}°`;
   $('power').value = S.power; $('powerOut').textContent = S.power;
   $('about').innerHTML = ABOUT[S.set];
 }
@@ -393,9 +462,29 @@ seg('drag', 'drag', String);
 seg('cutsw', 'cut', (v) => v === 'true');
 seg('spinsw', 'spin', (v) => v === 'true');
 $('presets').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) apply(PRESETS[b.dataset.p]()); });
-$('iters').oninput = (e) => { S.iters = +e.target.value; $('itersOut').textContent = S.iters; touch(); };
+$('iters').oninput = (e) => { S.iters = +e.target.value; syncButtons(); touch(); };
 $('power').oninput = (e) => { S.power = +e.target.value; $('powerOut').textContent = S.power; touch(); };
 $('square').onclick = () => { apply(PRESETS.solid()); };
+$('autoit').onchange = (e) => { S.autoIter = e.target.checked; syncButtons(); touch(); };
+$('theta').oninput = (e) => setTheta(+e.target.value);
+$('holdcb').onchange = (e) => { S.holdOn = e.target.checked; S.tl = null; };
+$('share').onclick = async () => {
+  saveHash();
+  try { await navigator.clipboard.writeText(location.href); $('share').textContent = 'link copied'; }
+  catch (err) { $('share').textContent = 'copy the address bar'; }
+  setTimeout(() => { $('share').textContent = 'share this view'; }, 1800);
+};
+// Tan Lei's points: the plane z₀ = c (the Mandelbrot set) zoomed in on a Misiurewicz point, ready to twist
+for (const [k, m] of MISIUREWICZ.entries()) {
+  const b = document.createElement('button');
+  b.className = 'ghost'; b.textContent = m.name;
+  b.onclick = () => {
+    apply({ set: 'cz', view: 'plane', ctr: [m.c[0], m.c[1], m.c[0], m.c[1]], R: twistFrame(Math.PI / 4, 0), w0: 0, zoom: 400, th: 45, cut: false });
+    S.holdOn = true; $('holdcb').checked = true;
+    $('theta').value = 45; $('thOut').textContent = '45.0°';
+  };
+  $('mis').appendChild(b);
+}
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
@@ -422,8 +511,12 @@ function readout() {
     `<span class="k">your x</span> ${combo(row(0), ax)}<br>` +
     `<span class="k">your y</span> ${combo(row(1), ax)}<br>` +
     `<span class="k">unseen</span> ${combo(N, ax)}<br>` +
-    `<span class="k">centre</span> (${off.map((v) => v.toFixed(3)).join(', ')}) · zoom ${S.zoom.toFixed(S.zoom < 10 ? 2 : 0)}×`;
+    `<span class="k">centre</span> (${off.map((v) => v.toFixed(S.zoom > 100 ? 6 : 3)).join(', ')}) · zoom ${S.zoom.toFixed(S.zoom < 10 ? 2 : 0)}× · ${itersNow()} iterations` +
+    (S.set === 'cz' && S.tl ? `<br><span class="k">twist</span> θ ${(+S.th).toFixed(1)}° · K(θ) = ${fmtC(patternK(S.tl.A, S.tl.B, (S.th * Math.PI) / 180))} · ${S.holdOn ? 'held' : 'not held'}` : '') +
+    (S.zoom > 6000 ? '<br><span class="warn">single precision: the picture breaks up from here</span>' : '');
+  if (S.view === 'plane') $('itersOut').textContent = S.autoIter ? `${S.iters} + zoom → ${itersNow()}` : S.iters;
 }
+const fmtC = (z) => `${z[0].toFixed(3)} ${z[1] < 0 ? '−' : '+'} ${Math.abs(z[1]).toFixed(3)}i`;
 
 const ABOUT = {
   cz: `<b>The real one.</b> Iterate z → z² + c, and let both the parameter <b>c</b> and the starting point <b>z₀</b> vary: two complex numbers, four real dimensions. Nothing new is invented. The plane z₀ = 0 is the Mandelbrot set; the plane through any fixed c is that c's filled Julia set; every picture of either is a slice of this one object. Try <i>Mandelbrot</i>, then twist into w with the pad and watch it become the Julia sets. The fins trailing off past c = −2 are real: for c outside the Mandelbrot set the Julia set is dust, but never empty, so the 4D set goes on for ever as thinning dust; a finite number of iterations draws it as sheets.`,
@@ -432,5 +525,6 @@ const ABOUT = {
   bulb: `<b>The hyperbulb.</b> No number system at all: raise the length to the power n and multiply every angle by n, the Mandelbulb's trick lifted one dimension. Detail everywhere, but no theorem behind it. Your slice at w = 0 is a 3D bulb of the same formula; twist off it and the bulb's sheets wander through w.`,
 };
 
+fromHash();
 syncButtons();
 requestAnimationFrame(tick);

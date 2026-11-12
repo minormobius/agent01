@@ -67,3 +67,10 @@ code { font: 12px var(--mono); color: var(--gold); }
 .presets button { font-size: 11.5px; padding: 6px 9px; }
 .row > label + .seg + label { margin-left: 6px; }
 body:not([data-set="bulb"]) .bulb-only { display: none; }
+body:not([data-set="cz"]) .cz-only { display: none; }
+.tanlei { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 2px; margin: 0 0 12px; }
+.ticks { display: flex; justify-content: space-between; font: 10px var(--mono); color: var(--dim); }
+.chk { display: inline-flex; gap: 6px; align-items: center; text-transform: none; letter-spacing: 0; font: 600 11px var(--mono); color: var(--dim); }
+.lbl { font: 600 11px var(--mono); color: var(--dim); align-self: center; }
+.warn { color: var(--gold); }
+#share { margin: -4px 0 8px; }

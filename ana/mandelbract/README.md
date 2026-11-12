@@ -26,6 +26,22 @@ your slice: whether the set carries on ana or kata there.
 the solid toward you; the cut face is the plane. The pad twists your slice into w, the lever moves it ana and kata
 (kata's controls, as in HILBERT⁴). Double-tap flies to a point.
 
+## Tan Lei's twist
+
+Zoomed into a Misiurewicz point c, the Mandelbrot set looks like the Julia set of c there, up to a scale and a turn
+(Tan Lei, 1990). In the (c, z₀) set that's one fact: near P, zₙ ≈ zₙ(P) + A·δc + B·δz₀, so the set is a pattern in
+u = A·δc + B·δz₀ alone. The plane at angle θ (δc = cos θ·t, δz₀ = sin θ·t) sees it scaled and turned by
+K(θ) = A cos θ + B sin θ. At θ = 45° (through P = (c, c)) it's the plane z₀ = c, which is the Mandelbrot set one
+iteration ahead; at 90° the Julia plane. The page's slider sweeps θ and, with the hold on, undoes K(θ) so the picture
+stays put. Measured (selftest): at four Misiurewicz points, a window 10⁻⁴ across, the held planes at 0°, 60° and 90°
+match the z₀ = c plane with IoU ≥ 0.95 (mostly 1.00), the unheld Julia plane < 0.6, and the match is tighter at 10⁻⁴
+than at 10⁻². At c = i, A/B = −0.2 − 0.4i.
+
+## Zooming
+
+Iterations rise with zoom (+30 per factor of ten), the lever slows with it, and the address bar holds the view
+(*share this view* copies it). Single precision stops it at 2·10⁴×.
+
 ## Claims and checks (`test/mandelbract.selftest.mjs`)
 
 - (c, z₀): z₀ = 0 agrees with known points in and out of M; c = 0 is the unit disk; c = −2 is the segment [−2, 2].
@@ -35,5 +51,7 @@ the solid toward you; the cut face is the plane. The pad twists your slice into 
 - every set: the estimate is 0 inside; and, measured, points half an estimate from an outside point are outside
   (≥ 98%: an estimate, not a bound, so the march steps 0.6 of it).
 - the march: rays fired at each set stop on its edge (in, or within eps, with a point 0.01 back outside).
+- (c, z₀): the plane z₀ = c is M one iteration ahead; the four Misiurewicz points are preperiodic as listed; Tan Lei
+  as above; the twist frames are rotations and the hold undoes K(θ) exactly.
 
 The shader is checked by eye, not by the selftest: keep it in step with `js/fractal.js`.

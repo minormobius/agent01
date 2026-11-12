@@ -57,6 +57,14 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   `S.R` (rows = your x, y, z, w in the set's axes), `S.ctr`, `S.size` (set units per view unit), `S.w0`, `S.zoom`.
   Draws only when something changed, at half resolution while moving, then once sharp (dpr ≤ 1.5). Double-tap runs
   fractal.js's `march` on the CPU to find the point and flies there. Single precision: it breaks up past ~10⁴×.
+  **Zoom**: iterations rise 30 per factor of ten unless "more as you zoom in" is off (`itersNow`, cap 512, the
+  shader's loop bound); zoom stops at 2·10⁴; the lever's rate is divided by the zoom; every zoom goes through
+  `setZoom`. **The link**: the view lives in the address hash (`toHash`/`fromHash`, saved on each sharp frame).
+  **Tan Lei's twist** (cz only): `tangent` gives A = ∂zₙ/∂c, B = ∂zₙ/∂z₀ at the centre (stopped once |B| > 10¹²:
+  rescaling A mid-run without rescaling its +1 gave a wrong ratio at c = i, so don't), `twistFrame(θ, φ)` the plane
+  δc = cos θ·t, δz₀ = sin θ·t turned by φ, `hold` the φ and zoom that undo K(θ) = A cos θ + B sin θ. `S.tl` anchors
+  a twist (A, B, φ₀, zoomRef); anything that moves the centre or turns the frame another way clears it. Four
+  Misiurewicz points (`MISIUREWICZ`) are buttons; the selftest holds each to Tan Lei (IoU ≥ 0.95 held, < 0.6 not).
   **It imports `rotation4` and `turn4` from `../../hilbert/js/hilbert.js`** (same site, not a copy), so a change there
   runs both selftests. See [`mandelbract/README.md`](mandelbract/README.md).
 
@@ -64,7 +72,7 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 
 ```bash
 node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
-node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge
+node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
 ```
 
 Preflight finds every `*.selftest.mjs` and runs the ones under changed directories.

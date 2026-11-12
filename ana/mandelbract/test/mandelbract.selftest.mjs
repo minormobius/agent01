@@ -1,6 +1,6 @@
 // MANDELBRACT's claims, held: run `node ana/mandelbract/test/mandelbract.selftest.mjs`.
 import { iterCZ, iterM, iterBicomplex, idempotent, bcMul, iterQuaternion, iterBulb, toHyper, fromHyper, iterate,
-  SETS, march } from '../js/fractal.js';
+  SETS, march, MISIUREWICZ, tangent, patternK, twistFrame, hold } from '../js/fractal.js';
 
 let fails = 0, passes = 0;
 const ok = (cond, msg) => { if (cond) passes++; else { fails++; console.error('✗ ' + msg); } };
@@ -136,6 +136,71 @@ for (const set of SETS) {
     if ((!it.escaped || it.de < 2e-4) && iterate(set, back, 40).escaped) good++;
   }
   ok(hits > 40 && good === hits, `${set}: marched rays stop on the edge (${good}/${hits})`);
+}
+
+// --- the plane z₀ = c is the Mandelbrot set again: starting at c is starting at 0, one step later.
+{
+  let shifted = true;
+  for (let k = 0; k < 400; k++) {
+    const c = [rand() * 2.6 - 2, rand() * 2.4 - 1.2];
+    const m = iterCZ([c[0], c[1], 0, 0], IT), d = iterCZ([c[0], c[1], c[0], c[1]], IT);
+    if (m.escaped !== d.escaped || (m.escaped && d.n !== m.n - 1)) shifted = false;
+  }
+  ok(shifted, 'cz: the plane z₀ = c is the Mandelbrot set, one iteration ahead');
+}
+
+// --- Tan Lei, as a 4D fact. Each listed point is Misiurewicz; and zoomed in on it, the plane at any angle θ between
+//     "c moves" and "z₀ moves", with K(θ) undone, shows the same picture as the plane z₀ = c (the Mandelbrot set),
+//     closer and closer as the window shrinks. Without the hold, the Julia plane does not match.
+{
+  const cm = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+  const cdiv = (a, b) => { const d = b[0] * b[0] + b[1] * b[1]; return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]; };
+  for (const m of MISIUREWICZ) {
+    let z = [0, 0];
+    const orbit = [z];
+    for (let i = 0; i < m.k + m.p + 30; i++) { z = cm(z, z); z = [z[0] + m.c[0], z[1] + m.c[1]]; orbit.push(z); }
+    const lands = Math.hypot(orbit[m.k + m.p][0] - orbit[m.k][0], orbit[m.k + m.p][1] - orbit[m.k][1]) < 1e-9;
+    const notSooner = Math.hypot(orbit[m.k - 1 + m.p][0] - orbit[m.k - 1][0], orbit[m.k - 1 + m.p][1] - orbit[m.k - 1][1]) > 1e-6;
+    ok(lands && notSooner, `${m.name}: Misiurewicz, preperiod ${m.k}, period ${m.p}`);
+  }
+  // the pattern near P, as a mask of pixels within a pixel of the set, the distance read in pattern units
+  function mask(c0, th, U, N, K, G) {
+    const out = new Uint8Array(N * N), k = [Math.cos(th), Math.sin(th)];
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const t = cdiv([(i / (N - 1) * 2 - 1) * U, (j / (N - 1) * 2 - 1) * U], K);
+      const r = iterCZ([c0[0] + k[0] * t[0], c0[1] + k[0] * t[1], c0[0] + k[1] * t[0], c0[1] + k[1] * t[1]], 300);
+      out[j * N + i] = !r.escaped || r.de * G < (2 * U) / (N - 1) ? 1 : 0;
+    }
+    return out;
+  }
+  const iou = (a, b) => { let i = 0, u = 0; for (let k = 0; k < a.length; k++) { if (a[k] && b[k]) i++; if (a[k] || b[k]) u++; } return u ? i / u : 1; };
+  for (const m of MISIUREWICZ) {
+    const { A, B } = tangent(m.c, m.c), G = Math.hypot(...A, ...B), N = 48, ref45 = Math.PI / 4;
+    const at = (U, deg, held = true) => mask(m.c, (deg * Math.PI) / 180, U, N, patternK(A, B, held ? (deg * Math.PI) / 180 : ref45), G);
+    const tiny = 1e-4, ref = at(tiny, 45);
+    const held = [0, 60, 90].map((d) => iou(ref, at(tiny, d)));
+    const unheld = iou(ref, at(tiny, 90, false));
+    const coarse = iou(at(1e-2, 45), at(1e-2, 90));
+    ok(held.every((v) => v >= 0.95) && unheld < 0.6,
+      `${m.name}: held, the planes at 0°, 60°, 90° match z₀ = c (IoU ${held.map((v) => v.toFixed(2)).join(', ')}); unheld, the Julia plane doesn't (${unheld.toFixed(2)})`);
+    ok(held[2] > coarse, `${m.name}: the match tightens as you zoom in (Julia plane: ${coarse.toFixed(2)} at 10⁻², ${held[2].toFixed(2)} at 10⁻⁴)`);
+  }
+  // c = i: the ratio A/B settles at −0.2 − 0.4i
+  { const { A, B } = tangent([0, 1], [0, 1]), r = cdiv(A, B);
+    ok(Math.abs(r[0] + 0.2) < 1e-6 && Math.abs(r[1] + 0.4) < 1e-6, `c = i: A/B = ${r.map((v) => v.toFixed(6)).join(' ')}i, settled`); }
+  // the frames are rotations, and the hold undoes K: K(θ)·e^{iφ}/zoom is the same at every θ
+  { let orth = 0, same = 0;
+    const { A, B } = tangent(MISIUREWICZ[2].c, MISIUREWICZ[2].c), K0 = patternK(A, B, Math.PI / 4);
+    for (const deg of [0, 20, 45, 70, 90]) {
+      const th = (deg * Math.PI) / 180, phi = 0.3 + hold(A, B, th).phi, Rm = twistFrame(th, phi);
+      for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+        let d = 0; for (let k = 0; k < 4; k++) d += Rm[i * 4 + k] * Rm[j * 4 + k];
+        orth = Math.max(orth, Math.abs(d - (i === j ? 1 : 0)));
+      }
+      const h = hold(A, B, th), v = cm(patternK(A, B, th), [Math.cos(h.phi) / h.zoom, Math.sin(h.phi) / h.zoom]);
+      same = Math.max(same, Math.hypot(v[0] - K0[0], v[1] - K0[1]));
+    }
+    ok(orth < 1e-6 && same < 1e-12, `twistFrame is a rotation (${orth.toExponential(1)}); hold undoes K(θ) (${same.toExponential(1)})`); }
 }
 
 console.log(`${fails ? '✗' : '✓'} mandelbract: ${passes} passed, ${fails} failed`);

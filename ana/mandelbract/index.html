@@ -35,10 +35,19 @@
     <p class="about" id="about"></p>
     <div class="row presets" id="presets">
       <button class="ghost" data-p="mandel">Mandelbrot</button>
-      <button class="ghost" data-p="between">halfway</button>
+      <button class="ghost" data-p="between">z₀ = c</button>
       <button class="ghost" data-p="julia">a Julia set</button>
       <button class="ghost" data-p="julia3d">Julia, solid</button>
       <button class="ghost" id="square">square up</button>
+    </div>
+    <div class="cz-only tanlei">
+      <div class="row col">
+        <label><span>the plane: c ⇄ z₀ <span id="thOut">45.0°</span></span>
+          <span class="chk"><input type="checkbox" id="holdcb" checked /><span>hold the pattern</span></span></label>
+        <input type="range" id="theta" min="0" max="90" step="0.25" value="45" />
+        <div class="ticks"><span>c moves</span><span>both</span><span>z₀ moves</span></div>
+      </div>
+      <div class="row presets" id="mis"><span class="lbl">Tan Lei:</span></div>
     </div>
     <div class="row">
       <label>cut open</label>
@@ -49,6 +58,7 @@
     <div class="row col">
       <label><span>iterations <span id="itersOut"></span></span></label>
       <input type="range" id="iters" min="4" max="96" value="24" />
+      <label class="chk"><input type="checkbox" id="autoit" checked /><span>more as you zoom in</span></label>
     </div>
     <div class="row col bulb-only">
       <label><span>power <span id="powerOut"></span></span></label>
@@ -64,6 +74,7 @@
     </div>
 
     <div class="readout" id="readout"></div>
+    <button class="ghost" id="share">share this view</button>
 
     <details open>
       <summary>can it be done?</summary>
@@ -72,9 +83,15 @@
       <p><b>Solid</b> shows the 3D slice your frame cuts. <b>Plane</b> shows the 2D slice through the middle of your view, the familiar picture. <b>Cut open</b> takes away the half of the solid toward you, so the cut face is that same plane. The <b>pad</b> twists your slice into w and the <b>lever</b> moves it ana and kata, as in HILBERT⁴. <b>Double-tap</b> to fly to a point. Keys: J L I K twist, R F move, V swaps the view, C cuts it open, Z squares up.</p>
     </details>
     <details>
+      <summary>Tan Lei's twist</summary>
+      <p>Zoom into the Mandelbrot set at a <b>Misiurewicz point</b>, a c whose orbit from 0 lands, after a few steps, on a repelling cycle (c = i: 0, i, −1 + i, −i, −1 + i, …). In 1990 Tan Lei proved that the closer you look, the more the Mandelbrot set there looks like the Julia set of that same c, looked at in the same place, up to a scale and a turn.</p>
+      <p>In four dimensions this is one fact. Near a point P of the (c, z₀) set, after many steps zₙ ≈ zₙ(P) + A·δc + B·δz₀, so the set near P is a pattern in u = A·δc + B·δz₀ and nothing else: the same all along the line where u doesn't change. Any plane through P that moves c and z₀ together, at an angle θ from "c moves" to "z₀ moves", sees that one pattern, scaled and turned by A cos θ + B sin θ. The plane z₀ = c is the Mandelbrot set again (start at c, and you're at step 1 of starting at 0); θ = 90° is the Julia set. Theirs are two views of one pattern.</p>
+      <p>Press a Tan Lei point, then slide the plane. With <b>hold the pattern</b> on, the page undoes the scale and turn, and the picture stays put while the plane swings through 4D from the Mandelbrot set to the Julia set. Turn the hold off and watch the pattern grow and spin instead. Zoom further in and it holds better: the theorem is about the limit. Measured in the selftest: at a window 10⁻⁴ across, the planes at 0°, 60° and 90° match the Mandelbrot plane pixel for pixel (IoU ≥ 0.95) at all four points, and the unheld Julia plane doesn't.</p>
+    </details>
+    <details>
       <summary>how it's drawn</summary>
       <p>Each set has a <b>distance estimate</b>: from the orbit's escape speed and its derivative, a lower bound, near enough, on how far a point is from the set. In four dimensions it bounds the distance within your slice too, so the shader sphere-traces your slice by it: step a fraction of the estimate, again, until it's under a pixel. For (c, z₀) the derivative is both ∂z/∂c and ∂z/∂z₀, since z depends on both holomorphically. The bicomplex estimate is the two Mandelbrot sets' estimates combined as a product. The surface's colour is how close the orbit came to 0, or (by w) whether the set carries on ana or kata of your slice there.</p>
-      <p>Single precision: zoom past about 10⁴× and the picture breaks up into blocks.</p>
+      <p>Iterations rise as you zoom (30 more per factor of ten) unless you turn that off. Single precision: zoom past about 10⁴× and the picture breaks up into blocks, so the zoom stops at 2 × 10⁴. The address bar always holds where you are: <b>share this view</b> copies it.</p>
       <p>Checked: <code>test/mandelbract.selftest.mjs</code> holds the (c, z₀) set to the Mandelbrot set on z₀ = 0 and to known Julia sets on c = 0 and c = −2; the bicomplex orbit to the two complex orbits, exactly; the quaternion set to turning symmetry; the hyperbulb to its invariant w = 0 subspace and mirror symmetry; every estimate to being safe to march by (measured); and the march to stopping on the edge.</p>
     </details>
   </div>

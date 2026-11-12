@@ -152,3 +152,58 @@ export function march(set, ro, rd, { maxIter = 32, power = 8, tMax = 10, eps = 1
   }
   return null;
 }
+
+// ------------------------------------------------------------ Tan Lei --
+// Zoom into the Mandelbrot set at a Misiurewicz point c (its critical orbit lands on a repelling cycle) and it looks
+// more and more like the Julia set of c zoomed at the same point, up to a scale and a turn (Tan Lei, 1990). In the
+// (c, z₀) set that is one 4D fact. Near a point P, zₙ ≈ zₙ(P) + A·δc + B·δz₀ with A = ∂zₙ/∂c, B = ∂zₙ/∂z₀, so the set
+// near P is a pattern in u = A·δc + B·δz₀, the same along the whole complex line A·δc + B·δz₀ = 0. Every plane
+// through P that varies c and z₀ together, δc = cos θ·t, δz₀ = sin θ·t, sees that pattern scaled and turned by
+// K(θ) = A cos θ + B sin θ. θ = 45° is the plane z₀ = c, where the set is the Mandelbrot set again (starting at c is
+// starting at 0, one step later); θ = 90° is the Julia plane. Undo K(θ) and the picture holds still as you twist.
+
+/** Misiurewicz points: c's critical orbit is periodic after k steps, with period p (found by Newton's method on
+ *  f^(k+p)(0) = f^k(0); the selftest checks each). */
+export const MISIUREWICZ = [
+  { name: 'c = i', c: [0, 1], k: 2, p: 2 },
+  { name: 'M₄,₁', c: [-0.101096363846, 0.956286510809], k: 4, p: 1 },
+  { name: 'M₃,₃', c: [-0.607031022616, 0.605251381279], k: 3, p: 3 },
+  { name: 'M₃,₁', c: [-1.543689012692, 0], k: 3, p: 1 },
+];
+
+/** A = ∂zₙ/∂c and B = ∂zₙ/∂z₀ at (c, z₀), divided by |B|, with n large enough that their ratio has settled: stop once
+ *  |B| passes 10¹² (or the orbit escapes). Only the ratio and the joint size matter. */
+export function tangent(c, z0, maxN = 200) {
+  let zr = z0[0], zi = z0[1], Ar = 0, Ai = 0, Br = 1, Bi = 0;
+  for (let n = 0; n < maxN; n++) {
+    const nAr = 2 * (zr * Ar - zi * Ai) + 1, nAi = 2 * (zr * Ai + zi * Ar);
+    const nBr = 2 * (zr * Br - zi * Bi), nBi = 2 * (zr * Bi + zi * Br);
+    Ar = nAr; Ai = nAi; Br = nBr; Bi = nBi;
+    const t = zr * zr - zi * zi + c[0]; zi = 2 * zr * zi + c[1]; zr = t;
+    if (zr * zr + zi * zi > 16 || Math.hypot(Br, Bi) > 1e12) break;
+  }
+  const m = Math.hypot(Br, Bi) || 1;
+  return { A: [Ar / m, Ai / m], B: [Br / m, Bi / m] };
+}
+
+/** K(θ) = A cos θ + B sin θ: how the plane at angle θ scales and turns the local pattern. */
+export const patternK = (A, B, th) => [A[0] * Math.cos(th) + B[0] * Math.sin(th), A[1] * Math.cos(th) + B[1] * Math.sin(th)];
+
+/** The frame for the plane at angle θ, turned by φ within itself: your x is (δc, δz₀) = (cos θ, sin θ)·e^{iφ}, your y
+ *  is i times that, and your z and w the perpendicular pair (−sin θ, cos θ)·e^{iφ} and i times it. Row-major, rows =
+ *  your x, y, z, w in (Re c, Im c, Re z₀, Im z₀). */
+export function twistFrame(th, phi) {
+  const c = Math.cos(th), s = Math.sin(th), cp = Math.cos(phi), sp = Math.sin(phi);
+  return new Float32Array([
+    c * cp, c * sp, s * cp, s * sp,
+    -c * sp, c * cp, -s * sp, s * cp,
+    -s * cp, -s * sp, c * cp, c * sp,
+    s * sp, -s * cp, -c * sp, c * cp,
+  ]);
+}
+
+/** Holding the pattern still: the turn φ and the zoom factor that undo K(θ) relative to the plane at θref. */
+export function hold(A, B, th, thRef = Math.PI / 4) {
+  const K = patternK(A, B, th), K0 = patternK(A, B, thRef);
+  return { phi: Math.atan2(K0[1], K0[0]) - Math.atan2(K[1], K[0]), zoom: Math.hypot(...K) / Math.hypot(...K0) };
+}
