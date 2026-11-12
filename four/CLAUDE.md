@@ -184,12 +184,27 @@ for games, and this is a modelling programme with publications to come. The game
   analogue: ¹⁴N(p,γ) / ¹²C(α,γ) × the geometric mean of 4D's computed excess, as hburn); β⁺ from the endpoint with ¹³N's ft;
   a capture whose compound sits above its helium-4 threshold also gets (p,α) (¹⁵N(p,α) carried). `fusion/js/net4.js` (no
   DOM) runs it (stage 1 at the Sun's pace, half the hydrogen in 4.6 Gyr; 2 at capture's rate-matched ignition; 3 at 0.27
-  GK, Ce + Ce out as element 6 + ⁴He). **Result: a 4D CNO cycle on ceryllium-8** (⁸Ce + p → ⁹X →β⁺→ ⁹Ce + p → ¹⁰X + p →
-  ¹¹X →β⁺→ ¹¹X' + p → ⁴He + ⁸Ce, the compound 24 MeV over its helium-4 threshold at s = 1.5152, 8 at 1.7; robust to the
-  draw and to any sane interpolation) turns hydrogen into helium at every strength: s = 1.5152 ends 94% helium + 5%
-  darbon-14 (its nitrogen-14) at 10.8 MK; s ≥ 1.75 strands it as helium-3 (75%). Then helium → ceryllium-8, then element 6
-  (mass 12) 70–97%. **This supersedes hburn's Sun-paced cores (oitrogen/pxygen at 1.5152, darbon at 1.55)**, which climbed
-  by charge with no (p,α) branch; the nuclei chapter, the strong-force dial and ROADMAP still state the old result.
+  GK, Ce + Ce out as element 6 + ⁴He). **First result (retracted the same day): a 4D CNO cycle on ceryllium-8**, closed by 5-11 + p → ⁴He + ⁸Ce. It
+  rested on the interpolated triton-like cluster. **Neutron-rich nuclei, computed (PI, 2026-11-12: "what governs them going
+  1:1?"):** `atom/tools/nuclei.mjs plusmore <d> <s> <k> <nn|np|pp|t|h|a> [dirs] [split] [compact]` (`brink.js`
+  `clusterOnCoreGrid`): two or three nucleons (or a helium-4) on k helium-4s on plusone's own basis, so S_2n − 2S_n is
+  measured. Run `plusmore-1` (228 commands, all exit 0; results came from the run's artifacts, since one slow 3D group held
+  the collect): k = 1–5 at the eight network strengths, both draws at 1.5152 / 1.7 / 1.85. nuc4 now uses them (clusters
+  `np`, `t`, `h`, `nn`, `pp`; interpolation only where none ran). Ours (no spin–orbit) as the check: the np pair's extra
+  binding 2.5–4 MeV too strong, the nn pair's 0.3–3.2 against 3.2–5.2 measured; the method's β⁻ endpoint of the
+  two-neutron isotope 4–7 MeV too high (¹⁰Be, ¹⁴C, ¹⁸O); ¹¹B + p → 2α Q 7.2 against 8.59. **4D:** extra binding of a
+  neutron pair 6–33 MeV, of a neutron–proton pair 25–60 (ours ~5 each), growing with s; the two-neutron isotopes (4-10,
+  6-14, 8-18, 10-22) are bound but β⁻ decay with 7–34 MeV endpoints (ms half-lives), so light 4D nuclei hold N = Z harder
+  than ours and no neutron-rich isotope survives hydrogen or helium burning (no ²²Ne-like neutron source). Two neutrons on
+  one helium-4 (4D ⁶He) are unbound below s ≈ 1.8. **The triton-like cluster binds to a core more strongly than a helium-4
+  holds together** (S_t 98 MeV on ceryllium-8 at 1.5152 against B_α 74 in the same basis), so (p,α) on 5-11 is closed (Q
+  −24 to −62 MeV over s; −21.5 in the network) and **no ceryllium cycle exists**; the only (p,α) branches left are pp-II's
+  (⁷X + p → 2⁴He) and ⁶X + p → ³He + ⁴He. Rebaked sweep: s = 1.5152 Sun-paced at 16.1 MK ends **pxygen-20 72%, 9-19 19%,
+  9-18 8%** (the old hburn result, back); 1.55 at 10.7 MK darbon-14 48% + helium 38%; 1.6–1.7 helium 86–97% (pp chains
+  at 4–7 MK); ≥ 1.75 stranded as helium-3 (75%). Then helium → ceryllium-8 → element 6 as before. **Caveat:** the clusters
+  are Brink's grid on fixed core draws and the ladder nuclei diffusion Monte Carlo; the two disagree on a helium-4 onto
+  ceryllium-8 (the grid ~110 MeV, the ladder 47), and the cluster nuclei sit between ladder nuclei, so their place
+  against the ladder carries that spread (the 5-11 verdict holds in the grid alone: Q = B_α − S_t, same basis).
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
