@@ -13,6 +13,7 @@
    and in any dimension:
      union / cut / intersect {of:[…]}   (cut: the first minus the rest), optional r: a rounded (smooth) blend
      move {of, by:[…]}   rotate {of, plane:[i, j], deg}   round {of, r}   shell {of, t}   ref {name}
+     array {of, step:[…], lo:[…], hi:[…], both?}   copies on a lattice (a column grid, a stack of floors)
      wire {pts:[[x, y, z, w], …], r, dim?}   a wire along straight runs (4D; with dim 2 or 3, one to climb the ladder with)
    A lower-dimensional shape used where a higher one is expected is an infinite prism along the missing axes, so cutting a
    4D part with a disc drills a hole (a disc × a plane of it). Numbers may be parameter names or simple expressions of
@@ -112,6 +113,16 @@ export function compile(tree, overrides = {}) {
         if (fin(lo[i]) && fin(hi[i]) && fin(lo[j]) && fin(hi[j])) { const ci = (lo[i] + hi[i]) / 2, cj = (lo[j] + hi[j]) / 2, ei = (hi[i] - lo[i]) / 2, ej = (hi[j] - lo[j]) / 2, mi = c * ci - s * cj, mj = s * ci + c * cj, ri = Math.abs(c) * ei + Math.abs(s) * ej, rj = Math.abs(s) * ei + Math.abs(c) * ej; lo[i] = mi - ri; hi[i] = mi + ri; lo[j] = mj - rj; hi[j] = mj + rj; }
         else { lo[i] = lo[j] = -INF; hi[i] = hi[j] = INF; }
         return { dim: d, f, lo, hi, name }; }
+      case "array": { // copies of a shape on a lattice: step per axis (0: none), index range lo…hi per axis. The nearest copy by
+        // rounding, which is the true nearest when the shape sits in the middle of its cell; `both: k` also tries the
+        // neighbour along axis k, for a shape that runs the whole cell that way (a stair flight)
+        const A = kids[0], d = Math.max(A.dim, n.step.length), st = [0, 1, 2, 3].map((i) => (n.step[i] ? N(n.step[i]) : 0)), lo = [0, 1, 2, 3].map((i) => (n.lo && n.lo[i]) || 0), hi = [0, 1, 2, 3].map((i) => (n.hi && n.hi[i]) || 0), both = n.both ?? -1, c = "xyzw";
+        const lines = [0, 1, 2, 3].filter((i) => st[i]).map((i) => `q.${c[i]} = p.${c[i]} - ${lit(st[i])} * clamp(floor(p.${c[i]} / ${lit(st[i])} + 0.5), ${lit(lo[i])}, ${lit(hi[i])});`).join(" ");
+        emit(both >= 0 && st[both] ? `vec4 q = p; ${lines} float i0 = clamp(floor(p.${c[both]} / ${lit(st[both])} + 0.5), ${lit(lo[both])}, ${lit(hi[both])}), i1 = clamp(i0 + (p.${c[both]} > i0 * ${lit(st[both])} ? 1.0 : -1.0), ${lit(lo[both])}, ${lit(hi[both])}); vec4 r = q; r.${c[both]} = p.${c[both]} - i1 * ${lit(st[both])}; return min(${A.name}(q), ${A.name}(r));` : `vec4 q = p; ${lines} return ${A.name}(q);`);
+        const fa = A.f, v = [0, 0, 0, 0], f = (x, y, z, w) => { v[0] = x; v[1] = y; v[2] = z; v[3] = w; let alt = 0, pb = 0; for (let i = 0; i < 4; i++) { if (!st[i]) continue; const p0 = v[i]; let k = Math.floor(p0 / st[i] + 0.5); k = k < lo[i] ? lo[i] : k > hi[i] ? hi[i] : k; v[i] = p0 - k * st[i]; if (i === both) { let k1 = k + (p0 > k * st[i] ? 1 : -1); k1 = k1 < lo[i] ? lo[i] : k1 > hi[i] ? hi[i] : k1; alt = p0 - k1 * st[i]; pb = 1; } }
+          const a = fa(v[0], v[1], v[2], v[3]); if (!pb) return a; v[both] = alt; const b = fa(v[0], v[1], v[2], v[3]); return a < b ? a : b; };
+        const blo = [...A.lo, ...Array(d - A.dim).fill(-INF)], bhi = [...A.hi, ...Array(d - A.dim).fill(INF)];
+        return { dim: d, f, lo: blo.map((q, i) => (fin(q) ? q + st[i] * lo[i] : q)), hi: bhi.map((q, i) => (fin(q) ? q + st[i] * hi[i] : q)), name }; }
       case "scale": { const A = kids[0], k = N(n.k); emit(`return ${A.name}(p / ${GN(n.k)}) * ${GN(n.k)};`); const fa = A.f; return { dim: A.dim, f: (x, y, z, w) => fa(x / k, y / k, z / k, w / k) * k, lo: A.lo.map((v) => v * k), hi: A.hi.map((v) => v * k), name }; }
       case "round": { const A = kids[0], r = N(n.r); emit(`return ${A.name}(p) - ${GN(n.r)};`); const fa = A.f; return { dim: A.dim, f: (x, y, z, w) => fa(x, y, z, w) - r, lo: A.lo.map((v) => v - r), hi: A.hi.map((v) => v + r), name }; }
       case "shell": { const A = kids[0], t = N(n.t) / 2; emit(`return abs(${A.name}(p)) - ${GN(n.t)} * 0.5;`); const fa = A.f; return { dim: A.dim, f: (x, y, z, w) => Math.abs(fa(x, y, z, w)) - t, lo: A.lo.map((v) => v - t), hi: A.hi.map((v) => v + t), name }; }

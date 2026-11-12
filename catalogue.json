@@ -5959,6 +5959,23 @@
       ]
     },
     {
+      "n": "kata-brut4",
+      "u": "https://kata.mino.mobi/brut4/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "kata",
+      "surface": "kata",
+      "d": "BRUT⁴: a brutalist building generator in four dimensions, with an engineer. One seed, one building: floors that are volumes on a 3D lattice of columns, tiers that step back to terraces, a stair to the roof. The engineer sizes the columns, because a column of our proportions is good for two storeys there against twenty-three here. Walk through it from inside one 3D slice.",
+      "tags": [
+        "games",
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "kata-house",
       "u": "https://kata.mino.mobi/house/",
       "c": "games",

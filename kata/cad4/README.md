@@ -30,6 +30,7 @@ Nothing is drawn in 4D directly. Shapes start in 1D and 2D and climb the ladder.
 | `move {of, by:[…]}`, `rotate {of, plane:[i, j], deg}`, `scale {of, k}` | a rotation has a **plane**, not an axis |
 | `round {of, r}`, `shell {of, t}` | offset outward; the skin, t thick (`t: 0` is the bare surface, for a `round` to thicken) |
 | `wire {pts:[[x,y,z,w],…], r, dim?}` | a wire along straight runs, in 4D directly; with `dim` 2 or 3 it is a profile to extrude (a crimped sheet) |
+| `array {of, step:[…], lo:[…], hi:[…], both?}` | copies on a lattice: a column grid, a stack of floors. One evaluation whatever the count; exact for a shape in the middle of its cell |
 | `ref {name}` or just `"name"` | a part from the tree's `parts` |
 
 A lower-dimensional shape where a higher one is expected is an infinite prism along the missing axes. So cutting a 4D

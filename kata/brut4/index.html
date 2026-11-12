@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="BRUT⁴ — a brutalist building generator in four dimensions, with an engineer. One seed, one building: floors that are volumes on a 3D lattice of columns, a stair to the roof, and a structural check that sizes the columns. Walk through it from inside one 3D slice." />
+<title>BRUT⁴ — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/brut4.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Your 3D slice of a 4D brutalist building, seen on foot"></canvas>
+  <div id="bar">
+    <b>BRUT⁴</b>
+    <input id="seedI" type="text" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="seed" />
+    <button type="button" id="rollB">roll</button>
+    <button type="button" id="engB">engineer</button>
+    <button type="button" id="squareB" aria-label="square up to the building">⊞</button>
+    <button type="button" id="helpB" aria-label="help">?</button>
+  </div>
+  <div id="cap"></div>
+  <canvas id="plan" aria-label="the ground's three directions, the building's tiers, and where you stand and face"></canvas>
+  <div id="stick" class="pad" aria-label="walk"><div id="stickKnob"></div><span>walk</span></div>
+  <div id="twist" class="pad" aria-label="turn toward the direction you can't see"><div id="twistKnob"></div><span>turn into the unseen</span></div>
+  <div id="report" hidden></div>
+  <div id="panel" hidden>
+    <p class="foot"><b>BRUT⁴.</b> A brutalist building in four dimensions, grown from the seed in the box (type one, or <b>roll</b>). Its floors are volumes: you can walk along x, z and w on every storey, and y is up. The ground storey stands open on its columns. The stair is in the bay at the origin (x, z and w from 0 to 4): two steep ramps a storey, up to the roof. Where a tier steps back there is a terrace and a doorway. <b>engineer</b> shows the structural check, which is what set the columns' size.</p>
+    <p class="foot">You see the 3D slice through your eye that holds what is ahead and beside you. <b>Left pad</b> walks, <b>drag</b> looks, <b>right pad</b> turns you toward the direction you can't see, <b>⊞</b> squares you up. Keys: W A S D, arrows or drag, Q E to turn into the unseen, Z C to step along it, space to jump, R to square up. There are no railings.</p>
+    <p class="foot"><a href="./README.md">how it works</a> · <a href="https://tjs.mino.mobi/brut/">BRUT, the 3D original</a> · <a href="../house/">HOUSE</a> · <a href="../cad4/">CAD⁴</a> · <a href="../">kata</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

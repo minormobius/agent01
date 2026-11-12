@@ -1,0 +1,30 @@
+/* HOUSE: one first-person canvas; the bar, the caption, the pads and the map float over it */
+:root { --bg: #07080c; --panel: rgba(14, 16, 23, 0.92); --text: #e9e4da; --dim: #9a958c; --gold: #ffd27a; --ana: #38f2e0; --kata: #ff66b8; --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; overscroll-behavior: none; }
+html, body, button, canvas, #view { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+[hidden] { display: none !important; }
+#view { position: fixed; inset: 0; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#bar { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 6px; align-items: center; padding: calc(6px + env(safe-area-inset-top)) 8px 6px 12px; background: linear-gradient(rgba(7, 8, 12, 0.85), rgba(7, 8, 12, 0)); }
+#bar > b { font: 800 13px var(--mono); letter-spacing: 0.1em; margin-right: 4px; }
+#bar button { flex: none; font: 600 12px var(--mono); background: rgba(7, 8, 12, 0.6); color: var(--text); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 8px; padding: 5px 9px; cursor: pointer; touch-action: manipulation; }
+#doorB { border-color: var(--gold) !important; color: var(--gold) !important; }
+#cap { position: absolute; left: 10px; top: calc(44px + env(safe-area-inset-top)); max-width: min(440px, calc(100% - 190px)); font: 12px/1.5 var(--mono); color: #d9d3c8; background: rgba(7, 8, 12, 0.6); border-radius: 10px; padding: 6px 10px; pointer-events: none; }
+#cap b { color: var(--gold); font-weight: 600; } #cap .ana { color: var(--ana); } #cap .kata { color: var(--kata); }
+#plan { position: absolute; right: 8px; top: calc(44px + env(safe-area-inset-top)); width: 164px; height: 150px; background: rgba(7, 8, 12, 0.62); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; pointer-events: none; }
+.pad { position: absolute; bottom: calc(22px + env(safe-area-inset-bottom)); width: 112px; height: 112px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(7, 8, 12, 0.35); touch-action: none; cursor: grab; }
+#stick { left: 18px; } #twist { right: 18px; }
+.pad.live { border-color: rgba(255, 210, 122, 0.75); }
+.pad > div { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+.pad span { position: absolute; left: -20px; right: -20px; top: -17px; text-align: center; font: 10px var(--mono); color: var(--dim); pointer-events: none; }
+#panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(520px, 92vw); max-height: 80vh; overflow-y: auto; background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 14px; padding: 14px 16px; }
+.foot { font: 13px/1.6 var(--sans); color: var(--dim); margin: 0 0 8px; } .foot a, .foot b { color: var(--text); }
+/* BRUT⁴ adds: the seed box and the engineer's report */
+#seedI { flex: 0 1 150px; min-width: 70px; font: 600 12px var(--mono); background: rgba(7, 8, 12, 0.6); color: var(--gold); border: 1px solid var(--gold); border-radius: 8px; padding: 5px 8px; -webkit-user-select: text; user-select: text; }
+#bar { overflow-x: auto; scrollbar-width: none; }
+#report { position: absolute; left: 10px; top: calc(96px + env(safe-area-inset-top)); width: min(360px, calc(100% - 20px)); max-height: calc(100% - 260px); overflow-y: auto; background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 12px; padding: 10px 12px; font: 12px/1.5 var(--mono); }
+#report h3 { font: 700 11px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin: 0 0 6px; }
+#report .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; color: var(--dim); } #report .row b { color: var(--text); font-weight: 400; }
+#report .bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); margin: 2px 0 7px; overflow: hidden; } #report .bar i { display: block; height: 100%; background: #8be28a; } #report .bar i.hot { background: var(--gold); } #report .bar i.bad { background: #ff6a4a; }
+#report p { font: 12px/1.5 var(--sans); color: var(--dim); margin: 8px 0 0; } #report p b { color: var(--text); }

@@ -62,5 +62,10 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
     if (!s.bbox.lo.every((v) => Math.abs(v) < 1e8) || !(K.measure(s, 10, 2).volume > 0)) { all = false; why = `${k}: unbounded or empty`; } }
   ok(all, `all ${ORDER.length} library parts compile to GLSL with functions in order, parameters as uniforms, floats as floats, and are bounded and solid${why ? " — " + why : ""}`);
 }
+{ // a lattice of copies costs one evaluation and is exact
+  const s = K.compile({ op: "array", step: [1, 0, 1, 1], lo: [-1, 0, -1, -1], hi: [1, 0, 1, 1], of: { op: "ball", dim: 4, r: 0.3 } }), m = K.measure(s, 40); let worst = 0, seed = 1; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32) * 5 - 2.5;
+  for (let i = 0; i < 3000; i++) { const p = [rnd(), rnd() * 0.3, rnd(), rnd()]; let b = 1e9; for (const a of [-1, 0, 1]) for (const c of [-1, 0, 1]) for (const e of [-1, 0, 1]) b = Math.min(b, Math.hypot(p[0] - a, p[1], p[2] - c, p[3] - e) - 0.3); worst = Math.max(worst, Math.abs(b - s.sdf(...p))); }
+  ok(worst < 1e-12 && off(m.volume, 27 * (P * P / 2) * 0.3 ** 4) < 0.02 && /clamp\(floor/.test(s.glsl), `array: 27 balls on a lattice from one ball, the distance equal to brute force over all 27 (worst ${worst.toExponential(0)}), 4-volume ${m.volume.toFixed(3)}`);
+}
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

@@ -190,12 +190,23 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   yarn lets go). `window.TWIST` exposes the worlds. See [`twist/README.md`](twist/README.md).
 - **HOUSE at `/house/`** (the first building): walk through a 4D room, first person. The room is CAD⁴'s `room` part,
   and the page **imports CAD⁴'s kernel and library** (`../cad4/js/kernel.js`, `parts.js`), so **a change to either runs
-  HOUSE's selftest too**. `js/walk.js` (no DOM): a body of two balls, a frame of three floor directions (ahead, right,
+  HOUSE's selftest too**. `js/walk.js` (no DOM; BRUT⁴ uses it too): a body of two balls, lifted straight up by anything it can stand on (so ramps don't slide it and a low ledge is climbed), a frame of three floor directions (ahead, right,
   unseen; y is up), pushed out of solids along the distance function's gradient. That needs a true distance where you
   walk, and a boolean gives only a lower bound, so the room's hole cutters run well past their walls (a short one
   stopped the walker in mid-air). `js/main.js` sphere-traces the same tree's GLSL from the eye (the slice of right, up,
   ahead), with the door as a uniform; a 2D map of the floor's three directions; a caption naming what is ahead, right
   and unseen. `window.HOUSE` exposes the walker. See [`house/README.md`](house/README.md).
+- **BRUT⁴ at `/brut4/`**: a brutalist building generator with an engineer, after `tjs/brut`, in 4D, walkable. It
+  **imports CAD⁴'s kernel and HOUSE's walker** (`../cad4/js/kernel.js`, `../house/js/walk.js`), so **a change to either
+  runs BRUT⁴'s selftest too**. `js/arch.js` (no DOM): seed → tiers (blocks of whole 4 m bays in x, z, w, nested, each
+  keeping the stair's bay and the one beside it along x) → a CAD⁴ tree (ground, slabs, columns, walls, stair), with
+  everything repeated on the kernel's `array` op. `js/struct.js`: gravity takedown by tributary volume (which sizes the
+  column: `takedown`), a shear-building sway solve, wind drift, overturning. `js/dims.js` holds the module so the two
+  don't import each other. Two rules learned from the walker, both because a boolean's distance is a lower bound whose
+  gradient lies at a cut edge: build floors from solid blocks round the stair well, never a plate with a hole cut in
+  it; and cut doorways only on the storey that meets a terrace. The page ghosts the columns just out of your slice
+  (`part2` sampled along the unseen direction): keep `columns` third in the tree's `show`. `window.BRUT4` exposes the
+  walker, the building and `go(seed)`. See [`brut4/README.md`](brut4/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -268,6 +279,7 @@ node kata/cad4/test/textiles.selftest.mjs # ~25 s
 node kata/cad4/test/machines.selftest.mjs # ~12 s (pulley, tackle, room)
 node kata/twist/test/twist.selftest.mjs # ~30 s
 node kata/house/test/house.selftest.mjs # ~1 s
+node kata/brut4/test/brut4.selftest.mjs # ~12 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

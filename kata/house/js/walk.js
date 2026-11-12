@@ -10,7 +10,7 @@
    The function must be a true distance where you walk: after a cut it is only a lower bound, so a hole's cutter should
    run well past the wall it cuts, or its end face stops you in mid-air.
    Landing on something sets you down on it. */
-export const EYE = 1.55, BODY = [[0.34, 0.34], [1.3, 0.3]], SPEED = 2.4, G = 12;
+export const WALKABLE = 0.25, EYE = 1.55, BODY = [[0.34, 0.34], [1.3, 0.3]], SPEED = 2.4, G = 12;
 export function makeWalker(pos = [0, 0, 0, 0]) { return { p: pos.slice(), vy: 0, F: [1, 0, 0, 0], R: [0, 0, 1, 0], N: [0, 0, 0, 1], pitch: 0, grounded: false }; }
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
 /* turn a toward b by th (both unit, orthogonal), in place */
@@ -29,8 +29,11 @@ export function step(W, f, inp, dt) {
   for (let pass = 0; pass < 4; pass++) { let moved = false;
     for (const [h, r] of BODY) { const x = W.p[0], y = W.p[1] + h, z = W.p[2], w = W.p[3], d = f(x, y, z, w); if (d >= r) continue;
       let gx = f(x + e, y, z, w) - f(x - e, y, z, w), gy = f(x, y + e, z, w) - f(x, y - e, z, w), gz = f(x, y, z + e, w) - f(x, y, z - e, w), gw = f(x, y, z, w + e) - f(x, y, z, w - e); const gl = Math.hypot(gx, gy, gz, gw); if (gl < 1e-9) { gy = 1; gx = gz = gw = 0; } else { gx /= gl; gy /= gl; gz /= gl; gw /= gl; }
-      const push = r - d; W.p[0] += gx * push; W.p[1] += gy * push; W.p[2] += gz * push; W.p[3] += gw * push; moved = true;
-      if (gy > 0.6) { W.grounded = true; if (W.vy < 0) W.vy = 0; } else if (gy < -0.6 && W.vy > 0) W.vy = 0; }
+      const push = r - d; moved = true;
+      /* something you can stand on (its way out is mostly up) lifts you straight up, so a slope doesn't slide you down
+         it and a stair's nosing is climbed (a ledge up to about a quarter of a metre: its corner meets the hip ball low); anything steeper pushes you off along its own way out */
+      if (gy > WALKABLE && h === BODY[0][0]) { W.p[1] += Math.min(push / gy, 0.25); W.grounded = true; if (W.vy < 0) W.vy = 0; }
+      else { W.p[0] += gx * push; W.p[1] += gy * push; W.p[2] += gz * push; W.p[3] += gw * push; if (gy < -0.6 && W.vy > 0) W.vy = 0; } }
     if (!moved) break; }
   if (W.p[1] < -30) { W.p[1] = 3; W.vy = 0; } // (fell off the world)
   return W;
