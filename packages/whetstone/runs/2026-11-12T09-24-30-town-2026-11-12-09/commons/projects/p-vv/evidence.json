@@ -1,0 +1,122 @@
+[
+  {
+    "check": "T-M1-BADID",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M1-DUP",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M1-PARENT",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M1-CYCLE",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M1-LEAF",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M1-SORT",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M1-LINT",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M2-TRACE",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M3-LEAF",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M3-ASOF",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M3-PARENT",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M3-COVERAGE",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M4-STATUS",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M4-TREND",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M4-BREACH",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M5-PV",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M5-EV",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M5-ES",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M6-REPORT",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M6-EVM",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M6-EMPTY",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M6-ERRORS",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-DATES",
+    "result": "pass",
+    "at": "2026-10-04"
+  },
+  {
+    "check": "T-M7-SELF",
+    "result": "pass",
+    "at": "2026-10-04"
+  }
+]
