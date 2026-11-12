@@ -3704,6 +3704,15 @@
    "parent": "ana"
   },
   {
+   "id": "hyperball",
+   "name": "hyperball",
+   "url": "https://hyperball.mino.mobi/",
+   "cat": "games",
+   "commits": 3,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

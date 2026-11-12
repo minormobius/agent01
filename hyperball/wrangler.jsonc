@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hyperball",
+  "compatibility_date": "2026-02-20",
+  // HYPERBALL: bike-ball in four dimensions. No build, no worker script, no bindings: the directory IS the site.
+  // CLAUDE.md, the tests and this file are kept out of the upload by .assetsignore.
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE, not a custom domain: it costs none of the zone's custom-domain slots. A route makes no DNS, so
+  // deploy-hyperball.yml runs scripts/route-dns.mjs before wrangler deploy.
+  "routes": [
+    { "pattern": "hyperball.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}

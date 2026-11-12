@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#12051f" />
+<meta name="description" content="HYPERBALL — bike-ball in four dimensions. Ride a 4D bicycle round the inside of a hollow 3-sphere, jump, boost, and knock the ball into a spherinder goal. Ball lock keeps the ball in your slice." />
+<title>HYPERBALL — bike-ball in four dimensions</title>
+<link rel="icon" href="data:," />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" />
+<link rel="stylesheet" href="css/hyperball.css" />
+</head>
+<body>
+<div class="game">
+  <canvas id="gl" aria-label="Your 3D slice of the four-dimensional arena"></canvas>
+  <canvas id="ov" aria-hidden="true"></canvas>
+  <div class="hitfx" id="hitfx"></div>
+
+  <div class="top">
+    <div class="sc"><span class="lbl">goals</span><b id="score">0</b><i id="conceded"></i></div>
+    <div class="clock" id="clock">3:00</div>
+    <button class="menubtn" id="menubtn" aria-label="menu">☰</button>
+  </div>
+  <canvas id="map" class="map" aria-label="map of the arena: you, the ball, the goals"></canvas>
+  <div class="count" id="count"></div>
+  <div class="banner" id="banner"></div>
+
+  <div class="boost"><div class="tube"><div class="fill" id="boostfill"></div></div><b id="boostnum">33</b><span id="speed">0 km/h</span></div>
+
+  <div class="stick" id="stick" aria-label="steer: left and right, up for ana, down for kata"><div id="stickKnob"></div><span class="ana">ana</span><span class="kata">kata</span></div>
+  <div class="buttons">
+    <button id="bboost" class="b boost-b">BOOST</button>
+    <button id="bjump" class="b jump-b">JUMP</button>
+    <button id="bbrake" class="b small-b">BRAKE</button>
+    <button id="bgo" class="b small-b">GO</button>
+  </div>
+
+  <div class="title" id="title">
+    <h1>HYPERBALL</h1>
+    <p class="tag">bike-ball in four dimensions</p>
+    <p class="final" id="final"></p>
+    <button class="play" id="play">PLAY</button>
+    <p class="how">You ride a bicycle round the inside of a hollow <b>3-sphere</b>: its floor is a whole three-dimensional world, and the two goals stand at its opposite poles. Knock the ball into <b class="orange">their goal</b> (orange), not <b class="cyan">yours</b> (cyan). Three minutes.</p>
+    <p class="how keys"><b>W S</b> go and brake · <b>A D</b> lean left and right · <b>Q E</b> lean kata and ana · <b>space</b> jump · <b>shift</b> boost (hold space too to boost upward) · <b>C</b> ball cam · <b>L</b> ball lock · <b>P</b> menu. On a phone: the stick leans, the buttons jump and boost.</p>
+  </div>
+
+  <div class="menu" id="menu" hidden>
+    <div class="menuhead"><b>HYPERBALL</b><button id="menuclose">×</button></div>
+    <div class="opt"><span>gravity</span><div class="seg" data-opt="mode"><button data-v="arcade">arcade</button><button data-v="spin">true spin</button></div></div>
+    <p class="note">Arcade: gravity straight down everywhere. True spin: the arena spins at equal rates in two planes to make that gravity, and Coriolis curves every flight and boost.</p>
+    <div class="opt"><span>aiming help</span><div class="seg" data-opt="assist"><button data-v="off">off</button><button data-v="path">path</button><button data-v="steer">path + steering</button></div></div>
+    <p class="note">The cyan path on the floor runs to where you'll meet the ball, coming from behind it toward their goal; its kerbs are teal on the ana side and pink on the kata side. The gold dashes are the shot line, the ball to their goal. Path + steering steers along it whenever you let go of the stick.</p>
+    <div class="opt"><span>ball lock</span><div class="seg" data-opt="lock"><button data-v="true">on</button><button data-v="false">off</button></div></div>
+    <p class="note">The ball is a single point, so there is always a 3D slice through you that holds it: ball lock turns your view to it, and the ball never leaves your sight. Off, you see it come and go, marked ▲ ana or ▼ kata of your slice; J and L turn your slice by hand.</p>
+    <div class="opt"><span>camera</span><div class="seg" data-opt="ballCam"><button data-v="true">ball cam</button><button data-v="false">ahead</button></div></div>
+    <div class="opt"><span>throttle</span><div class="seg" data-opt="autoThrottle"><button data-v="true">always on</button><button data-v="false">held</button></div></div>
+    <p class="note">The arena is 40 m in radius (126 m pole to pole) at 0.6 g. The map (top right) is the whole arena as a ball on your own axes: forward up the map, ana tilting toward you; the ball is white in your slice, teal ana, pink kata. Physics from <a href="https://ana.mino.mobi/habitat/">the Hopf habitat</a>, in four's universe (<a href="https://four.mino.mobi/">four.mino.mobi</a>).</p>
+  </div>
+  <div class="nogl" id="nogl" hidden>HYPERBALL needs WebGL2, which this browser doesn't offer.</div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

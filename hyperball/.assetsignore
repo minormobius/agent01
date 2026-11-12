@@ -1,0 +1,4 @@
+# Not part of the site: instructions for whoever works on this surface, and the tests behind it.
+CLAUDE.md
+test/
+wrangler.jsonc

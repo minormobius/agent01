@@ -1920,6 +1920,21 @@
         ".github/workflows/deploy-ana.yml"
       ],
       "status": "NEW (2026-11-12): a plain route from the start (no custom-domain slot). Sibling of four and kata; no shared code with either."
+    },
+    {
+      "surface": "hyperball",
+      "dir": "hyperball",
+      "endpoint": "hyperball.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/epic-mayer-y28tpl",
+      "uses": [],
+      "provides": null,
+      "note": "HYPERBALL: bike-ball in four dimensions. A 4D bicycle (jump, boost) and a ball in the inside of a small hollow 3-sphere, goals as spherinders at opposite poles; ball lock keeps the ball in your 3D slice, an intercept path is painted on the floor. Vaporwave. (full description: hyperball/CLAUDE.md)",
+      "paths": [
+        "hyperball/**",
+        ".github/workflows/deploy-hyperball.yml"
+      ],
+      "status": "NEW (2026-11-12): a plain route from the start (no custom-domain slot). Its physics copies ana's habitat.js byte for byte (the selftest checks)."
     }
   ],
   "unmanaged": {

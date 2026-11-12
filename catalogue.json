@@ -5768,6 +5768,22 @@
       ]
     },
     {
+      "n": "hyperball",
+      "u": "https://hyperball.mino.mobi/",
+      "c": "games",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "surface": "hyperball",
+      "d": "Bike-ball in four dimensions. Ride a 4D bicycle round the inside of a hollow 3-sphere (its floor a whole three-dimensional world), jump and boost, and knock a ball into a spherinder goal at the far pole. Chasing a ball in four dimensions is hard, so ball lock turns your 3D slice to hold it (a single point is always in some slice through you), and a path painted on the floor runs to where you'll meet it, its kerbs teal on the ana side and pink on the kata side. Arcade gravity or true spin with Coriolis. Vaporwave arena, neon grid, a striped sun at the centre.",
+      "tags": [
+        "games",
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",
