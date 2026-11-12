@@ -38,7 +38,22 @@ far any fibre went out of the twisting plane on the way.
   squeezes less than ours.
 - With no jiggle at all the 4D twist stands and squeezes like ours. It is an equilibrium, and an unstable one.
 
-So a 4D rope cannot get its grip from twist. What it can use (a hoop that is a sphere, a woven sheath) is in
+## The cheat
+
+A fibre catches on nothing one-dimensional and on anything two-dimensional. So give the yarn a core that is a
+**ribbon**: flat along the yarn, wide across z (`tape`, the half-width; rigid here). Six fibres twisted round it:
+
+| ribbon | one turn | two turns |
+|---|---|---|
+| none | unwinds | unwinds |
+| ±0.1 (a fibre's radius) | stays, squeeze 62 | slips round the edge, unwinds |
+| ±0.3 and wider | stays, squeeze 62 | stays, squeeze 676 |
+
+It holds against ten times the jiggle. The squeeze is on the ribbon, from all six fibres, so it is not the same
+quantity as the core squeeze above; what matters is that it is not zero. Not tested: a ribbon that can bend or crumple,
+fibres wound near its edge, or many layers.
+
+So a plain 4D yarn cannot get its grip from twist, but one spun round a ribbon can. What it can use (a hoop that is a sphere, a woven sheath) is in
 [CAD⁴](../cad4/#rope); whether a sheath tightens under load, as a finger trap does, is the next experiment.
 
 ## What this is not
@@ -50,5 +65,5 @@ under a hard squeeze (at two turns in 3D, visibly). Seven fibres, one geometry.
 ## Test
 
 ```bash
-node kata/twist/test/twist.selftest.mjs   # ~15 s, 6 checks
+node kata/twist/test/twist.selftest.mjs   # ~20 s, 8 checks
 ```

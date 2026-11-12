@@ -1,7 +1,7 @@
 /* TWIST's selftest: the page's claims. Our yarn holds its twist and the twist squeezes the core, more the more turns;
    the same yarn in four dimensions sheds every whole turn and ends exactly as if it had never been twisted; a part
    turn, which the clamped ends force, stays and squeezes less than ours; with no jiggle at all the 4D twist stands (it
-   is an equilibrium, an unstable one); and untwisted, the two are the same yarn.   node kata/twist/test/twist.selftest.mjs   (~15 s) */
+   is an equilibrium, an unstable one); and untwisted, the two are the same yarn; and the cheat: round a ribbon wide enough, the 4D twist holds.   node kata/twist/test/twist.selftest.mjs   (~25 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), { settle } = await import(path.join(here, "../js/yarn.js"));
@@ -21,6 +21,11 @@ const run = (d, turns, extra = {}) => settle({ d, turns, ...extra });
   ok(Math.abs(h4.wind - 0.5) < 0.02 && h4.squeeze > 0.5 && h4.squeeze < 0.6 * h3.squeeze && Math.abs(o4.wind - 0.5) < 0.02 && Math.abs(o4.energy - h4.energy) < 1e-2, `a half turn is forced by the clamps and stays in both, squeezing ${h4.squeeze.toFixed(2)} in 4D against ${h3.squeeze.toFixed(2)} in 3D; one and a half turns in 4D relaxes to exactly the half-turn state`);
   const still = run(4, 1, { noise: 0 });
   ok(Math.abs(still.wind - 1) < 0.02 && Math.abs(still.squeeze - b1.squeeze) < 0.5, `with no jiggle at all the 4D twist stands, squeezing ${still.squeeze.toFixed(1)} like ours: it is an equilibrium, and an unstable one`);
+}
+{ // the cheat: a core that is a ribbon
+  const wide1 = run(4, 1, { tape: 0.5 }), wide2 = run(4, 2, { tape: 0.5 }), thin2 = run(4, 2, { tape: 0.1 }), rough = run(4, 2, { tape: 0.5, noise: 0.02, seed: 3 });
+  ok(Math.abs(wide1.wind - 1) < 0.02 && Math.abs(wide2.wind - 2) < 0.02 && wide1.squeeze > 20 && wide2.squeeze > 5 * wide1.squeeze && Math.abs(rough.wind - 2) < 0.02, `twisted round a ribbon (±0.5 across z) the 4D yarn keeps its turns (${wide1.wind.toFixed(2)}, ${wide2.wind.toFixed(2)}) and squeezes it (${wide1.squeeze.toFixed(0)}, ${wide2.squeeze.toFixed(0)}), ten times the jiggle included`);
+  ok(Math.abs(thin2.wind) < 0.02 && thin2.squeeze < 1 && thin2.out > 0.3, `a ribbon only a fibre's radius wide (±0.1) lets two turns slip round its edge (winding ${thin2.wind.toFixed(2)}, the fibres went ${thin2.out.toFixed(2)} out)`);
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);
