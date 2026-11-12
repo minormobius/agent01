@@ -34,6 +34,7 @@ uniform float R, tanH, aspect, towerH, towerA, roadW, sunR;
 uniform vec4 E, L, U, Rt, me;
 uniform vec4 tA, tB, tC, tD, tAmp;   // the track: habitat.js makeTrack's a, b, c, d and (A, B, k, l)
 uniform float tOn;
+uniform vec4 Wv, home;   // your hidden direction (for the kerbs' colours), and home
 uniform vec4 towers[24];
 uniform vec3 roads[12];
 
@@ -89,7 +90,8 @@ vec3 terrain(vec4 u, float t) {
   vec3 c = mix(vec3(0.17, 0.33, 0.14), vec3(0.40, 0.46, 0.19), smoothstep(0.35, 0.68, n));
   c = mix(c, vec3(0.55, 0.47, 0.26), smoothstep(0.62, 0.7, k) * 0.6);                  // fields
   c *= 0.85 + 0.3 * k;
-  if (m < 0.37) c = mix(vec3(0.10, 0.26, 0.40), vec3(0.18, 0.42, 0.56), smoothstep(0.2, 0.37, m));   // lakes
+  bool wet = m < 0.37;
+  if (wet) c = mix(vec3(0.10, 0.26, 0.40), vec3(0.18, 0.42, 0.56), smoothstep(0.2, 0.37, m));   // lakes (habitat.js isWater)
   // the spin circles: roads along the Hopf circles over 12 points of the base sphere, dashed every 12 m
   vec3 hb = hopf(u);
   float th = dot(u.xy, u.xy) > dot(u.zw, u.zw) ? atan(u.y, u.x) : atan(u.w, u.z);
@@ -105,11 +107,21 @@ vec3 terrain(vec4 u, float t) {
     vec2 tn = trackNear(u);
     float half_ = max(3.0, px * 1.5), along = R * tn.y;
     if (tn.x < half_) {
-      c = vec3(0.16, 0.16, 0.18) * (0.9 + 0.2 * k);
-      if (tn.x > half_ - 0.45) c = mix(vec3(0.85, 0.2, 0.2), vec3(0.92), step(0.5, fract(along / 2.0)));
+      c = wet ? vec3(0.50, 0.49, 0.46) * (0.9 + 0.2 * k) : vec3(0.16, 0.16, 0.18) * (0.9 + 0.2 * k);   // a bridge over water
+      // the road is a tube in the three-dimensional floor; its edge is coloured by which side of the track it lies on
+      // against your slice: teal on the ana side, pink on the kata side, white where it's in your slice (tailspin's)
+      if (tn.x > half_ - 0.55) {
+        vec4 off = u - tAt(tn.y);
+        float side = dot(off, Wv) / max(length(off), 1e-9);
+        vec3 kerb = side > 0.0 ? mix(vec3(0.93), vec3(0.22, 0.9, 0.85), smoothstep(0.1, 0.8, side)) : mix(vec3(0.93), vec3(1.0, 0.42, 0.68), smoothstep(0.1, 0.8, -side));
+        c = kerb * (0.82 + 0.18 * step(0.5, fract(along / 2.0)));
+      }
       if (tn.x < max(0.12, px * 0.6) && fract(along / 6.0) > 0.5) c = vec3(0.92, 0.92, 0.88);
     }
   }
+  // home: a gold ring where you started
+  float dh = acos(clamp(dot(u, home), -1.0, 1.0)) * R;
+  if (dh < 7.0 && dh > 6.6 || dh < 0.5) c = mix(c, vec3(1.0, 0.82, 0.42), 0.7);
   // your own spin circle, the one under your feet, gold
   float am = acos(clamp(dot(hb, hopf(me)), -1.0, 1.0)) * 0.5 * R;
   if (am < max(0.3, px)) c = mix(c, vec3(1.0, 0.82, 0.42), 0.85);
@@ -139,7 +151,8 @@ void main() {
     float lam = max(dot(n, -normalize(p)), 0.0);          // lit from the sun at the centre
     float side = 0.5 + 0.5 * dot(n, normalize(Rt + L));
     float band = step(0.5, fract((R - length(p)) / 10.0)); // a stripe every 10 m of height
-    col = mix(vec3(0.62, 0.62, 0.66), vec3(0.78, 0.76, 0.72), band) * (0.32 + 0.45 * lam + 0.23 * side);
+    vec3 tint = clamp(abs(mod(float(which) / 24.0 * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);   // each landmark its own hue
+    col = mix(vec3(0.66, 0.66, 0.70), mix(vec3(0.75), tint, 0.85), band) * (0.32 + 0.45 * lam + 0.23 * side);
   } else col = vec3(1.0, 0.95, 0.8) * 1.4;
   // air: the far side of the habitat fades into haze
   float f = 1.0 - exp(-t / (1.7 * R));
@@ -211,6 +224,7 @@ function draw() {
   gl.uniform1f(Un.roadW, Math.max(1.5, 0.004 * S.R)); gl.uniform1f(Un.sunR, 0.04 * S.R);
   gl.uniform4f(Un.E, ...cam.eye); gl.uniform4f(Un.L, ...cam.look); gl.uniform4f(Un.U, ...cam.up); gl.uniform4f(Un.Rt, ...cam.right);
   gl.uniform4f(Un.me, ...S.xh);
+  gl.uniform4f(Un.Wv, ...cam.w); gl.uniform4f(Un.home, ...H.HOME);
   if (S.track) {
     const sp = S.track.spec;
     gl.uniform4f(Un.tA, ...sp.a); gl.uniform4f(Un.tB, ...sp.b); gl.uniform4f(Un.tC, ...sp.c); gl.uniform4f(Un.tD, ...sp.d);
@@ -271,8 +285,29 @@ function overlay(cam) {
   // crosshair
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(W / 2 - 6, Hh / 2); ctx.lineTo(W / 2 + 6, Hh / 2); ctx.moveTo(W / 2, Hh / 2 - 6); ctx.lineTo(W / 2, Hh / 2 + 6); ctx.stroke();
+  tags(cam, W, Hh);
   if (S.ride) bars(W, Hh);
-  compass();
+  drawMap();
+}
+// where the landmarks are: a tag over each tower top in front of you (wherever your slice is), its letter and hue, how
+// far, and whether it's ana or kata of your slice; home too
+function tags(cam, W, Hh) {
+  ctx.font = '600 11px ui-monospace, monospace'; ctx.textAlign = 'center';
+  const towerTop = 0.3 * S.R;
+  const list = H.LANDMARKS.map((l) => ({ name: l.name, p: H.scale(l.p, S.R - towerTop), hue: l.hue, at: l.p }));
+  list.push({ name: 'home', p: H.scale(H.HOME, S.R), hue: -1, at: H.HOME });
+  for (const l of list) {
+    const q = project(cam, l.p, W, Hh);
+    if (!q || q.x < 0 || q.x > W || q.y < 0 || q.y > Hh) continue;
+    const d = S.R * Math.acos(Math.max(-1, Math.min(1, H.dot(l.at, S.xh))));
+    const col = l.hue < 0 ? '#ffd27a' : `hsl(${Math.round(l.hue * 360)},85%,65%)`;
+    const off = Math.abs(q.w) < 3 ? '' : q.w > 0 ? ' ▲' : ' ▼';
+    ctx.fillStyle = 'rgba(7,8,12,0.55)'; ctx.fillRect(q.x - 26, q.y - 22, 52, 16);
+    ctx.fillStyle = col; ctx.fillText(`${l.name} ${d < 1000 ? Math.round(d) + 'm' : (d / 1000).toFixed(1) + 'km'}`, q.x, q.y - 10);
+    if (off) { ctx.fillStyle = q.w > 0 ? '#38f2e0' : '#ff66b8'; ctx.fillText(off.trim(), q.x + 32, q.y - 10); }
+    ctx.beginPath(); ctx.arc(q.x, q.y, 2.5, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill();
+  }
+  ctx.textAlign = 'left';
 }
 function bars(W, Hh) {
   const y = Hh - 18, half = Math.min(W * 0.28, 170);
@@ -283,14 +318,101 @@ function bars(W, Hh) {
   ctx.fillStyle = 'rgba(20,20,24,0.9)'; ctx.fillRect(W / 2 - 7, y - 4, 14, 22);
 }
 
-// spinward, as it lies in your frame: an arrow over forward/right, a bar for the part in w you can't see
-function compass() {
-  const f = H.J(S.xh), a = H.dot(f, S.fwd), r = H.dot(f, S.right), w = H.dot(f, S.wS);
-  const el = $('compass');
-  el.querySelector('.arrow').style.transform = `rotate(${Math.atan2(r, a)}rad) scaleY(${Math.hypot(a, r).toFixed(3)})`;
-  el.querySelector('.wbar i').style.width = `${(Math.abs(w) * 50).toFixed(1)}%`;
-  el.querySelector('.wbar i').style.left = w >= 0 ? '50%' : `${(50 - Math.abs(w) * 50).toFixed(1)}%`;
-  el.querySelector('.wbar i').style.background = w >= 0 ? '#38f2e0' : '#ff66b8';
+// ---------------------------------------------------------------- the map --
+// The floor is a three-dimensional world, so the map is a ball you can spin: every point at its walking distance from
+// you, in the direction you'd walk to reach it (habitat.js mapOf), on your own axes: right, forward, and w (ana up).
+// The whole habitat fits inside radius πR; the point opposite you is the rim. Lakes are blue clouds, the track a line
+// coloured teal where it runs ana of you and pink where kata, landmarks their hues, home gold.
+const mapCv = $('map'), mctx = mapCv.getContext('2d');
+const MAP = { yaw: 0, pitch: 0.75, zoom: 1, big: false };
+const wetPts = [], dryPts = [];
+(function sample() {   // the land, sampled once: unit points, so any radius
+  let seed = 7;
+  const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const g = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
+  for (let i = 0; i < 16000 && wetPts.length < 4500; i++) {
+    const u = H.unit([g(), g(), g(), g()]);
+    if (H.isWater(u)) wetPts.push(u); else if (dryPts.length < 900) dryPts.push(u);
+  }
+})();
+let mapTrack = null;   // the track's samples, mapped lazily
+function mapProject(m, size) {
+  const k = (size * 0.46 * MAP.zoom) / (Math.PI * S.R);
+  const cy = Math.cos(MAP.yaw), sy = Math.sin(MAP.yaw), cp = Math.cos(MAP.pitch), sp = Math.sin(MAP.pitch);
+  const x1 = m[0] * cy - m[1] * sy, y1 = m[0] * sy + m[1] * cy, z = m[2];
+  return { x: size / 2 + k * x1, y: size / 2 - k * (y1 * cp + z * sp), depth: -y1 * sp + z * cp, w: z };
+}
+function drawMap() {
+  const el = $('mapbox'), size = Math.min(el.clientWidth, el.clientHeight), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (mapCv.width !== Math.round(size * dpr)) { mapCv.width = mapCv.height = Math.round(size * dpr); }
+  mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  mctx.clearRect(0, 0, size, size);
+  const frame = [S.fwd, S.right, S.wS];
+  // the rim: the point opposite you
+  const k = (size * 0.46 * MAP.zoom) / (Math.PI * S.R);
+  mctx.strokeStyle = 'rgba(255,255,255,0.12)'; mctx.beginPath(); mctx.arc(size / 2, size / 2, Math.PI * S.R * k, 0, 2 * Math.PI); mctx.stroke();
+  // land, faint; lakes, blue
+  mctx.fillStyle = 'rgba(160,190,140,0.18)';
+  for (const u of dryPts) { const q = mapProject(H.mapOf(S.xh, frame, u, S.R), size); mctx.fillRect(q.x, q.y, 1, 1); }
+  mctx.fillStyle = 'rgba(70,150,230,0.30)';
+  const dot = MAP.big ? 2 : 1.4;
+  for (const u of wetPts) { const q = mapProject(H.mapOf(S.xh, frame, u, S.R), size); mctx.fillRect(q.x - dot / 2, q.y - dot / 2, dot, dot); }
+  // the track
+  if (S.track) {
+    if (!mapTrack) mapTrack = Array.from({ length: 480 }, (_, i) => { const q = H.trackAt(S.track, (S.track.len * i) / 480); return { u: q.x, wet: H.isWater(q.x) }; });
+    let prev = null;
+    mctx.lineWidth = MAP.big ? 2.5 : 1.6; mctx.lineCap = 'round';
+    for (let i = 0; i <= mapTrack.length; i++) {
+      const s = mapTrack[i % mapTrack.length], q = mapProject(H.mapOf(S.xh, frame, s.u, S.R), size);
+      if (prev && Math.hypot(q.x - prev.x, q.y - prev.y) < size * 0.25) {
+        const t = Math.max(-1, Math.min(1, q.w / (0.15 * Math.PI * S.R)));
+        mctx.strokeStyle = s.wet ? 'rgba(220,220,210,0.9)' : t > 0.15 ? `rgba(56,242,224,${0.55 + 0.4 * t})` : t < -0.15 ? `rgba(255,102,184,${0.55 - 0.4 * t})` : 'rgba(240,240,235,0.9)';
+        mctx.setLineDash(s.wet ? [2, 2] : []);
+        mctx.beginPath(); mctx.moveTo(prev.x, prev.y); mctx.lineTo(q.x, q.y); mctx.stroke();
+      }
+      prev = q;
+    }
+    mctx.setLineDash([]);
+  }
+  // landmarks and home
+  mctx.font = `600 ${MAP.big ? 12 : 9}px ui-monospace, monospace`; mctx.textAlign = 'center';
+  for (const l of H.LANDMARKS) {
+    const q = mapProject(H.mapOf(S.xh, frame, l.p, S.R), size);
+    mctx.fillStyle = `hsl(${Math.round(l.hue * 360)},85%,62%)`;
+    mctx.beginPath(); mctx.arc(q.x, q.y, MAP.big ? 3.5 : 2.4, 0, 2 * Math.PI); mctx.fill();
+    if (MAP.big || size > 140) mctx.fillText(l.name, q.x, q.y - 5);
+  }
+  const hq = mapProject(H.mapOf(S.xh, frame, H.HOME, S.R), size);
+  mctx.strokeStyle = '#ffd27a'; mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(hq.x, hq.y, MAP.big ? 6 : 4, 0, 2 * Math.PI); mctx.stroke();
+  if (MAP.big) { mctx.fillStyle = '#ffd27a'; mctx.fillText('home', hq.x, hq.y - 9); }
+  // you: an arrow along forward, your w axis as a short teal tick, spinward dashed gold
+  const o = mapProject([0, 0, 0], size), L = Math.PI * S.R * 0.12;
+  const fq = mapProject([0, L, 0], size), wq = mapProject([0, 0, L * 0.7], size);
+  const f = H.J(S.xh), sq = mapProject([L * H.dot(f, S.right), L * H.dot(f, S.fwd), L * H.dot(f, S.wS)], size);
+  mctx.lineWidth = 2;
+  mctx.strokeStyle = '#38f2e0'; mctx.beginPath(); mctx.moveTo(o.x, o.y); mctx.lineTo(wq.x, wq.y); mctx.stroke();
+  mctx.strokeStyle = 'rgba(255,210,122,0.8)'; mctx.setLineDash([3, 3]); mctx.beginPath(); mctx.moveTo(o.x, o.y); mctx.lineTo(sq.x, sq.y); mctx.stroke(); mctx.setLineDash([]);
+  mctx.strokeStyle = '#ffffff'; mctx.lineWidth = 2.5; mctx.beginPath(); mctx.moveTo(o.x, o.y); mctx.lineTo(fq.x, fq.y); mctx.stroke();
+  mctx.fillStyle = '#ffffff'; mctx.beginPath(); mctx.arc(o.x, o.y, 3, 0, 2 * Math.PI); mctx.fill();
+  if (MAP.big) { mctx.textAlign = 'left'; mctx.fillStyle = '#9a958c'; mctx.fillText('ahead', fq.x + 4, fq.y); mctx.fillStyle = '#38f2e0'; mctx.fillText('ana', wq.x + 4, wq.y); mctx.fillStyle = '#ffd27a'; mctx.fillText('spinward', sq.x + 4, sq.y); }
+  mctx.textAlign = 'left';
+}
+// spin the map by dragging it; the corner button (or a double-tap) makes it big
+{
+  let drag = null;
+  mapCv.addEventListener('pointerdown', (e) => { e.stopPropagation(); drag = [e.clientX, e.clientY]; mapCv.setPointerCapture(e.pointerId); });
+  mapCv.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    MAP.yaw += (e.clientX - drag[0]) * 0.012; MAP.pitch = Math.max(-1.55, Math.min(1.55, MAP.pitch + (e.clientY - drag[1]) * 0.012));
+    drag = [e.clientX, e.clientY]; touch();
+  });
+  for (const ev of ['pointerup', 'pointercancel']) mapCv.addEventListener(ev, () => { drag = null; });
+  mapCv.addEventListener('wheel', (e) => { e.preventDefault(); MAP.zoom = Math.max(0.6, Math.min(12, MAP.zoom * Math.exp(-e.deltaY * 0.0015))); touch(); }, { passive: false });
+  const big = () => { MAP.big = !MAP.big; $('mapbox').classList.toggle('big', MAP.big); $('mapbig').textContent = MAP.big ? '×' : '⤢'; touch(); };
+  $('mapbig').onclick = big;
+  mapCv.addEventListener('dblclick', big);
+  $('mapin').onclick = () => { MAP.zoom = Math.min(12, MAP.zoom * 1.6); touch(); };
+  $('mapout').onclick = () => { MAP.zoom = Math.max(0.6, MAP.zoom / 1.6); touch(); };
 }
 
 // ------------------------------------------------------------------- balls --
@@ -476,10 +598,10 @@ $('square').onclick = squareUp;
 // Mount a bike on a track built through where you stand. Across the spin the lean is along J of your heading: we start
 // you with that in view (your right), so the world rolls; twist it into w with the pad and the lean goes out of sight.
 function mount(kind) {
-  const T = H.tracksAt(S.xh);
-  let spec = T[kind === 'against' ? 'spin' : kind];
-  if (kind === 'slalom') spec = { ...spec, A: 14 / S.R, B: 9 / S.R };
-  S.track = H.makeTrack(spec);
+  const laid = H.layTrack(kind, S.xh, S.R);      // the driest line this kind of track can take from here
+  S.track = H.makeTrack(laid.spec);
+  S.track.wet = laid.wet;
+  mapTrack = null;
   const dir = kind === 'against' ? -1 : 1, t0 = H.scale(H.trackAt(S.track, 0).t, dir);
   const side = H.add(H.J(t0), S.xh, -H.dot(H.J(t0), S.xh));
   const rightGuess = H.norm(side) > 0.3 ? side : S.right;
@@ -540,7 +662,8 @@ function rideHud() {
     `<b>${(r.speed * 3.6).toFixed(0)} km/h</b> · ${r.kind === 'against' ? 'against the spin' : r.kind === 'spin' ? 'with the spin' : r.kind === 'across' ? 'across the spin' : r.kind === 'diagonal' ? '45° to the spin' : 'slalom'}<br>` +
     `you weigh <b>${(p.normal / g).toFixed(2)} g</b>${p.normal / g < 0.05 ? ' · <span class="ana">floating</span>' : ''}<br>` +
     `lean ${where}<br>` +
-    `grip needed ${p.grip.toFixed(2)}${p.grip > 0.8 ? ' · <span class="kata">skidding</span>' : ''} · lap ${(100 * done / lap).toFixed(0)}% of ${(lap / 1000).toFixed(2)} km`;
+    `grip needed ${p.grip.toFixed(2)}${p.grip > 0.8 ? ' · <span class="kata">skidding</span>' : ''} · lap ${(100 * done / lap).toFixed(0)}% of ${(lap / 1000).toFixed(2)} km` +
+    (r.tr.wet > 0 ? `<br><span class="k">${(100 * r.tr.wet).toFixed(0)}% of it on bridges${r.kind === 'spin' || r.kind === 'against' ? ' (the spin road can\'t dodge the lakes)' : ', its driest line from where you mounted'}</span>` : '');
   // the lean gauge: across-track right (x) and w (y); the dashed circle is a grip of 0.8
   const gx = Math.max(-1, Math.min(1, lr)), gy = Math.max(-1, Math.min(1, lw));
   $('leangauge').innerHTML = `<svg viewBox="-50 -50 100 100"><circle r="40" fill="rgba(7,8,12,0.55)" stroke="rgba(255,255,255,0.3)"/>

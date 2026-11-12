@@ -18,10 +18,9 @@
       <a class="home" href="../">ana</a>
       <span class="title">HOPF HABITAT</span>
     </div>
-    <div class="compass" id="compass" title="which way is spinward, in your frame; the bar is the part of it in your hidden w">
-      <div class="dial"><div class="arrow"></div></div>
-      <div class="wbar"><i></i></div>
-      <span>spinward</span>
+    <div class="mapbox" id="mapbox" title="the whole floor, a ball on your own axes: drag to spin it">
+      <canvas id="map" aria-label="map of the habitat's floor as a ball: lakes, the track, landmarks, home"></canvas>
+      <div class="mapbtns"><button id="mapout">−</button><button id="mapin">+</button><button id="mapbig">⤢</button></div>
     </div>
     <div class="ridehud" id="ridehud"></div>
     <div class="leangauge" id="leangauge"></div>
@@ -73,11 +72,16 @@
       <div class="chart" id="chart"></div>
     </details>
     <details open>
+      <summary>the map</summary>
+      <p>The floor is a three-dimensional world, so the map (top right) is a ball. Each point sits at its walking distance from you, in the direction you'd walk to reach it, on your own axes: forward (the white arrow), right, and <b class="ana">ana</b> (the teal tick), so the map turns as you do. The whole habitat fits in the ball; its rim is the point exactly opposite you. Lakes are blue clouds; the track is teal where it runs ana of you and pink where kata, dashed on bridges; the 24 towers are lettered landmarks in their own colours (A and B stand in lakes: lighthouses); home is the gold ring. Drag the map to spin it, ⤢ to make it big. In the view, tags float over the towers ahead with how far, and ▲ ▼ for ana and kata of your slice.</p>
+    </details>
+    <details open>
       <summary>ride</summary>
       <p>Each track is laid through where you're standing. The bike follows it and leans the way a balancing rider would: so the ground's push runs along its frame. The <b>walk pad</b> (or W S) is the throttle.</p>
       <p><b>With the spin</b>, your speed adds to the floor's and you're heavier; you never lean. <b>Against it</b>, lighter, and at the floor's own speed (about 54 m/s in a 300 m habitat; make it smaller to reach it) you float: from outside you're standing still and the habitat is turning under you.</p>
       <p><b>Across the spin</b>, the road is dead straight and you still have to lean, hard, the whole way round: Coriolis pushes you sideways. It pushes the same way at every point of the road, toward one turn of your heading. You start with that side to your right, so the world rolls. Now hold the <b>twist pad</b> sideways and turn your slice until the lean lies in w: the world stops rolling, you ride upright as far as you can see, and you're leaning 27° into a direction you can't look.</p>
       <p>Any straight road keeps the same angle to the spin all the way round, so it rides the same everywhere. The <b>slalom</b> doesn't: it weaves left and right and through w.</p>
+      <p>Each track is laid on the driest line it can take from where you mount (the spin road has no choice), and crosses what lakes it can't miss on bridges. The road is a tube in the three-dimensional floor: its edge is <b class="ana">teal</b> on the side that's ana of your slice and <b class="kata">pink</b> on the kata side, white where it's in your slice, so you see the track turning into w before you can see it go.</p>
     </details>
     <details>
       <summary>throw something</summary>

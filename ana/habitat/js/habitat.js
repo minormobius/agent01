@@ -226,3 +226,81 @@ export function tracksAt(xhat) {
     slalom: { a: xhat, b: F.e, c: F.Je, d: F.f, k: 9, l: 5 },   // amplitudes set from R by the page: A, B in metres / R
   };
 }
+
+// ------------------------------------------------------------------ the land --
+// The shader's terrain, twinned here so the page can map the lakes and lay tracks round them. GLSL's floats are 32-bit,
+// so each step rounds through Math.fround; a point within a hair of a lake's edge may still be called differently.
+const fr = Math.fround;
+const fract = (x) => fr(x - Math.floor(x));
+function hash4(p) {
+  let a = fract(fr(p[0] * fr(0.1031))), b = fract(fr(p[1] * fr(0.1030))), c = fract(fr(p[2] * fr(0.0973))), d = fract(fr(p[3] * fr(0.1099)));
+  const s = fr(fr(fr(a * fr(d + fr(33.33))) + fr(b * fr(c + fr(33.33)))) + fr(fr(c * fr(a + fr(33.33))) + fr(d * fr(b + fr(33.33)))));
+  a = fr(a + s); b = fr(b + s); c = fr(c + s); d = fr(d + s);
+  return fract(fr(fr(a + b) * fr(c + d)));
+}
+function n4(x) {
+  const i = x.map(Math.floor), f = x.map((v, k) => { const t = fr(v - i[k]); return fr(t * t * fr(3 - 2 * t)); });
+  let r = 0;
+  for (let k = 0; k < 16; k++) {
+    const c = [k & 1, (k >> 1) & 1, (k >> 2) & 1, (k >> 3) & 1];
+    let w = 1;
+    for (let j = 0; j < 4; j++) w *= c[j] ? f[j] : 1 - f[j];
+    r += hash4([i[0] + c[0], i[1] + c[1], i[2] + c[2], i[3] + c[3]]) * w;
+  }
+  return r;
+}
+const fbm = (x) => 0.55 * n4(x) + 0.3 * n4(x.map((v) => v * 2.03 + 7.1)) + 0.15 * n4(x.map((v) => v * 4.1 + 3.3));
+/** Is the floor at unit point u a lake? (the shader's `m < 0.37`) */
+export const WATER = 0.37;
+export const isWater = (u) => fbm(u.map((v) => v * 3.2 + 11)) < WATER;
+
+// ------------------------------------------------------------------- the map --
+/** The floor seen from where you stand: each point at its walking distance, in the direction you'd walk to reach it,
+ *  written in your frame (right, forward, w). The whole habitat fits in a ball of radius πR; the point opposite you is
+ *  its rim. (The logarithm of the 3-sphere at x̂.) */
+export function mapOf(xhat, [fwd, right, w], u, R) {
+  const c = Math.max(-1, Math.min(1, dot(u, xhat))), d = Math.acos(c);
+  if (d < 1e-12) return [0, 0, 0];
+  const v = add(u, xhat, -c), s = norm(v) || 1, k = (R * d) / s;
+  return [k * dot(v, right), k * dot(v, fwd), k * dot(v, w)];
+}
+/** Its inverse: walk from x̂ along the map's direction for the map's distance. */
+export function fromMap(xhat, [fwd, right, w], m, R) {
+  const d = Math.hypot(...m) / R;
+  if (d < 1e-12) return xhat.slice();
+  const dir = unit(add(add(scale(right, m[0]), fwd, m[1]), w, m[2]));
+  return add(scale(xhat, Math.cos(d)), dir, Math.sin(d));
+}
+
+/** The share of a track's samples over water. */
+export function wetness(tr, n = 720) {
+  let wet = 0;
+  for (let i = 0; i < n; i++) if (isWater(trackAt(tr, (tr.len * i) / n).x)) wet++;
+  return wet / n;
+}
+/** Lay a track of a kind through x̂ on the driest line its freedoms allow. With the spin there's no freedom (it's the
+ *  Hopf circle you stand on): it is what it is, bridged where wet. Across the spin, the across-plane has a circle of
+ *  directions; at 45°, the same; the slalom also picks how its wiggles lean. Returns { spec, wet, tried }. */
+export function layTrack(kind, xhat, R, steps = 24) {
+  const F = floorFrame(xhat);
+  const turnIn = (a) => [add(scale(F.e, Math.cos(a)), F.Je, Math.sin(a)), add(scale(F.e, -Math.sin(a)), F.Je, Math.cos(a))];
+  const specs = [];
+  if (kind === 'spin' || kind === 'against') specs.push({ a: xhat, b: F.f, c: F.e, d: F.Je });
+  else for (let i = 0; i < steps; i++) {
+    const [p, q] = turnIn((2 * Math.PI * i) / steps);
+    if (kind === 'across') specs.push({ a: xhat, b: p, c: q, d: F.f });
+    else if (kind === 'diagonal') specs.push({ a: xhat, b: unit(add(F.f, p)), c: unit(add(F.f, p, -1)), d: q });
+    else specs.push({ a: xhat, b: p, c: q, d: F.f, A: 14 / R, B: 9 / R, k: 9, l: 5 });
+  }
+  let best = null;
+  for (const spec of specs) {
+    const tr = makeTrack(spec, 1024), wet = wetness(tr, 360);
+    if (!best || wet < best.wet) best = { spec, wet };
+    if (wet === 0) break;
+  }
+  return { ...best, tried: specs.length };
+}
+
+/** The towers as landmarks: a letter and a colour each (hue round the wheel), and home where you start. */
+export const LANDMARKS = towers().map((p, i) => ({ name: String.fromCharCode(65 + i), p, hue: i / 24 }));
+export const HOME = [1, 0, 0, 0];

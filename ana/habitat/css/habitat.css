@@ -72,11 +72,6 @@ code { font: 12px var(--mono); color: var(--gold); }
 .title { font-size: 17px; }
 .walkpad { left: 50%; margin-left: -46px; }
 #walkKnob { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(255, 210, 122, 0.45); pointer-events: none; }
-.compass { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px; width: 74px; text-align: center; font: 10px var(--mono); color: var(--dim); pointer-events: none; }
-.compass .dial { width: 54px; height: 54px; margin: 0 auto 4px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.3); background: rgba(7, 8, 12, 0.45); position: relative; }
-.compass .arrow { position: absolute; left: 50%; top: 5px; width: 3px; height: 22px; margin-left: -1.5px; background: var(--gold); transform-origin: 50% 100%; border-radius: 2px; }
-.compass .wbar { position: relative; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); margin: 0 6px 3px; }
-.compass .wbar i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
 .quick { position: absolute; top: calc(44px + env(safe-area-inset-top)); left: 12px; display: flex; gap: 6px; }
 .quick button { font: 600 12px var(--mono); background: rgba(7, 8, 12, 0.6); color: var(--text); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 8px; padding: 6px 12px; cursor: pointer; touch-action: manipulation; }
 .quick button:active { border-color: var(--gold); color: var(--gold); }
@@ -96,9 +91,18 @@ table.stress th { color: var(--dim); font-size: 11px; }
 .ridehud { position: absolute; top: calc(84px + env(safe-area-inset-top)); left: 12px; font: 12px/1.55 var(--mono); color: #d9d3c8; background: rgba(7, 8, 12, 0.6); border-radius: 10px; padding: 7px 10px; pointer-events: none; max-width: min(360px, 70%); }
 .ridehud:empty, .leangauge:empty { display: none; }
 .ridehud b { color: var(--text); } .ridehud .ana, .ridehud b.ana { color: #38f2e0; } .ridehud .kata, .ridehud b.kata { color: #ff66b8; }
-.leangauge { position: absolute; right: 12px; top: calc(112px + env(safe-area-inset-top)); width: 84px; height: 84px; pointer-events: none; }
+.leangauge { position: absolute; right: 12px; top: calc(172px + env(safe-area-inset-top)); width: 84px; height: 84px; pointer-events: none; }
 .leangauge svg { width: 100%; height: 100%; } .leangauge text { font: 9px var(--mono); text-anchor: middle; }
 .bike { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 2px; margin: 0 0 12px; }
 .presets { gap: 6px; flex-wrap: wrap; } .presets button { font-size: 11.5px; padding: 6px 9px; }
 .presets button.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
 body:not([data-riding="1"]) .ridingonly, body:not([data-riding="1"]) .thrlbl, body[data-riding="1"] .walklbl, body:not([data-riding="1"]) .leangauge { display: none; }
+
+.mapbox { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px; width: 150px; height: 150px; border-radius: 12px; background: rgba(7, 8, 12, 0.62); border: 1px solid rgba(255, 255, 255, 0.18); touch-action: none; z-index: 3; }
+.mapbox canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+.mapbox.big { top: calc(46px + env(safe-area-inset-top)); left: 10px; right: 10px; bottom: 10px; width: auto; height: auto; }
+.mapbox.big canvas { width: min(100%, calc(100vh)); height: auto; aspect-ratio: 1; margin: 0 auto; }
+.mapbtns { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 3px; }
+.mapbtns button { font: 600 11px var(--mono); width: 22px; height: 22px; padding: 0; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(7, 8, 12, 0.7); color: var(--text); cursor: pointer; }
+b.ana, .ana { color: #38f2e0; } b.kata, .kata { color: #ff66b8; }
+@media (max-width: 979px) { .mapbox:not(.big) { width: 128px; height: 128px; } .leangauge { top: calc(146px + env(safe-area-inset-top)); width: 72px; height: 72px; } }

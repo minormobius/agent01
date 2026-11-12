@@ -78,7 +78,11 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   to 0.25 s). **The bike**: `makeTrack`/`trackAt`/`ride` (F/m = v²x'' − ω²x + 2ωJv: weight, lean vector, grip);
   `tracksAt` lays the five tracks through where you stand; the shader paints the track (`trackNear`: base angle, then
   three refining sweeps). Riding, the walk pad is the throttle, the camera's up tilts by the lean (`rideCamera`), and
-  *put the lean in w* turns right↔w so the lean is wholly hidden. Physics is four's pinned world; materials' strengths
+  *put the lean in w* turns right↔w so the lean is wholly hidden. **The land and the map**: `isWater` is the shader's
+  terrain twinned in JS (`Math.fround` each step; keep it in step with the GLSL `terrain`), `layTrack` picks each
+  track's driest line (bridges where it can't), `mapOf`/`fromMap` the 3-sphere's log/exp at you (the minimap, a
+  spinnable ball on your right/forward/w), `LANDMARKS` (towers A–X, a hue each) and `HOME`. Kerbs: teal ana, pink
+  kata of your slice (the shader's `Wv`). Physics is four's pinned world; materials' strengths
   are ours, assumed. See [`habitat/README.md`](habitat/README.md).
 
 ## Checks
@@ -86,7 +90,7 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 ```bash
 node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
-node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding
+node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding, the map
 ```
 
 Preflight finds every `*.selftest.mjs` and runs the ones under changed directories.

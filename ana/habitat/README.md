@@ -36,6 +36,9 @@ point accelerates at −ω²x, so in the turning frame the centrifugal field is 
 - Hopf circles: the Hopf map is constant along them; two stay the same distance apart all the way round.
 - A 6.5 km walk keeps the frame on the floor and orthonormal; `orthonormalTo` fills in a direction that was in the span
   of the others (mounting a bike can hand it one).
+- The map: `mapOf` and `fromMap` invert each other, distances from you are walking distances, all within πR, and your
+  forward, right and w are its axes. Lakes cover some but not all of the floor; home is dry; each track's laid line is
+  no wetter than the first it could have taken.
 - Riding: great circles keep their spin share all round; the spin never pushes along any track (slalom included);
   with the spin no lean and (ωR + v)²/R; against at the floor's speed weightless; across a constant lean
   tan φ = 2ωv/(ω²R + v²/R) toward J of your heading; at 45° smaller and constant; the slalom closes and its lean swings.
@@ -51,6 +54,21 @@ road rides the same all the way round. At R = 300 m, 1 g, 15 m/s: with the spin 
 the floor's speed weightless; across, upright nowhere: a constant 27.2° lean toward J of your heading, grip 0.51; at 45°,
 14.9°. The camera leans with the bike; turn your slice so the lean lies in w (*put the lean in w*) and the world stops
 rolling while you lean 27° into a direction you can't see.
+
+## The map and the land
+
+- `isWater` twins the shader's terrain (its noise rounded through `Math.fround`, since GLSL's floats are 32-bit; a
+  point within a hair of a lake's edge can still be called differently).
+- `mapOf`/`fromMap` are the 3-sphere's logarithm and exponential at you: each point at its walking distance, in the
+  direction you'd walk to reach it, on your axes (right, forward, w). The whole floor fits in a ball of radius πR.
+  The page draws it as a spinnable ball (lakes as blue point clouds, the track coloured by which side of you it runs,
+  dashed on bridges, landmarks, home).
+- `layTrack` lays each kind of track on its driest line from where you mount (24 turns of its free direction); the
+  spin road has no freedom. From home at R = 300 m: across 4.2% over water, 45° 2.2%, slalom 3.9%, spin road 15.6%.
+  What can't be dodged is a bridge.
+- `LANDMARKS`: the 24 towers, lettered A–X, each its own hue (A and B stand in lakes); `HOME` is where you start.
+- The road is a tube in the 3D floor: its edge is coloured by the side it lies on against your slice (teal ana, pink
+  kata, white in your slice), so a track turning into w shows before it goes (tailspin's kerbs).
 
 ## The page
 

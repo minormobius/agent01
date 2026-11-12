@@ -1,6 +1,7 @@
 // The Hopf habitat's claims, held: run `node ana/habitat/test/habitat.selftest.mjs`.
 import { dot, add, scale, norm, unit, J, spin, turn, accel, flight, integrate, floorFrame, decompose, weight,
-  hoopStress, maxRadius, floorGravity, hopf, walk, towers, roads, orthonormalTo, makeTrack, trackAt, ride, tracksAt } from '../js/habitat.js';
+  hoopStress, maxRadius, floorGravity, hopf, walk, towers, roads, orthonormalTo, makeTrack, trackAt, ride, tracksAt,
+  isWater, mapOf, fromMap, wetness, layTrack, LANDMARKS, HOME } from '../js/habitat.js';
 
 let fails = 0, passes = 0;
 const ok = (cond, msg) => { if (cond) passes++; else { fails++; console.error('✗ ' + msg); } };
@@ -214,6 +215,39 @@ const randUnit = () => { const g = () => { const u = rand() + 1e-12, v = rand();
     `the slalom closes on itself and its lean swings from ${(Math.min(...leans) * 180 / Math.PI).toFixed(0)}° to ${(Math.max(...leans) * 180 / Math.PI).toFixed(0)}°`);
   // the track's samples: arc length of a great circle is 2π
   ok(Math.abs(makeTrack(T.across).len - 2 * Math.PI) < 1e-5, 'a great-circle track is 2πR round');
+}
+
+// --- the map: the 3-sphere's logarithm at you. Back and forth is the identity; distances from you are walking
+//     distances; the whole habitat sits inside radius πR.
+{
+  const R = 300;
+  let rt = 0, dist = 0, inside = true;
+  for (let k = 0; k < 300; k++) {
+    const xh = randUnit(), F = floorFrame(xh), fr3 = [F.f, F.e, F.Je], u = randUnit();
+    const m = mapOf(xh, fr3, u, R);
+    rt = Math.max(rt, norm(add(fromMap(xh, fr3, m, R), u, -1)));
+    dist = Math.max(dist, Math.abs(Math.hypot(...m) - R * Math.acos(Math.max(-1, Math.min(1, dot(u, xh))))));
+    if (Math.hypot(...m) > Math.PI * R + 1e-9) inside = false;
+  }
+  ok(rt < 1e-9 && dist < 1e-9 && inside, `the map: back and forth is exact (${rt.toExponential(1)}), distance from you is walking distance, all within πR`);
+  // your forward is the map's +y, your right +x, your w +z
+  const xh = randUnit(), F = floorFrame(xh), fr3 = [F.f, F.e, F.Je];
+  const ahead = mapOf(xh, fr3, walk(xh, F.f, 10, R, []).xhat, R), ana = mapOf(xh, fr3, walk(xh, F.Je, 10, R, []).xhat, R);
+  ok(Math.abs(ahead[1] - 10) < 1e-9 && Math.abs(ahead[0]) < 1e-9 && Math.abs(ana[2] - 10) < 1e-9, '10 m ahead maps to (0, 10, 0); 10 m ana to (0, 0, 10)');
+}
+// --- the land: lakes cover some of it, not all; home is dry; tracks are laid on their driest line, never wetter than
+//     the first line they could have taken.
+{
+  let wet = 0; const N = 4000;
+  for (let k = 0; k < N; k++) if (isWater(randUnit())) wet++;
+  ok(wet / N > 0.05 && wet / N < 0.6, `lakes cover ${(100 * wet / N).toFixed(0)}% of the floor`);
+  ok(!isWater(HOME), 'home is on dry land');
+  const R = 300;
+  for (const kind of ['across', 'diagonal', 'slalom']) {
+    const laid = layTrack(kind, HOME, R), first = layTrack(kind, HOME, R, 1);
+    ok(laid.wet <= first.wet, `the ${kind} track from home: ${(100 * laid.wet).toFixed(1)}% over water on its driest line (the first line tried: ${(100 * first.wet).toFixed(1)}%)`);
+  }
+  ok(LANDMARKS.length === 24 && new Set(LANDMARKS.map((l) => l.name)).size === 24, '24 landmarks, A to X');
 }
 
 console.log(`${fails ? '✗' : '✓'} habitat: ${passes} passed, ${fails} failed`);
