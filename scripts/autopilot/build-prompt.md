@@ -33,10 +33,10 @@ _Regenerated 2026-11-12 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-12, 100 members / 222 posts):
+**Neighborhood spark** (bisk 2026-11-12, 100 members / 244 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: inkhaven, overwatch, mobi
-- Top post: "if the democratic party does not fuck Alex Karp's life and business up with investigations of their conduct under Trump " — @segyges.bsky.social
+- Distinctive words: bluesky, nvidia, mobi
+- Top post: "it's jensover" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
