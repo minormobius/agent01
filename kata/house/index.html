@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="HOUSE — walk through a four-dimensional room. A floor that is a volume, eight walls, a doorway that is a hole in three directions and a door hung on a plane. You see one 3D slice and turn to bring the direction you can't see in front of you." />
+<title>HOUSE — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/house.css" />
+</head>
+<body>
+<div id="view">
+  <canvas id="gl" aria-label="Your 3D slice of a 4D room, seen from inside"></canvas>
+  <div id="bar">
+    <b>HOUSE</b>
+    <button type="button" id="doorB">open the door</button>
+    <button type="button" id="squareB" aria-label="square up to the room">⊞</button>
+    <button type="button" id="helpB" aria-label="help">?</button>
+  </div>
+  <div id="cap"></div>
+  <canvas id="plan" aria-label="the floor's three directions, the room, and where you stand and face"></canvas>
+  <div id="stick" class="pad" aria-label="walk"><div id="stickKnob"></div><span>walk</span></div>
+  <div id="twist" class="pad" aria-label="turn toward the direction you can't see"><div id="twistKnob"></div><span>turn into the unseen</span></div>
+  <div id="panel" hidden>
+    <p class="foot"><b>HOUSE.</b> A room in four dimensions. Its floor is a volume: you can walk along x, z and w, and y is up. You see the 3D slice through your eye that holds what is ahead and what is beside you; one floor direction is always missing from it. <b>Left pad</b> walks. <b>Drag</b> the view to look round. <b>Right pad</b>, left and right, turns you toward the missing direction, so that it comes round in front and another leaves; up and down tips your sideways into it. <b>⊞</b> squares you up to the room. The map shows the floor's three directions, the room, you (gold), where you face, and dashed, the direction you can't see. The doorway is 1.2 wide along w: beside it the wall is whole, though your slice may show a door. Keys: W A S D, arrows or drag to look, Q E to turn into the unseen, Z C to step along it, F for the door, R to square up. The room is a <a href="../cad4/#room">CAD⁴ part</a>: the picture and the walls you bump into come from the same feature tree.</p>
+    <p class="foot"><a href="./README.md">how it works</a> · <a href="../cad4/">CAD⁴</a> · <a href="../">kata</a></p>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

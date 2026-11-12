@@ -3803,6 +3803,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-house",
+   "name": "kata-house",
+   "url": "https://kata.mino.mobi/house/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "kata-twist",
    "name": "kata-twist",
    "url": "https://kata.mino.mobi/twist/",

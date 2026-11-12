@@ -1,10 +1,8 @@
-/* CAD⁴'s selftest: the kernel against closed forms (4-volume and boundary of the ball, tesseract, spherinder, cubinder,
-   duocylinder, tiger and ring; second moments; a revolve against the ball it should make), cross-sections (a ball's
-   slice, the tesseract's corner-on octahedron, the tiger's two rings; the mesh closed, the STL the right length),
-   what must be refused, the GLSL the same tree compiles to, and the page's claims about its assemblies: the hinge
-   swings clear and binds when folded flat or when the pin is too fat; two linked rings part through w without
-   touching and cannot part inside the slice; a ring through a sphere collides on every way out; three tigers make a chain that holds.
-   node kata/cad4/test/cad4.selftest.mjs   (~105 s) */
+/* CAD⁴'s kernel selftest: the kernel against closed forms (4-volume and boundary of the ball, tesseract, spherinder,
+   cubinder, duocylinder, tiger and ring; second moments; a revolve against the ball it should make), cross-sections (a
+   ball's slice, the tesseract's corner-on octahedron, the tiger's two rings; the mesh closed, the STL the right
+   length), what must be refused, and the GLSL the same tree compiles to. The library's assemblies have their own:
+   assemblies.selftest.mjs.   node kata/cad4/test/cad4.selftest.mjs   (~35 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));
@@ -63,76 +61,6 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
     if (!defs.includes("sdf") || !defs.includes("part0") || s.parts.length !== (Array.isArray(PARTS[k].show) ? PARTS[k].show.length : 1)) { all = false; why = `${k}: no sdf`; }
     if (!s.bbox.lo.every((v) => Math.abs(v) < 1e8) || !(K.measure(s, 10, 2).volume > 0)) { all = false; why = `${k}: unbounded or empty`; } }
   ok(all, `all ${ORDER.length} library parts compile to GLSL with functions in order, parameters as uniforms, floats as floats, and are bounded and solid${why ? " — " + why : ""}`);
-}
-{ // the hinge
-  const H = PARTS.hinge, at30 = H.check.map(([a, b]) => K.fit(H, a, b)), sw = K.sweep(H, "frame", "door", "open", 0, 150, 10, 20), flat = K.fit(H, "frame", "door", { open: 176 }), fat = K.fit(H, "door", "pin", { gap: -0.04 });
-  ok(at30.every((f) => f.overlap === 0 && f.gap > 0.01 && f.gap < 0.09) && sw.worst === 0, `the hinge at 30°: nothing overlaps, gaps ${at30.map((f) => f.gap.toFixed(3)).join(", ")} (0.03 designed, read on a ${at30[0].h.toFixed(3)} grid); swung 0° to 150° the leaves never touch`);
-  ok(flat.overlap > 1e-3 && fat.overlap > 1e-4, `and it binds when it should: folded to 176° the leaves share ${flat.overlap.toFixed(3)}; a pin 0.04 too fat shares ${fat.overlap.toFixed(4)} with the door`);
-  // the pin is what a 4D hinge needs: the door, turned in x–y, keeps every point of the z–w plane where it was
-  const s = K.compile(H), a = s.parts[1].sdf, moved = K.compile(H, { open: 97 }).parts[1].sdf; let fix = 0, mv = 0;
-  for (let i = 0; i < 200; i++) { const z = Math.sin(i) * 0.25, w = Math.cos(i * 1.7) * 0.8; fix = Math.max(fix, Math.abs(a(0, 0, z, w) - moved(0, 0, z, w))); mv = Math.max(mv, Math.abs(a(1.2, 0.02, z, w) - moved(1.2, 0.02, z, w))); }
-  ok(fix < 1e-12 && mv > 0.1, `the door turns about a plane: on the z–w plane through the pin nothing changes as it opens (${fix.toExponential(1)}), off it everything does`);
-}
-{ // loops don't link in 4D
-  const C = PARTS.chain, through = K.sweep(C, "a", "b", C.path, 6, 24), inSlice = K.sweep(C, "a", "b", "pull", 0, 3, 12, 24), linked = K.fit(C, "a", "b");
-  ok(linked.overlap === 0 && linked.gap > 0.3 && inSlice.worst > 1e-3 && through.worst === 0 && through.steps.length === 19, `two linked rings: pulled apart inside the slice they collide (overlap up to ${inSlice.worst.toFixed(3)}); lifted through w, slid and lowered they never touch (${through.steps.length} poses, worst overlap ${through.worst})`);
-}
-{ // a ring and a sphere do
-  const L = PARTS.lock; let free = 0, least = Infinity; const dirs = [[1, 0, 0, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, -1, 0], [0, 0, 0, 1], [0, 0, 0, -1]];
-  let seed = 7; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32) * 2 - 1;
-  while (dirs.length < 20) { const v = [rnd(), rnd(), rnd(), rnd()], l = Math.hypot(...v); if (l > 0.2 && l < 1) dirs.push(v.map((x) => x / l)); }
-  for (const v of dirs) { const far = { sx: 3 * v[0], sy: 3 * v[1], sz: 3 * v[2], sw: 3 * v[3] }, s = K.sweep(L, "sphere", "ring", [{ sx: 0, sy: 0, sz: 0, sw: 0 }, far], 20, 24), end = s.steps[s.steps.length - 1].overlap; if (s.worst === 0) free++; if (end === 0) least = Math.min(least, s.worst); }
-  ok(free === 0 && K.fit(L, "sphere", "ring").overlap === 0 && least > 1e-4, `a ring threaded through a hollow sphere: untouched where it sits, and all ${dirs.length} straight ways out (the eight axes and twelve at random) pass through the sphere (least overlap on a way that ends clear: ${least.toExponential(1)})`);
-}
-{ // a chain that is one: tigers, big, small, big
-  const T = PARTS.tigers, rest = T.check.map(([a, b]) => K.fit(T, a, b)), dirs = [[1, 0, 0, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, -1, 0], [0, 0, 0, 1], [0, 0, 0, -1]];
-  let seed = 7; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32) * 2 - 1; while (dirs.length < 16) { const v = [rnd(), rnd(), rnd(), rnd()], l = Math.hypot(...v); if (l > 0.2 && l < 1) dirs.push(v.map((x) => x / l)); }
-  const free = { a: 0, c: 0 }; for (const end of ["a", "c"]) for (const v of dirs) if (K.sweep(T, "m", end, [{ bx: 0, by: 0, bz: 0, bw: 0 }, { bx: 4.5 * v[0], by: 4.5 * v[1], bz: 4.5 * v[2], bw: 4.5 * v[3] }], 18, 18).worst === 0) free[end]++;
-  ok(rest.every((f) => f.overlap === 0) && rest[0].gap > 0.15 && rest[1].gap > 0.15 && free.a === 0 && free.c === 0, `the tiger chain: nothing touches at rest (gaps ${rest[0].gap.toFixed(2)}, ${rest[1].gap.toFixed(2)}), and the middle link cannot leave either end: all ${dirs.length} straight ways out collide, with each end taken alone`);
-  const ends = K.sweep(T, "a", "c", "pull", 0, 3, 10, 20), load = K.sweep(T, "m", "c", "pull", 0, 1.2, 10, 20);
-  ok(ends.worst === 0 && load.worst > 1e-3, `its ends hold each other only through the middle: alone they slide apart untouched, but pulled, the end runs into the middle link (overlap ${load.worst.toFixed(3)})`);
-}
-{ // and the other: ring, sphere, ring
-  const T = PARTS.links, rest = T.check.map(([a, b]) => K.fit(T, a, b)), dirs = [[1, 0, 0, 0], [-1, 0, 0, 0], [0, 1, 0, 0], [0, -1, 0, 0], [0, 0, 1, 0], [0, 0, -1, 0], [0, 0, 0, 1], [0, 0, 0, -1]];
-  let seed = 7; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32) * 2 - 1; while (dirs.length < 16) { const v = [rnd(), rnd(), rnd(), rnd()], l = Math.hypot(...v); if (l > 0.2 && l < 1) dirs.push(v.map((x) => x / l)); }
-  let free = 0; for (const end of ["a", "c"]) for (const v of dirs) if (K.sweep(T, "sphere", end, [{ sx: 0, sy: 0, sz: 0, sw: 0 }, { sx: 4 * v[0], sy: 4 * v[1], sz: 4 * v[2], sw: 4 * v[3] }], 18, 20).worst === 0) free++;
-  const ends = K.sweep(T, "a", "c", "pull", 0, 2, 6, 20), load = K.sweep(T, "sphere", "c", "pull", 0, 2, 10, 22);
-  ok(rest.every((f) => f.overlap === 0) && rest[0].gap > 0.3 && free === 0 && ends.worst === 0 && load.worst > 1e-4, `the ring–sphere chain: nothing touches at rest (gap ${rest[0].gap.toFixed(2)}); the sphere cannot leave either ring (all ${dirs.length} straight ways collide, each ring alone); the rings alone never meet, but a pulled ring bears on the sphere (overlap ${load.worst.toFixed(4)})`);
-}
-{ // what catches on what: thread and ribbon, rods and hoops
-  const way = (T, part, k, to) => Math.max(...T.check.filter((c) => c[0] === part).map(([a, b]) => K.sweep(T, a, b, [{ [k]: 0 }, { [k]: to }], 16, 20).worst)) > 0;
-  const W = PARTS.weave, bound = ["tz", "tw"].every((k) => way(W, "thread", k, 2.2) && way(W, "thread", k, -2.2)), slides = ["tx", "ty"].every((k) => !way(W, "thread", k, 2.2) && !way(W, "thread", k, -2.2));
-  const round = (T) => K.sweep(T, "thread", "ribbons", [{ ty: 0, tw: 0 }, { ty: 0.5, tw: 0 }, { ty: 0.5, tw: 2 }], 12, 20).worst, narrow = { ...W, params: { ...W.params, width: 0.15 } };
-  ok(K.fit(W, "thread", "ribbons").overlap === 0 && bound && slides && round(W) > 0 && round(narrow) === 0, `the weave: a thread over, under, over three ribbons cannot move along w or z, and slides freely along the ribbons (x, y); stepped 0.5 aside it is still caught by a ribbon 1.6 wide, and walks free past one 0.15 wide (threads don't weave with threads)`);
-  const H = PARTS.hoop, R = PARTS.ringed, side = (T) => ["ox", "oy", "oz"].map((k) => (way(T, "rod", k, 3) ? "x" : ".") + (way(T, "rod", k, -3) ? "x" : ".")).join(" ");
-  ok(side(H) === "xx xx xx" && !way(H, "rod", "ow", 3) && side(R) === "xx xx .." && K.fit(H, "rod", "hoop").overlap === 0, `a bundle of rods: in a sphere-hoop the outer rod cannot leave sideways (${side(H)} along x, y, z) and slides only along its length; in a ring it walks out along z (${side(R)})`);
-  // the wire is an exact distance: a straight one is a capsule (spherinder with round ends)
-  const cap = K.measure(K.compile({ op: "wire", r: 0.3, pts: [[0, 0, 0, -1], [0, 0, 0, 1]] })), ex = (4 / 3) * P * 0.027 * 2 + (P * P / 2) * 0.0081;
-  ok(off(cap.volume, ex) < 0.02, `wire: a straight run of radius 0.3 and length 2 has the 4-volume of a 3-ball swept plus a 4-ball of ends (${cap.volume.toFixed(4)} against ${ex.toFixed(4)})`);
-}
-{ // 4D cloth: sheets woven on sheets
-  const T = PARTS.cloth, way = (k, to) => Math.max(...T.check.map(([a, b]) => K.sweep(T, a, b, [{ [k]: 0 }, { [k]: to }], 16, 20).worst)) > 0;
-  const held = ["sy", "sz", "sw"].every((k) => way(k, 3.2) && way(k, -3.2)), slides = !way("sx", 3.2) && !way("sx", -3.2), rest = [["sheet", "warp"], ["sheet", "weft"], ["warp", "weft"]].map(([a, b]) => K.fit(T, a, b).overlap);
-  ok(rest.every((v) => v === 0) && held && slides, "the cloth: two families of crimped sheets, chequered over and under along their crossing lines, touch nowhere; a sheet cannot leave along y, z or w, and slides only along x, the direction every sheet runs");
-  const w3 = K.measure(K.compile({ op: "wire", dim: 3, r: 0.25, pts: [[0, 0, -1], [0, 0, 1]] })), ex3 = P * 0.0625 * 2 + (4 / 3) * P * 0.015625;
-  ok(w3.dim === 3 && off(w3.volume, ex3) < 0.01, `a wire may be 3D, to be extruded into a sheet: a straight one is a capsule (${w3.volume.toFixed(4)} against ${ex3.toFixed(4)})`);
-}
-{ // the rope: a bundle in a sheath woven of sphere-hoops and bands
-  const T = PARTS.rope, rest = T.check.map(([a, b]) => K.fit(T, a, b, {}, 18).overlap), way = (k, to) => Math.max(...T.check.filter((c) => c[0] === "fibre").map(([a, b]) => K.sweep(T, a, b, [{ [k]: 0 }, { [k]: to }], 10, 16).worst)) > 0;
-  const side = ["ox", "oy", "oz"].every((k) => way(k, 1.5) && way(k, -1.5)), along = !way("ow", 3) && !way("ow", -3);
-  const S = { ...T, params: { ...T.params, hx: 0, hy: 0, hw: 0 }, parts: { ...T.parts, moved: { op: "move", by: ["hx", "hy", 0, "hw"], of: "hoops" } } }, sheath = [["hx", 0.2, 2], ["hy", 0.2, 2], ["hw", 0.8, 4]].every(([k, to, n]) => K.sweep(S, "moved", "bands", [{ [k]: 0 }, { [k]: to }], n, 16).worst > 0);
-  ok(rest.every((v) => v === 0) && side && along && sheath, "the rope: nothing touches at rest; a fibre cannot leave the sheath sideways (x, y, z, both ways) and slides only along the rope; the hoops cannot move along or across the bands they are woven with");
-}
-{ // the pulley: a rope's seat has to be a cup
-  const T = PARTS.pulley, rest = T.check.map(([a, b]) => K.fit(T, a, b, {}, 18).overlap), way = (k, to, ov = {}) => Math.max(...T.check.filter((c) => c[0] === "rope").map(([a, b]) => K.sweep(T, a, b, [{ ...ov, [k]: 0 }, { ...ov, [k]: to }], 6, 16).worst)) > 0;
-  const cup = ["rz", "rw"].every((k) => way(k, 0.6) && way(k, -0.6)), trough = way("rz", 0.6, { open: 0.7, guard: 0 }) && !way("rw", 1.6, { open: 0.7, guard: 0 }), flat = !way("rw", 1.6, { flange: 0, guard: 0 }), guarded = way("rw", 0.8, { flange: 0 }) && way("rw", -0.8, { flange: 0 });
-  const spin = Math.max(...[["wheel", "pin"], ["wheel", "block"], ["rope", "wheel"]].map(([a, b]) => K.sweep(T, a, b, "turn", 0, 90, 3, 16).worst));
-  ok(rest.every((v) => v === 0) && cup && trough && flat && guarded && spin === 0, "the pulley: nothing touches, and the wheel turns a quarter turn (it has four-fold symmetry) clear of pin, block and rope; in a cupped groove the rope cannot leave along z or w; open the groove along w (our groove) and it walks off through w; with no flange and a block like ours (cheeks across z only) it leaves through w; two more cheeks across w hold it");
-}
-{ // the block and tackle
-  const T = PARTS.tackle, len = (lift) => { const P = T.ropePts.map((q) => q.map((v) => K.num(v, { lift }))); let l = 0; for (let i = 1; i < P.length; i++) l += Math.hypot(...P[i].map((v, k) => v - P[i - 1][k])); return { l, hand: P[P.length - 1][1] }; };
-  const a = len(0), b = len(0.6), c = len(1.2), clear = [0, 0.6, 1.2].every((lift) => T.check.every(([x, y]) => K.fit(T, x, y, { lift }, 16).overlap === 0));
-  ok(clear && Math.abs(a.l - b.l) < 1e-9 && Math.abs(a.l - c.l) < 1e-9 && Math.abs(a.hand - c.hand - 2.4) < 1e-9, `the block and tackle: raised 1.2, nothing touches on the way, the rope keeps its length (${a.l.toFixed(3)}) and the hand comes down ${(a.hand - c.hand).toFixed(1)}: twice the lift, so half the pull`);
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

@@ -5959,6 +5959,23 @@
       ]
     },
     {
+      "n": "kata-house",
+      "u": "https://kata.mino.mobi/house/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "kata",
+      "surface": "kata",
+      "d": "HOUSE: walk through a four-dimensional room. Its floor is a volume, it has eight walls, its doorway is a hole in three directions and its door hangs on a plane. You see one 3D slice from inside and turn to bring the direction you can't see in front of you. The room is a CAD⁴ part: the picture and the walls you bump into come from the same feature tree.",
+      "tags": [
+        "games",
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "kata-twist",
       "u": "https://kata.mino.mobi/twist/",
       "c": "data",

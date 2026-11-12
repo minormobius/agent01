@@ -90,7 +90,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then twelve assemblies that are the reason to have a 4D workshop:
+holes), then thirteen assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -137,6 +137,9 @@ holes), then twelve assemblies that are the reason to have a 4D workshop:
   one, down to the hand. One parameter, `lift`: the load rises by it, the hand comes down by twice it, the wheels
   turn with the rope, and the rope's length does not change (15.805, to rounding). Twice the travel is half the pull:
   that is built into the rope's path, not measured from forces, which nothing here has.
+- **room.** The first building: a floor that is a volume, eight walls, a doorway that is a hole in three directions,
+  a door lying on the wall's face and hung on a plane, two windows, a table on four legs. [HOUSE](../house/) walks
+  through it, using this tree for both the picture and the collisions.
 
 **ways out** (on assemblies with a part to free) tries that part along each axis, both ways, and says where it stops.
 An assembly may also give `view`, the slice to start in: the weave and the bundles start with w in view.
@@ -160,5 +163,8 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 ## Test
 
 ```bash
-node kata/cad4/test/cad4.selftest.mjs   # ~85 s, 34 checks
+node kata/cad4/test/cad4.selftest.mjs         # ~40 s, 18 checks: the kernel against closed forms
+node kata/cad4/test/assemblies.selftest.mjs   # ~45 s,  8 checks: hinge, rings, lock, chains
+node kata/cad4/test/textiles.selftest.mjs     # ~25 s,  6 checks: weave, cloth, bundles, rope
+node kata/cad4/test/machines.selftest.mjs     # ~12 s,  3 checks: pulley, tackle, room
 ```

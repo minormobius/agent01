@@ -212,5 +212,23 @@ export const PARTS = {
     show: ["wheel", "rope", "block", "pin"], check: [["rope", "wheel"], ["rope", "block"], ["wheel", "pin"], ["wheel", "block"]], ways: { name: "the rope", params: ["rx", "ry", "rz", "rw"], reach: 1.6 },
     path: [{ turn: 0, rz: 0, rw: 0 }, { turn: 180, rz: 0, rw: 0 }, { turn: 180, rz: 0.7, rw: 0 }, { turn: 180, rz: 0, rw: 0 }, { turn: 180, rz: 0, rw: 0.7 }, { turn: 180, rz: 0, rw: 0 }] },
   tackle: TACKLE,
+  room: { title: "room", note: "A room: a floor that is a volume (x, z, w), six walls round it and a ceiling, eight in all, each a 3D slab. The doorway is a 3D hole and the door a slab that covers it, hung on a pin that is a plane (y–w) and swinging in x–z. Two windows, and a table on four legs, the fewest that stand on a 3D floor. Walk through it at kata.mino.mobi/house/.",
+    params: { open: 25 }, ranges: { open: [0, 110] },
+    parts: {
+      ground: { op: "move", by: [0, -0.2, 0, 0], of: { op: "box", size: [18, 0.4, 18, 18] } },
+      /* the shell: 4 across inside and 2.6 high, walls 0.2 thick; a doorway in the +x wall (0.9 wide in z, 1.2 in w, 2
+         high), a window in the −x wall and one in the +w wall. (The cutters run well past the wall: a
+         cutter's own end face would otherwise read as a surface in mid-air to anything that asks how far the nearest wall is.) */
+      house: { op: "cut", of: [{ op: "move", by: [0, 1.4, 0, 0], of: { op: "box", size: [4.4, 2.8, 4.4, 4.4] } }, { op: "move", by: [0, 1.3, 0, 0], of: { op: "box", size: [4, 2.6, 4, 4] } },
+        { op: "move", by: [2.1, 1, 0, 0], of: { op: "box", size: [3, 2, 0.9, 1.2] } }, { op: "move", by: [-2.1, 1.5, 0, 0], of: { op: "box", size: [3, 0.9, 1.6, 1.6] } }, { op: "move", by: [0, 1.5, 0, 2.1], of: { op: "box", size: [1.6, 0.9, 1.6, 3] } }] },
+      /* the door lies on the wall's outer face, a little larger than the hole, and turns about its outer edge */
+      leaf: { op: "move", by: [-0.04, 1.04, 0.5, 0], of: { op: "box", size: [0.06, 2.04, 1, 1.3] } },
+      door: { op: "move", by: [2.28, 0, -0.5, 0], of: { op: "rotate", plane: [2, 0], deg: "open", of: "leaf" } },
+      pin: { op: "move", by: [2.28, 1.02, -0.5, 0], of: { op: "rotate", plane: [1, 2], deg: 90, of: { op: "product", of: [{ op: "disc", r: 0.035 }, { op: "rect", size: [2.04, 1.3] }] } } },
+      /* a table: four legs under a top, at the corners of a tetrahedron in the floor's three directions */
+      leg: { op: "wire", r: 0.04, pts: [[0, 0, 0, 0], [0, 0.72, 0, 0]] },
+      table: { op: "move", by: [-0.9, 0, -0.7, 0.6], of: { op: "union", of: [{ op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [1.2, 0.06, 1.2, 1.2] } }, { op: "move", by: [0.4, 0, 0.4, 0.4], of: "leg" }, { op: "move", by: [0.4, 0, -0.4, -0.4], of: "leg" }, { op: "move", by: [-0.4, 0, 0.4, -0.4], of: "leg" }, { op: "move", by: [-0.4, 0, -0.4, 0.4], of: "leg" }] } },
+    },
+    show: ["ground", "house", "door", "pin", "table"], check: [["door", "house"], ["door", "ground"]], path: [{ open: 0 }, { open: 110 }] },
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley", "tackle"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley", "tackle", "room"];
