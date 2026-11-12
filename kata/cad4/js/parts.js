@@ -15,6 +15,35 @@ const SHEATH = (() => { const R = 0.58, h = 0.09, t = 0.04, LAT = [-50, 0, 50], 
   const turn = (of) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "revolve", axis: 0, of } });
   return { hoops: turn({ op: "union", of: [0, 1, 2].map(hoop) }), bands: turn({ op: "union", of: [0, 1, 2].map(band) }) }; })();
 
+/* TACKLE: a fixed block above, a moving block below, one rope: made fast to the beam, down and under the moving sheave,
+   up and over the fixed one, down to the hand. Raise the load by `lift` and the hand comes down twice that. */
+const TACKLE = (() => { const f = (v) => +v.toFixed(4), U = [1.6, 1.6], L0 = [-0.4, -1.6], N = 12, pts = [[-1.4, 3.34, 0, 0]];
+  for (let k = 0; k <= N; k++) { const t = Math.PI + (Math.PI * k) / N; pts.push([f(L0[0] + Math.cos(t)), `${f(L0[1] + Math.sin(t))}+lift`, 0, 0]); }   // under the moving sheave
+  for (let k = 0; k <= N; k++) { const t = Math.PI - (Math.PI * k) / N; pts.push([f(U[0] + Math.cos(t)), f(U[1] + Math.sin(t)), 0, 0]); }               // over the fixed one
+  pts.push([2.6, "0.2-2*lift", 0, 0]);
+  return { title: "block and tackle", note: "Two pulleys and one rope: made fast to the beam, under the moving sheave, over the fixed one, down to your hand. Raise the load and your hand travels twice as far, so you pull half as hard. Both blocks have cheeks on all four sides, and every groove is a cup.",
+    params: { lift: 0 }, ranges: { lift: [0, 1.2] },
+    parts: {
+      seat: { op: "round", r: 0.15, of: { op: "product", of: [circle(1), point2] } },
+      hole: { op: "move", by: [0.5, 0], of: { op: "disc", r: 0.17 } },
+      wheel0: { op: "cut", of: [{ op: "product", of: [{ op: "disc", r: 1.02 }, { op: "rect", size: [0.6, 0.6] }] }, "seat", { op: "disc", r: 0.18 }, "hole", { op: "rotate", plane: [0, 1], deg: 90, of: "hole" }, { op: "rotate", plane: [0, 1], deg: 180, of: "hole" }, { op: "rotate", plane: [0, 1], deg: 270, of: "hole" }] },
+      pin: { op: "product", of: [{ op: "disc", r: 0.15 }, { op: "rect", size: [1.1, 1.1] }] },
+      /* a block: cheeks on all four sides of the wheel (two across z, two across w), joined over the top */
+      zcheek: { op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [0.5, 2.1, 0.12, 1] } },
+      wcheek: { op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [0.5, 2.1, 1, 0.12] } },
+      shell: { op: "cut", of: [{ op: "union", of: [{ op: "move", by: [0, 0, 0.44, 0], of: "zcheek" }, { op: "move", by: [0, 0, -0.44, 0], of: "zcheek" }, { op: "move", by: [0, 0, 0, 0.44], of: "wcheek" }, { op: "move", by: [0, 0, 0, -0.44], of: "wcheek" }, { op: "move", by: [0, 1.74, 0, 0], of: { op: "box", size: [0.5, 0.12, 1, 1] } }] }, { op: "disc", r: 0.15 }] },
+      housing: { op: "union", of: ["shell", "pin"] },
+      /* the fixed block hangs from the beam; the moving one is the same block upside down, with the load under it */
+      beam: { op: "move", by: [0.1, 3.46, 0, 0], of: { op: "box", size: [3.6, 0.12, 1, 1] } },
+      fixed: { op: "union", of: [{ op: "move", by: [U[0], U[1], 0, 0], of: "housing" }, "beam"] },
+      moving: { op: "move", by: [L0[0], `${L0[1]}+lift`, 0, 0], of: { op: "union", of: [{ op: "rotate", plane: [0, 1], deg: 180, of: "housing" }, { op: "move", by: [0, -2.2, 0, 0], of: { op: "ball", dim: 4, r: 0.4 } }] } },
+      upper: { op: "move", by: [U[0], U[1], 0, 0], of: { op: "rotate", plane: [0, 1], deg: "0-2*lift*57.29578", of: "wheel0" } },
+      lower: { op: "move", by: [L0[0], `${L0[1]}+lift`, 0, 0], of: { op: "rotate", plane: [0, 1], deg: "lift*57.29578", of: "wheel0" } },
+      rope: { op: "union", of: [{ op: "wire", r: 0.1, pts }, { op: "move", by: [2.6, "0.2-2*lift", 0, 0], of: { op: "ball", dim: 4, r: 0.2 } }] },
+    },
+    show: ["upper", "lower", "rope", "fixed", "moving"], check: [["rope", "upper"], ["rope", "lower"], ["rope", "fixed"], ["rope", "moving"], ["moving", "fixed"], ["lower", "upper"]],
+    path: [{ lift: 0 }, { lift: 1.2 }], ropePts: pts }; })();
+
 export const PARTS = {
   ball: { title: "ball", note: "Everything within r of a point. Every slice is a ball; move the slice in w and it shrinks to nothing at w = r.",
     params: { r: 1 }, show: { op: "ball", dim: 4, r: "r" } },
@@ -160,8 +189,8 @@ export const PARTS = {
     view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]],
     show: ["core", "fibre", "hoops", "bands"], check: [["fibre", "hoops"], ["fibre", "bands"], ["fibre", "core"], ["hoops", "bands"]], ways: { name: "one fibre", params: ["ox", "oy", "oz", "ow"], reach: 3 },
     path: [{ ox: 0, oy: 0, ow: 0 }, { ox: 0.8, oy: 0, ow: 0 }, { ox: 0, oy: 0, ow: 0 }, { ox: 0, oy: 0.8, ow: 0 }, { ox: 0, oy: 0, ow: 0 }, { ox: 0, oy: 0, ow: 1.3 }, { ox: 0, oy: 0, ow: 0 }] },
-  pulley: { title: "pulley", note: "A wheel that turns in a plane (x–y) on a pin that is a plane (z–w), and a rope over it. A rope on a rim can slip sideways two ways, not one, so the groove has to be a cup: curved across z and across w. Open the groove along w and it is our pulley's groove; the rope walks off through w. Take the flange away and only the block's cheeks stop it, and only in z.",
-    params: { flange: 0.17, open: 0, turn: 0, rx: 0, ry: 0, rz: 0, rw: 0 }, ranges: { flange: [0, 0.2], open: [0, 0.7], turn: [0, 360], rx: [-1, 1], ry: [-1, 1], rz: [-1, 1], rw: [-1, 1] },
+  pulley: { title: "pulley", note: "A wheel that turns in a plane (x–y) on a pin that is a plane (z–w), and a rope over it. A rope on a rim can slip sideways two ways, not one, so the groove has to be a cup: curved across z and across w. Open the groove along w and it is our pulley's groove; the rope walks off through w. Take the flange away and the block's cheeks are all that hold it: ours has two, across z, and a 4D block needs two more across w (guard).",
+    params: { flange: 0.17, open: 0, guard: 1, turn: 0, rx: 0, ry: 0, rz: 0, rw: 0 }, ranges: { flange: [0, 0.2], guard: [0, 1], open: [0, 0.7], turn: [0, 360], rx: [-1, 1], ry: [-1, 1], rz: [-1, 1], rw: [-1, 1] },
     parts: {
       /* the rope's seat: everything within 0.15 of the circle the rope's middle runs on (radius 1), stretched by
          `open` along w. open = 0 is a cup, a ring-shaped groove closed on both sides; open wide and it is a trough */
@@ -172,13 +201,16 @@ export const PARTS = {
       hole: { op: "move", by: [0.5, 0], of: { op: "disc", r: 0.17 } },
       wheel: { op: "rotate", plane: [0, 1], deg: "turn", of: { op: "cut", of: ["blank", "seat", { op: "disc", r: 0.18 }, "hole", { op: "rotate", plane: [0, 1], deg: 90, of: "hole" }, { op: "rotate", plane: [0, 1], deg: 180, of: "hole" }, { op: "rotate", plane: [0, 1], deg: 270, of: "hole" }] } },
       /* the pin, a disc in x–y and a square in z–w, and the block: two cheeks either side in z, joined over the top */
-      pin: { op: "product", of: [{ op: "disc", r: 0.15 }, { op: "rect", size: [1.1, 0.6] }] },
-      cheek: { op: "cut", of: [{ op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [0.5, 2.1, 0.12, 0.6] } }, { op: "disc", r: 0.15 }] },
-      block: { op: "union", of: [{ op: "move", by: [0, 0, 0.44, 0], of: "cheek" }, { op: "move", by: [0, 0, -0.44, 0], of: "cheek" }, { op: "move", by: [0, 1.74, 0, 0], of: { op: "box", size: [0.5, 0.12, 1, 0.6] } }] },
+      pin: { op: "product", of: [{ op: "disc", r: 0.15 }, { op: "rect", size: [1.1, 1.1] }] },
+      cheek: { op: "cut", of: [{ op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [0.5, 2.1, 0.12, 1] } }, { op: "disc", r: 0.15 }] },
+      /* and two more either side in w, which ours has no need of: `guard` 1 brings them in, 0 stands them off out of reach */
+      wcheek: { op: "cut", of: [{ op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [0.5, 2.1, 1, 0.12] } }, { op: "disc", r: 0.15 }] },
+      block: { op: "union", of: [{ op: "move", by: [0, 0, 0.44, 0], of: "cheek" }, { op: "move", by: [0, 0, -0.44, 0], of: "cheek" }, { op: "move", by: [0, 0, 0, "0.44+3*(1-guard)"], of: "wcheek" }, { op: "move", by: [0, 0, 0, "0-0.44-3*(1-guard)"], of: "wcheek" }, { op: "move", by: [0, 1.74, 0, 0], of: { op: "box", size: [0.5, 0.12, 1, 1] } }] },
       /* the rope: up one side, half way round at radius 1, down the other */
       rope: { op: "move", by: ["rx", "ry", "rz", "rw"], of: { op: "wire", r: 0.1, pts: [[1, -2.2, 0, 0], [1.0, 0.0, 0, 0], [0.9749, 0.2225, 0, 0], [0.901, 0.4339, 0, 0], [0.7818, 0.6235, 0, 0], [0.6235, 0.7818, 0, 0], [0.4339, 0.901, 0, 0], [0.2225, 0.9749, 0, 0], [0.0, 1.0, 0, 0], [-0.2225, 0.9749, 0, 0], [-0.4339, 0.901, 0, 0], [-0.6235, 0.7818, 0, 0], [-0.7818, 0.6235, 0, 0], [-0.901, 0.4339, 0, 0], [-0.9749, 0.2225, 0, 0], [-1.0, 0.0, 0, 0], [-1, -2.2, 0, 0]] } },
     },
     show: ["wheel", "rope", "block", "pin"], check: [["rope", "wheel"], ["rope", "block"], ["wheel", "pin"], ["wheel", "block"]], ways: { name: "the rope", params: ["rx", "ry", "rz", "rw"], reach: 1.6 },
     path: [{ turn: 0, rz: 0, rw: 0 }, { turn: 180, rz: 0, rw: 0 }, { turn: 180, rz: 0.7, rw: 0 }, { turn: 180, rz: 0, rw: 0 }, { turn: 180, rz: 0, rw: 0.7 }, { turn: 180, rz: 0, rw: 0 }] },
+  tackle: TACKLE,
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley", "tackle"];

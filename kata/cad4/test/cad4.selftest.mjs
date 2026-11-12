@@ -4,7 +4,7 @@
    what must be refused, the GLSL the same tree compiles to, and the page's claims about its assemblies: the hinge
    swings clear and binds when folded flat or when the pin is too fat; two linked rings part through w without
    touching and cannot part inside the slice; a ring through a sphere collides on every way out; three tigers make a chain that holds.
-   node kata/cad4/test/cad4.selftest.mjs   (~100 s) */
+   node kata/cad4/test/cad4.selftest.mjs   (~105 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));
@@ -125,9 +125,14 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
 }
 { // the pulley: a rope's seat has to be a cup
   const T = PARTS.pulley, rest = T.check.map(([a, b]) => K.fit(T, a, b, {}, 18).overlap), way = (k, to, ov = {}) => Math.max(...T.check.filter((c) => c[0] === "rope").map(([a, b]) => K.sweep(T, a, b, [{ ...ov, [k]: 0 }, { ...ov, [k]: to }], 6, 16).worst)) > 0;
-  const cup = ["rz", "rw"].every((k) => way(k, 0.6) && way(k, -0.6)), trough = way("rz", 0.6, { open: 0.7 }) && !way("rw", 1.6, { open: 0.7 }), flat = !way("rw", 1.6, { flange: 0 });
+  const cup = ["rz", "rw"].every((k) => way(k, 0.6) && way(k, -0.6)), trough = way("rz", 0.6, { open: 0.7, guard: 0 }) && !way("rw", 1.6, { open: 0.7, guard: 0 }), flat = !way("rw", 1.6, { flange: 0, guard: 0 }), guarded = way("rw", 0.8, { flange: 0 }) && way("rw", -0.8, { flange: 0 });
   const spin = Math.max(...[["wheel", "pin"], ["wheel", "block"], ["rope", "wheel"]].map(([a, b]) => K.sweep(T, a, b, "turn", 0, 90, 3, 16).worst));
-  ok(rest.every((v) => v === 0) && cup && trough && flat && spin === 0, "the pulley: nothing touches, and the wheel turns a quarter turn (it has four-fold symmetry) clear of pin, block and rope; in a cupped groove the rope cannot leave along z or w; open the groove along w (our groove) and it walks off through w; with no flange only the block's cheeks hold it, and only in z");
+  ok(rest.every((v) => v === 0) && cup && trough && flat && guarded && spin === 0, "the pulley: nothing touches, and the wheel turns a quarter turn (it has four-fold symmetry) clear of pin, block and rope; in a cupped groove the rope cannot leave along z or w; open the groove along w (our groove) and it walks off through w; with no flange and a block like ours (cheeks across z only) it leaves through w; two more cheeks across w hold it");
+}
+{ // the block and tackle
+  const T = PARTS.tackle, len = (lift) => { const P = T.ropePts.map((q) => q.map((v) => K.num(v, { lift }))); let l = 0; for (let i = 1; i < P.length; i++) l += Math.hypot(...P[i].map((v, k) => v - P[i - 1][k])); return { l, hand: P[P.length - 1][1] }; };
+  const a = len(0), b = len(0.6), c = len(1.2), clear = [0, 0.6, 1.2].every((lift) => T.check.every(([x, y]) => K.fit(T, x, y, { lift }, 16).overlap === 0));
+  ok(clear && Math.abs(a.l - b.l) < 1e-9 && Math.abs(a.l - c.l) < 1e-9 && Math.abs(a.hand - c.hand - 2.4) < 1e-9, `the block and tackle: raised 1.2, nothing touches on the way, the rope keeps its length (${a.l.toFixed(3)}) and the hand comes down ${(a.hand - c.hand).toFixed(1)}: twice the lift, so half the pull`);
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

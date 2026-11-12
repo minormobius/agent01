@@ -90,7 +90,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then eleven assemblies that are the reason to have a 4D workshop:
+holes), then twelve assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -130,9 +130,13 @@ holes), then eleven assemblies that are the reason to have a 4D workshop:
 - **pulley.** The first machine. A wheel turning in x–y on a pin that is a plane (z–w), in a block, with a rope over
   it. A rope on a rim can slip sideways two ways, so its seat must be a cup, curved across z and across w (here: the
   wheel cut by a ring). Open the seat along w (`open`) and it is our pulley's groove: the rope walks off through w.
-  Take the flange away (`flange` 0) and only the block's cheeks stop it, and only in z: a 4D block wants cheeks on all
-  four sides of the wheel. The rope is a plain wire standing in for any of the ropes above; nothing here bends or
+  Take the flange away (`flange` 0) and the block's cheeks are all that hold it: a block like ours, cheeks across z
+  only (`guard` 0), lets it out through w, so a 4D block has cheeks on all four sides of the wheel (`guard` 1). The rope is a plain wire standing in for any of the ropes above; nothing here bends or
   carries load.
+- **block and tackle.** Two of those and one rope: made fast to the beam, under the moving sheave, over the fixed
+  one, down to the hand. One parameter, `lift`: the load rises by it, the hand comes down by twice it, the wheels
+  turn with the rope, and the rope's length does not change (15.805, to rounding). Twice the travel is half the pull:
+  that is built into the rope's path, not measured from forces, which nothing here has.
 
 **ways out** (on assemblies with a part to free) tries that part along each axis, both ways, and says where it stops.
 An assembly may also give `view`, the slice to start in: the weave and the bundles start with w in view.
@@ -156,5 +160,5 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 ## Test
 
 ```bash
-node kata/cad4/test/cad4.selftest.mjs   # ~100 s, 33 checks
+node kata/cad4/test/cad4.selftest.mjs   # ~85 s, 34 checks
 ```
