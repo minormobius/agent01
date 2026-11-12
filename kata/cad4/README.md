@@ -91,7 +91,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then thirteen assemblies that are the reason to have a 4D workshop:
+holes), then fourteen assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -141,6 +141,13 @@ holes), then thirteen assemblies that are the reason to have a 4D workshop:
 - **room.** The first building: a floor that is a volume, eight walls, a doorway that is a hole in three directions,
   a door lying on the wall's face and hung on a plane, two windows, a table on four legs. [HOUSE](../house/) walks
   through it, using this tree for both the picture and the collisions.
+- **spinneret.** How any of it would be made. Extrusion pushes a cross-section along one direction, and in 4D the
+  cross-section is a 3D shape, so the spigot's shape is the product: a ball-shaped hole gives a fibre, a slot a
+  ribbon, a gap shaped like a spherical shell a closed hose, and a hose spigot with fibre holes in its plug a whole
+  rope at once. The hose alone holds the rope's middle fibre every sideways way; the band a ring-shaped gap would make
+  lets it out along w. The plug stands free in its gap at the mouth and hangs on struts upstream (a spider, in a tube
+  die); the products are drawn from downstream of them. Continuous filament needs none of the grip TWIST showed twist
+  can't give. Nothing flows here: no dope, no setting, and a liquid thread pinches more readily in 4D (LAVALAMP).
 
 **ways out** (on assemblies with a part to free) tries that part along each axis, both ways, and says where it stops.
 An assembly may also give `view`, the slice to start in: the weave and the bundles start with w in view.
@@ -167,5 +174,5 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 node kata/cad4/test/cad4.selftest.mjs         # ~40 s, 18 checks: the kernel against closed forms
 node kata/cad4/test/assemblies.selftest.mjs   # ~45 s,  8 checks: hinge, rings, lock, chains
 node kata/cad4/test/textiles.selftest.mjs     # ~25 s,  6 checks: weave, cloth, bundles, rope
-node kata/cad4/test/machines.selftest.mjs     # ~12 s,  3 checks: pulley, tackle, room
+node kata/cad4/test/machines.selftest.mjs     # ~30 s,  5 checks: pulley, tackle, room, spinneret
 ```

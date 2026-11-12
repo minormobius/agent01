@@ -1,5 +1,5 @@
-/* CAD⁴'s machines selftest: the pulley's cupped seat and four-cheeked block; the block and tackle; the room.
-   node kata/cad4/test/machines.selftest.mjs   (~25 s) */
+/* CAD⁴'s machines selftest: the pulley's cupped seat and four-cheeked block; the block and tackle; the room; the spinneret.
+   node kata/cad4/test/machines.selftest.mjs   (~30 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));
@@ -21,6 +21,15 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
 { // the room
   const T = PARTS.room, s0 = K.compile(T, { open: 0 }).sdf, s1 = K.compile(T, { open: 100 }).sdf, swing = Math.max(K.sweep(T, "door", "house", "open", 0, 110, 11, 24).worst, K.sweep(T, "door", "ground", "open", 0, 110, 4, 20).worst);
   ok(swing === 0 && s0(2.24, 1, 0, 0) < 0 && s1(2.24, 1, 0, 0) > 0.2 && s1(2.1, 1, 0, 0) > 0.2 && s1(2.1, 1, 0, 1) < 0 && s1(2.1, 2.3, 0, 0) < 0 && s0(0, 1.3, 1, -1) > 0.5, "the room: the door swings from shut to 110° clear of the wall and the ground; shut, it fills the way out; open, the doorway is air at w = 0 and wall a metre ana of it and above the lintel");
+}
+{ // the spinneret: the spigot's shape is the product
+  const T = PARTS.spinneret, s = K.compile(T), part = Object.fromEntries(T.show.map((n, i) => [n, s.parts[i].sdf]));
+  const clear = [0.6, 3.2].every((draw) => T.check.every(([a, b]) => K.fit(T, a, b, { draw }, 18).overlap === 0));
+  const way = (other, k, to) => K.sweep(T, "one", other, [{ [k]: 0 }, { [k]: to }], 8, 16).worst > 0, side = (other) => ["cx", "cz", "cw"].map((k) => (way(other, k, 1.2) ? "x" : ".") + (way(other, k, -1.2) ? "x" : ".")).join(" ");
+  ok(clear && side("hose") === "xx xx xx" && side("band") === "xx xx .." && !way("hose", "cy", 1.5), `the spinneret: a fibre, a ribbon and a rope leave the plate without touching it, at any length; the hose from a shell-shaped gap holds the rope's middle fibre every sideways way (${side("hose")} along x, z, w) and lets it slide only along the rope; the band a ring-shaped gap would make lets it out along w (${side("band")})`);
+  // the hose spigot's plug hangs on struts upstream; downstream of them the gap is open all the way round
+  const gap = [[0.47, 0, 0], [0, 0.47, 0], [0, -0.47, 0], [0, 0, 0.47], [0, 0, -0.47], [0.33, 0.33, 0], [0.27, 0.27, 0.27]];
+  ok(gap.every((d) => part.plate(1 + d[0], 0.1, d[1], d[2]) > 0.03) && part.plate(1, 0.4, 0.47, 0) < 0 && part.plate(1, 0.4, 0, -0.47) < 0 && part.plate(1.33, 0.4, 0.33, 0) > 0.03 && part.plate(1.1, 0.1, 0.05, 0.1) < 0 && part.hose(1.47, -1, 0, 0) < 0 && part.hose(1, -1, 0, 0.47) < 0 && part.hose(1, -1, 0, 0) > 0.3, "its plug is solid and stands in a gap that is open all round at the mouth, crossed only by struts upstream; what comes out is closed in x, z and w and hollow inside");
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

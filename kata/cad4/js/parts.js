@@ -44,6 +44,35 @@ const TACKLE = (() => { const f = (v) => +v.toFixed(4), U = [1.6, 1.6], L0 = [-0
     show: ["upper", "lower", "rope", "fixed", "moving"], check: [["rope", "upper"], ["rope", "lower"], ["rope", "fixed"], ["rope", "moving"], ["moving", "fixed"], ["lower", "upper"]],
     path: [{ lift: 0 }, { lift: 1.2 }], ropePts: pts }; })();
 
+/* SPINNERET. Extrusion pushes a cross-section along one direction, here y (downward, as a spider does). In 4D the
+   cross-section is a 3D shape in (x, z, w), so the spigot's shape decides what comes out: a ball-shaped hole makes a
+   fibre, a slot a ribbon, a gap shaped like a spherical shell a closed hose, and a hose spigot with fibre holes in its
+   plug a whole rope, core and sheath in one pull. `along(A, h)` is a 3D shape in (x, z, w) run h either side along y. */
+const along = (of, h) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "rotate", plane: [1, 3], deg: 90, of: { op: "extrude", h, of } } });
+const SPIN = (() => { const at = (x, of) => ({ op: "move", by: [x, 0, 0, 0], of }), ball = (r) => ({ op: "ball", dim: 3, r }), shellOf = (r, t) => ({ op: "shell", t, of: ball(r) });
+  const CORE = [[0, 0, 0], [0.2, 0.2, 0.2], [0.2, -0.2, -0.2], [-0.2, 0.2, -0.2], [-0.2, -0.2, 0.2]], XR = 1.0, XF = -1.35, XB = -0.45;
+  /* the products start half way through the plate (y = 0.25), downstream of the struts, where the dope has closed up
+     again behind them, and hang to y = 0.25 − draw: a shape run draw/2 either side of its middle */
+  const hang = (of3, x) => ({ op: "move", by: [x, "0.25-draw/2", 0, 0], of: along(of3, "draw/2") });
+  const strut = (dz, dw) => ({ op: "move", by: [XR, 0.4, dz * 0.47, dw * 0.47], of: { op: "box", size: [0.05, 0.2, dz ? 0.3 : 0.05, dw ? 0.3 : 0.05] } });
+  return { title: "spinneret", note: "How you would make any of it. A plate with three spigots, the products drawn out downward. A ball-shaped hole gives a fibre; a slot gives a ribbon; a gap shaped like a spherical shell gives a closed hose, and with fibre holes in its plug, a whole rope at once. In your slice the hose spigot looks like our tube die. The plug hangs on struts upstream, which die-makers call a spider.",
+    params: { draw: 2.2, cx: 0, cy: 0, cz: 0, cw: 0 }, ranges: { draw: [0.6, 3.2], cx: [-0.6, 0.6], cy: [-1.5, 1.5], cz: [-0.6, 0.6], cw: [-0.6, 0.6] },
+    parts: {
+      /* the plate, 0.5 thick, with the three spigots cut through it; the hose spigot's plug is what the shell-shaped gap
+         leaves standing, pierced by five holes, and held by four struts in the upstream part of the plate only */
+      plate: { op: "union", of: [{ op: "cut", of: [{ op: "move", by: [0, 0.25, 0, 0], of: { op: "box", size: [4, 0.5, 1.7, 1.7] } }, at(XF, along(ball(0.11), 2)), at(XB, along({ op: "box", size: [0.62, 0.11, 0.11] }, 2)), at(XR, along(shellOf(0.47, 0.11), 2)), ...CORE.map((c) => ({ op: "move", by: [XR + c[0], 0, c[1], c[2]], of: along(ball(0.085), 2) }))] }, strut(1, 0), strut(-1, 0), strut(0, 1), strut(0, -1)] },
+      fibre: hang(ball(0.085), XF),
+      ribbon: hang({ op: "box", size: [0.56, 0.06, 0.06] }, XB),
+      hose: hang(shellOf(0.47, 0.06), XR),
+      /* the rope's core: four fibres, and a fifth we try to take out */
+      core: { op: "union", of: CORE.slice(1).map((c) => ({ op: "move", by: [c[0], 0, c[1], c[2]], of: hang(ball(0.06), XR) })) },
+      one: { op: "move", by: ["cx", "cy", "cz", "cw"], of: hang(ball(0.06), XR) },
+      /* for the test: what a ring-shaped gap would have made in the hose's place, a band (a circle in x–z, the yarn's length long) */
+      band: hang({ op: "round", r: 0.03, of: { op: "product", of: [{ op: "shell", t: 0, of: { op: "disc", r: 0.47 } }, { op: "interval", h: 0 }] } }, XR),
+    },
+    show: ["plate", "fibre", "ribbon", "hose", "core", "one"], check: [["fibre", "plate"], ["ribbon", "plate"], ["hose", "plate"], ["core", "plate"], ["one", "plate"], ["one", "hose"], ["one", "core"]],
+    ways: { name: "the middle fibre of the rope", params: ["cx", "cy", "cz", "cw"], reach: 1.2 }, path: [{ draw: 0.6 }, { draw: 3.2 }] }; })();
+
 export const PARTS = {
   ball: { title: "ball", note: "Everything within r of a point. Every slice is a ball; move the slice in w and it shrinks to nothing at w = r.",
     params: { r: 1 }, show: { op: "ball", dim: 4, r: "r" } },
@@ -230,5 +259,6 @@ export const PARTS = {
       table: { op: "move", by: [-0.9, 0, -0.7, 0.6], of: { op: "union", of: [{ op: "move", by: [0, 0.75, 0, 0], of: { op: "box", size: [1.2, 0.06, 1.2, 1.2] } }, { op: "move", by: [0.4, 0, 0.4, 0.4], of: "leg" }, { op: "move", by: [0.4, 0, -0.4, -0.4], of: "leg" }, { op: "move", by: [-0.4, 0, 0.4, -0.4], of: "leg" }, { op: "move", by: [-0.4, 0, -0.4, 0.4], of: "leg" }] } },
     },
     show: ["ground", "house", "door", "pin", "table"], check: [["door", "house"], ["door", "ground"]], path: [{ open: 0 }, { open: 110 }] },
+  spinneret: SPIN,
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley", "tackle", "room"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley", "tackle", "spinneret", "room"];
