@@ -5736,6 +5736,22 @@
       ]
     },
     {
+      "n": "ana-mandelbract",
+      "u": "https://ana.mino.mobi/mandelbract/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "ana",
+      "surface": "ana",
+      "d": "The Mandelbrot set in four dimensions, four ways, since no 4D number system does what the complex numbers do: the (c, z₀) space, where the Mandelbrot set and every Julia set are perpendicular planes of one object and twisting your slice turns one into the other; the bicomplex set, which falls apart into the Mandelbrot set times itself; the quaternion set, the Mandelbrot set spun round its axis; and the hyperbulb, the Mandelbulb's trick a dimension up. Your 3D slice sphere-traced on each set's distance estimate, or the 2D plane through it, cut open, twisted with kata's pad and lever, double-tap to fly in. Selftested, each set against its claim.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",

@@ -3686,6 +3686,15 @@
    "parent": "ana"
   },
   {
+   "id": "ana-mandelbract",
+   "name": "ana-mandelbract",
+   "url": "https://ana.mino.mobi/mandelbract/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "ana"
+  },
+  {
    "id": "four-table",
    "name": "four-table",
    "url": "https://four.mino.mobi/table/",

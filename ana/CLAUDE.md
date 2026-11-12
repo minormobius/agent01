@@ -46,11 +46,25 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
     planes at up to 35°/s, the lever moves w₀ at up to 0.6/s (the tesseract is 2 across on your axes). Keys J L I K,
     R F, Z squares up (rotation with no w-plane angles, w₀ = 0), V swaps the view.
   See [`hilbert/README.md`](hilbert/README.md).
+- **MANDELBRACT at `/mandelbract/`**: the Mandelbrot set in 4D, four ways (`js/fractal.js`, no DOM, explains why
+  there are four): `cz` (z → z² + c with c and z₀ both free; z₀ = 0 is M, c = const its Julia set; unbounded, as
+  thinning dust past c = −2), `bicomplex` (M × M through the idempotent basis), `quaternion` (M spun round its real
+  axis) and `bulb` (hyperspherical power-n). Each has an escape test and a distance estimate; `march` sphere-traces
+  by them (step 0.6 × estimate). `js/main.js` is one full-screen fragment shader, the twin of fractal.js formula for
+  formula: **solid** (your 3D slice, sphere-traced inside a ball of radius 2.6 view units; the gradient's fourth
+  component, out of the slice, colours "by w") and **plane** (the 2D slice through the middle of your view; squared up
+  on cz it's the Mandelbrot set). **Cut open** drops the half toward you, the cut face being that plane. Frame:
+  `S.R` (rows = your x, y, z, w in the set's axes), `S.ctr`, `S.size` (set units per view unit), `S.w0`, `S.zoom`.
+  Draws only when something changed, at half resolution while moving, then once sharp (dpr ≤ 1.5). Double-tap runs
+  fractal.js's `march` on the CPU to find the point and flies there. Single precision: it breaks up past ~10⁴×.
+  **It imports `rotation4` and `turn4` from `../../hilbert/js/hilbert.js`** (same site, not a copy), so a change there
+  runs both selftests. See [`mandelbract/README.md`](mandelbract/README.md).
 
 ## Checks
 
 ```bash
-node ana/hilbert/test/hilbert.selftest.mjs   # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
+node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
+node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge
 ```
 
 Preflight finds every `*.selftest.mjs` and runs the ones under changed directories.
