@@ -110,5 +110,12 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
   const cap = K.measure(K.compile({ op: "wire", r: 0.3, pts: [[0, 0, 0, -1], [0, 0, 0, 1]] })), ex = (4 / 3) * P * 0.027 * 2 + (P * P / 2) * 0.0081;
   ok(off(cap.volume, ex) < 0.02, `wire: a straight run of radius 0.3 and length 2 has the 4-volume of a 3-ball swept plus a 4-ball of ends (${cap.volume.toFixed(4)} against ${ex.toFixed(4)})`);
 }
+{ // 4D cloth: sheets woven on sheets
+  const T = PARTS.cloth, way = (k, to) => Math.max(...T.check.map(([a, b]) => K.sweep(T, a, b, [{ [k]: 0 }, { [k]: to }], 16, 20).worst)) > 0;
+  const held = ["sy", "sz", "sw"].every((k) => way(k, 3.2) && way(k, -3.2)), slides = !way("sx", 3.2) && !way("sx", -3.2), rest = [["sheet", "warp"], ["sheet", "weft"], ["warp", "weft"]].map(([a, b]) => K.fit(T, a, b).overlap);
+  ok(rest.every((v) => v === 0) && held && slides, "the cloth: two families of crimped sheets, chequered over and under along their crossing lines, touch nowhere; a sheet cannot leave along y, z or w, and slides only along x, the direction every sheet runs");
+  const w3 = K.measure(K.compile({ op: "wire", dim: 3, r: 0.25, pts: [[0, 0, -1], [0, 0, 1]] })), ex3 = P * 0.0625 * 2 + (4 / 3) * P * 0.015625;
+  ok(w3.dim === 3 && off(w3.volume, ex3) < 0.01, `a wire may be 3D, to be extruded into a sheet: a straight one is a capsule (${w3.volume.toFixed(4)} against ${ex3.toFixed(4)})`);
+}
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

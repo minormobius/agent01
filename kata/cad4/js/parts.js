@@ -98,6 +98,22 @@ export const PARTS = {
     view: [[1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0], [0, 1, 0, 0]],
     show: ["ribbons", "thread"], check: [["thread", "ribbons"]], ways: { name: "the thread", params: ["tx", "ty", "tz", "tw"], reach: 2.2 },
     path: [{ tw: 0, ty: 0 }, { tw: 0.7, ty: 0 }, { tw: 0, ty: 0 }, { tw: -0.7, ty: 0 }, { tw: 0, ty: 0 }, { tw: 0, ty: 0.5 }, { tw: 0.9, ty: 0.5 }, { tw: 0, ty: 0.5 }, { tw: 0, ty: 0 }] },
+  cloth: { title: "cloth: ribbon on ribbon", note: "4D cloth is a 3D slab, and this is its plain weave: two families of sheets crossing along lines, each going ana of one neighbour and kata of the next. You start looking across it (y, z and w): it is our own plain weave, and every thread you see is a sheet running off along x. A sheet is bound every way but along x, where it only slides.",
+    params: { sx: 0, sy: 0, sz: 0, sw: 0, h: 0.14 }, ranges: { sx: [-1.5, 1.5], sy: [-1.2, 1.2], sz: [-1.2, 1.2], sw: [-1, 1], h: [0.1, 0.2] },
+    parts: {
+      /* a sheet is a crimped line (in the three directions that aren't x) extruded along x. Warp sheets lie in x–y
+         at z = ±0.5 and crimp along y; weft sheets lie in x–z at y = ±0.5 and crimp along z; where two cross, one is
+         at w = +h and the other at −h, chequered */
+      warp0: { op: "product", of: [{ op: "interval", h: 1.2 }, { op: "wire", dim: 3, r: 0.05, pts: [[-1.5, -0.5, "0-h"], [-0.5, -0.5, "h"], [0.5, -0.5, "0-h"], [1.5, -0.5, "h"]] }] },
+      warp1: { op: "product", of: [{ op: "interval", h: 1.2 }, { op: "wire", dim: 3, r: 0.05, pts: [[-1.5, 0.5, "h"], [-0.5, 0.5, "0-h"], [0.5, 0.5, "h"], [1.5, 0.5, "0-h"]] }] },
+      warp: { op: "union", of: ["warp0", "warp1"] },
+      weft: { op: "product", of: [{ op: "interval", h: 1.2 }, { op: "wire", dim: 3, r: 0.05, pts: [[-0.5, -1.5, "h"], [-0.5, -0.5, "0-h"], [-0.5, 0.5, "h"], [-0.5, 1.5, "0-h"]] }] },
+      /* the sheet we try to take out */
+      sheet: { op: "move", by: ["sx", "sy", "sz", "sw"], of: { op: "product", of: [{ op: "interval", h: 1.2 }, { op: "wire", dim: 3, r: 0.05, pts: [[0.5, -1.5, "0-h"], [0.5, -0.5, "h"], [0.5, 0.5, "0-h"], [0.5, 1.5, "h"]] }] } },
+    },
+    view: [[0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0], [1, 0, 0, 0]],
+    show: ["warp", "weft", "sheet"], check: [["sheet", "warp"], ["sheet", "weft"]], ways: { name: "one weft sheet", params: ["sx", "sy", "sz", "sw"], reach: 3.2 },
+    path: [{ sw: 0, sy: 0, sx: 0 }, { sw: 0.6, sy: 0, sx: 0 }, { sw: 0, sy: 0, sx: 0 }, { sw: -0.6, sy: 0, sx: 0 }, { sw: 0, sy: 0, sx: 0 }, { sw: 0, sy: 0.8, sx: 0 }, { sw: 0, sy: 0, sx: 0 }, { sw: 0, sy: 0, sx: 1.2 }, { sw: 0, sy: 0, sx: 0 }] },
   hoop: { title: "bundle in a sphere-hoop", note: "Seven rods (thin spherinders, the 4D fibre) lying along w (up, in the slice you start in), bound by a hoop that is a sphere, not a ring: a bundle's surroundings are 3D, so only a closed skin goes all the way round. No rod can leave sideways. Along its own length a rod slides: that is friction's job.",
     params: { ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { ox: [-1.2, 1.2], oy: [-1.2, 1.2], oz: [-1.2, 1.2], ow: [-1.6, 1.6] },
     parts: {
@@ -123,4 +139,4 @@ export const PARTS = {
     show: ["bundle", "rod", "hoop"], check: [["rod", "hoop"], ["rod", "bundle"]], ways: { name: "the outer rod", params: ["ox", "oy", "oz", "ow"], reach: 3 },
     path: [{ ox: 0, oz: 0, ow: 0 }, { ox: 0.8, oz: 0, ow: 0 }, { ox: 0, oz: 0, ow: 0 }, { ox: 0, oz: 0.8, ow: 0 }, { ox: 0, oz: 0, ow: 0 }] },
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "hoop", "ringed"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed"];

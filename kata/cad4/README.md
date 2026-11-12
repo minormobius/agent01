@@ -29,7 +29,7 @@ Nothing is drawn in 4D directly. Shapes start in 1D and 2D and climb the ladder.
 | `union`, `cut`, `intersect {of:[…], r?}` | booleans; `cut` is the first minus the rest; `r` blends |
 | `move {of, by:[…]}`, `rotate {of, plane:[i, j], deg}`, `scale {of, k}` | a rotation has a **plane**, not an axis |
 | `round {of, r}`, `shell {of, t}` | offset outward; the skin, t thick (`t: 0` is the bare surface, for a `round` to thicken) |
-| `wire {pts:[[x,y,z,w],…], r}` | a wire along straight runs, in 4D directly (the one shape that doesn't climb the ladder) |
+| `wire {pts:[[x,y,z,w],…], r, dim?}` | a wire along straight runs, in 4D directly; with `dim` 2 or 3 it is a profile to extrude (a crimped sheet) |
 | `ref {name}` or just `"name"` | a part from the tree's `parts` |
 
 A lower-dimensional shape where a higher one is expected is an infinite prism along the missing axes. So cutting a 4D
@@ -90,7 +90,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then eight assemblies that are the reason to have a 4D workshop:
+holes), then nine assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -111,6 +111,14 @@ holes), then eight assemblies that are the reason to have a 4D workshop:
   add to 3 or more, so a thread (1) catches on nothing made of threads and on anything with a 2D face. Three ribbons
   and a thread passing ana, kata, ana of them: the thread cannot move along w or along its own crimp, and slides
   freely along the ribbons. Narrow the ribbons to threads and it steps aside and leaves.
+- **cloth: ribbon on ribbon.** 4D cloth is a 3D slab, thin in w. Its plain weave is two families of sheets, one lying
+  in x–y and one in x–z, crossing along lines parallel to x, each sheet ana of one neighbour and kata of the next.
+  Looked at across (y, z, w) it is exactly our plain weave, every thread a sheet running off along x. A sheet cannot
+  leave along y, z or w and slides only along x. **A third family cannot join in** (a derivation, not a test): two
+  whole sheets keep one order along their entire crossing line, and where three families meet at a point the three
+  pairwise orders must not be cyclic (A over B over C over A); chequering all three pairs makes exactly a quarter of
+  the meeting points cyclic, and the only way out is for the third family to lie wholly above or below the others, a
+  layer and not a weave. So whole sheets weave two ways; a three-way weave needs strips with gaps, which is open.
 - **bundle in a sphere-hoop / in a ring.** Seven rods along w. A bundle's surroundings are 3D, so a ring leaves one
   sideways direction open and the outer rod walks out along z; a hoop that is a sphere closes all three, and the rod
   moves only along its own length, which is friction's to hold. The 4D yarn is hooped, not spun.
@@ -137,5 +145,5 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 ## Test
 
 ```bash
-node kata/cad4/test/cad4.selftest.mjs   # ~85 s, 29 checks
+node kata/cad4/test/cad4.selftest.mjs   # ~90 s, 31 checks
 ```
