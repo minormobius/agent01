@@ -1,120 +1,519 @@
 {
- "run": "strength-scan-2",
- "why": "The strong-force dial (four.mino.mobi/strong/), second half: the helium-4 ladder (2 to 8 helium-4s, beryllium-8 then elements 6 to 16, diffusion Monte Carlo on the folded pair potential) at the seven Minnesota strengths s = 1.55-1.85 whose helium-4s strength-scan-1 computed (all 217 commands exit 0). With these, rungcap, capture, protonflow and hburn can follow in the sandbox at each strength.",
- "minutes": 340,
+ "run": "plusmore-1",
+ "why": "Neutron-rich 4D nuclei (PI: what governs them going 1:1?). Two and three nucleons on 1-5 helium-4s (two neutrons, a neutron and a proton, triton- and helium-3-like) on plusone's own basis, at the eight strengths the 4D burning network is baked for (both draws of the core at three of them), replacing the interpolated clusters and adding the two-neutron isotopes; ours (triton- and helium-3-like on beryllium-8, carbon-12, oxygen-16, and a split basis for the neutron pair) as the check.",
+ "minutes": 330,
  "groups": [
   {
-   "name": "sscan2-00",
+   "name": "pm-1p5152-1",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.55 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.55 3 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.55 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.55 5 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 h 24"
    ]
   },
   {
-   "name": "sscan2-01",
+   "name": "pm-1p5152-2",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.55 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.55 7 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.55 8 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.6 2 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 h 24"
    ]
   },
   {
-   "name": "sscan2-02",
+   "name": "pm-1p5152-3",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.6 3 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.6 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.6 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.6 6 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 h 24"
    ]
   },
   {
-   "name": "sscan2-03",
+   "name": "pm-1p5152-4",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.6 7 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.6 8 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.65 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.65 3 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 h 24"
    ]
   },
   {
-   "name": "sscan2-04",
+   "name": "pm-1p5152-5",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.65 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.65 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.65 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.65 7 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 h 24"
    ]
   },
   {
-   "name": "sscan2-05",
+   "name": "pm-1p55-1",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.65 8 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.7 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.7 3 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.7 4 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 1 h 24"
    ]
   },
   {
-   "name": "sscan2-06",
+   "name": "pm-1p55-2",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.7 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.7 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.7 7 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.7 8 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 2 h 24"
    ]
   },
   {
-   "name": "sscan2-07",
+   "name": "pm-1p55-3",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.75 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.75 3 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.75 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.75 5 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 3 h 24"
    ]
   },
   {
-   "name": "sscan2-08",
+   "name": "pm-1p55-4",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.75 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.75 7 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.75 8 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8 2 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 4 h 24"
    ]
   },
   {
-   "name": "sscan2-09",
+   "name": "pm-1p55-5",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8 3 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8 6 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.55 5 h 24"
    ]
   },
   {
-   "name": "sscan2-10",
+   "name": "pm-1p6-1",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8 7 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.8 8 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.85 2 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.85 3 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 1 h 24"
    ]
   },
   {
-   "name": "sscan2-11",
+   "name": "pm-1p6-2",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.85 4 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.85 5 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.85 6 MN",
-    "node four/atom/tools/nuclei.mjs ladder 4 1.85 7 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 2 h 24"
    ]
   },
   {
-   "name": "sscan2-12",
+   "name": "pm-1p6-3",
    "cmds": [
-    "node four/atom/tools/nuclei.mjs ladder 4 1.85 8 MN"
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 3 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p6-4",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 4 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p6-5",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.6 5 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p65-1",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 1 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p65-2",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 2 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p65-3",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 3 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p65-4",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 4 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p65-5",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.65 5 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p7-1",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p7-2",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p7-3",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p7-4",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p7-5",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p75-1",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 1 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p75-2",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 2 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p75-3",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 3 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p75-4",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 4 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p75-5",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.75 5 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p8-1",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 1 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p8-2",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 2 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p8-3",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 3 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p8-4",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 4 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p8-5",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.8 5 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p85-1",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p85-2",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p85-3",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p85-4",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p85-5",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 nn 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 np 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 t 24",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 h 24"
+   ]
+  },
+  {
+   "name": "pm-1p5152-1-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 1 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p5152-2-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 2 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p5152-3-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 3 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p5152-4-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 4 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p5152-5-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.5152 5 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p7-1-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 1 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p7-2-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 2 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p7-3-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 3 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p7-4-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p7-5-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.7 5 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p85-1-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 1 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p85-2-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p85-3-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 3 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p85-4-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 4 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-1p85-5-c",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 nn 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 np 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 t 24 0 compact",
+    "node four/atom/tools/nuclei.mjs plusmore 4 1.85 5 h 24 0 compact"
+   ]
+  },
+  {
+   "name": "pm-ours-a",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 2 t 12",
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 2 h 12",
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 3 t 12",
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 3 h 12"
+   ]
+  },
+  {
+   "name": "pm-ours-b",
+   "cmds": [
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 4 t 12",
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 4 h 12",
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 2 nn 12 400",
+    "node four/atom/tools/nuclei.mjs plusmore 3 1 4 nn 12 400"
    ]
   }
  ]
