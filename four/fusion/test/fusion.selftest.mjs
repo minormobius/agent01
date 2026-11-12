@@ -41,4 +41,12 @@ ok(t.pp > t.cno && t.cno > t.he && t.he > t.c && t.c > t.ne && t.c > t.o && t.o 
   ok(m.rx.filter((r) => /^computed/.test(r.how)).length >= 7, `4D: ${m.rx.filter((r) => /^computed/.test(r.how)).length} reactions from the book's own calculations (p + p, ⁴He + ⁴He, p and ⁴He onto 2–4 ⁴He)`);
   const nr = ["4-10", "6-14", "8-18"].map((k) => m.species[m.idx[k]]?.half); ok(nr.every((h) => h != null && h < 1), `4D: the two-neutron isotopes of 4, 6 and 8 β⁻ decay in ${nr.map((h) => (1e3 * h).toFixed(0)).join(", ")} ms`);
   const X1 = m.toX(r1.Y); ok(X1[m.idx["10-20"]] > 0.5, `4D: a Sun-paced core at ${(T1 / 1e6).toFixed(1)} MK burns hydrogen past helium, to pxygen-20 (${X1[m.idx["10-20"]].toFixed(2)})`); }
+// 8. the widget's 4D world (world.js): its names are the book's (atom/js/names.js), switching worlds through the address
+// gives that world's standard star, and a 4D life through the widget's own path keeps mass and agrees with net4 directly
+{ const W = await import("../js/world.js"), Lf = await import("../js/life.js"), { names } = await import("../../atom/js/names.js"), { TABLE } = await import("../../atom/js/table.js");
+  const N = names(TABLE, 4), bad = Object.keys(W.NAME4).filter((Z) => N.get(+Z)?.name !== W.NAME4[Z] || N.get(+Z)?.sym !== W.SYM4[Z]).concat([6, 8, 16].filter((Z) => N.get(Z)?.name));
+  ok(!bad.length, `4D names and symbols in world.js match names.js${bad.length ? `: not ${bad}` : ""}`);
+  const c = Lf.decode("#" + encodeURIComponent(JSON.stringify({ w: "4d", s: 1.5152 }))), L4 = Lf.runLife(c), mass = (Y) => W.toX(Y).reduce((a, b) => a + b, 0);
+  ok(W.WORLD === "4d" && c.he === 0.25 && L4.length === 3 && L4.every((R) => Math.abs(mass(R.Y) - 1) < 1e-6) && W.toX(L4[0].Y)[W.IDX["10-20"]] > 0.5, `the widget's 4D world: three stages, mass kept, the first ending pxygen-20 ${W.toX(L4[0].Y)[W.IDX["10-20"]].toFixed(2)} as net4 alone gives`);
+  const c0 = Lf.decode(""); ok(W.WORLD === "ours" && Lf.runLife(c0).length === 7, "an address without a world is ours again: seven stages"); }
 console.log(fails ? `\n✗ ${fails} failed` : "\n✓ fusion selftest passed"); process.exit(fails ? 1 : 0);

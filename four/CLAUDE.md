@@ -171,7 +171,16 @@ for games, and this is a modelling programme with publications to come. The game
   you pan or zoom by hand) fills the strip's width and eases the view to the core's matter (√mass-weighted), so playing
   the life walks the view up the chart from hydrogen to nickel. Tap a nucleus for its makers and breakers now (shares of
   its production and destruction) and its abundance across the whole life.
-  **The 4D network (2026-11-12, PI: "now what do we need for 4D"), not yet in the widget.** `fusion/tools/nuc4.mjs <s>
+  **The 4D mode (PI, 2026-11-12):** both pages take a world: `js/world.js` (no DOM) holds the live bindings every page
+  module imports (stages, nuclei, reactions with Q, run, fluxes, energy, knobs, start mix, symbols, colours, half-lives,
+  the barrier's pairs and radius) and `setWorld("ours" | "4d", s)` swaps them; `life.js`'s `decode` makes the address's
+  world live (`#{"w":"4d","s":1.5152,…}`), and the head's world and strength selects reload with that world's standard
+  star. 4D: three stages (iydrogen at the Sun's pace, ielium, ceryllium) at **generated** `fusion/stages4.js`'s
+  temperatures (`tools/stages4.mjs`, ~25 s, which `rates4.mjs` now runs after baking), rates at our Sun's centre density
+  (the knob is a factor on it), 4D names and symbols (`NAME4`/`SYM4`, held to `atom/js/names.js` by selftest 8; the new
+  elements show as [6], "element 6"), Q from the table's bindings (weak decays as atomic mass differences), 4D notes in
+  `text.js`, β⁻ drawn as e⁻ + ν̄. The chart reads half-lives and modes from `decayOf`.
+  **The 4D network (2026-11-12, PI: "now what do we need for 4D").** `fusion/tools/nuc4.mjs <s>
   [compact]`: the light 4D nuclei by protons and neutrons, each k helium-4s + one cluster c ∈ {∅, n, p, d, t, ³He}:
   B = kB_α + |E_ladder(k)| + B_c + V_c(k), the pieces from the cache (helium-4 and mass 3 by Monte Carlo less a Coulomb
   estimate, the deuteron, the ladder k ≤ 8, a nucleon on k helium-4s: Brink's mass 5 for k = 1, plusone for k = 2–5) and

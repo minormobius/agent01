@@ -3,17 +3,18 @@
    moment. Every knob reruns the network from the stage it touches. Pause stops everything, the cartoon's own clock too.
    What the cartoon makes up: where nuclei are and how they move, how many are drawn (a real core holds ~10⁵⁰), and how
    often a reaction is shown; the page states each. */
-import { STAGES, NUC, IDX, RX, fluxes, energy, toX, SOURCE } from "./net.js";
+import { STAGES, NUC, IDX, RX, fluxes, energy, toX, SOURCE, WORLD, STRENGTH, STRENGTHS, PAIRS, STAGE_PAIR, radius, rhoText, metals } from "./world.js";
 import { KNOBS, defaults, runLife, at, atLife, encode, decode, isDefault } from "./life.js";
 import { label, human, sci, kelvin, kind, eqn, words, sup } from "./text.js";
 import { drawStrip, stripLegend } from "./strip.js";
 
 const $ = (id) => document.getElementById(id);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const NS = STAGES.length;
 
 /* ---------- state ---------- */
+// the address carries the world (ours, or 4D at a strength: world.js) as well as the star; decode makes it live
 let cfg = decode(location.hash), L = runLife(cfg), STD = isDefault(cfg) ? L : runLife(defaults());
+const NS = STAGES.length, D4 = WORLD === "4d";
 const S = { v: +(new URLSearchParams(location.search).get("v") ?? 0) || 0, playing: true, speed: 1, vt: 0, parts: [], fx: [], log: [], nextEvent: 0, gamma: 1, carry: true, pace: 70 };
 const stageOf = () => Math.min(NS - 1, Math.floor(S.v));
 
@@ -101,7 +102,7 @@ function drawGas() {
   const s = atLife(L, S.v), fuel = NUC[IDX[R.st.fuel]], left = (s.Y[IDX[fuel.k]] * fuel.A) / (R.X0[fuel.k] || 1);
   const narrow = W < 560; x.fillStyle = "rgba(11,13,19,0.7)"; x.fillRect(0, 0, W, narrow ? 62 : 46);
   x.textAlign = "left"; x.font = `700 14px ${css("--mono")}`; x.fillStyle = css("--text"); x.fillText(`${stageOf() + 1} · ${R.st.title}`, 12, 20);
-  x.font = `12px ${css("--mono")}`; x.fillStyle = css("--dim"); x.fillText(`${kelvin(R.T)} · ${sci(R.rho)} g/cm³ · ${fuel.k === "p" ? "hydrogen" : fuel.name} left ${(100 * left).toFixed(0)}%`, 12, 37);
+  x.font = `12px ${css("--mono")}`; x.fillStyle = css("--dim"); x.fillText(`${kelvin(R.T)} · ${narrow ? "" : `${rhoText(R.rho)} · `}${fuel.Z === 1 && fuel.A === 1 ? (D4 ? "iydrogen" : "hydrogen") : fuel.name} left ${(100 * left).toFixed(0)}%`, 12, 37);
   const clock = `${human(s.t)} into this stage${S.playing ? "" : " · paused"}`; x.font = `600 12px ${css("--mono")}`; x.fillStyle = S.playing ? css("--text") : "#e3cf7f";
   if (narrow) { x.textAlign = "left"; x.fillText(clock, 12, 54); } else { x.textAlign = "right"; x.fillText(clock, W - 12, 20); }
 }
@@ -122,7 +123,7 @@ function bars(el, Y, Ystd) {
 }
 function chart(cv, Y, fl, { labels = false } = {}) {
   const r = devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * r)) { cv.width = Math.round(w * r); cv.height = Math.round(h * r); }
-  const x = cv.getContext("2d"); x.setTransform(r, 0, 0, r, 0, 0); x.clearRect(0, 0, w, h); const ne = 30, ze = 28, cs = Math.min((w - 8) / (ne + 1), (h - 8) / (ze + 1)), X0 = 4, Y0 = h - 4, P = (n, z) => [X0 + (n + 0.5) * cs, Y0 - (z + 0.5) * cs];
+  const x = cv.getContext("2d"); x.setTransform(r, 0, 0, r, 0, 0); x.clearRect(0, 0, w, h); const ne = Math.max(...NUC.map((n) => n.A - n.Z)) + 1, ze = Math.max(...NUC.map((n) => n.Z)) + 1, cs = Math.min((w - 8) / (ne + 1), (h - 8) / (ze + 1)), X0 = 4, Y0 = h - 4, P = (n, z) => [X0 + (n + 0.5) * cs, Y0 - (z + 0.5) * cs];
   const X = toX(Y);
   for (let i = 0; i < NUC.length; i++) { const n = NUC[i], [px, py] = P(n.A - n.Z, n.Z), a = X[i] > 0 ? Math.max(0, Math.min(1, (Math.log10(X[i]) + 8) / 8)) : 0; x.fillStyle = `rgba(111,224,255,${0.06 + 0.8 * a})`; x.fillRect(px - cs / 2 + 0.5, py - cs / 2 + 0.5, cs - 1, cs - 1); }
   const net = new Map(); RX.forEach((rx, i) => { if (!fl[i]) return; const hv = (xs) => xs.slice().sort((a, b) => NUC[IDX[b]].A - NUC[IDX[a]].A || NUC[IDX[b]].Z - NUC[IDX[a]].Z)[0], a = hv(rx.r), b = hv(rx.p); if (a === b) return; const key = a < b ? `${a}|${b}` : `${b}|${a}`; net.set(key, (net.get(key) ?? 0) + (a < b ? 1 : -1) * fl[i]); });
@@ -147,7 +148,7 @@ function refresh() {
 /* ---------- the knobs ---------- */
 function knobs() {
   const i = stageOf(), st = STAGES[i], T = cfg.T[st.key] ?? st.T, rho = cfg.rho[st.key] ?? st.rho;
-  $("Tk").value = Math.log10(T / st.T).toFixed(3); $("Tv").textContent = kelvin(T); $("rk").value = Math.log10(rho / st.rho).toFixed(3); $("rv").textContent = `${sci(rho)} g/cm³`;
+  $("Tk").value = Math.log10(T / st.T).toFixed(3); $("Tv").textContent = kelvin(T); $("rk").value = Math.log10(rho / st.rho).toFixed(3); $("rv").textContent = rhoText(rho); $("zrow").hidden = !metals;
   $("zk").value = Math.log10(cfg.z).toFixed(3); $("zv").textContent = `×${+cfg.z.toPrecision(2)} the Sun's`; $("hk").value = cfg.he; $("hv").textContent = `${(100 * cfg.he).toFixed(0)}%`;
   const kn = KNOBS.find((k) => k.key === $("rsel").value), f = cfg.mult[kn.key] ?? 1; $("mk").value = Math.log10(f).toFixed(3); $("mv").textContent = `×${+f.toPrecision(2)}`;
   $("chips").innerHTML = Object.entries(cfg.mult).filter(([, v]) => v !== 1).map(([k, v]) => `<span class="chip">${KNOBS.find((x) => x.key === k).label} ×${+v.toPrecision(2)}</span>`).join("");
@@ -164,7 +165,12 @@ function wire() {
   $("rk").addEventListener("input", () => { const v = st().rho * 10 ** +$("rk").value; if (Math.abs(+$("rk").value) < 0.02) delete cfg.rho[st().key]; else cfg.rho[st().key] = +v.toPrecision(3); knobs(); recompute(); });
   $("zk").addEventListener("input", () => { cfg.z = +(10 ** +$("zk").value).toPrecision(2); if (Math.abs(+$("zk").value) < 0.02) cfg.z = 1; knobs(); recompute(); });
   $("hk").addEventListener("input", () => { cfg.he = +(+$("hk").value).toFixed(3); knobs(); recompute(); });
-  $("rsel").innerHTML = KNOBS.map((k) => `<option value="${k.key}">${k.label}</option>`).join(""); $("rsel").value = "c12a";
+  $("rsel").innerHTML = KNOBS.map((k) => `<option value="${k.key}">${k.label}</option>`).join(""); $("rsel").value = D4 ? "aa" : "c12a";
+  // the world: ours, or 4D at a strong-force strength; switching reloads with the new world's standard star
+  $("world").value = WORLD; $("str").innerHTML = STRENGTHS.map((v) => `<option value="${v}">s = ${v}${v === 1.5152 ? " (the deuteron as ours)" : ""}</option>`).join(""); $("str").value = STRENGTH ?? 1.5152; $("str").hidden = !D4;
+  const go = () => { location.hash = $("world").value === "4d" ? encodeURIComponent(JSON.stringify({ w: "4d", s: +$("str").value })) : ""; location.reload(); };
+  $("world").addEventListener("change", go); $("str").addEventListener("change", go);
+  $("pair").innerHTML = PAIRS.map(([a, b], i) => `<option value="${i}">${label(a)} + ${label(b)}</option>`).join("");
   $("rsel").addEventListener("input", knobs);
   $("mk").addEventListener("input", () => { const k = $("rsel").value, f = +(10 ** +$("mk").value).toPrecision(2); if (Math.abs(+$("mk").value) < 0.02) delete cfg.mult[k]; else cfg.mult[k] = f; knobs(); recompute(); });
   $("reset").addEventListener("click", () => { cfg = defaults(); knobs(); recompute(); });
@@ -183,11 +189,10 @@ function wire() {
 }
 
 /* ---------- the barrier, one encounter ---------- */
-const PAIRS = [["p", "p"], ["p", "n14"], ["he4", "he4"], ["he4", "c12"], ["c12", "c12"], ["he4", "ne20"], ["o16", "o16"], ["he4", "si28"]], STAGE_PAIR = [0, 1, 3, 4, 5, 6, 7];
 function barrier(sync) {
   if (sync) { const i = stageOf(); $("pair").value = STAGE_PAIR[i]; $("temp").value = Math.log10(L[i].T).toFixed(2); }
   const [a, b] = PAIRS[+$("pair").value], na = NUC[IDX[a]], nb = NUC[IDX[b]], T = 10 ** +$("temp").value, kT = 8.617333e-11 * T;
-  const mu = ((na.A * nb.A) / (na.A + nb.A)) * 931.494, Z = na.Z * nb.Z, R0 = 1.2 * (Math.cbrt(na.A) + Math.cbrt(nb.A)), VB = (1.44 * Z) / R0, EG = 2 * mu * ((Math.PI * Z) / 137.036) ** 2, E0 = Math.cbrt((EG * kT * kT) / 4), P0 = Math.exp(-Math.sqrt(EG / E0));
+  const mu = ((na.A * nb.A) / (na.A + nb.A)) * 931.494, Z = na.Z * nb.Z, R0 = radius(na.A) + radius(nb.A), VB = (1.44 * Z) / R0, EG = 2 * mu * ((Math.PI * Z) / 137.036) ** 2, E0 = Math.cbrt((EG * kT * kT) / 4), P0 = Math.exp(-Math.sqrt(EG / E0));
   $("tval").textContent = kelvin(T);
   const prep = (id) => { const c = $(id), r = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; if (c.width !== Math.round(w * r)) { c.width = Math.round(w * r); c.height = Math.round(h * r); } const x = c.getContext("2d"); x.setTransform(r, 0, 0, r, 0, 0); x.clearRect(0, 0, w, h); x.font = `11px ${css("--mono")}`; return { x, w, h }; };
   { const { x, w, h } = prep("pot"), rmax = Math.max(4 * R0, 3 * R0), Xp = (rr) => 30 + ((w - 40) * rr) / rmax, Yp = (e) => h - 18 - ((h - 30) * e) / (VB * 1.15);
@@ -217,5 +222,5 @@ function frame(now) {
     step(dt); }
   drawGas(); requestAnimationFrame(frame);
 }
-$("src").textContent = SOURCE;
+$("src").textContent = SOURCE; document.title = D4 ? "Four · how 4D stars burn" : "Four · how stars burn"; $("title").textContent = D4 ? "HOW 4D STARS BURN" : "HOW STARS BURN"; $("wnote").hidden = !D4;
 wire(); populate(atLife(L, S.v).Y); knobs(); refresh(); barrier(true); showLog(); requestAnimationFrame(frame);

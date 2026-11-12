@@ -13,7 +13,7 @@
   .pin { position: sticky; top: 0; z-index: 5; height: 52vh; height: 52svh; min-height: 300px; display: flex; flex-direction: column; background: var(--bg); padding: 6px 12px 6px; box-sizing: border-box; border-bottom: 1px solid var(--border); }
   .head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
   .head h1 { font: 800 15px var(--mono); letter-spacing: 0.06em; margin: 0; }
-  .head nav a { font-size: 11px; padding: 3px 7px; }
+  .head nav a { font-size: 11px; padding: 3px 7px; } .head select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 11px var(--mono); padding: 3px 6px; }
   .stage { position: relative; flex: 1; min-height: 0; margin-top: 6px; }
   canvas#chart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: none; cursor: grab; }
   .zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; }
@@ -38,7 +38,7 @@
 </head>
 <body>
 <div class="pin">
-  <div class="head"><nav class="chapters" style="margin:0"><a href="../../" class="home">FOUR</a><a href="../" id="widget">how stars burn</a></nav><h1>THE CHART OF NUCLEI</h1></div>
+  <div class="head"><nav class="chapters" style="margin:0"><a href="../../" class="home">FOUR</a><a href="../" id="widget">how stars burn</a></nav><h1 id="title">THE CHART OF NUCLEI</h1><select id="world" title="which world"><option value="ours">our world</option><option value="4d">4D</option></select><select id="str" title="the strong force's strength" hidden></select></div>
   <div class="stage"><canvas id="chart"></canvas>
     <div class="zoom"><button id="zin" title="zoom in">+</button><button id="zout" title="zoom out">−</button><button id="zfit" class="wide" title="the whole chart">fit</button><button id="zsel" class="wide" title="zoom to the selected nucleus">◎</button><button id="zfollow" class="wide" title="follow the core's matter as the life plays">follow</button></div></div>
   <div class="row"><div class="ctl"><button id="play">▶</button><button id="back">⏮</button><button id="fwd">⏭</button></div><canvas id="strip" title="the whole life: drag to move through it"></canvas></div>
@@ -54,7 +54,7 @@
   <div class="card">
     <div class="ctl"><label>speed <input type="range" id="speed" min="0" max="5" step="1" value="0" /> <b id="sval">×1</b></label><label>arrows <input type="range" id="arrows" min="4" max="40" step="1" value="16" /> <b id="aval">16</b></label></div>
     <div class="legend" id="legend"></div>
-    <p class="note"><span class="key"></span>stable · <span class="key u"></span>unstable (positron decay or electron capture), half-life in the box when zoomed in. Neutrons across, protons up, each row an element; brighter the more of it there is in the core (down to a billionth by mass). Arrows are the net flows of matter now, thicker the faster; the ones touching the selected nucleus are highlighted.</p>
+    <p class="note"><span class="key"></span>stable · <span class="key u"></span>unstable (a weak decay: β⁺, β⁻ or electron capture), its mode and half-life in the box when zoomed in. Neutrons across, protons up, each row an element; brighter the more of it there is in the core (down to a billionth by mass). Arrows are the net flows of matter now, thicker the faster; the ones touching the selected nucleus are highlighted.</p>
     <p class="note">Zoom with the wheel, a pinch, a double tap or the buttons; drag to pan; tap a nucleus to select it. The diagonal is N = Z, where helium-4's multiples sit: the heavy stages climb it, and silicon burning ends at its top, nickel-56. Rates from REACLIB; half-lives from the standard tables.</p>
     <p class="note" id="star"></p>
   </div>

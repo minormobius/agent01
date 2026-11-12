@@ -3,20 +3,18 @@
    its share of the core now, stable or its half-life. Scrub or play the life on the strip; tap a nucleus for what makes
    it and what destroys it now, at what rates, and its abundance across every stage. The star is the widget's (its
    settings ride in the address). Draws only; the network is life.js. */
-import { STAGES, NUC, IDX, RX, fluxes, toX, energy } from "./net.js";
+import { STAGES, NUC, IDX, RX, fluxes, toX, energy, symOf, decayOf, rhoText, SHORT, WORLD, STRENGTH, STRENGTHS } from "./world.js";
 import { runLife, atLife, decode, encode, KNOBS } from "./life.js";
 import { label, human, sci, kelvin, eqn, words } from "./text.js";
 import { drawStrip, stripLegend, colorZ } from "./strip.js";
 
 const $ = (id) => document.getElementById(id);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const NS = STAGES.length, cfg = decode(location.hash), L = runLife(cfg);
-const S = { v: +(new URLSearchParams(location.search).get("v") ?? 0) || 0, playing: false, speed: 1, sel: "c12", hover: null, arrows: 16 };
+const cfg = decode(location.hash), L = runLife(cfg), NS = STAGES.length, D4 = WORLD === "4d"; // the address carries the world (world.js)
+const S = { v: +(new URLSearchParams(location.search).get("v") ?? 0) || 0, playing: false, speed: 1, sel: D4 ? "4-8" : "c12", hover: null, arrows: 16 };
 const stageOf = () => Math.min(NS - 1, Math.floor(S.v));
-const NE = 30, ZE = 28, EL = ["n", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni"];
-/* half-lives of the network's unstable nuclei (all decay by positron emission or electron capture), seconds, as in the
-   standard tables; every other nucleus here is stable */
-const HALF = { be7: 53.22 * 86400, b8: 0.770, n13: 597.9, o15: 122.24, f17: 64.49, f18: 6586, sc43: 3.891 * 3600, ti44: 59.1 * 3.156e7, v47: 32.6 * 60, cr48: 21.56 * 3600, mn51: 46.2 * 60, fe52: 8.275 * 3600, co55: 17.53 * 3600, ni56: 6.075 * 86400 };
+const NE = Math.max(...NUC.map((n) => n.A - n.Z)) + 1, ZE = Math.max(...NUC.map((n) => n.Z)) + 1;
+/* half-lives and decay modes are the world's (world.js decayOf: ours from the standard tables, 4D from the network) */
 
 /* the view: centre (in chart cells) and zoom over the whole-chart fit */
 const V = { cx: (NE + 1) / 2, cy: (ZE + 1) / 2, z: 1, follow: true };
@@ -43,16 +41,16 @@ function draw() {
     const n = NUC[i], [px, py] = P(n.A - n.Z, n.Z); if (px < -cs || px > w + cs || py < -cs || py > h + cs) continue;
     const a = X[i] > 0 ? Math.max(0, Math.min(1, (Math.log10(X[i]) + 9) / 9)) : 0, sel = n.k === S.sel, x0 = px - cs / 2 + 1, y0 = py - cs / 2 + 1, bw = cs - 2;
     x.fillStyle = `rgba(111,224,255,${0.05 + 0.85 * a})`; x.fillRect(x0, y0, bw, bw);
-    const t = HALF[n.k], dark = a > 0.55;
+    const dk = decayOf(n.k), t = dk?.half, dark = a > 0.55;
     if (t) { x.fillStyle = "#ff8b5e"; x.beginPath(); x.moveTo(x0 + bw, y0); x.lineTo(x0 + bw, y0 + Math.min(14, bw * 0.3)); x.lineTo(x0 + bw - Math.min(14, bw * 0.3), y0); x.fill(); }
     x.strokeStyle = sel ? css("--d3") : n.k === S.hover ? "#fff" : t ? "rgba(255,139,94,0.6)" : "rgba(233,228,218,0.55)"; x.lineWidth = sel ? 3 : t ? 1 : 1.5; x.strokeRect(x0, y0, bw, bw);
     x.fillStyle = dark ? "#07080c" : css("--text"); x.textAlign = "center";
     if (cs >= 64) { // the classic box
-      const sym = EL[n.Z], f = Math.min(26, cs / 3.4); x.textAlign = "left"; x.font = `700 ${f}px ${css("--sans")}`; const sx = x0 + bw * 0.16, sy = y0 + bw * 0.42;
-      x.font = `600 ${f * 0.55}px ${css("--sans")}`; x.fillText(n.A, sx, sy - f * 0.45); const aw = x.measureText(String(n.A)).width; x.font = `700 ${f}px ${css("--sans")}`; x.fillText(n.k === "p" ? "H" : n.k === "d" ? "H" : sym, sx + aw + 1, sy);
+      const sym = symOf(n.Z), f = Math.min(26, cs / 3.4); x.textAlign = "left"; x.font = `700 ${f}px ${css("--sans")}`; const sx = x0 + bw * 0.16, sy = y0 + bw * 0.42;
+      x.font = `600 ${f * 0.55}px ${css("--sans")}`; x.fillText(n.A, sx, sy - f * 0.45); const aw = x.measureText(String(n.A)).width; x.font = `700 ${f}px ${css("--sans")}`; x.fillText(n.Z === 1 ? "H" : sym, sx + aw + 1, sy);
       x.font = `${f * 0.48}px ${css("--mono")}`; x.textAlign = "center";
       x.fillText(X[i] >= 1e-3 ? `${(100 * X[i]).toPrecision(X[i] >= 0.1 ? 3 : 2)}%` : X[i] > 1e-30 ? sci(X[i], 0) : "—", px, y0 + bw * 0.66);
-      x.fillStyle = t ? (dark ? "#7a2a10" : "#ff8b5e") : dark ? "#07080c" : css("--dim"); x.fillText(t ? `β⁺ ${halfText(t)}` : "stable", px, y0 + bw * 0.86);
+      x.fillStyle = t ? (dark ? "#7a2a10" : "#ff8b5e") : dark ? "#07080c" : css("--dim"); x.fillText(t ? `${dk.mode} ${halfText(t)}` : "stable", px, y0 + bw * 0.86);
     } else if (cs > 16) { x.font = `${Math.min(12, cs / 2.6)}px ${css("--mono")}`; x.fillText(label(n.k), px, py + 4); }
   }
   // net flows (heaviest reactant to heaviest product): the strongest, and every one touching the selected nucleus
@@ -66,11 +64,11 @@ function draw() {
   x.restore();
   // the rows' elements down the left, the neutron numbers along the bottom
   x.font = `11px ${css("--mono")}`; x.fillStyle = css("--dim"); x.textAlign = "right"; const zstep = cs > 13 ? 1 : cs > 6 ? 2 : 5;
-  for (let z = 0; z <= ZE; z += zstep) { const py = P(0, z)[1]; if (py > 8 && py < h - 20) x.fillText(cs > 13 ? EL[z] === "n" ? "" : EL[z] : z, 24, py + 4); }
+  for (let z = 0; z <= ZE; z += zstep) { const py = P(0, z)[1]; if (py > 8 && py < h - 20) x.fillText(cs > 13 ? (z ? symOf(z) : "") : z, 24, py + 4); }
   x.textAlign = "center"; const nstep = cs > 30 ? 1 : cs > 13 ? 2 : 5; for (let n = 0; n <= NE; n += nstep) { const px = P(n, 0)[0]; if (px > 30 && px < w - 6) x.fillText(n, px, h - 5); }
   // the heads-up
   x.fillStyle = "rgba(11,13,19,0.75)"; x.fillRect(30, 2, Math.min(w - 36, 620), 38); x.textAlign = "left"; x.font = `700 13px ${css("--mono")}`; x.fillStyle = css("--text"); x.fillText(`${stageOf() + 1} · ${R.st.title}`, 36, 17);
-  x.font = `11px ${css("--mono")}`; x.fillStyle = css("--dim"); x.fillText(`${kelvin(R.T)} · ${sci(R.rho)} g/cm³ · ${human(s.t)} in · ${sci(energy(fl))} erg/g/s`, 36, 33);
+  x.font = `11px ${css("--mono")}`; x.fillStyle = css("--dim"); x.fillText(`${kelvin(R.T)} · ${rhoText(R.rho)} · ${human(s.t)} in · ${sci(energy(fl))} erg/g/s`, 36, 33);
   drawStrip($("strip"), L, S.v); panel(s, fl, X);
 }
 function halfText(t) { return t < 120 ? `${+t.toPrecision(3)} s` : t < 7200 ? `${+(t / 60).toPrecision(3)} min` : t < 2 * 86400 ? `${+(t / 3600).toPrecision(3)} h` : t < 3e7 ? `${+(t / 86400).toPrecision(3)} d` : `${+(t / 3.156e7).toPrecision(3)} yr`; }
@@ -80,9 +78,9 @@ function panel(s, fl, X) {
   const i = IDX[S.sel], n = NUC[i], mk = [], br = [];
   RX.forEach((rx, j) => { if (!fl[j]) return; const d = rx.dY.find(([q]) => q === i)?.[1] ?? 0; if (d > 0) mk.push([rx, fl[j] * d]); else if (d < 0) br.push([rx, -fl[j] * d]); });
   const tot = (a) => a.reduce((t, e) => t + e[1], 0), list = (a) => { const T = tot(a); return a.filter((e) => e[1] / T >= 1e-4).sort((p, q) => q[1] - p[1]).slice(0, 6).map(([rx, f]) => `<div class="rx"><div><b>${eqn(rx)}</b><span>${words(rx)}</span></div><em>${(100 * f / T).toFixed(f / T < 0.01 ? 2 : 0)}%</em></div>`).join("") || `<div class="rx"><div><span>nothing now</span></div></div>`; };
-  const net = tot(mk) - tot(br), Y = s.Y[i], t = HALF[n.k];
+  const net = tot(mk) - tot(br), Y = s.Y[i], dk = decayOf(n.k), t = dk?.half;
   $("nname").innerHTML = `${label(n.k)} · ${n.name}`;
-  $("nfacts").innerHTML = `${n.Z} protons, ${n.A - n.Z} neutrons · ${t ? `unstable: positron decay or electron capture, half-life ${halfText(t)}` : "stable"} · now <b>${X[i] >= 1e-3 ? `${(100 * X[i]).toPrecision(3)}%` : sci(X[i])}</b> of the core by mass${Y > 0 && Math.abs(net) > 0 ? ` · ${net > 0 ? "growing" : "shrinking"} on a ${human(Y / Math.abs(net))} timescale` : ""}`;
+  $("nfacts").innerHTML = `${n.Z} protons, ${n.A - n.Z} neutrons · ${t ? `unstable: ${dk.mode === "β⁻" ? "electron decay" : dk.mode === "EC" ? "electron capture" : "positron decay or electron capture"}, half-life ${halfText(t)}` : "stable"} · now <b>${X[i] >= 1e-3 ? `${(100 * X[i]).toPrecision(3)}%` : sci(X[i])}</b> of the core by mass${Y > 0 && Math.abs(net) > 0 ? ` · ${net > 0 ? "growing" : "shrinking"} on a ${human(Y / Math.abs(net))} timescale` : ""}`;
   $("makers").innerHTML = list(mk); $("breakers").innerHTML = list(br); sparkline(i);
 }
 function sparkline(i) {
@@ -93,7 +91,7 @@ function sparkline(i) {
   x.strokeStyle = colorZ(NUC[i].Z); x.lineWidth = 2; x.beginPath(); const X0 = 36, ww = w - X0;
   for (let k = 0; k <= NS * 30; k++) { const v = Math.min(NS - 1e-4, k / 30), m = atLife(L, v).Y[i] * NUC[i].A, px = X0 + (v / NS) * ww; k ? x.lineTo(px, Yp(m)) : x.moveTo(px, Yp(m)); } x.stroke();
   const px = X0 + (S.v / NS) * ww; x.strokeStyle = "#fff"; x.lineWidth = 1; x.beginPath(); x.moveTo(px, 0); x.lineTo(px, h - 12); x.stroke();
-  x.textAlign = "center"; x.fillStyle = css("--dim"); for (let k = 0; k < NS; k++) x.fillText(["pp", "CNO", "He", "C", "Ne", "O", "Si"][k], X0 + (k + 0.5) * (ww / NS), h - 1);
+  x.textAlign = "center"; x.fillStyle = css("--dim"); for (let k = 0; k < NS; k++) x.fillText(SHORT[k], X0 + (k + 0.5) * (ww / NS), h - 1);
 }
 
 /* ---------- zoom, pan, pick ---------- */
@@ -127,9 +125,14 @@ $("play").addEventListener("click", () => { S.playing = !S.playing; $("play").te
 $("speed").addEventListener("input", () => { S.speed = 2 ** +$("speed").value; $("sval").textContent = `×${S.speed}`; });
 $("arrows").addEventListener("input", () => { S.arrows = +$("arrows").value; $("aval").textContent = S.arrows; draw(); });
 for (const [id, d] of [["back", -1], ["fwd", 1]]) $(id).addEventListener("click", () => { S.v = Math.max(0, Math.min(NS - 1e-4, Math.floor(S.v) + d)); follow(true); draw(); });
-const mods = [...Object.entries(cfg.T).map(([k, v]) => `${k} at ${kelvin(v)}`), ...Object.entries(cfg.rho).map(([k, v]) => `${k} at ${sci(v)} g/cm³`), ...Object.entries(cfg.mult).filter(([, v]) => v !== 1).map(([k, v]) => `${KNOBS.find((x) => x.key === k)?.label} ×${v}`), ...(cfg.z !== 1 ? [`metals ×${cfg.z}`] : [])];
+const mods = [...Object.entries(cfg.T).map(([k, v]) => `${k} at ${kelvin(v)}`), ...Object.entries(cfg.rho).map(([k, v]) => `${k} at ${rhoText(v)}`), ...Object.entries(cfg.mult).filter(([, v]) => v !== 1).map(([k, v]) => `${KNOBS.find((x) => x.key === k)?.label} ×${v}`), ...(cfg.z !== 1 ? [`metals ×${cfg.z}`] : [])];
 $("star").innerHTML = mods.length ? `Your star: ${mods.join(" · ")}. <a href="../${encode(cfg)}" style="color:var(--text)">Change it in the widget</a>.` : `The standard star. <a href="../" style="color:var(--text)">Change it in the widget</a>.`;
 $("legend").innerHTML = stripLegend(L);
+// the world: ours, or 4D at a strength; switching reloads with that world's standard star
+$("world").value = WORLD; $("str").innerHTML = STRENGTHS.map((v) => `<option value="${v}">s = ${v}${v === 1.5152 ? " (the deuteron as ours)" : ""}</option>`).join(""); $("str").value = STRENGTH ?? 1.5152; $("str").hidden = !D4;
+const go = () => { location.hash = $("world").value === "4d" ? encodeURIComponent(JSON.stringify({ w: "4d", s: +$("str").value })) : ""; location.reload(); };
+$("world").addEventListener("change", go); $("str").addEventListener("change", go);
+if (D4) { document.title = "Four · the chart of 4D nuclei"; $("title").textContent = "THE CHART OF 4D NUCLEI"; }
 addEventListener("resize", () => { follow(true); draw(); });
 let last = 0, lastDraw = 0;
 function frame(now) { const dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;

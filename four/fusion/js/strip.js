@@ -1,12 +1,8 @@
 /* The whole life as a strip: one segment a stage, the core's make-up by mass stacked across it, coloured by element,
    with the playhead. Shared by the widget and the chart page. Draws only. */
-import { STAGES, NUC, toX } from "./net.js";
+import { STAGES, NUC, toX, colorZ, SHORT } from "./world.js";
 import { at } from "./life.js";
-
-/* an element's colour: the light ones hand-picked, the rest round the wheel by Z */
-const HAND = { 1: "#ff6f61", 2: "#6fe0ff", 6: "#9a958c", 7: "#5f8fe0", 8: "#7fd88a", 10: "#ffb46b", 11: "#e58fb8", 12: "#e3cf7f", 13: "#c9a68c", 14: "#b48cff", 15: "#d77fd8", 16: "#d8d26b", 18: "#7fc4d8", 20: "#f0f0f0", 26: "#ff9e5e", 27: "#d88f7f", 28: "#ffd27f" };
-export const colorZ = (Z) => HAND[Z] ?? `hsl(${(Z * 47) % 360} 55% 62%)`;
-export const SHORT = ["H · pp", "H · CNO", "He", "C", "Ne", "O", "Si"];
+export { colorZ, SHORT }; // an element's colour and the stages' short names: the world's (world.js)
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
 const CACHE = new WeakMap();
@@ -28,6 +24,6 @@ export function drawStrip(c, L, v, { cols = 28 } = {}) {
 }
 /* the legend for what the strip shows */
 export function stripLegend(L) {
-  const seen = new Map(); for (const R of L) for (const s of [R.snaps[0], R.snaps.at(-1)]) toX(s.Y).forEach((m, j) => { const Z = NUC[j].Z; if (m > 0.02) seen.set(Z, NUC[j].name.split("-")[0]); });
+  const seen = new Map(); for (const R of L) for (const s of [R.snaps[0], R.snaps.at(-1)]) toX(s.Y).forEach((m, j) => { const Z = NUC[j].Z; if (m > 0.02) seen.set(Z, NUC[j].name.replace(/-\d+$/, "")); });
   return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([Z, n]) => `<span><i style="background:${colorZ(Z)}"></i>${n}</span>`).join("");
 }

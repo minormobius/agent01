@@ -13,7 +13,7 @@
   /* the scene, its timeline and its controls stay pinned to the top two-thirds; everything else scrolls under it */
   .pin { position: sticky; top: 0; z-index: 5; height: 67vh; height: 67svh; min-height: 360px; display: flex; flex-direction: column; background: var(--bg); padding: 6px 12px; box-sizing: border-box; border-bottom: 1px solid var(--border); }
   .head { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
-  .head h1 { font: 800 15px var(--mono); letter-spacing: 0.06em; margin: 0; } .head nav a { font-size: 11px; padding: 3px 7px; }
+  .head h1 { font: 800 15px var(--mono); letter-spacing: 0.06em; margin: 0; } .head select { padding: 3px 6px; font-size: 11px; } .head nav a { font-size: 11px; padding: 3px 7px; }
   .scene { position: relative; flex: 1; min-height: 0; margin-top: 6px; }
   canvas#gas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: none; }
   canvas#timeline { width: 100%; height: 56px; display: block; margin-top: 6px; cursor: pointer; touch-action: none; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); flex: none; }
@@ -48,7 +48,7 @@
 </head>
 <body>
 <div class="pin">
-  <div class="head"><nav class="chapters" style="margin:0"><a href="../" class="home">FOUR</a><a href="chart/" id="open">the chart</a><a href="../strong/">strong force</a></nav><h1>HOW STARS BURN</h1></div>
+  <div class="head"><nav class="chapters" style="margin:0"><a href="../" class="home">FOUR</a><a href="chart/" id="open">the chart</a><a href="../strong/">strong force</a></nav><h1 id="title">HOW STARS BURN</h1><select id="world" title="which world"><option value="ours">our world</option><option value="4d">4D</option></select><select id="str" title="the strong force's strength" hidden></select></div>
   <div class="scene"><canvas id="gas"></canvas></div>
   <canvas id="timeline" title="the star's whole life, its core's make-up across each stage: drag to move through it"></canvas>
   <div class="bar">
@@ -63,6 +63,7 @@
     <h3>Now</h3>
     <p id="blurb"></p>
     <p id="stats"></p>
+    <p class="note" id="wnote" hidden>4D, from the book's own network (<a href="data4.js" style="color:var(--text)">data4.js</a>): nuclei by protons and neutrons from its computed pieces; p + p, ielium + ielium and p or ielium onto 2–4 ielium-4s computed from the strong force, every other rate our own analogue's carried through 4D's barrier, decays from their energies. Each stage at one temperature (iydrogen at the pace that halves our Sun's centre in 4.6 billion years) and our Sun's centre density, the book's convention. The strength sets the deuteron's binding, and with it how fast p + p runs.</p>
     <div id="log"></div>
   </div>
   <div class="card">
@@ -71,7 +72,7 @@
     <div class="k"><label>temperature <b id="Tv"></b></label><input type="range" id="Tk" min="-0.3" max="0.3" step="0.005" value="0" /></div>
     <div class="k"><label>density <b id="rv"></b></label><input type="range" id="rk" min="-2" max="2" step="0.02" value="0" /></div>
     <div class="sub">the star it starts as</div>
-    <div class="k"><label>carbon, nitrogen, oxygen <b id="zv"></b></label><input type="range" id="zk" min="-2" max="1" step="0.02" value="0" /></div>
+    <div class="k" id="zrow"><label>carbon, nitrogen, oxygen <b id="zv"></b></label><input type="range" id="zk" min="-2" max="1" step="0.02" value="0" /></div>
     <div class="k"><label>helium at birth <b id="hv"></b></label><input type="range" id="hk" min="0.2" max="0.45" step="0.005" value="0.29" /></div>
     <div class="sub">turn a reaction up or down (and its reverse)</div>
     <div class="k"><select id="rsel"></select><label>rate <b id="mv"></b></label><input type="range" id="mk" min="-2" max="2" step="0.02" value="0" /></div>
@@ -92,7 +93,7 @@
   </div>
   <div class="card" id="pbar">
     <h3>Why it's hard: the barrier</h3>
-    <div class="k"><select id="pair"><option value="0">p + p</option><option value="1">p + ¹⁴N</option><option value="2">⁴He + ⁴He</option><option value="3">⁴He + ¹²C</option><option value="4">¹²C + ¹²C</option><option value="5">⁴He + ²⁰Ne</option><option value="6">¹⁶O + ¹⁶O</option><option value="7">⁴He + ²⁸Si</option></select><label>temperature <b id="tval"></b></label><input type="range" id="temp" min="6.8" max="9.7" step="0.01" value="7.2" /></div>
+    <div class="k"><select id="pair"></select><label>temperature <b id="tval"></b></label><input type="range" id="temp" min="6.3" max="9.7" step="0.01" value="7.2" /></div>
     <canvas class="plot" id="pot"></canvas>
     <canvas class="plot" id="gamow"></canvas>
     <p class="note" id="bnums"></p>
