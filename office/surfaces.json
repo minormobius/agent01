@@ -3605,6 +3605,15 @@
    "parent": "four"
   },
   {
+   "id": "four-fusion",
+   "name": "four-fusion",
+   "url": "https://four.mino.mobi/fusion/",
+   "cat": "data",
+   "commits": 2,
+   "age": "warm",
+   "parent": "four"
+  },
+  {
    "id": "four-strong",
    "name": "four-strong",
    "url": "https://four.mino.mobi/strong/",

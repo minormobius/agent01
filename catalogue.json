@@ -5589,6 +5589,22 @@
       ]
     },
     {
+      "n": "four-fusion",
+      "u": "https://four.mino.mobi/fusion/",
+      "c": "data",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "four",
+      "surface": "four",
+      "d": "How our stars burn, stage by stage, as cartoon nuclei that react in the order and proportions the real reaction rates give: the Sun's proton–proton chains, the CNO cycle, helium burning through the Hoyle state, then carbon, neon, oxygen and silicon burning to nickel-56. A reaction network on 149 REACLIB rates runs each stage from the last one's ash; the chart of nuclides shows where matter is flowing, and a primer shows why fusion is hard at all: the Coulomb barrier, tunnelling and the Gamow window. Our world first, as the anchor for four dimensions.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-strong",
       "u": "https://four.mino.mobi/strong/",
       "c": "data",

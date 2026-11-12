@@ -140,6 +140,20 @@ for games, and this is a modelling programme with publications to come. The game
   from helium-3 (`he4 4 <s> none 3 MN`, B₃ 16–57 MeV) and V₃ (mass 3 on the core) not computed, so the channel is open;
   either way the product is mass 12–15, elements 6–8. The same ladder cascade has element 6 + itself → element 8 + 2
   helium-4s and element 8 + itself → oeon + 2 (heavy's liquid drops say todium, shedding nucleons): both near 12–13.
+- **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
+  teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
+  `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,
+  cloned read-only from github.com/pynucastro/pynucastro; every reaction among 38 nuclei, 149 reactions, all fitted sets,
+  electron captures their own reaction × ρY_e), k = λ ρ^(N−1)/Π n!, backward Euler + Newton with an analytic Jacobian
+  (~0.1 s a stage). `STAGES`: the Sun's core (pp), then CNO, He, C, Ne, O, Si at round central conditions of a ~20 M☉ star,
+  each from the last one's ash; left out (said on the page): screening, neutron channels, reverse-rate partition functions,
+  neutrino losses. Ash: He → C 0.34 / O 0.65, C → O + Ne, Ne → O + Mg + Si, O → Si + S, Si → Ni-56 0.88; nine-tenths burned
+  in 17 Gyr, 3.7 Myr, 0.1 Myr, 100 yr, 7 weeks, 7 weeks, 2 days. `fusion/js/fusion.js` draws: the barrier and Gamow window
+  for a chosen pair and T; the gas window, where reactions are sampled in proportion to the network's rates at the moment
+  (reactants taken from screen or flown in, products, γ, e⁺, ν drawn; the page states how many real reactions each shown
+  one stands for), the composition, the chart of nuclides with the strongest net flows. `fusion/test/fusion.selftest.mjs`
+  (~2 s): p + p against the S(0) formula, triple-alpha against CF88's Hoyle term, mass kept, each stage's ash, the stages
+  shortening, 26.73 MeV per helium-4 through the pp chains. Next: the 4D version beside it (the strong-force dial's network).
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
@@ -1015,6 +1029,7 @@ GitHub's runners. Queue commands in `.github/compute/atom4.json` and push it to 
 node four/atom/test/atom4.selftest.mjs     # 50–90 s, by machine: everything ATOM⁴ states, checked (see atom/README.md)
 node four/lumen/test/lumen4.selftest.mjs   # < 1 s
 node four/iris/test/iris4.selftest.mjs     # ~10 s, including foam.js against games' copy
+node four/fusion/test/fusion.selftest.mjs # ~2 s: the stars' reaction network on REACLIB
 ```
 
 Keep ATOM⁴'s under 120 s. `preflight` runs all three whenever this directory changes.
