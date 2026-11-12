@@ -1,0 +1,33 @@
+{
+ "group": "pm-ours-b",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 3 1 4 t 12",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 334
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 3 1 4 h 12",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 339
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 3 1 2 nn 12 400",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 15344
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 3 1 4 nn 12 400",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}

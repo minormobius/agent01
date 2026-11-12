@@ -1,0 +1,33 @@
+{
+ "group": "pm-1p85-2-c",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 nn 24 0 compact",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 331
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 np 24 0 compact",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 333
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 t 24 0 compact",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 361
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.85 2 h 24 0 compact",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 364
+  }
+ ]
+}
