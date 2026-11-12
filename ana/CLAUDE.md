@@ -67,12 +67,23 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   Misiurewicz points (`MISIUREWICZ`) are buttons; the selftest holds each to Tan Lei (IoU ≥ 0.95 held, < 0.6 not).
   **It imports `rotation4` and `turn4` from `../../hilbert/js/hilbert.js`** (same site, not a copy), so a change there
   runs both selftests. See [`mandelbract/README.md`](mandelbract/README.md).
+- **HOPF HABITAT at `/habitat/`**: the first megastructure. A hollow 3-sphere spun at equal rates in two planes
+  (J(a, b, c, d) = (−b, a, −d, c)): spin gravity ω²R straight down on every point of the floor. `js/habitat.js` (no
+  DOM): `flight` (exact: the inertial straight line turned back by e^{−ωtJ}), `integrate` (RK4, its check),
+  `floorFrame` (down, spinward Jx̂, across e and Je), `weight`, `hoopStress`/`maxRadius` (gR/3 against a cylinder's
+  gR), `walk` (parallel transport). `js/main.js`: a full-screen shader ray-tracing your slice of the inside (floor,
+  24 towers as 4D capsules, Hopf roads with yours gold, sun at the centre, haze) and a 2D overlay for the balls (from
+  `flight`; solid where the slice cuts them, an ana/kata ring where not). Walk pad, kata's twist pad and lever (the
+  lever *steps you* ana/kata: the eye stays on the floor). Balls keep their own clock (a slow frame advances them up
+  to 0.25 s). Physics is four's pinned world; materials' strengths are ours, assumed. See
+  [`habitat/README.md`](habitat/README.md).
 
 ## Checks
 
 ```bash
 node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
+node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles
 ```
 
 Preflight finds every `*.selftest.mjs` and runs the ones under changed directories.

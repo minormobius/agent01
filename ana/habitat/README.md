@@ -1,0 +1,46 @@
+# HOPF HABITAT
+
+A space station for four-dimensional people, at ana.mino.mobi/habitat/: a hollow 3-sphere spun at equal rates in two
+orthogonal planes. The first of the 4D megastructures (the physics is four's: gravity pinned at −GM/r, light as 4D
+Maxwell).
+
+## The idea
+
+Spin x(t) = e^{ωtJ}x with J the complex structure J(a, b, c, d) = (−b, a, −d, c), J² = −1 (an isoclinic rotation). Every
+point accelerates at −ω²x, so in the turning frame the centrifugal field is ω²x: radial, and ω²R on every point of a
+3-sphere floor of radius R. No axis, no poles. Each point is carried round a great circle (a Hopf circle); no two meet.
+
+## What's computed (`js/habitat.js`, no DOM)
+
+- `flight`: a free object's exact path. Inertially it's a straight line (velocity relative to the floor plus ωJx);
+  turning it back by e^{−ωtJ} gives the path you see; it lands where the line meets |x| = R.
+- `integrate`: RK4 on a = ω²x − 2ωJv in the turning frame, the check on `flight`.
+- `floorFrame`: down x̂, spinward f = Jx̂, and e, Je across the spin (J turns the across-plane by 90°).
+- `weight`: the floor's push on something moving at vRel: |vRel + ωJx|²/R.
+- `hoopStress`, `maxRadius`: σ/ρ = gR/3 for the 3-sphere hull (σ = pR/((n−1)t) for a sphere in n dimensions) against
+  gR for a cylinder: three times the radius for the same material.
+- `walk`: parallel transport along a great circle, re-orthonormalised.
+- `hopf`, `towers` (the 24-cell's vertices), `roads` (Hopf circles over an icosahedron's vertices).
+
+## Claims and checks (`test/habitat.selftest.mjs`)
+
+- J is a rotation with J² = −1; every point of the turning body accelerates at −ω²x (numerical second derivative).
+- Spin gravity is the same at 500 random floor points; an unequal double rotation (0.14, 0.10) varies by 49%.
+- Exact flights match RK4 in the turning frame.
+- A 20 m drop at R = 300 m, 1 g lands 5.234 m antispinward at every one of 200 points, as the cylinder worked
+  separately; nothing across the spin.
+- A throw spinward doesn't swerve sideways; a throw across the spin swerves the same in all 8 directions, always
+  toward +J of the throw (one handedness).
+- Walking at 5 m/s: (ωR + u)²/R spinward, (ωR − u)²/R against, (ω²R² + u²)/R across.
+- The hull's force balance by sampling: half a 3-sphere's projected load is the 3-ball the cut leaves, so σ = pR/3t.
+- Hopf circles: the Hopf map is constant along them; two stay the same distance apart all the way round.
+- A 6.5 km walk keeps the frame on the floor and orthonormal.
+
+## The page
+
+You stand on the floor; the shader ray-traces your 3D slice (forward, right, up): the floor from inside, 24 towers
+(4D capsules: you see one only when your slice cuts it), the Hopf roads (yours gold), the sun at the centre, haze.
+An overlay draws the balls from `flight`: solid where your slice cuts them, a ring labelled ana/kata where it doesn't.
+Controls are kata's (twist pad, lever) plus a walk pad; drag looks; *face spinward* puts your hidden w across the spin,
+so a throw across it curves out of your slice. Not modelled: air drag (the air turns with the hull), the hull's own
+gravity, 4D materials' real strengths (four hasn't computed them).

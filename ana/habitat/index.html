@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="The Hopf habitat — a space station for four-dimensional people: a hollow 3-sphere spun at equal rates in two planes, with the same spin gravity on every square metre of its floor. Walk it, drop and throw balls, and watch them curve out of your slice." />
+<title>HOPF HABITAT — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/habitat.css" />
+</head>
+<body>
+<div class="app">
+  <div class="stage">
+    <canvas id="gl" aria-label="Your 3D slice of the inside of a spinning 3-sphere habitat: the floor rising all round you, towers, the sun at the centre"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <div class="hud">
+      <a class="home" href="../">ana</a>
+      <span class="title">HOPF HABITAT</span>
+    </div>
+    <div class="compass" id="compass" title="which way is spinward, in your frame; the bar is the part of it in your hidden w">
+      <div class="dial"><div class="arrow"></div></div>
+      <div class="wbar"><i></i></div>
+      <span>spinward</span>
+    </div>
+    <div class="quick">
+      <button id="throw">throw</button><button id="drop">drop</button>
+    </div>
+    <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+    <div id="walk" class="pad walkpad" aria-label="walk"><div id="walkKnob"></div><span>walk</span></div>
+    <div id="ana" class="lever" aria-label="step ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+    <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
+  </div>
+
+  <div class="panel">
+    <div class="readout" id="live"></div>
+    <div class="readout result" id="result"></div>
+    <div class="row col">
+      <label><span>throw at <span id="speedOut"></span></span><span class="chk"><input type="checkbox" id="slow" /><span>slow motion</span></span></label>
+      <input type="range" id="speed" min="2" max="40" value="15" />
+    </div>
+    <div class="row col">
+      <label><span>drop from <span id="dropOut"></span>, ahead of you</span><button class="ghost small" id="clear">clear balls</button></label>
+      <input type="range" id="droph" min="2" max="60" value="20" />
+    </div>
+    <div class="row col">
+      <label><span>radius <span id="radiusOut"></span></span><button class="ghost small" id="square">face spinward</button></label>
+      <input type="range" id="radius" min="0" max="1000" value="300" />
+    </div>
+    <div class="row col">
+      <label><span>gravity <span id="gravOut"></span></span></label>
+      <input type="range" id="grav" min="10" max="200" value="100" />
+    </div>
+    <p class="spec" id="spec"></p>
+
+    <details open>
+      <summary>what you're standing in</summary>
+      <p>A space station for four-dimensional people. Our stations spin to make gravity, and spinning has a flaw: there's an axis. A spinning cylinder has gravity on its curved floor and none on its ends; a spinning sphere has full gravity at its equator and none at its poles.</p>
+      <p>In four dimensions a body can spin in two planes at once, and at equal rates something happens that can't in ours: every point is carried round a circle at the same speed, and every point's spin gravity points straight away from the centre. So a hollow <b>3-sphere</b> spun this way has the same gravity, straight down, on every square metre of its floor. No axis, no poles, no ends. Its floor is a whole three-dimensional world, finite, without an edge: walk straight in any direction and you come home.</p>
+      <p>Each point is carried round a great circle, the <b>Hopf circles</b>, and no two of them meet. They're painted here as roads; the gold one is the circle you're standing on, the way the floor is moving. The arrow (top right) shows where spinward lies; its bar, how much of it is in w, out of your slice.</p>
+      <div class="chart" id="chart"></div>
+    </details>
+    <details open>
+      <summary>throw something</summary>
+      <p>Seen from outside, anything you let go of flies in a straight line, and the floor turns under it. From inside it curves. <b>Drop</b> a ball and it lands a little against the spin, exactly as in a spinning cylinder of the same size (it's the same problem). <b>Throw</b> one along the spin and it doesn't swerve; it only rises or falls short. Throw it across the spin and it swerves sideways, the same amount whichever way you throw, always turned the same way. In a cylinder, a throw along the axis goes straight; here there's no direction that does.</p>
+      <p>And the swerve can be in w. Turn so your hidden direction lies across the spin (<b>face spinward</b> does it), throw across, and the ball curves ana or kata, out of your slice. Your slice still cuts it while it's within its radius of you; past that it's a ring, labelled with how far off it is. Step after it with the lever.</p>
+      <p>Walking, you're heavier going spinward and lighter going against it (your speed adds to the floor's), the same as in a cylinder; walking across the spin you're very slightly heavier, by your own speed squared over the radius.</p>
+    </details>
+    <details>
+      <summary>could it be built?</summary>
+      <p>The hull carries its own spin weight evenly, so a thin 3-sphere shell's stress is <b>σ = pR/3t</b>, a third of a cylinder's pR/t. For the same material and gravity, the Hopf habitat can be three times the radius:</p>
+      <table class="stress" id="stress"></table>
+      <p class="k">The hull alone, carrying nothing else, no safety factor, and assuming 4D materials are as strong for their weight as ours. Four hasn't worked out its solids' strengths yet.</p>
+    </details>
+    <details>
+      <summary>controls and checks</summary>
+      <p>Drag to look. The <b>walk</b> pad (or W A S D, shift to run) walks you; the <b>twist</b> pad (J L I K) turns your slice into w; the <b>lever</b> (R F) steps you ana and kata. Space or double-tap throws, G drops, Z faces spinward.</p>
+      <p>Checked by <code>test/habitat.selftest.mjs</code>: every point of the equal double rotation accelerates straight at the centre, so the floor's gravity is the same at 500 random points (and an unequal one isn't); exact flights match a numerical integration in the spinning frame; a drop lands the same distance antispinward everywhere, matching the cylinder worked separately; a throw along the spin doesn't swerve and one across it swerves the same in all directions, always turned the same way; the weights walking; the hull's force balance, σ = pR/3t, by sampling; the Hopf circles never meet and stay the same distance apart; a 6.5 km walk keeps your frame true.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

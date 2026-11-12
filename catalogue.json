@@ -5752,6 +5752,22 @@
       ]
     },
     {
+      "n": "ana-habitat",
+      "u": "https://ana.mino.mobi/habitat/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-12",
+      "b": "2026-11-12",
+      "p": "ana",
+      "surface": "ana",
+      "d": "A space station for four-dimensional people: a hollow 3-sphere spun at equal rates in two planes, which gives every square metre of its floor the same spin gravity, straight down, with no axis and no poles (impossible in 3D). Walk its inside in first person through your 3D slice, with the land rising all round you and the Hopf circles the floor travels along painted as roads. Drop and throw balls on exact trajectories: drops land against the spin as in a cylinder, throws across the spin swerve the same way in every direction and can curve out of your slice into w. Its hull carries a third of a cylinder's stress. On four's pinned 4D physics; selftested.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "four-table",
       "u": "https://four.mino.mobi/table/",
       "c": "data",
