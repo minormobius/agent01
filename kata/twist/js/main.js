@@ -1,10 +1,10 @@
 /* TWIST's page: two yarns from the same module, d = 3 and d = 4, stepped together and drawn on 2D canvases. */
-import { makeYarn } from "./yarn.js";
+import { makeYarn, shortest } from "./yarn.js";
 const $ = (id) => document.getElementById(id), END = 34000, per = (t) => (t < 1000 ? 2 : t < 4000 ? 10 : 80), FRAMES = 1000 / 2 + 3000 / 10 + (END - 4000) / 80; // (the first moments slowly: that is when the 4D yarn lets go)
 const COL = ["#ffd27a", "#cfd6de", "#9fb4c8", "#cfd6de", "#9fb4c8", "#cfd6de", "#9fb4c8"];
 let W = [], hist = [], spin = 0, last = performance.now();
 window.TWIST = { get worlds() { return W; }, get hist() { return hist; } };
-function start() { const turns = +$("turnsR").value, noise = $("jig").checked ? 2e-3 : 0; W = [{ d: 3 }, { d: 4 }, { d: 4, tape: Math.max(0.001, +$("tapeR").value) }].map((o) => ({ Y: makeYarn({ ...o, turns, noise }), m: null })); hist = []; for (const w of W) w.m = w.Y.measure(); }
+function start() { const turns = +$("turnsR").value, strain = +$("pullR").value / 100, noise = $("jig").checked ? 2e-3 : 0; W = [{ d: 3 }, { d: 4 }, { d: 4, tape: Math.max(0.001, +$("tapeR").value) }].map((o) => ({ Y: makeYarn({ ...o, turns, strain, noise }), m: null })); hist = []; for (const w of W) w.m = w.Y.measure(); }
 const mix = (a, b, t) => { const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16)), pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16)); return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * t)).join(",")})`; };
 function draw(w, cv) {
   const Y = w.Y, d = Y.d, dpr = Math.min(window.devicePixelRatio || 1, 2), cw = cv.clientWidth, ch = cv.clientHeight; if (cv.width !== Math.round(cw * dpr)) { cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr); }
@@ -22,7 +22,7 @@ function draw(w, cv) {
   for (let f = 0; f < Y.F; f++) { const p = (f * Y.n + mid) * d, z = d === 4 ? Y.X[p + 2] : 0, px = cx + Y.X[p] * cs, py = cy - Y.X[p + 1] * cs; x.fillStyle = tint(f, z); x.globalAlpha = 0.9; x.beginPath(); x.arc(px, py, Y.a * cs, 0, 7); x.fill(); x.globalAlpha = 1;
     if (d === 4 && Math.abs(z) > 0.02) { x.strokeStyle = z > 0 ? "#38f2e0" : "#ff66b8"; x.lineWidth = 1.5; x.beginPath(); x.arc(px, py, Y.a * cs + Math.abs(z) * cs * 0.5, 0, 7); x.stroke(); } }
 }
-function rows(el, w) { const m = w.m, f = (v, n = 2) => (Math.abs(v) < 5e-3 ? "0" : v.toFixed(n)), list = [[w.Y.tape ? "squeeze on the ribbon" : "squeeze on the core", f(m.squeeze, 1), m.squeeze > 0.5 ? "big" : "nil"], ["turns still wound", f(m.wind)], ["elastic energy", f(m.energy)], ...(w.Y.tape ? [] : [["tension in the core", f(m.tension, 1)]])]; if (w.Y.d === 4) list.push(["furthest out of the plane", f(m.out)]);
+function rows(el, w) { const m = w.m, f = (v, n = 2) => (Math.abs(v) < 5e-3 ? "0" : v.toFixed(n)), list = [[w.Y.tape ? "squeeze on the ribbon" : "squeeze on the core", f(m.squeeze, 1), m.squeeze > 0.5 ? "big" : "nil"], ["turns still wound", f(m.wind)], ["grip per pull", f(m.hold), m.hold > 0.05 ? "big" : "nil"], ["shortest fibre that holds", Number.isFinite(shortest(m)) ? f(shortest(m), 0) + " thick" : "none", Number.isFinite(shortest(m)) ? "" : "nil"], ...(w.Y.tape ? [] : [["tension in the core", f(m.tension, 1)]])]; if (w.Y.d === 4) list.push(["furthest out of the plane", f(m.out)]);
   el.textContent = ""; for (const [k, v, cls] of list) { const a = document.createElement("i"), b = document.createElement("span"); a.textContent = k; b.textContent = v; if (cls) b.className = cls; el.append(a, b); } }
 function plot() { const cv = $("plot"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
   const top = Math.max(1, ...hist.map((q) => Math.max(...q))), y0 = h - 18, X = (i) => 8 + (i / FRAMES) * (w - 16), Yv = (v) => y0 - (v / top) * (y0 - 16);
@@ -33,6 +33,7 @@ function tick(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (W[0].Y.t < END) { for (const w of W) { w.Y.step(per(w.Y.t)); w.m = w.Y.measure(); } hist.push(W.map((w) => w.m.squeeze)); rows($("r3"), W[0]); rows($("r4"), W[1]); rows($("r5"), W[2]); plot(); }
   draw(W[0], $("c3")); draw(W[1], $("c4")); draw(W[2], $("c5")); requestAnimationFrame(tick); }
 $("turnsR").addEventListener("input", () => { $("turnsV").textContent = (+$("turnsR").value).toString(); start(); });
+$("pullR").addEventListener("input", () => { $("pullV").textContent = (+$("pullR").value).toString() + "%"; start(); });
 $("jig").addEventListener("change", start); $("goB").addEventListener("click", start); addEventListener("resize", plot);
 $("tapeR").addEventListener("input", () => { $("tapeV").textContent = (+$("tapeR").value).toFixed(2); start(); });
 start(); rows($("r3"), W[0]); rows($("r4"), W[1]); rows($("r5"), W[2]); requestAnimationFrame(tick);

@@ -186,7 +186,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   relaxed by damped dynamics; the same code with d = 3 or 4 (the yarn lies along the last axis). Measured: squeeze on
   the core, turns still wound, energy, furthest out of the plane. The result the selftest holds: 3D keeps its twist
   and squeezes; 4D sheds every whole turn and ends at the untwisted energy; a part turn stays in both; with no jiggle
-  the 4D twist stands (unstable); and with `tape` (the core a rigid ribbon ±tape across z) the 4D twist holds unless the ribbon is narrow enough to slip round. The page steps all three together on 2D canvases, slowly at first (that is when the 4D
+  the 4D twist stands (unstable); and with `tape` (the core a rigid ribbon ±tape across z) the 4D twist holds unless the ribbon is narrow enough to slip round. `measure()` also gives `grip` (contact force on one outer fibre per length), `pull` (its tension) and `hold` = grip/pull, which stays flat as the pull changes (the selftest holds that), and `shortest()` the shortest fibre that friction can hold. The page steps all three together on 2D canvases, slowly at first (that is when the 4D
   yarn lets go). `window.TWIST` exposes the worlds. See [`twist/README.md`](twist/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
@@ -255,7 +255,7 @@ node kata/amoeba/test/amoeba.selftest.mjs # ~70 s
 node kata/ooze/test/ooze.selftest.mjs # ~60 s
 node kata/volley/test/volley.selftest.mjs # ~1 s
 node kata/cad4/test/cad4.selftest.mjs # ~95 s
-node kata/twist/test/twist.selftest.mjs # ~20 s
+node kata/twist/test/twist.selftest.mjs # ~30 s
 ```
 
 `preflight` runs it whenever this directory changes. A browser check (headless Chromium renders it with SwiftShader):

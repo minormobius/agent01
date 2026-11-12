@@ -53,7 +53,33 @@ It holds against ten times the jiggle. The squeeze is on the ribbon, from all si
 quantity as the core squeeze above; what matters is that it is not zero. Not tested: a ribbon that can bend or crumple,
 fibres wound near its edge, or many layers.
 
-So a plain 4D yarn cannot get its grip from twist, but one spun round a ribbon can. What it can use (a hoop that is a sphere, a woven sheath) is in
+So a plain 4D yarn cannot get its grip from twist, but one spun round a ribbon can.
+
+## Grip per pull, and the shortest fibre that holds
+
+A rope of short fibres holds because friction along each fibre can match that fibre's tension. Friction is μ × the
+normal force on it, so what matters is **grip per pull**: every contact force on one outer fibre, per length, over
+that fibre's own tension. A fibre of length ℓ holds if μ × grip × ℓ / 2 ≥ pull, so the shortest that holds is
+2 / (μ × grip/pull).
+
+| | grip per pull at 1%, 3%, 6% stretch | shortest fibre that holds (μ = 0.3) |
+|---|---|---|
+| 3D, one turn | 0.62, 0.64, 0.65 | 52 thicknesses |
+| 3D, two turns | 4.1, 4.0, 3.2 | 8 |
+| 4D, twisted | 0 | none |
+| 4D on a ribbon, one turn | 0.47, 0.46, 0.45 | 73 |
+| 4D on a ribbon, two turns | 1.79, 1.74, 1.68 | 19 |
+
+The ratio hardly moves while the pull nearly doubles: both yarns grip in proportion to their load, which is what
+makes a rope a rope. The ribbon yarn gets about half our grip at the same twist (its fibres press the ribbon, not
+each other, and it has no core fibre). The plain 4D yarn has no grip, so no fibre length holds and a yarn of short
+fibres has no strength at all.
+
+This is the answer the model can give to "how strong is the bundle against one strand": with fibres longer than that
+length the yarn can load every fibre to its breaking tension, seven fibres for seven strengths, less what the
+statistics of weak spots take; with shorter ones, or with no grip, it pulls apart at any load. A pull to failure
+needs a friction law and fibres that break, which this does not have. A squeezing sleeve in place of twist was tried
+and gave no clean number (the fibres repack inside it); that needs the sheath as an elastic body. What it can use (a hoop that is a sphere, a woven sheath) is in
 [CAD⁴](../cad4/#rope); whether a sheath tightens under load, as a finger trap does, is the next experiment.
 
 ## What this is not
@@ -65,5 +91,5 @@ under a hard squeeze (at two turns in 3D, visibly). Seven fibres, one geometry.
 ## Test
 
 ```bash
-node kata/twist/test/twist.selftest.mjs   # ~20 s, 8 checks
+node kata/twist/test/twist.selftest.mjs   # ~30 s, 10 checks
 ```
