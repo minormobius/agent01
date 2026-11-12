@@ -4,53 +4,60 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="The chart of nuclei through a heavy star's whole burning life, interactive: every nucleus of the network by its neutrons and protons, the flows between them as arrows, and for any nucleus what makes it, what destroys it and its abundance across every stage, at the real reaction rates." />
+<meta name="description" content="The chart of nuclei through a heavy star's whole burning life, interactive and zoomable: every nucleus of the network in its classic chart box, the flows between them as arrows, and for any nucleus what makes it, what destroys it and its abundance across every stage, at the real reaction rates." />
 <title>Four · the chart of nuclei</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../atom/css/atom4.css" />
 <style>
   body { margin: 0; }
-  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 16px 0; }
-  .top h1 { font: 800 18px var(--mono); letter-spacing: 0.06em; margin: 0; }
-  .app { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; padding: 8px 16px 12px; }
-  @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
-  canvas#chart { width: 100%; height: calc(100vh - 230px); min-height: 340px; max-height: 820px; display: block; background: #0b0d13; border-radius: 10px; }
-  @media (max-width: 900px) { canvas#chart { height: 62vh; } }
-  canvas#strip { width: 100%; height: 70px; display: block; margin-top: 6px; cursor: pointer; touch-action: none; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); }
-  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font: 12px var(--mono); color: var(--dim); margin-top: 6px; } .bar b { color: var(--text); } .bar input[type=range] { width: 110px; accent-color: var(--d4); }
-  .bar button { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 5px 10px; cursor: pointer; } #play { border-color: var(--d4); color: var(--d4); min-width: 84px; }
-  aside { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; align-self: start; }
-  #nname { font: 700 16px var(--mono); margin: 0 0 4px; } #nfacts { font: 12px/1.5 var(--mono); color: var(--dim); } #nfacts b { color: var(--text); }
-  .sub { font: 600 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 4px; }
-  .rx { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); color: var(--dim); padding: 2px 0; border-bottom: 1px solid var(--border); } .rx b { color: var(--text); font-weight: 500; }
-  canvas#spark { width: 100%; height: 110px; display: block; }
-  .note { font: 11px/1.5 var(--sans); color: var(--dim); }
-  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font: 10px var(--mono); color: var(--dim); margin-top: 3px; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+  .pin { position: sticky; top: 0; z-index: 5; height: 52vh; height: 52svh; min-height: 300px; display: flex; flex-direction: column; background: var(--bg); padding: 6px 12px 6px; box-sizing: border-box; border-bottom: 1px solid var(--border); }
+  .head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+  .head h1 { font: 800 15px var(--mono); letter-spacing: 0.06em; margin: 0; }
+  .head nav a { font-size: 11px; padding: 3px 7px; }
+  .stage { position: relative; flex: 1; min-height: 0; margin-top: 6px; }
+  canvas#chart { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: none; cursor: grab; }
+  .zoom { position: absolute; right: 8px; top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .zoom button, .ctl button { background: rgba(14,16,23,0.9); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 13px var(--mono); width: 34px; height: 30px; cursor: pointer; padding: 0; }
+  .zoom button.wide { width: auto; padding: 0 8px; font-size: 11px; } .zoom button.on { border-color: var(--d4); color: var(--d4); }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  canvas#strip { flex: 1; height: 54px; display: block; cursor: pointer; touch-action: none; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); min-width: 0; }
+  #play { border-color: var(--d4); color: var(--d4); }
+  .rest { padding: 12px 12px 48px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  #nname { font: 700 16px var(--mono); margin: 0 0 4px; } #nfacts { font: 12px/1.5 var(--mono); color: var(--dim); margin: 0; } #nfacts b { color: var(--text); }
+  .sub { font: 600 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 4px; }
+  .rx { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .rx b { display: block; font: 500 12px var(--mono); color: var(--text); } .rx span { font: 11px/1.4 var(--sans); color: var(--dim); } .rx em { font: 12px var(--mono); font-style: normal; color: var(--text); white-space: nowrap; }
+  canvas#spark { width: 100%; height: 120px; display: block; }
+  .note { font: 12px/1.55 var(--sans); color: var(--dim); }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font: 12px var(--mono); color: var(--dim); } .ctl b { color: var(--text); } .ctl input[type=range] { width: 120px; accent-color: var(--d4); }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font: 10px var(--mono); color: var(--dim); margin-top: 6px; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+  .key { display: inline-block; width: 14px; height: 14px; vertical-align: -3px; margin-right: 4px; border: 1.5px solid rgba(233,228,218,0.55); background: rgba(111,224,255,0.4); }
+  .key.u { border: 1px solid rgba(255,139,94,0.6); background: linear-gradient(225deg, #ff8b5e 0 26%, rgba(111,224,255,0.4) 26%); }
 </style>
 </head>
 <body>
-<div class="top">
-  <nav class="chapters" style="margin:0"><a href="../../" class="home">FOUR</a><a href="../" id="widget">how stars burn</a><a href="../../strong/">strong force</a></nav>
-  <h1>THE CHART OF NUCLEI</h1><span class="note">a heavy star's whole burning life · tap a nucleus</span>
+<div class="pin">
+  <div class="head"><nav class="chapters" style="margin:0"><a href="../../" class="home">FOUR</a><a href="../" id="widget">how stars burn</a></nav><h1>THE CHART OF NUCLEI</h1></div>
+  <div class="stage"><canvas id="chart"></canvas>
+    <div class="zoom"><button id="zin" title="zoom in">+</button><button id="zout" title="zoom out">−</button><button id="zfit" class="wide" title="the whole chart">fit</button><button id="zsel" class="wide" title="zoom to the selected nucleus">◎</button><button id="zfollow" class="wide" title="follow the core's matter as the life plays">follow</button></div></div>
+  <div class="row"><div class="ctl"><button id="play">▶</button><button id="back">⏮</button><button id="fwd">⏭</button></div><canvas id="strip" title="the whole life: drag to move through it"></canvas></div>
 </div>
-<div class="app">
-  <div>
-    <canvas id="chart"></canvas>
-    <canvas id="strip" title="the whole life: drag to move through it"></canvas>
-    <div class="legend" id="legend"></div>
-    <div class="bar"><button id="play">▶ play</button><button id="back">⏮</button><button id="fwd">⏭</button>
-      <label>speed <input type="range" id="speed" min="0" max="5" step="1" value="0" /> <b id="sval">×1</b></label>
-      <label>arrows <input type="range" id="arrows" min="4" max="40" step="1" value="16" /> <b id="aval">16</b></label></div>
-    <p class="note" id="star"></p>
-  </div>
-  <aside>
+<div class="rest">
+  <div class="card">
     <p id="nname"></p><p id="nfacts"></p>
     <div class="sub">across the whole life (by mass, log)</div>
     <canvas id="spark"></canvas>
-    <div class="sub">made now by</div><div id="makers"></div>
-    <div class="sub">destroyed now by</div><div id="breakers"></div>
-    <p class="note">Each square is a nucleus: neutrons across, protons up, brighter the more there is (down to a billionth). Arrows are the net flows of matter now, thicker the faster; those touching the selected nucleus are highlighted. The diagonal is N = Z, where helium-4's multiples sit: the heavy stages climb it, and silicon burning ends at its top, nickel-56. Rates from REACLIB; the star is the widget's.</p>
-  </aside>
+  </div>
+  <div class="card"><div class="sub" style="margin-top:0">made now by</div><div id="makers"></div></div>
+  <div class="card"><div class="sub" style="margin-top:0">destroyed now by</div><div id="breakers"></div></div>
+  <div class="card">
+    <div class="ctl"><label>speed <input type="range" id="speed" min="0" max="5" step="1" value="0" /> <b id="sval">×1</b></label><label>arrows <input type="range" id="arrows" min="4" max="40" step="1" value="16" /> <b id="aval">16</b></label></div>
+    <div class="legend" id="legend"></div>
+    <p class="note"><span class="key"></span>stable · <span class="key u"></span>unstable (positron decay or electron capture), half-life in the box when zoomed in. Neutrons across, protons up, each row an element; brighter the more of it there is in the core (down to a billionth by mass). Arrows are the net flows of matter now, thicker the faster; the ones touching the selected nucleus are highlighted.</p>
+    <p class="note">Zoom with the wheel, a pinch, a double tap or the buttons; drag to pan; tap a nucleus to select it. The diagonal is N = Z, where helium-4's multiples sit: the heavy stages climb it, and silicon burning ends at its top, nickel-56. Rates from REACLIB; half-lives from the standard tables.</p>
+    <p class="note" id="star"></p>
+  </div>
 </div>
 <script type="module" src="../js/chart.js"></script>
 </body>

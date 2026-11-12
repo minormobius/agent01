@@ -41,7 +41,9 @@ function spawn(k, edge = false) {
   else { p.x = 20 + Math.random() * (W - 40); p.y = 20 + Math.random() * (H - 40); }
   S.parts.push(p); return p;
 }
-function populate(Y) { S.parts = []; S.fx = []; for (const [k, c] of Object.entries(targets(Y))) for (let i = 0; i < c; i++) spawn(k); }
+/* the scene's size now; nuclei already placed are scaled with it */
+function sizeScene() { const c = $("gas"), w = c.clientWidth || W, h = c.clientHeight || H; if (w !== W || h !== H) { for (const p of S.parts) { p.x *= w / W; p.y *= h / H; if (p.tx != null) { p.tx *= w / W; p.ty *= h / H; } } W = w; H = h; } }
+function populate(Y) { sizeScene(); S.parts = []; S.fx = []; for (const [k, c] of Object.entries(targets(Y))) for (let i = 0; i < c; i++) spawn(k); }
 function reconcile(Y) {
   const tg = targets(Y), have = {}; for (const p of S.parts) if (!p.busy && !p.leaving) have[p.k] = (have[p.k] ?? 0) + 1;
   for (const k of new Set([...Object.keys(tg), ...Object.keys(have)])) { const d = (have[k] ?? 0) - (tg[k] ?? 0);
@@ -82,7 +84,7 @@ function step(dt) {
 }
 function wave(x, x0, y0, x1, y1, col) { const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L; x.strokeStyle = col; x.lineWidth = 1.5; x.beginPath(); for (let s = 0; s <= L; s += 2) { const w = 4 * Math.sin(s / 3); x.lineTo(x0 + (dx * s) / L + nx * w, y0 + (dy * s) / L + ny * w); } x.stroke(); }
 function drawGas() {
-  const c = $("gas"), r = devicePixelRatio || 1; W = c.clientWidth; H = c.clientHeight; if (c.width !== Math.round(W * r) || c.height !== Math.round(H * r)) { c.width = Math.round(W * r); c.height = Math.round(H * r); }
+  const c = $("gas"), r = devicePixelRatio || 1; sizeScene(); if (c.width !== Math.round(W * r) || c.height !== Math.round(H * r)) { c.width = Math.round(W * r); c.height = Math.round(H * r); }
   const x = c.getContext("2d"), R = L[stageOf()]; x.setTransform(r, 0, 0, r, 0, 0); x.fillStyle = "#0b0d13"; x.fillRect(0, 0, W, H);
   const glow = Math.min(1, Math.max(0, Math.log10(R.T / 1e7) / 2.6)); x.fillStyle = `rgba(255,${150 - 80 * glow},60,${0.05 + 0.07 * glow})`; x.fillRect(0, 0, W, H);
   const nA = S.parts.reduce((a, p) => a + NUC[IDX[p.k]].A, 0) / Math.max(1, S.parts.length), sc = Math.max(2.4, Math.min(5, W / 140) * Math.min(1, (12 / nA) ** 0.35));
@@ -129,7 +131,9 @@ function chart(cv, Y, fl, { labels = false } = {}) {
     x.strokeStyle = x.fillStyle = "rgba(255,180,107,0.9)"; x.lineWidth = wd; x.beginPath(); x.moveTo(x1, y1); x.lineTo(x2 - Math.cos(ang) * 3, y2 - Math.sin(ang) * 3); x.stroke(); x.beginPath(); x.moveTo(x2, y2); x.lineTo(x2 + Math.cos(ang + 2.5) * 5, y2 + Math.sin(ang + 2.5) * 5); x.lineTo(x2 + Math.cos(ang - 2.5) * 5, y2 + Math.sin(ang - 2.5) * 5); x.fill(); }
 }
 let lastRead = 0;
+let barStage = -1;
 function refresh() {
+  if (stageOf() !== barStage) { barStage = stageOf(); barrier(true); }
   const i = stageOf(), R = L[i], s = atLife(L, S.v), fl = fluxes(s.Y, R.k), tot = fl.reduce((a, b) => a + b, 0), nuclei = s.Y.reduce((a, b) => a + b, 0);
   const du = 0.01, u = s.u, dtdu = (at(R, Math.min(1, u + du)).t - at(R, Math.max(0, u - du)).t) / (Math.min(1, u + du) - Math.max(0, u - du));
   const per = (tot * (NSHOW / nuclei) * dtdu * (S.speed / S.pace)) / (Math.sqrt(S.speed) / 1.4);

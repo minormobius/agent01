@@ -10,23 +10,25 @@
 <link rel="stylesheet" href="../atom/css/atom4.css" />
 <style>
   body { margin: 0; }
-  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 16px 0; }
-  .top h1 { font: 800 18px var(--mono); letter-spacing: 0.06em; margin: 0; }
-  .app { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; padding: 8px 16px 12px; }
-  @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
-  canvas#gas { width: 100%; height: calc(100vh - 250px); min-height: 320px; max-height: 760px; display: block; border-radius: 10px; touch-action: none; }
-  @media (max-width: 900px) { canvas#gas { height: 58vh; } }
-  canvas#timeline { width: 100%; height: 70px; display: block; margin-top: 6px; cursor: pointer; touch-action: none; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); }
-  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font: 12px var(--mono); color: var(--dim); margin-top: 6px; }
-  .bar b { color: var(--text); } .bar input[type=range] { width: 110px; accent-color: var(--d4); }
-  .bar button, .pane button, select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 5px 10px; cursor: pointer; }
+  /* the scene, its timeline and its controls stay pinned to the top two-thirds; everything else scrolls under it */
+  .pin { position: sticky; top: 0; z-index: 5; height: 67vh; height: 67svh; min-height: 360px; display: flex; flex-direction: column; background: var(--bg); padding: 6px 12px; box-sizing: border-box; border-bottom: 1px solid var(--border); }
+  .head { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
+  .head h1 { font: 800 15px var(--mono); letter-spacing: 0.06em; margin: 0; } .head nav a { font-size: 11px; padding: 3px 7px; }
+  .scene { position: relative; flex: 1; min-height: 0; margin-top: 6px; }
+  canvas#gas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; border-radius: 10px; touch-action: none; }
+  canvas#timeline { width: 100%; height: 56px; display: block; margin-top: 6px; cursor: pointer; touch-action: none; border-radius: 8px; background: var(--panel); border: 1px solid var(--border); flex: none; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font: 12px var(--mono); color: var(--dim); margin-top: 6px; flex: none; }
+  .bar b { color: var(--text); } .bar input[type=range] { width: 100px; accent-color: var(--d4); }
+  .bar button, .card button, select { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 5px 10px; cursor: pointer; }
   #play { border-color: var(--d4); color: var(--d4); min-width: 84px; }
-  #stats { font: 11px/1.5 var(--mono); color: var(--dim); margin: 6px 0 0; } #stats b { color: var(--text); }
-  #log { display: grid; gap: 4px; margin-top: 6px; }
+  @media (max-width: 600px) { .bar .wide { display: none; } }
+  .rest { padding: 12px 12px 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+  .card h3 { font: 700 12px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 0 6px; }
+  #stats { font: 11px/1.5 var(--mono); color: var(--dim); margin: 0 0 6px; } #stats b { color: var(--text); }
+  #log { display: grid; gap: 4px; }
   .ev { font: 12px/1.4 var(--sans); color: var(--dim); border-left: 2px solid var(--border); padding-left: 8px; } .ev b { display: block; font: 600 12px var(--mono); color: var(--text); } .ev b i { font-style: normal; font-weight: 400; color: #e3cf7f; margin-left: 6px; }
   .ev.new { border-color: var(--d3); } .ev.new span { color: var(--text); }
-  aside { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; align-self: start; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 8px; } .tabs button { flex: 1; background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 6px; cursor: pointer; } .tabs button.on { color: var(--d4); border-color: var(--d4); }
   .k { margin: 8px 0; font: 12px var(--mono); color: var(--dim); } .k label { display: flex; justify-content: space-between; } .k b { color: var(--text); } .k input[type=range] { width: 100%; accent-color: var(--d4); }
   .k select { width: 100%; margin: 4px 0; }
   .sub { font: 600 11px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 4px; }
@@ -38,64 +40,64 @@
   canvas#mini { width: 100%; height: 220px; display: block; margin-top: 4px; }
   canvas.plot { width: 100%; height: 150px; display: block; margin-top: 6px; }
   .note { font: 11px/1.5 var(--sans); color: var(--dim); }
-  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font: 10px var(--mono); color: var(--dim); margin-top: 3px; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
-  #blurb { font: 12px/1.5 var(--sans); color: var(--text); margin: 0 0 6px; }
-  details.about { margin: 8px 16px 40px; max-width: 900px; } details.about summary { cursor: pointer; font: 600 13px var(--mono); color: var(--dim); }
+  .legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font: 10px var(--mono); color: var(--dim); margin-top: 6px; } .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; vertical-align: -1px; }
+  #blurb { font: 13px/1.5 var(--sans); color: var(--text); margin: 0 0 6px; }
+  details.about { margin: 0 12px 40px; max-width: 900px; } details.about summary { cursor: pointer; font: 600 13px var(--mono); color: var(--dim); }
   details.about p, details.about li { font-size: 14px; max-width: 820px; }
 </style>
 </head>
 <body>
-<div class="top">
-  <nav class="chapters" style="margin:0"><a href="../" class="home">FOUR</a><a href="chart/" id="open">the chart</a><a href="../strong/">strong force</a><a href="../atom/nuclei.html">nuclei</a></nav>
-  <h1>HOW STARS BURN</h1><span class="note">our world, the anchor for four dimensions · real reaction rates, cartoon nuclei</span>
+<div class="pin">
+  <div class="head"><nav class="chapters" style="margin:0"><a href="../" class="home">FOUR</a><a href="chart/" id="open">the chart</a><a href="../strong/">strong force</a></nav><h1>HOW STARS BURN</h1></div>
+  <div class="scene"><canvas id="gas"></canvas></div>
+  <canvas id="timeline" title="the star's whole life, its core's make-up across each stage: drag to move through it"></canvas>
+  <div class="bar">
+    <button id="play">❚❚ pause</button><button id="back" title="previous stage">⏮</button><button id="fwd" title="next stage">⏭</button>
+    <label>speed <input type="range" id="speed" min="0" max="6" step="1" value="0" /> <b id="sval">×1</b></label>
+    <label>show <select id="rare"><option value="0">as they happen</option><option value="1">rare ones more often</option><option value="2">rare ones often</option><option value="3">every kind about equally</option></select> <b id="rarev" hidden></b></label>
+    <label class="wide"><input type="checkbox" id="carry" checked /> carry on</label>
+  </div>
 </div>
-<div class="app">
-  <div>
-    <canvas id="gas"></canvas>
-    <canvas id="timeline" title="the star's whole life, its core's make-up across each stage: drag to move through it"></canvas>
-    <div class="legend" id="legend"></div>
-    <div class="bar">
-      <button id="play">❚❚ pause</button><button id="back" title="previous stage">⏮</button><button id="fwd" title="next stage">⏭</button>
-      <label>speed <input type="range" id="speed" min="0" max="6" step="1" value="0" /> <b id="sval">×1</b></label>
-      <label>show reactions <select id="rare"><option value="0">as they happen</option><option value="1">rare ones more often</option><option value="2">rare ones often</option><option value="3">every kind about equally</option></select> <b id="rarev" hidden></b></label>
-      <label><input type="checkbox" id="carry" checked /> carry on into the next stage</label>
-    </div>
+<div class="rest">
+  <div class="card">
+    <h3>Now</h3>
+    <p id="blurb"></p>
     <p id="stats"></p>
     <div id="log"></div>
   </div>
-  <aside>
-    <div class="tabs"><button class="on" data-p="pknob">Knobs</button><button data-p="pmake">Make-up</button><button data-p="pbar">Barrier</button></div>
-    <div class="pane" id="pknob">
-      <div class="sub">this stage · <span id="stagename"></span></div>
-      <div class="k"><label>temperature <b id="Tv"></b></label><input type="range" id="Tk" min="-0.3" max="0.3" step="0.005" value="0" /></div>
-      <div class="k"><label>density <b id="rv"></b></label><input type="range" id="rk" min="-2" max="2" step="0.02" value="0" /></div>
-      <div class="sub">the star it starts as</div>
-      <div class="k"><label>carbon, nitrogen, oxygen <b id="zv"></b></label><input type="range" id="zk" min="-2" max="1" step="0.02" value="0" /></div>
-      <div class="k"><label>helium at birth <b id="hv"></b></label><input type="range" id="hk" min="0.2" max="0.45" step="0.005" value="0.29" /></div>
-      <div class="sub">turn a reaction up or down (and its reverse)</div>
-      <div class="k"><select id="rsel"></select><label>rate <b id="mv"></b></label><input type="range" id="mk" min="-2" max="2" step="0.02" value="0" /></div>
-      <div id="chips"></div>
-      <div class="bar"><button id="reset">reset all</button><span class="note" id="busy"></span></div>
-      <div class="sub" id="ashlabel">What this stage leaves</div>
-      <div id="ash"></div>
-      <p class="note">Bars are your star; the orange tick is the standard one. Every change reruns the network from the stage it touches, and later stages start from the new ash.</p>
-    </div>
-    <div class="pane" id="pmake" hidden>
-      <p id="blurb"></p>
-      <div class="sub">the core now (by mass)</div>
-      <div id="comp"></div>
-      <div class="sub">the flow on the chart of nuclei</div>
-      <canvas id="mini"></canvas>
-      <p class="note">Neutrons across, protons up; brighter where there's more, arrows where matter flows now. <a href="chart/" id="open2" style="color:var(--text)">Open the chart →</a></p>
-    </div>
-    <div class="pane" id="pbar" hidden>
-      <div class="k"><select id="pair"><option value="0">p + p</option><option value="1">p + ¹⁴N</option><option value="2">⁴He + ⁴He</option><option value="3">⁴He + ¹²C</option><option value="4">¹²C + ¹²C</option><option value="5">⁴He + ²⁰Ne</option><option value="6">¹⁶O + ¹⁶O</option><option value="7">⁴He + ²⁸Si</option></select><label>temperature <b id="tval"></b></label><input type="range" id="temp" min="6.8" max="9.7" step="0.01" value="7.2" /></div>
-      <canvas class="plot" id="pot"></canvas>
-      <canvas class="plot" id="gamow"></canvas>
-      <p class="note" id="bnums"></p>
-      <p class="note">Nuclei repel; to fuse they must tunnel through the electric hill (top). Few have much energy (grey), tunnelling needs a lot (blue): fusion happens in the narrow overlap (orange), the Gamow window.</p>
-    </div>
-  </aside>
+  <div class="card">
+    <h3>Knobs</h3>
+    <div class="sub" style="margin-top:0">this stage · <span id="stagename"></span></div>
+    <div class="k"><label>temperature <b id="Tv"></b></label><input type="range" id="Tk" min="-0.3" max="0.3" step="0.005" value="0" /></div>
+    <div class="k"><label>density <b id="rv"></b></label><input type="range" id="rk" min="-2" max="2" step="0.02" value="0" /></div>
+    <div class="sub">the star it starts as</div>
+    <div class="k"><label>carbon, nitrogen, oxygen <b id="zv"></b></label><input type="range" id="zk" min="-2" max="1" step="0.02" value="0" /></div>
+    <div class="k"><label>helium at birth <b id="hv"></b></label><input type="range" id="hk" min="0.2" max="0.45" step="0.005" value="0.29" /></div>
+    <div class="sub">turn a reaction up or down (and its reverse)</div>
+    <div class="k"><select id="rsel"></select><label>rate <b id="mv"></b></label><input type="range" id="mk" min="-2" max="2" step="0.02" value="0" /></div>
+    <div id="chips"></div>
+    <div class="bar"><button id="reset">reset all</button><span class="note" id="busy"></span></div>
+    <div class="sub" id="ashlabel">What this stage leaves</div>
+    <div id="ash"></div>
+    <p class="note">Bars are your star; the orange tick is the standard one. Every change reruns the network from the stage it touches, and later stages start from the new ash.</p>
+  </div>
+  <div class="card">
+    <h3>Make-up</h3>
+    <div id="comp"></div>
+    <div class="sub">the flow on the chart of nuclei</div>
+    <canvas id="mini"></canvas>
+    <p class="note">Neutrons across, protons up; brighter where there's more, arrows where matter flows now. <a href="chart/" id="open2" style="color:var(--text)">Open the chart, zoomable →</a></p>
+    <div class="sub">the strip's colours</div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="card" id="pbar">
+    <h3>Why it's hard: the barrier</h3>
+    <div class="k"><select id="pair"><option value="0">p + p</option><option value="1">p + ¹⁴N</option><option value="2">⁴He + ⁴He</option><option value="3">⁴He + ¹²C</option><option value="4">¹²C + ¹²C</option><option value="5">⁴He + ²⁰Ne</option><option value="6">¹⁶O + ¹⁶O</option><option value="7">⁴He + ²⁸Si</option></select><label>temperature <b id="tval"></b></label><input type="range" id="temp" min="6.8" max="9.7" step="0.01" value="7.2" /></div>
+    <canvas class="plot" id="pot"></canvas>
+    <canvas class="plot" id="gamow"></canvas>
+    <p class="note" id="bnums"></p>
+    <p class="note">Nuclei repel; to fuse they must tunnel through the electric hill (top). Few have much energy (grey), tunnelling needs a lot (blue): fusion happens in the narrow overlap (orange), the Gamow window. The pair and temperature follow the stage until you change them.</p>
+  </div>
 </div>
 <details class="about">
   <summary>About this widget: what's real, what's cartoon</summary>

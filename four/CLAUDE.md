@@ -154,19 +154,23 @@ for games, and this is a modelling programme with publications to come. The game
   one stands for), the composition, the chart of nuclides with the strongest net flows. `fusion/test/fusion.selftest.mjs`
   (~2 s): p + p against the S(0) formula, triple-alpha against CF88's Hoyle term, mass kept, each stage's ash, the stages
   shortening, 26.73 MeV per helium-4 through the pp chains, and the knobs.
-  **Widget first (PI, 2026-11-12: "the widget is everything"):** the page is a viewer: the gas window large, under it the
-  whole life as one strip (`js/strip.js`: the core's make-up by mass across every stage, coloured by element; drag to
-  move, "carry on" runs straight through all seven stages), and a side panel with three tabs: **Knobs** (this stage's T
+  **Widget first (PI, 2026-11-12: "the widget is everything"):** the page is a viewer. **Pinned to the top two-thirds**
+  (`.pin`, `position: sticky`, 67svh; PI, 2026-11-12): the gas window, under it the whole life as one strip (`js/strip.js`: the core's make-up by mass across every stage, coloured by element; drag to
+  move, "carry on" runs straight through all seven stages), and the play bar; below it, scrolling under the pin, cards: **Now** (the stage's text, stats, the event log), **Knobs** (this stage's T
   and ρ, the star's metals and helium, and any of `life.js`'s `KNOBS` reactions ×0.01–100 with its reverse, so detailed
   balance holds; every change reruns the network from the stage it touches, ~0.5–1 s, and the ash is shown against the
-  standard run), **Make-up** (composition, the stage's text, a mini chart) and **Barrier**. "Show reactions" samples
+  standard run), **Make-up** (composition, a mini chart, the strip's colours) and **Barrier** (follows the stage until changed). "Show reactions" samples
   events ∝ rate^γ (γ 1 → 0.15) so rare reactions appear, each labelled with its real share. **Pause freezes everything**:
   the cartoon runs on its own clock `S.vt`, which only advances while playing. The prose is in a closed `<details>`.
   `js/life.js` (no DOM): `runLife(cfg, keep)` reuses stages whose settings haven't changed; the settings ride in the
   address hash (`encode`/`decode`), and `?v=` is the place on the timeline. `js/text.js` holds the reaction words.
-  **The chart of nuclei at `/fusion/chart/`** (`js/chart.js`): the full chart, the same strip and the same star; tap a
-  nucleus for its makers and breakers now (shares of its production and destruction) and its abundance across the
-  whole life. Next: the 4D version beside ours (the strong-force dial's network).
+  **The chart of nuclei at `/fusion/chart/`** (`js/chart.js`): pinned to the top half (52svh) with the same strip, the
+  details scrolling below. Zoom (wheel, pinch, double tap, buttons) and pan (drag); from 64 px a cell each nucleus is a
+  classic chart box (mass number and symbol, its share of the core now, "stable" or β⁺ and its half-life from `HALF`,
+  standard tables; unstable boxes carry an orange corner), rows labelled by element. **Follow** (on by default, off when
+  you pan or zoom by hand) fills the strip's width and eases the view to the core's matter (√mass-weighted), so playing
+  the life walks the view up the chart from hydrogen to nickel. Tap a nucleus for its makers and breakers now (shares of
+  its production and destruction) and its abundance across the whole life. Next: the 4D version beside ours (the strong-force dial's network).
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
