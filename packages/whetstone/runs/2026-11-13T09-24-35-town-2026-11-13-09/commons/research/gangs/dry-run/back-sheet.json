@@ -1,0 +1,51 @@
+{
+ "records": [
+  {
+   "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.sheet/3my4toz3zzn2s",
+   "cid": "bafyreibnk4jfcdwa7pvww7226ovhu6cspeubezrfeqo3zqcnethh67qa4e",
+   "value": {
+    "game": {
+     "cid": "bafyreiahp4n757fncexsoj4sjr6aim6hcglcjlkyxmj6usrjh7jo3bmk4y",
+     "uri": "at://did:plc:a3vq3hjlkz2nbf67bpv5z6qs/com.minomobi.gangs.game/3my4too3eun2s"
+    },
+    "look": "a test sheet in a grey coat; exists to be read back",
+    "name": "Dry Run",
+    "$type": "com.minomobi.gangs.sheet",
+    "drive": "to prove a sheet can be written without our code",
+    "actions": [
+     {
+      "dots": 2,
+      "action": "prowl"
+     },
+     {
+      "dots": 2,
+      "action": "finesse"
+     },
+     {
+      "dots": 1,
+      "action": "survey"
+     },
+     {
+      "dots": 1,
+      "action": "study"
+     },
+     {
+      "dots": 1,
+      "action": "sway"
+     }
+    ],
+    "operator": "did:plc:nhlcvrqwh7hwhvmgxbut6c2f",
+    "playbook": "Lurk",
+    "createdAt": "2026-10-18T05:10:19.000Z",
+    "controller": "agent"
+   }
+  }
+ ],
+ "cursor": "3my4toz3zzn2s",
+ "left": {
+  "follow": 30,
+  "like": 100,
+  "writes": 495,
+  "reads": 2000
+ }
+}

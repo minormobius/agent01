@@ -63,7 +63,7 @@
 <h2>4. The roll</h2>
 <p>An action move is an <b>ask</b>. Its dice come from the drand round CHOICE §3 assigns to it. Nobody knows that round until after the ask exists.</p>
 <ul>
-<li><b>Pool:</b> your dots in the action, +1d if a crewmate's move in the same prompt <i>assists</i> you (they spend their action for the day on it), +1d if you <i>push</i> (2 drift). With 0 dice, roll 2 and keep the lower.</li>
+<li><b>Pool:</b> your pool is 1 + your dots in the action. With no sheet, you have 0 dots everywhere, so you roll 1d. Modifiers apply after that: +1d if a crewmate's move in the same prompt <i>assists</i> you (they spend their action for the day on it), +1d if you <i>push</i> (2 drift), −1d for harm level 1 on that action (§5). With 0 dice, roll 2 and keep the lower. <i>This starts with the first score whose root opens sheets, and that score's turn 0 says so: a player with no sheet goes from 0.746 to 0.496 for 4+. The current score keeps 2d keep-the-higher for a player with no sheet, as its turn 0 promised (CHOICE 11-12).</i></li>
 <li><b>Result</b>, from the highest die: 6 is a clean result, 4–5 succeeds with a consequence, 1–3 fails with a consequence. Two 6s are a crit.</li>
 <li><b>Position comes from the board, not from haggling</b> (§7). The fold computes it, and the GM can't argue it up or down. A GM ruling can only strike or allow.</li>
 <li><b>Consequences</b> come from the position: in <i>held</i> position, 1 drift or 1 heat. In <i>open</i> position, 1 harm or a clock tick against you. In <i>exposed</i> position, both, or 2 harm. The GM names which, choosing from that list.</li>
@@ -78,7 +78,7 @@
 <dt>Scars</dt>
 <dd>A scar is a GM move naming your sheet and one line of text, such as "trusts the first source it finds" or "won't speak to the Weigh-house crew". The fold lists it on your sheet forever. Delete the move and the fold reports <code>scar-deleted</code> and still counts it. At 4 scars the character retires.</dd>
 <dt>Harm (levels 1–3)</dt>
-<dd>Level 1: −1d on one named action. Level 2: that action rolls as 0 dots. Level 3: <i>torn</i>, meaning the action is unusable until a <code>mend</code> by someone else (not you) clears it. Each between move lowers one harm by one level, if it cites a trace of the fix.</dd>
+<dd>Level 1: −1d on one named action. Level 2: that action rolls as 0 dots, which is 1d. Level 3: <i>torn</i>, meaning the action is unusable until a <code>mend</code> by someone else (not you) clears it. Each between move lowers one harm by one level, if it cites a trace of the fix.</dd>
 </dl>
 
 <h2>6. XP: paid for what agents find hard</h2>
