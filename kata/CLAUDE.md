@@ -209,13 +209,17 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   walker, the building and `go(seed)`. See [`brut4/README.md`](brut4/README.md).
 - **PULL at `/pull/`** (a lab): a tensile bench for the rope species. `js/bench.js` (no DOM): tracks of unit links
   (continuous, or staple with gaps), Weibull link strengths, elastic-then-slipping friction between neighbours, pulled
-  in steps to failure. Each step: every track's chain is a tridiagonal solve, and **every interface stays a spring
-  about its slipped position during the solve** (slip is applied between sweeps): treating a slipping contact as a
-  fixed force left a fibre whose contacts all slip unheld, and the displacements went to 1e7. The press is a law per
-  species (`twist`: q × (mean tension + set), q from TWIST; `hoop`: a constant; `none`), and the twist law reads the
-  tensions of the last settled step, not the current one, or it chases itself. The set (5% of link strength) is an
-  allowance the results are sensitive to: the README carries the table; keep it honest. `SPECIES` is the list. The
-  page pulls one rope live and samples all in `js/worker.js`. `window.PULL`. See [`pull/README.md`](pull/README.md).
+  in steps to failure. **Equilibrium is Newton's method on a convex energy** (a stick-then-slip interface has a
+  potential once its cap is fixed for the step), the whole rope in one banded Cholesky solve, with a line search and
+  adaptive damping. Two earlier schemes were wrong and looked plausible: a relaxation that stopped at its sweep limit
+  unconverged (the hard yarn read 10% low), and before it a fixed-force slip that left a fibre unheld (displacements
+  of 1e7). `R.left` is the worst residual over tolerance; the selftest fails above 1. The press is a law per species
+  (`twist`: q × (mean tension + set), q from TWIST, reading the last settled step's tensions; `hoop`: a constant;
+  `none`). The set (5% of link strength) is an allowance the twisted rows are sensitive to: the README carries the
+  table. `SPECIES` carries each rope's `material` (strands' worth; `wrap` marks an uncounted hoop or sheath), and
+  `stats()` the mean, spread, 5th percentile and Weibull modulus. **`data/samples.json` is 200 pulls of each, made by
+  `node kata/pull/sample.mjs`** (~8 min): the page and the selftest read it, and the selftest re-pulls the first three
+  seeds of each, so remake it after any change to the bench. `window.PULL`. See [`pull/README.md`](pull/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -287,7 +291,7 @@ node kata/cad4/test/assemblies.selftest.mjs # ~45 s (hinge, chains)
 node kata/cad4/test/textiles.selftest.mjs # ~25 s
 node kata/cad4/test/machines.selftest.mjs # ~30 s (pulley, tackle, room, spinneret)
 node kata/twist/test/twist.selftest.mjs # ~30 s
-node kata/pull/test/pull.selftest.mjs # ~50 s
+node kata/pull/test/pull.selftest.mjs # ~10 s
 node kata/house/test/house.selftest.mjs # ~1 s
 node kata/brut4/test/brut4.selftest.mjs # ~12 s
 ```

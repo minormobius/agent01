@@ -11,7 +11,8 @@ section, #plot, table { background: var(--panel); border: 1px solid rgba(255, 25
 section { padding: 10px 12px; } h2 { font: 700 12px var(--mono); letter-spacing: 0.06em; color: var(--gold); margin: 0 0 8px; }
 #rope { display: block; width: 100%; height: 210px; } .row { display: flex; gap: 12px; align-items: center; margin-top: 8px; font: 12px var(--mono); color: var(--dim); }
 #plot { display: block; width: 100%; height: 230px; margin-top: 10px; }
-table { width: 100%; margin-top: 10px; border-collapse: collapse; font: 12px var(--mono); overflow: hidden; } th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); } th { color: var(--dim); font-weight: 400; } td.n { text-align: right; } th:nth-child(n+3) { text-align: right; } td.big { color: var(--gold); font-weight: 700; } td.nil { color: var(--kata); font-weight: 700; } td small { color: var(--dim); }
+table { width: 100%; margin-top: 10px; border-collapse: collapse; font: 12px var(--mono); overflow: hidden; } th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); } th { color: var(--dim); font-weight: 400; } td.n { text-align: right; } td.big { color: var(--gold); font-weight: 700; } td.nil { color: var(--kata); font-weight: 700; } td small { color: var(--dim); }
 tr.on td { background: rgba(255, 210, 122, 0.06); } td i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 7px; vertical-align: -1px; }
 .foot { font: 13px/1.6 var(--sans); color: var(--dim); margin: 12px 2px 0; } .foot a, .foot b { color: var(--text); }
-@media (max-width: 620px) { th:nth-child(6), td:nth-child(6) { display: none; } }
+#tabW { overflow-x: auto; } td.strip { padding: 3px 9px; } td.strip canvas { display: block; } th:nth-child(n+2) { text-align: right; } th:last-child { text-align: left; }
+@media (max-width: 720px) { th:nth-child(4), td:nth-child(4), th:nth-child(7), td:nth-child(7) { display: none; } }

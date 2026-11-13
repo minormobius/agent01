@@ -1,9 +1,10 @@
-/* PULL's page: one rope pulled live on the page's thread (a step a frame), every species sampled in a worker for the table */
-import { makeRope, SPECIES } from "./bench.js";
-const $ = (id) => document.getElementById(id), COL = ["#9a958c", "#ffd27a", "#ffab5e", "#ff66b8", "#8be28a", "#4fd08a", "#6fe0ff", "#3aa6ff", "#b49cff", "#e6e1d6"], SEEDS = 6, STEPS = 110, STRAIN = 0.045;
-const res = Object.fromEntries(SPECIES.map((s) => [s.id, { peaks: [], broke: 0, slip: 0, curve: null }]));
-let cur = "rope4", live = null, seed = 1, done = false;
-window.PULL = { res, get live() { return live; }, get done() { return done; } };
+/* PULL's page: one rope pulled live on the page's thread (a step a frame); the table and the distributions come from
+   data/samples.json, 200 pulls of every species made by sample.mjs with the same bench */
+import { makeRope, SPECIES, stats } from "./bench.js";
+const $ = (id) => document.getElementById(id), COL = ["#9a958c", "#c9b48a", "#ffd27a", "#ffab5e", "#ff66b8", "#8be28a", "#4fd08a", "#6fe0ff", "#3aa6ff", "#b49cff", "#e6e1d6"], STEPS = 110, STRAIN = 0.045;
+let cur = "rope4", live = null, seed = 1, DATA = null, ST = {};
+window.PULL = { get live() { return live; }, get stats() { return ST; }, get data() { return DATA; } };
+const refOf = () => (ST.strand ? ST.strand.mean : 0.0066);
 SPECIES.forEach((sp, i) => { const b = document.createElement("button"); b.type = "button"; b.dataset.id = sp.id; b.innerHTML = `<i>${sp.dim}</i>${sp.name}`; b.style.borderLeft = `3px solid ${COL[i]}`; b.addEventListener("click", () => { cur = sp.id; seed = 1; start(); }); $("species").append(b); });
 function start() { const sp = SPECIES.find((s) => s.id === cur); live = { sp, R: makeRope({ ...sp.opts, seed }), k: 0, curve: [], peak: 0 }; for (const b of $("species").children) b.classList.toggle("on", b.dataset.id === cur); $("liveT").textContent = `${sp.dim} · ${sp.name} · sample ${seed}`; table(); }
 $("goB").addEventListener("click", () => { seed++; start(); });
@@ -14,20 +15,23 @@ function drawRope() { const cv = $("rope"), dpr = Math.min(window.devicePixelRat
   for (let i = 0; i < R.T; i++) for (let s = 0; s < L; s++) { if (!R.ok[i][s]) continue; const t = Math.max(0, (R.u[i][s + 1] - R.u[i][s]) * (live.sp.opts.ribbon && i === 0 ? live.sp.opts.ribbon.k : 1)) / R.str[i][s], c = Math.min(1, t); x.fillStyle = `rgb(${Math.round(60 + 195 * c)},${Math.round(90 + 120 * Math.sin(c * Math.PI))},${Math.round(150 - 110 * c)})`; x.fillRect(pad + s * cw + 0.4, y0 + i * rh + 1.5, Math.max(1, cw - 0.8), (live.sp.opts.ribbon && i === 0 ? rh : rh - 3)); }
   x.fillStyle = "#9a958c"; x.font = "10px ui-monospace, Menlo, monospace"; x.textAlign = "left"; x.fillText("jaw", 0, y0 - 8); x.textAlign = "right"; x.fillText("jaw →", w, y0 - 8); }
 function plot() { const cv = $("plot"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
-  const ref = mean(res.strand.peaks) || 0.0071, curves = SPECIES.map((sp, i) => ({ id: sp.id, c: COL[i], v: sp.id === cur && live ? live.curve : res[sp.id].curve })).filter((q) => q.v && q.v.length), top = Math.max(1.5, ...curves.map((q) => Math.max(...q.v) / ref)) * 1.08, X = (k) => 38 + (k / STEPS) * (w - 50), Y = (v) => h - 24 - (v / ref / top) * (h - 44);
+  const ref = refOf(), curves = SPECIES.map((sp, i) => ({ id: sp.id, c: COL[i], v: sp.id === cur && live ? live.curve : DATA && DATA.curve[sp.id] })).filter((q) => q.v && q.v.length), top = Math.max(1.5, ...curves.map((q) => Math.max(...q.v) / ref)) * 1.08, X = (k) => 38 + (k / STEPS) * (w - 50), Y = (v) => h - 24 - (v / ref / top) * (h - 44);
   x.strokeStyle = "rgba(255,255,255,0.14)"; x.fillStyle = "#9a958c"; x.font = "10px ui-monospace, Menlo, monospace"; x.textAlign = "right"; for (let g = 0; g <= top; g += top > 9 ? 4 : 1) { x.beginPath(); x.moveTo(38, Y(g * ref)); x.lineTo(w - 12, Y(g * ref)); x.stroke(); x.fillText(String(g), 32, Y(g * ref) + 3); }
   x.textAlign = "left"; x.fillText("force, in strands", 8, 12); x.textAlign = "right"; x.fillText(`stretch → ${(STRAIN * 100).toFixed(1)}%`, w - 12, h - 7);
   for (const q of curves) { x.strokeStyle = q.c; x.lineWidth = q.id === cur ? 2.4 : 1.2; x.globalAlpha = q.id === cur ? 1 : 0.55; x.beginPath(); q.v.forEach((v, k) => (k ? x.lineTo(X(k + 1), Y(v)) : x.moveTo(X(1), Y(v)))); x.stroke(); } x.globalAlpha = 1; }
-const mean = (a) => (a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0);
-function table() { const tb = $("tab").tBodies[0], ref = mean(res.strand.peaks); tb.textContent = "";
-  SPECIES.forEach((sp, i) => { const r = res[sp.id], n = r.peaks.length, st = n && ref ? mean(r.peaks) / ref : null, tr = document.createElement("tr"); if (sp.id === cur) tr.className = "on";
-    const mode = !n ? "" : st < 0.05 ? "falls apart" : r.slip / n > 0.3 ? (r.broke / n > 0.8 ? "slipping, then breaking" : "slipping") : "fibres breaking";
-    tr.innerHTML = `<td><i style="background:${COL[i]}"></i>${sp.name}</td><td>${sp.dim}</td><td class="n">${sp.opts.ribbon ? sp.fibres + " + ribbon" : sp.fibres}</td><td class="n ${st === null ? "" : st < 0.05 ? "nil" : "big"}">${st === null ? "…" : st.toFixed(st < 10 ? 2 : 1)} <small>n=${n}</small></td><td class="n">${st === null || sp.opts.ribbon ? "—" : (st / sp.fibres).toFixed(2)}</td><td>${mode}</td>`; tr.addEventListener("click", () => { cur = sp.id; seed = 1; start(); }); tb.append(tr); });
-  $("note").innerHTML = done ? `Each strength is the mean of ${SEEDS} samples. The ribbon is a continuous member worth two strands by itself, so those rows are not per fibre. A rope can beat one strand per fibre: friction lets a broken fibre take load again a little way along, so one weak spot costs a short stretch, not the whole fibre.` : "sampling every species in the background…"; }
-const worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" });
-worker.onmessage = (ev) => { const m = ev.data; if (m.done) { done = true; table(); return; } const r = res[m.id]; r.peaks.push(m.peak); r.broke += m.broke; r.slip += m.slip; if (m.curve) r.curve = m.curve; table(); plot(); };
-worker.postMessage({ seeds: SEEDS });
-function tick() { if (live && live.k < STEPS) { live.k++; const F = live.R.pull((STRAIN * (live.R.S - 1) * live.k) / STEPS); live.curve.push(F); live.peak = Math.max(live.peak, F); drawRope(); plot(); const ref = mean(res.strand.peaks) || 0.0071; $("liveS").textContent = `stretch ${((STRAIN * 100 * live.k) / STEPS).toFixed(2)}% · force ${(F / ref).toFixed(2)} strands · peak ${(live.peak / ref).toFixed(2)} · ${live.R.broke} breaks · ${(live.R.slipping() * 100).toFixed(0)}% of contacts slipping`; }
+/* the table: every figure in strands (one continuous strand's mean strength = 1). material counts what carries load,
+   in strands' worth; specific = strength per material; the strip is all 200 pulls, the tick their 5th percentile */
+function table() { const tb = $("tab").tBodies[0], ref = refOf(); tb.textContent = ""; if (!DATA) return;
+  const top = Math.max(...SPECIES.map((sp) => ST[sp.id].max / ref / sp.material)) * 1.05;
+  SPECIES.forEach((sp, i) => { const t = ST[sp.id], m = t.mean / ref, tr = document.createElement("tr"); if (sp.id === cur) tr.className = "on"; const dead = m < 0.02;
+    tr.innerHTML = `<td><i style="background:${COL[i]}"></i>${sp.name} <small>${sp.dim}</small></td><td class="n">${sp.material}${sp.wrap ? "<small>+w</small>" : ""}</td><td class="n ${dead ? "nil" : "big"}">${m.toFixed(m < 10 ? 2 : 1)} <small>± ${(t.sd / ref).toFixed(2)}</small></td><td class="n">${dead ? "—" : (t.cv * 100).toFixed(0) + "%"}</td><td class="n">${dead ? "—" : (t.p5 / ref).toFixed(m < 10 ? 2 : 1)}</td><td class="n ${dead ? "nil" : "big"}">${(m / sp.material).toFixed(2)}</td><td class="n">${dead ? "—" : (t.p5 / ref / sp.material).toFixed(2)}</td><td class="strip"><canvas></canvas></td>`;
+    tr.addEventListener("click", () => { cur = sp.id; seed = 1; start(); }); tb.append(tr);
+    const cv = tr.querySelector("canvas"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = 150, h = 18; cv.style.width = w + "px"; cv.style.height = h + "px"; cv.width = w * dpr; cv.height = h * dpr; const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    x.fillStyle = COL[i]; x.globalAlpha = 0.28; for (const v of DATA.peaks[sp.id]) x.fillRect((v / ref / sp.material / top) * (w - 2), 3, 1.2, h - 6); x.globalAlpha = 1; x.fillStyle = "#e9e4da"; x.fillRect((t.mean / ref / sp.material / top) * (w - 2), 0, 1.5, h); x.fillStyle = "#ff6a4a"; x.fillRect((t.p5 / ref / sp.material / top) * (w - 2), 2, 1.5, h - 4); });
+  const loose = ST.fil4.mean / 13, rope = ST.rope4.mean / 13;
+  $("note").innerHTML = `Each row is <b>${DATA.n} pulls</b>. Strength is the peak force in <b>strands</b> (one continuous strand's mean = 1). <b>Material</b> is what carries load, in strands' worth (a ribbon is two); <small>+w</small> marks a hoop or sheath whose own weight is <b>not</b> counted. <b>Specific</b> is strength per material; the strip shows every pull's, with the mean in white and the 5th percentile in red. The sheathed rope beats the loose bundle by ${(rope / loose).toFixed(2)}×, so it stays ahead on specific strength until its sheath weighs ${(((rope / loose) - 1) * 100).toFixed(0)}% of its core.`; }
+function tick() { if (live && live.k < STEPS) { live.k++; const F = live.R.pull((STRAIN * (live.R.S - 1) * live.k) / STEPS); live.curve.push(F); live.peak = Math.max(live.peak, F); drawRope(); plot(); const ref = refOf(); $("liveS").textContent = `stretch ${((STRAIN * 100 * live.k) / STEPS).toFixed(2)}% · force ${(F / ref).toFixed(2)} strands · peak ${(live.peak / ref).toFixed(2)} · ${live.R.broke} breaks · ${(live.R.slipping() * 100).toFixed(0)}% of contacts slipping`; }
   requestAnimationFrame(tick); }
 addEventListener("resize", () => { if (live) { drawRope(); plot(); } });
 start(); requestAnimationFrame(tick);
+fetch("data/samples.json").then((r) => r.json()).then((d) => { DATA = d; for (const sp of SPECIES) ST[sp.id] = stats(d.peaks[sp.id]); table(); plot(); });
