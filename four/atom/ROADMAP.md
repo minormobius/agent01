@@ -23,7 +23,7 @@ across the choices it rests on, and any conclusion that flips inside a band is n
 | | objective | today | the gap |
 |---|---|---|---|
 | A1 | **the weak force in 4 + 1** | entirely ours: our coupling, neutron lifetime and freeze-out, ¹³N's ft, and 3D lepton phase space | not reasoned at all |
-| A2 | **the strong force, reasoned** | a strength dial s on a borrowed shape (Minnesota, Malfliet–Tjon), its window set by the deuteron and the diproton | no tensor or spin–orbit force; the three-nucleon repulsion fitted to our matter; Brink's grid and the ladder disagree ×2 on a helium-4 onto ceryllium-8 |
+| A2 | **the strong force, reasoned** | a strength dial s on a borrowed shape (Minnesota, Malfliet–Tjon), its window set by the deuteron and the diproton | no tensor or spin–orbit force; the three-nucleon repulsion fitted to our matter; Brink's grid and the ladder bracket ours' masses from either side (one model adopted, masses-1), and they disagree on the one mass that decides a CNO-like cycle |
 | B | **it doesn't collapse** | Pauli derived; one atom stable by scaling; a Chandrasekhar mass in pinned 4D | bulk matter (stability of the second kind); nuclear matter saturating without our fitted repulsion; what collapsing cores end as |
 | C | **4D solar lifetimes** | a convention: k_pp is set so a Sun-like core halves its hydrogen in 4.6 Gyr | an absolute weak rate (A1) through the main sequence (js/mainseq.js) at each G and s |
 | D | **the universe's composition over its age** | the first minutes (helium where the deuteron binds as ours), a rough "what stars give back", the burning network | yields per stellar mass; a one-zone galaxy enriching over time; the heavy elements (no neutron source, 2026-11-12) |
@@ -45,6 +45,13 @@ across the choices it rests on, and any conclusion that flips inside a band is n
 - **A2. The strong force, from a dial to an argument.** The long-range tail from pion exchange in 4D (Yukawa's
   d-dimensional form); a tensor force; whether 4D nuclear matter saturates without our three-nucleon repulsion; the Brink
   against ladder disagreement settled. Then the default s = 1.5152 justified or replaced. Weeks, with runner jobs.
+  **First result (2026-11-13, run `masses-1`, `fusion/tools/nuc4.mjs` `MASS`):** on ours against measured masses the
+  ladder underbinds α clusters and Brink's grid overbinds them, more with size, so neither is "the" answer: the adopted
+  model keeps the ladder's nuclei and scales the grid's separations by the two methods' helium-4 separation on the same
+  core (ours to a median 29%), and the grid is the band's other edge. Six helium-4s are bound either way. The one result
+  the band flips is the CNO-like cycle on ceryllium-8 (5-11 + p → ⁴He + ⁸Ce): open at s ≤ 1.6 in the adopted model,
+  closed in the grid, and ours can't decide it; with it, low-s stars burn hydrogen to helium at 8–11 MK, without it they
+  climb to elements 8–12. A third method on that one nucleus is the next step.
 - **B. Doesn't collapse** (beside A): energy per atom extensive in growing 4D crystals (the plane-wave code) and a
   Lieb–Thirring-style bound; binding per nucleon levelling off at finite density with A2's force (the liquid drop peaks
   at mass ~300–2000: checked against runaway giant nuclei); white-dwarf and neutron-star limits and what cores collapse

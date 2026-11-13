@@ -94,9 +94,14 @@ a carried rate; where the climb ends rests on A2's masses.
    each); two-neutron isotopes bound but β⁻ in milliseconds (endpoints 7–34 MeV); the liquid drop's valley near N = Z
    to mass ~100 (Coulomb weak against 4D's binding). **computed.** *Consequence:* no neutron-rich isotope survives
    hydrogen or helium burning; no ²²Ne-like neutron source. *Caveat to state:* Brink's grid and the ladder disagree ×2
-   on a helium-4 onto ceryllium-8 (A2).
-7. **The nuclide table.** `fusion/tools/nuc4.mjs`: every light nucleus by protons and neutrons, each with where its
-   binding came from. **computed**, with the interpolations named. Figure: the 4D chart of nuclides.
+   on a helium-4 onto ceryllium-8 (A2; now carried as the mass-model band, section 7).
+7. **The nuclide table, and its mass model.** `fusion/tools/nuc4.mjs`: every light nucleus by protons and neutrons, each
+   with where its binding came from. **computed**, with the interpolations named. Two microscopic methods, tested on ours
+   against measured masses (run `masses-1`): the ladder underbinds α clusters (¹⁶O −4.9 MeV against four helium-4s, real
+   −14.4), Brink's grid overbinds them and worse with size (²⁴Mg −93 against −28.5). One consistent model is adopted (the
+   ladder's nuclei with the grid's separations scaled by the two methods' helium-4 separation on the same core: ours to
+   a median 29%, within ~15% from ¹⁶O up), the pure grid kept as the band's other edge. **Every downstream claim is
+   stated under both.** Figure: the 4D chart of nuclides; a panel of ours' check (ladder / grid / real against k).
 
 ## Part III — Burning
 
@@ -105,16 +110,19 @@ a carried rate; where the climb ends rests on A2's masses.
    with 4D's at the electron-matched strength 0.12–0.60). *To do:* rebake the chapter's table with weak.js.
 9. **Proton + proton.** The deuteron and the protons' scattering state from the same force (`ppOverlap`, selftest 74);
    the old guessed nuclear size retired. **computed** nuclear part; the weak part **carried** until A1 lands on it.
-10. **Hydrogen burning.** The 4D network (`fusion/data4.js`, `js/net4.js`): pp chains as ours; **no CNO-like cycle**
-    (the triton-like cluster binds to ceryllium-8 by more than a helium-4 holds together, so 5-11 + p can't throw one
-    out; the same test on ours gives ¹¹B + p → 2α, Q 7.2 against 8.59); a Sun-paced core at s = 1.5152 climbs to
-    pxygen-20 (72%), oitrogen; 1.55 darbon-14 + helium; 1.6–1.7 helium; ≥ 1.75 stranded as helium-3. **computed
-    nuclei, rates computed where the book has them (p + p, ⁴He + ⁴He, p and ⁴He onto 2–4 ⁴He) and carried elsewhere;
-    the stage temperature a convention** (the Sun's pace) until C. **With 4D's own weak force (A1):** the strong and weak
-    strengths trade through p + p: a slower p + p, a hotter Sun-paced core, a climb past helium; at the electron-matched
-    G₄, s = 1.5152 and 1.55 climb, 1.6–1.7 make helium, ≥ 1.7 strand as helium-3 (a 6× change in G₄ moves the boundary
-    by about one strength step). **Where a climb ends is not yet a result:** past pxygen-20 the grid's clusters and the
-    ladder disagree (6 helium-4s come out less bound than 5 + a helium-3-like piece), and the table stops at k = 5. A2.
+10. **Hydrogen burning.** The 4D network (`fusion/data4.js`, `js/net4.js`): pp chains as ours. **Whether there is a
+    CNO-like cycle is the band's central question:** the star's own helium makes ceryllium-8, protons climb to 5-11, and
+    5-11 + p → ⁴He + ceryllium-8 would hand the catalyst back. Open in the adopted mass model for s ≤ 1.6 (Q +4.6 to
+    +10.9 MeV), closed in Brink's grid (−21 to −60); ours' check at the matching core (¹¹B + p → 3α, Q 8.59) can't decide
+    it (the adopted model overstates Q there by 6.8 MeV, which would leave +4.1 / +1.8 / −2.2 at s = 1.5152 / 1.55 / 1.6).
+    **Outcome (masses-1 sweep, G₄ at the electron-matched value and ×10^±0.8):** with the cycle, s = 1.5152–1.55 burn
+    hydrogen to helium at 8–11 MK, insensitive to G₄, with no metals needed; without it, they climb to elements 8–12 at
+    12–19 MK (where depends on G₄). From s = 1.6 the two models agree exactly: helium at 4–8 MK to s ≈ 1.65–1.7, stranded
+    as helium-3 above, the boundary moving about one strength step per 6× in G₄; at 1.65 with a 6× weaker G₄ both climb
+    to element 6. **computed nuclei (with the band), rates computed where the book has them (p + p, ⁴He + ⁴He, p and ⁴He
+    onto 2–4 ⁴He) and carried elsewhere (the cycle's step at ¹⁵N(p,α)'s strength); the stage temperature a convention**
+    (the Sun's pace) until C. *To do:* settle 5-11's binding by a third method (a few-body calculation of the triton-like
+    cluster on ceryllium-8, or Brink with the core's helium-4s free to move).
 11. **Helium and beyond.** Two helium-4s → ceryllium-8 directly, no three-body bottleneck; ceryllium + itself at 0.27
     GK, a flash not a runaway; element 6 (mass 12) as the ash; the heavy stages to the rock row and equilibrium's end
     (elements 101–137 by the liquid drop). **computed / carried** (nuclei.mjs heburn, cerburn, heavy, runaway,
@@ -146,7 +154,11 @@ a carried rate; where the climb ends rests on A2's masses.
 ## Retracted on the way (kept, so the record is honest)
 
 - **A ceryllium cycle (2026-11-12, morning):** a CNO-like cycle on ceryllium-8, from an interpolated triton-like
-  cluster; withdrawn the same day when the cluster was computed (section 10).
+  cluster; withdrawn the same day when the cluster was computed (section 10). **The withdrawal was itself premature
+  (2026-11-13):** it rested on Brink's grid alone, which ours shows overbinds clusters; under the adopted mass model the
+  cycle is open at low s. It is now stated as the band, neither claimed nor ruled out.
+- **"6 helium-4s unbound past pxygen-20" (2026-11-13):** an artefact of mixing the grid's clusters with the ladder's
+  cores; bound in either consistent model.
 - **The weak force "as ours" (prior to 2026-11-13):** kept as a choice inside the window, but its numbers move: the
   neutron 879 → ~15 000 s, freeze-out computed, the helium left higher (section 8).
 
@@ -171,7 +183,8 @@ a carried rate; where the climb ends rests on A2's masses.
 
 - [ ] A1 finished: 4D's weak factor on p + p and every network decay; the window's table in the nuclei chapter.
 - [ ] A2 at least bracketed: tensor force or its effect estimated; the Brink/ladder spread reported on every claim it
-      touches.
+      touches. *Done for the masses (masses-1: one model adopted, the other the band's edge, both tested on ours); the
+      network and figure 1 carry both. Open: 5-11's binding by a third method; the tensor force.*
 - [ ] C: lifetimes computed (the Sun-pace convention retired or stated as the comparison it is).
 - [ ] D: one composition-against-age band.
 - [ ] B: each stability claim tagged proved, argued or open.

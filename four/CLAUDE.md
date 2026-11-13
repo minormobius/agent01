@@ -210,10 +210,8 @@ for games, and this is a modelling programme with publications to come. The game
   −24 to −62 MeV over s; −21.5 in the network) and **no ceryllium cycle exists**; the only (p,α) branches left are pp-II's
   (⁷X + p → 2⁴He) and ⁶X + p → ³He + ⁴He. Rebaked sweep: s = 1.5152 Sun-paced at 16.1 MK ends **pxygen-20 72%, 9-19 19%,
   9-18 8%** (the old hburn result, back); 1.55 at 10.7 MK darbon-14 48% + helium 38%; 1.6–1.7 helium 86–97% (pp chains
-  at 4–7 MK); ≥ 1.75 stranded as helium-3 (75%). Then helium → ceryllium-8 → element 6 as before. **Caveat:** the clusters
-  are Brink's grid on fixed core draws and the ladder nuclei diffusion Monte Carlo; the two disagree on a helium-4 onto
-  ceryllium-8 (the grid ~110 MeV, the ladder 47), and the cluster nuclei sit between ladder nuclei, so their place
-  against the ladder carries that spread (the 5-11 verdict holds in the grid alone: Q = B_α − S_t, same basis).
+  at 4–7 MK); ≥ 1.75 stranded as helium-3 (75%). Then helium → ceryllium-8 → element 6 as before. (That sweep was on the
+  mixed table; masses-1, below, supersedes its low-s results.)
   **4D's own weak force in the network (2026-11-13, A1's last step):** `rates4.mjs` takes `G4X` (log₁₀ G₄ over G_F/M_W;
   default 5.20, matched to ours at the electron; `G4X=ours` for ours' weak force): p + p × `weakRatio` at the 4D deuteron's
   endpoint (×0.023 at s = 1.5152 rising to ×9.1 at 1.85, since 4D's phase space grows faster with the endpoint), every β
@@ -222,10 +220,32 @@ for games, and this is a modelling programme with publications to come. The game
   1.85). **The weak and strong strengths trade through p + p:** a slower p + p means a hotter Sun-paced core and a climb
   past helium. Sweep at G₄ ×10^(−0.8, 0, +0.8): s = 1.5152 always climbs past pxygen-20; 1.55 climbs (to element 8 at the
   default) unless the weak force is 6× stronger; 1.6 climbs if 6× weaker, else helium; 1.65–1.7 helium (³He-stranded at
-  the default from 1.7); ≥ 1.75 ³He unless 6× weaker. **Where the climb ends is not trustworthy:** past pxygen-20 the
-  grid's clusters on the closed shell (12-23 at 887.6 MeV) bind more than the ladder's 6-helium-4 nucleus (12-24 at
-  842.9, so "unbound"), and the table ends at k = 5's clusters, so the ash piles at gluorine-22/23 on the table's edge.
-  That is the Brink/ladder disagreement deciding a result: A2's first job is one consistent mass model.
+  the default from 1.7); ≥ 1.75 ³He unless 6× weaker (on the mixed table; see masses-1 for s ≤ 1.6).
+  **One mass model (masses-1, 2026-11-13; A2's first job).** Run `masses-1` (124 commands; 108 collected from the run's
+  artifacts while four slow k = 7 groups ran on, every one exit 0): a helium-4 on 1–6 helium-4s in Brink's grid (`plusmore
+  … a`) at all eight strengths, both draws to k = 7 at 1.5152 / 1.7 / 1.85, clusters on 6–7 helium-4s, and ours as the
+  check (`plusmore 3 1 <k> …`, `plusone 3 1 5`). **Ours against measured masses (AME, from memory): the ladder underbinds
+  α clusters and the grid overbinds them, worse as k grows** (against free helium-4s: ¹²C −1.4 / −5.3 / real −7.3 MeV for
+  ladder / grid / real; ¹⁶O −4.9 / −19.9 / −14.4; ²⁰Ne −10.0 / −35.4 / −19.2; ²⁴Mg −16.0 / −93.3 / −28.5); the grid's S_α
+  onto its own fixed-draw core is 2–10× too large, since those cores are themselves unbound against free helium-4s.
+  `nuc4.mjs` now takes `MASS` / `mass=`: **`ladder` (default)** the ladder's nuclei, and every grid separation on core k
+  scaled by r_k = S₄(ladder)/S₄(grid), the two methods' helium-4 separation from the same core (ours: median error 29%
+  over n, p, nn, np, t, h on k = 2–5, within ~15% from k = 4; it underbinds at k = 2); **`grid`** everything from the
+  grid, cores chained by its own S_α (ours: 91%, overbound; the band's other edge); **`mixed`** the old table. In 4D r_k
+  is 0.67–0.74 except the closed shell (0.53 at k = 5); r_7 is carried from k = 6 until the k = 7 groups land.
+  `data4.js` carries `mass` and `r` per strength. **What it changes:** (1) 12-24 (six helium-4s) is bound in both
+  consistent models: its "unbound" was the mixed table's artefact, which is what had piled the climb at the k = 5 edge.
+  (2) **The ceryllium cycle is undecided.** 5-11 + p → ⁴He + ceryllium-8 is open in the ladder model for s ≤ 1.6 (Q +10.9,
+  +8.6, +4.6 MeV) and closed in the grid (−21.5 to −60). Ours at the matching core (¹¹B on ⁸Be; real Q 8.59) doesn't
+  settle it: the ladder model overstates its Q by 6.8 MeV (S_t 12.9 against 19.7), the grid understates by 1.4; taking
+  that offset off leaves 4D's +4.1 / +1.8 / −2.2 at 1.5152 / 1.55 / 1.6, scaling S_t by ours' ratio closes it everywhere.
+  It is the most consequential mass in the network: **sweep (both models, G₄ ×10^(−0.8, 0, +0.8)):** ladder, s = 1.5152
+  and 1.55 burn hydrogen to helium (94–99%) at 8–11 MK by the cycle, on a catalyst the star's own helium makes (⁴He + ⁴He
+  → ceryllium-8, protons up to 5-11, back out), insensitive to G₄; grid, 1.5152 climbs to elements 10–12 (16–19 MK) and
+  1.55 to 8–11 (12–18 MK) unless G₄ is 6× stronger; 1.6 at a 6× weaker G₄ helium (ladder) or element 8 (grid). From 1.65
+  up the two models give the same stars, element for element (1.65 at a 6× weaker G₄ climbs to element 6 in both). The
+  widget's blurbs follow the bake (`world.js` `cyc`: the 5-11 branch's energy to spare), and selftest 7 checks the
+  branch is present exactly where the table's Q > 0 and the 1.5152 core's outcome on whichever side it falls.
   **The windows plane (2026-11-13, PI: "narrower and narrower windows of feasibility … narratively powerful"; paper 2's
   spine):** `fusion/tools/windows4.mjs` (~10 min) → `papers/p2/data/windows.json`; `papers/p2/figures/windows.mjs` →
   `windows.svg` (figure 1). The plane s 1.40–1.891 × log₁₀ G₄/(G_F/M_W) 3–7 per clock (0.01–100 s): p + p opens on 78%;
