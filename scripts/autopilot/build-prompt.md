@@ -33,10 +33,10 @@ _Regenerated 2026-11-13 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-13, 100 members / 244 posts):
+**Neighborhood spark** (bisk 2026-11-13, 100 members / 259 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: bluesky, nvidia, wtf
-- Top post: "kind of crazy that nvidia is tanking bc of the ceo having an affair with a spy while spaceX is run by a guy who regularl" — @goose.art
+- Distinctive words: ising, idk, llm
+- Top post: "> looking for a new llm > ask my current llm if gemini carbon is gpt or if it's claude > it doesn't understand > pull ou" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
