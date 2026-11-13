@@ -3,6 +3,9 @@
      node four/atom/tools/mainseq.mjs run <G> <rnp> [ff]    4D at G × ours, proton + proton's nuclear size rnp fm, free–free
                                                             × ff (1 classical, 0.5–2 the band; 0 scattering alone): from the
                                                             Chandrasekhar mass down to 0.13 and up to 5 of it (on the runner)
+     node four/atom/tools/mainseq.mjs net <G> <s> [mass] [ff]  4D with the reaction network's own burning (fusion/eps4.json:
+                                                            fusion/tools/eps4.mjs, mass model ladder|grid), each star's
+                                                            core half-life t½ at its central T and ρ (on the runner)
      node four/atom/tools/mainseq.mjs bake                  → js/mainseqdata.js
    Energy, from the book's own rates, as absolute rates per pair: ⟨σv⟩ = S̃ c (ħc)^(d−1) I / (2 μ² (kT)²) in 4D (and
    the 3D form for ours), S̃ = σ k^(d−1) e^G the nuclear factor and I = ∫ e^(−E/kT − G) dE the barrier integral (stars.js).
@@ -14,7 +17,7 @@
 import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { star, toPinned, nextPinned, teff, convectiveCore, SI, kappaOurs, kappaLens4, kappaFF4, aRad } from "../js/mainseq.js";
+import { star, toPinned, nextPinned, teff, convectiveCore, SI, kappaOurs, kappaLens4, kappaFF4, aRad, rhoOf } from "../js/mainseq.js";
 import { gamow, logRate, KB_MEV } from "../js/stars.js";
 import * as BU from "../js/burning.js";
 import { radiusFor } from "../js/orbits.js";
@@ -46,6 +49,23 @@ function four(Grel, rnp, s = 1.5152, ff = 1) {
   const eps = (rho, T) => { const np = (rho * comp.X) / SI.mu, na = (rho * comp.Y) / (4 * SI.mu); return (((np * np * svpp(T)) / 2) * Qpp + ((na * na * svaa(T)) / 2) * Qaa) * SI.MeV / rho; };
   return { d: 4, G: G0 * Grel, comp, eps, kappa: ff > 0 ? kappaFF4(comp, ff) : kappaLens4(comp), ff, Mch: BU.chandraMass(4, { G: G0 * Grel, mue: 2 }), Qpp, Qaa };
 }
+/* 4D with the network's burning (paper 2's window C): ε̄(T, ρ) and t½(T, ρ) from fusion/eps4.json, bilinear in ln T and
+   ln ρ (ε̄ zero below the table's 1 MK, extrapolated in the logs past its edges), the primordial gas the network burns */
+const EPS4 = existsSync(path.join(here, "../../fusion/eps4.json")) ? JSON.parse(readFileSync(path.join(here, "../../fusion/eps4.json"), "utf8")) : null;
+function lookup(tab, key, T, rho) {
+  const lT = tab.T.map(Math.log), lR = tab.rho.map(Math.log), x = Math.log(T), y = Math.log(rho), at = (i, j) => { const v = tab.grid[i][j][key]; return v == null || !(v > 0) ? null : Math.log(v); };
+  const idx = (g, v) => { let i = 0; while (i < g.length - 2 && g[i + 1] < v) i++; return [i, (v - g[i]) / (g[i + 1] - g[i])]; };
+  const [i, u] = idx(lT, x), [j, w] = idx(lR, y), c = [at(i, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1)];
+  if (c.some((v) => v == null)) { if (key === "th") return Infinity; for (let q = 0; q < 4; q++) if (c[q] == null) c[q] = Math.log(1e-300); } // a core that never halved; a cell that never burnt
+  return Math.exp(c[0] * (1 - u) * (1 - w) + c[1] * u * (1 - w) + c[2] * (1 - u) * w + c[3] * u * w);
+}
+function fourNet(Grel, s, mass = "ladder", ff = 1) {
+  if (!EPS4) throw new Error("no fusion/eps4.json: run node four/fusion/tools/eps4.mjs");
+  const tab = EPS4.models[mass]?.[s]; if (!tab) throw new Error(`eps4.json has no ${mass} model at s = ${s}`);
+  const T0 = EPS4.T, R0 = EPS4.rho, t = { T: T0, rho: R0, grid: tab.grid }, comp = { X: 0.75, Y: 0.25, Z: 0 };
+  const eps = (rho, T) => (T < T0[0] || !(rho > 0) ? 0 : lookup(t, "eps", T, rho)), th = (rho, T) => lookup(t, "th", T, rho);
+  return { d: 4, G: G0 * Grel, comp, eps, th, kappa: ff > 0 ? kappaFF4(comp, ff) : kappaLens4(comp), ff, Mch: BU.chandraMass(4, { G: G0 * Grel, mue: 2 }), mass, s };
+}
 // the first star: for each size and concentration factor, the core temperature at which burning meets what light can
 // carry (a diffusion estimate), then Newton from there
 function firstStar(o, M) {
@@ -57,7 +77,8 @@ function firstStar(o, M) {
   for (const g of tries) for (const dT of [0, -0.2, 0.2]) { const s = star({ ...o, M }, [g[0], g[1] + dT, g[2], g[3]]); if (s.ok) return s; }
   return null;
 }
-const row = (o, m, M, s) => ({ m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), qcc: convectiveCore(o.d, s), dL: s.dL ?? null });
+const row = (o, m, M, s) => { const r = { m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), qcc: convectiveCore(o.d, s), dL: s.dL ?? null };
+  if (o.th) { r.rhoc = rhoOf(o.d, s.Pc, s.Tc, o.comp); const t = o.th(r.rhoc, s.Tc); r.th = Number.isFinite(t) ? t : null; } return r; };
 
 if (cmd === "ours") {
   const o = ours(), rows = [], walk = (m0, m1) => { let hist = [], m = m0, p = [Math.log(2.3e16), Math.log(1.4e7), Math.log(0.9 * RSUN), Math.log(0.7 * LSUN)];
@@ -65,11 +86,13 @@ if (cmd === "ours") {
       const s = star({ ...o, M: m * MSUN }, g); if (!s.ok) break; rows.push(row(o, m, m * MSUN, s)); hist.push({ m, p: s.p }); p = s.p;
       console.log(`${m.toFixed(2)} M☉: L ${(s.L / LSUN).toPrecision(3)} L☉, R ${(s.R / RSUN).toPrecision(3)} R☉, Tc ${(s.Tc / 1e6).toFixed(1)} MK`); m = m0 < m1 ? m * 1.12 : m / 1.12; } };
   walk(1, 30); walk(1 / 1.12, 0.45); save("ours.json", rows.sort((a, b) => a.m - b.m));
-} else if (cmd === "run") {
-  const Grel = +args[0], rnp = +args[1], ff = args[2] !== undefined ? +args[2] : 1, s = args[3] ? +args[3] : 1.5152, o = four(Grel, rnp, s, ff), rows = [], file = `run-${args[0]}-${args[1]}-ff${args[2] ?? 1}${args[3] ? "-" + args[3] : ""}.json`;
+} else if (cmd === "run" || cmd === "net") {
+  const net = cmd === "net", Grel = +args[0], rnp = net ? null : +args[1], ff = args[net ? 3 : 2] !== undefined ? +args[net ? 3 : 2] : 1, s = net ? +args[1] : args[3] ? +args[3] : 1.5152;
+  const o = net ? fourNet(Grel, s, args[2] ?? "ladder", ff) : four(Grel, rnp, s, ff), rows = [];
+  const file = net ? `net-${args[0]}-${args[1]}-${o.mass}-ff${ff}.json` : `run-${args[0]}-${args[1]}-ff${args[2] ?? 1}${args[3] ? "-" + args[3] : ""}.json`;
   const a = firstStar(o, o.Mch), s0 = a && toPinned({ ...o, M: o.Mch }, a);
-  if (!s0 || !s0.ok) { save(file, { Grel, rnp, s, ff, rows, fail: s0?.why ?? "no first star" }); process.exit(0); }
-  rows.push(row(o, 1, o.Mch, s0)); console.log(`1 M_Ch: L ${s0.L.toExponential(3)} W, Tc ${(s0.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, s0).toFixed(0)} K`);
+  if (!s0 || !s0.ok) { save(file, { Grel, rnp, s, ff, ...(net ? { mass: o.mass, net: true } : {}), rows, fail: s0?.why ?? "no first star" }); process.exit(0); }
+  rows.push(row(o, 1, o.Mch, s0)); console.log(`1 M_Ch: L ${s0.L.toExponential(3)} W, Tc ${(s0.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, s0).toFixed(0)} K${net ? `, core t½ ${(rows[0].th / 3.156e16).toPrecision(3)} Gyr` : ""}`);
   // walk down and up from M_Ch; where a step fails, try smaller ones (up to three halvings of the step in ln M), keeping
   // only the target masses in the table
   for (const ms of [[0.8, 0.63, 0.5, 0.4, 0.32, 0.25, 0.2, 0.16, 0.13], [1.25, 1.6, 2, 2.5, 3.2, 4, 5]]) {
@@ -79,8 +102,8 @@ if (cmd === "ours") {
       hist.push({ m, p: st.p }); const fp = st.f; fq = (q) => fp(q * M); return st; };
     const reach = (m, depth) => { const st = step(m); if (st.ok || depth >= 3) return st; const prev = hist.at(-1).m, mid = Math.sqrt(prev * m), a = reach(mid, depth + 1); return a.ok ? reach(m, depth + 1) : a; };
     for (const m of ms) { if (stop) break; const st = reach(m, 0); if (!st.ok) { console.log(`${m} M_Ch: stopped (${st.why})`); stop = true; break; }
-      rows.push(row(o, m, m * o.Mch, st)); console.log(`${m} M_Ch: L ${st.L.toExponential(3)} W, R ${st.R.toExponential(3)} m, Tc ${(st.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, st).toFixed(0)} K`); } }
-  save(file, { Grel, rnp, s, ff, Mch: o.Mch, Qpp: o.Qpp, Qaa: o.Qaa, rows: rows.sort((p, q) => p.m - q.m) });
+      rows.push(row(o, m, m * o.Mch, st)); console.log(`${m} M_Ch: L ${st.L.toExponential(3)} W, R ${st.R.toExponential(3)} m, Tc ${(st.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, st).toFixed(0)} K${net ? `, core t½ ${(rows.at(-1).th / 3.156e16).toPrecision(3)} Gyr` : ""}`); } }
+  save(file, { Grel, rnp, s, ff, ...(net ? { mass: o.mass, net: true } : {}), Mch: o.Mch, Qpp: o.Qpp, Qaa: o.Qaa, rows: rows.sort((p, q) => p.m - q.m) });
 } else if (cmd === "bake") {
   // each star's life (a tenth of its mass burnt at 17 MeV a nucleon in 4D, the ash's binding; ours 6.7, to helium),
   // where a black, airless planet sits at 288 K (orbits.js radiusFor), and its year there (v² = G M/a, both worlds)
@@ -90,4 +113,4 @@ if (cmd === "ours") {
   const out = { ours: o.map((r) => add(3, G0, r)), runs: runs.map((x) => ({ Grel: x.Grel, rnp: x.rnp, s: x.s, ff: x.ff ?? 0, Mch: x.Mch, fail: x.fail ?? null, rows: x.rows.map((r) => add(4, G0 * x.Grel, r)) })).sort((a, b) => b.Grel - a.Grel || a.rnp - b.rnp || a.ff - b.ff) };
   writeFileSync(path.join(here, "../js/mainseqdata.js"), `// generated by four/atom/tools/mainseq.mjs bake — the main sequence, ours and 4D (js/mainseq.js)\nexport const MAINSEQ = ${JSON.stringify(out)};\n`);
   console.log(`baked: ours ${out.ours.length} stars; 4D ${out.runs.map((r) => `G ${r.Grel} p–p ${r.rnp} fm ff ${r.ff}: ${r.rows.length}`).join(", ")}`);
-} else console.log("commands: ours | run <G> <rnp> [s] | bake");
+} else console.log("commands: ours | run <G> <rnp> [s] | net <G> <s> [mass] [ff] | bake");
