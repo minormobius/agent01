@@ -73,6 +73,43 @@ const SPIN = (() => { const at = (x, of) => ({ op: "move", by: [x, 0, 0, 0], of 
     show: ["plate", "fibre", "ribbon", "hose", "core", "one"], check: [["fibre", "plate"], ["ribbon", "plate"], ["hose", "plate"], ["core", "plate"], ["one", "plate"], ["one", "hose"], ["one", "core"]],
     ways: { name: "the middle fibre of the rope", params: ["cx", "cy", "cz", "cw"], reach: 1.2 }, path: [{ draw: 0.6 }, { draw: 3.2 }] }; })();
 
+/* ROPES. The rope runs along w; its cross-section is the 3D space (x, y, z). FCC: one fibre and the twelve that fit
+   round it in three dimensions (each of the twelve touches four others). */
+const FCC = (() => { const P = []; for (const [a, b] of [[0, 1], [0, 2], [1, 2]]) for (const s of [1, -1]) for (const t of [1, -1]) { const v = [0, 0, 0]; v[a] = s / Math.SQRT2; v[b] = t / Math.SQRT2; P.push(v); } return P; })();
+const UPW = [[1, 0, 0, 0], [0, 0, 0, 1], [0, 1, 0, 0], [0, 0, 1, 0]], f4 = (v) => +v.toFixed(4);
+const strand = (r, h) => ({ op: "wire", r, pts: [[0, 0, 0, -h], [0, 0, 0, h]] }), hoseOf = (R, t, h) => ({ op: "extrude", h, of: { op: "shell", t, of: { op: "ball", dim: 3, r: R } } });
+const ROPES = {
+  /* thirteen continuous filaments in a closed hose: the spinneret's rope, and the strongest thing on the bench. The
+     hose is drawn shorter than the filaments so you can see into it */
+  hoserope: { title: "rope: filaments in a hose", note: "The spinneret's rope: thirteen continuous filaments (one, and the twelve that fit round it in the bundle's 3D cross-section) in a closed hose. The hose is cut short here so you can see the filaments. On the bench this is the strongest rope per weight: the hose grips and carries load too. Move the slice along z: the hose's ring closes to a cap.",
+    params: { ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { ox: [-0.8, 0.8], oy: [-0.8, 0.8], oz: [-0.8, 0.8], ow: [-1.5, 1.5] },
+    parts: { one: strand(0.12, 1.3), core: { op: "union", of: ["one", ...FCC.slice(1).map((c) => ({ op: "move", by: [f4(c[0] * 0.27), f4(c[1] * 0.27), f4(c[2] * 0.27), 0], of: "one" }))] },
+      fibre: { op: "move", by: [`${f4(FCC[0][0] * 0.27)}+ox`, `${f4(FCC[0][1] * 0.27)}+oy`, "oz", "ow"], of: "one" }, hose: hoseOf(0.45, 0.05, 0.6) },
+    view: UPW, show: ["core", "fibre", "hose"], check: [["fibre", "hose"], ["fibre", "core"]], ways: { name: "one outer filament", params: ["ox", "oy", "oz", "ow"], reach: 2 },
+    path: [{ ox: 0, oz: 0, ow: 0 }, { ox: 0.6, oz: 0, ow: 0 }, { ox: 0, oz: 0, ow: 0 }, { ox: 0, oz: 0.6, ow: 0 }, { ox: 0, oz: 0, ow: 0 }, { ox: 0, oz: 0, ow: 1.2 }, { ox: 0, oz: 0, ow: 0 }] },
+  /* five fibres wound round a ribbon: the cheat that gives a 4D yarn its twist back */
+  ribbonyarn: (() => { const turn = (z, ph) => { const pts = []; for (let k = 0; k <= 20; k++) { const u = k / 20, a = ph + 2 * Math.PI * 1.5 * u; pts.push([f4(0.17 * Math.cos(a)), f4(0.17 * Math.sin(a)), z, f4(-1.2 + 2.4 * u)]); } return { op: "wire", r: 0.06, pts }; }, Z = [-0.45, -0.225, 0, 0.225, 0.45]; // (one lane is at z = 0, so the slice you start in holds a whole fibre)
+    return { title: "yarn on a ribbon", note: "The cheat that gives a 4D yarn its twist back. Twisted round a thread, a fibre slips over it through the spare direction and falls straight. Twisted round a ribbon, flat along the yarn and wide across z, it can't get over. Here are five fibres wound on one. In the slice you start in it looks exactly like a fibre twisted round a thread: the thread is the ribbon edge-on, and it runs off along z, where the other four fibres are (move the lever). A fibre is held in x and y; along z it slides until it reaches the ribbon's edge. Narrow the ribbon and that edge comes to meet it.",
+      params: { width: 1.2, ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { width: [0.2, 1.4], ox: [-0.6, 0.6], oy: [-0.6, 0.6], oz: [-1.2, 1.2], ow: [-0.5, 0.5] },
+      parts: { ribbon: { op: "round", r: 0.03, of: { op: "box", size: [0.04, 0.04, "width", 2.4] } }, fibres: { op: "union", of: Z.slice(0, 4).map((z, i) => turn(z, i * 1.9)) }, fibre: { op: "move", by: ["ox", "oy", "oz", "ow"], of: turn(Z[4], 4 * 1.9) } },
+      view: UPW, show: ["ribbon", "fibres", "fibre"], check: [["fibre", "ribbon"], ["fibre", "fibres"]], ways: { name: "the fibre nearest the edge", params: ["ox", "oy", "oz", "ow"], reach: 1.5 },
+      path: [{ ox: 0, oz: 0 }, { ox: 0.5, oz: 0 }, { ox: 0, oz: 0 }, { ox: 0, oz: 0.9 }, { ox: 0.5, oz: 0.9 }, { ox: 0, oz: 0.9 }, { ox: 0, oz: 0 }] }; })(),
+  /* a sheath made by winding: three ribbons round the bundle, each in its own plane. On the cross-section's sphere
+     each is a band; three bands close the sphere once they are wide enough, and leave its eight corners open before */
+  wound: (() => { const band = (ax) => ({ op: "intersect", of: [{ op: "shell", t: 0.05, of: { op: "ball", dim: 3, r: 0.5 } }, { op: "box", size: [0, 1, 2].map((i) => (i === ax ? "2*b" : 3)) }] });
+    return { title: "wound sheath", note: "A sheath with no spinneret: three ribbons wound round the bundle, each in its own plane. On the cross-section they are three bands on a sphere. Wide enough (b about half the radius), they close it. Narrower, they leave eight holes at the corners, and a fibre walks out through one: slide b down and press run. One rod stands in for the bundle.",
+      params: { b: 0.3, out: 0, side: 0 }, ranges: { b: [0.1, 0.5], out: [0, 0.7], side: [0, 0.7] },
+      parts: { bandx: { op: "extrude", h: 0.35, of: band(0) }, bandy: { op: "extrude", h: 0.35, of: band(1) }, bandz: { op: "extrude", h: 0.35, of: band(2) }, sheath: { op: "union", of: ["bandx", "bandy", "bandz"] },
+        rod: { op: "move", by: ["out+side", "out", "out", 0], of: strand(0.07, 1.1) } },
+      view: UPW, show: ["bandx", "bandy", "bandz", "rod"], check: [["rod", "sheath"]], path: [{ out: 0, side: 0 }, { out: 0.7, side: 0 }, { out: 0, side: 0 }, { out: 0, side: 0.7 }, { out: 0, side: 0 }] }; })(),
+  /* thirteen ropes in a jacket: each rope is thirteen filaments in its own hose. Telescoped, so every layer shows */
+  cable: (() => { const D = 0.44, d = 0.105; return { title: "cable: thirteen ropes", note: "Ropes in a jacket: thirteen ropes, each thirteen filaments in its own hose, 169 filaments in all. Each layer is cut shorter than the one inside it so you can see them. On the bench a cable is worth about a tenth less per weight than its ropes: a rope is already uniform, and partly hollow, so the jacket is heavy for what it adds. With no twist there is no torque to balance either. A cable is for handling, not strength.",
+      params: {}, parts: { fil: strand(0.045, 1.3), bundle: { op: "union", of: ["fil", ...FCC.map((c) => ({ op: "move", by: [f4(c[0] * d), f4(c[1] * d), f4(c[2] * d), 0], of: "fil" }))] }, skin: hoseOf(0.175, 0.02, 0.85),
+        filaments: { op: "union", of: ["bundle", ...FCC.map((c) => ({ op: "move", by: [f4(c[0] * D), f4(c[1] * D), f4(c[2] * D), 0], of: "bundle" }))] },
+        hoses: { op: "union", of: ["skin", ...FCC.map((c) => ({ op: "move", by: [f4(c[0] * D), f4(c[1] * D), f4(c[2] * D), 0], of: "skin" }))] }, jacket: hoseOf(0.68, 0.04, 0.4) },
+      view: UPW, show: ["filaments", "hoses", "jacket"], check: [["filaments", "hoses"], ["hoses", "jacket"]] }; })(),
+};
+
 export const PARTS = {
   ball: { title: "ball", note: "Everything within r of a point. Every slice is a ball; move the slice in w and it shrinks to nothing at w = r.",
     params: { r: 1 }, show: { op: "ball", dim: 4, r: "r" } },
@@ -260,5 +297,6 @@ export const PARTS = {
     },
     show: ["ground", "house", "door", "pin", "table"], check: [["door", "house"], ["door", "ground"]], path: [{ open: 0 }, { open: 110 }] },
   spinneret: SPIN,
+  ...ROPES,
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "pulley", "tackle", "spinneret", "room"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "pulley", "tackle", "spinneret", "room"];

@@ -1,5 +1,5 @@
 /* CAD⁴'s textiles selftest: a thread weaves with ribbons and not with threads; cloth of sheets; a bundle holds in a
-   sphere-hoop and not in a ring; the rope and its sheath.   node kata/cad4/test/textiles.selftest.mjs   (~30 s) */
+   sphere-hoop and not in a ring; the rope and its sheath; filaments in a hose; yarn on a ribbon; the wound sheath; the cable.   node kata/cad4/test/textiles.selftest.mjs   (~55 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));
@@ -30,6 +30,17 @@ const P = Math.PI, off = (a, b) => Math.abs(a / b - 1), pc = (x) => (x * 100).to
   const side = ["ox", "oy", "oz"].every((k) => way(k, 1.5) && way(k, -1.5)), along = !way("ow", 3) && !way("ow", -3);
   const S = { ...T, params: { ...T.params, hx: 0, hy: 0, hw: 0 }, parts: { ...T.parts, moved: { op: "move", by: ["hx", "hy", 0, "hw"], of: "hoops" } } }, sheath = [["hx", 0.2, 2], ["hy", 0.2, 2], ["hw", 0.8, 4]].every(([k, to, n]) => K.sweep(S, "moved", "bands", [{ [k]: 0 }, { [k]: to }], n, 16).worst > 0);
   ok(rest.every((v) => v === 0) && side && along && sheath, "the rope: nothing touches at rest; a fibre cannot leave the sheath sideways (x, y, z, both ways) and slides only along the rope; the hoops cannot move along or across the bands they are woven with");
+}
+{ // the rope configurations
+  const way = (T, part, k, to, ov = {}) => Math.max(...T.check.filter((c) => c[0] === part).map(([a, b]) => K.sweep(T, a, b, [{ ...ov, [k]: 0 }, { ...ov, [k]: to }], 10, 16).worst)) > 0, row = (T, part, keys, d) => keys.map((k) => (way(T, part, k, -d) ? "x" : ".") + (way(T, part, k, d) ? "x" : ".")).join(" ");
+  const H = PARTS.hoserope, h = row(H, "fibre", ["ox", "oy", "oz", "ow"], 2);
+  ok(h === "xx xx xx .." && H.check.every(([a, b]) => K.fit(H, a, b, {}, 18).overlap === 0), `filaments in a hose: thirteen in a closed skin touch nothing, and an outer one cannot leave sideways (${h} along x, y, z, w): only along the rope`);
+  const Y = PARTS.ribbonyarn, y = row(Y, "fibre", ["ox", "oy"], 1.5), over = K.sweep(Y, "fibre", "ribbon", [{ oz: 0, ox: 0 }, { oz: 0.9, ox: 0 }, { oz: 0.9, ox: 0.6 }], 8, 16).worst, narrow = K.sweep(Y, "fibre", "ribbon", [{ oz: 0, ox: 0, width: 0.3 }, { oz: 0.4, ox: 0, width: 0.3 }, { oz: 0.4, ox: 0.6, width: 0.3 }], 8, 16).worst;
+  ok(y === "xx xx" && over === 0 && narrow === 0 && K.fit(Y, "fibre", "ribbon").overlap === 0, `yarn on a ribbon: a wound fibre cannot leave the ribbon in x or y (${y}); slid along z past the ribbon's edge it comes away untouched, after 0.9 on the wide ribbon and 0.4 on a narrow one`);
+  const W = PARTS.wound, diag = (b) => K.sweep(W, "rod", "sheath", [{ out: 0, b }, { out: 0.7, b }], 14, 18).worst > 0, side = (b) => K.sweep(W, "rod", "sheath", [{ side: 0, b }, { side: 0.7, b }], 14, 18).worst > 0;
+  ok(!diag(0.15) && !diag(0.2) && diag(0.3) && side(0.15) && side(0.3), "the wound sheath: three bands in three planes hold a rod along the axes at any width, let it out through a corner at half-widths 0.15 and 0.2 of a radius-0.5 bundle, and close at 0.3");
+  const C = PARTS.cable, c = K.compile(C);
+  ok(C.check.every(([a, b]) => K.fit(C, a, b, {}, 12).overlap === 0) && c.parts[0].sdf(0, 0, 0, 0) < 0 && c.parts[1].sdf(0.175, 0, 0, 0) < 0 && c.parts[2].sdf(0.68, 0, 0, 0) < 0, "the cable: 169 filaments in thirteen hoses in a jacket, nothing touching");
 }
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

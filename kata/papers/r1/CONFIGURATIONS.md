@@ -4,6 +4,10 @@
 be, and extend to cabling.** This is the map. Each configuration says where its grip comes from, what has been
 tested and how, and what is open. Nothing here is claimed in the paper until it has a test.
 
+**To see them:** every configuration with a geometry is a part in CAD⁴ (kata.mino.mobi/cad4/): `#hoop`, `#ringed`,
+`#rope` (woven sheath), `#hoserope`, `#ribbonyarn`, `#wound`, `#cable`, `#spinneret`. The bias sheath has none: nobody
+knows how to draw one.
+
 ## What a rope is made of
 
 Four choices, mostly independent.

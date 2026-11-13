@@ -91,7 +91,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then fourteen assemblies that are the reason to have a 4D workshop:
+holes), then eighteen assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -141,6 +141,15 @@ holes), then fourteen assemblies that are the reason to have a 4D workshop:
 - **room.** The first building: a floor that is a volume, eight walls, a doorway that is a hole in three directions,
   a door lying on the wall's face and hung on a plane, two windows, a table on four legs. [HOUSE](../house/) walks
   through it, using this tree for both the picture and the collisions.
+- **rope: filaments in a hose.** The spinneret's product: thirteen continuous filaments (one, and the twelve that fit
+  round it in a 3D cross-section) in a closed hose, cut short so you can see in. The strongest rope per weight on
+  the bench ([PULL](../pull/)).
+- **yarn on a ribbon.** Five fibres wound on a ribbon, the cheat that gives a 4D yarn its twist back
+  ([TWIST](../twist/)). In its opening slice it is a fibre twisted round a thread: the thread is the ribbon edge-on.
+  A fibre is held in x and y and slides along z to the ribbon's edge.
+- **wound sheath.** Three ribbons wound round the bundle in three planes: three bands on the cross-section's sphere.
+  They close it at a half-width of about 0.3 of a radius-0.5 bundle and leave the eight corners open before.
+- **cable: thirteen ropes.** 169 filaments in thirteen hoses in a jacket, telescoped so every layer shows.
 - **spinneret.** How any of it would be made. Extrusion pushes a cross-section along one direction, and in 4D the
   cross-section is a 3D shape, so the spigot's shape is the product: a ball-shaped hole gives a fibre, a slot a
   ribbon, a gap shaped like a spherical shell a closed hose, and a hose spigot with fibre holes in its plug a whole
@@ -173,6 +182,6 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 ```bash
 node kata/cad4/test/cad4.selftest.mjs         # ~40 s, 18 checks: the kernel against closed forms
 node kata/cad4/test/assemblies.selftest.mjs   # ~45 s,  8 checks: hinge, rings, lock, chains
-node kata/cad4/test/textiles.selftest.mjs     # ~25 s,  6 checks: weave, cloth, bundles, rope
+node kata/cad4/test/textiles.selftest.mjs     # ~25 s, 10 checks: weave, cloth, bundles, and the ropes
 node kata/cad4/test/machines.selftest.mjs     # ~30 s,  5 checks: pulley, tackle, room, spinneret
 ```
