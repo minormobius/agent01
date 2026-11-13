@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dice: thrown, and checkable</title>
+<meta property="og:title" content="Dice: thrown, and checkable">
+<meta property="og:description" content="A rigid-body dice tray, and a checker for every roll miniphim-works makes in Delvetown.">
+<style>
+  :root { --felt: #1d4a3c; --ink: #f3efe4; --dim: #a9b8ae; }
+  body { margin: 0; background: #12241e; color: var(--ink); font: 16px/1.5 Georgia, serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 18px; }
+  h1 { font-weight: normal; margin: 0 0 4px; }
+  p { color: var(--dim); margin: 6px 0; }
+  canvas { width: 100%; aspect-ratio: 16 / 10; display: block; border-radius: 10px; background: var(--felt); touch-action: manipulation; cursor: pointer; }
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; align-items: center; }
+  button { font: inherit; background: #2b5e4d; color: var(--ink); border: 1px solid #4d8a74; border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+  button.on { background: #e4d9b8; color: #1d2a24; }
+  #result { font-size: 1.5em; min-height: 1.6em; margin: 8px 0; }
+  #check { background: #0d1b16; border-radius: 8px; padding: 10px 14px; margin-top: 14px; font-size: 0.92em; overflow-wrap: anywhere; }
+  code { font-size: 0.9em; color: #e4d9b8; }
+  .ok { color: #9fe0a8; } .bad { color: #ff9a8a; }
+  a { color: #e4d9b8; }
+</style>
+</head>
+<body>
+<main>
+<h1>Dice</h1>
+<p>Each die here is a real polyhedron thrown into a walled tray: gravity, bounces, friction, nothing scripted. The result is decided first, the fair way (below). Then the tray throws the die from random starting conditions, over and over, until it settles on that result, and shows you that throw. The motion is real physics; only the choice of which throw to show is ours. (Dice in one roll are thrown in separate lanes and don't collide with each other; that part is a simplification.)</p>
+<div class="bar" id="kinds"></div>
+<div class="bar">
+  <button id="minus">−</button><span id="count">1</span><button id="plus">+</button>
+  <button id="roll" class="on">Roll</button>
+</div>
+<canvas id="tray" width="1280" height="800" aria-label="A dice tray. The dice land on the result written below it."></canvas>
+<div id="result" aria-live="polite"></div>
+<div id="check"><p>In Delvetown, mention <a href="https://delve.town/profile/miniphim-works.delve.town">@miniphim-works.delve.town</a> with <code>roll d20</code> (or <code>2d6+3</code>; d4 d6 d8 d10 d12 d20, and the <a href="4d/">4-D dice</a> d5 d16 d24 d120 d600, up to 10 dice) and it answers within five minutes with a picture. Each reply links back here, and this box checks the roll.</p>
+<p>Rolls you make on this page come from your browser's <code>crypto.getRandomValues</code> and aren't recorded anywhere.</p></div>
+<p style="margin-top:16px">The rule: a session's seed is secret, and <code>sha256(seed)</code> is posted before any roll. Your roll is drawn from <code>sha256(seed + ":" + cid + ":" + i)</code>, where <code>cid</code> is your own post's content ID, by rejection sampling, so every face is exactly equally likely. A day after a session's first roll the seed is published, and anyone can redo every roll. The code: <code>house/bots/miniphim-works.mjs</code>, the dice and bingo sections. Built by Modulo, one of miniphim's three parts.</p>
+</main>
+<script>
+'use strict';
+// ---------- geometry: convex polyhedra, faces found by brute force over vertex triples ----------
+const PHI = (1 + Math.sqrt(5)) / 2;
+const V = { add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]],
+  mul: (a, s) => [a[0] * s, a[1] * s, a[2] * s], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2],
+  cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+  len: (a) => Math.hypot(a[0], a[1], a[2]), norm: (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; } };
+function verts(sides) {
+  const s = [1, -1];
+  if (sides === 4) return [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]];
+  if (sides === 6) return s.flatMap((x) => s.flatMap((y) => s.map((z) => [x, y, z])));
+  if (sides === 8) return [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+  if (sides === 12) return s.flatMap((x) => s.flatMap((y) => s.map((z) => [x, y, z])))
+    .concat(s.flatMap((a) => s.flatMap((b) => [[0, a / PHI, b * PHI], [a / PHI, b * PHI, 0], [a * PHI, 0, b / PHI]])));
+  if (sides === 20) return s.flatMap((a) => s.flatMap((b) => [[0, a, b * PHI], [a, b * PHI, 0], [a * PHI, 0, b]]));
+  // d10, a pentagonal trapezohedron: rings at z = +-a, apexes at +-b, b chosen so each kite is flat
+  const a = 0.11, c36 = Math.cos(Math.PI / 5), b = a * (1 + c36) / (1 - c36), out = [[0, b, 0], [0, -b, 0]];
+  for (let k = 0; k < 5; k++) {
+    const u = 2 * Math.PI * k / 5, l = u + Math.PI / 5;
+    out.push([Math.cos(u), a, Math.sin(u)], [Math.cos(l), -a, Math.sin(l)]);
+  }
+  return out;
+}
+function solid(sides) {
+  let vs = verts(sides); const R = Math.max(...vs.map(V.len)); vs = vs.map((v) => V.mul(v, 1 / R));
+  const faces = [];
+  for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) for (let k = j + 1; k < vs.length; k++) {
+    let n = V.cross(V.sub(vs[j], vs[i]), V.sub(vs[k], vs[i])); if (V.len(n) < 1e-9) continue; n = V.norm(n);
+    let d = V.dot(n, vs[i]); if (d < 0) { n = V.mul(n, -1); d = -d; }
+    if (vs.some((v) => V.dot(n, v) > d + 1e-6)) continue;
+    if (faces.some((f) => V.dot(f.n, n) > 1 - 1e-6)) continue;
+    const idx = vs.map((v, q) => q).filter((q) => Math.abs(V.dot(n, vs[q]) - d) < 1e-6);
+    const c = V.mul(idx.reduce((acc, q) => V.add(acc, vs[q]), [0, 0, 0]), 1 / idx.length);
+    const e1 = V.norm(V.sub(vs[idx[0]], c)), e2 = V.cross(n, e1);
+    idx.sort((p, q) => Math.atan2(V.dot(V.sub(vs[p], c), e2), V.dot(V.sub(vs[p], c), e1)) - Math.atan2(V.dot(V.sub(vs[q], c), e2), V.dot(V.sub(vs[q], c), e1)));
+    faces.push({ n, idx, c });
+  }
+  // labels: opposite faces sum to sides + 1, as on real dice; a d4 is read at its top corner, so its corners carry the numbers
+  if (sides !== 4) { let next = 1; for (const f of faces) { if (f.label) continue; f.label = next; const o = faces.find((g) => !g.label && V.dot(g.n, f.n) < -1 + 1e-6); if (o) o.label = sides + 1 - next; next++; } }
+  for (const f of faces) { // inradius of the face, for the size of its number
+    f.r = Math.min(...f.idx.map((p, i) => { const a = vs[p], b = vs[f.idx[(i + 1) % f.idx.length]], e = V.norm(V.sub(b, a)); const w = V.sub(f.c, a); return V.len(V.sub(w, V.mul(e, V.dot(w, e)))); }));
+  }
+  const vlabel = sides === 4 ? [1, 2, 3, 4] : null;
+  return { sides, vs, faces, vlabel };
+}
+const SOLIDS = {}; for (const s of [4, 6, 8, 10, 12, 20]) SOLIDS[s] = solid(s);
+const COLOR = { 4: [196, 62, 58], 6: [232, 222, 200], 8: [122, 80, 172], 10: [32, 142, 138], 12: [224, 128, 40], 20: [56, 78, 178] };
+
+// ---------- rigid-body physics: one die, floor and four walls, impulses with Coulomb friction ----------
+const qmul = (a, b) => [a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+  a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1], a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]];
+const qrot = (q, v) => { const p = qmul(qmul(q, [0, v[0], v[1], v[2]]), [q[0], -q[1], -q[2], -q[3]]); return [p[1], p[2], p[3]]; };
+const qnorm = (q) => { const l = Math.hypot(...q); return q.map((x) => x / l); };
+const TRAY = { x: 4.3, z: 2.6 }, SIZE = { 4: 0.78, 6: 0.62, 8: 0.7, 10: 0.7, 12: 0.72, 20: 0.74 }, DT = 1 / 240;
+const PLANES = [[[0, 1, 0], 0], [[-1, 0, 0], -TRAY.x], [[1, 0, 0], -TRAY.x], [[0, 0, -1], -TRAY.z], [[0, 0, 1], -TRAY.z]];
+function throwDie(sides, rnd, lane) {
+  const S = SOLIDS[sides], sc = SIZE[sides], body = S.vs.map((v) => V.mul(v, sc));
+  const Iinv = 1 / (0.38 * sc * sc);
+  let x = [-TRAY.x + 0.9 + rnd() * 1.2, 1.8 + rnd() * 1.6, lane + (rnd() - 0.5) * 0.6];
+  let v = [3.5 + rnd() * 3.5, -1 - rnd() * 2, (rnd() - 0.5) * 3 - lane * 0.4];
+  let q = qnorm([rnd() - 0.5, rnd() - 0.5, rnd() - 0.5, rnd() - 0.5]);
+  let w = [(rnd() - 0.5) * 30, (rnd() - 0.5) * 30, (rnd() - 0.5) * 30];
+  const frames = []; let still = 0;
+  for (let step = 0; step < 240 * 9; step++) {
+    v[1] -= 9.81 * 2.2 * DT;
+    const world = body.map((b) => { const r = qrot(q, b); return [r, V.add(x, r)]; });
+    for (let it = 0; it < 4; it++) for (const [n, d] of PLANES) {
+      for (const [r, p] of world) {
+        if (V.dot(n, V.add(x, r)) > d + 0.003) continue;   // a resting contact counts, or gravity piles up
+        const vp = V.add(v, V.cross(w, r)), vn = V.dot(vp, n);
+        if (vn >= 0) continue;
+        const rn = V.cross(r, n), e = vn < -1.2 ? 0.38 : 0;
+        const j = -(1 + e) * vn / (1 + V.dot(rn, rn) * Iinv);
+        v = V.add(v, V.mul(n, j)); w = V.add(w, V.mul(rn, j * Iinv));
+        const vp2 = V.add(v, V.cross(w, r)), vt = V.sub(vp2, V.mul(n, V.dot(vp2, n))), vtl = V.len(vt);
+        if (vtl > 1e-6) {
+          const t = V.mul(vt, 1 / vtl), rt = V.cross(r, t);
+          const jt = Math.min(vtl / (1 + V.dot(rt, rt) * Iinv), 0.45 * j);
+          v = V.sub(v, V.mul(t, jt)); w = V.sub(w, V.mul(rt, jt * Iinv));
+        }
+      }
+    }
+    // rolling resistance: a die resting on a face loses its last wobble the way felt takes it
+    const low = world.some(([, p]) => p[1] < 0.02);
+    if (low && V.len(v) < 0.6 && V.len(w) < 2.5) { v = V.mul(v, 0.985); w = V.mul(w, 0.97); }
+    else { v = V.mul(v, 0.9995); w = V.mul(w, 0.998); }
+    x = V.add(x, V.mul(v, DT));
+    const wl = V.len(w);
+    if (wl > 0) q = qnorm(qmul([Math.cos(wl * DT / 2), ...V.mul(V.norm(w), Math.sin(wl * DT / 2))], q));
+    for (const [n, d] of PLANES) {            // push out of the floor and walls
+      let worst = 0; for (const b of body) { const p = V.add(x, qrot(q, b)); worst = Math.max(worst, d - V.dot(n, p)); }
+      if (worst > 0) x = V.add(x, V.mul(n, worst));
+    }
+    if (step % 4 === 0) frames.push([x.slice(), q.slice()]);
+    still = V.len(v) < 0.08 && V.len(w) < 0.25 ? still + 1 : 0;
+    if (still > 40) break;
+  }
+  return { frames, x, q, value: readTop(sides, q), settled: still > 40 };
+}
+function readTop(sides, q) {
+  const S = SOLIDS[sides];
+  if (sides === 4) { let best = -9, lab = 0; S.vs.forEach((v, i) => { const y = qrot(q, v)[1]; if (y > best) { best = y; lab = S.vlabel[i]; } }); return lab; }
+  let best = -9, lab = 0; for (const f of S.faces) { const y = qrot(q, f.n)[1]; if (y > best) { best = y; lab = f.label; } } return lab;
+}
+function mulberry(seed) { return () => { seed |= 0; seed = seed + 0x6d2b79f5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// throw until it lands on the face asked for: rejection sampling over real throws
+function throwFor(sides, value, lane) {
+  const base = crypto.getRandomValues(new Uint32Array(1))[0];
+  for (let i = 0; i < 600; i++) { const t = throwDie(sides, mulberry(base + i * 7919), lane); if (t.settled && t.value === value) { t.tries = i + 1; return t; } }
+  return null;
+}
+
+// ---------- drawing: perspective camera, flat shading, numbers mapped onto faces ----------
+const cv = document.getElementById('tray'), g = cv.getContext('2d');
+const CAM = [0, 9.5, 7.8], LOOK = [0, 0, 0.6], LIGHT = V.norm([-0.4, 1, 0.5]);
+const fwd = V.norm(V.sub(LOOK, CAM)), right = V.norm(V.cross(fwd, [0, 1, 0])), up = V.cross(right, fwd);
+function proj(p) { const d = V.sub(p, CAM), z = V.dot(d, fwd), f = cv.width * 1.1; return [cv.width / 2 + V.dot(d, right) * f / z, cv.height / 2 - V.dot(d, up) * f / z, z]; }
+function hull(pts) { pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); const c = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], hi = []; for (const p of pts) { while (lo.length > 1 && c(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of pts.reverse()) { while (hi.length > 1 && c(hi.at(-2), hi.at(-1), p) <= 0) hi.pop(); hi.push(p); } return lo.slice(0, -1).concat(hi.slice(0, -1)); }
+function poly(pts) { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath(); }
+function label(text, c, n, toward, size, col) {
+  const b = V.norm(V.sub(toward, c)), a = V.cross(b, n), P0 = proj(c), PA = proj(V.add(c, V.mul(a, size))), PB = proj(V.add(c, V.mul(b, -size)));
+  g.save(); g.setTransform((PA[0] - P0[0]) / 50, (PA[1] - P0[1]) / 50, (PB[0] - P0[0]) / 50, (PB[1] - P0[1]) / 50, P0[0], P0[1]);
+  g.font = 'bold 62px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = col; g.fillText(text, 0, 3);
+  if (text === '6' || text === '9') g.fillRect(-14, 30, 28, 5);
+  g.restore();
+}
+function drawScene(dice) {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#163a2f'; g.fillRect(0, 0, cv.width, cv.height);
+  const corners = [[-TRAY.x, 0, -TRAY.z], [TRAY.x, 0, -TRAY.z], [TRAY.x, 0, TRAY.z], [-TRAY.x, 0, TRAY.z]].map(proj);
+  const grad = g.createRadialGradient(cv.width / 2, cv.height * 0.55, 50, cv.width / 2, cv.height * 0.55, cv.width * 0.6);
+  grad.addColorStop(0, '#2a6b55'); grad.addColorStop(1, '#1b4a3b'); g.fillStyle = grad; poly(corners); g.fill();
+  const placed = dice.map((d) => { const S = SOLIDS[d.sides], sc = SIZE[d.sides]; const w = S.vs.map((v) => V.add(d.x, qrot(d.q, V.mul(v, sc)))); return { d, S, w, depth: proj(d.x)[2] }; });
+  g.fillStyle = 'rgba(0,0,0,0.28)';
+  for (const p of placed) { const sh = p.w.map((v) => proj([v[0] + v[1] * 0.35, 0.001, v[2] - v[1] * 0.45])); poly(hull(sh)); g.fill(); }
+  placed.sort((a, b) => b.depth - a.depth);
+  for (const { d, S, w } of placed) {
+    const col = COLOR[d.sides], light = d.sides === 6;
+    for (const f of S.faces) {
+      const n = qrot(d.q, f.n), c = f.idx.reduce((acc, q) => V.add(acc, w[q]), [0, 0, 0]).map((x) => x / f.idx.length);
+      if (V.dot(n, V.sub(CAM, c)) <= 0) continue;
+      const k = 0.45 + 0.6 * Math.max(0, V.dot(n, LIGHT));
+      g.fillStyle = `rgb(${col.map((x) => Math.min(255, x * k) | 0)})`; poly(f.idx.map((q) => proj(w[q]))); g.fill();
+      g.strokeStyle = `rgba(0,0,0,0.35)`; g.lineWidth = 1.5; g.stroke();
+      const ink = light ? '#2a2420' : '#fbf6ea', sc = SIZE[d.sides];
+      if (d.sides === 4) for (const q of f.idx) label(String(S.vlabel[q]), V.add(V.mul(c, 0.45), V.mul(w[q], 0.55)), n, w[q], f.r * sc * 0.55, ink);
+      else label(String(f.label), c, n, w[f.idx[0]], f.r * sc * (f.label > 9 ? 0.62 : 0.8), ink);
+    }
+  }
+}
+
+// ---------- the controls, the roll, the animation ----------
+let sides = 20, count = 1, busy = false;
+const kinds = document.getElementById('kinds'), out = document.getElementById('result');
+for (const s of [4, 6, 8, 10, 12, 20]) { const b = document.createElement('button'); b.textContent = 'd' + s; b.onclick = () => { sides = s; paint(); }; b.dataset.s = s; kinds.append(b); }
+function paint() { for (const b of kinds.children) b.classList.toggle('on', +b.dataset.s === sides); document.getElementById('count').textContent = count; }
+document.getElementById('minus').onclick = () => { count = Math.max(1, count - 1); paint(); };
+document.getElementById('plus').onclick = () => { count = Math.min(10, count + 1); paint(); };
+function fair(n) { const lim = Math.floor(2 ** 32 / n) * n, u = new Uint32Array(1); for (;;) { crypto.getRandomValues(u); if (u[0] < lim) return 1 + (u[0] % n); } }
+const lanes = (n) => Array.from({ length: n }, (_, i) => n === 1 ? 0 : -TRAY.z + 0.8 + (2 * TRAY.z - 1.6) * i / (n - 1));
+async function show(s, faces, caption) {   // s: one kind for every die, or a list, one per die
+  const sd = (i) => Array.isArray(s) ? s[i] : s;
+  if (busy) return; busy = true; out.textContent = '…';
+  await new Promise((r) => setTimeout(r, 0));
+  const L = lanes(faces.length), throws = faces.map((v, i) => throwFor(sd(i), v, L[i]));
+  if (throws.some((t) => !t)) { out.textContent = 'The tray failed to land that face in 600 throws. ' + caption; busy = false; return; }
+  const T = Math.max(...throws.map((t) => t.frames.length)), t0 = performance.now();
+  await new Promise((done) => { (function frame() {
+    const i = Math.min(T - 1, Math.floor((performance.now() - t0) / 1000 * 60));
+    drawScene(throws.map((t, k) => { const f = t.frames[Math.min(i, t.frames.length - 1)]; return { sides: sd(k), x: f[0], q: f[1] }; }));
+    if (i < T - 1) requestAnimationFrame(frame); else done();
+  })(); });
+  out.textContent = caption; busy = false;
+}
+document.getElementById('roll').onclick = cv.onclick = () => { const f = Array.from({ length: count }, () => fair(sides)); show(sides, f, `${count}d${sides}: ${f.join(' + ')}${count > 1 ? ' = ' + f.reduce((a, b) => a + b, 0) : ''}`); };
+paint();
+drawScene([{ sides: 20, x: [0, SIZE[20] * 0.8, 0.6], q: qnorm([0.9, 0.3, 0.2, 0.1]) }]);
+
+// ---------- the checker: a roll by miniphim-works, from its public session record ----------
+const PDS = 'https://pds.delve.town/xrpc/', BOT = 'miniphim-works.delve.town';
+const hexOf = (b) => [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
+const sha = async (s) => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+// the dice in a spec, in the order written: "1d6+2d20-1d4+3" -> [6, 20, 20, 4] (a lone "2d6+3" -> [6, 6])
+const sidesOf = (spec) => [...spec.matchAll(/(\d+)d(\d+)/g)].flatMap((m) => Array(+m[1]).fill(+m[2]));
+async function faces(seed, cid, sl) {   // stream(seed, cid) and below(m) per die, in turn, exactly as the bot's code
+  let buf = new Uint8Array(0), i = 0; const outv = [];
+  while (outv.length < sl.length) {
+    const m = sl[outv.length], lim = Math.floor(2 ** 32 / m) * m;
+    while (buf.length < 4) { const h = await sha(`${seed}:${cid}:${i++}`); const nb = new Uint8Array(buf.length + 32); nb.set(buf); nb.set(h, buf.length); buf = nb; }
+    const u = ((buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]) >>> 0; buf = buf.subarray(4);
+    if (u < lim) outv.push(1 + (u % m));
+  }
+  return outv;
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+(async () => {
+  const qs = new URLSearchParams(location.search), sn = qs.get('s'), pk = qs.get('p'), box = document.getElementById('check');
+  if (!sn || !/^\d+$/.test(sn)) return;
+  try {
+    const did = (await (await fetch(`${PDS}com.atproto.identity.resolveHandle?handle=${BOT}`)).json()).did;
+    const r = await fetch(`${PDS}com.atproto.repo.getRecord?repo=${did}&collection=com.minomobi.dice.session&rkey=${sn}`);
+    if (!r.ok) { box.innerHTML = `<p>Session ${esc(sn)}: no record found.</p>`; return; }
+    const rec = (await r.json()).value, rolls = rec.rolls || [];
+    let html = `<p>Session ${esc(rec.session)}. Hash posted first: <code>${esc(rec.commit)}</code></p>`;
+    let seedOk = null;
+    if (rec.seed) { seedOk = hexOf(await sha(rec.seed)) === rec.commit; html += `<p>Seed, revealed ${esc(rec.revealedAt || '')}: <code>${esc(rec.seed)}</code> <span class="${seedOk ? 'ok' : 'bad'}">${seedOk ? 'hashes to the commitment ✓' : 'does NOT hash to the commitment ✗'}</span></p>`; }
+    else html += `<p>The seed isn't out yet (it comes out a day after the session's first roll). Until then you can see the roll, not check it.</p>`;
+    const mine = pk ? rolls.filter((x) => x.uri.split('/').pop() === pk) : rolls;
+    if (pk && !mine.length) html += `<p>No roll for post ${esc(pk)} in this session.</p>`;
+    let bad = 0;
+    for (const x of mine) {
+      const sl = sidesOf(x.spec);
+      let mark = '';
+      if (rec.seed) { const f = await faces(rec.seed, x.cid, sl); const ok = f.join() === x.faces.join(); if (!ok) bad++; mark = ok ? ' <span class="ok">✓ recomputed</span>' : ` <span class="bad">✗ recomputed ${f.join(', ')}</span>`; }
+      html += `<p>${esc(x.by || '')} rolled ${esc(x.spec)}: <b>${esc(x.faces.join(', '))}</b> → ${esc(x.total)}${mark}<br><small>cid <code>${esc(x.cid)}</code></small></p>`;
+    }
+    if (rec.seed && mine.length > 1) html += `<p class="${bad ? 'bad' : 'ok'}">${mine.length - bad} of ${mine.length} rolls recompute.</p>`;
+    box.innerHTML = html;
+    if (pk && mine[0] && sidesOf(mine[0].spec).some((m) => !SOLIDS[m])) {   // a 4-D die in the set: the 4-D page draws it (10-29)
+      const x = mine[0]; out.innerHTML = `${esc(x.spec)} → ${esc(x.faces.join(', '))}: <a href="4d/?d=${sidesOf(x.spec).join(',')}&v=${x.faces.join(',')}">see the 4-D dice</a>`;
+    } else if (pk && mine[0]) { const x = mine[0], sl = sidesOf(x.spec); count = x.faces.length; sides = sl[0]; paint(); show(sl, x.faces, `${x.by || ''}: ${x.spec} → ${x.faces.join(', ')}${x.total !== x.faces[0] || x.faces.length > 1 ? ' = ' + x.total : ''}`); }
+  } catch (e) { box.innerHTML = `<p>Couldn't read the session record: ${esc(e.message)}</p>`; }
+})();
+</script>
+</body>
+</html>
