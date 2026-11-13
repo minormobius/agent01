@@ -92,7 +92,7 @@ if (cmd === "ours") {
   const file = net ? `net-${args[0]}-${args[1]}-${o.mass}-ff${ff}.json` : `run-${args[0]}-${args[1]}-ff${args[2] ?? 1}${args[3] ? "-" + args[3] : ""}.json`;
   const a = firstStar(o, o.Mch), s0 = a && toPinned({ ...o, M: o.Mch }, a);
   if (!s0 || !s0.ok) { save(file, { Grel, rnp, s, ff, ...(net ? { mass: o.mass, net: true } : {}), rows, fail: s0?.why ?? "no first star" }); process.exit(0); }
-  rows.push(row(o, 1, o.Mch, s0)); console.log(`1 M_Ch: L ${s0.L.toExponential(3)} W, Tc ${(s0.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, s0).toFixed(0)} K${net ? `, core t½ ${(rows[0].th / 3.156e16).toPrecision(3)} Gyr` : ""}`);
+  rows.push(row(o, 1, o.Mch, s0)); console.log(`1 M_Ch: L ${s0.L.toExponential(3)} W, Tc ${(s0.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, s0).toFixed(0)} K${net ? `, core t½ ${rows[0].th == null ? "never (not by 1e22 s)" : (rows[0].th / 3.156e16).toPrecision(3) + " Gyr"}` : ""}`);
   // walk down and up from M_Ch; where a step fails, try smaller ones (up to three halvings of the step in ln M), keeping
   // only the target masses in the table
   for (const ms of [[0.8, 0.63, 0.5, 0.4, 0.32, 0.25, 0.2, 0.16, 0.13], [1.25, 1.6, 2, 2.5, 3.2, 4, 5]]) {
@@ -102,7 +102,7 @@ if (cmd === "ours") {
       hist.push({ m, p: st.p }); const fp = st.f; fq = (q) => fp(q * M); return st; };
     const reach = (m, depth) => { const st = step(m); if (st.ok || depth >= 3) return st; const prev = hist.at(-1).m, mid = Math.sqrt(prev * m), a = reach(mid, depth + 1); return a.ok ? reach(m, depth + 1) : a; };
     for (const m of ms) { if (stop) break; const st = reach(m, 0); if (!st.ok) { console.log(`${m} M_Ch: stopped (${st.why})`); stop = true; break; }
-      rows.push(row(o, m, m * o.Mch, st)); console.log(`${m} M_Ch: L ${st.L.toExponential(3)} W, R ${st.R.toExponential(3)} m, Tc ${(st.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, st).toFixed(0)} K${net ? `, core t½ ${(rows.at(-1).th / 3.156e16).toPrecision(3)} Gyr` : ""}`); } }
+      rows.push(row(o, m, m * o.Mch, st)); console.log(`${m} M_Ch: L ${st.L.toExponential(3)} W, R ${st.R.toExponential(3)} m, Tc ${(st.Tc / 1e6).toFixed(2)} MK, Teff ${teff(4, st).toFixed(0)} K${net ? `, core t½ ${rows.at(-1).th == null ? "never (not by 1e22 s)" : (rows.at(-1).th / 3.156e16).toPrecision(3) + " Gyr"}` : ""}`); } }
   save(file, { Grel, rnp, s, ff, ...(net ? { mass: o.mass, net: true } : {}), Mch: o.Mch, Qpp: o.Qpp, Qaa: o.Qaa, rows: rows.sort((p, q) => p.m - q.m) });
 } else if (cmd === "bake") {
   // each star's life (a tenth of its mass burnt at 17 MeV a nucleon in 4D, the ash's binding; ours 6.7, to helium),
