@@ -1,0 +1,33 @@
+{
+ "group": "lt-11",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-14 1.55 grid 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 371
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-14 1.6 grid 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 264
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-17 1.5152 grid 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 444
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-17 1.55 grid 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 245
+  }
+ ]
+}

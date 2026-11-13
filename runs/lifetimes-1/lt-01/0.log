@@ -1,0 +1,2 @@
+$ node four/atom/tools/mainseq.mjs net 1e-11 1.7 ladder 1
+wrote net-1e-11-1.7-ladder-ff1.json

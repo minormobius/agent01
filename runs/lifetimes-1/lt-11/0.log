@@ -1,0 +1,23 @@
+$ node four/atom/tools/mainseq.mjs net 1e-14 1.55 grid 1
+1 M_Ch: L 1.195e+41 W, Tc 26.96 MK, Teff 54536 K, core t½ 0.0601 Gyr
+0.8 M_Ch: L 2.484e+40 W, R 6.695e+6 m, Tc 23.27 MK, Teff 42511 K, core t½ 0.394 Gyr
+0.63 M_Ch: L 3.977e+39 W, R 6.325e+6 m, Tc 18.62 MK, Teff 30494 K, core t½ 2.84 Gyr
+0.5 M_Ch: L 5.826e+38 W, R 5.995e+6 m, Tc 14.94 MK, Teff 21444 K, core t½ 12.6 Gyr
+0.4 M_Ch: L 7.764e+37 W, R 5.541e+6 m, Tc 12.10 MK, Teff 15024 K, core t½ 49.8 Gyr
+0.32 M_Ch: L 9.407e+36 W, R 5.291e+6 m, Tc 9.26 MK, Teff 10128 K, core t½ 349 Gyr
+0.25 M_Ch: L 9.259e+35 W, R 5.298e+6 m, Tc 6.80 MK, Teff 6364 K, core t½ 2.41e+3 Gyr
+0.2 M_Ch: L 8.865e+34 W, R 5.091e+6 m, Tc 5.22 MK, Teff 4077 K, core t½ 1.14e+4 Gyr
+0.16 M_Ch: L 7.437e+33 W, R 4.907e+6 m, Tc 3.79 MK, Teff 2539 K, core t½ 6.45e+4 Gyr
+0.13 M_Ch: L 8.073e+32 W, R 4.960e+6 m, Tc 2.81 MK, Teff 1618 K, core t½ never (not by 1e22 s)
+1.25 M_Ch: L 5.316e+41 W, R 8.598e+6 m, Tc 30.12 MK, Teff 67514 K, core t½ 0.0137 Gyr
+1.6 M_Ch: L 2.463e+42 W, R 1.014e+7 m, Tc 33.39 MK, Teff 83112 K, core t½ 0.00344 Gyr
+2 M_Ch: L 9.027e+42 W, R 1.177e+7 m, Tc 36.34 MK, Teff 98540 K, core t½ 0.00120 Gyr
+2.5 M_Ch: L 3.128e+43 W, R 1.366e+7 m, Tc 39.48 MK, Teff 115559 K, core t½ 0.000446 Gyr
+3.2 M_Ch: L 1.170e+44 W, R 1.606e+7 m, Tc 43.21 MK, Teff 136519 K, core t½ 0.000164 Gyr
+4 M_Ch: L 3.709e+44 W, R 1.851e+7 m, Tc 46.87 MK, Teff 157882 K, core t½ 0.0000674 Gyr
+5 M_Ch: L 1.150e+45 W, R 2.130e+7 m, Tc 50.89 MK, Teff 181983 K, core t½ 0.0000297 Gyr
+wrote net-1e-14-1.55-grid-ff1.json
+(node:2363) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

@@ -1,0 +1,23 @@
+$ node four/atom/tools/mainseq.mjs net 1e-23 1.55 ladder 1
+1 M_Ch: L 1.550e+47 W, Tc 8.20 MK, Teff 6809 K, core t½ 4.08e+4 Gyr
+0.8 M_Ch: L 3.512e+46 W, R 2.528e+10 m, Tc 6.71 MK, Teff 5156 K, core t½ never (not by 1e22 s)
+0.63 M_Ch: L 6.658e+45 W, R 2.440e+10 m, Tc 5.45 MK, Teff 3777 K, core t½ never (not by 1e22 s)
+0.5 M_Ch: L 1.229e+45 W, R 2.388e+10 m, Tc 4.38 MK, Teff 2729 K, core t½ never (not by 1e22 s)
+0.4 M_Ch: L 2.241e+44 W, R 2.342e+10 m, Tc 3.55 MK, Teff 1964 K, core t½ never (not by 1e22 s)
+0.32 M_Ch: L 3.891e+43 W, R 2.278e+10 m, Tc 2.90 MK, Teff 1407 K, core t½ never (not by 1e22 s)
+0.25 M_Ch: L 5.361e+42 W, R 2.189e+10 m, Tc 2.34 MK, Teff 970 K, core t½ never (not by 1e22 s)
+0.2 M_Ch: L 8.732e+41 W, R 2.093e+10 m, Tc 1.94 MK, Teff 693 K, core t½ never (not by 1e22 s)
+0.16 M_Ch: L 1.365e+41 W, R 1.975e+10 m, Tc 1.62 MK, Teff 495 K, core t½ never (not by 1e22 s)
+0.13 M_Ch: L 2.324e+40 W, R 1.845e+10 m, Tc 1.37 MK, Teff 362 K, core t½ never (not by 1e22 s)
+1.25 M_Ch: L 6.208e+47 W, R 2.827e+10 m, Tc 9.55 MK, Teff 8565 K, core t½ 6.03e+3 Gyr
+1.6 M_Ch: L 2.666e+48 W, R 3.243e+10 m, Tc 10.71 MK, Teff 10556 K, core t½ 1.16e+3 Gyr
+2 M_Ch: L 9.430e+48 W, R 3.746e+10 m, Tc 11.64 MK, Teff 12465 K, core t½ 359 Gyr
+2.5 M_Ch: L 3.196e+49 W, R 4.351e+10 m, Tc 12.56 MK, Teff 14544 K, core t½ 133 Gyr
+3.2 M_Ch: L 1.181e+50 W, R 5.141e+10 m, Tc 13.64 MK, Teff 17090 K, core t½ 46.3 Gyr
+4 M_Ch: L 3.724e+50 W, R 5.969e+10 m, Tc 14.67 MK, Teff 19660 K, core t½ 19.1 Gyr
+5 M_Ch: L 1.149e+51 W, R 6.926e+10 m, Tc 15.77 MK, Teff 22526 K, core t½ 8.02 Gyr
+wrote net-1e-23-1.55-ladder-ff1.json
+(node:2667) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
