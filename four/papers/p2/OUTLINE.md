@@ -164,7 +164,7 @@ a carried rate; where the climb ends rests on A2's masses.
 
 ## Figures (plan)
 
-1. **Drawn:** the strong–weak plane (`figures/windows.svg`): p + p's edge, the first minutes' edge per clock, hydrogen burning's outcome at the network's points with each core's temperature. Gravity's G (rock) to add as the third window.
+1. **Drawn:** the strong–weak plane (`figures/windows.svg`): p + p's edge, the first minutes' edge per clock, hydrogen burning's outcome at the network's points with each core's temperature, split where the two mass models disagree (12 of 56 points, all at s ≤ 1.6: helium by the ceryllium cycle in the adopted model, a climb to elements 8–12 in the grid). Gravity's G (rock) to add as the third window.
 2. The 4D chart of nuclides by binding source, with the N = Z valley and the two-neutron isotopes' β⁻.
 3. The first minutes: helium left against G₄ and the clock.
 4. Hydrogen burning's ash against s (the network sweep).

@@ -249,9 +249,12 @@ for games, and this is a modelling programme with publications to come. The game
   **The windows plane (2026-11-13, PI: "narrower and narrower windows of feasibility … narratively powerful"; paper 2's
   spine):** `fusion/tools/windows4.mjs` (~10 min) → `papers/p2/data/windows.json`; `papers/p2/figures/windows.mjs` →
   `windows.svg` (figure 1). The plane s 1.40–1.891 × log₁₀ G₄/(G_F/M_W) 3–7 per clock (0.01–100 s): p + p opens on 78%;
-  the first minutes leave half their hydrogen on 32–69% (the edge flat in s at G₄ > 10^(5.4 → 3.4)); hydrogen burning at
-  the 8 × 7 network points sorts by one number, the Sun-paced core's temperature (> ~10 MK climbs past helium, ~4–9 helium,
-  < ~3.5 helium-3).
+  the first minutes leave half their hydrogen on 32–69% (the edge flat in s at G₄ > 10^(5.4 → 3.4)). Hydrogen burning at
+  the 8 × 7 network points, under both mass models (`ALT=<a copy of four/ baked under MASS=grid>`, ~15 min; the figure
+  splits a point where they differ): in the adopted ladder model 27 helium, 27 helium-3, 2 past helium (s = 1.65 with
+  G₄ 6–16× under the electron-matched value, element 6 at 8–10 MK), the low-s cores making helium at 8–11 MK by the
+  ceryllium cycle; in the grid model 14 past helium, sorting by the core's temperature as before (> ~10 MK climbs, ~4–9
+  helium, < ~3.5 helium-3). 12 of the 56 points differ, all at s ≤ 1.6.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)
