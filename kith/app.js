@@ -135,18 +135,29 @@ async function crawl(gather) {
     const rows = { ...seedRows };
     const todo = ids.filter((d) => !rows[d]);
     let done = ids.length - todo.length;
+    const failed = [];
     setProgress(done / ids.length);
     await pool(todo, CONCURRENCY, async (d) => {
       if (signal.aborted) return;
-      try { rows[d] = await followsOf(d, { signal }); }
-      catch (e) { if (e?.name !== 'AbortError') rows[d] = []; }
+      // A failed read is NOT "follows nobody": recording [] would turn that
+      // person into a false loose end and delete every tie they have. Retry with
+      // backoff (a PDS that rate-limits answers 429 without CORS headers, which
+      // the browser reports as a network error), then leave them out and say so.
+      for (let attempt = 0; attempt < 3 && !signal.aborted; attempt++) {
+        try { rows[d] = await followsOf(d, { signal }); break; }
+        catch (e) {
+          if (e?.name === 'AbortError') return;
+          if (attempt === 2) failed.push(d);
+          else await new Promise((r) => setTimeout(r, 1500 * (attempt + 1) ** 2));
+        }
+      }
       done++;
       setProgress(done / ids.length);
       setStatus(`reading follows ${num(done)}/${num(ids.length)} · ${num(stats.requests)} requests · ${((performance.now() - t0) / 1000).toFixed(0)}s`
         + (stats.cacheHits ? ` · ${num(stats.cacheHits)} cached` : ''));
     });
     const read = Object.keys(rows).length;
-    base = { ids, rows, owner, title, partial: read < ids.length ? { read, of: ids.length } : null };
+    base = { ids, rows, owner, title, failed, partial: read < ids.length ? { read, of: ids.length } : null };
     stack = [{ title: /\(\d[\d+]*\)\s*$/.test(title) ? title : `${title} (${num(ids.length)})`, scope: null }];
     hydrateProfiles(ids);
     await load();
@@ -178,9 +189,10 @@ async function analyseCurrent() {
   selected = -1;
   $('out').classList.remove('hidden');
   renderAll();
-  const p = base.partial;
+  const p = base.partial, nf = base.failed.length, stopped = p ? p.of - p.read - nf : 0;
   setStatus(`${num(view.ids.length)} people · ${num(view.edgeList.length)} ties · analysed in ${((performance.now() - t0) / 1000).toFixed(1)}s`
-    + (p ? ` · stopped early: ${num(p.read)} of ${num(p.of)} rows read, the unread are left out` : ''));
+    + (nf ? ` · ${num(nf)} ${nf === 1 ? 'account' : 'accounts'} could not be read (server refused) and ${nf === 1 ? 'is' : 'are'} left out` : '')
+    + (stopped > 0 ? ` · stopped early: ${num(stopped)} not read, left out` : ''));
 }
 
 function derive(res) {
