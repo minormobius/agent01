@@ -1,0 +1,114 @@
+{
+ "about": "Paper 2's sources. status: read = the claim the text takes from it was checked in the source itself; index = the bibliographic record checked (Crossref), the content not; secondary = checked only as another source cites it. Each says what the text uses it for. refs-crossref.mjs caches each DOI's Crossref record (CSL JSON) in data/crossref.json; build.mjs makes draft/references.json from both.",
+ "refs": [
+  {
+   "key": "thompson1977",
+   "doi": "10.1016/0375-9474(77)90007-0",
+   "status": "index",
+   "for": "the Minnesota nucleon force (its parameters, as atom/js/nuclear.js MN carries them)"
+  },
+  {
+   "key": "fermi1934",
+   "doi": "10.1007/BF01351864",
+   "status": "index",
+   "for": "the contact theory of beta decay",
+   "csl": {
+    "title": "Versuch einer Theorie der β-Strahlen. I"
+   }
+  },
+  {
+   "key": "brink1966",
+   "doi": null,
+   "status": "secondary",
+   "for": "the alpha-cluster (Bloch-Brink) wave function",
+   "via": "freer2018 (its reference Brink 1966a)",
+   "csl": {
+    "type": "paper-conference",
+    "title": "Alpha cluster model",
+    "author": [
+     {
+      "family": "Brink",
+      "given": "D. M."
+     }
+    ],
+    "container-title": "Proceedings of the International School of Physics “Enrico Fermi”, Course 36 (Varenna)",
+    "page": "247",
+    "issued": {
+     "date-parts": [
+      [
+       1966
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "key": "hill1953",
+   "doi": "10.1103/PhysRev.89.1102",
+   "status": "index",
+   "for": "the generator-coordinate (Hill-Wheeler) method"
+  },
+  {
+   "key": "freer2018",
+   "doi": "10.1103/RevModPhys.90.035004",
+   "status": "read",
+   "for": "the review of microscopic clustering; Brink 1966's reference, checked in its bibliography (arXiv:1705.06192)"
+  },
+  {
+   "key": "cyburt2010",
+   "doi": "10.1088/0067-0049/189/1/240",
+   "status": "index",
+   "for": "the REACLIB rate library",
+   "csl": {
+    "title": "The JINA REACLIB database: its recent updates and impact on type-I X-ray bursts"
+   }
+  },
+  {
+   "key": "smith2023",
+   "doi": "10.3847/1538-4357/acbaff",
+   "status": "index",
+   "for": "pynucastro, whose REACLIB snapshot (reaclib_default2_20250330) the network reads"
+  },
+  {
+   "key": "wang2021",
+   "doi": "10.1088/1674-1137/abddaf",
+   "status": "read",
+   "for": "AME2020 masses: all 30 binding energies the mass check uses, checked to 2 keV against the AMDC's mass_1.mas20"
+  },
+  {
+   "key": "adelberger2011",
+   "doi": "10.1103/RevModPhys.83.195",
+   "status": "read",
+   "for": "S11(0) = 4.01(1 ± 0.009) × 10^-25 MeV b and Λ² = 7.035 (arXiv:1004.2318, checked in the text)",
+   "csl": {
+    "title": "Solar fusion cross sections. II. The pp chain and CNO cycles"
+   }
+  },
+  {
+   "key": "aver2015",
+   "doi": "10.1088/1475-7516/2015/07/011",
+   "status": "read",
+   "for": "Y_p = 0.2449 ± 0.0040 (arXiv:1503.08146)"
+  },
+  {
+   "key": "vinyoles2017",
+   "doi": "10.3847/1538-4357/835/2/202",
+   "status": "read",
+   "for": "the Sun's pp and pep neutrino fluxes, 5.98 × 10^10 and 1.44 × 10^8 cm^-2 s^-1 (table 6, arXiv:1611.09867): pep/pp = 0.24%"
+  },
+  {
+   "key": "pdg2024",
+   "doi": "10.1103/PhysRevD.110.030001",
+   "status": "read",
+   "for": "the neutron's mean life, 878.4 ± 0.5 s (the 2024 baryon summary table; 879.4 ± 0.6 in 2020)",
+   "csl": {
+    "author": [
+     {
+      "literal": "Particle Data Group"
+     }
+    ],
+    "page": "030001"
+   }
+  }
+ ]
+}

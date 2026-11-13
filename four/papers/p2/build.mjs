@@ -70,16 +70,36 @@ export function numbers() {
   t.cycOpenTo = String(Math.max(...open.map((x) => x.s))); t.cycQL = open.map((x) => `+${f(x.ladder, 1)}`).join(", ");
   t.cycQoff = [1.5152, 1.55, 1.6].map((s) => { const v = cq(s).ladderLessOffset; return `${v >= 0 ? "+" : "−"}${f(Math.abs(v), 1)}`; }).join(" / ");
   t.cycQG = `${f(Math.max(...M.cycleQ4D.map((x) => x.grid)), 1)} to ${f(Math.min(...M.cycleQ4D.map((x) => x.grid)), 1)}`.replace(/-/g, "−");
+  // our world's point: both forces carried over (the deuteron as ours, G₄ = G_F/m_e)
+  const nameOf = (key) => { const [Z, A] = key.split("-").map(Number); return `${Z === 1 ? "hydrogen" : Z === 2 ? "helium" : Z === 4 ? "ceryllium" : Z === 10 ? "pxygen" : `element ${Z}`}-${A}`; };
+  const oursB = (B) => B?.find((b) => b.asOurs), oL = oursB(D.burn), oG = oursB(D.burnAlt);
+  if (!oL || !D.asOurs) throw new Error("windows.json has no as-ours point: rerun fusion/tools/windows4.mjs");
+  const desc = (o) => `${o.kind === "past helium" ? `past helium (${o.top.filter(([k]) => +k.split("-")[1] >= 8).slice(0, 2).map(([k, x]) => `${nameOf(k)} ${pct(x)}`).join(", ")})` : `${o.kind} (${pct(o.kind === "helium" ? o.he4 : o.he3)})`}`;
+  Object.assign(t, { oursKindL: desc(oL), oursTL: f(oL.T / 1e6, 1), oursKindG: oG ? desc(oG) : "—", oursTG: oG ? f(oG.T / 1e6, 1) : "—",
+    oursY: D.CLOCKS.map((c) => f(D.asOurs.Y[c], 2)).join(", "), oursY1: f(D.asOurs.Y[1], 2), oursGx: f(D.asOurs.gx, 2) });
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   return t;
 }
 
+/* the sources: refs.json (each with its status and what it supports) over the Crossref cache → CSL JSON for citeproc */
+function references() {
+  const R = JSON.parse(readFileSync(path.join(here, "refs.json"), "utf8")).refs, C = JSON.parse(readFileSync(path.join(here, "data", "crossref.json"), "utf8"));
+  return R.map((r) => { const base = r.doi ? C[r.doi] : {}; if (r.doi && !base) throw new Error(`${r.key}: no Crossref record (node four/papers/p2/refs-crossref.mjs)`);
+    const FIELDS = ["type", "title", "author", "container-title", "volume", "issue", "page", "issued", "publisher", "collection-title"], keep = {};
+    for (const f of FIELDS) { let v = base?.[f]; if (v == null) continue; if (Array.isArray(v) && f !== "author") v = v[0]; if (f === "author") v = v.map(({ given, family, literal }) => ({ given, family, literal })); keep[f] = v; }
+    if (base && !keep.page && base["article-number"]) keep.page = base["article-number"];
+    return { ...keep, ...(r.csl ?? {}), id: r.key, ...(r.doi ? { DOI: r.doi } : {}) }; });
+}
+const CSL = path.join(DRAFT, "references.json");
 const fill = (src, t) => src.replace(/\{\{(\w+)\}\}/g, (m, k) => { if (!(k in t)) throw new Error(`unknown token {{${k}}}`); return t[k]; });
 const sections = () => readdirSync(TEXT).filter((x) => x.endsWith(".md")).sort();
-const stamp = (name, md) => sha(md + readFileSync(path.join(here, "data", "windows.json"), "utf8") + readFileSync(path.join(here, "data", "masscheck.json"), "utf8"));
+const stamp = (name, md) => sha(md + ["windows.json", "masscheck.json", "crossref.json"].map((f) => readFileSync(path.join(here, "data", f), "utf8")).join("") + readFileSync(path.join(here, "refs.json"), "utf8"));
 
 function page(name, md) {
-  const body = execFileSync("pandoc", ["-f", "markdown", "-t", "html5", "--mathml"], { input: md.replace(/<!--[\s\S]*?-->\n?/g, ""), encoding: "utf8" });
+  let body = execFileSync("pandoc", ["-f", "markdown", "-t", "html5", "--mathml", "--citeproc", `--bibliography=${CSL}`, "-M", "link-citations=true", "-M", "link-bibliography=true", "-M", "reference-section-title=References"], { input: md.replace(/<!--[\s\S]*?-->\n?/g, ""), encoding: "utf8" });
+  // say how far each source has been checked, as paper 1 does: a source checked only as another cites it is marked
+  for (const r of JSON.parse(readFileSync(path.join(here, "refs.json"), "utf8")).refs.filter((x) => x.status === "secondary"))
+    body = body.replace(new RegExp(`(<div id="ref-${r.key}"[^>]*>[\\s\\S]*?)(</div>)`), `$1 <em class="unchecked">(Checked as ${r.via.replace(/ \(.*$/, "")} cites it; the chapter itself is not online.)</em>$2`);
   const title = (md.match(/^# (.+)$/m) || [, name])[1];
   return `<!doctype html>
 <html lang="en">
@@ -106,7 +126,9 @@ ${body}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const t = numbers(); mkdirSync(DRAFT, { recursive: true }); const stale = [];
+  const t = numbers(); mkdirSync(DRAFT, { recursive: true }); const stale = [], refs = references(), keys = new Set(refs.map((r) => r.id));
+  if (!process.argv.includes("--check")) writeFileSync(CSL, JSON.stringify(refs, null, 1));
+  for (const name of sections()) for (const [, k] of readFileSync(path.join(TEXT, name), "utf8").matchAll(/@([a-z]+\d{4}[a-z]?)/g)) if (!keys.has(k)) throw new Error(`${name}: unknown source @${k} (add it to refs.json)`);
   for (const name of sections()) { const md = fill(readFileSync(path.join(TEXT, name), "utf8"), t), out = path.join(DRAFT, name), html = out.replace(/\.md$/, ".html");
     if (process.argv.includes("--check")) { const ok = existsSync(out) && readFileSync(out, "utf8") === md && existsSync(html) && readFileSync(html, "utf8").includes(stamp(name, md)); if (!ok) stale.push(name); continue; }
     writeFileSync(out, md); writeFileSync(html, page(name, md)); console.log(`wrote draft/${name} and .html`); }

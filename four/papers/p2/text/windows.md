@@ -22,7 +22,7 @@ axis.
 by more than the neutron–proton mass difference plus an electron mass, {{ppMin}} MeV. That happens only above
 $s = {{sOpen}}$, so the lowest {{closedShare}} of the strong window (shaded) has no positron-emitting route to deuterium.
 The electron-capturing route $p + e^- + p \to d + \nu$ needs only {{pepMin}} MeV and opens at $s = {{sPep}}$; in our Sun
-it runs at a few parts in a thousand of $p + p$, so across the {{pepShare}} of the window between the two thresholds
+it runs at a few parts in a thousand of $p + p$ [@vinyoles2017], so across the {{pepShare}} of the window between the two thresholds
 deuterium is made, but slowly. The figure shades the whole strip, where $p + p$ itself is closed. Of the plane drawn,
 {{ppPlane}} has $p + p$ open and no bound diproton.
 
@@ -74,6 +74,13 @@ that step for $s \le {{cycOpenTo}}$ (energy to spare {{cycQL}} MeV), and those c
 elements 8–12 at {{TlowG}} MK. Our own world cannot settle which (section 2.2.5). From $s = 1.65$ up the two models give
 the same stars, nucleus for nucleus.
 
+**Our world's point.** The star marks both forces as ours, carried over: the deuteron bound by {{BdOurs}} MeV, as
+ours is ($s$ = {{sOurs}}), and the weak force matched to ours at the electron's energies, $G_4 = G_F/m_e$ ({{oursGx}} on
+the figure's scale). Its first minutes leave helium $Y$ = {{oursY}} at clocks of {{clocks}} s (ours: 0.245). A core burning at the Sun's pace there ends as {{oursKindL}} at {{oursTL}} MK
+in the adopted mass model, and as {{oursKindG}} at {{oursTG}} MK in the other. So our own forces, carried into four
+dimensions, sit inside every window drawn, and on the very strip where the one undecided mass decides what their stars
+make.
+
 **What is left.** A strong force between the diproton's edge and $p + p$'s threshold; a weak force above the first
 minutes' line for the universe's clock; and within that, hydrogen burning that ends as helium rather than stranded as
 helium-3, which at the Sun's pace needs $s$ below about 1.7 at the electron-matched $G_4$, and lower for a stronger weak
@@ -87,13 +94,14 @@ diproton binds). Vertical: $\log_{10}$ of the weak coupling $G_4$ over $G_F/M_W$
 clock (the universe's age at 1 MeV); above a line, more survives. Points: what a core of hydrogen and primordial helium
 burns to at the temperature where half its hydrogen goes in 4.6 billion years (number: that temperature in MK), at the
 {{nStrengths}} strengths where the reaction network has been built; split where the two mass models disagree (left the
-adopted ladder-anchored model, right Brink's grid).](../figures/windows.svg)
+adopted ladder-anchored model, right Brink's grid). Star: our world's forces carried over (the deuteron binds as ours;
+$G_4 = G_F/m_e$). $G_F/M_W$ itself is 0 on this axis, below the plane.](../figures/windows.svg)
 
 ## 2.2 Methods
 
 ### 2.2.1 The plane
 
-$s$ multiplies the attractive terms of the Minnesota nucleon force (Thompson, LeMere and Tang), whose two Gaussians and
+$s$ multiplies the attractive terms of the Minnesota nucleon force [@thompson1977], whose two Gaussians and
 repulsive core are kept as functions of distance in both worlds. The force's shape is a borrowing, and its strength is
 the choice. The plane is drawn on {{nS}} strengths from {{sLo}} to {{sHi}} and {{nGX}} couplings from $10^{ {{gxLo}} }$ to
 $10^{ {{gxHi}} }$ times $G_F/M_W$ in steps of {{gxStep}} decades, at clocks of {{clocks}} s. $G_F/M_W$
@@ -116,12 +124,12 @@ The positron route needs $B_d > (m_n - m_p) + m_e$ and the electron-capture (pep
 with the deuteron's binding from 2.2.2. Where it is open, the $p + p$ rate is computed, not assumed. The nuclear part is
 $|\int u_d\, u_E\, dr|^2$, the overlap of the deuteron with the two protons' Coulomb scattering state, both from the same
 force. The lepton part is the positron's phase space at that world's endpoint, and the constant is set on our
-$S(0) = 4.01 \times 10^{-22}$ keV b (`nuclear.js` `ppOverlap`; on ours it gives $\Lambda^2 = 7.04$ against the
-literature's 7.035).
+$S(0) = 4.01 \times 10^{-22}$ keV b [@adelberger2011] (`nuclear.js` `ppOverlap`; on ours it gives $\Lambda^2 = 7.04$
+against the evaluated 7.035 of the same review).
 
 ### 2.2.4 The first minutes
 
-Weak rates are Fermi's contact theory in $d$ dimensions (`atom/js/weak.js`). The coupling $G_d$ has units of
+Weak rates are Fermi's contact theory [@fermi1934] in $d$ dimensions (`atom/js/weak.js`). The coupling $G_d$ has units of
 mass$^{-(d-1)}$, and a decay's rate is
 
 $$\Gamma = \frac{G_d^2\, m_e^{2d-1}\, |M|^2\, \Omega_d^2\, f_d(W_0)}{(2\pi)^{2d-1}}, \qquad f_d(W_0) = \int_1^{W_0} p^{\,d-2}\, W\, (W_0 - W)^{d-1}\, dW,$$
@@ -154,10 +162,10 @@ two nucleons, a triton-like or helium-3-like cluster). Their bindings come from 
 
 - helium-4 and mass 3 by diffusion Monte Carlo, exact for $A \le 4$;
 - the helium-4 "ladder" ($k$ helium-4s by Monte Carlo on their pair potential);
-- the clusters on fixed draws of a core of $k$ helium-4s in Brink's antisymmetrized-Gaussian model (Hill–Wheeler over
+- the clusters on fixed draws of a core of $k$ helium-4s in Brink's antisymmetrized-Gaussian model [@brink1966; @freer2018] (Hill–Wheeler [@hill1953] over
   the cluster's placements).
 
-The ladder and Brink's grid are two methods, and on our own nuclei they err in opposite directions. Against AME2020,
+The ladder and Brink's grid are two methods, and on our own nuclei they err in opposite directions. Against AME2020 [@wang2021],
 for $k + 1$ helium-4s relative to free ones:
 
 | | ¹²C | ¹⁶O | ²⁰Ne | ²⁴Mg |
@@ -186,7 +194,7 @@ step everywhere. So ours does not decide it, and the figure shows both.
 
 - **computed** where the book has computed the reaction: $p + p$ (2.2.3, with 4D's weak factor), helium-4 + helium-4 by
   E2 capture, and protons and helium-4s onto two to four helium-4s by E1 and E2 capture on folded potentials;
-- **carried** otherwise: our analogue's nuclear factor (its REACLIB rate against our $p + p$'s, through our Coulomb
+- **carried** otherwise: our analogue's nuclear factor (its REACLIB [@cyburt2010] rate, from pynucastro's snapshot [@smith2023], against our $p + p$'s, through our Coulomb
   barrier) put through 4D's barrier;
 - **β decays** from their own endpoints with ¹³N's matrix element and 4D's phase space;
 - **(p,α) branches** wherever the compound nucleus sits above its helium-4 threshold, with our ¹⁵N(p,α)'s factor.
@@ -218,9 +226,9 @@ structure, no mixing, no lifetime: the pace is the convention). Pinned gravity's
 
 | | computed | measured |
 |---|---|---|
-| neutron lifetime (no Fermi function) | {{tau3}} s | 879.4 s |
+| neutron lifetime (no Fermi function) | {{tau3}} s | 878.4 ± 0.5 s [@pdg2024] |
 | freeze-out (clock 0.74 s) | {{Tf3}} MeV | about 0.8 MeV (the standard estimate, not a measurement) |
-| primordial helium $Y$ | {{Y3}} | 0.245 |
+| primordial helium $Y$ | {{Y3}} | 0.2449 ± 0.0040 [@aver2015] |
 | ¹¹B + p → 3α, $Q$ (grid / adopted) | {{q11grid}} / {{q11lad}} MeV | {{q11real}} MeV |
 | α-cluster binding, ¹²C–²⁴Mg | ladder under, grid over | (table above) |
 
@@ -231,12 +239,3 @@ model, into a copy of `four/`), `node four/fusion/tools/windows4.mjs` (with `ALT
 `node four/papers/p2/figures/windows.mjs` draws it. `node four/fusion/tools/masscheck.mjs` writes ours' check, and
 `node four/papers/p2/build.mjs` fills this text from all of them. The light nuclei come from the runner's `masses-1` and
 `plusmore-1` runs.
-
-## References (to be checked against their sources)
-
-- D. R. Thompson, M. LeMere, Y. C. Tang (1977), *Nucl. Phys. A* 286, 53: the Minnesota force.
-- E. Fermi (1934), *Z. Phys.* 88, 161: the contact theory of β decay.
-- D. M. Brink (1966), in *Proc. Int. School of Physics "Enrico Fermi"* XXXVI: the α-cluster model.
-- D. L. Hill, J. A. Wheeler (1953), *Phys. Rev.* 89, 1102: generator coordinates.
-- R. H. Cyburt et al. (2010), *Astrophys. J. Suppl.* 189, 240: REACLIB.
-- M. Wang et al. (2021), *Chinese Phys. C* 45, 030003: AME2020 (the masses, read from the AMDC's mass_1.mas20).

@@ -2,7 +2,8 @@
    y log₁₀ G₄ over G_F/M_W. Shaded where p + p makes no deuteron; lines where the first minutes leave half the hydrogen,
    one per clock (above a line, more than half survives); points where the network ran, coloured by what a Sun-paced
    core's hydrogen burning makes, with the core's temperature; where the second mass model (burnAlt) makes something
-   else, the point is split, the default model's outcome on the left and the other's on the right. Writes windows.svg.
+   else, the point is split, the default model's outcome on the left and the other's on the right. A star marks our
+   world's forces carried over (the deuteron binds as ours, G₄ = G_F/m_e). Writes windows.svg.
      node four/papers/p2/figures/windows.mjs */
 import { readFileSync, writeFileSync } from "node:fs";
 const D = JSON.parse(readFileSync(new URL("../data/windows.json", import.meta.url), "utf8"));
@@ -20,9 +21,17 @@ D.rows.forEach((r, ci) => { const pts = []; D.S.forEach((sv, i) => { if (D.Bd[sv
 // the network's points (split where the two mass models disagree: the default left, the other right)
 const alt = (b) => D.burnAlt?.find((a) => a.s === b.s && a.gx === b.gx);
 const half = (cx, cy, r, side, fill) => `<path d="M ${cx} ${cy - r} A ${r} ${r} 0 0 ${side < 0 ? 0 : 1} ${cx} ${cy + r} Z" fill="${fill}" stroke="#333" stroke-width="0.6"/>`;
-for (const b of D.burn) { const a = alt(b), cx = X(b.s), cy = Y(b.gx), tip = `s ${b.s}, G₄ 10^${b.gx}: ${b.kind}, ${(b.T / 1e6).toFixed(1)} MK (${D.mass} masses)${a ? `; ${a.kind}, ${(a.T / 1e6).toFixed(1)} MK (${D.massAlt})` : ""}`;
+for (const b of D.burn.filter((x) => !x.asOurs)) { const a = alt(b), cx = X(b.s), cy = Y(b.gx), tip = `s ${b.s}, G₄ 10^${b.gx}: ${b.kind}, ${(b.T / 1e6).toFixed(1)} MK (${D.mass} masses)${a ? `; ${a.kind}, ${(a.T / 1e6).toFixed(1)} MK (${D.massAlt})` : ""}`;
   if (a && a.kind !== b.kind) s += `<g><title>${tip}</title>${half(cx, cy, 7, -1, COL[b.kind])}${half(cx, cy, 7, 1, COL[a.kind])}</g><text x="${cx}" y="${cy - 10}" text-anchor="middle" font-size="9" fill="#333">${(b.T / 1e6).toFixed(0)}|${(a.T / 1e6).toFixed(0)}</text>`;
   else s += `<circle cx="${cx}" cy="${cy}" r="7" fill="${COL[b.kind]}" stroke="#333" stroke-width="0.6"><title>${tip}</title></circle><text x="${cx}" y="${cy - 10}" text-anchor="middle" font-size="9" fill="#333">${(b.T / 1e6).toFixed(0)}</text>`; }
+// our world's point: both forces matched to ours (the deuteron binds as ours; G₄ = G_F/m_e), a star split as the points are
+const star = (cx, cy, R, r = R * 0.45) => Array.from({ length: 10 }, (_, i) => { const t = -Math.PI / 2 + (i * Math.PI) / 5, q = i % 2 ? r : R; return `${(cx + q * Math.cos(t)).toFixed(1)},${(cy + q * Math.sin(t)).toFixed(1)}`; }).join(" ");
+const ours = D.burn.find((x) => x.asOurs);
+if (ours) { const a = alt(ours), cx = X(ours.s), cy = Y(ours.gx), split = a && a.kind !== ours.kind, R = 13;
+  const tip = `forces as ours: s ${ours.s} (the deuteron binds as ours), G₄ = G_F/m_e (10^${ours.gx.toFixed(2)}): ${ours.kind}, ${(ours.T / 1e6).toFixed(1)} MK (${D.mass} masses)${a ? `; ${a.kind}, ${(a.T / 1e6).toFixed(1)} MK (${D.massAlt})` : ""}`;
+  s += `<defs><clipPath id="oursL"><rect x="${cx - R - 2}" y="${cy - R - 2}" width="${R + 2}" height="${2 * R + 4}"/></clipPath><clipPath id="oursR"><rect x="${cx}" y="${cy - R - 2}" width="${R + 2}" height="${2 * R + 4}"/></clipPath></defs>`;
+  s += `<g><title>${tip}</title>${split ? `<polygon points="${star(cx, cy, R)}" fill="${COL[ours.kind]}" clip-path="url(#oursL)"/><polygon points="${star(cx, cy, R)}" fill="${COL[a.kind]}" clip-path="url(#oursR)"/>` : `<polygon points="${star(cx, cy, R)}" fill="${COL[ours.kind]}"/>`}<polygon points="${star(cx, cy, R)}" fill="none" stroke="#000" stroke-width="1.6"/></g>`;
+  const lx = cx - R - 6; s += `<rect x="${lx - 74}" y="${cy - 20}" width="76" height="36" rx="3" fill="#fff" fill-opacity="0.92"/><text x="${lx}" y="${cy - 6}" text-anchor="end" font-size="11" font-weight="600">ours, carried</text><text x="${lx}" y="${cy + 9}" text-anchor="end" font-size="10" fill="#333">${(ours.T / 1e6).toFixed(0)}${split ? `|${(a.T / 1e6).toFixed(0)}` : ""} MK</text>`; }
 // axes
 s += `<line x1="${L}" y1="${Y(y0)}" x2="${W - R}" y2="${Y(y0)}" stroke="#333"/><line x1="${L}" y1="${Y(y0)}" x2="${L}" y2="${Y(y1)}" stroke="#333"/>`;
 for (let v = 1.4; v <= 1.9001; v += 0.1) s += `<text x="${X(v)}" y="${Y(y0) + 18}" text-anchor="middle">${v.toFixed(1)}</text>`;
@@ -33,5 +42,7 @@ s += `<text x="18" y="${(T + H - B) / 2}" text-anchor="middle" transform="rotate
 let ly = T + 20; s += `<text x="${W - R + 8}" y="${ly - 16}" font-weight="600">hydrogen burning makes</text>`;
 for (const [k, c] of Object.entries(COL).slice(0, 3)) { s += `<circle cx="${W - R + 14}" cy="${ly}" r="6" fill="${c}" stroke="#333" stroke-width="0.6"/><text x="${W - R + 26}" y="${ly + 4}">${k}</text>`; ly += 20; }
 if (D.burnAlt) { s += `${half(W - R + 14, ly, 6, -1, COL.helium)}${half(W - R + 14, ly, 6, 1, COL["past helium"])}<text x="${W - R + 26}" y="${ly + 4}" font-size="10">${D.mass} masses | ${D.massAlt}</text>`; ly += 20; }
+if (ours) { s += `<polygon points="${star(W - R + 14, ly, 8)}" fill="#fff" stroke="#000" stroke-width="1.4"/><text x="${W - R + 26}" y="${ly + 4}" font-size="10">forces as ours</text>`; ly += 16;
+  s += `<text x="${W - R + 26}" y="${ly + 4}" font-size="9" fill="#555">(G<tspan baseline-shift="sub" font-size="7">F</tspan>/M<tspan baseline-shift="sub" font-size="7">W</tspan> itself is 0: off</text><text x="${W - R + 26}" y="${ly + 15}" font-size="9" fill="#555">the bottom of the plane)</text>`; ly += 26; }
 s += `<text x="${W - R + 8}" y="${ly + 10}" font-size="10" fill="#555">numbers: the core's MK</text><text x="${W - R + 8}" y="${ly + 30}" font-size="10" fill="#555">above a clock's line, the first</text><text x="${W - R + 8}" y="${ly + 43}" font-size="10" fill="#555">minutes leave over half hydrogen</text></svg>`;
 writeFileSync(new URL("./windows.svg", import.meta.url), s); console.log("wrote windows.svg");
