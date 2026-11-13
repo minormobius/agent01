@@ -88,6 +88,49 @@ strength per material. The 5th percentile is what you could count on. Short fibr
   weakest link.
 - Longer fibres are stronger: the hard 3D yarn goes 1.2, 4.5, 5.9 strands at 20, 40, 80 diameters.
 
+## What a sheath weighs against what it grips
+
+A sheath grips by its own hoop tension, so how hard it can press is set by how thick it is, and thick is heavy.
+`sheath()` in the bench gives the relation for thirteen fibres in a closed hose τ thick in 4D (material 27 τ/r
+fibres' worth; press 0.06 × 0.5 × τ/r, the hoop stress taken at half the material's strength) and for our seven in a
+tube (6 τ/r; 0.0133 × 0.5 × τ/r). `node kata/pull/sheath.mjs` sweeps τ with the sheath's weight counted
+(`data/sheath.json`, 60 pulls a cell). Two ways to spend the same material:
+
+- a **hose**: a closed skin, which grips and also carries load along the rope (in the bench it is a member as strong
+  as its material);
+- **hoops**: the same material as separate hoops, which grip and carry nothing along the rope. This is a weave's
+  hoops; its lengthwise bands are just more filaments.
+
+Strength per material, sheath included (a loose bundle is 0.71; one strand is 1):
+
+| sheath thickness, in fibre radii | its weight, in fibres (of 13) | hose | hoops | hose, short fibres | hoops, short fibres | ours: tube round 7, grip only |
+|---|---|---|---|---|---|---|
+| 0 | 0.00 | 0.71 | 0.71 | 0.00 | 0.00 | 0.74 |
+| 0.01 | 0.27 | 0.92 | 0.88 | 0.48 | 0.38 | 0.77 |
+| 0.02 | 0.54 | 1.00 | 0.93 | 0.72 | 0.62 | 0.80 |
+| 0.05 | 1.35 | 1.12 | 0.99 | 0.98 | 0.83 | 0.83 |
+| 0.1 | 2.70 | 1.20 | 0.99 | 1.10 | 0.89 | 0.85 |
+| 0.2 | 5.40 | 1.17 | 0.90 | 1.12 | 0.82 | 0.86 |
+| 0.3 | 8.10 | 1.10 | 0.80 | 1.08 | 0.73 | 0.83 |
+| 0.5 | 13.50 | 1.04 | 0.64 | 1.02 | 0.59 | 0.78 |
+
+(The weight column is the 4D sheath's. Our tube's is 6 τ/r of seven fibres, and it is run for its grip only.)
+
+- **There is a best sheath, and it is thin:** about a tenth of a fibre's radius, a fifth of the core's weight. Past
+  that the weight outruns the grip.
+- **A hose beats hoops by about a fifth** at the best thickness (1.20 against 0.99 for filament), because its
+  material also carries load. **Weaving saves no weight in this model; it costs some.** It would pay only if
+  material laid along a hoop were stronger than the same material as a skin (in our world drawn fibre is far
+  stronger than film, which is why we weave), or where you can't extrude a hose.
+- **The "tight" hoops in the species table were 41% of the core's weight, uncounted.** Counted, that rope is 0.90
+  per material as hoops, not 1.16. The species table's `+w` rows should be read with this one.
+- **A 4D sheath is a better bargain than ours.** A sphere's skin pulls in two directions, so it presses twice as
+  hard per thickness; per unit of sheath weight per fibre it gives about 1.85 times the press of a tube.
+
+Assumed, not measured: the half-strength hoop stress; equal material strength along and across; the hose as one
+member with a single strand's spread (which is why the thick hose's spread grows: an artefact); and no interaction
+between a skin's hoop stress and its load along the rope.
+
 ## What this is not
 
 A model, not a rope. One dimension of mechanics (along the rope), with the cross-section reduced to who touches
