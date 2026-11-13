@@ -131,6 +131,10 @@ Assumed, not measured: the half-strength hoop stress; equal material strength al
 member with a single strand's spread (which is why the thick hose's spread grows: an artefact); and no interaction
 between a skin's hoop stress and its load along the rope.
 
+The page's second table, **Every configuration**, shows each study's rows (sheaths, the self-tightening sheath,
+cabling, braids) at the setting with the best 5th percentile per weight, read from `data/sheath.json`, `cable.json` and
+`braid.json`. The three braids at 20° are also species, pulled live and in `samples.json`.
+
 ## Braids
 
 The ropes whose strands are hoses ([CAD⁴](../cad4/): `#hosebraid`, `#maypole`, `#ribbonpole`). A hose is continuous, so

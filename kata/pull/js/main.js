@@ -1,7 +1,7 @@
 /* PULL's page: one rope pulled live on the page's thread (a step a frame); the table and the distributions come from
    data/samples.json, 200 pulls of every species made by sample.mjs with the same bench */
 import { makeRope, SPECIES, stats } from "./bench.js";
-const $ = (id) => document.getElementById(id), COL = ["#9a958c", "#c9b48a", "#ffd27a", "#ffab5e", "#ff66b8", "#8be28a", "#4fd08a", "#6fe0ff", "#3aa6ff", "#b49cff", "#e6e1d6"], STEPS = 110, STRAIN = 0.045;
+const $ = (id) => document.getElementById(id), COL = ["#9a958c", "#c9b48a", "#ffd27a", "#ffab5e", "#ff66b8", "#8be28a", "#4fd08a", "#6fe0ff", "#3aa6ff", "#b49cff", "#e6e1d6", "#f08fd0", "#ff8a7a", "#a8d86a"], STEPS = 110, STRAIN = 0.045;
 let cur = "rope4", live = null, seed = 1, DATA = null, ST = {};
 window.PULL = { get live() { return live; }, get stats() { return ST; }, get data() { return DATA; } };
 const refOf = () => (ST.strand ? ST.strand.mean : 0.0066);
@@ -12,7 +12,7 @@ $("goB").addEventListener("click", () => { seed++; start(); });
 function drawRope() { const cv = $("rope"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); } const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
   const R = live.R, L = R.S - 1, pad = 14, cw = (w - 2 * pad) / L, rh = Math.min(15, (h - 8) / R.T), y0 = (h - rh * R.T) / 2;
   x.fillStyle = "#3a3d47"; x.fillRect(0, y0 - 4, pad - 3, rh * R.T + 8); x.fillRect(w - pad + 3, y0 - 4, pad - 3, rh * R.T + 8);
-  for (let i = 0; i < R.T; i++) for (let s = 0; s < L; s++) { if (!R.ok[i][s]) continue; const t = Math.max(0, (R.u[i][s + 1] - R.u[i][s]) * (live.sp.opts.ribbon && i === 0 ? live.sp.opts.ribbon.k : 1)) / R.str[i][s], c = Math.min(1, t); x.fillStyle = `rgb(${Math.round(60 + 195 * c)},${Math.round(90 + 120 * Math.sin(c * Math.PI))},${Math.round(150 - 110 * c)})`; x.fillRect(pad + s * cw + 0.4, y0 + i * rh + 1.5, Math.max(1, cw - 0.8), (live.sp.opts.ribbon && i === 0 ? rh : rh - 3)); }
+  for (let i = 0; i < R.T; i++) for (let s = 0; s < L; s++) { if (!R.ok[i][s]) continue; const t = Math.max(0, (R.u[i][s + 1] - R.u[i][s]) * (live.sp.opts.ribbon && i === 0 ? live.sp.opts.ribbon.k : live.sp.opts.tracks ? live.sp.opts.tracks[i].k : 1)) / R.str[i][s], c = Math.min(1, t); x.fillStyle = `rgb(${Math.round(60 + 195 * c)},${Math.round(90 + 120 * Math.sin(c * Math.PI))},${Math.round(150 - 110 * c)})`; x.fillRect(pad + s * cw + 0.4, y0 + i * rh + 1.5, Math.max(1, cw - 0.8), (live.sp.opts.ribbon && i === 0 ? rh : rh - 3)); }
   x.fillStyle = "#9a958c"; x.font = "10px ui-monospace, Menlo, monospace"; x.textAlign = "left"; x.fillText("jaw", 0, y0 - 8); x.textAlign = "right"; x.fillText("jaw →", w, y0 - 8); }
 function plot() { const cv = $("plot"), dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
   const ref = refOf(), curves = SPECIES.map((sp, i) => ({ id: sp.id, c: COL[i], v: sp.id === cur && live ? live.curve : DATA && DATA.curve[sp.id] })).filter((q) => q.v && q.v.length), top = Math.max(1.5, ...curves.map((q) => Math.max(...q.v) / ref)) * 1.08, X = (k) => 38 + (k / STEPS) * (w - 50), Y = (v) => h - 24 - (v / ref / top) * (h - 44);
@@ -34,4 +34,15 @@ function tick() { if (live && live.k < STEPS) { live.k++; const F = live.R.pull(
   requestAnimationFrame(tick); }
 addEventListener("resize", () => { if (live) { drawRope(); plot(); } });
 start(); requestAnimationFrame(tick);
+/* EVERY CONFIGURATION: the studies behind the species (sheath.mjs, cable.mjs, braid.mjs), one row per configuration at
+   its best setting, weight counted throughout, ranked within each family */
+const J = (f) => fetch("data/" + f + ".json").then((r) => r.json());
+Promise.all([J("sheath"), J("cable"), J("braid")]).then(([sh, ca, br]) => { const fams = [], best = (rows) => rows.reduce((a, b) => (b.specific5 > a.specific5 ? b : a)), by = (rows, key) => { const g = new Map(); for (const r of rows) { const k = key(r); if (!g.has(k)) g.set(k, []); g.get(k).push(r); } return [...g.entries()]; };
+  fams.push(["Sheaths round thirteen fibres, weight counted", `${sh.n} pulls each; τ is the sheath's thickness in fibre radii`, by(sh.rows, (r) => r.kind).map(([k, rows]) => { const b = best(rows); return { ...b, name: (b.dim === 3 ? "3D: " : "") + k.replace(" (3D)", ""), set: `τ ${b.tau}` }; })]);
+  fams.push(["A sheath that tightens as it is pulled", `${ca.n} pulls each; no one knows how to make one round a thread bundle`, by(ca.trap, (r) => r.theta + "|" + r.staple).map(([, rows]) => { const b = best(rows); return { ...b, name: `bias sheath at ${b.theta}°${b.staple ? ", short fibres" : ""}`, set: `τ ${b.tau}` }; })]);
+  fams.push(["Cabling: thirteen of the level below", `${ca.n} pulls each`, ca.levels.map((l) => { const b = l.rows.find((r) => r.tau === l.best); return { ...b, name: ["rope: 13 filaments in a hose", "cable: 13 ropes", "hawser: 13 cables"][l.level - 1], set: `τ ${b.tau}` }; })]);
+  fams.push(["Braids of hoses", `${br.n} pulls each; the angle is the strands' to the rope`, by(br.rows, (r) => r.name).map(([k, rows]) => { const b = best(rows); return { ...b, name: { "loose 3": "three hoses, loose", "loose 7": "seven hoses, loose", plait: "plait of three", maypole: "maypole: core and six braided", served: "ribbons on a hose" }[k] || k, set: b.theta ? `${b.theta}°` : "—" }; })]);
+  const top = Math.max(...fams.flatMap((f) => f[2].map((r) => r.specific))), el = $("all"); el.textContent = "";
+  for (const [title, sub, rows] of fams) { rows.sort((a, b) => b.specific - a.specific); const h = document.createElement("tr"); h.className = "fam"; h.innerHTML = `<td colspan="8"><b>${title}</b> <small>${sub}</small></td>`; el.append(h);
+    for (const r of rows) { const tr = document.createElement("tr"); tr.innerHTML = `<td>${r.name}</td><td class="n">${r.set}</td><td class="n">${r.mean.toFixed(r.mean < 10 ? 2 : 1)}</td><td class="n">${r.material.toFixed(r.material < 100 ? 2 : 0)}</td><td class="n big">${r.specific.toFixed(2)}</td><td class="n">${(r.cv * 100).toFixed(0)}%</td><td class="n">${r.specific5.toFixed(2)}</td><td class="bar"><i style="width:${((r.specific / top) * 100).toFixed(1)}%"></i></td>`; el.append(tr); } } });
 fetch("data/samples.json").then((r) => r.json()).then((d) => { DATA = d; for (const sp of SPECIES) ST[sp.id] = stats(d.peaks[sp.id]); table(); plot(); });

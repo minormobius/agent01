@@ -16,3 +16,8 @@ tr.on td { background: rgba(255, 210, 122, 0.06); } td i { display: inline-block
 .foot { font: 13px/1.6 var(--sans); color: var(--dim); margin: 12px 2px 0; } .foot a, .foot b { color: var(--text); }
 #tabW { overflow-x: auto; } td.strip { padding: 3px 9px; } td.strip canvas { display: block; } th:nth-child(n+2) { text-align: right; } th:last-child { text-align: left; }
 @media (max-width: 720px) { th:nth-child(4), td:nth-child(4), th:nth-child(7), td:nth-child(7) { display: none; } }
+
+/* every configuration */
+h2.sec { margin: 22px 0 0; } #tabW2 { overflow-x: auto; } #tab2 th:last-child { width: 22%; }
+tr.fam td { padding-top: 14px; color: var(--text); } tr.fam small { opacity: 0.6; margin-left: 6px; }
+td.bar i { display: block; height: 8px; border-radius: 4px; background: #ffd27a; opacity: 0.8; }
