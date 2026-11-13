@@ -104,3 +104,30 @@ body:not([data-state="play"]) .stick, body:not([data-state="play"]) .buttons, bo
 .who .ta-list { max-height: min(206px, 38vh); overflow-y: auto; }
 .title { scroll-padding-top: 12px; }
 @media (max-height: 520px) { .title { padding-bottom: 60vh; } }
+
+/* online: the title's room buttons and the lobby */
+.friends { font: 700 15px var(--mono); letter-spacing: 0.16em; color: var(--bg); background: linear-gradient(var(--cyan), #7a5cff); border: 0; border-radius: 12px; padding: 10px 22px; cursor: pointer; box-shadow: 0 0 24px rgba(41, 240, 255, 0.5); }
+.jform { display: flex; gap: 6px; }
+.jform input, .llink input { font: 700 14px var(--mono); color: var(--text); background: rgba(18, 5, 31, 0.7); border: 1px solid var(--cyan); border-radius: 10px; padding: 7px 10px; }
+.jform input { width: 80px; text-transform: uppercase; letter-spacing: 0.2em; text-align: center; }
+.jform button, .llink button, .lteam button { font: 700 12px var(--mono); letter-spacing: 0.08em; color: var(--cyan); background: rgba(18, 5, 31, 0.6); border: 1px solid var(--cyan); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
+.lobby[hidden] { display: none; }
+.lobby { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 16px; overflow-y: auto; background: radial-gradient(ellipse at 50% 30%, rgba(122, 92, 255, 0.35), rgba(18, 5, 31, 0.94) 70%); -webkit-user-select: none; user-select: none; }
+.lobby > :first-child { margin-top: auto; } .lobby > :last-child { margin-bottom: auto; }
+.lobby h2 { margin: 0; font: 28px var(--display); color: var(--pink); letter-spacing: 0.06em; } .lobby h2 b { color: var(--gold); letter-spacing: 0.2em; }
+.lfinal:empty { display: none; } .lfinal { margin: 0; font-size: 18px; color: var(--gold); }
+.llink { display: flex; gap: 6px; width: min(460px, 100%); } .llink input { flex: 1; min-width: 0; font-weight: 400; font-size: 13px; -webkit-user-select: all; user-select: all; }
+.lnote, .lstatus, .lwait { margin: 0; font-size: 12px; color: var(--dim); text-align: center; max-width: 460px; }
+.lwait:empty { display: none; }
+.lteams { display: flex; gap: 12px; width: min(460px, 100%); }
+.lteam { flex: 1; border: 1px solid; border-radius: 12px; padding: 8px 10px; background: rgba(18, 5, 31, 0.6); display: flex; flex-direction: column; gap: 6px; }
+.lteam.cyan { border-color: var(--cyan); } .lteam.orange { border-color: var(--orange); }
+.lteam h3 { margin: 0; font: 700 13px var(--mono); letter-spacing: 0.2em; } .lteam.cyan h3 { color: var(--cyan); } .lteam.orange h3 { color: var(--orange); }
+.lteam.orange button { color: var(--orange); border-color: var(--orange); }
+.lteam ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.lteam li { display: flex; align-items: center; gap: 6px; min-height: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lteam li img { width: 24px; height: 24px; border-radius: 50%; }
+.lteam li.bot { color: var(--dim); font-style: italic; } .lteam li.me { color: var(--pink); font-weight: 700; }
+.lhost { display: flex; flex-direction: column; align-items: center; gap: 8px; width: min(460px, 100%); } .lhost[hidden] { display: none; }
+.lhost .opt { width: 100%; }
+.menuleave { display: block; margin: 10px auto 0; } .menuleave[hidden] { display: none; }

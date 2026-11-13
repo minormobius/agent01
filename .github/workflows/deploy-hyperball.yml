@@ -45,3 +45,11 @@ jobs:
             echo "  attempt $attempt: not yet, sleeping…"; sleep 8
           done
           echo "✗ hyperball.mino.mobi did not serve within ~60s"; exit 1
+      - name: Verify rooms answer (the Durable Object behind /api/rooms)
+        run: |
+          code=$(curl -fsS -X POST https://hyperball.mino.mobi/api/rooms | sed -n 's/.*"code":"\([A-Z0-9]*\)".*/\1/p')
+          [ -n "$code" ] || { echo "✗ POST /api/rooms gave no code"; exit 1; }
+          status=$(curl -s -o /dev/null -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' --max-time 5 "https://hyperball.mino.mobi/api/rooms/$code/ws" || true)
+          echo "room $code: websocket upgrade answered $status"
+          [ "$status" = "101" ] || { echo "✗ the room did not upgrade"; exit 1; }
+          echo "✓ rooms are live"

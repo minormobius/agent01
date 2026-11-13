@@ -10,6 +10,11 @@
     "directory": ".",
     "binding": "ASSETS"
   },
+  // Rooms: one Durable Object per room code (room.js, exported through worker.js), running the match authoritatively.
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM", "class_name": "HyperballRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HyperballRoom"] }],
   // A PLAIN ROUTE, not a custom domain: it costs none of the zone's custom-domain slots. A route makes no DNS, so
   // deploy-hyperball.yml runs scripts/route-dns.mjs before wrangler deploy.
   "routes": [

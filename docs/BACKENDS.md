@@ -7,9 +7,9 @@
 | tier | meaning | workers |
 |---|---|---|
 | **static** | no code: Static Assets hands out files | 37 |
-| **thin** | code that only forwards to the assets (a fallback, a redirect) | 26 |
+| **thin** | code that only forwards to the assets (a fallback, a redirect) | 25 |
 | **api** | real request handlers, no storage of its own | 24 |
-| **stateful** | binds D1 / KV / R2 / Durable Objects / queues / containers — holds data | 29 |
+| **stateful** | binds D1 / KV / R2 / Durable Objects / queues / containers — holds data | 30 |
 
 Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party hosts: **36**.
 
@@ -39,6 +39,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 | `hoop-archive` | hoop-archive | stateful | DO HoopRoom | — | EMBED_BASE_URL, EMBED_MODEL, GEMINI_API_KEY, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, STORY_LLM | generativelanguage.googleapis.com, plc.directory, public.api.bsky.app |
 | `hose` | hose | stateful | DO FirehoseIngest | 0 */6 * * * | MAX_FRAMES_PER_SAMPLE | ingest.invalid, plc.directory, public.api.bsky.app |
 | `human` | human | stateful | D1 atpolls-db | — | — | — |
+| `hyperball` | hyperball | stateful | DO HyperballRoom | — | — | public.api.bsky.app |
 | `imp` | imp | stateful | DO Ballot, → mino-auth | — | — | cdn.bsky.app, plc.directory, public.api.bsky.app |
 | `io` | io | stateful | D1 atpolls-db | 0 * * * * | ADMIN_KEY, ATPROTO_SERVICE_DID, ATPROTO_SERVICE_HANDLE, ATPROTO_SERVICE_PASSWORD, ATPROTO_SERVICE_PDS, SWEEP_REPLY | bsky.social, constellation.microcosm.blue, plc.directory, public.api.bsky.app |
 | `mail` | mail | stateful | DO Mailbox | 23 1,5,9,13,17,21 * * *, */2 * * * * | EMAIL, GH_TOKEN, LAB_TOKEN, PRINCIPAL | api.delve.town, api.github.com |
@@ -89,7 +90,6 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 | `fable` | fable | thin | — | — | — | — |
 | `fix` | fix | thin | — | — | — | — |
 | `fold` | fold | thin | — | — | — | — |
-| `hyperball` | hyperball | thin | — | — | — | public.api.bsky.app |
 | `ink` | ink | thin | — | — | — | — |
 | `iris` | iris | thin | — | — | — | — |
 | `jurassic` | jurassic | thin | — | — | — | — |

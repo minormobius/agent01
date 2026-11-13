@@ -8,12 +8,17 @@ import * as H from './habitat.js';
 import * as G from './arena.js';
 import { AuthClient } from './auth.js';
 import { attachHandleTypeahead } from './typeahead.js';
+import { Net, reconcile, lerpBike, around, ballAhead, DELAY } from './net.js';
+import { CODE, packInput, unpackInput, bikeFrom } from './room-core.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gl'), ov = $('ov'), ctx = ov.getContext('2d');
 const gl = canvas.getContext('webgl2', { antialias: false, alpha: false });
 if (!gl) { $('nogl').hidden = false; throw new Error('no WebGL2'); }
 const A = G.ARENA, R = A.R;
+// Offline you're always cyan; online you may be orange, so the aids ask whose goal is whose.
+const myTeam = () => S.myTeam || 'cyan';
+const theirGoal = () => (myTeam() === 'cyan' ? G.ENEMY : G.OWN), ourGoal = () => (myTeam() === 'cyan' ? G.OWN : G.ENEMY);
 
 const S = {
   mode: 'arcade', assist: 'path', lock: true, ballCam: true, autoThrottle: matchMedia('(pointer: coarse)').matches,
@@ -260,7 +265,7 @@ const TAN = Math.tan((70 * Math.PI) / 360);
 const LOCK = { rate: 1.5, tol: 0.4 };   // ball lock: at most 86°/s, and only once the ball is 0.4 m off your slice
 function camera(dt) {
   if (!S.camState) S.camState = {};
-  return G.chaseCamera(S.camState, S.bike, S.ball.x, { ballCam: S.ballCam }, Math.max(dt, 1 / 240));
+  return G.chaseCamera(S.camState, S.view || S.bike, S.ball.x, { ballCam: S.ballCam }, Math.max(dt, 1 / 240));
 }
 let lastCam = null;
 function draw(dt) {
@@ -311,7 +316,7 @@ function arc(a, b) {
   return { a: ah, b: H.unit(d), len: Math.acos(Math.max(-1, Math.min(1, H.dot(ah, bh)))) };
 }
 function shotLine() {
-  const bh = H.unit(S.ball.x), len = Math.min(Math.PI - 1e-3, 22 / R + 0 * 1), a = arc(bh, G.ENEMY);
+  const bh = H.unit(S.ball.x), len = Math.min(Math.PI - 1e-3, 22 / R + 0 * 1), a = arc(bh, theirGoal());
   return a ? { a: a.a, b: a.b, len: Math.min(a.len, len) } : null;
 }
 
@@ -326,7 +331,7 @@ function overlay(cam) {
   if (ov.width !== Math.round(W * dpr) || ov.height !== Math.round(Hh * dpr)) { ov.width = Math.round(W * dpr); ov.height = Math.round(Hh * dpr); }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, Hh);
-  if (S.state === 'title') return;
+  if (S.state === 'title' || S.state === 'lobby') return;
   // the ball's marker: a ring at the ball, or an arrow at the screen's edge pointing to it; ana/kata of your slice
   const q = project(cam, S.ball.x, W, Hh), off = q.w;
   const onScreen = q.f > 0 && q.x > 20 && q.x < W - 20 && q.y > 20 && q.y < Hh - 20;
@@ -353,11 +358,12 @@ function overlay(cam) {
     const g = project(cam, H.add(G.bikeBody(b.k), G.up(b.k.x), 1.6), W, Hh);
     if (!(g.f > 0 && g.x > 0 && g.x < W && g.y > 0 && g.y < Hh)) continue;
     const col = b.team === 'cyan' ? '#3af0ff' : '#ffa23a', offs = Math.abs(g.w) < 1 ? '' : g.w > 0 ? ' ▲' : ' ▼';
-    ctx.fillStyle = col; ctx.fillText(`${b.team === 'cyan' ? 'MATE ' : ''}${b.name}${offs}`, g.x, g.y);
+    ctx.fillStyle = col; ctx.fillText(`${b.team === myTeam() ? 'MATE ' : ''}${b.name}${offs}`, g.x, g.y);
   }
   ctx.font = '700 12px ui-monospace, monospace';
   // goal markers
-  for (const [pole, name, col] of [[G.ENEMY, 'THEIR GOAL', '#ffa23a'], [G.OWN, 'YOURS', '#3af0ff']]) {
+  for (const [pole, name] of [[theirGoal(), 'THEIR GOAL'], [ourGoal(), 'YOURS']]) {
+    const col = pole === G.OWN ? '#3af0ff' : '#ffa23a';
     const g = project(cam, H.scale(pole, R - A.goal.h), W, Hh);
     if (g.f > 0 && g.x > 0 && g.x < W && g.y > 0 && g.y < Hh) {
       ctx.fillStyle = col; ctx.fillText(`${name} ${Math.round(G.along(S.bike.x, H.scale(pole, R)))} m`, g.x, g.y - 6);
@@ -371,11 +377,11 @@ function overlay(cam) {
 // with how far the ball is from that goal's mouth. The shot direction is a direction on a three-dimensional floor, so
 // some of it may run into w, out of your slice: then the label says ana or kata and the arrow is dashed.
 function goalArrow(cam, q, rad, W, Hh) {
-  const bx = S.ball.x, bh = H.unit(bx), g = H.unit(G.ENEMY);
+  const bx = S.ball.x, bh = H.unit(bx), g = H.unit(theirGoal());
   const t = H.add(g, bh, -H.dot(g, bh));
   if (H.norm(t) < 1e-6) return;
   const dir = H.unit(t);
-  const far = Math.max(0, G.along(bx, G.ENEMY) - A.goal.r);
+  const far = Math.max(0, G.along(bx, theirGoal()) - A.goal.r);
   // the arrow's tip: 5 m along the floor from the ball toward their goal, at the ball's height
   const tip = H.scale(H.walk(bh, dir, 5, R, []).xhat, H.norm(bx));
   const e = project(cam, tip, W, Hh);
@@ -443,7 +449,7 @@ document.addEventListener('keydown', (e) => {
   if (k === 'c') setOpt('ballCam', !S.ballCam);
   if (k === 'l') setOpt('lock', !S.lock);
   if (k === 'p' || k === 'escape') toggleMenu();
-  if (k === 'enter' && S.state !== 'play') start();
+  if (k === 'enter' && S.state !== 'play' && !S.online) start();
   keys.add(k);
   if ([' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
 });
@@ -481,7 +487,8 @@ const DT = 1 / 120;
 let acc = 0, last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
-  if (S.state === 'play') {
+  if (S.online) onlineFrame(dt);
+  else if (S.state === 'play') {
     acc += dt;
     // stop stepping the moment a step ends play (a goal): the ball is still in the net, and it mustn't count twice
     while (acc >= DT && S.state === 'play') { step(DT); acc -= DT; }
@@ -503,9 +510,17 @@ function step(dt) {
     return;
   }
   S.clock -= dt;
+  const input = controls(dt);
+  // everyone moves together: you by your input, the bots by theirs (arena.js stepMatch)
+  const r = G.stepMatch(S.match, dt, S.mode, S.skill, Math.random, () => input);
+  if (S.lock) G.lockSlice(S.bike, S.ball.x, dt, LOCK.rate, LOCK.tol);
+  if (r === 'touch' && S.match.last && S.match.last.human) { S.touches++; flash('hit'); }
+  if (r === 'cyan' || r === 'orange') goal(r);
+  if (S.clock <= 0 && S.state === 'play') end();
+}
+function controls(dt) {
   let input = readInput();
   jumpPressed = false;
-  const youBefore = S.match.last;
   // the aids: where to meet the ball (refreshed ten times a second), and, on auto, steering along it
   S.itT -= dt;
   if (S.itT <= 0 || !S.aim) {
@@ -513,7 +528,7 @@ function step(dt) {
     const sp = Math.max(9, Math.abs(S.bike.speed));
     const it = G.intercept(S.bike, S.ball, S.mode, sp);
     let target = it.floor;
-    if (G.height(S.ball.x) < A.ball.r + 1.2) target = G.approach(it.floor).point;   // a low ball: come from behind it
+    if (G.height(S.ball.x) < A.ball.r + 1.2) target = G.approach(it.floor, A, undefined, theirGoal()).point;   // a low ball: come from behind it
     S.target = target;
     S.aim = arc(S.bike.x, target);
   }
@@ -524,13 +539,7 @@ function step(dt) {
   // the twist: J and L turn your slice about your heading (when ball lock is off)
   const tw = kv('l', 'j');
   if (tw && !S.lock) { const a = tw * 1.4 * dt, k = S.bike, c = Math.cos(a), s = Math.sin(a), R0 = k.Rt; k.Rt = H.add(H.scale(R0, c), k.N, s); k.N = H.add(H.scale(k.N, c), R0, -s); }
-  // everyone moves together: you by your input, the bots by theirs (arena.js stepMatch)
-  const r = G.stepMatch(S.match, dt, S.mode, S.skill, Math.random, () => input);
-  void youBefore;
-  if (S.lock) G.lockSlice(S.bike, S.ball.x, dt, LOCK.rate, LOCK.tol);
-  if (r === 'touch' && S.match.last && S.match.last.human) { S.touches++; flash('hit'); }
-  if (r === 'cyan' || r === 'orange') goal(r);
-  if (S.clock <= 0 && S.state === 'play') end();
+  return input;
 }
 function goal(side) {
   S.goals[side]++;
@@ -561,7 +570,7 @@ function hud() {
   const k = S.bike, m = Math.max(0, Math.ceil(S.clock));
   $('clock').textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
   $('score').textContent = S.goals.cyan;
-  $('conceded').textContent = +S.team === 0 ? (S.goals.orange ? `−${S.goals.orange}` : '') : S.goals.orange;
+  $('conceded').textContent = +S.team === 0 && !S.online ? (S.goals.orange ? `−${S.goals.orange}` : '') : S.goals.orange;
   $('boostfill').style.height = `${k.boost.toFixed(0)}%`;
   $('boostnum').textContent = Math.round(k.boost);
   $('speed').textContent = `${Math.round(Math.abs(k.ground ? k.speed : H.norm(k.v)) * 3.6)} km/h`;
@@ -584,16 +593,28 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texPara
 function drawFace(i, b) {
   const x = i * 128, team = b.human ? ['#ff2fb5', '#ffd35c'] : b.team === 'cyan' ? ['#29f0ff', '#7a5cff'] : ['#ffa23a', '#ff2fb5'];
   actx.save(); actx.beginPath(); actx.rect(x, 0, 128, 128); actx.clip();
-  if (b.human && ME.img) { actx.drawImage(ME.img, x, 0, 128, 128); }
+  const pic = b.human ? ME.img : b.did ? faceOf(b.did) : null;
+  if (pic) { actx.drawImage(pic, x, 0, 128, 128); }
   else {
     const g = actx.createLinearGradient(x, 0, x, 128); g.addColorStop(0, team[1]); g.addColorStop(1, team[0]);
     actx.fillStyle = g; actx.fillRect(x, 0, 128, 128);
     actx.strokeStyle = 'rgba(255,255,255,0.35)'; actx.lineWidth = 3;
     for (let k = 0; k < 5; k++) { actx.beginPath(); actx.moveTo(x, 78 + k * 11); actx.lineTo(x + 128, 78 + k * 11); actx.stroke(); }
     actx.fillStyle = '#12051f'; actx.font = '700 64px ui-monospace, monospace'; actx.textAlign = 'center'; actx.textBaseline = 'middle';
-    actx.fillText(b.human ? (ME.handle ? ME.handle[0].toUpperCase() : 'YOU'.slice(0, 1)) : (b.name || '?')[0], x + 64, 60);
+    actx.fillText(b.human ? (ME.handle ? ME.handle[0].toUpperCase() : 'Y') : (b.name || '?').replace(/^@/, '')[0].toUpperCase(), x + 64, 60);
   }
   actx.restore();
+}
+// other players' pictures, by DID, through /avatar/ (the atlas is repainted as each arrives)
+const FACES = new Map();
+function faceOf(did) {
+  if (!FACES.has(did)) {
+    const img = new Image(), rec = { img: null };
+    FACES.set(did, rec);
+    img.onload = () => { rec.img = img; if (S.match) paintAtlas(); };
+    img.src = `/avatar/${encodeURIComponent(did)}`;
+  }
+  return FACES.get(did).img;
 }
 function paintAtlas() {
   actx.clearRect(0, 0, atlas.width, atlas.height);
@@ -629,7 +650,167 @@ $('handle').addEventListener('focus', () => { toTop(); setTimeout(toTop, 350); }
 $('handle').addEventListener('input', () => setTimeout(() => { const l = document.querySelector('.who .ta-list'); if (l && !l.hidden && l.getBoundingClientRect().bottom > (window.visualViewport?.height || innerHeight)) toTop(); }, 260));
 S.facesReady = true;
 paintAtlas();
-(async () => { try { await auth.init(); } catch (e) { /* offline: signed out */ } showUser(auth.getUser()); try { auth.onAuthChange(showUser); } catch (e) { /* fine */ } })();
+(async () => {
+  try { await auth.init(); } catch (e) { /* offline: signed out */ }
+  showUser(auth.getUser());
+  try { auth.onAuthChange(showUser); } catch (e) { /* fine */ }
+  const m = location.hash.match(/room=([A-Za-z0-9]{4})/);   // a room link: straight in (signed in, if you are)
+  if (m) joinRoom(m[1]);
+})();
+
+
+// ------------------------------------------------------------------ online --
+// Rooms with friends, by link (hyperball.mino.mobi/#room=CODE): a Durable Object per room runs the match (room.js,
+// js/room-core.js); humans take seats, bots fill the rest and take back the seats of anyone who leaves. Your bike is
+// predicted here and reconciled with the room's; the others are drawn ~100 ms behind, the ball run on to now (net.js).
+const ON = { net: null, code: null, lobby: null, used: null, idx: -1, roster: '', acc: 0, err: [0, 0, 0, 0], wasLive: false, final: '' };
+const roomLink = (code) => `${location.origin}/#room=${code}`;
+async function createRoom() {
+  try {
+    const r = await fetch('/api/rooms', { method: 'POST' });
+    if (!r.ok) throw new Error(String(r.status));
+    joinRoom((await r.json()).code);
+  } catch (e) { toast('could not make a room'); }
+}
+function joinRoom(code) {
+  code = String(code || '').trim().toUpperCase();
+  if (!CODE.test(code)) { toast('a room code is four letters and digits'); return; }
+  leaveRoom(true);
+  history.replaceState(null, '', `#room=${code}`);
+  Object.assign(ON, { code, lobby: null, used: null, idx: -1, roster: '', acc: 0, err: [0, 0, 0, 0], wasLive: false, final: '' });
+  S.online = ON; S.state = 'lobby';
+  $('title').hidden = true; $('lobby').hidden = false; $('menu').hidden = true;
+  $('lcode').textContent = code; $('llink').value = roomLink(code); $('lstatus').textContent = 'connecting…';
+  renderLobby();
+  const token = auth.isLoggedIn() ? auth.getToken() : null;
+  ON.net = new Net(code, {
+    token, onMessage: onRoom,
+    onClose: () => { if (!ON.net) return; ON.net = null; $('lstatus').textContent = 'the connection closed'; showLobby(true); toast('lost the room'); },
+  });
+}
+function leaveRoom(quiet) {
+  if (ON.net) { const n = ON.net; ON.net = null; n.close(); }
+  S.online = null; S.myTeam = null; S.view = null; ON.lobby = null;
+  $('lobby').hidden = true;
+  if (!quiet) {
+    history.replaceState(null, '', location.pathname);
+    S.state = 'title'; S.clock = 180; S.goals = { cyan: 0, orange: 0 };
+    newKickoff(); $('title').hidden = false;
+  }
+}
+function showLobby(on) {
+  $('lobby').hidden = !on;
+  if (on) { S.state = 'lobby'; renderLobby(); }
+}
+function onRoom(m) {
+  if (m.t === 'welcome' || m.t === 'lobby') {
+    ON.lobby = m;
+    if (m.phase === 'lobby' || m.phase === 'over') showLobby(true);
+    else { $('lobby').hidden = true; if (S.state === 'lobby') S.state = 'play'; }
+    renderLobby();
+  } else if (m.t === 'goal') {
+    const mine = m.side === myTeam(), me = ON.lobby?.seats.find((x) => x.id === ON.net?.you);
+    const byMe = me && m.by && m.by === me.name;
+    S.state = 'goal';
+    S.banner = mine ? (byMe ? 'GOAL!' : 'GOAL') : m.own ? 'OWN GOAL' : 'THEY SCORE';
+    $('banner').textContent = S.banner; $('banner').className = `banner show ${mine ? 'ours' : 'theirs'}`;
+    setTimeout(() => { $('banner').className = 'banner'; }, 2300);
+    if (m.by && !byMe) toast(`${m.by} scores${m.own ? ' (own goal)' : ''}`);
+  } else if (m.t === 'over') {
+    const c = m.goals.cyan, o = m.goals.orange, t = myTeam(), us = t === 'cyan' ? c : o, them = t === 'cyan' ? o : c;
+    ON.final = `${us > them ? 'YOU WIN' : us < them ? 'YOU LOSE' : 'DRAW'} · cyan ${c} – ${o} orange`;
+  }
+}
+function renderLobby() {
+  const L = ON.lobby, you = ON.net?.you, host = L && L.host === you;
+  $('lfinal').textContent = L?.phase === 'over' ? ON.final : '';
+  for (const team of ['cyan', 'orange']) {
+    const ol = $(`l${team}`); ol.textContent = '';
+    for (const st of (L?.seats || []).filter((x) => x.team === team)) {
+      const li = document.createElement('li');
+      if (st.did) { const img = document.createElement('img'); img.src = `/avatar/${encodeURIComponent(st.did)}`; img.alt = ''; img.onerror = () => img.remove(); li.append(img); }
+      li.append(document.createTextNode(st.id ? `${st.name}${st.id === L.host ? ' ★' : ''}` : 'bot'));
+      if (!st.id) li.className = 'bot';
+      if (st.id && st.id === you) li.classList.add('me');
+      ol.append(li);
+    }
+  }
+  if (!L) return;
+  const people = L.seats.filter((x) => x.id).length + L.watching.length;
+  $('lstatus').textContent = `${people} here · ${L.size}v${L.size} · bots ${L.skill} · ${L.mode === 'spin' ? 'true spin' : 'arcade'}${L.watching.length ? ` · watching: ${L.watching.join(', ')}` : ''}`;
+  $('lhost').hidden = !host; $('lwait').hidden = host;
+  $('lwait').textContent = L.phase === 'over' ? 'full time · waiting for the host…' : 'waiting for the host to start…';
+  $('lstart').textContent = L.phase === 'over' ? 'PLAY AGAIN' : 'START';
+  for (const el of document.querySelectorAll('[data-ropt]')) for (const b of el.children) b.classList.toggle('on', b.dataset.v === String(L[el.dataset.ropt]));
+}
+for (const el of document.querySelectorAll('[data-ropt]')) {
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b || !ON.net) return;
+    ON.net.send({ t: 'config', [el.dataset.ropt]: el.dataset.ropt === 'size' ? +b.dataset.v : b.dataset.v });
+  });
+}
+for (const b of document.querySelectorAll('[data-join]')) b.onclick = () => ON.net && ON.net.send({ t: 'team', team: b.dataset.join });
+$('lstart').onclick = () => ON.net && ON.net.send({ t: 'start' });
+$('lleave').onclick = () => leaveRoom(false);
+$('lcopy').onclick = async () => { try { await navigator.clipboard.writeText($('llink').value); toast('link copied'); } catch (e) { $('llink').select(); } };
+$('friends').onclick = createRoom;
+$('jform').addEventListener('submit', (e) => { e.preventDefault(); joinRoom($('jcode').value); });
+addEventListener('hashchange', () => { const m = location.hash.match(/room=([A-Za-z0-9]{4})/); if (m && m[1].toUpperCase() !== ON.code) joinRoom(m[1]); });
+
+/** One frame online: your bike (predict, reconcile, smooth), the others (interpolated), the ball (run on to now). */
+function onlineFrame(dt) {
+  const net = ON.net, snap = net && net.latest;
+  if (!snap || !ON.lobby || ON.lobby.phase === 'lobby' || ON.lobby.phase === 'over') return;
+  const t = performance.now() / 1000, since = t - snap.at;
+  const myIdx = snap.bikes.findIndex((r) => r.id && r.id === net.you);
+  S.myTeam = myIdx >= 0 ? snap.bikes[myIdx].team : 'cyan';
+  S.goals = snap.goals;
+  const countdown = snap.phase === 'play' ? Math.max(0, snap.countdown - since) : 0;
+  S.countdown = countdown;
+  S.clock = snap.clock - (snap.phase === 'play' && countdown <= 0 ? since : 0);
+  if (snap.phase === 'play' && S.state === 'goal') S.state = 'play';
+  S.ball = ballAhead(snap.ball, since + net.rtt / 2, S.mode);
+  const live = snap.phase === 'play' && countdown <= 0 && myIdx >= 0;
+  if (myIdx >= 0) {
+    const rec = snap.bikes[myIdx];
+    if (snap !== ON.used || ON.idx !== myIdx) {          // a fresh snapshot: take the room's word for your bike
+      const shown = S.bike && ON.idx === myIdx ? H.add(S.bike.x, ON.err) : null;
+      if (live && ON.wasLive && ON.idx === myIdx) S.bike = reconcile(rec, net.pending, S.bike, S.mode);
+      else {
+        const keep = ON.idx === myIdx ? S.bike : null;
+        S.bike = bikeFrom(rec); net.pending.length = 0;
+        if (keep) { const fr = H.orthonormalTo(G.up(S.bike.x), [S.bike.F, keep.Rt, keep.N]); if (fr.every((v) => v.every(Number.isFinite))) [S.bike.F, S.bike.Rt, S.bike.N] = fr; }
+      }
+      ON.err = shown ? H.add(shown, S.bike.x, -1) : [0, 0, 0, 0];
+      if (H.norm(ON.err) > 4) ON.err = [0, 0, 0, 0];   // too far to glide: jump
+      ON.used = snap; ON.idx = myIdx;
+    }
+    if (live) {
+      ON.acc = Math.min(ON.acc + dt, 0.1);
+      while (ON.acc >= DT) {
+        ON.acc -= DT;
+        const e = packInput(++net.seq, S.bike, controls(DT));
+        net.push(e);
+        G.stepBike(S.bike, unpackInput(e, S.bike), DT, S.mode);
+        if (S.lock) G.lockSlice(S.bike, S.ball.x, DT, LOCK.rate, LOCK.tol);
+      }
+      net.flush();
+    } else { ON.acc = 0; jumpPressed = false; if (S.lock) G.lockSlice(S.bike, S.ball.x); }
+    ON.wasLive = live;
+    ON.err = H.scale(ON.err, Math.exp(-12 * dt));
+    S.view = { ...S.bike, x: H.add(S.bike.x, ON.err) };
+  }
+  const ar = around(net.snaps, t - DELAY);
+  const ok = ar && ar.a.bikes.length === snap.bikes.length && (!ar.b || ar.b.bikes.length === snap.bikes.length);
+  const bikes = snap.bikes.map((r, i) => ({
+    k: i === myIdx ? S.view : ok ? lerpBike(ar.a.bikes[i], ar.b && ar.b.bikes[i], ar.t) : bikeFrom(r),
+    team: r.team, human: i === myIdx, name: r.h ? r.name : r.name || 'bot', did: r.did,
+  }));
+  if (myIdx < 0) { S.bike = bikes[0].k; S.view = null; }   // watching: ride along with the first bike
+  S.match = { ball: S.ball, bikes };
+  const roster = snap.bikes.map((r) => `${r.id}|${r.name}|${r.did}`).join(',') + myIdx;
+  if (roster !== ON.roster) { ON.roster = roster; paintAtlas(); }
+}
 
 // ------------------------------------------------------------------ menu --
 // Settings are saved on this device (localStorage, when the browser allows it) and restored on the next visit.
@@ -658,9 +839,10 @@ for (const el of document.querySelectorAll('[data-opt]')) {
 }
 function openMenu() {
   $('menu').hidden = false;
-  if (S.state === 'play') S.state = 'paused';
+  if (S.state === 'play' && !S.online) S.state = 'paused';   // online the room plays on
   $('teamnote').hidden = true;
-  $('menuback').textContent = S.state === 'paused' ? 'BACK TO THE GAME' : 'DONE';
+  $('menuback').textContent = S.state === 'paused' || S.online ? 'BACK TO THE GAME' : 'DONE';
+  $('menuleave').hidden = !S.online;
 }
 function closeMenu() {
   $('menu').hidden = true;
@@ -675,9 +857,10 @@ $('menubtn').onclick = openMenu;
 $('titlemenu').onclick = openMenu;
 $('menuclose').onclick = closeMenu;
 $('menuback').onclick = closeMenu;
+$('menuleave').onclick = () => { $('menu').hidden = true; leaveRoom(false); };
 $('play').onclick = start;
 loadSettings();
 for (const k of SAVED) { const v = S[k]; for (const el of document.querySelectorAll(`[data-opt="${k}"]`)) for (const b of el.children) b.classList.toggle('on', b.dataset.v === String(v)); }
 addEventListener('resize', () => draw(0));
-window.hyperball = { S, showUser };   // the game's state, for checking it from outside (tests, the console)
+window.hyperball = { S, showUser, ON, joinRoom, leaveRoom };   // the game's state, for checking it from outside (tests, the console)
 requestAnimationFrame(frame);

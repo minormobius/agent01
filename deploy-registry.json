@@ -1925,13 +1925,13 @@
       "surface": "hyperball",
       "dir": "hyperball",
       "endpoint": "hyperball.mino.mobi",
-      "type": "frontend",
+      "type": "fullstack",
       "branch": "claude/epic-mayer-y28tpl",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": null,
-      "note": "HYPERBALL: bike-ball in four dimensions. A 4D bicycle (jump, boost) and a ball in the inside of a small hollow 3-sphere, goals as spherinders at opposite poles; ball lock keeps the ball in your 3D slice, an intercept path is painted on the floor. Vaporwave. Sign in with Bluesky (auth.mino.mobi, identity only) and your avatar rides on your bike; worker.js re-serves avatars from this origin (/avatar/<did>) so WebGL can texture them. (full description: hyperball/CLAUDE.md)",
+      "note": "HYPERBALL: bike-ball in four dimensions. A 4D bicycle (jump, boost) and a ball in the inside of a small hollow 3-sphere, goals as spherinders at opposite poles; ball lock keeps the ball in your 3D slice, an intercept path is painted on the floor. Vaporwave. Bots, and rooms with friends by link: a Durable Object per room (HyperballRoom) runs the match authoritatively; clients predict their own bike. Sign in with Bluesky (auth.mino.mobi, identity only) and your avatar rides on your bike. (full description: hyperball/CLAUDE.md)",
       "paths": [
         "hyperball/**",
         ".github/workflows/deploy-hyperball.yml"

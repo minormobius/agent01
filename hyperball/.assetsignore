@@ -3,3 +3,4 @@ CLAUDE.md
 test/
 wrangler.jsonc
 worker.js
+room.js
