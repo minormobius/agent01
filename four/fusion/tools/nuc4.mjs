@@ -11,7 +11,22 @@
      V_d, V_t, V_h: NOT computed: interpolated in the cluster's mass between the nucleon's and helium-4's binding to the
                     same core, nuclear part linear in A_c, Coulomb as δC = V_n − V_p per proton
    Each nucleus carries where its binding came from. Masses: M = Z m_p + N m_n − B.
-     node four/fusion/tools/nuc4.mjs <s> [compact]      the table and the questions it settles */
+
+   The mass model (MASS=…, masses-1, 2026-11-13). The ladder (Monte Carlo on the helium-4 pair potential) and Brink's grid
+   (plusone/plusmore, a few nucleons on fixed core draws) are two methods, and putting grid clusters on ladder cores mixes
+   them: the grid binds a helium-4 onto ceryllium-8 by ~110 MeV where the ladder says 47, so cluster nuclei and ladder
+   nuclei disagreed about which is bound. Ours, against measured masses (AME, cores ⁸Be–²⁰Ne), says which to trust: the
+   ladder underbinds α clusters (¹⁶O −4.9 MeV against 4α, real −14.4), the grid overbinds them and worse as k grows (²⁴Mg
+   −93 against 6α, real −28.5); the grid's own S_α onto its core is 2–10× too large. Three models:
+     ladder (default)  the ladder's nuclei, and every grid separation on core k scaled by r_k = S₄(ladder)/S₄(grid), the
+                       ratio of the two methods' 4-nucleon (helium-4) separation from the same core: the grid's cluster
+                       bindings measured against its own helium-4 binding, carried to the ladder. Ours: median error 29%
+                       over n, p, nn, np, t, h on k = 2–5, within ~15% from k = 4; at k = 2 it underbinds (r too small)
+     grid              everything from the grid: the cores chained by the grid's S_α, the clusters unscaled. Ours: 91%,
+                       overbound; the band's other edge
+     mixed             the pre-masses-1 table: ladder cores, grid clusters unscaled (inconsistent; kept to compare)
+   Where the grid's helium-4 on core k hasn't run, r is carried from the nearest smaller k (flagged).
+     node four/fusion/tools/nuc4.mjs <s> [compact] [mass=ladder|grid|mixed]      the table and the questions it settles */
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { deuteron, MN, NP_MASS, M_E } from "../../atom/js/nuclear.js";
 
@@ -21,7 +36,9 @@ const WINDOW = [1.4002, 1.5152, 1.8909];
 export const CLUSTERS = { "": [0, 0], n: [0, 1], p: [1, 0], np: [1, 1], t: [1, 2], h: [2, 1], nn: [0, 2], pp: [2, 0] }; // [Z, N]
 const CNAME = { np: "neutron + proton", t: "triton-like", h: "helium-3-like", nn: "two neutrons", pp: "two protons" };
 
-export function table(s, { compact = false } = {}) {
+export const MASS_MODELS = ["ladder", "grid", "mixed"];
+export function table(s, { compact = false, mass = process.env.MASS ?? "ladder" } = {}) {
+  if (!MASS_MODELS.includes(mass)) throw new Error(`mass model ${mass}: one of ${MASS_MODELS}`);
   const he = (A) => load(`MN-he-4-${tag(s)}-none-${A}.json`), h3d = load("MN-he-3-1-none-4.json") ?? load("he-3-1-none-4.json");
   const a4 = he(4), a3 = he(3); if (!a4 || !a3) throw new Error(`no helium-4 / helium-3 at s = ${s} in ${DIR}`);
   const size = h3d ? Math.sqrt(h3d.r2 / a4.r2) : 1; // Coulomb ∝ 1/size: ours' scaled by the 4D nucleus's size against ours
@@ -36,17 +53,26 @@ export function table(s, { compact = false } = {}) {
   const Vn = (k, Z) => (k === 1 ? mass5(Z) : k <= 7 ? plus(k, Z) : null);
   // two or three nucleons on k helium-4s (nuclei.mjs plusmore), the largest basis run kept
   const more = (k, c) => { const xs = readdirSync(DIR).filter((f) => new RegExp(`^plusmore-4-${tag(s).replace(".", "\\.")}-${k}-${c}-\\d+(-x\\d+)?${compact ? "-c" : ""}\\.json$`).test(f)).map(load).sort((a, b) => a.n - b.n); return xs.at(-1) ?? null; };
-  const out = [];
+  // the grid's helium-4 on k helium-4s: its binding of the free helium-4 (k = 1's core alone), and r_k (the ladder model)
+  const aOn = (k) => more(k, "a"), BaG = aOn(1) ? -aOn(1).Ec : null;
+  const r0 = (k) => { const m = aOn(k), e0 = lad(k), e1 = lad(k + 1); return m && e0 != null && e1 != null ? { r: (Ba + e0 - e1) / m.S, how: "" } : null; };
+  const rOf = (k) => { if (mass !== "ladder") return { r: 1, how: "" }; for (let j = k; j >= 1; j--) { const x = r0(j); if (x) return j === k ? x : { r: x.r, how: `, r carried from k = ${j}` }; } return null; };
+  // the core's binding, and the binding of one more helium-4 onto it (the grid's own, in the grid model)
+  const coreB = [null, Ba]; for (let k = 1; k <= 8; k++) { if (mass === "grid") { const m = aOn(k); coreB[k + 1] = m && BaG != null && coreB[k] != null ? coreB[k] + Ba + (m.S - BaG) : null; } else { const E = lad(k + 1); coreB[k + 1] = E == null ? null : (k + 1) * Ba - E; } }
+  const coreHow = mass === "grid" ? "computed (grid, chained)" : "computed (ladder)";
+  const out = [], rs = {};
   const add = (Z, N, B, how, k, c) => out.push({ Z, N, A: Z + N, B, how, k, c, key: `${Z}-${Z + N}` });
   add(1, 0, 0, "free", 0, "p"); add(0, 1, 0, "free", 0, "n"); add(1, 1, Bd, "computed", 0, "d"); add(1, 2, Bt, "computed", 0, "t"); add(2, 1, Bh, "computed (Coulomb estimated)", 0, "h");
   for (let k = 1; k <= 8; k++) {
-    const E = lad(k); if (E == null) continue; const Bc = k * Ba - E; add(2 * k, 2 * k, Bc, k === 1 ? "computed" : "computed (ladder)", k, "");
-    const vn = Vn(k, 0), vp = Vn(k, 1), Ek1 = lad(k + 1); if (!vn || !vp) continue;
+    const Bc = coreB[k]; if (Bc == null) continue; add(2 * k, 2 * k, Bc, k === 1 ? "computed" : coreHow, k, "");
+    const R = rOf(k); if (!R) continue; rs[k] = +R.r.toFixed(4);
+    const sc = (v) => (v ? { V: (k === 1 ? 1 : R.r) * v.V, how: v.how + (k === 1 || mass !== "ladder" ? "" : ` × r ${R.r.toFixed(3)}${R.how}`) } : null); // k = 1's nucleon is Brink's mass 5, not the grid
+    const vn = sc(Vn(k, 0)), vp = sc(Vn(k, 1)), Bk1 = coreB[k + 1]; if (!vn || !vp) continue;
     add(2 * k, 2 * k + 1, Bc + vn.V, `core + neutron ${vn.how}`, k, "n"); add(2 * k + 1, 2 * k, Bc + vp.V, `core + proton ${vp.how}`, k, "p");
-    if (Ek1 == null) continue;
-    const Va = E - Ek1, dC = vn.V - vp.V, nuc = (Ac) => vn.V + (Va + 2 * dC - vn.V) * (Ac - 1) / 3;
+    if (Bk1 == null) continue;
+    const Va = Bk1 - Bc - Ba, dC = vn.V - vp.V, nuc = (Ac) => vn.V + (Va + 2 * dC - vn.V) * (Ac - 1) / 3;
     // computed where plusmore has run (the cluster's nucleons all taken away: S = B(core + cluster) − B(core)), else interpolated
-    const cl = (c, Z, N, interp) => { const m = more(k, c); if (m) add(Z, N, Bc + m.S, `core + ${CNAME[c]} computed`, k, c); else if (interp != null) add(Z, N, interp, "interpolated cluster", k, c); };
+    const cl = (c, Z, N, interp) => { const m = more(k, c); if (m) add(Z, N, Bc + R.r * m.S, `core + ${CNAME[c]} computed${mass === "ladder" ? ` × r ${R.r.toFixed(3)}${R.how}` : ""}`, k, c); else if (interp != null) add(Z, N, interp, "interpolated cluster", k, c); };
     cl("np", 2 * k + 1, 2 * k + 1, Bc + Bd + nuc(2) - dC); cl("t", 2 * k + 1, 2 * k + 2, Bc + Bt + nuc(3) - dC); cl("h", 2 * k + 2, 2 * k + 1, Bc + Bh + nuc(3) - 2 * dC);
     cl("nn", 2 * k, 2 * k + 2, null); cl("pp", 2 * k + 2, 2 * k, null);
   }
@@ -59,12 +85,13 @@ export function table(s, { compact = false } = {}) {
     x.betaMinus = Bdau != null ? Bdau - x.B + NP_MASS - M_E : null;
     x.bound = [Sn, Sp, Sa].every((v) => v == null || v > 0) && !(x.Z === 0 && x.N === 1);
   }
-  return { s, compact, Ba, Bd, Bt, Bh, CA, nuclides: out, B };
+  return { s, compact, mass, r: rs, Ba, Bd, Bt, Bh, CA, nuclides: out, B };
 }
 
 /* what the table decides: is each nucleus held together; which way captures go */
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const s = +process.argv[2], T = table(s, { compact: process.argv.includes("compact") });
+  const s = +process.argv[2], mass = process.argv.find((a) => a.startsWith("mass="))?.slice(5), T = table(s, { compact: process.argv.includes("compact"), ...(mass ? { mass } : {}) });
+  console.log(`mass model ${T.mass}${T.mass === "ladder" ? `, r_k ${JSON.stringify(T.r)}` : ""}`);
   console.log(`s = ${s}: B(α) ${T.Ba.toFixed(2)}, B(d) ${T.Bd.toFixed(3)}, B(t) ${T.Bt.toFixed(2)}, B(³He-like) ${T.Bh.toFixed(2)} MeV (Coulomb ${T.CA.toFixed(2)})`);
   const f = (v) => (v == null ? "    —" : v.toFixed(1).padStart(7));
   console.log("  Z  N   A   B(MeV)    S_n    S_p    S_α    β⁺ end   bound  how");
