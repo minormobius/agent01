@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { deuteron, MN } from "../../atom/js/nuclear.js";
 import * as W from "../../atom/js/weak.js";
 import { firstMinutes, OURS } from "../../atom/js/bbn.js";
+import { NAME4 } from "../../fusion/js/world.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url)), TEXT = path.join(here, "text"), DRAFT = path.join(here, "draft");
 const J = (f) => JSON.parse(readFileSync(path.join(here, "data", f), "utf8"));
@@ -21,7 +22,8 @@ const sci = (x, n = 2) => { const e = Math.floor(Math.log10(Math.abs(x))), m = x
 const range = (xs, n = 1) => `${f(Math.min(...xs), n)}–${f(Math.max(...xs), n)}`;
 
 export function numbers() {
-  const D = J("windows.json"), M = J("masscheck.json"), t = {};
+  const D = J("windows.json"), M = J("masscheck.json"), t = {}, oL = D.burn.find((b) => b.asOurs), oG = D.burnAlt?.find((b) => b.asOurs);
+  D.burn = D.burn.filter((b) => !b.asOurs); if (D.burnAlt) D.burnAlt = D.burnAlt.filter((b) => !b.asOurs); // the grid's points; the star apart
   const bis = (test, a, b) => { for (let i = 0; i < 50; i++) { const m = (a + b) / 2; if (test(m)) b = m; else a = m; } return b; };
   const Bd = (s) => deuteron(4, MN, s)?.B ?? 0;
   // the strong window and p + p
@@ -71,8 +73,7 @@ export function numbers() {
   t.cycQoff = [1.5152, 1.55, 1.6].map((s) => { const v = cq(s).ladderLessOffset; return `${v >= 0 ? "+" : "−"}${f(Math.abs(v), 1)}`; }).join(" / ");
   t.cycQG = `${f(Math.max(...M.cycleQ4D.map((x) => x.grid)), 1)} to ${f(Math.min(...M.cycleQ4D.map((x) => x.grid)), 1)}`.replace(/-/g, "−");
   // our world's point: both forces carried over (the deuteron as ours, G₄ = G_F/m_e)
-  const nameOf = (key) => { const [Z, A] = key.split("-").map(Number); return `${Z === 1 ? "hydrogen" : Z === 2 ? "helium" : Z === 4 ? "ceryllium" : Z === 10 ? "pxygen" : `element ${Z}`}-${A}`; };
-  const oursB = (B) => B?.find((b) => b.asOurs), oL = oursB(D.burn), oG = oursB(D.burnAlt);
+  const nameOf = (key) => { const [Z, A] = key.split("-").map(Number); return `${Z === 1 ? "hydrogen" : Z === 2 ? "helium" : NAME4[Z] ?? `element ${Z}`}-${A}`; };
   if (!oL || !D.asOurs) throw new Error("windows.json has no as-ours point: rerun fusion/tools/windows4.mjs");
   const desc = (o) => `${o.kind === "past helium" ? `past helium (${o.top.filter(([k]) => +k.split("-")[1] >= 8).slice(0, 2).map(([k, x]) => `${nameOf(k)} ${pct(x)}`).join(", ")})` : `${o.kind} (${pct(o.kind === "helium" ? o.he4 : o.he3)})`}`;
   Object.assign(t, { oursKindL: desc(oL), oursTL: f(oL.T / 1e6, 1), oursKindG: oG ? desc(oG) : "—", oursTG: oG ? f(oG.T / 1e6, 1) : "—",

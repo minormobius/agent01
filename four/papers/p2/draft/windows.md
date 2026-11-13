@@ -74,6 +74,13 @@ that step for $s \le 1.6$ (energy to spare +10.9, +8.6, +4.6 MeV), and those cor
 elements 8–12 at 11.2–18.8 MK. Our own world cannot settle which (section 2.2.5). From $s = 1.65$ up the two models give
 the same stars, nucleus for nucleus.
 
+**Our world's point.** The star marks both forces as ours, carried over: the deuteron bound by 2.224 MeV, as
+ours is ($s$ = 1.5152), and the weak force matched to ours at the electron's energies, $G_4 = G_F/m_e$ (5.20 on
+the figure's scale). Its first minutes leave helium $Y$ = 0.59, 0.38, 0.14, 0.01, 0.00 at clocks of 0.01, 0.1, 1, 10, 100 s (ours: 0.245). A core burning at the Sun's pace there ends as helium (94%) at 10.9 MK
+in the adopted mass model, and as past helium (gluorine-22 81%, gluorine-23 17%) at 18.5 MK in the other. So our own forces, carried into four
+dimensions, sit inside every window drawn for any clock longer than 0.029 s, and on the very strip where the one undecided mass decides what their stars
+make.
+
 **What is left.** A strong force between the diproton's edge and $p + p$'s threshold; a weak force above the first
 minutes' line for the universe's clock; and within that, hydrogen burning that ends as helium rather than stranded as
 helium-3, which at the Sun's pace needs $s$ below about 1.7 at the electron-matched $G_4$, and lower for a stronger weak
@@ -87,7 +94,8 @@ diproton binds). Vertical: $\log_{10}$ of the weak coupling $G_4$ over $G_F/M_W$
 clock (the universe's age at 1 MeV); above a line, more survives. Points: what a core of hydrogen and primordial helium
 burns to at the temperature where half its hydrogen goes in 4.6 billion years (number: that temperature in MK), at the
 8 strengths where the reaction network has been built; split where the two mass models disagree (left the
-adopted ladder-anchored model, right Brink's grid).](../figures/windows.svg)
+adopted ladder-anchored model, right Brink's grid). Star: our world's forces carried over (the deuteron binds as ours;
+$G_4 = G_F/m_e$). $G_F/M_W$ itself is 0 on this axis, below the plane.](../figures/windows.svg)
 
 ## 2.2 Methods
 

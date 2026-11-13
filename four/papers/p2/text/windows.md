@@ -78,7 +78,7 @@ the same stars, nucleus for nucleus.
 ours is ($s$ = {{sOurs}}), and the weak force matched to ours at the electron's energies, $G_4 = G_F/m_e$ ({{oursGx}} on
 the figure's scale). Its first minutes leave helium $Y$ = {{oursY}} at clocks of {{clocks}} s (ours: 0.245). A core burning at the Sun's pace there ends as {{oursKindL}} at {{oursTL}} MK
 in the adopted mass model, and as {{oursKindG}} at {{oursTG}} MK in the other. So our own forces, carried into four
-dimensions, sit inside every window drawn, and on the very strip where the one undecided mass decides what their stars
+dimensions, sit inside every window drawn for any clock longer than {{clockMin}} s, and on the very strip where the one undecided mass decides what their stars
 make.
 
 **What is left.** A strong force between the diproton's edge and $p + p$'s threshold; a weak force above the first
