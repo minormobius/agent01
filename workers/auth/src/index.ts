@@ -436,6 +436,10 @@ async function handlePdsProxy(
     '/pds/repo/createRecord':  { xrpc: 'com.atproto.repo.createRecord', method: 'POST', needsAuth: true, repoScoped: true },
     '/pds/repo/putRecord':     { xrpc: 'com.atproto.repo.putRecord', method: 'POST', needsAuth: true, repoScoped: true },
     '/pds/repo/deleteRecord':  { xrpc: 'com.atproto.repo.deleteRecord', method: 'POST', needsAuth: true, repoScoped: true },
+    // Batched writes (≤200 per call). Each write is still checked against the
+    // session's repo: scope by the PDS, collection by collection — this widens
+    // nothing, it just stops a 200-member list costing 200 round trips.
+    '/pds/repo/applyWrites':   { xrpc: 'com.atproto.repo.applyWrites', method: 'POST', needsAuth: true, repoScoped: true },
     '/pds/repo/getRecord':     { xrpc: 'com.atproto.repo.getRecord', method: 'GET', needsAuth: true, repoScoped: true },
     '/pds/repo/listRecords':   { xrpc: 'com.atproto.repo.listRecords', method: 'GET', needsAuth: true, repoScoped: true },
     '/pds/repo/uploadBlob':    { xrpc: 'com.atproto.repo.uploadBlob', method: 'POST', needsAuth: true, repoScoped: false },

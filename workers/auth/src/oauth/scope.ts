@@ -218,6 +218,12 @@ const WRITE_COLLECTIONS = [
   // the narrow ask on its own once this ships (b/groom/groom.js,
   // `pickUnfollowScope`).
   'app.bsky.graph.follow',
+  // cluster (mino.mobi/cluster) — publishes a found mutual-follow cluster as a
+  // curate list: one app.bsky.graph.list record, then one listitem per member.
+  // Missing from the 2026-05-31 audit, so every publish since then 403'd at the
+  // PDS (the unified scope it minted carried no list write).
+  'app.bsky.graph.list',
+  'app.bsky.graph.listitem',
   // (com.minomobi.lab.doc / lab.score already appear above with the lab block —
   // the duplicate pair that used to sit here trips check-auth-scope's dedupe
   // gate; removing a duplicate is not a narrowing, the set is unchanged.)

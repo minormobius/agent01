@@ -640,6 +640,16 @@ footer a:hover {
 
   let authUser = null; // { did, handle, scope }
 
+  // The only writes cluster makes: one list record, then its members. Asked for
+  // narrowly at sign-in. Before 2026-11 cluster asked for nothing, got the
+  // shared default scope, which carried no list write — every publish 403'd.
+  const LIST_SCOPE = 'atproto repo:app.bsky.graph.list repo:app.bsky.graph.listitem';
+  function canWriteLists(user) {
+    const have = new Set(String(user?.scope || '').split(/\s+/));
+    if (have.has('transition:generic') || have.has('repo:*')) return true;
+    return have.has('repo:app.bsky.graph.list') && have.has('repo:app.bsky.graph.listitem');
+  }
+
   async function authInit() {
     const url = new URL(location.href);
     const token = url.searchParams.get('__auth_session');
@@ -658,7 +668,7 @@ footer a:hover {
     const r = await fetch(`${AUTH_URL}/oauth/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ handle, origin: location.origin, returnTo: location.href }),
+      body: JSON.stringify({ handle, origin: location.origin, returnTo: location.href, scope: LIST_SCOPE }),
     });
     if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || 'Login failed'); }
     location.href = (await r.json()).authUrl;
@@ -1964,9 +1974,22 @@ footer a:hover {
 
   // --- Publish a list ---
 
+  async function errDetail(res) {
+    try { const j = await res.json(); return j?.message ? `: ${j.message}` : j?.error ? `: ${j.error}` : ''; }
+    catch { return ''; }
+  }
+
   async function publishList(dids, listName, includeSubject, btn, statusEl) {
     if (!authUser) {
       statusEl.textContent = 'sign in with Bluesky first';
+      statusEl.classList.remove('hidden');
+      statusEl.classList.add('error');
+      return;
+    }
+    if (!canWriteLists(authUser)) {
+      // A session minted before cluster asked for list writes. The scope is fixed
+      // at authorization, so the only fix is a fresh sign-in.
+      statusEl.textContent = 'your sign-in cannot write lists \u2014 sign out and sign in again, then publish';
       statusEl.classList.remove('hidden');
       statusEl.classList.add('error');
       return;
@@ -1998,24 +2021,29 @@ footer a:hover {
           }
         })
       });
-      if (!listRes.ok) throw new Error(`Failed to create list (${listRes.status})`);
+      if (!listRes.ok) throw new Error(`Failed to create list (${listRes.status}${await errDetail(listRes)})`);
       const { uri: listUri } = await listRes.json();
 
-      for (let i = 0; i < allDids.length; i++) {
-        statusEl.textContent = `adding members\u2026 ${i + 1}/${allDids.length}`;
-        await pdsRequest('/pds/repo/createRecord', {
+      // Members in batches through applyWrites (the PDS caps a call at 200
+      // writes). Every batch is checked: a failure stops the run and says how
+      // far it got, instead of reporting "done" over a half-filled list.
+      const BATCH = 100;
+      for (let i = 0; i < allDids.length; i += BATCH) {
+        const chunk = allDids.slice(i, i + BATCH);
+        statusEl.textContent = `adding members\u2026 ${i + chunk.length}/${allDids.length}`;
+        const now = new Date().toISOString();
+        const res = await pdsRequest('/pds/repo/applyWrites', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            collection: 'app.bsky.graph.listitem',
-            record: {
-              $type: 'app.bsky.graph.listitem',
-              subject: allDids[i],
-              list: listUri,
-              createdAt: new Date().toISOString()
-            }
+            writes: chunk.map(did => ({
+              $type: 'com.atproto.repo.applyWrites#create',
+              collection: 'app.bsky.graph.listitem',
+              value: { $type: 'app.bsky.graph.listitem', subject: did, list: listUri, createdAt: now }
+            }))
           })
         });
+        if (!res.ok) throw new Error(`added ${i}/${allDids.length} members, then failed (${res.status}${await errDetail(res)}) \u2014 the list exists with those ${i}`);
       }
 
       const rkey = listUri.split('/').pop();
