@@ -1,5 +1,5 @@
 /* CAD⁴'s textiles selftest: a thread weaves with ribbons and not with threads; cloth of sheets; a bundle holds in a
-   sphere-hoop and not in a ring; the rope and its sheath; filaments in a hose; yarn on a ribbon; the wound sheath; the cable.   node kata/cad4/test/textiles.selftest.mjs   (~55 s) */
+   sphere-hoop and not in a ring; the rope and its sheath; filaments in a hose; yarn on a ribbon; the wound sheath; the cable.   node kata/cad4/test/textiles.selftest.mjs   (~25 s) */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url)), K = await import(path.join(here, "../js/kernel.js")), { PARTS, ORDER } = await import(path.join(here, "../js/parts.js"));

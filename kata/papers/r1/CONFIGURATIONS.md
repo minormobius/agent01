@@ -8,6 +8,16 @@ tested and how, and what is open. Nothing here is claimed in the paper until it 
 `#rope` (woven sheath), `#hoserope`, `#ribbonyarn`, `#wound`, `#cable`, `#spinneret`. The bias sheath has none: nobody
 knows how to draw one.
 
+## Braids (added 2026-11-13; geometry only, nothing pulled yet)
+
+Threads do not braid in 4D (they pass each other), and flat ribbons do not either: a ribbon has edges, and the kernel
+shows one sliding off along its width and lifting away untouched (CAD⁴ `#ribbonbraid`). A hose has no edge. In a
+cross-section it is a loop, and a loop can pass through a loop, so hoses braid (`#hosebraid`: held in all four
+directions). Construction: draw a 3D braid in the half-plane of (radius, one more direction) along the length and
+revolve it. Every 3D braid gives a hose braid; hoses also have a move threads lack (swapping without threading). The
+mathematics is the loop braid group, which is published; look it up before claiming anything here. Open: whether a
+hose braid grips a core under tension the way a 3D braided sleeve does, which is a bench question for PULL.
+
 ## What a rope is made of
 
 Four choices, mostly independent.

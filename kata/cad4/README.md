@@ -91,7 +91,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then eighteen assemblies that are the reason to have a 4D workshop:
+holes), then twenty assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -150,6 +150,11 @@ holes), then eighteen assemblies that are the reason to have a 4D workshop:
 - **wound sheath.** Three ribbons wound round the bundle in three planes: three bands on the cross-section's sphere.
   They close it at a half-width of about 0.3 of a radius-0.5 bundle and leave the eight corners open before.
 - **cable: thirteen ropes.** 169 filaments in thirteen hoses in a jacket, telescoped so every layer shows.
+- **hose braid.** The braid that holds in 4D: the three-strand plait drawn in a half-plane and revolved, so each strand
+  is a hose and each crossing is one hose passing through another. One hose cannot be moved off the others in any
+  direction. Any 3D braid makes a hose braid this way.
+- **ribbon braid.** The same plait in flat ribbons. It looks sound in a slice and is not a braid: slide one ribbon along
+  its width, past the others' edges, and it lifts away untouched.
 - **spinneret.** How any of it would be made. Extrusion pushes a cross-section along one direction, and in 4D the
   cross-section is a 3D shape, so the spigot's shape is the product: a ball-shaped hole gives a fibre, a slot a
   ribbon, a gap shaped like a spherical shell a closed hose, and a hose spigot with fibre holes in its plug a whole
@@ -183,5 +188,6 @@ what lies outside your slice (the strip stands in for it). Smooth blends are not
 node kata/cad4/test/cad4.selftest.mjs         # ~40 s, 18 checks: the kernel against closed forms
 node kata/cad4/test/assemblies.selftest.mjs   # ~45 s,  8 checks: hinge, rings, lock, chains
 node kata/cad4/test/textiles.selftest.mjs     # ~25 s, 10 checks: weave, cloth, bundles, and the ropes
+node kata/cad4/test/braids.selftest.mjs       # ~40 s,  4 checks: the hose braid holds, the ribbon braid slides apart
 node kata/cad4/test/machines.selftest.mjs     # ~30 s,  5 checks: pulley, tackle, room, spinneret
 ```

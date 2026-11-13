@@ -110,6 +110,28 @@ const ROPES = {
       view: UPW, show: ["filaments", "hoses", "jacket"], check: [["filaments", "hoses"], ["hoses", "jacket"]] }; })(),
 };
 
+/* BRAIDS. Threads don't braid in 4D and flat ribbons slide off each other's edges. Close a ribbon into a hose and it
+   has no edge: in cross-section a hose is a loop, and one loop can pass through another. Draw any 3D braid in the
+   half-plane of (radius, y) along the length and revolve it: each thread becomes a hose, each crossing one hose
+   passing through the next. `lace` is the three-strand plait: three points chasing round a figure of eight */
+const BRAIDS = (() => { const A = 0.36, B = 0.15, t = 0.06, L = 1.5, N = 36, turns = 1.5;
+  const lace = (j, mid) => { const pts = []; for (let k = 0; k <= N; k++) { const u = k / N, a = 2 * Math.PI * (turns * u + j / 3); pts.push([f4(mid + A * Math.sin(a)), f4(B * Math.sin(2 * a)), f4(-L + 2 * L * u)]); } return { op: "wire", dim: 3, r: t, pts }; };
+  const hose = (j) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "revolve", axis: 0, of: lace(j, 0.85) } });
+  const ribbon = (j) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "extrude", h: "width", of: lace(j, 0) } });
+  const ways = { params: ["ox", "oy", "oz", "ow"], reach: 2.5 }, P = { ox: 0, oy: 0, oz: 0, ow: 0 }, by = ["ox", "oy", "oz", "ow"];
+  return {
+    hosebraid: { title: "hose braid", note: "A braid that holds in 4D. Threads pass each other freely here, and a flat ribbon slides off its neighbour's edge, so close each ribbon into a hose: it has no edge. This is the ordinary three-strand plait, drawn in a half-plane and revolved, so every strand is a hose and every crossing is one hose passing through another. In this slice you see each hose twice, left and right, as two threads of an ordinary plait; turn the slice into z and they join into rings. One hose cannot be moved off the others in any direction across the braid.",
+      params: { ...P }, ranges: { ox: [-1, 1], oy: [-1, 1], oz: [-1, 1], ow: [-1, 1] },
+      parts: { one: hose(0), two: hose(1), others: { op: "union", of: ["one", "two"] }, third: { op: "move", by, of: hose(2) } },
+      view: UPW, show: ["one", "two", "third"], check: [["third", "others"], ["one", "two"]], ways: { name: "one hose", ...ways },
+      path: [{ ...P }, { ...P, ox: 0.8 }, { ...P }, { ...P, oy: 0.8 }, { ...P }, { ...P, oz: 0.8 }, { ...P }] },
+    ribbonbraid: { title: "ribbon braid", note: "The same plait in flat ribbons, each wide across z. In this slice it is a plait of three threads and looks sound. It is not a braid: a ribbon has edges. Slide one along z by the ribbons' width and it is past the others' edges and comes away untouched. Wide ribbons make that a long way to slip, which is all that holds it, the way a wide ribbon holds a yarn's twist. Narrow the ribbons and press run.",
+      params: { width: 0.5, ...P }, ranges: { width: [0.1, 0.8], ox: [-1, 1], oy: [-1, 1], oz: [-2, 2], ow: [-1, 1] },
+      parts: { one: ribbon(0), two: ribbon(1), others: { op: "union", of: ["one", "two"] }, third: { op: "move", by, of: ribbon(2) } },
+      view: UPW, show: ["one", "two", "third"], check: [["third", "others"], ["one", "two"]], ways: { name: "one ribbon", ...ways },
+      path: [{ ...P }, { ...P, ox: 0.8 }, { ...P }, { ...P, oz: 1.3 }, { ...P, oz: 1.3, ox: 0.9 }, { ...P, oz: 1.3 }, { ...P }] },
+  }; })();
+
 export const PARTS = {
   ball: { title: "ball", note: "Everything within r of a point. Every slice is a ball; move the slice in w and it shrinks to nothing at w = r.",
     params: { r: 1 }, show: { op: "ball", dim: 4, r: "r" } },
@@ -298,5 +320,6 @@ export const PARTS = {
     show: ["ground", "house", "door", "pin", "table"], check: [["door", "house"], ["door", "ground"]], path: [{ open: 0 }, { open: 110 }] },
   spinneret: SPIN,
   ...ROPES,
+  ...BRAIDS,
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "pulley", "tackle", "spinneret", "room"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "hosebraid", "ribbonbraid", "pulley", "tackle", "spinneret", "room"];
