@@ -29,7 +29,19 @@ export const SECTIONS = {
   /* six fibres on a ribbon: they touch only the ribbon (track 0) */
   ribbon7: () => [[1, 2, 3, 4, 5, 6], [0], [0], [0], [0], [0], [0]],
   one: () => [[]],
+  /* thirteen in a sheath that is a member of its own: track 0 is the sheath, touching the twelve outer fibres */
+  fcc13s: () => { const f = SECTIONS.fcc13(), n = [[]]; f.forEach((v, i) => n.push(v.map((j) => j + 1))); for (let i = 2; i <= 13; i++) { n[0].push(i); n[i].push(0); } return n; },
 };
+/* THE SHEATH'S WEIGHT. A sheath grips by its own hoop tension, so how hard it can press is set by how thick it is,
+   and thick is heavy. For thirteen fibres of radius r (a bundle of radius R = 3r) in a closed hose τ thick, in 4D:
+     material   4πR²τ against a fibre's (4/3)πr³: 27 τ/r fibres' worth
+     pressure   P = 2 σ τ / R on the bundle (a 2-sphere's skin pulls in two directions), σ the hoop stress, taken as
+                HOOP of the material's strength
+     press      the twelve outer fibres share the skin: per contact, per diameter, 0.06 × HOOP × τ/r in the bench's units
+   and for our seven in a tube (3D): 6 τ/r of material, P = σ τ / R, press 0.0133 × HOOP × τ/r. */
+export const HOOP = 0.5;
+export const sheath = (dim, t) => (dim === 4 ? { material: 27 * t, press: 0.06 * HOOP * t, fibres: 13, section: "fcc13" } : { material: 6 * t, press: (0.04 / 3) * HOOP * t, fibres: 7, section: "hex7" });
+
 export function makeRope({ maxSweeps: MAXSW = 80, section = "hex7", S = 96, staple = 0, press = { kind: "none" }, mu = 0.3, m = 5, sigma = 0.02, ks = 0.25, seed = 1, ribbon = null } = {}) {
   const nb = SECTIONS[section](), T = nb.length, r = rng(seed * 7919 + 13), L = S - 1;
   const u = Array.from({ length: T }, () => new Float64Array(S)), ok = Array.from({ length: T }, () => new Uint8Array(L).fill(1)), str = Array.from({ length: T }, () => new Float64Array(L)), kax = new Float64Array(T).fill(1);
