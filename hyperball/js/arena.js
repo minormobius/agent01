@@ -146,18 +146,83 @@ export function inGoal(x, pole, A = ARENA) { return along(x, pole, A.R) < A.goal
 
 // ------------------------------------------------------------------ aiming --
 /** Ball lock: turn the bike's across-space about its heading so the ball lies in its slice (span of F, up and Rt).
- *  The ball is one point, so some 3D slice through you always holds it; this finds it. rate limits the turn (rad/s;
- *  Infinity for exact). Returns the ball's offset out of the slice before the turn, in metres. */
-export function lockSlice(k, target, dt = 1, rate = Infinity) {
+ *  The ball is one point, so some 3D slice through you always holds it. Two things keep this from wrenching the view:
+ *  the slice holds the ball on your right AND on your left, so it turns to whichever is nearer (never more than 90°:
+ *  turning Rt "toward" a ball on your left meant spinning the whole across-plane 180°, a mirror-flip of the world);
+ *  and it's lazy: it turns only far enough to bring the ball within `tol` metres of the slice. Near the ball its
+ *  direction across your heading swings wildly while its distance from your slice stays small, so a lazy lock barely
+ *  moves. rate limits the turn (rad/s). Returns the ball's offset out of the slice before the turn, in metres. */
+export function lockSlice(k, target, dt = 1, rate = Infinity, tol = 0) {
   const u = up(k.x), d = add(target, k.x, -1);
   const h = add(add(d, k.F, -dot(d, k.F)), u, -dot(d, u));      // the ball's direction across your heading
-  const off = dot(d, k.N);
-  if (norm(h) < 0.3) return off;
-  const want = Math.atan2(dot(h, k.N), dot(h, k.Rt));           // the angle from Rt to the ball, within the across-plane
-  const turn = Math.max(-rate * dt, Math.min(rate * dt, want));
+  const off = dot(d, k.N), hn = norm(h);
+  if (hn < 1e-6 || Math.abs(off) <= tol) return off;
+  let ang = Math.atan2(dot(h, k.N), dot(h, k.Rt));              // from Rt to the ball, within the across-plane
+  if (ang > Math.PI / 2) ang -= Math.PI; else if (ang < -Math.PI / 2) ang += Math.PI;   // the nearer of ±Rt
+  const allowed = Math.asin(Math.min(1, tol / hn));
+  ang -= Math.sign(ang) * allowed;                              // stop where the offset is tol
+  const turn = Math.max(-rate * dt, Math.min(rate * dt, ang));
   const c = Math.cos(turn), s = Math.sin(turn), R0 = k.Rt, N0 = k.N;
   k.Rt = add(scale(R0, c), N0, s); k.N = add(scale(N0, c), R0, -s);
   return off;
+}
+
+/**
+ * The chase camera: behind the bike, looking toward the ball (ball cam) or ahead, ALWAYS with the bike in view.
+ * Everything lives in the bike's slice, span{F, up, Rt}, so ball lock's work is kept. cs persists between frames.
+ *  - its direction (where "behind" is measured from) is the floor direction from the bike to the ball, within the
+ *    slice, turned toward smoothly as an angle in the (F, Rt) plane (never a vector average, which can pass through 0);
+ *  - the look aims at the ball but is held within maxAng of the bike, and below maxUp of straight up, then followed
+ *    smoothly and never faster than maxTurn rad/s;
+ *  - the camera's right is built from its look and up inside the slice (a cross product in the F, Rt, up basis), so it
+ *    never degenerates when the look runs along Rt or toward the sky.
+ */
+export function chaseCamera(cs, k, ball, { ballCam = true, maxAng = 0.5, maxUp = 0.62, maxTurn = 1.6 } = {}, dt = 1 / 60, A = ARENA) {
+  const u = up(k.x), base = bikeBody(k, A);
+  const inPlane = (v) => [dot(v, k.F), dot(v, k.Rt)];          // a direction's place in the (F, Rt) plane
+  const fromAngle = (a) => add(scale(k.F, Math.cos(a)), k.Rt, Math.sin(a));
+  // where to stand behind
+  let want = null;
+  if (ballCam) {
+    const hb = add(add(ball, base, -1), u, -dot(add(ball, base, -1), u));
+    const [f, r] = inPlane(hb);
+    if (Math.hypot(f, r) > 3) want = Math.atan2(r, f);
+  }
+  if (want === null) {
+    const vF = k.ground ? k.F : add(k.v, u, -dot(k.v, u));
+    const [f, r] = inPlane(vF);
+    want = Math.hypot(f, r) > 0.2 ? Math.atan2(r, f) : (cs.dirA ?? 0);
+  }
+  let cur = cs.dir ? Math.atan2(...inPlane(cs.dir).reverse()) : want;
+  if (!cs.dir || !Number.isFinite(cur)) cur = want;
+  let diff = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
+  diff = Math.max(-3 * dt, Math.min(3 * dt, diff * (1 - Math.exp(-5 * dt))));
+  cs.dirA = cur + diff;
+  cs.dir = fromAngle(cs.dirA);
+  // where the camera wants to be, kept inside the arena, smoothed
+  let eyeW = add(add(base, cs.dir, -7), u, 2.7);
+  if (norm(eyeW) > A.R - 0.4) eyeW = scale(unit(eyeW), A.R - 0.4);
+  cs.eye = cs.eye ? add(cs.eye, add(eyeW, cs.eye, -1), 1 - Math.exp(-10 * dt)) : eyeW;
+  const eye = cs.eye, ue = up(eye);
+  // the look: at the ball (or ahead), held so the bike stays in frame and the sky doesn't take over
+  const toBike = unit(add(base, eye, -1));
+  let look = unit(add(ballCam ? ball : add(add(base, cs.dir, 6), u, 0.6), eye, -1));
+  const ang = Math.acos(Math.max(-1, Math.min(1, dot(look, toBike))));
+  if (ang > maxAng) { const t = maxAng / ang, s0 = Math.sin((1 - t) * ang) / Math.sin(ang), s1 = Math.sin(t * ang) / Math.sin(ang); look = unit(add(scale(toBike, s0), look, s1)); }
+  const e = dot(look, ue);
+  if (e > maxUp) { const flat = unit(add(look, ue, -e)); look = unit(add(scale(flat, Math.sqrt(1 - maxUp * maxUp)), ue, maxUp)); }
+  // follow the wanted look smoothly, and never faster than maxTurn (rad/s): a hit flings the ball away in an instant
+  if (cs.look) {
+    const a0 = Math.acos(Math.max(-1, Math.min(1, dot(cs.look, look))));
+    const step = Math.min(a0 * (1 - Math.exp(-8 * dt)), maxTurn * dt);
+    if (a0 > 1e-9) { const t = step / a0, s0 = Math.sin((1 - t) * a0) / Math.sin(a0), s1 = Math.sin(t * a0) / Math.sin(a0); cs.look = unit(add(scale(cs.look, s0), look, s1)); }
+  } else cs.look = look;
+  // the frame: look, up (made perpendicular), right as up × look in the slice's (F, Rt, up) coordinates
+  const L = cs.look, Up = unit(add(ue, L, -dot(ue, L)));
+  const l3 = [dot(L, k.F), dot(L, k.Rt), dot(L, u)], u3 = [dot(Up, k.F), dot(Up, k.Rt), dot(Up, u)];
+  const r3 = [u3[1] * l3[2] - u3[2] * l3[1], u3[2] * l3[0] - u3[0] * l3[2], u3[0] * l3[1] - u3[1] * l3[0]];
+  const right = unit(add(add(scale(k.F, r3[0]), k.Rt, r3[1]), u, r3[2]));
+  return { eye, look: L, up: Up, right, w: k.N, bikeAngle: Math.acos(Math.max(-1, Math.min(1, dot(L, unit(add(base, eye, -1)))))) };
 }
 
 /** Where to meet the ball: run a copy of it forward and find the first moment you could be under it, driving at
@@ -192,11 +257,24 @@ export function approach(ballFloor, A = ARENA, back = 2.4) {
   return { dir, point: scale(H.walk(bh, scale(dir, -1), back, A.R, []).xhat, A.R) };
 }
 
-/** Kickoff: the ball 3 m over the centre spot, the bike 26 m toward its own goal, facing the ball. */
-export function kickoff(A = ARENA) {
-  const ball = makeBall(SPOT, 3, A);
-  const toward = unit(add(OWN, SPOT, -dot(OWN, SPOT)));
-  const at = H.walk(unit(SPOT), toward, 26, A.R, []).xhat;
-  const face = unit(add(SPOT, at, -dot(SPOT, at)));
+/** Kickoff: the ball 3 m over the centre spot, the bike 26 m from it, facing it. With no rnd, the bike stands on the
+ *  line toward its own goal (the selftest's fixed case). With rnd (a function giving 0…1), solo practice: the bike's
+ *  side of the ball is turned off that line (0.5 to 2.4 rad, toward any direction across it, ana and kata included),
+ *  and the ball is already rolling, so no kickoff is a straight drive into their goal. */
+export function kickoff(A = ARENA, rnd = null) {
+  const ball = makeBall(SPOT, 3, A), sp = unit(SPOT);
+  let toward = unit(add(OWN, sp, -dot(OWN, sp)));
+  if (rnd) {
+    const F = H.floorFrame(sp);
+    // the floor directions at the spot orthogonal to "toward": pick one at random, and turn toward it
+    const basis = H.orthonormalTo(sp, [toward, F.f, F.e]).slice(1);
+    const phi = 2 * Math.PI * rnd(), off = unit(add(scale(basis[0], Math.cos(phi)), basis[1], Math.sin(phi)));
+    const t = 0.5 + 1.9 * rnd();
+    toward = unit(add(scale(toward, Math.cos(t)), off, Math.sin(t)));
+    const roll = unit(add(scale(basis[0], Math.cos(phi + 2)), basis[1], Math.sin(phi + 2)));
+    ball.v = scale(roll, 2 + 4 * rnd());
+  }
+  const at = H.walk(sp, toward, 26, A.R, []).xhat;
+  const face = unit(add(sp, at, -dot(sp, at)));
   return { ball, bike: makeBike(at, face, A) };
 }

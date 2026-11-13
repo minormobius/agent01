@@ -19,8 +19,8 @@ const S = {
   ball: null, bike: null, cam: null, aim: null, it: null, itT: 0, touches: 0, slowT: 0,
 };
 function newKickoff() {
-  const ko = G.kickoff();
-  S.ball = ko.ball; S.bike = ko.bike; S.cam = null; S.aim = null; S.countdown = 3;
+  const ko = G.kickoff(G.ARENA, Math.random);   // solo: a different approach every time
+  S.ball = ko.ball; S.bike = ko.bike; S.camState = null; S.aim = null; S.countdown = 3;
 }
 newKickoff();
 
@@ -77,11 +77,14 @@ vec3 floorCol(vec4 p, float t) {
   for (int k = 0; k < 4; k++) {
     float d = abs(fract(p[k] / 5.0 + 0.5) - 0.5) * 5.0, aa = fwidth(p[k]);
     float l = 1.0 - smoothstep(0.035, 0.035 + aa * 1.6, d);
+    // fade the lines out where they're too fine to draw (a few pixels apart): blurred, they wash the floor pink
+    l *= 1.0 - smoothstep(0.06, 0.3, aa / 5.0);
     c += lineCol[k] * l * 0.55;
   }
   // the halfway sphere (equally far from both goals), and the goal circles
   float half_ = abs(asin(clamp(dot(u, own), -1.0, 1.0))) * R;
-  c = mix(c, vec3(1.0, 0.3, 0.85), 1.0 - smoothstep(0.15, 0.3, half_));
+  // (thin and faint: it's a whole 2-sphere in the floor, and a slice running nearly along it smears it into a sheet)
+  c = mix(c, vec3(1.0, 0.3, 0.85), (1.0 - smoothstep(0.06, 0.14, half_)) * 0.35);
   float dOwn = acos(clamp(dot(u, own), -1.0, 1.0)) * R, dEn = acos(clamp(dot(u, enemy), -1.0, 1.0)) * R;
   c = mix(c, vec3(0.2, 0.95, 1.0), (1.0 - smoothstep(0.1, 0.25, abs(dOwn - goalR))) * 0.9);
   c = mix(c, vec3(1.0, 0.6, 0.15), (1.0 - smoothstep(0.1, 0.25, abs(dEn - goalR))) * 0.9);
@@ -209,32 +212,14 @@ gl.enableVertexAttribArray(0);
 gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
 
 // ------------------------------------------------------------------ camera --
-// A chase camera behind and above the bike. Its slice is the bike's: forward, up and right. With ball lock on, the
-// ball lies in that slice exactly (arena.js lockSlice), so the camera always sees it. Ball cam looks at the ball;
-// otherwise the camera looks ahead.
+// arena.js chaseCamera: behind the bike on the line from the ball, looking at the ball (ball cam) or ahead, the bike
+// always in frame, its turn rate capped, its frame built so it can't flip. Its slice is the bike's, so ball lock holds.
 const TAN = Math.tan((70 * Math.PI) / 360);
+const LOCK = { rate: 1.5, tol: 0.4 };   // ball lock: at most 86°/s, and only once the ball is 0.4 m off your slice
 function camera(dt) {
-  const k = S.bike, u = G.up(k.x), base = G.bikeBody(k);
-  const F = k.ground ? k.F : H.unit(H.add(k.F, u, -H.dot(k.F, u)));
-  let want = H.add(H.add(base, F, -6.8), u, 2.6);
-  if (H.norm(want) > R - 0.4) want = H.scale(H.unit(want), R - 0.4);
-  S.cam = S.cam ? H.add(S.cam, H.add(want, S.cam, -1), 1 - Math.exp(-9 * dt)) : want;
-  const eye = S.cam;
-  const target = S.ballCam ? S.ball.x : H.add(H.add(base, F, 6), u, 0.6);
-  const look = H.unit(H.add(target, eye, -1));
-  const [Lk, Up, Rr, W] = gs([look, G.up(eye), k.Rt, k.N]);
-  return { eye, look: Lk, up: Up, right: Rr, w: W };
+  if (!S.camState) S.camState = {};
+  return G.chaseCamera(S.camState, S.bike, S.ball.x, { ballCam: S.ballCam }, Math.max(dt, 1 / 240));
 }
-function gs(vs) {
-  const out = [];
-  for (let v of vs) {
-    for (const u of out) v = H.add(v, u, -H.dot(v, u));
-    if (H.norm(v) < 1e-6) for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { v = ax; for (const u of out) v = H.add(v, u, -H.dot(v, u)); if (H.norm(v) > 0.3) break; }
-    out.push(H.unit(v));
-  }
-  return out;
-}
-
 let lastCam = null;
 function draw(dt) {
   const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
@@ -394,7 +379,9 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (S.state === 'play') {
     acc += dt;
-    while (acc >= DT) { step(DT); acc -= DT; }
+    // stop stepping the moment a step ends play (a goal): the ball is still in the net, and it mustn't count twice
+    while (acc >= DT && S.state === 'play') { step(DT); acc -= DT; }
+    if (S.state !== 'play') acc = 0;
   } else if (S.state === 'goal') {
     S.bannerT -= dt;
     for (let i = 0; i < Math.round(dt / DT); i++) G.stepBall(S.ball, DT, S.mode);
@@ -432,7 +419,7 @@ function step(dt) {
   const tw = kv('l', 'j');
   if (tw && !S.lock) { const a = tw * 1.4 * dt, k = S.bike, c = Math.cos(a), s = Math.sin(a), R0 = k.Rt; k.Rt = H.add(H.scale(R0, c), k.N, s); k.N = H.add(H.scale(k.N, c), R0, -s); }
   G.stepBike(S.bike, input, dt, S.mode);
-  if (S.lock) G.lockSlice(S.bike, S.ball.x, dt, 4);
+  if (S.lock) G.lockSlice(S.bike, S.ball.x, dt, LOCK.rate, LOCK.tol);
   G.stepBall(S.ball, dt, S.mode);
   if (G.collide(S.bike, S.ball)) { S.touches++; flash('hit'); }
   if (G.inGoal(S.ball.x, G.ENEMY)) goal(true);
