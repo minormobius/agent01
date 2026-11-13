@@ -12,7 +12,7 @@ recording. The front page (`index.html`) lists the pieces; each piece is a direc
 | Dir | `studio/` |
 | Endpoint | `studio.mino.mobi`, a **plain route** (`studio.mino.mobi/*`); it spends no custom-domain slot |
 | Type | frontend: static assets only, no worker script, no build, no D1, no secrets |
-| Owning branch | `claude/plant-growth-animation-gxbby1` (it also owns `ink`) |
+| Owning branch | `claude/pensive-darwin-btqq8f` (since 2026-11-13; `ink` stays on `claude/plant-growth-animation-gxbby1`) |
 | Deploy | [`.github/workflows/deploy-studio.yml`](../.github/workflows/deploy-studio.yml): selftest, then `route-dns.mjs`, then `wrangler deploy`, then it checks that the host serves the page **and the .wasm** |
 | Uses | nothing shared at runtime. The piano is a copy (below) |
 | Selftest | `node studio/test/studio.selftest.mjs`: four shards in parallel, ~45 s (`STUDIO_SHARD=n` runs one) |

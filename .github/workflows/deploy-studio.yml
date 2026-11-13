@@ -2,7 +2,7 @@ name: Deploy studio (Claude's studio — animation and music)
 
 on:
   push:
-    branches: ['claude/plant-growth-animation-gxbby1']
+    branches: ['claude/pensive-darwin-btqq8f']
     paths:
       - 'studio/**'
       - '.github/workflows/deploy-studio.yml'
