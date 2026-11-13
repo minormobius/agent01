@@ -20,6 +20,17 @@ import { writeFileSync, readFileSync, existsSync } from "node:fs";
 import { logRate, gamow, KB_MEV } from "../../atom/js/stars.js";
 import { lambda, RX } from "../js/net.js";
 import { table } from "./nuc4.mjs";
+import * as WK from "../../atom/js/weak.js";
+
+/* 4D's own weak force (the roadmap's A1, atom/js/weak.js): G₄ = 10^G4X × G_F/M_W, by default matched to ours at the
+   electron (G₄ m_e³ = G_F m_e², G4X ≈ 5.20, inside the weak window). It multiplies p + p by the ratio of 4D's weak factor
+   to ours at the 4D deuteron's endpoint, every β decay by the same ratio at its own endpoint, and the electron capture
+   by (G₄m_e/G_F)² × the neutrino's phase space (Ω₄/(2π)⁴ against Ω₃/(2π)³, one more power of E_ν/m_e; the bound
+   electron's density at the nucleus taken as ours in m_e units, declared). G4X=ours keeps ours' weak force */
+const G4X = process.env.G4X === "ours" ? null : process.env.G4X != null ? +process.env.G4X : Math.log10(WK.GF / WK.ME / WK.G4_REF);
+const G4 = G4X == null ? null : WK.G4_REF * 10 ** G4X;
+const wkBeta = (T0) => (G4 ? WK.weakRatio(4, G4, T0) : 1);
+const wkEC = (Q) => (G4 ? ((G4 * WK.ME) / WK.GF) ** 2 * ((WK.omega(4) / (2 * Math.PI) ** 4) / (WK.omega(3) / (2 * Math.PI) ** 3)) * (Q / WK.ME) : 1);
 
 const DIR = `${process.env.TMPDIR ?? "/tmp"}/atom4-nuclei`, load = (f) => (existsSync(`${DIR}/${f}`) ? JSON.parse(readFileSync(`${DIR}/${f}`, "utf8")) : null);
 const AMU = 931.494, HBC = 197.327, YR = 3.15576e7, ME = 0.510999;
@@ -60,12 +71,13 @@ function bake(s) {
   const twoBody = (a, b, S) => (T) => { const o = op(4, a.Z, a.A, b.Z, b.A); return kpp(T) * (S / Spp) * (opp4.mu / o.mu) ** 2 * Math.exp(logRate(T, o) - logRate(T, opp4)) / PPX; };
   const P = get(1, 0), D = get(1, 1), H3 = get(2, 1), A4 = { Z: 2, N: 2, A: 4, B: N.Ba };
   // the chains
-  add(["1-1", "1-1"], ["1-2"], "computed (p + p from the strong force)", kpp, { kind: "beta" });
+  const Rpp = wkBeta(N.Bd - WK.Q_NP - WK.ME); // the deuteron's binding sets the positron's endpoint
+  add(["1-1", "1-1"], ["1-2"], G4 ? `computed (p + p from the strong force; 4D's weak force, ×${Rpp.toPrecision(3)} ours)` : "computed (p + p from the strong force)", (T) => kpp(T) * Rpp, { kind: "beta" });
   add(["1-1", "1-2"], ["2-3"], "ours carried (d + p)", twoBody(P, D, oursS(["p", "d"], ["he3"], 1.5e7)));
   add(["2-3", "2-3"], ["1-1", "1-1", "2-4"], "ours carried (³He + ³He)", twoBody(H3, H3, oursS(["he3", "he3"], ["p", "p", "he4"], 1.5e7)));
   const be7a = get(4, 3), li7a = get(3, 4);
   if (be7a) add(["2-3", "2-4"], ["4-7"], "ours carried (³He + ⁴He)", twoBody(H3, A4, oursS(["he4", "he3"], ["be7"], 1.5e7)));
-  if (be7a && li7a) { const Q = be7a.betaPlus + 2 * ME; if (Q > 0) reactions.push({ r: ["4-7"], p: ["3-7"], how: "ours carried (⁷Be's electron capture in the Sun, × (Q/Q_ours)²)", lam: (1 / (140 * 86400)) * (Q / 0.862) ** 2, kind: "ec" }); }
+  if (be7a && li7a) { const Q = be7a.betaPlus + 2 * ME; if (Q > 0) reactions.push({ r: ["4-7"], p: ["3-7"], how: `ours carried (⁷Be's electron capture in the Sun, × (Q/Q_ours)²${G4 ? ", × 4D's weak force" : ""})`, lam: (1 / (140 * 86400)) * (Q / 0.862) ** 2 * wkEC(Q), kind: "ec" }); }
   // αα: computed
   add(["2-4", "2-4"], ["4-8"], "computed (E2, nuclei.mjs capture)", (T) => (cap ? twoBody(A4, A4, Stab(cap.table.E, cap.table.aa, T, op(4, 2, 4, 2, 4)))(T) : 0));
   // captures onto every nucleus of the table
@@ -82,9 +94,9 @@ function bake(s) {
     if (z && z.bound) { const S = row ? (T) => Stab(row.ta.E, row.ta.sv, T, op(4, 2, 4, x.Z, x.A)) : () => Fa * Sc12a;
       add(["2-4", id(x)], [id(z)], row ? "computed (E2, nuclei.mjs protonflow)" : "ours carried (¹²C + ⁴He × 4D's computed excess)", (T) => twoBody(A4, x, S(T))(T)); }
     // β⁺
-    if (x.betaPlus != null && x.betaPlus > 0) { const d = get(x.Z - 1, x.N + 1); if (d) reactions.push({ r: [id(x)], p: [id(d)], how: `β⁺, endpoint ${x.betaPlus.toFixed(2)} MeV, ¹³N's ft`, lam: (Math.LN2 * fBeta(x.betaPlus)) / FT, kind: "beta" }); }
+    if (x.betaPlus != null && x.betaPlus > 0) { const d = get(x.Z - 1, x.N + 1); if (d) reactions.push({ r: [id(x)], p: [id(d)], how: `β⁺, endpoint ${x.betaPlus.toFixed(2)} MeV, ¹³N's |M|²${G4 ? ", 4D's weak force" : ""}`, lam: ((Math.LN2 * fBeta(x.betaPlus)) / FT) * wkBeta(x.betaPlus), kind: "beta" }); }
     // β⁻ (a nucleus with neutrons to spare: plusmore's two-neutron clusters), the same ft and phase space
-    if (x.betaMinus != null && x.betaMinus > 0) { const d = get(x.Z + 1, x.N - 1); if (d) reactions.push({ r: [id(x)], p: [id(d)], how: `β⁻, endpoint ${x.betaMinus.toFixed(2)} MeV, ¹³N's ft`, lam: (Math.LN2 * fBeta(x.betaMinus)) / FT, kind: "beta" }); }
+    if (x.betaMinus != null && x.betaMinus > 0) { const d = get(x.Z + 1, x.N - 1); if (d) reactions.push({ r: [id(x)], p: [id(d)], how: `β⁻, endpoint ${x.betaMinus.toFixed(2)} MeV, ¹³N's |M|²${G4 ? ", 4D's weak force" : ""}`, lam: ((Math.LN2 * fBeta(x.betaMinus)) / FT) * wkBeta(x.betaMinus), kind: "beta" }); }
   }
   // ceryllium + ceryllium (heavy's convention: our ¹⁶O + ¹⁶O's factor carried), out as element 6 + ⁴He (the helium-4 channel)
   const ce = get(4, 4), c12a = get(6, 6), oo = oursS(["o16", "o16"], ["he4", "si28"], 2e9) + oursS(["o16", "o16"], ["p", "p31"], 2e9);
@@ -92,7 +104,7 @@ function bake(s) {
   const species = nuc.map((x) => ({ key: id(x), Z: x.Z, N: x.N, A: x.A, B: +x.B.toFixed(3), how: x.how, half: null }));
   for (const r of reactions) if (r.lam != null) { const sp = species.find((q) => q.key === r.r[0]); if (sp) sp.half = Math.LN2 / r.lam; }
   for (const r of reactions) if (r.k) r.k = r.k.map((v) => +v.toPrecision(5));
-  return { s, Ba: N.Ba, Fp, Fa, species, reactions, ppx: PPX };
+  return { s, Ba: N.Ba, Fp, Fa, species, reactions, ppx: PPX, weak: G4 ? { G4, G4X, ppR: Rpp } : null };
 }
 
 const S_LIST = (process.argv[2] ?? "1.5152,1.7").split(",").map(Number), out = {};
