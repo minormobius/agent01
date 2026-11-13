@@ -53,7 +53,10 @@ function shuffle(arr, rng) {
  * Nodes whose row was never read are dropped: an edge to them is known from one
  * side only, so a mutual could never be confirmed and they would look isolated.
  */
-export function buildGraph(ids, rows, { mode = 'mutual', exclude = [] } = {}) {
+export function buildGraph(ids, rows, { mode = 'mutual', exclude = [], talk = null } = {}) {
+  // 'convo' is 'talk' over a conversation-only score (replies, quotes,
+  // mentions); the caller passes that score map as `talk`.
+  if (mode === 'talk' || mode === 'talk2' || mode === 'active' || mode === 'convo') return buildTalkGraph(ids, rows, talk, { mode, exclude });
   const get = rows instanceof Map ? (d) => rows.get(d) : (d) => rows[d];
   const skip = new Set(exclude);
   const nodes = [...new Set(ids)].filter((d) => !skip.has(d) && get(d));
@@ -70,6 +73,47 @@ export function buildGraph(ids, rows, { mode = 'mutual', exclude = [] } = {}) {
       const mutual = out[j].has(i);
       if (mode === 'mutual' && !mutual) continue;
       edges.push([i, j, mutual ? 1 : 0.5]);
+    }
+  }
+  return fromEdges(nodes, edges);
+}
+
+// ── interaction ties ─────────────────────────────────────────────────────────
+// A follow can be years old and dormant; a reply last week is a live tie. On a
+// list built to be interwoven (everyone follows everyone) the follow graph is
+// near-uniform, and recent interaction is what still separates people.
+//
+// `talk[did]` maps each target DID to a directed interaction SCORE from did in
+// the window (reply/quote 3, mention/repost 2, like 1 — see lib/activity.js).
+// The undirected weight is log2(1 + a→b + b→a): one like is 1, a running
+// conversation is 4–6, and a pair of prolific repliers cannot outweigh a whole
+// community by volume alone.
+//   talk   — any interaction, either direction
+//   talk2  — only pairs where BOTH sides reached out (reciprocated)
+//   active — mutual follows that also interacted in the window
+export const tieWeight = (score) => Math.log2(1 + score);
+
+function buildTalkGraph(ids, rows, talk, { mode, exclude }) {
+  const getT = talk instanceof Map ? (d) => talk.get(d) : (d) => talk && talk[d];
+  const getR = rows instanceof Map ? (d) => rows.get(d) : (d) => rows && rows[d];
+  const skip = new Set(exclude);
+  const needRows = mode === 'active';
+  const nodes = [...new Set(ids)].filter((d) => !skip.has(d) && getT(d) && (!needRows || getR(d)));
+  const index = new Map(nodes.map((d, i) => [d, i]));
+  const score = (a, b) => { const t = getT(a); return t ? (t instanceof Map ? t.get(b) : t[b]) || 0 : 0; };
+  const fol = needRows ? nodes.map((d) => new Set(getR(d))) : null;
+  const edges = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const t = getT(nodes[i]);
+    const targets = t instanceof Map ? [...t.keys()] : Object.keys(t);
+    for (const b of targets) {
+      const j = index.get(b);
+      if (j === undefined || j === i) continue;
+      const ab = score(nodes[i], b), ba = score(b, nodes[i]);
+      if (ba > 0 && j < i) continue;                       // pair seen from j's side already
+      if (mode === 'talk2' && !(ab > 0 && ba > 0)) continue;
+      if (mode === 'active' && !(fol[i].has(b) && fol[j].has(nodes[i]))) continue;
+      edges.push([i, j, tieWeight(ab + ba)]);
     }
   }
   return fromEdges(nodes, edges);
@@ -572,10 +616,97 @@ export function layout(G, part, { iterations = 260, seed = 1, groupPull = 0.04 }
       if (d > 0) { const s = Math.min(d, temp) / d; x[i] += vx[i] * s; y[i] += vy[i] * s; }
     }
   }
-  let mx = 1e-9;
-  for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(x[i]), Math.abs(y[i]));
-  for (let i = 0; i < n; i++) { x[i] /= mx; y[i] /= mx; }
+  // Scale to the 97th percentile, not the max, and clamp: a handful of
+  // near-isolates drift far out, and scaling to them shrinks everyone else
+  // into a knot in the middle.
+  const ext = [];
+  for (let i = 0; i < n; i++) ext.push(Math.max(Math.abs(x[i]), Math.abs(y[i])));
+  ext.sort((a, b) => a - b);
+  const mx = Math.max(1e-9, ext[Math.min(n - 1, Math.floor(n * 0.97))]);
+  for (let i = 0; i < n; i++) {
+    x[i] /= mx; y[i] /= mx;
+    const m = Math.max(Math.abs(x[i]), Math.abs(y[i]));
+    if (m > 1) { x[i] /= m; y[i] /= m; }
+  }
   return { x, y };
+}
+
+/**
+ * Islands: every community laid out on its own, in its own disc, discs placed
+ * round a ring with strongly-linked communities next to each other. On a dense,
+ * deliberately interwoven graph a single force layout collapses into one
+ * hairball and hides the partition; this shows the partition and keeps the
+ * between-group ties as the lines that cross the gaps. Communities under three
+ * people share one "loose ends" island. Disc area ∝ community size.
+ */
+export function islandLayout(G, part, { iterations = 200, seed = 1 } = {}) {
+  const n = G.n, x = new Float64Array(n), y = new Float64Array(n);
+  if (!n) return { x, y, islands: [] };
+  const k = Math.max(0, ...part) + 1;
+  const members = Array.from({ length: k }, () => []);
+  part.forEach((c, i) => members[c].push(i));
+  const big = members.map((m, c) => c).filter((c) => members[c].length >= 3);
+  const loose = members.filter((m) => m.length < 3).flat();
+  const groups = big.map((c) => ({ id: c, nodes: members[c] }));
+  if (loose.length) groups.push({ id: -1, nodes: loose });
+
+  // order round the ring: greedy chain by between-group tie weight
+  const link = (a, b) => {
+    let s = 0; const B = new Set(b.nodes);
+    for (const i of a.nodes) for (const [j, w] of G.adj[i]) if (B.has(j)) s += w;
+    return s / Math.sqrt(a.nodes.length * b.nodes.length);
+  };
+  const order = [];
+  const left = groups.filter((g) => g.id !== -1).sort((a, b) => b.nodes.length - a.nodes.length);
+  if (left.length) order.push(left.shift());
+  while (left.length) {
+    const last = order[order.length - 1];
+    let bi = 0, bv = -1;
+    left.forEach((g, i) => { const v = link(last, g); if (v > bv) { bv = v; bi = i; } });
+    order.push(left.splice(bi, 1)[0]);
+  }
+  if (loose.length) order.push(groups[groups.length - 1]);
+
+  const radius = order.map((g) => Math.sqrt(g.nodes.length));
+  const gap = 0.35 * Math.max(...radius);
+  const islands = [];
+  if (order.length === 1) {
+    islands.push({ id: order[0].id, cx: 0, cy: 0, r: radius[0] });
+  } else {
+    const circumference = radius.reduce((s, r) => s + 2 * r + gap, 0);
+    const R = Math.max(circumference / (2 * Math.PI), radius[0] + Math.max(...radius.slice(1)) + gap);
+    let a = -Math.PI / 2;
+    order.forEach((g, i) => {
+      const span = (2 * radius[i] + gap) / circumference * 2 * Math.PI;
+      a += span / 2;
+      islands.push({ id: g.id, cx: Math.cos(a) * R, cy: Math.sin(a) * R, r: radius[i] });
+      a += span / 2;
+    });
+  }
+  order.forEach((g, gi) => {
+    const isl = islands[gi];
+    // Inside an island: a sunflower (golden-angle spiral), most-connected-inside
+    // at the centre, peripheral members at the rim. A force layout of a dense
+    // group collapses into a central knot with a few strays setting the scale;
+    // the spiral spaces every face evenly and keeps one honest meaning for
+    // position: distance from the centre = how peripheral to this group.
+    const S = new Set(g.nodes);
+    const inside = new Map(g.nodes.map((i) => {
+      let s = 0; for (const [j, w] of G.adj[i]) if (S.has(j)) s += w;
+      return [i, s];
+    }));
+    const ranked = g.nodes.slice().sort((a, b) => inside.get(b) - inside.get(a) || a - b);
+    ranked.forEach((i, t) => {
+      const rr = Math.sqrt((t + 0.5) / ranked.length) * 0.92, th = t * 2.399963 + gi;
+      x[i] = isl.cx + rr * Math.cos(th) * isl.r;
+      y[i] = isl.cy + rr * Math.sin(th) * isl.r;
+    });
+  });
+  let mx = 1e-9;
+  for (const isl of islands) mx = Math.max(mx, Math.abs(isl.cx) + isl.r, Math.abs(isl.cy) + isl.r);
+  for (let i = 0; i < n; i++) { x[i] /= mx; y[i] /= mx; }
+  for (const isl of islands) { isl.cx /= mx; isl.cy /= mx; isl.r /= mx; }
+  return { x, y, islands };
 }
 
 /** Matrix order: communities largest first, members by internal degree. */

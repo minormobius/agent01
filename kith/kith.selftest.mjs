@@ -3,8 +3,9 @@
 import {
   buildGraph, fromEdges, modularity, louvain, consensus, ari, rewire, nullModularity,
   describe, summary, coreNumbers, betweenness, sweep, layout, subgraph, splitDisconnected,
-  mulberry32, analyse, role,
+  mulberry32, analyse, role, islandLayout,
 } from './community.js';
+import { interactionsIn, tidTime } from './lib/activity.js';
 
 let fails = 0, passes = 0;
 function ok(cond, msg) { if (cond) passes++; else { fails++; console.error('✗ ' + msg); } }
@@ -92,6 +93,42 @@ ok(ga.adj[0].get(1) === 1 && ga.adj[0].get(2) === 0.5, 'any mode: mutual weight 
 const gx = buildGraph(['A', 'B', 'C'], rows, { mode: 'any', exclude: ['A'] });
 ok(gx.n === 2 && gx.edgeCount === 1, 'exclude drops the ego and its edges');
 
+// ── interaction ties ─────────────────────────────────────────────────────────
+// A→B 3 (a reply), B→A 1 (a like); A→C 1 one-way; C→D 2; D's activity unread.
+const talk = { A: { B: 3, C: 1, X: 9 }, B: { A: 1 }, C: { D: 2 } };
+const fol = { A: ['B', 'C'], B: ['A'], C: ['A'] };   // A–B mutual, A–C mutual
+const tt1 = buildGraph(['A', 'B', 'C', 'D'], fol, { mode: 'talk', talk });
+const at = (G, a, b) => G.adj[G.ids.indexOf(a)].get(G.ids.indexOf(b));
+ok(tt1.n === 3 && !tt1.ids.includes('D'), 'talk: nodes without read activity are dropped');
+ok(near(at(tt1, 'A', 'B'), Math.log2(1 + 4)) && near(at(tt1, 'B', 'A'), Math.log2(5)), 'talk: weight log2(1 + both directions), symmetric');
+ok(near(at(tt1, 'A', 'C'), 1), 'talk: a single like is weight 1');
+ok(tt1.edgeCount === 2, 'talk: targets outside the set are ignored, each pair counted once');
+const tt2 = buildGraph(['A', 'B', 'C'], fol, { mode: 'talk2', talk });
+ok(tt2.edgeCount === 1 && at(tt2, 'A', 'B') > 0, 'talk2: only reciprocated pairs');
+const tt3 = buildGraph(['A', 'B', 'C'], { A: ['B', 'C'], B: ['A'], C: [] }, { mode: 'active', talk });
+ok(tt3.edgeCount === 1 && at(tt3, 'A', 'B') > 0, 'active: interaction AND mutual follow');
+const tt4 = buildGraph(['A', 'B', 'C'], fol, { mode: 'talk', talk, exclude: ['A'] });
+ok(tt4.edgeCount === 0 && tt4.n === 2, 'talk: excluding the owner drops their ties');
+
+// ── reading interactions out of records ──────────────────────────────────────
+const P = 'at://did:plc:parent/app.bsky.feed.post/3abc', Q = 'at://did:plc:quoted/app.bsky.feed.post/3xyz';
+const post = {
+  reply: { root: { uri: 'at://did:plc:root/app.bsky.feed.post/1' }, parent: { uri: P } },
+  embed: { $type: 'app.bsky.embed.recordWithMedia', record: { record: { uri: Q } } },
+  facets: [{ features: [{ $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:m' },
+    { $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:m' },
+    { $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:parent' },
+    { $type: 'app.bsky.richtext.facet#link', uri: 'https://x' }] }],
+};
+const got = interactionsIn('app.bsky.feed.post', post).map((x) => x.join(':')).sort();
+ok(JSON.stringify(got) === JSON.stringify(['did:plc:m:mention', 'did:plc:parent:reply', 'did:plc:quoted:quote']),
+  'post → reply to parent (not root), quote through media, one mention, no double count of the replied-to: ' + got);
+ok(interactionsIn('app.bsky.feed.like', { subject: { uri: P } })[0].join() === 'did:plc:parent,like', 'like → the liked post\'s author');
+ok(interactionsIn('app.bsky.feed.repost', { subject: { uri: Q } })[0].join() === 'did:plc:quoted,repost', 'repost → author');
+ok(interactionsIn('app.bsky.feed.post', { text: 'hi' }).length === 0, 'a plain post is no interaction');
+ok(new Date(tidTime('3n27roebvf223')).toISOString().startsWith('2026-11-13T20:02'), 'TID rkey decodes to its time');
+ok(Number.isNaN(tidTime('self')), 'a non-TID rkey is NaN');
+
 // ── connectivity guarantee ───────────────────────────────────────────────────
 const split = splitDisconnected(twoTri, [0, 0, 1, 1, 0, 0]);   // label 0 is two islands
 ok(split[0] === split[1] && split[4] === split[5] && split[0] !== split[4], 'disconnected community is split');
@@ -155,6 +192,30 @@ for (let i = 0; i < pp.G.n; i += 3) for (let j = i + 1; j < pp.G.n; j += 3) {
   if (ppc.part[i] === ppc.part[j]) { win += d; wn++; } else { btw += d; bn++; }
 }
 ok(win / wn < 0.6 * (btw / bn), 'layout: communities sit together');
+
+// ── islands ──────────────────────────────────────────────────────────────────
+// every community in its own disc, discs not overlapping, loose ends together
+const withLoose = fromEdges([...pp.G.ids, 'lone1', 'lone2'], [...(() => { const e = []; for (let i = 0; i < pp.G.n; i++) for (const j of pp.G.adj[i].keys()) if (i < j) e.push([i, j]); return e; })()]);
+const partL = [...ppc.part, 4, 5];
+const IL = islandLayout(withLoose, partL, { iterations: 80 });
+ok(IL.islands.length === 5, `islands: 4 communities + 1 loose-ends island (got ${IL.islands.length})`);
+let overlap = false;
+for (let a = 0; a < IL.islands.length; a++) for (let b = a + 1; b < IL.islands.length; b++) {
+  const A2 = IL.islands[a], B2 = IL.islands[b];
+  if (Math.hypot(A2.cx - B2.cx, A2.cy - B2.cy) < A2.r + B2.r) overlap = true;
+}
+ok(!overlap, 'islands: discs do not overlap');
+ok([...IL.x, ...IL.y].every((v) => Number.isFinite(v) && Math.abs(v) <= 1 + 1e-9), 'islands: coordinates in [-1, 1]');
+const inside = partL.every((c, i) => {
+  const isl = IL.islands.find((q) => q.id === (c >= 4 ? -1 : c));
+  return Math.hypot(IL.x[i] - isl.cx, IL.y[i] - isl.cy) <= isl.r + 1e-9;
+});
+ok(inside, 'islands: everyone sits inside their own island');
+const big4 = IL.islands.filter((q) => q.id >= 0).map((q) => q.r);
+ok(Math.max(...big4) / Math.min(...big4) < 1.3, 'islands: equal communities get equal discs');
+// convo mode is the talk graph over a conversation-only score map
+const cv = buildGraph(['A', 'B', 'C'], fol, { mode: 'convo', talk: { A: { B: 3 }, B: {}, C: {} } });
+ok(cv.edgeCount === 1 && near(at(cv, 'A', 'B'), 2), 'convo: one reply A→B is weight log2(4) = 2');
 
 // ── the page's one call ──────────────────────────────────────────────────────
 const A = analyse(karate, { runs: 8, nullSamples: 2 });

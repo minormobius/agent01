@@ -4,6 +4,7 @@
 
 import { followsOf, mutualsOf, profiles, pool, stats } from './lib/graph.js';
 import { GAMMAS } from './community.js';
+import { activityOf } from './lib/activity.js';
 
 const $ = (id) => document.getElementById(id);
 const API = 'https://public.api.bsky.app/xrpc';
@@ -14,7 +15,7 @@ const f2 = (x) => Number(x).toFixed(2);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // ── state ────────────────────────────────────────────────────────────────────
-let base = null;          // { ids, rows, owner, title, partial }
+let base = null;          // { ids, rows, owner, title, partial, failed, talk: { [days]: { scores, meta } } }
 let stack = [];           // drill-down path: [{ title, scope }]
 let view = null;          // last worker result + derived lookups
 let abort = null;
@@ -82,7 +83,7 @@ async function submit(raw) {
   $('picker').classList.add('hidden');
   try {
     const list = await parseList(s);
-    if (list) { history.replaceState(null, '', '?list=' + encodeURIComponent(list)); return runList(list); }
+    if (list) { history.replaceState(null, '', '?list=' + encodeURIComponent(list)); syncUrl(); return runList(list); }
     setStatus('looking up @' + s + '…');
     const did = await resolveDid(s);
     const j = await getJSON(`${API}/app.bsky.graph.getLists?actor=${encodeURIComponent(did)}&limit=50`);
@@ -157,7 +158,7 @@ async function crawl(gather) {
         + (stats.cacheHits ? ` · ${num(stats.cacheHits)} cached` : ''));
     });
     const read = Object.keys(rows).length;
-    base = { ids, rows, owner, title, failed, partial: read < ids.length ? { read, of: ids.length } : null };
+    base = { ids, rows, owner, title, failed, talk: {}, partial: read < ids.length ? { read, of: ids.length } : null };
     stack = [{ title: /\(\d[\d+]*\)\s*$/.test(title) ? title : `${title} (${num(ids.length)})`, scope: null }];
     hydrateProfiles(ids);
     await load();
@@ -171,12 +172,54 @@ async function crawl(gather) {
   }
 }
 
+const TALK_MODES = new Set(['talk', 'talk2', 'active', 'convo']);
+const isTalk = () => TALK_MODES.has($('mode').value);
+const days = () => +$('days').value;
+
 async function load() {
   if (!base) return;
+  $('daysWrap').classList.toggle('hidden', !isTalk());
+  let talk = null;
+  if (isTalk()) {
+    if (!base.talk[days()]) await readActivity(days());
+    if (!base.talk[days()]) return;                    // stopped before anything was read
+    talk = $('mode').value === 'convo' ? base.talk[days()].convo : base.talk[days()].scores;
+  }
   setStatus('building the graph…');
   const exclude = $('noEgo').checked && base.owner ? [base.owner] : [];
-  await ask({ type: 'load', ids: base.ids, rows: base.rows, mode: $('mode').value, exclude });
+  await ask({ type: 'load', ids: base.ids, rows: base.rows, mode: $('mode').value, exclude, talk });
   await analyseCurrent();
+}
+
+/**
+ * Every member's replies, quotes, mentions, reposts and likes in the window,
+ * kept only where they land on another member. Cached per window, so flipping
+ * between the interaction modes is free after the first read.
+ */
+async function readActivity(d) {
+  const ids = base.ids, members = new Set(ids);
+  const scores = {}, convo = {}, totals = { reply: 0, quote: 0, mention: 0, repost: 0, like: 0 }, failed = [];
+  let capped = 0, done = 0;
+  $('go').disabled = true; $('stop').classList.remove('hidden');
+  abort = new AbortController();
+  const signal = abort.signal, t0 = performance.now();
+  try {
+    await pool(ids, CONCURRENCY, async (did) => {
+      if (signal.aborted) return;
+      try {
+        const a = await activityOf(did, { days: d, members, signal });
+        scores[did] = a.scores; convo[did] = a.convo;
+        for (const k in totals) totals[k] += a.counts[k];
+        if (a.capped.length) capped++;
+      } catch (e) { if (e?.name !== 'AbortError') failed.push(did); }
+      done++;
+      setProgress(done / ids.length);
+      setStatus(`reading ${d} days of replies, quotes, mentions, reposts and likes · ${num(done)}/${num(ids.length)} · ${num(stats.requests)} requests · ${((performance.now() - t0) / 1000).toFixed(0)}s`);
+    });
+  } finally {
+    $('go').disabled = false; $('stop').classList.add('hidden'); abort = null;
+  }
+  if (Object.keys(scores).length) base.talk[d] = { scores, convo, meta: { totals, capped, failed, read: Object.keys(scores).length } };
 }
 
 async function analyseCurrent() {
@@ -192,19 +235,31 @@ async function analyseCurrent() {
   const p = base.partial, nf = base.failed.length, stopped = p ? p.of - p.read - nf : 0;
   setStatus(`${num(view.ids.length)} people · ${num(view.edgeList.length)} ties · analysed in ${((performance.now() - t0) / 1000).toFixed(1)}s`
     + (nf ? ` · ${num(nf)} ${nf === 1 ? 'account' : 'accounts'} could not be read (server refused) and ${nf === 1 ? 'is' : 'are'} left out` : '')
-    + (stopped > 0 ? ` · stopped early: ${num(stopped)} not read, left out` : ''));
+    + (stopped > 0 ? ` · stopped early: ${num(stopped)} not read, left out` : '')
+    + talkNote());
+}
+function talkNote() {
+  if (!isTalk() || !base.talk[days()]) return '';
+  const m = base.talk[days()].meta, t = m.totals;
+  return ` · last ${days()} days inside the list: ${num(t.reply)} replies, ${num(t.quote)} quotes, ${num(t.mention)} mentions, ${num(t.repost)} reposts, ${num(t.like)} likes`
+    + (m.capped ? ` · ${num(m.capped)} heavy likers capped at 1,500 likes` : '')
+    + (m.failed.length ? ` · ${num(m.failed.length)} unreadable, left out` : '');
 }
 
 function derive(res) {
   const n = res.ids.length;
   const nbrs = Array.from({ length: n }, () => []);
+  const wOf = Array.from({ length: n }, () => new Map());
   const edgeList = [];
+  let maxW = 0;
   for (let k = 0; k < res.edges.length; k += 3) {
     const i = res.edges[k], j = res.edges[k + 1], w = res.edges[k + 2];
     edgeList.push([i, j, w]); nbrs[i].push(j); nbrs[j].push(i);
+    wOf[i].set(j, w); wOf[j].set(i, w);
+    if (w > maxW) maxW = w;
   }
   const A = res.analysis;
-  return { ...res, A, nbrs, edgeList, order: matrixOrder(A) };
+  return { ...res, A, nbrs, wOf, maxW, edgeList, order: matrixOrder(A) };
 }
 function matrixOrder(A) {
   const order = [];
@@ -218,7 +273,7 @@ async function hydrateProfiles(ids) {
   for (let i = 0; i < missing.length; i += 100) {
     const got = await profiles(missing.slice(i, i + 100));
     for (const [k, v] of got) prof.set(k, v);
-    if (view) { renderComms(); renderPeople(); }
+    if (view) { renderComms(); renderPeople(); redrawMapSoon(); }
   }
 }
 const handle = (did) => prof.get(did)?.handle || did.slice(0, 16) + '…';
@@ -282,7 +337,7 @@ function renderTiles() {
   const t = (v, l) => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div></div>`;
   $('tiles').innerHTML = [
     t(num(S.nodes), 'people'),
-    t(num(S.edges), base && $('mode').value === 'any' ? 'ties' : 'mutual ties'),
+    t(num(S.edges), { mutual: 'mutual ties', any: 'ties', talk: 'interacting pairs', talk2: 'two-way pairs', active: 'active mutuals', convo: 'talking pairs' }[$('mode').value]),
     t(pct(S.density), 'density'),
     t(bigComms().length + (A.communities.length > bigComms().length ? ` <small>+${A.communities.length - bigComms().length} tiny</small>` : ''), 'communities'),
     t(f2(A.q) + ` <small>vs ${f2(A.nullQ.mean)}</small>`, 'modularity · random'),
@@ -320,34 +375,77 @@ function drawMap() {
   const cv = $('map');
   const { ctx, w, h } = fitCanvas(cv);
   const n = view.ids.length, pad = 18;
-  const sx = (x) => pad + (x + 1) / 2 * (w - 2 * pad);
-  const sy = (y) => pad + (y + 1) / 2 * (h - 2 * pad);
+  const islands = $('mapMode').value === 'islands';
+  const X = islands ? view.island.x : view.x, Y = islands ? view.island.y : view.y;
+  // square aspect, so islands stay round
+  const side = Math.min(w, h) - 2 * pad, ox = (w - side) / 2, oy = (h - side) / 2;
+  const sx = (x) => ox + (x + 1) / 2 * side;
+  const sy = (y) => oy + (y + 1) / 2 * side;
   const P = view.A.people;
   const maxDeg = Math.max(1, ...P.map((p) => p.degree));
-  const rBase = n > 600 ? 1.6 : n > 200 ? 2.4 : 3.4;
-  const radius = (i) => rBase + rBase * 1.4 * Math.sqrt(P[i].degree / maxDeg);
-  mapGeom = { sx, sy, radius };
+  // Faces when the crowd is small enough to read them (ring = community colour);
+  // plain dots past that, where an avatar would be a few pixels of noise.
+  const faces = n <= 450 && $('faces').checked;
+  let rBase = faces ? (n > 250 ? 5.5 : 7) : n > 600 ? 1.6 : n > 200 ? 2.4 : 3.4;
+  let radius = (i) => rBase + rBase * (faces ? 0.8 : 1.4) * Math.sqrt(P[i].degree / maxDeg);
+  if (islands) {
+    // the spiral spaces members evenly, and island area ∝ size, so the spacing
+    // is the same on every island: fit the faces to it, all one size (position
+    // inside the island already says who is central)
+    const big = view.island.islands.reduce((a, q) => (q.r > a.r ? q : a), { r: 0, id: -2 });
+    const cnt = Math.max(1, view.A.communities[big.id]?.size || n);
+    const spacing = big.r * side / 2 * 0.92 * Math.sqrt(Math.PI / cnt);
+    rBase = Math.max(2, Math.min(faces ? 13 : 6, spacing * 0.44));
+    radius = () => rBase;
+  }
+  mapGeom = { sx, sy, radius, X, Y };
   ctx.clearRect(0, 0, w, h);
+  if (islands) {
+    // faint disc behind each island, so the gaps read as gaps
+    for (const isl of view.island.islands) {
+      ctx.beginPath(); ctx.arc(sx(isl.cx), sy(isl.cy), isl.r * side / 2 + rBase * 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = RULE; ctx.globalAlpha = 0.18; ctx.fill(); ctx.globalAlpha = 1;
+    }
+  }
 
-  // edges
-  ctx.lineWidth = 1;
+  // edges: weighted modes draw three strengths, so a running conversation reads
+  // heavier than a single like
+  const bands = view.maxW > 1.01 ? [[0, 0.34, 0.7, 0.8], [0.34, 0.67, 1, 1.3], [0.67, 1.01, 1.6, 2.2]] : [[0, 1.01, 1, 1]];
+  if (islands) for (const b of bands) b[2] *= 0.55;        // ropes between islands: present, not dominant
   ctx.strokeStyle = EDGE;
-  ctx.beginPath();
-  for (const [i, j] of view.edgeList) { ctx.moveTo(sx(view.x[i]), sy(view.y[i])); ctx.lineTo(sx(view.x[j]), sy(view.y[j])); }
-  ctx.stroke();
-  if (selected >= 0) {
-    ctx.strokeStyle = EDGE_HOT; ctx.lineWidth = 1.2; ctx.beginPath();
-    for (const j of view.nbrs[selected]) { ctx.moveTo(sx(view.x[selected]), sy(view.y[selected])); ctx.lineTo(sx(view.x[j]), sy(view.y[j])); }
+  for (const [lo, hi, alpha, width] of bands) {
+    ctx.globalAlpha = alpha; ctx.lineWidth = width; ctx.beginPath();
+    for (const [i, j, wt] of view.edgeList) {
+      const f = wt / (view.maxW || 1);
+      if (f < lo || f >= hi) continue;
+      ctx.moveTo(sx(X[i]), sy(Y[i])); ctx.lineTo(sx(X[j]), sy(Y[j]));
+    }
     ctx.stroke();
   }
-  // nodes, with a surface ring so overlaps stay legible
+  ctx.globalAlpha = 1;
+  if (selected >= 0) {
+    ctx.strokeStyle = EDGE_HOT;
+    for (const j of view.nbrs[selected]) {
+      ctx.lineWidth = 0.8 + 2 * (view.wOf[selected].get(j) / (view.maxW || 1));
+      ctx.beginPath(); ctx.moveTo(sx(X[selected]), sy(Y[selected])); ctx.lineTo(sx(X[j]), sy(Y[j])); ctx.stroke();
+    }
+  }
+  // nodes: a colour ring (the community) around the face, or a dot with a surface ring
   const hot = selected >= 0 ? new Set([selected, ...view.nbrs[selected]]) : null;
-  for (let i = 0; i < n; i++) {
-    ctx.globalAlpha = hot && !hot.has(i) ? 0.25 : 1;
-    ctx.beginPath(); ctx.arc(sx(view.x[i]), sy(view.y[i]), radius(i), 0, Math.PI * 2);
-    ctx.fillStyle = colour(view.A.part[i] < 8 && view.A.communities[view.A.part[i]].size >= 3 ? view.A.part[i] : -1);
-    ctx.fill();
-    ctx.lineWidth = 1; ctx.strokeStyle = PAPER; ctx.stroke();
+  const drawOrder = [...Array(n).keys()].sort((a, b) => P[a].degree - P[b].degree);   // hubs on top
+  for (const i of drawOrder) {
+    const x = sx(X[i]), y = sy(Y[i]), r = radius(i);
+    const col = colour(view.A.part[i] < 8 && view.A.communities[view.A.part[i]].size >= 3 ? view.A.part[i] : -1);
+    ctx.globalAlpha = hot && !hot.has(i) ? 0.22 : 1;
+    const img = faces ? avatar(view.ids[i]) : null;
+    if (img) {
+      ctx.beginPath(); ctx.arc(x, y, r + 2, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(img, x - r, y - r, 2 * r, 2 * r); ctx.restore();
+    } else {
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = PAPER; ctx.stroke();
+    }
   }
   ctx.globalAlpha = 1;
   // direct labels at community centroids
@@ -355,18 +453,41 @@ function drawMap() {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const c of view.A.communities) {
     if (c.id >= 8 || c.size < 3) continue;
-    let cx = 0, cy = 0; for (const i of c.members) { cx += view.x[i]; cy += view.y[i]; }
+    let cx = 0, cy = 0; for (const i of c.members) { cx += X[i]; cy += Y[i]; }
     cx = sx(cx / c.size); cy = sy(cy / c.size);
+    if (islands) { const isl = view.island.islands.find((q) => q.id === c.id); if (isl) { cx = sx(isl.cx); cy = sy(isl.cy - isl.r) - rBase * 2.2 - 8; } }
     ctx.lineWidth = 4; ctx.strokeStyle = PAPER; ctx.strokeText(label(c.id), cx, cy);
     ctx.fillStyle = TEXT; ctx.fillText(label(c.id), cx, cy);
   }
 }
+const faceCache = new Map();
+/** A loaded avatar for `did`, or null (and start loading it). Thumbnails only. */
+function avatar(did) {
+  const hit = faceCache.get(did);
+  if (hit) return hit.ok ? hit.img : null;
+  const url = prof.get(did)?.avatar;
+  if (!url) return null;
+  const img = new Image();
+  const entry = { img, ok: false };
+  faceCache.set(did, entry);
+  img.decoding = 'async';
+  img.onload = () => { entry.ok = true; redrawMapSoon(); };
+  img.src = url.replace('/img/avatar/plain/', '/img/avatar_thumbnail/plain/');
+  return null;
+}
+let redrawQueued = false;
+function redrawMapSoon() {
+  if (redrawQueued || !view) return;
+  redrawQueued = true;
+  setTimeout(() => { redrawQueued = false; if (view) drawMap(); }, 120);
+}
+
 function nodeAt(ev) {
   if (!mapGeom || !view) return -1;
   const r = $('map').getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
   let best = -1, bd = 12 * 12;
   for (let i = 0; i < view.ids.length; i++) {
-    const dx = mapGeom.sx(view.x[i]) - mx, dy = mapGeom.sy(view.y[i]) - my, d = dx * dx + dy * dy;
+    const dx = mapGeom.sx(mapGeom.X[i]) - mx, dy = mapGeom.sy(mapGeom.Y[i]) - my, d = dx * dx + dy * dy;
     if (d < bd) { bd = d; best = i; }
   }
   return best;
@@ -378,6 +499,7 @@ function personTip(i) {
     + `<br>${label(p.community)} · ${p.role}`
     + `<br>${num(p.internal)} of ${num(p.degree)} ties inside · participation ${f2(p.participation)}`
     + (reach ? `<br><span class="mu">also tied to ${reach}</span>` : '')
+    + (isTalk() && view.nbrs[i].length ? `<br><span class="mu">talks most with ${[...view.wOf[i]].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([j]) => '@' + esc(handle(view.ids[j]))).join(', ')}</span>` : '')
     + `<br><span class="mu">stability ${f2(view.A.stability[i])}${p.betweenness != null ? ` · betweenness ${p.betweenness.toFixed(3)}` : ''}</span>`;
 }
 function showTip(ev, html) {
@@ -411,7 +533,8 @@ function drawMatrix() {
   for (const [i, j, wt] of view.edgeList) {
     const same = part[i] === part[j];
     ctx.fillStyle = same ? colour(part[i] < 8 && comms[part[i]].size >= 3 ? part[i] : -1) : MUTED;
-    ctx.globalAlpha = same ? (wt < 1 ? 0.55 : 1) : (wt < 1 ? 0.3 : 0.6);
+    const f = view.maxW > 1.01 ? 0.3 + 0.7 * wt / view.maxW : (wt < 1 ? 0.55 : 1);   // weighted modes: strength as opacity
+    ctx.globalAlpha = same ? f : f * 0.6;
     const a = pad + pos[i] * cell, b = pad + pos[j] * cell;
     ctx.fillRect(a, b, sz, sz); ctx.fillRect(b, a, sz, sz);
   }
@@ -593,7 +716,17 @@ $('gamma').addEventListener('input', () => {
   clearTimeout(gTimer);
   gTimer = setTimeout(() => { if (view) analyseCurrent().catch((e) => setStatus(e.message, true)); }, 250);
 });
-$('mode').addEventListener('change', () => { if (base) { stack = stack.slice(0, 1); load().catch((e) => setStatus(e.message, true)); } });
+const reload = () => { syncUrl(); if (base) { stack = stack.slice(0, 1); load().catch((e) => setStatus(e.message, true)); } };
+$('mode').addEventListener('change', () => { $('daysWrap').classList.toggle('hidden', !isTalk()); reload(); });
+$('days').addEventListener('change', reload);
+$('faces').addEventListener('change', () => { if (view) drawMap(); });
+$('mapMode').addEventListener('change', () => { const u = new URL(location.href); if ($('mapMode').value === 'ties') u.searchParams.set('map', 'ties'); else u.searchParams.delete('map'); history.replaceState(null, '', u); if (view) drawMap(); });
+function syncUrl() {
+  const u = new URL(location.href);
+  if ($('mode').value !== 'mutual') u.searchParams.set('ties', $('mode').value); else u.searchParams.delete('ties');
+  if (isTalk()) u.searchParams.set('days', $('days').value); else u.searchParams.delete('days');
+  history.replaceState(null, '', u);
+}
 $('noEgo').addEventListener('change', () => { if (base) { stack = stack.slice(0, 1); load().catch((e) => setStatus(e.message, true)); } });
 let rT = null;
 window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (view) { drawMap(); drawMatrix(); drawSweep(); } }, 150); });
@@ -601,6 +734,10 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if
 
 // ── deep links: ?list=at://… or ?u=handle ────────────────────────────────────
 const qs = new URLSearchParams(location.search);
+if (['any', 'talk', 'talk2', 'active', 'convo'].includes(qs.get('ties'))) $('mode').value = qs.get('ties');
+if (qs.get('map') === 'ties') $('mapMode').value = 'ties';
+if (['7', '14', '30', '60'].includes(qs.get('days'))) $('days').value = qs.get('days');
+$('daysWrap').classList.toggle('hidden', !isTalk());
 if (qs.get('list')) { $('q').value = qs.get('list'); runList(qs.get('list')).catch((e) => setStatus(e.message, true)); }
 else if (qs.get('u')) {
   $('q').value = qs.get('u');

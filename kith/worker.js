@@ -5,7 +5,7 @@
 //
 // It holds the whole graph once ('load'), then answers 'analyse' for any subset
 // of it — the whole set, or one community when the reader zooms in.
-import { buildGraph, subgraph, analyse, layout } from './community.js';
+import { buildGraph, subgraph, analyse, layout, islandLayout } from './community.js';
 
 let G = null;
 
@@ -13,7 +13,7 @@ self.onmessage = (e) => {
   const msg = e.data;
   try {
     if (msg.type === 'load') {
-      G = buildGraph(msg.ids, new Map(Object.entries(msg.rows)), { mode: msg.mode, exclude: msg.exclude });
+      G = buildGraph(msg.ids, new Map(Object.entries(msg.rows)), { mode: msg.mode, exclude: msg.exclude, talk: msg.talk || null });
       self.postMessage({ id: msg.id, type: 'loaded', n: G.n, edges: G.edgeCount });
       return;
     }
@@ -29,11 +29,13 @@ self.onmessage = (e) => {
       const A = analyse(H, { gamma: msg.gamma, runs: H.n > 800 ? 10 : 16, seed: msg.seed || 1, nullSamples: H.n > 800 ? 3 : 4 });
       progress('laying out');
       const L = layout(H, A.part, { iterations: H.n > 800 ? 180 : 260 });
+      const I = islandLayout(H, A.part, { iterations: H.n > 800 ? 120 : 200 });
       const edges = [];
       for (let i = 0; i < H.n; i++) for (const [j, w] of H.adj[i]) if (i < j) edges.push(i, j, w);
       self.postMessage({
         id: msg.id, type: 'result',
         ids: H.ids, edges, x: Array.from(L.x), y: Array.from(L.y), analysis: A,
+        island: { x: Array.from(I.x), y: Array.from(I.y), islands: I.islands },
       });
     }
   } catch (err) {

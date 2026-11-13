@@ -166,9 +166,20 @@ footer { margin-top: 4rem; font-family: var(--mono); font-size: .68rem; color: v
   <button id="stop" type="button" class="ghost hidden">stop &amp; analyse what's read</button>
 </form>
 <div class="opts">
-  <label>ties <select id="mode"><option value="mutual">mutual follows</option><option value="any">any follow (one-way = ½)</option></select></label>
+  <label>ties <select id="mode">
+    <option value="mutual">mutual follows</option>
+    <option value="any">any follow (one-way = ½)</option>
+    <option value="talk">recent interactions</option>
+    <option value="talk2">two-way interactions</option>
+    <option value="convo">conversation (replies, quotes, mentions)</option>
+    <option value="active">active mutuals (follow + interacted)</option>
+  </select></label>
+  <label id="daysWrap" class="hidden">window <select id="days"><option value="7">7 days</option><option value="14" selected>14 days</option><option value="30">30 days</option><option value="60">60 days</option></select></label>
   <label><input type="checkbox" id="noEgo" checked> leave out the list's owner</label>
+  <label>map <select id="mapMode"><option value="islands">islands (one per community)</option><option value="ties">one force layout</option></select></label>
+  <label><input type="checkbox" id="faces" checked> faces</label>
 </div>
+<p class="note" id="talkNote">On a list built to be interwoven, follows barely separate anyone. <b>Recent interactions</b> read each member's replies, quotes, mentions, reposts and likes in the window (reply/quote 3, mention/repost 2, like 1, weight log₂(1 + both directions)), and keep only those landing on another member. <b>Conversation</b> drops likes and reposts. <b>Two-way</b> keeps pairs where both reached out. <b>Active mutuals</b> keeps mutual follows that also interacted.</p>
 <div id="picker" class="picker hidden"></div>
 <div id="status" class="status"></div>
 <div class="bar"><i id="prog"></i></div>
@@ -187,12 +198,12 @@ footer { margin-top: 4rem; font-family: var(--mono); font-size: .68rem; color: v
 
   <div class="views">
     <div class="panel">
-      <div class="cap">the map: people placed by their ties, coloured by community</div>
+      <div class="cap">the map: each community on its own island, ties between them cross the gaps</div>
       <canvas id="map" height="560" aria-label="network map"></canvas>
       <div id="legend" class="legend"></div>
     </div>
     <div class="panel">
-      <div class="cap">the matrix: every mutual tie, people grouped by community</div>
+      <div class="cap">the matrix: every tie, people grouped by community</div>
       <canvas id="matrix" height="560" aria-label="adjacency matrix"></canvas>
       <div class="legend"><span>solid blocks on the diagonal are tight groups · speckle off the diagonal is bridging</span></div>
     </div>
