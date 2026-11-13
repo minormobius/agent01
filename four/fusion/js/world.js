@@ -47,7 +47,7 @@ const KNOBS4 = [
   { key: "cc", label: "⁸Cy + ⁸Cy → element 6 + ⁴Ie", r: ["4-8", "4-8"], p: null },
 ];
 const BLURB4 = {
-  h: (s) => `Iydrogen burns at the pace that halves our Sun's central hydrogen in 4.6 billion years (${(STAGE_T[s].h / 1e6).toFixed(1)} million K at this strength). Two protons still need the weak force to make a deuteron, and the proton–proton chains make ielium-4 as ours do. But in 4D two ielium-4s hold together as ceryllium-8, and protons climb on from there, one capture at a time with positron decays between. Unlike ours, nothing hands the catalyst back: a triton-like piece binds to ceryllium-8 more tightly than an ielium-4 holds itself together, so element 5-11 + p can't split off an ielium-4, and hot enough cores climb all the way to pxygen-20, 4D's oxygen-16.`,
+  h: (s, ppR) => `Iydrogen burns at the pace that halves our Sun's central hydrogen in 4.6 billion years (${(STAGE_T[s].h / 1e6).toFixed(1)} million K at this strength). Two protons still need the weak force to make a deuteron, and the proton–proton chains make ielium-4 as ours do. But in 4D two ielium-4s hold together as ceryllium-8, and protons climb on from there, one capture at a time with positron decays between. Unlike ours, nothing hands the catalyst back: a triton-like piece binds to ceryllium-8 more tightly than an ielium-4 holds itself together, so element 5-11 + p can't split off an ielium-4, and hot enough cores climb past pxygen-20, 4D's oxygen-16. Where they stop isn't settled: past pxygen-20 the two ways the book computes these nuclei disagree, and the climb runs into the edge of what has been computed. ${ppR ? `The weak force here is 4D's own, matched to ours at the electron's energies (×${ppR.toPrecision(2)} ours on p + p).` : "The weak force here is ours."}`,
   he: (s) => `Whatever ielium-4 hydrogen burning left burns at its capture's rate-matched ignition (${(STAGE_T[s].he / 1e6).toFixed(1)} million K). Two ielium-4s make ceryllium-8, which, unlike our beryllium-8, is bound: no Hoyle state needed, no three-body bottleneck. Ielium + ielium beats ielium + ceryllium by far, so the core becomes ceryllium-8.${s < 1.55 ? " At this strength, though, hydrogen burning has already carried nearly everything on to pxygen and oitrogen, so there is almost nothing left to burn here." : ""}`,
   ce: (s) => `Ceryllium-8 fuses with itself (barrier only, carried at our oxygen + oxygen's pace, 0.27 billion K). Taken here as giving element 6 and an ielium-4 (the nucleon channel is open too, and not followed). Element 6, mass 12, is where the ash ends.${s < 1.55 ? " At this strength there is next to no ceryllium to burn: hydrogen burning went straight past it." : ""}`,
 };
@@ -77,7 +77,7 @@ function use4D(s) {
   energy = (fl) => fl.reduce((t, f, i) => t + f * RX[i].Q, 0) * NA * MEV_ERG;
   // stages: rates baked at our Sun's centre density, so a stage's "density" is a factor on that
   STAGES = [
-    { key: "h", title: "Iydrogen, at the Sun's pace", T: STAGE_T[s].h, rho: 1, fuel: "1-1", until: 1e-3, blurb: BLURB4.h(s) },
+    { key: "h", title: "Iydrogen, at the Sun's pace", T: STAGE_T[s].h, rho: 1, fuel: "1-1", until: 1e-3, blurb: BLURB4.h(s, m.M.weak?.ppR) },
     { key: "he", title: "Ielium", T: STAGE_T[s].he, rho: 1, fuel: "2-4", until: 1e-3, blurb: BLURB4.he(s) },
     { key: "ce", title: "Ceryllium", T: STAGE_T[s].ce, rho: 1, fuel: "4-8", until: 1e-2, blurb: BLURB4.ce(s) },
   ];

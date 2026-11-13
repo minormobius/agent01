@@ -40,13 +40,17 @@ ok(t.pp > t.cno && t.cno > t.he && t.he > t.c && t.c > t.ne && t.c > t.o && t.o 
   ok(Q < 0 && !pa.includes("5-11") && pa.includes("3-7"), `4D: 5-11 + p → ceryllium-8 + ⁴He is closed (Q ${Q.toFixed(1)} MeV), so no ceryllium cycle; ⁷X + p → 2 ⁴He (pp-II's) is open`);
   ok(m.rx.filter((r) => /^computed/.test(r.how)).length >= 7, `4D: ${m.rx.filter((r) => /^computed/.test(r.how)).length} reactions from the book's own calculations (p + p, ⁴He + ⁴He, p and ⁴He onto 2–4 ⁴He)`);
   const nr = ["4-10", "6-14", "8-18"].map((k) => m.species[m.idx[k]]?.half); ok(nr.every((h) => h != null && h < 1), `4D: the two-neutron isotopes of 4, 6 and 8 β⁻ decay in ${nr.map((h) => (1e3 * h).toFixed(0)).join(", ")} ms`);
-  const X1 = m.toX(r1.Y); ok(X1[m.idx["10-20"]] > 0.5, `4D: a Sun-paced core at ${(T1 / 1e6).toFixed(1)} MK burns hydrogen past helium, to pxygen-20 (${X1[m.idx["10-20"]].toFixed(2)})`); }
+  // past helium, to A ≥ 20 (where it ends sits at the computed table's edge, where Brink's clusters and the ladder disagree: not tested)
+  const X1 = m.toX(r1.Y), heavy = m.species.reduce((t, x, i) => t + (x.A >= 20 ? X1[i] : 0), 0);
+  ok(X1[m.idx["2-4"]] < 0.05 && heavy > 0.9, `4D: a Sun-paced core at ${(T1 / 1e6).toFixed(1)} MK burns hydrogen past helium (helium ${X1[m.idx["2-4"]].toFixed(3)}, mass ≥ 20 ${heavy.toFixed(2)})`);
+  const m6 = model(1.6), T6 = m6.sunPace(X0), X6 = m6.toX(m6.run({ T: T6, X0, fuel: "1-1" }).Y); ok(X6[m6.idx["2-4"]] > 0.8, `4D at s = 1.6: hydrogen burns to helium (${X6[m6.idx["2-4"]].toFixed(2)}), at ${(T6 / 1e6).toFixed(1)} MK`);
+  ok(m.M.weak && m.M.weak.G4X > 5 && m.M.weak.G4X < 5.4, `4D's own weak force in the network: G₄ = 10^${m.M.weak?.G4X.toFixed(2)} × G_F/M_W (matched to ours at the electron), p + p ×${m.M.weak?.ppR.toPrecision(2)} ours`); }
 // 8. the widget's 4D world (world.js): its names are the book's (atom/js/names.js), switching worlds through the address
 // gives that world's standard star, and a 4D life through the widget's own path keeps mass and agrees with net4 directly
 { const W = await import("../js/world.js"), Lf = await import("../js/life.js"), { names } = await import("../../atom/js/names.js"), { TABLE } = await import("../../atom/js/table.js");
   const N = names(TABLE, 4), bad = Object.keys(W.NAME4).filter((Z) => N.get(+Z)?.name !== W.NAME4[Z] || N.get(+Z)?.sym !== W.SYM4[Z]).concat([6, 8, 16].filter((Z) => N.get(Z)?.name));
   ok(!bad.length, `4D names and symbols in world.js match names.js${bad.length ? `: not ${bad}` : ""}`);
   const c = Lf.decode("#" + encodeURIComponent(JSON.stringify({ w: "4d", s: 1.5152 }))), L4 = Lf.runLife(c), mass = (Y) => W.toX(Y).reduce((a, b) => a + b, 0);
-  ok(W.WORLD === "4d" && c.he === 0.25 && L4.length === 3 && L4.every((R) => Math.abs(mass(R.Y) - 1) < 1e-6) && W.toX(L4[0].Y)[W.IDX["10-20"]] > 0.5, `the widget's 4D world: three stages, mass kept, the first ending pxygen-20 ${W.toX(L4[0].Y)[W.IDX["10-20"]].toFixed(2)} as net4 alone gives`);
+  ok(W.WORLD === "4d" && c.he === 0.25 && L4.length === 3 && L4.every((R) => Math.abs(mass(R.Y) - 1) < 1e-6) && W.toX(L4[0].Y)[W.IDX["2-4"]] < 0.05, `the widget's 4D world: three stages, mass kept, the first burning past helium (${W.toX(L4[0].Y)[W.IDX["2-4"]].toFixed(3)} left) as net4 alone gives`);
   const c0 = Lf.decode(""); ok(W.WORLD === "ours" && Lf.runLife(c0).length === 7, "an address without a world is ours again: seven stages"); }
 console.log(fails ? `\n✗ ${fails} failed` : "\n✓ fusion selftest passed"); process.exit(fails ? 1 : 0);

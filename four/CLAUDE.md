@@ -214,6 +214,18 @@ for games, and this is a modelling programme with publications to come. The game
   are Brink's grid on fixed core draws and the ladder nuclei diffusion Monte Carlo; the two disagree on a helium-4 onto
   ceryllium-8 (the grid ~110 MeV, the ladder 47), and the cluster nuclei sit between ladder nuclei, so their place
   against the ladder carries that spread (the 5-11 verdict holds in the grid alone: Q = B_α − S_t, same basis).
+  **4D's own weak force in the network (2026-11-13, A1's last step):** `rates4.mjs` takes `G4X` (log₁₀ G₄ over G_F/M_W;
+  default 5.20, matched to ours at the electron; `G4X=ours` for ours' weak force): p + p × `weakRatio` at the 4D deuteron's
+  endpoint (×0.023 at s = 1.5152 rising to ×9.1 at 1.85, since 4D's phase space grows faster with the endpoint), every β
+  decay × the ratio at its own endpoint (~13× slower at small endpoints), the electron capture × (G₄m_e/G_F)² × the
+  neutrino's phase space. `data4.js` carries `weak` per strength; `stages4.js` rebuilt (hydrogen 18.5 MK at 1.5152, 2.0 at
+  1.85). **The weak and strong strengths trade through p + p:** a slower p + p means a hotter Sun-paced core and a climb
+  past helium. Sweep at G₄ ×10^(−0.8, 0, +0.8): s = 1.5152 always climbs past pxygen-20; 1.55 climbs (to element 8 at the
+  default) unless the weak force is 6× stronger; 1.6 climbs if 6× weaker, else helium; 1.65–1.7 helium (³He-stranded at
+  the default from 1.7); ≥ 1.75 ³He unless 6× weaker. **Where the climb ends is not trustworthy:** past pxygen-20 the
+  grid's clusters on the closed shell (12-23 at 887.6 MeV) bind more than the ladder's 6-helium-4 nucleus (12-24 at
+  842.9, so "unbound"), and the table ends at k = 5's clusters, so the ash piles at gluorine-22/23 on the table's edge.
+  That is the Brink/ladder disagreement deciding a result: A2's first job is one consistent mass model.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

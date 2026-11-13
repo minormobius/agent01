@@ -51,8 +51,9 @@ any of it collapses.)*
    half only for G₄ > 10^(3.4–5.4) × G_F/M_W (the clock's range), i.e. G₄m_e³ ~ G_F m_e²: as strong as ours at the
    electron's energies, a weak scale near 1–30 MeV. The prior choice ("ours": K, 0.8 MeV, 879 s) sits inside it; at
    equal strength at the electron 4D decays run ~13× slower (geometric factors). `atom/tools/weak.mjs` →
-   `weak-window.json`. *To do (A1):* 4D's weak factor on p + p and every β decay in the network; the window's upper
-   edge (C).
+   `weak-window.json`. **In the network (A1 done):** p + p ×0.023 (s = 1.5152) to ×9.1 (1.85) ours at the
+   electron-matched G₄, β decays ~13× slower; the weak and strong strengths trade through p + p (section 10). *To do:*
+   the window's upper edge (C).
 4. **Gravity: pinned, its strength open.** The same choice as the charge law (1/r, so a star has a ground state);
    stars under three laws (`js/stars.js`); the Chandrasekhar mass closes in pinned 4D (N_Ch = 1.52 α_G^(−4/3),
    `js/gscale.js`); G set by an Earth-like planet's rock density (≈ 3 × 10⁻¹⁷ G). **computed / chosen.** The early
@@ -87,7 +88,11 @@ any of it collapses.)*
     out; the same test on ours gives ¹¹B + p → 2α, Q 7.2 against 8.59); a Sun-paced core at s = 1.5152 climbs to
     pxygen-20 (72%), oitrogen; 1.55 darbon-14 + helium; 1.6–1.7 helium; ≥ 1.75 stranded as helium-3. **computed
     nuclei, rates computed where the book has them (p + p, ⁴He + ⁴He, p and ⁴He onto 2–4 ⁴He) and carried elsewhere;
-    the stage temperature a convention** (the Sun's pace) until C.
+    the stage temperature a convention** (the Sun's pace) until C. **With 4D's own weak force (A1):** the strong and weak
+    strengths trade through p + p: a slower p + p, a hotter Sun-paced core, a climb past helium; at the electron-matched
+    G₄, s = 1.5152 and 1.55 climb, 1.6–1.7 make helium, ≥ 1.7 strand as helium-3 (a 6× change in G₄ moves the boundary
+    by about one strength step). **Where a climb ends is not yet a result:** past pxygen-20 the grid's clusters and the
+    ladder disagree (6 helium-4s come out less bound than 5 + a helium-3-like piece), and the table stops at k = 5. A2.
 11. **Helium and beyond.** Two helium-4s → ceryllium-8 directly, no three-body bottleneck; ceryllium + itself at 0.27
     GK, a flash not a runaway; element 6 (mass 12) as the ash; the heavy stages to the rock row and equilibrium's end
     (elements 101–137 by the liquid drop). **computed / carried** (nuclei.mjs heburn, cerburn, heavy, runaway,
