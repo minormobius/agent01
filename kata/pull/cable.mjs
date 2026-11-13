@@ -17,8 +17,8 @@ const pulls = (el, opts) => { /* link scale so that the weakest of S − 1 links
 const REF = stats(Array.from({ length: 400 }, (_, i) => test({ section: "one", seed: i + 1 }, RUN).peak)).mean; out.ref = REF;
 let el = { name: "fibre", mean: 1, m: 5, K: 1, W: 1, V: 1 };
 for (let level = 1; level <= 3; level++) { const rows = [];
-  for (const t of [0, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2]) { /* thirteen elements, hoops τ element-radii thick: weight 27 τ V, press 0.06 HOOP τ × V/K per contact */
-    const st = pulls(el, { section: "fcc13", press: t > 0 ? { kind: "hoop", p: 0.06 * HOOP * t * (el.V / el.K) } : { kind: "none" } }), W = 13 * el.W + 27 * t * el.V;
+  for (const t of [0, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2]) { /* thirteen elements, hoops τ element-radii thick: weight 27 τ V, press 0.02 HOOP τ × V/K per contact (a third of the skin's force on an element) */
+    const st = pulls(el, { section: "fcc13", press: t > 0 ? { kind: "hoop", p: 0.02 * HOOP * t * (el.V / el.K) } : { kind: "none" } }), W = 13 * el.W + 27 * t * el.V;
     rows.push({ level, tau: t, mean: st.mean, cv: st.cv, p5: st.p5, weibull: st.weibull, material: W, specific: st.mean / W, specific5: st.p5 / W });
     console.error(`level ${level} (13 × ${el.name})`.padEnd(26), "τ", String(t).padEnd(6), "strength", st.mean.toFixed(1).padStart(7), "cv", (st.cv * 100).toFixed(1).padStart(4) + "%", "weight", W.toFixed(1).padStart(7), "specific", (st.mean / W).toFixed(3), "5th", (st.p5 / W).toFixed(3), sec()); }
   const best = rows.reduce((a, b) => (b.specific5 > a.specific5 ? b : a)); out.levels.push({ level, element: el.name, rows, best: best.tau });

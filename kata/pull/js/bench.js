@@ -17,7 +17,8 @@
              grip to start gripping with, and the rope is two bundles of loose ends. An allowance, not a measurement
      hoop    a constant p (a hoop or sheath at some tightness: a dial, nothing measured)
      trap    c × the sheath's own tension: a sheath laid on the bias, which squeezes as it is pulled (a finger trap).
-             For a bias angle θ round thirteen fibres in 4D, c = tan²θ / 9. Whether such a sheath can be made is open
+             For a bias angle θ round thirteen fibres in 4D, c = tan²θ / 9 on each outer fibre (and a third of that
+             from fibre to fibre). Whether such a sheath can be made is open
      none    nothing (a 4D yarn twisted round nothing)
    and, for the yarn twisted round a ribbon, that the fibres touch only the ribbon, a continuous track of its own.
    Lengths are in fibre diameters, forces in units of the fibre's stiffness per unit strain. */
@@ -43,15 +44,19 @@ export const SECTIONS = {
      material   4πR²τ against a fibre's (4/3)πr³: 27 τ/r fibres' worth
      pressure   P = 2 σ τ / R on the bundle (a 2-sphere's skin pulls in two directions), σ the hoop stress, taken as
                 HOOP of the material's strength
-     press      the twelve outer fibres share the skin: per contact, per diameter, 0.06 × HOOP × τ/r in the bench's units
-   and for our seven in a tube (3D): 6 τ/r of material, P = σ τ / R, press 0.0133 × HOOP × τ/r. */
+     wall       the twelve outer fibres share the skin: on each, per diameter, 0.06 × HOOP × τ/r in the bench's units
+   and for our seven in a tube (3D): 6 τ/r of material, P = σ τ / R, wall 0.0133 × HOOP × τ/r. */
 /* A STRAND LAID AT AN ANGLE θ to the rope (braided, or wound on a core). Stretch the rope by ε and the strand
    stretches ε cos²θ; its pull points θ off the axis. So as a track: stiffness cos³θ, strength cosθ, and 1/cosθ of
    material per length of rope. Going round a neighbour one diameter away it presses on it tan²θ × its axial tension
    per diameter (a helix's T sin²θ / a, per length of rope, with T the strand's own tension): the `twist` law's q */
 export const laid = (deg) => { const c = Math.cos((deg * Math.PI) / 180); return { k: c ** 3, strength: c, material: 1 / c, q: Math.tan((deg * Math.PI) / 180) ** 2 }; };
 export const HOOP = 0.5;
-export const sheath = (dim, t) => (dim === 4 ? { material: 27 * t, press: 0.06 * HOOP * t, fibres: 13, section: "fcc13" } : { material: 6 * t, press: (0.04 / 3) * HOOP * t, fibres: 7, section: "hex7" });
+/* (`wall` is the skin's force on an outer fibre, per diameter: what the skin itself grips a fibre with. `press` is what
+   one fibre presses on the next with. An outer fibre leans on the middle one and on its neighbours, and with equal
+   contacts each carries a third of the wall's force in 4D (one inward and four at 60°) and a half in 3D (one and two).
+   Until 2026-11-13 the bench used the wall's force at every contact, which overstated fibre-to-fibre grip 3× and 2×.) */
+export const sheath = (dim, t) => (dim === 4 ? { material: 27 * t, wall: 0.06 * HOOP * t, press: 0.02 * HOOP * t, fibres: 13, section: "fcc13" } : { material: 6 * t, wall: (0.04 / 3) * HOOP * t, press: (0.02 / 3) * HOOP * t, fibres: 7, section: "hex7" });
 
 export function makeRope({ maxSweeps: MAXSW = 80, section = "hex7", S = 96, staple = 0, press = { kind: "none" }, mu = 0.3, m = 5, sigma = 0.02, ks = 0.25, seed = 1, ribbon = null, tracks = null } = {}) {
   const nb = SECTIONS[section](), T = nb.length, r = rng(seed * 7919 + 13), L = S - 1;
@@ -62,7 +67,7 @@ export function makeRope({ maxSweeps: MAXSW = 80, section = "hex7", S = 96, stap
   const pairs = []; for (let i = 0; i < T; i++) for (const j of nb[i]) if (j > i) pairs.push([i, j]);
   const slip = pairs.map(() => new Float64Array(S)), state = pairs.map(() => new Int8Array(S)), fI = pairs.map(() => new Float64Array(S)), ten = Array.from({ length: T }, () => new Float64Array(S)), was = Array.from({ length: T }, () => new Float64Array(S));
   const contacts = nb.map((v) => Math.max(1, v.length)), R = { T, S, u, ok, str, pairs, state, slip, ten, section, broke: 0, grip: 0 };
-  const cap = (p, s) => { const [i, j] = pairs[p]; if (press.kind === "hoop") return mu * press.p; if (press.kind === "trap") return mu * press.c * was[0][s]; /* (a sheath that squeezes in proportion to its own pull; track 0 is the sheath) */ if (press.kind === "twist") { /* the ribbon doesn't wrap anything: what presses a fibre on it is the fibres wound over it, itself among them */ const set = (press.set ?? 0.05) * sigma; if (ribbon) { let mean = 0; for (let k = 1; k < T; k++) mean += was[k][s]; return mu * press.q * ((was[j][s] + mean / (T - 1)) / 2 + set); } return (mu * press.q * ((was[i][s] + was[j][s]) / 2 + set)) / ((contacts[i] + contacts[j]) / 2); } return 0; };
+  const cap = (p, s) => { const [i, j] = pairs[p]; if (press.kind === "hoop") return mu * (i === 0 && press.wall !== undefined ? press.wall : press.p); /* (wall: track 0 is the skin, which grips a fibre with its whole force) */ if (press.kind === "trap") return mu * (i === 0 ? press.c : press.c / 3) * was[0][s]; /* (c is the skin's force on a fibre; fibre to fibre a third of it, as for a hose) */ /* (a sheath that squeezes in proportion to its own pull; track 0 is the sheath) */ if (press.kind === "twist") { /* the ribbon doesn't wrap anything: what presses a fibre on it is the fibres wound over it, itself among them */ const set = (press.set ?? 0.05) * sigma; if (ribbon) { let mean = 0; for (let k = 1; k < T; k++) mean += was[k][s]; return mu * press.q * ((was[j][s] + mean / (T - 1)) / 2 + set); } return (mu * press.q * ((was[i][s] + was[j][s]) / 2 + set)) / ((contacts[i] + contacts[j]) / 2); } return 0; };
   /* tensions at the nodes. The press reads them as they were at the last settled step (`was`), not as they are in the
      middle of this one: grip that feeds on the tension it creates runs away if it is allowed to chase itself */
   const tnew = new Float64Array(S);
@@ -117,10 +122,11 @@ export const SPECIES = [
   { id: "y4", name: "twisted yarn", dim: "4D", fibres: 7, material: 7, opts: { section: "hex7", staple: 40, press: { kind: "none" } } },
   { id: "rib4soft", name: "yarn on a ribbon, soft", dim: "4D", fibres: 6, material: 8, opts: { section: "ribbon7", staple: 40, press: { kind: "twist", q: 0.092 }, ribbon: { k: 2, strength: 2 } } },
   { id: "rib4hard", name: "yarn on a ribbon, hard", dim: "4D", fibres: 6, material: 8, opts: { section: "ribbon7", staple: 40, press: { kind: "twist", q: 0.35 }, ribbon: { k: 2, strength: 2 } } },
-  { id: "hoop4slack", name: "hooped bundle, slack", dim: "4D", fibres: 13, material: 13, wrap: true, opts: { section: "fcc13", staple: 40, press: { kind: "hoop", p: 0.0006 } } },
-  { id: "hoop4tight", name: "hooped bundle, tight", dim: "4D", fibres: 13, material: 13, wrap: true, opts: { section: "fcc13", staple: 40, press: { kind: "hoop", p: 0.006 } } },
+  { id: "hoop4slack", name: "short fibres in thin hoops (τ 0.02)", dim: "4D", fibres: 13, material: 13.54, opts: { section: "fcc13", staple: 40, press: { kind: "hoop", p: sheath(4, 0.02).press } } },
+  { id: "hoop4tight", name: "short fibres in hoops (τ 0.2)", dim: "4D", fibres: 13, material: 18.4, opts: { section: "fcc13", staple: 40, press: { kind: "hoop", p: sheath(4, 0.2).press } } },
   { id: "fil4", name: "filament bundle, loose", dim: "4D", fibres: 13, material: 13, opts: { section: "fcc13", staple: 0, press: { kind: "none" } } },
-  { id: "rope4", name: "filament rope, sheathed", dim: "4D", fibres: 13, material: 13, wrap: true, opts: { section: "fcc13", staple: 0, press: { kind: "hoop", p: 0.006 } } },
+  /* the rope: thirteen filaments in a closed hose a tenth of a fibre radius thick, which grips and carries load (track 0) */
+  { id: "rope4", name: "filaments in a hose (τ 0.1)", dim: "4D", fibres: 13, material: 15.7, opts: { section: "fcc13s", staple: 0, press: { kind: "hoop", p: sheath(4, 0.1).press, wall: sheath(4, 0.1).wall }, ribbon: { k: 2.7, strength: 2.7 } } },
   /* braids of hoses, at the angle the study found best (braid.mjs has the others) */
   ...(() => { const a = laid(20), st = { k: a.k, strength: a.strength }, core = { k: 1, strength: 1 }, press = { kind: "twist", q: a.q }, w = (n) => +(n).toFixed(2);
     return [{ id: "plait4", name: "plait of three hoses, 20°", dim: "4D", fibres: 3, material: w(3 * a.material), opts: { section: "plait3", press, tracks: [st, st, st] } },

@@ -54,8 +54,8 @@ So the twisted rows are good to the ordering and roughly to a factor, not to two
 ## What it found
 
 200 pulls of every species (`node kata/pull/sample.mjs`, written to `data/samples.json`; the page and the selftest
-read that file). Strength in strands: one continuous strand's mean is 1. **Material** is what carries load, in
-strands' worth (a ribbon is two); `+w` marks a hoop or sheath whose own weight is not counted. **Specific** is
+read that file). Strength in strands: one continuous strand's mean is 1. **Material** is everything the rope
+is made of, in strands' worth (a ribbon is two; hoops and hoses are weighed). **Specific** is
 strength per material. The 5th percentile is what you could count on. Short fibres are 40 diameters long.
 
 | rope | material | strength | spread | 5th percentile | specific | specific, 5th pct |
@@ -67,23 +67,27 @@ strength per material. The 5th percentile is what you could count on. Short fibr
 | 4D twisted yarn | 7 | 0 | n/a | 0 | 0 | 0 |
 | 4D yarn on a ribbon, soft | 8 | 2.34 | 21% | 1.46 | 0.29 | 0.18 |
 | 4D yarn on a ribbon, hard | 8 | 4.35 | 22% | 2.61 | 0.54 | 0.33 |
-| 4D hooped bundle, slack | 13+w | 8.44 | 11% | 6.58 | 0.65 | 0.51 |
-| 4D hooped bundle, tight | 13+w | 15.06 | 7% | 13.44 | 1.16 | 1.03 |
+| 4D short fibres in thin hoops (τ 0.02) | 13.54 | 3.32 | 13% | 2.68 | 0.25 | 0.20 |
+| 4D short fibres in hoops (τ 0.2) | 18.4 | 12.69 | 8% | 10.78 | 0.69 | 0.59 |
 | 4D filament bundle, loose | 13 | 9.07 | 11% | 7.45 | 0.70 | 0.57 |
-| 4D filament rope, sheathed | 13+w | 16.35 | 5% | 14.77 | 1.26 | 1.14 |
+| 4D filaments in a hose (τ 0.1) | 15.7 | 17.32 | 6% | 15.36 | 1.10 | 0.98 |
+| 4D plait of three hoses, 20° | 3.19 | 2.45 | 14% | 1.92 | 0.77 | 0.60 |
+| 4D maypole: hose core, six braided, 20° | 7.39 | 5.55 | 10% | 4.62 | 0.75 | 0.62 |
+| 4D ribbons on a hose, 20° | 7.39 | 5.20 | 12% | 4.15 | 0.70 | 0.56 |
 
 - **The answer is a distribution.** One strand's strength spreads 24% about its mean; a loose bundle of thirteen,
-  11%; the sheathed rope, 5%. So on the strength you can count on, per material, the rope is 2.0 times a strand
-  where on the mean it is 1.26 times. Most of what a rope buys is reliability.
+  11%; filaments in a hose, 6%. So on the strength you can count on, per material, the rope is 1.7 times a strand
+  where on the mean it is 1.10 times. Most of what a rope buys is reliability.
 - **A ribbon alone is two strands, with a strand's spread,** and so 1.00 per material: the proper yardstick for the
   yarn spun on it. That yarn (hard) is 4.35 strands from 8 strands' worth of material, 0.54 per material. The short
   fibres add strength and add more weight. Ours, hard, is 0.64. No yarn of short fibres matches a continuous member
   per material; what it buys is being made of short fibres at all.
 - **A 4D yarn twisted round nothing has no strength.**
 - **A loose bundle is worth less than its count** (0.70 a fibre): the weakest goes first and hands its load on.
-  **A gripped bundle is worth more** (1.16 hooped tight, 1.26 sheathed): friction lets a broken fibre take load again
-  a little way along, so a weak spot costs a short stretch, not the fibre. The sheathed rope stays ahead of the
-  loose bundle per material until its sheath weighs 80% of its core.
+  **In a hose it is worth more** (1.10, hose weighed): friction lets a broken fibre take load again a little way
+  along, so a weak spot costs a short stretch, not the fibre, and the hose carries load too.
+- **Hoops make short fibres into a rope, at a price:** 0.69 per material in thick hoops, about what filaments are
+  worth loose, and 0.25 in thin ones.
 - **The hard twisted yarn keeps a strand's spread** (24%): it fails where the grip gives out, one place, like a
   weakest link.
 - Longer fibres are stronger: the hard 3D yarn goes 1.2, 4.5, 5.9 strands at 20, 40, 80 diameters.
@@ -91,10 +95,11 @@ strength per material. The 5th percentile is what you could count on. Short fibr
 ## What a sheath weighs against what it grips
 
 A sheath grips by its own hoop tension, so how hard it can press is set by how thick it is, and thick is heavy.
-`sheath()` in the bench gives the relation for thirteen fibres in a closed hose τ thick in 4D (material 27 τ/r
-fibres' worth; press 0.06 × 0.5 × τ/r, the hoop stress taken at half the material's strength) and for our seven in a
-tube (6 τ/r; 0.0133 × 0.5 × τ/r). `node kata/pull/sheath.mjs` sweeps τ with the sheath's weight counted
-(`data/sheath.json`, 60 pulls a cell). Two ways to spend the same material:
+`sheath()` in the bench gives the relation for thirteen fibres in a closed hose τ thick in 4D: material 27 τ/r
+fibres' worth; the skin's force on each outer fibre 0.06 × 0.5 × τ/r (the hoop stress taken at half the material's
+strength); and from fibre to fibre a third of that, because an outer fibre leans on the middle one and four
+neighbours. For our seven in a tube: 6 τ/r, 0.0133 × 0.5 × τ/r, and a half. `node kata/pull/sheath.mjs` sweeps τ
+with the sheath's weight counted (`data/sheath.json`, 60 pulls a cell). Two ways to spend the same material:
 
 - a **hose**: a closed skin, which grips and also carries load along the rope (in the bench it is a member as strong
   as its material);
@@ -106,34 +111,31 @@ Strength per material, sheath included (a loose bundle is 0.71; one strand is 1)
 | sheath thickness, in fibre radii | its weight, in fibres (of 13) | hose | hoops | hose, short fibres | hoops, short fibres | ours: tube round 7, grip only |
 |---|---|---|---|---|---|---|
 | 0 | 0.00 | 0.71 | 0.71 | 0.00 | 0.00 | 0.74 |
-| 0.01 | 0.27 | 0.92 | 0.88 | 0.48 | 0.38 | 0.77 |
-| 0.02 | 0.54 | 1.00 | 0.93 | 0.72 | 0.62 | 0.80 |
-| 0.05 | 1.35 | 1.12 | 0.99 | 0.98 | 0.83 | 0.83 |
-| 0.1 | 2.70 | 1.20 | 0.99 | 1.10 | 0.89 | 0.85 |
-| 0.2 | 5.40 | 1.17 | 0.90 | 1.12 | 0.82 | 0.86 |
-| 0.3 | 8.10 | 1.10 | 0.80 | 1.08 | 0.73 | 0.83 |
-| 0.5 | 13.50 | 1.04 | 0.64 | 1.02 | 0.59 | 0.78 |
+| 0.01 | 0.27 | 0.84 | 0.79 | 0.25 | 0.13 | 0.75 |
+| 0.02 | 0.54 | 0.91 | 0.83 | 0.47 | 0.25 | 0.76 |
+| 0.05 | 1.35 | 1.02 | 0.86 | 0.78 | 0.53 | 0.79 |
+| 0.1 | 2.70 | 1.11 | 0.86 | 0.97 | 0.67 | 0.80 |
+| 0.2 | 5.40 | 1.13 | 0.80 | 1.06 | 0.70 | 0.79 |
+| 0.3 | 8.10 | 1.09 | 0.74 | 1.05 | 0.66 | 0.77 |
+| 0.5 | 13.50 | 1.04 | 0.62 | 1.02 | 0.56 | 0.72 |
 
 (The weight column is the 4D sheath's. Our tube's is 6 τ/r of seven fibres, and it is run for its grip only.)
 
-- **There is a best sheath, and it is thin:** about a tenth of a fibre's radius, a fifth of the core's weight. Past
-  that the weight outruns the grip.
-- **A hose beats hoops by about a fifth** at the best thickness (1.20 against 0.99 for filament), because its
-  material also carries load. **Weaving saves no weight in this model; it costs some.** It would pay only if
-  material laid along a hoop were stronger than the same material as a skin (in our world drawn fibre is far
-  stronger than film, which is why we weave), or where you can't extrude a hose.
-- **The "tight" hoops in the species table were 41% of the core's weight, uncounted.** Counted, that rope is 0.90
-  per material as hoops, not 1.16. The species table's `+w` rows should be read with this one.
-- **A 4D sheath is a better bargain than ours.** A sphere's skin pulls in two directions, so it presses twice as
-  hard per thickness; per unit of sheath weight per fibre it gives about 1.85 times the press of a tube.
+> **Corrected 2026-11-13.** Until then the bench pressed fibre on fibre with the skin's whole force on a fibre, where
+> each contact carries a third of it (a half in 3D). Every sheath number fell: the best hose from 1.20 to 1.13, the
+> best hoops from 0.99 to 0.86. The hoop and sheath rows of the species table were redefined at the same time (they
+> had been a squeeze with no weight counted; under the corrected law that squeeze needs a wrap heavier than its core).
 
-Assumed, not measured: the half-strength hoop stress; equal material strength along and across; the hose as one
-member with a single strand's spread (which is why the thick hose's spread grows: an artefact); and no interaction
-between a skin's hoop stress and its load along the rope.
-
-The page's second table, **Every configuration**, shows each study's rows (sheaths, the self-tightening sheath,
-cabling, braids) at the setting with the best 5th percentile per weight, read from `data/sheath.json`, `cable.json` and
-`braid.json`. The three braids at 20° are also species, pulled live and in `samples.json`.
+- **There is a best sheath, and it is thin:** a tenth to a fifth of a fibre's radius, a fifth to two fifths of the
+  core's weight. Past that the weight outruns the grip.
+- **A hose beats hoops by about a third** at the best thickness (1.13 against 0.86 for filament), because its
+  material also carries load. **Hoops alone never reach a single strand's worth per weight;** a hose does.
+  **Weaving saves no weight in this model; it costs some.** It would pay only if material laid along a hoop were
+  stronger than the same material as a skin (in our world drawn fibre is far stronger than film, which is why we
+  weave), or where you can't extrude a hose.
+- **A 4D sheath is a slightly better bargain than ours.** A sphere's skin pulls in two directions, so it presses
+  twice as hard per thickness, but it is shared among more contacts; per unit of sheath weight per fibre it gives
+  about 1.24 times a tube's press at each contact, on five contacts a fibre instead of three.
 
 ## Braids
 
@@ -158,8 +160,7 @@ is the angle its strands lie at. `node kata/pull/braid.mjs` (200 pulls each, `da
   The spread falls from 15% to 9%, so the strength you can count on rises about 15% (0.54 → 0.62).
 - **There is a best angle, near 20°.** Steeper grips harder (press goes as tan²θ) but a strand at θ carries cosθ of
   its strength along the rope and weighs 1/cosθ. By 40° the angle has cost more than the grip gave.
-- **A braid grips much less than a tight hose.** The sheathed filament rope reads 1.26 per fibre (1.20 with its hose
-  weighed). A braid's press is a fraction of its strands' tension; the hose's is set by how tight it was made.
+- **A braid grips much less than a tight hose.** Filaments in a hose read 1.13 per weight at best. A braid's press is a fraction of its strands' tension; the hose's is set by how tight it was made.
 - **Ribbons on a hose are the low end.** That row gives the ribbons no grip on each other, since CAD⁴ shows they can
   slide out of it; the maypole row is the same rope with that grip. The truth for ribbons lies between, 4–6% apart.
 - **The core breaks first.** It is straight, so it is stiffer than the strands round it and takes the load first.
@@ -179,24 +180,26 @@ configuration at half and double each dial that touches it, re-tuned to its best
 
 | rope | as published | lowest | highest | what moves it |
 |---|---|---|---|---|
-| filaments in a hose | 1.21 | 1.12 | 1.28 | HOOP or μ |
-| short fibres in a hose | 1.11 | 1.06* | 1.20 | HOOP or μ |
-| a ribbon alone | 1.00 | | | nothing |
-| filaments in hoops | 1.00 | 0.91 | 1.07 | HOOP or μ |
-| plait of three hoses | 0.77 | 0.77 | 0.81 | μ; the set hardly |
+| filaments in a hose | 1.12 | 1.06 | 1.22 | HOOP or μ |
+| short fibres in a hose | 1.06 | 0.96 | 1.13 | HOOP or μ |
+| a ribbon alone | 1.00 |  |  | nothing |
+| filaments in hoops | 0.87 | 0.79 | 0.95 | HOOP or μ |
+| plait of three | 0.77 | 0.77 | 0.80 | μ; the set hardly |
 | maypole | 0.76 | 0.66 | 0.81 | μ; the set hardly |
-| filaments, loose | 0.71 | | | nothing |
+| filaments, loose | 0.71 |  |  | nothing |
 | yarn on a ribbon, hard | 0.54 | 0.35* | 0.77 | the set and μ, strongly |
 
 \* a row with an unconverged solve; not to be quoted.
 
-- **The order holds.** A hose beats everything at every setting. Hoops sit level with a ribbon alone, either side of
-  it. Braids stay below both, and round about the loose bundle: at half friction the maypole (0.66) is under it.
-- **HOOP and μ are one dial.** Only their product enters, so their rows are identical. Halving it costs a hose 8%.
+- **The order holds, with one tie.** A hose of filaments beats everything at every setting (1.06–1.22). Then a
+  ribbon alone (1.00), which short fibres in a hose match or beat only at the published dial and above. Hoops
+  (0.79–0.95) stay under a single strand's worth. Braids stay below hoops and round about the loose bundle: at half
+  friction the maypole (0.66) is under it.
+- **HOOP and μ are one dial.** Only their product enters, so their rows are identical. Halving it costs a hose 5%.
 - **The braids don't care about the set** (0.75–0.77 for the maypole from 2% to 10%). They need some, not a particular amount.
 - **Yarn on a ribbon is the one row that cannot be quoted as a number.** It runs from 0.35 to 0.77 with the dials, and
   two of its rows did not converge. What survives is the order: it holds, and it is worth less than the ribbon it is spun on.
-- The best thickness moves with the dial (hoops: τ 0.05 → 0.1 at double; short fibres in a hose: 0.1 → 0.2 at half).
+- The best thickness moves with the dial (a hose of filaments: τ 0.1 → 0.2 at half).
 
 ## Cabling
 
@@ -207,14 +210,14 @@ the sheath (hoops) is τ element radii thick. The best sheath at each level, by 
 
 | | fibres | best τ | strength | spread | per material | per material, 5th pct | with no sheath |
 |---|---|---|---|---|---|---|---|
-| a rope: 13 filaments | 13 | 0.05 | 14 | 5.2% | 0.97 | 0.89 | 0.68 |
-| a cable: 13 ropes | 169 | 0.01 | 164 | 2.7% | 0.85 | 0.83 | 0.84 |
-| a great cable: 13 cables | 2197 | 0 | 1960 | 3.0% | 0.78 | 0.74 | 0.78 |
+| a rope: 13 filaments | 13 | 0.05 | 12 | 5.1% | 0.84 | 0.77 | 0.68 |
+| a cable: 13 ropes | 169 | 0.005 | 139 | 4.0% | 0.73 | 0.68 | 0.74 |
+| a great cable: 13 cables | 2197 | 0.005 | 1619 | 2.8% | 0.63 | 0.61 | 0.64 |
 
-- **Cabling buys no strength per weight. Each level costs about a tenth.** A rope is already uniform (5% spread
+- **Cabling buys no strength per weight. Each level costs about an eighth** (0.84, 0.73, 0.63)**.** A rope is already uniform (5% spread
   against a fibre's 24%), so bundling ropes has little left to average; and a rope is partly hollow (thirteen fibres
   in a section that would hold twenty-seven), so a sheath round thirteen of them is heavy for what it adds. The best
-  cable sheath is a fifth as thick as the best rope sheath, and the great cable is best with none.
+  cable sheath is a tenth as thick as the best rope sheath, and makes almost no difference.
 - **Pessimistic by construction:** a broken element here carries nothing, where a real rope keeps a frictional
   plateau. And the hoops' weight is counted but they carry no load along the cable.
 - In our world cabling also balances torque: each level is laid against the last. With no twist there is none to
@@ -223,20 +226,21 @@ the sheath (hoops) is τ element radii thick. The best sheath at each level, by 
 ## A sheath that tightens as it is pulled
 
 A sheath laid on the bias squeezes in proportion to its own tension (a finger trap). The bench has it as a law
-(`trap`: press = c × the sheath's tension, c = tan²θ / 9 for a bias angle θ round thirteen fibres), with the sheath a
+(`trap`: the skin's force on a fibre = c × the sheath's tension, c = tan²θ / 9 for a bias angle θ round thirteen
+fibres, and a third of that from fibre to fibre), with the sheath a
 member τ thick. **Whether such a sheath can be woven round a sphere's worth of directions is open** (a sphere
 cannot be combed), so this is what it would be worth, not what it is. Strength per material, 40 pulls a cell:
 
 | τ | 35° | 45° | 55° | 45°, short fibres | 55°, short fibres |
 |---|---|---|---|---|---|
-| 0.01 | 0.82 | 0.89 | 0.97 | 0.33 | 0.60 |
-| 0.02 | 0.88 | 0.96 | 1.05 | 0.60 | 0.83 |
-| 0.05 | 0.95 | 1.04 | 1.13 | 0.85 | 0.99 |
-| 0.1 | 0.99 | 1.06 | 1.13 | 0.93 | 1.02 |
+| 0.01 | 0.76 | 0.81 | 0.88 | 0.17 | 0.30 |
+| 0.02 | 0.81 | 0.88 | 0.96 | 0.33 | 0.59 |
+| 0.05 | 0.89 | 0.97 | 1.06 | 0.67 | 0.86 |
+| 0.1 | 0.94 | 1.02 | 1.09 | 0.84 | 0.96 |
 
-It does not beat the plain hose (1.20 at τ = 0.1, which assumes its hoop stress held at half strength whatever the
-load). What it buys is grip at low weight without that assumption: at τ = 0.02 and 55° it is 1.06 against the hose's
-1.00, and it holds short fibres.
+It does not beat the plain hose (1.11 at τ = 0.1, which assumes its hoop stress held at half strength whatever the
+load), but it comes close (1.09 at 55°). What it buys is grip at low weight without that assumption: at τ = 0.02 and
+55° it is 0.96 against the hose's 0.91, and it holds short fibres.
 
 ## What this is not
 

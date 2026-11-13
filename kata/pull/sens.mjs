@@ -13,9 +13,9 @@ const pull = (opts, material) => { const v = []; let left = 0; for (let s = 1; s
 /* the configurations: each returns its tunings (label, opts, material) for a given set of dials */
 const TAU = [0.05, 0.1, 0.2], ANG = [10, 20, 30];
 const CONF = {
-  "filaments in a hose": (d) => TAU.map((t) => [`τ ${t}`, { section: "fcc13s", press: { kind: "hoop", p: 0.06 * d.hoop * t }, ribbon: { k: 27 * t, strength: 27 * t }, mu: d.mu }, 13 + 27 * t]),
-  "short fibres in a hose": (d) => TAU.map((t) => [`τ ${t}`, { section: "fcc13s", staple: 40, press: { kind: "hoop", p: 0.06 * d.hoop * t }, ribbon: { k: 27 * t, strength: 27 * t }, mu: d.mu }, 13 + 27 * t]),
-  "filaments in hoops": (d) => TAU.map((t) => [`τ ${t}`, { section: "fcc13", press: { kind: "hoop", p: 0.06 * d.hoop * t }, mu: d.mu }, 13 + 27 * t]),
+  "filaments in a hose": (d) => TAU.map((t) => [`τ ${t}`, { section: "fcc13s", press: { kind: "hoop", p: 0.02 * d.hoop * t, wall: 0.06 * d.hoop * t }, ribbon: { k: 27 * t, strength: 27 * t }, mu: d.mu }, 13 + 27 * t]),
+  "short fibres in a hose": (d) => TAU.map((t) => [`τ ${t}`, { section: "fcc13s", staple: 40, press: { kind: "hoop", p: 0.02 * d.hoop * t, wall: 0.06 * d.hoop * t }, ribbon: { k: 27 * t, strength: 27 * t }, mu: d.mu }, 13 + 27 * t]),
+  "filaments in hoops": (d) => TAU.map((t) => [`τ ${t}`, { section: "fcc13", press: { kind: "hoop", p: 0.02 * d.hoop * t }, mu: d.mu }, 13 + 27 * t]),
   "maypole": (d) => ANG.map((th) => { const a = laid(th), s = { k: a.k, strength: a.strength }; return [`${th}°`, { section: "may7", press: { kind: "twist", q: a.q, set: d.set }, tracks: [{ k: 1, strength: 1 }, s, s, s, s, s, s], mu: d.mu }, 1 + 6 * a.material]; }),
   "plait of three": (d) => ANG.map((th) => { const a = laid(th), s = { k: a.k, strength: a.strength }; return [`${th}°`, { section: "plait3", press: { kind: "twist", q: a.q, set: d.set }, tracks: [s, s, s], mu: d.mu }, 3 * a.material]; }),
   "yarn on a ribbon, hard": (d) => [["", { section: "ribbon7", staple: 40, press: { kind: "twist", q: 0.35, set: d.set }, ribbon: { k: 2, strength: 2 }, mu: d.mu }, 8]],

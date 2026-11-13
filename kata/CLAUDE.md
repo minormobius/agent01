@@ -216,7 +216,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   of 1e7). `R.left` is the worst residual over tolerance; the selftest fails above 1. The press is a law per species
   (`twist`: q × (mean tension + set), q from TWIST, reading the last settled step's tensions; `hoop`: a constant;
   `none`). The set (5% of link strength) is an allowance the twisted rows are sensitive to: the README carries the
-  table. `SPECIES` carries each rope's `material` (strands' worth; `wrap` marks an uncounted hoop or sheath), and
+  table. `SPECIES` carries each rope's `material` (strands' worth, hoops and hoses weighed; `sheath(dim, τ)` gives a sheath's weight, its `wall` force on a fibre and the fibre-to-fibre `press`, a third of it in 4D), and
   `stats()` the mean, spread, 5th percentile and Weibull modulus. **`data/samples.json` is 200 pulls of each, made by
   `node kata/pull/sample.mjs`** (~8 min): the page and the selftest read it, and the selftest re-pulls the first three
   seeds of each, so remake it after any change to the bench. `laid(deg)` makes a braided strand a track (stiffness cos³θ, strength cosθ, weight 1/cosθ, q = tan²θ), `tracks` sets a track's stiffness and strength, and `braid.mjs` (→ `data/braid.json`, ~4 min, which the selftest reads) pulls plaits, maypoles and ribbon-served cores; the three at 20° are also `SPECIES`. The page's second table reads `data/sheath.json`, `cable.json` and `braid.json`. `sens.mjs` (→ `data/sens.json`, ~20 min) re-pulls the main configurations at half and double each chosen dial; the selftest reads it. `window.PULL`. See [`pull/README.md`](pull/README.md).
