@@ -27,7 +27,7 @@ least three. Fibre on fibre is two. So every grip here involves something two-di
 | hoops (spheres) | no | CAD⁴ (holds a bundle), PULL (a dial), sheath study | best about 0.1 fibre radii thick: 0.99 per material, weight counted |
 | a hose | no | CAD⁴ spinneret, sheath study | 1.20 per material: it grips and carries load |
 | a wound sheath: three ribbons round the bundle in three perpendicular planes | no | CAD⁴ kernel (this note) | **closes** the bundle once each ribbon is about half the bundle's radius wide; at 0.4 it leaves the eight corners open. A sheath made by winding, with no spinneret. Its grip is untested |
-| a bias sheath (a finger trap) | yes | PULL, as a law only (`trap`) | see below. **Whether one can be made is open:** a bias weave is a field of directions on the cross-section's sphere, and a sphere cannot be combed |
+| a bias sheath (a finger trap) | yes | PULL, as a law only (`trap`) | 1.13 per material at 55°, between hoops (0.99) and a hose (1.20); better than either when thin; holds short fibres. **Whether one can be made is open:** a bias weave is a field of directions on the cross-section's sphere, and a sphere cannot be combed |
 | glue (a matrix between fibres) | no | not tested | works in any dimension; the baseline that makes all of this unnecessary, at the price of a rope that can't flex. To be named in the paper, not studied |
 
 ## Cross-sections
@@ -50,7 +50,10 @@ Ropes in a sheath, then cables in a sheath. Similar to a rope, not the same:
 - **In our world cabling also fights untwisting:** each level is laid the opposite way to the last, so the levels'
   torques cancel. In 4D, with no twist, there is nothing to cancel, and a cable is just a bundle of bundles.
 
-Results: `kata/pull/cable.mjs`, written up in PULL's README once run.
+**Result** (`kata/pull/cable.mjs`, PULL's README): cabling buys no strength per weight. Best per material goes
+0.97 (rope), 0.85 (cable of thirteen ropes), 0.78 (cable of thirteen cables): about a tenth lost a level, and the
+best sheath gets thinner each level until it is none. For strength, one fat rope; a cable is for handling, bending
+and redundancy. The bench is pessimistic here (a broken rope carries nothing).
 
 ## Open, in rough order of what would change the paper
 

@@ -131,6 +131,46 @@ Assumed, not measured: the half-strength hoop stress; equal material strength al
 member with a single strand's spread (which is why the thick hose's spread grows: an artefact); and no interaction
 between a skin's hoop stress and its load along the rope.
 
+## Cabling
+
+`node kata/pull/cable.mjs` (`data/cable.json`, 40 pulls a cell). Thirteen ropes in a sheath, then thirteen of
+those. Each level is the same bench with the level below as its fibre: the element's link strengths are Weibull
+with the modulus and scale that reproduce its own measured distribution, its stiffness and weight are its own, and
+the sheath (hoops) is τ element radii thick. The best sheath at each level, by the 5th percentile:
+
+| | fibres | best τ | strength | spread | per material | per material, 5th pct | with no sheath |
+|---|---|---|---|---|---|---|---|
+| a rope: 13 filaments | 13 | 0.05 | 14 | 5.2% | 0.97 | 0.89 | 0.68 |
+| a cable: 13 ropes | 169 | 0.01 | 164 | 2.7% | 0.85 | 0.83 | 0.84 |
+| a great cable: 13 cables | 2197 | 0 | 1960 | 3.0% | 0.78 | 0.74 | 0.78 |
+
+- **Cabling buys no strength per weight. Each level costs about a tenth.** A rope is already uniform (5% spread
+  against a fibre's 24%), so bundling ropes has little left to average; and a rope is partly hollow (thirteen fibres
+  in a section that would hold twenty-seven), so a sheath round thirteen of them is heavy for what it adds. The best
+  cable sheath is a fifth as thick as the best rope sheath, and the great cable is best with none.
+- **Pessimistic by construction:** a broken element here carries nothing, where a real rope keeps a frictional
+  plateau. And the hoops' weight is counted but they carry no load along the cable.
+- In our world cabling also balances torque: each level is laid against the last. With no twist there is none to
+  balance. So in 4D a cable is for handling, bending and redundancy; for strength, make one fat rope.
+
+## A sheath that tightens as it is pulled
+
+A sheath laid on the bias squeezes in proportion to its own tension (a finger trap). The bench has it as a law
+(`trap`: press = c × the sheath's tension, c = tan²θ / 9 for a bias angle θ round thirteen fibres), with the sheath a
+member τ thick. **Whether such a sheath can be woven round a sphere's worth of directions is open** (a sphere
+cannot be combed), so this is what it would be worth, not what it is. Strength per material, 40 pulls a cell:
+
+| τ | 35° | 45° | 55° | 45°, short fibres | 55°, short fibres |
+|---|---|---|---|---|---|
+| 0.01 | 0.82 | 0.89 | 0.97 | 0.33 | 0.60 |
+| 0.02 | 0.88 | 0.96 | 1.05 | 0.60 | 0.83 |
+| 0.05 | 0.95 | 1.04 | 1.13 | 0.85 | 0.99 |
+| 0.1 | 0.99 | 1.06 | 1.13 | 0.93 | 1.02 |
+
+It does not beat the plain hose (1.20 at τ = 0.1, which assumes its hoop stress held at half strength whatever the
+load). What it buys is grip at low weight without that assumption: at τ = 0.02 and 55° it is 1.06 against the hose's
+1.00, and it holds short fibres.
+
 ## What this is not
 
 A model, not a rope. One dimension of mechanics (along the rope), with the cross-section reduced to who touches
@@ -144,4 +184,6 @@ no rate effects, no chain (the tiger chain's strength is its links' sections, a 
 ```bash
 node kata/pull/test/pull.selftest.mjs   # ~10 s, 7 checks
 node kata/pull/sample.mjs 200             # ~8 min: remake data/samples.json
+node kata/pull/sheath.mjs 60              # ~14 min: data/sheath.json
+node kata/pull/cable.mjs 40               # ~22 min: data/cable.json
 ```
