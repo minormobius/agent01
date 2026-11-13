@@ -69,3 +69,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); c
 .note a { color: var(--cyan); }
 @media (max-width: 600px) { .map { width: 96px; height: 96px; } .boost { bottom: calc(196px + env(safe-area-inset-bottom)); } .clock, .sc b { font-size: 18px; } }
 @media (max-height: 520px) { .boost { bottom: calc(24px + env(safe-area-inset-bottom)); right: calc(186px + env(safe-area-inset-right)); } .boost .tube { height: 80px; } .stick { width: 112px; height: 112px; } }
+.sc { gap: 8px; }
+.sc .cyanb { font: 22px var(--display); color: var(--cyan); text-shadow: 0 0 10px var(--cyan); }
+.sc .orangeb { font: 22px var(--display); color: var(--orange); text-shadow: 0 0 10px var(--orange); }
+.sc .orangeb:empty { display: none; }
+.sc .dash { color: var(--dim); }
+.pink { color: var(--pink) !important; }

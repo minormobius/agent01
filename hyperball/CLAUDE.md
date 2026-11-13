@@ -1,8 +1,8 @@
 # hyperball — hyperball.mino.mobi
 
 **HYPERBALL**: bike-ball in four dimensions. You ride a 4D bicycle round the inside of a small hollow 3-sphere, jump
-and boost, and knock a ball into the spherinder goal at the far pole. Vaporwave arena. Solo practice for now (three
-minutes, score what you can); an opponent is next.
+and boost, and knock a ball into the spherinder goal at the far pole. Vaporwave arena. The default match is **2v2**: you (pink) and a
+bot on cyan against two orange bots, three minutes. Solo practice, 1v1 and 3v3 in the menu; bots easy, normal, hard.
 
 ## Facts
 
@@ -51,12 +51,32 @@ One static site, no build, no worker script (worker `hyperball`, assets only, pl
     ball and past it, the frame never turns faster than 110°/s and the bike is never more than ~30° off centre.
   - `kickoff(A, rnd)`: with `rnd`, solo kickoffs come from a random side (0.5–2.4 rad off the line to their goal,
     any direction across it) with the ball already rolling; without, the fixed case for the tests.
+  - **Teams and bots**: `TEAMS` (cyan defends OWN and attacks ENEMY; orange the reverse), `teamKickoff` (orange's
+    bikes are cyan's reflected through x₁ → −x₁, which swaps the goals and fixes the spot: a fair kickoff), `bump`
+    (bikes push apart). `roles`: per team, whoever would reach the ball first attacks, the rest defend. `botInput`:
+    - attack: aim at a random spot across their goal's mouth (two mirrored bots otherwise deadlock); shoot (go for the
+      ball) only when lined up to within about the goal's radius over its distance, since on a 3D floor a shot must
+      be right in two directions at once; otherwise come round behind it (7 m back on the shot line), swinging wide
+      if the ball is in the way. A rival on the far side of the ball (a 50/50): swing out sideways in a random
+      direction across the line between you, ana and kata included. Reaching its spot, a bot COMMITS: 1.3 s charging
+      the ball, steering for the goal in the last 5 m. Without the commit two bots circled a stopped ball forever.
+    - defend: between the ball and its own goal, up to 16 m out, facing the ball; clear it if it comes within 10 m
+      while goal-side of it.
+    - all: brake for the turn (the circle reaching the target from the heading needs radius dist/2 sin θ, and the lean
+      limit rides v²/(g tan φ)); boost when far and facing it; jump at a high ball close by. `SKILL` sets rethink
+      time, throttle, boost, jumps and aim wobble.
+    `stepMatch` steps everyone, the ball, the touches and bumps, and reports a goal; `newMatch` sets one up.
+  - What made bots score at all (each found by simulating whole matches): the ball rolled to a stop ~50 m from a
+    hit (rolling friction 0.55/s, now 0.16); ground hits pointed up along the body-to-ball line and lobbed the ball
+    across the arena's sky (now flattened, `lift` 0.35, and capped at 30 m/s for squeezes); and **hits go mostly
+    where the bike points** (`aim` 0.6 of the heading, 0.4 of the contact line), which is what makes aiming possible
+    in 4D for bots and you alike. Goals are r 10, h 6. In 5 simulated minutes of 2v2 bots: 2–6 goals, both sides.
 - `js/main.js`: a fragment shader ray-traces the slice: the floor from inside (a neon grid of the planes x_k = 5n m,
-  the halfway sphere, goal circles, shadows), the striped sun at the centre, the ball, the bike (two wheel balls, a
-  capsule body, a flame when boosting), the goals (translucent cone wall at the goal's radius, roof at its height), the
+  the halfway sphere, goal circles, shadows), the striped sun at the centre, the ball, up to six bikes (two wheel balls, a
+  capsule body, a flame when boosting; you pink, cyan and orange by team), the goals (translucent cone wall at the goal's radius, roof at its height), the
   path ribbon (an arc to the intercept, chevrons, kerbs teal ana / pink kata of your slice) and the gold shot line. A
-  2D overlay: the ball's marker (ana/kata offset when lock is off; an edge arrow when off screen), goal markers, a
-  minimap (the arena as a ball on your axes), score, clock, boost. Physics at a fixed 120 Hz, the loop stopping the
+  2D overlay: the ball's marker (ana/kata offset when lock is off; an edge arrow when off screen), MATE/OPP tags
+  over the other bikes (▲ ▼ off your slice), goal markers, a minimap (with every bike) (the arena as a ball on your axes), score, clock, boost. Physics at a fixed 120 Hz, the loop stopping the
   moment a step ends play (it once counted one goal seven times, the ball still in the net); ball cam looks at the
   ball. The floor's grid lines fade out where they're too fine to draw (blurred, they washed the floor pink). Touch: a stick (lean right/left, ana/kata) and BOOST, JUMP, BRAKE, GO;
   the throttle is always on by default on touch screens.
@@ -64,9 +84,9 @@ One static site, no build, no worker script (worker `hyperball`, assets only, pl
 ## Checks
 
 ```bash
-node hyperball/test/hyperball.selftest.mjs   # <1 s: the copy, gravity, flights vs ana's, bounces, driving, jumps, hits, goals, ball lock (no flips), the camera (no jumps, bike in view), aiming, kickoffs
+node hyperball/test/hyperball.selftest.mjs   # ~1 s: the copy, gravity, flights vs ana's, bounces, driving, jumps, hits, goals, ball lock (no flips), the camera (no jumps, bike in view), aiming, kickoffs, teams, a lone bot scoring, a 10-minute 2v2 of bots
 ```
 
 ## Next
 
-An opponent (the same aids, driving itself), boost pads, the ball's spin, a real 4D bicycle under you (kata's).
+Boost pads, the ball's spin, passing between teammates, a real 4D bicycle under you (kata's).

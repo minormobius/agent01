@@ -15,12 +15,19 @@ const A = G.ARENA, R = A.R;
 
 const S = {
   mode: 'arcade', assist: 'path', lock: true, ballCam: true, autoThrottle: matchMedia('(pointer: coarse)').matches,
-  state: 'title', clock: 180, score: 0, conceded: 0, banner: '', bannerT: 0, countdown: 0,
-  ball: null, bike: null, cam: null, aim: null, it: null, itT: 0, touches: 0, slowT: 0,
+  state: 'title', clock: 180, banner: '', bannerT: 0, countdown: 0,
+  team: '2', skill: 'normal', goals: { cyan: 0, orange: 0 }, mine: 0,
+  match: null, ball: null, bike: null, aim: null, it: null, itT: 0, touches: 0,
 };
+// A kickoff. team '0' is solo practice (you alone, from a random side); otherwise n a side, you cyan's first bike, the
+// rest bots (arena.js botInput). S.ball and S.bike are the match's ball and your bike, which the camera and aids use.
 function newKickoff() {
-  const ko = G.kickoff(G.ARENA, Math.random);   // solo: a different approach every time
-  S.ball = ko.ball; S.bike = ko.bike; S.camState = null; S.aim = null; S.countdown = 3;
+  const n = +S.team;
+  if (n === 0) {
+    const ko = G.kickoff(G.ARENA, Math.random);
+    S.match = { ball: ko.ball, bikes: [{ k: ko.bike, team: 'cyan', brain: {}, human: true, name: 'you' }] };
+  } else S.match = G.newMatch(n, G.ARENA, Math.random, true);
+  S.ball = S.match.ball; S.bike = S.match.bikes[0].k; S.camState = null; S.aim = null; S.countdown = 3;
 }
 newKickoff();
 
@@ -34,8 +41,12 @@ const FS = `#version 300 es
 precision highp float;
 in vec2 ndc;
 out vec4 o;
-uniform float R, tanH, aspect, time, ballR, goalR, goalH, sunR, pathEnd, shotEnd, boosting;
-uniform vec4 E, L, U, Rt, Wv, ball, wheelA, wheelB, body0, body1, flame, own, enemy, pathA, pathB, shotA, shotB;
+uniform float R, tanH, aspect, time, ballR, goalR, goalH, sunR, pathEnd, shotEnd;
+uniform vec4 E, L, U, Rt, Wv, ball, own, enemy, pathA, pathB, shotA, shotB;
+// the bikes, up to six: two wheels, a body from bA to bB, a flame when boosting; bT the team (0 you, 1 cyan, 2 orange)
+uniform vec4 wA[6], wB[6], bA[6], bB[6], fl[6];
+uniform float bT[6], bBoost[6];
+uniform int nB;
 uniform float pathOn, shotOn;
 
 float sphere(vec4 ro, vec4 rd, vec4 c, float r) {
@@ -93,8 +104,11 @@ vec3 floorCol(vec4 p, float t) {
   // shadows: the ball's and the bike's, straight below them
   float sb = acos(clamp(dot(u, normalize(ball)), -1.0, 1.0)) * R;
   c *= mix(0.35, 1.0, smoothstep(ballR * 0.55, ballR * 1.05, sb));
-  float sk = acos(clamp(dot(u, normalize(body0)), -1.0, 1.0)) * R;
-  c *= mix(0.45, 1.0, smoothstep(0.4, 0.9, sk));
+  for (int i = 0; i < 6; i++) {
+    if (i >= nB) break;
+    float sk = acos(clamp(dot(u, normalize(bA[i])), -1.0, 1.0)) * R;
+    c *= mix(0.45, 1.0, smoothstep(0.4, 0.9, sk));
+  }
   // the shot line: from the ball toward their goal, gold dashes
   if (shotOn > 0.5) {
     vec2 s = arcNear(u, shotA, shotB, shotEnd);
@@ -129,16 +143,21 @@ void main() {
   }
   float tb = sphere(ro, d, ball, ballR);
   if (tb > 0.0 && tb < t) { t = tb; kind = 3; }
-  float tw = sphere(ro, d, wheelA, 0.45);
-  if (tw > 0.0 && tw < t) { t = tw; kind = 4; }
-  tw = sphere(ro, d, wheelB, 0.45);
-  if (tw > 0.0 && tw < t) { t = tw; kind = 4; }
-  float tc = capsule(ro, d, body0, body1, 0.33);
-  if (tc > 0.0 && tc < t) { t = tc; kind = 5; }
-  if (boosting > 0.5) {
-    float tf = capsule(ro, d, body0, flame, 0.22);
-    if (tf > 0.0 && tf < t) { t = tf; kind = 6; }
+  int who = 0;
+  for (int i = 0; i < 6; i++) {
+    if (i >= nB) break;
+    float tw = sphere(ro, d, wA[i], 0.45);
+    if (tw > 0.0 && tw < t) { t = tw; kind = 4; who = i; }
+    tw = sphere(ro, d, wB[i], 0.45);
+    if (tw > 0.0 && tw < t) { t = tw; kind = 4; who = i; }
+    float tc = capsule(ro, d, bA[i], bB[i], 0.33);
+    if (tc > 0.0 && tc < t) { t = tc; kind = 5; who = i; }
+    if (bBoost[i] > 0.5) {
+      float tf = capsule(ro, d, bA[i], fl[i], 0.22);
+      if (tf > 0.0 && tf < t) { t = tf; kind = 6; who = i; }
+    }
   }
+  vec3 teamCol = bT[who] < 0.5 ? vec3(1.0, 0.35, 0.75) : bT[who] < 1.5 ? vec3(0.2, 0.9, 1.0) : vec3(1.0, 0.55, 0.15);
   vec4 p = ro + d * t;
   vec3 col;
   if (kind == 0) col = floorCol(p, t);
@@ -151,10 +170,10 @@ void main() {
     float lit = max(dot(n, -normalize(p)), 0.0);
     col = mix(vec3(0.95, 0.95, 1.0) * (0.45 + 0.55 * lit), vec3(1.0, 0.3, 0.85), pow(1.0 - facing, 2.5));
     col += vec3(0.2, 0.9, 1.0) * pow(max(dot(reflect(d, n), -normalize(p)), 0.0), 12.0) * 0.5;
-  } else if (kind == 4) col = vec3(0.12, 0.1, 0.18) + vec3(0.2, 0.9, 1.0) * 0.35;
+  } else if (kind == 4) col = vec3(0.12, 0.1, 0.18) + teamCol * 0.35;
   else if (kind == 5) {
-    vec4 n = normalize(p - body0);
-    col = vec3(1.0, 0.35, 0.75) * (0.5 + 0.5 * max(dot(n, -normalize(p)), 0.0));
+    vec4 n = normalize(p - bA[who]);
+    col = teamCol * (0.5 + 0.5 * max(dot(n, -normalize(p)), 0.0));
   } else col = vec3(1.0, 0.7, 0.25) * 1.6;
   // the goals: translucent spherinders, a cone wall (all the points the goal's radius from its pole) and a roof
   for (int g = 0; g < 2; g++) {
@@ -228,19 +247,25 @@ function draw(dt) {
   gl.viewport(0, 0, w, h);
   gl.useProgram(prog);
   const cam = camera(dt); lastCam = cam;
-  const k = S.bike, u = G.up(k.x);
-  const F = k.ground ? k.F : H.unit(H.add(k.F, u, -H.dot(k.F, u)));
-  // the bike's lean tilts its body toward the turn
-  const leanUp = H.unit(H.add(u, k.lean, 1));
   const set1 = (n, v) => Un[n] && gl.uniform1f(Un[n], v), set4 = (n, v) => Un[n] && gl.uniform4f(Un[n], ...v);
   set1('R', R); set1('tanH', TAN); set1('aspect', w / h); set1('time', performance.now() / 1000);
   set1('ballR', A.ball.r); set1('goalR', A.goal.r); set1('goalH', A.goal.h); set1('sunR', 6.5);
   set4('E', cam.eye); set4('L', cam.look); set4('U', cam.up); set4('Rt', cam.right); set4('Wv', cam.w);
   set4('ball', S.ball.x);
-  set4('wheelA', H.add(H.add(k.x, F, 0.75), leanUp, 0.45)); set4('wheelB', H.add(H.add(k.x, F, -0.75), leanUp, 0.45));
-  const b0 = H.add(k.x, leanUp, 0.7), b1 = H.add(H.add(k.x, leanUp, 1.55), F, 0.15);
-  set4('body0', b0); set4('body1', b1);
-  set1('boosting', k.boosting ? 1 : 0); set4('flame', H.add(H.add(b0, F, -1.3 - 0.3 * Math.random()), leanUp, -0.1));
+  // every bike: two wheels, a body leaning toward its turn, a flame when boosting
+  const bikes = S.match.bikes, n = Math.min(6, bikes.length), arr = () => new Float32Array(24);
+  const wa = arr(), wb = arr(), ba = arr(), bb = arr(), fla = arr(), team = new Float32Array(6), boost = new Float32Array(6);
+  bikes.slice(0, n).forEach((b, i) => {
+    const k = b.k, u = G.up(k.x), F = k.ground ? k.F : H.unit(H.add(k.F, u, -H.dot(k.F, u))), lu = H.unit(H.add(u, k.lean, 1));
+    const b0 = H.add(k.x, lu, 0.7);
+    wa.set(H.add(H.add(k.x, F, 0.75), lu, 0.45), i * 4); wb.set(H.add(H.add(k.x, F, -0.75), lu, 0.45), i * 4);
+    ba.set(b0, i * 4); bb.set(H.add(H.add(k.x, lu, 1.55), F, 0.15), i * 4);
+    fla.set(H.add(H.add(b0, F, -1.3 - 0.3 * Math.random()), lu, -0.1), i * 4);
+    team[i] = b.human ? 0 : b.team === 'cyan' ? 1 : 2; boost[i] = k.boosting ? 1 : 0;
+  });
+  const loc = (nm) => gl.getUniformLocation(prog, nm);
+  gl.uniform4fv(loc('wA'), wa); gl.uniform4fv(loc('wB'), wb); gl.uniform4fv(loc('bA'), ba); gl.uniform4fv(loc('bB'), bb); gl.uniform4fv(loc('fl'), fla);
+  gl.uniform1fv(loc('bT'), team); gl.uniform1fv(loc('bBoost'), boost); gl.uniform1i(loc('nB'), n);
   set4('own', G.OWN); set4('enemy', G.ENEMY);
   // the aids
   const showPath = S.assist !== 'off' && S.aim && S.state === 'play';
@@ -294,6 +319,16 @@ function overlay(cam) {
     ctx.beginPath(); ctx.moveTo(16, 0); ctx.lineTo(-8, -10); ctx.lineTo(-8, 10); ctx.closePath(); ctx.fill(); ctx.restore();
     ctx.fillText('BALL', ex, ey + 24);
   }
+  // the other bikes: a small tag over each, in its team's colour; ▲ ▼ when it's off your slice (ana, kata)
+  ctx.font = '700 10px ui-monospace, monospace';
+  for (const b of S.match.bikes) {
+    if (b.human) continue;
+    const g = project(cam, H.add(G.bikeBody(b.k), G.up(b.k.x), 1.6), W, Hh);
+    if (!(g.f > 0 && g.x > 0 && g.x < W && g.y > 0 && g.y < Hh)) continue;
+    const col = b.team === 'cyan' ? '#3af0ff' : '#ffa23a', offs = Math.abs(g.w) < 1 ? '' : g.w > 0 ? ' ▲' : ' ▼';
+    ctx.fillStyle = col; ctx.fillText(`${b.team === 'cyan' ? 'MATE' : 'OPP'}${offs}`, g.x, g.y);
+  }
+  ctx.font = '700 12px ui-monospace, monospace';
   // goal markers
   for (const [pole, name, col] of [[G.ENEMY, 'THEIR GOAL', '#ffa23a'], [G.OWN, 'YOURS', '#3af0ff']]) {
     const g = project(cam, H.scale(pole, R - A.goal.h), W, Hh);
@@ -319,6 +354,12 @@ function minimap() {
   for (const [pole, col] of [[G.OWN, '#3af0ff'], [G.ENEMY, '#ffa23a']]) {
     const p = P(H.mapOf(xh, fr, pole, R));
     mctx.fillStyle = col; mctx.beginPath(); mctx.arc(p.x, p.y, 6, 0, 2 * Math.PI); mctx.fill();
+  }
+  for (const b of S.match.bikes) {
+    if (b.human) continue;
+    const p = P(H.mapOf(xh, fr, H.unit(b.k.x), R));
+    mctx.fillStyle = b.team === 'cyan' ? '#3af0ff' : '#ffa23a';
+    mctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
   }
   const bp = P(H.mapOf(xh, fr, H.unit(S.ball.x), R));
   mctx.fillStyle = Math.abs(bp.w) < 3 ? '#fff' : bp.w > 0 ? '#38f2e0' : '#ff66b8';
@@ -384,7 +425,7 @@ function frame(now) {
     if (S.state !== 'play') acc = 0;
   } else if (S.state === 'goal') {
     S.bannerT -= dt;
-    for (let i = 0; i < Math.round(dt / DT); i++) G.stepBall(S.ball, DT, S.mode);
+    for (let i = 0; i < Math.round(dt / DT); i++) G.stepBall(S.ball, DT, S.mode);   // the ball rolls on in the net
     if (S.bannerT <= 0) { if (S.clock <= 0) end(); else { newKickoff(); S.state = 'play'; } }
   }
   draw(dt);
@@ -400,6 +441,7 @@ function step(dt) {
   S.clock -= dt;
   let input = readInput();
   jumpPressed = false;
+  const youBefore = S.match.last;
   // the aids: where to meet the ball (refreshed ten times a second), and, on auto, steering along it
   S.itT -= dt;
   if (S.itT <= 0 || !S.aim) {
@@ -418,28 +460,34 @@ function step(dt) {
   // the twist: J and L turn your slice about your heading (when ball lock is off)
   const tw = kv('l', 'j');
   if (tw && !S.lock) { const a = tw * 1.4 * dt, k = S.bike, c = Math.cos(a), s = Math.sin(a), R0 = k.Rt; k.Rt = H.add(H.scale(R0, c), k.N, s); k.N = H.add(H.scale(k.N, c), R0, -s); }
-  G.stepBike(S.bike, input, dt, S.mode);
+  // everyone moves together: you by your input, the bots by theirs (arena.js stepMatch)
+  const r = G.stepMatch(S.match, dt, S.mode, S.skill, Math.random, () => input);
+  void youBefore;
   if (S.lock) G.lockSlice(S.bike, S.ball.x, dt, LOCK.rate, LOCK.tol);
-  G.stepBall(S.ball, dt, S.mode);
-  if (G.collide(S.bike, S.ball)) { S.touches++; flash('hit'); }
-  if (G.inGoal(S.ball.x, G.ENEMY)) goal(true);
-  else if (G.inGoal(S.ball.x, G.OWN)) goal(false);
+  if (r === 'touch' && S.match.last && S.match.last.human) { S.touches++; flash('hit'); }
+  if (r === 'cyan' || r === 'orange') goal(r);
   if (S.clock <= 0 && S.state === 'play') end();
 }
-function goal(ours) {
-  if (ours) S.score++; else S.conceded++;
+function goal(side) {
+  S.goals[side]++;
+  const lastB = S.match.last, yours = lastB && lastB.human && side === 'cyan';
+  if (yours) S.mine++;
   S.state = 'goal'; S.bannerT = 2.6;
-  S.banner = ours ? 'GOAL' : 'OWN GOAL';
-  $('banner').textContent = S.banner; $('banner').className = `banner show ${ours ? 'ours' : 'theirs'}`;
+  const ownGoal = lastB && lastB.team !== side;
+  S.banner = side === 'cyan' ? (yours ? 'GOAL!' : 'GOAL') : (+S.team === 0 ? 'OWN GOAL' : ownGoal ? 'OWN GOAL' : 'THEY SCORE');
+  $('banner').textContent = S.banner; $('banner').className = `banner show ${side === 'cyan' ? 'ours' : 'theirs'}`;
   setTimeout(() => { $('banner').className = 'banner'; }, 2300);
 }
 function end() {
   S.state = 'over';
-  $('final').innerHTML = `<b>${S.score}</b> goal${S.score === 1 ? '' : 's'}${S.conceded ? ` · ${S.conceded} own goal${S.conceded === 1 ? '' : 's'}` : ''} · ${S.touches} touches`;
+  const c = S.goals.cyan, o = S.goals.orange, n = +S.team;
+  const verdict = n === 0 ? '' : c > o ? 'YOU WIN · ' : c < o ? 'YOU LOSE · ' : 'DRAW · ';
+  $('final').innerHTML = n === 0 ? `<b>${c}</b> goal${c === 1 ? '' : 's'}${o ? ` · ${o} own goal${o === 1 ? '' : 's'}` : ''} · ${S.touches} touches`
+    : `${verdict}<b class="cyan">${c}</b> – <b class="orange">${o}</b> · ${S.mine} yours · ${S.touches} touches`;
   $('title').classList.add('over'); $('title').hidden = false;
 }
 function start() {
-  S.clock = 180; S.score = 0; S.conceded = 0; S.touches = 0;
+  S.clock = 180; S.goals = { cyan: 0, orange: 0 }; S.mine = 0; S.touches = 0;
   newKickoff(); S.state = 'play';
   $('title').hidden = true; $('title').classList.remove('over');
 }
@@ -448,8 +496,8 @@ function flash(what) { void what; $('hitfx').classList.remove('go'); void $('hit
 function hud() {
   const k = S.bike, m = Math.max(0, Math.ceil(S.clock));
   $('clock').textContent = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
-  $('score').textContent = S.score;
-  $('conceded').textContent = S.conceded ? `−${S.conceded}` : '';
+  $('score').textContent = S.goals.cyan;
+  $('conceded').textContent = +S.team === 0 ? (S.goals.orange ? `−${S.goals.orange}` : '') : S.goals.orange;
   $('boostfill').style.height = `${k.boost.toFixed(0)}%`;
   $('boostnum').textContent = Math.round(k.boost);
   $('speed').textContent = `${Math.round(Math.abs(k.ground ? k.speed : H.norm(k.v)) * 3.6)} km/h`;
@@ -473,6 +521,6 @@ function toggleMenu() { $('menu').hidden = !$('menu').hidden; if (S.state === 'p
 $('menubtn').onclick = toggleMenu;
 $('menuclose').onclick = toggleMenu;
 $('play').onclick = start;
-for (const [k, v] of Object.entries({ mode: S.mode, assist: S.assist, lock: S.lock, ballCam: S.ballCam, autoThrottle: S.autoThrottle })) setOpt(k, v);
+for (const [k, v] of Object.entries({ mode: S.mode, assist: S.assist, lock: S.lock, ballCam: S.ballCam, autoThrottle: S.autoThrottle, team: S.team, skill: S.skill })) setOpt(k, v);
 addEventListener('resize', () => draw(0));
 requestAnimationFrame(frame);

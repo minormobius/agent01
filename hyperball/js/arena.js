@@ -11,10 +11,10 @@ import * as H from './habitat.js';
 
 export const ARENA = {
   R: 40, g: 0.6 * 9.80665,
-  ball: { r: 1.6, restitution: 0.62, drag: 0.035, roll: 0.55 },
+  ball: { r: 1.6, restitution: 0.62, drag: 0.03, roll: 0.16, maxSpeed: 30, lift: 0.35 },
   bike: { r: 1.0, height: 1.0, accel: 9, brake: 16, maxSpeed: 14, boostSpeed: 23, boostAcc: 18, boostDrain: 33, boostRegen: 9,
-    leanMax: 0.95, turnMax: 2.6, airTurn: 2.4, jump: 6.5, hit: 2.2 },
-  goal: { r: 7, h: 5 },
+    leanMax: 0.95, turnMax: 2.6, airTurn: 2.4, jump: 6.5, hit: 2.2, aim: 0.6 },
+  goal: { r: 10, h: 6 },
 };
 // your goal (cyan) and theirs (orange) at opposite poles; kickoff on the equator between them
 export const OWN = [1, 0, 0, 0], ENEMY = [-1, 0, 0, 0], SPOT = [0, 0, 1, 0];
@@ -132,9 +132,19 @@ export function collide(k, b, A = ARENA) {
   if (dist >= min || dist < 1e-9) return false;
   const n = scale(d, 1 / dist);
   b.x = add(c, n, min);
-  const vn = dot(add(k.v, b.v, -1), n);
-  if (vn > 0) b.v = add(b.v, n, vn * (1 + A.ball.restitution) + A.bike.hit);
-  else b.v = add(b.v, n, A.bike.hit * 0.5);
+  // the push: from the ground, mostly along the floor (the body is lower than the ball's centre, so the line between
+  // them points up; hit along it and every touch lobs the ball across the arena's sky). Keep `lift` of the upward part.
+  let dir = n;
+  if (k.ground) { const u = up(k.x), nu = dot(n, u); if (nu > 0) { const flat = add(n, u, -nu * (1 - A.ball.lift)); dir = norm(flat) > 1e-6 ? unit(flat) : n; } }
+  // hits go mostly where the bike points, not just along the contact line: aiming is driving. On a 3D floor a shot
+  // has to be right in two directions at once, and nobody (bot or human) can place the exact contact point that well
+  if (k.speed > 2 && dot(n, k.F) > 0.3) dir = unit(add(scale(dir, 1 - A.bike.aim), k.F, A.bike.aim));
+  const vn = dot(add(k.v, b.v, -1), dir);
+  if (vn > 0) b.v = add(b.v, dir, vn * (1 + A.ball.restitution) + A.bike.hit);
+  else b.v = add(b.v, dir, A.bike.hit * 0.5);
+  // two bikes squeezing it in one moment mustn't add up to a cannon shot
+  const sp = norm(b.v);
+  if (sp > A.ball.maxSpeed) b.v = scale(b.v, A.ball.maxSpeed / sp);
   if (k.ground) k.speed *= 0.85;
   return true;
 }
@@ -249,10 +259,10 @@ export function steerToward(k, target) {
   const gain = Math.min(1, a * 2.2);
   return { steer: [(across[0] / m) * gain, (across[1] / m) * gain], angle: a };
 }
-/** The shot line: the floor direction from the ball toward the enemy goal; and the approach point, a little behind
- *  the ball along it, where you want to arrive to hit it goalward. */
-export function approach(ballFloor, A = ARENA, back = 2.4) {
-  const bh = unit(ballFloor), g = unit(ENEMY);
+/** The shot line: the floor direction from the ball toward a goal (theirs, by default); and the approach point, a
+ *  little behind the ball along it, where you want to arrive to hit it goalward. */
+export function approach(ballFloor, A = ARENA, back = 2.4, goal = ENEMY) {
+  const bh = unit(ballFloor), g = unit(goal);
   const dir = unit(add(g, bh, -dot(g, bh)));
   return { dir, point: scale(H.walk(bh, scale(dir, -1), back, A.R, []).xhat, A.R) };
 }
@@ -277,4 +287,187 @@ export function kickoff(A = ARENA, rnd = null) {
   const at = H.walk(sp, toward, 26, A.R, []).xhat;
   const face = unit(add(sp, at, -dot(sp, at)));
   return { ball, bike: makeBike(at, face, A) };
+}
+
+// ------------------------------------------------------------------ teams --
+// Two teams. Cyan defends OWN and attacks ENEMY (you're cyan); orange the other way round. The arena is symmetric under
+// the reflection x₁ → −x₁, which swaps the goals and fixes the kickoff spot: orange's kickoff is cyan's, reflected.
+export const TEAMS = { cyan: { defend: OWN, attack: ENEMY }, orange: { defend: ENEMY, attack: OWN } };
+export const mirror = (v) => [-v[0], v[1], v[2], v[3]];
+
+/** A kickoff for n a side: cyan's bikes 26 m from the ball on their own side, fanned out (the first straight toward its
+ *  goal's line, the rest turned off it, toward random directions across it); orange's are cyan's mirrored. With rnd
+ *  the fan's directions vary; the ball starts still, 3 m up (both teams have a fair go). */
+export function teamKickoff(n, A = ARENA, rnd = null) {
+  const ball = makeBall(SPOT, 3, A), sp = unit(SPOT), F = H.floorFrame(sp);
+  const toward = unit(add(OWN, sp, -dot(OWN, sp)));
+  const basis = H.orthonormalTo(sp, [toward, F.f, F.e]).slice(1);
+  const cyan = [], orange = [];
+  for (let i = 0; i < n; i++) {
+    let dir = toward;
+    if (i > 0) {
+      const phi = rnd ? 2 * Math.PI * rnd() : (2 * Math.PI * i) / n, t = 0.7 + (rnd ? 0.5 * rnd() : 0.2);
+      const off = unit(add(scale(basis[0], Math.cos(phi)), basis[1], Math.sin(phi)));
+      dir = unit(add(scale(toward, Math.cos(t)), off, Math.sin(t)));
+    }
+    const dist = i === 0 ? 26 : 34;
+    const at = H.walk(sp, dir, dist, A.R, []).xhat;
+    const face = unit(add(sp, at, -dot(sp, at)));
+    cyan.push(makeBike(at, face, A));
+    orange.push(makeBike(mirror(at), mirror(face), A));
+  }
+  return { ball, cyan, orange };
+}
+
+/** Bikes bump: two bodies closer than twice the radius are pushed apart along the floor, and slowed. */
+export function bump(a, b, A = ARENA) {
+  const ca = bikeBody(a, A), cb = bikeBody(b, A), d = add(cb, ca, -1), dist = norm(d), min = 2 * A.bike.r;
+  if (dist >= min || dist < 1e-9) return false;
+  const n = scale(d, 1 / dist), push = (min - dist) / 2;
+  for (const [k, sgn] of [[a, -1], [b, 1]]) {
+    const xh = unit(k.x), m = add(n, xh, -dot(n, xh));
+    if (norm(m) > 1e-9) { const w = H.walk(xh, unit(m), sgn * push, A.R, [k.F, k.Rt, k.N]); if (k.ground) { k.x = scale(w.xhat, A.R); [k.F, k.Rt, k.N] = w.vectors; } }
+    if (k.ground) k.speed *= 0.8;
+  }
+  return true;
+}
+
+// ------------------------------------------------------------------ the bots --
+/** How good the bots are: how often they rethink (s), how much of the throttle and boost they use, whether they jump
+ *  for high balls, and how far off their aim wanders (m). */
+export const SKILL = {
+  easy: { think: 0.35, throttle: 0.72, boost: 0, jump: false, wobble: 2.5 },
+  normal: { think: 0.18, throttle: 0.9, boost: 0.5, jump: true, wobble: 1.0 },
+  hard: { think: 0.08, throttle: 1, boost: 1, jump: true, wobble: 0.3 },
+};
+
+/** Who does what in a team: the one who'd reach the ball first attacks, the rest defend. bikes is the team's list;
+ *  returns their roles in order. */
+export function roles(bikes, ball, mode, A = ARENA) {
+  if (bikes.length === 1) return ['attack'];
+  const time = bikes.map((k) => { const it = intercept(k, ball, mode, Math.max(9, Math.abs(k.speed)), A, 4, 1 / 15); return it ? it.t : 9; });
+  const first = time.indexOf(Math.min(...time));
+  return bikes.map((_, i) => (i === first ? 'attack' : 'defend'));
+}
+
+/**
+ * A bot's next input. brain persists between calls (its target and the time to rethink). team is 'cyan' or 'orange';
+ * role 'attack' (meet the ball from behind, on the line to their goal; go round the ball if it's between you and that
+ * point; drive through it once lined up; boost when far and facing it; jump at a high ball close by) or 'defend' (stand
+ * between the ball and your own goal, ten metres out, facing the ball, and clear it if it comes near).
+ */
+export function botInput(k, brain, team, role, ball, mode, skill, dt, rnd = Math.random, A = ARENA, others = []) {
+  const T = TEAMS[team], P = SKILL[skill] || SKILL.normal;
+  brain.t = (brain.t ?? 0) - dt;
+  brain.charge = Math.max(0, (brain.charge ?? 0) - dt);
+  const d = along(k.x, ball.x, A.R), ballH = height(ball.x, A.R) - A.ball.r;
+  // committed: having reached its spot (beside or behind the ball), it charges the ball for a moment, whoever's there
+  // charging: at the ball, and in the last few metres steer for their goal, so the hit goes there
+  if (role === 'attack' && brain.charge > 0) { brain.target = d < 5 && brain.aim ? brain.aim : scale(unit(ball.x), A.R); brain.t = 0.05; }
+  else if (role === 'attack' && brain.target && brain.spot && along(k.x, brain.target, A.R) < 2.5 && d < 12) {
+    brain.charge = 1.3; brain.side = null; brain.target = scale(unit(ball.x), A.R); brain.t = 0.05;
+  }
+  if ((brain.t <= 0 || !brain.target) && !(role === 'attack' && brain.charge > 0)) {
+    brain.t = P.think;
+    let target;
+    brain.spot = false;
+    if (role === 'attack') {
+      const it = intercept(k, ball, mode, Math.max(9, Math.abs(k.speed)), A, 4, 1 / 15);
+      const bf = unit(it.floor), xh = unit(k.x);
+      // aim somewhere across their goal's mouth, not its dead centre (re-picked now and then), so two bots don't mirror
+      if (!brain.aim || rnd() < 0.05) {
+        const g = unit(T.attack), r3 = [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5, rnd() - 0.5];
+        const t3 = add(r3, g, -dot(r3, g));
+        brain.aim = norm(t3) > 1e-6 ? scale(H.walk(g, unit(t3), (A.goal.r - 2) * rnd(), A.R, []).xhat, A.R) : scale(g, A.R);
+      }
+      const goalPt = brain.aim;
+      // would ramming the ball from here send it toward their goal? (the direction you'd arrive in, at the ball,
+      // against the ball's line to their goal)
+      const arrive = unit(add(scale(bf, dot(xh, bf)), xh, -1));                // at the ball, pointing away from you
+      const shot = approach(it.floor, A, 1, goalPt).dir;
+      // an opponent at the ball, on its far side: a 50/50. Swing out sideways (a direction across the line between
+      // you, ana and kata included: chosen once and kept) and come at the ball from there
+      const rival = others.filter((o) => o.team !== team).map((o) => o.k).sort((p, q) => along(p.x, ball.x, A.R) - along(q.x, ball.x, A.R))[0];
+      const contested = rival && along(rival.x, ball.x, A.R) < 7 && d < 14 && along(k.x, rival.x, A.R) > d;
+      if (contested && !brain.side) {
+        const line = unit(add(bf, xh, -dot(bf, xh))), r3 = [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5, rnd() - 0.5];
+        let side = add(add(r3, bf, -dot(r3, bf)), line, -dot(r3, line));
+        brain.side = norm(side) > 1e-6 ? unit(side) : k.Rt;
+      }
+      if (!contested) brain.side = null;
+      if (brain.side && d > 3.5) { target = scale(H.walk(bf, unit(add(brain.side, bf, -dot(brain.side, bf))), 6, A.R, []).xhat, A.R); brain.spot = true; }
+      // lined up well enough to score from here? On a three-dimensional floor a goal is a small ball of it: a shot must
+      // be right in two directions at once, to within about the goal's radius over its distance
+      else if (dot(arrive, shot) > Math.cos(Math.min(1.2, Math.atan((A.goal.r * 0.7) / Math.max(1, along(it.floor, goalPt, A.R)))))) target = it.floor;
+      else {
+        // no: come round behind it, from far enough back to turn in
+        const ap = approach(it.floor, A, 7, goalPt);
+        target = ap.point; brain.spot = true;
+        // the ball between you and that point: swing wide of it first
+        const b = unit(add(bf, xh, -dot(bf, xh))), p = unit(add(unit(ap.point), xh, -dot(unit(ap.point), xh)));
+        if (along(k.x, it.floor, A.R) < along(k.x, ap.point, A.R) && dot(b, p) > Math.cos(0.5)) {
+          let side = add(p, b, -dot(p, b));
+          side = norm(side) > 1e-6 ? unit(side) : k.Rt;
+          target = scale(H.walk(bf, side, 7, A.R, []).xhat, A.R);
+        }
+      }
+    } else {
+      const own = unit(T.defend), bh = unit(ball.x);
+      const from = Math.min(A.goal.r + 6, along(own, bh, A.R) * 0.5);
+      const dir = add(bh, own, -dot(bh, own));
+      target = norm(dir) > 1e-6 ? scale(H.walk(own, unit(dir), from, A.R, []).xhat, A.R) : scale(own, A.R);
+      // the ball close and you goal-side of it: clear it
+      if (d < 10 && along(k.x, own, A.R) < along(ball.x, own, A.R)) target = scale(unit(ball.x), A.R);
+    }
+    // a little wobble in the aim
+    if (P.wobble > 0) {
+      const xh = unit(target), w = unit(add([rnd() - 0.5, rnd() - 0.5, rnd() - 0.5, rnd() - 0.5], xh, -dot([rnd() - 0.5, rnd() - 0.5, rnd() - 0.5, rnd() - 0.5], xh)));
+      if (Number.isFinite(w[0])) target = scale(H.walk(xh, w, P.wobble * rnd(), A.R, []).xhat, A.R);
+    }
+    brain.target = target;
+  }
+  const st = steerToward(k, brain.target), dist = along(k.x, brain.target, A.R);
+  let throttle = P.throttle;
+  // brake for the turn: the circle that reaches the target from your heading has radius dist / (2 sin angle); the
+  // lean limit rides a circle of radius v²/(g tan φ), so go no faster than √(g tan φ · r)
+  const rNeed = st.angle > 0.05 ? dist / (2 * Math.sin(Math.min(st.angle, Math.PI / 2))) : Infinity;
+  const vMax = Math.max(3, Math.sqrt(A.g * Math.tan(A.bike.leanMax) * rNeed));
+  if (k.speed > vMax + 1) throttle = -1;
+  else if (k.speed > vMax) throttle = 0;
+  if (role === 'defend' && dist < 2.5) throttle = 0;                     // in position: wait
+  const boost = P.boost > 0 && k.ground && st.angle < 0.25 && dist > 14 && k.boost > 100 * (1 - P.boost) + 5;
+  const jump = P.jump && k.ground && ballH > 1.8 && ballH < 5 && d < 4 + Math.abs(k.speed) * 0.25 && st.angle < 0.6;
+  return { throttle, steer: st.steer, jump, jumpHeld: jump, boost };
+}
+
+/** Step a whole match on its own (no rendering): bikes { k, team, brain }, the ball; scores { cyan, orange }.
+ *  humanInput(k) gives the input for a human bike (null for bots). Returns 'cyan' or 'orange' when a goal goes in. */
+export function stepMatch(m, dt, mode, skill, rnd = Math.random, humanInput = null, A = ARENA) {
+  m.roleT = (m.roleT ?? 0) - dt;
+  if (m.roleT <= 0) {
+    m.roleT = 0.25;
+    for (const team of ['cyan', 'orange']) {
+      const mine = m.bikes.filter((b) => b.team === team);
+      roles(mine.map((b) => b.k), m.ball, mode, A).forEach((r, i) => { mine[i].role = r; });
+    }
+  }
+  for (const b of m.bikes) {
+    const input = b.human && humanInput ? humanInput(b.k) : botInput(b.k, b.brain, b.team, b.role || 'attack', m.ball, mode, skill, dt, rnd, A, m.bikes);
+    stepBike(b.k, input, dt, mode, A);
+  }
+  stepBall(m.ball, dt, mode, A);
+  let touched = null;
+  for (const b of m.bikes) if (collide(b.k, m.ball, A)) { touched = b; m.last = b; }
+  for (let i = 0; i < m.bikes.length; i++) for (let j = i + 1; j < m.bikes.length; j++) bump(m.bikes[i].k, m.bikes[j].k, A);
+  if (inGoal(m.ball.x, ENEMY, A)) return 'cyan';
+  if (inGoal(m.ball.x, OWN, A)) return 'orange';
+  return touched ? 'touch' : null;
+}
+/** A fresh match: n a side, the first cyan bike human if asked. */
+export function newMatch(n, A = ARENA, rnd = null, human = true) {
+  const ko = teamKickoff(n, A, rnd);
+  const bikes = [];
+  ko.cyan.forEach((k, i) => bikes.push({ k, team: 'cyan', brain: {}, human: human && i === 0, name: human && i === 0 ? 'you' : `cyan ${i + 1}` }));
+  ko.orange.forEach((k, i) => bikes.push({ k, team: 'orange', brain: {}, human: false, name: `orange ${i + 1}` }));
+  return { ball: ko.ball, bikes };
 }

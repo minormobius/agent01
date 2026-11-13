@@ -2,7 +2,8 @@
 import { readFileSync } from 'node:fs';
 import * as H from '../js/habitat.js';
 import { ARENA, OWN, ENEMY, SPOT, gravity, height, along, makeBall, stepBall, makeBike, stepBike, turnRate, bikeBody,
-  collide, inGoal, lockSlice, chaseCamera, intercept, steerToward, approach, kickoff, up } from '../js/arena.js';
+  collide, inGoal, lockSlice, chaseCamera, intercept, steerToward, approach, kickoff, up,
+  TEAMS, mirror, teamKickoff, bump, roles, botInput, stepMatch, newMatch } from '../js/arena.js';
 
 let fails = 0, passes = 0;
 const ok = (cond, msg) => { if (cond) passes++; else { fails++; console.error('✗ ' + msg); } };
@@ -191,6 +192,54 @@ const none = { throttle: 0, steer: [0, 0], jump: false, jumpHeld: false, boost: 
     ok(closest < A.ball.r + A.bike.r + 0.5, `(${ballCam ? 'ball cam' : 'ahead'}) the run reaches the ball (closest ${closest.toFixed(1)} m)`);
     ok(worst < (110 / 120) * Math.PI / 180, `(${ballCam ? 'ball cam' : 'ahead'}) the camera never turns more than 110°/s: worst ${(worst * 120 * 180 / Math.PI).toFixed(0)}°/s`);
     ok(bikeWorst <= 0.5 + 0.15, `(${ballCam ? 'ball cam' : 'ahead'}) the bike stays in view: at most ${(bikeWorst * 180 / Math.PI).toFixed(0)}° off the camera's centre`);
+  }
+}
+
+// --- teams: the kickoff is fair (orange's bikes are cyan's mirrored: the same distances to the ball and to their own
+//     goals); bikes bump apart
+{
+  let seed = 11; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const ko = teamKickoff(3, A, rnd);
+  let fair = true;
+  ko.cyan.forEach((c, i) => { const o = ko.orange[i];
+    if (Math.abs(along(c.x, ko.ball.x) - along(o.x, ko.ball.x)) > 1e-9 || Math.abs(along(c.x, OWN) - along(o.x, ENEMY)) > 1e-9) fair = false; });
+  ok(fair && ko.cyan.every((c) => along(c.x, OWN) < along(c.x, ENEMY)), 'team kickoff: each side on its own half, orange the mirror of cyan, the same distances');
+  const a = makeBike(SPOT, [0, 1, 0, 0]), b = makeBike(H.walk(H.unit(SPOT), [0, 1, 0, 0], 1.2, R, []).xhat, [0, 1, 0, 0]);
+  ok(bump(a, b) && H.norm(H.add(bikeBody(a), bikeBody(b), -1)) >= 2 * A.bike.r - 0.05, 'two bikes 1.2 m apart bump to 2 m apart (to within the floor\'s curve)');
+}
+
+// --- the bots play. A single bot attacking an empty arena scores in their goal, not its own, from most kickoffs; and
+//     a 2v2 of bots plays a whole match: goals both ways, few own goals, everyone in the arena, nothing NaN
+{
+  let seed = 5; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  let scored = 0, own = 0;
+  const trials = 8;
+  for (let t = 0; t < trials; t++) {
+    const m = newMatch(1, A, rnd, false);
+    m.bikes = m.bikes.filter((b) => b.team === 'cyan');
+    for (let i = 0; i < 120 * 40; i++) {
+      const r = stepMatch(m, 1 / 120, 'arcade', 'normal', rnd);
+      if (r === 'cyan') { scored++; break; } if (r === 'orange') { own++; break; }
+    }
+  }
+  ok(scored >= trials * 0.75 && own === 0, `one bot, empty arena: scores in their goal in ${scored} of ${trials} kickoffs within 40 s, ${own} own goals`);
+  for (const [n, secs] of [[2, 600]]) {
+    let m = newMatch(n, A, rnd, false);
+    const goals = { cyan: 0, orange: 0 }, last = { cyan: 0, orange: 0 };
+    let bad = false, touches = 0, ownGoals = 0;
+    for (let i = 0; i < 120 * secs; i++) {
+      const r = stepMatch(m, 1 / 120, 'arcade', 'normal', rnd);
+      if (r === 'touch') touches++;
+      if (r === 'cyan' || r === 'orange') {
+        goals[r]++;
+        if (m.last && m.last.team !== r) ownGoals++;
+        m = newMatch(n, A, rnd, false);
+      }
+      if (i % 120 === 0) for (const b of m.bikes) if (!b.k.x.every(Number.isFinite) || H.norm(b.k.x) > R + 1e-6) bad = true;
+    }
+    ok(!bad, `${n}v${n} bots, ${secs} s: every bike finite and inside the arena throughout`);
+    ok(goals.cyan + goals.orange >= 4 && goals.cyan > 0 && goals.orange > 0, `${n}v${n} bots, ${secs} s: ${goals.cyan}–${goals.orange}, both sides scoring`);
+    ok(ownGoals <= Math.max(1, 0.5 * (goals.cyan + goals.orange)), `${n}v${n} bots: ${ownGoals} of ${goals.cyan + goals.orange} goals last touched by the side that conceded (deflections count)`);
   }
 }
 
