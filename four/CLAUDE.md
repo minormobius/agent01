@@ -1169,6 +1169,9 @@ nothing. The sandbox can't reach Cloudflare, so push to deploy, never `wrangler 
 **A run that fails with no jobs at all** (every workflow on the push red within a minute) is GitHub Actions not
 starting, not the code (2026-11-09, 18:10–22:50 UTC). Sessions here can't re-run or dispatch a workflow (403), and an
 empty commit doesn't match `paths:`, so redeploy by pushing a real change under `four/` once Actions runs again.
+**A run red at `wrangler deploy` with Cloudflare's code 10013** ("an unknown error", on `/workers/scripts/four/versions`,
+after every asset uploaded) is Cloudflare's, not the change (2026-11-13, 15:23 UTC): nothing went live, so the site keeps
+the previous version. The same remedy applies: the next real change under `four/` redeploys everything.
 
 **Old links:** `games.mino.mobi/atom4/…`, `/lumen4/…` and `/iris4/…` redirect (301) here, to `/atom/…`, `/lumen/…`
 and `/iris/…`, from `games/worker.js`.
