@@ -259,6 +259,18 @@
       "d": "Find your tightest circle. The largest group of your follows who all mutually follow each other."
     },
     {
+      "n": "kith",
+      "u": "https://mino.mobi/kith/",
+      "c": "bluesky",
+      "k": 10,
+      "a": "hot",
+      "t": "2026-11-13",
+      "b": "2026-11-13",
+      "p": "cluster",
+      "surface": "root",
+      "d": "The communities inside a crowd. Give it a Bluesky list or a handle's mutuals; it finds the groups, measures how tight each is against a random graph, shows how the confederation splits as you ask for finer resolution, and names the people who bridge them."
+    },
+    {
       "n": "wild",
       "u": "https://mino.mobi/wild/",
       "c": "bluesky",

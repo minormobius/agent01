@@ -2048,7 +2048,7 @@ footer a:hover {
 
       const rkey = listUri.split('/').pop();
       const listUrl = `https://bsky.app/profile/${encodeURIComponent(authUser.handle)}/lists/${rkey}`;
-      statusEl.innerHTML = `done \u00b7 ${allDids.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a>`;
+      statusEl.innerHTML = `done \u00b7 ${allDids.length} members \u00b7 <a href="${listUrl}" target="_blank" rel="noopener" style="color:var(--link)">view list</a> \u00b7 <a href="/kith/?list=${encodeURIComponent(listUri)}" style="color:var(--link)">find its communities in kith</a>`;
 
     } catch (err) {
       statusEl.textContent = `error: ${err.message}`;

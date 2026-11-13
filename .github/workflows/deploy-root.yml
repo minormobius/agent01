@@ -82,6 +82,8 @@ on:
       - 'packages/music/**'
       # static subsites still bundled under root (carve out as they encapsulate):
       - 'cluster/**'
+      # kith: community detection over a list or a handle's mutuals (cluster's sibling)
+      - 'kith/**'
       - 'density/**'
       - 'echo/**'
       - 'judge/**'

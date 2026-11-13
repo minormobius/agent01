@@ -176,6 +176,15 @@
    "parent": null
   },
   {
+   "id": "kith",
+   "name": "kith",
+   "url": "https://mino.mobi/kith/",
+   "cat": "bluesky",
+   "commits": 10,
+   "age": "hot",
+   "parent": "cluster"
+  },
+  {
    "id": "wild",
    "name": "wild",
    "url": "https://mino.mobi/wild/",

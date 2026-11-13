@@ -135,7 +135,9 @@
         "next/**",
         "archive/**",
         "mino.css",
-        "eigensite/**"
+        "eigensite/**",
+        "cluster/**",
+        "kith/**"
       ]
     },
     {

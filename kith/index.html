@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kith — the communities inside a Bluesky crowd</title>
+<meta name="description" content="Community detection on a Bluesky list or an account's mutuals: who clusters with whom, how tight each group is, how it splits into smaller groups, and who bridges them. Measured against a random graph with the same degrees, so a loose crowd is never dressed up as structure.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="kith — the communities inside a Bluesky crowd">
+<meta property="og:description" content="Who clusters with whom, how tight, and who holds the confederation together.">
+<meta property="og:url" content="https://mino.mobi/kith/">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fcfcfb; --paper: #ffffff; --text: #0b0b0b; --text-2: #52514e; --muted: #7b7a75;
+  --rule: #dcdbd6; --rule-2: #ecebe7; --accent: #2a78d6; --accent-ink: #ffffff; --accent-faint: rgba(42,120,214,.10);
+  --warn: #b4472e; --good: #2e7d4f;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948; --s-other: #a9a8a2;
+  --edge: rgba(40,40,38,.10); --edge-hot: rgba(11,11,11,.55);
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --paper: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8e86;
+    --rule: #34342f; --rule-2: #262624; --accent: #3987e5; --accent-ink: #0b0b0b; --accent-faint: rgba(57,135,229,.14);
+    --warn: #e08b6f; --good: #6fd0a0;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-other: #5f5e58;
+    --edge: rgba(240,239,236,.08); --edge-hot: rgba(240,239,236,.6);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --paper: #1a1a19; --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8e86;
+  --rule: #34342f; --rule-2: #262624; --accent: #3987e5; --accent-ink: #0b0b0b; --accent-faint: rgba(57,135,229,.14);
+  --warn: #e08b6f; --good: #6fd0a0;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767; --s-other: #5f5e58;
+  --edge: rgba(240,239,236,.08); --edge-hot: rgba(240,239,236,.6);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); line-height: 1.6;
+       -webkit-font-smoothing: antialiased; max-width: 1080px; margin: 0 auto; padding: 2.2rem 16px 6rem; }
+a { color: var(--accent); }
+.crumb { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+         color: var(--muted); text-decoration: none; margin-right: 1rem; }
+.crumb:hover { color: var(--accent); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.05; margin-top: 1.2rem; }
+h2 { font-size: 1.35rem; font-weight: 600; margin: 2.6rem 0 .3rem; }
+h2 + .note { margin-top: 0; }
+.tagline { font-family: var(--mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-top: .5rem; }
+.lede { font-size: 1.02rem; color: var(--text-2); margin-top: 1.1rem; max-width: 68ch; }
+.lede b { color: var(--text); font-weight: 600; }
+.note { font-size: .92rem; color: var(--text-2); max-width: 72ch; margin: .4rem 0 .8rem; }
+.mono { font-family: var(--mono); }
+
+form { margin: 1.8rem 0 .6rem; display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+input[type=text] { flex: 1 1 280px; min-width: 0; font-family: var(--mono); font-size: .92rem; padding: .7rem .85rem;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--text); }
+input[type=text]:focus { outline: none; border-color: var(--accent); }
+button { font-family: var(--mono); font-size: .78rem; letter-spacing: .04em; padding: .7rem 1.1rem;
+  border: 1px solid var(--accent); border-radius: 6px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+button:hover { opacity: .88; } button:disabled { opacity: .4; cursor: default; }
+button.ghost { background: none; color: var(--accent); }
+button.small { padding: .35rem .65rem; font-size: .7rem; }
+.hidden { display: none !important; }
+
+.opts { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; align-items: center; font-family: var(--mono); font-size: .74rem; color: var(--text-2); margin: .4rem 0 .2rem; }
+.opts label { display: inline-flex; gap: .4rem; align-items: center; cursor: pointer; }
+.opts select { font-family: var(--mono); font-size: .74rem; background: var(--paper); color: var(--text); border: 1px solid var(--rule); border-radius: 5px; padding: .25rem .4rem; }
+
+.picker { display: flex; flex-wrap: wrap; gap: .45rem; margin: .8rem 0; }
+.chip { font-family: var(--mono); font-size: .74rem; padding: .4rem .7rem; border: 1px solid var(--rule); border-radius: 999px;
+        background: var(--paper); color: var(--text); cursor: pointer; }
+.chip:hover { border-color: var(--accent); }
+.chip small { color: var(--muted); margin-left: .3rem; }
+.chip.all { border-style: dashed; }
+
+.status { font-family: var(--mono); font-size: .76rem; color: var(--text-2); min-height: 1.3rem; margin-top: .6rem; }
+.status.err { color: var(--warn); }
+.bar { height: 3px; background: var(--rule-2); border-radius: 2px; overflow: hidden; margin: .4rem 0 1rem; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+
+.crumbs { overflow-wrap: anywhere; font-family: var(--mono); font-size: .76rem; color: var(--text-2); margin: 1.6rem 0 .4rem; display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.crumbs a { cursor: pointer; text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+
+.verdict { border-left: 3px solid var(--accent); padding: .35rem 0 .35rem 1rem; margin: 1rem 0 1.2rem; font-size: 1.02rem; max-width: 74ch; }
+.verdict b { font-weight: 600; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: .7rem; margin: 1rem 0; }
+.tile { border: 1px solid var(--rule); border-radius: 8px; padding: .7rem .85rem; background: var(--paper); }
+.tile .v { font-family: var(--mono); font-size: 1.45rem; font-weight: 700; line-height: 1.1; }
+.tile .v small { font-size: .75rem; font-weight: 400; color: var(--muted); }
+.tile .l { font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: .3rem; }
+
+.gamma { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; font-family: var(--mono); font-size: .76rem; color: var(--text-2); margin: .6rem 0; }
+.gamma input[type=range] { flex: 1 1 220px; accent-color: var(--accent); }
+.gamma output { font-weight: 700; color: var(--text); min-width: 3.2em; }
+
+.panel { border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); position: relative; overflow: hidden; }
+.views { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+@media (min-width: 900px) { .views { grid-template-columns: 3fr 2fr; } }
+canvas { display: block; width: 100%; touch-action: none; }
+.panel .cap { font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+              padding: .55rem .8rem 0; }
+.legend { display: flex; flex-wrap: wrap; gap: .35rem .9rem; font-family: var(--mono); font-size: .7rem; color: var(--text-2); padding: .5rem .8rem .7rem; }
+.legend span { display: inline-flex; align-items: center; gap: .35rem; }
+.sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--paper); color: var(--text); border: 1px solid var(--rule);
+       border-radius: 6px; padding: .45rem .6rem; font-family: var(--mono); font-size: .7rem; line-height: 1.45;
+       box-shadow: 0 6px 20px -8px rgba(0,0,0,.35); max-width: 280px; }
+.tip b { font-weight: 700; }
+.tip .mu { color: var(--muted); }
+
+.comms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: .9rem; margin-top: .8rem; }
+.comm { border: 1px solid var(--rule); border-radius: 10px; padding: .85rem .95rem; background: var(--paper); }
+.comm h3 { font-size: 1.02rem; font-weight: 600; display: flex; align-items: center; gap: .5rem; }
+.comm h3 .n { font-family: var(--mono); font-size: .72rem; font-weight: 400; color: var(--muted); margin-left: auto; }
+.comm .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem .6rem; margin: .65rem 0; }
+.comm .metrics div { font-family: var(--mono); }
+.comm .metrics .v { font-size: .95rem; font-weight: 700; }
+.comm .metrics .l { font-size: .56rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.meter { height: 4px; border-radius: 2px; background: var(--rule-2); margin-top: .2rem; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--text-2); border-radius: 2px; }
+.faces { display: flex; flex-wrap: wrap; gap: 3px; margin: .4rem 0; }
+.faces a { display: block; width: 26px; height: 26px; border-radius: 50%; overflow: hidden; background: var(--rule-2); }
+.faces img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.comm { min-width: 0; }
+.comm .sub { font-family: var(--mono); font-size: .68rem; color: var(--text-2); margin-top: .35rem; overflow-wrap: anywhere; }
+.comm .sub a { text-decoration: none; }
+.comm .acts { display: flex; gap: .4rem; margin-top: .6rem; }
+
+table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: .72rem; margin-top: .6rem; }
+th, td { text-align: left; padding: .38rem .45rem; border-bottom: 1px solid var(--rule-2); white-space: nowrap; }
+th { font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); cursor: pointer; user-select: none; }
+th.num, td.num { text-align: right; }
+td a { text-decoration: none; }
+.tablewrap { overflow-x: auto; }
+.glossary { font-size: .88rem; color: var(--text-2); max-width: 74ch; }
+.glossary dt { font-family: var(--mono); font-size: .74rem; color: var(--text); margin-top: .7rem; }
+.glossary dd { margin-left: 0; }
+footer { margin-top: 4rem; font-family: var(--mono); font-size: .68rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<a class="crumb" href="/">mino.mobi</a><a class="crumb" href="/cluster/">cluster</a><a class="crumb" href="https://b.mino.mobi/knot/">knot</a>
+
+<h1>kith</h1>
+<div class="tagline">the communities inside a crowd</div>
+<p class="lede">
+  Give it a Bluesky list, or a handle to use their mutuals. It reads every member's follows,
+  keeps the <b>mutual</b> ties, and splits the crowd into communities, the groups whose ties fall inside
+  more than chance would put them. Then it measures <b>how tight</b> each one is, shows how the loose
+  confederation <b>breaks into smaller groups</b> as you ask for finer resolution, and names the people
+  who <b>bridge</b> them. Every result is set against a random graph with the same degrees, so a
+  well-mixed crowd is reported as one.
+</p>
+
+<form id="f">
+  <input type="text" id="q" placeholder="handle, or a bsky.app list link" autocomplete="off" spellcheck="false" data-bsky-typeahead>
+  <button id="go" type="submit">read</button>
+  <button id="stop" type="button" class="ghost hidden">stop &amp; analyse what's read</button>
+</form>
+<div class="opts">
+  <label>ties <select id="mode"><option value="mutual">mutual follows</option><option value="any">any follow (one-way = ½)</option></select></label>
+  <label><input type="checkbox" id="noEgo" checked> leave out the list's owner</label>
+</div>
+<div id="picker" class="picker hidden"></div>
+<div id="status" class="status"></div>
+<div class="bar"><i id="prog"></i></div>
+
+<section id="out" class="hidden">
+  <div id="crumbs" class="crumbs"></div>
+  <div id="verdict" class="verdict"></div>
+  <div id="tiles" class="tiles"></div>
+
+  <div class="gamma">
+    <span>resolution γ</span>
+    <input type="range" id="gamma" min="0" max="9" step="1" value="4" aria-label="resolution">
+    <output id="gammaOut">1.0</output>
+    <span id="gammaHint" class="mu"></span>
+  </div>
+
+  <div class="views">
+    <div class="panel">
+      <div class="cap">the map: people placed by their ties, coloured by community</div>
+      <canvas id="map" height="560" aria-label="network map"></canvas>
+      <div id="legend" class="legend"></div>
+    </div>
+    <div class="panel">
+      <div class="cap">the matrix: every mutual tie, people grouped by community</div>
+      <canvas id="matrix" height="560" aria-label="adjacency matrix"></canvas>
+      <div class="legend"><span>solid blocks on the diagonal are tight groups · speckle off the diagonal is bridging</span></div>
+    </div>
+  </div>
+
+  <h2>Communities</h2>
+  <p class="note">Ordered by size. <b>Density</b> is the share of possible ties inside that exist.
+    <b>Lift</b> is that density over the whole crowd's. <b>Cohesion</b> is the average share of a member's ties that stay inside.
+    <b>Leak</b> (conductance) is the share of the group's ties that go out. Zoom in to split one community on its own.</p>
+  <div id="comms" class="comms"></div>
+
+  <h2>How it splits</h2>
+  <p class="note">The same people at ten resolutions, coarse on the left and fine on the right. Each bar is one resolution and
+    each segment one community there. A segment takes the colour of the community (at the γ you picked) that most of its people
+    belong to, so a colour breaking into several segments is a community separating into the groups inside it.</p>
+  <div class="panel"><canvas id="sweep" height="300" aria-label="resolution sweep"></canvas>
+    <div id="sweepNote" class="legend"></div></div>
+
+  <h2>People</h2>
+  <p class="note"><b>Role</b> follows Guimerà &amp; Amaral: an <b>anchor</b> has far more ties inside than its community's average;
+    a <b>bridge</b> spreads its ties across communities (participation ≥ 0.5); a <b>broker</b> is both; <b>inner</b> has almost every tie inside.
+    <b>Stability</b> is how consistently that person lands in the same group across 16 runs.</p>
+  <div class="tablewrap"><table id="people"></table></div>
+  <div style="margin-top:.6rem"><button id="more" class="ghost small hidden">show everyone</button></div>
+
+  <h2>Reading the numbers</h2>
+  <dl class="glossary">
+    <dt>modularity Q</dt><dd>How much more often ties fall inside communities than they would at random, given everyone's degree. Around 0.3 and up is clear structure.</dd>
+    <dt>random Q</dt><dd>Louvain finds some communities even in a random graph. This is the Q it reaches on the same people with every tie rewired at random, degrees kept. Only the excess over it is real structure.</dd>
+    <dt>agreement</dt><dd>Adjusted Rand index between the best run and the other 15. Near 1: the boundaries are real. Below ~0.6: the groups are one arbitrary cut through an evenly connected crowd, and their exact borders should not be trusted.</dd>
+    <dt>resolution γ</dt><dd>γ &lt; 1 merges toward a few broad blocs; γ &gt; 1 splits toward many tight cliques. No setting is the true one. A community that survives a wide range of γ is a robust one.</dd>
+    <dt>k-core</dt><dd>The largest k such that some members each have at least k ties among themselves. A 12-core inside a group of 30 is a dense heart.</dd>
+  </dl>
+</section>
+
+<footer>kith reads public follow records straight from each member's repo (no sign-in, nothing stored but a 6-hour cache in your browser) · method: Louvain with a connectivity split, best of 16 seeds, degree-preserving null · <a href="https://github.com/minormobius/agent01/tree/main/kith">source</a></footer>
+
+<div id="tip" class="tip hidden"></div>
+<script src="/js/typeahead.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
