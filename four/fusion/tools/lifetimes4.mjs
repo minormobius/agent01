@@ -7,8 +7,12 @@
      · that star's centre burnt through the network to the end of its hydrogen at its own T and ρ (the run windows4 does
        at the convention's temperature and the network's reference density): helium, helium-3 or past helium
      · the longest-lived star computed and the most massive one that still halves its core in 4.6 Gyr
+   Ours as the calibration (OURS=<our zero-age sequence, mainseq.mjs ours → ours.json>): the book's own zero-age Sun's centre
+   burnt by REACLIB (fusion/js/net.js) at fixed T and ρ halves its hydrogen in t½,⊙ (11 Gyr), where the real Sun's centre
+   took about 4.6, because a core heats and compresses as it burns. So beside the 4.6-Gyr star each sequence also names
+   the star whose zero-age core t½ is t½,⊙: our Sun's analogue if 4D cores evolve as ours do (declared).
    Writes papers/p2/data/lifetimes.json.
-     node four/fusion/tools/lifetimes4.mjs <dir of net-*.json> [ALT=<a copy of four/ baked under MASS=grid>] */
+     node four/fusion/tools/lifetimes4.mjs <dir of net-*.json>   [ALT=<a copy of four/ baked under MASS=grid>] [OURS=<ours.json>] */
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { logRate, KB_MEV, gamow } from "../../atom/js/stars.js";
 
@@ -38,21 +42,29 @@ async function burn(mass, s, T, rho) {
   return { kind, he4: +he4.toFixed(3), he3: +he3.toFixed(3), past: +past.toFixed(3), top, t: r.t / GYR };
 }
 
+// ours: the zero-age Sun's centre (1 M☉, interpolated in ln M) and its core half-life by REACLIB at fixed T, ρ
+let ours = null;
+if (process.env.OURS) { const O = JSON.parse(readFileSync(process.env.OURS, "utf8")).sort((a, b) => a.m - b.m), { rhoOf } = await import("../../atom/js/mainseq.js"), N3 = await import("../js/net.js");
+  const i = O.findIndex((r) => r.m >= 1), a = O[i - 1], b = O[i], w = Math.log(1 / a.m) / Math.log(b.m / a.m), li = (x, y) => Math.exp(Math.log(x) * (1 - w) + Math.log(y) * w);
+  const Tc = li(a.Tc, b.Tc), Pc = li(a.Pc, b.Pc), rho = rhoOf(3, Pc, Tc, { X: 0.7, Y: 0.28, Z: 0.02 }) / 1000, t = N3.run({ T: Tc, rho, X0: N3.SUN_X, fuel: "p", until: 0.5, tmax: 1e20, maxSteps: 6000 }).t / GYR;
+  ours = { Tc, rho_gcc: rho, L: li(a.L, b.L), thGyr: t }; console.log(`ours: the zero-age Sun's centre ${(Tc / 1e6).toFixed(2)} MK, ${rho.toFixed(1)} g/cm³: core t½ ${t.toFixed(2)} Gyr at fixed T, ρ (the real centre: ~4.6)`); }
+const PACE2 = ours ? ours.thGyr * GYR : null;
 const files = readdirSync(dir).filter((f) => /^net-.*\.json$/.test(f)), out = [];
 for (const f of files) {
   const R = JSON.parse(readFileSync(`${dir}/${f}`, "utf8")); if (!R.rows?.length) { out.push({ G: R.Grel, s: R.s, mass: R.mass, fail: R.fail ?? "no stars" }); continue; }
   const rows = R.rows.filter((r) => r.th != null).sort((a, b) => a.m - b.m), longest = R.rows.reduce((a, b) => ((b.th ?? Infinity) > (a.th ?? Infinity) ? b : a));
   // the pace star: t½ falls with mass, so find the pair that brackets 4.6 Gyr
-  let pace = null; for (let i = 0; i + 1 < rows.length; i++) { const a = rows[i], b = rows[i + 1];
-    if ((a.th - PACE) * (b.th - PACE) <= 0) { const w = Math.log(PACE / a.th) / Math.log(b.th / a.th), li = (x, y) => Math.exp(Math.log(x) * (1 - w) + Math.log(y) * w);
-      pace = { m: li(a.m, b.m), Tc: li(a.Tc, b.Tc), rhoc: li(a.rhoc, b.rhoc), L: li(a.L, b.L), Teff: li(a.Teff, b.Teff), R: li(a.R, b.R) }; break; } }
-  if (pace) pace.burn = await burn(R.mass, R.s, pace.Tc, pace.rhoc);
+  const at = (P) => { for (let i = 0; i + 1 < rows.length; i++) { const a = rows[i], b = rows[i + 1];
+    if ((a.th - P) * (b.th - P) <= 0) { const w = Math.log(P / a.th) / Math.log(b.th / a.th), li = (x, y) => Math.exp(Math.log(x) * (1 - w) + Math.log(y) * w);
+      return { m: li(a.m, b.m), Tc: li(a.Tc, b.Tc), rhoc: li(a.rhoc, b.rhoc), L: li(a.L, b.L), Teff: li(a.Teff, b.Teff), R: li(a.R, b.R) }; } } return null; };
+  const pace = at(PACE), sun = PACE2 ? at(PACE2) : null;
+  if (pace) pace.burn = await burn(R.mass, R.s, pace.Tc, pace.rhoc); if (sun) sun.burn = await burn(R.mass, R.s, sun.Tc, sun.rhoc);
   const e = { G: R.Grel, s: R.s, mass: R.mass, ff: R.ff, Mch: R.Mch, stars: R.rows.map((r) => ({ m: r.m, Tc: r.Tc, rhoc: r.rhoc, L: r.L, Teff: r.Teff, thGyr: r.th == null ? null : r.th / GYR })),
-    pace, longest: { m: longest.m, thGyr: longest.th == null ? null : longest.th / GYR }, mMin: R.rows[0].m, mMax: R.rows.at(-1).m };
+    pace, sun, longest: { m: longest.m, thGyr: longest.th == null ? null : longest.th / GYR }, mMin: R.rows[0].m, mMax: R.rows.at(-1).m };
   out.push(e);
-  console.log(`G ${R.Grel} s ${R.s} ${R.mass}: ${R.rows.length} stars ${e.mMin}–${e.mMax} M_Ch; ${pace ? `4.6-Gyr core at ${pace.m.toFixed(2)} M_Ch, ${(pace.Tc / 1e6).toFixed(1)} MK, ρ ${pace.rhoc.toExponential(1)} kg/m⁴, Teff ${pace.Teff.toFixed(0)} K → ${pace.burn?.kind ?? "?"} ${pace.burn ? JSON.stringify(pace.burn.top) : ""}` : "no star's core halves in 4.6 Gyr in the range computed"}`);
+  console.log(`G ${R.Grel} s ${R.s} ${R.mass}: ${R.rows.length} stars ${e.mMin}–${e.mMax} M_Ch; ${sun ? `Sun analogue (t½ ${ours.thGyr.toFixed(1)} Gyr) ${sun.m.toFixed(2)} M_Ch, ${(sun.Tc / 1e6).toFixed(1)} MK → ${sun.burn?.kind ?? "?"}; ` : ""}${pace ? `4.6-Gyr core at ${pace.m.toFixed(2)} M_Ch, ${(pace.Tc / 1e6).toFixed(1)} MK, ρ ${pace.rhoc.toExponential(1)} kg/m⁴, Teff ${pace.Teff.toFixed(0)} K → ${pace.burn?.kind ?? "?"} ${pace.burn ? JSON.stringify(pace.burn.top) : ""}` : "no star's core halves in 4.6 Gyr in the range computed"}`);
 }
 out.sort((a, b) => b.G - a.G || a.s - b.s || String(a.mass).localeCompare(String(b.mass)));
 mkdirSync(new URL("../../papers/p2/data/", import.meta.url), { recursive: true });
-writeFileSync(new URL("../../papers/p2/data/lifetimes.json", import.meta.url), JSON.stringify({ about: "fusion/tools/lifetimes4.mjs: 4D main sequences burning by the network (mainseq.mjs net), per G, s, mass model: each star's core hydrogen half-life; the star whose core halves in 4.6 Gyr, and what its centre burns to at its own T and rho", runs: out }));
+writeFileSync(new URL("../../papers/p2/data/lifetimes.json", import.meta.url), JSON.stringify({ about: "fusion/tools/lifetimes4.mjs: 4D main sequences burning by the network (mainseq.mjs net), per G, s, mass model: each star's core hydrogen half-life at fixed central T and rho; the star whose core halves in 4.6 Gyr (pace) and the one whose zero-age core t_half equals our zero-age Sun's (sun, ours.thGyr: the analogue if 4D cores evolve as ours), and what each centre burns to at its own T and rho", ours, runs: out }));
 console.log(`wrote papers/p2/data/lifetimes.json (${out.length} sequences)`);
