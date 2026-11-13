@@ -56,3 +56,11 @@ figures from CAD⁴, credited.
 
 As P1: Claude (computation, code, analysis, drafting), an independent auditor to be found, and minor mobius last
 (direction, judgement, PI). arXiv does not accept AI authors: there, a contribution statement and the PI's byline.
+
+## Sensitivity (2026-11-13)
+
+The ranking survives halving and doubling every chosen dial (PULL README § Does the ranking survive the dials?): hose
+1.12–1.28, hoops 0.91–1.07 either side of a ribbon alone, braids 0.66–0.81, loose 0.71. The paper may claim the order.
+It may not quote yarn on a ribbon as a number (0.35–0.77, two rows unconverged): only that it holds and is worth less
+than its ribbon. Still owed: the press measured rather than assumed (hose and braid in the bead rig), which would
+replace HOOP and tan²θ; then the bundle-size study.

@@ -170,6 +170,34 @@ meet at crossings; the braid is laid with the same 5% set as the yarns (with non
 does not converge); 50° is left out because some of its solves did not converge. Nothing here knows the strands are
 hoses rather than threads except the geometry that lets them be braided at all.
 
+## Does the ranking survive the dials?
+
+Three numbers in the bench are chosen, not measured: how hard a hose or hoop is stressed (HOOP, half its strength),
+the tension a yarn or braid is laid with (the set, 5%), and friction (μ, 0.3). `node kata/pull/sens.mjs` pulls each
+configuration at half and double each dial that touches it, re-tuned to its best thickness or angle each time
+(60 pulls a tuning, `data/sens.json`). Strength per weight, all weight counted:
+
+| rope | as published | lowest | highest | what moves it |
+|---|---|---|---|---|
+| filaments in a hose | 1.21 | 1.12 | 1.28 | HOOP or μ |
+| short fibres in a hose | 1.11 | 1.06* | 1.20 | HOOP or μ |
+| a ribbon alone | 1.00 | | | nothing |
+| filaments in hoops | 1.00 | 0.91 | 1.07 | HOOP or μ |
+| plait of three hoses | 0.77 | 0.77 | 0.81 | μ; the set hardly |
+| maypole | 0.76 | 0.66 | 0.81 | μ; the set hardly |
+| filaments, loose | 0.71 | | | nothing |
+| yarn on a ribbon, hard | 0.54 | 0.35* | 0.77 | the set and μ, strongly |
+
+\* a row with an unconverged solve; not to be quoted.
+
+- **The order holds.** A hose beats everything at every setting. Hoops sit level with a ribbon alone, either side of
+  it. Braids stay below both, and round about the loose bundle: at half friction the maypole (0.66) is under it.
+- **HOOP and μ are one dial.** Only their product enters, so their rows are identical. Halving it costs a hose 8%.
+- **The braids don't care about the set** (0.75–0.77 for the maypole from 2% to 10%). They need some, not a particular amount.
+- **Yarn on a ribbon is the one row that cannot be quoted as a number.** It runs from 0.35 to 0.77 with the dials, and
+  two of its rows did not converge. What survives is the order: it holds, and it is worth less than the ribbon it is spun on.
+- The best thickness moves with the dial (hoops: τ 0.05 → 0.1 at double; short fibres in a hose: 0.1 → 0.2 at half).
+
 ## Cabling
 
 `node kata/pull/cable.mjs` (`data/cable.json`, 40 pulls a cell). Thirteen ropes in a sheath, then thirteen of

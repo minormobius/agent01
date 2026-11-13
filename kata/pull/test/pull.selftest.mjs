@@ -33,5 +33,9 @@ const sp = Object.fromEntries(SPECIES.map((s) => [s.id, s])), ST = Object.fromEn
   const m = row("maypole", 30), l = row("loose 7", 0), sv = row("served", 30);
   ok(m.mean > l.mean * 1.05 && m.specific < l.specific + 0.03 && m.cv < 0.75 * l.cv && m.specific5 > l.specific5 && sv.mean < m.mean && row("maypole", 40).specific < 0.9 * l.specific, `braiding buys reliability, not strength per weight: seven loose hoses ${l.specific.toFixed(2)} per weight (spread ${pc(l.cv)}), a maypole at 30° ${m.specific.toFixed(2)} (${pc(m.cv)}), its 5th percentile ${m.specific5.toFixed(2)} against ${l.specific5.toFixed(2)}; served with ribbons ${sv.specific.toFixed(2)}; at 40° the angle has cost more than the grip gave (${row("maypole", 40).specific.toFixed(2)})`);
 }
+{ // the dials
+  const D = JSON.parse(fs.readFileSync(path.join(here, "../data/sens.json"), "utf8")), of = (n) => D.rows.filter((r) => r.name === n && r.left <= 1.001).map((r) => r.specific), lo = (n) => Math.min(...of(n)), hi = (n) => Math.max(...of(n));
+  ok(lo("filaments in a hose") > hi("filaments in hoops") && lo("filaments in a hose") > 1.05 && lo("filaments in hoops") > hi("maypole") && lo("filaments in hoops") > hi("plait of three") && hi("maypole") < 1 && lo("filaments in hoops") < 1 && hi("filaments in hoops") > 1 && D.rows.filter((r) => r.left > 1.001).length === 4, `the ranking survives half and double every chosen dial: a hose ${lo("filaments in a hose").toFixed(2)}–${hi("filaments in a hose").toFixed(2)} per weight, hoops ${lo("filaments in hoops").toFixed(2)}–${hi("filaments in hoops").toFixed(2)} (either side of a ribbon alone), the maypole ${lo("maypole").toFixed(2)}–${hi("maypole").toFixed(2)}; four rows did not converge and are left out`);
+}
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);
