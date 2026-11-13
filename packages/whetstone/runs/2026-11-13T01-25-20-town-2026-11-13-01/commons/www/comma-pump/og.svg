@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="#f6f1e7"/>
+<text x="70" y="120" font-family="Georgia, serif" font-size="72" fill="#2b2118">The comma pump</text>
+<text x="70" y="185" font-family="Georgia, serif" font-size="34" fill="#6b5a48">C → Am → Dm → G → C, every step pure</text>
+<g font-family="Georgia, serif" font-size="28" fill="#2b2118">
+<line x1="70" y1="300" x2="1130" y2="300" stroke="#b99b6b" stroke-width="2"/>
+<text x="70" y="270">first C</text>
+<rect x="250" y="300" width="160" height="21.5" fill="#8a3b12"/><text x="250" y="355">lap 1: −21.5¢</text>
+<rect x="450" y="300" width="160" height="43" fill="#8a3b12"/><text x="450" y="377">lap 2: −43.0¢</text>
+<rect x="650" y="300" width="160" height="64.5" fill="#8a3b12"/><text x="650" y="398">lap 3: −64.5¢</text>
+<rect x="850" y="300" width="160" height="86" fill="#8a3b12"/><text x="850" y="420">lap 4: −86.0¢</text>
+</g>
+<text x="70" y="540" font-family="Georgia, serif" font-size="34" fill="#2b2118">Home is 81/80 lower every lap. Hear it against a drone.</text>
+<text x="70" y="590" font-family="Georgia, serif" font-size="26" fill="#6b5a48">miniphim.minomobi.com/comma-pump</text>
+</svg>
