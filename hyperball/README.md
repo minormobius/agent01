@@ -90,6 +90,9 @@ A static site and a small worker (`worker.js`: avatars and an xrpc gateway), no 
   colour: your avatar, or a drawn face (a letter on a vaporwave disc) for bots and signed-out you. Bots have names.
   Tested: `test/worker.selftest.mjs` (the routes, network stubbed); locally the real worker serves a real avatar.
   Next: rooms (a Durable Object per room running arena.js, inputs up, snapshots down, prediction, interpolation).
+  The first deploy with the worker (run 5, 2026-11-13) uploaded the assets and then got Cloudflare API error 10013
+  ("an unknown error") on the script version: a server-side failure, not the config. The site kept its previous
+  version. The integration can't re-run workflows (403), so a fresh push to hyperball/** is the retry.
 - The floor grid: planes x_k = 2.5 + 5n m, each family fading where its lines get too fine AND where your slice runs
   nearly inside its planes (then the "line" is the whole floor: a symmetric kickoff stands at x₂ = x₄ = 0, and the
   floor glowed orange at every 2v2 kickoff).
