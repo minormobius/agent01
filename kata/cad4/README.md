@@ -91,7 +91,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then twenty-one assemblies that are the reason to have a 4D workshop:
+holes), then twenty-two assemblies that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -156,6 +156,9 @@ holes), then twenty-one assemblies that are the reason to have a 4D workshop:
 - **maypole.** A braid on a pole, where the pole is a hose too. Three hoses go round it one way and three the other
   (a loop goes round a loop through its hole and back outside), over and under where they meet. No hose can be pushed
   off and the pole cannot be pushed out sideways.
+- **ribbons on a hose.** The maypole with each hose cut down to a strip. Every ribbon stays wound on the pole (the
+  pole has no edge to slide off), but the ribbons are not braided to each other: one slides round the pole past the
+  others' edges and is clear of them, still held by the pole.
 - **ribbon braid.** The same plait in flat ribbons. It looks sound in a slice and is not a braid: slide one ribbon along
   its width, past the others' edges, and it lifts away untouched.
 - **spinneret.** How any of it would be made. Extrusion pushes a cross-section along one direction, and in 4D the
@@ -192,6 +195,6 @@ node kata/cad4/test/cad4.selftest.mjs         # ~40 s, 18 checks: the kernel aga
 node kata/cad4/test/assemblies.selftest.mjs   # ~45 s,  8 checks: hinge, rings, lock, chains
 node kata/cad4/test/textiles.selftest.mjs     # ~25 s, 10 checks: weave, cloth, bundles, and the ropes
 node kata/cad4/test/braids.selftest.mjs       # ~40 s,  4 checks: the hose braid holds, the ribbon braid slides apart
-node kata/cad4/test/maypole.selftest.mjs      # ~20 s,  3 checks: the maypole braid holds its hoses and its pole
+node kata/cad4/test/maypole.selftest.mjs      # ~20 s,  5 checks: the maypole holds its hoses and its pole; ribbons on a hose
 node kata/cad4/test/machines.selftest.mjs     # ~30 s,  5 checks: pulley, tackle, room, spinneret
 ```

@@ -131,6 +131,16 @@ const BRAIDS = (() => { const A = 0.36, B = 0.15, t = 0.06, L = 1.5, N = 36, tur
         dancer: { op: "move", by: ["ox", "oy", "oz", "ow"], of: turned(dancer(0, 1)) } },
       view: UPW, show: ["pole", "sunwise", "counter", "dancer"], check: [["dancer", "others"], ["dancer", "pole"], ["pole", "others"]], ways: { name: "one dancer's hose", params: ["ox", "oy", "oz", "ow"], reach: 2.5 },
       path: [{ ox: 0, oy: 0, oz: 0 }, { ox: 0.8, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0.8, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0.8 }, { ox: 0, oy: 0, oz: 0 }] },
+    /* the same dance in ribbons: each dancer's hose cut down to an arc of it. The wrap on the pole is still topology
+       (the pole has no edge to slide off); the over-and-under between ribbons is not (a ribbon has two) */
+    ribbonpole: (() => { const arc = (of) => ({ op: "intersect", of: [of, { op: "move", by: [1.5, 0, 0, 0], of: { op: "box", size: [3, 3, "2*width", 4] } }] });
+      return { title: "ribbons on a hose", note: "The maypole again, with ribbons: each dancer's hose cut down to a strip of itself, on the near side of the pole. Two things are true at once. Every ribbon is still wound on the pole and cannot come off it, because the pole is a hose and has no edge to slide off. But the ribbons are not braided to each other: slide one round the pole the long way (round) and it leaves the others' edges behind, still wound on the pole, touching nothing else. The wrap holds; the over-and-under is only friction.",
+        params: { width: 0.4, round: 0, ox: 0, oy: 0, oz: 0 }, ranges: { width: [0.15, 0.7], round: [0, 180], ox: [-1, 1], oy: [-1, 1], oz: [-1, 1] },
+        parts: { pole: turned({ op: "wire", dim: 3, r: 0.12, pts: [[MP.mid, 0, -1.7], [MP.mid, 0, 1.7]] }),
+          sunwise: arc(turned({ op: "union", of: [1, 2].map((j) => dancer(j, 1)) })), counter: arc(turned({ op: "union", of: [0, 1, 2].map((j) => dancer(j, -1)) })), others: { op: "union", of: ["sunwise", "counter"] },
+          ribbon: { op: "move", by: ["ox", "oy", "oz", 0], of: { op: "rotate", plane: [0, 2], deg: "round", of: arc(turned(dancer(0, 1))) } } },
+        view: [[0.82, 0, 0.57, 0], [0, 0, 0, 1], [0, 1, 0, 0], [-0.57, 0, 0.82, 0]], show: ["pole", "sunwise", "counter", "ribbon"], check: [["ribbon", "others"], ["ribbon", "pole"], ["pole", "others"]], ways: { name: "one ribbon", params: ["ox", "oy", "oz", "round"], reach: 2 },
+        path: [{ round: 0, ox: 0, oz: 0 }, { round: 150, ox: 0, oz: 0 }, { round: 150, ox: -0.5, oz: 0.3 }, { round: 150, ox: 0, oz: 0 }, { round: 0, ox: 0, oz: 0 }] }; })(),
     hosebraid: { title: "hose braid", note: "A braid that holds in 4D. Threads pass each other freely here, and a flat ribbon slides off its neighbour's edge, so close each ribbon into a hose: it has no edge. This is the ordinary three-strand plait, drawn in a half-plane and revolved, so every strand is a hose and every crossing is one hose passing through another. In this slice you see each hose twice, left and right, as two threads of an ordinary plait; turn the slice into z and they join into rings. One hose cannot be moved off the others in any direction across the braid.",
       params: { ...P }, ranges: { ox: [-1, 1], oy: [-1, 1], oz: [-1, 1], ow: [-1, 1] },
       parts: { one: hose(0), two: hose(1), others: { op: "union", of: ["one", "two"] }, third: { op: "move", by, of: hose(2) } },
@@ -333,4 +343,4 @@ export const PARTS = {
   ...ROPES,
   ...BRAIDS,
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "hosebraid", "ribbonbraid", "maypole", "pulley", "tackle", "spinneret", "room"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "hosebraid", "ribbonbraid", "maypole", "ribbonpole", "pulley", "tackle", "spinneret", "room"];

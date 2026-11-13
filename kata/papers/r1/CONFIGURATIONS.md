@@ -17,7 +17,11 @@ directions). Construction: draw a 3D braid in the half-plane of (radius, one mor
 revolve it. Every 3D braid gives a hose braid; hoses also have a move threads lack (swapping without threading). The
 mathematics is the loop braid group, which is published; look it up before claiming anything here. A braid round a core works when the core is a hose too (`#maypole`: six hoses round a hose pole, every hose and the
 pole held). Round a thread core it cannot: a ring of hoses leaves the thread free along the ring's axis, the ringed
-bundle's failure again. So the braided sleeve belongs on hose-cored rope. Whether tilted hoops passing over and under
+bundle's failure again. So the braided sleeve belongs on hose-cored rope. Ribbons wound on a hose core (`#ribbonpole`) are held to the core, each one, by topology: the core has no edge, so the
+winding cannot be undone (compare yarn on a ribbon, where the fibre slides off the ribbon's edge). They are not held to
+each other: one slides round the core past its neighbours' edges. So a ribbon-served hose is a sound wrap whose
+over-and-under adds only friction. What matters is that the core has no edge, not that the wrapping has none.
+Whether tilted hoops passing over and under
 each other can close a sphere round a thread bundle is the bias-sheath question above, still open. Open: whether a
 hose braid grips a core under tension the way a 3D braided sleeve does, which is a bench question for PULL.
 
