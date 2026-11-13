@@ -8,7 +8,7 @@ tested and how, and what is open. Nothing here is claimed in the paper until it 
 `#rope` (woven sheath), `#hoserope`, `#ribbonyarn`, `#wound`, `#cable`, `#spinneret`. The bias sheath has none: nobody
 knows how to draw one.
 
-## Braids (added 2026-11-13; geometry only, nothing pulled yet)
+## Braids (added 2026-11-13)
 
 Threads do not braid in 4D (they pass each other), and flat ribbons do not either: a ribbon has edges, and the kernel
 shows one sliding off along its width and lifting away untouched (CAD⁴ `#ribbonbraid`). A hose has no edge. In a
@@ -24,6 +24,11 @@ over-and-under adds only friction. What matters is that the core has no edge, no
 Whether tilted hoops passing over and under
 each other can close a sphere round a thread bundle is the bias-sheath question above, still open. Open: whether a
 hose braid grips a core under tension the way a 3D braided sleeve does, which is a bench question for PULL.
+
+**Pulled (PULL README § Braids, 200 pulls each).** Braiding hoses buys reliability, not strength per weight: a maypole
+at 20–30° is 0.72–0.76 per weight against 0.73 loose, with the spread down from 15% to 9% and the 5th percentile up
+from 0.54 to 0.62. Best angle near 20°; by 40° the angle costs more than the grip gives. A tight hose round filaments
+(1.20 with its weight) beats any braid here. Ribbons on a hose, given no grip on each other, read 4–6% under the maypole.
 
 ## What a rope is made of
 

@@ -131,6 +131,41 @@ Assumed, not measured: the half-strength hoop stress; equal material strength al
 member with a single strand's spread (which is why the thick hose's spread grows: an artefact); and no interaction
 between a skin's hoop stress and its load along the rope.
 
+## Braids
+
+The ropes whose strands are hoses ([CAD⁴](../cad4/): `#hosebraid`, `#maypole`, `#ribbonpole`). A hose is continuous, so
+a braid cannot be there to hold short fibres together. What it can add is load sharing round a break; what it costs
+is the angle its strands lie at. `node kata/pull/braid.mjs` (200 pulls each, `data/braid.json`):
+
+| rope | angle | strength (strands) | weight | per weight | spread | 5th percentile per weight |
+|---|---|---|---|---|---|---|
+| 3 hoses, loose | 0° | 2.38 | 3.00 | 0.79 | 19% | 0.60 |
+| plait of 3 | 20° | 2.47 | 3.19 | 0.77 | 14% | 0.62 |
+| plait of 3 | 30° | 2.45 | 3.46 | 0.71 | 14% | 0.54 |
+| 7 hoses, loose | 0° | 5.12 | 7.00 | 0.73 | 15% | 0.54 |
+| maypole (core + 6) | 20° | 5.61 | 7.39 | 0.76 | 11% | 0.62 |
+| maypole | 30° | 5.73 | 7.93 | 0.72 | 9% | 0.62 |
+| maypole | 40° | 5.41 | 8.83 | 0.61 | 9% | 0.52 |
+| ribbons on a hose | 20° | 5.25 | 7.39 | 0.71 | 12% | 0.57 |
+| ribbons on a hose | 30° | 5.38 | 7.93 | 0.68 | 10% | 0.56 |
+
+- **Braiding buys reliability, not strength per weight.** A maypole at 20–30° is 10% stronger than its seven hoses
+  loose, and weighs 6–13% more, because a strand at an angle is longer. Per weight that is a wash (0.73 → 0.76 → 0.72).
+  The spread falls from 15% to 9%, so the strength you can count on rises about 15% (0.54 → 0.62).
+- **There is a best angle, near 20°.** Steeper grips harder (press goes as tan²θ) but a strand at θ carries cosθ of
+  its strength along the rope and weighs 1/cosθ. By 40° the angle has cost more than the grip gave.
+- **A braid grips much less than a tight hose.** The sheathed filament rope reads 1.26 per fibre (1.20 with its hose
+  weighed). A braid's press is a fraction of its strands' tension; the hose's is set by how tight it was made.
+- **Ribbons on a hose are the low end.** That row gives the ribbons no grip on each other, since CAD⁴ shows they can
+  slide out of it; the maypole row is the same rope with that grip. The truth for ribbons lies between, 4–6% apart.
+- **The core breaks first.** It is straight, so it is stiffer than the strands round it and takes the load first.
+
+What is assumed (`laid` in `js/bench.js`): a strand at θ is a track of stiffness cos³θ, strength cosθ, weight 1/cosθ,
+pressing tan²θ × its tension on a neighbour one diameter away; the plait uses the same law though its strands only
+meet at crossings; the braid is laid with the same 5% set as the yarns (with none, a broken end floats and the solve
+does not converge); 50° is left out because some of its solves did not converge. Nothing here knows the strands are
+hoses rather than threads except the geometry that lets them be braided at all.
+
 ## Cabling
 
 `node kata/pull/cable.mjs` (`data/cable.json`, 40 pulls a cell). Thirteen ropes in a sheath, then thirteen of

@@ -91,7 +91,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then twenty-two assemblies that are the reason to have a 4D workshop:
+holes), then twenty-two assemblies (the picker groups everything by kind: shapes, parts and joints, chains, cloth, bundles and ropes, braids, machines, buildings) that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.

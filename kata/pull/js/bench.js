@@ -28,6 +28,10 @@ export const SECTIONS = {
   hex7: () => [[1, 2, 3, 4, 5, 6], ...[1, 2, 3, 4, 5, 6].map((k) => [0, ((k + 4) % 6) + 1, (k % 6) + 1])],
   /* 4D: the bundle's cross-section is 3D, where twelve fit round one (and each of the twelve touches four others) */
   fcc13: () => { const P = [[0, 0, 0]]; for (const [a, b] of [[0, 1], [0, 2], [1, 2]]) for (const s of [1, -1]) for (const t of [1, -1]) { const v = [0, 0, 0]; v[a] = s; v[b] = t; P.push(v); } return P.map((p, i) => P.map((q, j) => (i !== j && Math.abs(Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) - Math.SQRT2) < 1e-6 ? j : -1)).filter((j) => j >= 0)); },
+  /* braids. plait3: three strands, each touching both others. may7: a core (track 0) and six braided round it, three
+     one way (1–3) and three the other (4–6); each touches the core and the three that cross it */
+  plait3: () => [[1, 2], [0, 2], [0, 1]],
+  may7: () => [[1, 2, 3, 4, 5, 6], [0, 4, 5, 6], [0, 4, 5, 6], [0, 4, 5, 6], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]],
   /* six fibres on a ribbon: they touch only the ribbon (track 0) */
   ribbon7: () => [[1, 2, 3, 4, 5, 6], [0], [0], [0], [0], [0], [0]],
   one: () => [[]],
@@ -41,13 +45,18 @@ export const SECTIONS = {
                 HOOP of the material's strength
      press      the twelve outer fibres share the skin: per contact, per diameter, 0.06 × HOOP × τ/r in the bench's units
    and for our seven in a tube (3D): 6 τ/r of material, P = σ τ / R, press 0.0133 × HOOP × τ/r. */
+/* A STRAND LAID AT AN ANGLE θ to the rope (braided, or wound on a core). Stretch the rope by ε and the strand
+   stretches ε cos²θ; its pull points θ off the axis. So as a track: stiffness cos³θ, strength cosθ, and 1/cosθ of
+   material per length of rope. Going round a neighbour one diameter away it presses on it tan²θ × its axial tension
+   per diameter (a helix's T sin²θ / a, per length of rope, with T the strand's own tension): the `twist` law's q */
+export const laid = (deg) => { const c = Math.cos((deg * Math.PI) / 180); return { k: c ** 3, strength: c, material: 1 / c, q: Math.tan((deg * Math.PI) / 180) ** 2 }; };
 export const HOOP = 0.5;
 export const sheath = (dim, t) => (dim === 4 ? { material: 27 * t, press: 0.06 * HOOP * t, fibres: 13, section: "fcc13" } : { material: 6 * t, press: (0.04 / 3) * HOOP * t, fibres: 7, section: "hex7" });
 
-export function makeRope({ maxSweeps: MAXSW = 80, section = "hex7", S = 96, staple = 0, press = { kind: "none" }, mu = 0.3, m = 5, sigma = 0.02, ks = 0.25, seed = 1, ribbon = null } = {}) {
+export function makeRope({ maxSweeps: MAXSW = 80, section = "hex7", S = 96, staple = 0, press = { kind: "none" }, mu = 0.3, m = 5, sigma = 0.02, ks = 0.25, seed = 1, ribbon = null, tracks = null } = {}) {
   const nb = SECTIONS[section](), T = nb.length, r = rng(seed * 7919 + 13), L = S - 1;
   const u = Array.from({ length: T }, () => new Float64Array(S)), ok = Array.from({ length: T }, () => new Uint8Array(L).fill(1)), str = Array.from({ length: T }, () => new Float64Array(L)), kax = new Float64Array(T).fill(1);
-  for (let i = 0; i < T; i++) { const isRib = ribbon && i === 0; if (isRib) kax[i] = ribbon.k; for (let s = 0; s < L; s++) str[i][s] = (isRib ? ribbon.strength : 1) * sigma * (-Math.log(1 - r())) ** (1 / m);
+  for (let i = 0; i < T; i++) { const isRib = ribbon && i === 0, tr = tracks && tracks[i]; if (isRib) kax[i] = ribbon.k; if (tr) kax[i] = tr.k; for (let s = 0; s < L; s++) str[i][s] = (isRib ? ribbon.strength : tr ? tr.strength : 1) * sigma * (-Math.log(1 - r())) ** (1 / m);
     if (staple && !isRib) { const ph = Math.floor(r() * staple); for (let s = ph; s < L; s += staple) if (s > 0 && s < L - 1) ok[i][s] = 0; } }
   /* interfaces: each unordered pair once */
   const pairs = []; for (let i = 0; i < T; i++) for (const j of nb[i]) if (j > i) pairs.push([i, j]);

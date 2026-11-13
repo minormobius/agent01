@@ -2,7 +2,7 @@
    your 3D slice of it sphere-traced, the parameters as uniforms (a slider moves the part without a recompile), the
    numbers from a worker. Drawn only when something changed. */
 import { compile, slice, mesh, stl, num } from "./kernel.js";
-import { PARTS, ORDER } from "./parts.js";
+import { PARTS, GROUPS } from "./parts.js";
 
 const $ = (id) => document.getElementById(id), canvas = $("gl"), ov = $("ov"), octx = ov.getContext("2d");
 const gl = canvas.getContext("webgl2", { antialias: false, powerPreference: "high-performance" });
@@ -246,7 +246,7 @@ $("squareB").addEventListener("click", () => { E = S.tree.view ? S.tree.view.map
 $("cap").addEventListener("click", () => $("cap").classList.toggle("min"));
 $("stlB").addEventListener("click", () => { const m = mesh(slice(S.shape, origin(), E.slice(0, 3)), 88); if (!m.count) { $("err").textContent = "nothing in this slice to export"; return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([stl(m, `cad4 ${S.name} slice`)], { type: "model/stl" })); a.download = `cad4-${S.name}-slice.stl`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); });
-for (const k of ORDER) { const o = document.createElement("option"); o.value = k; o.textContent = PARTS[k].title; $("partS").append(o); }
+for (const [title, keys] of GROUPS) { const g = document.createElement("optgroup"); g.label = title; for (const k of keys) { const o = document.createElement("option"); o.value = k; o.textContent = PARTS[k].title; g.append(o); } $("partS").append(g); }
 $("partS").addEventListener("change", () => { stop(); pick($("partS").value); });
 function pick(k) { setTree(PARTS[k], k); $("partS").value = k; history.replaceState(null, "", "#" + k); }
 const enc = (s) => btoa(String.fromCharCode(...new TextEncoder().encode(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""), dec = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)));

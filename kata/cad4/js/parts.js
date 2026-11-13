@@ -343,4 +343,15 @@ export const PARTS = {
   ...ROPES,
   ...BRAIDS,
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "hosebraid", "ribbonbraid", "maypole", "ribbonpole", "pulley", "tackle", "spinneret", "room"];
+/* the library in the picker's order, by kind */
+export const GROUPS = [
+  ["shapes", ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring"]],
+  ["parts and joints", ["bracket", "hinge", "lock"]],
+  ["chains", ["chain", "links", "tigers"]],
+  ["cloth", ["weave", "cloth"]],
+  ["bundles and ropes", ["hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable"]],
+  ["braids", ["hosebraid", "ribbonbraid", "maypole", "ribbonpole"]],
+  ["machines", ["pulley", "tackle", "spinneret"]],
+  ["buildings", ["room"]],
+];
+export const ORDER = GROUPS.flatMap((g) => g[1]);
