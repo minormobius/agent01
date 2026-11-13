@@ -34,6 +34,28 @@ the deuteron binds as ours climbs past helium to pxygen-20; light nuclei hold N 
 source and no slow neutron capture. *(To come: how long stars live, which elements a galaxy holds and when, and whether
 any of it collapses.)*
 
+## The spine: windows that narrow (PI, 2026-11-13: "attacking the problem with narrower and narrower windows of feasibility … narratively powerful")
+
+The paper is told as a sequence of windows, each constraint drawn on the same plane and each cutting what's left. The
+plane is the two nuclear choices: the strong force's strength s and the weak force's G₄ (log₁₀ over G_F/M_W), with
+gravity's clock as the third axis, scanned. Figure 1 (`figures/windows.mjs` → `windows.svg`, from
+`data/windows.json`, `fusion/tools/windows4.mjs`, ~10 min). Over s 1.40–1.891 (the deuteron bound) and G₄ 10³–10⁷:
+
+| constraint | from | what's left of the plane |
+|---|---|---|
+| the deuteron binds, the diproton doesn't | the strong force (Part I.2) | all of it, by construction |
+| p + p makes a deuteron (B_d > 1.804 MeV) | the strong force with the weak's kinematics | 78% |
+| the first minutes leave half their hydrogen | the weak force against gravity's clock (I.3) | 32% (clock 0.01 s) to 69% (100 s); the edge is flat in s, G₄ > 10^(5.4 → 3.4) |
+| a star's hydrogen burning, Sun-paced | the network (III.10) | sorted, not cut: of the network's points that survive the first minutes at a 1 s clock, about 21% climb past helium, 25% make helium, 54% strand as helium-3 |
+| stars live billions of years | C (main sequence, absolute rates) | to come |
+| matter, nuclei, cores don't collapse | B | to come |
+
+**What the plane shows so far:** the two nuclear strengths act through one number, the temperature a Sun-paced core
+needs (set by p + p, the product of both): above about 10 MK hydrogen burning climbs past helium, from about 4 to 9 MK it
+makes helium, below about 3.5 MK it strands as helium-3. The first-minutes edge barely depends on s, so the weak force is
+narrowed by the first minutes and the strong force by the stars. *Caveats:* helium-3's stranding rests on ³He + ³He,
+a carried rate; where the climb ends rests on A2's masses.
+
 ## Part I — The laws (the choices and their windows)
 
 1. **Introduction.** Paper 1's question one level down: atoms need nuclei, nuclei need forces, and the forces' 4D
@@ -130,7 +152,7 @@ any of it collapses.)*
 
 ## Figures (plan)
 
-1. The three windows: s (deuteron, diproton; strong dial), G₄ (hydrogen kept, against the clock), gravity's G (rock).
+1. **Drawn:** the strong–weak plane (`figures/windows.svg`): p + p's edge, the first minutes' edge per clock, hydrogen burning's outcome at the network's points with each core's temperature. Gravity's G (rock) to add as the third window.
 2. The 4D chart of nuclides by binding source, with the N = Z valley and the two-neutron isotopes' β⁻.
 3. The first minutes: helium left against G₄ and the clock.
 4. Hydrogen burning's ash against s (the network sweep).
