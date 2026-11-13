@@ -232,7 +232,7 @@ for games, and this is a modelling programme with publications to come. The game
   scaled by r_k = S₄(ladder)/S₄(grid), the two methods' helium-4 separation from the same core (ours: median error 29%
   over n, p, nn, np, t, h on k = 2–5, within ~15% from k = 4; it underbinds at k = 2); **`grid`** everything from the
   grid, cores chained by its own S_α (ours: 91%, overbound; the band's other edge); **`mixed`** the old table. In 4D r_k
-  is 0.67–0.74 except the closed shell (0.53 at k = 5); r_7 is carried from k = 6 until the k = 7 groups land.
+  is 0.67–0.74 at s = 1.5152 except the closed shell (0.53 at k = 5), rising toward 1 by s = 1.85; r_7 computed (all 124 commands exit 0; at 1.5152 it is 9% under r_6, which it had borrowed), adding the nuclei on seven helium-4s at 1.5152 and 1.6 without moving any stage or outcome; r_8 is carried from k = 7.
   `data4.js` carries `mass` and `r` per strength. **What it changes:** (1) 12-24 (six helium-4s) is bound in both
   consistent models: its "unbound" was the mixed table's artefact, which is what had piled the climb at the k = 5 edge.
   (2) **The ceryllium cycle is undecided.** 5-11 + p → ⁴He + ceryllium-8 is open in the ladder model for s ≤ 1.6 (Q +10.9,
