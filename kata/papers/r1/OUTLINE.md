@@ -1,7 +1,8 @@
 # Paper R1 — outline
 
 **Status: opened 2026-11-13, after the prior-art check ([PRIOR-ART.md](PRIOR-ART.md)), which decides what this may
-claim. Nothing is written as prose. Whether to write it at all is the PI's call; this is what it would be.**
+claim. The PI agreed to the narrow paper the same day, and widened the work first: the design space
+([CONFIGURATIONS.md](CONFIGURATIONS.md)) and cabling. Nothing is written as prose.**
 
 The bar is the atoms paper's (`four/papers/p1`): checkable claims, verified references, reproducible numbers, every
 number in the text from a baked file and checked against it.

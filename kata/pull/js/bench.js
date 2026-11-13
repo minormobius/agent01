@@ -16,6 +16,8 @@
              in TWIST). The set is the tension the yarn was spun and left with: without it a slack yarn has no
              grip to start gripping with, and the rope is two bundles of loose ends. An allowance, not a measurement
      hoop    a constant p (a hoop or sheath at some tightness: a dial, nothing measured)
+     trap    c × the sheath's own tension: a sheath laid on the bias, which squeezes as it is pulled (a finger trap).
+             For a bias angle θ round thirteen fibres in 4D, c = tan²θ / 9. Whether such a sheath can be made is open
      none    nothing (a 4D yarn twisted round nothing)
    and, for the yarn twisted round a ribbon, that the fibres touch only the ribbon, a continuous track of its own.
    Lengths are in fibre diameters, forces in units of the fibre's stiffness per unit strain. */
@@ -51,7 +53,7 @@ export function makeRope({ maxSweeps: MAXSW = 80, section = "hex7", S = 96, stap
   const pairs = []; for (let i = 0; i < T; i++) for (const j of nb[i]) if (j > i) pairs.push([i, j]);
   const slip = pairs.map(() => new Float64Array(S)), state = pairs.map(() => new Int8Array(S)), fI = pairs.map(() => new Float64Array(S)), ten = Array.from({ length: T }, () => new Float64Array(S)), was = Array.from({ length: T }, () => new Float64Array(S));
   const contacts = nb.map((v) => Math.max(1, v.length)), R = { T, S, u, ok, str, pairs, state, slip, ten, section, broke: 0, grip: 0 };
-  const cap = (p, s) => { const [i, j] = pairs[p]; if (press.kind === "hoop") return mu * press.p; if (press.kind === "twist") { /* the ribbon doesn't wrap anything: what presses a fibre on it is the fibres wound over it, itself among them */ const set = (press.set ?? 0.05) * sigma; if (ribbon) { let mean = 0; for (let k = 1; k < T; k++) mean += was[k][s]; return mu * press.q * ((was[j][s] + mean / (T - 1)) / 2 + set); } return (mu * press.q * ((was[i][s] + was[j][s]) / 2 + set)) / ((contacts[i] + contacts[j]) / 2); } return 0; };
+  const cap = (p, s) => { const [i, j] = pairs[p]; if (press.kind === "hoop") return mu * press.p; if (press.kind === "trap") return mu * press.c * was[0][s]; /* (a sheath that squeezes in proportion to its own pull; track 0 is the sheath) */ if (press.kind === "twist") { /* the ribbon doesn't wrap anything: what presses a fibre on it is the fibres wound over it, itself among them */ const set = (press.set ?? 0.05) * sigma; if (ribbon) { let mean = 0; for (let k = 1; k < T; k++) mean += was[k][s]; return mu * press.q * ((was[j][s] + mean / (T - 1)) / 2 + set); } return (mu * press.q * ((was[i][s] + was[j][s]) / 2 + set)) / ((contacts[i] + contacts[j]) / 2); } return 0; };
   /* tensions at the nodes. The press reads them as they were at the last settled step (`was`), not as they are in the
      middle of this one: grip that feeds on the tension it creates runs away if it is allowed to chase itself */
   const tnew = new Float64Array(S);
