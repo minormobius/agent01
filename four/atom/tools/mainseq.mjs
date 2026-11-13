@@ -75,6 +75,11 @@ function firstStar(o, M) {
     let lo = 2e6, hi = 5e9; if (!(at(hi).Le > at(hi).Ld)) continue; for (let i = 0; i < 60; i++) { const m = Math.sqrt(lo * hi); if (at(m).Le < at(m).Ld) lo = m; else hi = m; }
     const Tc = Math.sqrt(lo * hi), q = at(Tc); tries.push([Math.log((q.rhoc * SI.k * Tc) / (mu * SI.mu)), Math.log(Tc), Math.log(q.R), Math.log(q.Ld)]); }
   for (const g of tries) for (const dT of [0, -0.2, 0.2]) { const s = star({ ...o, M }, [g[0], g[1] + dT, g[2], g[3]]); if (s.ok) return s; }
+  // a burning law with a kink (the network's, where one channel gives way to another) can leave the diffusion estimate
+  // no crossing it can use: then a grid of central temperatures and sizes, each star's luminosity its own burning's
+  for (const Tc of [1.2e7, 2e7, 8e6, 3e7, 5e6, 5e7]) for (const cR of [0.5, 0.25, 1]) for (const cc of [10, 30]) {
+    const R = (cR * o.G * M * mu * SI.mu) / (SI.k * Tc), rhoc = (cc * M) / ((Math.PI ** 2 / 2) * R ** 4), L = Math.max(o.eps(rhoc, Tc) * M * 0.3, 1e20);
+    const s = star({ ...o, M }, [Math.log((rhoc * SI.k * Tc) / (mu * SI.mu)), Math.log(Tc), Math.log(R), Math.log(L)]); if (s.ok) return s; }
   return null;
 }
 const row = (o, m, M, s) => { const r = { m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), qcc: convectiveCore(o.d, s), dL: s.dL ?? null };
