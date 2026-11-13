@@ -1,0 +1,7 @@
+$ node four/atom/tools/nuclei.mjs plusmore 3 1 1 a 12 0 compact
+d=3 s=1 k=1 + a compact (288 states): separation 20.33 MeV, core -24.7 (12 s)
+wrote plusmore-3-1-1-a-12-c.json
+(node:2369) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/nuclear.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

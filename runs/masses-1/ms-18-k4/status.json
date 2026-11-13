@@ -1,0 +1,33 @@
+{
+ "group": "ms-18-k4",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.65 4 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1361
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.7 4 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1365
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.75 4 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1363
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.8 4 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1367
+  }
+ ]
+}

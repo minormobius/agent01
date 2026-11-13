@@ -1,0 +1,33 @@
+{
+ "group": "ms-08-k6",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.65 6 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3910
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.7 6 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3898
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.75 6 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3905
+  },
+  {
+   "cmd": "node four/atom/tools/nuclei.mjs plusmore 4 1.8 6 a 24",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 3929
+  }
+ ]
+}
