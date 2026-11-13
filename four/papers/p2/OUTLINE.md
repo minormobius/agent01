@@ -100,7 +100,7 @@ a carried rate; where the climb ends rests on A2's masses.
    against measured masses (run `masses-1`): the ladder underbinds α clusters (¹⁶O −4.9 MeV against four helium-4s, real
    −14.4), Brink's grid overbinds them and worse with size (²⁴Mg −93 against −28.5). One consistent model is adopted (the
    ladder's nuclei with the grid's separations scaled by the two methods' helium-4 separation on the same core: ours to
-   a median 29%, within ~15% from ¹⁶O up), the pure grid kept as the band's other edge. **Every downstream claim is
+   a median 30%, within ~15% from ¹⁶O up), the pure grid kept as the band's other edge. **Every downstream claim is
    stated under both.** Figure: the 4D chart of nuclides; a panel of ours' check (ladder / grid / real against k).
 
 ## Part III — Burning
@@ -114,7 +114,7 @@ a carried rate; where the climb ends rests on A2's masses.
     CNO-like cycle is the band's central question:** the star's own helium makes ceryllium-8, protons climb to 5-11, and
     5-11 + p → ⁴He + ceryllium-8 would hand the catalyst back. Open in the adopted mass model for s ≤ 1.6 (Q +4.6 to
     +10.9 MeV), closed in Brink's grid (−21 to −60); ours' check at the matching core (¹¹B + p → 3α, Q 8.59) can't decide
-    it (the adopted model overstates Q there by 6.8 MeV, which would leave +4.1 / +1.8 / −2.2 at s = 1.5152 / 1.55 / 1.6).
+    it (the adopted model overstates Q there by 6.9 MeV, which would leave +4.0 / +1.7 / −2.3 at s = 1.5152 / 1.55 / 1.6).
     **Outcome (masses-1 sweep, G₄ at the electron-matched value and ×10^±0.8):** with the cycle, s = 1.5152–1.55 burn
     hydrogen to helium at 8–11 MK, insensitive to G₄, with no metals needed; without it, they climb to elements 8–12 at
     12–19 MK (where depends on G₄). From s = 1.6 the two models agree exactly: helium at 4–8 MK to s ≈ 1.65–1.7, stranded
@@ -164,7 +164,7 @@ a carried rate; where the climb ends rests on A2's masses.
 
 ## Figures (plan)
 
-1. **Drawn:** the strong–weak plane (`figures/windows.svg`): p + p's edge, the first minutes' edge per clock, hydrogen burning's outcome at the network's points with each core's temperature, split where the two mass models disagree (12 of 56 points, all at s ≤ 1.6: helium by the ceryllium cycle in the adopted model, a climb to elements 8–12 in the grid). Gravity's G (rock) to add as the third window.
+1. **Drawn, and written up** (`text/windows.md` → `draft/windows.html`, section 2: results, caption, methods 2.2.1–2.2.8): the strong–weak plane (`figures/windows.svg`): p + p's edge, the first minutes' edge per clock, hydrogen burning's outcome at the network's points with each core's temperature, split where the two mass models disagree (12 of 56 points, all at s ≤ 1.6: helium by the ceryllium cycle in the adopted model, a climb to elements 8–12 in the grid). Gravity's G (rock) to add as the third window.
 2. The 4D chart of nuclides by binding source, with the N = Z valley and the two-neutron isotopes' β⁻.
 3. The first minutes: helium left against G₄ and the clock.
 4. Hydrogen burning's ash against s (the network sweep).

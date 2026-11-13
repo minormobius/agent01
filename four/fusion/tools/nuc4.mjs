@@ -20,7 +20,7 @@
    −93 against 6α, real −28.5); the grid's own S_α onto its core is 2–10× too large. Three models:
      ladder (default)  the ladder's nuclei, and every grid separation on core k scaled by r_k = S₄(ladder)/S₄(grid), the
                        ratio of the two methods' 4-nucleon (helium-4) separation from the same core: the grid's cluster
-                       bindings measured against its own helium-4 binding, carried to the ladder. Ours: median error 29%
+                       bindings measured against its own helium-4 binding, carried to the ladder. Ours: median error 30%
                        over n, p, nn, np, t, h on k = 2–5, within ~15% from k = 4; at k = 2 it underbinds (r too small)
      grid              everything from the grid: the cores chained by the grid's S_α, the clusters unscaled. Ours: 91%,
                        overbound; the band's other edge

@@ -48,7 +48,7 @@ across the choices it rests on, and any conclusion that flips inside a band is n
   **First result (2026-11-13, run `masses-1`, `fusion/tools/nuc4.mjs` `MASS`):** on ours against measured masses the
   ladder underbinds α clusters and Brink's grid overbinds them, more with size, so neither is "the" answer: the adopted
   model keeps the ladder's nuclei and scales the grid's separations by the two methods' helium-4 separation on the same
-  core (ours to a median 29%), and the grid is the band's other edge. Six helium-4s are bound either way. The one result
+  core (ours to a median 30%), and the grid is the band's other edge. Six helium-4s are bound either way. The one result
   the band flips is the CNO-like cycle on ceryllium-8 (5-11 + p → ⁴He + ⁸Ce): open at s ≤ 1.6 in the adopted model,
   closed in the grid, and ours can't decide it; with it, low-s stars burn hydrogen to helium at 8–11 MK, without it they
   climb to elements 8–12. A third method on that one nucleus is the next step.
