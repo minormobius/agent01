@@ -33,7 +33,7 @@ export function table(s, { compact = false } = {}) {
     const i = WINDOW.findIndex((w) => w > s); if (i <= 0) return null; const [w0, w1] = [WINDOW[i - 1], WINDOW[i]], v0 = at(w0), v1 = at(w1);
     return v0 == null || v1 == null ? null : { V: v0 + ((s - w0) / (w1 - w0)) * (v1 - v0), how: "interpolated in s" }; };
   const plus = (k, Z) => { const xs = [24, 40].map((nd) => load(`plusone-4-${tag(s)}-${k}-${Z}-${nd}${compact ? "-c" : ""}.json`)).filter(Boolean); return xs.length ? { V: xs.at(-1).S, how: "computed" } : null; };
-  const Vn = (k, Z) => (k === 1 ? mass5(Z) : k <= 5 ? plus(k, Z) : null);
+  const Vn = (k, Z) => (k === 1 ? mass5(Z) : k <= 7 ? plus(k, Z) : null);
   // two or three nucleons on k helium-4s (nuclei.mjs plusmore), the largest basis run kept
   const more = (k, c) => { const xs = readdirSync(DIR).filter((f) => new RegExp(`^plusmore-4-${tag(s).replace(".", "\\.")}-${k}-${c}-\\d+(-x\\d+)?${compact ? "-c" : ""}\\.json$`).test(f)).map(load).sort((a, b) => a.n - b.n); return xs.at(-1) ?? null; };
   const out = [];
