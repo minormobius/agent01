@@ -1,0 +1,12 @@
+[
+  {"name":"GRILLE holes 4.0 mm (not under 4)","file":"enclosure/gen.mjs","from":"hole: 3.5,","to":"hole: 4.0,"},
+  {"name":"GRILLE pitch 5.6: open area short of 1257","file":"enclosure/gen.mjs","from":"pitch: 4.8,","to":"pitch: 5.6,"},
+  {"name":"GRILLE reaches past the front chamber (vents the box)","file":"enclosure/gen.mjs","from":"grilleR: 33,","to":"grilleR: 40,"},
+  {"name":"NEST too tight, 0.4 per side","file":"enclosure/gen.mjs","from":"nestClear: 1.0,","to":"nestClear: 0.4,"},
+  {"name":"NEST too loose, 1.6 per side","file":"enclosure/gen.mjs","from":"nestClear: 1.0,","to":"nestClear: 1.6,"},
+  {"name":"SEAL pod 40 mm tall: 183 cm3 net","file":"enclosure/gen.mjs","from":"podH: 55,","to":"podH: 40,"},
+  {"name":"SEAL pod 41 mm: 222 cm3 gross, passes only if the driver is forgotten","file":"enclosure/gen.mjs","from":"podH: 55,","to":"podH: 41,"},
+  {"name":"E box 205 long, over the 200 cube","file":"enclosure/gen.mjs","from":"L: 190,","to":"L: 205,"},
+  {"name":"E the trees used sketch params but the nest ignores nestClear (pocket = card)","file":"enclosure/gen.mjs","from":"const nestW = p.card[0] + 2 * p.nestClear, nestH = p.card[1] + 2 * p.nestClear;","to":"const nestW = p.card[0], nestH = p.card[1];"},
+  {"name":"measure: SEAL forgets the driver","file":"enclosure/measure.mjs","from":"const net = cavity - drv.invariants.volume;","to":"const net = cavity;"}
+]
