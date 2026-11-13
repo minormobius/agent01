@@ -101,3 +101,6 @@ body:not([data-state="play"]) .stick, body:not([data-state="play"]) .buttons, bo
 #signout { background: transparent; color: var(--dim); border: 1px solid rgba(255, 255, 255, 0.25); }
 .whonote { margin: 0; font-size: 11px; color: var(--dim); max-width: 420px; }
 .who .ta-list { text-align: left; }
+.who .ta-list { max-height: min(206px, 38vh); overflow-y: auto; }
+.title { scroll-padding-top: 12px; }
+@media (max-height: 520px) { .title { padding-bottom: 60vh; } }

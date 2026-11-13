@@ -337,6 +337,7 @@ function overlay(cam) {
     ctx.beginPath(); ctx.arc(q.x, q.y, rad, 0, 2 * Math.PI); ctx.stroke();
     if (Math.abs(off) >= A.ball.r) ctx.fillText(`${off > 0 ? '▲ ana' : '▼ kata'} ${Math.abs(off).toFixed(1)} m`, q.x, q.y - rad - 6);
     ctx.fillText(`${Math.round(q.dist)} m`, q.x, q.y + rad + 14);
+    goalArrow(cam, q, rad, W, Hh);
   } else {
     let dx = q.x - W / 2, dy = q.y - Hh / 2;
     if (q.f <= 0) { dx = -dx; dy = -dy; }
@@ -364,6 +365,42 @@ function overlay(cam) {
   }
   ctx.textAlign = 'left';
   minimap();
+}
+
+// The way to goal, drawn at the ball: an arrow from the ball along the floor toward the goal you're attacking, labelled
+// with how far the ball is from that goal's mouth. The shot direction is a direction on a three-dimensional floor, so
+// some of it may run into w, out of your slice: then the label says ana or kata and the arrow is dashed.
+function goalArrow(cam, q, rad, W, Hh) {
+  const bx = S.ball.x, bh = H.unit(bx), g = H.unit(G.ENEMY);
+  const t = H.add(g, bh, -H.dot(g, bh));
+  if (H.norm(t) < 1e-6) return;
+  const dir = H.unit(t);
+  const far = Math.max(0, G.along(bx, G.ENEMY) - A.goal.r);
+  // the arrow's tip: 5 m along the floor from the ball toward their goal, at the ball's height
+  const tip = H.scale(H.walk(bh, dir, 5, R, []).xhat, H.norm(bx));
+  const e = project(cam, tip, W, Hh);
+  let dx = e.x - q.x, dy = e.y - q.y;
+  if (e.f <= 0) { dx = -dx; dy = -dy; }
+  let m = Math.hypot(dx, dy);
+  const wpart = H.dot(dir, cam.w);                       // how much of the shot direction is out of your slice
+  if (m < 4) { dx = 0; dy = -1; m = 1; }                 // pointing straight at or away from you: draw it upward
+  const ux = dx / m, uy = dy / m, len = Math.max(rad + 26, Math.min(m, rad + 70));
+  const x0 = q.x + ux * (rad + 3), y0 = q.y + uy * (rad + 3), x1 = q.x + ux * len, y1 = q.y + uy * len;
+  ctx.save();
+  ctx.strokeStyle = '#ffa23a'; ctx.fillStyle = '#ffa23a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  if (Math.abs(wpart) > 0.4) ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+  ctx.setLineDash([]);
+  const a = Math.atan2(uy, ux);
+  ctx.beginPath(); ctx.moveTo(x1 + Math.cos(a) * 9, y1 + Math.sin(a) * 9);
+  ctx.lineTo(x1 + Math.cos(a + 2.5) * 9, y1 + Math.sin(a + 2.5) * 9); ctx.lineTo(x1 + Math.cos(a - 2.5) * 9, y1 + Math.sin(a - 2.5) * 9); ctx.closePath(); ctx.fill();
+  const w = Math.abs(wpart) > 0.4 ? (wpart > 0 ? ' ▲ ana' : ' ▼ kata') : '';
+  ctx.font = '700 12px ui-monospace, monospace'; ctx.textAlign = 'center';
+  const lx = x1 + ux * 18, ly = y1 + uy * 18 + 4;
+  ctx.fillStyle = 'rgba(18,5,31,0.7)'; const label = `GOAL ${Math.round(far)} m${w}`, tw = ctx.measureText(label).width;
+  ctx.fillRect(lx - tw / 2 - 4, ly - 12, tw + 8, 16);
+  ctx.fillStyle = w ? (wpart > 0 ? '#38f2e0' : '#ff66b8') : '#ffa23a'; ctx.fillText(label, lx, ly);
+  ctx.restore();
 }
 
 // The minimap: the whole arena as a ball, on your axes (right, forward, ana up), every point at its walking distance
@@ -584,6 +621,12 @@ $('signin').addEventListener('submit', async (e) => {
 });
 $('signout').onclick = async () => { try { await auth.logout(); } catch (e) { /* fine */ } showUser(null); };
 attachHandleTypeahead($('handle'), { gateway: location.origin });
+// on a short screen (a phone on its side) the suggestions opened below the bottom edge: on focus, bring the field to
+// the top of the title screen, once the keyboard has opened
+// (instantly: typing cancels a smooth scroll), and again as you type if the list would still run off the bottom
+const toTop = () => $('handle').scrollIntoView({ block: 'start' });
+$('handle').addEventListener('focus', () => { toTop(); setTimeout(toTop, 350); });
+$('handle').addEventListener('input', () => setTimeout(() => { const l = document.querySelector('.who .ta-list'); if (l && !l.hidden && l.getBoundingClientRect().bottom > (window.visualViewport?.height || innerHeight)) toTop(); }, 260));
 S.facesReady = true;
 paintAtlas();
 (async () => { try { await auth.init(); } catch (e) { /* offline: signed out */ } showUser(auth.getUser()); try { auth.onAuthChange(showUser); } catch (e) { /* fine */ } })();

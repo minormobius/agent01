@@ -75,7 +75,9 @@ A static site and a small worker (`worker.js`: avatars and an xrpc gateway), no 
   the halfway sphere, goal circles, shadows), the striped sun at the centre, the ball, up to six bikes (two wheel balls, a
   capsule body, a flame when boosting; you pink, cyan and orange by team), the goals (translucent cone wall at the goal's radius, roof at its height), the
   path ribbon (an arc to the intercept, chevrons, kerbs teal ana / pink kata of your slice) and the gold shot line. A
-  2D overlay: the ball's marker (ana/kata offset when lock is off; an edge arrow when off screen), MATE/OPP tags
+  2D overlay: the ball's marker (ana/kata offset when lock is off; an edge arrow when off screen), the goal arrow
+  (`goalArrow`: from the ball along the floor toward their goal, labelled with the distance to its mouth; dashed and
+  marked ana/kata when the shot direction runs mostly out of your slice), MATE/OPP tags
   over the other bikes (▲ ▼ off your slice), goal markers, a minimap (with every bike) (the arena as a ball on your axes), score, clock, boost. Physics at a fixed 120 Hz, the loop stopping the
   moment a step ends play (it once counted one goal seven times, the ball still in the net); ball cam looks at the
   ball. The floor's grid lines fade out where they're too fine to draw (blurred, they washed the floor pink). Touch: a stick (lean right/left, ana/kata) and BOOST, JUMP, BRAKE, GO;
@@ -88,6 +90,8 @@ A static site and a small worker (`worker.js`: avatars and an xrpc gateway), no 
   `*.mino.mobi` origin, with scope `atproto` only (identity: nothing is written). Each bike has a helmet sphere
   textured from a 6-slot face atlas (a 2D canvas → `faces`), billboarded to the camera and ringed in its team
   colour: your avatar, or a drawn face (a letter on a vaporwave disc) for bots and signed-out you. Bots have names.
+  On a phone on its side the suggestions opened below the screen's bottom edge: focusing the field scrolls it to the
+  top of the title screen at once (a smooth scroll was cancelled by typing), and again as you type if needed.
   Tested: `test/worker.selftest.mjs` (the routes, network stubbed); locally the real worker serves a real avatar.
   Next: rooms (a Durable Object per room running arena.js, inputs up, snapshots down, prediction, interpolation).
   The first deploy with the worker (run 5, 2026-11-13) uploaded the assets and then got Cloudflare API error 10013
