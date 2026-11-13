@@ -15,7 +15,10 @@ shows one sliding off along its width and lifting away untouched (CAD⁴ `#ribbo
 cross-section it is a loop, and a loop can pass through a loop, so hoses braid (`#hosebraid`: held in all four
 directions). Construction: draw a 3D braid in the half-plane of (radius, one more direction) along the length and
 revolve it. Every 3D braid gives a hose braid; hoses also have a move threads lack (swapping without threading). The
-mathematics is the loop braid group, which is published; look it up before claiming anything here. Open: whether a
+mathematics is the loop braid group, which is published; look it up before claiming anything here. A braid round a core works when the core is a hose too (`#maypole`: six hoses round a hose pole, every hose and the
+pole held). Round a thread core it cannot: a ring of hoses leaves the thread free along the ring's axis, the ringed
+bundle's failure again. So the braided sleeve belongs on hose-cored rope. Whether tilted hoops passing over and under
+each other can close a sphere round a thread bundle is the bias-sheath question above, still open. Open: whether a
 hose braid grips a core under tension the way a 3D braided sleeve does, which is a bench question for PULL.
 
 ## What a rope is made of

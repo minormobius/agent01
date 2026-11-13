@@ -119,7 +119,18 @@ const BRAIDS = (() => { const A = 0.36, B = 0.15, t = 0.06, L = 1.5, N = 36, tur
   const hose = (j) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "revolve", axis: 0, of: lace(j, 0.85) } });
   const ribbon = (j) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "extrude", h: "width", of: lace(j, 0) } });
   const ways = { params: ["ox", "oy", "oz", "ow"], reach: 2.5 }, P = { ox: 0, oy: 0, oz: 0, ow: 0 }, by = ["ox", "oy", "oz", "ow"];
+  /* the maypole: the pole is a hose too. Its dancers' hoses go round it the only way a loop can go round a loop,
+     through its hole and back outside, n one way and n the other, over and under at every meeting */
+  const MP = { mid: 1, r0: 0.3, d: 0.07, n: 3 }, dancer = (j, dir) => { const pts = []; for (let k = 0; k <= 32; k++) { const u = k / 32, th = 2 * Math.PI * u, ph = dir * th + (2 * Math.PI * j) / MP.n, r = MP.r0 + dir * MP.d * Math.cos(MP.n * th); pts.push([f4(MP.mid + r * Math.cos(ph)), f4(r * Math.sin(ph)), f4(-L + 2 * L * u)]); } return { op: "wire", dim: 3, r: 0.045, pts }; },
+    turned = (of) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "revolve", axis: 0, of } });
   return {
+    maypole: { title: "maypole", note: "A maypole braid. The pole is a hose, a loop in every cross-section, and each dancer carries a hoop. A hoop goes round the pole the only way a loop can go round a loop: through its hole and back round the outside. Three dance one way and three the other, and where two meet, one hoop passes through the other, over then under. Height on the pole is time in the dance, so what you see is the whole dance at once. In this slice the pole is cut twice, and so is everything on it: two ordinary maypoles. No dancer's hose can be moved off, and the pole cannot be pulled out sideways.",
+      params: { ...{ ox: 0, oy: 0, oz: 0, ow: 0 }, px: 0, py: 0, pz: 0 }, ranges: { ox: [-1, 1], oy: [-1, 1], oz: [-1, 1], ow: [-1, 1], px: [-1, 1], py: [-1, 1], pz: [-1, 1] },
+      parts: { pole: { op: "move", by: ["px", "py", "pz", 0], of: turned({ op: "wire", dim: 3, r: 0.12, pts: [[MP.mid, 0, -1.7], [MP.mid, 0, 1.7]] }) },
+        sunwise: turned({ op: "union", of: [1, 2].map((j) => dancer(j, 1)) }), counter: turned({ op: "union", of: [0, 1, 2].map((j) => dancer(j, -1)) }), others: { op: "union", of: ["sunwise", "counter"] },
+        dancer: { op: "move", by: ["ox", "oy", "oz", "ow"], of: turned(dancer(0, 1)) } },
+      view: UPW, show: ["pole", "sunwise", "counter", "dancer"], check: [["dancer", "others"], ["dancer", "pole"], ["pole", "others"]], ways: { name: "one dancer's hose", params: ["ox", "oy", "oz", "ow"], reach: 2.5 },
+      path: [{ ox: 0, oy: 0, oz: 0 }, { ox: 0.8, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0.8, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0.8 }, { ox: 0, oy: 0, oz: 0 }] },
     hosebraid: { title: "hose braid", note: "A braid that holds in 4D. Threads pass each other freely here, and a flat ribbon slides off its neighbour's edge, so close each ribbon into a hose: it has no edge. This is the ordinary three-strand plait, drawn in a half-plane and revolved, so every strand is a hose and every crossing is one hose passing through another. In this slice you see each hose twice, left and right, as two threads of an ordinary plait; turn the slice into z and they join into rings. One hose cannot be moved off the others in any direction across the braid.",
       params: { ...P }, ranges: { ox: [-1, 1], oy: [-1, 1], oz: [-1, 1], ow: [-1, 1] },
       parts: { one: hose(0), two: hose(1), others: { op: "union", of: ["one", "two"] }, third: { op: "move", by, of: hose(2) } },
@@ -322,4 +333,4 @@ export const PARTS = {
   ...ROPES,
   ...BRAIDS,
 };
-export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "hosebraid", "ribbonbraid", "pulley", "tackle", "spinneret", "room"];
+export const ORDER = ["ball", "tesseract", "spherinder", "cubinder", "duocylinder", "tiger", "ring", "bracket", "hinge", "chain", "lock", "links", "tigers", "weave", "cloth", "hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable", "hosebraid", "ribbonbraid", "maypole", "pulley", "tackle", "spinneret", "room"];
