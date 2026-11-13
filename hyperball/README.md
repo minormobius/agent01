@@ -79,7 +79,13 @@ One static site, no build, no worker script (worker `hyperball`, assets only, pl
   over the other bikes (▲ ▼ off your slice), goal markers, a minimap (with every bike) (the arena as a ball on your axes), score, clock, boost. Physics at a fixed 120 Hz, the loop stopping the
   moment a step ends play (it once counted one goal seven times, the ball still in the net); ball cam looks at the
   ball. The floor's grid lines fade out where they're too fine to draw (blurred, they washed the floor pink). Touch: a stick (lean right/left, ana/kata) and BOOST, JUMP, BRAKE, GO;
-  the throttle is always on by default on touch screens.
+  the throttle is always on by default on touch screens, and the controls hide off the game (`body[data-state]`).
+- **Settings** (the menu): reachable from the title screen (SETTINGS) and in play (☰, P, Esc); everything applies at
+  once except the match size, which starts a new match on the way back to the game (the menu says so). All saved in
+  localStorage (`hyperball.settings`, try/catch: private windows fall back to defaults). A toast confirms. Once,
+  settings didn't stick: the title overlay hid ☰, a new match size waited for the next goal, and nothing persisted.
+- `window.hyperball.S` is the game's state, for checking it from outside (the menu test drives it: Playwright, tap
+  each setting, close, read S, reload, read S).
 
 ## Checks
 

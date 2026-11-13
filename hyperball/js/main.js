@@ -27,6 +27,7 @@ function newKickoff() {
     const ko = G.kickoff(G.ARENA, Math.random);
     S.match = { ball: ko.ball, bikes: [{ k: ko.bike, team: 'cyan', brain: {}, human: true, name: 'you' }] };
   } else S.match = G.newMatch(n, G.ARENA, Math.random, true);
+  S.matchTeam = S.team;
   S.ball = S.match.ball; S.bike = S.match.bikes[0].k; S.camState = null; S.aim = null; S.countdown = 3;
 }
 newKickoff();
@@ -430,6 +431,7 @@ function frame(now) {
   }
   draw(dt);
   hud();
+  if (document.body.dataset.state !== S.state) document.body.dataset.state = S.state;
   requestAnimationFrame(frame);
 }
 function step(dt) {
@@ -506,8 +508,21 @@ function hud() {
 }
 
 // ------------------------------------------------------------------ menu --
+// Settings are saved on this device (localStorage, when the browser allows it) and restored on the next visit.
+const SAVED = ['team', 'skill', 'mode', 'assist', 'lock', 'ballCam', 'autoThrottle'];
+function loadSettings() {
+  try {
+    const o = JSON.parse(localStorage.getItem('hyperball.settings') || '{}');
+    for (const k of SAVED) if (k in o && typeof o[k] === typeof S[k]) S[k] = o[k];
+  } catch (e) { /* private window or storage blocked: defaults */ }
+}
+function saveSettings() {
+  try { localStorage.setItem('hyperball.settings', JSON.stringify(Object.fromEntries(SAVED.map((k) => [k, S[k]])))); } catch (e) { /* fine */ }
+}
 function setOpt(key, val) {
   S[key] = val;
+  saveSettings();
+  if (key === 'team') $('teamnote').hidden = !(S.state === 'paused' && S.team !== S.matchTeam);
   for (const el of document.querySelectorAll(`[data-opt="${key}"]`)) for (const b of el.children) b.classList.toggle('on', b.dataset.v === String(val));
 }
 for (const el of document.querySelectorAll('[data-opt]')) {
@@ -517,10 +532,28 @@ for (const el of document.querySelectorAll('[data-opt]')) {
     setOpt(key, v === 'true' ? true : v === 'false' ? false : v);
   });
 }
-function toggleMenu() { $('menu').hidden = !$('menu').hidden; if (S.state === 'play') S.state = 'paused'; else if (S.state === 'paused') S.state = 'play'; }
-$('menubtn').onclick = toggleMenu;
-$('menuclose').onclick = toggleMenu;
+function openMenu() {
+  $('menu').hidden = false;
+  if (S.state === 'play') S.state = 'paused';
+  $('teamnote').hidden = true;
+  $('menuback').textContent = S.state === 'paused' ? 'BACK TO THE GAME' : 'DONE';
+}
+function closeMenu() {
+  $('menu').hidden = true;
+  if (S.state === 'paused') {
+    if (S.team !== S.matchTeam) { start(); toast(`new match · ${S.team === '0' ? 'solo' : `${S.team}v${S.team}`}`); }
+    else { S.state = 'play'; toast('settings saved'); }
+  } else toast('settings saved');
+}
+function toggleMenu() { if ($('menu').hidden) openMenu(); else closeMenu(); }
+function toast(text) { const el = $('toast'); el.textContent = text; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); }
+$('menubtn').onclick = openMenu;
+$('titlemenu').onclick = openMenu;
+$('menuclose').onclick = closeMenu;
+$('menuback').onclick = closeMenu;
 $('play').onclick = start;
-for (const [k, v] of Object.entries({ mode: S.mode, assist: S.assist, lock: S.lock, ballCam: S.ballCam, autoThrottle: S.autoThrottle, team: S.team, skill: S.skill })) setOpt(k, v);
+loadSettings();
+for (const k of SAVED) { const v = S[k]; for (const el of document.querySelectorAll(`[data-opt="${k}"]`)) for (const b of el.children) b.classList.toggle('on', b.dataset.v === String(v)); }
 addEventListener('resize', () => draw(0));
+window.hyperball = { S };   // the game's state, for checking it from outside (tests, the console)
 requestAnimationFrame(frame);
