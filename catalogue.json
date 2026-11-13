@@ -5993,6 +5993,23 @@
       ]
     },
     {
+      "n": "kata-pull",
+      "u": "https://kata.mino.mobi/pull/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-13",
+      "b": "2026-11-13",
+      "p": "kata",
+      "surface": "kata",
+      "d": "PULL: a tensile bench for four-dimensional rope. Every species pulled to failure in one model, against a single strand: twisted yarn (none in 4D), yarn spun round a ribbon, hooped bundles, and continuous filament from the spinneret, loose and sheathed. Fibres slip where friction gives out and snap at their weak spots; a gripped bundle comes out stronger than the sum of its fibres.",
+      "tags": [
+        "math",
+        "canvas",
+        "simulation"
+      ]
+    },
+    {
       "n": "kata-twist",
       "u": "https://kata.mino.mobi/twist/",
       "c": "data",

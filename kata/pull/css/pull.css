@@ -1,0 +1,17 @@
+/* PULL: species chips, the rope under load, the curves, the table */
+:root { --bg: #07080c; --panel: #0d0f15; --text: #e9e4da; --dim: #9a958c; --gold: #ffd27a; --ana: #38f2e0; --kata: #ff66b8; --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+body { max-width: 980px; margin: 0 auto; padding: calc(10px + env(safe-area-inset-top)) 14px calc(20px + env(safe-area-inset-bottom)); }
+header { display: flex; gap: 12px; align-items: baseline; margin-bottom: 10px; } header b { font: 800 14px var(--mono); letter-spacing: 0.1em; } header span { font: 12px var(--mono); color: var(--dim); }
+#species { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#species button, #goB { font: 600 12px var(--mono); background: rgba(255, 255, 255, 0.04); color: var(--text); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 6px 9px; cursor: pointer; touch-action: manipulation; }
+#species button.on, #goB { border-color: var(--gold); color: var(--gold); } #species button i { font-style: normal; color: var(--dim); margin-right: 5px; }
+section, #plot, table { background: var(--panel); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; }
+section { padding: 10px 12px; } h2 { font: 700 12px var(--mono); letter-spacing: 0.06em; color: var(--gold); margin: 0 0 8px; }
+#rope { display: block; width: 100%; height: 210px; } .row { display: flex; gap: 12px; align-items: center; margin-top: 8px; font: 12px var(--mono); color: var(--dim); }
+#plot { display: block; width: 100%; height: 230px; margin-top: 10px; }
+table { width: 100%; margin-top: 10px; border-collapse: collapse; font: 12px var(--mono); overflow: hidden; } th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); } th { color: var(--dim); font-weight: 400; } td.n { text-align: right; } th:nth-child(n+3) { text-align: right; } td.big { color: var(--gold); font-weight: 700; } td.nil { color: var(--kata); font-weight: 700; } td small { color: var(--dim); }
+tr.on td { background: rgba(255, 210, 122, 0.06); } td i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 7px; vertical-align: -1px; }
+.foot { font: 13px/1.6 var(--sans); color: var(--dim); margin: 12px 2px 0; } .foot a, .foot b { color: var(--text); }
+@media (max-width: 620px) { th:nth-child(6), td:nth-child(6) { display: none; } }

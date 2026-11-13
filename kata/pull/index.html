@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="PULL — a tensile bench for four-dimensional rope. Every species pulled to failure: twisted yarn, yarn on a ribbon, hooped bundles, and continuous filament from the spinneret, against a single strand. Fibres slip where friction gives out and snap at their weak spots." />
+<title>PULL — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/pull.css" />
+</head>
+<body>
+<header><b>PULL</b><span>a tensile bench for four-dimensional rope</span></header>
+<div id="species"></div>
+<section id="live">
+  <h2 id="liveT"></h2>
+  <canvas id="rope" aria-label="the rope's fibres under load: colour is how near each stretch is to breaking, gaps are breaks and fibre ends"></canvas>
+  <div class="row"><button type="button" id="goB">pull again</button><span id="liveS"></span></div>
+</section>
+<canvas id="plot" aria-label="force against stretch for every rope"></canvas>
+<table id="tab"><thead><tr><th>rope</th><th></th><th>fibres</th><th>strength</th><th>per fibre</th><th>fails by</th></tr></thead><tbody></tbody></table>
+<p class="foot" id="note"></p>
+<p class="foot"><b>PULL.</b> A model rope pulled to failure. Each row above is one fibre's place in the rope, drawn along its length: short fibres laid end to end (the gaps are their ends), or one continuous filament. Every stretch of fibre has its own strength, so weak spots exist. Neighbours pass load to each other through friction, up to a limit set by how hard they are pressed together; past it they slip. The rope is stretched step by step, links over their strength break, and the force at the jaws is recorded. <b>Strength</b> is the peak, in units of one continuous strand of the same length. What makes the species differ is only where the pressing comes from: twist (grip in proportion to tension, measured in <a href="../twist/">TWIST</a>), a hoop or sheath (a fixed squeeze: a dial, not a measurement), or nothing. <a href="./README.md">how it works, and what is assumed</a> · <a href="../cad4/#spinneret">the spinneret</a> · <a href="../">kata</a></p>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
