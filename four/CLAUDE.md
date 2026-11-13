@@ -255,6 +255,22 @@ for games, and this is a modelling programme with publications to come. The game
   G₄ 6–16× under the electron-matched value, element 6 at 8–10 MK), the low-s cores making helium at 8–11 MK by the
   ceryllium cycle; in the grid model 14 past helium, sorting by the core's temperature as before (> ~10 MK climbs, ~4–9
   helium, < ~3.5 helium-3). 12 of the 56 points differ, all at s ≤ 1.6.
+  **Window C, stars that live (2026-11-13; PI: "press on").** `fusion/tools/eps4.mjs` (~15 min a model; `ALT=` for the
+  grid) → **generated** `fusion/eps4.json`: the network as an absolute energy law. It meets the star solver through p + p,
+  ρ_ref(T) = m_u k_pp,net(T)/⟨σv⟩_abs(T) (mainseq's absolute 4D rate: our S̃ carried, the same 4 fm barrier, ppx, 4D's
+  weak factor; ∝ T², the 1/(kT)² every 4D two-body rate shares, 2.8 × 10¹⁷–7 × 10¹⁸ kg/m⁴ over 10–50 MK), and on a grid of
+  T (1–100 MK) × ρ (10¹³–10¹⁸ kg/m⁴) a fresh primordial core burns at fixed T, ρ to half its hydrogen: t½ and the mean ε
+  (energy as lost atomic rest mass, neutrinos not taken off). `atom/tools/mainseq.mjs net <G> <s> [mass] [ff]` builds
+  the main sequence on it and records each core's t½ at its central T, ρ (`rhoc`, `th`); `firstStar` falls back to a
+  grid of central temperatures when a kinked law (s = 1.65–1.7) leaves the diffusion estimate nothing to use. Run
+  `lifetimes-1` (55 sequences, all exit 0; the ten at s = 1.65–1.7 rerun in the sandbox after that fix, G 10⁻²³ s 1.65
+  cut at 17 min). `fusion/tools/lifetimes4.mjs <dir> [ALT=…] [OURS=ours.json]` → `papers/p2/data/lifetimes.json`; ours as
+  the calibration: the book's zero-age Sun (13.5 MK, 74 g/cm³) burnt by REACLIB at fixed T, ρ halves in 11.1 Gyr where
+  the real centre took ~4.6, so the "Sun analogue" is the star whose zero-age core t½ is 11.1 Gyr (declared: 4D cores
+  evolving as ours). Figure 2 (`papers/p2/figures/lifetimes.mjs`). **Result:** long-lived stars everywhere computed; the
+  analogue at 0.2–5 M_Ch for G 10⁻¹⁴–10⁻²⁰; real cores hotter than the Sun-pace convention (densities below ρ_ref), so
+  s = 1.65 climbs past helium (elements 6–8) and helium-3 stranding at s = 1.8–1.85 gives way to helium as G falls to
+  10⁻²⁰. s ≤ 1.6 still splits by mass model.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

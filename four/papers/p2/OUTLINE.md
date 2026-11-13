@@ -130,10 +130,23 @@ a carried rate; where the climb ends rests on A2's masses.
 
 ## Part IV — Stars
 
-12. **The main sequence.** `js/mainseq.js` at three strengths of gravity: brightness ∝ M⁵, fuel burned as G^(2/3) at a
-    given share of the Chandrasekhar mass; 4D opacities from the lens vacuum (free–free ×0.5–2). **computed** — on the
-    old p + p (1–4 fm, ours' weak factor). *To do (C):* rerun with computed p + p, A1's weak factor and the 4D
-    network's energy release; lifetimes against mass across G and s, the Sun-analogue's life computed, not assumed.
+12. **The main sequence, burning by the network (window C, 2026-11-13).** `js/mainseq.js` with the 4D network's own
+    energy law (`fusion/tools/eps4.mjs` → `fusion/eps4.json`: the network joined to the star solver through p + p itself,
+    ρ_ref(T) = m_u k_pp,net / ⟨σv⟩_abs; at each T, ρ a fresh primordial core burnt to half its hydrogen, its t½ and mean
+    ε), `mainseq.mjs net`, run `lifetimes-1` (55 sequences, all exit 0; s = 1.65–1.7 rerun after a first-star fix) at G
+    10⁻¹¹–10⁻²³ × ours, 0.13–5 M_Ch, the grid mass model too at s ≤ 1.6; `fusion/tools/lifetimes4.mjs` →
+    `data/lifetimes.json`. **Ours as the calibration:** the book's own zero-age Sun's centre (13.5 MK, 74 g/cm³) burnt
+    by REACLIB at fixed T, ρ halves in 11.1 Gyr, where the real centre took ~4.6, so a 4D star's "Sun analogue" is the
+    one whose zero-age core t½ is 11.1 Gyr, if 4D cores evolve as ours (declared). **Results:** (a) long-lived stars are
+    generic: every sequence from G = 10⁻¹⁴ to 10⁻²⁰ has stars whose cores take 10³–10⁵ Gyr, and a Sun analogue inside
+    0.2–5 M_Ch; at 10⁻²³ every star computed takes longer than ours (the analogue lies above 5 M_Ch); at 10⁻¹¹ the solver
+    stops above 0.3–0.5 M_Ch at several strengths. (b) **Real cores are hotter than the Sun-pace convention** (their
+    densities, 10¹³–10¹⁷ kg/m⁴, lie below the network's reference density, ~10¹⁷–10¹⁸), so what hydrogen burning makes
+    shifts: at s = 1.65 the analogue climbs past helium (element 6–8, 9.5–13 MK at G 10⁻¹⁷–10⁻²⁰), and **helium-3
+    stranding gives way to helium as gravity weakens** (s = 1.8–1.85: helium-3 at G ≥ 10⁻¹⁷, helium at 10⁻²⁰). Gravity
+    is now an axis of the hydrogen-burning window, not only of the clock. (c) The mass models still split s ≤ 1.6
+    (helium by the cycle at 9–14 MK, or a climb to elements 7–13 at 12–25 MK). **computed, on the network's burning;
+    the analogue's definition calibrated on ours; no stellar evolution.** Figure 2.
 13. **Which stars do what.** How far each core mass burns (`js/burning.js`, ours to 40% in mass), stirred cores, which
     explode and when (`nuclei.mjs cores`, `explode`). **computed / rough.** *To do (C):* post-main-sequence growth.
 
@@ -168,7 +181,7 @@ a carried rate; where the climb ends rests on A2's masses.
 2. The 4D chart of nuclides by binding source, with the N = Z valley and the two-neutron isotopes' β⁻.
 3. The first minutes: helium left against G₄ and the clock.
 4. Hydrogen burning's ash against s (the network sweep).
-5. The main sequence and lifetimes (C).
+5. **Drawn as figure 2** (`figures/lifetimes.svg`): core half-life against mass per strength at G = 10⁻¹⁷, and our Sun's analogue across G × s coloured by what its own centre burns to, split where the mass models disagree (C).
 6. Composition against age (D).
 
 ## Companion objects
@@ -185,7 +198,7 @@ a carried rate; where the climb ends rests on A2's masses.
 - [ ] A2 at least bracketed: tensor force or its effect estimated; the Brink/ladder spread reported on every claim it
       touches. *Done for the masses (masses-1: one model adopted, the other the band's edge, both tested on ours); the
       network and figure 1 carry both. Open: 5-11's binding by a third method; the tensor force.*
-- [ ] C: lifetimes computed (the Sun-pace convention retired or stated as the comparison it is).
+- [ ] C: lifetimes computed (the Sun-pace convention retired or stated as the comparison it is). *First cut done (lifetimes-1): zero-age cores; stellar evolution and the post-main-sequence still to come.*
 - [ ] D: one composition-against-age band.
 - [ ] B: each stability claim tagged proved, argued or open.
 - [ ] A build like paper 1's (`build.mjs`: tokens from the bake, a claim ledger with gates) once the claims settle.

@@ -9,7 +9,7 @@ const D = JSON.parse(readFileSync(new URL("../data/lifetimes.json", import.meta.
 const COL = { "past helium": "#E69F00", helium: "#56B4E9", "helium-3": "#CC79A7", unburnt: "#bbbbbb", mixed: "#999999" };
 const S = [...new Set(D.runs.map((r) => r.s))].sort((a, b) => a - b), GS = [...new Set(D.runs.map((r) => r.G))].sort((a, b) => b - a);
 const SC = ["#0072B2", "#009E73", "#D55E00", "#CC79A7", "#56B4E9", "#E69F00", "#000000", "#8C7A00"]; // a strength's line colour
-const W = 980, H = 470, sunT = D.ours?.thGyr ?? 11.1;
+const W = 1040, H = 470, sunT = D.ours?.thGyr ?? 11.1;
 let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="system-ui, sans-serif" font-size="12"><rect width="${W}" height="${H}" fill="#fff"/>`;
 // (a) t½ against M at G = GA
 { const L = 60, R = 470, T = 34, B = 400, x0 = Math.log10(0.13), x1 = Math.log10(5), y0 = -3, y1 = 5;
@@ -39,6 +39,6 @@ let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-fa
   S.forEach((sv, i) => (s += `<text x="${X(i)}" y="${B + 4}" text-anchor="end" font-size="10" transform="rotate(-45 ${X(i)} ${B + 4})">${sv}</text>`));
   s += `<text x="${(L + R) / 2}" y="${B + 44}" text-anchor="middle">strength s</text><text x="${L - 44}" y="${(T + B) / 2}" text-anchor="middle" transform="rotate(-90 ${L - 44} ${(T + B) / 2})">G (× ours)</text>`;
   let ly = T + 6; for (const [k, c] of Object.entries(COL).slice(0, 3)) { s += `<circle cx="${R + 18}" cy="${ly}" r="6" fill="${c}" stroke="#333" stroke-width="0.6"/><text x="${R + 28}" y="${ly + 4}" font-size="10">${k}</text>`; ly += 18; }
-  s += `<circle cx="${R + 18}" cy="${ly}" r="6" fill="none" stroke="#999" stroke-dasharray="2 2"/><text x="${R + 28}" y="${ly + 4}" font-size="10">none</text>`; ly += 18;
+  s += `<circle cx="${R + 18}" cy="${ly}" r="6" fill="none" stroke="#999" stroke-dasharray="2 2"/><text x="${R + 28}" y="${ly + 4}" font-size="10">outside the</text><text x="${R + 28}" y="${ly + 16}" font-size="10">masses computed</text>`; ly += 30;
   s += `<text x="${R + 12}" y="${ly + 4}" font-size="9" fill="#555">numbers: MK</text>`; }
 s += `</svg>`; writeFileSync(new URL("./lifetimes.svg", import.meta.url), s); console.log("wrote lifetimes.svg");

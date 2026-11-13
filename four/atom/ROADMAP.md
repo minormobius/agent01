@@ -59,6 +59,12 @@ across the choices it rests on, and any conclusion that flips inside a band is n
 - **C. 4D solar lifetimes** (needs A1): the main sequence with absolute rates and the 4D network's energy release,
   across G and s: lifetime against mass and the Sun-analogue's, computed. Then core growth, the ielium/ceryllium flash,
   which masses explode.
+  **First cut (2026-11-13, run `lifetimes-1`, `fusion/eps4.json`, `fusion/tools/lifetimes4.mjs`):** the network's own
+  burning in the main sequence, G 10⁻¹¹–10⁻²³ × s. Long-lived stars are generic (cores taking 10³–10⁵ Gyr at the low-mass
+  end); the Sun analogue (zero-age core t½ = our own zero-age Sun's 11.1 Gyr) sits at 0.2–5 M_Ch for G 10⁻¹⁴–10⁻²⁰.
+  Real 4D cores run hotter than the old Sun-pace convention, so helium-3 stranding at high s gives way to helium as G
+  falls, and s = 1.65 climbs past helium: gravity joins the hydrogen-burning window. The kill criterion's "stars still
+  live long" half holds wherever stars were computed.
 - **D. Composition over age** (needs C): the first minutes with 4D weak rates; yields per stellar mass; a one-zone
   galaxy (star formation, a mass function, C's lifetimes, the yields), giving composition against time as a band. This
   is what step 3 below wants.
