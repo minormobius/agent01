@@ -1355,5 +1355,20 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
     `proton + proton from the strong force: ours Λ² ${l2.toFixed(3)} (realistic forces 7.035), deuteron ${d3.B.toFixed(3)} MeV; 4D deuteron as ours ${d4.B.toFixed(4)} MeV, overlap ${o4.M.toExponential(2)}; no deuteron by e⁺ below 1.80 MeV`);
 }
 
+/* 75 · the weak force in d dimensions (js/weak.js, the roadmap's A1): Fermi's contact theory with d-dimensional phase
+   space. On ours, no Fermi function: the neutron lives 945 s (measured 879, the Coulomb and radiative corrections left
+   out), and the neutron–proton rates against the expansion (clock 0.74 s at T = 1 MeV, before e± annihilation) freeze
+   out at 0.80 MeV and leave Y = 0.241 (measured 0.245). In 4D the phase space is p²W(W₀ − W)³ and the lower edge of the
+   weak window (the first minutes leave half the hydrogen) scales as the clock^(−1/2) */
+{
+  const W = await import("../js/weak.js"), B = await import("../js/bbn.js");
+  const tau = W.neutronLife(3, W.GF), nf = W.neutronFraction(3, W.GF, { t1: 0.74 }), Y = B.firstMinutes({ d: 3, B: 2.2246, Tf: nf.Tf, tau }).Y;
+  const f4 = W.phaseSpace(4, 3), f4q = (() => { let s = 0; const n = 20000; for (let i = 0; i < n; i++) { const w = 1 + (2 * (i + 0.5)) / n; s += (w * w - 1) * w * (3 - w) ** 3; } return (2 * s) / n; })();
+  const y4 = (G, t1) => { const n = W.neutronFraction(4, G, { t1 }); return B.firstMinutes({ d: 4, B: 2.2246, t1, Tf: n.Tf, tau: W.neutronLife(4, G) }).Y; };
+  const g = W.G4_REF * 10 ** 4.43, scale = y4(g, 1) - y4(g * Math.sqrt(10), 0.1); // the edge moves by √10 per decade of clock
+  ok(Math.abs(tau - 945) < 10 && Math.abs(nf.Tf - 0.8) < 0.02 && Math.abs(Y - 0.241) < 0.01 && Math.abs(f4 / f4q - 1) < 1e-4 && Math.abs(scale) < 0.02 && Math.abs(W.omega(4) - 2 * Math.PI ** 2) < 1e-12,
+    `the weak force in d dimensions: ours' neutron ${tau.toFixed(0)} s (no Fermi function; measured 879), freeze-out ${nf.Tf.toFixed(3)} MeV, Y ${Y.toFixed(3)} (measured 0.245); 4D phase space checked, the weak window's edge ∝ clock^(−1/2) (ΔY ${scale.toFixed(3)})`);
+}
+
 console.log(fails ? `\n✗ ${fails} of ${checks} atom4 checks failed` : `atom4: ${checks} checks in ${((Date.now() - t0) / 1000).toFixed(0)} s\n\n✓ atom4 selftest passed`);
 process.exit(fails ? 1 : 0);

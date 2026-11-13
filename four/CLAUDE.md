@@ -771,6 +771,17 @@ for games, and this is a modelling programme with publications to come. The game
   together at each temperature, every rate a ratio to proton + proton's (density drops out); `protonflow compact MN` gives
   it the close-draw capture tables. Result: zones above ~10 MK burn wholly to the element where the climb stops; a Sun-pace
   core makes element 9 or pxygen, decided by proton + proton's nuclear size (ROADMAP step 2).
+  **The weak force in 4 + 1 (PI, 2026-11-13: the roadmap's physics spine, A1).** `js/weak.js` (no DOM, mirrored,
+  selftest 75, a methods panel): Fermi's contact theory in d dimensions (G_d in mass^−(d−1); decay ∝ G_d² m_e^(2d−1) |M|²
+  Ω_d² f_d/(2π)^(2d−1), f_d = ∫p^(d−2)W(W₀ − W)^(d−1)dW; no Fermi function), the early universe's n ↔ p rates (electron mass
+  kept, Pauli-blocked, detailed balance) integrated against the clock to the frozen neutron share (`neutronFraction`,
+  which hands bbn.js an equivalent T_f), and `weakRatio`, the factor 4D's own weak force puts on ours in p + p and the
+  network's β decays (not yet applied to them). Reference G4_REF = G_F/M_W. On ours: neutron 945 s, T_f 0.800 MeV, Y 0.241
+  (the clock 0.74 s at freeze-out, before e± annihilation; 1.32 after). `atom/tools/weak.mjs [B_d]` (~4 min) →
+  `weak-window.json`: half the hydrogen survives only for G₄ > 10^(3.4–5.4) × G4_REF (clock 100–0.01 s), so the 4D weak
+  force must be about as strong as ours at the electron's energies (G₄m_e³ ~ G_F m_e²); "ours at its own scale" leaves
+  pure helium. `atom/ROADMAP.md` now opens with the physics spine (A1 weak, A2 strong, B stability, C lifetimes, D
+  composition).
   **Proton + proton, computed (PI, 2026-11-11; paper 2's start).** `js/nuclear.js` `ppOverlap`/`deuteron`/`leptonF`
   (mirrored, selftest 74) and `atom/tools/ppfusion.mjs check|scan|bake|sunpace` replace the guessed p + p nuclear size:
   σv = K Ω_d |∫u_d u_E dr|² f(W₀), the deuteron and the protons' Coulomb scattering state from the same strong force,

@@ -14,6 +14,51 @@ so steep in temperature that a millionfold uncertainty in it moves the temperatu
 Anything that depends on **rate ratios at one temperature** (what a burning core turns into, element by element) is
 uncertain by orders of magnitude. The route leans on the first kind.
 
+## The physics spine (PI, 2026-11-12)
+
+The Earth path below needs the universe's composition, and that needs four things the book has so far borrowed or
+assumed. They come first, in this order, because each feeds the next. **Every result downstream is carried as a band
+across the choices it rests on, and any conclusion that flips inside a band is named.**
+
+| | objective | today | the gap |
+|---|---|---|---|
+| A1 | **the weak force in 4 + 1** | entirely ours: our coupling, neutron lifetime and freeze-out, ¹³N's ft, and 3D lepton phase space | not reasoned at all |
+| A2 | **the strong force, reasoned** | a strength dial s on a borrowed shape (Minnesota, Malfliet–Tjon), its window set by the deuteron and the diproton | no tensor or spin–orbit force; the three-nucleon repulsion fitted to our matter; Brink's grid and the ladder disagree ×2 on a helium-4 onto ceryllium-8 |
+| B | **it doesn't collapse** | Pauli derived; one atom stable by scaling; a Chandrasekhar mass in pinned 4D | bulk matter (stability of the second kind); nuclear matter saturating without our fitted repulsion; what collapsing cores end as |
+| C | **4D solar lifetimes** | a convention: k_pp is set so a Sun-like core halves its hydrogen in 4.6 Gyr | an absolute weak rate (A1) through the main sequence (js/mainseq.js) at each G and s |
+| D | **the universe's composition over its age** | the first minutes (helium where the deuteron binds as ours), a rough "what stars give back", the burning network | yields per stellar mass; a one-zone galaxy enriching over time; the heavy elements (no neutron source, 2026-11-12) |
+
+- **A1. The weak force in 4 + 1.** Fermi's theory in d dimensions: the coupling G_d has units of mass^−(d−1), each
+  lepton's phase space is p^(d−1)dp, so β decay goes as ∫p^(d−2)W(W₀ − W)^(d−1)dW. From one parameter, G₄ (and the
+  first minutes' clock, which gravity sets): the neutron's lifetime, freeze-out and the primordial helium, an absolute
+  p + p rate, and every β decay in the network. The deliverable is the **weak window**: the G₄ for which the first
+  minutes leave hydrogen and stars still live long. Days, in the sandbox. `js/weak.js`.
+  **First result (2026-11-13, `js/weak.js`, `tools/weak.mjs`, selftest 75):** checked on ours (neutron 945 s without the
+  Fermi function, measured 879; freeze-out 0.800 MeV and Y = 0.241 against 0.245 with the clock before e± annihilation).
+  **The lower edge of the weak window:** the first minutes leave half their hydrogen only if G₄ > 10^(4.4 ± 1) × G_F/M_W
+  (10^5.43 at a 0.01 s clock, 10^3.43 at 100 s; it moves as clock^(−1/2)). So "as strong as ours at its own scale" is
+  ruled out: it leaves a universe of helium. At the edge G₄m_e³ is 5 × 10⁻¹⁴ – 5 × 10⁻¹², against ours' G_F m_e² of
+  3 × 10⁻¹²: **4D's weak force must be about as strong as ours at the electron's energies**, which in a gauge theory means a
+  weak scale near 1–30 MeV rather than ours' 80 GeV. There, the neutron lives 1 hour to 2 years and p + p's weak factor is
+  10⁻⁵–10⁻¹ of ours, so the Sun-pace convention's p + p rate needs C to say whether stars still live long. The upper edge
+  is C's to find.
+- **A2. The strong force, from a dial to an argument.** The long-range tail from pion exchange in 4D (Yukawa's
+  d-dimensional form); a tensor force; whether 4D nuclear matter saturates without our three-nucleon repulsion; the Brink
+  against ladder disagreement settled. Then the default s = 1.5152 justified or replaced. Weeks, with runner jobs.
+- **B. Doesn't collapse** (beside A): energy per atom extensive in growing 4D crystals (the plane-wave code) and a
+  Lieb–Thirring-style bound; binding per nucleon levelling off at finite density with A2's force (the liquid drop peaks
+  at mass ~300–2000: checked against runaway giant nuclei); white-dwarf and neutron-star limits and what cores collapse
+  to. Whether pinned gravity lets a universe expand and form structure is recorded as an assumption, not computed.
+- **C. 4D solar lifetimes** (needs A1): the main sequence with absolute rates and the 4D network's energy release,
+  across G and s: lifetime against mass and the Sun-analogue's, computed. Then core growth, the ielium/ceryllium flash,
+  which masses explode.
+- **D. Composition over age** (needs C): the first minutes with 4D weak rates; yields per stellar mass; a one-zone
+  galaxy (star formation, a mass function, C's lifetimes, the yields), giving composition against time as a band. This
+  is what step 3 below wants.
+
+**Kill criterion:** if no G₄ gives both long-lived stars and hydrogen surviving the first minutes, 4D needs a
+finely tuned weak force, and that is the result.
+
 ## Where we are (done)
 
 - The strong force: a stronger one than ours is needed, inside a window set by the deuteron and the diproton, checked
