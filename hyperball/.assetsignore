@@ -2,3 +2,4 @@
 CLAUDE.md
 test/
 wrangler.jsonc
+worker.js

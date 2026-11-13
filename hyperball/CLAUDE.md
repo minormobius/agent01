@@ -14,14 +14,14 @@ bot on cyan against two orange bots, three minutes. Solo practice, 1v1 and 3v3 i
 | Type | frontend |
 | Owning branch | `claude/epic-mayer-y28tpl` |
 | Deploy | `.github/workflows/deploy-hyperball.yml` |
-| Uses | — |
+| Uses | auth.mino.mobi |
 | Provides | — |
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `surfaces[]` where `surface == "hyperball"`.
 
 ## How it works
 
-One static site, no build, no worker script (worker `hyperball`, assets only, plain route `hyperball.mino.mobi/*`).
+A static site and a small worker (`worker.js`: avatars and an xrpc gateway), no build (worker `hyperball`, plain route `hyperball.mino.mobi/*`).
 
 - `js/habitat.js` is a **byte-identical copy** of `ana/habitat/js/habitat.js` (the Hopf habitat's maths: J, exact
   flights, walking by parallel transport, `orthonormalTo`, the map `mapOf`). Edit ana's, then copy it over; the
@@ -80,6 +80,19 @@ One static site, no build, no worker script (worker `hyperball`, assets only, pl
   moment a step ends play (it once counted one goal seven times, the ball still in the net); ball cam looks at the
   ball. The floor's grid lines fade out where they're too fine to draw (blurred, they washed the floor pink). Touch: a stick (lean right/left, ana/kata) and BOOST, JUMP, BRAKE, GO;
   the throttle is always on by default on touch screens, and the controls hide off the game (`body[data-state]`).
+- **Sign-in and faces** (step 1 of multiplayer): `worker.js` serves the site (ASSETS) plus `/avatar/<did>` (getProfile
+  on the public AppView, the thumbnail re-served from this origin, cached a day; cdn.bsky.app sends no CORS header,
+  so WebGL can't texture it from there) and `/xrpc/app.bsky.actor.{searchActorsTypeahead,getProfile}` (the sign-in
+  field's typeahead). `js/auth.js` and `js/typeahead.js` are byte copies of `packages/oauth-client/` (registered in
+  `scripts/sync-dataviz.mjs`; preflight checks them): sign-in goes through auth.mino.mobi, which allows every
+  `*.mino.mobi` origin, with scope `atproto` only (identity: nothing is written). Each bike has a helmet sphere
+  textured from a 6-slot face atlas (a 2D canvas → `faces`), billboarded to the camera and ringed in its team
+  colour: your avatar, or a drawn face (a letter on a vaporwave disc) for bots and signed-out you. Bots have names.
+  Tested: `test/worker.selftest.mjs` (the routes, network stubbed); locally the real worker serves a real avatar.
+  Next: rooms (a Durable Object per room running arena.js, inputs up, snapshots down, prediction, interpolation).
+- The floor grid: planes x_k = 2.5 + 5n m, each family fading where its lines get too fine AND where your slice runs
+  nearly inside its planes (then the "line" is the whole floor: a symmetric kickoff stands at x₂ = x₄ = 0, and the
+  floor glowed orange at every 2v2 kickoff).
 - **Settings** (the menu): reachable from the title screen (SETTINGS) and in play (☰, P, Esc); everything applies at
   once except the match size, which starts a new match on the way back to the game (the menu says so). All saved in
   localStorage (`hyperball.settings`, try/catch: private windows fall back to defaults). A toast confirms. Once,
@@ -90,6 +103,7 @@ One static site, no build, no worker script (worker `hyperball`, assets only, pl
 ## Checks
 
 ```bash
+node hyperball/test/worker.selftest.mjs      # the worker's routes (avatar proxy, xrpc gateway, assets), network stubbed
 node hyperball/test/hyperball.selftest.mjs   # ~1 s: the copy, gravity, flights vs ana's, bounces, driving, jumps, hits, goals, ball lock (no flips), the camera (no jumps, bike in view), aiming, kickoffs, teams, a lone bot scoring, a 10-minute 2v2 of bots
 ```
 

@@ -150,7 +150,7 @@ A change here ripples to every dependent surface listed.
 
 | Resource | Dependents | Surfaces |
 |---|---|---|
-| `auth.mino.mobi` | 12 | `bakery`, `board`, `canvas`, `clef`, `farm`, `farm-next`, `games`, `io`, `parts`, `photo`, `rant`, `scores` |
+| `auth.mino.mobi` | 13 | `bakery`, `board`, `canvas`, `clef`, `farm`, `farm-next`, `games`, `hyperball`, `io`, `parts`, `photo`, `rant`, `scores` |
 | `atpolls-db` | 10 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite`, `words`, `zest` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |

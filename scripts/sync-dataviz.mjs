@@ -74,6 +74,10 @@ const EXTRA = [
   // hopper publishes runs to the player's own PDS through the shared OAuth
   // worker, so it links the client like every other static site does.
   ["packages/oauth-client/auth.js", "hopper/js/auth.js"],
+  // hyperball signs players in (identity only) to put their Bluesky avatar on their bike; the typeahead suggests
+  // handles through hyperball's own /xrpc/ gateway (worker.js).
+  ["packages/oauth-client/auth.js", "hyperball/js/auth.js"],
+  ["packages/oauth-client/typeahead.js", "hyperball/js/typeahead.js"],
   // imp.mino.mobi/vote/ signs its one voter in (identity only) to cast the
   // build-a-bot A/B ballot; imp/ is its own asset root.
   ["packages/oauth-client/auth.js", "imp/vote/auth.js"],

@@ -6,12 +6,12 @@
 
 | tier | meaning | workers |
 |---|---|---|
-| **static** | no code: Static Assets hands out files | 38 |
-| **thin** | code that only forwards to the assets (a fallback, a redirect) | 25 |
+| **static** | no code: Static Assets hands out files | 37 |
+| **thin** | code that only forwards to the assets (a fallback, a redirect) | 26 |
 | **api** | real request handlers, no storage of its own | 24 |
 | **stateful** | binds D1 / KV / R2 / Durable Objects / queues / containers — holds data | 29 |
 
-Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party hosts: **35**.
+Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party hosts: **36**.
 
 ## Shared state — the blast radius
 
@@ -89,6 +89,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 | `fable` | fable | thin | — | — | — | — |
 | `fix` | fix | thin | — | — | — | — |
 | `fold` | fold | thin | — | — | — | — |
+| `hyperball` | hyperball | thin | — | — | — | public.api.bsky.app |
 | `ink` | ink | thin | — | — | — | — |
 | `iris` | iris | thin | — | — | — | — |
 | `jurassic` | jurassic | thin | — | — | — | — |
@@ -108,7 +109,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 
 ## Static workers (no code)
 
-`ai-edu` · `ana` · `ask` · `aub` · `bakery` · `board` · `canvas` · `cards` · `cell` · `crm` · `del` · `empathy` · `farm` · `fipo` · `four` · `g` · `glass` · `golem` · `harvestople-next` · `hyperball` · `j-minomobi` · `jog` · `mappa` · `math` · `minomobi` · `neuro` · `ns` · `org` · `os` · `poke` · `polis` · `proofs` · `studio` · `time` · `tjs` · `torus` · `war` · `zoom`
+`ai-edu` · `ana` · `ask` · `aub` · `bakery` · `board` · `canvas` · `cards` · `cell` · `crm` · `del` · `empathy` · `farm` · `fipo` · `four` · `g` · `glass` · `golem` · `harvestople-next` · `j-minomobi` · `jog` · `mappa` · `math` · `minomobi` · `neuro` · `ns` · `org` · `os` · `poke` · `polis` · `proofs` · `studio` · `time` · `tjs` · `torus` · `war` · `zoom`
 
 ## Pages Functions
 

@@ -6,6 +6,8 @@
 // your slice it is when ball lock is off), the goals' markers, a minimap, the score, the clock and your boost.
 import * as H from './habitat.js';
 import * as G from './arena.js';
+import { AuthClient } from './auth.js';
+import { attachHandleTypeahead } from './typeahead.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gl'), ov = $('ov'), ctx = ov.getContext('2d');
@@ -29,7 +31,11 @@ function newKickoff() {
   } else S.match = G.newMatch(n, G.ARENA, Math.random, true);
   S.matchTeam = S.team;
   S.ball = S.match.ball; S.bike = S.match.bikes[0].k; S.camState = null; S.aim = null; S.countdown = 3;
+  S.match.bikes.forEach((b, i) => { if (!b.human) b.name = BOT_NAMES[(i + S.botSeed) % BOT_NAMES.length]; });
+  if (S.facesReady) paintAtlas();   // the first kickoff runs before the face texture exists
 }
+const BOT_NAMES = ['NEON', 'VAPOR', 'ECHO', 'PRISM', 'SOLAR', 'DRIFT', 'HALO', 'PIXEL', 'NOVA', 'FLUX'];
+S.botSeed = Math.floor(Math.random() * 10);
 newKickoff();
 
 // ------------------------------------------------------------------ shader --
@@ -45,7 +51,8 @@ out vec4 o;
 uniform float R, tanH, aspect, time, ballR, goalR, goalH, sunR, pathEnd, shotEnd;
 uniform vec4 E, L, U, Rt, Wv, ball, own, enemy, pathA, pathB, shotA, shotB;
 // the bikes, up to six: two wheels, a body from bA to bB, a flame when boosting; bT the team (0 you, 1 cyan, 2 orange)
-uniform vec4 wA[6], wB[6], bA[6], bB[6], fl[6];
+uniform vec4 wA[6], wB[6], bA[6], bB[6], fl[6], hd[6];
+uniform sampler2D faces;    // six faces side by side: each rider's Bluesky picture, or a bot's
 uniform float bT[6], bBoost[6];
 uniform int nB;
 uniform float pathOn, shotOn;
@@ -86,11 +93,17 @@ vec3 floorCol(vec4 p, float t) {
   vec3 c = vec3(0.07, 0.025, 0.13);
   // the grid: the planes x_k = 5 m · n cut the 3-sphere in 2-spheres; your slice cuts those in curves
   vec3 lineCol[4] = vec3[4](vec3(1.0, 0.2, 0.75), vec3(0.2, 0.9, 1.0), vec3(0.65, 0.35, 1.0), vec3(1.0, 0.55, 0.25));
+  // metres per pixel here, in 4D: what a coordinate that changed as fast as the surface itself would do
+  float mpp = length(vec4(fwidth(p.x), fwidth(p.y), fwidth(p.z), fwidth(p.w))) + 1e-6;
   for (int k = 0; k < 4; k++) {
-    float d = abs(fract(p[k] / 5.0 + 0.5) - 0.5) * 5.0, aa = fwidth(p[k]);
+    // planes at x_k = 2.5 + 5n m (not through 0: a symmetric kickoff stands at x₂ = x₄ = 0)
+    float d = abs(fract(p[k] / 5.0) - 0.5) * 5.0, aa = fwidth(p[k]);
     float l = 1.0 - smoothstep(0.035, 0.035 + aa * 1.6, d);
     // fade the lines out where they're too fine to draw (a few pixels apart): blurred, they wash the floor pink
     l *= 1.0 - smoothstep(0.06, 0.3, aa / 5.0);
+    // and where your slice runs (nearly) inside one of the family's planes: x_k barely changes across the surface you
+    // see, so the "line" is the whole floor (it lit the floor orange whenever the frame lined up with an axis)
+    l *= smoothstep(0.08, 0.25, aa / mpp);
     c += lineCol[k] * l * 0.55;
   }
   // the halfway sphere (equally far from both goals), and the goal circles
@@ -153,6 +166,8 @@ void main() {
     if (tw > 0.0 && tw < t) { t = tw; kind = 4; who = i; }
     float tc = capsule(ro, d, bA[i], bB[i], 0.33);
     if (tc > 0.0 && tc < t) { t = tc; kind = 5; who = i; }
+    float th = sphere(ro, d, hd[i], 0.55);
+    if (th > 0.0 && th < t) { t = th; kind = 7; who = i; }
     if (bBoost[i] > 0.5) {
       float tf = capsule(ro, d, bA[i], fl[i], 0.22);
       if (tf > 0.0 && tf < t) { t = tf; kind = 6; who = i; }
@@ -175,6 +190,13 @@ void main() {
   else if (kind == 5) {
     vec4 n = normalize(p - bA[who]);
     col = teamCol * (0.5 + 0.5 * max(dot(n, -normalize(p)), 0.0));
+  } else if (kind == 7) {
+    // the helmet: the rider's picture, always turned to face you, ringed in their team's colour
+    vec4 off = (p - hd[who]) / 0.55;
+    vec2 uv = vec2((float(who) + 0.5 + 0.47 * dot(off, Rt)) / 6.0, 0.5 - 0.47 * dot(off, U));
+    col = texture(faces, uv).rgb;
+    float facing = abs(dot(normalize(off), d));
+    col = mix(teamCol, col, smoothstep(0.18, 0.42, facing));
   } else col = vec3(1.0, 0.7, 0.25) * 1.6;
   // the goals: translucent spherinders, a cone wall (all the points the goal's radius from its pole) and a roof
   for (int g = 0; g < 2; g++) {
@@ -255,18 +277,21 @@ function draw(dt) {
   set4('ball', S.ball.x);
   // every bike: two wheels, a body leaning toward its turn, a flame when boosting
   const bikes = S.match.bikes, n = Math.min(6, bikes.length), arr = () => new Float32Array(24);
-  const wa = arr(), wb = arr(), ba = arr(), bb = arr(), fla = arr(), team = new Float32Array(6), boost = new Float32Array(6);
+  const wa = arr(), wb = arr(), ba = arr(), bb = arr(), fla = arr(), hda = arr(), team = new Float32Array(6), boost = new Float32Array(6);
   bikes.slice(0, n).forEach((b, i) => {
     const k = b.k, u = G.up(k.x), F = k.ground ? k.F : H.unit(H.add(k.F, u, -H.dot(k.F, u))), lu = H.unit(H.add(u, k.lean, 1));
     const b0 = H.add(k.x, lu, 0.7);
     wa.set(H.add(H.add(k.x, F, 0.75), lu, 0.45), i * 4); wb.set(H.add(H.add(k.x, F, -0.75), lu, 0.45), i * 4);
     ba.set(b0, i * 4); bb.set(H.add(H.add(k.x, lu, 1.55), F, 0.15), i * 4);
+    hda.set(H.add(H.add(k.x, lu, 2.25), F, 0.1), i * 4);
     fla.set(H.add(H.add(b0, F, -1.3 - 0.3 * Math.random()), lu, -0.1), i * 4);
     team[i] = b.human ? 0 : b.team === 'cyan' ? 1 : 2; boost[i] = k.boosting ? 1 : 0;
   });
   const loc = (nm) => gl.getUniformLocation(prog, nm);
   gl.uniform4fv(loc('wA'), wa); gl.uniform4fv(loc('wB'), wb); gl.uniform4fv(loc('bA'), ba); gl.uniform4fv(loc('bB'), bb); gl.uniform4fv(loc('fl'), fla);
   gl.uniform1fv(loc('bT'), team); gl.uniform1fv(loc('bBoost'), boost); gl.uniform1i(loc('nB'), n);
+  gl.uniform4fv(loc('hd'), hda);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, facesTex); gl.uniform1i(loc('faces'), 0);
   set4('own', G.OWN); set4('enemy', G.ENEMY);
   // the aids
   const showPath = S.assist !== 'off' && S.aim && S.state === 'play';
@@ -327,7 +352,7 @@ function overlay(cam) {
     const g = project(cam, H.add(G.bikeBody(b.k), G.up(b.k.x), 1.6), W, Hh);
     if (!(g.f > 0 && g.x > 0 && g.x < W && g.y > 0 && g.y < Hh)) continue;
     const col = b.team === 'cyan' ? '#3af0ff' : '#ffa23a', offs = Math.abs(g.w) < 1 ? '' : g.w > 0 ? ' ▲' : ' ▼';
-    ctx.fillStyle = col; ctx.fillText(`${b.team === 'cyan' ? 'MATE' : 'OPP'}${offs}`, g.x, g.y);
+    ctx.fillStyle = col; ctx.fillText(`${b.team === 'cyan' ? 'MATE ' : ''}${b.name}${offs}`, g.x, g.y);
   }
   ctx.font = '700 12px ui-monospace, monospace';
   // goal markers
@@ -485,7 +510,7 @@ function end() {
   const c = S.goals.cyan, o = S.goals.orange, n = +S.team;
   const verdict = n === 0 ? '' : c > o ? 'YOU WIN · ' : c < o ? 'YOU LOSE · ' : 'DRAW · ';
   $('final').innerHTML = n === 0 ? `<b>${c}</b> goal${c === 1 ? '' : 's'}${o ? ` · ${o} own goal${o === 1 ? '' : 's'}` : ''} · ${S.touches} touches`
-    : `${verdict}<b class="cyan">${c}</b> – <b class="orange">${o}</b> · ${S.mine} yours · ${S.touches} touches`;
+    : `${verdict}<b class="cyan">${c}</b> – <b class="orange">${o}</b> · ${S.mine} ${ME.handle ? `by @${ME.handle}` : 'yours'} · ${S.touches} touches`;
   $('title').classList.add('over'); $('title').hidden = false;
 }
 function start() {
@@ -506,6 +531,62 @@ function hud() {
   $('count').textContent = S.state === 'play' && S.countdown > 0 ? Math.ceil(S.countdown) : '';
   $('count').classList.toggle('show', S.state === 'play' && S.countdown > 0);
 }
+
+// ------------------------------------------------------------- who's riding --
+// Sign in with Bluesky (auth.mino.mobi, identity only: the scope is just 'atproto', nothing is written anywhere) and
+// your picture rides on your bike's helmet. The picture comes through this site's /avatar/<did> (worker.js), so WebGL
+// may use it. Bots, and you signed out, get a face drawn here: a vaporwave disc with a letter.
+const auth = new AuthClient();
+const ME = { did: null, handle: null, img: null };
+const atlas = document.createElement('canvas'); atlas.width = 6 * 128; atlas.height = 128;
+const actx = atlas.getContext('2d');
+const facesTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, facesTex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+function drawFace(i, b) {
+  const x = i * 128, team = b.human ? ['#ff2fb5', '#ffd35c'] : b.team === 'cyan' ? ['#29f0ff', '#7a5cff'] : ['#ffa23a', '#ff2fb5'];
+  actx.save(); actx.beginPath(); actx.rect(x, 0, 128, 128); actx.clip();
+  if (b.human && ME.img) { actx.drawImage(ME.img, x, 0, 128, 128); }
+  else {
+    const g = actx.createLinearGradient(x, 0, x, 128); g.addColorStop(0, team[1]); g.addColorStop(1, team[0]);
+    actx.fillStyle = g; actx.fillRect(x, 0, 128, 128);
+    actx.strokeStyle = 'rgba(255,255,255,0.35)'; actx.lineWidth = 3;
+    for (let k = 0; k < 5; k++) { actx.beginPath(); actx.moveTo(x, 78 + k * 11); actx.lineTo(x + 128, 78 + k * 11); actx.stroke(); }
+    actx.fillStyle = '#12051f'; actx.font = '700 64px ui-monospace, monospace'; actx.textAlign = 'center'; actx.textBaseline = 'middle';
+    actx.fillText(b.human ? (ME.handle ? ME.handle[0].toUpperCase() : 'YOU'.slice(0, 1)) : (b.name || '?')[0], x + 64, 60);
+  }
+  actx.restore();
+}
+function paintAtlas() {
+  actx.clearRect(0, 0, atlas.width, atlas.height);
+  S.match.bikes.slice(0, 6).forEach((b, i) => drawFace(i, b));
+  gl.bindTexture(gl.TEXTURE_2D, facesTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, atlas);
+}
+function showUser(u) {
+  ME.did = u?.did || null; ME.handle = u?.handle || null;
+  $('signin').hidden = !!u; $('me').hidden = !u;
+  if (!u) { ME.img = null; paintAtlas(); return; }
+  $('mehandle').textContent = `@${u.handle}`;
+  const img = new Image();
+  img.onload = () => { ME.img = img; $('meimg').src = img.src; $('meimg').hidden = false; paintAtlas(); };
+  img.onerror = () => { ME.img = null; $('meimg').hidden = true; paintAtlas(); };
+  img.src = `/avatar/${encodeURIComponent(u.did)}`;
+}
+$('signin').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const h = $('handle').value.trim();
+  if (!h) return;
+  $('signerr').textContent = 'off to Bluesky…';
+  try { await auth.login(h, { scope: 'atproto' }); }
+  catch (err) { $('signerr').textContent = err.message; }
+});
+$('signout').onclick = async () => { try { await auth.logout(); } catch (e) { /* fine */ } showUser(null); };
+attachHandleTypeahead($('handle'), { gateway: location.origin });
+S.facesReady = true;
+paintAtlas();
+(async () => { try { await auth.init(); } catch (e) { /* offline: signed out */ } showUser(auth.getUser()); try { auth.onAuthChange(showUser); } catch (e) { /* fine */ } })();
 
 // ------------------------------------------------------------------ menu --
 // Settings are saved on this device (localStorage, when the browser allows it) and restored on the next visit.
@@ -555,5 +636,5 @@ $('play').onclick = start;
 loadSettings();
 for (const k of SAVED) { const v = S[k]; for (const el of document.querySelectorAll(`[data-opt="${k}"]`)) for (const b of el.children) b.classList.toggle('on', b.dataset.v === String(v)); }
 addEventListener('resize', () => draw(0));
-window.hyperball = { S };   // the game's state, for checking it from outside (tests, the console)
+window.hyperball = { S, showUser };   // the game's state, for checking it from outside (tests, the console)
 requestAnimationFrame(frame);
