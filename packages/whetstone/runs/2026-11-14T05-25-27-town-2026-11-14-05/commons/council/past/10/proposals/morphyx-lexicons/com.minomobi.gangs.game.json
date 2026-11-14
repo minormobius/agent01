@@ -1,0 +1,235 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.gangs.game",
+  "description": "Root of one game. Signed by the GM's account; the GM's DID is the repo that holds it. Changing the fold digest, dice rule or rules means a new root, or a GM 'handover'/'retcon' move naming the new one.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": [
+          "name",
+          "gm",
+          "fold",
+          "dice",
+          "witness",
+          "rules",
+          "createdAt"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxGraphemes": 64,
+            "maxLength": 640
+          },
+          "gm": {
+            "type": "string",
+            "format": "did",
+            "description": "Holder of the GM's chair. Must equal the repo DID of this record."
+          },
+          "fold": {
+            "type": "ref",
+            "ref": "#fold"
+          },
+          "dice": {
+            "type": "ref",
+            "ref": "#dice"
+          },
+          "witness": {
+            "type": "ref",
+            "ref": "#witness"
+          },
+          "rules": {
+            "type": "ref",
+            "ref": "#rules"
+          },
+          "seats": {
+            "type": "array",
+            "maxLength": 8,
+            "items": {
+              "type": "ref",
+              "ref": "#houseSeat"
+            },
+            "description": "Seats the GM grants to miniphim accounts. Absent means miniphim does not play in this game. A seat's DID may not equal gm or witness.did; the fold reports 'seat-conflict' and does not count that seat's moves."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "datetime"
+          }
+        }
+      }
+    },
+    "fold": {
+      "type": "object",
+      "required": [
+        "sha256",
+        "source"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "description": "Hex digest of the fold script, its imports concatenated in import order."
+        },
+        "source": {
+          "type": "string",
+          "format": "uri",
+          "description": "Where anyone can fetch the exact bytes."
+        }
+      }
+    },
+    "dice": {
+      "type": "object",
+      "required": [
+        "chainHash",
+        "publicKey",
+        "period",
+        "genesis",
+        "marginSeconds"
+      ],
+      "properties": {
+        "chainHash": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        },
+        "publicKey": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "Hex BLS group key of the chain, as served by /info. The root alone must be enough to verify a round."
+        },
+        "period": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "genesis": {
+          "type": "integer"
+        },
+        "marginSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "description": "The game's numbers are the GM's, not the fold's. check.js reads them from here.",
+      "required": [
+        "actions",
+        "dotsTotal",
+        "dotsMax"
+      ],
+      "properties": {
+        "actions": {
+          "type": "array",
+          "minLength": 1,
+          "maxLength": 24,
+          "items": {
+            "type": "string",
+            "maxLength": 32
+          }
+        },
+        "dotsTotal": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 48
+        },
+        "dotsMax": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "playbooks": {
+          "type": "array",
+          "maxLength": 32,
+          "items": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "description": "If present, a sheet's playbook must be one of these."
+        },
+        "tracks": {
+          "type": "array",
+          "maxLength": 32,
+          "items": {
+            "type": "ref",
+            "ref": "#track"
+          },
+          "description": "Changing state the fold keeps per sheet (stress, harm, coin...). Never written on a sheet."
+        }
+      }
+    },
+    "track": {
+      "type": "object",
+      "required": [
+        "name",
+        "min",
+        "max"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "min": {
+          "type": "integer"
+        },
+        "max": {
+          "type": "integer"
+        },
+        "start": {
+          "type": "integer"
+        },
+        "playerMay": {
+          "type": "boolean",
+          "description": "True if a player's own move may change it on their own sheet (e.g. stress to resist). Otherwise only GM moves."
+        }
+      }
+    },
+    "houseSeat": {
+      "type": "object",
+      "required": [
+        "did"
+      ],
+      "properties": {
+        "did": {
+          "type": "string",
+          "format": "did"
+        },
+        "note": {
+          "type": "string",
+          "maxGraphemes": 300,
+          "maxLength": 3000
+        }
+      }
+    },
+    "witness": {
+      "type": "object",
+      "description": "Who may list asks. Snapshots count only from witness.did or from the gm. The gm's listing is the second door: an ask the witness leaves out can still be listed by the GM, and its round counts from that snapshot.",
+      "required": [
+        "did",
+        "sha256",
+        "source"
+      ],
+      "properties": {
+        "did": {
+          "type": "string",
+          "format": "did"
+        },
+        "sha256": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "description": "Hex digest of the code that writes the witness's snapshots."
+        },
+        "source": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    }
+  }
+}
