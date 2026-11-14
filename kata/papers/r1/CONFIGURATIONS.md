@@ -110,3 +110,19 @@ order of everything.
   rotations of a 3D cross-section have one stubborn loop; ours have infinitely many. This is the cleanest statement of
   why twist grips in 3D and not in 4D, and belongs in the paper's first section. Needs a source for the belt trick /
   π₁(SO(3)) = ℤ₂ and a check of whether the cluster's symmetries add stubborn part turns.
+
+## The bag of tricks, checked (2026-11-14; sources REFERENCES.md § F)
+
+| Trick | Status | Where |
+|---|---|---|
+| A thread cannot be knotted | true (F1); shown: a trefoil loses a crossing through w | CAD⁴ `#knot` |
+| A tube can be knotted, and a revolved knot is the spun torus | true (Winter 2009); shown: the push is blocked | CAD⁴ `#tubeknot` |
+| Twist holds for tubes | follows from the same construction; shown geometrically; **not yet in a rig** | CAD⁴ `#tubeyarn` |
+| Borromean in 4D: two spheres and a ring, and only that mix | true (F3); built from the published equations and tested | CAD⁴ `#borromean` |
+| A one-sided hoop catches a loop once and frees it twice | true for the standard projective plane (F5); **not built** (no distance function for it yet) | — |
+| Ring-through-neighbour differs from neighbour-through-ring | true (F8); a one-way braid is still speculation | — |
+| The belt trick in a hosed bundle | measured (TWIST); the symmetric cluster should have stubborn part turns too (F7), untested | TWIST README |
+
+**What this means for rope.** A rope of threads cannot be tied: every hitch, bend and stopper comes undone. Fastening
+has to use what links (a ring through a sphere: `#lock`, `#links`) or the rope has to be made of tubes, which knot and
+which hold twist. Tube fibre is the one material that brings back both of the things 4D took away.

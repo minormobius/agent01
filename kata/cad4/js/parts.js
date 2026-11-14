@@ -175,6 +175,15 @@ const KNOTS = (() => { const K = 0.45, tre = (t) => [K * (Math.sin(t) + 2 * Math
       params: { push: 0 }, ranges: { push: [0, 1] },
       parts: { rest: tube({ op: "wire", dim: 3, r: 0.08, pts: rest(3, 1.9) }), strand: tube({ op: "wire", dim: 3, r: 0.08, pts: strand(3, 1.9) }) },
       view: FACE, show: ["rest", "strand"], check: [["strand", "rest"]], path: [{ push: 0 }, { push: 1 }] },
+    /* Borromean rings for 4D: two spheres and a ring, after Davis, Howards, Newman & Parsley (2011), scaled by 0.4.
+       One sphere lies in the 3-space w = 0, the other in x = 0, the ring is an ellipse in the x–w plane */
+    borromean: (() => { const k = 0.4, sph = (R) => ({ op: "shell", t: 0, of: { op: "ball", dim: 3, r: R } }), pt = { op: "interval", h: 0 }, pts = []; for (let i = 0; i <= 48; i++) { const a = (2 * Math.PI * i) / 48; pts.push([f4(k * Math.cos(a)), 0, 0, f4(4 * k * Math.sin(a))]); }
+      return { title: "Borromean: two spheres and a ring", note: "Borromean rings for four dimensions: no two of the three are linked, and the three cannot be parted. The pieces are two spheres and a ring (three rings can't do it here; rings don't link). One sphere lies in the space you start in. The other lies in a space at right angles, so this slice cuts it in a circle. The ring passes through the first sphere and round the second; it meets this slice at two points inside the first sphere, so turn the slice into w to see it. Take either sphere away (gone1, gone2) and the ring slides out. With both it has no way out.",
+        params: { gone1: 0, gone2: 0, ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { gone1: [0, 1], gone2: [0, 1], ox: [-2, 2], oy: [-2, 2], oz: [-2, 2], ow: [-2, 2] },
+        parts: { first: { op: "move", by: [0, "gone1*40", 0, 0], of: { op: "round", r: 0.05, of: { op: "product", of: [sph(2 * k), pt] } } }, second: { op: "move", by: [0, "0-gone2*40", 0, 0], of: { op: "round", r: 0.05, of: { op: "product", of: [pt, sph(3 * k)] } } },
+          spheres: { op: "union", of: ["first", "second"] }, ring: { op: "move", by: ["ox", "oy", "oz", "ow"], of: { op: "wire", r: 0.06, pts } } },
+        show: ["first", "second", "ring"], check: [["ring", "spheres"], ["first", "second"]], ways: { name: "the ring", params: ["ox", "oy", "oz", "ow"], reach: 6 },
+        path: [{ gone1: 0, gone2: 0, ow: 0, oy: 0 }, { gone1: 0, gone2: 0, ow: 0.4, oy: 0 }, { gone1: 0, gone2: 0, ow: 0, oy: 0 }, { gone1: 0, gone2: 0, ow: 0, oy: 0.7 }, { gone1: 0, gone2: 0, ow: 0, oy: 0 }] }; })(),
     tubeyarn: { title: "yarn of tubes", note: "Twist that holds in 4D. A yarn of threads sheds its twist, because threads pass each other through the spare direction. Revolve an ordinary twisted yarn and each fibre is a tube: six wound round a seventh. Tubes cannot pass each other, so the twist stays, and an outer tube cannot be moved off the yarn in any direction across it. If the fibres of a 4D world are tubes, it can spin.",
       params: { ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { ox: [-1, 1], oy: [-1, 1], oz: [-1, 1], ow: [-1, 1] },
       parts: { core: tube({ op: "wire", dim: 3, r: 0.1, pts: [[1, 0, -1.6], [1, 0, 1.6]] }), five: tube({ op: "union", of: [1, 2, 3, 4, 5].map((j) => helix(j, 0.095)) }), others: { op: "union", of: ["core", "five"] },
@@ -382,7 +391,7 @@ export const GROUPS = [
   ["cloth", ["weave", "cloth"]],
   ["bundles and ropes", ["hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable"]],
   ["braids", ["hosebraid", "ribbonbraid", "maypole", "ribbonpole"]],
-  ["knots and twist", ["knot", "tubeknot", "tubeyarn"]],
+  ["knots and twist", ["knot", "tubeknot", "tubeyarn", "borromean"]],
   ["machines", ["pulley", "tackle", "spinneret"]],
   ["buildings", ["room"]],
 ];

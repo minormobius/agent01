@@ -62,7 +62,27 @@ Before submission every entry marked *partial* or *not checked* needs a page ref
 | E6 | P. Bellingeri, A. Bodin (2016), "The braid group of a necklace", *Math. Z.* 283(3–4), 995–1010. doi:10.1007/s00209-016-1630-0; arXiv:1404.2511 | confirmed | "the natural map Bₙ → WBₙ sending σᵢ into σᵢ is injective": every classical braid is a distinct loop braid | **read** (arXiv text) |
 | E7 | R. Fenn, R. Rimányi, C. Rourke (1997), "The braid-permutation group", *Topology* 36(1), 123–135. doi:10.1016/0040-9383(95)00072-0 | confirmed | as E3 | — |
 
-**One gap in E.** That *revolving a planar braid about an axis* (how CAD⁴ builds the hose braid and the maypole)
-realises exactly the map of E6 is our inference; no source states it. It is very likely the standard picture
-(a circle's motion through a coaxial circle is the generator σᵢ), but the paper should either prove it in a line or
-find it stated.
+**The gap in E, closed (2026-11-14).** Revolving a knot that lies in a half-space about the half-space's face is the
+*spun torus* of the knot, and it is the same surface as Tube(K): B. Winter (2009), "The classification of spun torus
+knots", *J. Knot Theory Ramifications* 18(9), 1287–1298, doi:10.1142/S0218216509007476, arXiv:0711.1638, Theorem 3.4
+(**read**); Theorem 3.5, "Tube preserves the knot group and quandle" (**read**). So CAD⁴'s `tubeknot` is the spun
+trefoil, its complement has the trefoil's group, and it is knotted (the step from "non-abelian group" to "knotted" is
+standard, not quoted). The same for braids is by analogy: E1 and E6 give the embedding of the braid group; that the
+revolved plait is its image has still not been seen stated for braids.
+
+## F. Knots, one-sided surfaces, Borromean links, the belt trick (checked 2026-11-14)
+
+| | Source | Bibliographic | Content we use | Content status |
+|---|---|---|---|---|
+| F1 | A. Skopenkov, "Embedding and knotting of manifolds in Euclidean spaces", arXiv:math/0604045 (published in *Surveys in Contemporary Mathematics*, LMS Lecture Note Ser. 347, 2008, 248–342: recalled, not checked) | arXiv confirmed | every embedded circle in R⁴ is unknotted: Theorem 2.1.a (any n-manifold unknots in Rᵐ for m ≥ 2n + 2) and Theorem 2.5 (spheres unknot in codimension ≥ 3). CAD⁴'s `knot` | **read** |
+| F2 | E. C. Zeeman (1960), "Unknotting spheres", *Ann. of Math.* 72, 350–360, doi:10.2307/1970138; A. Haefliger (1961), "Plongements différentiables de variétés dans variétés", *Comment. Math. Helv.* 36, 47–82, doi:10.1007/BF02566892 | confirmed | the primary sources for F1. (Zeeman 1963, "Unknotting combinatorial balls", is about ball pairs: cite 1960 for spheres) | not read |
+| F3 | B. Davis, H. Howards, J. Newman, J. Parsley (2011), "An infinite family of convex Brunnian links in Rⁿ", *Geom. Dedicata* 155, 141–149, doi:10.1007/s10711-011-9581-4, arXiv:1101.4863 | confirmed | Theorem 3.1: in R⁴ two round 2-spheres and an ellipse form a Brunnian link, with explicit equations (CAD⁴'s `borromean` is theirs scaled by 0.4). **Only this triple:** three circles never link in R⁴ (F1); for one sphere and two circles no source was found and a short argument says none exists (unsourced) | **read** |
+| F4 | T. Yanagawa (1964), "Brunnian systems of 2-spheres in 4-space", *Osaka J. Math.* 1, 127–132 | as cited by F3 | three 2-spheres can be Brunnian too | not read |
+| F5 | G. Matić, F. Öztürk, J. Reyes, A. Stipsicz, G. Urzúa, "An exotic 5RP² in the 4-sphere", arXiv:2312.03617 | arXiv confirmed; no journal reference found | the complement of the standard projective plane in S⁴ has fundamental group ℤ/2: a loop round it twice can be pulled free. Homology alone (Alexander duality: H₁ of the complement ≅ H² of the surface, ℤ/2 for any one-sided surface) is textbook and was not sourced. **Standard embedding only** | **read** |
+| F6 | E. D. Bolker (1973), "The spinor spanner", *Amer. Math. Monthly* 80(9), 977–984, doi:10.1080/00029890.1973.11993429; M. Staley (2010), "Understanding quaternions and the Dirac belt trick", *Eur. J. Phys.* 31, 467–478, doi:10.1088/0143-0807/31/3/004 | confirmed | π₁(SO(3)) = ℤ/2 against π₁(SO(2)) = ℤ: TWIST's "a hose saves one turn" | not read |
+| F7 | N. D. Mermin (1979), "The topological theory of defects in ordered media", *Rev. Mod. Phys.* 51(3), 591–648, doi:10.1103/RevModPhys.51.591 | confirmed | a body with rotational symmetry group G has configuration space SO(3)/G, whose fundamental group is G's lift to SU(2), twice as big. For our packed thirteen (the cuboctahedron's 24 rotations) that is 48 classes, so **some part turns are stubborn as well as the whole one**: TWIST's caveat is real | general rule recalled; the specific "48" is inference |
+| F8 | J. C. Baez, D. K. Wise, A. S. Crans (2007), Theorem 2 (E3); C. Damiani (2017), Prop. 3.14 (E1) | confirmed | the loop braid group's presentation. Of the two mixed relations σσρ = ρσσ, **exactly one holds** (which one depends on the convention: Baez et al. and Damiani differ); the other is the "forbidden move". And a ring passing through its neighbour is a different element from the neighbour passing through it. Copy one source's relations verbatim | **read**, and checked by computing in Aut(F₃) |
+
+Not found: the Price–Roseman paper on embeddings of the projective plane as a journal article (it is cited as a 1975
+University of Iowa preprint); any paper titled "Borromean rings in higher dimensions".
+
