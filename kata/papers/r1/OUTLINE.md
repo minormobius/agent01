@@ -65,3 +65,13 @@ fibre-to-fibre correction of the same day: CONFIGURATIONS.md.) The paper may cla
 It may not quote yarn on a ribbon as a number (0.35–0.77, two rows unconverged): only that it holds and is worth less
 than its ribbon. Still owed: the press measured rather than assumed (hose and braid in the bead rig), which would
 replace HOOP and tan²θ; then the bundle-size study.
+
+## The press, modelled (2026-11-14)
+
+PULL README § Where the squeeze comes from; sources in REFERENCES.md. A taut skin presses 0.81 of the round-vessel
+formula in 4D (net and Steiner's formula agree), 0.95 in 3D (exact). The grip on an outer fibre is fixed by statics
+to within 2–3 skin-forces; the middle fibre's is not, and a real rope would have a loosely held heart. The helix law
+is good to 20% below 20° and 1.4× low above. The hose rope stays 1.06–1.11 per weight through all of it. A hose does
+not tighten under load unless its Poisson ratio exceeds its fibres': its squeeze is a shrink fit of about 0.5%.
+Still to do before writing: the bundle-size study; a page check of every *partial* source; and one line proving that
+revolving a planar braid realises the standard embedding of the braid group in the loop braid group (REFERENCES E).

@@ -137,6 +137,94 @@ Strength per material, sheath included (a loose bundle is 0.71; one strand is 1)
   twice as hard per thickness, but it is shared among more contacts; per unit of sheath weight per fibre it gives
   about 1.24 times a tube's press at each contact, on five contacts a fibre instead of three.
 
+## Where the squeeze comes from
+
+The hose's squeeze was a formula taken on trust. `js/skin.js` gets it three ways and `node kata/pull/press.mjs`
+(`data/press.json`) puts the bench through each. Sources are in [`../papers/r1/REFERENCES.md`](../papers/r1/REFERENCES.md),
+with how far each was checked.
+
+**1. The skin's force on a fibre.** The bench treats the hose as a round pressure vessel of the bundle's radius
+(a sphere's skin under tension n presses 2n/R; D1). But a taut skin is not round: it lies on the twelve outer
+fibres and runs straight between them.
+
+| the skin's force on each outer fibre, over its tension × the fibre's radius | 3D: a band round six | 4D: a skin round twelve |
+|---|---|---|
+| round-vessel formula (the bench) | 2.094 | 6.283 |
+| exact, a band turning 60° at each disc | 2.000 | |
+| a net of springs shrunk onto the fibres, barely taut | 2.000 | 5.065 |
+| the same, stretched 20% | 2.000 | 4.861 |
+| the convex hull under one tension, by Steiner's formula (D3) | | 5.065 |
+
+- In 3D the net gives the exact answer, which checks the method. The round formula is 5% high.
+- **In 4D the round formula is 24% high.** The net on a 10 242-node mesh and the hull calculated from geometry agree
+  to three figures (5.065 against 5.065): the skin presses
+  **0.81** of what the bench assumed. Stretched further the net sags between the fibres and presses a little less.
+- **The skin is not evenly stressed.** Its tightest hundredth carries 2.3 times the mean
+  tension (it is flat between fibres and creased over them). So a hose whose *mean* stress is half its strength is
+  past its strength in places. The dial HOOP should be read as the mean, and 0.5 is at the edge of what a skin could bear.
+
+**2. Who carries it.** The skin's force on an outer fibre goes inward through one contact with the middle fibre and
+four with its neighbours. With every fibre equal each contact carries a third (the correction above). Thirteen balls
+with twelve neighbours each have more contacts than they need to stand (36), so the split depends on the fibres being
+equal (D5). `sharing()` draws their diameters at random, the scatter in units of how far a contact closes under load:
+
+| diameter scatter / contact closure | a middle contact carries | a ring contact carries | middle contacts open | everything pressing on an outer fibre | on the middle fibre |
+|---|---|---|---|---|---|
+| 0 | 0.33 ± 0.00 | 0.33 ± 0.00 | 0% | 2.67 ± 0.00 | 4.0 ± 0.0 |
+| 1 | 0.33 ± 0.12 | 0.34 ± 0.06 | 0% | 2.67 ± 0.12 | 3.9 ± 1.4 |
+| 2 | 0.33 ± 0.22 | 0.34 ± 0.12 | 5% | 2.67 ± 0.22 | 3.9 ± 2.5 |
+| 5 | 0.38 ± 0.36 | 0.31 ± 0.19 | 17% | 2.62 ± 0.36 | 4.6 ± 4.1 |
+| 10 | 0.43 ± 0.41 | 0.29 ± 0.22 | 23% | 2.57 ± 0.41 | 5.1 ± 4.7 |
+
+(in units of the skin's force on one fibre)
+
+- **The grip on an outer fibre is robust:** about 2.6 times the skin's force however it is shared. Statics pins it
+  between 2 and 3.
+- **The grip on the middle fibre is not.** Once the scatter is a few times the closure, a quarter of its contacts are
+  open and its grip runs from nothing to twice the mean. A real 4D rope would have a loosely held heart. A rough
+  estimate puts a contact's closure near 1% of a fibre's radius, so this is the regime for any fibre less uniform than that.
+
+**3. The law a wound strand presses by.** A strand at tension T on a helix of radius ρ at angle θ to the rope is
+pushed inward by T sin²θ / ρ per length of strand (B5–B7; Costello writes it cos²α / r with his angle from the
+cross-section). That is the `twist` and `laid` laws. TWIST's bead yarn measures it with nothing assumed:
+
+| turns | angle | the law, per length of yarn | measured in the bead yarn | ratio |
+|---|---|---|---|---|
+| 0.5 | 9° | 0.115 | 0.093 | 0.81 |
+| 1 | 17° | 0.445 | 0.409 | 0.92 |
+| 1.5 | 25° | 0.962 | 1.387 | 1.44 |
+| 2 | 33° | 1.643 | 2.300 | 1.40 |
+
+- At low twist the law is good to 10–20%. **Past 20° the bead yarn presses about 1.4 times what the law says.** Part
+  of that is my bookkeeping (it resolves the contacts as if the fibres stood straight, and at 30° they lean); part
+  may be real (the squeezed yarn is thinner than its nominal radius). So the braid rows' grip is good to a factor of
+  about one and a half, which the sensitivity table already spans (friction halved and doubled).
+
+**What the bench makes of it** (thirteen filaments in a hose a tenth of a radius thick, 60 pulls each, per weight):
+
+| | mean | 5th percentile |
+|---|---|---|
+| as built: round vessel, equal sharing | 1.11 | 0.96 |
+| the taut skin's force (0.81 of the vessel's) | 1.08 | 0.96 |
+| the skin's force, limited by its tightest part | 1.06 | 0.96 |
+| middle fibre loose: all through neighbours | 1.06 | 0.95 |
+| all through the middle fibre | 1.09 | 0.96 |
+
+**The hose rope's headline survives all of it: 1.06 to 1.11 per weight, and
+0.95–0.96 at the 5th percentile, which hardly moves.** The published rows keep the
+round-vessel formula; the taut skin's 0.81 is the same as turning HOOP from 0.5 to 0.40, inside the band the
+sensitivity study covers.
+
+**Does a hose tighten as the rope stretches?** Not to first order. A stretched hose wants to shrink by its Poisson
+ratio; so does every fibre inside it, and so the bundle. With hose and fibres of one material the two shrink together
+and the squeeze stays what it was made with: hoop stress = E (misfit + (ν_hose − ν_fibre) × stretch) / (1 − ν_hose).
+The squeeze is a **shrink fit** (D2): HOOP = 0.5 means the hose was made about half a percent too small for its
+bundle. Only a hose with a larger Poisson ratio than its fibres tightens under load. A braided sleeve does (C1, C2),
+which is the bias sheath's law.
+
+**Still assumed:** equal contact stiffness; rigid fibres in their packed places under the skin; a skin with no
+bending stiffness; and that a 0.5% shrink fit can be made and does not creep away.
+
 ## Braids
 
 The ropes whose strands are hoses ([CAD⁴](../cad4/): `#hosebraid`, `#maypole`, `#ribbonpole`). A hose is continuous, so

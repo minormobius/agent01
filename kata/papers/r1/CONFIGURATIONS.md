@@ -15,7 +15,8 @@ shows one sliding off along its width and lifting away untouched (CAD⁴ `#ribbo
 cross-section it is a loop, and a loop can pass through a loop, so hoses braid (`#hosebraid`: held in all four
 directions). Construction: draw a 3D braid in the half-plane of (radius, one more direction) along the length and
 revolve it. Every 3D braid gives a hose braid; hoses also have a move threads lack (swapping without threading). The
-mathematics is the loop braid group, which is published; look it up before claiming anything here. A braid round a core works when the core is a hose too (`#maypole`: six hoses round a hose pole, every hose and the
+mathematics is the loop braid group (REFERENCES.md E1–E7): every classical braid is a distinct loop braid (E6), and a
+braid gives tubes in 4-space by the Tube map (E5). A braid round a core works when the core is a hose too (`#maypole`: six hoses round a hose pole, every hose and the
 pole held). Round a thread core it cannot: a ring of hoses leaves the thread free along the ring's axis, the ringed
 bundle's failure again. So the braided sleeve belongs on hose-cored rope. Ribbons wound on a hose core (`#ribbonpole`) are held to the core, each one, by topology: the core has no edge, so the
 winding cannot be undone (compare yarn on a ribbon, where the fibre slides off the ribbon's edge). They are not held to
@@ -84,7 +85,8 @@ and redundancy. The bench is pessimistic here (a broken rope carries nothing).
 ## Open, in rough order of what would change the paper
 
 1. Can a bias sheath be made round a sphere's worth of directions? If yes, it is probably the best rope here.
-2. The hoop's and the hose's press as a function of load, measured in an elastic rig (the bench assumes it).
+2. ~~The hoop's and the hose's press, measured~~ Done 2026-11-14 (PULL README § Where the squeeze comes from): a taut
+   skin presses 0.81 of the round-vessel formula, and does not tighten under load unless its Poisson ratio is the larger.
 3. A ribbon that can bend and crumple (TWIST's is rigid).
 4. Does a wound sheath grip, and can its three ribbons be kept from sliding off each other?
 5. The next shell of the cross-section, and flat ropes.
