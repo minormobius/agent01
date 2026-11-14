@@ -33,9 +33,9 @@ _Regenerated 2026-11-14 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-14, 100 members / 269 posts):
+**Neighborhood spark** (bisk 2026-11-14, 100 members / 259 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: banh, idk, ising
+- Distinctive words: banh, llm, imo
 - Top post: "NINETY PERCENT of young users believe they’re going to MAKE MONEY ON SPORTS BETTING" — @thebadcode.com
 <!-- BRIEF_END -->
 
