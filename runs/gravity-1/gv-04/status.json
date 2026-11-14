@@ -1,0 +1,33 @@
+{
+ "group": "gv-04",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 4.00e-17 1.5152 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 450
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 4.00e-17 1.55 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 172
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 4.00e-17 1.6 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 205
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 4.00e-17 1.65 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 125
+  }
+ ]
+}

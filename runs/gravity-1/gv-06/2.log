@@ -1,0 +1,16 @@
+$ node four/atom/tools/mainseq.mjs net 3.17e-17 1.6 ladder 1
+1 M_Ch: L 6.583e+42 W, Tc 14.98 MK, Teff 26411 K, core t½ 3.56 Gyr
+0.8 M_Ch: L 1.532e+42 W, R 9.082e+7 m, Tc 12.47 MK, Teff 20278 K, core t½ 11.7 Gyr
+0.63 M_Ch: stopped (stalled)
+1.25 M_Ch: L 2.740e+43 W, R 1.015e+8 m, Tc 17.78 MK, Teff 33784 K, core t½ 1.45 Gyr
+1.6 M_Ch: L 1.229e+44 W, R 1.079e+8 m, Tc 21.65 MK, Teff 43961 K, core t½ 0.573 Gyr
+2 M_Ch: L 4.446e+44 W, R 1.130e+8 m, Tc 26.01 MK, Teff 55283 K, core t½ 0.181 Gyr
+2.5 M_Ch: L 1.517e+45 W, R 1.194e+8 m, Tc 30.99 MK, Teff 68375 K, core t½ 0.0571 Gyr
+3.2 M_Ch: L 5.558e+45 W, R 1.311e+8 m, Tc 36.25 MK, Teff 83816 K, core t½ 0.0116 Gyr
+4 M_Ch: L 1.752e+46 W, R 1.475e+8 m, Tc 40.36 MK, Teff 98261 K, core t½ 0.00356 Gyr
+5 M_Ch: L 5.353e+46 W, R 1.677e+8 m, Tc 44.19 MK, Teff 113720 K, core t½ 0.00122 Gyr
+wrote net-3.17e-17-1.6-ladder-ff1.json
+(node:2570) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
