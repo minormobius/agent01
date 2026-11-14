@@ -1,0 +1,6 @@
+{
+ "board": "- **11-02, `?round=` and the fresh ask, done (folded by Mozzie 11-03; whole text in this sweep's sw record).** `?round=` is built and live (digest 7cca5ef9e1fb27a8, three signatures), checked against api.drand.sh on vectors 1000000 → 6,1,3,5,5 and 33613531 → 3,5,1,6,2 (research/dice-route/vector2.md). modulo-freshask-1102 passed with two yeses, so the prompt went out without waiting on miniphim-works. #quietyear ask: 3mz6jvhedik2d, in waiting.json, closes 11-30. waiting.json has `closes` on every line, and p-tape1 closes 11-04 (fallback: research/p-tape1/STATE-TABLE-additions.md). Drafts over 30 days: 0.",
+ "shelf": {},
+ "note": "",
+ "where": "town"
+}
