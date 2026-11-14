@@ -73,6 +73,14 @@ vec3 roadDist(vec4 u) {
   return vec3(psi, 1.5707963 - psi, length(vec2(psi - 0.78539816, across)));
 }
 
+// moonlet.js roadPt, twinned: the nearest point of road j to u
+vec4 roadPt(int j, vec4 u) {
+  if (j == 0) return vec4(normalize(u.xy), 0.0, 0.0);
+  if (j == 1) return vec4(0.0, 0.0, normalize(u.zw));
+  float al = atan(u.y, u.x), be = atan(u.w, u.z), c = wrapA(3.0 * al - 2.0 * be);
+  float a2 = al - 3.0 * c / 13.0, b2 = be + 2.0 * c / 13.0;
+  return vec4(cos(a2), sin(a2), cos(b2), sin(b2)) * 0.70710678;
+}
 vec4 lu() { return normalize(bU + bL); }   // the bike's up, leaning into its turn
 float bikeD(vec4 p) {
   vec4 up = lu();
@@ -158,18 +166,27 @@ void main() {
     float m = n4(u * 6.0 + 3.0), grain = n4(u * 140.0);
     vec3 base = mix(vec3(0.33, 0.31, 0.29), vec3(0.52, 0.49, 0.45), smoothstep(0.35, 0.65, m)) * (0.85 + 0.3 * grain);
     vec3 rd = roadDist(u) * R;                        // metres to each road
-    float w = 0.9;
-    // the roads: a painted band with a brighter centre line, dashed
-    vec3 paint = vec3(0.0); float cover = 0.0, line = 0.0;
-    vec3 cs[3]; cs[0] = vec3(0.35, 0.72, 0.85); cs[1] = vec3(0.58, 0.46, 0.85); cs[2] = vec3(0.9, 0.72, 0.4);
-    for (int j = 0; j < 3; j++) {
-      float dj = rd[j], c = smoothstep(w, w - 0.2, dj);
-      if (c > cover) { cover = c; paint = cs[j]; line = smoothstep(0.12, 0.04, dj); }
+    // the roads: tubes in the three-dimensional surface, 5 m across. Your slice cuts across a tube; its kerbs are
+    // coloured by which side of the centre they lie against your slice (tailspin's, and the habitat's): teal ana,
+    // pink kata, white in it. Teal kerbs: you're ana of the road, lean kata. The centre line, in the road's own
+    // colour, shows only where your slice runs through the middle.
+    int jb = -1; float db = 1e9;
+    for (int j = 0; j < 3; j++) if (rd[j] < db) { db = rd[j]; jb = j; }
+    float half_ = 2.5;
+    float emit = 0.0;
+    if (db < half_) {
+      vec3 cs[3]; cs[0] = vec3(0.55, 0.9, 1.0); cs[1] = vec3(0.75, 0.6, 1.0); cs[2] = vec3(1.0, 0.8, 0.42);
+      vec4 q = roadPt(jb, u), off = u - q;
+      float along = jb == 0 ? atan(u.y, u.x) * R : jb == 1 ? atan(u.w, u.z) * R : atan(q.y, q.x) * 0.5 * R * 2.5495;
+      base = vec3(0.15, 0.15, 0.17) * (0.9 + 0.2 * grain);
+      if (db > half_ - 0.6) {
+        float sd = dot(off, Wv) / max(length(off), 1e-9);
+        vec3 kerb = sd > 0.0 ? mix(vec3(0.93), vec3(0.22, 0.9, 0.85), smoothstep(0.1, 0.8, sd)) : mix(vec3(0.93), vec3(1.0, 0.42, 0.68), smoothstep(0.1, 0.8, -sd));
+        base = kerb * (0.8 + 0.2 * step(0.5, fract(along / 2.0)));
+        emit = 0.35;
+      } else if (db < 0.14 && fract(along / 5.0) > 0.45) { base = cs[jb]; emit = 0.5; }
     }
-    base = mix(base, paint * 0.75, cover * 0.85);
-    base += paint * line * 0.6;
-    col = base * (0.05 + 1.1 * lam) + paint * (cover * 0.06 + line * 0.35);
-
+    col = base * (0.05 + 1.1 * lam) + base * emit * 0.3;
   } else if (h.y < 1.5) {
     col = vec3(0.92, 0.9, 0.86) * (0.12 + 0.9 * lam);
     // the rider's jersey: rose

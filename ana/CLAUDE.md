@@ -88,8 +88,8 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   gravity (four's pinned law, g 0.5 m/s²). `js/moonlet.js` (no DOM; imports habitat.js from `../../habitat/js/`, same
   site): `step` (on the ground: weight g − v²/R, grip μ·weight caps pedals, brakes and turns, the rocket isn't capped,
   lift-off when weightless or pushed up; in the air: symplectic Euler, nose held level, gyros yaw it, `circularize`),
-  `touchdown`, `elements` (Kepler), `predict` (RK4 to touchdown), `ROADS` (Hopf link + trefoil), `roadDist` (the
-  shader's twin), `linking` (Gauss's integral after stereographic projection), `BEACONS`, `pebbles`. `js/main.js`: a
+  `touchdown`, `elements` (Kepler), `predict` (RK4 to touchdown), `ROADS` (Hopf link + trefoil, drawn as 5 m tubes in
+  the 3D surface), `roadDist` and `roadPt` (the shader's twins), `side` (the kerb colours: teal ana, pink kata), `linking` (Gauss's integral after stereographic projection), `BEACONS`, `pebbles`. `js/main.js`: a
   full-screen shader of your slice (bike, beacons, moons, 4D sun with 4D shadows), the overlay (forecast, ✕, beacons,
   occlusion by the rock), the minimap, a beacon hunt with a best time (localStorage `moonlet.best`). The camera frame
   must stay orthonormal: shader and overlay both assume it. See [`moonlet/README.md`](moonlet/README.md).

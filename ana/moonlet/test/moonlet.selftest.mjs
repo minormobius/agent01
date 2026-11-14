@@ -126,6 +126,35 @@ ok(near(M.weight(0), g, 1e-12) && near(M.weight(M.vOrbit()), 0, 1e-12), 'riding 
   ok(worst < 0.1, `near the trefoil (within 0.15 rad) the road's width formula is within ${(worst * 100).toFixed(1)}% of the true distance`);
   ok(M.BEACONS.every((b) => near(norm(b.p), 1, 1e-12)), 'every beacon is on the rock');
 }
+// the roads as tubes: the nearest point is on the road and as near as brute force; the kerb colours steer you right
+{
+  let seed = 11; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647 - 0.5; };
+  let worst = 0, onKnot = 0;
+  for (let i = 0; i < 200; i++) {
+    const u = unit([rnd(), rnd(), rnd(), rnd()]), q = M.roadPt('trefoil', u);
+    const al = Math.atan2(q[1], q[0]), be = Math.atan2(q[3], q[2]), c = 3 * al - 2 * be;
+    onKnot = Math.max(onKnot, Math.abs(c - 2 * Math.PI * Math.round(c / (2 * Math.PI))), Math.abs(Math.hypot(q[0], q[1]) - Math.SQRT1_2));
+    const d = Math.acos(Math.max(-1, Math.min(1, dot(u, q))));
+    if (d < 0.1) {
+      let b = Infinity; for (let j = 0; j < 6000; j++) b = Math.min(b, Math.acos(Math.max(-1, Math.min(1, dot(u, M.ROADS.trefoil((2 * Math.PI * j) / 6000))))));
+      worst = Math.max(worst, d / b - 1);
+    }
+  }
+  ok(onKnot < 1e-9, 'the trefoil\'s nearest point is always on the knot');
+  ok(worst < 0.05, `near the trefoil, the nearest point is within ${(worst * 100).toFixed(1)}% of the true nearest distance`);
+  // riding ring 1 with your slice shifted 1.5 m ana of the road: the kerbs you see are teal; lean kata and you're back on it
+  const k = M.makeBike(M.START.at, M.START.facing);       // on ring 1, facing along it; Rt = e₃, N = e₄ (hidden)
+  const shift = 1.5 / R;
+  k.x = scale(unit(add(unit(k.x), k.N, shift)), R); [k.F, k.Rt, k.N] = M.orthonormalTo(unit(k.x), [k.F, k.Rt, k.N]); k.U = unit(k.x);
+  const edge = unit(add(add(unit(k.x), k.Rt, 1.9 / R), k.N, 0));           // a point of the road's edge in your slice
+  ok(M.side('ring1', edge, k.N) > 0.5, `with your slice ana of ring 1, its kerbs in your view are teal (side ${M.side('ring1', edge, k.N).toFixed(2)})`);
+  const off = () => M.side('ring1', unit(k.x), k.N) * R * Math.acos(Math.min(1, Math.hypot(unit(k.x)[0], unit(k.x)[1])));
+  const before = off();
+  k.speed = 2;
+  for (let i = 0; i < 120 * 6 && off() > 0.05; i++) M.step(k, { throttle: 0, steer: [0, off() > 0.05 ? -0.6 : 0] }, DT);
+  ok(before > 1.4 && off() < 0.3, `leaning kata, away from the teal, steers you back: ${before.toFixed(2)} m ana → ${off().toFixed(2)} m`);
+  ok(Math.abs(M.side('ring1', unit(add(unit([1, 0, 0, 0]), [0, 0, 1, 0], 0.02)), [0, 0, 0, 1])) < 1e-9, 'a kerb in the same slice as the road\'s centre is white');
+}
 // the pebble moons: orthogonal planes, one radius: they never meet
 {
   let dmin = Infinity;

@@ -14,7 +14,7 @@
 // 4D space around the rock nothing is knotted (a circle can always be untied in four dimensions); on its surface, which
 // is three-dimensional, they're as linked as rope.
 import { dot, add, scale, norm, unit, walk, orthonormalTo } from '../../habitat/js/habitat.js';
-export { dot, add, scale, norm, unit };
+export { dot, add, scale, norm, unit, orthonormalTo };
 
 export const WORLD = { R: 100, g: 0.5 };   // m, m/s² (about 1/20 g)
 export const BIKE = {
@@ -253,6 +253,23 @@ export function roadDist(u) {
   // on the Clifford torus the metric is ½(dα² + dβ²); the knot is the line 3α − 2β ≡ 0, lines 2π apart in that measure
   const across = Math.abs(wrap(3 * al - 2 * be)) / Math.sqrt(13) * Math.SQRT1_2;
   return { ring1: psi, ring2: Math.PI / 2 - psi, trefoil: Math.hypot(psi - Math.PI / 4, across) };
+}
+/** The nearest point of each road to u (unit), the shader's roadPt twinned. For the trefoil: step from (α, β) along the
+ *  knot's normal on the flat torus, (3, −2)/13 times the offset, which lands exactly on a line 3α − 2β ≡ 0. */
+export function roadPt(which, u) {
+  if (which === 'ring1') { const m = Math.hypot(u[0], u[1]) || 1; return [u[0] / m, u[1] / m, 0, 0]; }
+  if (which === 'ring2') { const m = Math.hypot(u[2], u[3]) || 1; return [0, 0, u[2] / m, u[3] / m]; }
+  const al = Math.atan2(u[1], u[0]), be = Math.atan2(u[3], u[2]), c = wrap(3 * al - 2 * be);
+  const a2 = al - (3 * c) / 13, b2 = be + (2 * c) / 13;
+  return [Math.cos(a2), Math.sin(a2), Math.cos(b2), Math.sin(b2)].map((v) => v * Math.SQRT1_2);
+}
+/** The road as a tube in the three-dimensional surface, half this wide (m). */
+export const ROAD_HALF = 2.5;
+/** Which side of a road's centre the point u lies, against a slice whose hidden direction is w: +1 ana, −1 kata, 0 in
+ *  it (the kerb colours: teal ana, pink kata, white). Seeing teal kerbs means you're ana of the road: lean kata. */
+export function side(which, u, w) {
+  const off = add(u, roadPt(which, u), -1), m = norm(off);
+  return m < 1e-12 ? 0 : dot(off, w) / m;
 }
 /** Beacons to collect: eight points spread over the rock, two on each road and two away from all of them. */
 export const BEACONS = [

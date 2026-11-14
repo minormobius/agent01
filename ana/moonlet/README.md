@@ -39,6 +39,14 @@ projects two curves to R³ and evaluates Gauss's double integral: rings −1.000
 −3.000 and with ring 2 −2.000, a small unlinked circle 0.000. On the 3D surface these are knotted and linked; in the
 4D space around the rock no closed curve is knotted (there's always room to lift a strand over another).
 
+**The roads are tubes** in the 3D surface, 5 m across (`ROAD_HALF` 2.5). `roadPt` (and the shader's twin) is the
+nearest point of a road: for the rings, the normalised pair; for the trefoil, one step from (α, β) along the knot's
+normal on the flat torus, (3, −2)/13 times the offset c = 3α − 2β, which lands exactly on the knot (tested: always on
+it, within 0.1% of the brute-force nearest distance). The kerbs (the last 0.6 m) are coloured by `side`: the offset from
+the nearest centre point, dotted with your hidden direction: teal ana, pink kata, white in your slice (tailspin's and
+the habitat's colours). Teal kerbs mean you're ana of the road: lean kata. Tested: a slice 1.5 m ana of ring 1 sees
+teal kerbs, and leaning kata brings the bike back to within 5 cm of the centre.
+
 `roadDist` (and the shader's twin) is the angle from a point to each road: exact for the rings; for the trefoil, the
 offset from the Clifford torus and the distance across the knot's lines on the flat torus (lines 3α − 2β ≡ 0, the torus
 metric ½(dα² + dβ²)): within 1.3% of brute force near the road.
@@ -69,4 +77,4 @@ BRAKE, GO, the twist pad, and HOLD: CIRCULARIZE in the air.
 
 ## Checks
 
-`node ana/moonlet/test/moonlet.selftest.mjs` (29 checks, ~2 s; `V=1` prints each measured claim).
+`node ana/moonlet/test/moonlet.selftest.mjs` (34 checks, ~2 s; `V=1` prints each measured claim).
