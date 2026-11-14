@@ -1,131 +1,132 @@
 {
- "run": "lifetimes-1",
- "why": "Paper 2's window C, do 4D stars live long: the main sequence from 0.13 to 5 Chandrasekhar masses burning by the reaction network's own energy law (fusion/eps4.json), at G 1e-11 to 1e-23 of ours and all eight strengths (the grid mass model too where it differs, s <= 1.6), each star's core hydrogen half-life at its central T and rho. Retires the Sun's-pace convention: which star halves its centre's hydrogen in 4.6 Gyr, and how hot it is.",
- "minutes": 120,
+ "run": "gravity-1",
+ "why": "Paper 2, gravity's window: 4D main sequences on the reaction network's own burning at the three G values that an Earth-like planet of the candidate 4D rocks pins (ToG 4.00e-17, NgPx 3.17e-17, Bluminium oxide-like Bl2Px3 2.05e-17 x ours: G rho4 = 2g/(pi^2 R^2)), and at 1e-15, 1e-16, 1e-18, 1e-19 to fill window C's axis; all eight strengths, adopted mass model. Each gives the Sun analogue, its centre's burning, and the 288 K planet's orbit and year.",
+ "minutes": 150,
  "groups": [
   {
-   "name": "lt-00",
+   "name": "gv-00",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.5152 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.55 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.6 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.65 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.5152 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.55 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.6 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.65 ladder 1"
    ]
   },
   {
-   "name": "lt-01",
+   "name": "gv-01",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.7 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.75 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.8 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.85 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.7 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.75 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.8 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-15 1.85 ladder 1"
    ]
   },
   {
-   "name": "lt-02",
+   "name": "gv-02",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.5152 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.55 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.6 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.65 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.5152 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.55 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.6 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.65 ladder 1"
    ]
   },
   {
-   "name": "lt-03",
+   "name": "gv-03",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.7 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.75 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.8 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.85 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.7 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.75 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.8 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-16 1.85 ladder 1"
    ]
   },
   {
-   "name": "lt-04",
+   "name": "gv-04",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.5152 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.55 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.6 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.65 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.5152 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.55 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.6 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.65 ladder 1"
    ]
   },
   {
-   "name": "lt-05",
+   "name": "gv-05",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.7 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.75 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.8 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.85 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.7 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.75 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.8 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 4.00e-17 1.85 ladder 1"
    ]
   },
   {
-   "name": "lt-06",
+   "name": "gv-06",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.5152 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.55 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.6 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.65 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.5152 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.55 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.6 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.65 ladder 1"
    ]
   },
   {
-   "name": "lt-07",
+   "name": "gv-07",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.7 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.75 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.8 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.85 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.7 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.75 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.8 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 3.17e-17 1.85 ladder 1"
    ]
   },
   {
-   "name": "lt-08",
+   "name": "gv-08",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.5152 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.55 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.6 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.65 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.5152 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.55 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.6 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.65 ladder 1"
    ]
   },
   {
-   "name": "lt-09",
+   "name": "gv-09",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.7 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.75 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.8 ladder 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.85 ladder 1"
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.7 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.75 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.8 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 2.05e-17 1.85 ladder 1"
    ]
   },
   {
-   "name": "lt-10",
+   "name": "gv-10",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.5152 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.55 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-11 1.6 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.5152 grid 1"
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.5152 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.55 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.6 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.65 ladder 1"
    ]
   },
   {
-   "name": "lt-11",
+   "name": "gv-11",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.55 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-14 1.6 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.5152 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.55 grid 1"
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.7 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.75 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.8 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-18 1.85 ladder 1"
    ]
   },
   {
-   "name": "lt-12",
+   "name": "gv-12",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-17 1.6 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.5152 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.55 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-20 1.6 grid 1"
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.5152 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.55 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.6 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.65 ladder 1"
    ]
   },
   {
-   "name": "lt-13",
+   "name": "gv-13",
    "cmds": [
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.5152 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.55 grid 1",
-    "node four/atom/tools/mainseq.mjs net 1e-23 1.6 grid 1"
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.7 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.75 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.8 ladder 1",
+    "node four/atom/tools/mainseq.mjs net 1e-19 1.85 ladder 1"
    ]
   }
  ]
