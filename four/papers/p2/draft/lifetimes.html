@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="fbfb04f33cdbda35c273e5a1a27f581ab7ab4c1d52e8d95d4031e645494e85b4" />
+<meta name="source-sha256" content="c6f867ead740b43ff06b8d7e959f78fe685286a68619bde01c5d5885519c3ca0" />
 <title>Paper 2 · Stars that live: how long a four-dimensional star burns, and what a star like our Sun makes</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -153,11 +153,17 @@ about as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mn>4.6</mn></msup><annotation encoding="application/x-tex">T^{ 4.6 }</annotation></semantics></math>
 and the CNO cycle’s as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mrow><mn>15</mn><mi>–</mi><mn>16</mn></mrow></msup><annotation encoding="application/x-tex">T^{ 15–16 }</annotation></semantics></math>
-(our measured rates, computed the same way as below). The steep CNO
-cycle is what gives our stars above about 1.25 solar masses a convective
-core: 0.19 of the mass at 2.5 solar masses, 0.27 at 5. Four dimensions
-has no cycle, but where the network climbs past helium its captures are
-as steep. A fresh core’s rate rises as
+(computed from our measured rates the same way as below; the textbook
+values are
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mn>4</mn></msup><annotation encoding="application/x-tex">T^4</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mn>18</mn></msup><annotation encoding="application/x-tex">T^{18}</annotation></semantics></math>
+<span class="citation" data-cites="pols2026">(<a href="#ref-pols2026"
+role="doc-biblioref">Pols n.d.</a>)</span>). The steep CNO cycle is what
+gives our stars above about 1.25 solar masses a convective core: 0.19 of
+the mass at 2.5 solar masses, 0.27 at 5. Four dimensions has no cycle,
+but where the network climbs past helium its captures are as steep. A
+fresh core’s rate rises as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mrow><mn>3</mn><mi>–</mi><mn>7</mn></mrow></msup><annotation encoding="application/x-tex">T^{ 3–7 }</annotation></semantics></math>
 where the pp chains carry it, and as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>T</mi><mrow><mn>15</mn><mi>–</mi><mn>19</mn></mrow></msup><annotation encoding="application/x-tex">T^{ 15–19 }</annotation></semantics></math>
@@ -401,11 +407,16 @@ electron-matched</td>
 </table>
 <h3 id="checks-on-our-own-world">3.2.7 Checks on our own world</h3>
 <table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
 <thead>
 <tr class="header">
 <th></th>
 <th>computed</th>
-<th>standard value</th>
+<th>textbook value</th>
 </tr>
 </thead>
 <tbody>
@@ -414,26 +425,31 @@ electron-matched</td>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ν</mi><annotation encoding="application/x-tex">\nu</annotation></semantics></math>
 near our Sun’s centre</td>
 <td>4.6</td>
-<td>about 4</td>
+<td>4 <span class="citation" data-cites="pols2026">(<a
+href="#ref-pols2026" role="doc-biblioref">Pols n.d.</a>, eq.
+6.51)</span></td>
 </tr>
 <tr class="even">
 <td>CNO cycle’s
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ν</mi><annotation encoding="application/x-tex">\nu</annotation></semantics></math>
 at 20–30 MK</td>
 <td>15–16</td>
-<td>about 15–20</td>
+<td>18 for simple estimates; from 23 at 10 MK to 13 at 50 MK <span
+class="citation" data-cites="pols2026">(<a href="#ref-pols2026"
+role="doc-biblioref">Pols n.d., sec. 6.4.1</a>)</span></td>
 </tr>
 <tr class="odd">
-<td>first convective core</td>
+<td>the lightest star with a convective core</td>
 <td>1.25
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mo>⊙</mo></msub><annotation encoding="application/x-tex">M_\odot</annotation></semantics></math></td>
-<td>about 1.2–1.3
-<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mo>⊙</mo></msub><annotation encoding="application/x-tex">M_\odot</annotation></semantics></math></td>
+<td>1.2
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>M</mi><mo>⊙</mo></msub><annotation encoding="application/x-tex">M_\odot</annotation></semantics></math>
+on the zero-age main sequence <span class="citation"
+data-cites="pols2026">(<a href="#ref-pols2026" role="doc-biblioref">Pols
+n.d., sec. 9.2.2</a>)</span></td>
 </tr>
 </tbody>
 </table>
-<p>The standard values are textbook rules of thumb, quoted from memory
-and not yet checked against a source.</p>
 <h3 id="reproducing-it">3.2.8 Reproducing it</h3>
 <p><code>node four/fusion/tools/eps4.mjs</code> (with
 <code>ALT=&lt;a copy of four/ baked under MASS=grid&gt;</code>) writes
@@ -461,6 +477,11 @@ REACLIB Database: Its Recent Updates and Impact on Type-I X-Ray
 Bursts.”</span> <em>The Astrophysical Journal Supplement Series</em>.
 American Astronomical Society. <a
 href="https://doi.org/10.1088/0067-0049/189/1/240">https://doi.org/10.1088/0067-0049/189/1/240</a>.
+</div>
+<div id="ref-pols2026" class="csl-entry" role="listitem">
+Pols, Onno. n.d. <span>“Stellar Structure and Evolution.”</span> Utrecht
+University (MSc lecture notes). Accessed November 14, 2026. <a
+href="https://www.astro.ru.nl/~onnop/education/stev_utrecht_notes/">https://www.astro.ru.nl/~onnop/education/stev_utrecht_notes/</a>.
 </div>
 </div>
 

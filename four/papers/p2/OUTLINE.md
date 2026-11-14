@@ -47,7 +47,7 @@ gravity's clock as the third axis, scanned. Figure 1 (`figures/windows.mjs` → 
 | p + p makes a deuteron (B_d > 1.804 MeV) | the strong force with the weak's kinematics | 78% |
 | the first minutes leave half their hydrogen | the weak force against gravity's clock (I.3) | 32% (clock 0.01 s) to 69% (100 s); the edge is flat in s, G₄ > 10^(5.4 → 3.4) |
 | a star's hydrogen burning, Sun-paced | the network (III.10) | sorted, not cut: of the network's points that survive the first minutes at a 1 s clock, about 21% climb past helium, 25% make helium, 54% strand as helium-3 |
-| stars live billions of years | C (main sequence, absolute rates) | to come |
+| stars live billions of years | C (main sequence on the network's own burning; section 3, figure 2) | a Sun analogue at G 10⁻¹¹–10⁻²⁰ × ours at almost every s; none in the masses computed at 10⁻²³ |
 | matter, nuclei, cores don't collapse | B | to come |
 
 **What the plane shows so far:** the two nuclear strengths act through one number, the temperature a Sun-paced core

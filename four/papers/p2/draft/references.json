@@ -653,5 +653,27 @@
   "page": "030001",
   "id": "pdg2024",
   "DOI": "10.1103/PhysRevD.110.030001"
+ },
+ {
+  "type": "report",
+  "title": "Stellar structure and evolution",
+  "author": [
+   {
+    "family": "Pols",
+    "given": "Onno"
+   }
+  ],
+  "publisher": "Utrecht University (MSc lecture notes)",
+  "URL": "https://www.astro.ru.nl/~onnop/education/stev_utrecht_notes/",
+  "accessed": {
+   "date-parts": [
+    [
+     2026,
+     11,
+     14
+    ]
+   ]
+  },
+  "id": "pols2026"
  }
 ]

@@ -277,6 +277,13 @@ for games, and this is a modelling programme with publications to come. The game
   10⁻²⁰. **After the bound** (s ≤ 1.6 rerun on the new network, all 15; G 10⁻²³ s 1.6 needed ~25 min) the
   two mass models agree at every point: the s ≤ 1.6 analogues climb past helium to elements 7–13 at 10–25 MK (helium at
   G 10⁻¹¹ s 1.6, 8 MK); the cycle's helium at 9–14 MK is gone.
+  **Rerunning the cascade (PI, 2026-11-14: "that felt like an all-day task").** Since the bound, the grid mass model
+  agrees with the adopted one everywhere, so routine reruns skip it (no `ALT=` for `windows4`, `eps4`, `lifetimes4`; no
+  grid `mainseq` sequences): the committed data keep the last grid runs as the check, and the grid is rerun only when
+  nuclear masses change (`nuc4.mjs`, `qbound4.json`, a new runner masses run). Section 2's text and figure 1
+  quote the grid's results (`burnAlt`), so a `windows4` rerun without `ALT=` drops them: rerun it with `ALT=` (or keep
+  the committed `windows.json`) before rebuilding section 2. Sweeps over ~20 min or more than a handful of commands go to the runner
+  (`.github/compute/atom4.json`); serial steps that feed each other stay in the sandbox.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
   our table to 54 beside it, linked both ways (hover one, its counterpart lights up), with a detail panel
   (counterpart and why, configuration, ionization and size against ours, the census's hydride, the electron cloud)

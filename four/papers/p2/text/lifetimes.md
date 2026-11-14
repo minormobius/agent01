@@ -58,8 +58,8 @@ thinning as gravity weakens. A thinner core must be hotter to burn at the same p
 pattern towards burning further: helium-3 stranding retreats and the climb past helium reaches higher strengths.
 
 **Burning steep enough for convective cores, without a CNO cycle.** In our Sun, the pp chains' rate rises with
-temperature about as $T^{ {{nuPP3}} }$ and the CNO cycle's as $T^{ {{nuCNO3}} }$ (our measured rates, computed the
-same way as below). The steep CNO cycle is what gives our stars above about {{oqOn}} solar masses a convective core:
+temperature about as $T^{ {{nuPP3}} }$ and the CNO cycle's as $T^{ {{nuCNO3}} }$ (computed from our measured rates the same way as
+below; the textbook values are $T^4$ and $T^{18}$ [@pols2026]). The steep CNO cycle is what gives our stars above about {{oqOn}} solar masses a convective core:
 {{oq25}} of the mass at 2.5 solar masses, {{oq5}} at 5. Four dimensions has no cycle, but where the network climbs
 past helium its captures are as steep. A fresh core's rate rises as $T^{ {{nuPP4}} }$ where the pp chains carry it,
 and as $T^{ {{nuHot4}} }$ above 18 MK at $s$ = {{ourS}}, where the climb does; at $s = 1.85$, which never climbs, it
@@ -155,13 +155,11 @@ exponent of $\varepsilon \propto T^\nu$.
 
 ### 3.2.7 Checks on our own world
 
-| | computed | standard value |
+| | computed | textbook value |
 |---|---|---|
-| pp chains' $\nu$ near our Sun's centre | {{nuPP3}} | about 4 |
-| CNO cycle's $\nu$ at 20–30 MK | {{nuCNO3}} | about 15–20 |
-| first convective core | {{oqOn}} $M_\odot$ | about 1.2–1.3 $M_\odot$ |
-
-The standard values are textbook rules of thumb, quoted from memory and not yet checked against a source.
+| pp chains' $\nu$ near our Sun's centre | {{nuPP3}} | 4 [@pols2026, eq. 6.51] |
+| CNO cycle's $\nu$ at 20–30 MK | {{nuCNO3}} | 18 for simple estimates; from 23 at 10 MK to 13 at 50 MK [@pols2026, §6.4.1] |
+| the lightest star with a convective core | {{oqOn}} $M_\odot$ | 1.2 $M_\odot$ on the zero-age main sequence [@pols2026, §9.2.2] |
 
 ### 3.2.8 Reproducing it
 

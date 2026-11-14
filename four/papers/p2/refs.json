@@ -109,6 +109,33 @@
     ],
     "page": "030001"
    }
+  },
+  {
+   "key": "pols2026",
+   "doi": null,
+   "status": "read",
+   "for": "temperature exponents ε_pp ∝ T⁴ and ε_CNO ∝ T¹⁸, the CNO exponent 23 → 13 for T₇ 1–5 (§6.4.1, eq. 6.51); zero-age stars have a convective core for M > 1.2 M☉ (§9.2.2). Read in the chapter PDFs (chapter5-6.pdf, chapter9-11.pdf). The notes carry no date; the key's year is when they were read, and the entry prints n.d. with that access date.",
+   "csl": {
+    "type": "report",
+    "title": "Stellar structure and evolution",
+    "author": [
+     {
+      "family": "Pols",
+      "given": "Onno"
+     }
+    ],
+    "publisher": "Utrecht University (MSc lecture notes)",
+    "URL": "https://www.astro.ru.nl/~onnop/education/stev_utrecht_notes/",
+    "accessed": {
+     "date-parts": [
+      [
+       2026,
+       11,
+       14
+      ]
+     ]
+    }
+   }
   }
  ]
 }
