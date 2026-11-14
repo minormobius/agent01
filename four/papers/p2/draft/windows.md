@@ -50,36 +50,33 @@ freeze-out at 0.52 MeV. It keeps more than half the hydrogen for any clock longe
 has been built ($s$ = 1.5152, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85) across $\log_{10} G_4/(G_F/M_W)$ = 4, 4.5, 5, 5.5, 6, 6.5, 7, the network burns a core of hydrogen and
 primordial helium at the temperature where half its hydrogen goes in 4.6 billion years. That is the pace of our Sun's
 centre, the book's convention until stellar lifetimes are computed. Each point is coloured by what that core ends as;
-the number above it is the core's temperature in millions of kelvin. In the adopted mass model:
+the number above it is the core's temperature in millions of kelvin. The two mass models the book carries agree at every
+point (0 differ; section 2.2.5):
 
 - 27 points end as **helium-3** (1.0–3.6 MK). A fast $p + p$ makes the core cool, and then
   $^3$He + $^3$He, which has a high barrier and no weak step to wait on, is too slow to finish the chain in 4.6 billion
   years.
-- 27 points end as **helium-4** (4.1–10.9 MK).
-- 2 points climb **past helium**, to element 6, at 7.8–10.0 MK ($s = 1.65$ with a weak force 6–16× weaker
-  than the electron-matched one).
+- 15 points end as **helium-4** (4.1–10.4 MK).
+- 14 points climb **past helium**, to elements 6–13, at 7.8–18.8 MK: the hottest cores, at the low-$s$ end
+  and at $s = 1.65$ with a weak force 6–16× weaker than the electron-matched one.
 
 $p + p$'s weak factor against ours runs from 0.023 at $s = 1.5152$ to 9.1 at 1.85 at the electron-matched
 $G_4$: four-dimensional phase space grows faster with the positron's energy, which grows with the deuteron's binding.
 So the strong and weak forces trade through $p + p$. A weaker $G_4$ or a weaker $s$ means a slower $p + p$, a hotter core
 at the same pace, and helium in place of helium-3.
 
-**Where the mass model decides.** 12 of the 56 points, all at $s \le 1.6$, end
-differently under the two mass models the book carries (split markers). The step that decides them is one nucleus: can
-5-11 (a triton-like cluster on ceryllium-8) plus a proton throw out a helium-4 and give ceryllium-8 back? If it can, the
-primordial helium makes its own catalyst (two helium-4s are bound as ceryllium-8, and protons climb from there to 5-11)
-and the catalyst is returned, a cycle like our CNO cycle that needs no earlier stars' carbon. The adopted model opens
-that step for $s \le 1.6$ (energy to spare +10.9, +8.6, +4.6 MeV), and those cores burn their hydrogen to helium at
-4.1–10.9 MK whatever $G_4$. The other model closes it (−21.5 to −59.8 MeV), and its low-$s$ cores climb past helium, to
-elements 8–12 at 11.2–18.8 MK. Our own world cannot settle which (section 2.2.5). From $s = 1.65$ up the two models give
-the same stars, nucleus for nucleus.
+**No CNO-like cycle.** The network's one decisive uncertain mass was 5-11, a triton-like cluster on ceryllium-8. If
+5-11 plus a proton could throw out a helium-4 and give ceryllium-8 back, the primordial helium would make its own catalyst
+(two helium-4s are bound as ceryllium-8, and protons climb from there to 5-11) and get it back: a cycle like our CNO
+cycle, needing no earlier stars' carbon. Treated with every cluster free, in one calculation for all three nuclei, that
+step costs at least 19 MeV at $s = 1.5152$, rising to 69 at 1.85 (section 2.2.5). There is no cycle, and
+the low-$s$ cores climb past helium.
 
 **Our world's point.** The star marks both forces as ours, carried over: the deuteron bound by 2.224 MeV, as
 ours is ($s$ = 1.5152), and the weak force matched to ours at the electron's energies, $G_4 = G_F/m_e$ (5.20 on
-the figure's scale). Its first minutes leave helium $Y$ = 0.59, 0.38, 0.14, 0.01, 0.00 at clocks of 0.01, 0.1, 1, 10, 100 s (ours: 0.245). A core burning at the Sun's pace there ends as helium (94%) at 10.9 MK
-in the adopted mass model, and as past helium (gluorine-22 81%, gluorine-23 17%) at 18.5 MK in the other. So our own forces, carried into four
-dimensions, sit inside every window drawn for any clock longer than 0.029 s, and on the very strip where the one undecided mass decides what their stars
-make.
+the figure's scale). Its first minutes leave helium $Y$ = 0.59, 0.38, 0.14, 0.01, 0.00 at clocks of 0.01, 0.1, 1, 10, 100 s (ours: 0.245). A core burning at the Sun's pace there ends past helium (gluorine-22 81%, gluorine-23 17%) at 18.5 MK, in
+either mass model. So our own forces, carried into four dimensions, sit inside every window drawn for any clock longer than
+0.029 s, and their stars climb past helium.
 
 **What is left.** A strong force between the diproton's edge and $p + p$'s threshold; a weak force above the first
 minutes' line for the universe's clock; and within that, hydrogen burning that ends as helium rather than stranded as
@@ -93,8 +90,7 @@ diproton binds). Vertical: $\log_{10}$ of the weak coupling $G_4$ over $G_F/M_W$
 (the deuteron binds by less than 1.804 MeV; above $s$ = 1.4516 deuterons still come slowly through $p + e^- + p$). Lines: where the first minutes leave exactly half the hydrogen, one per
 clock (the universe's age at 1 MeV); above a line, more survives. Points: what a core of hydrogen and primordial helium
 burns to at the temperature where half its hydrogen goes in 4.6 billion years (number: that temperature in MK), at the
-8 strengths where the reaction network has been built; split where the two mass models disagree (left the
-adopted ladder-anchored model, right Brink's grid). Star: our world's forces carried over (the deuteron binds as ours;
+8 strengths where the reaction network has been built (the two mass models agree at every point). Star: our world's forces carried over (the deuteron binds as ours;
 $G_4 = G_F/m_e$). $G_F/M_W$ itself is 0 on this axis, below the plane.](../figures/windows.svg)
 
 ## 2.2 Methods
@@ -184,10 +180,18 @@ ladder. On ours it gives the 22 measured separations of a nucleon, two nucleons,
 of ⁸Be to ²⁰Ne to a median 30%, against 91% for the grid alone. The grid alone is kept as the other mass model
 (`fusion/tools/nuc4.mjs`, `MASS=ladder|grid`; `fusion/tools/masscheck.mjs`).
 
-The one nucleus that splits them is 5-11 on its ceryllium-8 core. Its analogue in ours, ¹¹B + p → 3α, has
-$Q = 8.59$ MeV measured, 7.2 in the grid and 15.5 in the adopted model. Taking the adopted model's
-6.9 MeV excess off the 4D values leaves +4.0 / +1.7 / −2.3 MeV at $s = 1.5152 / 1.55 / 1.6$; scaling instead closes the
-step everywhere. So ours does not decide it, and the figure shows both.
+The one nucleus where they differed in kind was 5-11 on its ceryllium-8 core: the adopted model's scaling opened its
+(p,α) step at $s \le 1.6$, Brink's grid closed it, and ours (¹¹B + p → 3α, $Q = 8.59$ MeV measured; 7.2 in
+the grid, 15.5 in the adopted model) could not say which to trust. It is decided by a third calculation that treats
+all three nuclei alike (`brink.js` `freeClusterGCM`, `nuclei.mjs qbound`): helium-4 as one determinant, exact in the model;
+the two-helium-4 core by angle-projected Hill–Wheeler, converged (two grids agree to 0.03 MeV; ours' ⁸Be comes out 0.085
+MeV unbound, measured 0.092, which is how the force's exchange mixture was set); and 5-11 by Hill–Wheeler over $K$
+placements of all three clusters, every centre free, screened by each placement's own energy. 5-11's energy is
+variational in $K$, so $Q(K) = E(2\alpha + t) - E(2\alpha) - E(\alpha)$ is an upper bound on the model's own $Q$, falling as
+$K$ grows. The bound is negative at every strength already at $K = 120$; at $K = 480$ it is −15.7, −20.6, −27.9, −35.5, −43.5, −51.8, −60.5, −69.5 MeV at
+$s$ = 1.5152 … 1.85, and doubling to $K = 960$ moves $s = 1.5152$ from −15.7 to −18.7. Ours' bound, 12.25 MeV at
+$K = 960$, sits above the measured 8.59 as a bound must. The adopted model takes 5-11 from the bound (`fusion/qbound4.json`),
+the least-closed value it allows.
 
 **Rates.** Two-body rate constants at the density of our Sun's centre, on a temperature grid
 (`fusion/tools/rates4.mjs` → `fusion/data4.js`):
@@ -216,7 +220,7 @@ structure, no mixing, no lifetime: the pace is the convention). Pinned gravity's
 |---|---|---|
 | the strong window's edges, $p + p$'s threshold | computed | Minnesota at strength $s$ (shape borrowed) |
 | freeze-out, neutron lifetime, first-minutes helium | computed | Fermi theory in 4D; $\eta$ and the clock declared |
-| light nuclei | computed, two methods | Monte Carlo ladder and Brink's grid; adopted model and band |
+| light nuclei | computed, two methods | Monte Carlo ladder and Brink's grid; adopted model and band; 5-11 from the free-cluster bound |
 | $p + p$, ⁴He + ⁴He, captures onto 2–4 ⁴He | computed | the same force |
 | other rates | carried | REACLIB analogues through 4D's barrier |
 | the core's temperature | convention | our Sun's pace, until lifetimes |
@@ -229,7 +233,7 @@ structure, no mixing, no lifetime: the pace is the convention). Pinned gravity's
 | neutron lifetime (no Fermi function) | 945 s | 878.4 ± 0.5 s [@pdg2024] |
 | freeze-out (clock 0.74 s) | 0.800 MeV | about 0.8 MeV (the standard estimate, not a measurement) |
 | primordial helium $Y$ | 0.241 | 0.2449 ± 0.0040 [@aver2015] |
-| ¹¹B + p → 3α, $Q$ (grid / adopted) | 7.2 / 15.5 MeV | 8.59 MeV |
+| ¹¹B + p → 3α, $Q$ (grid / adopted / free-cluster bound) | 7.2 / 15.5 / ≤ 12.25 MeV | 8.59 MeV |
 | α-cluster binding, ¹²C–²⁴Mg | ladder under, grid over | (table above) |
 
 ### 2.2.8 Reproducing it

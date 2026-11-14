@@ -68,10 +68,11 @@ export function numbers() {
   const cl = (k) => M.clusters.find((c) => c.k === k);
   for (const k of [3, 4, 5, 6]) { const c = cl(k); t[`cl${k}real`] = f(c.real, 1); t[`cl${k}lad`] = f(c.ladder, 1); t[`cl${k}grid`] = f(c.grid, 1); }
   Object.assign(t, { medL: pct(M.medianError.ladder), medG: pct(M.medianError.grid), nSep: String(M.medianError.n), q11real: f(M.q11B.real, 2), q11lad: f(M.q11B.ladder, 1), q11grid: f(M.q11B.grid, 1), q11off: f(M.offset, 1), BaMC3: f(M.BaMC, 2), BaG3: f(M.BaGrid, 2) });
-  const cq = (s) => M.cycleQ4D.find((x) => x.s === s), open = M.cycleQ4D.filter((x) => x.ladder > 0);
-  t.cycOpenTo = String(Math.max(...open.map((x) => x.s))); t.cycQL = open.map((x) => `+${f(x.ladder, 1)}`).join(", ");
-  t.cycQoff = [1.5152, 1.55, 1.6].map((s) => { const v = cq(s).ladderLessOffset; return `${v >= 0 ? "+" : "−"}${f(Math.abs(v), 1)}`; }).join(" / ");
-  t.cycQG = `${f(Math.max(...M.cycleQ4D.map((x) => x.grid)), 1)} to ${f(Math.min(...M.cycleQ4D.map((x) => x.grid)), 1)}`.replace(/-/g, "−");
+  // the ceryllium cycle's step, decided: the free-cluster bound (fusion/qbound4.json)
+  const QB = JSON.parse(readFileSync(path.join(here, "../../fusion/qbound4.json"), "utf8")).bounds, best = (d, sv) => QB.filter((q) => q.d === d && Math.abs(q.s - sv) < 1e-4).sort((a, b) => b.K - a.K)[0];
+  const q4 = SN.map((sv) => best(4, sv)), fq = (v) => `${v < 0 ? "−" : "+"}${f(Math.abs(v), 1)}`;
+  Object.assign(t, { qbK: "480", qbList: SN.map((sv) => fq(QB.find((q) => q.d === 4 && Math.abs(q.s - sv) < 1e-4 && q.K === 480).Qupper)).join(", "), qbNegL: f(-q4[0].Qupper, 0), qbNegH: f(-q4.at(-1).Qupper, 0),
+    qb480: fq(QB.find((q) => q.d === 4 && q.s === 1.5152 && q.K === 480).Qupper), qb960: fq(QB.find((q) => q.d === 4 && q.s === 1.5152 && q.K === 960).Qupper), qb3: f(best(3, 1).Qupper, 2) });
   // our world's point: both forces carried over (the deuteron as ours, G₄ = G_F/m_e)
   const nameOf = (key) => { const [Z, A] = key.split("-").map(Number); return `${Z === 1 ? "hydrogen" : Z === 2 ? "helium" : NAME4[Z] ?? `element ${Z}`}-${A}`; };
   if (!oL || !D.asOurs) throw new Error("windows.json has no as-ours point: rerun fusion/tools/windows4.mjs");
