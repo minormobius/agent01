@@ -30,7 +30,7 @@ has different units, and the natural gauge choice leaves a universe of helium. H
 if it is about as strong as ours at the electron's energies. **Gravity** is pinned at 1/r like the charge law, and its
 strength is open, set by the planets' rock. With these, 4D's first minutes leave hydrogen and helium; two helium-4s hold
 together, so helium burning needs no Hoyle state; no CNO-like cycle exists, and a Sun-paced core at the strength where
-the deuteron binds as ours climbs past helium to pxygen-20; light nuclei hold N = Z far harder than ours, so no neutron
+the deuteron binds as ours climbs past helium to gluorine-22; light nuclei hold N = Z far harder than ours, so no neutron
 source and no slow neutron capture. *(To come: how long stars live, which elements a galaxy holds and when, and whether
 any of it collapses.)*
 
@@ -110,19 +110,17 @@ a carried rate; where the climb ends rests on A2's masses.
    with 4D's at the electron-matched strength 0.12–0.60). *To do:* rebake the chapter's table with weak.js.
 9. **Proton + proton.** The deuteron and the protons' scattering state from the same force (`ppOverlap`, selftest 74);
    the old guessed nuclear size retired. **computed** nuclear part; the weak part **carried** until A1 lands on it.
-10. **Hydrogen burning.** The 4D network (`fusion/data4.js`, `js/net4.js`): pp chains as ours. **Whether there is a
-    CNO-like cycle is the band's central question:** the star's own helium makes ceryllium-8, protons climb to 5-11, and
-    5-11 + p → ⁴He + ceryllium-8 would hand the catalyst back. Open in the adopted mass model for s ≤ 1.6 (Q +4.6 to
-    +10.9 MeV), closed in Brink's grid (−21 to −60); ours' check at the matching core (¹¹B + p → 3α, Q 8.59) can't decide
-    it (the adopted model overstates Q there by 6.9 MeV, which would leave +4.0 / +1.7 / −2.3 at s = 1.5152 / 1.55 / 1.6).
-    **Outcome (masses-1 sweep, G₄ at the electron-matched value and ×10^±0.8):** with the cycle, s = 1.5152–1.55 burn
-    hydrogen to helium at 8–11 MK, insensitive to G₄, with no metals needed; without it, they climb to elements 8–12 at
-    12–19 MK (where depends on G₄). From s = 1.6 the two models agree exactly: helium at 4–8 MK to s ≈ 1.65–1.7, stranded
-    as helium-3 above, the boundary moving about one strength step per 6× in G₄; at 1.65 with a 6× weaker G₄ both climb
-    to element 6. **computed nuclei (with the band), rates computed where the book has them (p + p, ⁴He + ⁴He, p and ⁴He
-    onto 2–4 ⁴He) and carried elsewhere (the cycle's step at ¹⁵N(p,α)'s strength); the stage temperature a convention**
-    (the Sun's pace) until C. *To do:* settle 5-11's binding by a third method (a few-body calculation of the triton-like
-    cluster on ceryllium-8, or Brink with the core's helium-4s free to move).
+10. **Hydrogen burning.** The 4D network (`fusion/data4.js`, `js/net4.js`): pp chains as ours, and **no CNO-like
+    cycle**. The candidate was the star's own: helium makes ceryllium-8, protons climb to 5-11, and 5-11 + p → ⁴He +
+    ceryllium-8 would hand the catalyst back. The two mass models split on it (ladder open at s ≤ 1.6, Q +4.6 to +10.9;
+    grid closed, −21 to −60), and ours at the matching core (¹¹B + p → 3α, 8.59) couldn't decide. **A third method
+    decided it:** the free-cluster bound (`brink.js` `freeClusterGCM`, `fusion/qbound4.json`), variational, so an upper
+    bound on Q at every K: ≤ −15.7 … −69.5 MeV over the eight strengths at K = 480, −18.7 at K = 960 for s = 1.5152; ours
+    ≤ 12.25 against 8.59. **Outcome (after the bound, both mass models identical at all 56 points of figure 1):** past
+    helium at 7.8–18.8 MK (s 1.5152–1.65), helium at 4–10 MK, helium-3 stranded below ~3.6 MK, sorted by the core's
+    temperature; our world's point (s 1.5152, G₄ = G_F/m_e) climbs past helium to element 11 at 18.5 MK. **computed
+    nuclei, rates computed where the book has them (p + p, ⁴He + ⁴He, p and ⁴He onto 2–4 ⁴He) and carried elsewhere;
+    the stage temperature a convention** (the Sun's pace) for figure 1, retired by C (section 12).
 11. **Helium and beyond.** Two helium-4s → ceryllium-8 directly, no three-body bottleneck; ceryllium + itself at 0.27
     GK, a flash not a runaway; element 6 (mass 12) as the ash; the heavy stages to the rock row and equilibrium's end
     (elements 101–137 by the liquid drop). **computed / carried** (nuclei.mjs heburn, cerburn, heavy, runaway,
@@ -169,7 +167,8 @@ a carried rate; where the climb ends rests on A2's masses.
 - **A ceryllium cycle (2026-11-12, morning):** a CNO-like cycle on ceryllium-8, from an interpolated triton-like
   cluster; withdrawn the same day when the cluster was computed (section 10). **The withdrawal was itself premature
   (2026-11-13):** it rested on Brink's grid alone, which ours shows overbinds clusters; under the adopted mass model the
-  cycle is open at low s. It is now stated as the band, neither claimed nor ruled out.
+  cycle reopened at low s. **Closed for good the same day** by the free-cluster bound (section 10): a variational upper
+  bound, negative by ≥ 15.7 MeV at every strength. The claim now rests on a bound, not on a choice of mass model.
 - **"6 helium-4s unbound past pxygen-20" (2026-11-13):** an artefact of mixing the grid's clusters with the ladder's
   cores; bound in either consistent model.
 - **The weak force "as ours" (prior to 2026-11-13):** kept as a choice inside the window, but its numbers move: the
@@ -177,7 +176,7 @@ a carried rate; where the climb ends rests on A2's masses.
 
 ## Figures (plan)
 
-1. **Drawn, and written up** (`text/windows.md` → `draft/windows.html`, section 2: results, caption, methods 2.2.1–2.2.8): the strong–weak plane (`figures/windows.svg`): p + p's edge, the first minutes' edge per clock, hydrogen burning's outcome at the network's points with each core's temperature, split where the two mass models disagree (12 of 56 points, all at s ≤ 1.6: helium by the ceryllium cycle in the adopted model, a climb to elements 8–12 in the grid). Gravity's G (rock) to add as the third window.
+1. **Drawn, and written up** (`text/windows.md` → `draft/windows.html`, section 2: results, caption, methods 2.2.1–2.2.8): the strong–weak plane (`figures/windows.svg`): p + p's edge, the first minutes' edge per clock, hydrogen burning's outcome at the network's points with each core's temperature, under both mass models (identical at all 56 points since the bound closed the ceryllium cycle), and our world's forces carried as a star. Gravity's G (rock) to add as the third window.
 2. The 4D chart of nuclides by binding source, with the N = Z valley and the two-neutron isotopes' β⁻.
 3. The first minutes: helium left against G₄ and the clock.
 4. Hydrogen burning's ash against s (the network sweep).
@@ -197,7 +196,7 @@ a carried rate; where the climb ends rests on A2's masses.
 - [ ] A1 finished: 4D's weak factor on p + p and every network decay; the window's table in the nuclei chapter.
 - [ ] A2 at least bracketed: tensor force or its effect estimated; the Brink/ladder spread reported on every claim it
       touches. *Done for the masses (masses-1: one model adopted, the other the band's edge, both tested on ours); the
-      network and figure 1 carry both. Open: 5-11's binding by a third method; the tensor force.*
+      network and figure 1 carry both; 5-11, the one mass they split on, decided by the free-cluster bound. Open: the tensor force.*
 - [ ] C: lifetimes computed (the Sun-pace convention retired or stated as the comparison it is). *First cut done (lifetimes-1): zero-age cores; stellar evolution and the post-main-sequence still to come.*
 - [ ] D: one composition-against-age band.
 - [ ] B: each stability claim tagged proved, argued or open.

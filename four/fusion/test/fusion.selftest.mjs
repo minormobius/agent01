@@ -30,7 +30,7 @@ ok(t.pp > t.cno && t.cno > t.he && t.he > t.c && t.c > t.ne && t.c > t.o && t.o 
   const ids = knobReactions(KNOBS.find((k) => k.key === "o16a")); ok(ids.length === 2 && ids.some((i) => RX[i].r.length === 1), "a knob turns a capture and its photodisintegration together"); }
 // 7. the 4D network (data4.js from tools/rates4.mjs, under nuc4.mjs's mass model): mass kept through three stages; at
 // every strength the ceryllium cycle's step (5-11 + p → ceryllium-8 + ⁴He) present exactly when the table's own Q is
-// positive (it is the network's most uncertain mass: open at low s in the ladder model, closed in Brink's grid); the
+// positive (in the ladder model 5-11 comes from the free-cluster bound, fusion/qbound4.json: closed everywhere); the
 // pp-II branch's (p,α) open; the computed captures in use; the two-neutron isotopes β⁻ decaying in milliseconds; a
 // Sun-paced core at s = 1.5152 burning to helium by the cycle where it is open, past helium where it is closed
 { const { model, STRENGTHS } = await import("../js/net4.js"); const s = STRENGTHS.includes(1.5152) ? 1.5152 : STRENGTHS[0], m = model(s), X0 = { "1-1": 0.75, "2-4": 0.25 };

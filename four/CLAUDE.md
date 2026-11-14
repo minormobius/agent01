@@ -235,26 +235,30 @@ for games, and this is a modelling programme with publications to come. The game
   is 0.67–0.74 at s = 1.5152 except the closed shell (0.53 at k = 5), rising toward 1 by s = 1.85; r_7 computed (all 124 commands exit 0; at 1.5152 it is 9% under r_6, which it had borrowed), adding the nuclei on seven helium-4s at 1.5152 and 1.6 without moving any stage or outcome; r_8 is carried from k = 7.
   `data4.js` carries `mass` and `r` per strength. **What it changes:** (1) 12-24 (six helium-4s) is bound in both
   consistent models: its "unbound" was the mixed table's artefact, which is what had piled the climb at the k = 5 edge.
-  (2) **The ceryllium cycle is undecided.** 5-11 + p → ⁴He + ceryllium-8 is open in the ladder model for s ≤ 1.6 (Q +10.9,
-  +8.6, +4.6 MeV) and closed in the grid (−21.5 to −60). Ours at the matching core (¹¹B on ⁸Be; real Q 8.59) doesn't
-  settle it: the ladder model overstates its Q by 6.9 MeV (15.5 against 8.59), the grid understates by 1.4; taking
-  that offset off leaves 4D's +4.0 / +1.7 / −2.3 at 1.5152 / 1.55 / 1.6, scaling S_t by ours' ratio closes it everywhere.
-  It is the most consequential mass in the network: **sweep (both models, G₄ ×10^(−0.8, 0, +0.8)):** ladder, s = 1.5152
-  and 1.55 burn hydrogen to helium (94–99%) at 8–11 MK by the cycle, on a catalyst the star's own helium makes (⁴He + ⁴He
-  → ceryllium-8, protons up to 5-11, back out), insensitive to G₄; grid, 1.5152 climbs to elements 10–12 (16–19 MK) and
-  1.55 to 8–11 (12–18 MK) unless G₄ is 6× stronger; 1.6 at a 6× weaker G₄ helium (ladder) or element 8 (grid). From 1.65
-  up the two models give the same stars, element for element (1.65 at a 6× weaker G₄ climbs to element 6 in both). The
-  widget's blurbs follow the bake (`world.js` `cyc`: the 5-11 branch's energy to spare), and selftest 7 checks the
-  branch is present exactly where the table's Q > 0 and the 1.5152 core's outcome on whichever side it falls.
+  (2) **The ceryllium cycle was the band's one undecided question, and a third method closed it (2026-11-13).**
+  5-11 + p → ⁴He + ceryllium-8 was open in the ladder model for s ≤ 1.6 (Q +10.9, +8.6, +4.6 MeV) and closed in the grid
+  (−21.5 to −60), and ours at the matching core (¹¹B; real Q 8.59) couldn't decide it. **The free-cluster bound**
+  (`brink.js` `freeClusterGCM`, `atom/tools/nuclei.mjs qbound <d> <s> [K]`): Q = E(2α + t) − E(2α) − E(α), with the
+  helium-4 exact (one determinant), the two-helium-4 core converged (`twoAlpha`, J = 0) and the 2α + t system a
+  Hill–Wheeler mix of K screened random placements with **every cluster free to move**. The last is variational, so the
+  computed Q is an **upper bound** on the model's Q at every K, and it only falls as K grows. At K = 480: −15.7, −20.6,
+  −27.9, −35.5, −43.5, −51.8, −60.5, −69.5 MeV at the eight strengths; K = 960 at s = 1.5152 −18.7. Ours as the check:
+  ≤ 12.25 MeV at K = 960 against 8.59 measured, so the bound is honest on ours, and an overstatement of ~3.7 there can't
+  turn 4D's −16 or lower positive. **No ceryllium cycle, at any strength.** Committed as `fusion/qbound4.json` (11 bounds;
+  `qbound-*.json` from the runs); `nuc4.mjs` (ladder model) takes 5-11 from the largest-K bound
+  (B(5-11) = B(⁸Ce) + B_α − Q_upper), so the network's (p,α) on 5-11 is closed exactly where the bound says. With it the
+  **two mass models now give the same stars at every network point** (`windows4.mjs`, both models), and the widget's
+  blurbs say so (`world.js`, `text.js`). Selftest 7 still checks that the branch is present iff the table's Q > 0, and
+  the 1.5152 core's outcome on whichever side it falls (now: past helium).
   **The windows plane (2026-11-13, PI: "narrower and narrower windows of feasibility … narratively powerful"; paper 2's
   spine):** `fusion/tools/windows4.mjs` (~10 min) → `papers/p2/data/windows.json`; `papers/p2/figures/windows.mjs` →
   `windows.svg` (figure 1). The plane s 1.40–1.891 × log₁₀ G₄/(G_F/M_W) 3–7 per clock (0.01–100 s): p + p opens on 78%;
   the first minutes leave half their hydrogen on 32–69% (the edge flat in s at G₄ > 10^(5.4 → 3.4)). Hydrogen burning at
   the 8 × 7 network points, under both mass models (`ALT=<a copy of four/ baked under MASS=grid>`, ~15 min; the figure
-  splits a point where they differ): in the adopted ladder model 27 helium, 27 helium-3, 2 past helium (s = 1.65 with
-  G₄ 6–16× under the electron-matched value, element 6 at 8–10 MK), the low-s cores making helium at 8–11 MK by the
-  ceryllium cycle; in the grid model 14 past helium, sorting by the core's temperature as before (> ~10 MK climbs, ~4–9
-  helium, < ~3.5 helium-3). 12 of the 56 points differ, all at s ≤ 1.6.
+  splits a point where they differ): after the bound, **the two models agree at all 56 points**: 14 past helium
+  (s 1.5152–1.65, cores at 7.8–18.8 MK), 15 helium (4–10 MK), 27 helium-3 (< 3.6 MK); the sorting is by the core's
+  temperature. Our world's point (s 1.5152, G₄ = G_F/m_e) climbs past helium, to element 11 (masses 22–23) at 18.5 MK.
+  (Before the bound, 12 of the 56 points split, all at s ≤ 1.6: helium by the cycle in the ladder model.)
   **Window C, stars that live (2026-11-13; PI: "press on").** `fusion/tools/eps4.mjs` (~15 min a model; `ALT=` for the
   grid) → **generated** `fusion/eps4.json`: the network as an absolute energy law. It meets the star solver through p + p,
   ρ_ref(T) = m_u k_pp,net(T)/⟨σv⟩_abs(T) (mainseq's absolute 4D rate: our S̃ carried, the same 4 fm barrier, ppx, 4D's
