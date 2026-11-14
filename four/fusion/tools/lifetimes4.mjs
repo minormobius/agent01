@@ -47,7 +47,7 @@ let ours = null;
 if (process.env.OURS) { const O = JSON.parse(readFileSync(process.env.OURS, "utf8")).sort((a, b) => a.m - b.m), { rhoOf } = await import("../../atom/js/mainseq.js"), N3 = await import("../js/net.js");
   const i = O.findIndex((r) => r.m >= 1), a = O[i - 1], b = O[i], w = Math.log(1 / a.m) / Math.log(b.m / a.m), li = (x, y) => Math.exp(Math.log(x) * (1 - w) + Math.log(y) * w);
   const Tc = li(a.Tc, b.Tc), Pc = li(a.Pc, b.Pc), rho = rhoOf(3, Pc, Tc, { X: 0.7, Y: 0.28, Z: 0.02 }) / 1000, t = N3.run({ T: Tc, rho, X0: N3.SUN_X, fuel: "p", until: 0.5, tmax: 1e20, maxSteps: 6000 }).t / GYR;
-  ours = { Tc, rho_gcc: rho, L: li(a.L, b.L), thGyr: t }; console.log(`ours: the zero-age Sun's centre ${(Tc / 1e6).toFixed(2)} MK, ${rho.toFixed(1)} g/cm³: core t½ ${t.toFixed(2)} Gyr at fixed T, ρ (the real centre: ~4.6)`); }
+  ours = { Tc, rho_gcc: rho, L: li(a.L, b.L), thGyr: t, stars: O.map((r) => ({ m: +r.m.toFixed(3), Tc: r.Tc, qcc: r.qcc })) }; console.log(`ours: the zero-age Sun's centre ${(Tc / 1e6).toFixed(2)} MK, ${rho.toFixed(1)} g/cm³: core t½ ${t.toFixed(2)} Gyr at fixed T, ρ (the real centre: ~4.6)`); }
 const PACE2 = ours ? ours.thGyr * GYR : null;
 const files = readdirSync(dir).filter((f) => /^net-.*\.json$/.test(f)), out = [];
 for (const f of files) {
@@ -59,7 +59,7 @@ for (const f of files) {
       return { m: li(a.m, b.m), Tc: li(a.Tc, b.Tc), rhoc: li(a.rhoc, b.rhoc), L: li(a.L, b.L), Teff: li(a.Teff, b.Teff), R: li(a.R, b.R) }; } } return null; };
   const pace = at(PACE), sun = PACE2 ? at(PACE2) : null;
   if (pace) pace.burn = await burn(R.mass, R.s, pace.Tc, pace.rhoc); if (sun) sun.burn = await burn(R.mass, R.s, sun.Tc, sun.rhoc);
-  const e = { G: R.Grel, s: R.s, mass: R.mass, ff: R.ff, Mch: R.Mch, stars: R.rows.map((r) => ({ m: r.m, Tc: r.Tc, rhoc: r.rhoc, L: r.L, Teff: r.Teff, thGyr: r.th == null ? null : r.th / GYR })),
+  const e = { G: R.Grel, s: R.s, mass: R.mass, ff: R.ff, Mch: R.Mch, stars: R.rows.map((r) => ({ m: r.m, Tc: r.Tc, rhoc: r.rhoc, L: r.L, Teff: r.Teff, qcc: r.qcc ?? null, thGyr: r.th == null ? null : r.th / GYR })),
     pace, sun, longest: { m: longest.m, thGyr: longest.th == null ? null : longest.th / GYR }, mMin: R.rows[0].m, mMax: R.rows.at(-1).m };
   out.push(e);
   console.log(`G ${R.Grel} s ${R.s} ${R.mass}: ${R.rows.length} stars ${e.mMin}–${e.mMax} M_Ch; ${sun ? `Sun analogue (t½ ${ours.thGyr.toFixed(1)} Gyr) ${sun.m.toFixed(2)} M_Ch, ${(sun.Tc / 1e6).toFixed(1)} MK → ${sun.burn?.kind ?? "?"}; ` : ""}${pace ? `4.6-Gyr core at ${pace.m.toFixed(2)} M_Ch, ${(pace.Tc / 1e6).toFixed(1)} MK, ρ ${pace.rhoc.toExponential(1)} kg/m⁴, Teff ${pace.Teff.toFixed(0)} K → ${pace.burn?.kind ?? "?"} ${pace.burn ? JSON.stringify(pace.burn.top) : ""}` : "no star's core halves in 4.6 Gyr in the range computed"}`);

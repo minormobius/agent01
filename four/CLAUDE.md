@@ -1012,7 +1012,10 @@ for games, and this is a modelling programme with publications to come. The game
   networked step) caches each DOI's CSL in `data/crossref.json`, `refs.json`'s `csl` overrides Crossref's quirks (β in
   Fermi's title, MathML in Adelberger's, PDG's 245 authors), and the build fails on an unknown key. `build.mjs --check`
   fails on a stale draft. First section: `text/windows.md`, section 2 (figure 1's results, caption and methods), linked
-  from the papers page. After rerunning windows4 or masscheck, rerun `build.mjs`. Figure 1's star is our world's forces
+  from the papers page. Section 3, `text/lifetimes.md` (figure 2, window C), reads `data/lifetimes.json`, `fusion/eps4.json` and
+  our REACLIB network (`fusion/js/net.js`, for ours' temperature exponents); `lifeNumbers()` in build.mjs, which stops
+  if the two mass models ever disagree on a Sun analogue (the text says they don't). `lifetimes4.mjs` now carries each
+  star's convective core (`qcc`) and ours' (`ours.stars`). After rerunning windows4 or masscheck, rerun `build.mjs`. Figure 1's star is our world's forces
   carried over (s = 1.5152, G₄ = G_F/m_e), computed by windows4 beside the grid (`asOurs`).
   **`papers/` is the process page** (`index.html` + `process.js`): it renders `p1/process.json` (hand-kept: the
   pipeline's stages, the checklist before prose, the journal: add an entry when something happens to the paper),
