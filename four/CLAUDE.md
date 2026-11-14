@@ -274,7 +274,7 @@ for games, and this is a modelling programme with publications to come. The game
   evolving as ours). Figure 2 (`papers/p2/figures/lifetimes.mjs`). **Result:** long-lived stars everywhere computed; the
   analogue at 0.2–5 M_Ch for G 10⁻¹⁴–10⁻²⁰; real cores hotter than the Sun-pace convention (densities below ρ_ref), so
   s = 1.65 climbs past helium (elements 6–8) and helium-3 stranding at s = 1.8–1.85 gives way to helium as G falls to
-  10⁻²⁰. **After the bound** (s ≤ 1.6 rerun on the new network, 14 of 15; G 10⁻²³ s 1.6 cut at 20 min, rerun at 60) the
+  10⁻²⁰. **After the bound** (s ≤ 1.6 rerun on the new network, all 15; G 10⁻²³ s 1.6 needed ~25 min) the
   two mass models agree at every point: the s ≤ 1.6 analogues climb past helium to elements 7–13 at 10–25 MK (helium at
   G 10⁻¹¹ s 1.6, 8 MK); the cycle's helium at 9–14 MK is gone.
 - **the big periodic table at `/table/`**: `table/viewer.js` draws all 140 4D elements (`atom/js/table.js`; the sixth row's f block, 81–112, as a band below, from `atom/js/periodic.js` `layout`) full width,
