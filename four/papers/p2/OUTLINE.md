@@ -142,8 +142,9 @@ a carried rate; where the climb ends rests on A2's masses.
     densities, 10¹³–10¹⁷ kg/m⁴, lie below the network's reference density, ~10¹⁷–10¹⁸), so what hydrogen burning makes
     shifts: at s = 1.65 the analogue climbs past helium (element 6–8, 9.5–13 MK at G 10⁻¹⁷–10⁻²⁰), and **helium-3
     stranding gives way to helium as gravity weakens** (s = 1.8–1.85: helium-3 at G ≥ 10⁻¹⁷, helium at 10⁻²⁰). Gravity
-    is now an axis of the hydrogen-burning window, not only of the clock. (c) The mass models still split s ≤ 1.6
-    (helium by the cycle at 9–14 MK, or a climb to elements 7–13 at 12–25 MK). **computed, on the network's burning;
+    is now an axis of the hydrogen-burning window, not only of the clock. (c) With the cycle closed (section 10) the
+    mass models agree at every point: at s ≤ 1.6 the analogue climbs past helium to elements 7–13 at 10–25 MK (helium
+    only at G 10⁻¹¹, s 1.6). **computed, on the network's burning;
     the analogue's definition calibrated on ours; no stellar evolution.** Figure 2.
 13. **Which stars do what.** How far each core mass burns (`js/burning.js`, ours to 40% in mass), stirred cores, which
     explode and when (`nuclei.mjs cores`, `explode`). **computed / rough.** *To do (C):* post-main-sequence growth.
@@ -180,7 +181,7 @@ a carried rate; where the climb ends rests on A2's masses.
 2. The 4D chart of nuclides by binding source, with the N = Z valley and the two-neutron isotopes' β⁻.
 3. The first minutes: helium left against G₄ and the clock.
 4. Hydrogen burning's ash against s (the network sweep).
-5. **Drawn as figure 2** (`figures/lifetimes.svg`): core half-life against mass per strength at G = 10⁻¹⁷, and our Sun's analogue across G × s coloured by what its own centre burns to, split where the mass models disagree (C).
+5. **Drawn as figure 2** (`figures/lifetimes.svg`): core half-life against mass per strength at G = 10⁻¹⁷, and our Sun's analogue across G × s coloured by what its own centre burns to, under both mass models (identical since the bound) (C).
 6. Composition against age (D).
 
 ## Companion objects
