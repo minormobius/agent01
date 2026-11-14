@@ -1,0 +1,104 @@
+{
+ "about": "atom/tools/nuclei.mjs qbound: the variational upper bound on Q(5-11 + p -> 4He + the 2-helium-4 core), every cluster free (brink.js freeClusterGCM), helium-4 exact and the core converged in the same model; per dimension and strength, every K computed (the bound falls as K grows). Ours (d 3) is 11B + p -> 3 alpha, 8.59 MeV measured. fusion/tools/nuc4.mjs takes the largest K.",
+ "bounds": [
+  {
+   "d": 3,
+   "s": 1,
+   "K": 480,
+   "Ea": -24.687,
+   "E2": -49.289,
+   "E2t": -60.359,
+   "Qupper": 13.616
+  },
+  {
+   "d": 3,
+   "s": 1,
+   "K": 960,
+   "Ea": -24.687,
+   "E2": -49.289,
+   "E2t": -61.727,
+   "Qupper": 12.249
+  },
+  {
+   "d": 4,
+   "s": 1.5152,
+   "K": 480,
+   "Ea": -73.926,
+   "E2": -173.312,
+   "E2t": -262.975,
+   "Qupper": -15.738
+  },
+  {
+   "d": 4,
+   "s": 1.5152,
+   "K": 960,
+   "Ea": -73.926,
+   "E2": -173.312,
+   "E2t": -265.951,
+   "Qupper": -18.713
+  },
+  {
+   "d": 4,
+   "s": 1.55,
+   "K": 480,
+   "Ea": -82.241,
+   "E2": -194.091,
+   "E2t": -296.953,
+   "Qupper": -20.622
+  },
+  {
+   "d": 4,
+   "s": 1.6,
+   "K": 480,
+   "Ea": -94.633,
+   "E2": -225.265,
+   "E2t": -347.769,
+   "Qupper": -27.871
+  },
+  {
+   "d": 4,
+   "s": 1.65,
+   "K": 480,
+   "Ea": -107.529,
+   "E2": -257.936,
+   "E2t": -401.003,
+   "Qupper": -35.538
+  },
+  {
+   "d": 4,
+   "s": 1.7,
+   "K": 480,
+   "Ea": -120.909,
+   "E2": -292.045,
+   "E2t": -456.495,
+   "Qupper": -43.541
+  },
+  {
+   "d": 4,
+   "s": 1.75,
+   "K": 480,
+   "Ea": -134.752,
+   "E2": -327.535,
+   "E2t": -514.099,
+   "Qupper": -51.812
+  },
+  {
+   "d": 4,
+   "s": 1.8,
+   "K": 480,
+   "Ea": -149.041,
+   "E2": -364.355,
+   "E2t": -573.856,
+   "Qupper": -60.461
+  },
+  {
+   "d": 4,
+   "s": 1.85,
+   "K": 480,
+   "Ea": -163.758,
+   "E2": -402.453,
+   "E2t": -635.683,
+   "Qupper": -69.473
+  }
+ ]
+}

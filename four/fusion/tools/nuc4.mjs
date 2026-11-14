@@ -31,6 +31,7 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { deuteron, MN, NP_MASS, M_E } from "../../atom/js/nuclear.js";
 
+const QB = existsSync(new URL("../qbound4.json", import.meta.url)) ? JSON.parse(readFileSync(new URL("../qbound4.json", import.meta.url), "utf8")).bounds : [];
 const DIR = `${process.env.TMPDIR ?? "/tmp"}/atom4-nuclei`, tag = (x) => String(x).replace(".", "p");
 const load = (f) => (existsSync(`${DIR}/${f}`) ? JSON.parse(readFileSync(`${DIR}/${f}`, "utf8")) : null);
 const WINDOW = [1.4002, 1.5152, 1.8909];
@@ -61,7 +62,7 @@ export function table(s, { compact = false, mass = process.env.MASS ?? "ladder" 
   // the core's binding, and the binding of one more helium-4 onto it (the grid's own, in the grid model)
   const coreB = [null, Ba]; for (let k = 1; k <= 8; k++) { if (mass === "grid") { const m = aOn(k); coreB[k + 1] = m && BaG != null && coreB[k] != null ? coreB[k] + Ba + (m.S - BaG) : null; } else { const E = lad(k + 1); coreB[k + 1] = E == null ? null : (k + 1) * Ba - E; } }
   const coreHow = mass === "grid" ? "computed (grid, chained)" : "computed (ladder)";
-  const qbound = (sv) => readdirSync(DIR).filter((f) => new RegExp(`^qbound-4-${tag(sv).replace(".", "\\.")}-\\d+\\.json$`).test(f)).map(load).sort((a, b) => b.K - a.K)[0] ?? null;
+  const qbound = (sv) => QB.filter((q) => q.d === 4 && Math.abs(q.s - sv) < 1e-4).sort((a, b) => b.K - a.K)[0] ?? null; // fusion/qbound4.json, committed
   const out = [], rs = {};
   const add = (Z, N, B, how, k, c) => out.push({ Z, N, A: Z + N, B, how, k, c, key: `${Z}-${Z + N}` });
   add(1, 0, 0, "free", 0, "p"); add(0, 1, 0, "free", 0, "n"); add(1, 1, Bd, "computed", 0, "d"); add(1, 2, Bt, "computed", 0, "t"); add(2, 1, Bh, "computed (Coulomb estimated)", 0, "h");
