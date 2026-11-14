@@ -10,19 +10,25 @@
    times a coefficient), how many turns an outer fibre still makes round the core, how far any fibre went out of the
    x–y plane on the way (4D only), and the elastic energy. Nothing here knows which dimension it is in except the
    number of coordinates. */
-export function makeYarn({ d = 3, turns = 2, strain = 0.03, M = 32, L = 4, a = 0.1, ring = 0.212, ks = 3000, kc = 6000, noise = 2e-3, seed = 1, tape = 0 } = {}) {
+export function makeYarn({ d = 3, turns = 2, strain = 0.03, M = 32, L = 4, a = 0.1, ring = 0.212, ks = 3000, kc = 6000, noise = 2e-3, seed = 1, tape = 0, pack = 7, wall = 0 } = {}) {
   let s = seed; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32) * 2 - 1;
-  const F = 7, n = M + 1, N = F * n, X = new Float64Array(N * d), V = new Float64Array(N * d), G = new Float64Array(N * d), ax = d - 1, s0 = L / M, top = L * (1 + strain), fixed = new Uint8Array(N);
+  const F = pack === 13 && d === 4 ? 13 : 7, n = M + 1, N = F * n, X = new Float64Array(N * d), V = new Float64Array(N * d), G = new Float64Array(N * d), ax = d - 1, s0 = L / M, top = L * (1 + strain), fixed = new Uint8Array(N);
   const base = [[0, 0]]; for (let k = 0; k < 6; k++) base.push([ring * Math.cos((k * Math.PI) / 3), ring * Math.sin((k * Math.PI) / 3)]);
+  /* pack 13 (4D only): the full bundle, one fibre and the twelve that fit round it in the 3D cross-section. The first
+     four of the twelve lie in the plane of the twist (x–y); the rest stand off it along z */
+  if (F === 13) { base.length = 1; base[0] = [0, 0, 0]; for (const [u, v] of [[0, 1], [0, 2], [1, 2]]) for (const sa of [1, -1]) for (const sb of [1, -1]) { const q = [0, 0, 0]; q[u] = (sa * ring) / Math.SQRT2; q[v] = (sb * ring) / Math.SQRT2; base.push(q); } }
   for (let f = 0; f < F; f++) for (let i = 0; i < n; i++) { const u = i / M, th = 2 * Math.PI * turns * u, c = Math.cos(th), sn = Math.sin(th), p = (f * n + i) * d;
-    X[p] = c * base[f][0] - sn * base[f][1]; X[p + 1] = sn * base[f][0] + c * base[f][1]; X[p + ax] = top * u; if (i === 0 || i === M) fixed[f * n + i] = 1; else for (let q = 0; q < d; q++) X[p + q] += noise * rnd(); }
+    X[p] = c * base[f][0] - sn * base[f][1]; X[p + 1] = sn * base[f][0] + c * base[f][1]; X[p + ax] = top * u; if (F === 13) X[p + 2] = base[f][2]; if (i === 0 || i === M) fixed[f * n + i] = 1; else for (let q = 0; q < d; q++) X[p + q] += noise * rnd(); }
   const ribbon = tape > 0 && d === 4; if (ribbon) for (let i = 0; i < n; i++) fixed[i] = 1;
   const dt = 0.006, damp = 0.985, Y = { d, F, n, M, L, a, X, t: 0, peakOut: 0, turns, strain, tape: ribbon ? tape : 0 };
-  let energy = 0, squeeze = 0, grip = 0;
-  const force = (measure) => { G.fill(0); energy = 0; squeeze = 0; grip = 0;
+  let energy = 0, squeeze = 0, grip = 0, walled = 0;
+  const force = (measure) => { G.fill(0); energy = 0; squeeze = 0; grip = 0; walled = 0;
     for (let f = 0; f < F; f++) for (let i = 0; i < M; i++) { const p = (f * n + i) * d, q = p + d; let l = 0; for (let c = 0; c < d; c++) l += (X[q + c] - X[p + c]) ** 2; l = Math.sqrt(l); const k = (ks * (l - s0)) / l; energy += 0.5 * ks * (l - s0) ** 2; for (let c = 0; c < d; c++) { const g = k * (X[q + c] - X[p + c]); G[p + c] += g; G[q + c] -= g; } }
     /* contact: beads of different fibres closer than two radii push apart (only beads near the same height can meet) */
     for (let f = ribbon ? 1 : 0; f < F; f++) for (let g = f + 1; g < F; g++) for (let i = 0; i < n; i++) { const p = (f * n + i) * d, lo = Math.max(0, i - 3), hi = Math.min(M, i + 3); for (let j = lo; j <= hi; j++) { const q = (g * n + j) * d; let l = 0; for (let c = 0; c < d; c++) l += (X[q + c] - X[p + c]) ** 2; if (l >= 4 * a * a) continue; l = Math.sqrt(l); const o = 2 * a - l, k = (kc * o) / l; energy += 0.5 * kc * o * o; if (measure) { if (f === 0) squeeze += kc * o; if (f === 1 || g === 1) grip += kc * o; } for (let c = 0; c < d; c++) { const gg = k * (X[q + c] - X[p + c]); G[p + c] -= gg; G[q + c] += gg; } } }
+    /* a hose: with `wall`, no bead's centre may stand further than `wall` from the yarn's axis in the cross-section
+       (every direction but the yarn's own). What it presses inward with is `walled` */
+    if (wall > 0) for (let b = 0; b < N; b++) { const p = b * d; let r2 = 0; for (let c = 0; c < ax; c++) r2 += X[p + c] * X[p + c]; if (r2 <= wall * wall) continue; const r = Math.sqrt(r2), o = r - wall, k = (kc * o) / r; energy += 0.5 * kc * o * o; walled += kc * o; for (let c = 0; c < ax; c++) G[p + c] -= k * X[p + c]; }
     /* the cheat: with `tape`, the core is not a fibre but a rigid ribbon running the yarn's length, `tape` wide either
        side along z: in the cross-section, the segment x = y = 0, |z| ≤ tape. The six fibres meet it as they would a
        fibre of the same radius, and the squeeze is what they press on it with */
@@ -37,7 +43,7 @@ export function makeYarn({ d = 3, turns = 2, strain = 0.03, M = 32, L = 4, a = 0
     /* grip: every contact force on one outer fibre, per length; pull: that fibre's tension. Their ratio is what a rope
        lives on: friction along a fibre is μ × grip, so a fibre of length ℓ holds its own tension if μ × grip × ℓ / 2 ≥ pull,
        i.e. if it is longer than 2 / (μ × grip/pull) */
-    return { grip: grip / L, pull: T1, hold: grip / L / T1, squeeze: squeeze / L, wind: wind / (2 * Math.PI), out: Y.peakOut, energy, tension: T / M, moving: Math.sqrt(ke / N) }; };
+    return { walled: walled / L, grip: grip / L, pull: T1, hold: grip / L / T1, squeeze: squeeze / L, wind: wind / (2 * Math.PI), out: Y.peakOut, energy, tension: T / M, moving: Math.sqrt(ke / N) }; };
   return Y;
 }
 /* the shortest fibre that holds its own tension by friction, in fibre diameters, for a friction coefficient mu */

@@ -34,5 +34,9 @@ const run = (d, turns, extra = {}) => settle({ d, turns, ...extra });
   const p4 = q(4, 2, 0.03), s3 = shortest(q(3, 2, 0.03)), sr = shortest(r[1]);
   ok(p4.hold === 0 && !Number.isFinite(shortest(p4)) && s3 > 3 && s3 < 30 && sr > s3 && sr < 6 * s3, `the shortest fibre that holds its own tension (friction 0.3): ${s3.toFixed(0)} thicknesses in our yarn at two turns, ${sr.toFixed(0)} on the ribbon in 4D, and none at all in the plain 4D yarn`);
 }
+{ // the full bundle in a hose: thirteen fibres, pressed together by a wall
+  const E = (o) => settle({ d: 4, pack: 13, ...o }, 30000).energy, free0 = E({ turns: 0 }), free1 = E({ turns: 1 }), h0 = E({ turns: 0, wall: 0.19 }), h1 = E({ turns: 1, wall: 0.19 }), h2 = E({ turns: 2, wall: 0.19 });
+  ok(Math.abs(free1 - free0) < 0.01 * free0 && h1 > h0 + 15 && Math.abs(h2 - h0) < 10, `thirteen fibres in a tight hose keep one turn and shed two (energy ${h0.toFixed(0)} untwisted, ${h1.toFixed(0)} after one turn, ${h2.toFixed(0)} after two); with no hose they shed the one as well (${free0.toFixed(1)}, ${free1.toFixed(1)})`);
+}
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

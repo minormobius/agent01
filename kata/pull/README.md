@@ -222,6 +222,14 @@ The squeeze is a **shrink fit** (D2): HOOP = 0.5 means the hose was made about h
 bundle. Only a hose with a larger Poisson ratio than its fibres tightens under load. A braided sleeve does (C1, C2),
 which is the bias sheath's law.
 
+**So give the hose the larger Poisson ratio.** Then it tightens as it is pulled, by (ν_hose − ν_fibre) × stretch on top
+of its misfit. At a breaking stretch of 1.4%, a difference of 0.2 adds 0.28% to a 0.5% misfit: half as much squeeze
+again, arriving with the load, where it is wanted. Two limits. In four dimensions a material that is the same in every
+direction cannot have a Poisson ratio above ⅓ (in three, ½): with n directions to shrink in, ν < 1/(n − 1). So the
+difference has to come from structure: fibres drawn stiff across their width, or a sheath built to contract, of which
+the extreme is the braided sleeve. And it does not bring twist back: see [TWIST](../twist/README.md), where a hose
+saves exactly one turn.
+
 **Still assumed:** equal contact stiffness; rigid fibres in their packed places under the skin; a skin with no
 bending stiffness; and that a 0.5% shrink fit can be made and does not creep away.
 

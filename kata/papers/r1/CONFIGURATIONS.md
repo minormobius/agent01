@@ -100,3 +100,13 @@ bias-sheath number above was re-run with that fixed, and the species table's hoo
 sheaths of stated thickness with their weight counted. What changed: the hose 1.20 → 1.13; hoops 0.99 → 0.86, so
 hoops no longer match a single strand per weight; cabling costs an eighth a level, not a tenth. What did not: the
 order of everything.
+
+## Two more, 2026-11-14
+
+- **A contracting sheath.** A hose with a larger Poisson ratio than its fibres tightens under load, by
+  (ν_hose − ν_fibre) × stretch. Isotropic 4D matter is capped at ν < ⅓, so the difference has to be built in. Not on
+  the bench yet: it is the `hoop` law with a term in the rope's stretch.
+- **Twist in a hose.** Thirteen fibres pressed together by a hose keep one turn and shed two (TWIST README). The
+  rotations of a 3D cross-section have one stubborn loop; ours have infinitely many. This is the cleanest statement of
+  why twist grips in 3D and not in 4D, and belongs in the paper's first section. Needs a source for the belt trick /
+  π₁(SO(3)) = ℤ₂ and a check of whether the cluster's symmetries add stubborn part turns.

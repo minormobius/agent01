@@ -93,3 +93,24 @@ under a hard squeeze (at two turns in 3D, visibly). Seven fibres, one geometry.
 ```bash
 node kata/twist/test/twist.selftest.mjs   # ~30 s, 10 checks
 ```
+
+## A hose saves one turn, and only one
+
+`makeYarn({ pack: 13, wall })` is the full 4D bundle (one fibre and the twelve that fit round it) inside a hose, a wall
+no bead's centre may pass. Loose, the thirteen shed every turn, as the seven do. Pressed together by a tight hose
+they cannot pass each other, and then:
+
+| started with | 0 turns | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| energy at rest (hose at 0.19, fibres touch at 0.20) | 56 | 83 | 52 | 83 | 64 |
+
+**Odd twists settle to the same one-turn state; even twists go back to nothing.** A bundle held together turns as a
+body, and its cross-section is three-dimensional. A full turn of a body in three dimensions cannot be undone, and two
+full turns can (the belt trick: the rotations of 3-space have exactly that one stubborn loop). In our world a
+cross-section is two-dimensional and its rotations wind without limit, which is why our yarn keeps every turn.
+
+So a hose does not give a 4D rope twist to grip with. One turn in the whole length of a rope is no twist at all per
+length. What grips is the hose. Caveats: a five-turn start jammed at a higher energy (172) and did not get down; the
+`wind` reading follows one fibre in the x–y plane and loses track once the turn moves to another axis, so the
+energies are the evidence; and a packed cluster has symmetries, so part turns that map it onto itself may be
+stubborn too (not tested).

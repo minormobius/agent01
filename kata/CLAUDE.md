@@ -187,7 +187,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   the core, turns still wound, energy, furthest out of the plane. The result the selftest holds: 3D keeps its twist
   and squeezes; 4D sheds every whole turn and ends at the untwisted energy; a part turn stays in both; with no jiggle
   the 4D twist stands (unstable); and with `tape` (the core a rigid ribbon ±tape across z) the 4D twist holds unless the ribbon is narrow enough to slip round. `measure()` also gives `grip` (contact force on one outer fibre per length), `pull` (its tension) and `hold` = grip/pull, which stays flat as the pull changes (the selftest holds that), and `shortest()` the shortest fibre that friction can hold. The page steps all three together on 2D canvases, slowly at first (that is when the 4D
-  yarn lets go). `window.TWIST` exposes the worlds. See [`twist/README.md`](twist/README.md).
+  yarn lets go). `pack: 13` is the full 4D bundle and `wall` a hose's inner radius: pressed together, thirteen keep one turn and shed two (the selftest holds it by energies). `window.TWIST` exposes the worlds. See [`twist/README.md`](twist/README.md).
 - **HOUSE at `/house/`** (the first building): walk through a 4D room, first person. The room is CAD⁴'s `room` part,
   and the page **imports CAD⁴'s kernel and library** (`../cad4/js/kernel.js`, `parts.js`), so **a change to either runs
   HOUSE's selftest too**. `js/walk.js` (no DOM; BRUT⁴ uses it too): a body of two balls, lifted straight up by anything it can stand on (so ramps don't slide it and a low ledge is climbed), a frame of three floor directions (ahead, right,
@@ -292,7 +292,7 @@ node kata/cad4/test/textiles.selftest.mjs # ~25 s
 node kata/cad4/test/braids.selftest.mjs # ~40 s
 node kata/cad4/test/maypole.selftest.mjs # ~20 s
 node kata/cad4/test/machines.selftest.mjs # ~30 s (pulley, tackle, room, spinneret)
-node kata/twist/test/twist.selftest.mjs # ~30 s
+node kata/twist/test/twist.selftest.mjs # ~60 s
 node kata/pull/test/pull.selftest.mjs # ~10 s
 node kata/house/test/house.selftest.mjs # ~1 s
 node kata/brut4/test/brut4.selftest.mjs # ~12 s
