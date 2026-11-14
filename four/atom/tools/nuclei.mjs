@@ -32,6 +32,7 @@
      node four/atom/tools/nuclei.mjs plusone <d> <s> <k> <Z> [dirs]  a nucleon on k helium-4s microscopically (Brink, two-body
                                                                  Minnesota, u set on our ⁸Be): its separation energy, so whether
                                                                  element 2k + 1 at mass 4k + 1 holds together (Z 1 proton, 0 neutron)
+     node four/atom/tools/nuclei.mjs qbound <d> <s> [K]   the upper bound on Q(5-11 + p → ⁴He + 2-⁴He core), every cluster free
      node four/atom/tools/nuclei.mjs plusmore <d> <s> <k> <nn|np|pp|t|h> [dirs] [split] [compact]  two or three nucleons
                                                                  on k helium-4s on plusone's basis: neutron-rich nuclei and
                                                                  the deuteron, triton and helium-3 clusters, computed
@@ -264,6 +265,16 @@ if (cmd === "fit") {
   const r = BR.clusterOnCoreGrid({ d, k, sp: SP, nu, s, u: 0.938, M: 4, ndir, split, ...(compact ? { spread: [0.15, 0.45], minD: 0.4 } : {}) });
   console.log(`d=${d} s=${s} k=${k} + ${spec}${compact ? " compact" : ""} (${r.n} states): separation ${r.S.toFixed(2)} MeV, core ${r.Ec.toFixed(1)} (${((Date.now() - t) / 1000).toFixed(0)} s)`);
   save(`plusmore-${d}-${tag(s)}-${k}-${spec}-${ndir}${split ? `-x${split}` : ""}${compact ? "-c" : ""}.json`, { d, s, k, spec, ndir, split, compact, ...r });
+} else if (cmd === "qbound") {
+  // the ceryllium cycle's step decided (paper 2): 5-11 + p → helium-4 + the 2-helium-4 core, Q = E(2α + t) − E(2α) − E(α)
+  // with helium-4 one determinant (exact in the model), the 2-helium-4 core converged by twoAlpha (J = 0, projected; two
+  // grids agree), and 5-11 by brink.js freeClusterGCM, every cluster free, variational in K: so Q(K) is an upper bound on
+  // the model's Q, falling as K grows. Ours as the check: ¹¹B + p → 3α, 8.59 MeV measured.
+  const [d, s] = [+args[0], +args[1]], K = +(args[2] ?? 480), u = 0.938, nu = BR.bestNu(d, s), t = Date.now();
+  const Ea = BR.alphaEnergy(d, nu, s, u), E2 = Math.min(BR.twoAlpha({ d, nu, s, u, J: 0, Ds: Array.from({ length: 28 }, (_, i) => 0.3 + i * 0.4), M: 40 })[0], BR.twoAlpha({ d, nu, s, u, J: 0, Ds: Array.from({ length: 36 }, (_, i) => 0.2 + i * 0.32), M: 56 })[0]);
+  const AL = [0, 1, 2, 3], TR = [0, 2, 3], E2t = BR.freeClusterGCM({ d, clusters: [AL, AL, TR], nu, s, u, K }), Q = E2t - E2 - Ea;
+  console.log(`d=${d} s=${s} K=${K}: E(α) ${Ea.toFixed(3)}, E(2α) ${E2.toFixed(3)}, E(2α + t) ≤ ${E2t.toFixed(3)} MeV → Q(p,α) ≤ ${Q.toFixed(2)} MeV (${((Date.now() - t) / 1000).toFixed(0)} s)`);
+  save(`qbound-${d}-${tag(s)}-${K}.json`, { d, s, K, u, nu, Ea, E2, E2t, Qupper: Q });
 } else if (cmd === "protonflow") {
   // ours as the check: ¹²C + p → ¹³N, the proton bound by 1.944 MeV, against the measured direct capture ~1.3–1.5 keV b.
   // Then 4D on cores of k = 2, 3, 4 helium-4s: the nucleon–core potential set to the microscopic neutron separation

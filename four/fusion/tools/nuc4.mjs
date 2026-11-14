@@ -18,7 +18,8 @@
    nuclei disagreed about which is bound. Ours, against measured masses (AME, cores ⁸Be–²⁰Ne), says which to trust: the
    ladder underbinds α clusters (¹⁶O −4.9 MeV against 4α, real −14.4), the grid overbinds them and worse as k grows (²⁴Mg
    −93 against 6α, real −28.5); the grid's own S_α onto its core is 2–10× too large. Three models:
-     ladder (default)  the ladder's nuclei, and every grid separation on core k scaled by r_k = S₄(ladder)/S₄(grid), the
+     ladder (default)  the ladder's nuclei (5-11 from the free-cluster bound on its (p,α) Q where nuclei.mjs qbound has run),
+                       and every other grid separation on core k scaled by r_k = S₄(ladder)/S₄(grid), the
                        ratio of the two methods' 4-nucleon (helium-4) separation from the same core: the grid's cluster
                        bindings measured against its own helium-4 binding, carried to the ladder. Ours: median error 30%
                        over n, p, nn, np, t, h on k = 2–5, within ~15% from k = 4; at k = 2 it underbinds (r too small)
@@ -60,6 +61,7 @@ export function table(s, { compact = false, mass = process.env.MASS ?? "ladder" 
   // the core's binding, and the binding of one more helium-4 onto it (the grid's own, in the grid model)
   const coreB = [null, Ba]; for (let k = 1; k <= 8; k++) { if (mass === "grid") { const m = aOn(k); coreB[k + 1] = m && BaG != null && coreB[k] != null ? coreB[k] + Ba + (m.S - BaG) : null; } else { const E = lad(k + 1); coreB[k + 1] = E == null ? null : (k + 1) * Ba - E; } }
   const coreHow = mass === "grid" ? "computed (grid, chained)" : "computed (ladder)";
+  const qbound = (sv) => readdirSync(DIR).filter((f) => new RegExp(`^qbound-4-${tag(sv).replace(".", "\\.")}-\\d+\\.json$`).test(f)).map(load).sort((a, b) => b.K - a.K)[0] ?? null;
   const out = [], rs = {};
   const add = (Z, N, B, how, k, c) => out.push({ Z, N, A: Z + N, B, how, k, c, key: `${Z}-${Z + N}` });
   add(1, 0, 0, "free", 0, "p"); add(0, 1, 0, "free", 0, "n"); add(1, 1, Bd, "computed", 0, "d"); add(1, 2, Bt, "computed", 0, "t"); add(2, 1, Bh, "computed (Coulomb estimated)", 0, "h");
@@ -72,7 +74,12 @@ export function table(s, { compact = false, mass = process.env.MASS ?? "ladder" 
     if (Bk1 == null) continue;
     const Va = Bk1 - Bc - Ba, dC = vn.V - vp.V, nuc = (Ac) => vn.V + (Va + 2 * dC - vn.V) * (Ac - 1) / 3;
     // computed where plusmore has run (the cluster's nucleons all taken away: S = B(core + cluster) − B(core)), else interpolated
-    const cl = (c, Z, N, interp) => { const m = more(k, c); if (m) add(Z, N, Bc + R.r * m.S, `core + ${CNAME[c]} computed${mass === "ladder" ? ` × r ${R.r.toFixed(3)}${R.how}` : ""}`, k, c); else if (interp != null) add(Z, N, interp, "interpolated cluster", k, c); };
+    // 5-11, the ceryllium cycle's step: in the ladder model its binding comes from the variational bound on Q(5-11 + p →
+    // ⁴He + ⁸Ce) with every cluster free (nuclei.mjs qbound, brink.js freeClusterGCM), B = B(⁸Ce) + B_α − Q_bound, where it
+    // has been computed: the scaled grid opened that step, the one calculation treating all three nuclei alike closes it
+    const qb = mass === "ladder" && k === 2 ? qbound(s) : null;
+    const cl = (c, Z, N, interp) => { if (c === "t" && qb) { add(Z, N, Bc + Ba - qb.Qupper, `core + triton-like, from the bound Q ≤ ${qb.Qupper.toFixed(1)} MeV (every cluster free, K ${qb.K})`, k, c); return; }
+      const m = more(k, c); if (m) add(Z, N, Bc + R.r * m.S, `core + ${CNAME[c]} computed${mass === "ladder" ? ` × r ${R.r.toFixed(3)}${R.how}` : ""}`, k, c); else if (interp != null) add(Z, N, interp, "interpolated cluster", k, c); };
     cl("np", 2 * k + 1, 2 * k + 1, Bc + Bd + nuc(2) - dC); cl("t", 2 * k + 1, 2 * k + 2, Bc + Bt + nuc(3) - dC); cl("h", 2 * k + 2, 2 * k + 1, Bc + Bh + nuc(3) - 2 * dC);
     cl("nn", 2 * k, 2 * k + 2, null); cl("pp", 2 * k + 2, 2 * k, null);
   }

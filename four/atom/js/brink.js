@@ -280,3 +280,26 @@ export function clusterOnCoreGrid({ d, k, sp, nu, s, u, M = 6, radii = [0.6, 1.3
   const Ec = k ? solve(cores, (x, y) => kernel(x, y, { d, nu, s, u })) : 0, E = solve(full, (x, y) => kernelBlocks(x, y, { d, nu, s, u }));
   return { S: Ec - E, Ec, E, n: full.length };
 }
+/* ———— clusters all free: the variational bound on a cluster reaction's Q ————
+   Any clusters (each a list of species sharing one Gaussian centre: a helium-4 [0, 1, 2, 3], a triton-like [0, 2, 3], …)
+   placed at random, every centre free and the centre of mass at the origin (weighted by nucleons), Hill–Wheeler with the
+   species kernel. No core is held at fixed draws, so a nucleus and its pieces are treated alike. The placements are
+   screened: of `screen` × K drawn, half the K are the lowest by their own energy and half drawn at random from the rest
+   (one kernel each); minD lets clusters overlap toward the shell model's compact limit. Variational: E(K) lies above the
+   model's own energy at every K, so a reaction's Q computed with it on the heavy side is an upper bound. Two-body only
+   (Minnesota and Coulomb), as clusterOnCoreGrid */
+export function freeClusterGCM({ d, clusters, nu, s, u, K = 240, seed = 1, spread = [0.4, 1.6], minD = 0.3, screen = 4 }) {
+  let st = (seed * 2654435761) >>> 0; const rnd = () => { st = (st + 0x6d2b79f5) >>> 0; let z = st; z = Math.imul(z ^ (z >>> 15), z | 1); z ^= z + Math.imul(z ^ (z >>> 7), z | 61); return ((z ^ (z >>> 14)) >>> 0) / 4294967296; };
+  const gau = () => Math.sqrt(-2 * Math.log(rnd() + 1e-300)) * Math.cos(2 * Math.PI * rnd()), A = clusters.reduce((t, c) => t + c.length, 0), NC = K * (clusters.length > 1 ? screen : 1);
+  let basis = [];
+  while (basis.length < NC) { const sp = spread[0] + (spread[1] - spread[0]) * rnd(), P = clusters.map(() => Array.from({ length: d }, () => sp * gau()));
+    let ok = true; for (let i = 0; i < P.length && ok; i++) for (let j = i + 1; j < P.length; j++) if (dist2(P[i], P[j]) < minD * minD) { ok = false; break; } if (!ok) continue;
+    const cm = Array(d).fill(0); P.forEach((p, i) => p.forEach((x, q) => (cm[q] += (x * clusters[i].length) / A)));
+    basis.push(clusters.flatMap((c, i) => c.map((spc) => ({ R: P[i].map((x, q) => x - cm[q]), sp: spc })))); }
+  if (NC > K) { const e = basis.map((c) => { const x = kernelBlocks(c, c, { d, nu, s, u }); return x.h / x.n; }), order = e.map((v, i) => i).sort((a, b) => e[a] - e[b]);
+    const low = order.slice(0, K / 2), rest = order.slice(K / 2); for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+    basis = [...low, ...rest.slice(0, K - low.length)].map((i) => basis[i]); }
+  const n = basis.length, Nm = Array.from({ length: n }, () => new Array(n).fill(0)), Hm = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) for (let j = i; j < n; j++) { const x = kernelBlocks(basis[i], basis[j], { d, nu, s, u }); Nm[i][j] = Nm[j][i] = x.n; Hm[i][j] = Hm[j][i] = x.h; }
+  return hillWheeler(Nm, Hm)[0];
+}
