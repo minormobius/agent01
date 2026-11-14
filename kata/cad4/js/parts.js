@@ -153,6 +153,36 @@ const BRAIDS = (() => { const A = 0.36, B = 0.15, t = 0.06, L = 1.5, N = 36, tur
       path: [{ ...P }, { ...P, ox: 0.8 }, { ...P }, { ...P, oz: 1.3 }, { ...P, oz: 1.3, ox: 0.9 }, { ...P, oz: 1.3 }, { ...P }] },
   }; })();
 
+/* KNOTS. A thread cannot be knotted in 4D: lift one strand of a crossing into the spare direction, carry it across,
+   put it down, and the crossing has changed with nothing touched. One crossing changed turns a trefoil into a plain
+   loop. A tube can be knotted: revolve the same trefoil and there is no spare direction left to lift into. And a
+   yarn of tubes holds its twist for the same reason. The trefoil is cut into two parts, the strand that moves and
+   the rest, a little apart at the joins so the kernel can tell them from each other */
+const KNOTS = (() => { const K = 0.45, tre = (t) => [K * (Math.sin(t) + 2 * Math.sin(2 * t)), K * (Math.cos(t) - 2 * Math.cos(2 * t)), -K * Math.sin(3 * t)];
+  /* a crossing: two parameters over the same (x, y); the upper one is the strand that moves */
+  let best = null; for (let i = 0; i < 400; i++) for (let j = i + 40; j < 400; j++) { const a = tre((2 * Math.PI * i) / 400), b = tre((2 * Math.PI * j) / 400), d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (!best || d < best.d) best = { d, t: a[2] > b[2] ? (2 * Math.PI * i) / 400 : (2 * Math.PI * j) / 400 }; }
+  const t1 = best.t, half = 0.62, g = (t) => Math.exp(-(((t - t1) / 0.3) ** 2)), ex = (a, b, p) => `(${f4(a)})+(${f4(b)})*${p}`;
+  const strand = (dim, mid) => { const pts = []; for (let k = 0; k <= 24; k++) { const t = t1 - half + (2 * half * k) / 24, [x, y, z] = tre(t), zz = ex(z, -3 * g(t) * z, "push"); pts.push(dim === 4 ? [f4(x), f4(y), zz, ex(0, g(t), "lift")] : [f4(mid + x), f4(y), zz]); } return pts; };
+  const rest = (dim, mid) => { const pts = [], a = t1 + half + 0.2, b = t1 - half - 0.2 + 2 * Math.PI; for (let k = 0; k <= 70; k++) { const [x, y, z] = tre(a + ((b - a) * k) / 70); pts.push(dim === 4 ? [f4(x), f4(y), f4(z), 0] : [f4(mid + x), f4(y), f4(z)]); } return pts; };
+  const tube = (of) => ({ op: "rotate", plane: [2, 3], deg: 90, of: { op: "revolve", axis: 0, of } }), FACE = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]];
+  const helix = (j, r) => { const pts = []; for (let k = 0; k <= 24; k++) { const u = k / 24, a = 2 * Math.PI * u + (j * Math.PI) / 3; pts.push([f4(1 + 0.25 * Math.cos(a)), f4(0.25 * Math.sin(a)), f4(-1.5 + 3 * u)]); } return { op: "wire", dim: 3, r, pts }; };
+  return {
+    knot: { title: "a knot that isn't", note: "A trefoil, tied in thread. In our world it cannot be undone without cutting. Here one strand of a crossing (the paler one) is lifted into the direction you can't see (lift), carried through where the other strand is (push), and put down again, touching nothing. With that one crossing changed the trefoil is a plain loop. Press run. Then try push with no lift: the strands collide, as they would for us. No knot in a thread or a rope holds in 4D.",
+      params: { lift: 0, push: 0 }, ranges: { lift: [0, 0.6], push: [0, 1] },
+      parts: { rest: { op: "wire", r: 0.08, pts: rest(4) }, strand: { op: "wire", r: 0.08, pts: strand(4) } },
+      show: ["rest", "strand"], check: [["strand", "rest"]], path: [{ lift: 0, push: 0 }, { lift: 0.6, push: 0 }, { lift: 0.6, push: 1 }, { lift: 0, push: 1 }] },
+    tubeknot: { title: "a knot that is: a tube", note: "The same trefoil, revolved: every point of the thread is now a ring, and the thread a tube. This slice cuts the tube twice, so you see two trefoils. The trick that undid the thread needs a spare direction to lift into, and the tube has used it: push the strand and it meets the other and stops. A knotted tube is knotted (its mathematics is the same as our knot's). So a rope of tubes can be tied; a rope of threads cannot.",
+      params: { push: 0 }, ranges: { push: [0, 1] },
+      parts: { rest: tube({ op: "wire", dim: 3, r: 0.08, pts: rest(3, 1.9) }), strand: tube({ op: "wire", dim: 3, r: 0.08, pts: strand(3, 1.9) }) },
+      view: FACE, show: ["rest", "strand"], check: [["strand", "rest"]], path: [{ push: 0 }, { push: 1 }] },
+    tubeyarn: { title: "yarn of tubes", note: "Twist that holds in 4D. A yarn of threads sheds its twist, because threads pass each other through the spare direction. Revolve an ordinary twisted yarn and each fibre is a tube: six wound round a seventh. Tubes cannot pass each other, so the twist stays, and an outer tube cannot be moved off the yarn in any direction across it. If the fibres of a 4D world are tubes, it can spin.",
+      params: { ox: 0, oy: 0, oz: 0, ow: 0 }, ranges: { ox: [-1, 1], oy: [-1, 1], oz: [-1, 1], ow: [-1, 1] },
+      parts: { core: tube({ op: "wire", dim: 3, r: 0.1, pts: [[1, 0, -1.6], [1, 0, 1.6]] }), five: tube({ op: "union", of: [1, 2, 3, 4, 5].map((j) => helix(j, 0.095)) }), others: { op: "union", of: ["core", "five"] },
+        one: { op: "move", by: ["ox", "oy", "oz", "ow"], of: tube(helix(0, 0.095)) } },
+      view: UPW, show: ["core", "five", "one"], check: [["one", "others"]], ways: { name: "one outer tube", params: ["ox", "oy", "oz", "ow"], reach: 2 },
+      path: [{ ox: 0, oy: 0, oz: 0 }, { ox: 0.8, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0.8, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0.8 }, { ox: 0, oy: 0, oz: 0 }] },
+  }; })();
+
 export const PARTS = {
   ball: { title: "ball", note: "Everything within r of a point. Every slice is a ball; move the slice in w and it shrinks to nothing at w = r.",
     params: { r: 1 }, show: { op: "ball", dim: 4, r: "r" } },
@@ -342,6 +372,7 @@ export const PARTS = {
   spinneret: SPIN,
   ...ROPES,
   ...BRAIDS,
+  ...KNOTS,
 };
 /* the library in the picker's order, by kind */
 export const GROUPS = [
@@ -351,6 +382,7 @@ export const GROUPS = [
   ["cloth", ["weave", "cloth"]],
   ["bundles and ropes", ["hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable"]],
   ["braids", ["hosebraid", "ribbonbraid", "maypole", "ribbonpole"]],
+  ["knots and twist", ["knot", "tubeknot", "tubeyarn"]],
   ["machines", ["pulley", "tackle", "spinneret"]],
   ["buildings", ["room"]],
 ];
