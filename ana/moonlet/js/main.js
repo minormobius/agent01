@@ -14,7 +14,8 @@ if (!gl) { $('nogl').hidden = false; throw new Error('no WebGL2'); }
 const R = M.WORLD.R, DT = 1 / 120;
 const SUN = unit([0.55, 0.35, -0.45, 0.6]);
 const S = {
-  k: M.makeBike(M.START.at, M.START.facing), t: 0, cam: null, lock: 'beacon', fore: true, auto: matchMedia('(pointer: coarse)').matches,
+  k: M.makeBike(M.START.at, M.START.facing), t: 0, cam: null, lock: 'free', fore: true, auto: matchMedia('(pointer: coarse)').matches,
+  mode: 'slalom', sas: true, limiter: true, forces: true, gates: M.GATES.map(() => 0), gateNext: 0, slStart: null, slDone: null, slBest: null, slMiss: 0, prevX: null,
   res: 0.8, taken: new Set(), started: null, done: null, best: null, forecast: null, foreT: 0, escaped: false,
 };
 
@@ -35,6 +36,11 @@ uniform vec4 beacons[8];
 uniform float taken[8];
 uniform float next;
 uniform vec4 peb[2];
+uniform vec4 hillC[8];
+uniform vec2 hillAS[8];              // each hill's height A (m) and width s (rad)
+uniform vec4 gC[10], gF[10], gA[10], gB[10], gN[10];
+uniform float gState[10];            // 0 ahead, 1 passed, 2 missed
+uniform float slalom, gNext, gR, gPost;
 
 float hash(vec4 p) {
   p = fract(p * vec4(0.1031, 0.1030, 0.0973, 0.1099));
@@ -81,6 +87,21 @@ vec4 roadPt(int j, vec4 u) {
   float a2 = al - 3.0 * c / 13.0, b2 = be + 2.0 * c / 13.0;
   return vec4(cos(a2), sin(a2), cos(b2), sin(b2)) * 0.70710678;
 }
+// moonlet.js height, twinned: the hills, h = Σ A·exp(−θ²/s²), θ = 2·asin(|û − c|/2)
+float heightAt(vec4 u) {
+  float h = 0.0;
+  for (int i = 0; i < 8; i++) { float th = 2.0 * asin(min(1.0, 0.5 * length(u - hillC[i]))); h += hillAS[i].x * exp(-th * th / (hillAS[i].y * hillAS[i].y)); }
+  return h;
+}
+// a slalom gate: a ring of radius gR across the course (in the plane of its A and B), standing gPost tall
+float gateD(vec4 p, int i) {
+  vec4 q = p - gC[i];
+  float lq = length(q);
+  if (lq > gR + gPost + 1.5) return lq - (gR + gPost + 1.0);
+  float along = dot(q, gF[i]), up = dot(q, gN[i]), rad = length(vec2(dot(q, gA[i]), dot(q, gB[i])));
+  float dy = up - clamp(up, 0.0, gPost);
+  return length(vec3(along, rad - gR, dy)) - 0.14;
+}
 vec4 lu() { return normalize(bU + bL); }   // the bike's up, leaning into its turn
 float bikeD(vec4 p) {
   vec4 up = lu();
@@ -99,12 +120,15 @@ float bikeD(vec4 p) {
 float beaconD(vec4 p, vec4 b) { return capsule(p, b * R, b * (R + 6.0), 0.45); }
 // the whole scene: distance and what was hit (0 rock, 1 bike, 2 beacon, 3 moon)
 vec2 scene(vec4 p) {
-  vec2 r = vec2(length(p) - R, 0.0);
+  float lp = length(p);
+  vec2 r = vec2(0.85 * (lp - R - (lp < R + 14.0 ? heightAt(p / lp) : 0.0)), 0.0);   // the ground, hills and all (0.85: the slopes)
   float d = length(p - bx) - 2.4;                                   // the bike's bounding ball first
   if (d < r.x) { d = d < 0.3 ? bikeD(p) : d; if (d < r.x) r = vec2(d, d < 0.3 ? 1.0 : 9.0); }
   if (length(p) < R + 8.0)
     for (int i = 0; i < 8; i++) { if (taken[i] > 0.5) continue; d = beaconD(p, beacons[i]); if (d < r.x) r = vec2(d, 2.0 + float(i) * 0.01); }
   for (int i = 0; i < 2; i++) { d = length(p - peb[i]) - pebR; if (d < r.x) r = vec2(d, 3.0 + float(i) * 0.1); }
+  if (slalom > 0.5 && lp < R + 20.0)
+    for (int i = 0; i < 10; i++) { d = gateD(p, i); if (d < r.x) r = vec2(d, 4.0 + float(i) * 0.01); }
   return r;
 }
 vec4 normalAt(vec4 p) {
@@ -196,6 +220,17 @@ void main() {
     float isNext = abs(float(i) - next) < 0.5 ? 1.0 : 0.0;
     float pulse = 0.6 + 0.4 * sin(time * 4.0);
     col = mix(vec3(0.95, 0.85, 0.5), vec3(1.0, 0.95, 0.7), isNext) * (0.35 + 0.7 * lam + isNext * 0.5 * pulse);
+  } else if (h.y > 3.95) {
+    // a gate's posts: coloured like the kerbs, by which side of the gate's centre they stand against your slice
+    // (teal ana, pink kata, white in it); passed gates green, missed red, the next one bright
+    int i = int((h.y - 4.0) * 100.0 + 0.5);
+    vec4 q = p - gC[i], off = dot(q, gA[i]) * gA[i] + dot(q, gB[i]) * gB[i];
+    float sd = dot(off, Wv) / max(length(off), 1e-6);
+    vec3 c = sd > 0.0 ? mix(vec3(0.95), vec3(0.22, 0.9, 0.85), smoothstep(0.1, 0.8, sd)) : mix(vec3(0.95), vec3(1.0, 0.42, 0.68), smoothstep(0.1, 0.8, -sd));
+    float st = gState[i], isNext = abs(float(i) - gNext) < 0.5 ? 1.0 : 0.0;
+    if (st > 1.5) c = vec3(0.6, 0.15, 0.12); else if (st > 0.5) c = vec3(0.25, 0.75, 0.35);
+    float band = step(0.5, fract(dot(q, gN[i]) / 0.8));
+    col = c * (0.3 + 0.7 * lam + 0.35 * isNext * (0.7 + 0.3 * sin(time * 5.0))) * (0.85 + 0.15 * band);
   } else {
     float m = n4(p * 0.6);
     col = mix(vec3(0.35, 0.33, 0.4), vec3(0.6, 0.55, 0.62), m) * (0.04 + 1.0 * lam);
@@ -271,10 +306,17 @@ function draw(dt) {
   gl.uniform4f(Un.sun, ...SUN);
   gl.uniform4f(Un.bx, ...k.x); gl.uniform4f(Un.bF, ...k.F); gl.uniform4f(Un.bU, ...k.U); gl.uniform4f(Un.bL, ...scale(k.lean, 1));
   gl.uniform4fv(Un.beacons, new Float32Array(M.BEACONS.flatMap((b) => b.p)));
-  gl.uniform1fv(Un.taken, new Float32Array(M.BEACONS.map((b) => (S.taken.has(b.name) ? 1 : 0))));
+  gl.uniform1fv(Un.taken, new Float32Array(M.BEACONS.map((b) => (S.mode !== 'beacons' || S.taken.has(b.name) ? 1 : 0))));
   const nx = nextBeacon();
   gl.uniform1f(Un.next, nx ? M.BEACONS.indexOf(nx) : -1);
   gl.uniform4fv(Un.peb, new Float32Array(M.pebbles(S.t).flat()));
+  const hills = Array.from({ length: 8 }, (_, i) => M.HILLS[i] || { c: [1, 0, 0, 0], A: 0, s: 1 });
+  gl.uniform4fv(Un.hillC, new Float32Array(hills.flatMap((h) => h.c)));
+  gl.uniform2fv(Un.hillAS, new Float32Array(hills.flatMap((h) => [h.A, h.s])));
+  for (const [u, f] of [['gC', 'c'], ['gF', 'F'], ['gA', 'A'], ['gB', 'B'], ['gN', 'n']]) gl.uniform4fv(Un[u], new Float32Array(M.GATES.flatMap((G) => G[f])));
+  gl.uniform1fv(Un.gState, new Float32Array(S.gates));
+  gl.uniform1f(Un.slalom, S.mode === 'slalom' ? 1 : 0); gl.uniform1f(Un.gNext, S.gateNext);
+  gl.uniform1f(Un.gR, M.COURSE.r); gl.uniform1f(Un.gPost, M.COURSE.post);
   gl.bindVertexArray(vao);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
   overlay(cam);
@@ -327,7 +369,7 @@ function overlay(cam) {
   }
   // the beacons: the next one ringed and named (or an arrow at the edge); the others small
   const nx = nextBeacon();
-  for (const b of M.BEACONS) {
+  for (const b of S.mode === 'beacons' ? M.BEACONS : []) {
     if (S.taken.has(b.name)) continue;
     const top = scale(b.p, R + 6.6), q = project(cam, top, W, Hh), isNext = b === nx;
     const on = q.f > 0.5 && q.x > 16 && q.x < W - 16 && q.y > 16 && q.y < Hh - 16;
@@ -347,6 +389,44 @@ function overlay(cam) {
       ctx.save(); ctx.translate(ex, ey); ctx.rotate(Math.atan2(dy, dx)); ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-7, -9); ctx.lineTo(-7, 9); ctx.closePath(); ctx.fill(); ctx.restore();
       ctx.fillText(`${b.name} ${dist.toFixed(0)} m`, ex, ey + 22);
     }
+  }
+  // the next gate: its name, distance, and how far ana or kata of your slice its centre lies
+  if (S.mode === 'slalom') {
+    const G = M.GATES[S.gateNext];
+    if (G) {
+      const top = add(G.c, G.n, M.COURSE.post + 0.8), q = project(cam, top, W, Hh);
+      const wOff = dot(add(G.c, S.k.x, -1), cam.w), d = norm(add(G.c, S.k.x, -1));
+      const lab = `GATE ${S.gateNext + 1} · ${d.toFixed(0)} m${Math.abs(wOff) < 0.5 ? '' : wOff > 0 ? ` · ▲ ana ${wOff.toFixed(1)} m` : ` · ▼ kata ${(-wOff).toFixed(1)} m`}`;
+      ctx.fillStyle = wcol(wOff, Math.min(0.5, M.COURSE.r));
+      const on = q.f > 0.5 && q.x > 20 && q.x < W - 20 && q.y > 20 && q.y < Hh - 20;
+      if (on) { ctx.globalAlpha = hidden(cam.eye, top) ? 0.4 : 1; ctx.fillText(lab, q.x, q.y - 6); ctx.globalAlpha = 1; }
+      else {
+        let dx = q.x - W / 2, dy = q.y - Hh / 2;
+        if (q.f <= 0.5) { dx = -dx; dy = -dy; }
+        const m = Math.hypot(dx, dy) || 1, ex = W / 2 + (dx / m) * (Math.min(W, Hh) / 2 - 30), ey = Hh / 2 + (dy / m) * (Math.min(W, Hh) / 2 - 30);
+        ctx.save(); ctx.translate(ex, ey); ctx.rotate(Math.atan2(dy, dx)); ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-7, -9); ctx.lineTo(-7, 9); ctx.closePath(); ctx.fill(); ctx.restore();
+        ctx.fillText(lab, ex, ey + 22);
+      }
+    }
+  }
+  // the forces on the bike, as computed this step: arrows from its middle, 1 m per 25 N
+  if (S.forces && S.k.forces) {
+    const k = S.k, o = add(k.x, k.U, 0.9), f = k.forces;
+    const arrows = [['gravity', f.gravity, '#ffd27a'], ['ground', f.normal, '#e9e4da'], ['tyres', f.tyre, '#6fe0ff'], ['rocket', f.thrust, '#ff9a5a']];
+    ctx.lineWidth = 2.5; ctx.font = '600 10px ui-monospace, monospace';
+    const a = project(cam, o, W, Hh);
+    for (const [name, F, col] of arrows) {
+      const mag = norm(F);
+      if (mag < 0.5 || a.f < 0.5) continue;
+      const b = project(cam, add(o, F, 1 / 25), W, Hh);
+      if (b.f < 0.5) continue;
+      const ang = Math.atan2(b.y - a.y, b.x - a.x), len = Math.hypot(b.x - a.x, b.y - a.y);
+      ctx.strokeStyle = ctx.fillStyle = col;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      if (len > 6) { ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x - 8 * Math.cos(ang - 0.4), b.y - 8 * Math.sin(ang - 0.4)); ctx.lineTo(b.x - 8 * Math.cos(ang + 0.4), b.y - 8 * Math.sin(ang + 0.4)); ctx.closePath(); ctx.fill(); }
+      ctx.fillText(`${name} ${mag.toFixed(0)} N`, b.x + 8 * Math.cos(ang), b.y + 8 * Math.sin(ang) + 4);
+    }
+    ctx.font = '600 11px ui-monospace, monospace';
   }
   // the moons
   M.pebbles(S.t).forEach((p, i) => {
@@ -386,6 +466,12 @@ function drawMap() {
     mctx.fillStyle = b === nx ? '#ffd27a' : 'rgba(255,210,122,0.5)';
     mctx.beginPath(); mctx.arc(q.x, q.y, b === nx ? 4 : 2.5, 0, 2 * Math.PI); mctx.fill();
   }
+  if (S.mode === 'slalom') M.GATES.forEach((G, i) => {
+    const q = at(unit(G.c));
+    mctx.strokeStyle = S.gates[i] === 1 ? '#5c5' : S.gates[i] === 2 ? '#c44' : i === S.gateNext ? '#fff' : 'rgba(255,255,255,0.45)';
+    mctx.lineWidth = i === S.gateNext ? 2 : 1; mctx.beginPath(); mctx.arc(q.x, q.y, i === S.gateNext ? 4 : 3, 0, 2 * Math.PI); mctx.stroke();
+  });
+  mctx.lineWidth = 1.2;
   if (S.forecast && !k.ground) {
     mctx.strokeStyle = 'rgba(255,255,255,0.8)'; mctx.beginPath();
     let prev = null;
@@ -434,9 +520,9 @@ const kv = (a, b) => (keys.has(a) ? 1 : 0) - (keys.has(b) ? 1 : 0);
 function readInput() {
   const steer = [pad.stick[0] + kv('d', 'a') + kv('arrowright', 'arrowleft'), pad.stick[1] + kv('e', 'q')].map((v) => Math.max(-1, Math.min(1, v)));
   let throttle = kv('w', 's') + kv('arrowup', 'arrowdown') + (btn.go ? 1 : 0) - (btn.brake ? 1 : 0);
-  if (S.auto && S.k.ground && !btn.brake && throttle === 0) throttle = 1;
+  if (S.auto && S.k.ground && !btn.brake && throttle === 0) throttle = 1;   // (in the air the throttle pitches: never automatic)
   const circ = keys.has('c') || btn.circ;
-  return { throttle: Math.max(-1, Math.min(1, throttle)), steer, jump: jumpPressed, jumpHeld: keys.has(' ') || btn.jump, boost: keys.has('shift') || btn.burn, assist: circ && !S.k.ground ? 'circularize' : null };
+  return { throttle: Math.max(-1, Math.min(1, throttle)), steer, jump: jumpPressed, boost: keys.has('shift') || btn.burn, assist: circ && !S.k.ground ? 'circularize' : null, sas: S.sas, limiter: S.limiter };
 }
 
 // ------------------------------------------------------------------ the ride --
@@ -472,17 +558,21 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 function step(dt) {
-  const k = S.k, input = readInput();
+  let k = S.k; const input = readInput();
   jumpPressed = false;
   if (input.throttle || norm(input.steer) || input.jump || input.boost) S.started ??= S.t;
-  M.step(k, input, dt);
+  const x0 = k.x.slice();
+  M.step(S.k, input, dt);
+  S.refuelling = M.refuel(S.k, dt);
   S.t += dt;
+  if (S.mode === 'slalom') slalomStep(x0, S.k.x);
   // your slice: twisted by hand (pad, J L), or following the next beacon
   const tw = pad.twist + kv('l', 'j');
   if (tw) twist(tw * 1.2 * dt);
-  else if (S.lock === 'beacon') { const nx = nextBeacon(); if (nx) lockOn(scale(nx.p, R + 3), dt); }
+  else if (S.lock === 'target') { const tg = target(); if (tg) lockOn(tg, dt); }
+  k = S.k;
   // beacons: touch one (within 3 m along the ground, under its 6 m top)
-  for (const b of M.BEACONS) {
+  if (S.mode === 'beacons') for (const b of M.BEACONS) {
     if (S.taken.has(b.name)) continue;
     const along = R * Math.acos(Math.max(-1, Math.min(1, dot(unit(k.x), b.p)))), alt = norm(k.x) - R;
     if (along < 3 && alt < 7) {
@@ -504,34 +594,63 @@ function banner(text, sec = 2.2) {
   clearTimeout(bannerT); bannerT = setTimeout(() => $('banner').classList.remove('show'), sec * 1000);
 }
 function goHome() { S.k = M.makeBike(M.START.at, M.START.facing); S.cam = null; S.escaped = false; S.forecast = null; }
-function newHunt() { goHome(); S.taken.clear(); S.started = null; S.done = null; }
+function newHunt() { goHome(); S.taken.clear(); S.started = null; S.done = null; S.gates = M.GATES.map(() => 0); S.gateNext = 0; S.slStart = null; S.slDone = null; S.slMiss = 0; }
+/** What "slice follows the target" turns toward: the next gate's centre, or the next beacon. */
+function target() {
+  if (S.mode === 'slalom') { const G = M.GATES[S.gateNext]; return G ? add(G.c, G.n, 1) : null; }
+  const nx = nextBeacon(); return nx ? scale(nx.p, R + 3) : null;
+}
+/** The slalom: the next gate counts when you cross its plane, through its disk (pass) or not (miss: +5 s). */
+function slalomStep(x0, x1) {
+  const G = M.GATES[S.gateNext];
+  if (!G) return;
+  const r = M.gateCross(G, x0, x1);
+  if (!r) return;
+  if (S.gateNext === 0 && S.slStart == null) S.slStart = S.t;
+  S.gates[S.gateNext] = r === 'pass' ? 1 : 2;
+  if (r === 'miss') S.slMiss++;
+  S.gateNext++;
+  if (S.gateNext === M.GATES.length) {
+    S.slDone = S.t - S.slStart + 5 * S.slMiss;
+    if (!S.slBest || S.slDone < S.slBest) { S.slBest = S.slDone; try { localStorage.setItem('moonlet.slalom', String(S.slBest)); } catch (e) { /* fine */ } }
+    banner(`FINISH · ${fmt(S.slDone)}${S.slMiss ? ` (${S.slMiss} missed, +${5 * S.slMiss} s)` : ''}`, 4);
+  } else banner(r === 'pass' ? `THROUGH GATE ${S.gateNext} of ${M.GATES.length}` : `MISSED GATE ${S.gateNext} · +5 s`);
+}
 
 // ------------------------------------------------------------------ readouts --
 let hudT = 0;
 function hud() {
-  const k = S.k, r = norm(k.x), alt = r - R, sp = k.ground ? Math.abs(k.speed) : norm(k.v);
-  const wt = k.ground ? Math.max(0, M.weight(k.speed)) / M.WORLD.g : 0;
+  const k = S.k, r = norm(k.x), alt = r - M.surfaceR(unit(k.x)), sp = norm(k.v), m = M.mass(k), W0 = m * M.WORLD.g;
+  const wt = k.ground ? k.normal / W0 : 0, use = k.grip > 0 ? norm(k.tyre) / k.grip : 0;
   const el = M.elements(k.x, k.v);
-  const state = k.ground ? (wt < 0.15 ? 'RIDING · ALMOST WEIGHTLESS' : k.skid ? 'RIDING · NO GRIP TO TURN' : 'RIDING') : el.escaping ? 'ESCAPING' : el.peri > R + 0.5 ? 'IN ORBIT' : 'FLYING';
+  const state = S.refuelling ? 'REFUELLING' : k.ground ? (k.skid ? 'SLIDING' : wt < 0.15 ? 'RIDING · ALMOST WEIGHTLESS' : 'RIDING') : el.escaping ? 'ESCAPING' : el.peri > R + 15 ? 'IN ORBIT' : 'FLYING';
   $('state').textContent = state;
-  $('gauges').innerHTML = `<b>${sp.toFixed(1)}</b> <span class="k">m/s</span> <span class="k">· orbit ${M.vOrbit(Math.max(r, R)).toFixed(2)}</span><br>`
-    + `<span class="k">weight</span><div class="bar w"><i style="width:${(wt * 100).toFixed(0)}%"></i></div>`
-    + `<span class="k">fuel</span><div class="bar"><i style="width:${k.fuel.toFixed(0)}%"></i></div>`
+  $('gauges').innerHTML = `<b>${sp.toFixed(1)}</b> <span class="k">m/s · orbit ${M.vOrbit(Math.max(r, R)).toFixed(2)}</span><br>`
+    + `<span class="k">weight ${k.ground ? `${k.normal.toFixed(0)} N` : '0'}</span><div class="bar w"><i style="width:${Math.min(100, wt * 100).toFixed(0)}%"></i></div>`
+    + `<span class="k">grip used ${(use * 100).toFixed(0)}%</span><div class="bar g"><i style="width:${Math.min(100, use * 100).toFixed(0)}%"></i></div>`
+    + `<span class="k">fuel ${k.fuel.toFixed(2)} kg · Δv ${M.dvLeft(k).toFixed(1)} m/s</span><div class="bar"><i style="width:${(k.fuel / M.BIKE.tank * 100).toFixed(0)}%"></i></div>`
     + (k.ground ? '' : `<span class="k">up</span> ${alt.toFixed(1)} m`);
   $('bcirc').hidden = k.ground;
   if ((hudT = (hudT + 1) % 6) !== 0) return;
-  const per = el.escaping ? '—' : `${el.period.toFixed(0)} s`;
-  $('live').innerHTML = `<b>${state.toLowerCase()}</b><br>`
-    + `speed <b>${sp.toFixed(2)} m/s</b> <span class="k">· orbital here ${M.vOrbit(Math.max(r, R)).toFixed(2)} · escape ${M.vEscape(Math.max(r, R)).toFixed(2)}</span><br>`
-    + (k.ground ? `weight <b>${(wt * 100).toFixed(0)}%</b> <span class="k">(g − v²/R = ${Math.max(0, M.weight(k.speed)).toFixed(3)} m/s²)</span> · grip <b>${(M.BIKE.mu * Math.max(0, M.weight(k.speed))).toFixed(3)} m/s²</b><br>`
-      + `tightest turn <b>${Math.abs(k.speed) > 0.3 ? `${(Math.abs(k.speed) / Math.min(M.BIKE.turnSlow, (M.BIKE.mu * Math.max(0, M.weight(k.speed))) / Math.abs(k.speed))).toFixed(0)} m across` : 'on the spot'}</b>`
+  const per = el.escaping ? '—' : `${el.period.toFixed(0)} s`, f = k.forces || { gravity: [0, 0, 0, 0], thrust: [0, 0, 0, 0] };
+  $('live').innerHTML = `<b>${state.toLowerCase()}</b> <span class="k">· every number here is this step's arithmetic</span><br>`
+    + `mass <b>${m.toFixed(2)} kg</b> · speed <b>${sp.toFixed(2)} m/s</b> <span class="k">(orbital here ${M.vOrbit(Math.max(r, R)).toFixed(2)}, escape ${M.vEscape(Math.max(r, R)).toFixed(2)})</span><br>`
+    + `gravity <b>${norm(f.gravity).toFixed(1)} N</b> <span class="k">(GMm/r², r = ${r.toFixed(1)} m)</span> · rocket <b>${norm(f.thrust).toFixed(0)} N</b><br>`
+    + (k.ground
+      ? `ground pushes <b>${k.normal.toFixed(1)} N</b> <span class="k">(${(wt * 100).toFixed(0)}% of standing weight: −(pull + thrust)·n − mκv²)</span><br>`
+        + `tyres <b>${norm(k.tyre).toFixed(1)}</b> of <b>${k.grip.toFixed(1)} N</b> <span class="k">(μN)</span>${k.skid ? ' · <span class="warn">sliding</span>' : ''} · lean <b>${(Math.atan(norm(k.lean)) * 180 / Math.PI).toFixed(0)}°</b>`
       : `height <b>${alt.toFixed(1)} m</b> · ${el.peri > R ? `orbit <b>${(el.peri - R).toFixed(1)}</b> to <b>${el.escaping ? '∞' : (el.apo - R).toFixed(1)}</b> m up <span class="k">(e ${el.e.toFixed(3)}, ${per} round)</span>` : el.escaping ? 'on the way out' : `a hop, peaking <b>${(el.apo - R).toFixed(1)} m</b> up`}`
-        + (S.forecast?.impact ? `<br>comes down in <b>${Math.max(0, S.forecast.impact.t - S.foreAge).toFixed(1)} s</b>, at ${norm(add(S.forecast.impact.v, [0, 0, 0, 0])).toFixed(1)} m/s` : el.escaping ? '<br><span class="warn">leaving: nothing brings you back</span>' : '<br>no landing: you\'re in orbit'))
-    + `<br>fuel <b>${k.fuel.toFixed(0)}%</b> <span class="k">(${((k.fuel / M.BIKE.burn) * M.BIKE.thrust).toFixed(1)} m/s of rocket)</span>`;
-  const nx = nextBeacon();
-  const time = S.done != null ? S.done : S.started != null ? S.t - S.started : 0;
-  $('hunt').innerHTML = `beacons <b>${S.taken.size} of 8</b> · ${S.done != null ? 'done in' : 'time'} <b>${fmt(time)}</b>${S.best ? ` <span class="k">· best ${fmt(S.best)}</span>` : ''}<br>`
-    + (nx ? `next: <b>${nx.name}</b>, ${(R * Math.acos(Math.max(-1, Math.min(1, dot(unit(k.x), nx.p))))).toFixed(0)} m away along the ground` : 'all eight found: "new hunt" to go again');
+        + (S.forecast?.impact ? `<br>comes down in <b>${Math.max(0, S.forecast.impact.t - S.foreAge).toFixed(1)} s</b>, at ${norm(S.forecast.impact.v).toFixed(1)} m/s` : el.escaping ? '<br><span class="warn">leaving: nothing brings you back</span>' : '<br>no landing: you\'re in orbit'))
+    + `<br>fuel <b>${k.fuel.toFixed(2)} kg</b> · Δv <b>${M.dvLeft(k).toFixed(2)} m/s</b> <span class="k">(vₑ ln(m/m_dry); refuel standing on the pad)</span>${k.crashes ? ` · crashes ${k.crashes}` : ''}`;
+  if (S.mode === 'slalom') {
+    const time = S.slDone != null ? S.slDone : S.slStart != null ? S.t - S.slStart + 5 * S.slMiss : 0, G = M.GATES[S.gateNext];
+    $('hunt').innerHTML = `slalom <b>${S.gates.filter((g) => g === 1).length} of ${M.GATES.length}</b> through${S.slMiss ? ` · ${S.slMiss} missed` : ''} · ${S.slDone != null ? 'finished in' : 'time'} <b>${fmt(time)}</b>${S.slBest ? ` <span class="k">· best ${fmt(S.slBest)}</span>` : ''}<br>`
+      + (G ? `next: <b>gate ${S.gateNext + 1}</b>, set ${M.COURSE.offset} m to the <b>${G.side}</b> of the course${G.side === 'ana' || G.side === 'kata' ? ' (out of your slice: steer by the post colours)' : ''}` : 'done: "start again" to go again');
+  } else {
+    const nx = nextBeacon(), time = S.done != null ? S.done : S.started != null ? S.t - S.started : 0;
+    $('hunt').innerHTML = `beacons <b>${S.taken.size} of 8</b> · ${S.done != null ? 'done in' : 'time'} <b>${fmt(time)}</b>${S.best ? ` <span class="k">· best ${fmt(S.best)}</span>` : ''}<br>`
+      + (nx ? `next: <b>${nx.name}</b>, ${(R * Math.acos(Math.max(-1, Math.min(1, dot(unit(k.x), nx.p))))).toFixed(0)} m away along the ground` : 'all eight found: "start again" to go again');
+  }
 }
 
 // ------------------------------------------------------------------ panel --
@@ -542,11 +661,15 @@ function seg(id, key, parse = (v) => v) {
   show();
 }
 seg('lock', 'lock');
+seg('mode', 'mode');
+seg('sas', 'sas', (v) => v === 'true');
+seg('limiter', 'limiter', (v) => v === 'true');
+seg('forces', 'forces', (v) => v === 'true');
 seg('fore', 'fore', (v) => v === 'true');
 seg('auto', 'auto', (v) => v === 'true');
 $('home').onclick = goHome;
 $('again').onclick = newHunt;
-try { const b = +localStorage.getItem('moonlet.best'); if (b > 0) S.best = b; } catch (e) { /* fine */ }
+try { const b = +localStorage.getItem('moonlet.best'); if (b > 0) S.best = b; const c = +localStorage.getItem('moonlet.slalom'); if (c > 0) S.slBest = c; } catch (e) { /* fine */ }
 addEventListener('resize', () => draw(0));
 window.moonlet = { S, M, project, cam: () => lastCam };   // the state, for checking from outside
 requestAnimationFrame(frame);

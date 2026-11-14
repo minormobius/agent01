@@ -84,15 +84,18 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   spinnable ball on your right/forward/w), `LANDMARKS` (towers A–X, a hue each) and `HOME`. Kerbs: teal ana, pink
   kata of your slice (the shader's `Wv`). Physics is four's pinned world; materials' strengths
   are ours, assumed. See [`habitat/README.md`](habitat/README.md).
-- **MOONLET at `/moonlet/`**: the habitat's shape from outside, unspun: a 4-ball of rock (R 100 m) held by its own
-  gravity (four's pinned law, g 0.5 m/s²). `js/moonlet.js` (no DOM; imports habitat.js from `../../habitat/js/`, same
-  site): `step` (on the ground: weight g − v²/R, grip μ·weight caps pedals, brakes and turns, the rocket isn't capped,
-  lift-off when weightless or pushed up; in the air: symplectic Euler, nose held level, gyros yaw it, `circularize`),
-  `touchdown`, `elements` (Kepler), `predict` (RK4 to touchdown), `ROADS` (Hopf link + trefoil, drawn as 5 m tubes in
-  the 3D surface), `roadDist` and `roadPt` (the shader's twins), `side` (the kerb colours: teal ana, pink kata), `linking` (Gauss's integral after stereographic projection), `BEACONS`, `pebbles`. `js/main.js`: a
-  full-screen shader of your slice (bike, beacons, moons, 4D sun with 4D shadows), the overlay (forecast, ✕, beacons,
-  occlusion by the rock), the minimap, a beacon hunt with a best time (localStorage `moonlet.best`). The camera frame
-  must stay orthonormal: shader and overlay both assume it. See [`moonlet/README.md`](moonlet/README.md).
+- **MOONLET at `/moonlet/`**: the habitat's shape from outside, unspun: a 4-ball of rock (R 100 m, with hills) held by
+  its own gravity (four's pinned law, g 0.5 m/s²). `js/moonlet.js` (no DOM; imports habitat.js from `../../habitat/js/`,
+  same site) is a force simulation: every step sums gravity, the rocket (mass flow, Tsiolkovsky), the ground's normal
+  force **solved** from the contact and the surface's curvature (lift-off is that going negative, not a rule), and the
+  tyres inside the friction circle μN; in the air only the reaction wheels turn you (SAS and the grip limiter are
+  labelled assists). Terrain `height`/`gradH`/`normalAt`/`curvature` (the shader's `heightAt` is the twin). `elements`
+  (Kepler), `predict` (RK4 to touchdown, hills included), `GATES`/`gateCross` (the slalom: rings of posts across the
+  course, offset right/ana/left/kata), `ROADS` (Hopf link + trefoil as 5 m tubes), `roadDist`/`roadPt` (twins), `side`
+  (kerb and post colours: teal ana, pink kata), `linking`, `BEACONS`, `pebbles`. `js/main.js`: the shader of your slice
+  (terrain, gates, bike, beacons, moons, 4D sun and shadows), the overlay (force arrows, forecast, ✕, next gate with its
+  ana/kata offset, occlusion by the rock), the minimap, slalom and beacon hunt with best times. The camera frame must
+  stay orthonormal: shader and overlay both assume it. See [`moonlet/README.md`](moonlet/README.md).
 
 ## Checks
 
@@ -100,7 +103,7 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
 node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding, the map
-node ana/moonlet/test/moonlet.selftest.mjs           # ~2 s: speeds, weight and grip, pedalling never reaches orbit, a jump vs Kepler, orbits, the forecast, escape, landings, the circularizer, linking numbers, the moons
+node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 
 Preflight finds every `*.selftest.mjs` and runs the ones under changed directories.
