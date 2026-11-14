@@ -1,0 +1,6 @@
+repo https://github.com/jamesondh/chimera-vocal-synth
+commit cd98192b421dcbbe0738798f6ef7f56ca9ed9ac3
+built cargo build -p chimera-wasm --release --target wasm32-unknown-unknown (rustc 1.97.0, 2026-07-07)
+from crates/chimera-wasm -> target/wasm32-unknown-unknown/release/chimera_wasm.wasm, renamed chimera.wasm
+sha256 fba348c91ff84dfc727112c24ed48205d4b04bccdd615a5ece10a7b1a8a7256b
+cmudict.txt.gz and CMUDICT-LICENSE.txt are upstream public/data/ at the same commit

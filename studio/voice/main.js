@@ -61,18 +61,51 @@ async function say(text, over = null) {
   const { audio, phonemes } = speak(text, lexicon, { rate, voice: over ? { ...voice, ...over } : voice });
   $('took').textContent = `${audio.length / rate < 10 ? (audio.length / rate).toFixed(1) : Math.round(audio.length / rate)} s of speech made in ${Math.round(performance.now() - t0)} ms`;
   $('phones').textContent = phonemes.filter((p) => !p.pause).map((p) => p.p + (p.stress > 0 ? 'ˈ'.repeat(p.stress === 1 ? 1 : 0) : '')).join(' ');
+  play(audio, rate);
+  lastWav = { audio, rate, text, who: 'chipvoice' };
+}
+function play(audio, rate) {
+  const c = audioCtx();
   if (current) try { current.stop(); } catch {}
   const buf = c.createBuffer(1, audio.length, rate); buf.copyToChannel(audio, 0);
   const src = c.createBufferSource(); src.buffer = buf; src.connect(analyser); src.start();
   current = src;
-  lastWav = { audio, rate, text };
 }
+
+// ---- the other voice: CHIMERA, an airway simulated (../lib/chimera-worker.js) ------------
+let chimera = null, asked = 0;
+const pending = new Map();
+function chimeraDo(msg) {
+  if (!chimera) {
+    chimera = new Worker(new URL('../lib/chimera-worker.js', import.meta.url), { type: 'module' });
+    chimera.onmessage = ({ data }) => { pending.get(data.id)?.(data); pending.delete(data.id); };
+  }
+  const id = ++asked;
+  return new Promise((done) => { pending.set(id, done); chimera.postMessage({ id, ...msg }); });
+}
+async function chimeraPlay(msg, label) {
+  const c = audioCtx();                         // in the tap: the context must be resumed before any await
+  $('ctook').textContent = chimera ? 'breathing in…' : 'loading the airway (1 MB) and its dictionary (0.9 MB)…';
+  const r = await chimeraDo({ ...msg, body: $('cbody').value, sampleRate: c.sampleRate });
+  if (r.error) { $('ctook').textContent = `CHIMERA failed: ${r.error}`; return; }
+  $('ctook').textContent = `${r.seconds.toFixed(1)} s of ${label} computed in ${Math.round(r.ms)} ms`;
+  play(r.audio, c.sampleRate);
+  lastWav = { audio: r.audio, rate: c.sampleRate, text: msg.say ?? 'daisy', who: 'chimera' };
+}
+const DAISY = { bpm: 138, lyrics: 'Dai-sy, Dai-sy, give me your an-swer, do', notes: [[74, 3], [71, 3], [67, 3], [62, 3], [64, 1], [66, 1], [67, 1], [64, 2], [67, 1], [62, 6]] };
+$('chimParagraph').addEventListener('click', () => chimeraPlay({ say: PARAGRAPH }, 'speech'));
+$('chimTyped').addEventListener('click', () => chimeraPlay({ say: $('typed').value }, 'speech'));
+$('chimSing').addEventListener('click', () => chimeraPlay({ sing: DAISY }, 'singing'));
+fetch('./chimera.json').then((r) => r.json()).then((h) => {
+  const rows = Object.keys(h.chipvoice.test).map((src) => `<tr><td>${src}</td><td>${h.chipvoice.test[src]}%</td><td>${h.chimera.test[src]}%</td></tr>`).join('');
+  $('h2h').innerHTML = `<table><thead><tr><th>test split, ${h.judge}</th><th>arithmetic</th><th>CHIMERA</th></tr></thead><tbody>${rows}</tbody></table>`;
+}).catch(() => {});
 let lastWav = null;
 $('download').addEventListener('click', async () => {
   if (!lastWav) return;
   const { wav } = await import('../lib/chipvoice.js');
   const url = URL.createObjectURL(new Blob([wav(lastWav.audio, lastWav.rate)], { type: 'audio/wav' }));
-  const a = document.createElement('a'); a.href = url; a.download = `chipvoice-${lastWav.text.slice(0, 24).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.wav`; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = `${lastWav.who}-${lastWav.text.slice(0, 24).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.wav`; a.click();
 });
 // a scrolling spectrogram, 0–8 kHz, of whatever is playing
 const sg = $('sg'), sgc = sg.getContext('2d');

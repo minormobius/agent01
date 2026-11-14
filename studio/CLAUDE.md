@@ -25,6 +25,9 @@ lib/pfsynth-core.js      drives the pfsynth wasm one 4096-frame block at a time 
 lib/piano-worker.js      renders a performance in a worker, posting ~0.5 s chunks
 lib/piano.js             StreamPiano: schedules chunks on the audio clock, decides when it is safe to start
 vendor/pfsynth/          pfsynth.wasm: BYTE-IDENTICAL to clef/vendor/pfsynth/ (MIT, LICENSE here)
+vendor/chimera/          chimera.wasm: CHIMERA, a physical-modelling voice (Jameson Hodge, MIT), built unchanged from the commit in UPSTREAM
+lib/chimera-core.js      drives it: JSON calls (G2P, planning), gesture records, say()/sing() as pull functions (node + browser)
+lib/chimera-worker.js    renders a sentence or a melody in a worker (the voice lab uses it)
 anthesis/                No. 1: a poppy, seed to bloom
   score.js               the music AND the cues. The only clock in the piece
   plant.js               the poppy as a pure function of time
@@ -380,6 +383,36 @@ velar locus by vowel, affricate tails, broad SH ~29 (flat). The paragraph: 26% �
 What still fails: stops at word onsets (Two → Who, colt → coke), affricates (juice → goose),
 some vowels (hill → heel). Next: listening with the owner, a chip-constrained renderer
 (pulse/triangle/noise channels), then analysis-resynthesis from a recorded voice and a model.
+
+## CHIMERA, a borrowed voice (vendor/chimera/, lib/chimera-core.js)
+
+The owner, 2026-11-13: "somebody one upped us for real". [CHIMERA](https://github.com/jamesondh/chimera-vocal-synth)
+(Jameson Hodge, MIT) simulates an airway (lungs, vocal folds or syrinx, a branched vocal tract, lips,
+nose) as pressure waves on a grid: a different class of synthesis from chipvoice's filters. Rust, built
+to a 1 MB wasm with no imports. It speaks English (its own CMUdict G2P), sings lyrics to notes, and does
+creatures and beatbox, which we haven't wired.
+
+- **Vendored like the piano.** `vendor/chimera/chimera.wasm` is upstream's `chimera-wasm` crate, built
+  unchanged; `UPSTREAM` records the commit, the build line and the sha256, and the selftest fails if the
+  file and the hash disagree. Its dictionary (`cmudict.txt.gz`) is upstream's own, not `voice/cmudict.txt`
+  (a different preprocessing: tab-separated, cleaned). To update: see `vendor/chimera/README.md`.
+- **The host** (`lib/chimera-core.js`) ports upstream's `wire.ts` (272-byte gesture records) and
+  mirrors its CLI: `say()` is `chimera render text`, `sing()` is `chimera render notes` (`{ bpm, lyrics,
+  notes: [[midi, beats]], vibrato? }`, `Dai-sy` hyphenated, midi ≤ 0 a rest, a syllable count that doesn't
+  match the notes throws). **A sentence rendered by `say()` is bit-identical to the CLI's** (max difference
+  0, checked 2026-11-14). ~2.5× real time in node, ~2× in headless Chromium, at 48 kHz.
+- **Head-to-head on our judge** (`voice/chimera.json`; `tools/voice.mjs --corpus val|test --engine chimera`
+  with `CHIMERA_BIN` a built `chimera` CLI). Word error rate, Whisper base.en, male body:
+  validation chipvoice 17.1% vs CHIMERA 35.5%, test 21.0% vs 40.5% (pairs 54 vs 71, convo 6.1 vs 6.1).
+  **Whisper understands CHIMERA about half as well**, and upstream measures the same ("about 37% wrong
+  on the synth's sentences", its docs/speech-comparison.md). Its typical miss is "Say" heard as
+  "shake"/"she": the /s/ and the diphthong. That is not a verdict on the voice: chipvoice was ground
+  against exactly this judge for days (and overfit it when pushed), while CHIMERA is tuned toward real
+  speakers' spectra and sounds. Which one is more of a voice is for the owner's ears.
+  Note: faster-whisper 1.2.1 needs PyAV < 15 (`av==14.2.0`); av 19 drops `metadata_errors` and the ASR dies.
+- **Where it is used**: only the voice lab ("Another voice: an airway"), the paragraph, typed text and the
+  first line of Daisy Bell, any body. No piece uses it yet. The obvious first is Descending, whose arc is
+  a voice going from fractured to embodied.
 
 ## Descending (descending/), and the singing voice (lib/chipsing.js)
 

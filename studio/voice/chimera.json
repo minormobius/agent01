@@ -1,0 +1,41 @@
+{
+ "date": "2026-11-14",
+ "judge": "whisper base.en",
+ "how": "faster-whisper, int8, beam 5, no prompt, each sentence alone; word error rate % by source; studio/tools/voice.mjs --corpus val|test [--engine chimera]",
+ "chimeraCommit": "cd98192b421dcbbe0738798f6ef7f56ca9ed9ac3",
+ "chimeraBody": "male",
+ "chipvoice": {
+  "val": {
+   "all": 17.1,
+   "moby": 16.3,
+   "sermon": 20.6,
+   "pairs": 37.5,
+   "convo": 2.6,
+   "harvard": 15.3
+  },
+  "test": {
+   "all": 21,
+   "moby": 19.3,
+   "sermon": 23.4,
+   "pairs": 54.2,
+   "convo": 6.1
+  }
+ },
+ "chimera": {
+  "val": {
+   "all": 35.5,
+   "moby": 31,
+   "sermon": 39.2,
+   "pairs": 83.3,
+   "convo": 15.8,
+   "harvard": 36.1
+  },
+  "test": {
+   "all": 40.5,
+   "moby": 40.1,
+   "sermon": 44.2,
+   "pairs": 70.8,
+   "convo": 6.1
+  }
+ }
+}

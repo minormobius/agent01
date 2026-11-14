@@ -3,6 +3,10 @@
 //
 //   node studio/tools/voice.mjs [--out dir] [--model base.en] [--only paragraph|harvard] [--no-asr]
 //   node studio/tools/voice.mjs --corpus val|test|train   (voice/corpus.json's sentences, WER by source)
+//   node studio/tools/voice.mjs --corpus test --engine chimera [--body male]
+//        the same sentences and the same judge, voiced instead by CHIMERA (github.com/jamesondh/chimera-vocal-synth,
+//        MIT): a simulated airway, its own English G2P. Needs CHIMERA_BIN, its `chimera` CLI built from a clone
+//        (cargo build --release -p chimera-cli); the CLI finds its dictionary relative to that clone.
 //
 // Needs faster-whisper importable by python3 (set VOICE_PYLIB to a --target install).
 // Prints each sentence, what Whisper heard, and the word error rate; writes the WAVs to --out
@@ -28,9 +32,16 @@ const set = CORPUS ? corpus()[CORPUS].map((s) => ({ ...s })) : [
   ...(only === 'harvard' ? [] : PARAGRAPH_SENTENCES.map((t, i) => ({ id: `p${i + 1}`, t }))),
   ...(only === 'paragraph' ? [] : HARVARD.map((t, i) => ({ id: `h${i + 1}`, t }))),
 ];
-for (const s of set) { const { audio, rate } = speak(s.t, lex); writeFileSync(join(out, `${s.id}.wav`), wav(audio, rate)); s.sec = audio.length / rate; }
-if (!CORPUS) { const { audio, rate } = speak(PARAGRAPH, lex, { rate: 22050 }); writeFileSync(join(out, 'paragraph.wav'), wav(audio, rate)); }
-console.log(`rendered ${set.length} sentences to ${out} (voice: f0 ${VOICE.f0} Hz, scale ${VOICE.scale})`);
+const ENGINE = arg('--engine', 'chip');
+if (ENGINE === 'chimera') {
+  const bin = process.env.CHIMERA_BIN, body = arg('--body', 'male');
+  if (!bin) { console.error('--engine chimera needs CHIMERA_BIN (the chimera CLI)'); process.exit(2); }
+  for (const s of set) execFileSync(bin, ['render', 'text', join(out, s.id), s.t, body], { stdio: 'ignore' });
+} else {
+  for (const s of set) { const { audio, rate } = speak(s.t, lex); writeFileSync(join(out, `${s.id}.wav`), wav(audio, rate)); s.sec = audio.length / rate; }
+}
+if (!CORPUS && ENGINE === 'chip') { const { audio, rate } = speak(PARAGRAPH, lex, { rate: 22050 }); writeFileSync(join(out, 'paragraph.wav'), wav(audio, rate)); }
+console.log(`rendered ${set.length} sentences to ${out} (${ENGINE === 'chimera' ? `chimera, ${arg('--body', 'male')}` : `voice: f0 ${VOICE.f0} Hz, scale ${VOICE.scale}`})`);
 if (argv.includes('--no-asr')) process.exit(0);
 
 const norm = (s) => s.toLowerCase().replace(/[^a-z' ]+/g, ' ').replace(/'/g, '').split(/\s+/).filter(Boolean);
@@ -57,7 +68,7 @@ for (const [i, s] of set.entries()) {
   console.log(`${s.id.padEnd(4)} ${(100 * w.errors / w.words).toFixed(0).padStart(3)}%  ${s.t}\n                heard: ${heard}`);
 }
 // --report: what the page shows, sentence by sentence (studio/voice/report.json)
-if (argv.includes('--report') && !CORPUS) {
+if (argv.includes('--report') && !CORPUS && ENGINE === 'chip') {
   const pct = (a, b) => +(100 * a / b).toFixed(1);
   writeFileSync(join(here, '..', 'voice', 'report.json'), JSON.stringify({
     judge: `whisper ${model} (faster-whisper, int8, beam 5, no prompt, each sentence alone)`,

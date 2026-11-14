@@ -60,8 +60,9 @@ jobs:
                && curl -fsSI https://studio.mino.mobi/vendor/figure/lib/shader.js | grep -qi 'javascript' \
                && curl -fsSI https://studio.mino.mobi/lib/band-worker.js | grep -qi 'javascript' \
                && curl -fsSI https://studio.mino.mobi/vendor/pfsynth/pfsynth.wasm | grep -qi 'application/wasm' \
+               && curl -fsSI https://studio.mino.mobi/vendor/chimera/chimera.wasm | grep -qi 'application/wasm' \
                && curl -fsSI https://studio.mino.mobi/coquelicots/score.ly | grep -qi 'access-control-allow-origin: https://clef.mino.mobi'; then
-              echo "✓ studio.mino.mobi is live, and serves the piano"; exit 0
+              echo "✓ studio.mino.mobi is live, and serves the piano and the voice"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 8
           done

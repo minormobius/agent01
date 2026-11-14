@@ -49,6 +49,9 @@
   #steps .sc { font: 12px var(--mono); color: var(--dim); }
   #steps audio { width: 100%; height: 32px; margin-top: 4px; }
   #steps .verdict { color: #8fe3a8; font-size: 14px; }
+  #h2h table { border-collapse: collapse; margin-top: 8px; }
+  #h2h th, #h2h td { padding: 3px 12px 3px 0; text-align: left; }
+  #cbody { font: inherit; }
 </style>
 </head>
 <body>
@@ -85,6 +88,11 @@
   <h2>Type at it</h2>
   <textarea id="typed" spellcheck="false">The quick brown fox jumps over the lazy dog. Is this a voice, or a very small orchestra?</textarea>
   <div class="row"><button id="sayTyped" type="button">▶ Say it</button><span class="notes" id="lexstate">(the full dictionary loads when you press this: 3.6 MB)</span></div>
+
+  <h2>Another voice: an airway</h2>
+  <p class="notes">CHIMERA, by Jameson Hodge (<a href="https://github.com/jamesondh/chimera-vocal-synth">github</a>, MIT), makes sound the way a body does: air from lungs through vocal folds, a branched vocal tract, lips and nose, all simulated as a pressure wave on a grid. Its sounds come out of a mouth instead of a filter bank, and it sings. It runs here unchanged, in a worker, from its own WebAssembly build. Whisper understands it less than the arithmetic (the table): the arithmetic was ground against Whisper for days, while CHIMERA aims to sound real, and its own author measures about the same error rate. Which one sounds more like a voice is for your ears, not Whisper's.</p>
+  <div class="row"><button id="chimParagraph" type="button">▶ CHIMERA, the paragraph</button><button id="chimTyped" type="button" class="ghost">▶ CHIMERA, what's typed</button><button id="chimSing" type="button" class="ghost">▶ CHIMERA sings Daisy</button><select id="cbody" aria-label="body"><option>male</option><option>female</option><option>child</option></select><span id="ctook" class="notes"></span></div>
+  <div id="h2h" class="notes"></div>
 
   <h2>How well can a machine understand it?</h2>
   <p class="notes" id="score"></p>

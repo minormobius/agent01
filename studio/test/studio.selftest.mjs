@@ -961,5 +961,29 @@ if (SHARD === 2) {
   ok(finite && pk < 1 && db > -35 && notes > 60 && bars >= 4 && speed > 1.5, `radio: 12 s of feria stream at ${speed.toFixed(1)}× real time (22 kHz, the hall included), ${notes} notes in ${bars} bars, ${db.toFixed(1)} dB, peak ${pk.toFixed(2)}`);
 }
 
+// CHIMERA — the borrowed physical-modelling voice (vendor/chimera, lib/chimera-core.js) -------------
+if (SHARD === 3) {
+  console.log('\nCHIMERA (the airway voice)');
+  const { createHash } = await import('node:crypto');
+  const { gunzipSync } = await import('node:zlib');
+  const C = await import('../lib/chimera-core.js');
+  const bytes = await readFile(join(root, 'vendor/chimera/chimera.wasm'));
+  const pinned = (await readFile(join(root, 'vendor/chimera/UPSTREAM'), 'utf8')).match(/^sha256 ([0-9a-f]{64})$/m)?.[1];
+  ok(createHash('sha256').update(bytes).digest('hex') === pinned, `chimera.wasm is the build UPSTREAM records (${bytes.length} bytes)`);
+  const X = await C.instantiate(bytes);
+  C.loadDictionary(X, gunzipSync(await readFile(join(root, 'vendor/chimera/cmudict.txt.gz'))).toString());
+  const text = 'The birch canoe slid on the smooth planks.';
+  const t0 = performance.now(), a = C.renderAll(C.say(X, text).next), ms = performance.now() - t0, b = C.renderAll(C.say(X, text).next);
+  let same = a.length === b.length, finite = true, pk = 0;
+  for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) same = false; if (!Number.isFinite(a[i])) finite = false; pk = Math.max(pk, Math.abs(a[i])); }
+  ok(same && finite && pk > 0.05 && pk < 1, `a sentence speaks the same every time, finite, peak ${pk.toFixed(2)} (${(a.length / 48000).toFixed(2)} s in ${ms.toFixed(0)} ms, ${(a.length / 48 / ms).toFixed(1)}× real time)`);
+  const s = C.sing(X, { bpm: 138, lyrics: 'Dai-sy, Dai-sy', notes: [[74, 3], [71, 3], [67, 3], [62, 3], [0, 3]] });
+  const sa = C.renderAll(s.next); let sp = 0, sf = true;
+  for (const v of sa) { if (!Number.isFinite(v)) sf = false; sp = Math.max(sp, Math.abs(v)); }
+  ok(sf && sp > 0.05 && sp < 1 && s.phrases.length === 1 && Math.abs(s.seconds - (0.3 + 12 * 60 / 138 + 0.4)) < 0.5, `it sings: four syllables on four notes, one phrase, ${s.seconds.toFixed(2)} s, peak ${sp.toFixed(2)}`);
+  let threw = false; try { C.sing(X, { bpm: 120, lyrics: 'one', notes: [[60, 1], [62, 1]] }); } catch { threw = true; }
+  ok(threw, 'a lyric that does not fit its notes is refused, not sung out of step');
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);
