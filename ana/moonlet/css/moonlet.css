@@ -1,0 +1,94 @@
+:root { --bg: #07080c; --panel: #0e1017; --text: #e9e4da; --dim: #9a958c; --border: #262833; --ice: #6fe0ff; --gold: #ffd27a; --rose: #ff86c6; --violet: #b28cff;
+  --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); }
+/* a big viewer: on a phone the view is the top two thirds and the controls scroll in the bottom third */
+.app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.stage { position: relative; flex: 0 0 66.667%; min-height: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
+.panel { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: 12px 16px calc(24px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
+canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.hud { position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 12px; display: flex; gap: 12px; align-items: baseline; pointer-events: none; }
+.hud a { pointer-events: auto; font: 600 11px var(--mono); color: var(--dim); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; background: #07080cb0; }
+.hud a:hover { color: var(--gold); border-color: var(--gold); }
+.title { font: 800 20px var(--mono); letter-spacing: 0.12em; }
+
+.viewsw { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px; }
+.nogl[hidden] { display: none; }
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; color: var(--dim); }
+
+/* kata's twist pad and ana/kata lever */
+.pad { position: absolute; left: 14px; bottom: 14px; width: 92px; height: 92px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(7, 8, 12, 0.35); touch-action: none; cursor: grab; }
+.pad.live, .lever.live { border-color: rgba(255, 210, 122, 0.75); }
+#twistKnob { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+.pad span { position: absolute; left: -10px; right: -10px; top: -17px; text-align: center; font: 10px var(--mono); color: var(--dim); pointer-events: none; }
+.lever { position: absolute; right: 18px; bottom: 22px; width: 42px; height: 108px; border-radius: 21px; border: 2px solid rgba(255, 255, 255, 0.28); background: linear-gradient(rgba(56, 242, 224, 0.18), rgba(7, 8, 12, 0.3) 50%, rgba(255, 102, 184, 0.18)); touch-action: none; cursor: ns-resize; }
+#anaKnob { position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+.lever b, .lever i { position: absolute; left: 0; right: 0; text-align: center; font: 600 10px var(--mono); font-style: normal; pointer-events: none; }
+.lever b { top: -15px; color: #38f2e0; } .lever i { bottom: -15px; color: #ff66b8; }
+
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.row.col { flex-direction: column; align-items: stretch; gap: 4px; }
+.row > label { font: 600 11px var(--mono); color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; min-width: 92px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row > label span span { color: var(--text); }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button, button.ghost { font: 600 12px var(--mono); background: var(--panel); color: var(--dim); border: 0; padding: 7px 11px; cursor: pointer; touch-action: manipulation; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { color: var(--bg); background: var(--ice); }
+.viewsw button { background: rgba(14, 16, 23, 0.8); }
+.viewsw button.on { background: var(--gold); }
+button.ghost { border: 1px solid var(--border); border-radius: 8px; }
+button.ghost:hover { color: var(--gold); border-color: var(--gold); }
+button.small { padding: 3px 8px; font-size: 11px; text-transform: none; letter-spacing: 0; }
+input[type=range] { width: 100%; accent-color: var(--ice); margin: 4px 0; }
+input[type=checkbox] { accent-color: var(--ice); margin: 0; }
+.readout { font: 12px/1.65 var(--mono); color: #c9c3b8; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--panel); margin: 14px 0; overflow-x: auto; }
+.readout b { color: var(--text); font-weight: 600; }
+.readout .d { color: var(--gold); }
+.readout .k { color: var(--dim); }
+details { margin-top: 10px; color: #c9c3b8; font-size: 14px; line-height: 1.6; }
+details p b { color: var(--text); }
+summary { font: 600 11px var(--mono); color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+code { font: 12px var(--mono); color: var(--gold); }
+/* the bike's controls on the view: a stick (lean right/left, ana/kata) and buttons */
+.stick { position: absolute; left: 14px; bottom: 14px; width: 112px; height: 112px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.28); background: rgba(7, 8, 12, 0.35); touch-action: none; }
+#stickKnob { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+.stick .a, .stick .k { position: absolute; left: 0; right: 0; text-align: center; font: 600 10px var(--mono); pointer-events: none; }
+.stick .a { top: -15px; color: #38f2e0; } .stick .k { bottom: -15px; color: #ff66b8; }
+.twist { position: absolute; left: 14px; bottom: 150px; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.22); background: rgba(7, 8, 12, 0.3); touch-action: none; }
+#twistKnob { position: absolute; left: 50%; top: 50%; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; background: rgba(255, 255, 255, 0.3); pointer-events: none; }
+.twist span { position: absolute; left: -16px; right: -16px; top: -15px; text-align: center; font: 10px var(--mono); color: var(--dim); pointer-events: none; }
+.btns { position: absolute; right: 12px; bottom: 12px; display: grid; grid-template-columns: auto auto; gap: 8px; }
+.btns button { font: 700 12px var(--mono); letter-spacing: 0.06em; color: var(--text); background: rgba(14, 16, 23, 0.6); border: 2px solid rgba(255, 255, 255, 0.28); border-radius: 50%; width: 62px; height: 62px; touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+.btns button.small { border-radius: 12px; height: 40px; font-size: 11px; }
+.btns button.on { background: rgba(255, 210, 122, 0.45); border-color: var(--gold); }
+#bburn { border-color: var(--rose); } #bjump { border-color: var(--ice); }
+.circ { position: absolute; right: 12px; bottom: 192px; font: 700 11px var(--mono); letter-spacing: 0.06em; color: var(--gold); background: rgba(14, 16, 23, 0.7); border: 1px solid var(--gold); border-radius: 10px; padding: 8px 10px; touch-action: none; cursor: pointer; }
+.circ[hidden] { display: none; } .circ.on { background: rgba(255, 210, 122, 0.4); color: var(--bg); }
+/* the rider's gauges, top centre */
+.gauges { position: absolute; top: calc(42px + env(safe-area-inset-top)); left: 12px; font: 12px/1.5 var(--mono); color: var(--text); pointer-events: none; text-shadow: 0 0 4px #000; }
+.gauges b { font-size: 18px; } .gauges .k { color: var(--dim); }
+.bar { width: 120px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin: 2px 0 4px; }
+.bar i { display: block; height: 100%; background: var(--gold); }
+.bar.w i { background: var(--ice); }
+.state { position: absolute; top: calc(10px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); font: 700 12px var(--mono); letter-spacing: 0.16em; color: var(--gold); pointer-events: none; text-shadow: 0 0 6px #000; }
+.banner { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font: 800 22px var(--mono); letter-spacing: 0.1em; color: var(--gold); text-shadow: 0 0 16px #000; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
+.banner.show { opacity: 1; }
+.mapbox { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 8px; width: 132px; height: 132px; }
+#map { width: 100%; height: 100%; cursor: default; }
+.panel .btnrow { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+@media (max-height: 640px) and (max-width: 979px) { .twist { display: none; } .mapbox { width: 100px; height: 100px; } }
+/* wide screens: the view beside the panel */
+@media (min-width: 980px) {
+  .app { flex-direction: row; }
+  .stage { flex: 1 1 auto; height: 100%; }
+  .panel { flex: 0 0 400px; height: 100%; border-top: 0; border-left: 1px solid var(--border); }
+  .stick { left: 22px; bottom: 22px; width: 124px; height: 124px; }
+  .mapbox { width: 170px; height: 170px; }
+}
+.title { font-size: 17px; }
+.presets { gap: 6px; }
+.chk { display: inline-flex; gap: 6px; align-items: center; text-transform: none; letter-spacing: 0; font: 600 11px var(--mono); color: var(--dim); }
+.warn { color: var(--gold); }
+#ov { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }

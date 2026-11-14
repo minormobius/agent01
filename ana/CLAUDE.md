@@ -84,6 +84,15 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   spinnable ball on your right/forward/w), `LANDMARKS` (towers A–X, a hue each) and `HOME`. Kerbs: teal ana, pink
   kata of your slice (the shader's `Wv`). Physics is four's pinned world; materials' strengths
   are ours, assumed. See [`habitat/README.md`](habitat/README.md).
+- **MOONLET at `/moonlet/`**: the habitat's shape from outside, unspun: a 4-ball of rock (R 100 m) held by its own
+  gravity (four's pinned law, g 0.5 m/s²). `js/moonlet.js` (no DOM; imports habitat.js from `../../habitat/js/`, same
+  site): `step` (on the ground: weight g − v²/R, grip μ·weight caps pedals, brakes and turns, the rocket isn't capped,
+  lift-off when weightless or pushed up; in the air: symplectic Euler, nose held level, gyros yaw it, `circularize`),
+  `touchdown`, `elements` (Kepler), `predict` (RK4 to touchdown), `ROADS` (Hopf link + trefoil), `roadDist` (the
+  shader's twin), `linking` (Gauss's integral after stereographic projection), `BEACONS`, `pebbles`. `js/main.js`: a
+  full-screen shader of your slice (bike, beacons, moons, 4D sun with 4D shadows), the overlay (forecast, ✕, beacons,
+  occlusion by the rock), the minimap, a beacon hunt with a best time (localStorage `moonlet.best`). The camera frame
+  must stay orthonormal: shader and overlay both assume it. See [`moonlet/README.md`](moonlet/README.md).
 
 ## Checks
 
@@ -91,6 +100,7 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
 node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding, the map
+node ana/moonlet/test/moonlet.selftest.mjs           # ~2 s: speeds, weight and grip, pedalling never reaches orbit, a jump vs Kepler, orbits, the forecast, escape, landings, the circularizer, linking numbers, the moons
 ```
 
 Preflight finds every `*.selftest.mjs` and runs the ones under changed directories.

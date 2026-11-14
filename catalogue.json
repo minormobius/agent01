@@ -5768,6 +5768,22 @@
       ]
     },
     {
+      "n": "ana-moonlet",
+      "u": "https://ana.mino.mobi/moonlet/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-14",
+      "b": "2026-11-14",
+      "p": "ana",
+      "surface": "ana",
+      "d": "A bicycle on the outside of a tiny 4D moon: a 4-ball of rock 100 m in radius whose surface is a closed three-dimensional world (a 3-sphere), held only by its own microgravity, 0.5 m/s² on four's pinned law. Riding round its curve takes v²/R of the pull, so the faster you go the lighter you get, weightless at the orbital speed of 7.07 m/s; the tyres grip with your weight, so pedalling can't get you there, turns at speed are 100 m wide, and a jump flies for nine seconds. The rocket can: lift off into an orbit skimming the surface, 92 s round, or burn past the 10 m/s escape speed, with a forecast of your flight and where it comes down, and an autopilot that circularizes any orbit. Its painted roads are the Hopf link and a trefoil knot, linked on its 3D surface (Gauss's linking integral measures −1, −3, −2) though nothing can be knotted in the 4D space it floats in; two pebble moons orbit in completely orthogonal planes and never meet. Collect eight beacons against the clock; ray-traced in your 3D slice with a 4D sun and shadows; selftested.",
+      "tags": [
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "hyperball",
       "u": "https://hyperball.mino.mobi/",
       "c": "games",

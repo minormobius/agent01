@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="MOONLET — ride a bicycle round the outside of a tiny 3-sphere world held by its own microgravity. Ride faster and you get lighter; the rocket takes you into orbit. Its roads are a Hopf link and a trefoil knot: knotted on its three-dimensional surface, though nothing can be knotted in the 4D space around it." />
+<title>MOONLET — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/moonlet.css" />
+</head>
+<body>
+<div class="app">
+  <div class="stage">
+    <canvas id="gl" aria-label="Your 3D slice of a small four-dimensional moon: its curved surface, your bike, the roads, beacons, two little moons in orbit"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <div class="hud">
+      <a class="home" href="../">ana</a>
+      <span class="title">MOONLET</span>
+    </div>
+    <div class="state" id="state"></div>
+    <div class="gauges" id="gauges"></div>
+    <div class="banner" id="banner"></div>
+    <div class="mapbox"><canvas id="map" aria-label="map of the whole moonlet as a ball on your own axes: roads, beacons, you, your forecast"></canvas></div>
+    <div class="twist" id="twist" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+    <div class="stick" id="stick" aria-label="steer: right and left, up for ana, down for kata"><div id="stickKnob"></div><span class="a">ana</span><span class="k">kata</span></div>
+    <button class="circ" id="bcirc" hidden>HOLD: CIRCULARIZE</button>
+    <div class="btns">
+      <button id="bburn">ROCKET</button><button id="bjump">JUMP</button>
+      <button id="bbrake" class="small">BRAKE</button><button id="bgo" class="small">GO</button>
+    </div>
+    <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
+  </div>
+
+  <div class="panel">
+    <div class="readout" id="live"></div>
+    <div class="readout" id="hunt"></div>
+    <div class="btnrow"><button class="ghost" id="home">back to the start</button><button class="ghost" id="again">new hunt</button></div>
+    <div class="row"><label>slice</label><div class="seg" id="lock"><button data-v="beacon" class="on">follows the beacon</button><button data-v="free">free</button></div></div>
+    <div class="row"><label>forecast</label><div class="seg" id="fore"><button data-v="true" class="on">on</button><button data-v="false">off</button></div></div>
+    <div class="row"><label>pedals</label><div class="seg" id="auto"><button data-v="false" class="on">held</button><button data-v="true">always on</button></div></div>
+    <p class="keys"><b>W</b> pedal · <b>S</b> brake · <b>A D</b> lean right and left (in the air: turn) · <b>Q E</b> lean kata and ana · <b>space</b> jump · <b>shift</b> rocket (hold space too to burn 45° up) · <b>C</b> hold to circularize · <b>J L</b> twist your slice · <b>H</b> back to the start.</p>
+
+    <details open>
+      <summary>a bicycle in microgravity</summary>
+      <p>The moonlet is a ball of rock in four dimensions, 100 m in radius. Its surface is a <b>3-sphere</b>: a whole three-dimensional world, closed up on itself, 628 m round. Nothing spins it: what holds you down is its own gravity, four's pinned law (the pull falls as 1/r², so orbits close, as ours do), and weak: 0.5 m/s², a twentieth of Earth's.</p>
+      <p>On a world that small, <b>speed makes you light</b>. Riding round its curve takes v²/R of the pull just to keep you on it, so your weight is g − v²/R: at the orbital speed √(gR) = 7.07 m/s you weigh nothing at all. Tyres push with at most their grip times your weight, so they can't push you there: the faster you go the less they grip, and flat out on the pedals is 6.5 m/s. Turns at speed are wide (at 5 m/s the tightest is a 100 m circle; at 1 m/s, 2 m). A jump flies for nine seconds.</p>
+      <p>The <b>rocket</b> doesn't need grip. In the air the nose holds itself level and the stick turns it; the rocket pushes along it, or 45° up with JUMP held. Burn along the ground past 7.07 m/s and you lift off into an orbit skimming the surface (92 s round); a full tank is 16 m/s, more than the escape speed of 10. The forecast line on the view and the map is where you'll go with the rocket off, and the ✕ is where you'll come down. <b>Circularize</b> points the nose and burns to turn any flight into a circular orbit. Come down at under 3 m/s and you ride on; harder and you bounce.</p>
+    </details>
+    <details>
+      <summary>knots on a three-dimensional world</summary>
+      <p>The roads are two great circles in completely orthogonal planes (ice and violet) and a gold <b>trefoil knot</b> on the torus halfway between them. On the moonlet's surface, a three-dimensional world, they're tied as tight as rope: the two circles are <b>linked once</b> (the Hopf link) and the trefoil winds three times round one and twice round the other. The selftest measures it with Gauss's linking integral: −1.000, −3.000, −2.000.</p>
+      <p>Yet in the four-dimensional space the moonlet sits in, nothing can be knotted: there's a whole extra direction to lift any piece of a string over any other. A knot needs exactly three dimensions round it. The moonlet's skin has three, so its roads are knotted; the space it floats in has four, so the same curves, seen from there, are just loops. Ride ring 1 and you go round ring 2 once; fly up into orbit and you can leave them all behind.</p>
+      <p>The two little moons orbit at one height in those same two orthogonal planes. Each is always exactly √2 times its orbit's radius from the other, and they never meet: two orthogonal planes in four dimensions share only their centre point.</p>
+    </details>
+    <details>
+      <summary>how it's drawn</summary>
+      <p>One fragment shader ray-traces your three-dimensional slice (your forward, up and right; the fourth way, w, hidden) of the rock, the roads, the beacons, the moons and your bike, all as four-dimensional shapes: its wheels are rings in the plane of its heading and its up. The sun is a direction in four dimensions, so the light falls on the true 4D surface and shadows are cast through 4D. The overlay projects the forecast and the beacons into your slice: teal where they lie ana of it, pink kata. With <b>slice follows the beacon</b> your across-directions turn slowly about your heading so the next beacon stays in your slice; free, you twist it with the pad or J and L.</p>
+      <p>Checked: <code>test/moonlet.selftest.mjs</code> holds the speeds, the weight, the grip (five minutes of pedalling never pushes harder than it, never reaches orbit), a straight ride coming back round, a jump against Kepler, a skimming orbit, the forecast against the flight, escape, landings, the circularizer, the linking numbers, and the moons.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
