@@ -15,6 +15,9 @@
      node four/fusion/tools/lifetimes4.mjs <dir of net-*.json>   [ALT=<a copy of four/ baked under MASS=grid>] [OURS=<ours.json>] */
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
 import { logRate, KB_MEV, gamow } from "../../atom/js/stars.js";
+import { radiusFor } from "../../atom/js/orbits.js";
+// a black, airless planet at 288 K round a star (orbits.js radiusFor, as mainseq.mjs bake): its distance and year (v² = GM/a, both worlds)
+const G0 = 6.6743e-11, planet = (d, G, M, R, Teff) => { const a = R * radiusFor(d, Teff, 288); return { a288: a, yearYr: (2 * Math.PI * Math.sqrt(a ** 3 / (G * M))) / 3.15576e7 }; };
 
 const dir = process.argv[2]; if (!dir) throw new Error("usage: lifetimes4.mjs <dir of net-*.json>");
 const YR = 3.15576e7, GYR = 1e9 * YR, PACE = 4.6 * GYR, X0 = { "1-1": 0.75, "2-4": 0.25 };
@@ -47,7 +50,7 @@ let ours = null;
 if (process.env.OURS) { const O = JSON.parse(readFileSync(process.env.OURS, "utf8")).sort((a, b) => a.m - b.m), { rhoOf } = await import("../../atom/js/mainseq.js"), N3 = await import("../js/net.js");
   const i = O.findIndex((r) => r.m >= 1), a = O[i - 1], b = O[i], w = Math.log(1 / a.m) / Math.log(b.m / a.m), li = (x, y) => Math.exp(Math.log(x) * (1 - w) + Math.log(y) * w);
   const Tc = li(a.Tc, b.Tc), Pc = li(a.Pc, b.Pc), rho = rhoOf(3, Pc, Tc, { X: 0.7, Y: 0.28, Z: 0.02 }) / 1000, t = N3.run({ T: Tc, rho, X0: N3.SUN_X, fuel: "p", until: 0.5, tmax: 1e20, maxSteps: 6000 }).t / GYR;
-  ours = { Tc, rho_gcc: rho, L: li(a.L, b.L), thGyr: t, stars: O.map((r) => ({ m: +r.m.toFixed(3), Tc: r.Tc, qcc: r.qcc })) }; console.log(`ours: the zero-age Sun's centre ${(Tc / 1e6).toFixed(2)} MK, ${rho.toFixed(1)} g/cm³: core t½ ${t.toFixed(2)} Gyr at fixed T, ρ (the real centre: ~4.6)`); }
+  ours = { Tc, rho_gcc: rho, L: li(a.L, b.L), thGyr: t, Teff: li(a.Teff, b.Teff), R: li(a.R, b.R), ...planet(3, G0, 1.98847e30, li(a.R, b.R), li(a.Teff, b.Teff)), stars: O.map((r) => ({ m: +r.m.toFixed(3), Tc: r.Tc, qcc: r.qcc })) }; console.log(`ours: the zero-age Sun's centre ${(Tc / 1e6).toFixed(2)} MK, ${rho.toFixed(1)} g/cm³: core t½ ${t.toFixed(2)} Gyr at fixed T, ρ (the real centre: ~4.6)`); }
 const PACE2 = ours ? ours.thGyr * GYR : null;
 const files = readdirSync(dir).filter((f) => /^net-.*\.json$/.test(f)), out = [];
 for (const f of files) {
@@ -59,6 +62,7 @@ for (const f of files) {
       return { m: li(a.m, b.m), Tc: li(a.Tc, b.Tc), rhoc: li(a.rhoc, b.rhoc), L: li(a.L, b.L), Teff: li(a.Teff, b.Teff), R: li(a.R, b.R) }; } } return null; };
   const pace = at(PACE), sun = PACE2 ? at(PACE2) : null;
   if (pace) pace.burn = await burn(R.mass, R.s, pace.Tc, pace.rhoc); if (sun) sun.burn = await burn(R.mass, R.s, sun.Tc, sun.rhoc);
+  for (const x of [pace, sun]) if (x) Object.assign(x, { Mkg: x.m * R.Mch }, planet(4, G0 * R.Grel, x.m * R.Mch, x.R, x.Teff));
   const e = { G: R.Grel, s: R.s, mass: R.mass, ff: R.ff, Mch: R.Mch, stars: R.rows.map((r) => ({ m: r.m, Tc: r.Tc, rhoc: r.rhoc, L: r.L, Teff: r.Teff, qcc: r.qcc ?? null, thGyr: r.th == null ? null : r.th / GYR })),
     pace, sun, longest: { m: longest.m, thGyr: longest.th == null ? null : longest.th / GYR }, mMin: R.rows[0].m, mMax: R.rows.at(-1).m };
   out.push(e);
@@ -66,5 +70,6 @@ for (const f of files) {
 }
 out.sort((a, b) => b.G - a.G || a.s - b.s || String(a.mass).localeCompare(String(b.mass)));
 mkdirSync(new URL("../../papers/p2/data/", import.meta.url), { recursive: true });
-writeFileSync(new URL("../../papers/p2/data/lifetimes.json", import.meta.url), JSON.stringify({ about: "fusion/tools/lifetimes4.mjs: 4D main sequences burning by the network (mainseq.mjs net), per G, s, mass model: each star's core hydrogen half-life at fixed central T and rho; the star whose core halves in 4.6 Gyr (pace) and the one whose zero-age core t_half equals our zero-age Sun's (sun, ours.thGyr: the analogue if 4D cores evolve as ours), and what each centre burns to at its own T and rho", ours, runs: out }));
-console.log(`wrote papers/p2/data/lifetimes.json (${out.length} sequences)`);
+const OUTF = process.env.OUT ?? "lifetimes.json";
+writeFileSync(new URL(`../../papers/p2/data/${OUTF}`, import.meta.url), JSON.stringify({ about: "fusion/tools/lifetimes4.mjs: 4D main sequences burning by the network (mainseq.mjs net), per G, s, mass model: each star's core hydrogen half-life at fixed central T and rho; the star whose core halves in 4.6 Gyr (pace) and the one whose zero-age core t_half equals our zero-age Sun's (sun, ours.thGyr: the analogue if 4D cores evolve as ours), and what each centre burns to at its own T and rho", ours, runs: out }));
+console.log(`wrote papers/p2/data/${OUTF} (${out.length} sequences)`);
