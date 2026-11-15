@@ -1,12 +1,13 @@
 # Rope after the knot: what holds in four dimensions
 
 **Draft 1, 2026-11-15. Not submitted, not audited.** Every bench number below is recomputed from the baked data by
-`test/ledger.selftest.mjs`, which fails if the text and the data part. The TWIST numbers are held by TWIST's selftest
-but are not yet baked into a data file. Sources and how far each was checked: [REFERENCES.md](REFERENCES.md). What is
+`test/ledger.selftest.mjs`, which fails if the text and the data part. The twist runs are baked too (`kata/twist/data/twist.json`) and are in the ledger. Sources and how far each was checked: [REFERENCES.md](REFERENCES.md). What is
 ours and what is not: [PRIOR-ART.md](PRIOR-ART.md). Open items are listed at the end and are part of the draft.
 
-**Figures: [figures.html](figures.html)** (also at kata.mino.mobi/papers/r1/figures.html). Every rope drawn three
-ways by CAD⁴: two cross-sections along the rope and one side view. They are meant to be read first.
+**Figures.** [figures.html](figures.html): every rope drawn four ways by CAD⁴ (two cross-sections along the rope, two
+side views). [results.html](results.html): what was tested, how, and what came out, one chart at a time, each drawn
+from a baked data file. Both are meant to be read before the text. Which go in the main text is listed after the
+methods.
 
 ## Summary
 
@@ -18,8 +19,8 @@ sphere, a tube. We build each case as geometry, test it in a solid-modelling ker
 price the resulting ropes on one tensile bench.
 
 The ropes that work are not exotic. The strongest per weight is continuous filaments in a thin closed hose. One
-result is particular to four dimensions: a bundle held together keeps exactly one turn of twist, where ours keeps
-every turn. We have not yet searched the literature for it specifically.
+result is particular to four dimensions: a bundle held together appears to keep one turn of twist and no more,
+where ours keeps every turn. The evidence for it is suggestive and not yet clean (section 2). We have not yet searched the literature for it specifically.
 
 ## 1. The rule
 
@@ -30,23 +31,106 @@ and simulated before (PRIOR-ART: Hqak). We use it as the spine and claim none of
 
 What it predicts for cordage, case by case, is the content of sections 2 to 4.
 
+## Methods: what was tested, and how
+
+Three instruments, each with its own test file, and one rule for reporting: a number appears here only if a script
+writes it to a data file and the ledger finds it there.
+
+**M1. The kernel (geometry: can this part move?).** CAD⁴ is a solid-modelling kernel for four dimensions, written for
+this work. A part is a tree of operations that compiles to a distance function. Two parts *interfere* if a sampled
+grid finds a point inside both (`fit`, 12 to 18 samples an axis over the overlap of their bounding boxes, with cells
+proved empty by the distance bound skipped). "A cannot be moved off B" means: translate A rigidly along each of the
+four axes, both ways, in steps finer than the thinnest wall, and it interferes before it is clear (`sweep`). "A
+comes free" means a stated path is swept with no interference at any step. **What this does and does not show:** it
+tests rigid translations of one part along axes, and named paths. It can show a way out exists. It cannot prove none
+does; where the text says a link or knot *holds*, that rests on the cited theorem, and the kernel shows only that
+the obvious ways out are shut. Constructions by revolving (the hose braids, the tube knot, the tube yarn) are the
+spun surface of a three-dimensional curve (Winter 2009). Test files: `kata/cad4/test/*.selftest.mjs`.
+
+**M2. The bead yarn (mechanics: does twist stay, and what does it press with?).** Fibres are chains of 33 beads on
+springs (stiffness 3000) with a repelling contact (stiffness 6000) between beads of different fibres nearer than
+two radii (radius 0.1; length 4). Seven fibres, six round one, are laid as helices of a given number of turns, the
+ends clamped, the yarn stretched 3%, every free bead displaced at random by 0.002, and the system relaxed by damped
+dynamics (step 0.006, damping 0.985 a step) for 30 000 steps. The same code runs with three coordinates or four.
+Measured at rest: the turns one outer fibre still makes round the core; the elastic energy; the contact force on
+the core and on one outer fibre, per length; that fibre's tension. Variants: the core replaced by a rigid ribbon of
+a given half-width; thirteen fibres inside a wall that no bead's centre may pass (a hose). **Limits:** no friction
+and no bending stiffness (so a twisted state can only be held by geometry, which is the question); one bundle size
+for each case; relaxation finds a rest state, not necessarily the lowest. Baked by `kata/twist/bake.mjs`.
+
+**M3. The bench (strength: what is each rope worth?).** Results figure "Method 1" draws the model. A rope is 96
+sections long. Each fibre's place is a track of unit links: one continuous filament, or short fibres 40 links long
+laid end to end from a random phase. Links share one stiffness and each has its own strength, Weibull with modulus
+5. Neighbouring tracks are joined at each section by a frictional interface, elastic (stiffness a quarter of a
+link's) until its shear reaches 0.3 times the press between them, then slipping at that force. Both ends are in
+jaws. The rope is stretched in 110 steps to 4.5% (7% for braids). At each step the equilibrium is the minimum of a
+convex energy (with the friction limits fixed for the step, a stick-then-slip interface has a potential), found by
+Newton's method with a banded Cholesky solve and a line search; then any link over its strength is removed, worst
+first, and the equilibrium found again. **Acceptance:** a solve counts only if its final step is under 10⁻⁹ of the
+stretch; runs that fail are reported and excluded (two of the sensitivity rows). **Sampling:** each rope is pulled
+200 times (60 or 40 in the sweeps, as each figure says) with different random strengths and phases; we report the
+mean, the spread and the 5th percentile. **Units:** strength in strands, one continuous strand's mean at this
+length being 1; weight in strands, counting every sheath, hose, jacket and the extra length of a strand laid at an
+angle.
+
+What differs between ropes is who touches whom and the press:
+
+| rope | who touches whom | the press between neighbours |
+|---|---|---|
+| loose bundle | 13: one and the twelve round it | none |
+| twisted yarn | 7: one and six | q × (their mean tension + a laying tension), q measured in M2 |
+| yarn on a ribbon | six fibres, each touching only the ribbon | the same law, q measured in M2 with a ribbon core |
+| hoops | 13 | constant: a third of the skin's force on a fibre |
+| hose | 13, and a fourteenth track, the hose, touching the outer twelve and carrying load | fibre to fibre a third of the skin's force; hose to fibre all of it |
+| braid, maypole | 3, or a core and 6; a strand at θ has stiffness cos³θ, strength cosθ, weight 1/cosθ | tan²θ × tension |
+| cable | 13 elements with the level below's measured strength distribution, stiffness and weight | as hoops |
+
+The skin's force on a fibre comes from treating a hose τ thick as a pressure vessel stressed to half its strength
+(the dial HOOP). **Three numbers are chosen, not measured**: HOOP, the laying tension (5% of a link's strength),
+and friction. Section 6 says what was done about that.
+
+**M4. The squeeze, checked three ways.** (a) The vessel formula. (b) A net of springs on an icosphere of up to
+10 242 nodes, shrunk onto twelve rigid balls in their packed places and relaxed with the nodes kept outside the
+balls; the force on each ball is read against the net's mean tension. The same method on a band round six discs
+must give exactly one tension per disc, and does. (c) The same force from the convex hull's area and mean curvature
+(Steiner's formula) and the virial of a closed film. Separately, how that force is shared: thirteen balls with
+one-sided linear contacts and diameters drawn at random, 200 packings a setting.
+
+## Figures: main text and supplement
+
+Main text, five figures:
+1. **The rule and the rope.** Filaments in a hose, four panels (figures.html#hoserope), beside the same bundle in a
+   ring, which fails (#ringed).
+2. **Twist.** Turns still wound, 3D against 4D (results.html: Method 3), with turns kept against turns given.
+3. **The bench.** The model's diagram and one pull (Methods 1 and 2).
+4. **Every rope, per weight** (Result 1).
+5. **What does braid:** the hose plait, four panels (#hosebraid), beside the ribbon plait that does not (#ribbonbraid).
+
+Supplement: the other nine ropes' drawings; the sheath sweep, the dials, braids by angle, cabling, the tightening
+hose (Results 2 to 6); the ribbon threshold and the hosed bundle (Results 9 and 10); the two checks on the squeeze.
+
 ## 2. Twist
 
 **Threads shed it.** Seven elastic fibres, one in the middle and six round it, are twisted, clamped and stretched,
 by the same code in three dimensions and in four. In three the turns stay and the fibres press on the core. In four
 every whole turn leaves through the spare direction, the pressure goes to zero and the energy returns to the
-untwisted value. A twisted staple yarn of threads therefore has no strength in four dimensions: on the bench it
+untwisted value (4.7 in both). A half turn stays in both worlds: it cannot be undone with the ends clamped. A twisted staple yarn of threads therefore has no strength in four dimensions: on the bench it
 reads 0.00 strands.
 
-**A ribbon core holds it**, if the ribbon is wide enough that a fibre cannot slip round its edge. A hose core should
+**A ribbon core holds it**, if the ribbon is wide enough that a fibre cannot slip round its edge: the threshold lies
+between half-widths of 0.1 and 0.2, one to two fibre radii. A hose core should
 hold it at any width, because a hose has no edge; that is shown here only for ribbons wound on a hose (section 4).
 
-**A hose round the bundle saves one turn, and only one.** Thirteen fibres (one and the twelve that fit round it in a
-three-dimensional cross-section) pressed together by a tight hose keep an odd turn and shed an even one: started with
-one, two, three or four turns, they come to rest at energies of 83, 52, 83 and 64, against 56 untwisted. A bundle
-that is held together turns as a body, and the rotations of its three-dimensional cross-section have a single
-stubborn loop (the belt trick; F6). Ours has a two-dimensional cross-section, whose rotations wind without limit.
-That is the difference between a world that can spin yarn and one that cannot, in one sentence: **ℤ against ℤ/2.**
+**A hose round the bundle seems to save one turn, and only one.** Thirteen fibres (one and the twelve that fit round
+it in a three-dimensional cross-section) pressed together by a tight hose were given 0 to 4 turns, with three random
+seeds. Untwisted they rest at an energy near 56. Given an odd number of turns they never came to rest below 77.
+Given an even number they came down to 52 to 56 in six runs of nine and jammed higher in the other three, as high
+as 80. So odd and even overlap, and what separates them is the floor under the odd runs, not a clean gap. With no
+hose the same thirteen shed everything (8.8 whatever they are given). The reading we offer: a bundle that is held
+together turns as a body, and the rotations of its three-dimensional cross-section have a single stubborn loop (the
+belt trick; F6), where ours has a two-dimensional cross-section whose rotations wind without limit, **ℤ against
+ℤ/2**. That reading predicts the floor. It does not yet explain the jams, and a rig that finds lower states more
+reliably is needed before this is a result (Result 10 in results.html).
 
 **Tubes hold it.** Revolve an ordinary twisted yarn and each fibre becomes a tube. Tubes cannot pass one another, and
 in the kernel an outer tube cannot be pushed off the yarn in any direction. Fibre that is tubular can be spun. We
@@ -155,8 +239,8 @@ within 20% below 20° (worst ratio 0.81) and understates by a factor of 1.4 abov
 
 **Not modelled.** Bending; fibre migration; a hose's bending stiffness; creep of a shrink fit; any difference between
 a tube and a thread beyond which braids exist. The tube yarn, the tube knot and the hitch are geometry and cited
-theorems; none has been through a mechanical rig. The belt-trick reading of section 2 rests on rest energies and one
-packing; the packed cluster's symmetries should make some part turns stubborn too (F7), untested.
+theorems; none has been through a mechanical rig. The belt-trick reading of section 2 rests on rest energies, one packing and three seeds, and the odd and even
+runs overlap; the packed cluster's symmetries should make some part turns stubborn too (F7), untested.
 
 ## 7. What is ours
 
@@ -172,11 +256,10 @@ by the search and may contain some of this.
 - Search specifically for the one-turn result (belt trick applied to twisted bundles or filaments in higher
   dimensions) before calling it ours.
 - Read the two forum sources by hand. Page-check every reference marked partial.
-- Bake TWIST's numbers and add them to the ledger; repeat the one-turn experiment over packings, sizes and seeds,
-  and test for stubborn part turns.
+- The one-turn experiment over packings, sizes and many seeds, with a relaxation that escapes jams (annealing), and a
+  test for stubborn part turns. Until then it is a suggestion.
 - A rig with tubes, for the tube yarn's grip.
 - The bundle-size study (a hose's weight share against fibre count, 13 to 55 to 147).
-- Figures of the bench (a rope under load, force curves, the distributions) and of the twist experiment; the rope
-  figures exist (`figures.mjs`). An independent audit.
+- Light-background versions of the rope drawings for print. An independent audit.
 - Authors as for the atoms paper; where a venue does not accept an AI author, a contribution statement and the PI's
   byline.

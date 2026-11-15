@@ -268,7 +268,10 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
 data, so re-run the ledger and edit the draft with it. The rope figures (`papers/r1/figures.html`, `fig/*.webp`) are drawn by CAD⁴ itself:
 `NODE_PATH=$(npm root -g) node kata/papers/r1/figures.mjs [rope …]` loads each part headless and sets the slice through
 `CAD4.pose({ E, off, yaw, pitch, zoom, tint })` (two cross-sections x, y, z along the rope and one side view x, y, w;
-`tint: 0` turns off the ana/kata colouring so parts keep their colours). Redraw after changing a rope's part.
+`tint: 0` turns off the ana/kata colouring so parts keep their colours). Redraw after changing a rope's part. Each rope has four panels (two cross-sections, two side views at different z).
+The analytic figures and the methods page are `papers/r1/charts.mjs` (→ `fig/*.svg`, `results.html`; < 2 s), drawn with
+`packages/dataviz` from the baked files, including `twist/data/twist.json` (`node kata/twist/bake.mjs`, ~3 min: traces,
+rest states, the ribbon threshold, and the hosed bundle over three seeds). Re-run `charts.mjs` after any study.
 
 ## Coordinates
 

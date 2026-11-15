@@ -94,23 +94,28 @@ under a hard squeeze (at two turns in 3D, visibly). Seven fibres, one geometry.
 node kata/twist/test/twist.selftest.mjs   # ~30 s, 10 checks
 ```
 
-## A hose saves one turn, and only one
+## A hose seems to save one turn, and only one
 
 `makeYarn({ pack: 13, wall })` is the full 4D bundle (one fibre and the twelve that fit round it) inside a hose, a wall
 no bead's centre may pass. Loose, the thirteen shed every turn, as the seven do. Pressed together by a tight hose
-they cannot pass each other, and then:
+they cannot pass each other. `node kata/twist/bake.mjs` (→ `data/twist.json`) gives them 0 to 5 turns with three seeds
+(hose at 0.19, fibres touch at 0.20); energy at rest:
 
-| started with | 0 turns | 1 | 2 | 3 | 4 |
-|---|---|---|---|---|---|
-| energy at rest (hose at 0.19, fibres touch at 0.20) | 56 | 83 | 52 | 83 | 64 |
+| seed | 0 turns | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
+| 1 | 56 | 83 | 52 | 83 | 64 | 172 |
+| 7 | 63 | 90 | 56 | 83 | 80 | 390 |
+| 13 | 56 | 83 | 52 | 77 | 56 | 226 |
 
-**Odd twists settle to the same one-turn state; even twists go back to nothing.** A bundle held together turns as a
-body, and its cross-section is three-dimensional. A full turn of a body in three dimensions cannot be undone, and two
-full turns can (the belt trick: the rotations of 3-space have exactly that one stubborn loop). In our world a
-cross-section is two-dimensional and its rotations wind without limit, which is why our yarn keeps every turn.
+**Odd twists never rest below 77. Even twists come down to 52–56 in six runs of nine and jam higher in the rest (up
+to 80), so odd and even overlap.** The first version of this section, from one seed, said odd settle to one state
+and even go back to nothing; three seeds show that was too clean. The reading still offered: a bundle held together
+turns as a body, its cross-section is three-dimensional, and a full turn of a body in three dimensions cannot be
+undone where two can (the belt trick). That predicts the floor under the odd runs. It does not explain the jams, and
+five turns jam far higher. A relaxation that escapes jams, more seeds and other packings are needed before this is a
+result.
 
-So a hose does not give a 4D rope twist to grip with. One turn in the whole length of a rope is no twist at all per
-length. What grips is the hose. Caveats: a five-turn start jammed at a higher energy (172) and did not get down; the
-`wind` reading follows one fibre in the x–y plane and loses track once the turn moves to another axis, so the
-energies are the evidence; and a packed cluster has symmetries, so part turns that map it onto itself may be
-stubborn too (not tested).
+So a hose does not give a 4D rope twist to grip with: at most one turn in the whole length. What grips is the hose.
+The `wind` reading follows one fibre in the x–y plane and loses track once the turn moves to another axis, so the
+energies are the evidence. A packed cluster has symmetries, so part turns that map it onto itself may be stubborn
+too (not tested).
