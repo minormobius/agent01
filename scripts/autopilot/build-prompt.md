@@ -33,9 +33,9 @@ _Regenerated 2026-11-15 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-15, 100 members / 189 posts):
+**Neighborhood spark** (bisk 2026-11-15, 100 members / 156 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: idk, llms, imo
+- Distinctive words: idk, openai, imo
 - Top post: "claude: sorry, but that’s a hard line for me. I cannot do that glm 5.3:" — @samuel.fm
 <!-- BRIEF_END -->
 
