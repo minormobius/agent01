@@ -140,6 +140,16 @@ for games, and this is a modelling programme with publications to come. The game
   from helium-3 (`he4 4 <s> none 3 MN`, B₃ 16–57 MeV) and V₃ (mass 3 on the core) not computed, so the channel is open;
   either way the product is mass 12–15, elements 6–8. The same ladder cascade has element 6 + itself → element 8 + 2
   helium-4s and element 8 + itself → oeon + 2 (heavy's liquid drops say todium, shedding nucleons): both near 12–13.
+- **a star, cut open at `/star/`** (PI, 2026-11-15: "the cool cross section diagrams where the eighth of the sphere
+  facing the user is chopped out and the layers are labeled … toggle between three and four d"): `star/star.js` draws
+  only — a WebGL ray-cast of the ball with the facing octant cut away (cut faces coloured by the star's own log T profile,
+  convection as moving cells, the light-making core glowing, a wafer-thin outer zone as a pale ring, the surface in its
+  world's blackbody colour), leader-line labels per layer, a readout and a T/ρ/light profile. 4D shows a 3D slice at w
+  (layers at √(r² − w²); the cut orthant x, y, z, w > 0 opens only for w ≥ 0). No age slider: every star is zero-age;
+  the core clock (centre's hydrogen half-life) stands in. **Generated** `star/data.js` from `atom/tools/starcut.mjs bake
+  <ours.json> <dir of 4D net files>` (~25 min): layers from each star's compact profile (`mainseq.mjs` now keeps `prof`,
+  40 points), outer zones from `atom/js/surface.js`, ours' core clocks by REACLIB. 4D sequences from run `starcut-1`
+  (G 10⁻¹¹/10⁻¹⁴/10⁻¹⁷/10⁻²⁰ × all eight s, on atom4-data); ours from `mainseq.mjs ours`. Catalogue `four-star`.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,
