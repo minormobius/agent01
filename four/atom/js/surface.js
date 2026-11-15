@@ -35,7 +35,8 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
   // H⁻'s photodetachment from the baked table (a₀^(d−1) → m^(d−1)), × hm (1 as computed; ours' computed peak is ~2× the
   // measured one, so 0.5 is the band's other edge); 0 leaves H⁻ out
   // free–free on neutral hydrogen (ours' H⁻ free–free), from atom/js/eh.js by way of the bake: κ_ω = n_e n_H × c(T, x)
-  const HF = SURFACE.worlds[d].Hff, hffCoef = (T, x) => { const lt = Math.log(T), lx = Math.log(x), Ts = HF.T, Xs = HF.x;
+  const HF = SURFACE.worlds[d].Hff, hffCoef = (T, x) => { if (T > HF.T[HF.T.length - 1]) return 0; // past the table (10⁵ K, electrons to 11 eV) the free–free on neutrals is not extrapolated: by then the neutrals are gone
+    const lt = Math.log(T), lx = Math.log(x), Ts = HF.T, Xs = HF.x;
     const fi = Math.min(Ts.length - 1.001, Math.max(0, (lt - Math.log(Ts[0])) / (Math.log(Ts[1]) - Math.log(Ts[0])))), fj = Math.min(Xs.length - 1.001, Math.max(0, (lx - Math.log(Xs[0])) / (Math.log(Xs[1]) - Math.log(Xs[0]))));
     const i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j, L = HF.logc;
     let c = Math.exp(L[i][j] * (1 - u) * (1 - v) + L[i + 1][j] * u * (1 - v) + L[i][j + 1] * (1 - u) * v + L[i + 1][j + 1] * u * v);
@@ -44,7 +45,7 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
   const W = SURFACE.worlds[d], H = W.H, He2 = W.HeII, chiH = -H[0].E_eV, chiHe1 = ionE(d, 2), chiHe2 = -He2[0].E_eV, a = aRad(d), sig = sigmaSB(d);
   // levels weighted by a smooth occupation probability, w = exp(−(r_orbit/half-spacing)³), r_orbit = 1.5ν²a₀ (a hard cut
   // made the partition function jump with density, and ∇_ad's numerical derivative with it)
-  const cutLevels = (lv, nTot) => { const half = 0.5 * nTot ** (-1 / d); return lv.map((v, i) => ({ ...v, w: i === 0 ? 1 : Math.exp(-(((1.5 * (v.N + (d - 3) / 2) ** 2 * A0) / half) ** 3)) })).filter((v) => v.w > 1e-12); };
+  const cutLevels = (lv, nTot) => { const half = 0.5 * nTot ** (-1 / d); return lv.map((v, i) => ({ ...v, w: Math.max(i === 0 ? 1e-30 : 0, Math.exp(-(((1.5 * (v.N + (d - 3) / 2) ** 2 * A0) / half) ** 3))) })).filter((v, i) => i === 0 || v.w > 1e-12); }; // the ground state too: deep in a star a 1s orbit outgrows the spacing and hydrogen is pressure-ionized
   const U = (lv, kT) => lv.reduce((t, v) => t + v.w * v.g * Math.exp(-(v.E_eV - lv[0].E_eV) / kT), 0);
   /* the gas at T, ρ: populations (m⁻ᵈ), P, the internal energy per volume */
   function state(T, rho) {
