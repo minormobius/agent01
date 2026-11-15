@@ -1,0 +1,33 @@
+{
+ "group": "sc-00",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-11 1.5152 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 866
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-11 1.55 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1285
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-11 1.6 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 355
+  },
+  {
+   "cmd": "node four/atom/tools/mainseq.mjs net 1e-11 1.65 ladder 1",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 233
+  }
+ ]
+}
