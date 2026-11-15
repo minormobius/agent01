@@ -8,11 +8,15 @@ const $ = (id) => document.getElementById(id), canvas = $("gl"), ov = $("ov"), o
 const gl = canvas.getContext("webgl2", { antialias: false, powerPreference: "high-performance" });
 const S = { name: "", tree: null, shape: null, vals: {}, err: "", frames: 0, measure: null, fit: null, slice: null, hit: true };
 window.CAD4 = S;
+/* pose: set the slice and the camera from outside (the paper's figures are made this way): E a 4×4 frame, off the
+   slice's place along the unseen direction, yaw, pitch, zoom, and tint (0 turns off the ana/kata colouring, so a
+   part keeps its own colour) */
+S.pose = (p) => { if (p.E) E = p.E.map((v) => v.slice()); if (p.off !== undefined) off = p.off; if (p.yaw !== undefined) yaw = p.yaw; if (p.pitch !== undefined) pitch = p.pitch; if (p.zoom !== undefined) zoom = p.zoom; if (p.tint !== undefined) tint = p.tint; dirty = true; };
 
 /* ------------------------------------------------------------------ the slice and the camera
    E: four orthonormal 4-vectors. E[0..2] span your slice, E[3] is the direction you can't see; `off` is how far along
    it the slice sits from the part's middle. The camera orbits inside the slice. */
-let E = ident(), off = 0, yaw = -0.6, pitch = 0.4, zoom = 1, C4 = [0, 0, 0, 0], R = 1, dirty = true, scale = 1;
+let tint = 1, E = ident(), off = 0, yaw = -0.6, pitch = 0.4, zoom = 1, C4 = [0, 0, 0, 0], R = 1, dirty = true, scale = 1;
 function ident() { return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; }
 const dot4 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
 /* turn every frame vector by th in the plane of unit vectors a and n (a toward n) */
@@ -28,7 +32,7 @@ in vec2 aP; void main() { gl_Position = vec4(aP, 0.0, 1.0); }`;
 const PAL = ["0.84, 0.78, 0.66", "0.42, 0.68, 0.98", "0.98, 0.70, 0.40", "0.62, 0.88, 0.54", "0.82, 0.60, 0.98", "0.95, 0.90, 0.45"];
 const frag = (shape) => `#version 300 es
 precision highp float;
-uniform vec2 uRes; uniform vec4 uO, uE0, uE1, uE2, uE3; uniform vec3 uCam, uVr, uVu, uVf; uniform float uR;
+uniform vec2 uRes; uniform vec4 uO, uE0, uE1, uE2, uE3; uniform vec3 uCam, uVr, uVu, uVf; uniform float uR, uTint;
 ${shape.glsl}
 float map(vec3 q) { return sdf(uO + q.x * uE0 + q.y * uE1 + q.z * uE2); }
 vec3 tint(vec4 p) {
@@ -50,7 +54,7 @@ void main() {
       vec4 g = vec4(sdf(p + e * uE0) - sdf(p - e * uE0), sdf(p + e * uE1) - sdf(p - e * uE1), sdf(p + e * uE2) - sdf(p - e * uE2), sdf(p + e * uE3) - sdf(p - e * uE3));
       vec3 n = normalize(g.xyz + 1e-9); float lean = g.w / max(length(g), 1e-9);
       vec3 base = tint(p);
-      base = mix(base, lean > 0.0 ? vec3(0.22, 0.95, 0.88) : vec3(1.0, 0.4, 0.72), 0.6 * smoothstep(0.05, 0.9, abs(lean)));
+      base = mix(base, lean > 0.0 ? vec3(0.22, 0.95, 0.88) : vec3(1.0, 0.4, 0.72), 0.6 * uTint * smoothstep(0.05, 0.9, abs(lean)));
       float ao = 1.0; for (int k = 1; k <= 4; k++) { float s = 0.05 * uR * float(k); ao -= max(s - map(q + n * s), 0.0) / s * 0.16; }
       vec3 key = normalize(uVr * 0.5 + uVu * 0.75 - uVf * 0.55), fill = normalize(-uVr * 0.7 + uVu * 0.1 - uVf * 0.5);
       float kd = max(dot(n, key), 0.0), fd = max(dot(n, fill), 0.0), rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.0), sp = pow(max(dot(reflect(rd, n), key), 0.0), 28.0);
@@ -65,7 +69,7 @@ function build() {
   const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, frag(S.shape))); gl.bindAttribLocation(p, 0, "aP"); gl.linkProgram(p);
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error("link: " + gl.getProgramInfoLog(p));
   if (prog) gl.deleteProgram(prog); prog = p; U = {};
-  for (const n of ["uRes", "uO", "uE0", "uE1", "uE2", "uE3", "uCam", "uVr", "uVu", "uVf", "uR", "uP"]) U[n] = gl.getUniformLocation(p, n);
+  for (const n of ["uRes", "uO", "uE0", "uE1", "uE2", "uE3", "uCam", "uVr", "uVu", "uVf", "uR", "uTint", "uP"]) U[n] = gl.getUniformLocation(p, n);
   if (!vao) { vao = gl.createVertexArray(); gl.bindVertexArray(vao); const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); }
 }
 function draw() {
@@ -74,7 +78,7 @@ function draw() {
   gl.viewport(0, 0, w, h); gl.useProgram(prog); gl.bindVertexArray(vao);
   const v = view(), O = origin();
   gl.uniform2f(U.uRes, w, h); gl.uniform4fv(U.uO, O); gl.uniform4fv(U.uE0, E[0]); gl.uniform4fv(U.uE1, E[1]); gl.uniform4fv(U.uE2, E[2]); gl.uniform4fv(U.uE3, E[3]);
-  gl.uniform3fv(U.uCam, v.cam); gl.uniform3fv(U.uVr, v.r); gl.uniform3fv(U.uVu, v.u); gl.uniform3fv(U.uVf, v.f); gl.uniform1f(U.uR, R * 1.02);
+  gl.uniform3fv(U.uCam, v.cam); gl.uniform3fv(U.uVr, v.r); gl.uniform3fv(U.uVu, v.u); gl.uniform3fv(U.uVf, v.f); gl.uniform1f(U.uR, R * 1.02); gl.uniform1f(U.uTint, tint);
   if (U.uP && S.shape.order.length) gl.uniform1fv(U.uP, S.shape.order.map((k) => S.shape.params[k]));
   gl.drawArrays(gl.TRIANGLES, 0, 3); S.frames++;
   overlay(v);

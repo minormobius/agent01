@@ -5,6 +5,9 @@
 but are not yet baked into a data file. Sources and how far each was checked: [REFERENCES.md](REFERENCES.md). What is
 ours and what is not: [PRIOR-ART.md](PRIOR-ART.md). Open items are listed at the end and are part of the draft.
 
+**Figures: [figures.html](figures.html)** (also at kata.mino.mobi/papers/r1/figures.html). Every rope drawn three
+ways by CAD⁴: two cross-sections along the rope and one side view. They are meant to be read first.
+
 ## Summary
 
 "Knots come undone in four dimensions" is true and is usually heard as "so there is no rope there". The second does
@@ -84,6 +87,12 @@ over-and-under adds friction only.
 **Cloth** is threads woven with ribbons, or sheets with sheets (PRIOR-ART: this is published).
 
 ## 5. What the ropes are worth
+
+**Reading the figures.** Every rope lies along the fourth direction. A cross-section (x, y, z at one place along the
+rope) shows what it is made of: a thread is a ball, a ribbon a strip, a tube a ring, a hose or a hoop a sphere. The
+side view (x, y and the rope's own direction) shows how the parts run. Twelve ropes are drawn: the bundle in a
+sphere-hoop and in a ring, filaments in a hose, the woven and the wound sheath, yarn on a ribbon, the cable, the hose
+plait and the ribbon plait, the maypole, ribbons on a hose, and the yarn of tubes.
 
 **The bench.** A rope is a bundle of tracks of unit links. Each link has its own strength (Weibull, modulus 5); a
 track is one continuous filament or short fibres laid end to end. Neighbours pass load through friction that sticks
@@ -167,6 +176,7 @@ by the search and may contain some of this.
   and test for stubborn part turns.
 - A rig with tubes, for the tube yarn's grip.
 - The bundle-size study (a hose's weight share against fibre count, 13 to 55 to 147).
-- Figures from CAD⁴ and the bench. An independent audit.
+- Figures of the bench (a rope under load, force curves, the distributions) and of the twist experiment; the rope
+  figures exist (`figures.mjs`). An independent audit.
 - Authors as for the atoms paper; where a venue does not accept an AI author, a contribution statement and the PI's
   byline.

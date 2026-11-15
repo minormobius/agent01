@@ -265,7 +265,10 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
 `REFERENCES.md` (each source and how far it was checked), `CONFIGURATIONS.md` (the design space and corrections) and
 `OUTLINE.md`. **Every bench number in the draft must come from a baked file in `pull/data/`**: add it to
 `papers/r1/test/ledger.selftest.mjs`, which fails when the draft and the data part. Re-running a study changes the
-data, so re-run the ledger and edit the draft with it.
+data, so re-run the ledger and edit the draft with it. The rope figures (`papers/r1/figures.html`, `fig/*.webp`) are drawn by CAD⁴ itself:
+`NODE_PATH=$(npm root -g) node kata/papers/r1/figures.mjs [rope …]` loads each part headless and sets the slice through
+`CAD4.pose({ E, off, yaw, pitch, zoom, tint })` (two cross-sections x, y, z along the rope and one side view x, y, w;
+`tint: 0` turns off the ana/kata colouring so parts keep their colours). Redraw after changing a rope's part.
 
 ## Coordinates
 
