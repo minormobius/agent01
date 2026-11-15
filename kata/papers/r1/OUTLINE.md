@@ -4,6 +4,11 @@
 claim. The PI agreed to the narrow paper the same day, and widened the work first: the design space
 ([CONFIGURATIONS.md](CONFIGURATIONS.md)) and cabling. Nothing is written as prose.**
 
+**2026-11-15: a first draft exists, [DRAFT.md](DRAFT.md), under a different frame agreed with the PI:** not "why twist
+cannot grip" but *rope after the knot*: "knots untie in 4D" is overstated as a verdict on cordage, because every
+function returns once one part is a surface. `test/ledger.selftest.mjs` holds the draft's bench numbers to the baked
+data. The claims list below is the older, narrower one; the draft's section 7 supersedes it.
+
 The bar is the atoms paper's (`four/papers/p1`): checkable claims, verified references, reproducible numbers, every
 number in the text from a baked file and checked against it.
 

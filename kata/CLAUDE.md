@@ -259,6 +259,14 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   - IRIS⁴'s march fixes reach Lean only by hand. After a change to `four/iris/js/world.js`'s `march()` or the shader's,
     port it here and run both selftests.
 
+## The paper
+
+`papers/r1/` is a draft write-up of the rope work (`DRAFT.md`: *Rope after the knot*), with `PRIOR-ART.md`,
+`REFERENCES.md` (each source and how far it was checked), `CONFIGURATIONS.md` (the design space and corrections) and
+`OUTLINE.md`. **Every bench number in the draft must come from a baked file in `pull/data/`**: add it to
+`papers/r1/test/ledger.selftest.mjs`, which fails when the draft and the data part. Re-running a study changes the
+data, so re-run the ledger and edit the draft with it.
+
 ## Coordinates
 
 The code keeps IRIS⁴'s: **y is up**, the ground is x, z and w. In conversation the principal's 4D bicycle has had z up
@@ -295,6 +303,7 @@ node kata/cad4/test/knots.selftest.mjs # ~40 s
 node kata/cad4/test/machines.selftest.mjs # ~30 s (pulley, tackle, room, spinneret)
 node kata/twist/test/twist.selftest.mjs # ~60 s
 node kata/pull/test/pull.selftest.mjs # ~10 s
+node kata/papers/r1/test/ledger.selftest.mjs # < 1 s (the draft's numbers against the baked data)
 node kata/house/test/house.selftest.mjs # ~1 s
 node kata/brut4/test/brut4.selftest.mjs # ~12 s
 ```

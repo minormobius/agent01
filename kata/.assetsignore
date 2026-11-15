@@ -4,3 +4,4 @@ CLAUDE.md
 test/
 */test/
 wrangler.jsonc
+papers/*/test/
