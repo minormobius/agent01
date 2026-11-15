@@ -291,10 +291,19 @@ for games, and this is a modelling programme with publications to come. The game
   sequence's light, cool end (2100–3100 K) does stir (zones to 37% of the mass, down to 0.69 R): the analogue is
   1.6–7× heavier than the heaviest stirring star, the ratio falling as G^−0.054, so it closes only near G ≈ 10⁻⁷ × ours
   (10⁻¹¹–10⁻⁴·⁷ by strength; extrapolated far past the grid). Carter's coincidence pulls G strong, ten decades from the rock.
-  **Ours as the check fails, for a named reason:** without H⁻ free–free (and molecules, Rayleigh), our zero-age Sun's
-  photosphere is ~40× too transparent. Those processes need neutral hydrogen, which 4D's analogue photospheres lack, and
-  any opacity added can only deepen the cool stars' zones, so the 4D verdict stands as a bound; the ours check needs
-  e–H scattering (σ_mt) for free–free before it passes.
+  **Ours as the check, now passing (PI, 2026-11-15: "make the check"):** `atom/js/eh.js` (electron–hydrogen by static
+  exchange in d dimensions, exchange from hf.js's Gegenbauer `akTable`; ours' scattering lengths 8.143 / 2.351 a₀, the
+  static-exchange values) gives σ_mt and, in the soft-photon limit with each world's Kirchhoff, free–free on neutral
+  hydrogen (ours' H⁻ free–free), baked into `surfacedata.js` (`Hff`). `fusion/tools/surfacecheck.mjs` →
+  `papers/p2/data/surfacecheck.json`: ours' H⁻ free–free / Bell & Berrington 1987 (Korg.jl's transcription) = 1.01–1.36
+  over 3150–10 080 K and 0.5–9 µm, nothing fitted; H⁻ photodetachment's peak 2.3× McLaughlin et al. 2017's (factor 0.43,
+  the band's other edge, `hm`); our metal-free zero-age stars stir deep to 1.12 M☉, thinly at 1.25, wafers only from
+  1.4 M☉ (Pols §9.2's boundary); the three coolest (< 3100 K, liquid-density photospheres without molecules) are
+  recorded as outside the model. Two artefacts found and fixed on the way: the ground state now pressure-ionizes too
+  (smooth occupation), and free–free on neutrals is zero past its table (10⁵ K) instead of extrapolated. **4D with the
+  full opacity, both H⁻ calibrations (`surface.json`, `surface-hm043.json`):** unchanged — no analogue stirs (zones ≤ 3 ×
+  10⁻¹¹ of the mass), the analogue is 1.6–7× the heaviest stirring star, closing near G ≈ 10⁻⁷ (10⁻¹¹–10⁻⁴·⁷ by
+  strength); 26–30 of 401 cool stars outside the model, all on the cool side.
   **Rerunning the cascade (PI, 2026-11-14: "that felt like an all-day task").** Since the bound, the grid mass model
   agrees with the adopted one everywhere, so routine reruns skip it (no `ALT=` for `windows4`, `eps4`, `lifetimes4`; no
   grid `mainseq` sequences): the committed data keep the last grid runs as the check, and the grid is rerun only when
