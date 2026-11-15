@@ -277,6 +277,24 @@ for games, and this is a modelling programme with publications to come. The game
   10⁻²⁰. **After the bound** (s ≤ 1.6 rerun on the new network, all 15; G 10⁻²³ s 1.6 needed ~25 min) the
   two mass models agree at every point: the s ≤ 1.6 analogues climb past helium to elements 7–13 at 10–25 MK (helium at
   G 10⁻¹¹ s 1.6, 8 MK); the cycle's helium at 9–14 MK is gone.
+  **The surface test, Carter's made 4D (PI, 2026-11-14: "there's gotta be a different G tug than our raw choice.
+  Something in the stars"; "an Earth-like planet isn't real"; then "do the surface properly").** Gravity's raw choice
+  (rock pinning G through an Earth-like planet) is dropped as an argument. In its place, does a Sun-like star stir its
+  outer layers, as ours does? Built from the book's own atoms: `atom/js/photo.js` (photoionization in d dimensions from
+  E1RATE by detailed balance: 4D σ = π³|D_E|² a₀³, ~1/α ours'; checks ours' 1s threshold 6.3036e-18 cm², TRK 0.999 both
+  worlds), `atom/tools/hminus.mjs` (H⁻ by s-wave CI: 4D bound by ≥ 12.3 meV, ours the s-limit; photodetachment, ours
+  ~2× the measured peak), **generated** `atom/js/surfacedata.js` (`atom/tools/surface.mjs bake`, ~5 min), `atom/js/surface.js`
+  (Saha gas with smooth level occupation, ∇_ad, Rosseland opacity, grey atmosphere and envelope, Schwarzschild), and
+  `fusion/tools/surface4.mjs <dir>` → `papers/p2/data/surface.json`. **Results:** 4D hydrogen is half-ionized at only
+  3300–5400 K at photospheric densities (ours 11–16 kK), so no 4D Sun analogue (G 10⁻¹¹–10⁻²⁰, every s) has neutral
+  hydrogen at its photosphere (≤ 8%, mostly 10⁻³–10⁻⁶) or a convective envelope (zones ≤ 3 × 10⁻¹¹ of the mass). Every
+  sequence's light, cool end (2100–3100 K) does stir (zones to 37% of the mass, down to 0.69 R): the analogue is
+  1.6–7× heavier than the heaviest stirring star, the ratio falling as G^−0.054, so it closes only near G ≈ 10⁻⁷ × ours
+  (10⁻¹¹–10⁻⁴·⁷ by strength; extrapolated far past the grid). Carter's coincidence pulls G strong, ten decades from the rock.
+  **Ours as the check fails, for a named reason:** without H⁻ free–free (and molecules, Rayleigh), our zero-age Sun's
+  photosphere is ~40× too transparent. Those processes need neutral hydrogen, which 4D's analogue photospheres lack, and
+  any opacity added can only deepen the cool stars' zones, so the 4D verdict stands as a bound; the ours check needs
+  e–H scattering (σ_mt) for free–free before it passes.
   **Rerunning the cascade (PI, 2026-11-14: "that felt like an all-day task").** Since the bound, the grid mass model
   agrees with the adopted one everywhere, so routine reruns skip it (no `ALT=` for `windows4`, `eps4`, `lifetimes4`; no
   grid `mainseq` sequences): the committed data keep the last grid runs as the check, and the grid is rerun only when
@@ -630,7 +648,7 @@ for games, and this is a modelling programme with publications to come. The game
     The seeds are the neutral configurations within two electrons, moved to the ion's count. Ion candidates count only
     if every occupied orbital is bound and E > E_neutral − 1 Ha, because an anion's extra electron in a subshell with no
     bound level otherwise "settles" on nonsense (orbital energy 0, totals thousands of hartree low). Sandbox checks: 26⁺
-    is 3d² 4s¹ and keeps its singlet; 9⁻ (2p⁶) is bound by about 0.8 eV; H⁻ and 12⁻ are not. H⁻ *is* bound in ours (0.75
+    is 3d² 4s¹ and keeps its singlet; 9⁻ (2p⁶) is bound by about 0.8 eV; H⁻ and 12⁻ are not. (**Corrected 2026-11-15:** 4D H⁻ *is* bound, by ≥ 12.3 meV, a variational proof by s-wave CI, `atom/tools/hminus.mjs`; the local-exchange search misses it as it misses our own H⁻. Paper 1's v1 says otherwise; the fix goes into the draft and the next version.) H⁻ *is* bound in ours (0.75
     eV), so the anion method is checked on ours first. Queued as `ions-1`: both charges, both worlds.
     **Result (`ions-1`, 350 searches, exit 0; `papers/p1/ions-collect.mjs` → `data/ions.json`):**
     - **Ours:** the cation search changes no ionization. Anions: 7 of 7 unbound right, every p-block acceptor bound
