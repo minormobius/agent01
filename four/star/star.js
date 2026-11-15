@@ -74,7 +74,7 @@ function draw() {
   const four = state.world === "four", W = four ? state.w : 0, K = Math.sqrt(Math.max(0, 1 - W * W)), M = rotM(), sm = samples(st);
   gl.uniformMatrix3fv(U("R"), false, new Float32Array([M[0][0], M[1][0], M[2][0], M[0][1], M[1][1], M[2][1], M[0][2], M[1][2], M[2][2]]));
   const s = Math.min(w, h) / 2 / 1.25; gl.uniform2f(U("asp"), w / 2 / s, h / 2 / s); gl.uniform1f(U("zoom"), state.zoom); gl.uniform1f(U("K"), K); gl.uniform1f(U("W"), W);
-  gl.uniform1f(U("cut"), !four || W > 0 ? 1 : 0); gl.uniform1f(U("time"), (performance.now() - t0) / 1000); gl.uniform3f(U("surf"), ...st.colour);
+  gl.uniform1f(U("cut"), !four || W >= 0 ? 1 : 0); gl.uniform1f(U("time"), (performance.now() - t0) / 1000); gl.uniform3f(U("surf"), ...st.colour);
   gl.uniform1fv(U("heat"), sm.heat); gl.uniform1fv(U("conv"), sm.conv); gl.uniform1fv(U("burn"), sm.burn);
   const thin = (st.layers.env ?? []).filter((z) => !z.deep && z.bot >= 0.97).reduce((a, z) => (z.mass > (a?.mass ?? -1) ? z : a), null);
   gl.uniform2f(U("env"), thin ? Math.min(1, thin.top + 0.004) : 1, thin ? Math.max(0, thin.bot - 0.004) : 1); gl.uniform1f(U("envDeep"), 0);
@@ -95,15 +95,15 @@ function layerList(st) {
 function labels(M, s, w, h, W, K, st) {
   const svg = $("leaders"), box = $("labels"); svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
   const faces = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], facing = (n) => M[2][0] * n[0] + M[2][1] * n[1] + M[2][2] * n[2];
-  const cutOn = state.world === "ours" || W > 0, f = faces.map((n, i) => ({ i, z: facing(n) })).sort((a, b) => b.z - a.z)[0];
+  const cutOn = state.world === "ours" || W >= 0, f = faces.map((n, i) => ({ i, z: facing(n) })).sort((a, b) => b.z - a.z)[0];
   const proj = (p) => { const x = M[0][0] * p[0] + M[0][1] * p[1] + M[0][2] * p[2], y = M[1][0] * p[0] + M[1][1] * p[1] + M[1][2] * p[2]; return [w / 2 + x * s * state.zoom, h / 2 - y * s * state.zoom]; };
   let lines = "", html = ""; const list = layerList(st), right = w > 520, col = right ? w - 12 : null;
-  const items = list.map((L) => { const rho = Math.sqrt(Math.max(0, L.r * L.r - W * W)); if (L.r <= Math.abs(W)) return { ...L, hidden: true };
+  const items = list.filter((L) => cutOn || L.surf).map((L) => { const rho = Math.sqrt(Math.max(0, L.r * L.r - W * W)); if (L.r <= Math.abs(W)) return { ...L, hidden: true };
     let p; if (L.surf || !cutOn || f.z < 0.12) { p = [-0.55 * K, 0.6 * K, 0.58 * K]; const m = Math.hypot(...p); p = p.map((v) => (v / m) * K * 0.999); }
     else { const a = (f.i + 1) % 3, b = (f.i + 2) % 3; p = [0, 0, 0]; p[a] = rho / Math.SQRT2; p[b] = rho / Math.SQRT2; }
     return { ...L, xy: proj(p) }; }).filter((x) => !x.hidden);
   items.sort((a, b) => a.xy[1] - b.xy[1]);
-  items.forEach((L, k) => { const ty = right ? 24 + k * ((h - 48) / Math.max(1, items.length - 1)) : h - 14 - (items.length - 1 - k) * 34, tx = right ? col : 12;
+  items.forEach((L, k) => { const ty = right ? 24 + k * ((h - 76) / Math.max(1, items.length - 1)) : h - 14 - (items.length - 1 - k) * 34, tx = right ? col : 12;
     lines += `<path d="M${L.xy[0].toFixed(1)},${L.xy[1].toFixed(1)} L${(right ? tx - 170 : L.xy[0]).toFixed(1)},${(ty).toFixed(1)}${right ? ` L${(tx - 4).toFixed(1)},${ty.toFixed(1)}` : ""}" fill="none" stroke="rgba(230,236,255,0.55)" stroke-width="1"/><circle cx="${L.xy[0].toFixed(1)}" cy="${L.xy[1].toFixed(1)}" r="2.6" fill="#fff"/>`;
     html += `<div class="lab" style="${right ? `right:12px;top:${(ty - 9).toFixed(0)}px;text-align:right` : `left:12px;top:${(ty - 9).toFixed(0)}px`}"><b>${L.name}</b><small>${L.sub}</small></div>`; });
   svg.innerHTML = right ? lines : ""; box.innerHTML = right ? html : ""; $("legendSmall").innerHTML = right ? "" : items.map((L) => `<div><b>${L.name}</b> — ${L.sub}</div>`).join("");
@@ -125,15 +125,15 @@ function readout() {
 }
 function profile(st) {
   const c = $("prof"), dpr = Math.min(2, window.devicePixelRatio || 1), w = c.clientWidth, h = c.clientHeight; c.width = w * dpr; c.height = h * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
-  const L = 40, R = w - 10, T = 28, B = h - 26, X = (x) => L + x * (R - L), p = st.prof.filter((q) => q[1] != null);
+  const L = 40, R = w - 10, T = 28, B = h - 42, X = (x) => L + x * (R - L), p = st.prof.filter((q) => q[1] != null);
   const lT = p.map((q) => q[1]), lR = p.map((q) => q[2]).filter((v) => v != null), Ty = (v) => B - ((v - Math.min(...lT)) / (Math.max(...lT) - Math.min(...lT) || 1)) * (B - T), Ry = (v) => B - ((v - Math.min(...lR)) / (Math.max(...lR) - Math.min(...lR) || 1)) * (B - T);
   const env = st.layers.env ?? [], deep = env.find((z) => z.deep || z.bot < 0.97);
   g.fillStyle = "rgba(111,224,255,0.10)"; if (st.layers.cc > 0.02) g.fillRect(X(0), T, X(st.layers.cc) - X(0), B - T); if (deep) g.fillRect(X(deep.bot), T, X(1) - X(deep.bot), B - T);
   g.fillStyle = "rgba(255,240,180,0.12)"; g.fillRect(X(0), T, X(st.layers.b90) - X(0), B - T);
   const line = (ys, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); p.forEach((q, k) => { const y = ys(q); if (y == null) return; k ? g.lineTo(X(q[0]), y) : g.moveTo(X(q[0]), y); }); g.stroke(); };
   line((q) => Ty(q[1]), "#ffb35c"); line((q) => (q[2] == null ? null : Ry(q[2])), "#8fd3ff"); line((q) => B - q[3] * (B - T), "rgba(255,255,255,0.55)");
-  g.fillStyle = "#9aa3b8"; g.font = "11px ui-monospace, monospace"; g.fillText("centre", L, h - 8); g.textAlign = "right"; g.fillText("surface  r/R →", R, h - 8); g.textAlign = "left";
-  g.fillStyle = "#ffb35c"; g.fillText("— temperature", L, 14); g.fillStyle = "#8fd3ff"; g.fillText("— density", L + 112, 14); g.fillStyle = "rgba(255,255,255,0.75)"; g.fillText("— light made so far (0 → all)", L + 196, 14); g.fillStyle = "rgba(160,220,255,0.75)"; g.textAlign = "center"; g.fillText("blue band: stirred · pale band: where light is made", (L + R) / 2, h - 8); g.textAlign = "left";
+  g.fillStyle = "#9aa3b8"; g.font = "11px ui-monospace, monospace"; g.fillText("centre", L, h - 26); g.textAlign = "right"; g.fillText("surface  r/R →", R, h - 26); g.textAlign = "left";
+  g.fillStyle = "#ffb35c"; g.fillText("— temperature", L, 14); g.fillStyle = "#8fd3ff"; g.fillText("— density", L + 112, 14); g.fillStyle = "rgba(255,255,255,0.75)"; g.fillText("— light made so far (0 → all)", L + 196, 14); g.fillStyle = "rgba(160,220,255,0.75)"; g.textAlign = "center"; g.fillText("blue band: stirred · pale band: where light is made", (L + R) / 2, h - 6); g.textAlign = "left";
   g.save(); g.translate(12, (T + B) / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillStyle = "#9aa3b8"; g.fillText("log scale, each its own", 0, 0); g.restore();
 }
 /* ——— controls ——— */
@@ -144,7 +144,7 @@ function sync() {
   $("fourctl").hidden = !four; $("wrow").hidden = !four;
   chips($("gchips"), GS, state.G, (g) => `10${sup(Math.round(Math.log10(g)))}`, (g) => { state.G = g; state.i = nearestSun(); sync(); });
   chips($("schips"), SS, state.s, (s) => String(s), (s) => { state.s = s; state.i = nearestSun(); sync(); });
-  $("wval").textContent = state.w.toFixed(2); $("wnote").textContent = state.w > 0 ? "this slice crosses the cut orthant, so the cut is open" : state.w < 0 ? "this slice misses the cut orthant: the ball is whole here" : "the middle slice";
+  $("wval").textContent = state.w.toFixed(2); $("wnote").textContent = state.w > 0 ? "this slice crosses the cut orthant, so the cut is open" : state.w < 0 ? "this slice misses the cut orthant: the ball is whole here; slide w above 0 to open it" : "the middle slice, on the cut orthant's edge";
   readout(); save();
 }
 function save() { try { history.replaceState(null, "", `#${state.world}${state.world === "four" ? `/${state.G}/${state.s}` : ""}/${state.i}${state.world === "four" ? `/${state.w.toFixed(2)}` : ""}`); } catch {} }
