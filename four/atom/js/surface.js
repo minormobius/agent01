@@ -36,8 +36,10 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
   // measured one, so 0.5 is the band's other edge); 0 leaves H⁻ out
   const HM = SURFACE.worlds[d].Hminus, hminusSigma = hm ? (wEv) => hm * lin(HM.w_eV, HM.sigma, wEv) * A0 ** (d - 1) : null;
   const W = SURFACE.worlds[d], H = W.H, He2 = W.HeII, chiH = -H[0].E_eV, chiHe1 = ionE(d, 2), chiHe2 = -He2[0].E_eV, a = aRad(d), sig = sigmaSB(d);
-  const cutLevels = (lv, nTot) => { const half = 0.5 * nTot ** (-1 / d); return lv.filter((v) => 1.5 * (v.N + (d - 3) / 2) ** 2 * A0 < half || v === lv[0]); };
-  const U = (lv, kT) => lv.reduce((t, v) => t + v.g * Math.exp(-(v.E_eV - lv[0].E_eV) / kT), 0);
+  // levels weighted by a smooth occupation probability, w = exp(−(r_orbit/half-spacing)³), r_orbit = 1.5ν²a₀ (a hard cut
+  // made the partition function jump with density, and ∇_ad's numerical derivative with it)
+  const cutLevels = (lv, nTot) => { const half = 0.5 * nTot ** (-1 / d); return lv.map((v, i) => ({ ...v, w: i === 0 ? 1 : Math.exp(-(((1.5 * (v.N + (d - 3) / 2) ** 2 * A0) / half) ** 3)) })).filter((v) => v.w > 1e-12); };
+  const U = (lv, kT) => lv.reduce((t, v) => t + v.w * v.g * Math.exp(-(v.E_eV - lv[0].E_eV) / kT), 0);
   /* the gas at T, ρ: populations (m⁻ᵈ), P, the internal energy per volume */
   function state(T, rho) {
     const kT = (SI.k * T) / EV, nH = (rho * X) / MH, nHe = (rho * Y) / MHE, nTot = nH + nHe, LH = cutLevels(H, nTot), LHe = cutLevels(He2, nTot);
@@ -48,7 +50,7 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
     let lo = Math.log(1e-30 * nTot + 1e-300), hi = Math.log(1.5 * (nH + 2 * nHe));
     for (let it = 0; it < 80; it++) { const m = (lo + hi) / 2, ne = Math.exp(m), p = pops(ne); if (ne - (p.hp + p.he1 + 2 * p.he2 - p.hm) > 0) hi = m; else lo = m; }
     const ne = Math.exp((lo + hi) / 2), p = pops(ne), Pg = (nH + nHe + ne) * SI.k * T, Pr = (a * T ** (d + 1)) / d;
-    const exc = LH.reduce((t, v) => t + v.g * Math.exp(-(v.E_eV - LH[0].E_eV) / kT) * (v.E_eV - LH[0].E_eV), 0) / UH;
+    const exc = LH.reduce((t, v) => t + v.w * v.g * Math.exp(-(v.E_eV - LH[0].E_eV) / kT) * (v.E_eV - LH[0].E_eV), 0) / UH;
     const u = (d / 2) * (nH + nHe + ne) * SI.k * T + EV * (chiH * p.hp - chiHm * p.hm + chiHe1 * p.he1 + (chiHe1 + chiHe2) * p.he2 + exc * p.h0) + a * T ** (d + 1);
     return { T, rho, ne, ...p, Pg, Pr, P: Pg + Pr, u, UH, LH, LHe, UHe2, kT, xH: p.hp / nH };
   }
@@ -58,14 +60,15 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
   function gradAd(T, rho) {
     const s0 = state(T, rho), dl = 1e-4, rho1 = rho * Math.exp(dl), um0 = s0.u / rho, target = um0 + (s0.P / rho) * dl; // ∫(P/ρ²)dρ ≈ (P/ρ) dlnρ
     let t1 = 0, t2 = 1e-4; const g = (t) => state(T * Math.exp(t), rho1).u / rho1 - target, g1 = g(t1), g2 = g(t2), t = t1 - (g1 * (t2 - t1)) / (g2 - g1);
-    return t / Math.log(state(T * Math.exp(t), rho1).P / s0.P);
+    const r = t / Math.log(state(T * Math.exp(t), rho1).P / s0.P);
+    if (!(r > 0.02 && r < 0.75)) throw new Error(`∇_ad ${r} at T ${T}, ρ ${rho}: the equation of state is not smooth there`); return r;
   }
   /* the monochromatic opacity per length at x = ħω/kT, and the Rosseland mean per mass */
   const XS = Array.from({ length: 900 }, (_, i) => 0.01 * 1.0095 ** i).filter((x) => x < 60), WT = XS.map((x) => x ** (d + 1) * Math.exp(x) / Math.expm1(x) ** 2);
   const dX = XS.map((x, i) => (i ? x - XS[i - 1] : x)), W0 = WT.reduce((t, w, i) => t + w * dX[i], 0);
   function kappaParts(st) {
     const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [] }, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
-    const popH = st.LH.map((v) => (st.h0 * v.g * Math.exp(-(v.E_eV - st.LH[0].E_eV) / kT)) / st.UH), popHe = st.LHe.map((v) => (st.he1 * v.g * Math.exp(-(v.E_eV - st.LHe[0].E_eV) / kT)) / st.UHe2);
+    const popH = st.LH.map((v) => (st.h0 * v.w * v.g * Math.exp(-(v.E_eV - st.LH[0].E_eV) / kT)) / st.UH), popHe = st.LHe.map((v) => (st.he1 * v.w * v.g * Math.exp(-(v.E_eV - st.LHe[0].E_eV) / kT)) / st.UHe2);
     for (const x of XS) { const wEv = x * kT, stim = -Math.expm1(-x), om = (x * SI.k * T) / SI.hbar;
       out.es.push(ne * (d === 3 ? (8 * Math.PI * RE * RE) / 3 : ((3 * Math.PI ** 3) / 4) * RE * RE * (SI.c / om)));
       if (d === 4) out.ff.push(ff * ne * ions * Math.PI ** 5 * ALPHA ** 3 * SI.hbar ** 2 * SI.c ** 3 * (1 + x) * stim / (SI.me ** 2 * om ** 5));
