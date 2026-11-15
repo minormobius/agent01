@@ -108,7 +108,7 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
       push(r, T, P, rho, grad, gad, k, m, grad > gad); m += SD[d] * r ** (d - 1) * rho * dr; r -= dr; P *= Math.exp(dlnP); T *= Math.exp(nab * dlnP); }
     // zones
     const zones = []; let cur = null; rows.forEach((w) => { if (w.conv && !cur) cur = { top: w }; if (cur) cur.bot = w; if (!w.conv && cur) { zones.push(cur); cur = null; } }); if (cur) zones.push({ ...cur, open: true });
-    return { Teff, g: g0, rows, zones: zones.map((z) => ({ Ttop: z.top.T, Tbot: z.bot.T, Ptop: z.top.P, Pbot: z.bot.P, rBot: z.bot.r / R, mass: (z.bot.m - z.top.m) / M, open: !!z.open, maxExcess: Math.max(...rows.filter((w) => w.T >= z.top.T && w.T <= z.bot.T).map((w) => w.grad - w.gad)) })) };
+    return { Teff, g: g0, rows, zones: zones.map((z) => ({ rTop: z.top.r / R, Ttop: z.top.T, Tbot: z.bot.T, Ptop: z.top.P, Pbot: z.bot.P, rBot: z.bot.r / R, mass: (z.bot.m - z.top.m) / M, open: !!z.open, maxExcess: Math.max(...rows.filter((w) => w.T >= z.top.T && w.T <= z.bot.T).map((w) => w.grad - w.gad)) })) };
   }
   return { d, X, Y, chiH, chiHe1, chiHe2, chiHm, state, rhoAt, gradAd, kappaR, envelope };
 }

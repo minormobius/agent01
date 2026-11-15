@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="Cut a star open, ours or four-dimensional: the core where light is made, the stirred and still layers, the photosphere in its own colour. Every layer at its computed radius, every star a zero-age model from the book's own physics." />
+<title>Four · a star, cut open</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section { max-width: 1100px; }
+  .stage { position: relative; height: min(72svh, 620px); background: #07080c; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 12px 0 8px; touch-action: none; }
+  #view { width: 100%; height: 100%; display: block; cursor: grab; }
+  #leaders { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #labels { position: absolute; inset: 0; pointer-events: none; }
+  .lab { position: absolute; font: 600 12px var(--mono); color: #eef2ff; text-shadow: 0 1px 3px #000; max-width: 210px; }
+  .lab small { display: block; font-weight: 400; font-size: 11px; color: #b7c0d6; }
+  .hint { position: absolute; left: 12px; top: 10px; font: 11px var(--mono); color: #8a93a8; }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 13px var(--mono); color: var(--dim); margin: 8px 0; }
+  .ctl input[type=range] { flex: 1; min-width: 200px; accent-color: var(--d4); }
+  .seg button, .chips button, .ctl .go { font: 600 12px var(--mono); background: none; color: var(--dim); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; cursor: pointer; margin: 2px; }
+  .seg button.on, .chips button.on { color: var(--d4); border-color: var(--d4); }
+  .ctl .go { color: var(--d4); border-color: var(--d4); } .ctl .go:disabled { opacity: 0.4; cursor: default; }
+  .ctl b { color: var(--text); } .sunflag { font: 600 11px var(--mono); color: #ffd27a; border: 1px solid #b9a35a; border-radius: 4px; padding: 0 5px; }
+  .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; margin: 10px 0; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+  #readout div { display: grid; grid-template-columns: 130px 1fr; gap: 8px; padding: 4px 0; border-top: 1px solid var(--border); font: 12px/1.5 var(--mono); color: var(--dim); }
+  #readout div:first-child { border-top: none; } #readout b { color: var(--text); font-weight: 600; } .dim { color: var(--dim); font-weight: 400; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(255,255,255,0.3); }
+  #prof { width: 100%; height: 230px; display: block; }
+  #legendSmall { font: 11px/1.6 var(--mono); color: var(--dim); margin-top: 6px; } #legendSmall b { color: var(--text); }
+  p, li { max-width: 780px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../papers/">papers</a><a href="../fusion/">how stars burn</a><a href="../strong/">strong force</a><a href="./" class="here">a star, cut open</a></nav>
+  <h2>four.mino.mobi · a star, cut open</h2>
+  <h1 class="ch">A star, cut open</h1>
+  <p class="lede">The classic cutaway, an eighth of the ball taken out so you can see the layers, for any star the book has
+  computed: ours, or a star in four dimensions of space. Every layer sits at the radius the star's own model puts it, and
+  the surface glows in the colour its blackbody would have in its own world. Drag to turn it.</p>
+</header>
+
+<section>
+  <div class="ctl"><span class="seg" id="world"><button data-v="ours">our world</button><button data-v="four">four dimensions</button></span>
+    <span id="fourctl" hidden>gravity <span class="chips" id="gchips"></span> × ours · strong force s <span class="chips" id="schips"></span></span></div>
+  <div class="ctl"><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:260px">mass <input type="range" id="mass" min="0" max="10" value="0" /> <b id="massval"></b> <span class="sunflag" id="isSun" hidden>Sun-like</span></label>
+    <button class="go" id="tosun">the Sun-like star</button> <span id="sunmark" style="font-size:11px"></span></div>
+  <div class="ctl" id="wrow" hidden><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:260px">slice at w <input type="range" id="w" min="-95" max="95" value="35" /> <b id="wval"></b></label> <span id="wnote" style="font-size:11px"></span></div>
+  <div class="stage"><canvas id="view"></canvas><svg id="leaders"></svg><div id="labels"></div><div class="hint">drag to turn · wheel to zoom</div></div>
+  <div id="legendSmall"></div>
+  <div class="grid">
+    <div class="card"><div id="readout"></div></div>
+    <div class="card"><canvas id="prof"></canvas></div>
+  </div>
+
+  <details class="card" open>
+    <summary><b>How to read it</b></summary>
+    <ul>
+      <li><b>Colours inside</b> are temperature, from the surface's (deep red) to the centre's (white), on a log scale. The
+      bright glow near the middle is where the star makes its light: 90% of it comes from inside the radius named.</li>
+      <li><b>Moving cells</b> mark gas that convects, stirring the layer; smooth bands are radiative, where light diffuses out
+      and the gas stays put. A pale blue ring near the surface is a wafer-thin convective layer, drawn far thicker than it is.</li>
+      <li><b>In four dimensions</b> a star is a 4-ball, and a screen can only show a 3D slice of it. The slider moves the slice
+      through the fourth direction, w: off-centre slices are smaller balls, and each layer of 4D radius r shows at
+      √(r² − w²), so the inner layers vanish from slices far out. The piece cut away is one of the sixteen orthants
+      (x, y, z, w all positive), so the cut only opens on slices with w &gt; 0. On the others the ball is whole.</li>
+      <li><b>Mass and age.</b> Temperature isn't a free choice: mass and age set it. Every star here is <b>zero-age</b>, just
+      settled onto its main sequence; the book has no stellar evolution yet, so there's no age slider. The <b>core clock</b>
+      is the time its centre, as it is now, would take to burn half its hydrogen. In 4D, gravity G and the strong force s are
+      the dials that matter; mass is in Chandrasekhar masses at that G.</li>
+    </ul>
+  </details>
+  <details class="card">
+    <summary><b>Where it comes from, and what to trust</b></summary>
+    <p>Each star is a zero-age model from the book's star solver (<code>atom/js/mainseq.js</code>: hydrostatic balance, energy
+    transport, Fermi–Dirac electrons; in 4D, pinned 1/r gravity summed over the whole profile, the lens vacuum's opacity, and
+    the burning of the 4D reaction network itself). The convective core is read off the solver's own gradient. The outer
+    layers come from the surface model behind paper 2's surface test (<code>atom/js/surface.js</code>: Saha ionization in d
+    dimensions, bound–free, free–free and H⁻ opacity from the book's own atoms), checked on our own stars: free–free against
+    Bell &amp; Berrington's tables to within 36%, and our stars' outer convection switching off between 1.25 and 1.4 solar
+    masses, as textbooks give. The 4D Sun-like star's photosphere is ionized, so it has no convective envelope; the light,
+    cool stars of each sequence do.</p>
+    <p>Not in it: stellar evolution (no age), rotation, metals, and molecules (our coolest stars' surfaces are outside the
+    model, and say so). Envelope depths of deep zones are read from a model that keeps the star's mass fixed, so trust where
+    convection starts more than how much mass it holds.</p>
+  </details>
+</section>
+<script type="module" src="star.js"></script>
+</body>
+</html>
