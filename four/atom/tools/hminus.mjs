@@ -55,7 +55,27 @@ export function hminus(d, { Z = 1, M = 24, lam = 0.25, N = 2000, rlo = 1e-6, rhi
     let v = 2 * (g(p, q, r_, s) + g(p, q, s, r_)); if (p === r_ && q === s) v += (eps[p] + eps[q]) * 2 * (1 + (p === q ? 1 : 0)); return v / (nn[a] * nn[b]); }));
   void H;
   const ec = jacobi(Hn), E = Math.min(...ec.w), nu = d === 3 ? 1 : 1.5, EHx = (-Z * Z) / (2 * nu * nu);
-  return { d, M, lam, N, E, EH_basis: eps[0], EH_exact: EHx, marginMeV: (EHx - E) * 27211.386, configs: conf.length };
+  // the outer electron's orbital, χ(r) = ∫ ϕ₀(r₁) Ψ(r₁, r) dV₁ (ϕ₀ = hydrogen's 1s in the basis): from the configurations (0, q)
+  const g0 = ec.w.indexOf(E), C = ec.V[g0], chi = new Float64Array(N + 1);
+  conf.forEach(([p, q], c) => { if (p !== 0) return; const f = (q === 0 ? 2 : 1) / nn[c]; for (let i = 0; i <= N; i++) chi[i] += C[c] * f * phi[q][i]; });
+  return { d, M, lam, N, E, EH_basis: eps[0], EH_exact: EHx, marginMeV: (EHx - E) * 27211.386, configs: conf.length, r, chi, phi0: phi[0], U00: U.get(P(0, 0)), norm1s: dot(chi, chi) };
+}
+/* photodetachment, H⁻ + γ → H(1s) + e: the final state is H(1s) with a p-wave electron in its static field
+   (−Z/r + the 1s cloud's own potential), symmetrized; the dipole then reduces to √2 ∫ u_ε u_χ r dr (u = r^((d−1)/2)√Ω ×
+   the s-wave function), and σ follows by the same detailed balance as photo.js's. Energies in hartree, σ in a₀^(d−1);
+   the threshold is the s-wave CI's own affinity (pass `affinity` to move it to a measured one). */
+export function photodetach(d, R, ws, { affinity = R.EH_exact - R.E, h = 0.01, rmax = 1600 } = {}) {
+  const { r, chi, U00 } = R, n = Math.ceil(rmax / h), Om = OM[d], Lp = 1 + (d - 3) / 2;
+  const interp = (arr, x) => { if (x <= r[0]) return arr[0]; if (x >= r[r.length - 1]) return 0; const lx = Math.log(x), l0 = Math.log(r[0]), dl = Math.log(r[1]) - l0, f = (lx - l0) / dl, i = Math.floor(f); return arr[i] + (arr[i + 1] - arr[i]) * (f - i); };
+  const uChi = new Float64Array(n + 1), Vst = new Float64Array(n + 1);
+  for (let i = 1; i <= n; i++) { const x = i * h; uChi[i] = x ** ((d - 1) / 2) * Math.sqrt(Om) * interp(chi, x); Vst[i] = -1 / x + interp(U00, x); }
+  return ws.map((w) => { const E = w - affinity; if (E <= 0) return 0;
+    const f = (i) => (Lp * (Lp + 1)) / (i * h) ** 2 + 2 * Vst[i] - 2 * E, u = new Float64Array(n + 1), h2 = (h * h) / 12; u[1] = h ** (Lp + 1); u[2] = (2 * h) ** (Lp + 1);
+    for (let i = 2; i < n; i++) { u[i + 1] = (2 * u[i] * (1 + 5 * h2 * f(i)) - u[i - 1] * (1 - h2 * f(i - 1))) / (1 - h2 * f(i + 1)); if (Math.abs(u[i + 1]) > 1e200) for (let j = 0; j <= i + 1; j++) u[j] *= 1e-200; }
+    const k = Math.sqrt(2 * E); let A2 = 0, m = 0; for (let i = n - 600; i < n; i += 7) { const kl = Math.sqrt(Math.max(1e-30, -f(i))), du = (u[i + 1] - u[i - 1]) / (2 * h); A2 += (u[i] * u[i] + (du * du) / (kl * kl)) * (kl / k); m++; }
+    const s = Math.sqrt(2 / (Math.PI * k)) / Math.sqrt(A2 / m); let I = 0; for (let i = 1; i <= n; i++) I += u[i] * s * uChi[i] * i * h; I *= h;
+    const D2 = 2 * I * I, K = { 3: 4 / 3, 4: (3 * Math.PI) / 8 }[d], ALPHA = 1 / 137.035999084;
+    return (K * ALPHA ** (4 - d) * (2 * Math.PI) ** d * w ** (4 - d) * D2) / ((d - 1) * Om); });
 }
 if (process.argv[1]?.endsWith("hminus.mjs")) { const M = +(process.argv[2] ?? 24), lam = +(process.argv[3] ?? 0.25), N = +(process.argv[4] ?? 2000);
   for (const d of [3, 4]) { const t = Date.now(), R = hminus(d, { M, lam, N }); console.log(JSON.stringify({ ...R, sec: (Date.now() - t) / 1000 })); } }
