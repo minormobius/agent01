@@ -82,7 +82,14 @@ function firstStar(o, M) {
     const s = star({ ...o, M }, [Math.log((rhoc * SI.k * Tc) / (mu * SI.mu)), Math.log(Tc), Math.log(R), Math.log(L)]); if (s.ok) return s; }
   return null;
 }
-const row = (o, m, M, s) => { const r = { m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), qcc: convectiveCore(o.d, s), dL: s.dL ?? null };
+/* a star's interior, compact (for the star cutaway, four/star/): 40 points evenly in r/R, each with m/M, T, ρ, L/L_surface
+   and the actual gradient d ln T/d ln P (equal to the adiabatic one where the solver stirred) */
+function compact(o, s) { const p = s.prof.filter((x) => x.r > 0), R = s.R, M = p.at(-1).m, L = s.L, out = []; let j = 1;
+  for (let i = 0; i < 40; i++) { const x = (i + 0.5) / 40, rr = x * R; while (j < p.length - 1 && p[j].r < rr) j++; const a = p[j - 1], b = p[j], f = Math.max(0, Math.min(1, (rr - a.r) / (b.r - a.r || 1)));
+    const T = a.T + (b.T - a.T) * f, P = a.P + (b.P - a.P) * f, nab = b.P !== a.P ? Math.log(b.T / a.T) / Math.log(b.P / a.P) : null;
+    out.push({ x: +x.toFixed(4), q: +((a.m + (b.m - a.m) * f) / M).toPrecision(4), T: +T.toPrecision(4), rho: +(rhoOf(o.d, P, T, o.comp) || 0).toPrecision(4), l: +((a.L + (b.L - a.L) * f) / L).toPrecision(4), nab: nab == null ? null : +nab.toFixed(4) }); }
+  return out; }
+const row = (o, m, M, s) => { const r = { m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), qcc: convectiveCore(o.d, s), dL: s.dL ?? null, prof: compact(o, s) };
   if (o.th) { r.rhoc = rhoOf(o.d, s.Pc, s.Tc, o.comp); const t = o.th(r.rhoc, s.Tc); r.th = Number.isFinite(t) ? t : null; } return r; };
 
 if (cmd === "ours") {
