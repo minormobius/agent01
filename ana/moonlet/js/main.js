@@ -211,6 +211,13 @@ void main() {
       } else if (db < 0.14 && fract(along / 5.0) > 0.45) { base = cs[jb]; emit = 0.5; }
     }
     col = base * (0.05 + 1.1 * lam) + base * emit * 0.3;
+    // low-key luminous: a faint cool glow everywhere (so the night side still reads), a rim along the limb (so the
+    // horizon always shows against space), and faint contours every 1.5 m of height (so hills read in the dark)
+    float hgt = length(p) - R;
+    float contour = 1.0 - smoothstep(0.0, 0.06, abs(fract(hgt / 1.5 + 0.5) - 0.5));
+    float rim = pow(1.0 - abs(dot(n, -d)), 3.0);
+    vec3 glowC = vec3(0.30, 0.34, 0.55);
+    col += glowC * (0.09 + 0.35 * rim) * (1.0 - 0.6 * lam) + vec3(0.45, 0.5, 0.8) * contour * 0.06 * step(0.3, hgt);
   } else if (h.y < 1.5) {
     col = vec3(0.92, 0.9, 0.86) * (0.12 + 0.9 * lam);
     // the rider's jersey: rose
