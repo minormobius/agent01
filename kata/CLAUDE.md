@@ -272,6 +272,9 @@ data, so re-run the ledger and edit the draft with it. The rope figures (`papers
 The analytic figures and the methods page are `papers/r1/charts.mjs` (→ `fig/*.svg`, `results.html`; < 2 s), drawn with
 `packages/dataviz` from the baked files, including `twist/data/twist.json` (`node kata/twist/bake.mjs`, ~3 min: traces,
 rest states, the ribbon threshold, and the hosed bundle over three seeds). Re-run `charts.mjs` after any study.
+**`DRAFT.md` is the paper's source and `paper.html` is built from it** (`node kata/papers/r1/build.mjs`, < 1 s): the text
+in paper order, `[[fig:N]]` markers replaced by the five main figures (defined in `build.mjs`), and a reference list
+made from the keys the text cites (A1, E8, …) out of `REFERENCES.md`. Edit the draft, run the ledger, run the build.
 
 ## Coordinates
 

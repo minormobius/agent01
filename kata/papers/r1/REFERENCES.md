@@ -83,6 +83,19 @@ revolved plait is its image has still not been seen stated for braids.
 | F7 | N. D. Mermin (1979), "The topological theory of defects in ordered media", *Rev. Mod. Phys.* 51(3), 591–648, doi:10.1103/RevModPhys.51.591 | confirmed | a body with rotational symmetry group G has configuration space SO(3)/G, whose fundamental group is G's lift to SU(2), twice as big. For our packed thirteen (the cuboctahedron's 24 rotations) that is 48 classes, so **some part turns are stubborn as well as the whole one**: TWIST's caveat is real | general rule recalled; the specific "48" is inference |
 | F8 | J. C. Baez, D. K. Wise, A. S. Crans (2007), Theorem 2 (E3); C. Damiani (2017), Prop. 3.14 (E1) | confirmed | the loop braid group's presentation. Of the two mixed relations σσρ = ρσσ, **exactly one holds** (which one depends on the convention: Baez et al. and Damiani differ); the other is the "forbidden move". And a ring passing through its neighbour is a different element from the neighbour passing through it. Copy one source's relations verbatim | **read**, and checked by computing in Aut(F₃) |
 
+| E8 | B. Winter (2009), "The classification of spun torus knots", *J. Knot Theory Ramifications* 18(9), 1287–1298. doi:10.1142/S0218216509007476; arXiv:0711.1638 | confirmed | revolving a knot in a half-space gives its spun torus, which is Tube(K) (Thm 3.4) and has the knot's group (Thm 3.5) | **read** |
+
+## G. The setting, and the nearest physics (from PRIOR-ART.md; statuses as recorded there)
+
+| | Source | Bibliographic | Content we use | Content status |
+|---|---|---|---|---|
+| G1 | Hqak (wxyhly), "4D Space (X): Knots and Links", 2019, wxyhly-en.github.io/archives/knot4d | page seen | chains of rings fall apart in 4D; rings link spheres; unequal tori link | page read by the prior-art pass |
+| G2 | Hqak (wxyhly), "4D World (VI): Newtonian Mechanics", 2020, wxyhly-en.github.io/archives/newton4 | page seen | a rigid-body simulation of a linked chain in 4D | page read by the prior-art pass |
+| G3 | Hqak (wxyhly), 2016, wxyhly-en.github.io/archives/lavie4ds | page seen | 4D cloth is woven of sheets; beads and shells on a string | page read by the prior-art pass |
+| G4 | A. Seguin, J. Crassous (2022), *Phys. Rev. Lett.* 128, 078002 | record only | why twist grips in three dimensions: frictional amplification with twist | not read |
+| G5 | P. B. Warren, R. C. Ball, R. E. Goldstein (2018), *Phys. Rev. Lett.* 120, 158001 | record only | why staple yarn holds: tension transmission through friction | not read |
+| G6 | hi.gher.space forum threads "4d weaving" (2010) and "N-Dimensional Knots" | **could not be fetched** | may contain parts of sections 3.2 to 3.3 | unread |
+
 Not found: the Price–Roseman paper on embeddings of the projective plane as a journal article (it is cited as a 1975
 University of Iowa preprint); any paper titled "Borromean rings in higher dimensions".
 

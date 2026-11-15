@@ -80,3 +80,10 @@ is good to 20% below 20° and 1.4× low above. The hose rope stays 1.06–1.11 p
 not tighten under load unless its Poisson ratio exceeds its fibres': its squeeze is a shrink fit of about 0.5%.
 Still to do before writing: the bundle-size study; a page check of every *partial* source; and one line proving that
 revolving a planar braid realises the standard embedding of the braid group in the loop braid group (REFERENCES E).
+
+## Full draft (2026-11-15)
+
+`DRAFT.md` is now the whole paper in order (abstract, introduction, methods, results, trust, discussion,
+contributions, supplement, status) and `paper.html` is built from it with the five main figures and the cited
+references. Supplement A is `figures.html` (twelve ropes, four panels each), B is `results.html` (fourteen charts with
+methods). What stands between this and a submission is in the draft's own status section.
