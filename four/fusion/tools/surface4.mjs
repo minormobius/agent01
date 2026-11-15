@@ -6,7 +6,7 @@
      node four/fusion/tools/surface4.mjs <dir of net-*.json>      (~1.5 h in the sandbox; a runner job if rerun often) */
 import * as S from "../../atom/js/surface.js";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-const dir = process.argv[2], G0 = 6.6743e-11, w = S.world(4), out = [];
+const dir = process.argv[2], G0 = 6.6743e-11, HM = +(process.env.HM ?? 1), w = S.world(4, { hm: HM }), out = [];
 const D = JSON.parse(readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url)));
 for (const f of readdirSync(dir)) { const R = JSON.parse(readFileSync(`${dir}/${f}`)); if (!R.rows?.length) continue;
   const stars = R.rows.filter((r) => r.Teff < 7000).sort((a, b) => a.m - b.m), res = [];
@@ -19,4 +19,4 @@ for (const f of readdirSync(dir)) { const R = JSON.parse(readFileSync(`${dir}/${
   out.push({ G: R.Grel, s: R.s, sunM: sun?.m ?? null, sunTeff: sun?.Teff ?? null, sunEnv, stars: res });
   const conv = res.filter((x) => x.mass > 1e-6), mc = conv.length ? Math.max(...conv.map((x) => x.m)) : null;
   console.log(`G ${R.Grel} s ${R.s}: ${res.length} stars < 7000 K; heaviest with an envelope zone ≥ 1e-6 M: ${mc ?? "none"}${mc && sun ? ` (Sun analogue ${sun.m.toFixed(2)} M_Ch, ratio ${(sun.m / mc).toFixed(1)})` : ""}${res.some((x) => x.error) ? ` [${res.filter((x) => x.error).length} errors]` : ""}`); }
-writeFileSync(new URL("../../papers/p2/data/surface.json", import.meta.url), JSON.stringify({ about: "fusion/tools/surface4.mjs: per 4D main sequence (G × ours, s), every star under 7000 K and the Sun analogue: the neutral fraction of hydrogen at the photosphere and the deepest convective zone (mass fraction, r_bot/R), from atom/js/surface.js", runs: out }));
+writeFileSync(new URL(`../../papers/p2/data/${process.env.OUT ?? "surface.json"}`, import.meta.url), JSON.stringify({ hm: HM, about: "fusion/tools/surface4.mjs: per 4D main sequence (G × ours, s), every star under 7000 K and the Sun analogue: the neutral fraction of hydrogen at the photosphere and the deepest convective zone (mass fraction, r_bot/R), from atom/js/surface.js", runs: out }));

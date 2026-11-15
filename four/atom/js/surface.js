@@ -31,9 +31,15 @@ const EV = 1.602176634e-19, A0 = 0.529177210903e-10, ALPHA = 1 / 137.035999084, 
 const lin = (xs, ys, x) => { if (x <= xs[0]) return ys[0]; const n = xs.length; if (x >= xs[n - 1]) return ys[n - 1] * (xs[n - 1] / x) ** 3; let i = 0, j = n - 1; while (j - i > 1) { const m = (i + j) >> 1; if (xs[m] > x) j = m; else i = m; } const f = Math.log(x / xs[i]) / Math.log(xs[j] / xs[i]); return Math.exp(Math.log(ys[i] || 1e-300) * (1 - f) + Math.log(ys[j] || 1e-300) * f); };
 const ionE = (d, Z) => TABLE[String(d)].find((e) => e.Z === Z).ion * 27.211386245988; // the book's first ionization, eV
 
-export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, hm = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV } = {}) {
+export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, hm = 1, hff = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV } = {}) {
   // H⁻'s photodetachment from the baked table (a₀^(d−1) → m^(d−1)), × hm (1 as computed; ours' computed peak is ~2× the
   // measured one, so 0.5 is the band's other edge); 0 leaves H⁻ out
+  // free–free on neutral hydrogen (ours' H⁻ free–free), from atom/js/eh.js by way of the bake: κ_ω = n_e n_H × c(T, x)
+  const HF = SURFACE.worlds[d].Hff, hffCoef = (T, x) => { const lt = Math.log(T), lx = Math.log(x), Ts = HF.T, Xs = HF.x;
+    const fi = Math.min(Ts.length - 1.001, Math.max(0, (lt - Math.log(Ts[0])) / (Math.log(Ts[1]) - Math.log(Ts[0])))), fj = Math.min(Xs.length - 1.001, Math.max(0, (lx - Math.log(Xs[0])) / (Math.log(Xs[1]) - Math.log(Xs[0]))));
+    const i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j, L = HF.logc;
+    let c = Math.exp(L[i][j] * (1 - u) * (1 - v) + L[i + 1][j] * u * (1 - v) + L[i][j + 1] * (1 - u) * v + L[i + 1][j + 1] * u * v);
+    if (x < Xs[0]) c *= (Xs[0] / x) ** 3; return c * A0 ** (2 * d - 1); };
   const HM = SURFACE.worlds[d].Hminus, hminusSigma = hm ? (wEv) => hm * lin(HM.w_eV, HM.sigma, wEv) * A0 ** (d - 1) : null;
   const W = SURFACE.worlds[d], H = W.H, He2 = W.HeII, chiH = -H[0].E_eV, chiHe1 = ionE(d, 2), chiHe2 = -He2[0].E_eV, a = aRad(d), sig = sigmaSB(d);
   // levels weighted by a smooth occupation probability, w = exp(−(r_orbit/half-spacing)³), r_orbit = 1.5ν²a₀ (a hard cut
@@ -64,10 +70,11 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
     if (!(r > 0.02 && r < 0.75)) throw new Error(`∇_ad ${r} at T ${T}, ρ ${rho}: the equation of state is not smooth there`); return r;
   }
   /* the monochromatic opacity per length at x = ħω/kT, and the Rosseland mean per mass */
+  const useHff = hff;
   const XS = Array.from({ length: 900 }, (_, i) => 0.01 * 1.0095 ** i).filter((x) => x < 60), WT = XS.map((x) => x ** (d + 1) * Math.exp(x) / Math.expm1(x) ** 2);
   const dX = XS.map((x, i) => (i ? x - XS[i - 1] : x)), W0 = WT.reduce((t, w, i) => t + w * dX[i], 0);
   function kappaParts(st) {
-    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [] }, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
+    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [], hff: [] }, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
     const popH = st.LH.map((v) => (st.h0 * v.w * v.g * Math.exp(-(v.E_eV - st.LH[0].E_eV) / kT)) / st.UH), popHe = st.LHe.map((v) => (st.he1 * v.w * v.g * Math.exp(-(v.E_eV - st.LHe[0].E_eV) / kT)) / st.UHe2);
     for (const x of XS) { const wEv = x * kT, stim = -Math.expm1(-x), om = (x * SI.k * T) / SI.hbar;
       out.es.push(ne * (d === 3 ? (8 * Math.PI * RE * RE) / 3 : ((3 * Math.PI ** 3) / 4) * RE * RE * (SI.c / om)));
@@ -76,12 +83,12 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
       let bh = 0; st.LH.forEach((v, i) => { if (wEv > -v.E_eV) bh += popH[i] * lin(v.w_eV, v.sigma, wEv) * aU; });
       let bhe = 0; st.LHe.forEach((v, i) => { if (wEv > -v.E_eV) bhe += popHe[i] * lin(v.w_eV, v.sigma, wEv) * aU; });
       if (wEv > chiHe1) bhe += st.he0 * lin(H[0].w_eV, H[0].sigma, (wEv * chiH) / chiHe1) * aU; // He I on hydrogen's 1s shape (approximate)
-      out.bfH.push(bh * stim); out.bfHe.push(bhe * stim); out.hm.push(hminusSigma && wEv > chiHm ? st.hm * hminusSigma(wEv) * stim : 0); }
+      out.bfH.push(bh * stim); out.bfHe.push(bhe * stim); out.hm.push(hminusSigma && wEv > chiHm ? st.hm * hminusSigma(wEv) * stim : 0); out.hff.push(useHff ? useHff * ne * st.h0 * hffCoef(T, x) : 0); }
     return out;
   }
   function kappaR(T, rho, { parts = false } = {}) {
-    const st = state(T, rho), k = kappaParts(st); let s = 0; const share = { es: 0, ff: 0, bfH: 0, bfHe: 0, hm: 0 };
-    XS.forEach((x, i) => { const tot = k.es[i] + k.ff[i] + k.bfH[i] + k.bfHe[i] + k.hm[i]; s += (WT[i] * dX[i]) / tot; for (const key in share) share[key] += (WT[i] * dX[i] * k[key][i]) / tot / tot; });
+    const st = state(T, rho), k = kappaParts(st); let s = 0; const share = { es: 0, ff: 0, bfH: 0, bfHe: 0, hm: 0, hff: 0 };
+    XS.forEach((x, i) => { const tot = k.es[i] + k.ff[i] + k.bfH[i] + k.bfHe[i] + k.hm[i] + k.hff[i]; s += (WT[i] * dX[i]) / tot; for (const key in share) share[key] += (WT[i] * dX[i] * k[key][i]) / tot / tot; });
     const kr = W0 / s / rho; if (!parts) return kr; const n = Object.values(share).reduce((a, b) => a + b, 0); for (const key in share) share[key] /= n; return { kappa: kr, share, st };
   }
   /* the envelope of a star of mass M, radius R, luminosity L under gravity G */

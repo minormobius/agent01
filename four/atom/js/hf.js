@@ -34,7 +34,7 @@ const quadGraded = (f, width) => { let s = 0, a = 0, b = Math.max(1e-7, width); 
 
 /* a_k(t) tabulated on t ∈ [0, 1] (2000 intervals, linear), and the angular weights B_k(l, l') */
 const AK = {};
-function akTable(D, k) {
+export function akTable(D, k) {
   const key = `${D}:${k}`; if (AK[key]) return AK[key];
   const lam = (D - 2) / 2, NT = 4000, tab = new Float64Array(NT + 1);
   if (D === 3) for (let i = 0; i <= NT; i++) tab[i] = (i / NT) ** k;
