@@ -46,5 +46,10 @@ const sp = Object.fromEntries(SPECIES.map((s) => [s.id, s])), ST = Object.fromEn
   const lo = Math.min(...P.bench.map((r) => r.specific)), hi = Math.max(...P.bench.map((r) => r.specific)), low = P.helix.filter((h) => h.angle < 20), high = P.helix.filter((h) => h.angle > 20);
   ok(lo > 1.03 && hi < 1.15 && P.bench.every((r) => r.left <= 1.001) && low.every((h) => h.ratio > 0.75 && h.ratio < 1.1) && high.every((h) => h.ratio > 1.1 && h.ratio < 1.7), `the hose rope under every version of the squeeze: ${lo.toFixed(2)}–${hi.toFixed(2)} per weight, always over a strand; and the helix law against the bead yarn: within ${((1 - Math.min(...low.map((h) => h.ratio))) * 100).toFixed(0)}% below 20°, ${Math.max(...high.map((h) => h.ratio)).toFixed(1)}× under the measurement above it`);
 }
+{ // a hose that tightens
+  const P = JSON.parse(fs.readFileSync(path.join(here, "../data/poisson.json"), "utf8")), f = (dnu, st = 0) => P.rows.find((r) => r.dnu === dnu && r.staple === st), sh = (await import(path.join(here, "../js/bench.js"))).sheath(4, 0.1);
+  const plain = test({ section: "fcc13s", press: { kind: "hoop", p: sh.press, wall: sh.wall }, ribbon: { k: 2.7, strength: 2.7 }, seed: 3 }, DATA.run).peak, zero = test({ section: "fcc13s", press: { kind: "hoop", p: sh.press, wall: sh.wall, gain: 0 }, ribbon: { k: 2.7, strength: 2.7 }, seed: 3 }, DATA.run).peak;
+  ok(plain === zero && P.rows.every((r) => r.left <= 1.001) && f(0.2).specific > f(0).specific && f(0.2).specific < f(0).specific + 0.06 && f(1).specific > 1.2 && f(1, 40).specific > f(0, 40).specific + 0.05, `a hose that contracts more than its fibres: filaments ${f(0).specific.toFixed(2)} per weight plain, ${f(0.2).specific.toFixed(2)} at Δν 0.2, ${f(1).specific.toFixed(2)} at Δν 1; short fibres ${f(0, 40).specific.toFixed(2)}, ${f(0.2, 40).specific.toFixed(2)}, ${f(1, 40).specific.toFixed(2)}`);
+}
 console.log(`\n${checks - fails}/${checks} checks`);
 process.exit(fails ? 1 : 0);

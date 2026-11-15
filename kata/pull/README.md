@@ -233,6 +233,39 @@ saves exactly one turn.
 **Still assumed:** equal contact stiffness; rigid fibres in their packed places under the skin; a skin with no
 bending stiffness; and that a 0.5% shrink fit can be made and does not creep away.
 
+## A hose that tightens as it is pulled
+
+`node kata/pull/poisson.mjs` (`data/poisson.json`, 60 pulls a tuning). A hose with a larger Poisson ratio than its
+fibres squeezes by (misfit + Δν × stretch) where a plain hose squeezes by its misfit alone (about half a percent at
+HOOP = 0.5). Thirteen fibres in a hose at its best thickness, weight counted:
+
+| fibres | Δν (hose − fibre) | best τ | per weight | spread | 5th percentile per weight |
+|---|---|---|---|---|---|
+| filaments | 0 | 0.2 | 1.13 | 8% | 0.98 |
+| filaments | 0.1 | 0.2 | 1.14 | 8% | 0.99 |
+| filaments | 0.2 | 0.1 | 1.15 | 6% | 1.00 |
+| filaments | 0.5 | 0.1 | 1.21 | 6% | 1.06 |
+| filaments | 1 | 0.1 | 1.25 | 5% | 1.14 |
+| short fibres | 0 | 0.2 | 1.06 | 8% | 0.90 |
+| short fibres | 0.1 | 0.2 | 1.08 | 8% | 0.92 |
+| short fibres | 0.2 | 0.2 | 1.09 | 8% | 0.95 |
+| short fibres | 0.5 | 0.2 | 1.12 | 8% | 0.96 |
+| short fibres | 1 | 0.1 | 1.15 | 7% | 1.01 |
+
+- **It helps, modestly.** A difference of 0.2, which materials could supply, takes filaments from 1.13 to 1.15 and
+  short fibres from 1.06 to 1.09. The extra squeeze arrives late, as the rope nears breaking, and the rope's weak
+  spots have been found by then.
+- **A sheath built to contract** (Δν of 0.5 to 1, which no plain material has: a braided sleeve, or fibres that
+  barely thin when pulled) reaches 1.21–1.25, the best rope on the bench, and it can be thinner (τ 0.1 instead of 0.2).
+- Assumed: the squeeze is linear in the stretch; the hose's own strength is unchanged by its growing hoop stress.
+
+**The other new constructions, and why they have no row.** A **yarn of tubes** is, to this bench, our twisted yarn:
+the bench knows only who touches whom and the law of the grip, and both are the 3D yarn's (0.64 per weight hard,
+0.03 soft). Whether a tube's twist grips like a thread's is a question for a rig that has tubes, which TWIST does
+not. A **knot** or a **hitch** is a place, not a rope: its cost is a strength knock-down at the fastening (in our
+world a knot keeps roughly half to four fifths of a rope's strength; that figure is from memory and unsourced), and
+this bench has no bends. **Borromean** and **one-sided** links are fastenings and fabrics, not ropes.
+
 ## Braids
 
 The ropes whose strands are hoses ([CAD⁴](../cad4/): `#hosebraid`, `#maypole`, `#ribbonpole`). A hose is continuous, so

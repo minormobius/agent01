@@ -123,6 +123,13 @@ order of everything.
 | Ring-through-neighbour differs from neighbour-through-ring | true (F8); a one-way braid is still speculation | — |
 | The belt trick in a hosed bundle | measured (TWIST); the symmetric cluster should have stubborn part turns too (F7), untested | TWIST README |
 
-**What this means for rope.** A rope of threads cannot be tied: every hitch, bend and stopper comes undone. Fastening
-has to use what links (a ring through a sphere: `#lock`, `#links`) or the rope has to be made of tubes, which knot and
-which hold twist. Tube fibre is the one material that brings back both of the things 4D took away.
+**What this means for rope** (corrected 2026-11-15: the first version said a thread rope "cannot be tied", which
+overstated it). A rope of threads cannot be *knotted*: a bend or stopper made of the rope alone comes undone. It can be
+*hitched*, because the 4D hitch is a sphere: a 2-sphere round a post cannot be pulled off sideways, exactly as the
+sphere-hoop holds a bundle (`#hoop`), and a ring through a sphere is a shackle (`#lock`, `#links`). Made on the spot it
+is a sack: a sheet wrapped round the post and drawn shut. What the lost knot costs is narrower than I said: joining
+two ropes end to end, and stoppers, need hardware or tubes. Tubes knot and hold twist. Tube fibre is the one material that brings back both of the things 4D took away.
+
+**Per weight, the new ones (2026-11-15).** A contracting hose: 1.15 at a Poisson difference of 0.2, 1.21–1.25 if
+built to contract (PULL README). A yarn of tubes is the 3D twisted yarn to the bench (0.64 hard) and needs a tube rig
+to mean more. Knots and hitches are fastenings; the bench has no bends.
