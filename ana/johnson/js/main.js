@@ -150,9 +150,9 @@ function buildSeat(T, L) {
     const seated = F.inr * (SNUB.F[i].length === 5 ? 0.5 : 0.66), rad = seated * (1 - t) + 0.55 * t, k = (rad / RADIUS[j - 1]) * K;
     const at = P.add(F.c.map((x) => x * K), F.n, (rad + 0.02) * (1 - t) + 1.3 * t);
     // out of its seat it turns (about the face's normal and tipped toward you), so its shape reads in 3D
-    const a = t * performance.now() / 1400, b = t * 0.6, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
-    const turnP = (p) => { const x = p[0] * ca - p[1] * sa, y = p[0] * sa + p[1] * ca; return [x, y * cb - p[2] * sb, y * sb + p[2] * cb]; };
-    const place = (p0) => { const p = turnP(p0); return mir(P.add(P.add(P.add(at, F.u, p[0] * k), F.v, p[1] * k), F.n, p[2] * k)); };
+    // seated, its axes are the face's (u, v, n); summoned, they're S.Q, which turns idly until you drag it yourself
+    const [qu, qv, qn] = i === S.seatSel && S.Q ? S.Q : [F.u, F.v, F.n];
+    const place = (p) => mir(P.add(P.add(P.add(at, qu, p[0] * k), qv, p[1] * k), qn, p[2] * k));
     const W = s.V.map(place);
     for (const f of P.orient(s.V, s.F)) {
       const pts = f.map((q) => W[q]), n = nrm3(pts), col = NGON[f.length];
@@ -336,7 +336,12 @@ function kitButtons() {
   canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; moved = 0; $('cap').classList.add('min'); });
   canvas.addEventListener('pointermove', (e) => {
     const p = pts.get(e.pointerId); if (!p) return;
-    if (pts.size === 1) { const dx = e.clientX - p[0], dy = e.clientY - p[1]; moved += Math.abs(dx) + Math.abs(dy); yaw -= dx * 0.008; pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * 0.008)); dirty = true; }
+    if (pts.size === 1) {
+      const dx = e.clientX - p[0], dy = e.clientY - p[1]; moved += Math.abs(dx) + Math.abs(dy);
+      if (S.mode === 'seat' && S.seatSel >= 0 && !S.seatGoing && moved >= 6) turnSummoned(dx, dy);   // drag turns the summoned solid
+      else if (!(S.mode === 'seat' && S.seatSel >= 0)) { yaw -= dx * 0.008; pitch = Math.max(-1.5, Math.min(1.5, pitch + dy * 0.008)); }
+      dirty = true;
+    }
     pts.set(e.pointerId, [e.clientX, e.clientY]);
     if (pts.size === 2) { moved += 99; const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) { zoom = Math.max(0.3, Math.min(8, (zoom * d) / pinch)); dirty = true; } pinch = d; }
   });
@@ -375,7 +380,21 @@ function seatTap(e) {
   if (best < 0) return;
   if (S.famHi >= 0 && S.famHi !== familyOf(SEAT[best])) return;
   S.seatSel = best; S.seatT = 0; S.seatGoing = false; S.spin = false; $('spinB').classList.remove('on');
+  S.Q = [FACE[best].u, FACE[best].v, FACE[best].n]; S.touched = false;
   info();
+}
+/** Rotate a vector about a unit axis by th (Rodrigues). */
+function rodrigues(v, a, th) {
+  const c = Math.cos(th), s = Math.sin(th), d = P.dot(a, v), x = [a[1] * v[2] - a[2] * v[1], a[2] * v[0] - a[0] * v[2], a[0] * v[1] - a[1] * v[0]];
+  return v.map((vi, i) => vi * c + x[i] * s + a[i] * d * (1 - c));
+}
+/** Drag the summoned solid: sideways turns it about the screen's up, up-down about the screen's right (as if you'd
+ *  grabbed it). In the mirrored world the axes are mirrored and the turns reversed. */
+function turnSummoned(dx, dy) {
+  const v = view(), m = (a) => (S.mirror ? [-a[0], a[1], a[2]] : a), sg = S.mirror ? -1 : 1;
+  S.touched = true;
+  S.Q = S.Q.map((q) => rodrigues(rodrigues(q, m(v.u), sg * dx * 0.01), m(v.r), sg * dy * 0.01));
+  needBuild = true;
 }
 function legend() {
   const el = $('legend'); el.textContent = '';
@@ -429,6 +448,7 @@ function tick(now) {
   if (S.spin) { yaw += dt * 0.25; dirty = true; }
   if (S.mode === 'seat' && S.seatSel >= 0) {
     needBuild = true; dirty = true;                      // it turns while it's out
+    if (!S.touched && S.Q && !S.seatGoing) S.Q = S.Q.map((v) => rodrigues(v, FACE[S.seatSel].n, dt * 0.7 * S.seatT));
     const was = S.seatT;
     S.seatT = Math.max(0, Math.min(1, S.seatT + (S.seatGoing ? -dt : dt) * 1.6));
     if (S.seatT !== was) { needBuild = true; dirty = true; }
