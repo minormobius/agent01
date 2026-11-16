@@ -23,6 +23,8 @@ for (const spec of sets) {
       half: Object.fromEntries(["t", "L", "R", "Teff"].map((k) => [k, half(ours, X0, k)])), mistHalf: Object.fromEntries(["t", "L", "R", "Teff"].map((k) => [k, half(mt.rows, MX0, k)])), life, mistLife: mlife };
     row.ratio = { zamsL: z.L / mz.L, zamsR: z.R / mz.R, zamsTeff: z.Teff / mz.Teff, halfL: row.half.L / row.mistHalf.L, halfR: row.half.R / row.mistHalf.R, halfTeff: row.half.Teff / row.mistHalf.Teff, halfT: row.half.t / row.mistHalf.t, life: life && mlife ? life / mlife : null };
     for (const k in row.ratio) if (row.ratio[k] != null) row.ratio[k] = +row.ratio[k].toFixed(4);
+    if (run.m === 1) { const at = (k) => { const T = run.track; for (let i = 1; i < T.length; i++) if (T[i].tGyr >= 4.57) { const a = T[i - 1], b = T[i], u = (4.57 - a.tGyr) / (b.tGyr - a.tGyr); return a[k] * (1 - u) + b[k] * u; } return null; };
+      set.sun457 = { X0: run.X0, Z: run.Z, alpha: run.alpha, kap: run.kap, L: +(at("L") / LSUN).toFixed(4), R: +(at("R") / RSUN).toFixed(4), Teff: Math.round(at("Teff")), Tc: +(at("Tc") / 1e6).toFixed(2), rhoc: +(at("rhoc") / 1000).toFixed(1), Xc: +at("Xc").toFixed(4) }; }
     set.stars[run.m] = row;
     const r = row.ratio; console.log(`${name} ${run.m} M☉: ZAMS L ${r.zamsL} R ${r.zamsR} Teff ${r.zamsTeff}; half-H L ${r.halfL} R ${r.halfR} Teff ${r.halfTeff} age ${r.halfT}; life ${r.life} (${run.stopped})`);
   }
