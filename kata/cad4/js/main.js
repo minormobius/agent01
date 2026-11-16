@@ -8,6 +8,9 @@ const $ = (id) => document.getElementById(id), canvas = $("gl"), ov = $("ov"), o
 const gl = canvas.getContext("webgl2", { antialias: false, powerPreference: "high-performance" });
 const S = { name: "", tree: null, shape: null, vals: {}, err: "", frames: 0, measure: null, fit: null, slice: null, hit: true };
 window.CAD4 = S;
+/* embed: `?embed` shows the picture alone, for a window in another page (the paper's figures): drag to turn, a slider
+   to move the cut, no panel and no measuring. `&pose=<json>` sets the slice and camera as S.pose takes them */
+const QUERY = new URLSearchParams(location.search), EMBED = QUERY.has("embed"); if (EMBED) document.documentElement.classList.add("embed");
 /* pose: set the slice and the camera from outside (the paper's figures are made this way): E a 4×4 frame, off the
    slice's place along the unseen direction, yaw, pitch, zoom, and tint (0 turns off the ana/kata colouring, so a
    part keeps its own colour) */
@@ -135,7 +138,7 @@ function pretty(v, ind = "") {
 /* ------------------------------------------------------------------ the numbers (a worker; the latest request wins) */
 let worker = null, busy = null, want = null, reqId = 0, fineT = 0, sliceT = 0;
 function spawn() { worker = new Worker(new URL("./worker.js", import.meta.url), { type: "module" }); worker.onmessage = (ev) => got(ev.data); busy = null; }
-function ask(mode, wait) {
+function ask(mode, wait) { if (EMBED) return;
   const req = { id: ++reqId, tree: S.tree, vals: S.vals, path: playing ? playing.path : S.tree.path, sig: S.sig, mode, O: origin(), E: E.slice(0, 3), C: C4, N4: E[3], R };
   if (busy && busy.mode === "fine" && !wait) { worker.terminate(); spawn(); }
   if (busy) { want = req; return; }
@@ -294,4 +297,7 @@ addEventListener("resize", () => { dirty = true; filmsDraw(); });
 spawn();
 try { const h = location.hash.slice(1); if (h.startsWith("t=")) { $("treeT").value = dec(h.slice(2)); setTree(JSON.parse($("treeT").value), "custom"); } else pick(PARTS[h] ? h : "hinge"); }
 catch (e) { pick("hinge"); $("err").textContent = e.message; }
+if (EMBED) { try { if (QUERY.get("pose")) S.pose(JSON.parse(QUERY.get("pose"))); } catch (e) { /* a bad pose: keep the part's own view */ }
+  const cut = document.createElement("input"); cut.type = "range"; cut.id = "cut"; cut.min = -1000; cut.max = 1000; cut.value = Math.round((off / (1.05 * R)) * 1000); cut.setAttribute("aria-label", "move the cut along the direction you cannot see");
+  cut.addEventListener("input", () => { off = (cut.value / 1000) * 1.05 * R; dirty = true; }); $("stage").append(cut); }
 requestAnimationFrame(tick);

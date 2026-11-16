@@ -47,3 +47,7 @@ body { display: grid; grid-template-columns: 1fr min(380px, 42vw); grid-template
 #films h3 { font: 600 12px var(--mono); color: var(--text); margin: 10px 0 0; } #films p { font: 12px/1.55 var(--sans); color: var(--dim); margin: 0 0 4px; } #films p b { color: var(--text); } #films p b.free { color: var(--ana); } #films p b.held { color: var(--gold); }
 .rows .held { color: var(--gold); }
 .rows b.good { color: #8be28a; } .rows b.held { color: var(--gold); } .rows b.bad { color: var(--bad); }
+
+/* embed: the picture alone, with one slider */
+html.embed body { display: block; } html.embed body > *:not(#stage) { display: none !important; } html.embed #stage { position: fixed; inset: 0; } html.embed #stage > *:not(#gl):not(#cut) { display: none !important; }
+#cut { position: absolute; left: 10%; right: 10%; bottom: 8px; width: 80%; accent-color: #ffd27a; opacity: 0.85; }

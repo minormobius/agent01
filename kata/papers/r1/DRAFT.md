@@ -28,9 +28,9 @@ pass through a strand. A braid is strands that cannot pass. All three are the sa
 dimensions. The usual conclusion is that rope goes with them.
 
 This paper asks the engineering question instead: what is the least change that brings each function back, and
-what is the resulting rope worth? The answer in every case is one surface. The paper's order is: the instruments
-(section 2); twist, fastening and braiding as geometry and mechanics (section 3); the ropes priced per weight
-(section 4); how far the model can be trusted (section 5).
+what is the resulting rope worth? The answer in every case is one surface. The paper's order is: methods
+(section 2); twist, fastening and braiding (section 3); strength per weight (section 4); validation and
+sensitivity (section 5).
 
 [[fig:1]]
 
@@ -39,7 +39,7 @@ what is the resulting rope worth? The answer in every case is one surface. The p
 Three instruments, each with its own test file, and one rule for reporting: a number appears in this paper only if
 a script writes it to a data file and a ledger test finds it there.
 
-### 2.1 The kernel: can this part move?
+### 2.1 Geometric tests in the CAD⁴ kernel
 
 CAD⁴ is a solid-modelling kernel for four dimensions, written for this work. A part is a tree of operations that
 compiles to a distance function. Two parts *interfere* if a sampled grid finds a point inside both (12 to 18
@@ -53,7 +53,7 @@ none does. Where we say a link or knot *holds*, that rests on a cited theorem, a
 obvious ways out are shut. Constructions made by revolving a three-dimensional curve (hose braids, the tube knot,
 the tube yarn) are the spun surface of that curve (E8).
 
-### 2.2 The bead yarn: does twist stay, and what does it press with?
+### 2.2 Bead-chain simulation of twisted yarn
 
 Fibres are chains of 33 beads on springs (stiffness 3000) with a repelling contact (stiffness 6000) between beads
 of different fibres nearer than two radii (radius 0.1; length 4). Seven fibres, six round one, are laid as helices
@@ -68,7 +68,7 @@ a given half-width; thirteen fibres inside a wall that no bead's centre may pass
 There is no friction and no bending stiffness, so a twisted state can be held only by geometry, which is the
 question. Each case is one bundle size. Relaxation finds a rest state, not necessarily the lowest.
 
-### 2.3 The bench: what is each rope worth?
+### 2.3 Tensile model
 
 [[fig:3]]
 
@@ -105,7 +105,7 @@ The skin's force on a fibre comes from treating a hose τ thick as a thin pressu
 strength. Three numbers are chosen, not measured: that half (called HOOP), the laying tension (5% of a link's
 strength) and friction. Section 5 says what was done about them.
 
-### 2.4 The squeeze, checked three ways
+### 2.4 Sheath pressure: three estimates
 
 (a) The vessel formula. (b) A net of springs on an icosphere of up to 10 242 nodes, shrunk onto twelve rigid balls
 in their packed places and relaxed with the nodes kept outside the balls; the force on each ball is read against
@@ -114,27 +114,27 @@ does. (c) The same force from the convex hull's area and mean curvature (Steiner
 a closed film. Separately, how that force is shared: thirteen balls with one-sided linear contacts and diameters
 drawn at random, 200 packings a setting (D5).
 
-## 3. What comes back, and how
+## 3. Results: twist, fastening and braiding
 
 ### 3.1 Twist
 
 [[fig:2]]
 
-**Threads shed it.** In three dimensions the turns stay and the fibres press on the core. In four every whole turn
+**Thread yarn.** In three dimensions the turns stay and the fibres press on the core. In four every whole turn
 leaves through the spare direction, the pressure goes to zero and the energy returns to the untwisted value (4.7 in
 both). A half turn stays in both worlds: it cannot be undone with the ends clamped. With no jiggle the 4D twist
 stands, so it is an equilibrium, and an unstable one. A twisted yarn of short threads therefore has no strength in
 four dimensions: on the bench it reads 0.00 strands.
 
-**A ribbon core holds it**, if the ribbon is wide enough that a fibre cannot slip round its edge: the threshold
+**Ribbon core.** A ribbon core holds the twist if the ribbon is wide enough that a fibre cannot slip round its edge: the threshold
 lies between half-widths of 0.1 and 0.2, one to two fibre radii. A hose core should hold it at any width, because a
 hose has no edge; that is shown here only for ribbons wound on a hose (section 3.3).
 
-**Tubes hold it.** Revolve an ordinary twisted yarn and each fibre becomes a tube. Tubes cannot pass one another,
+**Tube fibres.** Revolve an ordinary twisted yarn and each fibre becomes a tube. Tubes cannot pass one another,
 and in the kernel an outer tube cannot be pushed off the yarn in any direction. Fibre that is tubular can be spun.
 This is geometry only; the bead yarn has no tubes.
 
-**A hose round the bundle seems to save one turn, and only one.** Thirteen fibres pressed together by a tight hose
+**Bundle in a hose.** A hose round the bundle seems to save one turn, and only one. Thirteen fibres pressed together by a tight hose
 were given 0 to 4 turns, with three random seeds. Untwisted they rest at an energy near 56. Given an odd number of
 turns they never came to rest below 77. Given an even number they came down to 52 to 56 in six runs of nine and
 jammed higher in the other three, as high as 80. So odd and even overlap, and what separates them is the floor
@@ -146,40 +146,40 @@ We report it as a suggestion.
 
 ### 3.2 Fastening
 
-**A thread cannot be knotted** (F1, F2). We show it directly: one strand of a trefoil is lifted into the spare
+**Knots in thread.** A thread cannot be knotted (F1, F2). We show it directly: one strand of a trefoil is lifted into the spare
 direction, carried through the place where the other strand is, and set down, with nothing touching; the crossing
 has changed and the trefoil is a plain loop. Pushed through without the lift, the strands collide.
 
-**A tube can.** The same trefoil revolved is the spun torus of the knot, and its complement has the trefoil's group
+**Knots in tubes.** A tube can be knotted. The same trefoil revolved is the spun torus of the knot, and its complement has the trefoil's group
 (E5, E8). In the kernel the strand that passed freely as a thread is stopped.
 
-**A hitch is a sphere.** The lost knot is often taken to mean nothing can be made fast. But what a hitch does is
+**Hitches.** A hitch is a sphere. The lost knot is often taken to mean nothing can be made fast. But what a hitch does is
 hold a line to a post, and a sphere round a post cannot be pulled off sideways, for the reason a sphere-hoop holds
 a bundle and a ring does not (figure 1). A ring through a sphere is a shackle. So the cost of the lost knot is
 narrower than it sounds: joining two thread ropes end to end, and stoppers, need hardware or tube rope.
 
-**Borromean links exist, in one mixture.** Two spheres and a ring (F3): with both spheres the ring is stopped every
+**Borromean links.** They exist in one mixture. Two spheres and a ring (F3): with both spheres the ring is stopped every
 way, and either sphere taken away frees it. Three rings cannot do it.
 
 ### 3.3 Braids and cloth
 
 [[fig:5]]
 
-**Threads do not braid, and neither do flat ribbons.** A ribbon has edges, and in the kernel one ribbon of a plait
+**Threads and ribbons.** Threads do not braid, and neither do flat ribbons. A ribbon has edges, and in the kernel one ribbon of a plait
 slides along its own width past the others and lifts away untouched.
 
-**Hoses braid.** Draw any braid in a half-space and revolve it: every strand is a hose and every crossing is one
+**Hoses.** Hoses braid. Draw any braid in a half-space and revolve it: every strand is a hose and every crossing is one
 hose passing through another. The mathematics is the loop braid group, into which the ordinary braid group embeds
 (E1, E6). A plait of three hoses is held in all four directions.
 
-**A braid on a core needs the core to be a hose too.** Six hoses braided round a hose (a maypole) hold each other
+**Braid on a core.** The core must be a hose too. Six hoses braided round a hose (a maypole) hold each other
 and the pole. Round a thread core a ring of hoses leaves the core free along the ring's axis, the same failure as a
-ring round a bundle. **Ribbons on a hose** are each held to the hose and not to one another: a served core, where
+ring round a bundle. **Ribbons on a hose.** Each is held to the hose and not to one another: a served core, where
 the over-and-under adds friction only.
 
-**Cloth** is threads woven with ribbons, or sheets with sheets, which is published (G3).
+**Cloth.** Cloth is threads woven with ribbons, or sheets with sheets, which is published (G3).
 
-## 4. What the ropes are worth
+## 4. Results: strength per weight
 
 [[fig:4]]
 
@@ -200,42 +200,41 @@ the over-and-under adds friction only.
 | ribbons on a hose | 0.71 | given no grip on each other |
 | rope, cable, great cable (thirteen of each) | 0.84, 0.73, 0.63 | hooped at each level |
 
-- **A hose is the rope.** Filaments in a hose a tenth to a fifth of a fibre's radius thick are the only
+- **Hose.** Filaments in a hose a tenth to a fifth of a fibre's radius thick are the only
   construction that beats a single strand per weight. The hose grips and carries load. As pulled 200 times at a
   tenth, the same rope reads 1.10 with a spread of 6%; what it can be counted on for, the 5th percentile, is 0.98
   per weight against a strand's 0.56. Most of what a rope buys is reliability.
-- **Hoops alone never reach a strand's worth.** They grip and carry nothing.
-- **Braiding buys reliability and nothing else.** A maypole is 0.76 against 0.73 for the same hoses loose; the
+- **Hoops.** Hoops alone never reach a strand's worth. They grip and carry nothing.
+- **Braids.** Braiding buys reliability and nothing else. A maypole is 0.76 against 0.73 for the same hoses loose; the
   spread falls by a quarter. The angle that grips is also the angle that costs.
-- **Cabling costs about an eighth a level.** A rope is already uniform and partly hollow, so a jacket round
+- **Cabling.** Each level costs about an eighth. A rope is already uniform and partly hollow, so a jacket round
   thirteen of them is heavy for what it adds, and with no twist there is no torque for cabling to balance. In four
   dimensions a cable is for handling; for strength, make one fat rope.
-- **A hose that tightens as it is pulled** is the best rope and only a little better, unless it is built to
+- **Contracting hose.** A hose that tightens as it is pulled is the best rope and only a little better, unless it is built to
   contract. A material that is the same in every direction cannot have a Poisson ratio above a third in four
   dimensions.
 
-## 5. How far the bench can be trusted
+## 5. Validation and sensitivity
 
-**The chosen numbers.** Each rope was re-pulled with HOOP, the laying tension and friction each halved and doubled,
+**Sensitivity to the chosen parameters.** Each rope was re-pulled with HOOP, the laying tension and friction each halved and doubled,
 and re-tuned to its best thickness or angle each time. The order holds: filaments in a hose stay above a strand and
-hoops below at every setting. Yarn on a ribbon moves so much that it can be ordered and not quoted (supplement B,
-Result 3).
+hoops below at every setting. Yarn on a ribbon moves so much that it can be ordered and not quoted (supplement B5).
 
-**The squeeze.** A taut skin lies on the outer fibres and runs straight between them. The net of springs and the
+**Sheath pressure.** A taut skin lies on the outer fibres and runs straight between them. The net of springs and the
 hull calculation agree to three figures, and give 0.81 of the vessel formula's value. The same method gives the
 exact answer in three dimensions. The skin's tightest hundredth carries 2.3 times its mean tension, so a hose
 stressed to half its strength on average is at its limit in places.
 
-**Who carries it.** An outer fibre shares the skin's force among five contacts, a third each when the fibres are
+**Load sharing between contacts.** An outer fibre shares the skin's force among five contacts, a third each when the fibres are
 equal. An earlier version of the bench applied the whole force at every contact, which overstated fibre-to-fibre
 grip threefold; correcting it took the hose from 1.20 to 1.13 and hoops from 0.99 to 0.86, and both sets of
 numbers are in the repository. With fibre diameters drawn at random the total grip on an outer fibre barely moves
 and the grip on the middle fibre scatters widely: such a rope would have a loosely held heart.
 
-**The grip law.** Against the bead yarn, tension times curvature is within 20% below 20° (worst ratio 0.81) and
+**Grip law.** Against the bead yarn, tension times curvature is within 20% below 20° (worst ratio 0.81) and
 understates by a factor of 1.4 above.
 
-**Under every version of the squeeze the hose rope reads 1.06–1.11 per weight.**
+**Combined.** Under every version of the sheath pressure the hose rope reads 1.06–1.11 per weight.
 
 **Not modelled.** Bending; fibre migration; a hose's bending stiffness; creep of a shrink fit; any difference
 between a tube and a thread beyond which braids exist. The tube yarn, the tube knot and the hitch are geometry and
@@ -253,7 +252,7 @@ Two things are particular to four dimensions and may be worth more than the comp
 better bargain there: a sphere's skin pulls two ways. Second, if the one-turn result survives a better rig, it is
 the cleanest statement we know of why our world can spin yarn and that one cannot.
 
-**What is ours.** Not the topology: the rule, the chains, sheet weaving, the loop braid group, the spun torus and
+**Contribution and prior work.** Not the topology: the rule, the chains, sheet weaving, the loop braid group, the spun torus and
 the Borromean link are published and cited. Ours, as far as a prior-art pass could tell: the controlled
 three-against-four twist experiment with its ribbon and hose variants; the kernel constructions and tests; the
 species comparison on one bench with its weight accounting and sensitivity; the taut-skin correction to the vessel
@@ -272,14 +271,14 @@ instruments run in a browser at kata.mino.mobi/cad4, /twist and /pull.
 
 ## Supplement
 
-- **A. The ropes, drawn.** Twelve ropes, four panels each: [figures.html](figures.html).
-- **B. Methods and results, chart by chart.** Fourteen charts with what was done and what each shows:
+- **A. Rope drawings.** Twelve ropes, four panels each, every panel live on a click: [figures.html](figures.html).
+- **B. Methods and results by chart.** Fourteen charts, each with its method and result:
   [results.html](results.html).
-- **C. Sources, and how far each was checked:** [REFERENCES.md](REFERENCES.md). **D. Prior art:**
+- **C. References with verification status:** [REFERENCES.md](REFERENCES.md). **D. Prior art:**
   [PRIOR-ART.md](PRIOR-ART.md). **E. The design space and the corrections made along the way:**
   [CONFIGURATIONS.md](CONFIGURATIONS.md).
 
-## Status of this draft
+## Open items
 
 - No independent audit. No page checks of the references marked partial; several were confirmed bibliographically
   and not read.
