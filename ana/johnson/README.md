@@ -13,7 +13,8 @@ The 92 Johnson solids, spun and zoomed, and what becomes of them in four dimensi
   sits on one connected patch of triangles exactly its size (6 + 11 + 8 + 23 + 9 + 7 + 7 + 9 = 80), grown from a fixed
   seed, lowest J at the patch's heart and the rest outward. Tap a seat: its solid flies out, grows and turns idly; while it's out, dragging turns
   it (about the screen's up and right, `turnSummoned`) instead of the view; tap again and it goes home, and the view
-  spins and drags as before. The legend lights one family; **mirror** flips the snub dodecahedron's handedness (it is
+  spins and drags as before. While it's out the view pivots on it (`view().T` glides there with the flight), so a
+  pinch or scroll zooms in on it; the zoom goes home with it, and the seat labels hide while it has the stage. The legend lights one family; **mirror** flips the snub dodecahedron's handedness (it is
   chiral: laevo as drawn, dextro mirrored). `#seat` opens it.
 - **in 4D**: the prism over the current solid (any of the 92; CRF: every 2D face regular), its pyramid and bipyramid
   where they exist (only J1, J2, J11, J62, J63; no bipyramid over J2), and the Blind polytopes (every cell regular):

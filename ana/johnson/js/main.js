@@ -25,7 +25,10 @@ function view() {
   const cp = Math.cos(pitch), sp = Math.sin(pitch), cy = Math.cos(yaw), sy = Math.sin(yaw);
   const f = [-cp * sy, -sp, -cp * cy], r = [cy, 0, -sy], u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
   const dist = (3.2 * S.R) / zoom;
-  return { f, r, u, cam: f.map((x) => -x * dist), dist };
+  // the pivot: the middle of things, or, with a solid summoned, that solid (gliding there as it flies out and back as it
+  // goes home), so a zoom closes in on it
+  const w = S.mode === 'seat' && S.seatSel >= 0 && S.summonAt ? ease(S.seatT) : 0, T = w ? S.summonAt.map((x) => x * w) : [0, 0, 0];
+  return { f, r, u, cam: T.map((t, i) => t - f[i] * dist), dist, T };
 }
 const lift = (v3) => [0, 1, 2, 3].map((i) => v3[0] * E[0][i] + v3[1] * E[1][i] + v3[2] * E[2][i]);
 const origin = () => E[3].map((x) => x * off);
@@ -153,6 +156,7 @@ function buildSeat(T, L) {
     // seated, its axes are the face's (u, v, n); summoned, they're S.Q, which turns idly until you drag it yourself
     const [qu, qv, qn] = i === S.seatSel && S.Q ? S.Q : [F.u, F.v, F.n];
     const place = (p) => mir(P.add(P.add(P.add(at, qu, p[0] * k), qv, p[1] * k), qn, p[2] * k));
+    if (i === S.seatSel) S.summonAt = mir(at);
     const W = s.V.map(place);
     for (const f of P.orient(s.V, s.F)) {
       const pts = f.map((q) => W[q]), n = nrm3(pts), col = NGON[f.length];
@@ -199,7 +203,7 @@ function draw() {
 }
 /** J-numbers on the seats facing you. */
 function seatLabels(v, w, h) {
-  if (!lastM) return;
+  if (!lastM || S.seatSel >= 0) return;            // a summoned solid has the stage to itself
   octx.font = '600 10px ui-monospace, Menlo, monospace'; octx.textAlign = 'center'; octx.textBaseline = 'middle';
   SNUB.F.forEach((_, i) => {
     if (i === S.seatSel && S.seatT > 0.05) return;
@@ -366,7 +370,7 @@ function tap(e) {
 function seatTap(e) {
   if (!lastM) return;
   const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, v = view();
-  if (S.seatSel >= 0) { S.seatGoing = true; return; }
+  if (S.seatSel >= 0) { S.seatGoing = true; S.zoomAway = zoom; return; }
   let best = -1, bz = Infinity;
   SNUB.F.forEach((f, i) => {
     const F = FACE[i], c = S.mirror ? [-F.c[0], F.c[1], F.c[2]] : F.c, n = S.mirror ? [-F.n[0], F.n[1], F.n[2]] : F.n;
@@ -380,7 +384,7 @@ function seatTap(e) {
   if (best < 0) return;
   if (S.famHi >= 0 && S.famHi !== familyOf(SEAT[best])) return;
   S.seatSel = best; S.seatT = 0; S.seatGoing = false; S.spin = false; $('spinB').classList.remove('on');
-  S.Q = [FACE[best].u, FACE[best].v, FACE[best].n]; S.touched = false;
+  S.Q = [FACE[best].u, FACE[best].v, FACE[best].n]; S.touched = false; S.zoomBefore = zoom;
   info();
 }
 /** Rotate a vector about a unit axis by th (Rodrigues). */
@@ -452,6 +456,7 @@ function tick(now) {
     const was = S.seatT;
     S.seatT = Math.max(0, Math.min(1, S.seatT + (S.seatGoing ? -dt : dt) * 1.6));
     if (S.seatT !== was) { needBuild = true; dirty = true; }
+    if (S.seatGoing && S.zoomBefore) zoom = S.zoomBefore + (S.zoomAway - S.zoomBefore) * ease(S.seatT);   // the zoom goes home with it
     if (S.seatGoing && S.seatT === 0) { S.seatSel = -1; S.seatGoing = false; S.spin = true; $('spinB').classList.add('on'); info(); }
   }
   if (dirty) {
