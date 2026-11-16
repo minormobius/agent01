@@ -192,6 +192,22 @@ const KNOTS = (() => { const K = 0.45, tre = (t) => [K * (Math.sin(t) + 2 * Math
       path: [{ ox: 0, oy: 0, oz: 0 }, { ox: 0.8, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0.8, oz: 0 }, { ox: 0, oy: 0, oz: 0 }, { ox: 0, oy: 0, oz: 0.8 }, { ox: 0, oy: 0, oz: 0 }] },
   }; })();
 
+/* SPOOL. A turn of rope is a loop, and a loop catches only on something two-dimensional: so the barrel is the pulley's
+   wheel made wide, a disc (x–y, the plane it turns in) times a square (z–w, the axle). A turn can slide off along z
+   or along w, so the flange is a frame of four cheeks. And the turns of one layer are a grid across z and w, wound in
+   a raster: nine here, three rows of three */
+const SPOOL = (() => { const r0 = 0.68, lane = [-0.3, 0, 0.3], pts = [[r0, -1.7, lane[0], lane[0]]], at = (k) => { const j = Math.min(2, Math.floor(k / 3)), i = k % 3; return [lane[j % 2 ? 2 - i : i], lane[j]]; };
+  for (let k = 0; k < 9; k++) { const [z0, w0] = at(k), [z1, w1] = k < 8 ? at(k + 1) : at(k); for (let q = k ? 1 : 0; q <= 16; q++) { const u = q / 16, a = 2 * Math.PI * u; pts.push([f4(r0 * Math.cos(a)), f4(r0 * Math.sin(a)), f4(z0 + (z1 - z0) * u), f4(w0 + (w1 - w0) * u)]); } }
+  const off = "0.55+4*(1-flange)", noff = "0-0.55-4*(1-flange)";
+  return { title: "spool", note: "A spool for four dimensions. The barrel turns in a plane (x–y) about an axle that is a plane (z–w): a disc times a square, the pulley's wheel made wide. A turn of rope is a loop round the disc. It can slide off along z, or along w, so the flange is a frame of four cheeks, not two. And one layer of turns is not a row but a grid: nine turns here, three rows of three, wound in a raster. This slice shows one row, an ordinary spool with three turns; move the lever and the next row comes into view. Take the flange away and the whole winding slides off along z or w.",
+    params: { flange: 1, rx: 0, ry: 0, rz: 0, rw: 0 }, ranges: { flange: [0, 1], rx: [-1, 1], ry: [-1, 1], rz: [-1.5, 1.5], rw: [-1.5, 1.5] },
+    parts: { barrel: { op: "product", of: [{ op: "disc", r: 0.6 }, { op: "rect", size: [1, 1] }] },
+      zcheek: { op: "product", of: [{ op: "disc", r: 1.0 }, { op: "rect", size: [0.1, 1.2] }] }, wcheek: { op: "product", of: [{ op: "disc", r: 1.0 }, { op: "rect", size: [1.2, 0.1] }] },
+      flanges: { op: "union", of: [{ op: "move", by: [0, 0, off, 0], of: "zcheek" }, { op: "move", by: [0, 0, noff, 0], of: "zcheek" }, { op: "move", by: [0, 0, 0, off], of: "wcheek" }, { op: "move", by: [0, 0, 0, noff], of: "wcheek" }] },
+      body: { op: "union", of: ["barrel", "flanges"] }, rope: { op: "move", by: ["rx", "ry", "rz", "rw"], of: { op: "wire", r: 0.07, pts } } },
+    show: ["barrel", "flanges", "rope"], check: [["rope", "body"]], ways: { name: "the winding", params: ["rx", "ry", "rz", "rw"], reach: 2.5 },
+    path: [{ flange: 1, rz: 0, rw: 0 }, { flange: 1, rz: 0.4, rw: 0 }, { flange: 1, rz: 0, rw: 0 }, { flange: 1, rz: 0, rw: 0.4 }, { flange: 1, rz: 0, rw: 0 }, { flange: 0, rz: 0, rw: 0 }, { flange: 0, rz: 0, rw: 1.4 }, { flange: 0, rz: 0, rw: 0 }, { flange: 1, rz: 0, rw: 0 }] }; })();
+
 export const PARTS = {
   ball: { title: "ball", note: "Everything within r of a point. Every slice is a ball; move the slice in w and it shrinks to nothing at w = r.",
     params: { r: 1 }, show: { op: "ball", dim: 4, r: "r" } },
@@ -382,6 +398,7 @@ export const PARTS = {
   ...ROPES,
   ...BRAIDS,
   ...KNOTS,
+  spool: SPOOL,
 };
 /* the library in the picker's order, by kind */
 export const GROUPS = [
@@ -392,7 +409,7 @@ export const GROUPS = [
   ["bundles and ropes", ["hoop", "ringed", "rope", "hoserope", "ribbonyarn", "wound", "cable"]],
   ["braids", ["hosebraid", "ribbonbraid", "maypole", "ribbonpole"]],
   ["knots and twist", ["knot", "tubeknot", "tubeyarn", "borromean"]],
-  ["machines", ["pulley", "tackle", "spinneret"]],
+  ["machines", ["pulley", "tackle", "spool", "spinneret"]],
   ["buildings", ["room"]],
 ];
 export const ORDER = GROUPS.flatMap((g) => g[1]);

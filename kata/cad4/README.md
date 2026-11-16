@@ -91,7 +91,7 @@ comes back. The fake chain runs its whole path; the lock and both real chains mo
 ## The library
 
 Ball, tesseract, spherinder, cubinder, duocylinder, tiger, ring, and a bracket (plate, blended boss, three drilled
-holes), then twenty-six assemblies (the picker groups everything by kind: shapes, parts and joints, chains, cloth, bundles and ropes, braids, knots and twist, machines, buildings) that are the reason to have a 4D workshop:
+holes), then twenty-seven assemblies (the picker groups everything by kind: shapes, parts and joints, chains, cloth, bundles and ropes, braids, knots and twist, machines, buildings) that are the reason to have a 4D workshop:
 
 - **hinge.** A 4D door turns in a plane about a plane, so the pin is a disc times a square, not a rod. Swung from 0°
   to 150° the leaves never touch; folded flat, or with a pin 0.04 too fat, the fit turns red.
@@ -170,6 +170,9 @@ holes), then twenty-six assemblies (the picker groups everything by kind: shapes
   off in any direction, so the twist that threads shed is held. Fibres that are tubes can be spun.
 - **Borromean: two spheres and a ring.** No two linked, the three inseparable (Davis, Howards, Newman & Parsley 2011).
   With both spheres the ring is stopped every way; take either away and it slides out.
+- **spool.** The barrel is a disc times a square: it turns in a plane about an axle that is a plane, the pulley's wheel
+  made wide. A turn is a loop round the disc and can slide off along either axle direction, so the flange is a frame of
+  four cheeks. One layer of turns is a grid across the two axle directions (nine here, wound in a raster), not a row.
 - **spinneret.** How any of it would be made. Extrusion pushes a cross-section along one direction, and in 4D the
   cross-section is a 3D shape, so the spigot's shape is the product: a ball-shaped hole gives a fibre, a slot a
   ribbon, a gap shaped like a spherical shell a closed hose, and a hose spigot with fibre holes in its plug a whole
@@ -206,5 +209,6 @@ node kata/cad4/test/textiles.selftest.mjs     # ~25 s, 10 checks: weave, cloth, 
 node kata/cad4/test/braids.selftest.mjs       # ~40 s,  4 checks: the hose braid holds, the ribbon braid slides apart
 node kata/cad4/test/maypole.selftest.mjs      # ~20 s,  5 checks: the maypole holds its hoses and its pole; ribbons on a hose
 node kata/cad4/test/knots.selftest.mjs        # ~35 s,  4 checks: a thread knot comes undone, a tube knot doesn't, a yarn of tubes holds, the Borromean link
+node kata/cad4/test/spool.selftest.mjs        # ~25 s,  2 checks: the winding is held by a four-cheeked flange and slides off without it
 node kata/cad4/test/machines.selftest.mjs     # ~30 s,  5 checks: pulley, tackle, room, spinneret
 ```
