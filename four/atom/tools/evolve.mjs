@@ -1,6 +1,7 @@
 /* A star's main-sequence life: burnt shell by shell, the stirred regions mixed, the star re-solved at every step.
    Ours first, as the check against the standard solar model; 4D follows on the same driver.
-     node four/atom/tools/evolve.mjs ours [M☉=1] [dX=0.01] [simple] [X0=0.70] [tmax=<Gyr>]   → $TMPDIR/atom4-mainseq/evolve-ours-<M>….json
+     node four/atom/tools/evolve.mjs ours [M☉=1] [dX=0.01] [simple] [X0=0.70] [Z=0.02] [kap=kramers|book|opal] [alpha=<MLT α; 0 = no envelope>] [settle=<yr>] [tmax=<Gyr>]
+       → $TMPDIR/atom4-mainseq/evolve-ours-<M>….json
    The star is atom/js/mainseq.js's (hydrostatic and thermal equilibrium, our opacity, Fermi–Dirac electrons), now with
    a composition that varies with mass (opts.compAt). Energy only from burning: the slow contraction's share (ε_grav)
    is left out, which is small on the main sequence. Composition on a fixed grid in q = m/M.
@@ -28,6 +29,9 @@ import { ours, fourNet, firstStar, G0, MSUN, LSUN, RSUN } from "./mainseq.mjs";
 import { shell4 } from "../../fusion/js/shell4.js";
 import * as SH from "../../fusion/js/shell.js";
 import { SUN_X } from "../../fusion/js/net.js";
+import { kappa as kappaOPAL } from "../js/opal.js";
+import { makeEnvelope } from "../js/envelope.js";
+import * as SURF from "../js/surface.js";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-mainseq"); mkdirSync(DIR, { recursive: true });
 const GYR = 3.15576e16, YR = 3.15576e7, BALTOL = +(process.env.BALTOL ?? 0.003), [cmd, ...args] = process.argv.slice(2);
@@ -38,11 +42,29 @@ const bracket = (xs, x) => { const n = xs.length; if (x <= xs[0]) return [0, 0, 
 const interp = (xs, ys, x) => { const [a, b, t] = bracket(xs, x); return ys[a] * (1 - t) + ys[b] * t; };
 
 /* a world for the driver: the state of a shell (an array), its hydrogen, its EOS composition, its burning */
-function networkWorld(X0 = 0.70, Z = 0.02) {
-  const o = ours(), cno = { c12: SUN_X.c12, n14: SUN_X.n14, o16: SUN_X.o16 }, zc = cno.c12 + cno.n14 + cno.o16, Zrest = Z - zc, sh = { Zrest };
-  const init = SH.fromX({ p: X0, he4: 1 - X0 - Z, ...cno }), iP = SH.I.p;
-  return { name: "network", d: 3, G: o.G, Z, init: () => Float64Array.from(init), H: (s) => s[iP], comp: (s) => ({ X: s[iP], Y: 1 - Z - s[iP], Z }),
-    kappa: (rho, T, s) => kappaOurs({ X: s[iP], Y: 1 - Z - s[iP], Z })(rho, T), kappaC: (rho, T, c) => kappaOurs(c)(rho, T),
+/* the book's own opacity in the interior (kap "book"): the surface model's Rosseland mean (atom/js/surface.js: Saha
+   hydrogen and helium, electron scattering, free–free with the Born–Elwert Gaunt factor, bound–free from the book's dipole
+   rates; metals only as electron donors, so right only for metal-poor gas), tabulated lazily in log T (0.02), log ρ
+   (0.05) and X (0.05), trilinear in log κ */
+function bookKappa(Z) {
+  const W = new Map(), C = new Map(), wAt = (k) => { let w = W.get(k); if (!w) { const X = Math.min(k * 0.05, 1 - Z); w = SURF.world(3, { X, Y: 1 - X - Z, Z, gff: "elwert" }); W.set(k, w); } return w; };
+  const cell = (k, i, j) => { const key = (k * 1000 + i) * 1000 + j; let v = C.get(key); if (v === undefined) { v = Math.log(wAt(k).kappaR(10 ** (i * 0.02), 10 ** (j * 0.05 - 10))); C.set(key, v); } return v; };
+  return (rho, T, c) => { const x = Math.min(Math.max(c.X, 0), 1 - Z) / 0.05, y = Math.log10(T) / 0.02, z = (Math.log10(rho) + 10) / 0.05, k = Math.min(Math.floor(x), 19), i = Math.floor(y), j = Math.floor(z), a = x - k, b = y - i, e = z - j;
+    let v = 0; for (const [dk, wa] of [[0, 1 - a], [1, a]]) for (const [di, wb] of [[0, 1 - b], [1, b]]) for (const [dj, we] of [[0, 1 - e], [1, e]]) if (wa * wb * we) v += wa * wb * we * cell(k + dk, i + di, j + dj);
+    return Math.exp(v); };
+}
+/* ours' opacity: `kramers` (the textbook law, scattering + Kramers), `book` (above) or `opal` (OPAL's tables, atom/js/opal.js: measured
+   input); `alpha` > 0 puts an envelope (atom/js/envelope.js) at the surface, on the surface model's gas, mixing length
+   α H_P, fitted to the interior at 3 × 10⁵ K: with `opal` the envelope takes OPAL's opacity too, else the surface
+   model's own (the book's: scattering, free–free, bound–free and H⁻ from its atoms; metals only as electron donors).
+   CNO scales with Z from net.js's solar mix. */
+function networkWorld(X0 = 0.70, Z = 0.02, { kap = "kramers", alpha = 0 } = {}) {
+  const o = ours(), zs = Z / 0.02, cno = { c12: SUN_X.c12 * zs, n14: SUN_X.n14 * zs, o16: SUN_X.o16 * zs }, zc = cno.c12 + cno.n14 + cno.o16, Zrest = Z - zc, sh = { Zrest };
+  const init = SH.fromX({ p: X0, he4: 1 - X0 - Z, ...cno }), iP = SH.I.p, K = kap === "opal" ? (rho, T, c) => kappaOPAL(rho, T, c.X, c.Z) : kap === "book" ? bookKappa(Z) : (rho, T, c) => kappaOurs(c)(rho, T);
+  const E = alpha > 0 ? makeEnvelope(3, { X: X0, Y: 1 - X0 - Z, Z, alpha, gff: kap === "book" ? "elwert" : 1, kappa: kap === "opal" ? (rho, T) => K(rho, T, { X: X0, Y: 1 - X0 - Z, Z }) : null }) : null;
+  return { name: "network", d: 3, G: o.G, Z, kap, alpha, init: () => Float64Array.from(init), H: (s) => s[iP], comp: (s) => ({ X: s[iP], Y: 1 - Z - s[iP], Z }),
+    envelope: E ? (M) => (R, L, f) => E.envelope({ M, R, L, G: o.G, f }) : null,
+    kappa: (rho, T, s) => K(rho, T, { X: s[iP], Y: 1 - Z - s[iP], Z }), kappaC: K,
     eps: (rho, T, s) => SH.eps(rho, T, s, sh), dHdt: (rho, T, s) => SH.dYdt(rho, T, s, sh)[iP],
     burn: (rho, T, s, dt) => { const r = SH.burn(rho, T, s, dt, sh); return { s: r.Y, E: r.E }; },
     burnZone: (rows, s, ws, dt) => { const K = new Float64Array(SH.RS.length); let sw = 0; rows.forEach((r, i) => { const k = SH.constants(r.T, r.rho, s, sh); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
@@ -99,7 +121,7 @@ function solve(W, M, S, guess, at0, f0 = null) {
   let at = at0, s = null, p = guess, last = null, f = f0;
   for (let k = 0; k < 8; k++) {
     const laws = fitLaws(W, S, at), eps = (rho, T, m) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t; };
-    s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}) }, p);
+    s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}) }, p);
     if (!s.ok) return { s }; p = s.p; at = sample(W, M, S, s).rows;
     if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (Newton ${s.it})`);
     if (last && Math.abs(Math.log(s.L / last)) < 1e-4) break; last = s.L;
@@ -143,7 +165,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   return run(null, null, null);
   function run(s1, g1, C) {
   // the first star: its laws fitted at a guessed profile, then re-solved to self-consistency
-  const s0 = C ? null : W.first ? W.first(M) : star({ d: W.d, M, G: W.G, comp: W.comp(S[0]), eps: (rho, T) => W.eps(rho, T, S[0]).eps, kappa: (rho, T) => W.kappa(rho, T, S[0]) }, guess);
+  const s0 = C ? null : W.first ? W.first(M) : star({ d: W.d, M, G: W.G, comp: W.comp(S[0]), eps: (rho, T) => W.eps(rho, T, S[0]).eps, kappa: (rho, T) => W.kappa(rho, T, S[0]), ...(W.envelope ? { envelope: W.envelope(M) } : {}) }, guess);
   if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
   let { s, f: grav } = C ? { s: s1, f: g1 } : solve(W, M, S, s0.p, sample(W, M, S, s0).rows, s0.f ?? null); if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
   let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1;
@@ -166,9 +188,10 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   if (!C) { keep(); keepProf(s, smp); }
   for (let n = 0; n < 3000 && t < tmax && W.H(S[0]) > Hstop; n++) {
     let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > 2e6)) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, Hstop)) / -d); }
+    if (process.env.DEBUG_DT) { let jm = -1, dm = Infinity; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > 2e6)) continue; const d = W.dHdt(r.rho, r.T, S[j]); if (d < 0 && dX / -d < dm) { dm = dX / -d; jm = j; } } console.log(`    dt ${(dt / YR).toExponential(2)} yr; the tightest shell q ${QS[jm]?.toFixed(4)} T ${(smp.rows[jm]?.T / 1e6).toFixed(2)} MK, X ${W.H(S[jm]).toFixed(4)}, dX/dt ${(-dX / dm * YR).toExponential(2)} /yr`); }
     dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {
-      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav); if (!h.s.ok) { dt /= 2; continue; }
+      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
       const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = (b.E * M) / (h.s.L * dt); // what the shells burnt over the step against what the half-way star radiated
       // the step's energy doesn't add up: shorter, unless halving it left the mismatch where it was. A step's own error
       // falls about fourfold a halving (second order); one that doesn't fall is structural (a stirred core's short-lived
@@ -178,7 +201,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
       const structural = prevBal != null && Math.abs(bal - prevBal) < BALTOL / 3;
       if (Math.abs(bal - balRef) > BALTOL && !structural && tries < 5 && dt > 1e3 * YR) { prevBal = bal; dt /= 2; continue; }
       balRef = structural || Math.abs(bal - 1) > BALTOL ? bal : 1;
-      const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f); if (!f.s.ok) { dt /= 2; continue; }
+      const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why})`); dt /= 2; continue; }
       eBal = bal; grav = f.f;
       if (process.env.DEBUG_BAL) { const bands = [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1.01], acc = bands.slice(1).map(() => [0, 0]);
         for (let j = 0; j <= NQ; j++) { const r = smh.rows[j]; if (!(r.T > 2e6)) continue; const k = bands.findIndex((x, i) => QS[j] >= x && QS[j] < bands[i + 1]), e = W.eps(r.rho, r.T, Sh[j]).eps, eb = W.burn(r.rho, r.T, S[j], dt).E / dt; acc[k][0] += WQ[j] * e; acc[k][1] += WQ[j] * eb; }
@@ -197,16 +220,17 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
 if (cmd === "ours") {
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("=") && a !== "simple");
   const m = +(pos[0] ?? 1), dX = +(pos[1] ?? 0.01), simple = args.includes("simple"), X0 = +(kv.X0 ?? 0.70), tmax = kv.tmax ? +kv.tmax * GYR : 20 * GYR;
-  const W = simple ? simpleWorld(X0) : networkWorld(X0), t0 = Date.now();
-  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
+  const Z = +(kv.Z ?? 0.02), kap = kv.kap ?? "kramers", alpha = +(kv.alpha ?? 0), settle = +(kv.settle ?? 0);
+  const W = simple ? simpleWorld(X0) : networkWorld(X0, Z, { kap, alpha }), t0 = Date.now();
+  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.Z ? `-Z${Z}` : ""}${kap !== "kramers" ? `-${kap}` : ""}${alpha ? `-a${alpha}` : ""}${settle ? `-s${kv.settle}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   // the first guess: the 1 M☉ zero-age star under the simple law, walked in mass to m in steps of ×1.12 (as mainseq.mjs
   // ours walks its sequence), each star's unknowns extrapolated from the last two
   const o = ours(), walk = () => { let p = [Math.log(2.3e16), Math.log(1.4e7), Math.log(0.9 * RSUN), Math.log(0.7 * LSUN)], hist = [], mm = 1; const dir = m >= 1 ? 1.12 : 1 / 1.12;
     for (let k = 0; k < 60; k++) { const g = hist.length >= 2 ? hist[1].p.map((v, i) => v + (Math.log(mm / hist[1].m) / Math.log(hist[1].m / hist[0].m)) * (v - hist[0].p[i])) : p, st = star({ ...o, M: mm * MSUN }, g);
       if (!st.ok) throw new Error(`the zero-age walk failed at ${mm.toFixed(3)} M☉`); p = st.p; hist = [...hist.slice(-1), { m: mm, p }]; if (Math.abs(mm - m) < 1e-9) return p; mm = (dir > 1 ? Math.min(m, mm * dir) : Math.max(m, mm * dir)); }
     return p; };
-  const r = evolve(W, m * MSUN, { dX, tmax, ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `${m} M☉ ${W.name} X0 ${X0}`, guess: walk() });
-  writeFileSync(file, JSON.stringify({ about: `atom/tools/evolve.mjs ours: our star's main sequence (${W.name} burning), burnt shell by shell, stirred regions mixed`, m, dX, X0, NQ, burning: W.name, stopped: r.stopped, track: r.track, profiles: r.profiles }));
+  const r = evolve(W, m * MSUN, { dX, tmax, ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `${m} M☉ ${W.name} X0 ${X0}`, guess: walk(), settle });
+  writeFileSync(file, JSON.stringify({ about: `atom/tools/evolve.mjs ours: our star's main sequence (${W.name} burning, ${kap} opacity${alpha ? `, envelope α ${alpha}` : ""}), burnt shell by shell, stirred regions mixed`, m, dX, X0, Z, kap, alpha, NQ, burning: W.name, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
 } else if (cmd === "four") {
   // node four/atom/tools/evolve.mjs four <G × ours> <s> <mass in M_Ch | sun> [dX] [ff=1] [tmax=<Gyr>] [settle=<yr, 1e6>]

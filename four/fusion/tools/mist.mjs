@@ -4,9 +4,10 @@
    mass, the main sequence (EEP 202, the zero-age main sequence, to 454, the terminal-age main sequence) sampled to ~60
    points: age since the ZAMS, L, Teff, R, the centre's T, ρ and hydrogen, the convective core's mass, and the pp and CNO
    shares of the burning. An extract for comparison, cited, not the grid itself.
-     node four/fusion/tools/mist.mjs <dir of *.track.eep>   → papers/p2/data/mist.json */
+     node four/fusion/tools/mist.mjs <dir of *.track.eep> [out name, mist]   → papers/p2/data/<out>.json
+   The metal-poor grid (MIST_v1.2_feh_m4.00_afe_p0.0_vvcrit0.0_EEPS, Z 1.4 × 10⁻⁶) is the metal-free check: mist-m4. */
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
-const dir = process.argv[2], MASSES = [0.6, 0.8, 1.0, 1.25, 1.6, 2.0, 3.0], out = { about: "MIST v1.2 tracks ([Fe/H] = 0, [α/Fe] = 0, v/v_crit = 0; Choi et al. 2016, Dotter 2016), main sequence only (EEP 202–454), sampled by four/fusion/tools/mist.mjs from the packaged EEP files at waps.cfa.harvard.edu/MIST. Ages in Gyr since the ZAMS; L, R in solar units; T in K; ρ in g/cm³; Mcc in M☉. MIST includes element diffusion, convective overshoot, OPAL opacities and a mixing-length envelope; ours has none of the first two.", tracks: {} };
+const dir = process.argv[2], name = process.argv[3] ?? "mist", MASSES = [0.6, 0.8, 1.0, 1.25, 1.6, 2.0, 3.0], feh = (dir.match(/feh_([pm]\d\.\d\d)/) ?? [, "p0.00"])[1].replace("p", "+").replace("m", "−"), out = { about: "MIST v1.2 tracks ([Fe/H] = FEH, [α/Fe] = 0, v/v_crit = 0; Choi et al. 2016, Dotter 2016), main sequence only (EEP 202–454), sampled by four/fusion/tools/mist.mjs from the packaged EEP files at waps.cfa.harvard.edu/MIST. Ages in Gyr since the ZAMS; L, R in solar units; T in K; ρ in g/cm³; Mcc in M☉. MIST includes element diffusion, convective overshoot, OPAL opacities and a mixing-length envelope; ours has none of the first two.", tracks: {} };
 for (const m of MASSES) {
   // the grid's nearest mass (it steps 0.02 M☉ here, so 1.25 is taken from 1.24 or 1.26; recorded as mistM)
   const f = readdirSync(dir).filter((x) => /^\d{5}M\.track\.eep$/.test(x)).reduce((a, x) => (Math.abs(+x.slice(0, 5) / 100 - m) < Math.abs(+a.slice(0, 5) / 100 - m) ? x : a)), mistM = +f.slice(0, 5) / 100;
@@ -17,5 +18,6 @@ for (const m of MASSES) {
     Tc: +(10 ** r[ix.log_center_T]).toPrecision(5), rhoc: +(10 ** r[ix.log_center_Rho]).toPrecision(5), Xc: +r[ix.center_h1].toPrecision(4), Mcc: +r[ix.mass_conv_core].toPrecision(4), pp: +(10 ** r[ix.pp]).toPrecision(4), cno: +(10 ** r[ix.cno]).toPrecision(4) })) };
   console.log(`${m} M☉: ZAMS L ${out.tracks[m].rows[0].L} Teff ${out.tracks[m].rows[0].Teff} Tc ${(out.tracks[m].rows[0].Tc / 1e6).toFixed(2)} MK, main sequence ${out.tracks[m].tmsGyr} Gyr, ${out.tracks[m].rows.length} points`);
 }
-writeFileSync(new URL("../../papers/p2/data/mist.json", import.meta.url), JSON.stringify(out));
-console.log(`wrote papers/p2/data/mist.json (X ${out.X}, Y ${out.Y}, Z ${out.Z})`);
+out.about = out.about.replace("FEH", feh === "+0.00" ? "0" : feh); out.feh = feh;
+writeFileSync(new URL(`../../papers/p2/data/${name}.json`, import.meta.url), JSON.stringify(out));
+console.log(`wrote papers/p2/data/${name}.json ([Fe/H] ${feh}, X ${out.X}, Y ${out.Y}, Z ${out.Z})`);

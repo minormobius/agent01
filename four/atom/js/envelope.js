@@ -12,12 +12,13 @@
        with K_rad = (d + 1)acT^d/(dκρ) the radiative conductivity in d dimensions (3D: 4acT³/3κρ). MLT's geometric
        constants are a convention; α is fixed on our Sun's radius, as standard solar models fix theirs.
    The gas and opacity are tabulated lazily on a grid in (log T, log P) (0.02 and 0.05 dex), each cell computed once from
-   surface.js and interpolated bilinearly: ρ, ∇_ad, κ_R, δ = −(∂lnρ/∂lnT)_P and c_P = Pδ/(ρT∇_ad). */
+   surface.js and interpolated bilinearly: ρ, ∇_ad, κ_R, δ = −(∂lnρ/∂lnT)_P and c_P = Pδ/(ρT∇_ad). `kappa(ρ, T)` replaces
+   surface.js's opacity (ours: OPAL's tables, atom/js/opal.js, as measured input), the gas staying the surface model's. */
 import * as S from "./surface.js";
 import { aRad, sigmaSB, SD, SI } from "./mainseq.js";
 
-export function makeEnvelope(d, { X, Y, Z = 0, alpha = 1.8, hm = 1, ff = 1, Tfit = 3e5, dlT = 0.02, dlP = 0.05 } = {}) {
-  const w = S.world(d, { X, Y, Z, hm, ff }), a = aRad(d), sig = sigmaSB(d), cache = new Map(), LN10 = Math.LN10;
+export function makeEnvelope(d, { X, Y, Z = 0, alpha = 1.8, hm = 1, ff = 1, gff = 1, Tfit = 3e5, dlT = 0.02, dlP = 0.05, kappa = null } = {}) {
+  const w = S.world(d, { X, Y, Z, hm, ff, gff }), a = aRad(d), sig = sigmaSB(d), cache = new Map(), LN10 = Math.LN10;
   let lastRho = null;
   const rhoAt = (P, T) => { // bisection in ln ρ, bracketed near the last answer when it helps
     let lo = Math.log(1e-40), hi = Math.log(1e40);
@@ -27,7 +28,7 @@ export function makeEnvelope(d, { X, Y, Z = 0, alpha = 1.8, hm = 1, ff = 1, Tfit
   function cell(i, j) { const key = i * 100003 + j; let c = cache.get(key); if (c) return c;
     const T = 10 ** (i * dlT), P = 10 ** (j * dlP), rho = rhoAt(P, T), rho2 = rhoAt(P, T * 1.005), delta = -Math.log(rho2 / rho) / Math.log(1.005);
     let gad; try { gad = w.gradAd(T, rho); } catch { gad = 2 / (d + 2); }
-    const kap = w.kappaR(T, rho), cp = (P * delta) / (rho * T * gad);
+    const kap = kappa ? kappa(rho, T) : w.kappaR(T, rho), cp = (P * delta) / (rho * T * gad);
     c = { lr: Math.log(rho), gad, lk: Math.log(kap), delta, lcp: Math.log(cp) }; cache.set(key, c); return c; }
   /* the gas at (T, P), bilinear in the table's logs */
   function gas(T, P) { const x = Math.log10(T) / dlT, y = Math.log10(P) / dlP, i = Math.floor(x), j = Math.floor(y), u = x - i, v = y - j;
@@ -51,11 +52,17 @@ export function makeEnvelope(d, { X, Y, Z = 0, alpha = 1.8, hm = 1, ff = 1, Tfit
     let r = R, T = Teff, m = 0, zones = [], cur = null; const dlnP = 0.03;
     const deriv = (r, T, P) => { const gs = gas(T, P), g = (G * M * f) / (r * r), Pr = (a * T ** (d + 1)) / d, F = L / (SD[d] * r ** (d - 1)), grad = (gs.kappa * F * P) / (SI.c * g * (d + 1) * Pr), nb = nabla(T, P, gs.rho, g, gs.kappa, gs.gad, gs.delta, gs.cp, grad);
       return { dr: -(P / (gs.rho * g)), dlnT: nb.nab, rho: gs.rho, conv: nb.conv, grad, gad: gs.gad, kappa: gs.kappa }; };
+    // RK2 in ln P; the last step is cut to end exactly at T_fit (a whole step past it would make the fit point jump as
+    // the step count changes, and the star's Newton solve could never converge through it)
+    const step = (h) => { const k1 = deriv(r, T, P), r2 = r + 0.5 * h * k1.dr, T2 = T * Math.exp(0.5 * h * k1.dlnT), P2 = P * Math.exp(0.5 * h), k2 = deriv(r2, T2, P2), dr = h * k2.dr;
+      return { k1, r: r + dr, T: T * Math.exp(h * k2.dlnT), P: P * Math.exp(h), dm: SD[d] * r2 ** (d - 1) * k2.rho * -dr }; };
     for (let n = 0; n < 4000 && T < Tfit; n++) {
-      const k1 = deriv(r, T, P), r2 = r + 0.5 * dlnP * k1.dr, T2 = T * Math.exp(0.5 * dlnP * k1.dlnT), P2 = P * Math.exp(0.5 * dlnP), k2 = deriv(r2, T2, P2);
+      let h = dlnP, o = step(h);
+      if (o.T > Tfit) for (let it = 0; it < 4; it++) { h *= Math.log(Tfit / T) / Math.log(o.T / T); o = step(h); }
+      const k1 = o.k1;
       if (keepRows) rows.push({ r, T, P, rho: k1.rho, m, conv: k1.conv, grad: k1.grad, gad: k1.gad, kappa: k1.kappa });
       if (k1.conv && !cur) cur = { top: { r, T, P, m } }; if (!k1.conv && cur) { cur.bot = { r, T, P, m }; zones.push(cur); cur = null; }
-      const dr = dlnP * k2.dr; m += SD[d] * r2 ** (d - 1) * k2.rho * -dr; r += dr; T *= Math.exp(dlnP * k2.dlnT); P *= Math.exp(dlnP);
+      m += o.dm; r = o.r; P = o.P; T = h < dlnP ? Tfit : o.T;
       if (!(r > 0.05 * R) || !(m < 0.5 * M)) throw new Error(`envelope: reached r ${(r / R).toFixed(3)} R, mass ${(m / M).toExponential(2)} M above T_fit ${Tfit} K`); }
     if (cur) { cur.bot = { r, T, P, m }; cur.open = true; zones.push(cur); }
     return { Teff, m: M - m, menv: m, r, P, T, rows, zones: zones.map((z) => ({ rTop: z.top.r / R, rBot: z.bot.r / R, Ttop: z.top.T, Tbot: z.bot.T, mass: (z.bot.m - z.top.m) / M, open: !!z.open })) };

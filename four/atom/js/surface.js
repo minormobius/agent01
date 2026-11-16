@@ -11,11 +11,13 @@
      0.754 eV). ∇_ad = (∂ln T/∂ln P)_s from the first law, numerically.
    · The opacity (`kappaR`): the Rosseland mean over each world's Planck weight, x^(d+1)eˣ/(eˣ − 1)², of
        electron scattering — ours Thomson; 4D through the lens vacuum, (3π³/4) r_e² c/ω (mainseq.js sigmaLens);
-       free–free — ours Kramers (Gaunt factor 1); 4D the book's classical form, n_e Σn_iZ_i² π⁵α³ħ²c³(1+x)(1−e^(−x))/(m²ω⁵)
+       free–free — ours Kramers (Gaunt factor 1, or with gff: "elwert" the Born–Elwert one below); 4D the book's classical form, n_e Σn_iZ_i² π⁵α³ħ²c³(1+x)(1−e^(−x))/(m²ω⁵)
          (mainseq.js kappaFF4), × ff (1; the band 0.5–2);
        bound–free — every hydrogen level and hydrogen-like He⁺ from atom/js/surfacedata.js (the book's dipole rate by
          detailed balance), He I on hydrogen's 1s shape moved to its own threshold (an approximation, named), H⁻ from a
          cross-section the caller supplies (none by default: its share is reported, not assumed);
+       the metals (ours, `metals: true`): bound–free and free–free of every ion of the Sun's main metals from the book's
+         atom (atom/js/metals.js; no lines yet);
        stimulated emission on every absorption.
    · The envelope (`envelope`): the grey atmosphere T^(d+1) = c_d T_eff^(d+1)(τ + q_d) (ours ¾, ⅔; 4D 8/3π and 3π/8 − ⅔,
      so T = T_eff at τ = ⅔ as the star solver has it), dP/dτ = g/κ_R, then inward in ln P with dr = −P dlnP/(ρg),
@@ -26,11 +28,25 @@
 import { SURFACE } from "./surfacedata.js";
 import { aRad, sigmaSB, SD, SI } from "./mainseq.js";
 import { TABLE } from "./tablec.js";
+import { prep as metalPrep } from "./metals.js";
 
-const EV = 1.602176634e-19, A0 = 0.529177210903e-10, ALPHA = 1 / 137.035999084, RE = 2.8179403262e-15, MH = 1.00782503 * SI.mu, MHE = 4.002602 * SI.mu, XBAR4 = (6 * 1.0173430619844491) / 1.0369277551433699; // ζ(6)/ζ(5)
+const RYD = 13.605693122994, EV = 1.602176634e-19, A0 = 0.529177210903e-10, ALPHA = 1 / 137.035999084, RE = 2.8179403262e-15, MH = 1.00782503 * SI.mu, MHE = 4.002602 * SI.mu, XBAR4 = (6 * 1.0173430619844491) / 1.0369277551433699; // ζ(6)/ζ(5)
 const lin = (xs, ys, x) => { if (x <= xs[0]) return ys[0]; const n = xs.length; if (x >= xs[n - 1]) return ys[n - 1] * (xs[n - 1] / x) ** 3; let i = 0, j = n - 1; while (j - i > 1) { const m = (i + j) >> 1; if (xs[m] > x) j = m; else i = m; } const f = Math.log(x / xs[i]) / Math.log(xs[j] / xs[i]); return Math.exp(Math.log(ys[i] || 1e-300) * (1 - f) + Math.log(ys[j] || 1e-300) * f); };
 const ionE = (d, Z) => TABLE[String(d)].find((e) => e.Z === Z).ion * 27.211386245988; // the book's first ionization, eV
 
+/* ours' free–free Gaunt factor (gff: "elwert"): the thermal average over the absorbing electron's Maxwellian of the Born
+   cross-section times Elwert's Coulomb factor, g = (√3/π) ln((k_u + k_l)/(k_u − k_l)) · (k_u/k_l)(1 − e^(−2πη_u))/(1 − e^(−2πη_l)),
+   η = Z/(k a₀), E_u = E_l + hν. Exact in the Born limit ((√3/π) e^(u/2) K₀(u/2), reproduced to 0.1%); good where
+   γ² = Z²Ry/kT ≲ 0.3, which is where free–free matters (a stellar interior: γ² ≈ 0.01–0.04 at the Sun's centre). In
+   cooler gas, where it overshoots the classical limit of 1, bound–free dominates. Tabulated once in (log γ², log u). */
+const GFF = (() => { const L2 = [-4, 2, 0.1], LU = [-3, 2, 0.05], n2 = Math.round((L2[1] - L2[0]) / L2[2]) + 1, nu = Math.round((LU[1] - LU[0]) / LU[2]) + 1, tab = new Float64Array(n2 * nu);
+  for (let a = 0; a < n2; a++) for (let b = 0; b < nu; b++) { const g2 = 10 ** (L2[0] + a * L2[2]), u = 10 ** (LU[0] + b * LU[2]); let sum = 0, w = 0;
+    for (let k = 0; k < 200; k++) { const x = Math.exp(-14 + (k + 0.5) * 0.09), dx = x * 0.09, kl = Math.sqrt(x), ku = Math.sqrt(x + u), el = Math.sqrt(g2 / x), eu = Math.sqrt(g2 / (x + u));
+      sum += (Math.sqrt(3) / Math.PI) * Math.log((ku + kl) / (ku - kl)) * (ku / kl) * (-Math.expm1(-2 * Math.PI * eu)) / (-Math.expm1(-2 * Math.PI * el)) * Math.exp(-x) * dx; w += Math.exp(-x) * dx; }
+    tab[a * nu + b] = sum / w; }
+  return (g2, u) => { const x = Math.min(Math.max((Math.log10(g2) - L2[0]) / L2[2], 0), n2 - 1.000001), y = Math.min(Math.max((Math.log10(u) - LU[0]) / LU[2], 0), nu - 1.000001), i = Math.floor(x), j = Math.floor(y), p = x - i, q = y - j;
+    return tab[i * nu + j] * (1 - p) * (1 - q) + tab[(i + 1) * nu + j] * p * (1 - q) + tab[i * nu + j + 1] * (1 - p) * q + tab[(i + 1) * nu + j + 1] * p * q; }; })();
+export const gauntFF = GFF;
 /* electron donors for a gas with metals (ours only; the 4D gas is primordial): the easily ionized elements of the
    Sun's mix, log ε on the scale log ε(H) = 12 (Asplund et al. 2009), first ionization energies (eV), and the ratio of
    ground-state statistical weights 2g₊/g₀ standing in for the partition functions; values from memory, standard tables,
@@ -38,7 +54,7 @@ const ionE = (d, Z) => TABLE[String(d)].find((e) => e.Z === Z).ion * 27.21138624
    hence its H⁻; their own bound–free opacity is not included. */
 export const SOLAR_DONORS = [ // [symbol, log ε, χ (eV), 2g₊/g₀]
   ["Na", 6.24, 5.139, 1], ["Mg", 7.60, 7.646, 4], ["Al", 6.45, 5.986, 2 / 6], ["Si", 7.51, 8.152, 12 / 9], ["K", 5.03, 4.341, 1], ["Ca", 6.34, 6.113, 4], ["Fe", 7.50, 7.902, 2 * 30 / 25]];
-export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, hm = 1, hff = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV, Z = 0, donors = d === 3 && Z > 0 ? SOLAR_DONORS : [] } = {}) {
+export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, gff = 1, metals = false, hm = 1, hff = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV, Z = 0, donors = d === 3 && Z > 0 ? SOLAR_DONORS : [] } = {}) {
   const DON = donors.map(([sym, le, chi, gr]) => ({ sym, perH: 10 ** (le - 12) * (Z / 0.0134), chi, gr }));
   // H⁻'s photodetachment from the baked table (a₀^(d−1) → m^(d−1)), × hm (1 as computed; ours' computed peak is ~2× the
   // measured one, so 0.5 is the band's other edge); 0 leaves H⁻ out
@@ -85,21 +101,22 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
   const XS = Array.from({ length: 900 }, (_, i) => 0.01 * 1.0095 ** i).filter((x) => x < 60), WT = XS.map((x) => x ** (d + 1) * Math.exp(x) / Math.expm1(x) ** 2);
   const dX = XS.map((x, i) => (i ? x - XS[i - 1] : x)), W0 = WT.reduce((t, w, i) => t + w * dX[i], 0);
   function kappaParts(st) {
-    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [], hff: [] }, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
+    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [], hff: [], met: [] }, mk = metals && Z > 0 ? metalPrep(st, st.rho, Z) : null, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
     const popH = st.LH.map((v) => (st.h0 * v.w * v.g * Math.exp(-(v.E_eV - st.LH[0].E_eV) / kT)) / st.UH), popHe = st.LHe.map((v) => (st.he1 * v.w * v.g * Math.exp(-(v.E_eV - st.LHe[0].E_eV) / kT)) / st.UHe2);
     for (const x of XS) { const wEv = x * kT, stim = -Math.expm1(-x), om = (x * SI.k * T) / SI.hbar;
       out.es.push(ne * (d === 3 ? (8 * Math.PI * RE * RE) / 3 : ((3 * Math.PI ** 3) / 4) * RE * RE * (SI.c / om)));
       if (d === 4) out.ff.push(ff * ne * ions * Math.PI ** 5 * ALPHA ** 3 * SI.hbar ** 2 * SI.c ** 3 * (1 + x) * stim / (SI.me ** 2 * om ** 5));
-      else { const nu = om / (2 * Math.PI); out.ff.push(ff * 100 * 3.69e8 * (ne * 1e-6) * (ions * 1e-6) * T ** -0.5 * nu ** -3 * stim); } // Kramers, cgs → per m
+      else { const nu = om / (2 * Math.PI), zz = gff === "elwert" ? (st.hp + st.he1) * GFF(RYD / kT, x) + 4 * st.he2 * GFF((4 * RYD) / kT, x) : ions;
+        out.ff.push(ff * 100 * 3.69e8 * (ne * 1e-6) * (zz * 1e-6) * T ** -0.5 * nu ** -3 * stim); } // Kramers (× Gaunt for gff "elwert"), cgs → per m
       let bh = 0; st.LH.forEach((v, i) => { if (wEv > -v.E_eV) bh += popH[i] * lin(v.w_eV, v.sigma, wEv) * aU; });
       let bhe = 0; st.LHe.forEach((v, i) => { if (wEv > -v.E_eV) bhe += popHe[i] * lin(v.w_eV, v.sigma, wEv) * aU; });
       if (wEv > chiHe1) bhe += st.he0 * lin(H[0].w_eV, H[0].sigma, (wEv * chiH) / chiHe1) * aU; // He I on hydrogen's 1s shape (approximate)
-      out.bfH.push(bh * stim); out.bfHe.push(bhe * stim); out.hm.push(hminusSigma && wEv > chiHm ? st.hm * hminusSigma(wEv) * stim : 0); out.hff.push(useHff ? useHff * ne * st.h0 * hffCoef(T, x) : 0); }
+      out.bfH.push(bh * stim); out.bfHe.push(bhe * stim); out.hm.push(hminusSigma && wEv > chiHm ? st.hm * hminusSigma(wEv) * stim : 0); out.hff.push(useHff ? useHff * ne * st.h0 * hffCoef(T, x) : 0); out.met.push(mk ? mk(wEv) * stim : 0); }
     return out;
   }
   function kappaR(T, rho, { parts = false } = {}) {
-    const st = state(T, rho), k = kappaParts(st); let s = 0; const share = { es: 0, ff: 0, bfH: 0, bfHe: 0, hm: 0, hff: 0 };
-    XS.forEach((x, i) => { const tot = k.es[i] + k.ff[i] + k.bfH[i] + k.bfHe[i] + k.hm[i] + k.hff[i]; s += (WT[i] * dX[i]) / tot; for (const key in share) share[key] += (WT[i] * dX[i] * k[key][i]) / tot / tot; });
+    const st = state(T, rho), k = kappaParts(st); let s = 0; const share = { es: 0, ff: 0, bfH: 0, bfHe: 0, hm: 0, hff: 0, met: 0 };
+    XS.forEach((x, i) => { const tot = k.es[i] + k.ff[i] + k.bfH[i] + k.bfHe[i] + k.hm[i] + k.hff[i] + k.met[i]; s += (WT[i] * dX[i]) / tot; for (const key in share) share[key] += (WT[i] * dX[i] * k[key][i]) / tot / tot; });
     const kr = W0 / s / rho; if (!parts) return kr; const n = Object.values(share).reduce((a, b) => a + b, 0); for (const key in share) share[key] /= n; return { kappa: kr, share, st };
   }
   /* the envelope of a star of mass M, radius R, luminosity L under gravity G */

@@ -182,6 +182,35 @@ for games, and this is a modelling programme with publications to come. The game
   10⁻¹¹/10⁻¹⁴/10⁻¹⁷/10⁻²⁰ × eight s, a mass ladder at 10⁻¹⁷/1.5152, ours 0.6–3 M☉. Sandbox trial: the analogue at
   10⁻¹⁷/1.5152 settles to 16.0 MK (its table star 20.8) and burns its stirred core slowly (X_c −0.0017 in 0.5 Gyr), so
   aged it may live far longer than section 3's convention says: wait for the run.
+  **Opacity, measured and computed (PI, 2026-11-16: "a and b are complementary").** (a) **OPAL as our world's measured
+  input:** `fusion/tools/opal.mjs <MESA kap_data dir>` → **generated** `atom/js/opaldata.js` (1 MB: MESA's distribution of
+  OPAL, Iglesias & Rogers 1996, above log T 3.75 and Ferguson et al. 2005 below, at Asplund 2009's mixture, the a09 /
+  lowT_fa05_a09p tables: MIST v1.2's own opacities; Z 0–0.03 × X 0–0.95; kap_data.tar.xz is a git-LFS object, fetched from
+  media.githubusercontent.com/media/MESAHub/mesa/main/kap/kap_data.tar.xz, sha256 32d741f0…). `atom/js/opal.js` reads it
+  (Catmull–Rom in log T, log R, linear in X and Z, the two families blended over log T 3.80–3.88 as MESA does; grid points
+  reproduced exactly; 9–15% above Model S's GN93-era OPAL κ, Kramers 1.5–7× under it). `evolve.mjs ours … kap=opal
+  alpha=<α> Z=<Z> settle=<yr>`: OPAL inside and in the envelope (`envelope.js` takes `kappa`), the envelope as the outer
+  boundary. **The envelope now ends exactly at T_fit** (a whole step past it made the fit point jump as the step count
+  changed; Newton then stalled mid-life). **Settle ours too** (`settle=1e6`): the zero-age CN transient otherwise holds a
+  CNO star at 10³–10⁴-yr steps (MIST's zero age is likewise after it). **The Sun calibrated on OPAL** (Z 0.0143, MIST's):
+  X₀ 0.7068, α 1.61 give L☉ and R☉ at 4.57 Gyr (α 1.8: R 0.960; the bracket in the session's runs), Tc 15.35 MK, ρc 149
+  (BP 15.70, 152: ρc was 18% low on Kramers). (b) **The book's own opacity, checked against OPAL:** `surface.js` takes
+  `gff: "elwert"`, a thermally averaged Born–Elwert free–free Gaunt factor (exact in the Born limit, reproduced to 0.1%;
+  good for γ² = Z²Ry/kT ≲ 0.3), so metal-free gas from 3 × 10⁵ K to the Sun's centre sits 2–13% above OPAL Z = 0 (Gaunt 1:
+  13–45% above); default stays 1 so committed surface results stand. **The metals from the book's own ions:** `fusion/tools/ions3.mjs`
+  (~1.5 min) → **generated** `atom/js/iondata.js`, every ion of C, N, O, Ne, Na, Mg, Al, Si, S, Ar, Ca, Cr, Mn, Fe, Ni from
+  atom.js (local exchange; ΔSCF ionization energies, e.g. C 11.6 against 11.26, Fe 7.83 against 7.90, H-like C⁵⁺ 489.8
+  against 490.0; subshell energies as the bound–free edges, O⁶⁺ 1s 739 against 739.3); `atom/js/metals.js`: Saha with
+  Debye lowering, Kramers's hydrogenic bound–free per electron of every subshell, the ions' free–free; `surface.js`
+  `metals: true`. `fusion/tools/kappacheck.mjs` → `papers/p2/data/kappacheck.json`, along Model S (its T, ρ, X; r ≤ 0.66):
+  **the book's ions supply 45–61% of what OPAL's metals add, the whole opacity 0.55–0.87 of OPAL's, metal-free gas
+  1.02–1.09** (Gaunt 1: 1.20–1.49; the textbook Kramers law 0.16–1.35). What is left is the metals' lines (bound–bound),
+  about half of a metal's opacity in the Sun's interior; and H and He lines (metal-free ×0.27–0.45 of OPAL at 3 × 10⁴–10⁵
+  K). `kap=book` uses the metal-free part inside (tabulated in T, ρ, X) and in the envelope. **Metal-free check:**
+  `fusion/tools/mist.mjs <dir> mist-m4` → `papers/p2/data/mist-m4.json` (MIST [Fe/H] = −4, Z 1.4 × 10⁻⁶); ours at X 0.751,
+  Z 1.43 × 10⁻⁶ on OPAL and on the book's opacity. `fusion/tools/mistcheck.mjs <dir> <name>:<tag>:<mist file> …` →
+  `papers/p2/data/mistcheck.json`, ours over MIST at zero age, half the central hydrogen and the life to Xc 10⁻³.
+  `starcut.mjs aged <dir> [tag]` picks ours' runs by file tag.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,
