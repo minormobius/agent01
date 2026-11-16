@@ -113,6 +113,19 @@ function build() {
         for (let i = 1; i + 1 < f.pts.length; i++) T(f.pts[0], f.pts[i], f.pts[i + 1], n, col);
         for (let i = 0; i < f.pts.length; i++) L(f.pts[i], f.pts[(i + 1) % f.pts.length], [0.05, 0.05, 0.08]);
       }
+      // the atlas in slice view: the 600-cell's vertices within half an edge of your slice, at where they project into
+      // it, to tap (gold cut, white cuttable, tinted teal ana / rose kata by their side, dim if a neighbour is cut)
+      if (S.mode === '600') {
+        const H = P.h600(), O = origin(), blocked = new Set(); for (const c of S.cut) for (const u of H.A[c]) blocked.add(u);
+        H.V.forEach((v, i) => {
+          const d = P.sub(v, O), w = dot4(d, E[3]);
+          if (Math.abs(w) > 0.5) return;
+          const p3 = [dot4(d, E[0]), dot4(d, E[1]), dot4(d, E[2])], t = Math.min(1, Math.abs(w) / 0.5);
+          let col = S.cut.has(i) ? [1.0, 0.8, 0.4] : S.hot && S.hot.has(i) ? [1.0, 0.35, 0.9] : blocked.has(i) ? [0.32, 0.32, 0.36] : [0.97, 0.97, 0.97];
+          if (!S.cut.has(i) && !blocked.has(i) && !(S.hot && S.hot.has(i))) col = col.map((x, k) => x * (1 - 0.6 * t) + (w > 0 ? [0.22, 0.95, 0.88] : [1.0, 0.4, 0.72])[k] * 0.6 * t);
+          pts.push(...p3, 0, 0, 0, ...col); pickable.push({ p: p3, i });
+        });
+      }
     } else {
       const sh = P.shadow(poly, origin(), E, S.R * 2.2);
       const wcol = (w) => { const t = Math.max(-1, Math.min(1, w / S.R)); return t > 0 ? [0.85 - 0.6 * t, 0.85 + 0.1 * t, 0.85 + 0.03 * t] : [0.85 + 0.15 * -t, 0.85 - 0.45 * -t, 0.85 - 0.13 * -t]; };
@@ -206,7 +219,7 @@ function draw() {
   gl.uniform1i(U.lit, 1); gl.bindVertexArray(TRI.vao); gl.drawArrays(gl.TRIANGLES, 0, TRI.n);
   gl.disable(gl.POLYGON_OFFSET_FILL);
   gl.uniform1i(U.lit, 0); gl.bindVertexArray(LIN.vao); gl.drawArrays(gl.LINES, 0, LIN.n);
-  if (PTS.n) { gl.uniform1i(U.round_, 1); gl.bindVertexArray(PTS.vao); gl.drawArrays(gl.POINTS, 0, PTS.n); }
+  if (PTS.n) { gl.disable(gl.DEPTH_TEST); gl.uniform1i(U.round_, 1); gl.bindVertexArray(PTS.vao); gl.drawArrays(gl.POINTS, 0, PTS.n); gl.enable(gl.DEPTH_TEST); }   // vertices on top: tappable even inside the solid
   overlay(v);
 }
 /** J-numbers on the seats facing you. */
@@ -330,7 +343,7 @@ function info() {
     if (S.mode === '4d') { $('kitNote').textContent = OBJ[S.obj].note || ''; kitButtons(); }
     if (S.mode === '600') atlasPanel();
     $('cap').textContent = S.mode === '600'
-      ? 'The 600-cell: 600 tetrahedra, 5 round every edge. Tap a vertex in the shadow to cut it off; gold edges are the icosahedra the cuts leave. Drag to turn, pad and lever to turn and move through w.'
+      ? (S.view === 'slice' ? 'Your slice of it: tetrahedra blue, icosahedra gold. The dots are the vertices within half an edge of your slice (teal ana of it, rose kata): tap one to cut it; move the slice with the lever to reach others.' : 'The 600-cell: 600 tetrahedra, 5 round every edge. Tap a vertex in the shadow to cut it off; gold edges are the icosahedra the cuts leave. Drag to turn, pad and lever to turn and move through w.')
       : `${label}. ${S.view === 'slice' ? 'Your 3D slice: each face is a cell cut through, coloured by the cell, teal where the cell leans ana, rose kata.' : 'Its shadow: every edge, projected from an eye in w; teal ana, rose kata.'} Twist the slice with the pad, move it with the lever.`;
   }
 }
@@ -415,7 +428,7 @@ function kitButtons() {
     pts.set(e.pointerId, [e.clientX, e.clientY]);
     if (pts.size === 2) { moved += 99; const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) { zoom = Math.max(0.3, Math.min(8, (zoom * d) / pinch)); dirty = true; } pinch = d; }
   });
-  const up = (e) => { if (pts.size === 1 && moved < 6) { if (S.mode === '600' && S.view === 'shadow') tap(e); else if (S.mode === 'seat') seatTap(e); } pts.delete(e.pointerId); pinch = 0; };
+  const up = (e) => { if (pts.size === 1 && moved < 6) { if (S.mode === '600') tap(e); else if (S.mode === 'seat') seatTap(e); } pts.delete(e.pointerId); pinch = 0; };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', (e) => { pts.delete(e.pointerId); pinch = 0; });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math.min(8, zoom * Math.exp(-e.deltaY * 0.0015))); dirty = true; }, { passive: false });
 }

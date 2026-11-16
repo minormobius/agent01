@@ -30,7 +30,8 @@ The 92 Johnson solids, spun and zoomed, and what becomes of them in four dimensi
   same shape), each labelled by the angles from the new vertex to the cuts already made, lighting its vertices in the
   view on hover. Back, start over, walk at random to the end (each next shape weighted by its vertices: a uniformly
   random cuttable vertex), walk the most symmetric way, jump to the snub 24-cell. Tapping vertices in the view still
-  works. The chart is the census on a log scale with your walk lit.
+  works: in the shadow any vertex; in the slice, the vertices within half an edge of it are drawn as dots where they
+  project into it (teal ana, rose kata, drawn over the solid so they can be tapped), and the lever brings others in. The chart is the census on a log scale with your walk lit.
   **The census** (`tools/census.mjs` → `js/atlas-census.js`, GENERATED, ~5 min): Burnside's lemma over the 14,400
   symmetries, one fixed-cut count per conjugacy class (34): a cut fixed by g is a union of g's cycles, so it is an
   independent set of the cycle graph (cycles with no inner edge, weighted by length), counted by a frontier DP keeping a
