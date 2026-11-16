@@ -17,10 +17,11 @@ const state = { world: "ours", G: 1e-17, s: 1.5152, i: 0, w: 0.35, rot: [0.55, -
 /* ——— the current sequence and star ——— */
 function seq() { if (state.world === "ours") return { stars: STARS.ours.stars, unit: "M☉", sunM: 1 }; const q = STARS.four[state.G]?.[state.s]; return q ? { stars: q.stars, unit: "M_Ch", sunM: q.sunM, sunKind: q.sunKind } : { stars: [] }; }
 function zams() { const q = seq(); return q.stars[Math.min(state.i, q.stars.length - 1)]; }
-/* the aged tracks of this world (and, in 4D, this G and s), and the one for the current star: an aged run whose mass is
-   within 7% of the zero-age star picked (the aged runs have their own masses) */
+/* the aged tracks of this world (and, in 4D, this G and s), and the one for the current star: the track its "aged so
+   far" chip pinned (state.tm; a 4D Sun analogue's mass can fall between the zero-age table's stars), else an aged run
+   whose mass is within 7% of the zero-age star picked (the aged runs have their own masses) */
 function tracks() { return state.world === "ours" ? AGED.ours : AGED.four?.[state.G]?.[state.s] ?? {}; }
-function track() { const z = zams(); if (!z) return null; let best = null; for (const t of Object.values(tracks())) if (t.snaps?.length > 1 && Math.abs(Math.log(t.m / z.m)) < 0.07 && (!best || Math.abs(Math.log(t.m / z.m)) < Math.abs(Math.log(best.m / z.m)))) best = t; return best; }
+function track() { if (state.tm != null) { const t = Object.values(tracks()).find((x) => x.m === state.tm); if (t?.snaps?.length > 1) return t; } const z = zams(); if (!z) return null; let best = null; for (const t of Object.values(tracks())) if (t.snaps?.length > 1 && Math.abs(Math.log(t.m / z.m)) < 0.07 && (!best || Math.abs(Math.log(t.m / z.m)) < Math.abs(Math.log(best.m / z.m)))) best = t; return best; }
 function star() { const t = track(); return t ? t.snaps[Math.min(state.age, t.snaps.length - 1)] : zams(); }
 function nearestSun() { const q = seq(); if (!q.sunM) return 0; let b = 0; q.stars.forEach((x, i) => { if (Math.abs(Math.log(x.m / q.sunM)) < Math.abs(Math.log(q.stars[b].m / q.sunM))) b = i; }); return b; }
 
@@ -184,18 +185,18 @@ function sync() {
   if (!GS.length) { state.world = "ours"; const b = document.querySelector('#world button[data-v="four"]'); b.disabled = true; b.title = "the four-dimensional stars' interiors are still being computed"; b.textContent = "four dimensions (computing)"; }
   const four = state.world === "four"; document.querySelectorAll("#world button").forEach((b) => b.classList.toggle("on", b.dataset.v === state.world));
   $("fourctl").hidden = !four; $("wrow").hidden = !four;
-  chips($("gchips"), GS, state.G, (g) => `10${sup(Math.round(Math.log10(g)))}`, (g) => { state.G = g; state.i = nearestSun(); state.age = 0; sync(); });
-  chips($("schips"), SS, state.s, (s) => String(s), (s) => { state.s = s; state.i = nearestSun(); state.age = 0; sync(); });
+  chips($("gchips"), GS, state.G, (g) => `10${sup(Math.round(Math.log10(g)))}`, (g) => { state.G = g; state.tm = null; state.i = nearestSun(); state.age = 0; sync(); });
+  chips($("schips"), SS, state.s, (s) => String(s), (s) => { state.s = s; state.tm = null; state.i = nearestSun(); state.age = 0; sync(); });
   $("wval").textContent = state.w.toFixed(2); $("wnote").textContent = state.w > 0 ? "this slice crosses the cut orthant, so the cut is open" : state.w < 0 ? "this slice misses the cut orthant: the ball is whole here; slide w above 0 to open it" : "the middle slice, on the cut orthant's edge";
   readout(); save();
 }
-function save() { try { history.replaceState(null, "", `#${state.world}${state.world === "four" ? `/${state.G}/${state.s}` : ""}/${state.i}${state.world === "four" ? `/${state.w.toFixed(2)}` : ""}${track() ? `/a${state.age}` : ""}`); } catch {} }
-function load() { const raw = location.hash.slice(1).split("/"), a = raw.find((x) => /^a\d+$/.test(x)), h = raw.filter((x) => x !== a); state.age = a ? +a.slice(1) : 0; if (h[0] === "four") { state.world = "four"; if (+h[1]) state.G = +h[1]; if (+h[2]) state.s = +h[2]; state.i = h[3] != null ? +h[3] : nearestSun(); if (h[4] != null) state.w = +h[4]; } else { state.world = "ours"; state.i = h[1] != null ? +h[1] : nearestSun(); } }
-$("world").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; state.world = b.dataset.v; state.i = nearestSun(); state.age = 0; sync(); };
-$("mass").oninput = (e) => { state.i = +e.target.value; state.age = 0; readout(); save(); };
+function save() { try { history.replaceState(null, "", `#${state.world}${state.world === "four" ? `/${state.G}/${state.s}` : ""}/${state.i}${state.world === "four" ? `/${state.w.toFixed(2)}` : ""}${track() ? `/a${state.age}` : ""}${state.tm != null && track() ? `/t${state.tm}` : ""}`); } catch {} }
+function load() { const raw = location.hash.slice(1).split("/"), a = raw.find((x) => /^a\d+$/.test(x)), t = raw.find((x) => /^t[\d.]+$/.test(x)), h = raw.filter((x) => x !== a && x !== t); state.tm = t ? +t.slice(1) : null; state.age = a ? +a.slice(1) : 0; if (h[0] === "four") { state.world = "four"; if (+h[1]) state.G = +h[1]; if (+h[2]) state.s = +h[2]; state.i = h[3] != null ? +h[3] : nearestSun(); if (h[4] != null) state.w = +h[4]; } else { state.world = "ours"; state.i = h[1] != null ? +h[1] : nearestSun(); } }
+$("world").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; state.world = b.dataset.v; state.tm = null; state.i = nearestSun(); state.age = 0; sync(); };
+$("mass").oninput = (e) => { state.tm = null; state.i = +e.target.value; state.age = 0; readout(); save(); };
 $("age").oninput = (e) => { state.age = +e.target.value; readout(); save(); };
-$("agechips").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; const m = +b.dataset.m, q = seq(); let k = 0; q.stars.forEach((x, i) => { if (Math.abs(Math.log(x.m / m)) < Math.abs(Math.log(q.stars[k].m / m))) k = i; }); state.i = k; state.age = 0; readout(); save(); };
-$("tosun").onclick = () => { state.i = nearestSun(); state.age = 0; readout(); save(); };
+$("agechips").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; const m = +b.dataset.m, q = seq(); let k = 0; q.stars.forEach((x, i) => { if (Math.abs(Math.log(x.m / m)) < Math.abs(Math.log(q.stars[k].m / m))) k = i; }); state.i = k; state.tm = m; state.age = 0; readout(); save(); };
+$("tosun").onclick = () => { state.tm = null; state.i = nearestSun(); state.age = 0; readout(); save(); };
 $("w").oninput = (e) => { state.w = +e.target.value / 100; sync(); };
 let drag = null; cv.addEventListener("pointerdown", (e) => { drag = [e.clientX, e.clientY, ...state.rot]; cv.setPointerCapture(e.pointerId); });
 cv.addEventListener("pointermove", (e) => { if (!drag) return; state.rot = [drag[2] + (e.clientX - drag[0]) * 0.01, Math.max(-1.4, Math.min(1.4, drag[3] + (e.clientY - drag[1]) * 0.01))]; });

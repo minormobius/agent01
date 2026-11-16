@@ -217,6 +217,12 @@ for games, and this is a modelling programme with publications to come. The game
   book's opacity costs ~5% of L against OPAL; the larger shared shortfall in L is not opacity (open: diffusion in a thin
   envelope, the EOS). `aged.js` is baked from the OPAL set (tag -X0.7068-Z0.0143-opal-a1.61-s1e6). Runs' Z appears in file
   names as String(Z) (1.43e-6 → Z0.00000143).
+  **evolve4-1 (collected 2026-11-16; 43 commands):** the 4D Sun analogues' aged central-hydrogen half-life is 10–33 Gyr where
+  reached (s 1.6–1.85), and at s ≤ 1.55 they had not half-burnt after 12–90 Gyr: 2–7× section 3's convention (4.6 Gyr).
+  21 were cut at the deadline (evolve4-2 resumes 18 from checkpoints; the s 1.75 pair and the 1 M_Ch ladder star sat at
+  zero age); 7 failed at zero age (some have no analogue in gravity.json), 5 stalled mid-life ("no solution past Xc").
+  `star/aged.js` now carries 25 4D tracks (cut runs rebuilt from their checkpoints, M_Ch ∝ G^(−4/3) for 10⁻²⁰); an
+  "aged so far" chip pins its track (`state.tm`, hash `/t<mass>`), since an analogue's mass falls between table stars.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,
