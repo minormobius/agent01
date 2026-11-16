@@ -35,6 +35,9 @@ export function makeYarn({ d = 3, turns = 2, strain = 0.03, M = 32, L = 4, a = 0
     if (ribbon) for (let f = 1; f < F; f++) for (let i = 0; i < n; i++) { const p = (f * n + i) * d, x = X[p], y = X[p + 1], z = X[p + 2], zc = z < -tape ? -tape : z > tape ? tape : z, dz = z - zc, l = Math.sqrt(x * x + y * y + dz * dz); if (l >= 2 * a || l === 0) continue; const o = 2 * a - l, k = (kc * o) / l; energy += 0.5 * kc * o * o; if (measure) { squeeze += kc * o; if (f === 1) grip += kc * o; } G[p] += k * x; G[p + 1] += k * y; G[p + 2] += k * dz; } };
   Y.step = (k = 1) => { for (let it = 0; it < k; it++) { force(false); for (let b = 0; b < N; b++) { if (fixed[b]) continue; for (let c = 0; c < d; c++) { const p = b * d + c; V[p] = (V[p] + G[p] * dt) * damp; X[p] += V[p] * dt; } } Y.t++;
     if (d === 4 && Y.t % 20 === 0) for (let b = 0; b < N; b++) { const z = Math.abs(X[b * d + 2]); if (z > Y.peakOut) Y.peakOut = z; } } };
+  /* kick: displace every free bead at random by up to amp (annealing: a rest state the damped run fell into is not
+     always the lowest, and a kick lets it out) */
+  Y.kick = (amp) => { for (let b = 0; b < N; b++) { if (fixed[b]) continue; for (let c = 0; c < d; c++) X[b * d + c] += amp * rnd(); } V.fill(0); };
   Y.measure = () => { force(true);
     let wind = 0; for (let i = 0; i < M; i++) { const p = (n + i) * d, c0 = i * d, q = p + d, c1 = c0 + d; let da = Math.atan2(X[q + 1] - X[c1 + 1], X[q] - X[c1]) - Math.atan2(X[p + 1] - X[c0 + 1], X[p] - X[c0]); while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI; wind += da; }
     let T1 = 0; for (let i = 0; i < M; i++) { const p = (n + i) * d, q = p + d; let l = 0; for (let c = 0; c < d; c++) l += (X[q + c] - X[p + c]) ** 2; T1 += ks * (Math.sqrt(l) - s0); } T1 /= M;

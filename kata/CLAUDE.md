@@ -187,7 +187,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   the core, turns still wound, energy, furthest out of the plane. The result the selftest holds: 3D keeps its twist
   and squeezes; 4D sheds every whole turn and ends at the untwisted energy; a part turn stays in both; with no jiggle
   the 4D twist stands (unstable); and with `tape` (the core a rigid ribbon ±tape across z) the 4D twist holds unless the ribbon is narrow enough to slip round. `measure()` also gives `grip` (contact force on one outer fibre per length), `pull` (its tension) and `hold` = grip/pull, which stays flat as the pull changes (the selftest holds that), and `shortest()` the shortest fibre that friction can hold. The page steps all three together on 2D canvases, slowly at first (that is when the 4D
-  yarn lets go). `pack: 13` is the full 4D bundle and `wall` a hose's inner radius: pressed together, thirteen keep one turn and shed two (the selftest holds it by energies). `window.TWIST` exposes the worlds. See [`twist/README.md`](twist/README.md).
+  yarn lets go). `pack: 13` is the full 4D bundle and `wall` a hose's inner radius: confined between core and wall, thirteen keep one turn and shed two (a braid on a sphere; `walls.mjs` and `hosed.mjs` bake it, `Y.kick` anneals). `window.TWIST` exposes the worlds. See [`twist/README.md`](twist/README.md).
 - **HOUSE at `/house/`** (the first building): walk through a 4D room, first person. The room is CAD⁴'s `room` part,
   and the page **imports CAD⁴'s kernel and library** (`../cad4/js/kernel.js`, `parts.js`), so **a change to either runs
   HOUSE's selftest too**. `js/walk.js` (no DOM; BRUT⁴ uses it too): a body of two balls, lifted straight up by anything it can stand on (so ramps don't slide it and a low ledge is climbed), a frame of three floor directions (ahead, right,
@@ -219,7 +219,7 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
   table. `SPECIES` carries each rope's `material` (strands' worth, hoops and hoses weighed; `sheath(dim, τ)` gives a sheath's weight, its `wall` force on a fibre and the fibre-to-fibre `press`, a third of it in 4D), and
   `stats()` the mean, spread, 5th percentile and Weibull modulus. **`data/samples.json` is 200 pulls of each, made by
   `node kata/pull/sample.mjs`** (~8 min): the page and the selftest read it, and the selftest re-pulls the first three
-  seeds of each, so remake it after any change to the bench. `laid(deg)` makes a braided strand a track (stiffness cos³θ, strength cosθ, weight 1/cosθ, q = tan²θ), `tracks` sets a track's stiffness and strength, and `braid.mjs` (→ `data/braid.json`, ~4 min, which the selftest reads) pulls plaits, maypoles and ribbon-served cores; the three at 20° are also `SPECIES`. The page's second table reads `data/sheath.json`, `cable.json` and `braid.json`. `sens.mjs` (→ `data/sens.json`, ~20 min) re-pulls the main configurations at half and double each chosen dial; the selftest reads it. `js/skin.js` (no DOM) checks the squeeze three ways (a spring net shrunk onto the fibres, `band` in 3D and `skin` in 4D; `HULL`, the same from Steiner's formula; `sharing`, a Monte Carlo over fibre diameters), and `press.mjs` (→ `data/press.json`, ~4 min; it **imports TWIST's `yarn.js`**) puts the bench through each; `press.by(i, j)` scales one contact's press. Sources, with how far each was checked: `papers/r1/REFERENCES.md`. `press.gain` makes a hose tighten with the rope's stretch, and `poisson.mjs` (→ `data/poisson.json`, ~17 min) pulls it; the page's second table reads that too. `window.PULL`. See [`pull/README.md`](pull/README.md).
+  seeds of each, so remake it after any change to the bench. `laid(deg)` makes a braided strand a track (stiffness cos³θ, strength cosθ, weight 1/cosθ, q = tan²θ), `tracks` sets a track's stiffness and strength, and `braid.mjs` (→ `data/braid.json`, ~4 min, which the selftest reads) pulls plaits, maypoles and ribbon-served cores; the three at 20° are also `SPECIES`. The page's second table reads `data/sheath.json`, `cable.json` and `braid.json`. `sens.mjs` (→ `data/sens.json`, ~20 min) re-pulls the main configurations at half and double each chosen dial; the selftest reads it. `js/skin.js` (no DOM) checks the squeeze three ways (a spring net shrunk onto the fibres, `band` in 3D and `skin` in 4D; `HULL`, the same from Steiner's formula; `sharing`, a Monte Carlo over fibre diameters), and `press.mjs` (→ `data/press.json`, ~4 min; it **imports TWIST's `yarn.js`**) puts the bench through each; `press.by(i, j)` scales one contact's press. Sources, with how far each was checked: `papers/r1/REFERENCES.md`. `gauge.mjs` (→ `data/gauge.json`, ~12 min) varies rope length, fibre scatter and how much load the hose carries: the hose rope's standing against a single strand depends on all three, its standing against the loose bundle does not. `press.gain` makes a hose tighten with the rope's stretch, and `poisson.mjs` (→ `data/poisson.json`, ~17 min) pulls it; the page's second table reads that too. `window.PULL`. See [`pull/README.md`](pull/README.md).
 - **Lean at `/lean/`**: the track. Its engine is a **copy** of IRIS⁴'s (`four/iris/`), cut down to the tesseract grid
   with no foams or rainbows: a static site can't import across surfaces. `js/world.js` (no DOM) is the basin, the track
   (a closed centreline with analytic Frenet frame, marked within `R_TRACK` on a floor that is flat everywhere inside the rim), the march and walking. `js/render.js`
@@ -263,18 +263,23 @@ One static site: no build, no worker script, no bindings (worker `kata`, assets 
 
 `papers/r1/` is a draft write-up of the rope work (`DRAFT.md`: *Rope after the knot*), with `PRIOR-ART.md`,
 `REFERENCES.md` (each source and how far it was checked), `CONFIGURATIONS.md` (the design space and corrections) and
-`OUTLINE.md`. **Every bench number in the draft must come from a baked file in `pull/data/`**: add it to
-`papers/r1/test/ledger.selftest.mjs`, which fails when the draft and the data part. Re-running a study changes the
-data, so re-run the ledger and edit the draft with it. The rope figures (`papers/r1/figures.html`, `fig/*.webp`) are drawn by CAD⁴ itself:
+`OUTLINE.md`. **Every number in the paper that comes from a computation is a named value in `papers/r1/values.mjs`.** Re-running a
+study changes the data, so rebuild afterwards. The rope figures (`papers/r1/figures.html`, `fig/*.webp`) are drawn by CAD⁴ itself:
 `NODE_PATH=$(npm root -g) node kata/papers/r1/figures.mjs [rope …]` loads each part headless and sets the slice through
 `CAD4.pose({ E, off, yaw, pitch, zoom, tint })` (two cross-sections x, y, z along the rope and one side view x, y, w;
 `tint: 0` turns off the ana/kata colouring so parts keep their colours). Redraw after changing a rope's part. Each rope has four panels (two cross-sections, two side views at different z).
 The analytic figures and the methods page are `papers/r1/charts.mjs` (→ `fig/*.svg`, `results.html`; < 2 s), drawn with
 `packages/dataviz` from the baked files, including `twist/data/twist.json` (`node kata/twist/bake.mjs`, ~3 min: traces,
 rest states, the ribbon threshold, and the hosed bundle over three seeds). Re-run `charts.mjs` after any study.
-**`DRAFT.md` is the paper's source and `paper.html` is built from it** (`node kata/papers/r1/build.mjs`, < 1 s): the text
-in paper order, `[[fig:N]]` markers replaced by the five main figures (defined in `build.mjs`), and a reference list
-made from the keys the text cites (A1, E8, …) out of `REFERENCES.md`. Edit the draft, run the ledger, run the build.
+**`text.md` is the paper's source. `DRAFT.md` and `paper.html` are built from it** (`node kata/papers/r1/build.mjs`, < 1 s):
+every number from data is a `{{token}}` filled from `values.mjs`, which reads the baked files; `[[fig:N]]` markers become
+the five main figures (defined in `build.mjs`); the reference list is made from the keys the text cites out of
+`REFERENCES.md`. **Never edit `DRAFT.md` or `paper.html`**: the ledger test is `build.mjs --check`, and fails if either
+differs from a fresh build or a token has no value. The page uses the mino.mobi journal's stylesheet (`paper.css`,
+forked from the atoms paper's), and `NODE_PATH=$(npm root -g) node kata/papers/r1/pdf.mjs` prints `paper.pdf` (one
+column), `paper-journal.pdf` (two) and `og.png`: rerun it after a rebuild. `REVIEW.md` records the independent review
+of 2026-11-16 and what changed; **"hose" is the skin round a bundle and "tube" a hollow strand**, and the paper keeps
+them apart (CAD⁴'s part names still say hose for both).
 **The drawn panels wake up.** `papers/r1/ropes.mjs` holds the ropes, where each is cut, the four poses, and the small
 script both pages carry: click a picture and it is replaced by an iframe of CAD⁴ in **embed mode**
 (`cad4/?embed&pose=<json>#part`: the canvas alone, drag to turn, one slider for the cut, no worker), one at a time

@@ -94,28 +94,31 @@ under a hard squeeze (at two turns in 3D, visibly). Seven fibres, one geometry.
 node kata/twist/test/twist.selftest.mjs   # ~30 s, 10 checks
 ```
 
-## A hose seems to save one turn, and only one
+## A bundle between a core and a wall keeps one turn, and only one
 
-`makeYarn({ pack: 13, wall })` is the full 4D bundle (one fibre and the twelve that fit round it) inside a hose, a wall
-no bead's centre may pass. Loose, the thirteen shed every turn, as the seven do. Pressed together by a tight hose
-they cannot pass each other. `node kata/twist/bake.mjs` (→ `data/twist.json`) gives them 0 to 5 turns with three seeds
-(hose at 0.19, fibres touch at 0.20); energy at rest:
+`makeYarn({ pack: 13, wall })` is the full 4D bundle (one fibre and the twelve that fit round it) inside a wall no
+bead's centre may pass. With no wall the thirteen shed every turn, as the seven do. With one:
 
-| seed | 0 turns | 1 | 2 | 3 | 4 | 5 |
-|---|---|---|---|---|---|---|
-| 1 | 56 | 83 | 52 | 83 | 64 | 172 |
-| 7 | 63 | 90 | 56 | 83 | 80 | 390 |
-| 13 | 56 | 83 | 52 | 77 | 56 | 226 |
+| wall (fibres touch at 0.20) | 0 turns | 1 | 2 | 3 |
+|---|---|---|---|---|
+| 0.215, loose: nothing squeezed | 8.8/8.8/8.8 | 34.4/34.5/34.4 | 8.8/8.8/8.8 | 33.9/34.0/34.0 |
+| 0.20, just touching | 19.3/19.3/19.3 | 45.4/45.4/45.4 | 19.3/19.3/19.3 | 45.4/45.4/45.4 |
+| 0.19, tight | 55.8/63.1/55.8 | 83.0/90.4/83.0 | 51.8/55.8/51.8 | 83.0/83.1/77.1 |
 
-**Odd twists never rest below 77. Even twists come down to 52–56 in six runs of nine and jam higher in the rest (up
-to 80), so odd and even overlap.** The first version of this section, from one seed, said odd settle to one state
-and even go back to nothing; three seeds show that was too clean. The reading still offered: a bundle held together
-turns as a body, its cross-section is three-dimensional, and a full turn of a body in three dimensions cannot be
-undone where two can (the belt trick). That predicts the floor under the odd runs. It does not explain the jams, and
-five turns jam far higher. A relaxation that escapes jams, more seeds and other packings are needed before this is a
-result.
+(energy at rest, three seeds; `node kata/twist/walls.mjs` → `data/walls.json`)
 
-So a hose does not give a 4D rope twist to grip with: at most one turn in the whole length. What grips is the hose.
-The `wind` reading follows one fibre in the x–y plane and loses track once the turn moves to another axis, so the
-energies are the evidence. A packed cluster has symmetries, so part turns that map it onto itself may be stubborn
-too (not tested).
+**Even twists rest at the untwisted energy and odd twists at one higher value.** With the wall loose or just touching
+this is exact across seeds. With the wall tight enough to compress the bundle some runs jam above the lowest state,
+which is what an earlier version of this section, run only at 0.19, reported as "odd and even overlap".
+
+`node kata/twist/hosed.mjs` (→ `data/hosed.json`) gives quarter turns and anneals (`Y.kick`): the confined bundle's
+lowest rest energy repeats every two turns and mirrors about one; thirteen free fibres repeat every turn.
+
+**Why.** The twelve outer fibres are confined to a shell between the core and the wall, so their paths along the yarn
+are a braid on a sphere, where the full twist has order two. It does not need the bundle to be squeezed or to turn as
+a rigid body, which is what the first explanation here said: an independent review found the turn survives with the
+wall loose (`papers/r1/REVIEW.md`). In our world the cross-section is a disc and the count is a whole number.
+
+So a hose does not give a 4D rope twist to grip with: at most one turn in its whole length. Shown for one shell of
+twelve; bundles of several layers are untested. The `wind` reading follows one fibre in the x–y plane and is not an
+invariant in 4D, so the energies are the evidence.

@@ -300,6 +300,39 @@ meet at crossings; the braid is laid with the same 5% set as the yarns (with non
 does not converge); 50° is left out because some of its solves did not converge. Nothing here knows the strands are
 hoses rather than threads except the geometry that lets them be braided at all.
 
+## Rope length, fibre scatter, and the hose as a member
+
+`node kata/pull/gauge.mjs` (`data/gauge.json`, 40 pulls a cell), added after an independent review showed the headline
+moved with things the earlier studies never varied. Per weight, each setting with its own reference strand:
+
+| sections, Weibull modulus | loose | hoops | hose |
+|---|---|---|---|
+| 24, modulus 5 | 0.69 | 0.70 | 0.96 |
+| 48, modulus 5 | 0.69 | 0.78 | 1.02 |
+| 96, modulus 5 | 0.70 | 0.86 | 1.11 |
+| 192, modulus 5 | 0.72 | 0.99 | 1.26 |
+| 96, modulus 10 | 0.80 | 0.76 | 0.97 |
+| 96, modulus 20 | 0.88 | 0.76 | 0.95 |
+
+- **Against a single strand the hose rope runs from 0.95 to 1.26.** A strand is a weakest-link chain, so a longer or
+  more scattered one is weaker, and the rope looks better beside it. "The hose beats a strand" is true of long ropes of
+  scattered fibre and false of short ropes or uniform fibre.
+- **Against the same filaments loose it is ahead at every setting**, by 1.1× to 1.7×. That is the claim the paper makes.
+- With uniform fibre (modulus 10, 20) hoops are worth less than the loose bundle: their weight costs more than their grip returns.
+
+The hose's track is a member with stiffness and strength equal to its weight. Other choices, at the reference setting
+(the better of τ 0.1 and 0.2):
+
+| the hose's track | per weight |
+|---|---|
+| as built | 1.13 |
+| with a size effect on its strength | 1.06 |
+| axial strength × 0.866 (carrying hoop stress too) | 1.07 |
+| axial strength halved | 0.99 |
+| gripping, carrying almost nothing | 0.92 |
+
+The order (hose, hoops, loose) survives all of them. A value above 1 does not.
+
 ## Does the ranking survive the dials?
 
 Three numbers in the bench are chosen, not measured: how hard a hose or hoop is stressed (HOOP, half its strength),

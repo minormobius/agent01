@@ -96,6 +96,33 @@ revolved plait is its image has still not been seen stated for braids.
 | G5 | P. B. Warren, R. C. Ball, R. E. Goldstein (2018), *Phys. Rev. Lett.* 120, 158001 | record only | why staple yarn holds: tension transmission through friction | not read |
 | G6 | hi.gher.space forum threads "4d weaving" (2010) and "N-Dimensional Knots" | **could not be fetched** | may contain parts of sections 3.2 to 3.3 | unread |
 
+| G7 | hi.gher.space forum, "N-Dimensional Knots" and "4D Knots" threads | **search summaries only** | "to make a knot in n-dimensional space, the knotting object must be (n−2)-dimensional"; "for actual weaving, one uses a cloth that is two dimensions less than all-space" | not read; the site and its archives were unreachable on 2026-11-16 (one thread has a Wayback snapshot: web.archive.org/web/20190720115541/http://hi.gher.space/forum/viewtopic.php?f=24&t=2029) |
+
+G6, corrected 2026-11-16: the "4d weaving" thread (opened 28 October 2010) is known from search summaries only: strings
+would fall off each other, so a 4D being would weave with sheets. G1, added the same day: the page also says textile
+threads would be hollow tubes, which is the tube fibre of section 3.1; credit it.
+
+## H. Twist kept modulo two (checked 2026-11-16)
+
+| | Source | Bibliographic | Content we use | Content status |
+|---|---|---|---|---|
+| H1 | D. Kosanović, "On fundamental groups of spaces of framed embeddings of a circle in a 4-manifold", arXiv:2407.06923 | arXiv confirmed | §1.2: an embedded circle in a 4-manifold has two framings "because π₁ SO₃ ≅ ℤ/2", where a knot in a 3-manifold has ℤ-many | **read** |
+| H2 | A. Putman, "Homotopy groups of spheres and low-dimensional topology", lecture notes, academicweb.nd.edu/~andyp/notes/HomotopySpheresLowDimTop.pdf | confirmed | Lemma 5.3: π₁(SOₙ) is ℤ for n = 2 and ℤ/2 for n ≥ 3; the ℤ/2 invariant of framed circles | **read** |
+| H3 | E. Fadell, J. Van Buskirk (1962), "The braid groups of E² and S²", *Duke Math. J.* 29, 243–257 | **from memory; not checked** | in the braid group of the sphere the full twist has order two | not read. This is the statement section 3.1 leans on; check it in the original |
+| H4 | G. H. M. van der Heijden, M. A. Peletier, R. Planqué, "A consistent treatment of link and writhe for open rods, and their relation to end rotation", arXiv:math-ph/0310057 | arXiv confirmed | for a clamped rod in three dimensions: "Rods with any even number of end turns (including zero) lie in one class; rods with any odd number of turns lie in the other", by the belt trick | **read** |
+
+Not found, after about fifteen searches: any statement that a twisted rod, yarn or bundle in four dimensions keeps
+twist only modulo two. Both ingredients are in print separately.
+
+Page-level checks made 2026-11-16 (supersede the entries above where they differ): Costello's equations were read in a
+thesis that reproduces them (Sura 1984, Liverpool: X = N′τ − Tκ′, helix angle from the cross-section); the vessel
+formulas in Roylance's MIT notes (sphere pr/2b, cylinder pr/b) and in Timoshenko's 1940 first edition, p. 365; the
+shrink fit in Timoshenko's *Strength of Materials* II (1930), art. 41; Chou and Hannaford's (3cos²θ − 1) and 54.7° in
+the paper itself, which gives the angle no name; the Daniels value for Weibull fibres, (ρe)^(−1/ρ) / Γ(1 + 1/ρ), about
+0.65 at modulus 5, from Porwal, Beyerlein and Phoenix (2006); Seguin and Crassous, and Warren, Ball and Goldstein, in
+their arXiv versions (2110.04206; 1804.07606); the Brunnian link's equations in arXiv:1101.4863. Still unread:
+Hearle, Grosberg and Backer; Evans and Gibson's own statement of tan²θ; Kelly and Tyson.
+
 Not found: the Price–Roseman paper on embeddings of the projective plane as a journal article (it is cited as a 1975
 University of Iowa preprint); any paper titled "Borromean rings in higher dimensions".
 

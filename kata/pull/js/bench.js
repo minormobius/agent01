@@ -130,9 +130,9 @@ export const SPECIES = [
   { id: "rope4", name: "filaments in a hose (τ 0.1)", dim: "4D", fibres: 13, material: 15.7, opts: { section: "fcc13s", staple: 0, press: { kind: "hoop", p: sheath(4, 0.1).press, wall: sheath(4, 0.1).wall }, ribbon: { k: 2.7, strength: 2.7 } } },
   /* braids of hoses, at the angle the study found best (braid.mjs has the others) */
   ...(() => { const a = laid(20), st = { k: a.k, strength: a.strength }, core = { k: 1, strength: 1 }, press = { kind: "twist", q: a.q }, w = (n) => +(n).toFixed(2);
-    return [{ id: "plait4", name: "plait of three hoses, 20°", dim: "4D", fibres: 3, material: w(3 * a.material), opts: { section: "plait3", press, tracks: [st, st, st] } },
-      { id: "maypole4", name: "maypole: hose core, six braided, 20°", dim: "4D", fibres: 7, material: w(1 + 6 * a.material), opts: { section: "may7", press, tracks: [core, st, st, st, st, st, st] } },
-      { id: "served4", name: "ribbons on a hose, 20°", dim: "4D", fibres: 7, material: w(1 + 6 * a.material), opts: { section: "ribbon7", press, tracks: [core, st, st, st, st, st, st] } }]; })(),
+    return [{ id: "plait4", name: "plait of three strands, 20°", dim: "4D", fibres: 3, material: w(3 * a.material), opts: { section: "plait3", press, tracks: [st, st, st] } },
+      { id: "maypole4", name: "a core and six strands braided, 20°", dim: "4D", fibres: 7, material: w(1 + 6 * a.material), opts: { section: "may7", press, tracks: [core, st, st, st, st, st, st] } },
+      { id: "served4", name: "six strands wound on a core, 20°", dim: "4D", fibres: 7, material: w(1 + 6 * a.material), opts: { section: "ribbon7", press, tracks: [core, st, st, st, st, st, st] } }]; })(),
 ];
 /* the statistics of a set of strengths: mean, spread, the 5th percentile (what you could count on), and the Weibull
    modulus that has the same coefficient of variation (higher is more uniform) */
