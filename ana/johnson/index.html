@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="JOHNSON — the 92 Johnson solids, spun and zoomed, and what becomes of them in four dimensions: prisms and pyramids over them, the Blind polytopes, and the 600-cell, which you can cut down vertex by vertex into any of its 314,248,344 diminishings, the snub 24-cell among them." />
+<title>JOHNSON — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/johnson.css" />
+</head>
+<body>
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="gl" aria-label="The solid, or your 3D slice or shadow of the 4D one"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <div id="bar">
+      <a class="home" href="../">ana</a>
+      <b>JOHNSON</b>
+      <div class="seg" id="mode"><button data-v="92" class="on">the 92</button><button data-v="4d">in 4D</button><button data-v="600">600-cell</button></div>
+      <select id="pick" aria-label="which solid"></select>
+      <button type="button" id="prev" aria-label="previous">‹</button><button type="button" id="next" aria-label="next">›</button>
+      <div class="seg four" id="view"><button data-v="slice" class="on">slice</button><button data-v="shadow">shadow</button></div>
+      <button type="button" id="squareB" class="four" aria-label="square your slice up">⊞</button>
+      <button type="button" id="spinB" class="on" aria-label="spin">spin</button>
+    </div>
+    <div id="cap"></div>
+    <div id="toast"></div>
+    <div id="twist" class="pad four" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+    <div id="ana" class="lever four" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+    <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
+  </div>
+
+  <div class="panel">
+    <section><h2 id="title"></h2><div id="facts" class="rows"></div><div id="chips"></div></section>
+    <section id="dimSec" hidden><h2>cut it down</h2>
+      <p class="foot">Tap a vertex of the shadow to cut it off. Its 20 tetrahedra go, and the icosahedron of its 12 neighbours takes their place. No two cut vertices may be neighbours: that would cut through the edge between them.</p>
+      <div class="btns"><button id="dClear">uncut</button><button id="dSnub">the snub 24-cell</button><button id="dRand">a random maximal cut</button></div>
+      <div id="dRows" class="rows"></div>
+    </section>
+    <section id="kitSec" hidden><h2>in 4D</h2><div class="btns" id="kit"></div><p class="foot" id="kitNote"></p></section>
+    <details open><summary>the Johnson solids</summary>
+      <p>A convex solid whose faces are all regular polygons is either one of the uniform ones (the 5 Platonic solids, the 13 Archimedean, the prisms and antiprisms) or one of exactly <b>92</b> others. Norman Johnson listed them in 1966 and thought that was all; Victor Zalgaller proved it (1967–69). Nearly all are built from a few parts (pyramids, cupolae, the pentagonal rotunda, prisms and antiprisms) by a few moves: stack two (bi-, ortho- or gyro- as they line up), put a prism or antiprism between (elongated, gyroelongated), stick one onto a face of a uniform solid (augmented), cut one off (diminished), or turn one (gyrate). The last nine are one-offs, like the snub disphenoid, whose coordinates are roots of cubics.</p>
+      <p>Seven of them have the same faces round every vertex and still aren't uniform, because the faces are arranged differently at different vertices: J27, J34, J37 (the elongated square gyrobicupola, which looks for all the world like the rhombicuboctahedron with a twist) and J72–J75.</p>
+    </details>
+    <details><summary>four dimensions</summary>
+      <p>In 3D a solid's boundary pieces are its faces. In 4D they are <b>cells</b>, solids themselves, with faces of their own, so "made of regular pieces" splits two ways.</p>
+      <p><b>Every cell regular</b>: the <b>Blind polytopes</b>, classified by Gerd and Roswitha Blind (1979–91). Besides the uniform ones, a few pyramids and bipyramids, and one enormous family: take the 600-cell (600 tetrahedra, 120 vertices), choose vertices no two of which are neighbours, and cut each off. Every cut turns the 20 tetrahedra round a vertex into one icosahedron. There are <b>314,248,344</b> ways, up to symmetry (Dutour Sikirić and Myrvold, 2007), and one of them, cutting 24 in just the right places, is the uniform snub 24-cell. Try it under <b>600-cell</b>.</p>
+      <p><b>Every 2D face regular</b> (cells may be anything, Johnson solids included): the <b>CRF polychora</b>. Nobody has classified them. A prism over any of the 92 is one (two copies and a prism over each face), and so is a pyramid over any solid whose vertices lie on a sphere of radius under one edge: of the 92 only five (J1, J2, J11, J62, J63). Over J1 and the three diminished icosahedra you can put an apex on both sides; over J2 you can't, because its centre lies outside it. And the "bipyramid" over the square pyramid turns out to be the octahedral pyramid: its square's two cells lie in one hyperplane and fuse into an octahedron. Klitzing's <b>segmentochora</b> (vertices on two parallel hyperplanes) are the 4D cupolae: a stack of two polyhedra joined by whatever cells the gap needs.</p>
+    </details>
+    <details><summary>how it's drawn, and checked</summary>
+      <p>The 92 are drawn from David McCooey's coordinates (<a href="https://dmccooey.com/polyhedra/">Visual Polyhedra</a>, gathered by Loïs Mignard-Debise). The page doesn't take them on trust: the selftest rebuilds every face from a convex hull of the vertices alone, checks every face is a regular polygon with unit edges (worst error 3·10⁻¹²), and checks volumes against closed forms. The 4D solids are built here: the 600-cell from its 120 vertices, its 600 tetrahedra as the 4-cliques of its edge graph; every cell kept as a half-space, so a 3D <b>slice</b> is the intersection of those half-spaces in your slice (a cube clipped plane by plane), each face coloured by the cell it cuts and tinted <i class="t">teal</i> where that cell leans ana (the slice grows as you go ana) or <i class="p">rose</i>. The <b>shadow</b> is every edge projected from an eye in w, coloured by how far ana or kata it is. Each 4D solid is checked convex, every cell flat, every edge one, and Euler's V − E + F − C = 0.</p>
+      <p>Controls are CAD⁴'s (kata.mino.mobi/cad4): drag to look round, pinch or scroll to zoom; the pad twists your slice into w about what you see as across and up; the lever moves it ana and kata; ⊞ squares it up. Keys: arrows twist, Q E move, , . step through the solids.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

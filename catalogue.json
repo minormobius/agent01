@@ -5784,6 +5784,22 @@
       ]
     },
     {
+      "n": "ana-johnson",
+      "u": "https://ana.mino.mobi/johnson/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-16",
+      "b": "2026-11-16",
+      "p": "ana",
+      "surface": "ana",
+      "d": "The 92 Johnson solids, the convex polyhedra with regular faces that aren't uniform, each spun and zoomed with faces coloured by polygon, its family, volume and circumsphere; the coordinates (from David McCooey's Visual Polyhedra) checked from scratch by a convex hull, regular faces to 3·10⁻¹² and closed-form volumes. Then the idea in four dimensions, where it splits: every cell regular (the Blind polytopes) or every 2D face regular (the unclassified CRF polychora). Prisms over any of the 92, pyramids and bipyramids over the five that allow them, the 5-cell, 16-cell, icosahedral pyramid, 600-cell and snub 24-cell, seen as a 3D slice tinted teal and rose by how each cell leans into w, or as a shadow, with CAD⁴'s twist pad and ana/kata lever. And a 600-cell diminisher: tap vertices to cut them off, each turning 20 tetrahedra into an icosahedron, one of 314,248,344 such polytopes, the snub 24-cell among them.",
+      "tags": [
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "hyperball",
       "u": "https://hyperball.mino.mobi/",
       "c": "games",

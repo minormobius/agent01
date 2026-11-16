@@ -96,6 +96,14 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   (terrain, gates, bike, beacons, moons, 4D sun and shadows), the overlay (force arrows, forecast, ✕, next gate with its
   ana/kata offset, occlusion by the rock), the minimap, slalom and beacon hunt with best times. The camera frame must
   stay orthonormal: shader and overlay both assume it. See [`moonlet/README.md`](moonlet/README.md).
+- **JOHNSON at `/johnson/`**: the 92 Johnson solids (spin, zoom, faces by polygon, family, volume, circumsphere) and
+  their 4D story: prisms over any of them, pyramids and bipyramids where they exist (J1 J2 J11 J62 J63; not a bipyramid
+  over J2), the Blind polytopes, and a **600-cell diminisher** (tap vertices off; the snub 24-cell; random maximal
+  cuts). `js/johnson-data.js` is GENERATED (`tools/build-johnson.mjs`, from dmccooey.com's coordinates) and checked
+  from scratch by the selftest. `js/poly.js` (no DOM): hull, volume, the 600-cell and its diminishings, prisms,
+  pyramids, `check4`, `slice` (one half-space per cell, a cube clipped), `shadow`. Controls are CAD⁴'s (kata/cad4:
+  drag, pinch, the pad turning the slice about what you see as across and up, the lever, ⊞, the axes gizmo). See
+  [`johnson/README.md`](johnson/README.md).
 
 ## Checks
 
@@ -103,6 +111,7 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, face-neighbour steps, corners, inverse, nesting, the slice's walk vs brute force
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
 node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding, the map
+node ana/johnson/test/johnson.selftest.mjs           # ~30 s: the 92 from scratch (hull, regular faces, volumes), the 600-cell and snub 24-cell, prisms and pyramids, slices
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 
