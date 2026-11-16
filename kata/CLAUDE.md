@@ -333,6 +333,22 @@ record exists, `wrangler deploy` uploads, and the run fails unless `kata.mino.mo
 
 ## Next
 
+**Logged 2026-11-16, the PI's idea, not started: a hot-wire anemometer in a 4D pipe flow, with the vortices it sheds
+modelled.** Continuum only, so none of the atoms question. Notes from the first conversation, to check before building:
+- *The pipe.* A 4D pipe's cross-section is a 3-ball. Laminar flow should be u = G (R² − r²) / 6μ (ours is / 4μ): three
+  transverse directions share the pressure gradient. A one-line check for any solver.
+- *The wire is the open question, and it is the rope rule again.* What sheds a Kármán street in our world is a body
+  with two directions for the flow to go round it. In 4D that is a **ribbon** (a sheet across the pipe), and its wake
+  should be our 2D street extruded. A true wire in 4D leaves the flow three directions to go round it, so its wake
+  should look like a sphere's, and its heat loss should follow a different law from King's. Probably build both: the
+  hot ribbon as the like-for-like instrument, the hot wire as the surprise.
+- *Vorticity* is a bivector with six components, and what we call vortex lines are surfaces.
+- *What exists to build on:* WAVELAB's FFT on any number of axes; LAVALAMP's 4D Stokes solve with a masked boundary and
+  advected heat; PHASELAB's 32⁴ spectral stepping. Missing: the inertial term at a Reynolds number high enough to shed
+  (the grid this needs is the cost to estimate first), and an immersed body.
+- *Unchecked:* whether 4D pipe flow, 4D bluff-body wakes or a 4D King's law are in the literature. Search before
+  claiming any of it.
+
 Sailing (WAKE's next): a sail is a 3D slab with one normal, so a keel resists drift in one direction across and a 4D
 sailboat needs two keels crossed; the angles you can't sail into the wind make a cone. Riding it by hand (phone tilt asks for a lean): see how people do, and scale the track if needed. The second-order 4D
 couplings the linear model drops, and a twist actuator with dynamics for one-axis steering. Then the w-cycle.
