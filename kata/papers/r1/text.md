@@ -369,6 +369,18 @@ grip on the middle fibre scatters widely.
 **Grip law.** Against the bead yarn, tension times curvature is within 20% below 20° (worst ratio {{helixLow}}) and
 understates by a factor of {{helixHigh}} above, on four twists. The braids were run at the boundary.
 
+**The ideal isotropic material.** Three statements that hold for any material the same in every direction, from
+linear elasticity written in n dimensions; they are our own short derivations and no source is cited for them. A
+bar pulled along its length shrinks by Poisson's ratio ν in each of the other n − 1 directions, and ν cannot exceed
+1/(n − 1): a half in three dimensions, a third in four. So a four-dimensional fibre thins by at most two thirds as
+much in each transverse direction as ours. Its cross-section loses the same amount all the same, since three
+directions shrinking by a third remove what two shrinking by a half do, and so a ductile strand reaches its peak
+load at the same stretch as ours (the condition depends only on how fast the cross-section is lost). What differs
+is after the peak, where the neck is shallower, and in two things the bench does include or bracket: a sheath that
+grips by contracting more than its fibres has a third to work with where ours has a half, and a flaw population
+that scales with volume makes a thick fibre weaker faster (as the cube of its radius, not the square). The bench's
+links are elastic and brittle, so none of this changes its numbers.
+
 **Not modelled.** How far a split runs, and damage that grows; bending; fibre migration; a hose's bending
 stiffness; creep of a shrink fit; bundles larger than thirteen; any mechanical difference between a tube and a
 thread. The tube yarn, the tube knot and the sphere round a post are geometry and cited theorems; none has been
