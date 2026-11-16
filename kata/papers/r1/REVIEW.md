@@ -66,3 +66,27 @@ an orientation field for the kept turn.
 
 The auditor's two diagnostic tables (Weibull modulus; load increments) were reproduced here to the digits it
 reported, by `gauge.mjs` and `corner.mjs`.
+
+## After the audit: the extra computation (2026-11-17)
+
+The PI chose to do the work the audit called most valuable before closing.
+
+- **R04, a constitutive closure for the hose.** `pull/js/hose.js`: the skin is one material with flaws. Each section has
+  an axial and a hoop strength (Weibull, the fibre's modulus, with the size effect of a piece that large); its hoop
+  stress peaks at 2.3 times the mean where it bends over a fibre; a section over-stressed in hoop splits and stops
+  pressing; a section broken along the rope keeps pressing; its axial strength under hoop stress follows a stated
+  criterion. How tight the hose is made is then optimised, with its thickness. `pull/closure.mjs` changes each
+  assumption in turn. At the half-strength tightness the first model assumed, 97% of the skin would split.
+- **R03, a map.** `pull/map.mjs`: Weibull modulus 3, 5, 10, 20 by friction 0.15, 0.3, 0.6, tuned on seeds 1–30 and
+  reported on seeds 31–90, each modulus with its own reference strand.
+- **R06, enforcement.** `pull/verify.mjs` re-pulls every reported row of both studies: 2 280 pulls, all converged, all
+  reproducing the stored figure. Every study script now writes its convergence record, and the paper's build writes
+  `provenance.json` with a hash of each data file.
+
+What it did to the claim: with the hose as a real material the reference rope reads 0.97 of a strand, not 1.13. The
+hose rope is above the loose bundle in every cell of the map (by 1.02 to 2.03) and above a single strand in three of
+twelve. The paper now leads with that.
+
+Still not done: how far a split runs (bracketed, not modelled); damage that grows under load; the new model at other
+rope lengths and for the other constructions; event-driven breaking; an orientation field for the kept turn; re-baking
+the first model's study files under the explicit convergence flag.

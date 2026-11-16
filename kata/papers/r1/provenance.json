@@ -16,6 +16,30 @@
    "status": null
   },
   {
+   "file": "kata/pull/data/closure-10.json",
+   "madeBy": "kata/pull/closure.mjs",
+   "bytes": 9410,
+   "sha256": "322b1b5e1d50b32337ec09e374ca09b1c80389762e577bd79dc6f6d8c6c4d2bb",
+   "status": {
+    "pulls": 4030,
+    "worstLeft": 6091338.016393157,
+    "stalled": 18920,
+    "worstResidual": 9.195560429442148e-7
+   }
+  },
+  {
+   "file": "kata/pull/data/closure-5.json",
+   "madeBy": "kata/pull/closure.mjs",
+   "bytes": 9386,
+   "sha256": "5c82feb751eebd0abad0e564fef68680daa62a575922674a8ac185d39662108d",
+   "status": {
+    "pulls": 4030,
+    "worstLeft": 262152.5152282916,
+    "stalled": 19428,
+    "worstResidual": 9.948192550144523e-7
+   }
+  },
+  {
    "file": "kata/pull/data/corner.json",
    "madeBy": "kata/pull/corner.mjs",
    "bytes": 930,
@@ -37,13 +61,49 @@
   {
    "file": "kata/pull/data/map-10.json",
    "madeBy": "kata/pull/map.mjs",
-   "bytes": 1235,
-   "sha256": "4bda0c6b13eea10d63c02aff90b55c8a272319f4ab9192837fedf4a838604656",
+   "bytes": 1322,
+   "sha256": "090add0e35f210a7b9254b4bc4c2dfa6cb32d5042f4c0bdb7db33b102382a4f4",
    "status": {
     "pulls": 2110,
     "worstLeft": 6091338.016393157,
     "stalled": 8563,
     "worstResidual": 7.944302158902896e-7
+   }
+  },
+  {
+   "file": "kata/pull/data/map-20.json",
+   "madeBy": "kata/pull/map.mjs",
+   "bytes": 1326,
+   "sha256": "6e0ed14a6e776f871ebb06a4828964fce383d37ef006bee6c374ccb89e7147fd",
+   "status": {
+    "pulls": 2110,
+    "worstLeft": 39791876.64557503,
+    "stalled": 9273,
+    "worstResidual": 8.011118989678016e-7
+   }
+  },
+  {
+   "file": "kata/pull/data/map-3.json",
+   "madeBy": "kata/pull/map.mjs",
+   "bytes": 1311,
+   "sha256": "050baebeeb562e5420e8dd707921fc0c438a730e9e244cedab34e0a5f580671c",
+   "status": {
+    "pulls": 2110,
+    "worstLeft": 1.115903898064135,
+    "stalled": 6676,
+    "worstResidual": 5.910060056485964e-7
+   }
+  },
+  {
+   "file": "kata/pull/data/map-5.json",
+   "madeBy": "kata/pull/map.mjs",
+   "bytes": 1322,
+   "sha256": "98b49abfa9d1d9525a389c881842c71ad6ecb160f43de2628030836873b8b3f8",
+   "status": {
+    "pulls": 2110,
+    "worstLeft": 262152.5152282916,
+    "stalled": 8810,
+    "worstResidual": 7.934439049794156e-7
    }
   },
   {

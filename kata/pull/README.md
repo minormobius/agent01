@@ -333,6 +333,56 @@ The hose's track is a member with stiffness and strength equal to its weight. Ot
 
 The order (hose, hoops, loose) survives all of them. A value above 1 does not.
 
+## The hose as a material with flaws (the current hose model)
+
+The first model gave a hose a press and, separately, an axial strength. Its hoop stress never entered its failure,
+nothing it suffered reduced the press, and how tight it was made was a free dial. The audit of 2026-11-16 called that
+the model's main gap. `js/hose.js` closes it as simply as can be stated:
+
+- each section of the skin has an **axial strength** and an independent **hoop strength**, Weibull with the fibre's
+  modulus, both with the size effect of a piece 27τ fibre-links big;
+- its hoop stress is `hoop` × a link's mean strength, and **2.3 times that where it bends over a fibre** (`skin.js`);
+- a section whose hoop strength is below that **splits and stops pressing**, there and for `run` sections each side;
+- a section that breaks along the rope keeps pressing (a crack round the skin cuts no hoop path);
+- its axial strength under hoop stress follows `crit`: `rankine` (unaffected), `mises` (distortion energy in 4D, our
+  derivation: hoop tension helps), `linear` (a + h = 1).
+
+So tighter presses harder and splits more, and **the tightness is optimised** with the thickness, on seeds 1–30 by the
+5th percentile, and reported on seeds 31–90. `node kata/pull/closure.mjs 5` and `10` (`data/closure-*.json`):
+
+| the hose's skin | modulus 5 | modulus 10 |
+|---|---|---|
+| baseline | 0.97 (τ 0.1, hoop 0.3, 24% split) | 0.92 (τ 0.1, hoop 0.3, 4% split) |
+| axial criterion: von Mises | 1.00 (τ 0.1, hoop 0.3, 24% split) | 0.94 (τ 0.1, hoop 0.3, 4% split) |
+| axial criterion: linear interaction | 0.91 (τ 0.1, hoop 0.3, 24% split) | 0.86 (τ 0.05, hoop 0.3, 2% split) |
+| skin evenly stressed (no peak) | 1.06 (τ 0.1, hoop 0.5, 6% split) | 0.94 (τ 0.1, hoop 0.5, 0% split) |
+| a split runs the whole rope | 0.83 (τ 0.1, hoop 0.05, 0% split) | 0.89 (τ 0.05, hoop 0.2, 0% split) |
+| no size effect | 1.06 (τ 0.2, hoop 0.3, 10% split) | 0.93 (τ 0.1, hoop 0.3, 2% split) |
+| hoops: no axial member | 0.81 (τ 0.05, hoop 0.3, 13% split) | 0.80 (τ 0.05, hoop 0.3, 2% split) |
+| the same filaments, loose | 0.71 | 0.81 |
+
+At the half-strength tightness the first model assumed, 97% of the skin's sections split under this one.
+
+`node kata/pull/map.mjs 3,5` and `10,20` (`data/map-*.json`): the same model over fibre scatter and friction.
+
+| Weibull modulus | loose | hose μ 0.15 | hose μ 0.3 | hose μ 0.6 | hoops μ 0.3 |
+|---|---|---|---|---|---|
+| 3 | 0.64 | 0.99 | 1.11 | 1.29 | 0.88 |
+| 5 | 0.71 | 0.88 | 0.97 | 1.04 | 0.81 |
+| 10 | 0.81 | 0.87 | 0.92 | 0.95 | 0.80 |
+| 20 | 0.89 | 0.90 | 0.92 | 0.92 | 0.82 |
+
+- The hose rope is above the loose bundle in every cell, by 1.02× to 2.03×: a lot for scattered fibre, almost nothing
+  for uniform fibre.
+- It is above a single strand in three cells of twelve.
+- How far a split runs is the assumption that matters most and nothing here determines it.
+
+`node kata/pull/verify.mjs closure-5 closure-10 map-3 map-5 map-10 map-20` re-pulls every reported row and writes its
+convergence into the file (`reported`): 2 280 pulls, all converged, all reproducing. The studies' own `status` also
+covers tuning-grid cells, a few of which did not converge and were not chosen.
+
+**The sections below describe the first, uncoupled model.** Its numbers are kept for their order.
+
 ## Audit follow-ups
 
 `node kata/pull/corner.mjs` (`data/corner.json`), after the audit of 2026-11-16 (`papers/r1/REVIEW.md`):
