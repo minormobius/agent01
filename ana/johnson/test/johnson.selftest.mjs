@@ -2,7 +2,8 @@
 // data is checked from scratch (a convex hull of the vertices alone must give back the faces; every face regular,
 // unit edges); volumes against closed forms; the 4D constructions against their incidence counts, convexity, unit
 // edges and Euler.
-import { JOHNSON } from '../js/johnson-data.js';
+import { JOHNSON, SNUB_DODECAHEDRON } from '../js/johnson-data.js';
+import { seating, faceGraph, FAMILIES } from '../js/seat.js';
 import * as P from '../js/poly.js';
 
 let fails = 0, passes = 0;
@@ -99,6 +100,27 @@ for (const [name, v, e, f] of [['tetrahedron', 4, 6, 4], ['cube', 8, 12, 6], ['o
   // the 600-cell sliced through its centre square-on: a polyhedron whose faces are cut tetrahedra; its vertices all within the circumradius
   const H = P.diminished([]), s = P.slice(H, [0, 0, 0, 0], E), far = Math.max(...s.flatMap((f) => f.pts.map(P.norm)));
   ok(s.length > 0 && far <= P.PHI + 1e-9, `a slice of the 600-cell through its centre: ${s.length} faces, all within its circumradius φ (${far.toFixed(4)})`);
+}
+// ------------------------------------------------------------------ the seat
+{
+  const S = SNUB_DODECAHEDRON, H = P.hull3(S.V), err = Math.max(...S.F.map((f) => P.faceError(S.V, f)));
+  const kinds = S.F.reduce((m, f) => ((m[f.length] = (m[f.length] || 0) + 1), m), {});
+  ok(S.F.length === 92 && kinds[5] === 12 && kinds[3] === 80 && H.length === 92 && err < 1e-9, `the snub dodecahedron has 92 faces, one per Johnson solid: 12 pentagons and 80 triangles, regular, unit edge (a hull of its 60 vertices gives back all 92)`);
+  const most = Math.max(...JOHNSON.map((x) => x.F.length));
+  ok(most === 62, `no Johnson solid has that many: the most is ${most} (J71–J75)`);
+  const { seat } = seating(), nb = faceGraph();
+  ok([...seat].sort((a, b) => a - b).every((j, i) => j === i + 1), 'every one of the 92 has exactly one seat');
+  ok(S.F.every((f, i) => (f.length === 5) === (seat[i] >= 72 && seat[i] <= 83)), 'the 12 pentagons seat J72–J83, the gyrate and diminished rhombicosidodecahedra');
+  let allConnected = true;
+  for (const fam of FAMILIES) {
+    if (fam.a === 72) continue;
+    const faces = seat.map((j, i) => (j >= fam.a && j <= fam.b ? i : -1)).filter((i) => i >= 0), set = new Set(faces), seen = new Set([faces[0]]), st = [faces[0]];
+    while (st.length) { const x = st.pop(); for (const y of nb[x]) if (set.has(y) && !seen.has(y)) { seen.add(y); st.push(y); } }
+    if (seen.size !== faces.length || faces.some((i) => S.F[i].length !== 3)) allConnected = false;
+  }
+  ok(allConnected, 'each of the other eight families sits on one connected patch of triangles, exactly its size (6, 11, 8, 23, 9, 7, 7, 9)');
+  const again = seating().seat;
+  ok(again.every((j, i) => j === seat[i]), 'the seating is the same every time');
 }
 console.log(`${fails ? '✗' : '✓'} johnson: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

@@ -50,3 +50,9 @@ details { margin-top: 10px; color: #c9c3b8; font: 13.5px/1.6 var(--sans); }
 details p b { color: var(--text); } details a { color: var(--ice); }
 summary { font: 600 11px var(--mono); color: var(--dim); letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
 .t { color: var(--ana); font-style: normal; } .p { color: var(--kata); font-style: normal; }
+body:not(.isSeat) .seatonly { display: none !important; }
+.legend { display: grid; gap: 4px; margin-top: 6px; }
+.legend button { display: flex; align-items: center; gap: 8px; text-align: left; font: 12px var(--mono); color: var(--text); background: none; border: 1px solid transparent; border-radius: 8px; padding: 3px 6px; cursor: pointer; }
+.legend button.on { border-color: var(--gold); }
+.legend i { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+.legend em { color: var(--dim); font-style: normal; margin-left: auto; }

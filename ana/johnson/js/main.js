@@ -5,6 +5,8 @@
 // across and up, the lever moves it ana and kata, ⊞ squares it up, and the axes in the corner show where x, y, z, w lie.
 import { JOHNSON } from './johnson-data.js';
 import * as P from './poly.js';
+import { SNUB_DODECAHEDRON } from './johnson-data.js';
+import { seating, FAMILIES, familyOf } from './seat.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gl'), ov = $('ov'), octx = ov.getContext('2d');
@@ -12,7 +14,8 @@ const gl = canvas.getContext('webgl2', { antialias: true });
 if (!gl) { $('nogl').hidden = false; throw new Error('no WebGL2'); }
 
 // ------------------------------------------------------------------ state
-const S = { mode: '92', j: 1, view: 'slice', spin: true, obj: 'prism', cut: new Set(), poly: null, R: 1.5, msg: '' };
+const SEAT = seating().seat, SNUB = SNUB_DODECAHEDRON;
+const S = { mode: '92', seatSel: -1, seatT: 0, mirror: false, famHi: -1, j: 1, view: 'slice', spin: true, obj: 'prism', cut: new Set(), poly: null, R: 1.5, msg: '' };
 let E = ident(), off = 0, yaw = -0.6, pitch = 0.35, zoom = 1, dirty = true, scale = 1;
 function ident() { return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; }
 const dot4 = P.dot;
@@ -79,7 +82,9 @@ function build() {
   const tri = [], lin = [], pts = []; pickable = [];
   const T = (a, b, c, n, col) => { for (const p of [a, b, c]) tri.push(...p, ...n, ...col); };
   const L = (a, b, col) => { lin.push(...a, 0, 0, 0, ...col, ...b, 0, 0, 0, ...col); };
-  if (S.mode === '92') {
+  if (S.mode === 'seat') {
+    buildSeat(T, L);
+  } else if (S.mode === '92') {
     const s = JOHNSON[S.j - 1];
     S.R = Math.max(...s.V.map((v) => Math.hypot(...v)));
     for (const f of P.orient(s.V, s.F)) {
@@ -117,6 +122,46 @@ function build() {
   }
   TRI.set(tri); LIN.set(lin); PTS.set(pts);
 }
+/** The seat: the snub dodecahedron (scaled so its edge is K), each face in its family's colour, and on each face its
+ *  Johnson solid in miniature, standing on it; the chosen one flies out and grows. */
+const K = 1, SNUB_R = Math.max(...SNUB.V.map((v) => Math.hypot(...v)));
+const FACE = SNUB.F.map((f) => {
+  const P3 = f.map((i) => SNUB.V[i]), c = [0, 1, 2].map((k) => P3.reduce((s, p) => s + p[k], 0) / P3.length);
+  let n = nrm3(P3); if (P.dot(n, c) < 0) n = n.map((x) => -x);
+  const u = P.unit(P.sub(P3[0], c)), v = [n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]];
+  const inr = Math.min(...P3.map((p, i) => { const q = P3[(i + 1) % P3.length], d = P.sub(q, p), t = P.dot(P.sub(c, p), d) / P.dot(d, d); return Math.hypot(...P.sub(c, P.add(p, d, t))); }));
+  return { c, n, u, v, inr };
+});
+const RADIUS = JOHNSON.map((s) => Math.max(...s.V.map((v) => Math.hypot(...v))));
+function buildSeat(T, L) {
+  const mir = (p) => (S.mirror ? [-p[0], p[1], p[2]] : p);
+  S.R = SNUB_R * K * 1.05;
+  SNUB.F.forEach((f, i) => {
+    const fam = familyOf(SEAT[i]), lit = S.famHi === fam ? 1.7 : S.famHi < 0 ? 1 : 0.35, out = S.seatSel >= 0 ? 0.6 : 1;
+    const col = FAMILIES[fam].col.map((x) => x * 0.42 * lit * out + 0.04), P3 = f.map((k) => mir(SNUB.V[k].map((x) => x * K))), n = mir(FACE[i].n);
+    for (let a = 1; a + 1 < f.length; a++) T(P3[0], P3[a], P3[a + 1], n, col);
+    for (let a = 0; a < f.length; a++) L(P3[a], P3[(a + 1) % f.length], [0.02, 0.02, 0.03]);
+  });
+  SNUB.F.forEach((_, i) => {
+    const j = SEAT[i], s = JOHNSON[j - 1], F = FACE[i], fam = familyOf(j);
+    if (S.famHi >= 0 && S.famHi !== fam && i !== S.seatSel) return;
+    // seated: circumradius 0.72 of the face's inradius, standing just off the face; flying: out along the normal, growing
+    const t = i === S.seatSel ? ease(S.seatT) : 0;
+    const seated = F.inr * (SNUB.F[i].length === 5 ? 0.5 : 0.66), rad = seated * (1 - t) + 0.55 * t, k = (rad / RADIUS[j - 1]) * K;
+    const at = P.add(F.c.map((x) => x * K), F.n, (rad + 0.02) * (1 - t) + 1.3 * t);
+    // out of its seat it turns (about the face's normal and tipped toward you), so its shape reads in 3D
+    const a = t * performance.now() / 1400, b = t * 0.6, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(b), sb = Math.sin(b);
+    const turnP = (p) => { const x = p[0] * ca - p[1] * sa, y = p[0] * sa + p[1] * ca; return [x, y * cb - p[2] * sb, y * sb + p[2] * cb]; };
+    const place = (p0) => { const p = turnP(p0); return mir(P.add(P.add(P.add(at, F.u, p[0] * k), F.v, p[1] * k), F.n, p[2] * k)); };
+    const W = s.V.map(place);
+    for (const f of P.orient(s.V, s.F)) {
+      const pts = f.map((q) => W[q]), n = nrm3(pts), col = NGON[f.length];
+      for (let a = 1; a + 1 < f.length; a++) T(pts[0], pts[a], pts[a + 1], n, col);
+    }
+    if (i === S.seatSel) for (const [a, b] of P.edges3(s.F)) L(W[a], W[b], [0.06, 0.06, 0.09]);
+  });
+}
+const ease = (x) => x * x * (3 - 2 * x);
 function nrm3(p) { const a = P.sub(p[1], p[0]), b = P.sub(p[2], p[0]); const n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; const l = Math.hypot(...n) || 1; return n.map((x) => x / l); }
 
 // ------------------------------------------------------------------ matrices
@@ -152,11 +197,27 @@ function draw() {
   if (PTS.n) { gl.uniform1i(U.round_, 1); gl.bindVertexArray(PTS.vao); gl.drawArrays(gl.POINTS, 0, PTS.n); }
   overlay(v);
 }
+/** J-numbers on the seats facing you. */
+function seatLabels(v, w, h) {
+  if (!lastM) return;
+  octx.font = '600 10px ui-monospace, Menlo, monospace'; octx.textAlign = 'center'; octx.textBaseline = 'middle';
+  SNUB.F.forEach((_, i) => {
+    if (i === S.seatSel && S.seatT > 0.05) return;
+    const F = FACE[i], c = S.mirror ? [-F.c[0], F.c[1], F.c[2]] : F.c, n = S.mirror ? [-F.n[0], F.n[1], F.n[2]] : F.n;
+    if (P.dot(n, P.sub(v.cam, c)) <= 0.2) return;
+    const fam = familyOf(SEAT[i]); if (S.famHi >= 0 && S.famHi !== fam) return;
+    const q = project(lastM, P.add(c, n, F.inr * 1.5 + 0.05), w, h);
+    if (q.w <= 0) return;
+    octx.fillStyle = 'rgba(7,8,12,0.55)'; octx.fillRect(q.x - 12, q.y - 7, 24, 13);
+    octx.fillStyle = hex(FAMILIES[fam].col); octx.fillText(`J${SEAT[i]}`, q.x, q.y);
+  });
+}
 const AX = [['x', '#e9e4da'], ['y', '#e9e4da'], ['z', '#e9e4da'], ['w', '#ffd27a']];
 function overlay(v) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2), w = ov.clientWidth, h = ov.clientHeight;
   if (ov.width !== Math.round(w * dpr) || ov.height !== Math.round(h * dpr)) { ov.width = Math.round(w * dpr); ov.height = Math.round(h * dpr); }
   octx.setTransform(dpr, 0, 0, dpr, 0, 0); octx.clearRect(0, 0, w, h);
+  if (S.mode === 'seat') { seatLabels(v, w, h); return; }
   if (S.mode === '92') return;
   // CAD⁴'s axes: where x, y, z and w lie in your slice (shorter the more they lean out of it)
   const cx = w - 52, cy = 96, L = 34; octx.lineWidth = 1.6; octx.font = '600 11px ui-monospace, Menlo, monospace'; octx.textAlign = 'center'; octx.textBaseline = 'middle';
@@ -196,9 +257,10 @@ function withIco(poly, cut) {
 
 // ------------------------------------------------------------------ choosing
 function setMode(m) {
-  S.mode = m; document.body.classList.toggle('is4', m !== '92');
+  S.mode = m; document.body.classList.toggle('is4', m === '4d' || m === '600'); document.body.classList.toggle('isSeat', m === 'seat');
+  $('seatSec').hidden = m !== 'seat'; if (m === 'seat') { S.spin = true; $('spinB').classList.add('on'); legend(); }
   for (const b of $('mode').children) b.classList.toggle('on', b.dataset.v === m);
-  $('pick').hidden = m === '600'; $('prev').hidden = $('next').hidden = m !== '92';
+  $('pick').hidden = m === '600' || m === 'seat'; $('prev').hidden = $('next').hidden = m !== '92';
   $('dimSec').hidden = m !== '600'; $('kitSec').hidden = m !== '4d';
   if (m === '600') { S.view = 'shadow'; }
   fillPick(); choose(); squareUp(true);
@@ -230,14 +292,21 @@ function rows(el, list) { el.textContent = ''; for (const [k, v] of list) { cons
 function info() {
   const chips = $('chips'); chips.textContent = '';
   const chip = (col, text) => { const s = document.createElement('span'), i = document.createElement('i'); i.style.background = hex(col); s.append(i, text); chips.append(s); };
-  if (S.mode === '92') {
+  if (S.mode === 'seat' && S.seatSel < 0) {
+    $('title').textContent = 'the seat: the snub dodecahedron';
+    rows($('facts'), [['faces', '92: 12 pentagons, 80 triangles'], ['vertices · edges', '60 · 150'], ['handedness', S.mirror ? 'dextro (mirrored)' : 'laevo'], ['the most faces any Johnson solid has', '62 (J71–J75)']]);
+    $('cap').textContent = 'The snub dodecahedron, the one solid with 92 faces: every Johnson solid has a seat. Families sit together; the 12 pentagons hold the rhombicosidodecahedron\'s 12. Tap a seat to bring its solid out.';
+    return;
+  }
+  if (S.mode === '92' || S.mode === 'seat') {
+    if (S.mode === 'seat') S.j = SEAT[S.seatSel];
     const s = JOHNSON[S.j - 1], E3 = P.edges3(s.F), counts = {};
     for (const f of s.F) counts[f.length] = (counts[f.length] || 0) + 1;
     const cs = P.circumsphere(s.V), vol = P.volume3(s.V, P.orient(s.V, s.F));
     $('title').textContent = `J${s.j} · ${s.name}`;
     rows($('facts'), [['family', family(s.j)], ['vertices · edges · faces', `${s.V.length} · ${E3.length} · ${s.F.length}`], ['volume (edge 1)', vol.toFixed(6)], ['circumsphere', cs ? `radius ${cs.r.toFixed(4)}` : 'none: its vertices aren\'t on one sphere'], ['in 4D', [P.pyramid(s) ? 'a pyramid' : null, P.pyramid(s, true) ? 'a bipyramid' : null, 'a prism'].filter(Boolean).join(', ')]]);
     for (const n of Object.keys(counts).map(Number).sort((a, b) => a - b)) chip(NGON[n], `${counts[n]} ${NAME[n]}`);
-    $('cap').textContent = `J${s.j}, the ${s.name.toLowerCase()}: ${family(s.j)}. Every face regular, every edge the same length. Drag to turn it, pinch or scroll to zoom; ‹ › or , . for the next.`;
+    $('cap').textContent = S.mode === 'seat' ? `J${s.j}, the ${s.name.toLowerCase()}, out of its seat (a ${SNUB.F[S.seatSel].length === 5 ? 'pentagon' : 'triangle'} in the ${family(s.j)}). Tap it, or anywhere off it, to send it home.` : `J${s.j}, the ${s.name.toLowerCase()}: ${family(s.j)}. Every face regular, every edge the same length. Drag to turn it, pinch or scroll to zoom; ‹ › or , . for the next.`;
   } else {
     const poly = S.poly, c = P.check4(poly), kinds = {};
     for (const cl of poly.cells) kinds[cl.kind] = (kinds[cl.kind] || 0) + 1;
@@ -271,7 +340,7 @@ function kitButtons() {
     pts.set(e.pointerId, [e.clientX, e.clientY]);
     if (pts.size === 2) { moved += 99; const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) { zoom = Math.max(0.3, Math.min(8, (zoom * d) / pinch)); dirty = true; } pinch = d; }
   });
-  const up = (e) => { if (pts.size === 1 && moved < 6 && S.mode === '600' && S.view === 'shadow') tap(e); pts.delete(e.pointerId); pinch = 0; };
+  const up = (e) => { if (pts.size === 1 && moved < 6) { if (S.mode === '600' && S.view === 'shadow') tap(e); else if (S.mode === 'seat') seatTap(e); } pts.delete(e.pointerId); pinch = 0; };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', (e) => { pts.delete(e.pointerId); pinch = 0; });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math.min(8, zoom * Math.exp(-e.deltaY * 0.0015))); dirty = true; }, { passive: false });
 }
@@ -287,6 +356,36 @@ function tap(e) {
   else if ([...S.cut].some((c) => H.A[c].has(i))) { toast('a neighbour of that vertex is already cut: cutting both would cut through their edge'); return; }
   else { S.cut.add(i); toast(`cut vertex ${i}: 20 tetrahedra become an icosahedron`); }
   choose();
+}
+/** Tap a seat (the nearest face facing you whose outline holds the tap): its solid flies out; tap again, it goes home. */
+function seatTap(e) {
+  if (!lastM) return;
+  const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, v = view();
+  if (S.seatSel >= 0) { S.seatGoing = true; return; }
+  let best = -1, bz = Infinity;
+  SNUB.F.forEach((f, i) => {
+    const F = FACE[i], c = S.mirror ? [-F.c[0], F.c[1], F.c[2]] : F.c, n = S.mirror ? [-F.n[0], F.n[1], F.n[2]] : F.n;
+    if (P.dot(n, P.sub(v.cam, c)) <= 0) return;
+    const poly = f.map((k) => { const p = SNUB.V[k]; return project(lastM, S.mirror ? [-p[0], p[1], p[2]] : p, r.width, r.height); });
+    let inside = false;
+    for (let a = 0, b = poly.length - 1; a < poly.length; b = a++) if ((poly[a].y > y) !== (poly[b].y > y) && x < ((poly[b].x - poly[a].x) * (y - poly[a].y)) / (poly[b].y - poly[a].y) + poly[a].x) inside = !inside;
+    const z = P.dot(P.sub(c, v.cam), v.f);
+    if (inside && z < bz) { bz = z; best = i; }
+  });
+  if (best < 0) return;
+  if (S.famHi >= 0 && S.famHi !== familyOf(SEAT[best])) return;
+  S.seatSel = best; S.seatT = 0; S.seatGoing = false; S.spin = false; $('spinB').classList.remove('on');
+  info();
+}
+function legend() {
+  const el = $('legend'); el.textContent = '';
+  FAMILIES.forEach((f, i) => {
+    const b = document.createElement('button'), sw = document.createElement('i'), em = document.createElement('em');
+    sw.style.background = hex(f.col); em.textContent = `J${f.a}–J${f.b} · ${f.b - f.a + 1}`;
+    b.append(sw, f.name, em); b.classList.toggle('on', S.famHi === i);
+    b.onclick = () => { S.famHi = S.famHi === i ? -1 : i; legend(); needBuild = true; dirty = true; };
+    el.append(b);
+  });
 }
 const stick = { x: 0, y: 0 }, lever = { y: 0 }, keys = new Set();
 {
@@ -310,6 +409,7 @@ for (const b of $('view').children) b.addEventListener('click', () => { S.view =
 $('pick').addEventListener('change', () => { if (S.mode === '92') S.j = +$('pick').value; else S.obj = $('pick').value; choose(); history.replaceState(null, '', `#${S.mode === '92' ? 'J' + S.j : S.obj}`); });
 $('prev').onclick = () => step(-1); $('next').onclick = () => step(1);
 $('squareB').onclick = () => squareUp(false);
+$('mirrorB').onclick = () => { S.mirror = !S.mirror; $('mirrorB').classList.toggle('on', S.mirror); needBuild = true; dirty = true; info(); };
 $('spinB').onclick = () => { S.spin = !S.spin; $('spinB').classList.toggle('on', S.spin); };
 $('cap').onclick = () => $('cap').classList.toggle('min');
 $('dClear').onclick = () => { S.cut.clear(); choose(); };
@@ -327,6 +427,13 @@ function tick(now) {
   if (four && (tx || ty)) { const v = view(); if (tx) turn(lift(v.r), E[3], tx * 1.1 * dt); if (ty) turn(lift(v.u), E[3], ty * 1.1 * dt); needBuild = true; dirty = true; }
   if (four && ly) { off = Math.max(-1.05 * S.R, Math.min(1.05 * S.R, off + ly * 0.6 * S.R * dt)); needBuild = true; dirty = true; }
   if (S.spin) { yaw += dt * 0.25; dirty = true; }
+  if (S.mode === 'seat' && S.seatSel >= 0) {
+    needBuild = true; dirty = true;                      // it turns while it's out
+    const was = S.seatT;
+    S.seatT = Math.max(0, Math.min(1, S.seatT + (S.seatGoing ? -dt : dt) * 1.6));
+    if (S.seatT !== was) { needBuild = true; dirty = true; }
+    if (S.seatGoing && S.seatT === 0) { S.seatSel = -1; S.seatGoing = false; S.spin = true; $('spinB').classList.add('on'); info(); }
+  }
   if (dirty) {
     dirty = false; draw();
     slow = raw > 45 ? slow + 1 : Math.max(0, slow - 1);
@@ -341,8 +448,9 @@ addEventListener('resize', () => { dirty = true; });
   const h = decodeURIComponent(location.hash.slice(1));
   if (/^J\d+$/.test(h) && +h.slice(1) >= 1 && +h.slice(1) <= 92) { S.j = +h.slice(1); setMode('92'); }
   else if (h === '600') setMode('600');
+  else if (h === 'seat') setMode('seat');
   else if (OBJ[h]) { S.obj = h; setMode('4d'); }
   else setMode('92');
 }
-window.johnson = { S, P, JOHNSON, setMode, choose, pose: (p) => { if (p.E) E = p.E; if (p.off !== undefined) off = p.off; if (p.yaw !== undefined) yaw = p.yaw; if (p.pitch !== undefined) pitch = p.pitch; if (p.zoom !== undefined) zoom = p.zoom; needBuild = true; dirty = true; } };
+window.johnson = { S, P, JOHNSON, SEAT, setMode, choose, seatTap, pose: (p) => { if (p.E) E = p.E; if (p.off !== undefined) off = p.off; if (p.yaw !== undefined) yaw = p.yaw; if (p.pitch !== undefined) pitch = p.pitch; if (p.zoom !== undefined) zoom = p.zoom; needBuild = true; dirty = true; } };
 requestAnimationFrame(tick);
