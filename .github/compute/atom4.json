@@ -1,104 +1,49 @@
 {
- "run": "evolve4-1",
- "why": "Stars that age (paper 2 section 4; the /star/ age slider): atom/tools/evolve.mjs, each shell burnt on the network, stirred zones mixed, energy-checked steps, checkpointed. Every 4D Sun analogue at G 1e-11, 1e-14, 1e-17, 1e-20 x ours and all eight strengths, a mass ladder at G 1e-17 s 1.5152, and ours 0.6-3 Msun at the calibrated X0 0.687. Sandbox trial: the 4D analogue at G 1e-17 s 1.5152 settles to 16.0 MK and steps at ~20 s.",
+ "run": "evolve4-2",
+ "why": "Resume evolve4-1's 4D Sun analogues cut at the 5.5 h deadline, from their checkpoints on atom4-data (18 of 21; the s 1.75 pair and the 1 M_Ch ladder star sat at zero age for the whole run and are left for the controller to be fixed first). evolve4-1: analogues at G 1e-17 to 1e-20 still burning after 18-90 Gyr.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev-00",
+   "name": "ev2-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-11 1.55 sun",
     "node four/atom/tools/evolve.mjs four 1e-11 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.65 sun"
-   ]
-  },
-  {
-   "name": "ev-01",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-11 1.7 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.75 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.8 sun",
+    "node four/atom/tools/evolve.mjs four 1e-11 1.65 sun",
     "node four/atom/tools/evolve.mjs four 1e-11 1.85 sun"
    ]
   },
   {
-   "name": "ev-02",
+   "name": "ev2-01",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-14 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-14 1.55 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.65 sun"
-   ]
-  },
-  {
-   "name": "ev-03",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-14 1.7 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.75 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.8 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.85 sun"
-   ]
-  },
-  {
-   "name": "ev-04",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 sun"
    ]
   },
   {
-   "name": "ev-05",
+   "name": "ev2-02",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.75 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.8 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.85 sun"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.85 sun",
+    "node four/atom/tools/evolve.mjs four 1e-20 1.5152 sun"
    ]
   },
   {
-   "name": "ev-06",
+   "name": "ev2-03",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-20 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.55 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.65 sun"
+    "node four/atom/tools/evolve.mjs four 1e-20 1.65 sun",
+    "node four/atom/tools/evolve.mjs four 1e-20 1.7 sun"
    ]
   },
   {
-   "name": "ev-07",
+   "name": "ev2-04",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-20 1.7 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.75 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.8 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.85 sun"
-   ]
-  },
-  {
-   "name": "ev-08",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.6"
-   ]
-  },
-  {
-   "name": "ev-09",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5",
-    "node four/atom/tools/evolve.mjs ours 0.6 X0=0.687",
-    "node four/atom/tools/evolve.mjs ours 0.8 X0=0.687",
-    "node four/atom/tools/evolve.mjs ours 1.25 X0=0.687"
-   ]
-  },
-  {
-   "name": "ev-10",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs ours 1.6 X0=0.687",
-    "node four/atom/tools/evolve.mjs ours 2 X0=0.687",
-    "node four/atom/tools/evolve.mjs ours 3 X0=0.687"
    ]
   }
  ]
