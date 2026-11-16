@@ -150,6 +150,27 @@ for games, and this is a modelling programme with publications to come. The game
   <ours.json> <dir of 4D net files>` (~25 min): layers from each star's compact profile (`mainseq.mjs` now keeps `prof`,
   40 points), outer zones from `atom/js/surface.js`, ours' core clocks by REACLIB. 4D sequences from run `starcut-1`
   (G 10⁻¹¹/10⁻¹⁴/10⁻¹⁷/10⁻²⁰ × all eight s, on atom4-data); ours from `mainseq.mjs ours`. Catalogue `four-star`.
+- **stars that age (PI, 2026-11-15: "getting main sequence rock solid before trying exotics"; paper 2 section 4,
+  `papers/p2/text/ageing.md`).** `atom/tools/evolve.mjs` ages a star: `mainseq.js`'s `star` now takes a composition
+  varying with mass (`opts.compAt`; eps and kappa get `m`); composition on 401 points in q = (j/400)^1.5; each shell
+  burnt implicitly at its own ρ, T; a stirred region burnt as one zone on its shells' mass-weighted rate constants (burning
+  shells apart starved a convective core's centre); midpoint steps accepted only if the shells' burnt energy matches what
+  the half-way star radiated to 0.3% (`BALTOL`), else halved; structure ε per shell a local power law refitted until L
+  settles. Ours burns on `fusion/js/shell.js` (REACLIB pp chains and CN/NO cycles, weak screening, neutrino shares, short-
+  lived species at steady state, ³He evolved); 4D on `fusion/js/shell4.js` (net4 with eps4.json's ρ_ref(T), energy as
+  atomic rest-mass loss, no screening, fast species found by a 1-yr lifetime cut), pinned gravity held through a solve and
+  updated once per step (pinnedF carries ~1% noise), and the star **settled** 10²–10⁶ yr before the clock starts (fresh
+  gas lacks its climb's intermediates). Checkpoints every 3 min (`*.ckpt.json`), resumes. `ours [M☉] [dX] [X0=] [tmax=]`
+  (~30 min a solar life), `four <G> <s> <M_Ch|sun> [dX] [ff=] [tmax=] [settle=]` (runner). **Ours, checked
+  (`fusion/tools/suncheck.mjs` → `papers/p2/data/evolvecheck.json`, refs `ssm-ref.json` = BP2001 tables parsed from its
+  arXiv HTML + B16 + Pols, `modelS.json` = Model S from its FGONG file via `fusion/tools/modelS.mjs`):** burning within 4% of
+  Model S's ε on its own conditions; X₀ calibrated to L☉ at 4.57 Gyr = 0.687 (BP 0.708); Tc 15.73 (15.70), L(t) within 3.6%
+  of BP2001 to 4.6 Gyr (12% by 8), X_c = 10⁻³ at 9.0 Gyr (Pols 9); ρc 18% low and X_c 0.365 (0.34) from ours' Kramers
+  opacity (13% low even on Model S's composition) and no diffusion. Section 3's clock factor ×2.41 comes out ×1.99 (the
+  settled centre; ×1.2 from the unsettled first star). Run `evolve4-1` (queued 2026-11-16): the 4D Sun analogues at G
+  10⁻¹¹/10⁻¹⁴/10⁻¹⁷/10⁻²⁰ × eight s, a mass ladder at 10⁻¹⁷/1.5152, ours 0.6–3 M☉. Sandbox trial: the analogue at
+  10⁻¹⁷/1.5152 settles to 16.0 MK (its table star 20.8) and burns its stirred core slowly (X_c −0.0017 in 0.5 Gyr), so
+  aged it may live far longer than section 3's convention says: wait for the run.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,
