@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="FOLD — origami one dimension up. Fold any of the tesseract's 261 nets (Dalí's cross among them) up through the fourth dimension, cube by cube about their hinge squares; and turn a solid half a turn through w to land it as its own mirror image, which no turn in 3D can do." />
+<title>FOLD — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/fold.css" />
+</head>
+<body class="is4">
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="gl" aria-label="The net folding up through w, or a solid turning through w into its mirror image: your shadow or slice of it"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <div id="bar">
+      <a class="home" href="../">ana</a>
+      <b>FOLD</b>
+      <div class="seg" id="mode"><button data-v="nets" class="on">nets</button><button data-v="mirror">mirror</button></div>
+      <div class="seg" id="view"><button data-v="shadow" class="on">shadow</button><button data-v="slice">slice</button></div>
+      <button type="button" id="playB" aria-label="fold and unfold">▶ fold</button>
+      <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
+      <button type="button" id="spinB" class="on">spin</button>
+    </div>
+    <div id="cap"></div>
+    <div id="toast"></div>
+    <div id="twist" class="pad" aria-label="twist your slice into w"><div id="twistKnob"></div><span>twist into w</span></div>
+    <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+    <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
+  </div>
+
+  <div class="panel">
+    <section id="netSec">
+      <h2 id="title">the tesseract's nets</h2>
+      <div class="slider"><span>flat</span><input type="range" id="fold" min="0" max="1" step="0.001" value="0" aria-label="fold" /><span>folded</span></div>
+      <div class="netnav"><button class="ghost" id="prevN">‹</button><input id="netN" type="number" min="1" max="261" value="1" aria-label="which net" /><span class="foot">of 261</span><button class="ghost" id="nextN">›</button><button class="ghost" id="daliB">Dalí's</button><button class="ghost" id="randN">any</button></div>
+      <div id="facts" class="rows"></div>
+    </section>
+    <section id="mirSec" hidden>
+      <h2>the mirror fold</h2>
+      <div class="slider"><span>0°</span><input type="range" id="turn" min="0" max="1" step="0.001" value="0" aria-label="turn through w" /><span>180°</span></div>
+      <div class="btns"><select id="obj" aria-label="which solid"></select></div>
+      <div id="mfacts" class="rows"></div>
+    </section>
+    <details open><summary>origami, one dimension up</summary>
+      <p>Cut a paper cube along seven edges and it lies flat: a net, six squares in the plane, hinged along their edges. Fold the squares up through the third dimension and it closes. A <b>tesseract</b> does the same one dimension up: cut it along its square faces and its eight cubes lie in our space, hinged along their squares, and they fold up through the fourth. Salvador Dalí painted one of these nets in 1954 (<i>Corpus Hypercubus</i>), a column of four cubes with four more round the second.</p>
+      <p>There are <b>261</b> of them. Choosing which 7 of the 24 squares to keep as hinges is a spanning tree of how the cubes touch: <b>82,944</b> ways. The page unfolds every one; none puts two cubes in the same place, and they come out as 261 different shapes, Peter Turney's count (1984). 194 of them come in left- and right-handed pairs.</p>
+      <p>Folding, each cube turns a quarter turn about the plane of its hinge square, out of our space into w, carrying the cubes hung off it. In the <b>shadow</b> you see them swing out (teal as they go ana) and close up into the tesseract's familiar cube-in-a-cube. In the <b>slice</b> (our space, where the net lies) a cube turning about a hinge square that lies in our space leaves it at once, all but the hinge itself: a 3D thing leaving a 3D world through a 2D door. Push the slice ana with the lever and you catch the rising cubes as their cross-sections; folded, our space holds only the bottom cube.</p>
+    </details>
+    <details><summary>the mirror fold</summary>
+      <p>A left glove can't be turned into a right glove in our space. In four dimensions it can: turn it half a turn in the plane of x and w, and it comes back into our space with x reversed, its own mirror image, the way a paper L in a plane flips over through the third dimension. Halfway, it stands edge-on to our space: its slice is a flat section.</p>
+      <p>The snub dodecahedron comes in two hands, and so do exactly five of the 92 Johnson solids, J44–J48 (the gyroelongated bicupolae, cupolarotunda and birotunda); every other one is its own mirror image after some turn in 3D. The selftest tries every way of matching each solid to its mirror image: for these six, every match is a reflection.</p>
+    </details>
+    <details><summary>how it's drawn, and checked</summary>
+      <p>The cubes' motions are exact: a quarter turn about each hinge square in the plane of the two cubes' normals, composed down the tree. Shadow: every vertex projected from an eye in w. Slice: each cube that lies in your slice drawn whole, each that crosses it as its section. Controls are CAD⁴'s: drag to look round, pinch or scroll to zoom, the pad twists your slice into w, the lever moves it, ⊞ squares it up. <code>test/fold.selftest.mjs</code> holds the counts (82,944 trees, none overlapping, 261 nets, 455 counting mirrors apart, Dalí's among them), the folding (rigid, hinged at every angle, closing exactly into the tesseract), and the mirror fold.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

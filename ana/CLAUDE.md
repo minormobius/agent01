@@ -106,6 +106,12 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   pyramids, `check4`, `slice` (one half-space per cell, a cube clipped), `shadow`. Controls are CAD⁴'s (kata/cad4:
   drag, pinch, the pad turning the slice about what you see as across and up, the lever, ⊞, the axes gizmo). See
   [`johnson/README.md`](johnson/README.md).
+- **FOLD at `/fold/`**: origami one dimension up. **nets**: the tesseract's 261 nets (Turney), from its 82,944 hinge
+  trees (spanning trees of K₂,₂,₂,₂; `tools/build-nets.mjs` → `js/nets-data.js`, GENERATED), folding up through w
+  cube by cube about their hinge squares (`js/fold.js` `motions`: exact quarter turns composed down the tree), Dalí's
+  among them; shadow or slice. **mirror**: half a turn in the xw plane lands a chiral solid (the snub dodecahedron,
+  J44–J48) on its mirror image; `congruence` shows no 3D rotation does. Imports JOHNSON's data (same site). See
+  [`fold/README.md`](fold/README.md).
 
 ## Checks
 
@@ -114,6 +120,7 @@ node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, fa
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
 node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding, the map
 node ana/johnson/test/johnson.selftest.mjs           # ~30 s: the 92 from scratch (hull, regular faces, volumes), the 600-cell and snub 24-cell, prisms and pyramids, slices
+node ana/fold/test/fold.selftest.mjs                 # ~40 s: 82,944 hinge trees, 261 nets (455 with mirrors apart), Dalí's, folding rigid and hinged and closing exactly, the mirror fold, J44–J48 chiral
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 
