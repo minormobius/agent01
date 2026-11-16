@@ -97,7 +97,12 @@ function fourWorld(Grel, s, ff = 1, plasma = false) {
   const sh = shell4(s, "ladder", { screen: plasma }), iP = sh.I["1-1"], A = sh.AS, Z = sh.ZS, init = sh.fromX({ "1-1": 0.75, "2-4": 0.25 });
   const parts = (y) => { let X = y[iP] * A[iP], He = 0, ions = 0, zz = 0; for (let i = 0; i < sh.NS; i++) { const x = y[i] * A[i]; zz += y[i] * Z[i] * Z[i]; if (i === iP) continue; if (Z[i] <= 2) He += x; else ions += y[i]; } return { X, He, ions, zz }; };
   const comp = (y) => { const p = parts(y); return { X: p.X, Y: p.He, Z: 14 * p.ions }; }; // rhoOf counts ions as X + Y/4 + Z/14
-  return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
+  // Tburn: shells cooler than this neither burn nor enter the structure's energy law. Ours' 2 MK sits far below the Sun's
+  // burning; a 4D core at s 1.8–1.85 burns at 2.5–3.5 MK, so a 2 MK cut switched shells on and off as the star moved and
+  // stalled the solve mid-life (evolve4-1/2, G 1e-11/1e-14). shell4.js gives nothing below 1 MK anyway.
+  // loose: a Newton stall under 5 × 10⁻⁴ (a 0.05% mismatch at the fitting mass) counts as solved; pinned gravity's table
+  // and the integrator's adaptive steps floor the residual near 10⁻⁵–10⁻⁴, under the strict 10⁻⁶ the solver aims for.
+  return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, Tburn: 1e6, loose: 5e-4, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
     kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T); },
     kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T), // Y here carries Σ n Z² less hydrogen's
     eps: (rho, T, y) => sh.eps(rho, T, y), dHdt: (rho, T, y) => sh.dYdt(rho, T, y)[iP] * A[iP],
@@ -110,7 +115,7 @@ function fourWorld(Grel, s, ff = 1, plasma = false) {
 
 const lerpState = (S, q) => { const [a, b, t] = bracket(QS, q); if (!t) return S[a]; const A = S[a], B = S[b], o = new Float64Array(A.length); for (let i = 0; i < A.length; i++) o[i] = A[i] * (1 - t) + B[i] * t; return o; };
 /* each shell's ε(ρ, T) as a power law fitted at (ρ₀, T₀) */
-function fitLaws(W, S, at) { return S.map((s, j) => { const { rho, T } = at[j]; if (!(T > 2e6) || !(rho > 0)) return null; const e0 = W.eps(rho, T, s).eps; if (!(e0 > 0)) return null;
+function fitLaws(W, S, at) { return S.map((s, j) => { const { rho, T } = at[j]; if (!(T > (W.Tburn ?? 2e6)) || !(rho > 0)) return null; const e0 = W.eps(rho, T, s).eps; if (!(e0 > 0)) return null;
   const er = W.eps(rho * 1.02, T, s).eps, eT = W.eps(rho, T * 1.01, s).eps; return { l0: Math.log(e0), a: Math.log(er / e0) / Math.log(1.02), b: Math.log(eT / e0) / Math.log(1.01), lr: Math.log(rho), lT: Math.log(T) }; }); }
 const law = (f, lr, lT) => (f ? Math.exp(f.l0 + f.a * (lr - f.lr) + f.b * (lT - f.lT)) : 0);
 /* solve the star for the shells S: the fitted laws refitted at each solution until L settles */
@@ -121,14 +126,14 @@ function solve(W, M, S, guess, at0, f0 = null) {
   let at = at0, s = null, p = guess, last = null, f = f0;
   for (let k = 0; k < 8; k++) {
     const laws = fitLaws(W, S, at), eps = (rho, T, m) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t; };
-    s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}) }, p);
+    s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}) }, p);
     if (!s.ok) return { s }; p = s.p; at = sample(W, M, S, s).rows;
     if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (Newton ${s.it})`);
     if (last && Math.abs(Math.log(s.L / last)) < 1e-4) break; last = s.L;
   }
   // pinned gravity is held through the solve (pinnedF from a profile carries ~1% noise, which would never let L settle)
   // and updated once from the solution, damped, for the next one: it lags the star by one step, over which it barely moves
-  if (W.pinned && s.ok) { const fo = f, fn = pinnedF(s.prof); f = fo ? (m) => 0.5 * (fo(m) + fn(m)) : fn; }
+  if (W.pinned && s.ok && !process.env.FREEZE_PINNED) { const fo = f, fn = pinnedF(s.prof); f = fo ? (m) => 0.5 * (fo(m) + fn(m)) : fn; }
   return { s, at, f };
 }
 /* the profile on the composition grid: P, T, ρ at each q (ρ from the shell's own composition), and the stirred flag */
@@ -147,11 +152,11 @@ function mix(S, stir) { const O = S.map((s) => Float64Array.from(s)); let j = 0;
    zone (its composition mixed first) */
 const burnAll = (W, S0, sm, dt) => { const at = sm.rows, S = mix(S0, sm.stir), O = new Array(NQ + 1); let E = 0, j = 0;
   while (j <= NQ) {
-    if (sm.stir[j]) { let k = j; while (k + 1 <= NQ && sm.stir[k + 1]) k++; const idx = []; for (let i = j; i <= k; i++) if (at[i].T > 2e6) idx.push(i);
+    if (sm.stir[j]) { let k = j; while (k + 1 <= NQ && sm.stir[k + 1]) k++; const idx = []; for (let i = j; i <= k; i++) if (at[i].T > (W.Tburn ?? 2e6)) idx.push(i);
       if (idx.length) { const r = W.burnZone(idx.map((i) => at[i]), S[j], idx.map((i) => WQ[i]), dt), sw = idx.reduce((a, i) => a + WQ[i], 0); E += sw * r.E; for (let i = j; i <= k; i++) O[i] = Float64Array.from(r.s); }
       else for (let i = j; i <= k; i++) O[i] = Float64Array.from(S[i]);
       j = k + 1; continue; }
-    const { rho, T } = at[j]; if (!(T > 2e6)) O[j] = Float64Array.from(S[j]); else { const r = W.burn(rho, T, S[j], dt); E += WQ[j] * r.E; O[j] = r.s; } j++; }
+    const { rho, T } = at[j]; if (!(T > (W.Tburn ?? 2e6))) O[j] = Float64Array.from(S[j]); else { const r = W.burn(rho, T, S[j], dt); E += WQ[j] * r.E; O[j] = r.s; } j++; }
   return { S: O, E }; };
 
 function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, settle = 0, ckpt = null }) {
@@ -160,7 +165,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   // unknowns and its last conditions, pinned gravity as a table, and what has been kept so far
   const C = ckpt && existsSync(ckpt) ? JSON.parse(readFileSync(ckpt, "utf8")) : null;
   if (C) { const ft = C.fTab, fOf = ft ? (m) => { const [a, b, u] = bracket(ft.map((x) => x[0]), m); return ft[a][1] * (1 - u) + ft[b][1] * u; } : null;
-    S = C.S.map((x) => Float64Array.from(x)); t = C.t; const r = solve(W, M, S, C.p, C.at, fOf); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why})`);
+    S = C.S.map((x) => Float64Array.from(x)); t = C.t; const r = solve(W, M, S, C.p, C.at, fOf); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
     console.log(`${label}: resumed at ${(t / GYR).toFixed(4)} Gyr from ${ckpt}`); return run(r.s, r.f, C); }
   return run(null, null, null);
   function run(s1, g1, C) {
@@ -187,11 +192,11 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     writeFileSync(ckpt + ".part", JSON.stringify({ S: S.map((x) => Array.from(x)), t, dtLast, p: s.p, at: smp.rows.map((r) => ({ rho: r.rho, T: r.T })), fTab: ft, track, profiles, settled, nextProf, nextFrac })); renameSync(ckpt + ".part", ckpt); lastCk = Date.now(); };
   if (!C) { keep(); keepProf(s, smp); }
   for (let n = 0; n < 3000 && t < tmax && W.H(S[0]) > Hstop; n++) {
-    let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > 2e6)) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, Hstop)) / -d); }
-    if (process.env.DEBUG_DT) { let jm = -1, dm = Infinity; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > 2e6)) continue; const d = W.dHdt(r.rho, r.T, S[j]); if (d < 0 && dX / -d < dm) { dm = dX / -d; jm = j; } } console.log(`    dt ${(dt / YR).toExponential(2)} yr; the tightest shell q ${QS[jm]?.toFixed(4)} T ${(smp.rows[jm]?.T / 1e6).toFixed(2)} MK, X ${W.H(S[jm]).toFixed(4)}, dX/dt ${(-dX / dm * YR).toExponential(2)} /yr`); }
+    let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, Hstop)) / -d); }
+    if (process.env.DEBUG_DT) { let jm = -1, dm = Infinity; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const d = W.dHdt(r.rho, r.T, S[j]); if (d < 0 && dX / -d < dm) { dm = dX / -d; jm = j; } } console.log(`    dt ${(dt / YR).toExponential(2)} yr; the tightest shell q ${QS[jm]?.toFixed(4)} T ${(smp.rows[jm]?.T / 1e6).toFixed(2)} MK, X ${W.H(S[jm]).toFixed(4)}, dX/dt ${(-dX / dm * YR).toExponential(2)} /yr`); }
     dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {
-      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
+      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}, residual ${h.s.res?.toExponential(2)}, Newton ${h.s.it}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
       const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = (b.E * M) / (h.s.L * dt); // what the shells burnt over the step against what the half-way star radiated
       // the step's energy doesn't add up: shorter, unless halving it left the mismatch where it was. A step's own error
       // falls about fourfold a halving (second order); one that doesn't fall is structural (a stirred core's short-lived
@@ -201,10 +206,10 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
       const structural = prevBal != null && Math.abs(bal - prevBal) < BALTOL / 3;
       if (Math.abs(bal - balRef) > BALTOL && !structural && tries < 5 && dt > 1e3 * YR) { prevBal = bal; dt /= 2; continue; }
       balRef = structural || Math.abs(bal - 1) > BALTOL ? bal : 1;
-      const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why})`); dt /= 2; continue; }
+      const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why}, residual ${f.s.res?.toExponential(2)}, Newton ${f.s.it})`); dt /= 2; continue; }
       eBal = bal; grav = f.f;
       if (process.env.DEBUG_BAL) { const bands = [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1.01], acc = bands.slice(1).map(() => [0, 0]);
-        for (let j = 0; j <= NQ; j++) { const r = smh.rows[j]; if (!(r.T > 2e6)) continue; const k = bands.findIndex((x, i) => QS[j] >= x && QS[j] < bands[i + 1]), e = W.eps(r.rho, r.T, Sh[j]).eps, eb = W.burn(r.rho, r.T, S[j], dt).E / dt; acc[k][0] += WQ[j] * e; acc[k][1] += WQ[j] * eb; }
+        for (let j = 0; j <= NQ; j++) { const r = smh.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const k = bands.findIndex((x, i) => QS[j] >= x && QS[j] < bands[i + 1]), e = W.eps(r.rho, r.T, Sh[j]).eps, eb = W.burn(r.rho, r.T, S[j], dt).E / dt; acc[k][0] += WQ[j] * e; acc[k][1] += WQ[j] * eb; }
         console.log(`  balance by q band (burnt/structure): ${acc.map(([e, b], i) => `${bands[i]}–${bands[i + 1]}: ${(b / e).toFixed(4)} (${((e * M) / h.s.L * 100).toFixed(1)}%)`).join("; ")}`); }
       const smn = sample(W, M, Sn, f.s); S = mix(Sn, smn.stir); s = f.s; smp = smn; t += dt; dtLast = dt; done = true;
     }

@@ -124,18 +124,19 @@ export function star(opts, guess) {
   const outer = (lnR, lnL) => { if (!opts.envelope) return { m: M, y: surface(lnR, lnL) }; const e = opts.envelope(Math.exp(lnR), Math.exp(lnL), ff ? ff(M) : 1); return { m: e.m, y: [Math.log(e.r), Math.log(e.P), Math.log(e.T), Math.exp(lnL)] }; };
   const resid = (p) => { const c = centre(p[0], p[1]); let o; try { o = outer(p[2], p[3]); } catch { return null; } const out = integrate(rhs, c.m0, mf, c.y), inn = integrate(rhs, o.m, mf, o.y, { h0: -1e-10 * M });
     if (!out.y || !inn.y) return null; return { r: [out.y[0] - inn.y[0], out.y[1] - inn.y[1], out.y[2] - inn.y[2], (out.y[3] - inn.y[3]) / Math.exp(p[3])], out, inn }; };
-  let p = guess.slice(), R0 = resid(p), it = 0;
+  let p = guess.slice(), R0 = resid(p), it = 0, loose = null; // opts.loose: accept a Newton stall whose residual is under it (4D: noise in the pinned gravity table and the integrator's steps floors the residual near 10⁻⁵–10⁻⁴)
   for (; it < 60 && R0; it++) {
     const n0 = Math.hypot(...R0.r); if (n0 < 1e-6) break;
     const J = [0, 1, 2, 3].map((j) => { const q = p.slice(); q[j] += 1e-5; const Rq = resid(q); return Rq ? Rq.r.map((v, i) => (v - R0.r[i]) / 1e-5) : null; });
     if (J.some((x) => !x)) return { ok: false, p, why: "jacobian", it };
     const dx = solve4([0, 1, 2, 3].map((i) => [0, 1, 2, 3].map((j) => J[j][i])), R0.r.map((v) => -v)); let next = null;
     for (let lam = 1; lam > 1e-4; lam /= 2) { const q = p.map((v, i) => v + lam * Math.max(-1, Math.min(1, dx[i]))), Rq = resid(q); if (Rq && Math.hypot(...Rq.r) < n0) { p = q; next = Rq; break; } }
-    if (!next) return { ok: false, p, why: "stalled", it, res: n0 }; R0 = next;
+    if (!next) { if (n0 < (opts.loose ?? 0)) { loose = n0; break; } return { ok: false, p, why: "stalled", it, res: n0 }; } R0 = next;
   }
   if (!R0) return { ok: false, p, why: "integration", it };
   const prof = [...R0.out.path, ...R0.inn.path.slice().reverse()].map(([m, y]) => ({ m, r: Math.exp(y[0]), P: Math.exp(y[1]), T: Math.exp(y[2]), L: y[3] }));
-  return { ok: Math.hypot(...R0.r) < 1e-5, it, p, Pc: Math.exp(p[0]), Tc: Math.exp(p[1]), R: Math.exp(p[2]), L: Math.exp(p[3]), prof, res: Math.hypot(...R0.r) };
+  const res = Math.hypot(...R0.r);
+  return { ok: res < 1e-5 || (loose != null && res < opts.loose), loose: loose != null, it, p, Pc: Math.exp(p[0]), Tc: Math.exp(p[1]), R: Math.exp(p[2]), L: Math.exp(p[3]), prof, res };
 }
 /* the stirred core: the mass (÷ M) out to where the profile's gradient d ln T/d ln P first drops below the adiabatic one */
 export function convectiveCore(d, s) { const g = gradAd(d), p = s.prof; for (let i = 2; i < p.length; i++) { const a = p[i - 1], b = p[i]; if (b.P === a.P) continue; const nab = Math.log(b.T / a.T) / Math.log(b.P / a.P); if (b.m > 1e-6 * p.at(-1).m && nab < g * 0.98) return a.m / p.at(-1).m; } return 1; }
