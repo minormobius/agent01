@@ -1,0 +1,106 @@
+{
+ "note": "Every data file the paper's numbers are read from (papers/r1/values.mjs). status is the convergence record of the pulls behind the file, where the study wrote one.",
+ "files": [
+  {
+   "file": "kata/pull/data/braid.json",
+   "madeBy": "kata/pull/braid.mjs",
+   "bytes": 3072,
+   "sha256": "233db6f7fa19432b6b7343f23391bc1a937ea647def4e3c3216c7234869a63eb",
+   "status": null
+  },
+  {
+   "file": "kata/pull/data/cable.json",
+   "madeBy": "kata/pull/cable.mjs",
+   "bytes": 8751,
+   "sha256": "ecfc3b131284c383aa609282e74f0536d89a3b98d4c3f35393709437c2ab3e26",
+   "status": null
+  },
+  {
+   "file": "kata/pull/data/corner.json",
+   "madeBy": "kata/pull/corner.mjs",
+   "bytes": 930,
+   "sha256": "ee3de4f7821575bcf1ac75ec1a1faafc32ef5aa732024ca157f061c7620cb8b8",
+   "status": {
+    "worstLeft": 0.9999998269726029,
+    "stalled": 4411,
+    "pulls": 1540,
+    "worstResidual": 9.478847347007061e-7
+   }
+  },
+  {
+   "file": "kata/pull/data/gauge.json",
+   "madeBy": "kata/pull/gauge.mjs",
+   "bytes": 3238,
+   "sha256": "26d34871bab45116de028600f7992a5c0a6b3d64118544ca0b09c287455efdba",
+   "status": null
+  },
+  {
+   "file": "kata/pull/data/map-10.json",
+   "madeBy": "kata/pull/map.mjs",
+   "bytes": 1235,
+   "sha256": "4bda0c6b13eea10d63c02aff90b55c8a272319f4ab9192837fedf4a838604656",
+   "status": {
+    "pulls": 2110,
+    "worstLeft": 6091338.016393157,
+    "stalled": 8563,
+    "worstResidual": 7.944302158902896e-7
+   }
+  },
+  {
+   "file": "kata/pull/data/poisson.json",
+   "madeBy": "kata/pull/poisson.mjs",
+   "bytes": 1890,
+   "sha256": "15a4e8fdacc1485aa82b41204739a9e9dfe6473cecabc1fc7cc29be8c3e49bfc",
+   "status": null
+  },
+  {
+   "file": "kata/pull/data/press.json",
+   "madeBy": "kata/pull/press.mjs",
+   "bytes": 5818,
+   "sha256": "34de5b2168ecec6b48526e754848aba9ad4349c4061aea80d1fb7b38d80dea95",
+   "status": null
+  },
+  {
+   "file": "kata/pull/data/samples.json",
+   "madeBy": "kata/pull/sample.mjs",
+   "bytes": 37413,
+   "sha256": "3242aa9f3d22496eedef521e36ff23444a169457f87d2c60467cdab413a095a2",
+   "status": null
+  },
+  {
+   "file": "kata/pull/data/sens.json",
+   "madeBy": "kata/pull/sens.mjs",
+   "bytes": 6871,
+   "sha256": "53322f9678a1eb4ba82d15dd627f649346671e80471e7551f3cc296482aa3d2e",
+   "status": null
+  },
+  {
+   "file": "kata/pull/data/sheath.json",
+   "madeBy": "kata/pull/sheath.mjs",
+   "bytes": 11714,
+   "sha256": "a980cc530c35ce78af5a3bee95c045ee7943e348fedbdd2e2123b1b4240c1657",
+   "status": null
+  },
+  {
+   "file": "kata/twist/data/hosed.json",
+   "madeBy": "kata/twist/hosed.mjs",
+   "bytes": 4841,
+   "sha256": "d44020395ded7422b950debac11f04f3f4b3ed473a630e3fd4c2c6364fccd580",
+   "status": null
+  },
+  {
+   "file": "kata/twist/data/twist.json",
+   "madeBy": "kata/twist/bake.mjs",
+   "bytes": 16912,
+   "sha256": "ad76f99eaef65d870674ee03243793fc9b2603ee0fe7808a58851f1480f095fa",
+   "status": null
+  },
+  {
+   "file": "kata/twist/data/walls.json",
+   "madeBy": "kata/twist/walls.mjs",
+   "bytes": 2909,
+   "sha256": "e11767fe3f209bc852dd37681fa97623208d8be73da850e6beefeafdb1d5f67a",
+   "status": null
+  }
+ ]
+}

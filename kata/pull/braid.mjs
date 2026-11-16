@@ -11,7 +11,7 @@
    (`laid`, bench.js). Strength is in strands (the mean of one straight strand at this length).
    node kata/pull/braid.mjs [N=60]   (~4 min for 200; 50° is left out: some of its solves did not converge) */
 import fs from "node:fs";
-import { test, stats, laid } from "./js/bench.js";
+import { test, stats, laid, TALLY } from "./js/bench.js";
 const N = +process.argv[2] || 60, RUN = { steps: 110, strain: 0.07 }, t0 = Date.now(), out = { n: N, rows: [] };
 const REF = stats(Array.from({ length: 400 }, (_, i) => test({ section: "one", seed: i + 1 }, RUN).peak)).mean; out.ref = REF;
 const run = (name, theta, material, opts) => { const v = []; let left = 0; for (let s = 1; s <= N; s++) { const r = test({ ...opts, seed: s }, RUN); v.push(r.peak / REF); left = Math.max(left, r.R.left || 0); } const st = stats(v);
@@ -23,4 +23,4 @@ for (const th of [10, 20, 30, 40]) { const a = laid(th), strand = { k: a.k, stre
   run("plait", th, 3 * a.material, { section: "plait3", press, tracks: [strand, strand, strand] });
   run("maypole", th, 1 + 6 * a.material, { section: "may7", press, tracks: [core, ...Array(6).fill(strand)] });
   run("served", th, 1 + 6 * a.material, { section: "ribbon7", press, tracks: [core, ...Array(6).fill(strand)] }); }
-fs.writeFileSync(new URL("./data/braid.json", import.meta.url), JSON.stringify(out));
+out.status = TALLY.record; /* (every pull's convergence: bench.js) */ fs.writeFileSync(new URL("./data/braid.json", import.meta.url), JSON.stringify(out));

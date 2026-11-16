@@ -9,7 +9,7 @@
              well (von Mises at HOOP = 0.5: 0.866; and a pessimistic half); and gripping but carrying almost nothing
    Per weight, hose weighed. Thirteen filaments.   node kata/pull/gauge.mjs [N=40]   (~12 min) → data/gauge.json */
 import fs from "node:fs";
-import { test, stats, sheath } from "./js/bench.js";
+import { test, stats, sheath, TALLY } from "./js/bench.js";
 const N = +process.argv[2] || 40, RUN = { steps: 110, strain: 0.045 }, t0 = Date.now(), sec = () => ((Date.now() - t0) / 1000).toFixed(0) + "s", out = { n: N, gauge: [], member: [] };
 const mean = (opts, n = N) => { const v = []; let left = 0; for (let s = 1; s <= n; s++) { const r = test({ ...opts, seed: s }, RUN); v.push(r.peak); left = Math.max(left, r.R.left || 0); } const st = stats(v); return { mean: st.mean, p5: st.p5, cv: st.cv, left }; };
 const hose = (t, base, rib) => { const sh = sheath(4, t); return { ...base, section: "fcc13s", press: { kind: "hoop", p: sh.press, wall: sh.wall }, ribbon: rib ? rib(sh.material) : { k: sh.material, strength: sh.material } }; };
@@ -22,4 +22,4 @@ for (const [S, m] of [[24, 5], [48, 5], [96, 5], [192, 5], [96, 10], [96, 20]]) 
 const ref = mean({ section: "one" }, 400).mean;
 for (const [name, rib] of [["as built", null], ["with a size effect on its strength", (M) => ({ k: M, strength: M ** (1 - 1 / 5) })], ["axial strength × 0.866 (carrying hoop stress too)", (M) => ({ k: M, strength: 0.866 * M })], ["axial strength halved", (M) => ({ k: M, strength: 0.5 * M })], ["gripping, carrying almost nothing", (M) => ({ k: M / 100, strength: M })]]) {
   const a = mean(hose(0.1, {}, rib), 60), b = mean(hose(0.2, {}, rib), 60); out.member.push({ name, tau01: a.mean / ref / 15.7, tau02: b.mean / ref / 18.4, left: Math.max(a.left, b.left) }); console.error(name.padEnd(48), (a.mean / ref / 15.7).toFixed(3), (b.mean / ref / 18.4).toFixed(3), sec()); }
-fs.writeFileSync(new URL("./data/gauge.json", import.meta.url), JSON.stringify(out)); console.error("done", sec());
+out.status = TALLY.record; /* (every pull's convergence: bench.js) */ fs.writeFileSync(new URL("./data/gauge.json", import.meta.url), JSON.stringify(out)); console.error("done", sec());

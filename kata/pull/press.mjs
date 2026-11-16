@@ -7,7 +7,7 @@
    node kata/pull/press.mjs [N=60]   (~6 min) */
 import fs from "node:fs";
 import { band, skin, sharing, HULL } from "./js/skin.js";
-import { test, stats, sheath } from "./js/bench.js";
+import { test, stats, sheath, TALLY } from "./js/bench.js";
 import { settle } from "../twist/js/yarn.js";
 const N = +process.argv[2] || 60, t0 = Date.now(), sec = () => ((Date.now() - t0) / 1000).toFixed(0) + "s", out = { n: N };
 /* 1. the skin */
@@ -34,4 +34,4 @@ const f = out.skin.find((k) => k.level === 5).perTension / out.sphere;
 out.bench = [hose("as built: round vessel, equal sharing", 1), hose(`the taut skin's force (${f.toFixed(2)} of the vessel's)`, f), hose("the skin's force, limited by its tightest part", f / out.skin.find((k) => k.level === 5).peak * 2),
   hose("middle fibre loose: all through neighbours", 1, (i) => (i === 0 ? 1 : i === 1 ? 0 : 1.5)), hose("all through the middle fibre", 1, (i) => (i === 0 ? 1 : i === 1 ? 3 : 0))];
 out.factor = f;
-fs.writeFileSync(new URL("./data/press.json", import.meta.url), JSON.stringify(out));
+out.status = TALLY.record; /* (every pull's convergence: bench.js) */ fs.writeFileSync(new URL("./data/press.json", import.meta.url), JSON.stringify(out));

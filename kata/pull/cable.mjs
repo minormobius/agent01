@@ -9,7 +9,7 @@
    frictional plateau: so this is the pessimistic case).
    TRAP: a sheath whose press is c × its own tension.   node kata/pull/cable.mjs [N=100]   (~10 min) */
 import fs from "node:fs";
-import { test, stats, HOOP } from "./js/bench.js";
+import { test, stats, HOOP, TALLY } from "./js/bench.js";
 const N = +process.argv[2] || 100, RUN = { steps: 110, strain: 0.045 }, S = 96, t0 = Date.now(), out = { n: N, levels: [], trap: [] }, sec = () => ((Date.now() - t0) / 1000).toFixed(0) + "s";
 const lg = (z) => { const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.001208650973866179, -0.000005395239384953]; let x = z, y = z, t = x + 5.5; t -= (x + 0.5) * Math.log(t); let ser = 1.000000000190015; for (const cj of c) ser += cj / ++y; return -t + Math.log((2.5066282746310005 * ser) / x); };
 /* an element: strength distribution (in strands) with mean and modulus m at this length, stiffness K and weight W in fibres, solid-equivalent section V in fibre sections */
@@ -26,4 +26,4 @@ for (let level = 1; level <= 3; level++) { const rows = [];
 /* the self-tightening sheath: thirteen filaments in a hose τ thick that is a member and presses c × its own tension */
 for (const [theta, staple] of [[35, 0], [45, 0], [55, 0], [45, 40], [55, 40]]) for (const t of [0.01, 0.02, 0.05, 0.1]) { const c = Math.tan((theta * Math.PI) / 180) ** 2 / 9, v = []; for (let s = 1; s <= N; s++) v.push(test({ section: "fcc13s", staple, press: { kind: "trap", c }, ribbon: { k: 27 * t, strength: 27 * t }, seed: s }, RUN).peak / REF); const st = stats(v), W = 13 + 27 * t;
   out.trap.push({ theta, staple, tau: t, c, mean: st.mean, cv: st.cv, p5: st.p5, material: W, specific: st.mean / W, specific5: st.p5 / W }); console.error(`trap ${theta}°${staple ? ", short fibres" : ""}`.padEnd(26), "τ", String(t).padEnd(6), "strength", st.mean.toFixed(1).padStart(7), "cv", (st.cv * 100).toFixed(1).padStart(4) + "%", "weight", W.toFixed(1).padStart(7), "specific", (st.mean / W).toFixed(3), "5th", (st.p5 / W).toFixed(3), sec()); }
-fs.writeFileSync(new URL("./data/cable.json", import.meta.url), JSON.stringify(out));
+out.status = TALLY.record; /* (every pull's convergence: bench.js) */ fs.writeFileSync(new URL("./data/cable.json", import.meta.url), JSON.stringify(out));

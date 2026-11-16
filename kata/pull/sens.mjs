@@ -6,7 +6,7 @@
    Each configuration is pulled at half and double each dial that touches it, and given the best thickness or angle
    for that dial (a designer would re-tune). Strength per weight, all weight counted.   node kata/pull/sens.mjs [N=60]   (~10 min) */
 import fs from "node:fs";
-import { test, stats, laid } from "./js/bench.js";
+import { test, stats, laid, TALLY } from "./js/bench.js";
 const N = +process.argv[2] || 60, RUN = { steps: 110, strain: 0.07 }, t0 = Date.now(), out = { n: N, rows: [] };
 const REF = stats(Array.from({ length: 400 }, (_, i) => test({ section: "one", seed: i + 1 }, RUN).peak)).mean; out.ref = REF;
 const pull = (opts, material) => { const v = []; let left = 0; for (let s = 1; s <= N; s++) { const r = test({ ...opts, seed: s }, RUN); v.push(r.peak / REF); left = Math.max(left, r.R.left || 0); } const st = stats(v); return { mean: st.mean, cv: st.cv, material, specific: st.mean / material, specific5: st.p5 / material, left }; };
@@ -27,4 +27,4 @@ const touches = { "filaments in a hose": ["hoop", "mu"], "short fibres in a hose
 for (const [name, make] of Object.entries(CONF)) for (const [dial, ch] of DIALS) { if (dial !== "base" && !Object.keys(ch).some((k) => touches[name].includes(k))) continue; const d = { ...BASE, ...ch };
   let best = null; for (const [label, opts, material] of make(d)) { const r = pull(opts, material); if (!best || r.specific5 > best.specific5) best = { ...r, at: label }; }
   out.rows.push({ name, dial, ...best }); console.error(name.padEnd(24), dial.padEnd(9), (best.at || "").padEnd(6), "per weight", best.specific.toFixed(3), "5th", best.specific5.toFixed(3), "cv", (best.cv * 100).toFixed(0) + "%", best.left > 1.001 ? "UNCONVERGED " + best.left.toFixed(1) : "", ((Date.now() - t0) / 1000).toFixed(0) + "s"); }
-fs.writeFileSync(new URL("./data/sens.json", import.meta.url), JSON.stringify(out));
+out.status = TALLY.record; /* (every pull's convergence: bench.js) */ fs.writeFileSync(new URL("./data/sens.json", import.meta.url), JSON.stringify(out));

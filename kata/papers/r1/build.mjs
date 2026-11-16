@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { panel, LABEL, LIVE_CSS, LIVE_JS } from "./ropes.mjs";
 import { fill } from "./values.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url)), CHECK = process.argv.includes("--check"), filled = fill(fs.readFileSync(path.join(here, "text.md"), "utf8")), md = filled.out, refsMd = fs.readFileSync(path.join(here, "REFERENCES.md"), "utf8");
@@ -59,5 +60,11 @@ ${body}
 </div></article><script>${LIVE_JS}</script></body></html>`;
 if (filled.missing.length) { console.error("no value for: " + filled.missing.join(", ")); process.exit(1); }
 if (CHECK) { const same = (f, v) => fs.existsSync(path.join(here, f)) && fs.readFileSync(path.join(here, f), "utf8") === v, stale = [["DRAFT.md", md], ["paper.html", html]].filter(([f, v]) => !same(f, v)).map((q) => q[0]); if (stale.length) { console.error("stale (run build.mjs): " + stale.join(", ")); process.exit(1); } console.error("DRAFT.md and paper.html are what text.md and the data give"); process.exit(0); }
+/* provenance: every data file the paper's numbers come from, with its size, hash, the script that makes it and the
+   convergence record it carries, so a published number can be traced to exact bytes */
+const DATA = { "pull/data/samples.json": "pull/sample.mjs", "pull/data/sheath.json": "pull/sheath.mjs", "pull/data/cable.json": "pull/cable.mjs", "pull/data/braid.json": "pull/braid.mjs", "pull/data/sens.json": "pull/sens.mjs", "pull/data/press.json": "pull/press.mjs", "pull/data/poisson.json": "pull/poisson.mjs", "pull/data/gauge.json": "pull/gauge.mjs", "pull/data/corner.json": "pull/corner.mjs", "twist/data/twist.json": "twist/bake.mjs", "twist/data/hosed.json": "twist/hosed.mjs", "twist/data/walls.json": "twist/walls.mjs" };
+for (const f of fs.readdirSync(path.join(here, "../../pull/data"))) if (/^(closure|map)-\d+\.json$/.test(f)) DATA["pull/data/" + f] = "pull/" + f.split("-")[0] + ".mjs";
+const prov = Object.entries(DATA).sort().map(([f, by]) => { const b = fs.readFileSync(path.join(here, "../..", f)), j = JSON.parse(b); return { file: "kata/" + f, madeBy: "kata/" + by, bytes: b.length, sha256: createHash("sha256").update(b).digest("hex"), status: j.status || null }; });
+fs.writeFileSync(path.join(here, "provenance.json"), JSON.stringify({ note: "Every data file the paper's numbers are read from (papers/r1/values.mjs). status is the convergence record of the pulls behind the file, where the study wrote one.", files: prov }, null, 1) + "\n");
 fs.writeFileSync(path.join(here, "DRAFT.md"), md);
 fs.writeFileSync(path.join(here, "paper.html"), html); console.error(`wrote paper.html: ${out.length} blocks, ${cited.size} references cited (${[...cited].sort().join(" ")})`);
