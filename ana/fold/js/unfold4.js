@@ -34,6 +34,66 @@ export function polytope(V, normals) {
   }
   return { V, cells, adj };
 }
+/** The convex hull of points in 4D, as a polytope: every hyperplane through four of them with all the rest on one
+ *  side is a facet's (merged when several quadruples give the same one). Brute force: fine to ~25 points. */
+export function hull4(V, eps = 1e-9) {
+  const n = V.length, normals = [];
+  const det3 = (a, b, c) => a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+  const normal = (p0, p1, p2, p3) => {
+    const a = add(p1, p0, -1), b = add(p2, p0, -1), c = add(p3, p0, -1), col = (i) => [0, 1, 2, 3].filter((k) => k !== i);
+    return [0, 1, 2, 3].map((i) => (i % 2 ? -1 : 1) * det3(...[a, b, c].map((v) => col(i).map((k) => v[k]))));
+  };
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) for (let l = k + 1; l < n; l++) {
+    let m = normal(V[i], V[j], V[k], V[l]); const len = norm(m);
+    if (len < 1e-12) continue;
+    m = scale(m, 1 / len);
+    const b = dot(m, V[i]); let pos = 0, neg = 0;
+    for (const v of V) { const t = dot(m, v) - b; if (t > eps) pos++; else if (t < -eps) neg++; if (pos && neg) break; }
+    if (pos && neg) continue;
+    if (pos) m = scale(m, -1);
+    if (!normals.some((q) => dot(q, m) > 1 - 1e-9)) normals.push(m);
+  }
+  return polytope(V, normals);
+}
+/** How many spanning trees the cells' adjacency has (Kirchhoff's theorem: a cofactor of the Laplacian). */
+export function treeCount(P) {
+  const n = P.cells.length, L = Array.from({ length: n - 1 }, (_, i) => Array.from({ length: n - 1 }, (_, j) => (i === j ? P.adj[i].size : P.adj[i].has(j) ? -1 : 0)));
+  let det = 1;
+  for (let i = 0; i < n - 1; i++) {
+    let p = i; for (let r = i + 1; r < n - 1; r++) if (Math.abs(L[r][i]) > Math.abs(L[p][i])) p = r;
+    if (Math.abs(L[p][i]) < 1e-12) return 0;
+    if (p !== i) { [L[p], L[i]] = [L[i], L[p]]; det = -det; }
+    det *= L[i][i];
+    for (let r = i + 1; r < n - 1; r++) { const f = L[r][i] / L[i][i]; for (let c = i; c < n - 1; c++) L[r][c] -= f * L[i][c]; }
+  }
+  return Math.round(det);
+}
+/** Every spanning tree of the cells' adjacency, as parent arrays from cell 0, one at a time to `visit` (return true to
+ *  stop). Edges in a fixed order; include-or-exclude, pruning when the rest can no longer connect the cells. */
+export function eachTree(P, visit) {
+  const n = P.cells.length, E = [];
+  for (let a = 0; a < n; a++) for (const b of P.adj[a].keys()) if (a < b) E.push([a, b]);
+  const parentOf = (chosen) => {
+    const adj = Array.from({ length: n }, () => []); for (const [a, b] of chosen) { adj[a].push(b); adj[b].push(a); }
+    const par = new Array(n).fill(-2); par[0] = -1; const q = [0];
+    for (let k = 0; k < q.length; k++) for (const u of adj[q[k]]) if (par[u] === -2) { par[u] = q[k]; q.push(u); }
+    return par;
+  };
+  const find = (uf, x) => { while (uf[x] !== x) x = uf[x] = uf[uf[x]]; return x; };
+  let stop = false;
+  const rec = (i, chosen, uf) => {
+    if (stop) return;
+    if (chosen.length === n - 1) { if (visit(parentOf(chosen))) stop = true; return; }
+    if (E.length - i < n - 1 - chosen.length) return;
+    // can the edges from i on still join every component? (a quick test: union them all)
+    { const u2 = uf.slice(); for (let k = i; k < E.length; k++) { const a = find(u2, E[k][0]), b = find(u2, E[k][1]); if (a !== b) u2[a] = b; } const r = find(u2, 0); for (let v = 1; v < n; v++) if (find(u2, v) !== r) return; }
+    const [a, b] = E[i], ra = find(uf, a), rb = find(uf, b);
+    if (ra !== rb) { const u2 = uf.slice(); u2[ra] = rb; chosen.push(E[i]); rec(i + 1, chosen, u2); chosen.pop(); }
+    rec(i + 1, chosen, uf);
+  };
+  rec(0, [], Array.from({ length: n }, (_, i) => i));
+  return stop;
+}
 export function cell24() {
   const V = uniq(perms([1, 1, 0, 0]).flatMap(signs));                       // 24 vertices, edge √2
   const N = [...uniq(perms([1, 0, 0, 0]).flatMap(signs)), ...signs([0.5, 0.5, 0.5, 0.5])];   // 24 octahedral cells

@@ -1,0 +1,79 @@
+{
+ "run": "netsearch-1",
+ "why": "D\u00fcrer's problem in 4D: hunt for a convex 4-polytope (5\u201312 cells) none of whose ridge unfoldings is a net, by random polytopes, stretched ones and hill-climbing mutations of the hardest, with full enumeration of every spanning tree when sampling finds no net. 32 shards, each its own seeded stream, resumable.",
+ "minutes": 330,
+ "groups": [
+  {
+   "name": "nets-0",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 0 320 12",
+    "node ana/fold/tools/netsearch.mjs search 1 320 12",
+    "node ana/fold/tools/netsearch.mjs search 2 320 12",
+    "node ana/fold/tools/netsearch.mjs search 3 320 12"
+   ]
+  },
+  {
+   "name": "nets-1",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 4 320 12",
+    "node ana/fold/tools/netsearch.mjs search 5 320 12",
+    "node ana/fold/tools/netsearch.mjs search 6 320 12",
+    "node ana/fold/tools/netsearch.mjs search 7 320 12"
+   ]
+  },
+  {
+   "name": "nets-2",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 8 320 12",
+    "node ana/fold/tools/netsearch.mjs search 9 320 12",
+    "node ana/fold/tools/netsearch.mjs search 10 320 12",
+    "node ana/fold/tools/netsearch.mjs search 11 320 12"
+   ]
+  },
+  {
+   "name": "nets-3",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 12 320 12",
+    "node ana/fold/tools/netsearch.mjs search 13 320 12",
+    "node ana/fold/tools/netsearch.mjs search 14 320 12",
+    "node ana/fold/tools/netsearch.mjs search 15 320 12"
+   ]
+  },
+  {
+   "name": "nets-4",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 16 320 12",
+    "node ana/fold/tools/netsearch.mjs search 17 320 12",
+    "node ana/fold/tools/netsearch.mjs search 18 320 12",
+    "node ana/fold/tools/netsearch.mjs search 19 320 12"
+   ]
+  },
+  {
+   "name": "nets-5",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 20 320 12",
+    "node ana/fold/tools/netsearch.mjs search 21 320 12",
+    "node ana/fold/tools/netsearch.mjs search 22 320 12",
+    "node ana/fold/tools/netsearch.mjs search 23 320 12"
+   ]
+  },
+  {
+   "name": "nets-6",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 24 320 12",
+    "node ana/fold/tools/netsearch.mjs search 25 320 12",
+    "node ana/fold/tools/netsearch.mjs search 26 320 12",
+    "node ana/fold/tools/netsearch.mjs search 27 320 12"
+   ]
+  },
+  {
+   "name": "nets-7",
+   "cmds": [
+    "node ana/fold/tools/netsearch.mjs search 28 320 12",
+    "node ana/fold/tools/netsearch.mjs search 29 320 12",
+    "node ana/fold/tools/netsearch.mjs search 30 320 12",
+    "node ana/fold/tools/netsearch.mjs search 31 320 12"
+   ]
+  }
+ ]
+}

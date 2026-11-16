@@ -58,3 +58,18 @@ the merge flow skips it, and `main` never needs it.
 - One run at a time (`concurrency`). A second push waits for the first run to finish.
 - Artifacts are kept for 7 days. If the collect job fails, the groups' output can still be fetched from the run
   page.
+
+## ana's queue (the same machinery, a sibling workflow)
+
+ana.mino.mobi's long calculations run the same way: [`ana-compute.yml`](../workflows/ana-compute.yml), queue
+[`ana.json`](ana.json), planner [`ana-plan.mjs`](ana-plan.mjs) (it accepts only `node ana/<widget>/tools/<tool>.mjs`
+and plain words), the shared [`run.mjs`](run.mjs), and the orphan data branch **`ana-data`** (made by the first run;
+`tmp/` the tools' caches, `runs/<run>/<group>/` the logs). Queue a run by pushing a changed `ana.json` to ana's owning
+branch (`claude/epic-mayer-y28tpl`). One ana run at a time; ana and ATOM⁴ runs don't wait for each other.
+
+To use the results in the sandbox:
+
+```bash
+git fetch origin ana-data && git archive origin/ana-data tmp | tar -x -C /tmp     # → /tmp/tmp/ana-netsearch/…
+TMPDIR=/tmp/tmp node ana/fold/tools/netsearch.mjs report
+```

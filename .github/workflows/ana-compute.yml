@@ -1,0 +1,139 @@
+name: ana compute
+
+# ana.mino.mobi's long calculations (ana/<widget>/tools/*.mjs, e.g. FOLD's search for a convex 4-polytope with no net)
+# on GitHub's runners instead of the agent's sandbox, which is reclaimed when a session goes idle. The sibling of
+# atom4-compute.yml, and the same machinery: a queue (.github/compute/ana.json: a run name, why, a deadline, groups of
+# up to four commands), a planner that refuses anything but an ana tool (.github/compute/ana-plan.mjs), the shared
+# group runner (.github/compute/run.mjs: no shell), and an orphan data branch, `ana-data`, that every runner restores
+# $TMPDIR from and the collect job writes back to, so a run cut at its deadline resumes when the queue runs again.
+# Deploys nothing and writes nothing to any served branch. `ana-data` holds no workflows: its pushes wake nothing.
+#
+# Fired by a push to ana's owning branch that changes the queue file, or by hand once this file is on the default branch.
+
+on:
+  push:
+    branches:
+      - 'claude/epic-mayer-y28tpl'
+    paths:
+      - '.github/compute/ana.json'
+  workflow_dispatch:
+
+concurrency:
+  group: ana-compute
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+      enabled: ${{ steps.plan.outputs.enabled }}
+      minutes: ${{ steps.plan.outputs.minutes }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - id: plan
+        run: node .github/compute/ana-plan.mjs >> "$GITHUB_OUTPUT"
+
+  work:
+    needs: plan
+    if: needs.plan.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        group: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      # ana-data may not exist yet (the first run makes it)
+      - name: Restore the caches from ana-data
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          if git ls-remote --exit-code --heads origin ana-data >/dev/null; then
+            git fetch -q --depth 1 origin ana-data
+            git archive FETCH_HEAD | tar -x -C data
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run the group
+        env:
+          GROUP: ${{ toJSON(matrix.group) }}
+          MINUTES: ${{ needs.plan.outputs.minutes }}
+          OUT: ${{ github.workspace }}/out/runs/${{ needs.plan.outputs.run }}/${{ matrix.group.name }}
+          TMPDIR: ${{ github.workspace }}/data/tmp
+        run: |
+          set -euo pipefail
+          mkdir -p "$TMPDIR"
+          touch "$RUNNER_TEMP/started"
+          node .github/compute/run.mjs
+      - name: Hand what this group wrote to the collect job
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          [ -f "$RUNNER_TEMP/started" ] || exit 0
+          cd data
+          find tmp -type f -newer "$RUNNER_TEMP/started" -print0 | xargs -0 -r cp --parents -t ../out/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: group-${{ matrix.group.name }}
+          path: out
+          retention-days: 7
+
+  collect:
+    needs: [plan, work]
+    if: always() && needs.plan.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: group-*
+          path: incoming
+          merge-multiple: true
+      - name: Write the run back to ana-data
+        env:
+          RUN: ${{ needs.plan.outputs.run }}
+          RESULT: ${{ needs.work.result }}
+          SHA: ${{ github.sha }}
+          URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p incoming
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin ana-data >/dev/null; then
+            git fetch -q origin ana-data
+            git worktree add -q data FETCH_HEAD
+            git -C data checkout -q -B ana-data
+          else
+            git worktree add -q --detach data
+            git -C data checkout -q --orphan ana-data
+            git -C data rm -rq --cached . || true
+            find data -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+          cp -r incoming/. data/
+          cd data
+          mkdir -p "runs/$RUN"
+          printf '{"run":"%s","result":"%s","code":"%s","log":"%s","at":"%s"}\n' "$RUN" "$RESULT" "$SHA" "$URL" "$(date -u +%FT%TZ)" > "runs/$RUN/run.json"
+          git add -A
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git commit -q -m "ana compute: $RUN ($RESULT)" -m "$URL"
+          for i in 1 2 3 4; do
+            if git push -q origin HEAD:ana-data; then exit 0; fi
+            sleep $((i * 5)); git pull -q --rebase origin ana-data
+          done
+          exit 1

@@ -59,3 +59,19 @@ overlapping cells. `js/unfold4-data.js` holds what a random search found, re-che
 
 Limits: double precision, not exact arithmetic (the overlaps are far above rounding; the net's "no overlap" means no
 overlap above 10⁻⁹ in volume, with exact contacts where cells touch). And none of this decides Dürer's problem.
+
+### The counterexample hunt (on the runners)
+
+`tools/netsearch.mjs` hunts for a convex 4-polytope with **no** net. Each shard draws polytopes from its own seeded
+stream (hulls of points on the 3-sphere; hulls of random half-spaces' vertices; either stretched up to 40× along a
+random axis; and, a third of the time, mutations of the shard's hardest so far: nudged vertices or further stretching,
+so the search climbs toward polytopes whose nets are rarest). For each with 5–12 cells it samples spanning trees until
+one is a net; if 300 samples find none, it enumerates every spanning tree (`eachTree`; `treeCount` is Kirchhoff's
+count, checked against enumeration on the tesseract: 82,944 both ways), stopping at the first net. A polytope with
+none would be written out whole as a **candidate**, to be checked in exact arithmetic before anyone believes it.
+Hardness is the rate of nets among 200 sampled trees. Resumable: its state is `$TMPDIR/ana-netsearch/<shard>.json`.
+It runs on GitHub's runners through `.github/compute/ana.json` (see `.github/compute/README.md`); `report` summarises.
+
+A 90-second local trial: 7,942 polytopes, every one netted within 9 random tries; a minute of hill-climbing drove a
+lineage of stretched 11-cell polytopes down to nets in 6% of sampled trees. Nothing found, which is what to expect:
+finding nothing is evidence, not proof.
