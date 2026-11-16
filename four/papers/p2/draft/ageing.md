@@ -46,6 +46,36 @@ factor depends on what counts as zero age. The run's very first star, before its
 into balance, sits at 14.7 MK and would take 5.8 Gyr, a factor of only 1.20. Ageing the
 four-dimensional analogues themselves removes the convention. That is the next step, on this machinery.
 
+**The opacity, measured and then computed.** Everything above carries the textbook opacity: electron scattering plus
+Kramers's law. Along Model S's interior that law is 0.16–1.35 times OPAL's tables [@iglesias1996], and it is
+why the centre above is too thin. With OPAL's tables in the interior (Asplund et al.'s mixture [@asplund2009], with
+Ferguson et al.'s below 5600 K [@ferguson2005], as MESA distributes them [@paxton2011]), the star's outer layers
+integrated as an envelope on the surface model's gas with mixing length α, and the Sun calibrated on two numbers at
+MIST's $Z$ = 0.0143 ($X_0$ to L☉ and α to R☉ at 4.57 Gyr), $X_0$ = 0.7068 and α = 1.61. At 4.57 Gyr the
+centre is then 15.39 MK and 149 g/cm³, against BP2000's 15.70 and 153, and $X_c$ = 0.360.
+Against MIST's published tracks [@choi2016; @dotter2016], at 1–3 M☉ and half the centre's hydrogen, $L$ is
+0.90–0.94 of MIST's, $R$ 0.90–0.99 and $T_\mathrm{eff}$ 0.99–1.03. On the textbook opacity
+$R$ was 0.63–0.94 and $T_\mathrm{eff}$ up to 1.34. Lives to $X_c$ = 10⁻³ come to 0.83–0.88 of
+MIST's at 1.6–3 M☉, where MIST's cores overshoot into fresh fuel, and 1.14 at 1 M☉, where its helium settles
+inward. Neither is in our stars.
+
+OPAL is measured input, not the book's own physics. The book's own opacity is the surface model's, carried inward.
+Free–free takes a Born–Elwert Gaunt factor. The metals' bound–free and free–free come from every ion of fifteen
+elements, each solved by the book's atom and ionized by Saha with Debye lowering. Along Model S's interior, metal-free
+gas comes to 1.02–1.09 of OPAL's metal-free tables, against 1.20–1.49 with the Gaunt factor set to
+1. The ions supply 45%–61% of what OPAL's metals add, and the whole comes to 0.55–0.87 of OPAL's.
+What is left is the lines, the bound–bound transitions, which the book does not have yet.
+
+**Without metals.** The metals and their lines drop out of a metal-free star. Only hydrogen's and helium's lines
+remain missing from the book, and they matter only in the outer envelope. So there the book's own opacity can be tried
+nearly whole, against MIST's metal-poor tracks ([Fe/H] = −4) at the same hydrogen. At half its central hydrogen, a 1 M☉ star
+on OPAL's metal-free tables has 0.83 of MIST's $L$ and 0.97 of its $T_\mathrm{eff}$, and lives 1.15 as
+long. On the book's own opacity it has 0.78, 0.96 and 1.24. At 0.8 M☉ the two give $L$ 0.83 and
+0.79; at 1.6 M☉ 0.87 and 0.80, with lives 1.11 and 1.23. So the book's own opacity costs
+a few per cent of the light against OPAL's. Both fall short of MIST's luminosity by more than at the Sun's metals, on
+the same tables, so that shortfall is not the opacity. Where it comes from is open. MIST's helium settling matters more
+in a metal-poor star, whose stirred envelope is thin. Its equation of state is another difference.
+
 ## 4.2 Methods
 
 ### 4.2.1 The star
@@ -54,6 +84,14 @@ The star is section 3's solver: hydrostatic and thermal equilibrium, Fermi–Dir
 adiabatic gradient, our opacity. Its composition may now vary with mass. The energy comes from burning only. The slow
 contraction's share, $\varepsilon_\mathrm{grav}$, is left out; it is small on the main sequence. The composition
 lives on a fixed grid in $q = m/M$, 401 points spaced as $q = (j/400)^{1.5}$, finer at the centre.
+
+With OPAL's opacity, the tables are read in $\log T$ and $\log R$ ($R = \rho/T_6^3$) by cubic interpolation, linearly in
+$X$ and $Z$, the low- and high-temperature tables blended over $\log T$ = 3.80–3.88 as MESA does. The envelope is the
+surface model's gas from the photosphere inward. It starts with a grey atmosphere from τ = 10⁻⁴ to ⅔, then integrates
+inward in $\ln P$ at fixed $L$ to 3 × 10⁵ K, where the interior takes over. Its convection is mixing length
+(Böhm-Vitense's cubic, in Kippenhahn & Weigert's form), with $\ell = \alpha H_P$. Its last step is cut to end exactly
+at 3 × 10⁵ K, so the fit point moves smoothly with $R$ and $L$. Every star is settled for 10⁶ yr before its clock
+starts, so that its carbon-12 and helium-3 come into balance, as MIST's zero age is taken after them.
 
 ### 4.2.2 The burning
 

@@ -148,6 +148,42 @@
    "doi": "10.1126/science.272.5266.1286",
    "status": "index",
    "for": "Model S, the present Sun used as a profile (centre, X(q), ε, κ): taken from the authors model file fgong.l5bi.d.15c (users-phys.au.dk/jcd/solar_models/) and its format notes, not from the paper (data/modelS.json)"
+  },
+  {
+   "key": "iglesias1996",
+   "doi": "10.1086/177381",
+   "status": "index",
+   "for": "OPAL's Rosseland mean opacities, as distributed by MESA (a09 tables, Asplund 2009 mixture), used as our world's measured opacity (atom/js/opaldata.js)"
+  },
+  {
+   "key": "ferguson2005",
+   "doi": "10.1086/428642",
+   "status": "index",
+   "for": "the low-temperature opacities below log T 3.75 (MESA's lowT_fa05_a09p tables)"
+  },
+  {
+   "key": "asplund2009",
+   "doi": "10.1146/annurev.astro.46.060407.145222",
+   "status": "index",
+   "for": "the solar mixture of the OPAL tables and of the book's metal opacity (abundances taken from memory of its table 1; flagged in fusion/tools/ions3.mjs)"
+  },
+  {
+   "key": "choi2016",
+   "doi": "10.3847/0004-637X/823/2/102",
+   "status": "index",
+   "for": "MIST v1.2 tracks, the published yardstick (data/mist.json, data/mist-m4.json)"
+  },
+  {
+   "key": "dotter2016",
+   "doi": "10.3847/0067-0049/222/1/8",
+   "status": "index",
+   "for": "MIST's equivalent evolutionary points (EEP 202 to 454, the main sequence)"
+  },
+  {
+   "key": "paxton2011",
+   "doi": "10.1088/0067-0049/192/1/3",
+   "status": "index",
+   "for": "MESA, whose kap_data distribution of OPAL and Ferguson tables we read"
   }
  ]
 }

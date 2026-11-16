@@ -5,7 +5,7 @@
      to provenance.json, never here. -->
 
 The model in this paper was not written down once and run. It was built in stages, from
-2026-11-11 to 2026-11-15. Each stage replaced a guess, a convention or a cruder method with something computed,
+2026-11-11 to 2026-11-16. Each stage replaced a guess, a convention or a cruder method with something computed,
 then ran the cascade again. The main text gives only the final method. This supplement records the route, for two
 reasons.
 
@@ -15,14 +15,14 @@ artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was foun
 good within two days, and only the last of those rests on something that cannot move: a variational bound.
 
 Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
-states whether a decision rule was fixed before its results came in. 7 of the 9 stages had
+states whether a decision rule was fixed before its results came in. 8 of the 10 stages had
 none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
 
 **What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 28 entries, 10 are marked ✓: the value given is recomputed from the committed data each
+data. Of the 32 entries, 14 are marked ✓: the value given is recomputed from the committed data each
 time the paper is built, and the build stops if they disagree. 1 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
@@ -155,4 +155,20 @@ time the paper is built, and the build stops if they disagree. 1 marked ⧗ wait
 |---|---|
 | ours' centre today | 15.73 MK against BP2000's 15.70 ✓ |
 | ours' central hydrogen exhausted | 9.0 Gyr against Pols's 9 ✓ |
+
+### S1.10 Opacity, measured and computed (2026-11-16)
+
+**Replaced:** ours' textbook opacity (electron scattering + Kramers) in the interior and a τ = ⅔ surface on the interior's fully ionized gas. **By:** (a) OPAL's tables (Iglesias & Rogers 1996; Ferguson et al. 2005; Asplund 2009 mixture, MIST's own) as measured input inside and in a mixing-length envelope integrated on the surface model's gas, the Sun calibrated on X0 and α; (b) the book's own opacity, a Born–Elwert free–free and the metals' bound–free and free–free from every ion of fifteen elements solved by the book's atom, checked against OPAL (opal.js, envelope.js, metals.js, ions3.mjs, kappacheck.mjs, mistcheck.mjs).
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| our Sun's central density at 4.57 Gyr | 18% under BP2000 (Kramers opacity; evolvecheck.json) | 2% under (OPAL, envelope, X0 0.7068, α 1.61) ✓ |
+| radii of our 1–3 M☉ stars at half their central hydrogen, over MIST's | 0.63–0.94 (Kramers) | with OPAL and the envelope ✓ |
+
+| what held | |
+|---|---|
+| the book's metal-free opacity against OPAL's along Model S | within 2–9% (Gaunt factor 1: 20–49% over) ✓ |
+| the book's ions supply at least this share of OPAL's metal opacity along Model S (no lines) | 45–61% ✓ |
 

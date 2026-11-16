@@ -210,7 +210,13 @@ for games, and this is a modelling programme with publications to come. The game
   `fusion/tools/mist.mjs <dir> mist-m4` → `papers/p2/data/mist-m4.json` (MIST [Fe/H] = −4, Z 1.4 × 10⁻⁶); ours at X 0.751,
   Z 1.43 × 10⁻⁶ on OPAL and on the book's opacity. `fusion/tools/mistcheck.mjs <dir> <name>:<tag>:<mist file> …` →
   `papers/p2/data/mistcheck.json`, ours over MIST at zero age, half the central hydrogen and the life to Xc 10⁻³.
-  `starcut.mjs aged <dir> [tag]` picks ours' runs by file tag.
+  `starcut.mjs aged <dir> [tag]` picks ours' runs by file tag. **Results (mistcheck.json):** on OPAL at solar metals, 1–3 M☉
+  at half their central hydrogen have L 0.90–0.94, R 0.90–0.99, Teff 0.99–1.03 of MIST's (Kramers: R 0.63–0.94, Teff to
+  1.34); lives 0.83–0.88 at 1.6–3 M☉ (MIST's overshoot), 1.14 at 1 M☉ (its diffusion). Metal-free (X 0.751, Z 1.43 × 10⁻⁶)
+  against MIST [Fe/H] = −4: L 0.83–0.87 on OPAL, 0.78–0.80 on the book's own opacity, Teff 0.96–0.98, lives 1.11–1.25. The
+  book's opacity costs ~5% of L against OPAL; the larger shared shortfall in L is not opacity (open: diffusion in a thin
+  envelope, the EOS). `aged.js` is baked from the OPAL set (tag -X0.7068-Z0.0143-opal-a1.61-s1e6). Runs' Z appears in file
+  names as String(Z) (1.43e-6 → Z0.00000143).
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

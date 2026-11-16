@@ -863,5 +863,243 @@
   "publisher": "American Association for the Advancement of Science (AAAS)",
   "id": "jcd1996",
   "DOI": "10.1126/science.272.5266.1286"
+ },
+ {
+  "type": "journal-article",
+  "title": "Updated Opal Opacities",
+  "author": [
+   {
+    "given": "Carlos A.",
+    "family": "Iglesias"
+   },
+   {
+    "given": "Forrest J.",
+    "family": "Rogers"
+   }
+  ],
+  "container-title": "The Astrophysical Journal",
+  "volume": "464",
+  "page": "943",
+  "issued": {
+   "date-parts": [
+    [
+     1996,
+     6
+    ]
+   ]
+  },
+  "publisher": "American Astronomical Society",
+  "id": "iglesias1996",
+  "DOI": "10.1086/177381"
+ },
+ {
+  "type": "journal-article",
+  "title": "Low‐Temperature Opacities",
+  "author": [
+   {
+    "given": "Jason W.",
+    "family": "Ferguson"
+   },
+   {
+    "given": "David R.",
+    "family": "Alexander"
+   },
+   {
+    "given": "France",
+    "family": "Allard"
+   },
+   {
+    "given": "Travis",
+    "family": "Barman"
+   },
+   {
+    "given": "Julia G.",
+    "family": "Bodnarik"
+   },
+   {
+    "given": "Peter H.",
+    "family": "Hauschildt"
+   },
+   {
+    "given": "Amanda",
+    "family": "Heffner‐Wong"
+   },
+   {
+    "given": "Akemi",
+    "family": "Tamanai"
+   }
+  ],
+  "container-title": "The Astrophysical Journal",
+  "volume": "623",
+  "issue": "1",
+  "page": "585-596",
+  "issued": {
+   "date-parts": [
+    [
+     2005,
+     4,
+     10
+    ]
+   ]
+  },
+  "publisher": "American Astronomical Society",
+  "id": "ferguson2005",
+  "DOI": "10.1086/428642"
+ },
+ {
+  "type": "journal-article",
+  "title": "The Chemical Composition of the Sun",
+  "author": [
+   {
+    "given": "Martin",
+    "family": "Asplund"
+   },
+   {
+    "given": "Nicolas",
+    "family": "Grevesse"
+   },
+   {
+    "given": "A. Jacques",
+    "family": "Sauval"
+   },
+   {
+    "given": "Pat",
+    "family": "Scott"
+   }
+  ],
+  "container-title": "Annual Review of Astronomy and Astrophysics",
+  "volume": "47",
+  "issue": "1",
+  "page": "481-522",
+  "issued": {
+   "date-parts": [
+    [
+     2009,
+     9,
+     1
+    ]
+   ]
+  },
+  "publisher": "Annual Reviews",
+  "id": "asplund2009",
+  "DOI": "10.1146/annurev.astro.46.060407.145222"
+ },
+ {
+  "type": "journal-article",
+  "title": "MESA ISOCHRONES AND STELLAR TRACKS (MIST). I. SOLAR-SCALED MODELS",
+  "author": [
+   {
+    "given": "Jieun",
+    "family": "Choi"
+   },
+   {
+    "given": "Aaron",
+    "family": "Dotter"
+   },
+   {
+    "given": "Charlie",
+    "family": "Conroy"
+   },
+   {
+    "given": "Matteo",
+    "family": "Cantiello"
+   },
+   {
+    "given": "Bill",
+    "family": "Paxton"
+   },
+   {
+    "given": "Benjamin D.",
+    "family": "Johnson"
+   }
+  ],
+  "container-title": "The Astrophysical Journal",
+  "volume": "823",
+  "issue": "2",
+  "page": "102",
+  "issued": {
+   "date-parts": [
+    [
+     2016,
+     5,
+     26
+    ]
+   ]
+  },
+  "publisher": "American Astronomical Society",
+  "id": "choi2016",
+  "DOI": "10.3847/0004-637X/823/2/102"
+ },
+ {
+  "type": "journal-article",
+  "title": "MESA ISOCHRONES AND STELLAR TRACKS (MIST) 0: METHODS FOR THE CONSTRUCTION OF STELLAR ISOCHRONES",
+  "author": [
+   {
+    "given": "Aaron",
+    "family": "Dotter"
+   }
+  ],
+  "container-title": "The Astrophysical Journal Supplement Series",
+  "volume": "222",
+  "issue": "1",
+  "page": "8",
+  "issued": {
+   "date-parts": [
+    [
+     2016,
+     1,
+     1
+    ]
+   ]
+  },
+  "publisher": "American Astronomical Society",
+  "id": "dotter2016",
+  "DOI": "10.3847/0067-0049/222/1/8"
+ },
+ {
+  "type": "journal-article",
+  "title": "MODULES FOR EXPERIMENTS IN STELLAR ASTROPHYSICS (MESA)",
+  "author": [
+   {
+    "given": "Bill",
+    "family": "Paxton"
+   },
+   {
+    "given": "Lars",
+    "family": "Bildsten"
+   },
+   {
+    "given": "Aaron",
+    "family": "Dotter"
+   },
+   {
+    "given": "Falk",
+    "family": "Herwig"
+   },
+   {
+    "given": "Pierre",
+    "family": "Lesaffre"
+   },
+   {
+    "given": "Frank",
+    "family": "Timmes"
+   }
+  ],
+  "container-title": "The Astrophysical Journal Supplement Series",
+  "volume": "192",
+  "issue": "1",
+  "page": "3",
+  "issued": {
+   "date-parts": [
+    [
+     2010,
+     12,
+     15
+    ]
+   ]
+  },
+  "publisher": "American Astronomical Society",
+  "id": "paxton2011",
+  "DOI": "10.1088/0067-0049/192/1/3"
  }
 ]

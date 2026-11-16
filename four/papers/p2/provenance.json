@@ -307,6 +307,48 @@
      "tol": 0.05
     }
    ]
+  },
+  {
+   "id": "opacity",
+   "date": "2026-11-16",
+   "title": "Opacity, measured and computed",
+   "replaced": "ours' textbook opacity (electron scattering + Kramers) in the interior and a τ = ⅔ surface on the interior's fully ionized gas",
+   "by": "(a) OPAL's tables (Iglesias & Rogers 1996; Ferguson et al. 2005; Asplund 2009 mixture, MIST's own) as measured input inside and in a mixing-length envelope integrated on the surface model's gas, the Sun calibrated on X0 and α; (b) the book's own opacity, a Born–Elwert free–free and the metals' bound–free and free–free from every ion of fifteen elements solved by the book's atom, checked against OPAL (opal.js, envelope.js, metals.js, ions3.mjs, kappacheck.mjs, mistcheck.mjs)",
+   "runs": [],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "our Sun's central density at 4.57 Gyr",
+     "before": "18% under BP2000 (Kramers opacity; evolvecheck.json)",
+     "after": "2% under (OPAL, envelope, X0 0.7068, α 1.61)",
+     "check": "opalSunRho",
+     "now": 149.4,
+     "tol": 0.5,
+     "unit": "g/cm³ (BP2000 152)"
+    },
+    {
+     "claim": "radii of our 1–3 M☉ stars at half their central hydrogen, over MIST's",
+     "before": "0.63–0.94 (Kramers)",
+     "after": "with OPAL and the envelope",
+     "check": "opalHalfR",
+     "now": "0.90–0.99"
+    }
+   ],
+   "held": [
+    {
+     "claim": "the book's metal-free opacity against OPAL's along Model S",
+     "value": "within 2–9% (Gaunt factor 1: 20–49% over)",
+     "check": "freeOverOpal0",
+     "now": "1.02–1.09"
+    },
+    {
+     "claim": "the book's ions supply at least this share of OPAL's metal opacity along Model S (no lines)",
+     "value": "45–61%",
+     "check": "metShareLo",
+     "now": 0.45,
+     "tol": 0.01
+    }
+   ]
   }
  ]
 }

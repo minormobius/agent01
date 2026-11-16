@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers());
+  Object.assign(t, ageNumbers(), opacityNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -140,6 +140,19 @@ function lifeNumbers(t0, SN, nameOf) {
   t.ourS = "1.5152"; return t;
 }
 
+/* section 4's opacity: OPAL as measured input, the book's own checked against it (data/kappacheck.json), and the aged
+   stars against MIST (data/mistcheck.json; sets: kramers, opal, and the metal-free free-opal, free-book against MIST [Fe/H] = −4) */
+function opacityNumbers() {
+  const K = J("kappacheck.json").summary, M = J("mistcheck.json").sets, rng = (set, key, ms) => { const v = ms.map((m) => M[set].stars[m]?.ratio?.[key]).filter((x) => x != null); if (v.length !== ms.length) throw new Error(`mistcheck ${set} ${key}: missing masses`); return [Math.min(...v), Math.max(...v)]; };
+  const HEAVY = ["1", "1.25", "1.6", "2", "3"], S = M.opal.sun457, two = (a) => a.map((x) => f(x, 2));
+  const [mLlo, mLhi] = two(rng("opal", "halfL", HEAVY)), [mRlo, mRhi] = two(rng("opal", "halfR", HEAVY)), [mTlo, mThi] = two(rng("opal", "halfTeff", HEAVY)), [kRlo, kRhi] = two(rng("kramers", "halfR", HEAVY)), [, kThi] = two(rng("kramers", "halfTeff", HEAVY));
+  const lifeHeavy = rng("opal", "life", ["1.6", "2", "3"]), free = (set, m, k) => f(M[set].stars[m].ratio[k], 2);
+  return { krLo: f(K.kramersOverOpal[0], 2), krHi: f(K.kramersOverOpal[1], 2), opZ: String(S.Z), opX0: f(S.X0, 4), opAlpha: f(S.alpha, 2), opL: f(S.L, 3), opR: f(S.R, 3), opTc: f(S.Tc, 2), opRho: f(S.rhoc, 0), opXc: f(S.Xc, 3),
+    mLlo, mLhi, mRlo, mRhi, mTlo, mThi, kRlo, kRhi, kThi, lifeHlo: f(lifeHeavy[0], 2), lifeHhi: f(lifeHeavy[1], 2), lifeSun: f(M.opal.stars["1"].ratio.life, 2),
+    bk0lo: f(K.freeOverOpal0[0], 2), bk0hi: f(K.freeOverOpal0[1], 2), bkg1lo: f(K.freeG1OverOpal0[0], 2), bkg1hi: f(K.freeG1OverOpal0[1], 2), bkMlo: pct(K.metShare[0]), bkMhi: pct(K.metShare[1]), bkLo: f(K.bookOverOpal[0], 2), bkHi: f(K.bookOverOpal[1], 2),
+    fo1L: free("free-opal", "1", "halfL"), fo1T: free("free-opal", "1", "halfTeff"), fo1life: free("free-opal", "1", "life"), fb1L: free("free-book", "1", "halfL"), fb1T: free("free-book", "1", "halfTeff"), fb1life: free("free-book", "1", "life"),
+    fo08L: free("free-opal", "0.8", "halfL"), fb08L: free("free-book", "0.8", "halfL"), fo16L: free("free-opal", "1.6", "halfL"), fb16L: free("free-book", "1.6", "halfL"), fo16life: free("free-opal", "1.6", "life"), fb16life: free("free-book", "1.6", "life") };
+}
 function ageNumbers() {
   const E = J("evolvecheck.json"), b = E.burning, P = E.present, R = E.refs, C = E.clock, H = E.history, c3 = E.machinery.steps, by = (d) => c3.find((x) => x.dX === d);
   const p1 = (x) => f(100 * x, 1);
@@ -158,6 +171,10 @@ function ageNumbers() {
 /* the provenance ledger (provenance.json): every 'now' with a check recomputed here from the committed data; a mismatch
    stops the build, so the ledger can't drift from the results. The supplement section renders it (text/stages.md) */
 const PCHECKS = {
+  opalSunRho: () => J("mistcheck.json").sets.opal.sun457.rhoc,
+  opalHalfR: () => { const M = J("mistcheck.json").sets, v = ["1", "1.25", "1.6", "2", "3"].map((m) => M.opal.stars[m].ratio.halfR); return `${Math.min(...v).toFixed(2)}–${Math.max(...v).toFixed(2)}`; },
+  metShareLo: () => +J("kappacheck.json").summary.metShare[0].toFixed(2),
+  freeOverOpal0: () => J("kappacheck.json").summary.freeOverOpal0.map((x) => x.toFixed(2)).join("–"),
   windowSplits: () => { const w = J("windows.json"), B = w.burn.filter((b) => !b.asOurs), A = w.burnAlt.filter((b) => !b.asOurs); return B.filter((b) => { const a = A.find((x) => x.s === b.s && x.gx === b.gx); return a && a.kind !== b.kind; }).length; },
   windowKinds: () => { const B = J("windows.json").burn.filter((b) => !b.asOurs), n = (k) => B.filter((b) => b.kind === k).length; return `${n("past helium")}/${n("helium")}/${n("helium-3")}`; },
   qboundMax4: () => { const by = {}; for (const b of JSON.parse(readFileSync(path.join(here, "../../fusion/qbound4.json"), "utf8")).bounds) { const k = `${b.d}/${b.s}`; if (!by[k] || b.K > by[k].K) by[k] = b; } return Math.max(...Object.values(by).filter((b) => b.d === 4).map((b) => b.Qupper)); },
