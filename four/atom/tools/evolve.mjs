@@ -102,7 +102,10 @@ function fourWorld(Grel, s, ff = 1, plasma = false) {
   // stalled the solve mid-life (evolve4-1/2, G 1e-11/1e-14). shell4.js gives nothing below 1 MK anyway.
   // loose: a Newton stall under 5 × 10⁻⁴ (a 0.05% mismatch at the fitting mass) counts as solved; pinned gravity's table
   // and the integrator's adaptive steps floor the residual near 10⁻⁵–10⁻⁴, under the strict 10⁻⁶ the solver aims for.
-  return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, Tburn: 1e6, loose: 5e-4, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
+  // fit: where the shooting meets (mass fraction; ours 0.5). In a 4D core at 2.5–3.5 MK a change of 10⁻⁵ in ln T_c grew
+  // ×300 by mid-mass, so the Jacobian went near-singular (P_c and T_c columns parallel) and Newton overshot: the mid-life
+  // stall of evolve4-1/2. Meeting at 0.2 of the mass, the stalled G 1e-11 s 1.85 star runs on with no failed solve.
+  return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, Tburn: 1e6, loose: 5e-4, fit: 0.2, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
     kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T); },
     kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T), // Y here carries Σ n Z² less hydrogen's
     eps: (rho, T, y) => sh.eps(rho, T, y), dHdt: (rho, T, y) => sh.dYdt(rho, T, y)[iP] * A[iP],
@@ -126,7 +129,7 @@ function solve(W, M, S, guess, at0, f0 = null) {
   let at = at0, s = null, p = guess, last = null, f = f0;
   for (let k = 0; k < 8; k++) {
     const laws = fitLaws(W, S, at), eps = (rho, T, m) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t; };
-    s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}) }, p);
+    s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}), ...(W.fit ? { fit: W.fit } : {}) }, p);
     if (!s.ok) return { s }; p = s.p; at = sample(W, M, S, s).rows;
     if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (Newton ${s.it})`);
     if (last && Math.abs(Math.log(s.L / last)) < 1e-4) break; last = s.L;

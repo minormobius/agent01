@@ -243,13 +243,16 @@ for games, and this is a modelling programme with publications to come. The game
   ours' size, and our stars leave it out too: not in either EOS (stated). `fusion/tools/lensplasma.mjs <dir>` →
   `papers/p2/data/lensplasma.json`. Both bites grow toward strong G, where the surface test points.
   **evolve4-2 (collected; old physics):** half-lives 10–55 Gyr where reached; s 1.5152 at G 10⁻²⁰ not half-burnt at 156
-  Gyr; two exhausted (G 10⁻¹⁷ s 1.7 at 62 Gyr, 10⁻²⁰ s 1.8 at 83). **Open: the low-temperature stall.** Cores at 2.5–3.5 MK
-  (s 1.65–1.85 at G 10⁻¹¹/10⁻¹⁴) stop mid-life, "no solution past Xc", on the current controller too. Found so far: the
-  burning cut at 2 MK sat inside their burning (now per world, `W.Tburn`, 1 MK in 4D), and the solve's residual has a
-  floor of ~10⁻⁴ (now `loose: 5e-4` accepted in 4D, `mainseq.js` `opts.loose`); neither cures it. What remains: the
-  residual jumps 2–8% between Newton steps at any time step (suspects: the steep power-law ε refits at low T, the
-  stirred core's edge crossing a grid cell). `DEBUG_SOLVE=1` prints each failed solve's residual; `FREEZE_PINNED=1` holds
-  pinned gravity (removes the ~2% L jitter, not the stall). evolve4-3 (queued with the plasma) predates both fixes.
+  Gyr; two exhausted (G 10⁻¹⁷ s 1.7 at 62 Gyr, 10⁻²⁰ s 1.8 at 83). **The mid-life stall, found and fixed (2026-11-16):**
+  cores at 2.5–3.5 MK stopped with "no solution past Xc". A residual scan (`DEBUG_SCAN`-style: the residual along the
+  Newton step and along each unknown) showed it smooth but ill-conditioned: a change of 10⁻⁵ in ln T_c grew ×300 by the
+  fitting mass, the P_c and T_c columns of the Jacobian nearly parallel, so Newton's step overshot the linear range and
+  wasn't downhill. The 4D world now meets at 0.2 of the mass (`W.fit`; mainseq.js `opts.fit`, ours 0.5): the stalled
+  G 10⁻¹¹ s 1.85 and 1.65 stars run on with no failed solve (their stirred cores fade smoothly). Also per world now: the
+  burning cut `W.Tburn` (4D 1 MK; ours 2 MK) and `loose: 5e-4` (a Newton stall that close counts as solved; the residual's
+  noise floor is ~10⁻⁴). A Levenberg–Marquardt fallback was tried and dropped: it converged slowly onto a different
+  branch (a 2.7% core where the star had 11.8%). `FREEZE_PINNED=1` holds pinned gravity (diagnostic; the ~2% L jitter).
+  evolve4-3 predates the fix; evolve4-4 (the same 32 commands) resumes its -lp checkpoints on the fixed code.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,
