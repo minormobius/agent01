@@ -6,16 +6,22 @@
    is shown as a 3D slice at w: the slice is a ball of radius √(1 − w²), every layer of 4D radius r sits at √(r² − w²),
    and the cut orthant (x, y, z, w > 0) only opens the slice when w > 0. */
 import { STARS } from "./data.js";
+import { AGED } from "./aged.js";
 
 const $ = (id) => document.getElementById(id), sup = (n) => String(n).replace(/-/g, "⁻").replace(/\d/g, (c) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[+c]);
 const sci = (x, d = 2) => { if (!Number.isFinite(x)) return "—"; const e = Math.floor(Math.log10(Math.abs(x))); const m = x / 10 ** e; return Math.abs(e) <= 3 ? x.toPrecision(d + 1).replace(/\.?0+$/, (s) => (s.includes(".") ? "" : s)) : `${m.toFixed(d)} × 10${sup(e)}`; };
 const GS = Object.keys(STARS.four).map(Number).sort((a, b) => b - a), SS = [...new Set(GS.flatMap((g) => Object.keys(STARS.four[g]).map(Number)))].sort((a, b) => a - b);
 const MSUN = 1.98847e30, RSUN = 6.957e8, LSUN = 3.828e26;
-const state = { world: "ours", G: 1e-17, s: 1.5152, i: 0, w: 0.35, rot: [0.55, -0.5], zoom: 1 };
+const state = { world: "ours", G: 1e-17, s: 1.5152, i: 0, w: 0.35, rot: [0.55, -0.5], zoom: 1, age: 0 };
 
 /* ——— the current sequence and star ——— */
 function seq() { if (state.world === "ours") return { stars: STARS.ours.stars, unit: "M☉", sunM: 1 }; const q = STARS.four[state.G]?.[state.s]; return q ? { stars: q.stars, unit: "M_Ch", sunM: q.sunM, sunKind: q.sunKind } : { stars: [] }; }
-function star() { const q = seq(); return q.stars[Math.min(state.i, q.stars.length - 1)]; }
+function zams() { const q = seq(); return q.stars[Math.min(state.i, q.stars.length - 1)]; }
+/* the aged tracks of this world (and, in 4D, this G and s), and the one for the current star: an aged run whose mass is
+   within 7% of the zero-age star picked (the aged runs have their own masses) */
+function tracks() { return state.world === "ours" ? AGED.ours : AGED.four?.[state.G]?.[state.s] ?? {}; }
+function track() { const z = zams(); if (!z) return null; let best = null; for (const t of Object.values(tracks())) if (t.snaps?.length > 1 && Math.abs(Math.log(t.m / z.m)) < 0.07 && (!best || Math.abs(Math.log(t.m / z.m)) < Math.abs(Math.log(best.m / z.m)))) best = t; return best; }
+function star() { const t = track(); return t ? t.snaps[Math.min(state.age, t.snaps.length - 1)] : zams(); }
 function nearestSun() { const q = seq(); if (!q.sunM) return 0; let b = 0; q.stars.forEach((x, i) => { if (Math.abs(Math.log(x.m / q.sunM)) < Math.abs(Math.log(q.stars[b].m / q.sunM))) b = i; }); return b; }
 
 /* ——— WebGL: the cutaway ——— */
@@ -109,32 +115,59 @@ function labels(M, s, w, h, W, K, st) {
   svg.innerHTML = right ? lines : ""; box.innerHTML = right ? html : ""; $("legendSmall").innerHTML = right ? "" : items.map((L) => `<div><b>${L.name}</b> — ${L.sub}</div>`).join("");
 }
 /* ——— the readout and the profile ——— */
+const ageTxt = (t) => (t == null ? "—" : t === 0 ? "0" : t >= 1 ? `${t.toPrecision(3)} billion years` : t >= 1e-3 ? `${(t * 1e3).toPrecision(3)} million years` : `${Math.round(t * 1e9).toLocaleString("en")} years`);
 function readout() {
-  const st = star(), q = seq(); if (!st) return; const four = state.world === "four";
-  const massTxt = four ? `${st.m} M<sub>Ch</sub> <span class="dim">(${sci(st.Mkg / MSUN)} of our Suns' mass; a 4D star holds far more matter)</span>` : `${st.m} M☉`;
+  const st = star(), q = seq(), tr = track(); if (!st) return; const four = state.world === "four";
+  const massTxt = (four ? `${st.m} M<sub>Ch</sub> <span class="dim">(${sci(st.Mkg / MSUN)} of our Suns' mass; a 4D star holds far more matter)</span>` : `${st.m} M☉`) + (tr ? ` <span class="sunflag" style="color:#9fe3b0;border-color:#5aa86f">aged</span>` : "");
   const env = st.layers.env ?? [], deep = env.find((z) => z.deep || z.bot < 0.97), thin = env.filter((z) => !z.deep && z.bot >= 0.97).reduce((a, z) => (z.mass > (a?.mass ?? -1) ? z : a), null);
   const outer = st.layers.envNote ? `<span class="dim">${st.layers.envNote}</span>` : deep ? `deep: stirred from ${deep.bot.toFixed(2)} R to the surface` : thin ? `none to speak of: a wafer holding ${sci(thin.mass, 1)} of the mass` : "none";
   const rows = [["mass", massTxt], ["radius", four ? `${sci(st.R / 1e3)} km` : `${(st.R / RSUN).toFixed(2)} R☉`], ["luminosity", `${sci(st.L)} W${four ? "" : ` (${(st.L / LSUN).toPrecision(2)} L☉)`}`],
     ["surface", `<i class="sw" style="background:rgb(${st.colour.join(",")})"></i>${st.Teff.toLocaleString("en")} K`], ["centre", `${(st.Tc / 1e6).toFixed(1)} million K${st.rhoc ? `, ${sci(st.rhoc)} kg/m${four ? "⁴" : "³"}` : ""}`],
-    ["core clock", st.thGyr == null ? (four ? "<span class=dim>never halves (not by 10²² s)</span>" : "<span class=dim>—</span>") : `half its core's hydrogen in ${sci(st.thGyr)} billion years`],
+    ...(tr ? [["age", `${ageTxt(st.t)} <span class="dim">of a main sequence that ends at ${ageTxt(tr.tEnd)}${tr.ref ? ` (MIST: ${ageTxt(tr.ref.tmsGyr)})` : ""}</span>`], ["centre's hydrogen", `${(100 * st.Xc).toFixed(1)}% by mass <span class="dim">(born with ${(100 * tr.X0).toFixed(1)}%)</span>`]]
+      : [["core clock", st.thGyr == null ? (four ? "<span class=dim>never halves (not by 10²² s)</span>" : "<span class=dim>—</span>") : `half its core's hydrogen in ${sci(st.thGyr)} billion years`]]),
     ["convective core", st.layers.cc > 0.02 ? `${(100 * st.qcc).toFixed(0)}% of the mass, out to ${st.layers.cc.toFixed(2)} R` : "none"], ["outer stirring", outer]];
   $("readout").innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join("");
   const sunIdx = nearestSun(); $("sunmark").textContent = four ? (q.sunM ? `Sun-like star here: ${q.sunM} M_Ch${q.sunKind ? `, its centre burns ${q.sunKind}` : ""}` : "no Sun-like star in the masses computed") : "our Sun: 1 M☉";
   $("tosun").disabled = !q.sunM; $("mass").max = q.stars.length - 1; $("mass").value = state.i; $("massval").innerHTML = four ? `${st.m} M<sub>Ch</sub>` : `${st.m} M☉`; $("isSun").hidden = state.i !== sunIdx || !q.sunM;
-  profile(st);
+  // the age row, and the aged masses as chips that jump there
+  $("agerow").hidden = !tr; if (tr) { $("age").max = tr.snaps.length - 1; $("age").value = Math.min(state.age, tr.snaps.length - 1); $("ageval").textContent = ageTxt(st.t);
+    $("agenote").textContent = st.t === 0 ? "zero age" : st.Xc < 0.002 ? "central hydrogen gone: the main sequence ends here" : `${(100 * (1 - st.Xc / tr.X0)).toFixed(0)}% of the centre's hydrogen burnt`; }
+  const ms = Object.values(tracks()).filter((t) => t.snaps?.length > 1).map((t) => t.m).sort((a, b) => a - b); $("agedrow").hidden = !ms.length;
+  $("agechips").innerHTML = ms.map((m) => `<button data-m="${m}" class="${tr && tr.m === m ? "on" : ""}">${m} ${four ? "M_Ch" : "M☉"}</button>`).join("");
+  profile(st); reference(st, tr);
 }
 function profile(st) {
   const c = $("prof"), dpr = Math.min(2, window.devicePixelRatio || 1), w = c.clientWidth, h = c.clientHeight; c.width = w * dpr; c.height = h * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
-  const L = 40, R = w - 10, T = 28, B = h - 42, X = (x) => L + x * (R - L), p = st.prof.filter((q) => q[1] != null);
+  const L = 40, R = w - 10, T = st.prof[0]?.[5] != null ? 36 : 28, B = h - 42, X = (x) => L + x * (R - L), p = st.prof.filter((q) => q[1] != null);
   const lT = p.map((q) => q[1]), lR = p.map((q) => q[2]).filter((v) => v != null), Ty = (v) => B - ((v - Math.min(...lT)) / (Math.max(...lT) - Math.min(...lT) || 1)) * (B - T), Ry = (v) => B - ((v - Math.min(...lR)) / (Math.max(...lR) - Math.min(...lR) || 1)) * (B - T);
   const env = st.layers.env ?? [], deep = env.find((z) => z.deep || z.bot < 0.97);
   g.fillStyle = "rgba(111,224,255,0.10)"; if (st.layers.cc > 0.02) g.fillRect(X(0), T, X(st.layers.cc) - X(0), B - T); if (deep) g.fillRect(X(deep.bot), T, X(1) - X(deep.bot), B - T);
   g.fillStyle = "rgba(255,240,180,0.12)"; g.fillRect(X(0), T, X(st.layers.b90) - X(0), B - T);
   const line = (ys, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); p.forEach((q, k) => { const y = ys(q); if (y == null) return; k ? g.lineTo(X(q[0]), y) : g.moveTo(X(q[0]), y); }); g.stroke(); };
   line((q) => Ty(q[1]), "#ffb35c"); line((q) => (q[2] == null ? null : Ry(q[2])), "#8fd3ff"); line((q) => B - q[3] * (B - T), "rgba(255,255,255,0.55)");
+  if (p[0]?.[5] != null) { g.setLineDash([5, 3]); line((q) => B - (q[5] / 0.8) * (B - T), "#9fe3b0"); g.setLineDash([]); g.fillStyle = "#9fe3b0"; g.fillText("- - hydrogen by mass (0 → 80%): the burnt core", L, 27); }
   g.fillStyle = "#9aa3b8"; g.font = "11px ui-monospace, monospace"; g.fillText("centre", L, h - 26); g.textAlign = "right"; g.fillText("surface  r/R →", R, h - 26); g.textAlign = "left";
   g.fillStyle = "#ffb35c"; g.fillText("— temperature", L, 14); g.fillStyle = "#8fd3ff"; g.fillText("— density", L + 112, 14); g.fillStyle = "rgba(255,255,255,0.75)"; g.fillText("— light made so far (0 → all)", L + 196, 14); g.fillStyle = "rgba(160,220,255,0.75)"; g.textAlign = "center"; g.fillText("blue band: stirred · pale band: where light is made", (L + R) / 2, h - 6); g.textAlign = "left";
   g.save(); g.translate(12, (T + B) / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillStyle = "#9aa3b8"; g.fillText("log scale, each its own", 0, 0); g.restore();
+}
+/* ——— the life against a published one: L, surface T and the centre's hydrogen against age, ours solid, MIST dashed ——— */
+function reference(st, tr) {
+  $("refcard").hidden = !tr; if (!tr) return; const four = state.world === "four", ref = tr.ref;
+  $("reftitle").innerHTML = ref ? `This life against MIST's ${ref.mistM} M☉ track <span class="dim" style="font-weight:400">(solid: ours · dashed: MIST v1.2, Choi et al. 2016)</span>` : `This life <span class="dim" style="font-weight:400">(no published four-dimensional stars to set it against; the machinery is checked on ours)</span>`;
+  const c = $("ref"), dpr = Math.min(2, window.devicePixelRatio || 1), w = c.clientWidth, h = c.clientHeight; c.width = w * dpr; c.height = h * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  const tMax = Math.max(tr.tEnd, ref?.tmsGyr ?? 0), panels = [["luminosity", (r) => Math.log10(r.L / (four ? 1 : LSUN)), four ? "log₁₀ W" : "log₁₀ L☉"], ["surface", (r) => r.Teff / 1000, "thousand K"], ["centre's hydrogen", (r) => r.Xc, "by mass"]];
+  const pw = (w - 20) / 3; g.font = "11px ui-monospace, monospace";
+  panels.forEach(([name, f, unit], k) => { const x0 = 10 + k * pw + 34, x1 = 10 + (k + 1) * pw - 8, y0 = 18, y1 = h - 30, all = [...tr.track, ...(ref?.rows ?? [])].map(f).filter(Number.isFinite), lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo || 1) * 0.08;
+    const X = (t) => x0 + (t / tMax) * (x1 - x0), Y = (v) => y1 - ((v - lo + pad) / (hi - lo + 2 * pad)) * (y1 - y0);
+    g.strokeStyle = "rgba(255,255,255,0.12)"; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    const draw = (rows, col, dash) => { g.strokeStyle = col; g.lineWidth = 2; g.setLineDash(dash); g.beginPath(); rows.forEach((r, i) => { const v = f(r); if (!Number.isFinite(v)) return; i ? g.lineTo(X(r.t), Y(v)) : g.moveTo(X(r.t), Y(v)); }); g.stroke(); g.setLineDash([]); };
+    if (ref) draw(ref.rows, "rgba(200,206,222,0.75)", [5, 4]); draw(tr.track, "#ffb35c", []);
+    g.strokeStyle = "#9fe3b0"; g.beginPath(); g.moveTo(X(st.t), y0); g.lineTo(X(st.t), y1); g.stroke(); g.fillStyle = "#9fe3b0"; g.beginPath(); g.arc(X(st.t), Y(f(st)), 3, 0, 7); g.fill();
+    g.fillStyle = "#cfd6e6"; g.fillText(name, x0, 12); g.fillStyle = "#9aa3b8"; g.textAlign = "right"; g.fillText(unit, x1, 12);
+    const fmt = (v) => (Math.abs(v) < 1e-3 ? "0" : v.toPrecision(3)); g.fillText(fmt(hi), x0 - 3, y0 + 9); g.fillText(fmt(lo), x0 - 3, y1); g.textAlign = "left"; g.fillText("0", x0, y1 + 13); g.textAlign = "right"; g.fillText(`${tMax.toPrecision(2)} Gyr`, x1, y1 + 13); g.textAlign = "left"; });
+  const at = (rows, t) => rows.reduce((a, b) => (Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a)), mr = ref ? at(ref.rows, st.t) : null;
+  $("refnote").innerHTML = ref ? `At ${ageTxt(st.t)}: ours ${(st.L / LSUN).toPrecision(3)} L☉, ${st.Teff.toLocaleString("en")} K, centre ${(100 * st.Xc).toFixed(0)}% hydrogen; MIST ${(mr.L / LSUN).toPrecision(3)} L☉, ${mr.Teff.toLocaleString("en")} K, ${(100 * mr.Xc).toFixed(0)}%.
+    The two are built differently on purpose: MIST starts with more hydrogen (71.5% against 68.7%) and fewer metals (1.4% against 2%), lets helium settle and stirs a little past a core's edge (overshoot), and uses OPAL's opacities where ours uses a textbook law. Where the lines part, one of those is why. The surface temperature parts most: a star's radius is set in its outer layers, where our model carries the textbook opacity and no mixing-length envelope (the surface model that reads the outer stirring doesn't feed back into the radius), so our stars stay too small and heat up as they brighten. The centre is where ours is checked hardest.` : `Solid: this star's own life, zero age to the end of its central hydrogen.`;
 }
 /* ——— controls ——— */
 function chips(host, vals, cur, fmt, set) { host.innerHTML = vals.map((v) => `<button data-v="${v}" class="${v === cur ? "on" : ""}">${fmt(v)}</button>`).join(""); host.onclick = (e) => { const b = e.target.closest("button"); if (b) set(+b.dataset.v); }; }
@@ -142,16 +175,18 @@ function sync() {
   if (!GS.length) { state.world = "ours"; const b = document.querySelector('#world button[data-v="four"]'); b.disabled = true; b.title = "the four-dimensional stars' interiors are still being computed"; b.textContent = "four dimensions (computing)"; }
   const four = state.world === "four"; document.querySelectorAll("#world button").forEach((b) => b.classList.toggle("on", b.dataset.v === state.world));
   $("fourctl").hidden = !four; $("wrow").hidden = !four;
-  chips($("gchips"), GS, state.G, (g) => `10${sup(Math.round(Math.log10(g)))}`, (g) => { state.G = g; state.i = nearestSun(); sync(); });
-  chips($("schips"), SS, state.s, (s) => String(s), (s) => { state.s = s; state.i = nearestSun(); sync(); });
+  chips($("gchips"), GS, state.G, (g) => `10${sup(Math.round(Math.log10(g)))}`, (g) => { state.G = g; state.i = nearestSun(); state.age = 0; sync(); });
+  chips($("schips"), SS, state.s, (s) => String(s), (s) => { state.s = s; state.i = nearestSun(); state.age = 0; sync(); });
   $("wval").textContent = state.w.toFixed(2); $("wnote").textContent = state.w > 0 ? "this slice crosses the cut orthant, so the cut is open" : state.w < 0 ? "this slice misses the cut orthant: the ball is whole here; slide w above 0 to open it" : "the middle slice, on the cut orthant's edge";
   readout(); save();
 }
-function save() { try { history.replaceState(null, "", `#${state.world}${state.world === "four" ? `/${state.G}/${state.s}` : ""}/${state.i}${state.world === "four" ? `/${state.w.toFixed(2)}` : ""}`); } catch {} }
-function load() { const h = location.hash.slice(1).split("/"); if (h[0] === "four") { state.world = "four"; if (+h[1]) state.G = +h[1]; if (+h[2]) state.s = +h[2]; state.i = h[3] != null ? +h[3] : nearestSun(); if (h[4] != null) state.w = +h[4]; } else { state.world = "ours"; state.i = h[1] != null ? +h[1] : nearestSun(); } }
-$("world").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; state.world = b.dataset.v; state.i = nearestSun(); sync(); };
-$("mass").oninput = (e) => { state.i = +e.target.value; readout(); save(); };
-$("tosun").onclick = () => { state.i = nearestSun(); readout(); save(); };
+function save() { try { history.replaceState(null, "", `#${state.world}${state.world === "four" ? `/${state.G}/${state.s}` : ""}/${state.i}${state.world === "four" ? `/${state.w.toFixed(2)}` : ""}${track() ? `/a${state.age}` : ""}`); } catch {} }
+function load() { const raw = location.hash.slice(1).split("/"), a = raw.find((x) => /^a\d+$/.test(x)), h = raw.filter((x) => x !== a); state.age = a ? +a.slice(1) : 0; if (h[0] === "four") { state.world = "four"; if (+h[1]) state.G = +h[1]; if (+h[2]) state.s = +h[2]; state.i = h[3] != null ? +h[3] : nearestSun(); if (h[4] != null) state.w = +h[4]; } else { state.world = "ours"; state.i = h[1] != null ? +h[1] : nearestSun(); } }
+$("world").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; state.world = b.dataset.v; state.i = nearestSun(); state.age = 0; sync(); };
+$("mass").oninput = (e) => { state.i = +e.target.value; state.age = 0; readout(); save(); };
+$("age").oninput = (e) => { state.age = +e.target.value; readout(); save(); };
+$("agechips").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; const m = +b.dataset.m, q = seq(); let k = 0; q.stars.forEach((x, i) => { if (Math.abs(Math.log(x.m / m)) < Math.abs(Math.log(q.stars[k].m / m))) k = i; }); state.i = k; state.age = 0; readout(); save(); };
+$("tosun").onclick = () => { state.i = nearestSun(); state.age = 0; readout(); save(); };
 $("w").oninput = (e) => { state.w = +e.target.value / 100; sync(); };
 let drag = null; cv.addEventListener("pointerdown", (e) => { drag = [e.clientX, e.clientY, ...state.rot]; cv.setPointerCapture(e.pointerId); });
 cv.addEventListener("pointermove", (e) => { if (!drag) return; state.rot = [drag[2] + (e.clientX - drag[0]) * 0.01, Math.max(-1.4, Math.min(1.4, drag[3] + (e.clientY - drag[1]) * 0.01))]; });

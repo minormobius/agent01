@@ -16,7 +16,8 @@
    whole step at that half-way star's ρ, T; then every region the solver stirred (its gradient at the adiabatic one) is
    mixed to one composition. A stirred region burns as one zone, on its shells' mass-weighted rates (burning each shell
    on its own over a step starves a convective core's centre of the fuel the stirring brings it). A step is accepted only
-   if what the shells burnt over it matches what the half-way star radiated to 0.3% (BALTOL), else it is halved. The step is set so the hydrogen anywhere falls by at most dX (and by at most a tenth of what
+   if what the shells burnt over it matches what the half-way star radiated to 0.3% (BALTOL), else it is halved; a
+   mismatch a halving doesn't shrink is structural (a stirred core's ⁷Be branch, up to ~0.5%) and is kept as eBal. The step is set so the hydrogen anywhere falls by at most dX (and by at most a tenth of what
    is there), and grows at most ×2 a step; the first is a thousand years, while the ³He of the core comes into balance.
    No diffusion, no overshoot, no mass loss, no rotation. */
 import { mkdirSync, writeFileSync, readFileSync, existsSync, renameSync } from "node:fs";
@@ -145,7 +146,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   const s0 = C ? null : W.first ? W.first(M) : star({ d: W.d, M, G: W.G, comp: W.comp(S[0]), eps: (rho, T) => W.eps(rho, T, S[0]).eps, kappa: (rho, T) => W.kappa(rho, T, S[0]) }, guess);
   if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
   let { s, f: grav } = C ? { s: s1, f: g1 } : solve(W, M, S, s0.p, sample(W, M, S, s0).rows, s0.f ?? null); if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
-  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null;
+  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1;
   // settling (settle > 0 years): fresh gas has none of its burning's intermediates; burn the shells for 10², 2 × 10², …
   // years up to `settle` at the star's own conditions, re-solving each time, and only then start the clock, so the
   // zero-age star has its short- and middle-lived nuclei in balance (the usual zero-age convention)
@@ -165,11 +166,18 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   if (!C) { keep(); keepProf(s, smp); }
   for (let n = 0; n < 3000 && t < tmax && W.H(S[0]) > Hstop; n++) {
     let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > 2e6)) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, Hstop)) / -d); }
-    dt = Math.min(dt, tmax - t); let done = false;
+    dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {
       const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav); if (!h.s.ok) { dt /= 2; continue; }
       const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = (b.E * M) / (h.s.L * dt); // what the shells burnt over the step against what the half-way star radiated
-      if (Math.abs(bal - 1) > BALTOL && tries < 5 && dt > 1e3 * YR) { dt /= 2; continue; } // the step's energy doesn't add up: shorter
+      // the step's energy doesn't add up: shorter, unless halving it left the mismatch where it was. A step's own error
+      // falls about fourfold a halving (second order); one that doesn't fall is structural (a stirred core's short-lived
+      // nuclei, ⁷Be's branch above all, are uniform in its zone burn but in balance shell by shell in the structure: up
+      // to ~0.5% of the energy in a CNO core), and is recorded rather than chased
+      // once a mismatch is known to be structural, later steps are judged against its level, not against 1
+      const structural = prevBal != null && Math.abs(bal - prevBal) < BALTOL / 3;
+      if (Math.abs(bal - balRef) > BALTOL && !structural && tries < 5 && dt > 1e3 * YR) { prevBal = bal; dt /= 2; continue; }
+      balRef = structural || Math.abs(bal - 1) > BALTOL ? bal : 1;
       const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f); if (!f.s.ok) { dt /= 2; continue; }
       eBal = bal; grav = f.f;
       if (process.env.DEBUG_BAL) { const bands = [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1.01], acc = bands.slice(1).map(() => [0, 0]);

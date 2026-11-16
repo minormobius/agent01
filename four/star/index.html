@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="Cut a star open, ours or four-dimensional: the core where light is made, the stirred and still layers, the photosphere in its own colour. Every layer at its computed radius, every star a zero-age model from the book's own physics." />
+<meta name="description" content="Cut a star open, ours or four-dimensional: the core where light is made, the stirred and still layers, the photosphere in its own colour. Every layer at its computed radius from the book's own physics; aged stars walk from zero age to the end of their central hydrogen, set against a published track." />
 <title>Four · a star, cut open</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../atom/css/atom4.css" />
@@ -30,6 +30,7 @@
   #readout div:first-child { border-top: none; } #readout b { color: var(--text); font-weight: 600; } .dim { color: var(--dim); font-weight: 400; }
   .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(255,255,255,0.3); }
   #prof { width: 100%; height: 230px; display: block; }
+  #ref { width: 100%; height: 210px; display: block; }
   #legendSmall { font: 11px/1.6 var(--mono); color: var(--dim); margin-top: 6px; } #legendSmall b { color: var(--text); }
   p, li { max-width: 780px; }
   [hidden] { display: none !important; }
@@ -50,6 +51,8 @@
     <span id="fourctl" hidden>gravity <span class="chips" id="gchips"></span> × ours · strong force s <span class="chips" id="schips"></span></span></div>
   <div class="ctl"><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:260px">mass <input type="range" id="mass" min="0" max="10" value="0" /> <b id="massval"></b> <span class="sunflag" id="isSun" hidden>Sun-like</span></label>
     <button class="go" id="tosun">the Sun-like star</button> <span id="sunmark" style="font-size:11px"></span></div>
+  <div class="ctl" id="agerow" hidden><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:260px">age <input type="range" id="age" min="0" max="0" value="0" /> <b id="ageval"></b></label> <span id="agenote" style="font-size:11px"></span></div>
+  <div class="ctl" id="agedrow" hidden><span style="font-size:12px">aged so far:</span> <span class="chips" id="agechips"></span></div>
   <div class="ctl" id="wrow" hidden><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:260px">slice at w <input type="range" id="w" min="-95" max="95" value="35" /> <b id="wval"></b></label> <span id="wnote" style="font-size:11px"></span></div>
   <div class="stage"><canvas id="view"></canvas><svg id="leaders"></svg><div id="labels"></div><div class="hint">drag to turn · wheel to zoom</div></div>
   <div id="legendSmall"></div>
@@ -57,6 +60,8 @@
     <div class="card"><div id="readout"></div></div>
     <div class="card"><canvas id="prof"></canvas></div>
   </div>
+
+  <div class="card" id="refcard" hidden><div id="reftitle" style="font:600 13px var(--mono);margin-bottom:4px"></div><canvas id="ref"></canvas><div id="refnote" style="font:11px/1.55 var(--mono);color:var(--dim);margin-top:6px"></div></div>
 
   <details class="card" open>
     <summary><b>How to read it</b></summary>
@@ -69,10 +74,14 @@
       through the fourth direction, w: off-centre slices are smaller balls, and each layer of 4D radius r shows at
       √(r² − w²), so the inner layers vanish from slices far out. The piece cut away is one of the sixteen orthants
       (x, y, z, w all positive), so the cut only opens on slices with w &gt; 0. On the others the ball is whole.</li>
-      <li><b>Mass and age.</b> Temperature isn't a free choice: mass and age set it. Every star here is <b>zero-age</b>, just
-      settled onto its main sequence; the book has no stellar evolution yet, so there's no age slider. The <b>core clock</b>
-      is the time its centre, as it is now, would take to burn half its hydrogen. In 4D, gravity G and the strong force s are
-      the dials that matter; mass is in Chandrasekhar masses at that G.</li>
+      <li><b>Mass and age.</b> Temperature isn't a free choice: mass and age set it. Most stars here are <b>zero-age</b>, just
+      settled onto their main sequence, and their <b>core clock</b> is the time the centre, as it is then, would take to burn
+      half its hydrogen. The stars marked <b>aged</b> have been run through their lives (the book's <code>evolve.mjs</code>:
+      every shell burnt at its own temperature and density, stirred regions mixed), and the <b>age slider</b> walks them from
+      zero age to the end of central hydrogen: watch the core heat and densify, the burnt hydrogen spread in a profile, the
+      surface brighten. For our stars a chart sets each life against <b>MIST</b>'s published track for the same mass (Choi et
+      al. 2016), a model built independently with fuller physics. In 4D, gravity G and the strong force s are the dials that
+      matter; mass is in Chandrasekhar masses at that G.</li>
     </ul>
   </details>
   <details class="card">
@@ -85,7 +94,12 @@
     Bell &amp; Berrington's tables to within 36%, and our stars' outer convection switching off between 1.25 and 1.4 solar
     masses, as textbooks give. The 4D Sun-like star's photosphere is ionized, so it has no convective envelope; the light,
     cool stars of each sequence do.</p>
-    <p>Not in it: stellar evolution (no age), rotation, metals, and molecules (our coolest stars' surfaces are outside the
+    <p>Aged stars (ours): REACLIB burning shell by shell with screening and neutrino losses, initial hydrogen 0.687 (set so
+    our Sun shines at today's luminosity at 4.57 billion years, as standard solar models set theirs), metals 2%, no diffusion
+    and no overshoot (a stirred core stops exactly where the gradient says). Checked against standard solar models in paper
+    2's section 4. MIST differs on purpose in what it includes (diffusion, overshoot, OPAL opacities, its own composition:
+    hydrogen 0.715, metals 1.43%), so the comparison shows where those matter.</p>
+    <p>Not in it: rotation, mass loss, and molecules (our coolest stars' surfaces are outside the
     model, and say so). Envelope depths of deep zones are read from a model that keeps the star's mass fixed, so trust where
     convection starts more than how much mass it holds.</p>
   </details>

@@ -145,8 +145,17 @@ for games, and this is a modelling programme with publications to come. The game
   only — a WebGL ray-cast of the ball with the facing octant cut away (cut faces coloured by the star's own log T profile,
   convection as moving cells, the light-making core glowing, a wafer-thin outer zone as a pale ring, the surface in its
   world's blackbody colour), leader-line labels per layer, a readout and a T/ρ/light profile. 4D shows a 3D slice at w
-  (layers at √(r² − w²); the cut orthant x, y, z, w > 0 opens only for w ≥ 0). No age slider: every star is zero-age;
-  the core clock (centre's hydrogen half-life) stands in. **Generated** `star/data.js` from `atom/tools/starcut.mjs bake
+  (layers at √(r² − w²); the cut orthant x, y, z, w > 0 opens only for w ≥ 0). Zero-age stars carry a core clock (the centre's hydrogen half-life);
+  **aged stars** (PI, 2026-11-16: "judging our computation against published values") get an age slider over their kept
+  profiles, a dashed hydrogen line in the profile, an "aged so far" row of chips, and a card setting the life (L, surface
+  T, the centre's hydrogen against age) against **MIST v1.2**'s track at the same mass (`fusion/tools/mist.mjs <dir of
+  EEP files>` → `papers/p2/data/mist.json`, an extract of MIST_v1.2_feh_p0.00_afe_p0.0_vvcrit0.0_EEPS, EEP 202–454; cite
+  Choi et al. 2016 and Dotter 2016; the site says "© MIST. All rights reserved", so keep it an extract). **Generated**
+  `star/aged.js` from `atom/tools/starcut.mjs aged <dir of evolve-*.json>` (ours `evolve-ours-<m>-X0.687.json`, 4D
+  `evolve-four-*.json`); a track attaches to the zero-age star within 7% of its mass. First comparison: the centre agrees
+  best; ours' surface runs hot (1 M☉ 5.5 → 6.5 kK against MIST's ~5.8) because the structure's outer layers carry the
+  textbook opacity and no mixing-length envelope; 1.6 M☉ is brighter and shorter-lived (1.43 against 1.96 Gyr:
+  composition, and MIST's overshoot). **Generated** `star/data.js` from `atom/tools/starcut.mjs bake
   <ours.json> <dir of 4D net files>` (~25 min): layers from each star's compact profile (`mainseq.mjs` now keeps `prof`,
   40 points), outer zones from `atom/js/surface.js`, ours' core clocks by REACLIB. 4D sequences from run `starcut-1`
   (G 10⁻¹¹/10⁻¹⁴/10⁻¹⁷/10⁻²⁰ × all eight s, on atom4-data); ours from `mainseq.mjs ours`. Catalogue `four-star`.
@@ -155,7 +164,9 @@ for games, and this is a modelling programme with publications to come. The game
   varying with mass (`opts.compAt`; eps and kappa get `m`); composition on 401 points in q = (j/400)^1.5; each shell
   burnt implicitly at its own ρ, T; a stirred region burnt as one zone on its shells' mass-weighted rate constants (burning
   shells apart starved a convective core's centre); midpoint steps accepted only if the shells' burnt energy matches what
-  the half-way star radiated to 0.3% (`BALTOL`), else halved; structure ε per shell a local power law refitted until L
+  the half-way star radiated to 0.3% (`BALTOL`), else halved, unless a halving leaves the mismatch where it was: that is
+  structural (a CNO core's ⁷Be branch is uniform in its zone burn but in balance shell by shell in the structure, up to
+  ~0.5%), and later steps are judged against its level (before that fix, 2 and 3 M☉ stalled at 10³-yr steps); structure ε per shell a local power law refitted until L
   settles. Ours burns on `fusion/js/shell.js` (REACLIB pp chains and CN/NO cycles, weak screening, neutrino shares, short-
   lived species at steady state, ³He evolved); 4D on `fusion/js/shell4.js` (net4 with eps4.json's ρ_ref(T), energy as
   atomic rest-mass loss, no screening, fast species found by a 1-yr lifetime cut), pinned gravity held through a solve and
