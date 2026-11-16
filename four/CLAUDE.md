@@ -223,6 +223,18 @@ for games, and this is a modelling programme with publications to come. The game
   zero age); 7 failed at zero age (some have no analogue in gravity.json), 5 stalled mid-life ("no solution past Xc").
   `star/aged.js` now carries 25 4D tracks (cut runs rebuilt from their checkpoints, M_Ch ∝ G^(−4/3) for 10⁻²⁰); an
   "aged so far" chip pins its track (`state.tm`, hash `/t<mass>`), since an analogue's mass falls between table stars.
+  **The charge law in the 4D stellar plasma (PI, 2026-11-16: "do we finally get bitten by the lens vacuum?").** Two
+  bites, both from the pinned 1/r (its k⁻³ transform). (1) **Light:** a charge feels light of wavenumber k as E′/(ℓk), so
+  the plasma answers long waves ever more strongly: ω² = c²k² + 𝒜/k, 𝒜 = 4π²αħc n_e/m (ℓ cancels), and no light travels
+  below a cutoff; the Rosseland mean weighs each frequency by n_r^(d−1) (n_r³) and nothing below it. `mainseq.js`
+  `lensPlasma4`, `kappaFF4(comp, ff, { plasma })`; `evolve.mjs four … plasma=1` is the default for new runs, whose files
+  carry `-lp` (so they never resume an old checkpoint). The 4D mean is carried by x ≈ 8–15, so it matters only once the
+  cutoff climbs there: ×1.07–1.55 at G 10⁻¹¹, ≤ ×1.07 at 10⁻¹⁴, < 5% below. (2) **Screening:** Debye–Hückel under 1/r,
+  k_D³ = 4π²αħc Σn z²/kT; electrons per screening 4-ball 0.11–2.2 (ours' Sun ~11), p + p ×1.03–1.70 by weak screening
+  (shell4.js has none; at < 1 electron per ball weak screening is outside its range) and the ideal-gas EOS needs Coulomb
+  corrections. `fusion/tools/lensplasma.mjs <dir>` → `papers/p2/data/lensplasma.json` (evolve4-1's zero-age profiles).
+  Both grow toward strong G, where the surface test points. Next: screening in shell4 and the EOS's Coulomb term, then
+  rerun 4D with all three.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

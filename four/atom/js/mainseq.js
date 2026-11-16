@@ -68,8 +68,23 @@ const ROSS4 = (() => { const W = (x) => (x ** 5 * Math.exp(x)) / (Math.exp(x) - 
   for (let x = 0.01; x < 45; x += 0.01) xs.push(x); const num = xs.reduce((t, x) => t + W(x), 0), lr = [], g = [];
   for (let l = -8; l <= 14; l += 0.05) { const r = 10 ** l; lr.push(l); g.push(Math.log(num / xs.reduce((t, x) => t + W(x) / (r * F(x) + E(x)), 0))); }
   return (r) => { const l = Math.log10(Math.max(r, 1e-8)); if (l >= 14) return Math.exp(g.at(-1)) * r / 1e14; const i = Math.min(lr.length - 2, Math.floor((l + 8) / 0.05)), f = (l - lr[i]) / 0.05; return Math.exp(g[i] * (1 - f) + g[i + 1] * f); }; })();
-export const kappaFF4 = (comp, ff = 1) => (rho, T) => { const nz = (rho / SI.mu) * (comp.X + comp.Y), ne = (rho / SI.mu) * ((1 + comp.X) / 2), x0 = (SI.hbar * SI.c) / (SI.k * T);
-  const B = ne * ((3 * Math.PI ** 3) / 4) * RE * RE * x0, r = ff * nz * ((4 * Math.PI ** 2) / 3) * (1 / 137.035999) * x0 ** 4; return (B * ROSS4(r)) / rho; };
+/* The lens vacuum's plasma (`plasma: true`). A charge feels light of wavenumber k as E′/(ℓk), so a plasma's free electrons
+   answer long waves ever more strongly: transverse light obeys ω² = c²k² + 𝒜/k, 𝒜 = 4π²αħc n_e/m (ℓ cancels; cold,
+   collisionless). Its index n_r = ck/ω solves n³ − n + β = 0, β = 𝒜/(c²k₀³), k₀ = ω/c, and no light travels below
+   β = 2/(3√3). In the photon gas's kinetic conductivity the density of states and group speed combine to weigh each
+   frequency by n_r^(d−1) (ours: the familiar n²), so the Rosseland mean takes W n_r³ above the cutoff and nothing below.
+   The vacuum's κ_ω is kept (a first pass). Tabulated in (log r, log β₀), β = β₀/x³ */
+const NR = (beta) => { if (beta > 2 / (3 * Math.sqrt(3))) return 0; let n = 1; for (let i = 0; i < 50; i++) n -= (n ** 3 - n + beta) / (3 * n * n - 1); return n; };
+const PLASMA4 = (() => { const cache = new Map(), W = (x) => (x ** 5 * Math.exp(x)) / (Math.exp(x) - 1) ** 2, F = (x) => ((1 + x) * (1 - Math.exp(-x))) / x ** 5;
+  const cell = (i, j) => { const key = i * 10007 + j; let v = cache.get(key); if (v !== undefined) return v; const r = 10 ** (i * 0.1), b0 = 10 ** (j * 0.1); let s0 = 0, s1 = 0;
+    for (let x = 0.01; x < 45; x += 0.01) { const k = r * F(x) + 1 / x, n = NR(b0 / x ** 3); s0 += W(x) / k; s1 += (W(x) * n ** 3) / k; } v = Math.log(s0 / Math.max(s1, 1e-300)); cache.set(key, v); return v; };
+  return (r, b0) => { if (!(b0 > 1e-8)) return 1; const x = Math.log10(Math.max(r, 1e-8)) / 0.1, y = Math.log10(b0) / 0.1, i = Math.floor(x), j = Math.floor(y), u = x - i, w = y - j;
+    return Math.exp(cell(i, j) * (1 - u) * (1 - w) + cell(i + 1, j) * u * (1 - w) + cell(i, j + 1) * (1 - u) * w + cell(i + 1, j + 1) * u * w); }; })();
+export const lensPlasma4 = (rho, T, X, nzOverN = 1) => { const ne = (rho / SI.mu) * ((1 + X) / 2), x0 = (SI.hbar * SI.c) / (SI.k * T), r = (rho / SI.mu) * nzOverN * ((4 * Math.PI ** 2) / 3) * (1 / 137.035999) * x0 ** 4;
+  return PLASMA4(r, (4 * Math.PI ** 2 * (1 / 137.035999) * SI.hbar * SI.c * ne * x0 ** 3) / (SI.me * SI.c * SI.c)); };
+export const kappaFF4 = (comp, ff = 1, { plasma = false } = {}) => (rho, T) => { const nz = (rho / SI.mu) * (comp.X + comp.Y), ne = (rho / SI.mu) * ((1 + comp.X) / 2), x0 = (SI.hbar * SI.c) / (SI.k * T);
+  const B = ne * ((3 * Math.PI ** 3) / 4) * RE * RE * x0, r = ff * nz * ((4 * Math.PI ** 2) / 3) * (1 / 137.035999) * x0 ** 4, k = (B * ROSS4(r)) / rho;
+  return plasma ? k * PLASMA4(r, (4 * Math.PI ** 2 * (1 / 137.035999) * SI.hbar * SI.c * ne * x0 ** 3) / (SI.me * SI.c * SI.c)) : k; };
 
 /* integrate y = [ln r, ln P, ln T, L] in m (RK4, step doubling) */
 function integrate(rhs, m0, m1, y0, { tol = 1e-6, h0 } = {}) {
