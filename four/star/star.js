@@ -154,17 +154,26 @@ function profile(st) {
 function reference(st, tr) {
   $("refcard").hidden = !tr; if (!tr) return; const four = state.world === "four", ref = tr.ref;
   $("reftitle").innerHTML = ref ? `This life against MIST's ${ref.mistM} M☉ track <span class="dim" style="font-weight:400">(solid: ours · dashed: MIST v1.2, Choi et al. 2016)</span>` : `This life <span class="dim" style="font-weight:400">(no published four-dimensional stars to set it against; the machinery is checked on ours)</span>`;
-  const c = $("ref"), dpr = Math.min(2, window.devicePixelRatio || 1), w = c.clientWidth, h = c.clientHeight; c.width = w * dpr; c.height = h * dpr; const g = c.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
-  const tMax = Math.max(tr.tEnd, ref?.tmsGyr ?? 0), panels = [["luminosity", (r) => Math.log10(r.L / (four ? 1 : LSUN)), four ? "log₁₀ W" : "log₁₀ L☉"], ["surface", (r) => r.Teff / 1000, "thousand K"], ["centre's hydrogen", (r) => r.Xc, "by mass"]];
-  const pw = (w - 20) / 3; g.font = "11px ui-monospace, monospace";
-  panels.forEach(([name, f, unit], k) => { const x0 = 10 + k * pw + 34, x1 = 10 + (k + 1) * pw - 8, y0 = 18, y1 = h - 30, all = [...tr.track, ...(ref?.rows ?? [])].map(f).filter(Number.isFinite), lo = Math.min(...all), hi = Math.max(...all), pad = (hi - lo || 1) * 0.08;
-    const X = (t) => x0 + (t / tMax) * (x1 - x0), Y = (v) => y1 - ((v - lo + pad) / (hi - lo + 2 * pad)) * (y1 - y0);
-    g.strokeStyle = "rgba(255,255,255,0.12)"; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
-    const draw = (rows, col, dash) => { g.strokeStyle = col; g.lineWidth = 2; g.setLineDash(dash); g.beginPath(); rows.forEach((r, i) => { const v = f(r); if (!Number.isFinite(v)) return; i ? g.lineTo(X(r.t), Y(v)) : g.moveTo(X(r.t), Y(v)); }); g.stroke(); g.setLineDash([]); };
+  const c = $("ref"), dpr = Math.min(2, window.devicePixelRatio || 1), g = c.getContext("2d");
+  const tMax = Math.max(tr.tEnd, ref?.tmsGyr ?? 0), panels = [["luminosity", (r) => r.L / (four ? 1 : LSUN), four ? "W" : "L☉", true], ["surface temperature", (r) => r.Teff, "K", false], ["centre's hydrogen", (r) => 100 * r.Xc, "% by mass", false]];
+  // three panels side by side on a wide screen, stacked on a narrow one; each with its own y ticks, the x axis in Gyr
+  const narrow = c.clientWidth < 700, ph = narrow ? 150 : 210; c.style.height = `${narrow ? ph * 3 : ph}px`;
+  const w2 = c.clientWidth, h2 = c.clientHeight; c.width = w2 * dpr; c.height = h2 * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w2, h2); g.font = "11px ui-monospace, monospace";
+  const nice = (v, log) => { if (log) { const e = Math.floor(Math.log10(v)), m = v / 10 ** e; return Math.abs(e) <= 3 ? (v >= 10 ? v.toFixed(0) : v.toPrecision(2)) : `${m.toFixed(1)}e${e}`; } const r = +v.toPrecision(2); return Math.abs(r) >= 1000 ? r.toLocaleString("en") : Math.abs(r) >= 10 ? r.toFixed(0) : r.toFixed(1); };
+  const tfmt = (t) => (tMax < 0.01 ? `${+(t * 1e3).toPrecision(2)} Myr` : `${+t.toPrecision(2)} Gyr`);
+  panels.forEach(([name, f, unit, log], k) => {
+    const bx = narrow ? 0 : (k * w2) / 3, by = narrow ? k * ph : 0, bw = narrow ? w2 : w2 / 3, x0 = bx + 58, x1 = bx + bw - 12, y0 = by + 24, y1 = by + ph - 26;
+    const vals = [...tr.track, ...(ref?.rows ?? [])].map(f).filter((v) => Number.isFinite(v) && (!log || v > 0)), T = (v) => (log ? Math.log10(v) : v);
+    let lo = Math.min(...vals.map(T)), hi = Math.max(...vals.map(T)); const pad = (hi - lo || 1) * 0.08; lo -= pad; hi += pad; if (!log && Math.min(...vals) >= 0) lo = Math.max(0, lo);
+    const X = (t) => x0 + (t / tMax) * (x1 - x0), Y = (v) => y1 - ((T(v) - lo) / (hi - lo)) * (y1 - y0);
+    g.strokeStyle = "rgba(255,255,255,0.12)"; g.lineWidth = 1; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    g.fillStyle = "#9aa3b8"; g.textAlign = "right";
+    for (let q = 0; q <= 2; q++) { const tv = lo + ((hi - lo) * q) / 2, v = log ? 10 ** tv : tv, y = y1 - ((tv - lo) / (hi - lo)) * (y1 - y0); g.fillText(nice(v, log), x0 - 5, y + 4); g.strokeStyle = "rgba(255,255,255,0.06)"; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); }
+    g.textAlign = "center"; for (const q of [0, 0.5, 1]) g.fillText(q === 0 ? "0" : tfmt(q * tMax), Math.min(x1 - 24, Math.max(x0 + 8, x0 + q * (x1 - x0))), y1 + 15);
+    const draw = (rows, col, dash) => { g.strokeStyle = col; g.lineWidth = 2; g.setLineDash(dash); g.beginPath(); let started = false; rows.forEach((r) => { const v = f(r); if (!Number.isFinite(v) || (log && v <= 0)) return; started ? g.lineTo(X(r.t), Y(v)) : g.moveTo(X(r.t), Y(v)); started = true; }); g.stroke(); g.setLineDash([]); };
     if (ref) draw(ref.rows, "rgba(200,206,222,0.75)", [5, 4]); draw(tr.track, "#ffb35c", []);
-    g.strokeStyle = "#9fe3b0"; g.beginPath(); g.moveTo(X(st.t), y0); g.lineTo(X(st.t), y1); g.stroke(); g.fillStyle = "#9fe3b0"; g.beginPath(); g.arc(X(st.t), Y(f(st)), 3, 0, 7); g.fill();
-    g.fillStyle = "#cfd6e6"; g.fillText(name, x0, 12); g.fillStyle = "#9aa3b8"; g.textAlign = "right"; g.fillText(unit, x1, 12);
-    const fmt = (v) => (Math.abs(v) < 1e-3 ? "0" : v.toPrecision(3)); g.fillText(fmt(hi), x0 - 3, y0 + 9); g.fillText(fmt(lo), x0 - 3, y1); g.textAlign = "left"; g.fillText("0", x0, y1 + 13); g.textAlign = "right"; g.fillText(`${tMax.toPrecision(2)} Gyr`, x1, y1 + 13); g.textAlign = "left"; });
+    g.strokeStyle = "#9fe3b0"; g.lineWidth = 1; g.beginPath(); g.moveTo(X(st.t), y0); g.lineTo(X(st.t), y1); g.stroke(); g.fillStyle = "#9fe3b0"; g.beginPath(); g.arc(X(st.t), Y(f(st)), 3, 0, 7); g.fill();
+    g.textAlign = "left"; g.fillStyle = "#cfd6e6"; g.fillText(name, x0, y0 - 8); g.textAlign = "right"; g.fillStyle = "#9aa3b8"; g.fillText(unit + (log ? ", log scale" : ""), x1, y0 - 8); g.textAlign = "left"; });
   const at = (rows, t) => rows.reduce((a, b) => (Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a)), mr = ref ? at(ref.rows, st.t) : null;
   $("refnote").innerHTML = ref ? `At ${ageTxt(st.t)}: ours ${(st.L / LSUN).toPrecision(3)} L☉, ${st.Teff.toLocaleString("en")} K, centre ${(100 * st.Xc).toFixed(0)}% hydrogen; MIST ${(mr.L / LSUN).toPrecision(3)} L☉, ${mr.Teff.toLocaleString("en")} K, ${(100 * mr.Xc).toFixed(0)}%.
     The two are built differently on purpose: MIST starts with more hydrogen (71.5% against 68.7%) and fewer metals (1.4% against 2%), lets helium settle and stirs a little past a core's edge (overshoot), and uses OPAL's opacities where ours uses a textbook law. Where the lines part, one of those is why. The surface temperature parts most: a star's radius is set in its outer layers, where our model carries the textbook opacity and no mixing-length envelope (the surface model that reads the outer stirring doesn't feed back into the radius), so our stars stay too small and heat up as they brighten. The centre is where ours is checked hardest.` : `Solid: this star's own life, zero age to the end of its central hydrogen.`;
