@@ -295,6 +295,31 @@ fibre scatter has its own reference strand, which is 1.
 - **How tight.** The optimiser chooses a hoop stress of {{c5_hoop}} of the skin's strength at modulus 5, where
   {{c5_split}} of its sections have split. At the half we had assumed before, {{oldSplit}} would.
 
+**Bundle size, and twelve neighbours against six.** A four-dimensional fibre has twelve neighbours in a bundle and
+ours has six, and a larger bundle has a smaller share of its fibres at the skin. We ran both worlds: clusters of 13
+and 55 fibres in a hose, and hexagonal bundles of 7, 19, 37 and 61 in a load-bearing tube, the like-for-like rope in
+three dimensions. The same flawed-material skin, with a band's uniform tension in three dimensions in place of the
+stress peak; thickness and tightness tuned at each size on one set of seeds and reported on another; 48 sections,
+because the larger bundles are slow, so these figures are not comparable with the table above.
+
+| world, fibres | loose | spread, loose | in a hose | spread, in a hose | hose ÷ loose |
+|---|---|---|---|---|---|
+| 4D, 13 | {{z4_13_loose}} | {{z4_13_lcv}} | {{z4_13_hose}} | {{z4_13_hcv}} | {{z4_13_ratio}} |
+| 4D, 55 | {{z4_55_loose}} | {{z4_55_lcv}} | {{z4_55_hose}} | {{z4_55_hcv}} | {{z4_55_ratio}} |
+| 3D, 7 | {{z3_7_loose}} | {{z3_7_lcv}} | {{z3_7_hose}} | {{z3_7_hcv}} | {{z3_7_ratio}} |
+| 3D, 19 | {{z3_19_loose}} | {{z3_19_lcv}} | {{z3_19_hose}} | {{z3_19_hcv}} | {{z3_19_ratio}} |
+| 3D, 37 | {{z3_37_loose}} | {{z3_37_lcv}} | {{z3_37_hose}} | {{z3_37_hcv}} | {{z3_37_ratio}} |
+| 3D, 61 | {{z3_61_loose}} | {{z3_61_lcv}} | {{z3_61_hose}} | {{z3_61_hcv}} | {{z3_61_ratio}} |
+
+- **A bigger bundle is not stronger per weight, in either world.** The mean falls slightly with size. What grows is
+  consistency: the spread of the 55-fibre rope is {{z4_55_hcv}} against {{z4_13_hcv}} for thirteen.
+- **The hose is worth more in four dimensions than the tube is in three**: {{z4_55_ratio}} to {{z4_13_ratio}} times
+  the loose bundle, against {{z3_61_ratio}} to {{z3_37_ratio}}. We cannot say how much of that is the twelve
+  neighbours: the two skins also differ (a sphere's skin pulls two ways and has a stress peak; a band has neither),
+  and a loose bundle, having no contact, is the same in both.
+- **The larger four-dimensional skin had to be made less tight** (a hoop stress of {{z4_55_hoop}} of strength, against
+  {{z4_13_hoop}}): a bigger skin has more flaws, and at the same tightness more of it splits.
+
 **Other constructions, at the reference setting (modulus 5, μ 0.3), in the first, uncoupled model.** These were not
 re-run with the new hose and are shown for their order, not their values:
 
@@ -437,8 +462,9 @@ paper and the data part. The instruments run in a browser at kata.mino.mobi/cad4
 
 - No human audit.
 - The hose is now a material that can split, with its tightness optimised (sections 2.3, 4, 5), and the map covers
-  fibre scatter and friction. Still open in it: how far a split runs; damage that grows under load; rope length and
-  larger bundles in the new model; and the other constructions (braids, cabling, the tightening hose), which were
+  fibre scatter and friction, and two bundle sizes. Still open in it: how far a split runs; damage that grows under
+  load; rope length; bundles beyond 55 fibres, which the solver here cannot reach; a control that separates neighbour
+  count from the skin's geometry; and the other constructions (braids, cabling, the tightening hose), which were
   not re-run with it.
 - A frictional, loaded test of twisted thread yarn in four dimensions has not been done (section 3.1).
 - The kept turn was shown by rest energies for one shell of twelve fibres. Larger bundles, an orientation field, and a

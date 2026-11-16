@@ -381,6 +381,30 @@ At the half-strength tightness the first model assumed, 97% of the skin's sectio
 convergence into the file (`reported`): 2 280 pulls, all converged, all reproducing. The studies' own `status` also
 covers tuning-grid cells, a few of which did not converge and were not chosen.
 
+### Bundle size, and twelve neighbours against six
+
+`node kata/pull/size.mjs 4:2` (dim:shells; `data/size-*.json`). `bundleRope()` in `js/hose.js` builds a bundle of any
+size in either world: cuboctahedral clusters in 4D (13, 55: twelve neighbours), hexagonal bundles in 3D (7, 19, 37,
+61: six), with the skin's weight, press and stress peak for each (a sphere's skin: 3(R/r)²τ, P = 2στ/R, peak 2.3; a
+band: 2(R/r)τ, P = στ/R, no peak) and every inner contact carrying the same force (an assumption). Tuned at each
+size on seeds 1–15, reported on seeds 16–55; 48 sections.
+
+| world, fibres | loose | in a hose | hose ÷ loose | spread loose → hose | best τ, hoop |
+|---|---|---|---|---|---|
+| 4D, 13 | 0.70 | 0.86 ± 0.010 | 1.23 | 13% → 7% | 0.050, 0.3 |
+| 4D, 55 | 0.68 | 0.79 ± 0.005 | 1.17 | 6% → 4% | 0.083, 0.2 |
+| 3D, 7 | 0.72 | 0.80 ± 0.015 | 1.12 | 16% → 12% | 0.100, 0.3 |
+| 3D, 19 | 0.70 | 0.79 ± 0.008 | 1.12 | 10% → 6% | 0.167, 0.3 |
+| 3D, 37 | 0.68 | 0.77 ± 0.005 | 1.13 | 7% → 4% | 0.233, 0.3 |
+| 3D, 61 | 0.68 | 0.75 ± 0.005 | 1.11 | 6% → 4% | 0.300, 0.3 |
+
+- A bigger bundle is not stronger per weight in either world; it is more consistent.
+- The hose is worth more in 4D (1.17–1.23× the loose bundle) than the tube in 3D (1.11–1.13×). Neighbour count and
+  skin geometry are not separated by this.
+- The larger 4D skin is best made less tight (0.2 against 0.3): more material, more flaws, more splitting.
+- 147 fibres is out of reach: the solver's band is as wide as the bundle, so cost goes as the cube of the fibre count
+  (a 55-fibre pull takes about 12 s).
+
 **The sections below describe the first, uncoupled model.** Its numbers are kept for their order.
 
 ## Audit follow-ups
