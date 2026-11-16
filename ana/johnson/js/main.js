@@ -7,6 +7,8 @@ import { JOHNSON } from './johnson-data.js';
 import * as P from './poly.js';
 import { SNUB_DODECAHEDRON } from './johnson-data.js';
 import { seating, FAMILIES, familyOf } from './seat.js';
+import * as AT from './atlas.js';
+import { CENSUS, TOTAL } from './atlas-census.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gl'), ov = $('ov'), octx = ov.getContext('2d');
@@ -15,7 +17,7 @@ if (!gl) { $('nogl').hidden = false; throw new Error('no WebGL2'); }
 
 // ------------------------------------------------------------------ state
 const SEAT = seating().seat, SNUB = SNUB_DODECAHEDRON;
-const S = { mode: '92', seatSel: -1, seatT: 0, mirror: false, famHi: -1, j: 1, view: 'slice', spin: true, obj: 'prism', cut: new Set(), poly: null, R: 1.5, msg: '' };
+const S = { mode: '92', seatSel: -1, seatT: 0, mirror: false, famHi: -1, j: 1, view: 'slice', spin: true, obj: 'prism', cut: new Set(), trail: [], hot: null, walking: null, poly: null, R: 1.5, msg: '' };
 let E = ident(), off = 0, yaw = -0.6, pitch = 0.35, zoom = 1, dirty = true, scale = 1;
 function ident() { return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; }
 const dot4 = P.dot;
@@ -119,7 +121,13 @@ function build() {
       for (const [a, b] of poly.E) { const isG = gold.has(`${a},${b}`) || gold.has(`${b},${a}`); L(sh[a].p, sh[b].p, isG ? [1.0, 0.8, 0.4] : wcol((sh[a].w + sh[b].w) / 2)); }
       if (S.mode === '600') {
         const H = P.h600(), shH = P.shadow({ V: H.V }, origin(), E, S.R * 2.2);
-        H.V.forEach((_, i) => { const cut = S.cut.has(i); pts.push(...shH[i].p, 0, 0, 0, ...(cut ? [1.0, 0.8, 0.4] : wcol(shH[i].w))); pickable.push({ p: shH[i].p, i }); });
+        // gold: cut; bright: the next cut you're pointing at; white: could be cut; dim: blocked (next to a cut)
+        const blocked = new Set(); for (const c of S.cut) for (const u of H.A[c]) blocked.add(u);
+        H.V.forEach((_, i) => {
+          const col = S.cut.has(i) ? [1.0, 0.8, 0.4] : S.hot && S.hot.has(i) ? [1.0, 0.35, 0.9] : blocked.has(i) ? [0.28, 0.28, 0.32] : [0.95, 0.95, 0.95];
+          if (!S.cut.has(i) && !blocked.has(i) && !(S.hot && S.hot.has(i))) col.forEach((x, k) => { col[k] = x * 0.55 + wcol(shH[i].w)[k] * 0.45; });
+          pts.push(...shH[i].p, 0, 0, 0, ...col); pickable.push({ p: shH[i].p, i });
+        });
       }
     }
   }
@@ -320,14 +328,72 @@ function info() {
     const plural = (k, n) => (k === 'cap' ? (S.obj === 'prism' ? `copies of J${S.j}` : 'base') : n === 1 ? k : k === 'tetrahedron' ? 'tetrahedra' : k === 'icosahedron' ? 'icosahedra' : `${k}s`);
     for (const [k, n] of Object.entries(kinds)) chip(cellColour({ kind: k }), `${n} ${plural(k, n)}`);
     if (S.mode === '4d') { $('kitNote').textContent = OBJ[S.obj].note || ''; kitButtons(); }
-    if (S.mode === '600') {
-      const H = P.h600(), forbidden = new Set(); for (const v of S.cut) for (const u of H.A[v]) forbidden.add(u);
-      rows($('dRows'), [['cut', `${S.cut.size}`], ['tetrahedra left', `${600 - 20 * S.cut.size}`], ['icosahedra', `${S.cut.size}`], ['vertices still cuttable', `${120 - S.cut.size - forbidden.size}`], ['is it the snub 24-cell?', S.cut.size === 24 && P.SNUB24.every((i) => S.cut.has(i)) ? 'yes' : 'no']]);
-    }
+    if (S.mode === '600') atlasPanel();
     $('cap').textContent = S.mode === '600'
       ? 'The 600-cell: 600 tetrahedra, 5 round every edge. Tap a vertex in the shadow to cut it off; gold edges are the icosahedra the cuts leave. Drag to turn, pad and lever to turn and move through w.'
       : `${label}. ${S.view === 'slice' ? 'Your 3D slice: each face is a cell cut through, coloured by the cell, teal where the cell leans ana, rose kata.' : 'Its shadow: every edge, projected from an eye in w; teal ana, rose kata.'} Twist the slice with the pad, move it with the lever.`;
   }
+}
+// ------------------------------------------------------------------ the atlas
+// where you are among the diminished 600-cells (your cut up to the 14,400 symmetries), the census chart with your walk,
+// and the genuinely different next cuts
+const fmtN = (n) => n.toLocaleString('en-US');
+const ANG = (a, b) => Math.round((Math.acos(Math.max(-1, Math.min(1, P.dot(AT.group().Q[a], AT.group().Q[b])))) * 180) / Math.PI);
+let NEXT = [];
+function atlasPanel() {
+  $('aTotal').textContent = fmtN(TOTAL - 1);
+  const cut = [...S.cut], k = cut.length, stab = AT.stabilizer(cut).length, ways = 14400 / stab;
+  const key = AT.canonical(cut), tag = fingerprint(key);
+  rows($('here'), [
+    ['cut', `${k} of the 120 vertices`],
+    ['cells', `${600 - 20 * k} tetrahedra · ${k} icosahedr${k === 1 ? 'on' : 'a'}`],
+    ['shapes with this many cuts', fmtN(CENSUS[k] || 0)],
+    ['this one', k ? `#${tag}${k === 24 ? ' · the snub 24-cell' : ''}` : 'the uncut 600-cell'],
+    ['symmetries it keeps', `${fmtN(stab)} of 14,400`],
+    ['cuts that make this same shape', fmtN(ways)],
+  ]);
+  NEXT = AT.nextCuts(cut);
+  $('nextN').textContent = NEXT.length ? `· ${NEXT.length} genuinely different` : '';
+  const el = $('nextCuts'); el.textContent = '';
+  if (!NEXT.length) { const d = document.createElement('div'); d.className = 'end'; d.textContent = k ? `the end of this walk: every vertex left touches a cut. ${k === 24 ? 'You are at the snub 24-cell, the only shape with 24 cuts.' : `A maximal cut with ${k}.`}` : ''; el.append(d); }
+  for (const c of NEXT) {
+    const b = document.createElement('button'), sm = document.createElement('small');
+    const angs = k ? cut.map((x) => ANG(x, c.v)).sort((a, z) => a - z) : [];
+    const tally = []; for (const a of angs) { const t = tally.find((x) => x[0] === a); if (t) t[1]++; else tally.push([a, 1]); }
+    b.textContent = k ? tally.map(([a, n]) => `${a}°${n > 1 ? '×' + n : ''}`).join(' · ') : 'any vertex (they are all alike)';
+    sm.textContent = `${c.count} ${c.count === 1 ? 'vertex' : 'vertices'} · keeps ${fmtN(c.stab)} symmetr${c.stab === 1 ? 'y' : 'ies'}`;
+    b.append(sm);
+    const orbit = () => { const st = AT.stabilizer(cut), g = AT.group(), o = new Set(); for (const x of st) o.add(g.perms[x * 120 + c.v]); return o; };
+    b.onpointerenter = () => { S.hot = orbit(); needBuild = true; dirty = true; };
+    b.onpointerleave = () => { S.hot = null; needBuild = true; dirty = true; };
+    b.onclick = () => { stopWalk(); cutVertex(c.v); };
+    el.append(b);
+  }
+  chart();
+}
+/** A short name for a shape: a hash of its canonical form (the same shape always gets the same name). */
+function fingerprint(key) { let h = 2166136261; for (const v of key) { h ^= v + 1; h = Math.imul(h, 16777619) >>> 0; } return h.toString(36).toUpperCase().padStart(7, '0').slice(-6); }
+function cutVertex(v) { S.trail.push([...S.cut]); S.cut.add(v); S.hot = null; choose(); }
+function stopWalk() { if (S.walking) { clearInterval(S.walking); S.walking = null; } }
+function walk(pick) {
+  stopWalk();
+  S.walking = setInterval(() => { if (!NEXT.length) { stopWalk(); toast(`the end: ${S.cut.size} cut, nothing more can be`); return; } cutVertex(pick(NEXT).v); }, 450);
+}
+/** The census, log scale: a bar for each number of cuts; your walk's steps lit, where you are in gold. */
+function chart() {
+  const cv = $('chart'), dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.clientWidth, Hh = cv.clientHeight;
+  if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); }
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, Hh);
+  const n = 25, bw = (W - 16) / n, top = Math.log10(Math.max(...CENSUS)), y0 = Hh - 16, k = S.cut.size;
+  c.font = '9px ui-monospace, Menlo, monospace'; c.textAlign = 'center';
+  for (let i = 0; i < n; i++) {
+    const v = CENSUS[i], h = v ? ((Math.log10(v) + 0.3) / (top + 0.3)) * (y0 - 14) : 0, x = 8 + i * bw;
+    c.fillStyle = i === k ? '#ffd27a' : i < k ? 'rgba(255,210,122,0.45)' : 'rgba(111,224,255,0.35)';
+    c.fillRect(x + 1, y0 - h, bw - 2, h);
+    if (i % 4 === 0 || i === k) { c.fillStyle = i === k ? '#ffd27a' : '#9a958c'; c.fillText(String(i), x + bw / 2, Hh - 4); }
+  }
+  const x = 8 + k * bw + bw / 2;
+  c.fillStyle = '#ffd27a'; c.fillText(fmtN(CENSUS[k]), Math.min(W - 30, Math.max(30, x)), 10);
 }
 function kitButtons() {
   const k = $('kit'); k.textContent = '';
@@ -361,9 +427,10 @@ function tap(e) {
   for (const q of pickable) { const s = project(lastM, q.p, r.width, r.height); if (s.w <= 0) continue; const d = Math.hypot(s.x - x, s.y - y); if (d < bd) { bd = d; best = q; } }
   if (!best) return;
   const H = P.h600(), i = best.i;
-  if (S.cut.has(i)) { S.cut.delete(i); toast(`vertex ${i} back: its 20 tetrahedra return`); }
+  stopWalk();
+  if (S.cut.has(i)) { S.trail.push([...S.cut]); S.cut.delete(i); toast(`vertex ${i} back: its 20 tetrahedra return`); }
   else if ([...S.cut].some((c) => H.A[c].has(i))) { toast('a neighbour of that vertex is already cut: cutting both would cut through their edge'); return; }
-  else { S.cut.add(i); toast(`cut vertex ${i}: 20 tetrahedra become an icosahedron`); }
+  else { S.trail.push([...S.cut]); S.cut.add(i); toast(`cut vertex ${i}: 20 tetrahedra become an icosahedron`); }
   choose();
 }
 /** Tap a seat (the nearest face facing you whose outline holds the tap): its solid flies out; tap again, it goes home. */
@@ -435,9 +502,12 @@ $('squareB').onclick = () => squareUp(false);
 $('mirrorB').onclick = () => { S.mirror = !S.mirror; $('mirrorB').classList.toggle('on', S.mirror); needBuild = true; dirty = true; info(); };
 $('spinB').onclick = () => { S.spin = !S.spin; $('spinB').classList.toggle('on', S.spin); };
 $('cap').onclick = () => $('cap').classList.toggle('min');
-$('dClear').onclick = () => { S.cut.clear(); choose(); };
-$('dSnub').onclick = () => { S.cut = new Set(P.SNUB24); choose(); toast('24 cut: the snub 24-cell, 120 tetrahedra and 24 icosahedra'); };
-$('dRand').onclick = () => { S.cut = P.randomMaximal(); choose(); toast(`${S.cut.size} cut, and no vertex left can be: a maximal cut`); };
+$('dClear').onclick = () => { stopWalk(); S.trail = []; S.cut.clear(); choose(); };
+$('dSnub').onclick = () => { stopWalk(); S.trail.push([...S.cut]); S.cut = new Set(P.SNUB24); choose(); toast('24 cut: the snub 24-cell, 120 tetrahedra and 24 icosahedra, the only shape with 24 cuts'); };
+$('aBack').onclick = () => { stopWalk(); if (S.trail.length) { S.cut = new Set(S.trail.pop()); choose(); } };
+// at random: each next shape weighted by how many vertices lead to it (a uniformly random cuttable vertex)
+$('aRand').onclick = () => walk((L) => { let r = Math.random() * L.reduce((a, c) => a + c.count, 0); for (const c of L) { r -= c.count; if (r < 0) return c; } return L[0]; });
+$('aSym').onclick = () => walk((L) => L.reduce((a, c) => (c.stab > a.stab ? c : a)));
 
 // ------------------------------------------------------------------ the loop
 let last = performance.now(), slow = 0;

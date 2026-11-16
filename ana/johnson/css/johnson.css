@@ -56,3 +56,10 @@ body:not(.isSeat) .seatonly { display: none !important; }
 .legend button.on { border-color: var(--gold); }
 .legend i { width: 14px; height: 14px; border-radius: 3px; flex: none; }
 .legend em { color: var(--dim); font-style: normal; margin-left: auto; }
+#chart { display: block; width: 100%; height: 130px; margin: 8px 0; background: #07080c; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; touch-action: none; }
+.panel h2.sub { margin-top: 10px; } .panel h2 em { font: 400 11px var(--mono); color: var(--dim); letter-spacing: 0; }
+.next { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.next button { font: 600 11.5px var(--mono); color: var(--text); background: #11141c; border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 8px; padding: 5px 8px; cursor: pointer; text-align: left; touch-action: manipulation; }
+.next button:hover, .next button.hot { border-color: var(--gold); color: var(--gold); }
+.next button small { display: block; font: 10.5px var(--mono); color: var(--dim); }
+.next .end { color: var(--gold); font: 600 12px var(--mono); }

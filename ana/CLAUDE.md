@@ -99,8 +99,9 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 - **JOHNSON at `/johnson/`**: the 92 Johnson solids (spin, zoom, faces by polygon, family, volume, circumsphere);
   **the seat** (all 92 seated in miniature on the 92 faces of the snub dodecahedron: J72–J83 on its pentagons, each
   other family a connected patch of triangles, `js/seat.js`; tap a seat to fly its solid out); and their 4D story: prisms over any of them, pyramids and bipyramids where they exist (J1 J2 J11 J62 J63; not a bipyramid
-  over J2), the Blind polytopes, and a **600-cell diminisher** (tap vertices off; the snub 24-cell; random maximal
-  cuts). `js/johnson-data.js` is GENERATED (`tools/build-johnson.mjs`, from dmccooey.com's coordinates) and checked
+  over J2), the Blind polytopes, and the **atlas** of the 314,248,344 diminished 600-cells: walk it by genuinely different next
+  cuts (`js/atlas.js`: the 14,400 symmetries from quaternions, canonical forms, stabilizers), with the census by number
+  of cuts (`tools/census.mjs`, Burnside over 34 conjugacy classes, ~5 min, 12 GB; matches the published total). `js/johnson-data.js` is GENERATED (`tools/build-johnson.mjs`, from dmccooey.com's coordinates) and checked
   from scratch by the selftest. `js/poly.js` (no DOM): hull, volume, the 600-cell and its diminishings, prisms,
   pyramids, `check4`, `slice` (one half-space per cell, a cube clipped), `shadow`. Controls are CAD⁴'s (kata/cad4:
   drag, pinch, the pad turning the slice about what you see as across and up, the lever, ⊞, the axes gizmo). See

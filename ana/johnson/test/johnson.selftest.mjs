@@ -4,6 +4,8 @@
 // edges and Euler.
 import { JOHNSON, SNUB_DODECAHEDRON } from '../js/johnson-data.js';
 import { seating, faceGraph, FAMILIES } from '../js/seat.js';
+import * as AT from '../js/atlas.js';
+import { CENSUS, TOTAL, INDEPENDENT_SETS } from '../js/atlas-census.js';
 import * as P from '../js/poly.js';
 
 let fails = 0, passes = 0;
@@ -121,6 +123,32 @@ for (const [name, v, e, f] of [['tetrahedron', 4, 6, 4], ['cube', 8, 12, 6], ['o
   ok(allConnected, 'each of the other eight families sits on one connected patch of triangles, exactly its size (6, 11, 8, 23, 9, 7, 7, 9)');
   const again = seating().seat;
   ok(again.every((j, i) => j === seat[i]), 'the seating is the same every time');
+}
+// ------------------------------------------------------------------ the atlas
+{
+  const G = AT.group(), H = P.h600();
+  let keeps = true; for (let g = 0; g < G.n && keeps; g += 37) for (const [a, b] of H.E) if (!H.A[G.perms[g * 120 + a]].has(G.perms[g * 120 + b])) { keeps = false; break; }
+  ok(G.n === 14400 && keeps, `the 600-cell's symmetries, from quaternions (x → a·x·b and a·x̄·b): ${G.n} of them, each a permutation of the vertices keeping every edge`);
+  ok(TOTAL === 314248345 && TOTAL - 1 === 314248344, `Burnside's count of different cuts, all sizes: ${TOTAL.toLocaleString('en-US')}: the published 314,248,344 diminished 600-cells, plus the uncut one`);
+  // the census against direct enumeration for small cuts: grow canonical forms one vertex at a time
+  let layer = [[]];
+  const direct = [1];
+  for (let k = 1; k <= 4; k++) {
+    const next = new Map();
+    for (const cut of layer) for (const c of AT.nextCuts(cut)) next.set(c.key, c.key.split(',').map(Number));
+    layer = [...next.values()]; direct.push(layer.length);
+  }
+  ok(direct.join(',') === CENSUS.slice(0, 5).join(','), `with 0–4 cuts, walking the tree of genuinely different next cuts finds ${direct.join(', ')} shapes, as Burnside counts`);
+  // independent sets of size ≤ 3 by brute force (the DP's unreduced counts)
+  let n3 = 0; for (let a = 0; a < 120; a++) for (let b = a + 1; b < 120; b++) if (!H.A[a].has(b)) for (let c = b + 1; c < 120; c++) if (!H.A[a].has(c) && !H.A[b].has(c)) n3++;
+  ok(INDEPENDENT_SETS[1] === 120 && INDEPENDENT_SETS[2] === 120 * 107 / 2 && INDEPENDENT_SETS[3] === n3, `the counting's raw numbers check by brute force: 120 single cuts, 6,420 pairs, ${n3.toLocaleString('en-US')} triples`);
+  const snubStab = AT.stabilizer(P.SNUB24).length;
+  ok(CENSUS[24] === 1 && CENSUS[25] === 0 && INDEPENDENT_SETS[24] === 25 && 14400 / snubStab === 25, `24 cuts is the most there can be, and the snub 24-cell is the only such shape: 25 ways to cut it (the 600-cell holds 25 24-cells), its ${snubStab} symmetries times 25 = 14,400`);
+  ok(CENSUS[23] === 1, 'and exactly one shape has 23 cuts');
+  const peak = CENSUS.indexOf(Math.max(...CENSUS));
+  ok(peak === 13, `the family is biggest at ${peak} cuts: ${CENSUS[13].toLocaleString('en-US')} different shapes`);
+  const two = AT.nextCuts([0]), angles = two.map((c) => Math.round(Math.acos(P.dot(G.Q[0], G.Q[c.v])) * 180 / Math.PI)).sort((a, b) => a - b);
+  ok(two.length === 7 && two.reduce((a, c) => a + c.count, 0) === 107 && angles.join(',') === '60,72,90,108,120,144,180', `the second cut: 7 shapes, one for each angle a vertex can be from the first without touching it (${angles.join('°, ')}°), 107 vertices in all`);
 }
 console.log(`${fails ? '✗' : '✓'} johnson: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);
