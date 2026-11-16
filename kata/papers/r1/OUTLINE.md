@@ -87,3 +87,16 @@ revolving a planar braid realises the standard embedding of the braid group in t
 contributions, supplement, status) and `paper.html` is built from it with the five main figures and the cited
 references. Supplement A is `figures.html` (twelve ropes, four panels each), B is `results.html` (fourteen charts with
 methods). What stands between this and a submission is in the draft's own status section.
+
+## Scope decision (PI, 2026-11-17): no machines in this paper
+
+R1 stays narrow: twist, fastening, braiding, and what the ropes are worth. The pulley, tackle, spool, spinneret and
+hinge stay out, though all are built in CAD⁴ (`#pulley`, `#tackle`, `#spool`, `#spinneret`, `#hinge`).
+
+**A later option: a machines paper.** The world of machines is larger than pulleys. What exists is geometry with
+rigid-push tests: a door on a plane pin; a wheel that turns in a plane on an axle that is a plane, with a cupped groove
+and four cheeks; a tackle; a spool whose flange is a frame and whose layers are grids; a spinneret. What such a paper
+would need and we do not have: bearings, gears and belts; the double rotation (a body spinning in two planes at once);
+anything turning under load, with friction; and its own prior-art pass (Hqak has plane axles; the Codidact answers
+mention reduction drives and double rotation). Its spine would be a different rule from the rope paper's: what turns
+about what, and what has to enclose what.

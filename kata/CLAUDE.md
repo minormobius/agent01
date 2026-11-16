@@ -340,6 +340,9 @@ record exists, `wrangler deploy` uploads, and the run fails unless `kata.mino.mo
 
 ## Next
 
+**Rope (paper R1) is closing: machines are out of it by the PI's decision (2026-11-17)** and are a later option of their
+own; the note is at the foot of `papers/r1/OUTLINE.md`.
+
 **Logged 2026-11-16, the PI's idea, not started: a hot-wire anemometer in a 4D pipe flow, with the vortices it sheds
 modelled.** Continuum only, so none of the atoms question. Notes from the first conversation, to check before building:
 - *The pipe.* A 4D pipe's cross-section is a 3-ball. Laminar flow should be u = G (R² − r²) / 6μ (ours is / 4μ): three
