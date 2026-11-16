@@ -31,6 +31,23 @@ let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return 
   const un = U.unfold(P, NET_24);
   ok(rigid(P, NET_24, un) < 1e-12 && U.overlaps(un.cells).length === 0, 'and one that is a net');
 }
+// folding part-way (FOLD's 24-cell mode): t = 0 is the 24-cell itself, t = 1 the flat unfolding, rigid and hinged between
+{
+  const P = U.cell24(), d4 = (a, b) => Math.hypot(...a.map((x, k) => x - b[k]));
+  let id = 0, rig = 0, hin = 0;
+  for (const t of [0, 0.25, 0.6]) {
+    const M = U.motionsAt(P, OVERLAP_24, t);
+    P.cells.forEach((c, i) => {
+      if (t === 0) for (const v of c.verts) id = Math.max(id, d4(M[i](P.V[v]), P.V[v]));
+      for (const a of c.verts) for (const b of c.verts) rig = Math.max(rig, Math.abs(d4(M[i](P.V[a]), M[i](P.V[b])) - d4(P.V[a], P.V[b])));
+      const p = OVERLAP_24[i]; if (p >= 0) for (const v of P.adj[p].get(i)) hin = Math.max(hin, d4(M[i](P.V[v]), M[p](P.V[v])));
+    });
+  }
+  const flat = U.unfold(P, OVERLAP_24), basis = U.rootBasis(P, OVERLAP_24.indexOf(-1)), o = P.V[P.cells[OVERLAP_24.indexOf(-1)].verts[0]], M1 = U.motionsAt(P, OVERLAP_24, 1);
+  let same = 0; P.cells.forEach((c, i) => c.verts.forEach((v, k) => { const x = M1[i](P.V[v]); same = Math.max(same, d4(basis.map((b) => b.reduce((t, bb, j) => t + bb * (x[j] - o[j]), 0)), flat.cells[i][k])); }));
+  ok(id < 1e-12 && rig < 1e-12 && hin < 1e-12 && same < 1e-12, `folding the 24-cell part-way: unfolded 0% it is the 24-cell, 100% exactly the flat unfolding, rigid and hinged at every angle between`);
+  ok(U.cellFaces(P).every((f) => f.length === 8 && f.every((t) => t.length === 3)), 'each octahedral cell is drawn by its 8 triangles');
+}
 // the 600-cell: it has a net (and long winding unfoldings overlap)
 {
   const H = h600(), P = U.polytope(H.V, H.T.map((t) => [0, 1, 2, 3].map((k) => t.reduce((s, i) => s + H.V[i][k], 0) / 4)));

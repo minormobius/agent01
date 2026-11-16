@@ -3,6 +3,8 @@
 import * as F from './fold.js';
 import { NETS } from './nets-data.js';
 import { JOHNSON, SNUB_DODECAHEDRON } from '../../johnson/js/johnson-data.js';
+import * as UF from './unfold4.js';
+import { OVERLAP_24, NET_24 } from './unfold4-data.js';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('gl'), ov = $('ov'), octx = ov.getContext('2d');
@@ -10,7 +12,7 @@ const gl = canvas.getContext('webgl2', { antialias: true });
 if (!gl) { $('nogl').hidden = false; throw new Error('no WebGL2'); }
 
 const DALI = NETS.indexOf(F.daliNet(NETS));
-const S = { mode: 'nets', view: 'shadow', net: DALI, f: 0, playing: 0, spin: true, obj: 'snub', a: 0, R: 2.4 };
+const S = { f24: 0, t24: null, mode: 'nets', view: 'shadow', net: DALI, f: 0, playing: 0, spin: true, obj: 'snub', a: 0, R: 2.4 };
 let E = ident(), off = -0.5, yaw = -0.5, pitch = 0.45, zoom = 1, dirty = true, need = true;
 function ident() { return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; }
 const dot = F.dot, sub = (a, b) => a.map((v, i) => v - b[i]);
@@ -90,12 +92,54 @@ function piece(W, faces, edges, col, lean, T, L, O, edgeCol = [0.05, 0.05, 0.08]
   for (let a = 1; a + 1 < ord.length; a++) T(ord[0], ord[a], ord[a + 1], n, c);
   for (let a = 0; a < ord.length; a++) L(ord[a], ord[(a + 1) % ord.length], edgeCol);
 }
+// ------------------------------------------------------------------ the 24-cell
+const P24 = UF.cell24(), F24 = UF.cellFaces(P24);
+const E24 = F24.map((faces) => { const m = new Map(); for (const f of faces) for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length]; m.set(a < b ? `${a},${b}` : `${b},${a}`, [Math.min(a, b), Math.max(a, b)]); } return [...m.values()]; });
+// cool colours (ice through teal to violet) so the colliding pair's red stands out
+const HUE24 = P24.cells.map((_, i) => { const h = 2.4 + (i / 24) * 2.6, c = 0.5, x = c * (1 - Math.abs((h % 2) - 1)), [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x]; return [r + 0.35, g + 0.35, b + 0.35]; });
+const TALLY = { drawn: 0, collided: 0 };
+/** Choose a hinge tree for the 24-cell: its overlaps when flat, how far into w it reaches folding, and a frame whose
+ *  slice is the root cell's hyperplane (where the flat unfolding lies). */
+function set24(parent, label) {
+  const root = parent.indexOf(-1), flat = UF.unfold(P24, parent), over = UF.overlaps(flat.cells);
+  const basis = UF.rootBasis(P24, root), nr = P24.cells[root].n, o = P24.V[P24.cells[root].verts[0]];
+  let reachW = 0; for (let k = 0; k <= 12; k++) { const M = UF.motionsAt(P24, parent, k / 12); P24.cells.forEach((c, i) => { for (const v of c.verts) reachW = Math.max(reachW, Math.abs(dot(sub(M[i](P24.V[v]), o), nr))); }); }
+  const cen = [0, 1, 2].map((k) => flat.cells.reduce((t, c) => t + c.reduce((u, p) => u + p[k], 0) / c.length, 0) / 24);
+  const R = Math.max(...flat.cells.flat().map((p) => Math.hypot(...p.map((x, k) => x - cen[k])))) + 0.5;
+  let wit = null;
+  if (over.length) { const w = UF.witness(flat.cells[over[0].a], flat.cells[over[0].b]); wit = { x: [0, 1, 2, 3].map((k) => o[k] + w.p.reduce((t, x, j) => t + x * basis[j][k], 0)), margin: w.margin }; }
+  S.t24 = { parent, label, over, reachW, root, frame: [...basis, nr], off: dot(o, nr), cen, R, wit, bad: new Set(over.flatMap((x) => [x.a, x.b])) };
+  E = S.t24.frame.map((v) => v.slice()); off = S.t24.off; need = dirty = true; info();
+}
+function build24(T, L, O) {
+  const t = S.t24, M = UF.motionsAt(P24, t.parent, 1 - S.f24);
+  EYE = Math.max(2.5, t.reachW * 1.5 + 1);
+  P24.cells.forEach((c, i) => {
+    const W = c.verts.map((v) => M[i](P24.V[v])), p0 = P24.V[c.verts[0]], nn = sub(M[i](c.n.map((x, k) => x + p0[k])), M[i](p0));
+    const bad = t.bad.has(i);
+    piece(W, F24[i], E24[i], bad ? [1.0, 0.18, 0.22] : HUE24[i], bad ? 0 : dot(nn, E[3]) * (S.view === 'slice' ? 1 : 0.6), T, L, O, bad ? [1.0, 0.3, 0.3] : undefined);
+  });
+  // the hinges: each child's shared triangle with its parent, gold
+  t.parent.forEach((p, c) => {
+    if (p < 0) return;
+    const tri = P24.adj[p].get(c).map((v) => M[c](P24.V[v]));
+    if (S.view === 'slice' && tri.some((x) => Math.abs(dot(sub(x, O), E[3])) > 1e-6)) return;
+    const q = tri.map((x) => to3(x, O)); for (let a = 0; a < 3; a++) L(q[a], q[(a + 1) % 3], [1.0, 0.82, 0.4]);
+  });
+  // the witness: a point inside both colliding octahedra (only where they collide: lying flat)
+  if (t.wit && S.f24 < 0.02) { const c = to3(t.wit.x, O), r = 0.4; for (let k = 0; k < 3; k++) { const a = c.slice(), b = c.slice(); a[k] -= r; b[k] += r; L(a, b, [1.0, 0.85, 0.3]); } }
+  const flatCen = t.cen.map((x, k) => x), C3 = to3([0, 1, 2, 3].map((k) => P24.V[P24.cells[t.root].verts[0]][k] + flatCen.reduce((u, v, j) => u + v * t.frame[j][k], 0)), O);
+  // framing eases from the flat layout to the closed polytope (centred where the 24-cell's centre falls) as it folds
+  const e = S.f24 * S.f24 * (3 - 2 * S.f24), C0 = to3([0, 0, 0, 0], O);
+  S.centre = C3.map((x, k) => x * (1 - e) + C0[k] * e); S.R = t.R * (1 - e) + 2.4 * e;
+}
 function build() {
   const tri = [], lin = [];
   const T = (a, b, c, n, col) => { for (const p of [a, b, c]) tri.push(...p, ...n, ...col); };
   const L = (a, b, col) => lin.push(...a, 0, 0, 0, ...col, ...b, 0, 0, 0, ...col);
   const O = origin();
-  if (S.mode === 'nets') {
+  if (S.mode === 'c24') build24(T, L, O);
+  else if (S.mode === 'nets') {
     const net = NETS[S.net], M = F.motions(net.parent, 1 - S.f);
     EYE = Math.max(2.5, reach(S.net) * 1.5 + 1);
     F.CELLS.forEach((c, i) => {
@@ -152,7 +196,7 @@ function draw() {
   const v = view(); gl.uniformMatrix4fv(U.M, false, matrix(v, w / h)); gl.uniform3fv(U.eye, v.cam);
   gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1);
   // in the shadow the cubes overlap (the folded tesseract is a cube in a cube): faces see-through, edges solid
-  const see = S.view === 'shadow' && S.mode === 'nets';
+  const see = S.view === 'shadow' && S.mode !== 'mirror';
   if (see) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
   gl.uniform1f(U.alpha, see ? 0.32 : 1);
   gl.uniform1i(U.lit, 1); gl.bindVertexArray(TRI.vao); gl.drawArrays(gl.TRIANGLES, 0, TRI.n);
@@ -185,6 +229,11 @@ function info() {
     $('title').textContent = S.net === DALI ? `net ${S.net + 1}: Dalí's` : `net ${S.net + 1} of 261`;
     rows($('facts'), [['hinges', '7 squares (of the 24 two cubes share)'], ['longest row', `${net.run} cubes`], ['hinge trees giving this shape', String(net.trees)], ['its mirror image', net.chiral ? 'a different net' : 'itself'], ['folded', `${Math.round(S.f * 100)}%: every cube turned ${Math.round(S.f * 90)}° into w`]]);
     $('cap').textContent = S.f < 0.02 ? `Net ${S.net + 1}: the tesseract's eight cubes, flat in our space, hinged on the gold squares. Slide to fold, or ▶.` : S.f > 0.98 ? 'Folded: the tesseract. In the shadow, its cube in a cube; in our slice, only the bottom cube is left.' : (S.view === 'slice' ? 'Folding, in our slice: a cube turning about a hinge square that lies in our space leaves it at once; only its hinge stays. Push the lever ana to catch the rising cubes as sections.' : 'Folding: each cube turns about its gold hinge, out of our space into w (teal: going ana).');
+  } else if (S.mode === 'c24') {
+    const t = S.t24, n = t.over.length;
+    $('title24').textContent = `the 24-cell: ${t.label}`;
+    rows($('facts24'), [['hinges', '23 triangles (of the 96 two octahedra share)'], ['laid flat', n ? `${n} pair${n > 1 ? 's' : ''} of octahedra overlap (red)` : 'a net: no two octahedra overlap'], ...(t.wit ? [['the gold cross', `inside both by ${t.wit.margin.toFixed(3)} (rounding: ~10⁻¹⁴)`]] : []), ['random draws', TALLY.drawn ? `${TALLY.drawn}: ${TALLY.collided} collided (${((100 * TALLY.collided) / TALLY.drawn).toFixed(1)}%)` : 'none yet'], ['folded', `${Math.round(S.f24 * 100)}%`]]);
+    $('cap').textContent = S.f24 > 0.98 ? 'Folded: the 24-cell, 24 octahedra closed up in four dimensions, with nothing like it in three.' : n && S.f24 < 0.02 ? `Laid flat, this unfolding of the 24-cell overlaps: the red octahedra fill the same space (the gold cross is inside both). Fold it up and they pull apart into w.` : n ? 'Folding: the red pair, which collide when flat, pull apart as their hinges turn into w.' : 'The 24-cell laid flat in our space: 24 octahedra hinged on gold triangles, no two overlapping. Slide to fold, or ▶.';
   } else {
     const o = OBJECTS[S.obj];
     rows($('mfacts'), [['solid', o.name], ['hand', S.obj === 'snub' ? 'laevo, landing dextro' : 'chiral: J44–J48 are the only Johnson solids that are'], ['turned', `${Math.round(S.a * 180)}° in the plane of x and w`], ['where it is', S.a < 0.01 ? 'in our space, as it was' : S.a > 0.99 ? 'back in our space: its mirror image, landing on the gold wire' : Math.abs(S.a - 0.5) < 0.02 ? 'edge-on to our space: its slice is a flat section' : 'out in w']]);
@@ -194,7 +243,8 @@ function info() {
 function setMode(m) {
   S.mode = m; S.playing = 0; $('playB').classList.remove('on'); $('playB').textContent = m === 'nets' ? '▶ fold' : '▶ turn';
   for (const b of $('mode').children) b.classList.toggle('on', b.dataset.v === m);
-  $('netSec').hidden = m !== 'nets'; $('mirSec').hidden = m !== 'mirror';
+  $('netSec').hidden = m !== 'nets'; $('mirSec').hidden = m !== 'mirror'; $('c24Sec').hidden = m !== 'c24';
+  if (m === 'c24') { if (!S.t24) set24(OVERLAP_24, 'the collision'); else set24(S.t24.parent, S.t24.label); return; }
   off = m === 'nets' ? -0.5 : 0; E = ident(); need = dirty = true; info();
 }
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200); }
@@ -208,8 +258,13 @@ const goNet = (i) => { S.net = ((i % 261) + 261) % 261; need = dirty = true; inf
 $('prevN').onclick = () => goNet(S.net - 1); $('nextN').onclick = () => goNet(S.net + 1);
 $('netN').onchange = () => goNet((+$('netN').value || 1) - 1);
 $('daliB').onclick = () => goNet(DALI); $('randN').onclick = () => goNet(Math.floor(Math.random() * 261));
-$('playB').onclick = () => { S.playing = S.playing ? 0 : (S.mode === 'nets' ? (S.f < 0.5 ? 1 : -1) : (S.a < 0.5 ? 1 : -1)); $('playB').classList.toggle('on', !!S.playing); };
-$('squareB').onclick = () => { E = ident(); off = S.mode === 'nets' ? -0.5 : 0; need = dirty = true; };
+$('playB').onclick = () => { const v = S.mode === 'nets' ? S.f : S.mode === 'c24' ? S.f24 : S.a; S.playing = S.playing ? 0 : v < 0.5 ? 1 : -1; $('playB').classList.toggle('on', !!S.playing); };
+$('fold24').oninput = () => { S.f24 = +$('fold24').value; S.playing = 0; $('playB').classList.remove('on'); need = dirty = true; info(); };
+$('net24B').onclick = () => { S.f24 = 0; $('fold24').value = 0; set24(NET_24, 'a net'); };
+$('col24B').onclick = () => { S.f24 = 0; $('fold24').value = 0; set24(OVERLAP_24, 'the collision'); };
+// random: as in the search that found the collision, three in four long winding (DFS) trees, one in four bushy (BFS)
+$('rand24B').onclick = () => { const kind = Math.random() < 0.75 ? 'dfs' : 'bfs', p = UF.randomTree(P24, kind, Math.random, Math.floor(Math.random() * 24)); S.f24 = 0; $('fold24').value = 0; TALLY.drawn++; const before = TALLY.collided; set24(p, `random #${TALLY.drawn} (${kind === 'dfs' ? 'winding' : 'bushy'})`); if (S.t24.over.length) { TALLY.collided++; toast('this one collides'); } else toast('a net'); void before; info(); };
+$('squareB').onclick = () => { if (S.mode === 'c24') { E = S.t24.frame.map((v) => v.slice()); off = S.t24.off; } else { E = ident(); off = S.mode === 'nets' ? -0.5 : 0; } need = dirty = true; };
 $('spinB').onclick = () => { S.spin = !S.spin; $('spinB').classList.toggle('on', S.spin); };
 $('cap').onclick = () => $('cap').classList.toggle('min');
 
@@ -244,9 +299,9 @@ function tick(now) {
   if (tx || ty) { const v = view(); if (tx) turn(lift(v.r), E[3], tx * 1.1 * dt); if (ty) turn(lift(v.u), E[3], ty * 1.1 * dt); need = dirty = true; }
   if (ly) { off = Math.max(-2, Math.min(2, off + ly * 0.8 * dt)); need = dirty = true; }
   if (S.playing) {
-    const key = S.mode === 'nets' ? 'f' : 'a';
+    const key = S.mode === 'nets' ? 'f' : S.mode === 'c24' ? 'f24' : 'a';
     S[key] = Math.max(0, Math.min(1, S[key] + S.playing * dt * 0.3));
-    $(S.mode === 'nets' ? 'fold' : 'turn').value = S[key];
+    $(S.mode === 'nets' ? 'fold' : S.mode === 'c24' ? 'fold24' : 'turn').value = S[key];
     if (S[key] === 0 || S[key] === 1) { S.playing = 0; $('playB').classList.remove('on'); }
     need = dirty = true; info();
   }
@@ -255,6 +310,6 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 addEventListener('resize', () => { dirty = true; });
-{ const h = location.hash.slice(1); if (h === 'mirror') setMode('mirror'); else { const m = h.match(/^net(\d+)$/); if (m) S.net = Math.max(0, Math.min(260, +m[1] - 1)); setMode('nets'); } }
+{ const h = location.hash.slice(1); if (h === 'mirror') setMode('mirror'); else if (h === '24') setMode('c24'); else { const m = h.match(/^net(\d+)$/); if (m) S.net = Math.max(0, Math.min(260, +m[1] - 1)); setMode('nets'); } }
 window.fold = { S, F, NETS, setMode, pose: (p) => { if (p.E) E = p.E; if (p.off !== undefined) off = p.off; if (p.yaw !== undefined) yaw = p.yaw; if (p.pitch !== undefined) pitch = p.pitch; need = dirty = true; } };
 requestAnimationFrame(tick);

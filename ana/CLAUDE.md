@@ -109,7 +109,8 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 - **FOLD at `/fold/`**: origami one dimension up. **nets**: the tesseract's 261 nets (Turney), from its 82,944 hinge
   trees (spanning trees of K₂,₂,₂,₂; `tools/build-nets.mjs` → `js/nets-data.js`, GENERATED), folding up through w
   cube by cube about their hinge squares (`js/fold.js` `motions`: exact quarter turns composed down the tree), Dalí's
-  among them; shadow or slice. **mirror**: half a turn in the xw plane lands a chiral solid (the snub dodecahedron,
+  among them; shadow or slice. **24-cell**: its unfoldings folding (`js/unfold4.js` `motionsAt`), the overlapping one
+  found by search (red pair, witness cross), a net, and random draws with a tally (it is not all-net). **mirror**: half a turn in the xw plane lands a chiral solid (the snub dodecahedron,
   J44–J48) on its mirror image; `congruence` shows no 3D rotation does. Imports JOHNSON's data (same site). See
   [`fold/README.md`](fold/README.md).
 

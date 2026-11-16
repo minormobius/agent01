@@ -17,7 +17,7 @@
     <div id="bar">
       <a class="home" href="../">ana</a>
       <b>FOLD</b>
-      <div class="seg" id="mode"><button data-v="nets" class="on">nets</button><button data-v="mirror">mirror</button></div>
+      <div class="seg" id="mode"><button data-v="nets" class="on">nets</button><button data-v="c24">24-cell</button><button data-v="mirror">mirror</button></div>
       <div class="seg" id="view"><button data-v="shadow" class="on">shadow</button><button data-v="slice">slice</button></div>
       <button type="button" id="playB" aria-label="fold and unfold">▶ fold</button>
       <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
@@ -36,6 +36,13 @@
       <div class="slider"><span>flat</span><input type="range" id="fold" min="0" max="1" step="0.001" value="0" aria-label="fold" /><span>folded</span></div>
       <div class="netnav"><button class="ghost" id="prevN">‹</button><input id="netN" type="number" min="1" max="261" value="1" aria-label="which net" /><span class="foot">of 261</span><button class="ghost" id="nextN">›</button><button class="ghost" id="daliB">Dalí's</button><button class="ghost" id="randN">any</button></div>
       <div id="facts" class="rows"></div>
+    </section>
+    <section id="c24Sec" hidden>
+      <h2 id="title24">the 24-cell</h2>
+      <div class="slider"><span>flat</span><input type="range" id="fold24" min="0" max="1" step="0.001" value="0" aria-label="fold the 24-cell" /><span>folded</span></div>
+      <div class="btns"><button class="ghost" id="net24B">a net</button><button class="ghost" id="col24B">the collision</button><button class="ghost" id="rand24B">draw a random one</button></div>
+      <div id="facts24" class="rows"></div>
+      <p class="foot">Every way to unfold the tesseract is a net. Not so the 24-cell: some of its unfoldings put two octahedra in the same place (drawn red, the gold cross a point inside both). Draw random ones and keep count; about one in twenty-three collides.</p>
     </section>
     <section id="mirSec" hidden>
       <h2>the mirror fold</h2>

@@ -104,6 +104,23 @@ export function tesseract() { return polytope(signs([0.5, 0.5, 0.5, 0.5]), uniq(
 /** Lay a polytope's cells flat along a spanning tree (parent[] from root; parent[root] = −1). Returns each cell's
  *  vertices in 3D coordinates of the root's hyperplane. Exact rigid motions, composed down the tree. */
 export function unfold(P, parent) {
+  const M = motionsAt(P, parent, 1), root = parent.indexOf(-1);
+  // coordinates in the root's hyperplane: an orthonormal basis of n_root's complement
+  const nr = P.cells[root].n, basis = rootBasis(P, root);
+  const o = P.V[P.cells[root].verts[0]];
+  let off = 0;
+  const cells = P.cells.map((c, i) => c.verts.map((v) => { const x = M[i](P.V[v]); off = Math.max(off, Math.abs(dot(add(x, o, -1), nr))); return basis.map((b) => dot(add(x, o, -1), b)); }));
+  return { cells, offPlane: off };
+}
+/** Three orthonormal vectors spanning the root cell's hyperplane directions. */
+export function rootBasis(P, root) {
+  const nr = P.cells[root].n, basis = [];
+  for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = add(ax, nr, -dot(ax, nr)); for (const b of basis) v = add(v, b, -dot(v, b)); if (norm(v) > 0.3 && basis.length < 3) basis.push(unit(v)); }
+  return basis;
+}
+/** Each cell's rigid motion at fold fraction t (0 the polytope as it is, 1 the flat unfolding): every hinge turned by
+ *  t times its full angle, composed down the tree. */
+export function motionsAt(P, parent, t) {
   const root = parent.indexOf(-1), n = P.cells.length;
   const order = [root]; { const seen = new Set([root]); for (let k = 0; k < order.length; k++) for (let c = 0; c < n; c++) if (parent[c] === order[k] && !seen.has(c)) { seen.add(c); order.push(c); } }
   if (order.length !== n) throw new Error('not a spanning tree');
@@ -114,18 +131,20 @@ export function unfold(P, parent) {
     if (!ridge) throw new Error(`cells ${p} and ${c} don't share a ridge`);
     const q = P.V[ridge[0]];
     // the plane of the two normals: u = n_p, v = n_c's part across it; n_c = cos φ u + sin φ v. Turn by −φ.
-    const u = np, vv = unit(add(nc, np, -dot(nc, np))), phi = Math.acos(Math.max(-1, Math.min(1, dot(np, nc)))), co = Math.cos(-phi), si = Math.sin(-phi);
+    const u = np, vv = unit(add(nc, np, -dot(nc, np))), phi = t * Math.acos(Math.max(-1, Math.min(1, dot(np, nc)))), co = Math.cos(-phi), si = Math.sin(-phi);
     const R = (x) => { const d = add(x, q, -1), a = dot(d, u), b = dot(d, vv); return add(add(add(d, u, a * (co - 1) - b * si), vv, a * si + b * (co - 1)), q); };
     const Mp = M[p];
     M[c] = (x) => Mp(R(x));
   }
-  // coordinates in the root's hyperplane: an orthonormal basis of n_root's complement
-  const nr = P.cells[root].n, basis = [];
-  for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = add(ax, nr, -dot(ax, nr)); for (const b of basis) v = add(v, b, -dot(v, b)); if (norm(v) > 0.3 && basis.length < 3) basis.push(unit(v)); }
-  const o = P.V[P.cells[root].verts[0]];
-  let off = 0;
-  const cells = P.cells.map((c, i) => c.verts.map((v) => { const x = M[i](P.V[v]); off = Math.max(off, Math.abs(dot(add(x, o, -1), nr))); return basis.map((b) => dot(add(x, o, -1), b)); }));
-  return { cells, offPlane: off };
+  return M;
+}
+/** Each cell's faces, as polygons of indices into its own vertex list (a hull in its hyperplane). */
+export function cellFaces(P) {
+  return P.cells.map((c) => {
+    const n = c.n, B = []; for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = add(ax, n, -dot(ax, n)); for (const b of B) v = add(v, b, -dot(v, b)); if (norm(v) > 0.3 && B.length < 3) B.push(unit(v)); }
+    const pts = c.verts.map((v) => B.map((b) => dot(P.V[v], b)));
+    return hull3(pts).map((h) => h.f);
+  });
 }
 
 /** A convex polyhedron (points in 3D) as half-spaces { n, b } (n·x ≤ b), outward. */

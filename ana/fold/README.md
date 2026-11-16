@@ -19,6 +19,17 @@ the net reaches while folding, so the view stays steady; faces see-through, so t
 cube) or the **slice** (our space: a cube turning about a hinge that lies in our space leaves it at once, all but the
 hinge; push the lever ana to catch the rising cubes as cross-sections). Hinges gold.
 
+## the 24-cell
+
+The tesseract is all-net; the 24-cell isn't. This mode folds the 24-cell's unfoldings (`unfold4.js` `motionsAt`: every
+hinge turned by t of its full angle, composed down the tree; `cellFaces`: each octahedron's 8 triangles) with the frame
+set so your slice is the root cell's hyperplane, where the flat unfolding lies. **the collision** is the overlapping
+unfolding found by search (`unfold4-data.js` `OVERLAP_24`): two octahedra red, and a gold cross at the witness point,
+inside both by 0.085. Fold it up and they pull apart into w. **a net** is `NET_24`. **draw a random one** draws a
+spanning tree as the search did (three in four long winding DFS trees, one in four bushy BFS), says whether it
+collides, and keeps a tally (expect about 1 in 23). Framing eases from the flat layout to the closed 24-cell as it
+folds. `#24` opens it.
+
 ## mirror
 
 `turnXW`: half a turn in the plane of x and w brings a solid back into our space with x reversed, its mirror image.
