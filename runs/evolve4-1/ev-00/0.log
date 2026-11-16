@@ -1,0 +1,11 @@
+$ node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun
+file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:147
+  let { s, f: grav } = C ? { s: s1, f: g1 } : solve(W, M, S, s0.p, sample(W, M, S, s0).rows, s0.f ?? null); if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
+                                                                                                                             ^
+
+Error: zero-age star didn't solve with shell laws (stalled)
+    at run (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:147:126)
+    at evolve (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:142:10)
+    at file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:209:13
+
+Node.js v22.23.4

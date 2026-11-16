@@ -1,0 +1,9 @@
+$ node four/atom/tools/evolve.mjs four 1e-14 1.7 sun
+file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:207
+  let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
+                                                                                                                                                                                                                                                   ^
+
+Error: no Sun analogue at G 1e-14, s 1.7 in gravity.json
+    at file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:207:244
+
+Node.js v22.23.4
