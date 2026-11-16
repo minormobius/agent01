@@ -1,49 +1,78 @@
 {
- "run": "evolve4-2",
- "why": "Resume evolve4-1's 4D Sun analogues cut at the 5.5 h deadline, from their checkpoints on atom4-data (18 of 21; the s 1.75 pair and the 1 M_Ch ladder star sat at zero age for the whole run and are left for the controller to be fixed first). evolve4-1: analogues at G 1e-17 to 1e-20 still burning after 18-90 Gyr.",
+ "run": "evolve4-3",
+ "why": "4D Sun analogues and the mass ladder aged with the charge law's plasma (plasma=1, files -lp): the lens vacuum's cutoff on light in the opacity (mainseq.js kappaFF4) and screening under the pinned 1/r in the network (atom/js/screen.js, shell4.js). evolve4-1/2 had neither: at a G 1e-17 core screening raises energy generation 7-21%, and at G 1e-11 the opacity rises up to x1.55. Skipped: three points with no analogue in gravity.json, and s 1.75 at G 1e-17/1e-20, which sat at zero age for a whole run.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev2-00",
+   "name": "ev3-00",
    "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-11 1.55 sun",
     "node four/atom/tools/evolve.mjs four 1e-11 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.65 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.85 sun"
+    "node four/atom/tools/evolve.mjs four 1e-11 1.65 sun"
    ]
   },
   {
-   "name": "ev2-01",
+   "name": "ev3-01",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-14 1.55 sun",
+    "node four/atom/tools/evolve.mjs four 1e-11 1.8 sun",
+    "node four/atom/tools/evolve.mjs four 1e-11 1.85 sun",
+    "node four/atom/tools/evolve.mjs four 1e-14 1.5152 sun",
+    "node four/atom/tools/evolve.mjs four 1e-14 1.55 sun"
+   ]
+  },
+  {
+   "name": "ev3-02",
+   "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-14 1.6 sun",
+    "node four/atom/tools/evolve.mjs four 1e-14 1.65 sun",
+    "node four/atom/tools/evolve.mjs four 1e-14 1.75 sun",
+    "node four/atom/tools/evolve.mjs four 1e-14 1.8 sun"
+   ]
+  },
+  {
+   "name": "ev3-03",
+   "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-14 1.85 sun",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 sun"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 sun"
    ]
   },
   {
-   "name": "ev2-02",
+   "name": "ev3-04",
    "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-17 1.65 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.8 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.85 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.5152 sun"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.85 sun"
    ]
   },
   {
-   "name": "ev2-03",
+   "name": "ev3-05",
    "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-20 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.55 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.65 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.7 sun"
+    "node four/atom/tools/evolve.mjs four 1e-20 1.65 sun"
    ]
   },
   {
-   "name": "ev2-04",
+   "name": "ev3-06",
    "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-20 1.7 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.8 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.85 sun"
+    "node four/atom/tools/evolve.mjs four 1e-20 1.85 sun",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.25"
+   ]
+  },
+  {
+   "name": "ev3-07",
+   "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.5",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.6",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5"
    ]
   }
  ]
