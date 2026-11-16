@@ -85,7 +85,11 @@ function piece(W, faces, edges, col, lean, T, L, O, edgeCol = [0.05, 0.05, 0.08]
   const u = []; for (const p of pts) if (!u.some((q) => Math.hypot(...sub(p, q)) < 1e-7)) u.push(p);
   if (u.length < 3) return;
   const P = u.map((x) => to3(x, O)), cen = [0, 1, 2].map((k) => P.reduce((t, p) => t + p[k], 0) / P.length);
-  let n = [0, 0, 0]; for (let i = 0; i < P.length; i++) { const a = sub(P[i], cen), b = sub(P[(i + 1) % P.length], cen); n = n.map((v, k) => v + [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]][k]); }
+  // the section's plane normal, from its two most independent directions (NOT a Newell sum over the points as they
+  // came: unordered, that can cancel or flip, and the polygon then sorts in the wrong plane and draws as a bow-tie)
+  const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  let n = [0, 0, 0];
+  for (let i = 1; i < P.length; i++) for (let j = i + 1; j < P.length; j++) { const c = cr(sub(P[i], P[0]), sub(P[j], P[0])); if (Math.hypot(...c) > Math.hypot(...n)) n = c; }
   n = n.map((v) => v / (Math.hypot(...n) || 1));
   const e1 = sub(P[0], cen), e1n = e1.map((v) => v / (Math.hypot(...e1) || 1)), e2 = [n[1] * e1n[2] - n[2] * e1n[1], n[2] * e1n[0] - n[0] * e1n[2], n[0] * e1n[1] - n[1] * e1n[0]];
   const ord = P.map((p, i) => [Math.atan2(dot([...sub(p, cen), 0], [...e2, 0]), dot([...sub(p, cen), 0], [...e1n, 0])), i]).sort((x, y) => x[0] - y[0]).map((x) => P[x[1]]);
@@ -173,6 +177,9 @@ function build() {
     S.centre = [0, 0, 0]; S.R = Math.max(...o.V.map((v) => Math.hypot(...v))) * 1.1;
   }
   TRI.set(tri); LIN.set(lin);
+  // the drawn surface's area (a check for tests: a slice through the folded tesseract is a cube, area 6)
+  let area = 0; for (let k = 0; k < tri.length; k += 27) { const a = [tri[k], tri[k + 1], tri[k + 2]], b = [tri[k + 9], tri[k + 10], tri[k + 11]], c = [tri[k + 18], tri[k + 19], tri[k + 20]]; const u = sub(b, a), v = sub(c, a); area += Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / 2; }
+  S.area = area; S.tri = tri;
 }
 const EDGES = new Map();
 function edgesOf(F2) { if (EDGES.has(F2)) return EDGES.get(F2); const m = new Map(); for (const f of F2) for (let i = 0; i < f.length; i++) { const a = f[i], b = f[(i + 1) % f.length]; m.set(a < b ? `${a},${b}` : `${b},${a}`, [Math.min(a, b), Math.max(a, b)]); } const e = [...m.values()]; EDGES.set(F2, e); return e; }
@@ -228,7 +235,7 @@ function info() {
     $('netN').value = S.net + 1;
     $('title').textContent = S.net === DALI ? `net ${S.net + 1}: Dalí's` : `net ${S.net + 1} of 261`;
     rows($('facts'), [['hinges', '7 squares (of the 24 two cubes share)'], ['longest row', `${net.run} cubes`], ['hinge trees giving this shape', String(net.trees)], ['its mirror image', net.chiral ? 'a different net' : 'itself'], ['folded', `${Math.round(S.f * 100)}%: every cube turned ${Math.round(S.f * 90)}° into w`]]);
-    $('cap').textContent = S.f < 0.02 ? `Net ${S.net + 1}: the tesseract's eight cubes, flat in our space, hinged on the gold squares. Slide to fold, or ▶.` : S.f > 0.98 ? 'Folded: the tesseract. In the shadow, its cube in a cube; in our slice, only the bottom cube is left.' : (S.view === 'slice' ? 'Folding, in our slice: a cube turning about a hinge square that lies in our space leaves it at once; only its hinge stays. Push the lever ana to catch the rising cubes as sections.' : 'Folding: each cube turns about its gold hinge, out of our space into w (teal: going ana).');
+    $('cap').textContent = S.f < 0.02 ? `Net ${S.net + 1}: the tesseract's eight cubes, flat in our space, hinged on the gold squares. Slide to fold, or ▶.` : S.f > 0.98 ? (S.view === 'slice' ? (Math.abs(off + 0.5) < 0.01 ? 'Folded: the tesseract. Our slice is its bottom cube, the one cell left in our space. Push the lever ana to scan up through it.' : Math.abs(off) <= 0.5 ? 'Folded: the tesseract, sliced partway up in w. The slice is a cube: its six faces are where the six side cubes cross our space.' : 'Folded: the tesseract, and our slice has left it.') : 'Folded: the tesseract: in the shadow, its cube in a cube.') : (S.view === 'slice' ? 'Folding, in our slice: a cube turning about a hinge square that lies in our space leaves it at once; only its hinge stays. Push the lever ana to catch the rising cubes as sections.' : 'Folding: each cube turns about its gold hinge, out of our space into w (teal: going ana).');
   } else if (S.mode === 'c24') {
     const t = S.t24, n = t.over.length;
     $('title24').textContent = `the 24-cell: ${t.label}`;
@@ -251,7 +258,7 @@ function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add(
 for (const [k, o] of Object.entries(OBJECTS)) { const op = document.createElement('option'); op.value = k; op.textContent = o.name; $('obj').append(op); }
 $('obj').onchange = () => { S.obj = $('obj').value; S.a = 0; $('turn').value = 0; need = dirty = true; info(); };
 for (const b of $('mode').children) b.onclick = () => setMode(b.dataset.v);
-for (const b of $('view').children) b.onclick = () => { S.view = b.dataset.v; for (const x of $('view').children) x.classList.toggle('on', x === b); need = dirty = true; };
+for (const b of $('view').children) b.onclick = () => { S.view = b.dataset.v; for (const x of $('view').children) x.classList.toggle('on', x === b); need = dirty = true; info(); };
 $('fold').oninput = () => { S.f = +$('fold').value; S.playing = 0; $('playB').classList.remove('on'); need = dirty = true; info(); };
 $('turn').oninput = () => { S.a = +$('turn').value; S.playing = 0; $('playB').classList.remove('on'); need = dirty = true; info(); };
 const goNet = (i) => { S.net = ((i % 261) + 261) % 261; need = dirty = true; info(); history.replaceState(null, '', `#net${S.net + 1}`); };
@@ -297,7 +304,7 @@ function tick(now) {
   if (keys.has('ArrowLeft')) tx -= 1; if (keys.has('ArrowRight')) tx += 1; if (keys.has('ArrowUp')) ty += 1; if (keys.has('ArrowDown')) ty -= 1;
   if (keys.has('q') || keys.has('[')) ly += 1; if (keys.has('e') || keys.has(']')) ly -= 1;
   if (tx || ty) { const v = view(); if (tx) turn(lift(v.r), E[3], tx * 1.1 * dt); if (ty) turn(lift(v.u), E[3], ty * 1.1 * dt); need = dirty = true; }
-  if (ly) { off = Math.max(-2, Math.min(2, off + ly * 0.8 * dt)); need = dirty = true; }
+  if (ly) { off = Math.max(-2, Math.min(2, off + ly * 0.8 * dt)); need = dirty = true; if (S.view === 'slice') info(); }
   if (S.playing) {
     const key = S.mode === 'nets' ? 'f' : S.mode === 'c24' ? 'f24' : 'a';
     S[key] = Math.max(0, Math.min(1, S[key] + S.playing * dt * 0.3));
