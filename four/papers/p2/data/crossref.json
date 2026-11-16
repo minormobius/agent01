@@ -15492,5 +15492,2716 @@
    ]
   },
   "article-number": "030001"
+ },
+ "10.1086/321493": {
+  "indexed": {
+   "date-parts": [
+    [
+     2026,
+     11,
+     5
+    ]
+   ],
+   "date-time": "2026-11-05T23:59:00Z",
+   "timestamp": 1793923140399,
+   "version": "4.8.0"
+  },
+  "reference-count": 122,
+  "publisher": "American Astronomical Society",
+  "issue": "2",
+  "content-domain": {
+   "domain": [],
+   "crossmark-restriction": false
+  },
+  "published-print": {
+   "date-parts": [
+    [
+     2001,
+     7,
+     10
+    ]
+   ]
+  },
+  "DOI": "10.1086/321493",
+  "type": "journal-article",
+  "created": {
+   "date-parts": [
+    [
+     2002,
+     7,
+     26
+    ]
+   ],
+   "date-time": "2002-07-26T17:09:45Z",
+   "timestamp": 1027703385000
+  },
+  "page": "990-1012",
+  "source": "Crossref",
+  "is-referenced-by-count": 793,
+  "title": "Solar Models: Current Epoch and Time Dependences, Neutrinos, and Helioseismological Properties",
+  "prefix": "10.3847",
+  "volume": "555",
+  "author": [
+   {
+    "given": "John N.",
+    "family": "Bahcall",
+    "sequence": "first",
+    "affiliation": [],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "M. H.",
+    "family": "Pinsonneault",
+    "sequence": "additional",
+    "affiliation": [],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "Sarbani",
+    "family": "Basu",
+    "sequence": "additional",
+    "affiliation": [],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   }
+  ],
+  "member": "2208",
+  "reference": [
+   {
+    "key": "rf1_2140",
+    "unstructured": "Abdurashitov, J. N., etal 1999, Phys. Rev. C, 60, 055801 (SAGE Collaboration)"
+   },
+   {
+    "key": "rf2_2141",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/RevModPhys.70.1265"
+   },
+   {
+    "key": "rf3_2142",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/175039"
+   },
+   {
+    "key": "rf4_2143",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1016/S0375-9474(99)00030-5"
+   },
+   {
+    "key": "rf5_2144",
+    "first-page": "336",
+    "volume": "330",
+    "author": "Antia H. M.",
+    "year": "1998",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf6_2145",
+    "first-page": "1000",
+    "volume": "317",
+    "author": "Antia H. M.",
+    "year": "1999",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf7_2146",
+    "first-page": "755",
+    "volume": "359",
+    "author": "Asplund M.",
+    "year": "2000",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf8_2147",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRev.128.1297"
+   },
+   {
+    "key": "rf9_2148",
+    "unstructured": "Bahcall, J. N. 1989, Neutrino Astrophysics (Cambridge: Cambridge Univ. Press)"
+   },
+   {
+    "key": "rf10_2149",
+    "doi-asserted-by": "crossref",
+    "first-page": "3923",
+    "DOI": "10.1103/PhysRevD.49.3923",
+    "volume": "49",
+    "author": "Bahcall J. N.",
+    "year": "1994",
+    "journal-title": "Phys. Rev. D"
+   },
+   {
+    "key": "rf11_2150",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevC.56.3391"
+   },
+   {
+    "key": "rf12_2151",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevLett.20.1209"
+   },
+   {
+    "key": "rf13_2152",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Bahcall, J. N., Basu, S. & Pinsonneault, M. H. 1998, Phys. Lett. B, 433, 1 (BBP98)",
+    "DOI": "10.1016/S0370-2693(98)00657-1"
+   },
+   {
+    "key": "rf14_2153",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/147513"
+   },
+   {
+    "key": "rf15_2154",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/175012"
+   },
+   {
+    "key": "rf16_2155",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/RevModPhys.54.767"
+   },
+   {
+    "key": "rf17_2156",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1016/S0370-2693(98)00920-4"
+   },
+   {
+    "key": "rf18_2157",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevD.58.096016"
+   },
+   {
+    "key": "rf19_2158",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevC.54.411"
+   },
+   {
+    "key": "rf20_2159",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/169116"
+   },
+   {
+    "key": "rf21_2160",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/RevModPhys.64.885"
+   },
+   {
+    "key": "rf22_2161",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/RevModPhys.67.781"
+   },
+   {
+    "key": "rf23_2162",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevLett.78.171"
+   },
+   {
+    "key": "rf24_2163",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/RevModPhys.60.297"
+   },
+   {
+    "key": "rf25_2164",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevD.43.R1759"
+   },
+   {
+    "key": "rf26_2165",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1046/j.1365-8711.1998.01690.x"
+   },
+   {
+    "key": "rf27_2166",
+    "first-page": "1402",
+    "volume": "276",
+    "author": "Basu S.",
+    "year": "1995",
+    "journal-title": "MNRAS"
+   },
+   {
+    "key": "rf28_2167",
+    "doi-asserted-by": "crossref",
+    "first-page": "189",
+    "DOI": "10.1093/mnras/287.1.189",
+    "volume": "287",
+    "author": "Basu S.",
+    "year": "1997",
+    "journal-title": "MNRAS"
+   },
+   {
+    "key": "rf29_2168",
+    "first-page": "651",
+    "volume": "280",
+    "author": "Basu S.",
+    "year": "1996",
+    "journal-title": "MNRAS"
+   },
+   {
+    "key": "rf30_2169",
+    "doi-asserted-by": "crossref",
+    "first-page": "243",
+    "DOI": "10.1093/mnras/292.2.243",
+    "volume": "292",
+    "author": "Basu S.",
+    "year": "1997",
+    "journal-title": "MNRAS"
+   },
+   {
+    "key": "rf31_2170",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/308875"
+   },
+   {
+    "key": "rf32_2171",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/308302"
+   },
+   {
+    "key": "rf33_2172",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Bellotti, E., etal 2001, Nucl. Phys. B, 91, 44 (GNO Collaboration)",
+    "DOI": "10.1016/S0920-5632(00)00921-X"
+   },
+   {
+    "key": "rf34_2173",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1016/0370-2693(95)01241-9"
+   },
+   {
+    "key": "rf35_2174",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/308864"
+   },
+   {
+    "key": "rf36_2175",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/312775"
+   },
+   {
+    "key": "rf37_2176",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/304828"
+   },
+   {
+    "key": "rf38_2177",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/311416"
+   },
+   {
+    "key": "rf39_2178",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/307932"
+   },
+   {
+    "key": "rf40_2179",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/312654"
+   },
+   {
+    "key": "rf41_2180",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1016/S0370-1573(96)00032-4"
+   },
+   {
+    "key": "rf42_2181",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1007/BF00145821"
+   },
+   {
+    "key": "rf43_2182",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Christensen-Dalsgaard, J. 1988, in IAU Symp. 123, Advances in Helio- and Asteroseismology, ed. J. Christensen-Dalsgaard & S. Frandsen (Dordrecht: Reidel), 295",
+    "DOI": "10.1007/978-94-009-4009-3_1"
+   },
+   {
+    "key": "rf44_2183",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/170944"
+   },
+   {
+    "key": "rf45_2184",
+    "unstructured": "Christensen-Dalsgaard, J. 1995, in The Structure of the Sun, VI Canary Islands Winter School of Astrophysics, ed. T. Roca Cortes & F. Sanchez (Cambridge: Cambridge Univ. Press), 47"
+   },
+   {
+    "key": "rf46_2185",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Christensen-Dalsgaard, J. 1997, in IAU Symp. 185, New Eyes to See inside the Sun and Stars, ed. F. Deubner, J. Christensen-Dalsgaard, & D. Kurtz (Dordrecht: Kluwer), 245",
+    "DOI": "10.1007/978-94-011-4982-2_56"
+   },
+   {
+    "key": "rf47_2186",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1126/science.272.5266.1286"
+   },
+   {
+    "key": "rf48_2187",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/170441"
+   },
+   {
+    "key": "rf49_2188",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/305343"
+   },
+   {
+    "key": "rf50_2189",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Cox, A. N., Kidman, R. B. & Newman, M. J. 1985, in AIP Conf. Proc. 126, Solar Neutrinos and Neutrino Astronomy, ed. M. L. Cherry & W. A. Fowler (New York: AIP), 93",
+    "DOI": "10.1063/1.35173"
+   },
+   {
+    "key": "rf51_2190",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1029/96GL01878"
+   },
+   {
+    "key": "rf52_2191",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevLett.77.4286"
+   },
+   {
+    "key": "rf53_2192",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1016/0146-6410(94)90004-3"
+   },
+   {
+    "key": "rf54_2193",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevLett.20.1205"
+   },
+   {
+    "key": "rf55_2194",
+    "unstructured": "Demarque, P. & Guenther, D. B. 1991, in Solar Interior and Atmosphere, ed. A. N. Cox, W. C. Livingston, & M. S. Matthews (Tucson: Univ. Arizona Press), 1186"
+   },
+   {
+    "key": "rf56_2195",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/175887"
+   },
+   {
+    "key": "rf57_2196",
+    "first-page": "L177",
+    "volume": "1",
+    "author": "Ezer D.",
+    "year": "1968",
+    "journal-title": "ApJ"
+   },
+   {
+    "key": "rf58_2197",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1029/1998GL900157"
+   },
+   {
+    "key": "rf59_2198",
+    "unstructured": "Fukuda, Y., etal 1996, Phys. Rev. Lett., 77, 1683 (Kamiokande Collaboration)"
+   },
+   {
+    "key": "rf60_2199",
+    "unstructured": "Fukuda, Y., etal 1998, Phys. Rev. Lett., 81, 1158 (erratum, 81, 4279) (Super-Kamiokande Collaboration)"
+   },
+   {
+    "key": "rf61_2200",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Gavrin, V. 2001, Nucl. Phys. B, 91, 36 (SAGE Collaboration)",
+    "DOI": "10.1016/S0920-5632(00)00920-8"
+   },
+   {
+    "key": "rf62_2201",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1088/0031-8949/1984/T8/008"
+   },
+   {
+    "key": "rf63_2202",
+    "unstructured": "Grevesse, N. & Noels, A. 1993, in Origin and Evolution of the Elements, ed. N. Prantzos, E. Vangioni-Flam, & M. Casse (Cambridge: Cambridge Univ. Press), 15"
+   },
+   {
+    "key": "rf64_2203",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1023/A:1005161325181"
+   },
+   {
+    "key": "rf65_2204",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/304854"
+   },
+   {
+    "key": "rf66_2205",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/306116"
+   },
+   {
+    "key": "rf67_2206",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/170195"
+   },
+   {
+    "key": "rf68_2207",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/304367"
+   },
+   {
+    "key": "rf69_2208",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/308446"
+   },
+   {
+    "key": "rf70_2209",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/171090"
+   },
+   {
+    "key": "rf71_2210",
+    "unstructured": "Guzik, J. A. 1998, in Proc. SOHO 6/GONG 98 Workshop, Structure and Dynamics of the Sun and Sun-like Stars, ed. S. G. Korzennik & A. Wilson (Noordwijk: ESA), 417"
+   },
+   {
+    "key": "rf72_2211",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/176019"
+   },
+   {
+    "key": "rf73_2212",
+    "unstructured": "Hampel, W., etal 1999, Phys. Lett. B, 447, 127 (GALLEX Collaboration)"
+   },
+   {
+    "key": "rf74_2213",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/148193"
+   },
+   {
+    "key": "rf75_2214",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/149040"
+   },
+   {
+    "key": "rf76_2215",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1146/annurev.aa.12.090174.001243"
+   },
+   {
+    "key": "rf77_2216",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/149399"
+   },
+   {
+    "key": "rf78_2217",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/177381"
+   },
+   {
+    "key": "rf79_2218",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/171827"
+   },
+   {
+    "key": "rf80_2219",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Kurucz, R. L. 1991, in NATO ASI Ser., Stellar Atmospheres: Beyond Classical Models, ed. L. Crivellari, I. Hubeny, & D. G. Hummer (Dordrecht: Kluwer), 441",
+    "DOI": "10.1007/978-94-011-3554-2_42"
+   },
+   {
+    "key": "rf81_2220",
+    "unstructured": "Lande, K. 2001, in Proc. of the XIX International Conf. on Neutrino Physics and Astrophysics (Amsterdam: Elsevier), in press"
+   },
+   {
+    "key": "rf82_2221",
+    "first-page": "L191",
+    "volume": "7",
+    "author": "Leibacher J. W.",
+    "year": "1971",
+    "journal-title": "ApJ"
+   },
+   {
+    "key": "rf83_2222",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevD.37.1368"
+   },
+   {
+    "key": "rf84_2223",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevLett.84.5959"
+   },
+   {
+    "key": "rf85_2224",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevC.63.015801"
+   },
+   {
+    "key": "rf86_2225",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/175607"
+   },
+   {
+    "key": "rf87_2226",
+    "first-page": "913",
+    "volume": "42",
+    "author": "Mikheyev S. P.",
+    "year": "1985",
+    "journal-title": "Soviet J. Nucl. Phys."
+   },
+   {
+    "key": "rf88_2227",
+    "doi-asserted-by": "crossref",
+    "unstructured": "Mikheyev, S. P. & Smirnov, A. Yu. 1986, in Proc. of the 6th Moriond Workshop, 86 Massive Neutrinos in Astrophysics and in Particle Physics, ed. O. Fackler & Tran Thanh Van (Gif-sur-Yvette: Editions Frontieres), 355",
+    "DOI": "10.1007/BF02508049"
+   },
+   {
+    "key": "rf89_2228",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/155071"
+   },
+   {
+    "key": "rf90_2229",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1046/j.1365-8711.2000.03471.x"
+   },
+   {
+    "key": "rf91_2230",
+    "first-page": "275",
+    "volume": "350",
+    "author": "Morel P.",
+    "year": "1999",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf92_2231",
+    "first-page": "771",
+    "volume": "353",
+    "author": "Morel P.",
+    "year": "2000",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf93_2232",
+    "first-page": "675",
+    "volume": "363",
+    "author": "Morel P.",
+    "year": "2000",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf94_2233",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1146/annurev.astro.35.1.557"
+   },
+   {
+    "key": "rf95_2234",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/308048"
+   },
+   {
+    "key": "rf96_2235",
+    "first-page": "981",
+    "volume": "26",
+    "author": "Pontecorvo B.",
+    "year": "1968",
+    "journal-title": "Soviet Phys.-JETP"
+   },
+   {
+    "key": "rf97_2236",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/174030"
+   },
+   {
+    "key": "rf98_2237",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/170580"
+   },
+   {
+    "key": "rf99_2238",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1023/A:1004963425123"
+   },
+   {
+    "key": "rf100_2239",
+    "doi-asserted-by": "crossref",
+    "first-page": "95",
+    "DOI": "10.1016/S0920-5632(99)00864-6",
+    "volume": "81",
+    "author": "Ricci B.",
+    "year": "2000",
+    "journal-title": "Nucl. Phys. B"
+   },
+   {
+    "key": "rf101_2240",
+    "first-page": "1000",
+    "volume": "312",
+    "author": "Richard O.",
+    "year": "1996",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf102_2241",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/308274"
+   },
+   {
+    "key": "rf103_2242",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/176705"
+   },
+   {
+    "key": "rf104_2243",
+    "doi-asserted-by": "crossref",
+    "first-page": "373",
+    "DOI": "10.1071/PH540373",
+    "volume": "7",
+    "author": "Salpeter E. E.",
+    "year": "1954",
+    "journal-title": "Australian J. Phys."
+   },
+   {
+    "key": "rf105_2244",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1007/BF00145547"
+   },
+   {
+    "key": "rf106_2245",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/316782"
+   },
+   {
+    "key": "rf107_2246",
+    "doi-asserted-by": "crossref",
+    "first-page": "29",
+    "DOI": "10.1016/S0920-5632(00)00919-1",
+    "volume": "91",
+    "author": "Suzuki Y.",
+    "year": "2001",
+    "journal-title": "Nucl. Phys. B"
+   },
+   {
+    "key": "rf108_2247",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/190678"
+   },
+   {
+    "key": "rf109_2248",
+    "first-page": "743",
+    "volume": "355",
+    "author": "Thiery S.",
+    "year": "2000",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf110_2249",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/173695"
+   },
+   {
+    "key": "rf111_2250",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/309598"
+   },
+   {
+    "key": "rf112_2251",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1007/BF00733027"
+   },
+   {
+    "key": "rf113_2252",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/311646"
+   },
+   {
+    "key": "rf114_2253",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1023/A:1004992727541"
+   },
+   {
+    "key": "rf115_2254",
+    "unstructured": "Turck Chieze, S., etal 1998, in Proc. SOHO 6/GONG 98 Workshop: Structure and Dynamics of the Sun and Sun-like Stars, ed. S. G. Korzennik & A. Wilson (Noordwijk: ESA), 555"
+   },
+   {
+    "key": "rf116_2255",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1016/0370-1573(93)90020-E"
+   },
+   {
+    "key": "rf117_2256",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1023/A:1005153106525"
+   },
+   {
+    "key": "rf118_2257",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/306055"
+   },
+   {
+    "key": "rf119_2258",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/150731"
+   },
+   {
+    "key": "rf120_2259",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1086/184700"
+   },
+   {
+    "key": "rf121_2260",
+    "first-page": "215",
+    "volume": "332",
+    "author": "Weiss A.",
+    "year": "1998",
+    "journal-title": "A&A"
+   },
+   {
+    "key": "rf122_2261",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1103/PhysRevD.17.2369"
+   }
+  ],
+  "container-title": "The Astrophysical Journal",
+  "original-title": [],
+  "language": "en",
+  "link": [
+   {
+    "URL": "http://stacks.iop.org/0004-637X/555/i=2/a=990/pdf",
+    "content-type": "unspecified",
+    "content-version": "vor",
+    "intended-application": "similarity-checking"
+   }
+  ],
+  "deposited": {
+   "date-parts": [
+    [
+     2020,
+     11,
+     6
+    ]
+   ],
+   "date-time": "2020-11-06T21:44:17Z",
+   "timestamp": 1604699057000
+  },
+  "score": 1,
+  "resource": {
+   "primary": {
+    "URL": "https://iopscience.iop.org/article/10.1086/321493"
+   }
+  },
+  "subtitle": [],
+  "short-title": [],
+  "issued": {
+   "date-parts": [
+    [
+     2001,
+     7,
+     10
+    ]
+   ]
+  },
+  "references-count": 122,
+  "journal-issue": {
+   "issue": "2",
+   "published-print": {
+    "date-parts": [
+     [
+      2001,
+      7,
+      10
+     ]
+    ]
+   }
+  },
+  "alternative-id": [
+   "10.1086/321493"
+  ],
+  "URL": "http://dx.doi.org/10.1086/321493",
+  "relation": {},
+  "ISSN": [
+   "0004-637X",
+   "1538-4357"
+  ],
+  "subject": [],
+  "container-title-short": "ApJ",
+  "published": {
+   "date-parts": [
+    [
+     2001,
+     7,
+     10
+    ]
+   ]
+  }
+ },
+ "10.1126/science.272.5266.1286": {
+  "indexed": {
+   "date-parts": [
+    [
+     2026,
+     11,
+     14
+    ]
+   ],
+   "date-time": "2026-11-14T09:52:12Z",
+   "timestamp": 1794649932438,
+   "version": "4.9.1"
+  },
+  "reference-count": 115,
+  "publisher": "American Association for the Advancement of Science (AAAS)",
+  "issue": "5266",
+  "content-domain": {
+   "domain": [],
+   "crossmark-restriction": false
+  },
+  "published-print": {
+   "date-parts": [
+    [
+     1996,
+     5,
+     31
+    ]
+   ]
+  },
+  "abstract": "<jats:p>Data from the Global Oscillation Network Group (GONG) project and other helioseismic experiments provide a test for models of stellar interiors and for the thermodynamic and radiative properties, on which the models depend, of matter under the extreme conditions found in the sun. Current models are in agreement with the helioseismic inferences, which suggests, for example, that the disagreement between the predicted and observed fluxes of neutrinos from the sun is not caused by errors in the models. However, the GONG data reveal subtle errors in the models, such as an excess in sound speed just beneath the convection zone. These discrepancies indicate effects that have so far not been correctly accounted for; for example, it is plausible that the sound-speed differences reflect weak mixing in stellar interiors, of potential importance to the overall evolution of stars and ultimately to estimates of the age of the galaxy based on stellar evolution calculations.</jats:p>",
+  "DOI": "10.1126/science.272.5266.1286",
+  "type": "journal-article",
+  "created": {
+   "date-parts": [
+    [
+     2006,
+     10,
+     27
+    ]
+   ],
+   "date-time": "2006-10-27T14:30:41Z",
+   "timestamp": 1161959441000
+  },
+  "page": "1286-1292",
+  "source": "Crossref",
+  "is-referenced-by-count": 1038,
+  "title": "The Current State of Solar Modeling",
+  "prefix": "10.1126",
+  "volume": "272",
+  "author": [
+   {
+    "given": "J.",
+    "family": "Christensen-Dalsgaard",
+    "sequence": "first",
+    "affiliation": [
+     {
+      "name": "J. Christensen-Dalsgaard and S. Basu are with Theoretical Astrophysics Center and Institute of Physics and Astronomy, Aarhus University, DK-8000 Aarhus C, Denmark."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "W.",
+    "family": "Däppen",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "W. Däppen and E. J. Rhodes Jr. are with the Department of Physics and Astronomy, University of Southern California, Los Angeles, CA 90089, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "S. V.",
+    "family": "Ajukov",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "S. V. Ajukov is with the Sternberg Astronomical Institute, Moscow, Russia."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "E. R.",
+    "family": "Anderson",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "E. R. Anderson, J. W. Harvey, F. Hill, and J. W. Leibacher are with the National Solar Observatory, National Optical Astronomy Observatories, Tucson, AZ 85726, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "H. M.",
+    "family": "Antia",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "H. M. Antia and S. M. Chitre are with the Tata Institute of Fundamental Research, Bombay, India."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "S.",
+    "family": "Basu",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "J. Christensen-Dalsgaard and S. Basu are with Theoretical Astrophysics Center and Institute of Physics and Astronomy, Aarhus University, DK-8000 Aarhus C, Denmark."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "V. A.",
+    "family": "Baturin",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "V. A. Baturin, I. W. Roxburgh, and M. J. Thompson are with the Astronomy Unit, Queen Mary and Westfield College, London E1 4NS, UK."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "G.",
+    "family": "Berthomieu",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "G. Berthomieu, P. Morel, and J. Provost are with the Observatoire de la Côte d'Azur, Nice, France."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "B.",
+    "family": "Chaboyer",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "B. Chaboyer is with CITA, University of Toronto, Toronto, Canada."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "S. M.",
+    "family": "Chitre",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "H. M. Antia and S. M. Chitre are with the Tata Institute of Fundamental Research, Bombay, India."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "A. N.",
+    "family": "Cox",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "A. N. Cox and J. A. Guzik are with Los Alamos National Laboratory, Los Alamos, NM 87545, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "P.",
+    "family": "Demarque",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "P. Demarque is with the Department of Astronomy, Yale University, New Haven, CT 06520, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "J.",
+    "family": "Donatowicz",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "J. Donatowicz and G. Houdek are with the Institut für Astronomie, Universität Wien, Vienna, Austria."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "W. A.",
+    "family": "Dziembowski",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "W. A. Dziembowski is with the Copernicus Center, Warsaw, Poland."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "M.",
+    "family": "Gabriel",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "M. Gabriel is with the Institut d'Astrophysique, Université de Liège, Liège, Belgium."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "D. O.",
+    "family": "Gough",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "D. O. Gough is with the Institute of Astronomy, University of Cambridge, Cambridge, UK."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "D. B.",
+    "family": "Guenther",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "D. B. Guenther is with the Department of Astronomy and Physics, Saint Mary's University, Halifax, Nova Scotia, Canada."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "J. A.",
+    "family": "Guzik",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "A. N. Cox and J. A. Guzik are with Los Alamos National Laboratory, Los Alamos, NM 87545, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "J. W.",
+    "family": "Harvey",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "E. R. Anderson, J. W. Harvey, F. Hill, and J. W. Leibacher are with the National Solar Observatory, National Optical Astronomy Observatories, Tucson, AZ 85726, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "F.",
+    "family": "Hill",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "E. R. Anderson, J. W. Harvey, F. Hill, and J. W. Leibacher are with the National Solar Observatory, National Optical Astronomy Observatories, Tucson, AZ 85726, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "G.",
+    "family": "Houdek",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "J. Donatowicz and G. Houdek are with the Institut für Astronomie, Universität Wien, Vienna, Austria."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "C. A.",
+    "family": "Iglesias",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "C. A. Iglesias and F. J. Rogers are with the Lawrence Livermore National Laboratory, Livermore, CA 94550, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "A. G.",
+    "family": "Kosovichev",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "A. G. Kosovichev is with Center for Space Science and Astrophysics, Stanford University, Stanford, CA 94305, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "J. W.",
+    "family": "Leibacher",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "E. R. Anderson, J. W. Harvey, F. Hill, and J. W. Leibacher are with the National Solar Observatory, National Optical Astronomy Observatories, Tucson, AZ 85726, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "P.",
+    "family": "Morel",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "G. Berthomieu, P. Morel, and J. Provost are with the Observatoire de la Côte d'Azur, Nice, France."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "C. R.",
+    "family": "Proffitt",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "C. R. Proffitt is with Computer Sciences Corporation, Goddard Space Flight Center, Greenbelt, MD 20771, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "J.",
+    "family": "Provost",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "G. Berthomieu, P. Morel, and J. Provost are with the Observatoire de la Côte d'Azur, Nice, France."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "J.",
+    "family": "Reiter",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "J. Reiter is with the Mathematisches Institut, Technische Universität München, Munich, Germany."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "suffix": "Jr.",
+    "given": "E. J.",
+    "family": "Rhodes",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "W. Däppen and E. J. Rhodes Jr. are with the Department of Physics and Astronomy, University of Southern California, Los Angeles, CA 90089, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "F. J.",
+    "family": "Rogers",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "C. A. Iglesias and F. J. Rogers are with the Lawrence Livermore National Laboratory, Livermore, CA 94550, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "I. W.",
+    "family": "Roxburgh",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "V. A. Baturin, I. W. Roxburgh, and M. J. Thompson are with the Astronomy Unit, Queen Mary and Westfield College, London E1 4NS, UK."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "M. J.",
+    "family": "Thompson",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "V. A. Baturin, I. W. Roxburgh, and M. J. Thompson are with the Astronomy Unit, Queen Mary and Westfield College, London E1 4NS, UK."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   },
+   {
+    "given": "R. K.",
+    "family": "Ulrich",
+    "sequence": "additional",
+    "affiliation": [
+     {
+      "name": "R. K. Ulrich is with the Department of Physics and Astronomy, University of California, Los Angeles, CA 90095, USA."
+     }
+    ],
+    "role": [
+     {
+      "vocabulary": "crossref",
+      "role": "author"
+     }
+    ]
+   }
+  ],
+  "member": "221",
+  "reference": [
+   {
+    "key": "e_1_2_1_2_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "197",
+    "DOI": "10.1016/0016-7037(89)90286-X",
+    "article-title": "ABUNDANCES OF THE ELEMENTS - METEORITIC AND SOLAR",
+    "volume": "53",
+    "author": "ANDERS E",
+    "year": "1989",
+    "unstructured": "ANDERS E, ABUNDANCES OF THE ELEMENTS - METEORITIC AND SOLAR, GEOCHIMICA ET COSMOCHIMICA ACTA 53, 197 (1989).",
+    "journal-title": "GEOCHIMICA ET COSMOCHIMICA ACTA"
+   },
+   {
+    "key": "e_1_2_1_3_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "801",
+    "DOI": "10.1086/174117",
+    "article-title": "MEASURING THE HELIUM ABUNDANCE IN THE SOLAR ENVELOPE - THE ROLE OF THE EQUATION OF STATE",
+    "volume": "426",
+    "author": "ANTIA H.M.",
+    "year": "1994",
+    "unstructured": "ANTIA H.M., MEASURING THE HELIUM ABUNDANCE IN THE SOLAR ENVELOPE - THE ROLE OF THE EQUATION OF STATE, ASTROPHYSICAL JOURNAL 426, 801 (1994).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_4_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "434",
+    "DOI": "10.1086/175451",
+    "article-title": "HELIOSEISMIC BOUNDS ON THE CENTRAL TEMPERATURE OF THE SUN",
+    "volume": "442",
+    "author": "ANTIA H.M.",
+    "year": "1995",
+    "unstructured": "ANTIA H.M., HELIOSEISMIC BOUNDS ON THE CENTRAL TEMPERATURE OF THE SUN, ASTROPHYSICAL JOURNAL 442, 434 (1995).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_5_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "499",
+    "DOI": "10.1093/mnras/274.2.499",
+    "article-title": "EFFECTS OF SURFACE-LAYERS ON HELIOSEISMIC INVERSION",
+    "volume": "274",
+    "author": "ANTIA H.M.",
+    "year": "1995",
+    "unstructured": "ANTIA H.M., EFFECTS OF SURFACE-LAYERS ON HELIOSEISMIC INVERSION, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 274, 499 (1995).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_6_2",
+    "author": "BAHCALL J.N.",
+    "year": "1989",
+    "unstructured": "BAHCALL J.N., NEUTRINO ASTROPHYSIC (1989).",
+    "journal-title": "NEUTRINO ASTROPHYSIC"
+   },
+   {
+    "key": "e_1_2_1_7_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "276",
+    "DOI": "10.1016/0370-2693(94)91378-1",
+    "article-title": "2 SOLAR-NEUTRINO PROBLEMS",
+    "volume": "338",
+    "author": "BAHCALL J.N.",
+    "year": "1994",
+    "unstructured": "BAHCALL J.N., 2 SOLAR-NEUTRINO PROBLEMS, PHYSICS LETTERS B 338, 276 (1994).",
+    "journal-title": "PHYSICS LETTERS B"
+   },
+   {
+    "key": "e_1_2_1_8_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "2233",
+    "DOI": "10.1103/PhysRevLett.65.2233",
+    "article-title": "A SOLUTION OF THE SOLAR-NEUTRINO PROBLEM",
+    "volume": "65",
+    "author": "BAHCALL J.N.",
+    "year": "1990",
+    "unstructured": "BAHCALL J.N., A SOLUTION OF THE SOLAR-NEUTRINO PROBLEM, PHYSICAL REVIEW LETTERS 65, 2233 (1990).",
+    "journal-title": "PHYSICAL REVIEW LETTERS"
+   },
+   {
+    "key": "e_1_2_1_9_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "885",
+    "DOI": "10.1103/RevModPhys.64.885",
+    "article-title": "STANDARD SOLAR MODELS, WITH AND WITHOUT HELIUM DIFFUSION, AND THE SOLAR NEUTRINO PROBLEM",
+    "volume": "64",
+    "author": "BAHCALL J.N.",
+    "year": "1992",
+    "unstructured": "BAHCALL J.N., STANDARD SOLAR MODELS, WITH AND WITHOUT HELIUM DIFFUSION, AND THE SOLAR NEUTRINO PROBLEM, REVIEWS OF MODERN PHYSICS 64, 885 (1992).",
+    "journal-title": "REVIEWS OF MODERN PHYSICS"
+   },
+   {
+    "key": "e_1_2_1_10_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "781",
+    "DOI": "10.1103/RevModPhys.67.781",
+    "article-title": "Solar models with helium and heavy-element diffusion",
+    "volume": "67",
+    "author": "BAHCALL J.N.",
+    "year": "1995",
+    "unstructured": "BAHCALL J.N., Solar models with helium and heavy-element diffusion, REVIEWS OF MODERN PHYSICS 67, 781 (1995).",
+    "journal-title": "REVIEWS OF MODERN PHYSICS"
+   },
+   {
+    "key": "e_1_2_1_11_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "520",
+    "DOI": "10.1038/348520a0",
+    "article-title": "EVIDENCE FOR LONG-TERM BRIGHTNESS CHANGES OF SOLAR-TYPE STARS",
+    "volume": "348",
+    "author": "BALIUNAS S",
+    "year": "1990",
+    "unstructured": "BALIUNAS S, EVIDENCE FOR LONG-TERM BRIGHTNESS CHANGES OF SOLAR-TYPE STARS, NATURE 348, 520 (1990).",
+    "journal-title": "NATURE"
+   },
+   {
+    "key": "e_1_2_1_12_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "603",
+    "DOI": "10.1093/mnras/255.4.603",
+    "article-title": "SOLAR PULSATIONAL STABILITY .1. PULSATION-MODE THERMODYNAMICS",
+    "volume": "255",
+    "author": "BALMFORTH N.J.",
+    "year": "1992",
+    "unstructured": "BALMFORTH N.J., SOLAR PULSATIONAL STABILITY .1. PULSATION-MODE THERMODYNAMICS, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 255, 603 (1992).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_13_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "632",
+    "DOI": "10.1093/mnras/255.4.632",
+    "article-title": "SOLAR PULSATIONAL STABILITY .2. PULSATION FREQUENCIES",
+    "volume": "255",
+    "author": "BALMFORTH N.J.",
+    "year": "1992",
+    "unstructured": "BALMFORTH N.J., SOLAR PULSATIONAL STABILITY .2. PULSATION FREQUENCIES, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 255, 632 (1992).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_14_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "143",
+    "DOI": "10.1007/BF03012174",
+    "article-title": "SEISMOLOGY OF THE SOLAR CONVECTION ZONE",
+    "volume": "15",
+    "author": "BASU S",
+    "year": "1994",
+    "unstructured": "BASU S, SEISMOLOGY OF THE SOLAR CONVECTION ZONE, JOURNAL OF ASTROPHYSICS AND ASTRONOMY 15, 143 (1994).",
+    "journal-title": "JOURNAL OF ASTROPHYSICS AND ASTRONOMY"
+   },
+   {
+    "key": "e_1_2_1_15_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "209",
+    "DOI": "10.1093/mnras/267.1.209",
+    "article-title": "HELIOSEISMIC MEASUREMENT OF THE EXTENT OF OVERSHOOT BELOW THE SOLAR CONVECTION ZONE",
+    "volume": "267",
+    "author": "BASU S",
+    "year": "1994",
+    "unstructured": "BASU S, HELIOSEISMIC MEASUREMENT OF THE EXTENT OF OVERSHOOT BELOW THE SOLAR CONVECTION ZONE, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 267, 209 (1994).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_16_2",
+    "first-page": "489",
+    "volume": "37",
+    "author": "BATURIN V.A.",
+    "year": "1995",
+    "unstructured": "BATURIN V.A., ASTRON REP 37, 489 (1995).",
+    "journal-title": "ASTRON REP"
+   },
+   {
+    "key": "e_1_2_1_17_2",
+    "first-page": "33",
+    "author": "BATURIN V.A.",
+    "year": "1996",
+    "unstructured": "BATURIN V.A., P 32 LIEG INT ASTR C: 33 (1996).",
+    "journal-title": "P 32 LIEG INT ASTR C"
+   },
+   {
+    "key": "e_1_2_1_18_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "434",
+    "DOI": "10.1103/PhysRev.55.434",
+    "article-title": "Energy production in stars",
+    "volume": "55",
+    "author": "BETHE H.A.",
+    "year": "1939",
+    "unstructured": "BETHE H.A., Energy production in stars, PHYSICAL REVIEW 55, 434 (1939).",
+    "journal-title": "PHYSICAL REVIEW"
+   },
+   {
+    "key": "e_1_2_1_19_2",
+    "first-page": "117",
+    "volume": "5",
+    "author": "BIERMANN L",
+    "year": "1932",
+    "unstructured": "BIERMANN L, Z ASTROPHYS 5, 117 (1932).",
+    "journal-title": "Z ASTROPHYS"
+   },
+   {
+    "key": "e_1_2_1_20_2",
+    "first-page": "108",
+    "volume": "46",
+    "author": "BOHMVITENSE E",
+    "year": "1958",
+    "unstructured": "BOHMVITENSE E, Z ASTROPHYS 46, 108 (1958).",
+    "journal-title": "Z ASTROPHYS"
+   },
+   {
+    "key": "e_1_2_1_21_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "318",
+    "DOI": "10.1086/170361",
+    "article-title": "OUR SUN .2. EARLY MASS-LOSS OF 0.1M. AND THE CASE OF THE MISSING LITHIUM",
+    "volume": "377",
+    "author": "BOOTHROYD A.I.",
+    "year": "1991",
+    "unstructured": "BOOTHROYD A.I., OUR SUN .2. EARLY MASS-LOSS OF 0.1M. AND THE CASE OF THE MISSING LITHIUM, ASTROPHYSICAL JOURNAL 377, 318 (1991).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_22_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "37",
+    "DOI": "10.1146/annurev.aa.32.090194.000345",
+    "article-title": "ASTEROSEISMOLOGY",
+    "volume": "32",
+    "author": "BROWN T.M.",
+    "year": "1994",
+    "unstructured": "BROWN T.M., ASTEROSEISMOLOGY, ANNUAL REVIEW OF ASTRONOMY AND ASTROPHYSICS 32, 37 (1994).",
+    "journal-title": "ANNUAL REVIEW OF ASTRONOMY AND ASTROPHYSICS"
+   },
+   {
+    "key": "e_1_2_1_23_2",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1126/science.269.5229.1370"
+   },
+   {
+    "key": "e_1_2_1_24_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "295",
+    "DOI": "10.1086/169815",
+    "article-title": "STELLAR TURBULENT CONVECTION - A NEW MODEL AND APPLICATIONS",
+    "volume": "370",
+    "author": "CANUTO V.M.",
+    "year": "1991",
+    "unstructured": "CANUTO V.M., STELLAR TURBULENT CONVECTION - A NEW MODEL AND APPLICATIONS, ASTROPHYSICAL JOURNAL 370, 295 (1991).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_25_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "865",
+    "DOI": "10.1086/175408",
+    "article-title": "STELLAR MODELS WITH MICROSCOPIC DIFFUSION AND ROTATIONAL MIXING .1. APPLICATION TO THE SUN",
+    "volume": "441",
+    "author": "CHABOYER B",
+    "year": "1995",
+    "unstructured": "CHABOYER B, STELLAR MODELS WITH MICROSCOPIC DIFFUSION AND ROTATIONAL MIXING .1. APPLICATION TO THE SUN, ASTROPHYSICAL JOURNAL 441, 865 (1995).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_26_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "435",
+    "DOI": "10.1086/175802",
+    "article-title": "ROTATION, DIFFUSION, AND OVERSHOOT IN THE SUN - EFFECTS ON THE OSCILLATION FREQUENCIES AND THE NEUTRINO FLUX",
+    "volume": "446",
+    "author": "CHABOYER B",
+    "year": "1995",
+    "unstructured": "CHABOYER B, ROTATION, DIFFUSION, AND OVERSHOOT IN THE SUN - EFFECTS ON THE OSCILLATION FREQUENCIES AND THE NEUTRINO FLUX, ASTROPHYSICAL JOURNAL 446, 435 (1995).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_27_2",
+    "first-page": "136",
+    "volume": "76",
+    "author": "CHRISTENSENDALS J",
+    "year": "1995",
+    "unstructured": "CHRISTENSENDALS J, ASP C SER 76, 136 (1995).",
+    "journal-title": "ASP C SER"
+   },
+   {
+    "key": "e_1_2_1_28_2",
+    "first-page": "L17",
+    "article-title": "PULSATION MODELS OF THE DOUBLE-MODE CEPHEIDS IN THE LARGE-MAGELLANIC-CLOUD",
+    "volume": "299",
+    "author": "CHRISTENSENDALS J",
+    "year": "1995",
+    "unstructured": "CHRISTENSENDALS J, PULSATION MODELS OF THE DOUBLE-MODE CEPHEIDS IN THE LARGE-MAGELLANIC-CLOUD, ASTRONOMY AND ASTROPHYSICS 299, L17 (1995).",
+    "journal-title": "ASTRONOMY AND ASTROPHYSICS"
+   },
+   {
+    "key": "e_1_2_1_29_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "267",
+    "DOI": "10.1007/BF00872687",
+    "article-title": "SOLAR OSCILLATIONS AND THE EQUATION OF STATE",
+    "volume": "4",
+    "author": "CHRISTENSENDALS J",
+    "year": "1992",
+    "unstructured": "CHRISTENSENDALS J, SOLAR OSCILLATIONS AND THE EQUATION OF STATE, ASTRONOMY AND ASTROPHYSICS REVIEW 4, 267 (1992).",
+    "journal-title": "ASTRONOMY AND ASTROPHYSICS REVIEW"
+   },
+   {
+    "key": "e_1_2_1_30_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "413",
+    "DOI": "10.1086/170441",
+    "article-title": "THE DEPTH OF THE SOLAR CONVECTION ZONE",
+    "volume": "378",
+    "author": "CHRISTENSENDALS J",
+    "year": "1991",
+    "unstructured": "CHRISTENSENDALS J, THE DEPTH OF THE SOLAR CONVECTION ZONE, ASTROPHYSICAL JOURNAL 378, 413 (1991).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_31_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "L75",
+    "DOI": "10.1086/186725",
+    "article-title": "EFFECTS OF DIFFUSION ON SOLAR MODELS AND THEIR OSCILLATION FREQUENCIES",
+    "volume": "403",
+    "author": "CHRISTENSENDALS J",
+    "year": "1993",
+    "unstructured": "CHRISTENSENDALS J, EFFECTS OF DIFFUSION ON SOLAR MODELS AND THEIR OSCILLATION FREQUENCIES, ASTROPHYSICAL JOURNAL 403, L75 (1993).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_32_2",
+    "unstructured": "CHRISTENSENDALS J IN PRESS NUCL PHYS B ."
+   },
+   {
+    "key": "e_1_2_1_33_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "921",
+    "DOI": "10.1093/mnras/270.4.921",
+    "article-title": "ACCURATE FREQUENCIES OF POLYTROPIC MODELS",
+    "volume": "270",
+    "author": "CHRISTENSENDALS J",
+    "year": "1994",
+    "unstructured": "CHRISTENSENDALS J, ACCURATE FREQUENCIES OF POLYTROPIC MODELS, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 270, 921 (1994).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_34_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "378",
+    "DOI": "10.1038/315378a0",
+    "article-title": "SPEED OF SOUND IN THE SOLAR INTERIOR",
+    "volume": "315",
+    "author": "CHRISTENSENDALS J",
+    "year": "1985",
+    "unstructured": "CHRISTENSENDALS J, SPEED OF SOUND IN THE SOLAR INTERIOR, NATURE 315, 378 (1985).",
+    "journal-title": "NATURE"
+   },
+   {
+    "key": "e_1_2_1_35_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "634",
+    "DOI": "10.1038/336634a0",
+    "article-title": "SOLAR OSCILLATION FREQUENCIES AND THE EQUATION OF STATE",
+    "volume": "336",
+    "author": "CHRISTENSENDALS J",
+    "year": "1988",
+    "unstructured": "CHRISTENSENDALS J, SOLAR OSCILLATION FREQUENCIES AND THE EQUATION OF STATE, NATURE 336, 634 (1988).",
+    "journal-title": "NATURE"
+   },
+   {
+    "key": "e_1_2_1_36_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "165",
+    "DOI": "10.1007/BF00145558",
+    "article-title": "RADIATIVE-TRANSFER AND SOLAR OSCILLATIONS",
+    "volume": "82",
+    "author": "CHRISTENSENDALS J",
+    "year": "1983",
+    "unstructured": "CHRISTENSENDALS J, RADIATIVE-TRANSFER AND SOLAR OSCILLATIONS, SOLAR PHYSICS 82, 165 (1983).",
+    "journal-title": "SOLAR PHYSICS"
+   },
+   {
+    "key": "e_1_2_1_37_2",
+    "first-page": "401",
+    "author": "CHRISTENSENDALS J",
+    "year": "1991",
+    "unstructured": "CHRISTENSENDALS J, SOLAR INTERIOR ATMOS: 401 (1991).",
+    "journal-title": "SOLAR INTERIOR ATMOS"
+   },
+   {
+    "key": "e_1_2_1_38_2",
+    "first-page": "42",
+    "article-title": "The stability of gaseous stars.",
+    "volume": "96",
+    "author": "COWLING T.G.",
+    "year": "1935",
+    "unstructured": "COWLING T.G., The stability of gaseous stars., MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 96, 42 (1935).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_39_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "22",
+    "DOI": "10.1086/190108",
+    "volume": "11",
+    "author": "COX A.N.",
+    "year": "1965",
+    "unstructured": "COX A.N., AP J SUPPL 11, 22 (1965).",
+    "journal-title": "AP J SUPPL"
+   },
+   {
+    "key": "e_1_2_1_40_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "243",
+    "DOI": "10.1086/190207",
+    "article-title": "ROSSELAND OPACITY TABLES FOR POPULATION-I COMPOSITIONS",
+    "volume": "19",
+    "author": "COX A.N.",
+    "year": "1970",
+    "unstructured": "COX A.N., ROSSELAND OPACITY TABLES FOR POPULATION-I COMPOSITIONS, ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES 19, 243 (1970).",
+    "journal-title": "ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES"
+   },
+   {
+    "key": "e_1_2_1_41_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "261",
+    "DOI": "10.1086/190208",
+    "article-title": "ROSSELAND OPACITY TABLES FOR POPULATION-II COMPOSITIONS",
+    "volume": "19",
+    "author": "COX A.N.",
+    "year": "1970",
+    "unstructured": "COX A.N., ROSSELAND OPACITY TABLES FOR POPULATION-II COMPOSITIONS, ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES 19, 261 (1970).",
+    "journal-title": "ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES"
+   },
+   {
+    "key": "e_1_2_1_42_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "1",
+    "DOI": "10.1086/190107",
+    "volume": "11",
+    "author": "COX A.N.",
+    "year": "1965",
+    "unstructured": "COX A.N., APJS 11, 1 (1965).",
+    "journal-title": "APJS"
+   },
+   {
+    "key": "e_1_2_1_43_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "1187",
+    "DOI": "10.1086/167675",
+    "article-title": "OSCILLATIONS OF SOLAR MODELS WITH INTERNAL ELEMENT DIFFUSION",
+    "volume": "342",
+    "author": "COX A.N.",
+    "year": "1989",
+    "unstructured": "COX A.N., OSCILLATIONS OF SOLAR MODELS WITH INTERNAL ELEMENT DIFFUSION, ASTROPHYSICAL JOURNAL 342, 1187 (1989).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_44_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "271",
+    "DOI": "10.1086/190383",
+    "article-title": "RADIATIVE OPACITY TABLES FOR 40 STELLAR MIXTURES",
+    "volume": "31",
+    "author": "COX A.N.",
+    "year": "1976",
+    "unstructured": "COX A.N., RADIATIVE OPACITY TABLES FOR 40 STELLAR MIXTURES, ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES 31, 271 (1976).",
+    "journal-title": "ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES"
+   },
+   {
+    "key": "e_1_2_1_45_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "261",
+    "DOI": "10.1086/166650",
+    "article-title": "THE EQUATION OF STATE FOR STELLAR ENVELOPES .3. THERMODYNAMIC QUANTITIES",
+    "volume": "332",
+    "author": "DAPPEN W",
+    "year": "1988",
+    "unstructured": "DAPPEN W, THE EQUATION OF STATE FOR STELLAR ENVELOPES .3. THERMODYNAMIC QUANTITIES, ASTROPHYSICAL JOURNAL 332, 261 (1988).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_46_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "91",
+    "DOI": "10.1007/978-94-009-4009-3_19",
+    "volume": "123",
+    "author": "DEMARQUE P",
+    "year": "1988",
+    "unstructured": "DEMARQUE P, ADV HELIO ASTEROSEIS 123, 91 (1988).",
+    "journal-title": "ADV HELIO ASTEROSEIS"
+   },
+   {
+    "key": "e_1_2_1_47_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "541",
+    "DOI": "10.1086/147947",
+    "article-title": "SERIES OF SOLAR MODELS",
+    "volume": "140",
+    "author": "DEMARQUE P",
+    "year": "1964",
+    "unstructured": "DEMARQUE P, SERIES OF SOLAR MODELS, ASTROPHYSICAL JOURNAL 140, 541 (1964).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_48_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "428",
+    "DOI": "10.1086/175887",
+    "article-title": "THE SCREENED NUCLEAR-REACTION RATES AND THE SOLAR-NEUTRINO PUZZLE",
+    "volume": "447",
+    "author": "DZITKO H",
+    "year": "1995",
+    "unstructured": "DZITKO H, THE SCREENED NUCLEAR-REACTION RATES AND THE SOLAR-NEUTRINO PUZZLE, ASTROPHYSICAL JOURNAL 447, 428 (1995).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_49_2",
+    "author": "EBELING W",
+    "year": "1991",
+    "unstructured": "EBELING W, THERMODYNAMIC PROPER (1991).",
+    "journal-title": "THERMODYNAMIC PROPER"
+   },
+   {
+    "key": "e_1_2_1_50_2",
+    "author": "EDDINGTON A.S.",
+    "year": "1926",
+    "unstructured": "EDDINGTON A.S., INTERNAL CONSTITUTIO (1926).",
+    "journal-title": "INTERNAL CONSTITUTIO"
+   },
+   {
+    "key": "e_1_2_1_51_2",
+    "first-page": "325",
+    "article-title": "APPROXIMATE EQUATION OF STATE FOR STELLAR MATERIAL",
+    "volume": "23",
+    "author": "EGGLETON P.P.",
+    "year": "1973",
+    "unstructured": "EGGLETON P.P., APPROXIMATE EQUATION OF STATE FOR STELLAR MATERIAL, ASTRONOMY AND ASTROPHYSICS 23, 325 (1973).",
+    "journal-title": "ASTRONOMY AND ASTROPHYSICS"
+   },
+   {
+    "key": "e_1_2_1_52_2",
+    "author": "EMDEN R",
+    "year": "1907",
+    "unstructured": "EMDEN R, GASKUGELN (1907).",
+    "journal-title": "GASKUGELN"
+   },
+   {
+    "key": "e_1_2_1_53_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "625",
+    "DOI": "10.1086/158628",
+    "article-title": "ROTATION IN SOLAR-TYPE STARS .1. EVOLUTIONARY MODELS FOR THE SPIN-DOWN OF THE SUN",
+    "volume": "243",
+    "author": "ENDAL A.S.",
+    "year": "1981",
+    "unstructured": "ENDAL A.S., ROTATION IN SOLAR-TYPE STARS .1. EVOLUTIONARY MODELS FOR THE SPIN-DOWN OF THE SUN, ASTROPHYSICAL JOURNAL 243, 625 (1981).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_54_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "23",
+    "DOI": "10.1093/mnras/154.1.23",
+    "article-title": "QUANTITATIVE RESULTS OF STELLAR EVOLUTION AND PULSATION THEORIES",
+    "volume": "154",
+    "author": "FRICKE K",
+    "year": "1971",
+    "unstructured": "FRICKE K, QUANTITATIVE RESULTS OF STELLAR EVOLUTION AND PULSATION THEORIES, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 154, 23 (1971).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_55_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "51",
+    "DOI": "10.1007/3-540-54420-8_50",
+    "volume": "388",
+    "author": "GABRIEL M",
+    "year": "1991",
+    "unstructured": "GABRIEL M, LECT NOTE PHYS 388, 51 (1991).",
+    "journal-title": "LECT NOTE PHYS"
+   },
+   {
+    "key": "e_1_2_1_56_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "595",
+    "DOI": "10.1103/PhysRev.53.595",
+    "article-title": "Nuclear energy sources and stellar evolution",
+    "volume": "53",
+    "author": "GAMOW G",
+    "year": "1938",
+    "unstructured": "GAMOW G, Nuclear energy sources and stellar evolution, PHYSICAL REVIEW 53, 595 (1938).",
+    "journal-title": "PHYSICAL REVIEW"
+   },
+   {
+    "key": "e_1_2_1_57_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "627",
+    "DOI": "10.1146/annurev.aa.29.090191.003211",
+    "article-title": "SEISMIC OBSERVATIONS OF THE SOLAR INTERIOR",
+    "volume": "29",
+    "author": "GOUGH D",
+    "year": "1991",
+    "unstructured": "GOUGH D, SEISMIC OBSERVATIONS OF THE SOLAR INTERIOR, ANNUAL REVIEW OF ASTRONOMY AND ASTROPHYSICS 29, 627 (1991).",
+    "journal-title": "ANNUAL REVIEW OF ASTRONOMY AND ASTROPHYSICS"
+   },
+   {
+    "key": "e_1_2_1_58_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "573",
+    "DOI": "10.1093/mnras/273.3.573",
+    "article-title": "SEISMOLOGY OF THE SOLAR ENVELOPE - MEASURING THE ACOUSTIC PHASE-SHIFT GENERATED IN THE OUTER LAYERS",
+    "volume": "273",
+    "author": "GOUGH D.O.",
+    "year": "1995",
+    "unstructured": "GOUGH D.O., SEISMOLOGY OF THE SOLAR ENVELOPE - MEASURING THE ACOUSTIC PHASE-SHIFT GENERATED IN THE OUTER LAYERS, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 273, 573 (1995).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_59_2",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1126/science.272.5266.1281"
+   },
+   {
+    "key": "e_1_2_1_60_2",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1126/science.272.5266.1296"
+   },
+   {
+    "key": "e_1_2_1_61_2",
+    "first-page": "15",
+    "author": "GREVESSE N",
+    "year": "1993",
+    "unstructured": "GREVESSE N, ORIGIN EVOLUTION ELE: 15 (1993).",
+    "journal-title": "ORIGIN EVOLUTION ELE"
+   },
+   {
+    "key": "e_1_2_1_62_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "1156",
+    "DOI": "10.1086/167370",
+    "article-title": "AGE OF THE SUN",
+    "volume": "339",
+    "author": "GUENTHER D.B.",
+    "year": "1989",
+    "unstructured": "GUENTHER D.B., AGE OF THE SUN, ASTROPHYSICAL JOURNAL 339, 1156 (1989).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_63_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "372",
+    "DOI": "10.1086/171090",
+    "article-title": "STANDARD SOLAR MODEL",
+    "volume": "387",
+    "author": "GUENTHER D.B.",
+    "year": "1992",
+    "unstructured": "GUENTHER D.B., STANDARD SOLAR MODEL, ASTROPHYSICAL JOURNAL 387, 372 (1992).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_64_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "400",
+    "DOI": "10.1086/173735",
+    "article-title": "NONADIABATIC NONRADIAL P-MODE FREQUENCIES OF THE STANDARD SOLAR MODEL, WITH AND WITHOUT HELIUM DIFFUSION",
+    "volume": "422",
+    "author": "GUENTHER D.B.",
+    "year": "1994",
+    "unstructured": "GUENTHER D.B., NONADIABATIC NONRADIAL P-MODE FREQUENCIES OF THE STANDARD SOLAR MODEL, WITH AND WITHOUT HELIUM DIFFUSION, ASTROPHYSICAL JOURNAL 422, 400 (1994).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_65_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "394",
+    "DOI": "10.1086/172840",
+    "article-title": "USING SOLAR P-MODES TO DETERMINE THE CONVECTION ZONE DEPTH AND CONSTRAIN DIFFUSION-PRODUCED COMPOSITION GRADIENTS",
+    "volume": "411",
+    "author": "GUZIK J.A.",
+    "year": "1993",
+    "unstructured": "GUZIK J.A., USING SOLAR P-MODES TO DETERMINE THE CONVECTION ZONE DEPTH AND CONSTRAIN DIFFUSION-PRODUCED COMPOSITION GRADIENTS, ASTROPHYSICAL JOURNAL 411, 394 (1993).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_66_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "905",
+    "DOI": "10.1086/176019",
+    "article-title": "EARLY SOLAR MASS-LOSS, ELEMENT DIFFUSION, AND SOLAR OSCILLATION FREQUENCIES",
+    "volume": "448",
+    "author": "GUZIK J.A.",
+    "year": "1995",
+    "unstructured": "GUZIK J.A., EARLY SOLAR MASS-LOSS, ELEMENT DIFFUSION, AND SOLAR OSCILLATION FREQUENCIES, ASTROPHYSICAL JOURNAL 448, 905 (1995).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_67_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "515",
+    "DOI": "10.1093/mnras/116.5.515",
+    "article-title": "A MATHEMATICAL DISCUSSION OF THE PROBLEM OF STELLAR EVOLUTION, WITH REFERENCE TO THE USE OF AN AUTOMATIC DIGITAL COMPUTER",
+    "volume": "116",
+    "author": "HASELGROVE C.B.",
+    "year": "1956",
+    "unstructured": "HASELGROVE C.B., A MATHEMATICAL DISCUSSION OF THE PROBLEM OF STELLAR EVOLUTION, WITH REFERENCE TO THE USE OF AN AUTOMATIC DIGITAL COMPUTER, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 116, 515 (1956).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_68_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "475",
+    "DOI": "10.1093/mnras/269.2.475",
+    "article-title": "THE PHASE FUNCTION FOR STELLAR ACOUSTIC-OSCILLATIONS .3. THE SOLAR CASE",
+    "volume": "269",
+    "author": "HERNANDEZ F.P.",
+    "year": "1994",
+    "unstructured": "HERNANDEZ F.P., THE PHASE FUNCTION FOR STELLAR ACOUSTIC-OSCILLATIONS .3. THE SOLAR CASE, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 269, 475 (1994).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_69_2",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1126/science.272.5266.1292"
+   },
+   {
+    "key": "e_1_2_1_70_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "794",
+    "DOI": "10.1086/166600",
+    "article-title": "THE EQUATION OF STATE FOR STELLAR ENVELOPES .1. AN OCCUPATION PROBABILITY FORMALISM FOR THE TRUNCATION OF INTERNAL PARTITION-FUNCTIONS",
+    "volume": "331",
+    "author": "HUMMER D.G.",
+    "year": "1988",
+    "unstructured": "HUMMER D.G., THE EQUATION OF STATE FOR STELLAR ENVELOPES .1. AN OCCUPATION PROBABILITY FORMALISM FOR THE TRUNCATION OF INTERNAL PARTITION-FUNCTIONS, ASTROPHYSICAL JOURNAL 331, 794 (1988).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_71_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "L73",
+    "DOI": "10.1086/186005",
+    "article-title": "OPACITY TABLES FOR CEPHEID VARIABLES",
+    "volume": "371",
+    "author": "IGLESIAS C.A.",
+    "year": "1991",
+    "unstructured": "IGLESIAS C.A., OPACITY TABLES FOR CEPHEID VARIABLES, ASTROPHYSICAL JOURNAL 371, L73 (1991).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_72_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "717",
+    "DOI": "10.1086/171827",
+    "article-title": "SPIN-ORBIT INTERACTION EFFECTS ON THE ROSSELAND MEAN OPACITY",
+    "volume": "397",
+    "author": "IGLESIAS C.A.",
+    "year": "1992",
+    "unstructured": "IGLESIAS C.A., SPIN-ORBIT INTERACTION EFFECTS ON THE ROSSELAND MEAN OPACITY, ASTROPHYSICAL JOURNAL 397, 717 (1992).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_73_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "880",
+    "DOI": "10.1086/173611",
+    "article-title": "COMPARATIVE PULSATION CALCULATIONS WITH OP AND OPAL OPACITIES",
+    "volume": "420",
+    "author": "KANBUR S.M.",
+    "year": "1994",
+    "unstructured": "KANBUR S.M., COMPARATIVE PULSATION CALCULATIONS WITH OP AND OPAL OPACITIES, ASTROPHYSICAL JOURNAL 420, 880 (1994).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_74_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "422",
+    "DOI": "10.1086/175450",
+    "article-title": "MODELING OF SHALLOW AND INEFFICIENT CONVECTION IN THE OUTER LAYERS OF THE SUN USING REALISTIC PHYSICS",
+    "volume": "442",
+    "author": "KIM Y.C.",
+    "year": "1995",
+    "unstructured": "KIM Y.C., MODELING OF SHALLOW AND INEFFICIENT CONVECTION IN THE OUTER LAYERS OF THE SUN USING REALISTIC PHYSICS, ASTROPHYSICAL JOURNAL 442, 422 (1995).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_75_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "1144",
+    "DOI": "10.1086/167369",
+    "article-title": "SEISMIC ANALYSIS OF THE SOLAR INTERIOR .1. CAN OPACITY CHANGES IMPROVE THE THEORETICAL FREQUENCIES",
+    "volume": "339",
+    "author": "KORZENNIK S.G.",
+    "year": "1989",
+    "unstructured": "KORZENNIK S.G., SEISMIC ANALYSIS OF THE SOLAR INTERIOR .1. CAN OPACITY CHANGES IMPROVE THE THEORETICAL FREQUENCIES, ASTROPHYSICAL JOURNAL 339, 1144 (1989).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_76_2",
+    "first-page": "95",
+    "article-title": "HELIOSEISMIC MEASUREMENT OF ELEMENT ABUNDANCES IN THE SOLAR INTERIOR",
+    "volume": "15",
+    "author": "KOSOVICHEV A.G.",
+    "year": "1995",
+    "unstructured": "KOSOVICHEV A.G., HELIOSEISMIC MEASUREMENT OF ELEMENT ABUNDANCES IN THE SOLAR INTERIOR, ELEMENT ABUNDANCE VARIATIONS IN THE SUN AND HELIOSPHERE 15, 95 (1995).",
+    "journal-title": "ELEMENT ABUNDANCE VARIATIONS IN THE SUN AND HELIOSPHERE"
+   },
+   {
+    "key": "e_1_2_1_77_2",
+    "first-page": "89",
+    "volume": "76",
+    "author": "KOSOVICHEV A.G.",
+    "year": "1995",
+    "unstructured": "KOSOVICHEV A.G., ASTR SOC P 76, 89 (1995).",
+    "journal-title": "ASTR SOC P"
+   },
+   {
+    "key": "e_1_2_1_78_2",
+    "first-page": "1015",
+    "article-title": "TOWARD A SEISMIC MODEL OF THE SUN",
+    "volume": "68",
+    "author": "KOSOVICHEV A.G.",
+    "year": "1991",
+    "unstructured": "KOSOVICHEV A.G., TOWARD A SEISMIC MODEL OF THE SUN, ASTRONOMICHESKII ZHURNAL 68, 1015 (1991).",
+    "journal-title": "ASTRONOMICHESKII ZHURNAL"
+   },
+   {
+    "key": "e_1_2_1_79_2",
+    "first-page": "165",
+    "volume": "1",
+    "author": "KOSOVICHEV A.G.",
+    "year": "1995",
+    "unstructured": "KOSOVICHEV A.G., ESA 1, 165 (1995).",
+    "journal-title": "ESA"
+   },
+   {
+    "key": "e_1_2_1_80_2",
+    "unstructured": "KOSOVICHEV A.G. IN PRESS SUN 2E RENC ."
+   },
+   {
+    "key": "e_1_2_1_81_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "536",
+    "DOI": "10.1093/mnras/259.3.536",
+    "article-title": "SOURCES OF UNCERTAINTY IN DIRECT SEISMOLOGICAL MEASUREMENTS OF THE SOLAR HELIUM ABUNDANCE",
+    "volume": "259",
+    "author": "KOSOVICHEV A.G.",
+    "year": "1992",
+    "unstructured": "KOSOVICHEV A.G., SOURCES OF UNCERTAINTY IN DIRECT SEISMOLOGICAL MEASUREMENTS OF THE SOLAR HELIUM ABUNDANCE, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 259, 536 (1992).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_82_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "57",
+    "DOI": "10.2475/ajs.s2-50.148.57",
+    "volume": "50",
+    "author": "LANE J.H.",
+    "year": "1870",
+    "unstructured": "LANE J.H., AM J SCI ARTS 50, 57 (1870).",
+    "journal-title": "AM J SCI ARTS"
+   },
+   {
+    "key": "e_1_2_1_83_2",
+    "first-page": "246",
+    "volume": "137",
+    "author": "MICHAUD G",
+    "year": "1993",
+    "unstructured": "MICHAUD G, IAU C 137, 246 (1993).",
+    "journal-title": "IAU C"
+   },
+   {
+    "key": "e_1_2_1_84_2",
+    "first-page": "1",
+    "volume": "57",
+    "author": "MICHAUD G",
+    "year": "1990",
+    "unstructured": "MICHAUD G, SPACE SCI REV 57, 1 (1990).",
+    "journal-title": "SPACE SCI REV"
+   },
+   {
+    "key": "e_1_2_1_85_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "815",
+    "DOI": "10.1086/166601",
+    "article-title": "THE EQUATION OF STATE FOR STELLAR ENVELOPES .2. ALGORITHM AND SELECTED RESULTS",
+    "volume": "331",
+    "author": "MIHALAS D",
+    "year": "1988",
+    "unstructured": "MIHALAS D, THE EQUATION OF STATE FOR STELLAR ENVELOPES .2. ALGORITHM AND SELECTED RESULTS, ASTROPHYSICAL JOURNAL 331, 815 (1988).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_86_2",
+    "first-page": "247",
+    "article-title": "SEISMIC STUDY OF OVERSHOOT AT THE BASE OF THE SOLAR CONVECTIVE ENVELOPE",
+    "volume": "283",
+    "author": "MONTEIRO MJP",
+    "year": "1994",
+    "unstructured": "MONTEIRO MJP, SEISMIC STUDY OF OVERSHOOT AT THE BASE OF THE SOLAR CONVECTIVE ENVELOPE, ASTRONOMY AND ASTROPHYSICS 283, 247 (1994).",
+    "journal-title": "ASTRONOMY AND ASTROPHYSICS"
+   },
+   {
+    "key": "e_1_2_1_87_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "685",
+    "DOI": "10.1086/170975",
+    "article-title": "TOWARD A RESOLUTION OF THE BUMP AND BEAT CEPHEID MASS DISCREPANCIES",
+    "volume": "385",
+    "author": "MOSKALIK P",
+    "year": "1992",
+    "unstructured": "MOSKALIK P, TOWARD A RESOLUTION OF THE BUMP AND BEAT CEPHEID MASS DISCREPANCIES, ASTROPHYSICAL JOURNAL 385, 685 (1992).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_88_2",
+    "first-page": "407",
+    "article-title": "DIFFUSION OF HELIUM IN SUN",
+    "volume": "57",
+    "author": "NOERDLINGER P.D.",
+    "year": "1977",
+    "unstructured": "NOERDLINGER P.D., DIFFUSION OF HELIUM IN SUN, ASTRONOMY AND ASTROPHYSICS 57, 407 (1977).",
+    "journal-title": "ASTRONOMY AND ASTROPHYSICS"
+   },
+   {
+    "key": "e_1_2_1_89_2",
+    "first-page": "135",
+    "volume": "44",
+    "author": "OKE J.B.",
+    "year": "1950",
+    "unstructured": "OKE J.B., J R ASTRON SOC CAN 44, 135 (1950).",
+    "journal-title": "J R ASTRON SOC CAN"
+   },
+   {
+    "key": "e_1_2_1_90_2",
+    "first-page": "309",
+    "article-title": "EFFECTS UPON PERIOD RATIOS OF CEPHEID MODELS FROM ARTIFICIAL CHANGES IN OPACITY AND MEAN MOLECULAR-WEIGHT",
+    "volume": "34",
+    "author": "PETERSEN J.O.",
+    "year": "1974",
+    "unstructured": "PETERSEN J.O., EFFECTS UPON PERIOD RATIOS OF CEPHEID MODELS FROM ARTIFICIAL CHANGES IN OPACITY AND MEAN MOLECULAR-WEIGHT, ASTRONOMY AND ASTROPHYSICS 34, 309 (1974).",
+    "journal-title": "ASTRONOMY AND ASTROPHYSICS"
+   },
+   {
+    "key": "e_1_2_1_91_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "424",
+    "DOI": "10.1086/167210",
+    "article-title": "EVOLUTIONARY MODELS OF THE ROTATING SUN",
+    "volume": "338",
+    "author": "PINSONNEAULT M.H.",
+    "year": "1989",
+    "unstructured": "PINSONNEAULT M.H., EVOLUTIONARY MODELS OF THE ROTATING SUN, ASTROPHYSICAL JOURNAL 338, 424 (1989).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_92_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "238",
+    "DOI": "10.1086/170580",
+    "article-title": "GRAVITATIONAL SETTLING IN SOLAR MODELS",
+    "volume": "380",
+    "author": "PROFFITT C.R.",
+    "year": "1991",
+    "unstructured": "PROFFITT C.R., GRAVITATIONAL SETTLING IN SOLAR MODELS, ASTROPHYSICAL JOURNAL 380, 238 (1991).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_93_2",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1126/science.267.5194.45"
+   },
+   {
+    "key": "e_1_2_1_94_2",
+    "unstructured": "RICHARD O IN PRESS ASTRON ASTR ."
+   },
+   {
+    "key": "e_1_2_1_95_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "507",
+    "DOI": "10.1086/191659",
+    "article-title": "RADIATIVE ATOMIC ROSSELAND MEAN OPACITY TABLES",
+    "volume": "79",
+    "author": "ROGERS F.J.",
+    "year": "1992",
+    "unstructured": "ROGERS F.J., RADIATIVE ATOMIC ROSSELAND MEAN OPACITY TABLES, ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES 79, 507 (1992).",
+    "journal-title": "ASTROPHYSICAL JOURNAL SUPPLEMENT SERIES"
+   },
+   {
+    "key": "e_1_2_1_96_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "723",
+    "DOI": "10.1086/164725",
+    "article-title": "OCCUPATION NUMBERS FOR REACTING PLASMAS - THE ROLE OF THE PLANCK-LARKIN PARTITION-FUNCTION",
+    "volume": "310",
+    "author": "ROGERS F.J.",
+    "year": "1986",
+    "unstructured": "ROGERS F.J., OCCUPATION NUMBERS FOR REACTING PLASMAS - THE ROLE OF THE PLANCK-LARKIN PARTITION-FUNCTION, ASTROPHYSICAL JOURNAL 310, 723 (1986).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_97_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "361",
+    "DOI": "10.1086/172066",
+    "article-title": "ROSSELAND MEAN OPACITIES FOR VARIABLE COMPOSITIONS",
+    "volume": "401",
+    "author": "ROGERS F.J.",
+    "year": "1992",
+    "unstructured": "ROGERS F.J., ROSSELAND MEAN OPACITIES FOR VARIABLE COMPOSITIONS, ASTROPHYSICAL JOURNAL 401, 361 (1992).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_98_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "902",
+    "DOI": "10.1086/176705",
+    "article-title": "Opal equation-of-state tables for astrophysical applications",
+    "volume": "456",
+    "author": "ROGERS F.J.",
+    "year": "1996",
+    "unstructured": "ROGERS F.J., Opal equation-of-state tables for astrophysical applications, ASTROPHYSICAL JOURNAL 456, 902 (1996).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_99_2",
+    "first-page": "459",
+    "volume": "2",
+    "author": "ROSENTHAL C.S.",
+    "year": "1995",
+    "unstructured": "ROSENTHAL C.S., ESA 2, 459 (1995).",
+    "journal-title": "ESA"
+   },
+   {
+    "key": "e_1_2_1_100_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "880",
+    "DOI": "10.1093/mnras/268.4.880",
+    "article-title": "SEISMOLOGY OF THE SOLAR ENVELOPE - THE BASE OF THE CONVECTIVE ZONE AS SEEN IN THE PHASE-SHIFT OF ACOUSTIC-WAVES",
+    "volume": "268",
+    "author": "ROXBURGH I.W.",
+    "year": "1994",
+    "unstructured": "ROXBURGH I.W., SEISMOLOGY OF THE SOLAR ENVELOPE - THE BASE OF THE CONVECTIVE ZONE AS SEEN IN THE PHASE-SHIFT OF ACOUSTIC-WAVES, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 268, 880 (1994).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_101_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "316",
+    "DOI": "10.1086/162205",
+    "article-title": "THE OVERSHOOT REGION AT THE BOTTOM OF THE SOLAR CONVECTION ZONE",
+    "volume": "282",
+    "author": "SCHMITT JHMM",
+    "year": "1984",
+    "unstructured": "SCHMITT JHMM, THE OVERSHOOT REGION AT THE BOTTOM OF THE SOLAR CONVECTION ZONE, ASTROPHYSICAL JOURNAL 282, 316 (1984).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_102_2",
+    "first-page": "41",
+    "volume": "195",
+    "author": "SCHWARZSCHILD K",
+    "year": "1906",
+    "unstructured": "SCHWARZSCHILD K, NACHR KONIGL GES WIS 195, 41 (1906).",
+    "journal-title": "NACHR KONIGL GES WIS"
+   },
+   {
+    "key": "e_1_2_1_103_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "233",
+    "DOI": "10.1086/146297",
+    "article-title": "INHOMOGENEOUS STELLAR MODELS .5. A SOLAR MODEL WITH CONVECTIVE ENVELOPE AND INHOMOGENEOUS INTERIOR",
+    "volume": "125",
+    "author": "SCHWARZSCHILD M",
+    "year": "1957",
+    "unstructured": "SCHWARZSCHILD M, INHOMOGENEOUS STELLAR MODELS .5. A SOLAR MODEL WITH CONVECTIVE ENVELOPE AND INHOMOGENEOUS INTERIOR, ASTROPHYSICAL JOURNAL 125, 233 (1957).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_104_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "805",
+    "DOI": "10.1093/mnras/266.4.805",
+    "article-title": "OPACITIES FOR STELLAR ENVELOPES",
+    "volume": "266",
+    "author": "SEATON M.J.",
+    "year": "1994",
+    "unstructured": "SEATON M.J., OPACITIES FOR STELLAR ENVELOPES, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 266, 805 (1994).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_105_2",
+    "volume": "1",
+    "author": "SEATON M.J.",
+    "year": "1995",
+    "unstructured": "SEATON M.J., OPACITY PROJECT 1, (1995).",
+    "journal-title": "OPACITY PROJECT"
+   },
+   {
+    "key": "e_1_2_1_106_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "L87",
+    "DOI": "10.1086/183876",
+    "article-title": "A PLEA FOR REEXAMINING HEAVY ELEMENT OPACITIES IN STARS",
+    "volume": "260",
+    "author": "SIMON N.R.",
+    "year": "1982",
+    "unstructured": "SIMON N.R., A PLEA FOR REEXAMINING HEAVY ELEMENT OPACITIES IN STARS, ASTROPHYSICAL JOURNAL 260, L87 (1982).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_107_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "L95",
+    "DOI": "10.1086/185493",
+    "article-title": "TOPOLOGY OF CONVECTION BENEATH THE SOLAR SURFACE",
+    "volume": "342",
+    "author": "STEIN R.F.",
+    "year": "1989",
+    "unstructured": "STEIN R.F., TOPOLOGY OF CONVECTION BENEATH THE SOLAR SURFACE, ASTROPHYSICAL JOURNAL 342, L95 (1989).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_108_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "1184",
+    "DOI": "10.1086/112308",
+    "article-title": "HELIUM IONIZATION DRIVING IN BETA-CEPHEI STARS",
+    "volume": "83",
+    "author": "STELLINGWERF R.F.",
+    "year": "1978",
+    "unstructured": "STELLINGWERF R.F., HELIUM IONIZATION DRIVING IN BETA-CEPHEI STARS, ASTRONOMICAL JOURNAL 83, 1184 (1978).",
+    "journal-title": "ASTRONOMICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_109_2",
+    "doi-asserted-by": "publisher",
+    "DOI": "10.1126/science.272.5266.1300"
+   },
+   {
+    "key": "e_1_2_1_110_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "828",
+    "DOI": "10.1086/173695",
+    "article-title": "ELEMENT DIFFUSION IN THE SOLAR INTERIOR",
+    "volume": "421",
+    "author": "THOUL A.A.",
+    "year": "1994",
+    "unstructured": "THOUL A.A., ELEMENT DIFFUSION IN THE SOLAR INTERIOR, ASTROPHYSICAL JOURNAL 421, 828 (1994).",
+    "journal-title": "ASTROPHYSICAL JOURNAL"
+   },
+   {
+    "key": "e_1_2_1_111_2",
+    "unstructured": "TSYTOVICH V.N. IN PRESS ASTROPART P ."
+   },
+   {
+    "key": "e_1_2_1_112_2",
+    "first-page": "176",
+    "article-title": "On element conversions in the inside of stars. I.",
+    "volume": "38",
+    "author": "VONWEIZSACKER C.F.",
+    "year": "1937",
+    "unstructured": "VONWEIZSACKER C.F., On element conversions in the inside of stars. I., PHYSIKALISCHE ZEITSCHRIFT 38, 176 (1937).",
+    "journal-title": "PHYSIKALISCHE ZEITSCHRIFT"
+   },
+   {
+    "key": "e_1_2_1_113_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "32",
+    "DOI": "10.1093/mnras/257.1.32",
+    "article-title": "SEISMOLOGY OF THE SOLAR ENVELOPE - TOWARDS THE CALIBRATION OF THE EQUATION OF STATE",
+    "volume": "257",
+    "author": "VORONTSOV S.V.",
+    "year": "1992",
+    "unstructured": "VORONTSOV S.V., SEISMOLOGY OF THE SOLAR ENVELOPE - TOWARDS THE CALIBRATION OF THE EQUATION OF STATE, MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY 257, 32 (1992).",
+    "journal-title": "MONTHLY NOTICES OF THE ROYAL ASTRONOMICAL SOCIETY"
+   },
+   {
+    "key": "e_1_2_1_114_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "49",
+    "DOI": "10.1038/349049a0",
+    "article-title": "SEISMOLOGICAL MEASUREMENT OF SOLAR HELIUM ABUNDANCE",
+    "volume": "349",
+    "author": "VORONTSOV S.V.",
+    "year": "1991",
+    "unstructured": "VORONTSOV S.V., SEISMOLOGICAL MEASUREMENT OF SOLAR HELIUM ABUNDANCE, NATURE 349, 49 (1991).",
+    "journal-title": "NATURE"
+   },
+   {
+    "key": "e_1_2_1_115_2",
+    "doi-asserted-by": "crossref",
+    "first-page": "810",
+    "DOI": "10.1038/332810a0",
+    "volume": "332",
+    "author": "WILSON R.C.",
+    "year": "1988",
+    "unstructured": "WILSON R.C., NATURE 332, 810 (1988).",
+    "journal-title": "NATURE"
+   },
+   {
+    "key": "e_1_2_1_116_2",
+    "first-page": "179",
+    "article-title": "CONVECTIVE PENETRATION IN STELLAR INTERIORS",
+    "volume": "252",
+    "author": "ZAHN J.P.",
+    "year": "1991",
+    "unstructured": "ZAHN J.P., CONVECTIVE PENETRATION IN STELLAR INTERIORS, ASTRONOMY AND ASTROPHYSICS 252, 179 (1991).",
+    "journal-title": "ASTRONOMY AND ASTROPHYSICS"
+   }
+  ],
+  "container-title": "Science",
+  "original-title": [],
+  "language": "en",
+  "link": [
+   {
+    "URL": "https://www.science.org/doi/pdf/10.1126/science.272.5266.1286",
+    "content-type": "unspecified",
+    "content-version": "vor",
+    "intended-application": "similarity-checking"
+   }
+  ],
+  "deposited": {
+   "date-parts": [
+    [
+     2024,
+     1,
+     12
+    ]
+   ],
+   "date-time": "2024-01-12T16:32:02Z",
+   "timestamp": 1705077122000
+  },
+  "score": 1,
+  "resource": {
+   "primary": {
+    "URL": "https://www.science.org/doi/10.1126/science.272.5266.1286"
+   }
+  },
+  "subtitle": [],
+  "short-title": [],
+  "issued": {
+   "date-parts": [
+    [
+     1996,
+     5,
+     31
+    ]
+   ]
+  },
+  "references-count": 115,
+  "journal-issue": {
+   "issue": "5266",
+   "published-print": {
+    "date-parts": [
+     [
+      1996,
+      5,
+      31
+     ]
+    ]
+   }
+  },
+  "alternative-id": [
+   "10.1126/science.272.5266.1286"
+  ],
+  "URL": "http://dx.doi.org/10.1126/science.272.5266.1286",
+  "relation": {},
+  "ISSN": [
+   "0036-8075",
+   "1095-9203"
+  ],
+  "subject": [],
+  "container-title-short": "Science",
+  "published": {
+   "date-parts": [
+    [
+     1996,
+     5,
+     31
+    ]
+   ]
+  }
  }
 }

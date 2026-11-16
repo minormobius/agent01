@@ -675,5 +675,193 @@
    ]
   },
   "id": "pols2026"
+ },
+ {
+  "type": "journal-article",
+  "title": "Solar Models: Current Epoch and Time Dependences, Neutrinos, and Helioseismological Properties",
+  "author": [
+   {
+    "given": "John N.",
+    "family": "Bahcall"
+   },
+   {
+    "given": "M. H.",
+    "family": "Pinsonneault"
+   },
+   {
+    "given": "Sarbani",
+    "family": "Basu"
+   }
+  ],
+  "container-title": "The Astrophysical Journal",
+  "volume": "555",
+  "issue": "2",
+  "page": "990-1012",
+  "issued": {
+   "date-parts": [
+    [
+     2001,
+     7,
+     10
+    ]
+   ]
+  },
+  "publisher": "American Astronomical Society",
+  "id": "bahcall2001",
+  "DOI": "10.1086/321493"
+ },
+ {
+  "type": "journal-article",
+  "title": "The Current State of Solar Modeling",
+  "author": [
+   {
+    "given": "J.",
+    "family": "Christensen-Dalsgaard"
+   },
+   {
+    "given": "W.",
+    "family": "Däppen"
+   },
+   {
+    "given": "S. V.",
+    "family": "Ajukov"
+   },
+   {
+    "given": "E. R.",
+    "family": "Anderson"
+   },
+   {
+    "given": "H. M.",
+    "family": "Antia"
+   },
+   {
+    "given": "S.",
+    "family": "Basu"
+   },
+   {
+    "given": "V. A.",
+    "family": "Baturin"
+   },
+   {
+    "given": "G.",
+    "family": "Berthomieu"
+   },
+   {
+    "given": "B.",
+    "family": "Chaboyer"
+   },
+   {
+    "given": "S. M.",
+    "family": "Chitre"
+   },
+   {
+    "given": "A. N.",
+    "family": "Cox"
+   },
+   {
+    "given": "P.",
+    "family": "Demarque"
+   },
+   {
+    "given": "J.",
+    "family": "Donatowicz"
+   },
+   {
+    "given": "W. A.",
+    "family": "Dziembowski"
+   },
+   {
+    "given": "M.",
+    "family": "Gabriel"
+   },
+   {
+    "given": "D. O.",
+    "family": "Gough"
+   },
+   {
+    "given": "D. B.",
+    "family": "Guenther"
+   },
+   {
+    "given": "J. A.",
+    "family": "Guzik"
+   },
+   {
+    "given": "J. W.",
+    "family": "Harvey"
+   },
+   {
+    "given": "F.",
+    "family": "Hill"
+   },
+   {
+    "given": "G.",
+    "family": "Houdek"
+   },
+   {
+    "given": "C. A.",
+    "family": "Iglesias"
+   },
+   {
+    "given": "A. G.",
+    "family": "Kosovichev"
+   },
+   {
+    "given": "J. W.",
+    "family": "Leibacher"
+   },
+   {
+    "given": "P.",
+    "family": "Morel"
+   },
+   {
+    "given": "C. R.",
+    "family": "Proffitt"
+   },
+   {
+    "given": "J.",
+    "family": "Provost"
+   },
+   {
+    "given": "J.",
+    "family": "Reiter"
+   },
+   {
+    "given": "E. J.",
+    "family": "Rhodes"
+   },
+   {
+    "given": "F. J.",
+    "family": "Rogers"
+   },
+   {
+    "given": "I. W.",
+    "family": "Roxburgh"
+   },
+   {
+    "given": "M. J.",
+    "family": "Thompson"
+   },
+   {
+    "given": "R. K.",
+    "family": "Ulrich"
+   }
+  ],
+  "container-title": "Science",
+  "volume": "272",
+  "issue": "5266",
+  "page": "1286-1292",
+  "issued": {
+   "date-parts": [
+    [
+     1996,
+     5,
+     31
+    ]
+   ]
+  },
+  "publisher": "American Association for the Advancement of Science (AAAS)",
+  "id": "jcd1996",
+  "DOI": "10.1126/science.272.5266.1286"
  }
 ]

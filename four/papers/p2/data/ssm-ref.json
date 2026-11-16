@@ -478,7 +478,7 @@
   "ageGyr": 4.57
  },
  "pols2026": {
-  "cite": "Pols, Stellar Structure and Evolution notes, section 10.2 (the text on fig. 10.5)",
+  "cite": "Pols, Stellar Structure and Evolution notes, §10.2.2 (the text on fig. 10.5)",
   "Xc1e3AtGyr": 9,
   "note": "a 1 M☉ star of quasi-solar composition: hydrogen practically exhausted at the centre (X_c = 1e-3) after 9 Gyr"
  }

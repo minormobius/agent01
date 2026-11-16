@@ -82,6 +82,8 @@ export function numbers() {
     oursY: D.CLOCKS.map((c) => f(D.asOurs.Y[c], 2)).join(", "), oursY1: f(D.asOurs.Y[1], 2), oursGx: f(D.asOurs.gx, 2) });
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
+  // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
+  Object.assign(t, ageNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   return t;
 }
@@ -135,6 +137,21 @@ function lifeNumbers(t0, SN, nameOf) {
   t.ourS = "1.5152"; return t;
 }
 
+function ageNumbers() {
+  const E = J("evolvecheck.json"), b = E.burning, P = E.present, R = E.refs, C = E.clock, H = E.history, c3 = E.machinery.steps, by = (d) => c3.find((x) => x.dX === d);
+  const p1 = (x) => f(100 * x, 1);
+  return { epsLo: f(Math.min(...b.map((x) => x.ratio)), 2), epsHi: f(Math.max(...b.map((x) => x.ratio)), 2), epsUnLo: f(Math.min(...b.map((x) => x.unscreened)), 2), epsUnHi: f(Math.max(...b.map((x) => x.unscreened)), 2),
+    stL: f(E.structure.L, 2), stTc: f(E.structure.Tc, 2), stTcS: f(E.structure.modelS.Tc, 2), stRho: f(E.structure.rhoc, 0), stRhoS: f(E.structure.modelS.rhoc, 0), stRhoPct: pct(1 - E.structure.rhoc / E.structure.modelS.rhoc),
+    stQ50: f(E.structure.q50, 3), msQ50: f(E.structure.modelS.q50, 3),
+    X0cal: f(E.calibration.X0, 3), X0bp: f(E.calibration.bahcall2001X0, 3), X0run: f(E.calibration.runX0, 3),
+    nowL: f(P.L, 3), nowTc: f(P.Tc, 2), bpTc: f(R.bahcall2001.Tc, 2), msTc: f(R.modelS.Tc, 2), nowRho: f(P.rhoc, 0), bpRho: f(R.bahcall2001.rhoc, 0), msRho: f(R.modelS.rhoc, 0), nowRhoPct: pct(1 - P.rhoc / R.bahcall2001.rhoc),
+    nowXc: f(P.Xc, 3), bpXc: f(R.bahcall2001.Xc, 3), msXc: f(R.modelS.Xc, 3), b16Xc: f(R.vinyoles2017.Xc, 3), nowQ50: f(P.q50, 3), nowQ90: f(P.q90, 3), msQ90: f(R.modelS.q90, 3),
+    relEarly: p1(H.relEarly), relLate: p1(H.relLate), L8: f(H.L.find((x) => x.t === 8).ours, 2), L8bp: f(H.L.find((x) => x.t === 8).bp, 2),
+    tX008: f(H.tXc008, 1), tX001: f(H.tXc001, 1), polsX001: String(H.polsXc001Gyr), Xc65: f(H.Xc.find((x) => x.t === 6.5).ours, 3), Xc65bp: f(H.Xc.find((x) => x.t === 6.5).bp, 3),
+    balLo: f(E.machinery.balance[0], 3), balHi: f(E.machinery.balance[1], 3), nMod: String(by(0.01).models), nModFine: String(by(0.005).models), dLfine: p1(Math.abs(by(0.005).L / by(0.01).L - 1)), dXfine: f(Math.abs(by(0.005).Xc - by(0.01).Xc), 4),
+    clockAged: f(C.agedHalfGyr, 2), clockFresh: f(C.fresh.fixedHalfGyr, 1), clockFreshR: f(C.fresh.ratio, 2), freshTc: f(C.fresh.Tc, 1), clockSet: f(C.settled.fixedHalfGyr, 1), clockSetR: f(C.settled.ratio, 2), setTc: f(C.settled.Tc, 1), clockS3R: f(C.sectionThree.ratio, 2) };
+}
+
 /* the sources: refs.json (each with its status and what it supports) over the Crossref cache → CSL JSON for citeproc */
 function references() {
   const R = JSON.parse(readFileSync(path.join(here, "refs.json"), "utf8")).refs, C = JSON.parse(readFileSync(path.join(here, "data", "crossref.json"), "utf8"));
@@ -147,7 +164,7 @@ function references() {
 const CSL = path.join(DRAFT, "references.json");
 const fill = (src, t) => src.replace(/\{\{(\w+)\}\}/g, (m, k) => { if (!(k in t)) throw new Error(`unknown token {{${k}}}`); return t[k]; });
 const sections = () => readdirSync(TEXT).filter((x) => x.endsWith(".md")).sort();
-const stamp = (name, md) => sha(md + ["windows.json", "masscheck.json", "lifetimes.json", "crossref.json"].map((f) => readFileSync(path.join(here, "data", f), "utf8")).join("") + readFileSync(path.join(here, "refs.json"), "utf8"));
+const stamp = (name, md) => sha(md + ["windows.json", "masscheck.json", "lifetimes.json", "evolvecheck.json", "crossref.json"].map((f) => readFileSync(path.join(here, "data", f), "utf8")).join("") + readFileSync(path.join(here, "refs.json"), "utf8"));
 
 function page(name, md) {
   let body = execFileSync("pandoc", ["-f", "markdown", "-t", "html5", "--mathml", "--citeproc", `--bibliography=${CSL}`, "-M", "link-citations=true", "-M", "link-bibliography=true", "-M", "reference-section-title=References"], { input: md.replace(/<!--[\s\S]*?-->\n?/g, ""), encoding: "utf8" });

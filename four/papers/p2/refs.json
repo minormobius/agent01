@@ -94,7 +94,7 @@
    "key": "vinyoles2017",
    "doi": "10.3847/1538-4357/835/2/202",
    "status": "read",
-   "for": "the Sun's pp and pep neutrino fluxes, 5.98 × 10^10 and 1.44 × 10^8 cm^-2 s^-1 (table 6, arXiv:1611.09867): pep/pp = 0.24%"
+   "for": "the Sun's pp and pep neutrino fluxes, 5.98 × 10^10 and 1.44 × 10^8 cm^-2 s^-1 (table 6, arXiv:1611.09867): pep/pp = 0.24%; and the B16-GS98 centre Y_C 0.6328, Z_C 0.0200 (table 4, arXiv:1611.09867v4), so X_C 0.347"
   },
   {
    "key": "pdg2024",
@@ -136,6 +136,18 @@
      ]
     }
    }
+  },
+  {
+   "key": "bahcall2001",
+   "doi": "10.1086/321493",
+   "status": "read",
+   "for": "the standard solar model through time (BP2000): L(t)/L☉ and R(t)/R☉ (tables 2 and 1), X_c 0.708 → 0.340 → 0.145 → 0.008 at 0, 4.57, 6.5 and 8 Gyr (§III.4), the present centre Tc 15.696 MK, ρc 152.7 g/cm³, Y_init 0.2735, Z_init 0.0188 (table 5); read in the arXiv HTML of astro-ph/0010346v2, tables parsed from it by script (data/ssm-ref.json)"
+  },
+  {
+   "key": "jcd1996",
+   "doi": "10.1126/science.272.5266.1286",
+   "status": "index",
+   "for": "Model S, the present Sun used as a profile (centre, X(q), ε, κ): taken from the authors model file fgong.l5bi.d.15c (users-phys.au.dk/jcd/solar_models/) and its format notes, not from the paper (data/modelS.json)"
   }
  ]
 }
