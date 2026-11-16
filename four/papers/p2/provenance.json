@@ -1,0 +1,312 @@
+{
+ "about": "Paper 2's provenance ledger: how the model was built, stage by stage, and what each stage changed. Hand-kept. A stage enters when it changed a stated result, when it was a check that could have failed, or when it replaced a convention; bugs fixed on the way stay in the code history and four/CLAUDE.md. 'before' values are historical (they are no longer in the data) and name where they were recorded; every 'now' with a check is recomputed from the committed data by build.mjs, which stops if they disagree. 'rule' is the decision rule fixed before the stage's results came in, or null when none was, which the supplement then says.",
+ "stages": [
+  {
+   "id": "pp",
+   "date": "2026-11-11",
+   "title": "Proton + proton computed",
+   "replaced": "a nuclear size guessed for p + p (4 fm)",
+   "by": "the overlap of the deuteron and the protons' Coulomb scattering state from the same strong force, scaled by our S(0) (nuclear.js ppOverlap; ppfusion.mjs)",
+   "runs": [
+    "strength-scan-1",
+    "strength-scan-2"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "the 4D effective p + p radius where the deuteron binds as ours",
+     "before": "4 fm (guessed)",
+     "after": "3.68 fm (Malfliet–Tjon), 3.73 fm (Minnesota)",
+     "where": "four/CLAUDE.md, 'Proton + proton, computed'"
+    }
+   ],
+   "held": [
+    {
+     "claim": "the method on ours: Λ² and the Sun's rate",
+     "value": "Λ² 7.04 (realistic 7.035); the Sun's rate within 3% of the old 2.4 fm formula",
+     "where": "ppfusion.mjs check"
+    }
+   ]
+  },
+  {
+   "id": "net4",
+   "date": "2026-11-12",
+   "title": "A nuclide network in place of ratio burning",
+   "replaced": "a zone network of capture ratios to p + p (burning.js burnNetwork)",
+   "by": "every light 4D nucleus by protons and neutrons, its binding assembled from helium-4 clusters, rates computed or carried from ours (nuc4.mjs, rates4.mjs, net4.js)",
+   "runs": [],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "a CNO-like cycle on ceryllium-8",
+     "before": "none (the ratio network had no (p,α) branches)",
+     "after": "found, closed by 5-11 + p → ⁴He + ⁸Ce",
+     "where": "four/CLAUDE.md, 'The 4D network'; withdrawn in the next stage"
+    }
+   ],
+   "held": []
+  },
+  {
+   "id": "clusters",
+   "date": "2026-11-12",
+   "title": "Neutron-rich clusters computed",
+   "replaced": "the triton-, helion- and deuteron-like clusters' binding to a core, interpolated between the nucleon's and helium-4's",
+   "by": "two and three nucleons on k helium-4s in Brink's grid (brink.js clusterOnCoreGrid; nuclei.mjs plusmore)",
+   "runs": [
+    "plusmore-1"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "the ceryllium cycle",
+     "before": "open (the interpolated cluster)",
+     "after": "closed: Q(5-11 + p) −24 to −62 MeV over s",
+     "where": "four/CLAUDE.md; reopened two stages later"
+    },
+    {
+     "claim": "a Sun-paced core at s = 1.5152",
+     "before": "the cycle's helium",
+     "after": "pxygen-20 72%, 9-19 19%, 9-18 8%",
+     "where": "four/CLAUDE.md"
+    }
+   ],
+   "held": [
+    {
+     "claim": "light 4D nuclei hold N = Z harder than ours; no neutron-rich isotope survives hydrogen or helium burning",
+     "value": "two-neutron isotopes β⁻-unstable with 7–34 MeV endpoints",
+     "where": "plusmore-1"
+    }
+   ]
+  },
+  {
+   "id": "weak",
+   "date": "2026-11-13",
+   "title": "4D's own weak force in the network",
+   "replaced": "our weak force's rates carried unchanged",
+   "by": "Fermi's contact theory in 4 + 1 dimensions, matched to ours at the electron (weak.js; every β decay and p + p × its own phase-space ratio)",
+   "runs": [],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "the hydrogen-burning core's temperature at the Sun's pace, s = 1.5152",
+     "before": "16.1 MK",
+     "after": "18.5 MK",
+     "where": "four/CLAUDE.md, '4D's own weak force'"
+    },
+    {
+     "claim": "the neutron's life under 'the weak force as ours'",
+     "before": "879 s",
+     "after": "~15 000 s",
+     "where": "OUTLINE.md, 'Retracted on the way'"
+    }
+   ],
+   "held": [
+    {
+     "claim": "s = 1.5152 climbs past pxygen-20",
+     "value": "at every weak strength swept (G₄ × 10^±0.8)",
+     "where": "four/CLAUDE.md"
+    }
+   ]
+  },
+  {
+   "id": "masses",
+   "date": "2026-11-13",
+   "title": "One consistent mass model, checked on ours",
+   "replaced": "a mixed table (the grid's clusters on the ladder's cores)",
+   "by": "the ladder's nuclei with every grid separation scaled to the ladder's helium-4 separation from the same core (adopted), and the grid alone as the band's other edge; both checked against AME2020 on ours",
+   "runs": [
+    "masses-1"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "12-24 (six helium-4s)",
+     "before": "unbound past pxygen-20",
+     "after": "bound in both consistent models",
+     "where": "OUTLINE.md, 'Retracted on the way'"
+    },
+    {
+     "claim": "the ceryllium cycle",
+     "before": "closed",
+     "after": "open again in the adopted model at s ≤ 1.6 (Q +10.9, +8.6, +4.6 MeV), closed in the grid",
+     "where": "OUTLINE.md"
+    },
+    {
+     "claim": "hydrogen burning at the network's 56 points",
+     "before": "one model",
+     "after": "12 of 56 points split between the two models, all at s ≤ 1.6",
+     "where": "four/CLAUDE.md, 'The windows plane'"
+    }
+   ],
+   "held": []
+  },
+  {
+   "id": "bound",
+   "date": "2026-11-13",
+   "title": "The free-cluster bound",
+   "replaced": "a choice between the two mass models for the one reaction they disagreed on",
+   "by": "a variational upper bound on Q(5-11 + p → ⁴He + ⁸Ce), every cluster free to move (brink.js freeClusterGCM; nuclei.mjs qbound) — run in the sandbox, kept as fusion/qbound4.json",
+   "runs": [],
+   "rule": "a variational bound: the computed Q can only fall as the basis grows, so a negative bound closes the channel whatever the basis; checked first on ours, where it must lie above the measured 8.59 MeV",
+   "moved": [
+    {
+     "claim": "the ceryllium cycle",
+     "before": "open at s ≤ 1.6 in the adopted model",
+     "after": "closed at every strength",
+     "check": "qboundMax4",
+     "now": -18.71,
+     "tol": 0.01,
+     "unit": "MeV (the least negative 4D bound)"
+    },
+    {
+     "claim": "points where the two mass models give different stars",
+     "before": "12 of 56",
+     "after": "0 of 56",
+     "check": "windowSplits",
+     "now": 0,
+     "tol": 0
+    }
+   ],
+   "held": [
+    {
+     "claim": "the bound is honest on ours",
+     "value": "≤ 12.25 MeV against 8.59 measured",
+     "check": "qboundOurs",
+     "now": 12.249,
+     "tol": 0.001
+    },
+    {
+     "claim": "hydrogen burning's sorting by the core's temperature",
+     "value": "14 past helium, 15 helium, 27 helium-3",
+     "check": "windowKinds",
+     "now": "14/15/27"
+    }
+   ]
+  },
+  {
+   "id": "stars",
+   "date": "2026-11-13",
+   "title": "Stars in place of the Sun's pace",
+   "replaced": "a burning core's temperature set by a convention (half its hydrogen in 4.6 Gyr at the network's reference density)",
+   "by": "zero-age main sequences on the network as an absolute energy law (eps4.mjs, mainseq.mjs net), and a Sun analogue calibrated on ours",
+   "runs": [
+    "lifetimes-1",
+    "gravity-1",
+    "starcut-1"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "s = 1.65",
+     "before": "helium (the convention)",
+     "after": "past helium (elements 6–8): real cores are hotter than the convention",
+     "where": "four/CLAUDE.md, 'Window C'"
+    },
+    {
+     "claim": "s = 1.8–1.85",
+     "before": "stranded as helium-3",
+     "after": "helium-3 gives way to helium as G falls to 10⁻²⁰",
+     "where": "four/CLAUDE.md"
+    }
+   ],
+   "held": [
+    {
+     "claim": "long-lived stars at every point computed",
+     "value": "every sequence has stars whose core takes Gyr",
+     "where": "lifetimes.json"
+    }
+   ],
+   "convention": {
+    "claim": "the Sun analogue: the 4D star whose zero-age core, at fixed T and ρ, halves its hydrogen in as long as ours",
+    "value": "11.1 Gyr, our zero-age centre burnt by REACLIB; the real centre took 4.6 (a clock factor of 2.41)",
+    "check": "oursFixedHalf",
+    "now": 11.13,
+    "tol": 0.01,
+    "replacedBy": "ageing"
+   }
+  },
+  {
+   "id": "surface",
+   "date": "2026-11-14",
+   "title": "Gravity's tug from the stars' surfaces",
+   "replaced": "G pinned by an Earth-like planet of 4D rock (~3 × 10⁻¹⁷ × ours)",
+   "by": "Carter's coincidence made 4D: does a Sun analogue stir its outer layers? Photoionization, H⁻ and free–free from the book's own atoms (photo.js, hminus.mjs, eh.js, surface.js), checked on ours",
+   "runs": [
+    "gravity-1"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "what fixes G",
+     "before": "the rock (an Earth-like planet isn't the right test: its oceans would be oeon)",
+     "after": "Carter's surface test pulls G strong, closing near 10⁻⁷ × ours",
+     "where": "four/CLAUDE.md, 'The surface test'"
+    },
+    {
+     "claim": "4D H⁻",
+     "before": "unbound (paper 1 v1, local exchange)",
+     "after": "bound by ≥ 12.3 meV (s-wave CI, variational)",
+     "where": "four/CLAUDE.md; paper 1's draft to be corrected"
+    }
+   ],
+   "held": [
+    {
+     "claim": "the machinery on ours: H⁻ free–free against Bell & Berrington",
+     "value": "1.01–1.36, nothing fitted",
+     "check": "ffRange",
+     "now": "1.01–1.36"
+    },
+    {
+     "claim": "no 4D Sun analogue stirs its envelope",
+     "value": "under both H⁻ calibrations (×1 and ×0.43)",
+     "check": "analogueStirs",
+     "now": 0
+    }
+   ]
+  },
+  {
+   "id": "ageing",
+   "date": "2026-11-15",
+   "title": "Stars that age",
+   "replaced": "zero-age stars, and the clock factor that stood in for their lives",
+   "by": "each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models",
+   "runs": [
+    "evolve4-1"
+   ],
+   "rule": "a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else",
+   "moved": [
+    {
+     "claim": "the clock factor (fixed zero-age centre over aged centre), on ours",
+     "before": "2.41 (assumed)",
+     "after": "1.99 (computed, from the settled zero-age centre)",
+     "check": "clockSettled",
+     "now": 1.99,
+     "tol": 0.01
+    },
+    {
+     "claim": "the 4D Sun analogue's life",
+     "before": "as long as ours, by the convention",
+     "after": "pending: evolve4-1 (a sandbox trial at G 10⁻¹⁷, s 1.5152 settles to 16.0 MK, against the zero-age table star's 20.8, and burns its stirred core slowly)",
+     "where": "four/CLAUDE.md, 'stars that age'",
+     "pending": true
+    }
+   ],
+   "held": [
+    {
+     "claim": "ours' centre today",
+     "value": "15.73 MK against BP2000's 15.70",
+     "check": "oursTcNow",
+     "now": 15.73,
+     "tol": 0.01
+    },
+    {
+     "claim": "ours' central hydrogen exhausted",
+     "value": "9.0 Gyr against Pols's 9",
+     "check": "oursExhaust",
+     "now": 9.0,
+     "tol": 0.05
+    }
+   ]
+  }
+ ]
+}

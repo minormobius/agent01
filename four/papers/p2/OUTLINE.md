@@ -168,6 +168,10 @@ a carried rate; where the climb ends rests on A2's masses.
 
 ## Retracted on the way (kept, so the record is honest)
 
+**The full record is now supplement S1** (`text/stages.md`, rendered from `provenance.json`; PI, 2026-11-16: "it's worth
+tracking the provenance"): every stage, what it replaced, what moved and what held, whether a decision rule was fixed
+in advance, and each current value recomputed from the data at every build. Add stages there; this list is the summary.
+
 - **A ceryllium cycle (2026-11-12, morning):** a CNO-like cycle on ceryllium-8, from an interpolated triton-like
   cluster; withdrawn the same day when the cluster was computed (section 10). **The withdrawal was itself premature
   (2026-11-13):** it rested on Brink's grid alone, which ours shows overbinds clusters; under the adopted mass model the
@@ -201,7 +205,7 @@ a carried rate; where the climb ends rests on A2's masses.
 - [ ] A2 at least bracketed: tensor force or its effect estimated; the Brink/ladder spread reported on every claim it
       touches. *Done for the masses (masses-1: one model adopted, the other the band's edge, both tested on ours); the
       network and figure 1 carry both; 5-11, the one mass they split on, decided by the free-cluster bound. Open: the tensor force.*
-- [ ] C: lifetimes computed (the Sun-pace convention retired or stated as the comparison it is). *First cut done (lifetimes-1): zero-age cores; stellar evolution and the post-main-sequence still to come.*
+- [ ] C: lifetimes computed (the Sun-pace convention retired or stated as the comparison it is). *First cut done (lifetimes-1): zero-age cores. Ageing built and checked on our Sun (section 4, evolvecheck.json); the 4D analogues aged in evolve4-1, pending. The post-main-sequence still to come.*
 - [ ] D: one composition-against-age band.
 - [ ] B: each stability claim tagged proved, argued or open.
 - [ ] A build like paper 1's (`build.mjs`: tokens from the bake, a claim ledger with gates) once the claims settle.

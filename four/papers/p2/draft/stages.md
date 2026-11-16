@@ -1,0 +1,158 @@
+# Supplement S1: how the model was built, and what each stage changed
+
+<!-- Paper 2, supplement S1 (draft). The ledger below is rendered by build.mjs from papers/p2/provenance.json, and every
+     entry marked ✓ is recomputed from the committed data at each build, which stops if the two disagree. Add a stage
+     to provenance.json, never here. -->
+
+The model in this paper was not written down once and run. It was built in stages, from
+2026-11-11 to 2026-11-15. Each stage replaced a guess, a convention or a cruder method with something computed,
+then ran the cascade again. The main text gives only the final method. This supplement records the route, for two
+reasons.
+
+First, when a result survives each step up in sophistication, that is evidence in its own right: a convergence test
+at the level of the whole model rather than one grid. When a result does not survive, the reader should know it was an
+artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was found, withdrawn, reopened and closed for
+good within two days, and only the last of those rests on something that cannot move: a variational bound.
+
+Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
+states whether a decision rule was fixed before its results came in. 7 of the 9 stages had
+none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
+
+**What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
+failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
+code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
+and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
+data. Of the 28 entries, 10 are marked ✓: the value given is recomputed from the committed data each
+time the paper is built, and the build stops if they disagree. 1 marked ⧗ waits on a run in progress.
+
+### S1.1 Proton + proton computed (2026-11-11)
+
+**Replaced:** a nuclear size guessed for p + p (4 fm). **By:** the overlap of the deuteron and the protons' Coulomb scattering state from the same strong force, scaled by our S(0) (nuclear.js ppOverlap; ppfusion.mjs). **Runs:** `strength-scan-1`, `strength-scan-2`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| the 4D effective p + p radius where the deuteron binds as ours | 4 fm (guessed) | 3.68 fm (Malfliet–Tjon), 3.73 fm (Minnesota) |
+
+| what held | |
+|---|---|
+| the method on ours: Λ² and the Sun's rate | Λ² 7.04 (realistic 7.035); the Sun's rate within 3% of the old 2.4 fm formula |
+
+### S1.2 A nuclide network in place of ratio burning (2026-11-12)
+
+**Replaced:** a zone network of capture ratios to p + p (burning.js burnNetwork). **By:** every light 4D nucleus by protons and neutrons, its binding assembled from helium-4 clusters, rates computed or carried from ours (nuc4.mjs, rates4.mjs, net4.js).
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| a CNO-like cycle on ceryllium-8 | none (the ratio network had no (p,α) branches) | found, closed by 5-11 + p → ⁴He + ⁸Ce |
+
+### S1.3 Neutron-rich clusters computed (2026-11-12)
+
+**Replaced:** the triton-, helion- and deuteron-like clusters' binding to a core, interpolated between the nucleon's and helium-4's. **By:** two and three nucleons on k helium-4s in Brink's grid (brink.js clusterOnCoreGrid; nuclei.mjs plusmore). **Runs:** `plusmore-1`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| the ceryllium cycle | open (the interpolated cluster) | closed: Q(5-11 + p) −24 to −62 MeV over s |
+| a Sun-paced core at s = 1.5152 | the cycle's helium | pxygen-20 72%, 9-19 19%, 9-18 8% |
+
+| what held | |
+|---|---|
+| light 4D nuclei hold N = Z harder than ours; no neutron-rich isotope survives hydrogen or helium burning | two-neutron isotopes β⁻-unstable with 7–34 MeV endpoints |
+
+### S1.4 4D's own weak force in the network (2026-11-13)
+
+**Replaced:** our weak force's rates carried unchanged. **By:** Fermi's contact theory in 4 + 1 dimensions, matched to ours at the electron (weak.js; every β decay and p + p × its own phase-space ratio).
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| the hydrogen-burning core's temperature at the Sun's pace, s = 1.5152 | 16.1 MK | 18.5 MK |
+| the neutron's life under 'the weak force as ours' | 879 s | ~15 000 s |
+
+| what held | |
+|---|---|
+| s = 1.5152 climbs past pxygen-20 | at every weak strength swept (G₄ × 10^±0.8) |
+
+### S1.5 One consistent mass model, checked on ours (2026-11-13)
+
+**Replaced:** a mixed table (the grid's clusters on the ladder's cores). **By:** the ladder's nuclei with every grid separation scaled to the ladder's helium-4 separation from the same core (adopted), and the grid alone as the band's other edge; both checked against AME2020 on ours. **Runs:** `masses-1`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| 12-24 (six helium-4s) | unbound past pxygen-20 | bound in both consistent models |
+| the ceryllium cycle | closed | open again in the adopted model at s ≤ 1.6 (Q +10.9, +8.6, +4.6 MeV), closed in the grid |
+| hydrogen burning at the network's 56 points | one model | 12 of 56 points split between the two models, all at s ≤ 1.6 |
+
+### S1.6 The free-cluster bound (2026-11-13)
+
+**Replaced:** a choice between the two mass models for the one reaction they disagreed on. **By:** a variational upper bound on Q(5-11 + p → ⁴He + ⁸Ce), every cluster free to move (brink.js freeClusterGCM; nuclei.mjs qbound) — run in the sandbox, kept as fusion/qbound4.json.
+
+**Decision rule, fixed before the results:** a variational bound: the computed Q can only fall as the basis grows, so a negative bound closes the channel whatever the basis; checked first on ours, where it must lie above the measured 8.59 MeV.
+
+| what moved | before | after |
+|---|---|---|
+| the ceryllium cycle | open at s ≤ 1.6 in the adopted model | closed at every strength ✓ |
+| points where the two mass models give different stars | 12 of 56 | 0 of 56 ✓ |
+
+| what held | |
+|---|---|
+| the bound is honest on ours | ≤ 12.25 MeV against 8.59 measured ✓ |
+| hydrogen burning's sorting by the core's temperature | 14 past helium, 15 helium, 27 helium-3 ✓ |
+
+### S1.7 Stars in place of the Sun's pace (2026-11-13)
+
+**Replaced:** a burning core's temperature set by a convention (half its hydrogen in 4.6 Gyr at the network's reference density). **By:** zero-age main sequences on the network as an absolute energy law (eps4.mjs, mainseq.mjs net), and a Sun analogue calibrated on ours. **Runs:** `lifetimes-1`, `gravity-1`, `starcut-1`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| s = 1.65 | helium (the convention) | past helium (elements 6–8): real cores are hotter than the convention |
+| s = 1.8–1.85 | stranded as helium-3 | helium-3 gives way to helium as G falls to 10⁻²⁰ |
+
+| what held | |
+|---|---|
+| long-lived stars at every point computed | every sequence has stars whose core takes Gyr |
+
+**Convention introduced:** the Sun analogue: the 4D star whose zero-age core, at fixed T and ρ, halves its hydrogen in as long as ours: 11.1 Gyr, our zero-age centre burnt by REACLIB; the real centre took 4.6 (a clock factor of 2.41) ✓. Replaced in S1.9.
+
+### S1.8 Gravity's tug from the stars' surfaces (2026-11-14)
+
+**Replaced:** G pinned by an Earth-like planet of 4D rock (~3 × 10⁻¹⁷ × ours). **By:** Carter's coincidence made 4D: does a Sun analogue stir its outer layers? Photoionization, H⁻ and free–free from the book's own atoms (photo.js, hminus.mjs, eh.js, surface.js), checked on ours. **Runs:** `gravity-1`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| what fixes G | the rock (an Earth-like planet isn't the right test: its oceans would be oeon) | Carter's surface test pulls G strong, closing near 10⁻⁷ × ours |
+| 4D H⁻ | unbound (paper 1 v1, local exchange) | bound by ≥ 12.3 meV (s-wave CI, variational) |
+
+| what held | |
+|---|---|
+| the machinery on ours: H⁻ free–free against Bell & Berrington | 1.01–1.36, nothing fitted ✓ |
+| no 4D Sun analogue stirs its envelope | under both H⁻ calibrations (×1 and ×0.43) ✓ |
+
+### S1.9 Stars that age (2026-11-15)
+
+**Replaced:** zero-age stars, and the clock factor that stood in for their lives. **By:** each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models. **Runs:** `evolve4-1`.
+
+**Decision rule, fixed before the results:** a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else.
+
+| what moved | before | after |
+|---|---|---|
+| the clock factor (fixed zero-age centre over aged centre), on ours | 2.41 (assumed) | 1.99 (computed, from the settled zero-age centre) ✓ |
+| the 4D Sun analogue's life | as long as ours, by the convention | pending: evolve4-1 (a sandbox trial at G 10⁻¹⁷, s 1.5152 settles to 16.0 MK, against the zero-age table star's 20.8, and burns its stirred core slowly) ⧗ |
+
+| what held | |
+|---|---|
+| ours' centre today | 15.73 MK against BP2000's 15.70 ✓ |
+| ours' central hydrogen exhausted | 9.0 Gyr against Pols's 9 ✓ |
+

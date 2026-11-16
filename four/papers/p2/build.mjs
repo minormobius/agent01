@@ -85,6 +85,9 @@ export function numbers() {
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
   Object.assign(t, ageNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
+  // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
+  // nuclide names (5-11), dates and run names into ranges
+  Object.assign(t, provenance());
   return t;
 }
 
@@ -152,6 +155,39 @@ function ageNumbers() {
     clockAged: f(C.agedHalfGyr, 2), clockFresh: f(C.fresh.fixedHalfGyr, 1), clockFreshR: f(C.fresh.ratio, 2), freshTc: f(C.fresh.Tc, 1), clockSet: f(C.settled.fixedHalfGyr, 1), clockSetR: f(C.settled.ratio, 2), setTc: f(C.settled.Tc, 1), clockS3R: f(C.sectionThree.ratio, 2) };
 }
 
+/* the provenance ledger (provenance.json): every 'now' with a check recomputed here from the committed data; a mismatch
+   stops the build, so the ledger can't drift from the results. The supplement section renders it (text/stages.md) */
+const PCHECKS = {
+  windowSplits: () => { const w = J("windows.json"), B = w.burn.filter((b) => !b.asOurs), A = w.burnAlt.filter((b) => !b.asOurs); return B.filter((b) => { const a = A.find((x) => x.s === b.s && x.gx === b.gx); return a && a.kind !== b.kind; }).length; },
+  windowKinds: () => { const B = J("windows.json").burn.filter((b) => !b.asOurs), n = (k) => B.filter((b) => b.kind === k).length; return `${n("past helium")}/${n("helium")}/${n("helium-3")}`; },
+  qboundMax4: () => { const by = {}; for (const b of JSON.parse(readFileSync(path.join(here, "../../fusion/qbound4.json"), "utf8")).bounds) { const k = `${b.d}/${b.s}`; if (!by[k] || b.K > by[k].K) by[k] = b; } return Math.max(...Object.values(by).filter((b) => b.d === 4).map((b) => b.Qupper)); },
+  qboundOurs: () => { const q = JSON.parse(readFileSync(path.join(here, "../../fusion/qbound4.json"), "utf8")).bounds.filter((b) => b.d === 3); return q.reduce((a, b) => (b.K > a.K ? b : a)).Qupper; },
+  oursFixedHalf: () => J("lifetimes.json").ours.thGyr,
+  ffRange: () => { const ff = J("surfacecheck.json").ff.map((x) => x.ratio); return `${f(Math.min(...ff), 2)}–${f(Math.max(...ff), 2)}`; },
+  analogueStirs: () => ["surface.json", "surface-hm043.json"].reduce((n, file) => n + J(file).runs.filter((r) => r.sunEnv && r.sunEnv.mass > 1e-6).length, 0),
+  clockSettled: () => J("evolvecheck.json").clock.settled.ratio,
+  oursTcNow: () => J("evolvecheck.json").present.Tc,
+  oursExhaust: () => J("evolvecheck.json").history.tXc001,
+};
+function provenance() {
+  const P = JSON.parse(readFileSync(path.join(here, "provenance.json"), "utf8")), bad = [];
+  const verify = (e, where) => { if (!e.check) return; const fn = PCHECKS[e.check]; if (!fn) throw new Error(`provenance ${where}: unknown check ${e.check}`); const v = fn();
+    const ok = typeof e.now === "number" ? Math.abs(v - e.now) <= (e.tol ?? 0) : String(v) === String(e.now); if (!ok) bad.push(`${where} (${e.check}): the ledger says ${e.now}, the data ${v}`); };
+  for (const s of P.stages) { for (const e of [...(s.moved ?? []), ...(s.held ?? [])]) verify(e, `${s.id}: ${e.claim}`); if (s.convention) verify(s.convention, `${s.id}: convention`); }
+  if (bad.length) throw new Error(`provenance.json disagrees with the data:\n  ${bad.join("\n  ")}`);
+  const mark = (e) => (e.check ? " ✓" : e.pending ? " ⧗" : "");
+  const md = P.stages.map((s, i) => {
+    const lines = [`### S1.${i + 1} ${s.title} (${s.date})`, "", `**Replaced:** ${s.replaced}. **By:** ${s.by}.${s.runs.length ? ` **Runs:** ${s.runs.map((r) => `\`${r}\``).join(", ")}.` : ""}`, "",
+      s.rule ? `**Decision rule, fixed before the results:** ${s.rule}.` : "**Decision rule:** none was fixed in advance; the stage's results were read as they came.", ""];
+    if (s.moved?.length) { lines.push("| what moved | before | after |", "|---|---|---|"); for (const e of s.moved) lines.push(`| ${e.claim} | ${e.before} | ${e.after}${mark(e)} |`); lines.push(""); }
+    if (s.held?.length) { lines.push("| what held | |", "|---|---|"); for (const e of s.held) lines.push(`| ${e.claim} | ${e.value}${mark(e)} |`); lines.push(""); }
+    if (s.convention) lines.push(`**Convention introduced:** ${s.convention.claim}: ${s.convention.value}${mark(s.convention)}.${s.convention.replacedBy ? ` Replaced in S1.${P.stages.findIndex((x) => x.id === s.convention.replacedBy) + 1}.` : ""}`, "");
+    return lines.join("\n"); }).join("\n");
+  const all = P.stages.flatMap((s) => [...(s.moved ?? []), ...(s.held ?? []), ...(s.convention ? [s.convention] : [])]);
+  return { provenanceLedger: md, provStages: String(P.stages.length), provChecked: String(all.filter((e) => e.check).length), provAll: String(all.length), provPending: String(all.filter((e) => e.pending).length),
+    provNoRule: String(P.stages.filter((s) => !s.rule).length), provFirst: P.stages[0].date, provLast: P.stages.at(-1).date };
+}
+
 /* the sources: refs.json (each with its status and what it supports) over the Crossref cache → CSL JSON for citeproc */
 function references() {
   const R = JSON.parse(readFileSync(path.join(here, "refs.json"), "utf8")).refs, C = JSON.parse(readFileSync(path.join(here, "data", "crossref.json"), "utf8"));
@@ -164,7 +200,7 @@ function references() {
 const CSL = path.join(DRAFT, "references.json");
 const fill = (src, t) => src.replace(/\{\{(\w+)\}\}/g, (m, k) => { if (!(k in t)) throw new Error(`unknown token {{${k}}}`); return t[k]; });
 const sections = () => readdirSync(TEXT).filter((x) => x.endsWith(".md")).sort();
-const stamp = (name, md) => sha(md + ["windows.json", "masscheck.json", "lifetimes.json", "evolvecheck.json", "crossref.json"].map((f) => readFileSync(path.join(here, "data", f), "utf8")).join("") + readFileSync(path.join(here, "refs.json"), "utf8"));
+const stamp = (name, md) => sha(md + ["windows.json", "masscheck.json", "lifetimes.json", "evolvecheck.json", "crossref.json"].map((f) => readFileSync(path.join(here, "data", f), "utf8")).join("") + readFileSync(path.join(here, "provenance.json"), "utf8") + readFileSync(path.join(here, "refs.json"), "utf8"));
 
 function page(name, md) {
   let body = execFileSync("pandoc", ["-f", "markdown", "-t", "html5", "--mathml", "--citeproc", `--bibliography=${CSL}`, "-M", "link-citations=true", "-M", "link-bibliography=true", "-M", "reference-section-title=References"], { input: md.replace(/<!--[\s\S]*?-->\n?/g, ""), encoding: "utf8" });

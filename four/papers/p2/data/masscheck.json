@@ -1,5 +1,5 @@
 {
- "about": "tools/masscheck.mjs: the mass model on ours against AME (typed from memory) and the 4D ceryllium-cycle Q it can't settle",
+ "about": "tools/masscheck.mjs: the mass model on ours against AME2020 and the 4D ceryllium-cycle Q it can't settle",
  "BaMC": 28.537,
  "BaGrid": 24.687,
  "clusters": [
@@ -263,51 +263,51 @@
  "cycleQ4D": [
   {
    "s": 1.5152,
-   "ladder": 10.86,
+   "ladder": -18.71,
    "grid": -21.46,
-   "ladderLessOffset": 3.96
+   "ladderLessOffset": -25.61
   },
   {
    "s": 1.55,
-   "ladder": 8.57,
+   "ladder": -20.62,
    "grid": -24.94,
-   "ladderLessOffset": 1.68
+   "ladderLessOffset": -27.52
   },
   {
    "s": 1.6,
-   "ladder": 4.64,
+   "ladder": -27.87,
    "grid": -30.08,
-   "ladderLessOffset": -2.26
+   "ladderLessOffset": -34.77
   },
   {
    "s": 1.65,
-   "ladder": -0.06,
+   "ladder": -35.54,
    "grid": -35.49,
-   "ladderLessOffset": -6.95
+   "ladderLessOffset": -42.44
   },
   {
    "s": 1.7,
-   "ladder": -5.67,
+   "ladder": -43.54,
    "grid": -41.35,
-   "ladderLessOffset": -12.57
+   "ladderLessOffset": -50.44
   },
   {
    "s": 1.75,
-   "ladder": -11.72,
+   "ladder": -51.81,
    "grid": -47.2,
-   "ladderLessOffset": -18.61
+   "ladderLessOffset": -58.71
   },
   {
    "s": 1.8,
-   "ladder": -18.56,
+   "ladder": -60.46,
    "grid": -53.4,
-   "ladderLessOffset": -25.45
+   "ladderLessOffset": -67.36
   },
   {
    "s": 1.85,
-   "ladder": -25.99,
+   "ladder": -69.47,
    "grid": -59.81,
-   "ladderLessOffset": -32.89
+   "ladderLessOffset": -76.37
   }
  ]
 }

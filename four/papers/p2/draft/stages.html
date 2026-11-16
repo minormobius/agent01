@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="source-sha256" content="4eaf711d58fac8832827eb5c75d3e0f69ff666fbf69df54786e850a6af1c5acb" />
+<title>Paper 2 · Supplement S1: how the model was built, and what each stage changed</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../../p1/paper.css" />
+</head>
+<body>
+<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 2 · draft section</span><span class="grow" style="flex:1"></span><a href="../OUTLINE.md">outline</a></div>
+<article class="sheet">
+<div class="p-venue">four.mino.mobi · paper 2 · in preparation</div>
+<div class="p-body single">
+<h1
+id="supplement-s1-how-the-model-was-built-and-what-each-stage-changed">Supplement
+S1: how the model was built, and what each stage changed</h1>
+<p>The model in this paper was not written down once and run. It was
+built in stages, from 2026-11-11 to 2026-11-15. Each stage replaced a
+guess, a convention or a cruder method with something computed, then ran
+the cascade again. The main text gives only the final method. This
+supplement records the route, for two reasons.</p>
+<p>First, when a result survives each step up in sophistication, that is
+evidence in its own right: a convergence test at the level of the whole
+model rather than one grid. When a result does not survive, the reader
+should know it was an artefact of a cruder step. Some did not survive. A
+cycle on ceryllium-8 was found, withdrawn, reopened and closed for good
+within two days, and only the last of those rests on something that
+cannot move: a variational bound.</p>
+<p>Second, a sequence of improvements can look like tuning until the
+answer looks right. Against that, each stage below states whether a
+decision rule was fixed before its results came in. 7 of the 9 stages
+had none: their results were read as they came. That is said plainly
+rather than reconstructed after the fact.</p>
+<p><strong>What enters this record.</strong> A stage enters when it
+changed a stated result, when it was a check that could have failed, or
+when it introduced or replaced a convention. Bugs found and fixed on the
+way are not stages; they are in the code’s history. Each stage lists
+what it replaced and by what, the runs behind it, what moved (with the
+earlier value and where it was recorded), and what held. The earlier
+values are historical: by their nature they are no longer in the data.
+Of the 28 entries, 10 are marked ✓: the value given is recomputed from
+the committed data each time the paper is built, and the build stops if
+they disagree. 1 marked ⧗ waits on a run in progress.</p>
+<h3 id="s1.1-proton-proton-computed-2026-11-11">S1.1 Proton + proton
+computed (2026-11-11)</h3>
+<p><strong>Replaced:</strong> a nuclear size guessed for p + p (4 fm).
+<strong>By:</strong> the overlap of the deuteron and the protons’
+Coulomb scattering state from the same strong force, scaled by our S(0)
+(nuclear.js ppOverlap; ppfusion.mjs). <strong>Runs:</strong>
+<code>strength-scan-1</code>, <code>strength-scan-2</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the 4D effective p + p radius where the deuteron binds as ours</td>
+<td>4 fm (guessed)</td>
+<td>3.68 fm (Malfliet–Tjon), 3.73 fm (Minnesota)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the method on ours: Λ² and the Sun’s rate</td>
+<td>Λ² 7.04 (realistic 7.035); the Sun’s rate within 3% of the old 2.4
+fm formula</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="s1.2-a-nuclide-network-in-place-of-ratio-burning-2026-11-12">S1.2 A
+nuclide network in place of ratio burning (2026-11-12)</h3>
+<p><strong>Replaced:</strong> a zone network of capture ratios to p + p
+(burning.js burnNetwork). <strong>By:</strong> every light 4D nucleus by
+protons and neutrons, its binding assembled from helium-4 clusters,
+rates computed or carried from ours (nuc4.mjs, rates4.mjs, net4.js).</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>a CNO-like cycle on ceryllium-8</td>
+<td>none (the ratio network had no (p,α) branches)</td>
+<td>found, closed by 5-11 + p → ⁴He + ⁸Ce</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.3-neutron-rich-clusters-computed-2026-11-12">S1.3
+Neutron-rich clusters computed (2026-11-12)</h3>
+<p><strong>Replaced:</strong> the triton-, helion- and deuteron-like
+clusters’ binding to a core, interpolated between the nucleon’s and
+helium-4’s. <strong>By:</strong> two and three nucleons on k helium-4s
+in Brink’s grid (brink.js clusterOnCoreGrid; nuclei.mjs plusmore).
+<strong>Runs:</strong> <code>plusmore-1</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the ceryllium cycle</td>
+<td>open (the interpolated cluster)</td>
+<td>closed: Q(5-11 + p) −24 to −62 MeV over s</td>
+</tr>
+<tr class="even">
+<td>a Sun-paced core at s = 1.5152</td>
+<td>the cycle’s helium</td>
+<td>pxygen-20 72%, 9-19 19%, 9-18 8%</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>light 4D nuclei hold N = Z harder than ours; no neutron-rich isotope
+survives hydrogen or helium burning</td>
+<td>two-neutron isotopes β⁻-unstable with 7–34 MeV endpoints</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.4-4ds-own-weak-force-in-the-network-2026-11-13">S1.4 4D’s own
+weak force in the network (2026-11-13)</h3>
+<p><strong>Replaced:</strong> our weak force’s rates carried unchanged.
+<strong>By:</strong> Fermi’s contact theory in 4 + 1 dimensions, matched
+to ours at the electron (weak.js; every β decay and p + p × its own
+phase-space ratio).</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the hydrogen-burning core’s temperature at the Sun’s pace, s =
+1.5152</td>
+<td>16.1 MK</td>
+<td>18.5 MK</td>
+</tr>
+<tr class="even">
+<td>the neutron’s life under ‘the weak force as ours’</td>
+<td>879 s</td>
+<td>~15 000 s</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>s = 1.5152 climbs past pxygen-20</td>
+<td>at every weak strength swept (G₄ × 10^±0.8)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.5-one-consistent-mass-model-checked-on-ours-2026-11-13">S1.5
+One consistent mass model, checked on ours (2026-11-13)</h3>
+<p><strong>Replaced:</strong> a mixed table (the grid’s clusters on the
+ladder’s cores). <strong>By:</strong> the ladder’s nuclei with every
+grid separation scaled to the ladder’s helium-4 separation from the same
+core (adopted), and the grid alone as the band’s other edge; both
+checked against AME2020 on ours. <strong>Runs:</strong>
+<code>masses-1</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>12-24 (six helium-4s)</td>
+<td>unbound past pxygen-20</td>
+<td>bound in both consistent models</td>
+</tr>
+<tr class="even">
+<td>the ceryllium cycle</td>
+<td>closed</td>
+<td>open again in the adopted model at s ≤ 1.6 (Q +10.9, +8.6, +4.6
+MeV), closed in the grid</td>
+</tr>
+<tr class="odd">
+<td>hydrogen burning at the network’s 56 points</td>
+<td>one model</td>
+<td>12 of 56 points split between the two models, all at s ≤ 1.6</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.6-the-free-cluster-bound-2026-11-13">S1.6 The free-cluster
+bound (2026-11-13)</h3>
+<p><strong>Replaced:</strong> a choice between the two mass models for
+the one reaction they disagreed on. <strong>By:</strong> a variational
+upper bound on Q(5-11 + p → ⁴He + ⁸Ce), every cluster free to move
+(brink.js freeClusterGCM; nuclei.mjs qbound) — run in the sandbox, kept
+as fusion/qbound4.json.</p>
+<p><strong>Decision rule, fixed before the results:</strong> a
+variational bound: the computed Q can only fall as the basis grows, so a
+negative bound closes the channel whatever the basis; checked first on
+ours, where it must lie above the measured 8.59 MeV.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the ceryllium cycle</td>
+<td>open at s ≤ 1.6 in the adopted model</td>
+<td>closed at every strength ✓</td>
+</tr>
+<tr class="even">
+<td>points where the two mass models give different stars</td>
+<td>12 of 56</td>
+<td>0 of 56 ✓</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the bound is honest on ours</td>
+<td>≤ 12.25 MeV against 8.59 measured ✓</td>
+</tr>
+<tr class="even">
+<td>hydrogen burning’s sorting by the core’s temperature</td>
+<td>14 past helium, 15 helium, 27 helium-3 ✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.7-stars-in-place-of-the-suns-pace-2026-11-13">S1.7 Stars in
+place of the Sun’s pace (2026-11-13)</h3>
+<p><strong>Replaced:</strong> a burning core’s temperature set by a
+convention (half its hydrogen in 4.6 Gyr at the network’s reference
+density). <strong>By:</strong> zero-age main sequences on the network as
+an absolute energy law (eps4.mjs, mainseq.mjs net), and a Sun analogue
+calibrated on ours. <strong>Runs:</strong> <code>lifetimes-1</code>,
+<code>gravity-1</code>, <code>starcut-1</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>s = 1.65</td>
+<td>helium (the convention)</td>
+<td>past helium (elements 6–8): real cores are hotter than the
+convention</td>
+</tr>
+<tr class="even">
+<td>s = 1.8–1.85</td>
+<td>stranded as helium-3</td>
+<td>helium-3 gives way to helium as G falls to 10⁻²⁰</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>long-lived stars at every point computed</td>
+<td>every sequence has stars whose core takes Gyr</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Convention introduced:</strong> the Sun analogue: the 4D star
+whose zero-age core, at fixed T and ρ, halves its hydrogen in as long as
+ours: 11.1 Gyr, our zero-age centre burnt by REACLIB; the real centre
+took 4.6 (a clock factor of 2.41) ✓. Replaced in S1.9.</p>
+<h3 id="s1.8-gravitys-tug-from-the-stars-surfaces-2026-11-14">S1.8
+Gravity’s tug from the stars’ surfaces (2026-11-14)</h3>
+<p><strong>Replaced:</strong> G pinned by an Earth-like planet of 4D
+rock (~3 × 10⁻¹⁷ × ours). <strong>By:</strong> Carter’s coincidence made
+4D: does a Sun analogue stir its outer layers? Photoionization, H⁻ and
+free–free from the book’s own atoms (photo.js, hminus.mjs, eh.js,
+surface.js), checked on ours. <strong>Runs:</strong>
+<code>gravity-1</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>what fixes G</td>
+<td>the rock (an Earth-like planet isn’t the right test: its oceans
+would be oeon)</td>
+<td>Carter’s surface test pulls G strong, closing near 10⁻⁷ × ours</td>
+</tr>
+<tr class="even">
+<td>4D H⁻</td>
+<td>unbound (paper 1 v1, local exchange)</td>
+<td>bound by ≥ 12.3 meV (s-wave CI, variational)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the machinery on ours: H⁻ free–free against Bell &amp;
+Berrington</td>
+<td>1.01–1.36, nothing fitted ✓</td>
+</tr>
+<tr class="even">
+<td>no 4D Sun analogue stirs its envelope</td>
+<td>under both H⁻ calibrations (×1 and ×0.43) ✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.9-stars-that-age-2026-11-15">S1.9 Stars that age
+(2026-11-15)</h3>
+<p><strong>Replaced:</strong> zero-age stars, and the clock factor that
+stood in for their lives. <strong>By:</strong> each shell burnt on the
+network at its own conditions, stirred zones mixed, energy-checked steps
+(evolve.mjs, shell.js, shell4.js); ours checked layer by layer against
+standard solar models. <strong>Runs:</strong>
+<code>evolve4-1</code>.</p>
+<p><strong>Decision rule, fixed before the results:</strong> a step is
+accepted only if what the shells burnt matches what the star radiated to
+0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57
+Gyr) and judged on everything else.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>the clock factor (fixed zero-age centre over aged centre), on
+ours</td>
+<td>2.41 (assumed)</td>
+<td>1.99 (computed, from the settled zero-age centre) ✓</td>
+</tr>
+<tr class="even">
+<td>the 4D Sun analogue’s life</td>
+<td>as long as ours, by the convention</td>
+<td>pending: evolve4-1 (a sandbox trial at G 10⁻¹⁷, s 1.5152 settles to
+16.0 MK, against the zero-age table star’s 20.8, and burns its stirred
+core slowly) ⧗</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ours’ centre today</td>
+<td>15.73 MK against BP2000’s 15.70 ✓</td>
+</tr>
+<tr class="even">
+<td>ours’ central hydrogen exhausted</td>
+<td>9.0 Gyr against Pols’s 9 ✓</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+<div class="p-source">Generated from <code>papers/p2/text/stages.md</code>: every number in it is read by <code>build.mjs</code> from the computed data or the solvers, so this text says what the code does.</div>
+</article>
+</body>
+</html>
