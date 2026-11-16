@@ -37,3 +37,32 @@ together … turns as a body") was not the mechanism. The fibres are confined to
 sphere, and the full twist there has order two. With the looser walls the result is exact across seeds, where the
 tight wall had produced jams that the earlier draft reported as overlap. Sections 2.2 and 3.1 and figure 2 are
 rewritten on that basis.
+
+## The audit by Astra, 2026-11-16
+
+Astra, an auditor instance directed by the PI, audited the draft at commit `bbe31da` (draft 2, before the changes
+above). It read the paper and the code, ran the self-tests and its own diagnostics on a separate snapshot, and
+pushed nothing. Its assessment: the engineering question is worth pursuing and the controlled 3D-against-4D twist
+relaxation is the most convincing contribution; substantive revisions before submission. Eight findings:
+
+| | Finding | Severity | What was done |
+|---|---|---|---|
+| R01 | The enclosing sheath (S² × I, three-dimensional, sphere in section) and the braid tube (S¹ × I, two-dimensional, ring in section) are different objects under one name; a bore along a fibre gives the first, not the second | High | Already split into "hose" and "tube" in draft 3. Draft 4 adds the table of objects by dimension and cross-section, says which bench rows stand for which construction, says the laws for braided strands are carried over from threads, and removes "give the fibre a bore" |
+| R02 | Zero strength for a frictional 4D staple yarn is not established: the rig is frictionless, and the bench's zero is an input | High | Section 3.1 now uses the auditor's wording: whole-turn winding and pressure disappear in the frictionless relaxation; assigning that to the bench gives zero. A coupled frictional experiment is an open item |
+| R03 | Weibull modulus is a fourth chosen number and reverses the comparison with a strand; the dial study moved one parameter at a time and tuned on the reporting sample; a joint low-contact corner reads below 1 | High | `pull/gauge.mjs` (draft 3) varies modulus and length. `pull/corner.mjs` (draft 4) halves friction and hose stress together, tunes on seeds 1–60 and reports on 61–120: 0.94 ± 0.01. The claim is restricted to the settings tested and to the ratio with the loose bundle. A full map over scatter and contact strength is an open item |
+| R04 | Hoop load, axial failure and pressure retention are not coupled: hoop stress does not enter the hose's failure, damage does not reduce the press, a tightening hose gains press free | High (modelling gap) | Stated first in section 5 and in the open items; the contracting-hose row is marked as the least secure. Bracketed by the five versions of the hose as a member (draft 3). Not removed: no multiaxial model was built |
+| R05 | The ledger does not bind a value to its claim: a table cell changed from 1.13 to 9.99 still passed | Medium | Replaced in draft 3 by tokens filled from data. Draft 4 adds the negative control: the test corrupts each named value in turn and fails if the built text does not change |
+| R06 | A failed line search (t = 0) reported a small last step, so the flag could read "converged" without the stopping test being met; several study writers do not inspect the flag | Medium | `bench.js`: a stalled search is accepted only if the force imbalance is under a millionth of a link's strength, counted in `R.stalled`, with the worst imbalance in `R.resid`; otherwise the flag reads unconverged. `sample.mjs` and `sheath.mjs` now exit non-zero on an unconverged pull. `corner.json` records the status of its own pulls. The other baked files predate this and were not re-run: open item |
+| R07 | The trefoil is cut into two parts with gaps, so the swept test is not an isotopy of a closed knot; sweep steps are not finer than the thinnest wall as the methods said | Medium | Sections 2.1 and 3.2: called an illustration of a crossing change; the real step sizes are given; a clean sweep is called numerical evidence, not a certified clearance |
+| R08 | "Borromean links exist in one mixture" is too broad: Yanagawa (1964) has Brunnian systems of 2-spheres alone | Low | Section 3.2 says "one explicit construction"; F4 is cited with the DOI the auditor supplied |
+
+Also from the audit and done: the wall is described as a penalty force with the clamped ends outside the tightest
+wall; the loading increment's bias is measured (`corner.json`: a strand reads 2.6% low at 110 steps against 1760)
+and stated in section 2.3.
+
+Not done from the audit's recommended pathway: a constitutive closure for the hose; a strength and reliability map
+over disorder and contact strength; event-driven breaking; per-claim records of revision, run recipe and data hash;
+an orientation field for the kept turn.
+
+The auditor's two diagnostic tables (Weibull modulus; load increments) were reproduced here to the digits it
+reported, by `gauge.mjs` and `corner.mjs`.

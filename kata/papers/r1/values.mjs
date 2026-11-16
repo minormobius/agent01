@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SPECIES, stats } from "../../pull/js/bench.js";
 const here = path.dirname(fileURLToPath(import.meta.url)), J = (f) => JSON.parse(fs.readFileSync(path.join(here, "../..", f), "utf8"));
-const S = J("pull/data/samples.json"), SH = J("pull/data/sheath.json"), CA = J("pull/data/cable.json"), BR = J("pull/data/braid.json"), SE = J("pull/data/sens.json"), PR = J("pull/data/press.json"), PO = J("pull/data/poisson.json"), GA = J("pull/data/gauge.json"), TW = J("twist/data/twist.json"), HO = J("twist/data/hosed.json"), WA = J("twist/data/walls.json");
+const S = J("pull/data/samples.json"), SH = J("pull/data/sheath.json"), CA = J("pull/data/cable.json"), BR = J("pull/data/braid.json"), SE = J("pull/data/sens.json"), PR = J("pull/data/press.json"), PO = J("pull/data/poisson.json"), GA = J("pull/data/gauge.json"), TW = J("twist/data/twist.json"), HO = J("twist/data/hosed.json"), WA = J("twist/data/walls.json"), CO = J("pull/data/corner.json");
 const f2 = (x) => x.toFixed(2), f1 = (x) => x.toFixed(1), f0 = (x) => x.toFixed(0), pc = (x) => (x * 100).toFixed(0) + "%";
 const ref = stats(S.peaks.strand).mean, sp = (id) => { const s = SPECIES.find((q) => q.id === id), t = stats(S.peaks[id]); return { spec: t.mean / ref / s.material, p5: t.p5 / ref / s.material, cv: t.cv, mean: t.mean / ref }; };
 const best = (rows) => rows.reduce((a, b) => (b.specific5 > a.specific5 ? b : a)), kind = (k) => best(SH.rows.filter((r) => r.kind === k)), lvl = (n) => { const l = CA.levels[n - 1]; return l.rows.find((r) => r.tau === l.best); };
@@ -32,6 +32,9 @@ export const V = {
   r24: f2(GS[0].ratio), r48: f2(GS[1].ratio), r96: f2(GS[2].ratio), r192: f2(GS[3].ratio), rm10: f2(GS[4].ratio), rm20: f2(GS[5].ratio),
   hoseMin: f2(Math.min(...GS.map((q) => q.hose))), hoseMax: f2(Math.max(...GS.map((q) => q.hose))), ratioMin: f1(Math.min(...GS.map((q) => q.ratio))), ratioMax: f1(Math.max(...GS.map((q) => q.ratio))),
   memBuilt: f2(mem("as built")), memSize: f2(mem("with a size")), memVm: f2(mem("axial strength × 0.866")), memHalf: f2(mem("axial strength halved")), memGrip: f2(mem("gripping")),
+  /* the audit's follow-ups: both dials halved, tuned on one set of seeds and reported on another; the loading increment */
+  ...(() => { const byP5 = CO.corner.rows.reduce((a, b) => (b.tune.p5 > a.tune.p5 ? b : a)), byMean = CO.corner.rows.reduce((a, b) => (b.tune.mean > a.tune.mean ? b : a)), r = (n) => CO.refine.find((q) => q.steps === n);
+    return { cornerMean: f2(byP5.report.mean), cornerSe: f2(byP5.report.se), cornerRatio: f1(byP5.report.mean / CO.corner.loose), cornerByMean: f2(byMean.report.mean), statusPulls: CO.status.worstLeft <= 1.001 ? String(CO.status.pulls).replace(/(\d)(\d{3})$/, "$1 $2") : "NOT ALL OF " + CO.status.pulls, stepLow: ((1 - r(110).strand / r(1760).strand) * 100).toFixed(1) + "%", ref110: r(110).hose.toFixed(3), ref1760: r(1760).hose.toFixed(3) }; })(),
   /* twist */
   untwisted: f1(TW.ends.find((e) => e.d === 4 && e.turns === 0).energy), after2: f1(TW.ends.find((e) => e.d === 4 && e.turns === 2).energy), ribbonLo: String(TW.ribbon[TW.ribbon.findIndex((r) => Math.abs(r.wound) > 1) - 1].tape), ribbonHi: String(TW.ribbon[TW.ribbon.findIndex((r) => Math.abs(r.wound) > 1)].tape),
   wEven: rng([...wall(0.2, 0), ...wall(0.2, 2)]), wOdd: rng([...wall(0.2, 1), ...wall(0.2, 3)]), wlEven: rng([...wall(0.215, 0), ...wall(0.215, 2)]), wlOdd: rng([...wall(0.215, 1), ...wall(0.215, 3)]),
@@ -40,4 +43,4 @@ export const V = {
   nSeeds: String(new Set(HO.hosed.map((r) => r.seed)).size), nWallSeeds: String(new Set(WA.rows.map((r) => r.seed)).size),
   beads: String(TW.defaults.beads), ks: String(TW.defaults.ks), kc: String(TW.defaults.kc), yarnSteps: TW.steps.toLocaleString("en").replace(/,/g, " "), benchSteps: String(S.run.steps), benchStrain: (S.run.strain * 100).toFixed(1) + "%",
 };
-export const fill = (text) => { const missing = new Set(); const out = text.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in V ? V[k] : (missing.add(k), m))); return { out, missing: [...missing] }; };
+export const fill = (text, values = V) => { const missing = new Set(); const out = text.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in values ? values[k] : (missing.add(k), m))); return { out, missing: [...missing] }; };

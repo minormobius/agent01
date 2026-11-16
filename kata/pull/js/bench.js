@@ -100,7 +100,10 @@ export function makeRope({ maxSweeps: MAXSW = 80, section = "hex7", S = 96, stap
       let t = 1, halved = 0; const E0 = energy(ext, 0); for (; halved < 10 && energy(ext, t) > E0 + 1e-18; halved++) t *= 0.5;
       if (halved >= 10) t = 0; lam = halved ? Math.min(lam * 30, 10) : Math.max(lam / 5, 1e-9);
       for (let i = 0; i < T; i++) for (let s = 1; s < L; s++) u[i][s] += t * du[idx(s, i)];
-      left = (big * t) / tol; if (t > 0 && big * t < tol) { it++; break; } }
+      left = (big * t) / tol; if (t > 0 && big * t < tol) { it++; break; }
+      /* a line search that fails ten times takes no step. That is convergence only if the forces already balance:
+         otherwise it must not read as a small last step (the audit of 2026-11-16 found it did) */
+      if (t === 0) { let gmax = 0; for (let n = 0; n < N; n++) if (Math.abs(g[n]) > gmax) gmax = Math.abs(g[n]); const rel = gmax / sigma; /* (the imbalance, in link strengths) */ if (rel < 1e-6) { left = 0; R.stalled = (R.stalled || 0) + 1; R.resid = Math.max(R.resid || 0, rel); it++; break; } left = Math.max(1e3, rel / 1e-6); } }
     /* settle the slips where they ended */
     for (let p = 0; p < pairs.length; p++) { const [i, j] = pairs[p]; for (let s = 1; s < L; s++) { const d = u[i][s] - u[j][s] - slip0[p][s], c = caps[p][s]; if (ks * Math.abs(d) > c) { const sg = d > 0 ? 1 : -1; state[p][s] = sg; slip0[p][s] = u[i][s] - u[j][s] - (sg * c) / ks; } else state[p][s] = 0; slip[p][s] = slip0[p][s]; } }
     R.sweeps = (R.sweeps || 0) + it; R.relaxes = (R.relaxes || 0) + 1; R.left = Math.max(R.left || 0, left); tensions(); }

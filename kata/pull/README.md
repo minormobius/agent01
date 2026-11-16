@@ -333,6 +333,20 @@ The hose's track is a member with stiffness and strength equal to its weight. Ot
 
 The order (hose, hoops, loose) survives all of them. A value above 1 does not.
 
+## Audit follow-ups
+
+`node kata/pull/corner.mjs` (`data/corner.json`), after the audit of 2026-11-16 (`papers/r1/REVIEW.md`):
+
+- **Both dials halved together** (friction and hose stress: their product a quarter), thickness chosen on seeds 1–60
+  by the 5th percentile and reported on seeds 61–120: the hose rope reads 0.94 ± 0.01 per weight, below a strand and
+  1.3 times the loose bundle. The earlier sweeps tuned and reported on the same seeds.
+- **The loading increment.** At 110 steps a single strand's peak reads 2.6% low against 1760 steps, and the hose
+  rope's ratio to it moves from 1.102 to 1.096. Every strength here carries about that much in its last decimal.
+- **Convergence status.** A line search that fails ten times takes no step; the solver used to report that as a small
+  last step. It is now accepted only if the force imbalance is under a millionth of a link's strength (`R.stalled`
+  counts these, `R.resid` is the worst), and reads unconverged otherwise. `sample.mjs` and `sheath.mjs` exit non-zero
+  on an unconverged pull. The data files baked before this were not re-run.
+
 ## Does the ranking survive the dials?
 
 Three numbers in the bench are chosen, not measured: how hard a hose or hoop is stressed (HOOP, half its strength),
