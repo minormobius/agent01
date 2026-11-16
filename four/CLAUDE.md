@@ -231,10 +231,17 @@ for games, and this is a modelling programme with publications to come. The game
   carry `-lp` (so they never resume an old checkpoint). The 4D mean is carried by x ≈ 8–15, so it matters only once the
   cutoff climbs there: ×1.07–1.55 at G 10⁻¹¹, ≤ ×1.07 at 10⁻¹⁴, < 5% below. (2) **Screening:** Debye–Hückel under 1/r,
   k_D³ = 4π²αħc Σn z²/kT; electrons per screening 4-ball 0.11–2.2 (ours' Sun ~11), p + p ×1.03–1.70 by weak screening
-  (shell4.js has none; at < 1 electron per ball weak screening is outside its range) and the ideal-gas EOS needs Coulomb
-  corrections. `fusion/tools/lensplasma.mjs <dir>` → `papers/p2/data/lensplasma.json` (evolve4-1's zero-age profiles).
-  Both grow toward strong G, where the surface test points. Next: screening in shell4 and the EOS's Coulomb term, then
-  rerun 4D with all three.
+  (at < 1 electron per ball weak screening is outside its range). **`atom/js/screen.js`** (no DOM): screening in d
+  dimensions, ours and 4D pinned: weak H = C_d Z₁Z₂αħc k_D (C₃ = 1, Salpeter; C₄ = π/(3√3) = 0.605 from ∫d⁴k of the
+  screened 4π²/k³), the ion sphere H = E(Z₁) + E(Z₂) − E(Z₁+Z₂) (c₃ = 9/10; c₄ = 0.816 from the book's 4D shell kernel),
+  f = exp(min(H_w, H_s)/kT); the Coulomb pressure by the virial for a degree −1 potential, ΔP = u/d. On ours' Sun it
+  reproduces shell.js's p + p (×1.0499) and the textbook −1.2% pressure. `shell4(s, mass, { screen: true })` screens every
+  reaction of two or more charged nuclei (pairwise as they merge), and `evolve.mjs four … plasma=1` (default, files `-lp`)
+  turns both the opacity's cutoff and the screening on. **On evolve4-1's zero-age profiles (lensplasma.json):** p + p
+  ×1.02–1.38, helium-4 + helium-4 ×1.07–3.1, Coulomb pressure −0.2 to −3.5% (largest at G 10⁻¹¹); at a G 10⁻¹⁷ core ε rises
+  7% (s 1.6) to 21% (s 1.5152, whose climb past helium runs on heavier captures, boosted to ×3.75). The pressure term is
+  ours' size, and our stars leave it out too: not in either EOS (stated). `fusion/tools/lensplasma.mjs <dir>` →
+  `papers/p2/data/lensplasma.json`. Both bites grow toward strong G, where the surface test points.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

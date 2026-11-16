@@ -94,7 +94,7 @@ function simpleWorld(X0 = 0.70) {
    pinnedF, damped as nextPinned damps it), primordial gas (hydrogen 0.75, helium-4 0.25). The ash past helium counts in
    the EOS by its own ions per mass. The first star is mainseq.mjs's on eps4.json's table (firstStar, then toPinned). */
 function fourWorld(Grel, s, ff = 1, plasma = false) {
-  const sh = shell4(s), iP = sh.I["1-1"], A = sh.AS, Z = sh.ZS, init = sh.fromX({ "1-1": 0.75, "2-4": 0.25 });
+  const sh = shell4(s, "ladder", { screen: plasma }), iP = sh.I["1-1"], A = sh.AS, Z = sh.ZS, init = sh.fromX({ "1-1": 0.75, "2-4": 0.25 });
   const parts = (y) => { let X = y[iP] * A[iP], He = 0, ions = 0, zz = 0; for (let i = 0; i < sh.NS; i++) { const x = y[i] * A[i]; zz += y[i] * Z[i] * Z[i]; if (i === iP) continue; if (Z[i] <= 2) He += x; else ions += y[i]; } return { X, He, ions, zz }; };
   const comp = (y) => { const p = parts(y); return { X: p.X, Y: p.He, Z: 14 * p.ions }; }; // rhoOf counts ions as X + Y/4 + Z/14
   return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
@@ -102,7 +102,7 @@ function fourWorld(Grel, s, ff = 1, plasma = false) {
     kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T), // Y here carries Σ n Z² less hydrogen's
     eps: (rho, T, y) => sh.eps(rho, T, y), dHdt: (rho, T, y) => sh.dYdt(rho, T, y)[iP] * A[iP],
     burn: (rho, T, y, dt) => { const r = sh.burn(rho, T, y, dt); return { s: r.Y, E: r.E }; },
-    burnZone: (rows, y, ws, dt) => { const K = new Float64Array(sh.RS.length); let sw = 0; rows.forEach((r, i) => { const k = sh.constants(r.T, r.rho); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
+    burnZone: (rows, y, ws, dt) => { const K = new Float64Array(sh.RS.length); let sw = 0; rows.forEach((r, i) => { const k = sh.constants(r.T, r.rho, y); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
       for (let c = 0; c < K.length; c++) K[c] /= sw; const r = sh.burnK(K, y, dt); return { s: r.Y, E: r.E }; },
     first: (M) => { const o = fourNet(Grel, s, "ladder", ff), a = firstStar(o, M); if (!a) return null; return toPinned({ ...o, M }, a); },
     extra: (y) => Object.fromEntries(sh.SPEC.map((k, i) => [k, y[i] * A[i]]).filter(([, v]) => v > 1e-3)) };
@@ -234,7 +234,8 @@ if (cmd === "ours") {
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
 } else if (cmd === "four") {
   // node four/atom/tools/evolve.mjs four <G × ours> <s> <mass in M_Ch | sun> [dX] [ff=1] [tmax=<Gyr>] [settle=<yr, 1e6>] [plasma=1]
-  // plasma: the lens vacuum's plasma in the opacity (mainseq.js kappaFF4), on by default; its runs' files carry -lp
+  // plasma: the charge law's plasma, on by default: the lens vacuum's cutoff in the opacity (mainseq.js kappaFF4) and
+  // screening of the network's rates (shell4.js, atom/js/screen.js); its runs' files carry -lp
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
   const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", W = fourWorld(Grel, sv, ff, plasma), t0 = Date.now();
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
