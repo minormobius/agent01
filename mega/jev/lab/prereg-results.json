@@ -1325,23 +1325,56 @@
    "side": 1,
    "correct": false,
    "earnedBps": -272.19
+  },
+  {
+   "asset": "BTC",
+   "closes_ms": 1794830400000,
+   "closes_utc": "2026-11-16T12:00:00.000Z",
+   "r": -0.5189,
+   "past": -91.61,
+   "fwd": -115.88,
+   "side": 1,
+   "correct": false,
+   "earnedBps": -115.88
+  },
+  {
+   "asset": "ETH",
+   "closes_ms": 1794830400000,
+   "closes_utc": "2026-11-16T12:00:00.000Z",
+   "r": -0.5189,
+   "past": -117.17,
+   "fwd": -79.4,
+   "side": 1,
+   "correct": false,
+   "earnedBps": -79.4
+  },
+  {
+   "asset": "SOL",
+   "closes_ms": 1794830400000,
+   "closes_utc": "2026-11-16T12:00:00.000Z",
+   "r": -0.5189,
+   "past": -133.6,
+   "fwd": -164.78,
+   "side": 1,
+   "correct": false,
+   "earnedBps": -164.78
   }
  ],
- "updated_utc": "2026-11-16T08:13:27.603Z",
+ "updated_utc": "2026-11-16T22:57:43.116Z",
  "verdict": {
-  "n": 120,
+  "n": 123,
   "right": 56,
-  "accuracy": 0.4666666666666667,
-  "p": 0.7942883898680918,
-  "grossBps": -11.069833333333326,
-  "netBps": -20.469833333333327,
+  "accuracy": 0.45528455284552843,
+  "p": 0.8604007225120262,
+  "grossBps": -13.72715447154471,
+  "netBps": -23.12715447154471,
   "claim": null,
-  "status": "120 of the 200 predictions the registration requires before any claim — 80 to go."
+  "status": "123 of the 200 predictions the registration requires before any claim — 77 to go."
  },
  "accrual": {
   "measured_per_day": 1.75,
   "measured_against": "208 days of 1h candles, BTC/ETH/SOL, the registered rule",
   "spec_note_is_wrong": "known_weaknesses says 2 per asset per day and ~33 days; it is 1 per asset per day, the gate passes 64.7%, and n=200 is about 114 days. The spec file is left frozen."
  },
- "eta_days": 46
+ "eta_days": 44
 }
