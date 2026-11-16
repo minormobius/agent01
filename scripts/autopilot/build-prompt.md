@@ -33,10 +33,10 @@ _Regenerated 2026-11-16 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-16, 100 members / 195 posts):
+**Neighborhood spark** (bisk 2026-11-16, 100 members / 233 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: qwen, phishing, senders
-- Top post: "" — @segyges.bsky.social
+- Distinctive words: idk, qwen, bcz
+- Top post: "" — @huwupy.kawaii.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
