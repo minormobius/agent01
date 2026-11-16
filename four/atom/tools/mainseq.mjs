@@ -31,12 +31,12 @@ const St3 = (S, E, o) => { const eta = o.Z1 * o.Z2 * AL * Math.sqrt(o.mu / (2 * 
 // ⟨σv⟩ in m^d/s, tabulated over ln T (1–1000 MK)
 function rate(d, o, St) { const v = Array.from({ length: 91 }, (_, i) => { const T = 1e6 * Math.pow(10, i / 30), kT = KB_MEV * T, pre = d === 3 ? St(T) * SI.c * HBC ** 2 * 1e-30 * Math.sqrt(2 / Math.PI) * o.mu ** -1.5 * kT ** -1.5 : (St(T) * SI.c * HBC ** 3 * 1e-45) / (2 * o.mu ** 2 * kT ** 2); return Math.log(pre) + logRate(T, o); });
   return (T) => { const x = Math.log10(T / 1e6) * 30, i = Math.max(0, Math.min(89, Math.floor(x))), f = x - i; return Math.exp(v[i] * (1 - f) + v[i + 1] * f); }; }
-const SPP = St3(4.01e-22, 0.01, op(3, 1, 1, 1, 1, 1.2)), NUC = cmd === "run" ? (await import("../js/nucleidata.js")).NUCLEI : null;
+const SPP = St3(4.01e-22, 0.01, op(3, 1, 1, 1, 1, 1.2)), NUC = cmd === "run" && process.argv[1]?.endsWith("mainseq.mjs") ? (await import("../js/nucleidata.js")).NUCLEI : null;
 
 function ours() {
   const comp = { X: 0.7, Y: 0.28, Z: 0.02 }, pp = op(3, 1, 1, 1, 1, 1.2), n14 = op(3, 1, 1, 7, 14, 1.2), svpp = rate(3, pp, () => SPP), svN = rate(3, n14, () => St3(1.6, 0.03, n14));
   const eps = (rho, T) => { const np = (rho * comp.X) / SI.mu, nN = (rho * 0.014) / (14 * SI.mu); return (((np * np * svpp(T)) / 2) * 13.1 + nN * np * svN(T) * 25.0) * SI.MeV / rho; };
-  return { d: 3, G: G0, comp, eps, kappa: kappaOurs(comp) };
+  return { d: 3, G: G0, comp, eps, kappa: kappaOurs(comp), svpp, svN };
 }
 function four(Grel, rnp, s = 1.5152, ff = 1) {
   const N = NUC;
@@ -92,7 +92,10 @@ function compact(o, s) { const p = s.prof.filter((x) => x.r > 0), R = s.R, M = p
 const row = (o, m, M, s) => { const r = { m, M, L: s.L, R: s.R, Tc: s.Tc, Pc: s.Pc, Teff: teff(o.d, s), qcc: convectiveCore(o.d, s), dL: s.dL ?? null, prof: compact(o, s) };
   if (o.th) { r.rhoc = rhoOf(o.d, s.Pc, s.Tc, o.comp); const t = o.th(r.rhoc, s.Tc); r.th = Number.isFinite(t) ? t : null; } return r; };
 
-if (cmd === "ours") {
+// imported (atom/tools/evolve.mjs takes ours' burning from here) it runs nothing
+export { ours, fourNet, firstStar, G0, MSUN, LSUN, RSUN };
+const MAIN = !!process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
+if (!MAIN) { /* imported */ } else if (cmd === "ours") {
   const o = ours(), rows = [], walk = (m0, m1) => { let hist = [], m = m0, p = [Math.log(2.3e16), Math.log(1.4e7), Math.log(0.9 * RSUN), Math.log(0.7 * LSUN)];
     while ((m1 - m) * Math.sign(m1 - m0) >= -1e-9) { let g = p; if (hist.length >= 2) { const [a, b] = hist.slice(-2), t = Math.log(m / b.m) / Math.log(b.m / a.m); g = b.p.map((v, i) => v + t * (v - a.p[i])); }
       const s = star({ ...o, M: m * MSUN }, g); if (!s.ok) break; rows.push(row(o, m, m * MSUN, s)); hist.push({ m, p: s.p }); p = s.p;
