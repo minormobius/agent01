@@ -91,7 +91,8 @@ function solve4(A, b) { const n = 4; A = A.map((r) => r.slice()); b = b.slice();
 
 /* one star: opts { d, M (kg), G, comp {X, Y, Z}, eps(ρ, T, m) W/kg, kappa(ρ, T, m), f(m) gravity factor (else g = G m/r²),
    fit (fitting mass ÷ M, 0.5), compAt(m) (optional: a composition that varies with mass, for an evolved star; eps and
-   kappa are then handed m too, and comp is ignored) }, guess [ln P_c, ln T_c, ln R, ln L]. Returns ok, the unknowns,
+   kappa are then handed m too, and comp is ignored), envelope(R, L, f_surface) (optional: the outer boundary from an
+   integrated envelope, returning { m, r, P, T } where the interior takes over) }, guess [ln P_c, ln T_c, ln R, ln L]. Returns ok, the unknowns,
    and the profile */
 export function star(opts, guess) {
   const { d, M, G, comp, eps, kappa } = opts, S = SD[d], a = aRad(d), gad = gradAd(d), mf = (opts.fit ?? 0.5) * M, ff = opts.f ?? null, cAt = opts.compAt ?? (() => comp);
@@ -103,7 +104,10 @@ export function star(opts, guess) {
     const P0 = ff ? Pc - (rhoc * ((G * m0 * ff(m0)) / (r0 * r0)) * r0) / 2 : Pc - (G * rhoc * rhoc * S * r0 ** (d - 1)) / (d * (d - 1)); return { m0, y: [Math.log(r0), Math.log(P0), lnTc, eps(rhoc, Tc, m0) * m0] }; };
   const surface = (lnR, lnL) => { const R = Math.exp(lnR), L = Math.exp(lnL), Te = Math.pow(L / (S * R ** (d - 1) * sigmaSB(d)), 1 / (d + 1)), g = (G * M) / (R * R);
     let P = 1; for (let i = 0; i < 30; i++) { const rho = rhoOf(d, P, Te, cAt(M)) || 1e-30; P = ((2 / 3) * g) / kappa(rho, Te, M) + (a * Te ** (d + 1)) / d; } return [lnR, Math.log(P), Math.log(Te), L]; };
-  const resid = (p) => { const c = centre(p[0], p[1]), out = integrate(rhs, c.m0, mf, c.y), inn = integrate(rhs, M, mf, surface(p[2], p[3]), { h0: -1e-10 * M });
+  // the outer boundary: τ = ⅔ on the interior's own gas, or (opts.envelope) an envelope integrated on the surface model
+  // down to where the gas is fully ionized, which hands the interior its state at that mass (atom/js/envelope.js)
+  const outer = (lnR, lnL) => { if (!opts.envelope) return { m: M, y: surface(lnR, lnL) }; const e = opts.envelope(Math.exp(lnR), Math.exp(lnL), ff ? ff(M) : 1); return { m: e.m, y: [Math.log(e.r), Math.log(e.P), Math.log(e.T), Math.exp(lnL)] }; };
+  const resid = (p) => { const c = centre(p[0], p[1]); let o; try { o = outer(p[2], p[3]); } catch { return null; } const out = integrate(rhs, c.m0, mf, c.y), inn = integrate(rhs, o.m, mf, o.y, { h0: -1e-10 * M });
     if (!out.y || !inn.y) return null; return { r: [out.y[0] - inn.y[0], out.y[1] - inn.y[1], out.y[2] - inn.y[2], (out.y[3] - inn.y[3]) / Math.exp(p[3])], out, inn }; };
   let p = guess.slice(), R0 = resid(p), it = 0;
   for (; it < 60 && R0; it++) {

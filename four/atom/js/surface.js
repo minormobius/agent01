@@ -31,7 +31,15 @@ const EV = 1.602176634e-19, A0 = 0.529177210903e-10, ALPHA = 1 / 137.035999084, 
 const lin = (xs, ys, x) => { if (x <= xs[0]) return ys[0]; const n = xs.length; if (x >= xs[n - 1]) return ys[n - 1] * (xs[n - 1] / x) ** 3; let i = 0, j = n - 1; while (j - i > 1) { const m = (i + j) >> 1; if (xs[m] > x) j = m; else i = m; } const f = Math.log(x / xs[i]) / Math.log(xs[j] / xs[i]); return Math.exp(Math.log(ys[i] || 1e-300) * (1 - f) + Math.log(ys[j] || 1e-300) * f); };
 const ionE = (d, Z) => TABLE[String(d)].find((e) => e.Z === Z).ion * 27.211386245988; // the book's first ionization, eV
 
-export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, hm = 1, hff = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV } = {}) {
+/* electron donors for a gas with metals (ours only; the 4D gas is primordial): the easily ionized elements of the
+   Sun's mix, log ε on the scale log ε(H) = 12 (Asplund et al. 2009), first ionization energies (eV), and the ratio of
+   ground-state statistical weights 2g₊/g₀ standing in for the partition functions; values from memory, standard tables,
+   not yet checked against a source here. Scaled by Z/Z☉ (Z☉ = 0.0134). They give the photosphere its free electrons,
+   hence its H⁻; their own bound–free opacity is not included. */
+export const SOLAR_DONORS = [ // [symbol, log ε, χ (eV), 2g₊/g₀]
+  ["Na", 6.24, 5.139, 1], ["Mg", 7.60, 7.646, 4], ["Al", 6.45, 5.986, 2 / 6], ["Si", 7.51, 8.152, 12 / 9], ["K", 5.03, 4.341, 1], ["Ca", 6.34, 6.113, 4], ["Fe", 7.50, 7.902, 2 * 30 / 25]];
+export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, hm = 1, hff = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV, Z = 0, donors = d === 3 && Z > 0 ? SOLAR_DONORS : [] } = {}) {
+  const DON = donors.map(([sym, le, chi, gr]) => ({ sym, perH: 10 ** (le - 12) * (Z / 0.0134), chi, gr }));
   // H⁻'s photodetachment from the baked table (a₀^(d−1) → m^(d−1)), × hm (1 as computed; ours' computed peak is ~2× the
   // measured one, so 0.5 is the band's other edge); 0 leaves H⁻ out
   // free–free on neutral hydrogen (ours' H⁻ free–free), from atom/js/eh.js by way of the bake: κ_ω = n_e n_H × c(T, x)
@@ -52,13 +60,15 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
     const kT = (SI.k * T) / EV, nH = (rho * X) / MH, nHe = (rho * Y) / MHE, nTot = nH + nHe, LH = cutLevels(H, nTot), LHe = cutLevels(He2, nTot);
     const UH = U(LH, kT), UHe2 = U(LHe, kT), lam = ((SI.me * SI.k * T) / (2 * Math.PI * SI.hbar * SI.hbar)) ** (d / 2);
     const sH = (2 * lam * Math.exp(-chiH / kT)) / UH, sHm = (1 * Math.exp(chiHm / kT)) / (2 * UH * lam), s1 = (2 * UHe2 * lam * Math.exp(-chiHe1 / kT)) / 1, s2 = (2 * lam * Math.exp(-chiHe2 / kT)) / UHe2;
+    const sD = DON.map((m) => m.gr * lam * Math.exp(-m.chi / kT)), nD = DON.reduce((t, m) => t + m.perH * nH, 0);
     const pops = (ne) => { const A = sH / ne, B = sHm * ne, h0 = nH / (1 + A + B), a1 = s1 / ne, a2 = s2 / ne, he0 = nHe / (1 + a1 + a1 * a2);
-      return { h0, hp: h0 * A, hm: h0 * B, he0, he1: he0 * a1, he2: he0 * a1 * a2 }; };
-    let lo = Math.log(1e-30 * nTot + 1e-300), hi = Math.log(1.5 * (nH + 2 * nHe));
-    for (let it = 0; it < 80; it++) { const m = (lo + hi) / 2, ne = Math.exp(m), p = pops(ne); if (ne - (p.hp + p.he1 + 2 * p.he2 - p.hm) > 0) hi = m; else lo = m; }
-    const ne = Math.exp((lo + hi) / 2), p = pops(ne), Pg = (nH + nHe + ne) * SI.k * T, Pr = (a * T ** (d + 1)) / d;
+      let mp = 0, me = 0; DON.forEach((m, i) => { const f = sD[i] / ne / (1 + sD[i] / ne); mp += m.perH * nH * f; me += m.perH * nH * f * m.chi; });
+      return { h0, hp: h0 * A, hm: h0 * B, he0, he1: he0 * a1, he2: he0 * a1 * a2, mp, me }; };
+    let lo = Math.log(1e-30 * nTot + 1e-300), hi = Math.log(1.5 * (nH + 2 * nHe) + 1e-300);
+    for (let it = 0; it < 80; it++) { const m = (lo + hi) / 2, ne = Math.exp(m), p = pops(ne); if (ne - (p.hp + p.he1 + 2 * p.he2 - p.hm + p.mp) > 0) hi = m; else lo = m; }
+    const ne = Math.exp((lo + hi) / 2), p = pops(ne), Pg = (nH + nHe + nD + ne) * SI.k * T, Pr = (a * T ** (d + 1)) / d;
     const exc = LH.reduce((t, v) => t + v.w * v.g * Math.exp(-(v.E_eV - LH[0].E_eV) / kT) * (v.E_eV - LH[0].E_eV), 0) / UH;
-    const u = (d / 2) * (nH + nHe + ne) * SI.k * T + EV * (chiH * p.hp - chiHm * p.hm + chiHe1 * p.he1 + (chiHe1 + chiHe2) * p.he2 + exc * p.h0) + a * T ** (d + 1);
+    const u = (d / 2) * (nH + nHe + nD + ne) * SI.k * T + EV * (chiH * p.hp - chiHm * p.hm + chiHe1 * p.he1 + (chiHe1 + chiHe2) * p.he2 + exc * p.h0 + p.me) + a * T ** (d + 1);
     return { T, rho, ne, ...p, Pg, Pr, P: Pg + Pr, u, UH, LH, LHe, UHe2, kT, xH: p.hp / nH };
   }
   /* the density at total pressure P and temperature T */
