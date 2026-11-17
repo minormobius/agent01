@@ -1,0 +1,12 @@
+{
+ "group": "ev7-00",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1958
+  }
+ ]
+}
