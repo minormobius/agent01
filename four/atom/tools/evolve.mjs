@@ -112,7 +112,7 @@ function fourWorld(Grel, s, ff = 1, plasma = false) {
     burn: (rho, T, y, dt) => { const r = sh.burn(rho, T, y, dt); return { s: r.Y, E: r.E }; },
     burnZone: (rows, y, ws, dt) => { const K = new Float64Array(sh.RS.length); let sw = 0; rows.forEach((r, i) => { const k = sh.constants(r.T, r.rho, y); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
       for (let c = 0; c < K.length; c++) K[c] /= sw; const r = sh.burnK(K, y, dt); return { s: r.Y, E: r.E }; },
-    first: (M) => { const o = fourNet(Grel, s, "ladder", ff), a = firstStar(o, M); if (!a) return null; return toPinned({ ...o, M }, a); },
+    first: (M) => { const o = { ...fourNet(Grel, s, "ladder", ff), fit: 0.2 }, a = firstStar(o, M); if (!a) return null; return toPinned({ ...o, M }, a); },
     extra: (y) => Object.fromEntries(sh.SPEC.map((k, i) => [k, y[i] * A[i]]).filter(([, v]) => v > 1e-3)) };
 }
 

@@ -252,7 +252,12 @@ for games, and this is a modelling programme with publications to come. The game
   burning cut `W.Tburn` (4D 1 MK; ours 2 MK) and `loose: 5e-4` (a Newton stall that close counts as solved; the residual's
   noise floor is ~10⁻⁴). A Levenberg–Marquardt fallback was tried and dropped: it converged slowly onto a different
   branch (a 2.7% core where the star had 11.8%). `FREEZE_PINNED=1` holds pinned gravity (diagnostic; the ~2% L jitter).
-  evolve4-3 predates the fix; evolve4-4 (the same 32 commands) resumes its -lp checkpoints on the fixed code.
+  The zero-age guess (`W.first`, mainseq.mjs firstStar/toPinned) takes the same fit (else G 10⁻¹⁴ s 1.6 and the 0.25 M_Ch
+  ladder star fail at zero age). **evolve4-3 (plasma on, old fit; collected 2026-11-17):** screening and the lens cutoff
+  barely move the lives: half-lives within 5% of evolve4-2's (G 10⁻¹¹ s 1.55 16.1 against 16.5 Gyr; 10⁻¹⁴ s 1.55 26.3/25.0;
+  10⁻¹⁷ s 1.6 28.2/27.3, s 1.7 13.2/12.8); hotter-burning cores just settle cooler. 8 failed at zero age, 3 stalled at the
+  old fit. evolve4-4 (running, queued at f8831017e) resumes all 32 on the 0.2 fit; the zero-age-guess fix came after it,
+  so G 10⁻¹⁴ s 1.6 / 1.75 and the 0.25 M_Ch star need one more run.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,
