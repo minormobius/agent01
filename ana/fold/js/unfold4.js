@@ -118,9 +118,20 @@ export function rootBasis(P, root) {
   for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = add(ax, nr, -dot(ax, nr)); for (const b of basis) v = add(v, b, -dot(v, b)); if (norm(v) > 0.3 && basis.length < 3) basis.push(unit(v)); }
   return basis;
 }
-/** Each cell's rigid motion at fold fraction t (0 the polytope as it is, 1 the flat unfolding): every hinge turned by
- *  t times its full angle, composed down the tree. */
-export function motionsAt(P, parent, t) {
+/** Each cell's distance from the root down the tree. */
+export function treeDepths(parent) { return parent.map((_, c) => { let k = 0; for (let x = c; parent[x] >= 0; x = parent[x]) k++; return k; }); }
+/** How far each hinge has turned toward flat (0 folded, 1 flat) at fold fraction t. All at once: t for every hinge.
+ *  Ring by ring (folding from flat as t goes 1 → 0): the root's neighbours first, carrying their subtrees flat, then
+ *  the next ring out; t sweeps the rings in equal shares. */
+export function hingeFractions(parent, t, ring = false) {
+  if (!ring) return parent.map(() => t);
+  const d = treeDepths(parent), H = Math.max(...d), s = (1 - t) * H;
+  return d.map((k) => 1 - Math.min(1, Math.max(0, s - (k - 1))));
+}
+/** Each cell's rigid motion at fold fraction t (0 the polytope as it is, 1 the flat unfolding): each hinge turned by
+ *  its fraction (hingeFractions) of its full angle, composed down the tree. */
+export function motionsAt(P, parent, t, ring = false) {
+  const frac = hingeFractions(parent, t, ring);
   const root = parent.indexOf(-1), n = P.cells.length;
   const order = [root]; { const seen = new Set([root]); for (let k = 0; k < order.length; k++) for (let c = 0; c < n; c++) if (parent[c] === order[k] && !seen.has(c)) { seen.add(c); order.push(c); } }
   if (order.length !== n) throw new Error('not a spanning tree');
@@ -131,7 +142,7 @@ export function motionsAt(P, parent, t) {
     if (!ridge) throw new Error(`cells ${p} and ${c} don't share a ridge`);
     const q = P.V[ridge[0]];
     // the plane of the two normals: u = n_p, v = n_c's part across it; n_c = cos φ u + sin φ v. Turn by −φ.
-    const u = np, vv = unit(add(nc, np, -dot(nc, np))), phi = t * Math.acos(Math.max(-1, Math.min(1, dot(np, nc)))), co = Math.cos(-phi), si = Math.sin(-phi);
+    const u = np, vv = unit(add(nc, np, -dot(nc, np))), phi = frac[c] * Math.acos(Math.max(-1, Math.min(1, dot(np, nc)))), co = Math.cos(-phi), si = Math.sin(-phi);
     const R = (x) => { const d = add(x, q, -1), a = dot(d, u), b = dot(d, vv); return add(add(add(d, u, a * (co - 1) - b * si), vv, a * si + b * (co - 1)), q); };
     const Mp = M[p];
     M[c] = (x) => Mp(R(x));
@@ -144,6 +155,20 @@ export function cellFaces(P) {
     const n = c.n, B = []; for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = add(ax, n, -dot(ax, n)); for (const b of B) v = add(v, b, -dot(v, b)); if (norm(v) > 0.3 && B.length < 3) B.push(unit(v)); }
     const pts = c.verts.map((v) => B.map((b) => dot(P.V[v], b)));
     return hull3(pts).map((h) => h.f);
+  });
+}
+
+/** Each cell as { o, P, H } for clash.js's depthCells, after the motions M: o + P·u for u in the cell's own 3D
+ *  coordinates, H its faces there (unit normals). */
+export function movedCells(P, M) {
+  return P.cells.map((c, i) => {
+    const n = c.n, B = []; for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = add(ax, n, -dot(ax, n)); for (const b of B) v = add(v, b, -dot(v, b)); if (norm(v) > 0.3 && B.length < 3) B.push(unit(v)); }
+    const pts = c.verts.map((v) => B.map((b) => dot(P.V[v], b))), H = hull3(pts).map((h) => ({ n: h.n, b: h.b }));
+    const base = scale(n, c.b), o = M[i](base);
+    const Pm = B.map((b) => add(M[i](add(base, b)), o, -1));
+    const ctr = scale(c.verts.reduce((s, v) => add(s, M[i](P.V[v])), [0, 0, 0, 0]), 1 / c.verts.length);
+    const rad = Math.max(...c.verts.map((v) => norm(add(M[i](P.V[v]), ctr, -1))));
+    return { o, P: Pm, H, ctr, rad };
   });
 }
 

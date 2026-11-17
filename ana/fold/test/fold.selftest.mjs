@@ -1,5 +1,6 @@
 // FOLD, held: run `node ana/fold/test/fold.selftest.mjs` (V=1 prints each measured claim). ~40 s.
-import { depth as clashDepth } from '../js/clash.js';
+import { depthCells, cube } from '../js/clash.js';
+const clashDepth = (o1, P1, _h1, o2, P2) => depthCells(cube(o1, P1), cube(o2, P2));
 import * as F from '../js/fold.js';
 import { NETS } from '../js/nets-data.js';
 import { JOHNSON, SNUB_DODECAHEDRON } from '../../johnson/js/johnson-data.js';
@@ -59,9 +60,9 @@ ok(!!dali, 'Dalí\'s net is among them: a column of four cubes with four more ro
   const I3 = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]];
   const d1 = clashDepth([0, 0, 0, 0], I3, 0.5, [0.6, 0, 0, 0], I3, 0.5);           // two unit cubes, 0.6 apart along x: overlap 0.4 thick, deepest point 0.2 in
   const d2 = clashDepth([0, 0, 0, 0], I3, 0.5, [1, 0, 0, 0], I3, 0.5);             // face to face
-  const d3 = clashDepth([0, 0, 0, 0], I3, 0.5, [1.5, 0, 0, 0], I3, 0.5);           // apart
+  const d3 = clashDepth([0, 0, 0, 0], I3, 0.5, [1.5, 0, 0, 0], I3, 0.5);           // apart: 0.5 of a gap, so −0.25 (half the gap)
   const d4c = clashDepth([0, 0, 0, 0], I3, 0.5, [0, 0, 0, 0], [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]], 0.5);   // crossing in 4D through a shared square: 0.5 deep
-  ok(Math.abs(d1 - 0.2) < 1e-9 && Math.abs(d2) < 1e-9 && d3 === -1 && Math.abs(d4c - 0.5) < 1e-9, `the clash test: overlapping cubes ${d1.toFixed(3)} deep (0.2), face to face ${d2.toFixed(3)} (touching), apart −1, two cubes crossing through each other in 4D ${d4c.toFixed(3)} (0.5)`);
+  ok(Math.abs(d1 - 0.2) < 1e-9 && Math.abs(d2) < 1e-9 && Math.abs(d3 + 0.25) < 1e-9 && Math.abs(d4c - 0.5) < 1e-9, `the clash test: overlapping cubes ${d1.toFixed(3)} deep (0.2), face to face ${d2.toFixed(3)} (touching), half a cube apart ${d3.toFixed(3)} (−0.25), two cubes crossing through each other in 4D ${d4c.toFixed(3)} (0.5)`);
   const cellBox = (M, i) => { const c = F.CELLS[i], o = M(c.n.map((v) => v / 2)), O = M([0, 0, 0, 0]); return [o, [0, 1, 2, 3].filter((k) => k !== c.axis).map((k) => { const e = [0, 0, 0, 0]; e[k] = 1; return M(e).map((v, j) => v - O[j]); })]; };
   const worstClash = (parent, ring, steps) => { let m = 0; for (let k = 1; k < steps; k++) { const M = F.motions(parent, k / steps, ring), B = F.CELLS.map((_, i) => cellBox(M[i], i)); for (let a = 0; a < 8; a++) for (let b = a + 1; b < 8; b++) { if (Math.hypot(...B[a][0].map((v, j) => v - B[b][0][j])) > Math.sqrt(3)) continue; m = Math.max(m, clashDepth(B[a][0], B[a][1], 0.5, B[b][0], B[b][1], 0.5)); } } return m; };
   // ring by ring: still rigid, hinged, and closing

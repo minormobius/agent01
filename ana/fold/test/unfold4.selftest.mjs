@@ -2,6 +2,7 @@
 // Whether every convex polytope has a net (a non-overlapping unfolding cut only along ridges) is OPEN in every
 // dimension ≥ 3 (Dürer–Shephard). These are checked facts about particular polytopes, not a proof of anything general.
 import * as U from '../js/unfold4.js';
+import { depthCells } from '../js/clash.js';
 import { OVERLAP_24, NET_24, NET_600 } from '../js/unfold4-data.js';
 import { h600 } from '../../johnson/js/poly.js';
 
@@ -56,6 +57,19 @@ let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return 
   ok(rigid(P, NET_600, u) < 1e-12 && o.length === 0, `a net of the 600-cell: 600 tetrahedra laid out in our space (${[0, 1, 2].map((k) => (Math.max(...u.cells.flat().map((p) => p[k])) - Math.min(...u.cells.flat().map((p) => p[k]))).toFixed(1)).join(' × ')}), rigid and hinged, no two overlapping (volume to 1e-9)`);
   const ud = U.unfold(P, U.randomTree(P, 'dfs', rnd, 7)), od = U.overlaps(ud.cells);
   ok(od.length > 0, `a long winding unfolding of it does overlap (${od.length} pairs): the detector isn't blind (the 600-cell is not all-net: Devadoss–Harvey)`);
+}
+// folding the 24-cell without collisions: all at once its octahedra pass through each other in most nets; ring by ring, not
+{
+  const P = U.cell24(), nrm = (a) => Math.hypot(...a);
+  const worst = (parent, ring, steps) => { let m = 0; for (let k = 1; k < steps; k++) { const C = U.movedCells(P, U.motionsAt(P, parent, k / steps, ring));
+    for (let a = 0; a < 24; a++) for (let b = a + 1; b < 24; b++) { if (nrm(C[a].ctr.map((v, j) => v - C[b].ctr[j])) >= C[a].rad + C[b].rad) continue; m = Math.max(m, depthCells(C[a], C[b])); } } return m; };
+  let rf = 0; for (const t of [0, 0.25, 0.5, 0.75, 1]) { const M = U.motionsAt(P, NET_24, t, true); P.cells.forEach((c, i) => { for (const v of c.verts) for (const w of c.verts) rf = Math.max(rf, Math.abs(nrm(M[i](P.V[v]).map((x, k) => x - M[i](P.V[w])[k])) - nrm(P.V[v].map((x, k) => x - P.V[w][k])))); }); }
+  const flat = U.unfold(P, NET_24).offPlane, back = Math.max(...P.cells.flatMap((c, i) => c.verts.map((v) => nrm(U.motionsAt(P, NET_24, 0, true)[i](P.V[v]).map((x, k) => x - P.V[v][k])))));
+  ok(rf < 1e-9 && back < 1e-12, 'ring by ring, the 24-cell\'s cells stay rigid and it closes back into the 24-cell');
+  let seed = 4242; const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  let n = 0, all = 0, ring = 0, deep = 0;
+  while (n < 12) { const parent = U.randomTree(P, rnd() < 0.75 ? 'dfs' : 'bfs', rnd); if (U.overlaps(U.unfold(P, parent).cells).length) continue; n++; const a = worst(parent, false, 24), r = worst(parent, true, 24); if (a > 1e-6) all++; if (r > 1e-6) ring++; deep = Math.max(deep, a); }
+  ok(all >= 6 && ring === 0, `of ${n} random nets of the 24-cell, ${all} have octahedra pass through each other with every hinge turning at once (up to ${deep.toFixed(2)} deep); ring by ring, ${ring} (the page claims 148 and 0 of 200, measured with HiGHS agreeing)`);
 }
 console.log(`${fails ? '✗' : '✓'} unfold4: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

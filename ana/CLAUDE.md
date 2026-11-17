@@ -110,7 +110,7 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   trees (spanning trees of K₂,₂,₂,₂; `tools/build-nets.mjs` → `js/nets-data.js`, GENERATED), folding up through w
   cube by cube about their hinge squares (`js/fold.js` `motions`: exact quarter turns composed down the tree), Dalí's
   among them; shadow or slice. **24-cell**: its unfoldings folding (`js/unfold4.js` `motionsAt`), the overlapping one
-  found by search (red pair, witness cross), a net, and random draws with a tally (it is not all-net). Nets fold *all at once* or *ring by ring* (`hingeAngles`); `js/clash.js` (an LP per pair of cubes, every frame) reddens cubes passing through each other: 33 nets do all at once, none ring by ring. **mirror**: half a turn in the xw plane lands a chiral solid (the snub dodecahedron,
+  found by search (red pair, witness cross), a net, and random draws with a tally (it is not all-net). Nets fold *all at once* or *ring by ring* (`hingeAngles`); `js/clash.js` (an LP per pair of cubes, every frame) reddens cells passing through each other: 33 tesseract nets do all at once, none ring by ring; the 24-cell likewise (`motionsAt(…, ring)`, `movedCells`; 148 of 200 random nets all at once, none ring by ring). **mirror**: half a turn in the xw plane lands a chiral solid (the snub dodecahedron,
   J44–J48) on its mirror image; `congruence` shows no 3D rotation does. Imports JOHNSON's data (same site). See
   [`fold/README.md`](fold/README.md).
 
@@ -121,7 +121,7 @@ node ana/hilbert/test/hilbert.selftest.mjs           # ~5 s: every cell once, fa
 node ana/mandelbract/test/mandelbract.selftest.mjs   # <1 s: each set against its claim, the estimates safe to march by, the march stops on the edge, Tan Lei
 node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact flights vs RK4, drops, throws, weights, hull stress, Hopf circles, riding, the map
 node ana/johnson/test/johnson.selftest.mjs           # ~30 s: the 92 from scratch (hull, regular faces, volumes), the 600-cell and snub 24-cell, prisms and pyramids, slices
-node ana/fold/test/fold.selftest.mjs                 # ~40 s: 82,944 hinge trees, 261 nets (455 with mirrors apart), Dalí's, folding rigid and hinged and closing exactly (all at once and ring by ring), the clash LP, 33 nets collide all at once and none ring by ring, the mirror fold, J44–J48 chiral
+node ana/fold/test/fold.selftest.mjs                 # ~2 min: 82,944 hinge trees, 261 nets (455 with mirrors apart), Dalí's, folding rigid and hinged and closing exactly (all at once and ring by ring), the clash LP, 33 nets collide all at once and none ring by ring, the mirror fold, J44–J48 chiral
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 

@@ -96,11 +96,15 @@ meet edge to edge when everything is home. *Ring by ring* (`hingeAngles(parent, 
 neighbours first, carrying their subtrees flat, then the next ring out: every part already folded is in its final place,
 and the ring that's moving turns about squares on it. None of the 261 collide that way.
 
-Checked by `js/clash.js`: for each pair of cubes, a linear programme for the deepest point inside both (`depth`; 0 is
-touching, along a hinge, an edge or a corner). The page runs it every frame and colours a clashing pair red; the
+Checked by `js/clash.js` `depthCells`: for each pair of cells, the deepest point inside both (0 is touching, along a
+hinge, an edge or a corner; negative is apart). Two hyperplanes in 4D meet in a 2-plane or coincide, so this is a linear
+programme in 3 or 4 variables, solved by trying every vertex (a small simplex was tried first and misreported touching
+cells, judged against HiGHS). The page runs it every frame and colours a clashing pair red; the
 selftest checks it against hand answers and makes both claims at 48 moments of every fold. It was cross-checked
 against scipy's HiGHS on all 261 nets at 96 moments (agreement to 2·10⁻¹¹).
 
 This is a measurement for the tesseract's nets, not a theorem. For 3D polyhedra, continuous non-colliding folding
 ("blooming") is a studied question (Demaine, Demaine, Hart, Iacono, Langerman and O'Rourke, *Continuous blooming of
-convex polyhedra*, 2011); the 24-cell's folds aren't checked here yet.
+convex polyhedra*, 2011); the same switch works on the 24-cell (`motionsAt(P, parent, t, ring)`): over 200 random nets (75% DFS, as the
+page draws), all at once 148 have octahedra passing through each other, up to 0.50 deep on an edge of √2; ring by ring,
+none (deepest 4·10⁻¹², rounding). HiGHS agreed with all 148 to 10⁻¹⁵. A sample, not a proof.
