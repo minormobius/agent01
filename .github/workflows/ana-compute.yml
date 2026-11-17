@@ -57,10 +57,10 @@ jobs:
       - name: Restore the caches from ana-data
         run: |
           set -euo pipefail
-          mkdir -p data
+          mkdir -p .ana-data
           if git ls-remote --exit-code --heads origin ana-data >/dev/null; then
             git fetch -q --depth 1 origin ana-data
-            git archive FETCH_HEAD | tar -x -C data
+            git archive FETCH_HEAD | tar -x -C .ana-data
           fi
       - uses: actions/setup-node@v4
         with:
@@ -70,7 +70,7 @@ jobs:
           GROUP: ${{ toJSON(matrix.group) }}
           MINUTES: ${{ needs.plan.outputs.minutes }}
           OUT: ${{ github.workspace }}/out/runs/${{ needs.plan.outputs.run }}/${{ matrix.group.name }}
-          TMPDIR: ${{ github.workspace }}/data/tmp
+          TMPDIR: ${{ github.workspace }}/.ana-data/tmp
         run: |
           set -euo pipefail
           mkdir -p "$TMPDIR"
@@ -82,7 +82,7 @@ jobs:
           set -euo pipefail
           mkdir -p out
           [ -f "$RUNNER_TEMP/started" ] || exit 0
-          cd data
+          cd .ana-data
           find tmp -type f -newer "$RUNNER_TEMP/started" -print0 | xargs -0 -r cp --parents -t ../out/
       - uses: actions/upload-artifact@v4
         if: always()
@@ -117,16 +117,16 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if git ls-remote --exit-code --heads origin ana-data >/dev/null; then
             git fetch -q origin ana-data
-            git worktree add -q data FETCH_HEAD
-            git -C data checkout -q -B ana-data
+            git worktree add -q .ana-data FETCH_HEAD
+            git -C .ana-data checkout -q -B ana-data
           else
-            git worktree add -q --detach data
-            git -C data checkout -q --orphan ana-data
-            git -C data rm -rq --cached . || true
-            find data -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+            git worktree add -q --detach .ana-data
+            git -C .ana-data checkout -q --orphan ana-data
+            git -C .ana-data rm -rq --cached . || true
+            find .ana-data -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           fi
-          cp -r incoming/. data/
-          cd data
+          cp -r incoming/. .ana-data/
+          cd .ana-data
           mkdir -p "runs/$RUN"
           printf '{"run":"%s","result":"%s","code":"%s","log":"%s","at":"%s"}\n' "$RUN" "$RESULT" "$SHA" "$URL" "$(date -u +%FT%TZ)" > "runs/$RUN/run.json"
           git add -A
