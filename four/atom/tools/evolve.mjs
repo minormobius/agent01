@@ -122,13 +122,13 @@ function fitLaws(W, S, at) { return S.map((s, j) => { const { rho, T } = at[j]; 
   const er = W.eps(rho * 1.02, T, s).eps, eT = W.eps(rho, T * 1.01, s).eps; return { l0: Math.log(e0), a: Math.log(er / e0) / Math.log(1.02), b: Math.log(eT / e0) / Math.log(1.01), lr: Math.log(rho), lT: Math.log(T) }; }); }
 const law = (f, lr, lT) => (f ? Math.exp(f.l0 + f.a * (lr - f.lr) + f.b * (lT - f.lT)) : 0);
 /* solve the star for the shells S: the fitted laws refitted at each solution until L settles */
-function solve(W, M, S, guess, at0, f0 = null) {
+function solve(W, M, S, guess, at0, f0 = null, scale = 1) {
   // the EOS and opacity need only a few numbers from each shell: precomputed, then interpolated in q
   const CQ = S.map((y) => W.comp(y)), KQ = S.map((y) => (W.kcomp ? W.kcomp(y) : W.comp(y))), mixQ = (A, m) => { const [a, b, t] = bracket(QS, m / M); if (!t) return A[a]; const o = {}; for (const k in A[a]) o[k] = A[a][k] * (1 - t) + A[b][k] * t; return o; };
   const comp = (m) => mixQ(CQ, m), kap = W.kappaC ?? ((rho, T, c) => W.kappa(rho, T, null, c));
   let at = at0, s = null, p = guess, last = null, f = f0;
   for (let k = 0; k < 8; k++) {
-    const laws = fitLaws(W, S, at), eps = (rho, T, m) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t; };
+    const laws = fitLaws(W, S, at), eps = (rho, T, m) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return scale * (law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t); };
     s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}), ...(W.fit ? { fit: W.fit } : {}) }, p);
     if (!s.ok) return { s }; p = s.p; at = sample(W, M, S, s).rows;
     if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (Newton ${s.it})`);
@@ -173,9 +173,20 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   return run(null, null, null);
   function run(s1, g1, C) {
   // the first star: its laws fitted at a guessed profile, then re-solved to self-consistency
+  // the zero-age star on the shell laws, from the first star on the network's law: directly, or, where the two laws
+  // disagree too much for Newton (G 1e-11 s 1.5152: on the first star's profile the shell laws burn 80× the network's law), by
+  // continuation: the shell laws scaled until they balance the first star's own light, then the scale walked to 1
+  function firstShell(s0) { const at = sample(W, M, S, s0).rows, d = solve(W, M, S, s0.p, at, s0.f ?? null); if (d.s.ok) return d;
+    const lnuc = at.reduce((t, r, j) => t + WQ[j] * (r.T > (W.Tburn ?? 2e6) ? W.eps(r.rho, r.T, S[j]).eps : 0), 0) * M; let k = s0.L / lnuc;
+    if (process.env.DEBUG_SOLVE) console.log(`    first star L ${s0.L.toExponential(3)}, shell laws give ${lnuc.toExponential(3)} on its profile (×${k.toPrecision(3)}); direct solve ${d.s.why}, residual ${d.s.res?.toExponential(2)}`);
+    if (!(k > 0) || Math.abs(Math.log(k)) < 1e-3) return d; let cur = solve(W, M, S, s0.p, at, s0.f ?? null, k); if (process.env.DEBUG_SOLVE) console.log(`    scaled solve: ${cur.s.ok ? "ok" : cur.s.why + " " + cur.s.res?.toExponential(2)}`); if (!cur.s.ok) return d; let step = 0.5;
+    while (k !== 1) { const kn = k > 1 ? Math.max(1, k * Math.exp(-step)) : Math.min(1, k * Math.exp(step)), t = solve(W, M, S, cur.s.p, cur.at, cur.f, kn); if (!t.s.ok) { step /= 2; if (step < 1e-3) return t; continue; }
+      cur = t; k = kn; step = Math.min(1, step * 1.5); console.log(`${label} zero age by continuation: shell laws ×${k.toFixed(3)}, L ${cur.s.L.toExponential(4)} W, Tc ${(cur.s.Tc / 1e6).toFixed(2)} MK`); }
+    return cur; }
   const s0 = C ? null : W.first ? W.first(M) : star({ d: W.d, M, G: W.G, comp: W.comp(S[0]), eps: (rho, T) => W.eps(rho, T, S[0]).eps, kappa: (rho, T) => W.kappa(rho, T, S[0]), ...(W.envelope ? { envelope: W.envelope(M) } : {}) }, guess);
   if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
-  let { s, f: grav } = C ? { s: s1, f: g1 } : solve(W, M, S, s0.p, sample(W, M, S, s0).rows, s0.f ?? null); if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
+  let { s, f: grav } = C ? { s: s1, f: g1 } : firstShell(s0);
+  if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
   let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1;
   // settling (settle > 0 years): fresh gas has none of its burning's intermediates; burn the shells for 10², 2 × 10², …
   // years up to `settle` at the star's own conditions, re-solving each time, and only then start the clock, so the

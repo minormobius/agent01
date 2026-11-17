@@ -45,9 +45,15 @@ a factor of {{clockSetR}}. Section 3 took {{clockS3R}}, from a zero-age Sun buil
 factor depends on what counts as zero age. The run's very first star, before its helium-3 and carbon-12 have come
 into balance, sits at {{freshTc}} MK and would take {{clockFresh}} Gyr, a factor of only {{clockFreshR}}. Ageing the
 four-dimensional analogues themselves removes the convention, and they have now been aged on this machinery, with
-the charge law's plasma (screening under the pinned $1/r$ and the lens vacuum's cutoff on light). All {{a4n}} analogues
-burn half their central hydrogen, in {{a4min}}–{{a4max}} Gyr: {{a4rlo}}–{{a4rhi}} times the 4.6 Gyr section 3 gave them.
-The slowest sit at the strength nearest ours, s = 1.5152: {{a4s15}} Gyr from G = 10⁻¹⁴ to 10⁻²⁰.
+the charge law's plasma (screening under the pinned $1/r$ and the lens vacuum's cutoff on light). Of the {{a4grid}}
+Sun analogues section 3 found, {{a4n}} have been aged so far, and every one of them burns half its central hydrogen, in
+{{a4min}}–{{a4max}} Gyr: {{a4rlo}}–{{a4rhi}} times the 4.6 Gyr section 3 gave them.{{a4rest}} The slowest sit at the
+strength nearest ours, s = 1.5152: {{a4s15}} Gyr from G = 10⁻¹⁴ to 10⁻²⁰. One run stops soon after halving: at
+G = {{a4stG}}, s = {{a4stS}}, half the hydrogen is gone at {{a4stHalf}} Gyr and the solver finds no star past
+{{a4stEnd}}. Over its last {{a4stDt}} Gyr the stirred core shrank from {{a4stQ0}} to {{a4stQ1}} of the mass, while the
+centre grew {{a4stRho}} denser and {{a4stTc}} cooler and the light rose {{a4stL}}. The solver keeps every shell in
+thermal balance, with no energy drawn from contraction, so it cannot follow a core changing that fast. Where it fails
+does not depend on where the shooting meets.
 
 **The opacity, measured and then computed.** Everything above carries the textbook opacity: electron scattering plus
 Kramers's law. Along Model S's interior that law is {{krLo}}–{{krHi}} times OPAL's tables [@iglesias1996], and it is

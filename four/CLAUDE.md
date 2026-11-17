@@ -261,10 +261,22 @@ for games, and this is a modelling programme with publications to come. The game
   **evolve4-4 (0.2 fit; collected 2026-11-17):** every analogue halves its central hydrogen: 10.6–177 Gyr, 2.3–39× section
   3's 4.6 (`fusion/tools/ages4.mjs <dir> [runs]` → `papers/p2/data/ages4.json`; section 4 and provenance's ageing stage
   read it, check `ages4Half`). s 1.5152 slowest: 43 / 125 / 177 Gyr at G 10⁻¹⁴ / 10⁻¹⁷ / 10⁻²⁰; s 1.55: 16, 26, 34, 55.
-  Ladder at 10⁻¹⁷ s 1.5152: > 200 (0.5 M_Ch), 125, 29, 2.7, 0.3 Gyr (2.5 M_Ch). The 0.2 fit cleared G 10⁻¹¹ s 1.65/1.85;
-  still stalling: G 10⁻¹⁴ s 1.8 / 1.85 (Xc ~0.31, unchanged), 10⁻¹⁴ s 1.5152 (Xc 0.374, new), 10⁻¹¹ s 1.8 (zero age).
-  evolve4-5 (queued 8b7396859) carries the cut runs on. `star/aged.js` baked from the -lp set (28 4D tracks, cut runs
-  rebuilt from checkpoints with plasma: true, M_Ch ∝ G^(−4/3)).
+  Ladder at 10⁻¹⁷ s 1.5152: > 200 (0.5 M_Ch), 125, 29, 2.7, 0.3 Gyr (2.5 M_Ch). The 0.2 fit cleared G 10⁻¹¹ s 1.65/1.85.
+  **evolve4-5 (collected 2026-11-17):** the cut runs carried on; the old "stalls" at G 10⁻¹⁴ s 1.8/1.85 and 10⁻¹¹ s 1.8
+  were not (the resumed runs' checkpoints reach 56–63 Gyr, Xc ≤ 0.01): a run that once stopped leaves its finished file
+  behind with its checkpoint ahead, and collectors that preferred the finished file read it as stuck. **Collect by
+  whichever of the two reached further** (`ages4.mjs` does; on a tie the finished file, which says how it ended), and
+  rebuild `aged.js` the same way. 26 of the 29 analogues gravity.json holds are aged, all halved, 10.6–177 Gyr.
+  **The one real mid-life stall, G 10⁻¹⁴ s 1.5152 (Xc 0.374, 43.3 Gyr, just past halving), is physical, not numerical:**
+  the fit at 0.1, 0.2, 0.35 and 0.5 all fail alike, and with pinned gravity frozen it gets two more models; over its last
+  Gyr the stirred core falls from 0.145 to 0.049 of the mass while the centre grows 26% denser and 3% cooler (E_F/kT ≈
+  2.7) and L rises 17%. Complete equilibrium (no gravothermal energy) can't follow a core changing that fast; going
+  further needs ε_grav in the structure. Section 4 says so (`ages4.json` `stall`). **G 10⁻¹¹ s 1.5152's zero age**: on
+  the first star's profile (network law) the shell laws burn 80× its light, so Newton stalled at residual ~80; now
+  `firstShell` solves with the shell laws scaled to balance the first star, then walks the scale to 1 (it starts:
+  Tc 16.4 MK). The s 1.75 pair at 10⁻¹⁷/10⁻²⁰ (zero age in evolve4-1, never rerun) start on the 0.2 fit and halve by
+  ~20 / 31 Gyr in a sandbox trial. evolve4-6 ages those three on the runner. `star/aged.js` baked from evolve4-5 (31 4D
+  tracks, cut runs rebuilt from checkpoints with plasma: true, M_Ch ∝ G^(−4/3)).
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

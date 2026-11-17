@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="e42bc39e78b43f97bf37187a9134bab3425373d8731155d8a1138869ead25217" />
+<meta name="source-sha256" content="10d7157e5d55a8de42ea3cfc23dfc611aa9e1e0158c2545d3ba38e6843d911d5" />
 <title>Paper 2 · Supplement S1: how the model was built, and what each stage changed</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -456,8 +456,8 @@ stood in for their lives. <strong>By:</strong> each shell burnt on the
 network at its own conditions, stirred zones mixed, energy-checked steps
 (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against
 standard solar models. <strong>Runs:</strong> <code>evolve4-1</code>,
-<code>evolve4-2</code>, <code>evolve4-3</code>,
-<code>evolve4-4</code>.</p>
+<code>evolve4-2</code>, <code>evolve4-3</code>, <code>evolve4-4</code>,
+<code>evolve4-5</code>.</p>
 <p><strong>Decision rule, fixed before the results:</strong> a step is
 accepted only if what the shells burnt matches what the star radiated to
 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57
@@ -485,10 +485,12 @@ ours</td>
 <tr class="even">
 <td>the 4D Sun analogue’s life</td>
 <td>as long as ours, by the convention</td>
-<td>every analogue (G 10⁻¹¹–10⁻²⁰, eight s) halves its central hydrogen
-in the range below, with screening under the pinned 1/r and the lens
-vacuum’s opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴,
-10⁻¹⁷, 10⁻²⁰) ✓</td>
+<td>every aged analogue (26 of the 29 in gravity.json, G 10⁻¹¹–10⁻²⁰; G
+10⁻¹¹ s 1.5152 and s 1.75 at 10⁻¹⁷ / 10⁻²⁰ never started on the earlier
+solver, rerun in evolve4-6) halves its central hydrogen in the range
+below, with screening under the pinned 1/r and the lens vacuum’s opacity
+cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰)
+✓</td>
 </tr>
 </tbody>
 </table>

@@ -1,78 +1,14 @@
 {
- "run": "evolve4-5",
- "why": "Carry on evolve4-4's 4D Sun analogues and ladder (plasma on, -lp checkpoints) on c84b92398+: the zero-age guess now fits at 0.2 of the mass too, so G 1e-14 s 1.6 / 1.75 and the 0.25 M_Ch ladder star start; the cut runs resume (most are past Xc 0.1, several at 0.003). Still stalling after the fit fix, kept in to see: G 1e-14 s 1.8 / 1.85 (Xc ~0.31), 1e-14 s 1.5152 (Xc 0.374), 1e-11 s 1.8 (zero age).",
+ "run": "evolve4-6",
+ "why": "Age the three 4D Sun analogues that never started, on the commit that carries evolve.mjs's zero-age continuation: G 1e-11 s 1.5152 (on the first star's profile the shell laws burn 80× the network law's light, so Newton stalled at zero age; firstShell now scales the shell laws to balance it and walks the scale to 1) and s 1.75 at G 1e-17 / 1e-20 (zero age in evolve4-1, never rerun; on the 0.2 fit a sandbox trial halves them by ~20 / 31 Gyr). Plasma on (-lp).",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev5-00",
+   "name": "ev6-00",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.55 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.65 sun"
-   ]
-  },
-  {
-   "name": "ev5-01",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-11 1.8 sun",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.85 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.5152 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.55 sun"
-   ]
-  },
-  {
-   "name": "ev5-02",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-14 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.65 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.75 sun",
-    "node four/atom/tools/evolve.mjs four 1e-14 1.8 sun"
-   ]
-  },
-  {
-   "name": "ev5-03",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-14 1.85 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 sun"
-   ]
-  },
-  {
-   "name": "ev5-04",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.85 sun"
-   ]
-  },
-  {
-   "name": "ev5-05",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-20 1.5152 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.55 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.6 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.65 sun"
-   ]
-  },
-  {
-   "name": "ev5-06",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-20 1.7 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.8 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.85 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.25"
-   ]
-  },
-  {
-   "name": "ev5-07",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.6",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.75 sun",
+    "node four/atom/tools/evolve.mjs four 1e-20 1.75 sun"
    ]
   }
  ]

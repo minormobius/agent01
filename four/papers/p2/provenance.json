@@ -274,7 +274,8 @@
     "evolve4-1",
     "evolve4-2",
     "evolve4-3",
-    "evolve4-4"
+    "evolve4-4",
+    "evolve4-5"
    ],
    "rule": "a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else",
    "moved": [
@@ -289,7 +290,7 @@
     {
      "claim": "the 4D Sun analogue's life",
      "before": "as long as ours, by the convention",
-     "after": "every analogue (G 10⁻¹¹–10⁻²⁰, eight s) halves its central hydrogen in the range below, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰)",
+     "after": "every aged analogue (26 of the 29 in gravity.json, G 10⁻¹¹–10⁻²⁰; G 10⁻¹¹ s 1.5152 and s 1.75 at 10⁻¹⁷ / 10⁻²⁰ never started on the earlier solver, rerun in evolve4-6) halves its central hydrogen in the range below, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰)",
      "check": "ages4Half",
      "now": "10.6–177",
      "unit": "Gyr (the convention: 4.6)"

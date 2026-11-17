@@ -157,7 +157,11 @@ function opacityNumbers() {
 function ages4Numbers() {
   const A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);
   if (S.halved !== S.analogues) throw new Error(`ages4: ${S.analogues - S.halved} analogues not yet halved`);
-  return { a4n: String(S.analogues), a4min: f(S.halfMin, 1), a4max: f(S.halfMax, 0), a4rlo: f(S.halfMin / A.convention, 1), a4rhi: f(S.halfMax / A.convention, 0), a4s15: s15.map((x) => f(x.half, 0)).join(", ") };
+  const st = A.stars.find((x) => x.stall && x.half), word = ["no", "one", "two", "three", "four", "five", "six"], who = (k) => { const [g, s] = k.split("/"); return `G = ${Gs(+g)} at s = ${s}`; };
+  if (!st) throw new Error("ages4: the text describes a stalled analogue and there is none: rewrite it");
+  const rest = S.notAged.length ? ` The other ${word[S.notAged.length] ?? S.notAged.length} (${S.notAged.map(who).join("; ")}) never started on the earlier solver and are being aged now.` : "";
+  return { a4grid: String(S.inGravity), a4rest: rest, a4stG: Gs(st.G), a4stS: String(st.s), a4stHalf: f(st.half, 1), a4stEnd: f(st.lastGyr, 1), a4stQ0: f(st.stall.qccPeak, 2), a4stQ1: f(st.stall.qccEnd, 2), a4stDt: f(st.stall.overGyr, 0), a4stRho: pct(st.stall.rhoUp - 1), a4stTc: pct(1 - st.stall.TcDown), a4stL: pct(st.stall.LUp - 1),
+    a4n: String(S.analogues), a4min: f(S.halfMin, 1), a4max: f(S.halfMax, 0), a4rlo: f(S.halfMin / A.convention, 1), a4rhi: f(S.halfMax / A.convention, 0), a4s15: s15.map((x) => f(x.half, 0)).join(", ") };
 }
 function ageNumbers() {
   const E = J("evolvecheck.json"), b = E.burning, P = E.present, R = E.refs, C = E.clock, H = E.history, c3 = E.machinery.steps, by = (d) => c3.find((x) => x.dX === d);

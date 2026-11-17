@@ -2,12 +2,19 @@
  "about": "fusion/tools/ages4.mjs: the 4D Sun analogues (and the G 1e-17 s 1.5152 mass ladder) aged with the charge law's plasma; half = Gyr for the centre's hydrogen to halve (null if not yet: then halfAfter is the age reached), exhaust = Gyr to Xc 1e-3. Section 3's convention: 4.6 Gyr.",
  "runs": [
   "evolve4-3",
-  "evolve4-4"
+  "evolve4-4",
+  "evolve4-5"
  ],
  "convention": 4.6,
  "summary": {
-  "analogues": 23,
-  "halved": 23,
+  "inGravity": 29,
+  "notAged": [
+   "1e-11/1.5152",
+   "1e-17/1.75",
+   "1e-20/1.75"
+  ],
+  "analogues": 26,
+  "halved": 26,
   "halfMin": 10.63,
   "halfMax": 177.14,
   "notHalved": []
@@ -20,8 +27,8 @@
    "half": 16.1,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 20.1,
-   "lastXc": 0.1426,
+   "lastGyr": 21.5,
+   "lastXc": 0.1528,
    "Tc0": 12.33,
    "state": "cut"
   },
@@ -32,8 +39,8 @@
    "half": 10.63,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 23.3,
-   "lastXc": 0.0949,
+   "lastGyr": 24.9,
+   "lastXc": 0.019,
    "Tc0": 7.79,
    "state": "cut"
   },
@@ -43,10 +50,22 @@
    "m": 0.2316,
    "half": 10.78,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 43.9,
-   "lastXc": 0.0042,
+   "exhaust": 44,
+   "lastGyr": 44,
+   "lastXc": 0.001,
    "Tc0": 5.03,
+   "state": "central hydrogen below 0.001"
+  },
+  {
+   "G": 1e-11,
+   "s": 1.8,
+   "m": 0.2072,
+   "half": 16.62,
+   "halfAfter": null,
+   "exhaust": null,
+   "lastGyr": 56,
+   "lastXc": 0.0103,
+   "Tc0": 2.78,
    "state": "cut"
   },
   {
@@ -56,8 +75,8 @@
    "half": 22.58,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 52.9,
-   "lastXc": 0.0157,
+   "lastGyr": 62.8,
+   "lastXc": 0.0015,
    "Tc0": 2.32,
    "state": "cut"
   },
@@ -71,7 +90,15 @@
    "lastGyr": 43.3,
    "lastXc": 0.3743,
    "Tc0": 15.1,
-   "state": "no solution past Xc 0.3743"
+   "state": "no solution past Xc 0.3743",
+   "stall": {
+    "qccPeak": 0.145,
+    "qccEnd": 0.049,
+    "overGyr": 0.98,
+    "rhoUp": 1.26,
+    "TcDown": 0.972,
+    "LUp": 1.167
+   }
   },
   {
    "G": 1e-14,
@@ -80,9 +107,21 @@
    "half": 26.3,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 34.9,
-   "lastXc": 0.2558,
+   "lastGyr": 38.6,
+   "lastXc": 0.1813,
    "Tc0": 14.44,
+   "state": "cut"
+  },
+  {
+   "G": 1e-14,
+   "s": 1.6,
+   "m": 0.4623,
+   "half": 13.34,
+   "halfAfter": null,
+   "exhaust": null,
+   "lastGyr": 30.5,
+   "lastXc": 0.096,
+   "Tc0": 10.02,
    "state": "cut"
   },
   {
@@ -92,9 +131,21 @@
    "half": 21.91,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 49.8,
-   "lastXc": 0.019,
+   "lastGyr": 51.2,
+   "lastXc": 0.0012,
    "Tc0": 6.53,
+   "state": "cut"
+  },
+  {
+   "G": 1e-14,
+   "s": 1.75,
+   "m": 0.3872,
+   "half": 13.79,
+   "halfAfter": null,
+   "exhaust": null,
+   "lastGyr": 57.3,
+   "lastXc": 0.0077,
+   "Tc0": 4.04,
    "state": "cut"
   },
   {
@@ -103,11 +154,11 @@
    "m": 0.3931,
    "half": 14.96,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 16.7,
-   "lastXc": 0.3167,
+   "exhaust": 56.9,
+   "lastGyr": 56.9,
+   "lastXc": 0.001,
    "Tc0": 3.43,
-   "state": "no solution past Xc 0.3167"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-14,
@@ -116,10 +167,22 @@
    "half": 20.17,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 22.6,
-   "lastXc": 0.3055,
+   "lastGyr": 62.8,
+   "lastXc": 0.0016,
    "Tc0": 2.86,
-   "state": "no solution past Xc 0.3055"
+   "state": "cut"
+  },
+  {
+   "G": 1e-17,
+   "s": 1.5152,
+   "m": 0.25,
+   "half": null,
+   "halfAfter": 200,
+   "exhaust": null,
+   "lastGyr": 200,
+   "lastXc": 0.7497,
+   "Tc0": 7.03,
+   "state": "tmax"
   },
   {
    "G": 1e-17,
@@ -140,8 +203,8 @@
    "half": 124.94,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 134.5,
-   "lastXc": 0.3701,
+   "lastGyr": 172.8,
+   "lastXc": 0.2413,
    "Tc0": 15.85,
    "state": "cut"
   },
@@ -152,8 +215,8 @@
    "half": 29.33,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 32.4,
-   "lastXc": 0.3616,
+   "lastGyr": 41.3,
+   "lastXc": 0.2421,
    "Tc0": 17.6,
    "state": "cut"
   },
@@ -164,8 +227,8 @@
    "half": 2.69,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 3.1,
-   "lastXc": 0.3117,
+   "lastGyr": 4.1,
+   "lastXc": 0.1838,
    "Tc0": 21.43,
    "state": "cut"
   },
@@ -176,8 +239,8 @@
    "half": 0.32,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 0.5,
-   "lastXc": 0.2498,
+   "lastGyr": 0.6,
+   "lastXc": 0.07,
    "Tc0": 25.23,
    "state": "cut"
   },
@@ -188,8 +251,8 @@
    "half": 33.85,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 42.6,
-   "lastXc": 0.2825,
+   "lastGyr": 53.8,
+   "lastXc": 0.0411,
    "Tc0": 16.46,
    "state": "cut"
   },
@@ -200,8 +263,8 @@
    "half": 28.23,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 48.6,
-   "lastXc": 0.0775,
+   "lastGyr": 51.6,
+   "lastXc": 0.015,
    "Tc0": 13.38,
    "state": "cut"
   },
@@ -211,11 +274,11 @@
    "m": 0.9024,
    "half": 27.61,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 53.7,
-   "lastXc": 0.0186,
+   "exhaust": 54.3,
+   "lastGyr": 54.3,
+   "lastXc": 0.001,
    "Tc0": 9.27,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-17,
@@ -235,11 +298,11 @@
    "m": 0.8204,
    "half": 17.29,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 67.1,
-   "lastXc": 0.0017,
+   "exhaust": 67.8,
+   "lastGyr": 67.8,
+   "lastXc": 0.001,
    "Tc0": 4.31,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-17,
@@ -247,11 +310,11 @@
    "m": 0.8297,
    "half": 19.96,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 63.6,
-   "lastXc": 0.0029,
+   "exhaust": 66.5,
+   "lastGyr": 66.5,
+   "lastXc": 0.001,
    "Tc0": 3.58,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-20,
@@ -260,10 +323,10 @@
    "half": 177.14,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 193.4,
-   "lastXc": 0.3547,
+   "lastGyr": 200,
+   "lastXc": 0.3313,
    "Tc0": 17.84,
-   "state": "cut"
+   "state": "tmax"
   },
   {
    "G": 1e-20,
@@ -272,8 +335,8 @@
    "half": 55.42,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 75.2,
-   "lastXc": 0.2018,
+   "lastGyr": 92,
+   "lastXc": 0.0038,
    "Tc0": 18.49,
    "state": "cut"
   },
@@ -283,11 +346,11 @@
    "m": 2.515,
    "half": 33.07,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 48.2,
-   "lastXc": 0.0441,
+   "exhaust": 51.8,
+   "lastGyr": 51.8,
+   "lastXc": 0.001,
    "Tc0": 17.21,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-20,
@@ -295,11 +358,11 @@
    "m": 2.532,
    "half": 31.61,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 49.3,
-   "lastXc": 0.005,
+   "exhaust": 54.1,
+   "lastGyr": 54.1,
+   "lastXc": 0.001,
    "Tc0": 12.9,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-20,
@@ -307,11 +370,11 @@
    "m": 2.41,
    "half": 20.78,
    "halfAfter": null,
-   "exhaust": null,
+   "exhaust": 42.4,
    "lastGyr": 42.4,
-   "lastXc": 0.0028,
+   "lastXc": 0.001,
    "Tc0": 10.35,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-20,
@@ -319,11 +382,11 @@
    "m": 2.058,
    "half": 20.3,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 81.9,
-   "lastXc": 0.0026,
+   "exhaust": 82.8,
+   "lastGyr": 82.9,
+   "lastXc": 0.0009,
    "Tc0": 5.81,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-20,
@@ -331,11 +394,11 @@
    "m": 2.126,
    "half": 20.81,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 72,
-   "lastXc": 0.0028,
+   "exhaust": 75,
+   "lastGyr": 75,
+   "lastXc": 0.001,
    "Tc0": 4.84,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   }
  ]
 }
