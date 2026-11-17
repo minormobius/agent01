@@ -1,14 +1,12 @@
 {
- "run": "evolve4-6",
- "why": "Age the three 4D Sun analogues that never started, on the commit that carries evolve.mjs's zero-age continuation: G 1e-11 s 1.5152 (on the first star's profile the shell laws burn 80× the network law's light, so Newton stalled at zero age; firstShell now scales the shell laws to balance it and walks the scale to 1) and s 1.75 at G 1e-17 / 1e-20 (zero age in evolve4-1, never rerun; on the 0.2 fit a sandbox trial halves them by ~20 / 31 Gyr). Plasma on (-lp).",
+ "run": "evolve4-7",
+ "why": "Carry on evolve4-6's G 1e-11 s 1.5152 analogue (cut at 1.65 Gyr, Xc 0.452; about 0.2 of its hydrogen a Gyr, so it should halve near 2 Gyr). The only one of gravity.json's 29 analogues not yet halved.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev6-00",
+   "name": "ev7-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.75 sun",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.75 sun"
+    "node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun"
    ]
   }
  ]

@@ -17,7 +17,7 @@
          detailed balance), He I on hydrogen's 1s shape moved to its own threshold (an approximation, named), H⁻ from a
          cross-section the caller supplies (none by default: its share is reported, not assumed);
        the metals (ours, `metals: true`): bound–free and free–free of every ion of the Sun's main metals from the book's
-         atom (atom/js/metals.js; no lines yet);
+         atom (atom/js/metals.js; no lines yet); 4D, `metals: {Z: share by mass}` over elements 4–13 (metals.js prep4);
        stimulated emission on every absorption.
    · The envelope (`envelope`): the grey atmosphere T^(d+1) = c_d T_eff^(d+1)(τ + q_d) (ours ¾, ⅔; 4D 8/3π and 3π/8 − ⅔,
      so T = T_eff at τ = ⅔ as the star solver has it), dP/dτ = g/κ_R, then inward in ln P with dr = −P dlnP/(ρg),
@@ -101,7 +101,7 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
   const XS = Array.from({ length: 900 }, (_, i) => 0.01 * 1.0095 ** i).filter((x) => x < 60), WT = XS.map((x) => x ** (d + 1) * Math.exp(x) / Math.expm1(x) ** 2);
   const dX = XS.map((x, i) => (i ? x - XS[i - 1] : x)), W0 = WT.reduce((t, w, i) => t + w * dX[i], 0);
   function kappaParts(st) {
-    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [], hff: [], met: [] }, mk = metals && Z > 0 ? metalPrep(st, st.rho, Z) : null, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
+    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [], hff: [], met: [] }, mk = metals && Z > 0 ? metalPrep(st, st.rho, Z, d, typeof metals === "object" ? metals : null) : null, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
     const popH = st.LH.map((v) => (st.h0 * v.w * v.g * Math.exp(-(v.E_eV - st.LH[0].E_eV) / kT)) / st.UH), popHe = st.LHe.map((v) => (st.he1 * v.w * v.g * Math.exp(-(v.E_eV - st.LHe[0].E_eV) / kT)) / st.UHe2);
     for (const x of XS) { const wEv = x * kT, stim = -Math.expm1(-x), om = (x * SI.k * T) / SI.hbar;
       out.es.push(ne * (d === 3 ? (8 * Math.PI * RE * RE) / 3 : ((3 * Math.PI ** 3) / 4) * RE * RE * (SI.c / om)));

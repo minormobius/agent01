@@ -275,8 +275,29 @@ for games, and this is a modelling programme with publications to come. The game
   the first star's profile (network law) the shell laws burn 80× its light, so Newton stalled at residual ~80; now
   `firstShell` solves with the shell laws scaled to balance the first star, then walks the scale to 1 (it starts:
   Tc 16.4 MK). The s 1.75 pair at 10⁻¹⁷/10⁻²⁰ (zero age in evolve4-1, never rerun) start on the 0.2 fit and halve by
-  ~20 / 31 Gyr in a sandbox trial. evolve4-6 ages those three on the runner. `star/aged.js` baked from evolve4-5 (31 4D
-  tracks, cut runs rebuilt from checkpoints with plasma: true, M_Ch ∝ G^(−4/3)).
+  ~20 / 31 Gyr in a sandbox trial. **evolve4-6 (collected 2026-11-17):** the s 1.75 pair halve at 14.1 / 16.4 Gyr
+  (G 10⁻²⁰ exhausted at 74 Gyr), so 28 of the 29 halve, 10.6–177 Gyr. G 10⁻¹¹ s 1.5152 burns faster than any other:
+  Xc 0.452 at 1.65 Gyr when cut (L/M ten times the G 10⁻¹⁴ analogue's); evolve4-7 carries it on. Why it differs: at
+  every s 1.5152 zero-age centre the shell laws' instantaneous ε on fresh gas is 27–40× eps4.json's mean ε to half
+  (the climb past helium releases its binding early; at the G 10⁻¹⁴ star's 43 Gyr composition ε is 1/100 of fresh),
+  and at G 10⁻¹¹ L follows ε closely (the continuation's scale ×0.02 gave L ×0.07), so the network-law analogue
+  (chosen by eps4's zero-age t½ = 11.1 Gyr) is not a Sun-paced star on the shell laws there. Section 4 states the
+  run's state (`build.mjs` allows an unhalved analogue only while its run is cut, not stopped). **The 4D metals (PI, 2026-11-16: "no metals in 4D is a cop out"; the plan: opacity, then the
+  first generation's yields, the second generation's mix, its stars).** Step one, the opacity: `fusion/tools/ions3.mjs 4`
+  (16 s) → **generated** `atom/js/iondata4.js`, every ion of elements 4–13 (ceryllium … todium, the first generation's
+  ash) from atom.js in d = 4; each neutral's ΔSCF ionization equals the table's to the 0.01 eV (5.51 … 4.85 eV);
+  ours' `iondata.js` regenerates byte for byte. `fusion/tools/photoshape.mjs` (4 s) → **generated** `atom/js/photoshape.js`,
+  hydrogen-like bound–free shapes σ₁(ω/χ) per level to n = 3 in both worlds from photo.js (σ_Z = Z^(−p)σ₁(ω/Z²), p = 2
+  ours, 4.000 4D, checked at Z = 1, 2; the table against photo.js at Z = 10 to 0.5% to x = 40, its far end to 1.2% on a
+  4× finer grid). `metals.js` `prep(st, rho, Z, 4, mix)` (`prep4`, `pops4`): Saha in 4D, the lowering bridged weak →
+  ion sphere (Debye–Hückel overshoots in a 4D core: ion-sphere lowering is half the weak at 0.1–1 MK), bound–free on
+  each subshell's own hydrogenic shape (Z_eff = (n + ½)√(2χ)), the ions' classical 4D free–free; `surface.js` takes
+  `metals: {Z: share}` in 4D (ours' path untouched: kappacheck.json identical). **First look:** 1% by mass of a
+  pxygen-rich ash (pxygen 0.72, oitrogen 0.27) raises 4D interior opacity only ×1.03–1.06 at 0.3–15 MK (ours' Z 0.014
+  roughly doubles it), nearly all through the metals' free–free: 4D bound–free on a charge-Z ion falls as Z⁻⁴ (ours
+  Z⁻²). Not committed as data yet: the mix waits on step two, the yields. `star/aged.js` baked
+  from evolve4-6 (34 4D tracks, the further record of each run, cut runs rebuilt from checkpoints with plasma: true,
+  M_Ch ∝ G^(−4/3)).
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

@@ -142,14 +142,14 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 
 ### S1.9 Stars that age (2026-11-15)
 
-**Replaced:** zero-age stars, and the clock factor that stood in for their lives. **By:** each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models. **Runs:** `evolve4-1`, `evolve4-2`, `evolve4-3`, `evolve4-4`, `evolve4-5`.
+**Replaced:** zero-age stars, and the clock factor that stood in for their lives. **By:** each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models. **Runs:** `evolve4-1`, `evolve4-2`, `evolve4-3`, `evolve4-4`, `evolve4-5`, `evolve4-6`.
 
 **Decision rule, fixed before the results:** a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else.
 
 | what moved | before | after |
 |---|---|---|
 | the clock factor (fixed zero-age centre over aged centre), on ours | 2.41 (assumed) | 1.99 (computed, from the settled zero-age centre) ✓ |
-| the 4D Sun analogue's life | as long as ours, by the convention | every aged analogue (26 of the 29 in gravity.json, G 10⁻¹¹–10⁻²⁰; G 10⁻¹¹ s 1.5152 and s 1.75 at 10⁻¹⁷ / 10⁻²⁰ never started on the earlier solver, rerun in evolve4-6) halves its central hydrogen in the range below, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓ |
+| the 4D Sun analogue's life | as long as ours, by the convention | 28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), is at Xc 0.45 after 1.65 Gyr and runs on in evolve4-7, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓ |
 
 | what held | |
 |---|---|

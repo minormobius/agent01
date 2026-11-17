@@ -46,8 +46,8 @@ factor depends on what counts as zero age. The run's very first star, before its
 into balance, sits at 14.7 MK and would take 5.8 Gyr, a factor of only 1.20. Ageing the
 four-dimensional analogues themselves removes the convention, and they have now been aged on this machinery, with
 the charge law's plasma (screening under the pinned $1/r$ and the lens vacuum's cutoff on light). Of the 29
-Sun analogues section 3 found, 26 have been aged so far, and every one of them burns half its central hydrogen, in
-10.6–177 Gyr: 2.3–39 times the 4.6 Gyr section 3 gave them. The other three (G = 10^−11^ at s = 1.5152; G = 10^−17^ at s = 1.75; G = 10^−20^ at s = 1.75) never started on the earlier solver and are being aged now. The slowest sit at the
+Sun analogues section 3 found, 28 have been aged past half their central hydrogen so far, in
+10.6–177 Gyr: 2.3–39 times the 4.6 Gyr section 3 gave them. One is still burning: at G = 10^−11^, s = 1.5152, the centre is down to 0.45 of its hydrogen after 1.6 Gyr, from 0.75, faster than any other, and the run goes on. The slowest sit at the
 strength nearest ours, s = 1.5152: 43, 125, 177 Gyr from G = 10⁻¹⁴ to 10⁻²⁰. One run stops soon after halving: at
 G = 10^−14^, s = 1.5152, half the hydrogen is gone at 43.1 Gyr and the solver finds no star past
 43.3. Over its last 1 Gyr the stirred core shrank from 0.14 to 0.05 of the mass, while the

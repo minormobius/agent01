@@ -3,23 +3,34 @@
  "runs": [
   "evolve4-3",
   "evolve4-4",
-  "evolve4-5"
+  "evolve4-5",
+  "evolve4-6"
  ],
  "convention": 4.6,
  "summary": {
   "inGravity": 29,
-  "notAged": [
-   "1e-11/1.5152",
-   "1e-17/1.75",
-   "1e-20/1.75"
-  ],
-  "analogues": 26,
-  "halved": 26,
+  "notAged": [],
+  "analogues": 29,
+  "halved": 28,
   "halfMin": 10.63,
   "halfMax": 177.14,
-  "notHalved": []
+  "notHalved": [
+   "1e-11/1.5152"
+  ]
  },
  "stars": [
+  {
+   "G": 1e-11,
+   "s": 1.5152,
+   "m": 0.4374,
+   "half": null,
+   "halfAfter": 1.6,
+   "exhaust": null,
+   "lastGyr": 1.6,
+   "lastXc": 0.4524,
+   "Tc0": 16.4,
+   "state": "cut"
+  },
   {
    "G": 1e-11,
    "s": 1.55,
@@ -294,6 +305,18 @@
   },
   {
    "G": 1e-17,
+   "s": 1.75,
+   "m": 0.8214,
+   "half": 14.11,
+   "halfAfter": null,
+   "exhaust": null,
+   "lastGyr": 63.1,
+   "lastXc": 0.0053,
+   "Tc0": 5.22,
+   "state": "cut"
+  },
+  {
+   "G": 1e-17,
    "s": 1.8,
    "m": 0.8204,
    "half": 17.29,
@@ -374,6 +397,18 @@
    "lastGyr": 42.4,
    "lastXc": 0.001,
    "Tc0": 10.35,
+   "state": "central hydrogen below 0.001"
+  },
+  {
+   "G": 1e-20,
+   "s": 1.75,
+   "m": 2.093,
+   "half": 16.41,
+   "halfAfter": null,
+   "exhaust": 74.2,
+   "lastGyr": 74.2,
+   "lastXc": 0.001,
+   "Tc0": 7.22,
    "state": "central hydrogen below 0.001"
   },
   {
