@@ -44,7 +44,10 @@ temperature and density of the settled zero-age star (0.1 Gyr, 13.7 MK), fresh g
 a factor of 1.99. Section 3 took 2.41, from a zero-age Sun built under a simpler burning law. The
 factor depends on what counts as zero age. The run's very first star, before its helium-3 and carbon-12 have come
 into balance, sits at 14.7 MK and would take 5.8 Gyr, a factor of only 1.20. Ageing the
-four-dimensional analogues themselves removes the convention. That is the next step, on this machinery.
+four-dimensional analogues themselves removes the convention, and they have now been aged on this machinery, with
+the charge law's plasma (screening under the pinned $1/r$ and the lens vacuum's cutoff on light). All 23 analogues
+burn half their central hydrogen, in 10.6–177 Gyr: 2.3–39 times the 4.6 Gyr section 3 gave them.
+The slowest sit at the strength nearest ours, s = 1.5152: 43, 125, 177 Gyr from G = 10⁻¹⁴ to 10⁻²⁰.
 
 **The opacity, measured and then computed.** Everything above carries the textbook opacity: electron scattering plus
 Kramers's law. Along Model S's interior that law is 0.16–1.35 times OPAL's tables [@iglesias1996], and it is

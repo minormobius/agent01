@@ -258,6 +258,13 @@ for games, and this is a modelling programme with publications to come. The game
   10⁻¹⁷ s 1.6 28.2/27.3, s 1.7 13.2/12.8); hotter-burning cores just settle cooler. 8 failed at zero age, 3 stalled at the
   old fit. evolve4-4 (running, queued at f8831017e) resumes all 32 on the 0.2 fit; the zero-age-guess fix came after it,
   so G 10⁻¹⁴ s 1.6 / 1.75 and the 0.25 M_Ch star need one more run.
+  **evolve4-4 (0.2 fit; collected 2026-11-17):** every analogue halves its central hydrogen: 10.6–177 Gyr, 2.3–39× section
+  3's 4.6 (`fusion/tools/ages4.mjs <dir> [runs]` → `papers/p2/data/ages4.json`; section 4 and provenance's ageing stage
+  read it, check `ages4Half`). s 1.5152 slowest: 43 / 125 / 177 Gyr at G 10⁻¹⁴ / 10⁻¹⁷ / 10⁻²⁰; s 1.55: 16, 26, 34, 55.
+  Ladder at 10⁻¹⁷ s 1.5152: > 200 (0.5 M_Ch), 125, 29, 2.7, 0.3 Gyr (2.5 M_Ch). The 0.2 fit cleared G 10⁻¹¹ s 1.65/1.85;
+  still stalling: G 10⁻¹⁴ s 1.8 / 1.85 (Xc ~0.31, unchanged), 10⁻¹⁴ s 1.5152 (Xc 0.374, new), 10⁻¹¹ s 1.8 (zero age).
+  evolve4-5 (queued 8b7396859) carries the cut runs on. `star/aged.js` baked from the -lp set (28 4D tracks, cut runs
+  rebuilt from checkpoints with plasma: true, M_Ch ∝ G^(−4/3)).
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

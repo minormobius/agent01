@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="2a6347ef8845bc217d2eea43e0d1a785da6d92042d6fb37402dcf7604c115d1f" />
+<meta name="source-sha256" content="e42bc39e78b43f97bf37187a9134bab3425373d8731155d8a1138869ead25217" />
 <title>Paper 2 · Supplement S1: how the model was built, and what each stage changed</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -40,9 +40,9 @@ way are not stages; they are in the code’s history. Each stage lists
 what it replaced and by what, the runs behind it, what moved (with the
 earlier value and where it was recorded), and what held. The earlier
 values are historical: by their nature they are no longer in the data.
-Of the 32 entries, 14 are marked ✓: the value given is recomputed from
+Of the 32 entries, 15 are marked ✓: the value given is recomputed from
 the committed data each time the paper is built, and the build stops if
-they disagree. 1 marked ⧗ waits on a run in progress.</p>
+they disagree. 0 marked ⧗ waits on a run in progress.</p>
 <h3 id="s1.1-proton-proton-computed-2026-11-11">S1.1 Proton + proton
 computed (2026-11-11)</h3>
 <p><strong>Replaced:</strong> a nuclear size guessed for p + p (4 fm).
@@ -455,8 +455,9 @@ Berrington</td>
 stood in for their lives. <strong>By:</strong> each shell burnt on the
 network at its own conditions, stirred zones mixed, energy-checked steps
 (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against
-standard solar models. <strong>Runs:</strong>
-<code>evolve4-1</code>.</p>
+standard solar models. <strong>Runs:</strong> <code>evolve4-1</code>,
+<code>evolve4-2</code>, <code>evolve4-3</code>,
+<code>evolve4-4</code>.</p>
 <p><strong>Decision rule, fixed before the results:</strong> a step is
 accepted only if what the shells burnt matches what the star radiated to
 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57
@@ -484,9 +485,10 @@ ours</td>
 <tr class="even">
 <td>the 4D Sun analogue’s life</td>
 <td>as long as ours, by the convention</td>
-<td>pending: evolve4-1 (a sandbox trial at G 10⁻¹⁷, s 1.5152 settles to
-16.0 MK, against the zero-age table star’s 20.8, and burns its stirred
-core slowly) ⧗</td>
+<td>every analogue (G 10⁻¹¹–10⁻²⁰, eight s) halves its central hydrogen
+in the range below, with screening under the pinned 1/r and the lens
+vacuum’s opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴,
+10⁻¹⁷, 10⁻²⁰) ✓</td>
 </tr>
 </tbody>
 </table>

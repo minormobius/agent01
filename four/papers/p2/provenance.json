@@ -271,7 +271,10 @@
    "replaced": "zero-age stars, and the clock factor that stood in for their lives",
    "by": "each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models",
    "runs": [
-    "evolve4-1"
+    "evolve4-1",
+    "evolve4-2",
+    "evolve4-3",
+    "evolve4-4"
    ],
    "rule": "a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else",
    "moved": [
@@ -286,9 +289,10 @@
     {
      "claim": "the 4D Sun analogue's life",
      "before": "as long as ours, by the convention",
-     "after": "pending: evolve4-1 (a sandbox trial at G 10⁻¹⁷, s 1.5152 settles to 16.0 MK, against the zero-age table star's 20.8, and burns its stirred core slowly)",
-     "where": "four/CLAUDE.md, 'stars that age'",
-     "pending": true
+     "after": "every analogue (G 10⁻¹¹–10⁻²⁰, eight s) halves its central hydrogen in the range below, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰)",
+     "check": "ages4Half",
+     "now": "10.6–177",
+     "unit": "Gyr (the convention: 4.6)"
     }
    ],
    "held": [

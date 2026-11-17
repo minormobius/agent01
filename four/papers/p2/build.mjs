@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers(), opacityNumbers());
+  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -153,6 +153,12 @@ function opacityNumbers() {
     fo1L: free("free-opal", "1", "halfL"), fo1T: free("free-opal", "1", "halfTeff"), fo1life: free("free-opal", "1", "life"), fb1L: free("free-book", "1", "halfL"), fb1T: free("free-book", "1", "halfTeff"), fb1life: free("free-book", "1", "life"),
     fo08L: free("free-opal", "0.8", "halfL"), fb08L: free("free-book", "0.8", "halfL"), fo16L: free("free-opal", "1.6", "halfL"), fb16L: free("free-book", "1.6", "halfL"), fo16life: free("free-opal", "1.6", "life"), fb16life: free("free-book", "1.6", "life") };
 }
+/* the 4D analogues aged (data/ages4.json, fusion/tools/ages4.mjs) */
+function ages4Numbers() {
+  const A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);
+  if (S.halved !== S.analogues) throw new Error(`ages4: ${S.analogues - S.halved} analogues not yet halved`);
+  return { a4n: String(S.analogues), a4min: f(S.halfMin, 1), a4max: f(S.halfMax, 0), a4rlo: f(S.halfMin / A.convention, 1), a4rhi: f(S.halfMax / A.convention, 0), a4s15: s15.map((x) => f(x.half, 0)).join(", ") };
+}
 function ageNumbers() {
   const E = J("evolvecheck.json"), b = E.burning, P = E.present, R = E.refs, C = E.clock, H = E.history, c3 = E.machinery.steps, by = (d) => c3.find((x) => x.dX === d);
   const p1 = (x) => f(100 * x, 1);
@@ -171,6 +177,7 @@ function ageNumbers() {
 /* the provenance ledger (provenance.json): every 'now' with a check recomputed here from the committed data; a mismatch
    stops the build, so the ledger can't drift from the results. The supplement section renders it (text/stages.md) */
 const PCHECKS = {
+  ages4Half: () => { const S = J("ages4.json").summary; return `${S.halfMin.toFixed(1)}–${S.halfMax.toFixed(0)}`; },
   opalSunRho: () => J("mistcheck.json").sets.opal.sun457.rhoc,
   opalHalfR: () => { const M = J("mistcheck.json").sets, v = ["1", "1.25", "1.6", "2", "3"].map((m) => M.opal.stars[m].ratio.halfR); return `${Math.min(...v).toFixed(2)}–${Math.max(...v).toFixed(2)}`; },
   metShareLo: () => +J("kappacheck.json").summary.metShare[0].toFixed(2),

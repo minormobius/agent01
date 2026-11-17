@@ -22,8 +22,8 @@ none: their results were read as they came. That is said plainly rather than rec
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 32 entries, 14 are marked ✓: the value given is recomputed from the committed data each
-time the paper is built, and the build stops if they disagree. 1 marked ⧗ waits on a run in progress.
+data. Of the 32 entries, 15 are marked ✓: the value given is recomputed from the committed data each
+time the paper is built, and the build stops if they disagree. 0 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
 
@@ -142,14 +142,14 @@ time the paper is built, and the build stops if they disagree. 1 marked ⧗ wait
 
 ### S1.9 Stars that age (2026-11-15)
 
-**Replaced:** zero-age stars, and the clock factor that stood in for their lives. **By:** each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models. **Runs:** `evolve4-1`.
+**Replaced:** zero-age stars, and the clock factor that stood in for their lives. **By:** each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models. **Runs:** `evolve4-1`, `evolve4-2`, `evolve4-3`, `evolve4-4`.
 
 **Decision rule, fixed before the results:** a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else.
 
 | what moved | before | after |
 |---|---|---|
 | the clock factor (fixed zero-age centre over aged centre), on ours | 2.41 (assumed) | 1.99 (computed, from the settled zero-age centre) ✓ |
-| the 4D Sun analogue's life | as long as ours, by the convention | pending: evolve4-1 (a sandbox trial at G 10⁻¹⁷, s 1.5152 settles to 16.0 MK, against the zero-age table star's 20.8, and burns its stirred core slowly) ⧗ |
+| the 4D Sun analogue's life | as long as ours, by the convention | every analogue (G 10⁻¹¹–10⁻²⁰, eight s) halves its central hydrogen in the range below, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓ |
 
 | what held | |
 |---|---|
