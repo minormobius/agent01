@@ -1,10 +1,10 @@
 {
- "run": "evolve4-4",
- "why": "Resume evolve4-3's 4D Sun analogues and ladder (plasma on, -lp checkpoints) on the fixed solver (faa29a2d2): 4D now meets the shooting at 0.2 of the mass (the mid-life stall of the 2.5-3.5 MK cores was an ill-conditioned Jacobian at 0.5), burns down to 1 MK, and accepts Newton stalls under 5e-4. Finished runs resume and stop at once; stalled and cut runs carry on.",
+ "run": "evolve4-5",
+ "why": "Carry on evolve4-4's 4D Sun analogues and ladder (plasma on, -lp checkpoints) on c84b92398+: the zero-age guess now fits at 0.2 of the mass too, so G 1e-14 s 1.6 / 1.75 and the 0.25 M_Ch ladder star start; the cut runs resume (most are past Xc 0.1, several at 0.003). Still stalling after the fit fix, kept in to see: G 1e-14 s 1.8 / 1.85 (Xc ~0.31), 1e-14 s 1.5152 (Xc 0.374), 1e-11 s 1.8 (zero age).",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev4-00",
+   "name": "ev5-00",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-11 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-11 1.55 sun",
@@ -13,7 +13,7 @@
    ]
   },
   {
-   "name": "ev4-01",
+   "name": "ev5-01",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-11 1.8 sun",
     "node four/atom/tools/evolve.mjs four 1e-11 1.85 sun",
@@ -22,7 +22,7 @@
    ]
   },
   {
-   "name": "ev4-02",
+   "name": "ev5-02",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-14 1.6 sun",
     "node four/atom/tools/evolve.mjs four 1e-14 1.65 sun",
@@ -31,7 +31,7 @@
    ]
   },
   {
-   "name": "ev4-03",
+   "name": "ev5-03",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-14 1.85 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 sun",
@@ -40,7 +40,7 @@
    ]
   },
   {
-   "name": "ev4-04",
+   "name": "ev5-04",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 sun",
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 sun",
@@ -49,7 +49,7 @@
    ]
   },
   {
-   "name": "ev4-05",
+   "name": "ev5-05",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-20 1.5152 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.55 sun",
@@ -58,7 +58,7 @@
    ]
   },
   {
-   "name": "ev4-06",
+   "name": "ev5-06",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-20 1.7 sun",
     "node four/atom/tools/evolve.mjs four 1e-20 1.8 sun",
@@ -67,7 +67,7 @@
    ]
   },
   {
-   "name": "ev4-07",
+   "name": "ev5-07",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.5",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1",
