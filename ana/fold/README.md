@@ -86,3 +86,21 @@ It runs on GitHub's runners through `.github/compute/ana.json` (see `.github/com
 A 90-second local trial: 7,942 polytopes, every one netted within 9 random tries; a minute of hill-climbing drove a
 lineage of stretched 11-cell polytopes down to nets in 6% of sampled trees. Nothing found, which is what to expect:
 finding nothing is evidence, not proof.
+
+## Folding without collisions
+
+Turning every hinge at the same rate (*all at once*) folds 228 of the 261 nets cleanly, but in the other 33 some cubes
+pass through each other near the end, up to a tenth of a cube deep. A cube several hinges from the bottom has turned by
+a composition of partial turns in different planes, and on the way that path can sweep it through a cube it will only
+meet edge to edge when everything is home. *Ring by ring* (`hingeAngles(parent, t, true)`) folds the bottom cube's
+neighbours first, carrying their subtrees flat, then the next ring out: every part already folded is in its final place,
+and the ring that's moving turns about squares on it. None of the 261 collide that way.
+
+Checked by `js/clash.js`: for each pair of cubes, a linear programme for the deepest point inside both (`depth`; 0 is
+touching, along a hinge, an edge or a corner). The page runs it every frame and colours a clashing pair red; the
+selftest checks it against hand answers and makes both claims at 48 moments of every fold. It was cross-checked
+against scipy's HiGHS on all 261 nets at 96 moments (agreement to 2·10⁻¹¹).
+
+This is a measurement for the tesseract's nets, not a theorem. For 3D polyhedra, continuous non-colliding folding
+("blooming") is a studied question (Demaine, Demaine, Hart, Iacono, Langerman and O'Rourke, *Continuous blooming of
+convex polyhedra*, 2011); the 24-cell's folds aren't checked here yet.

@@ -43,15 +43,27 @@ export function spanningTrees() {
   return out;
 }
 
+/** Each cell's distance from the root down the hinge tree (the root 0, its children 1, …). */
+export function depths(parent) { return parent.map((_, c) => { let k = 0; for (let x = c; parent[x] >= 0; x = parent[x]) k++; return k; }); }
+/** Each hinge's angle (radians from folded; π/2 flat) at fold parameter t (0 folded, 1 flat). All at once: every hinge
+ *  at t·90°. Ring by ring: the root's children fold first, carrying their subtrees flat, then the next ring, and so on;
+ *  t sweeps the rings in equal shares. Ring by ring no two cubes of any of the 261 nets ever pass through each other;
+ *  all at once, 33 of them do near the end (the selftest checks both). */
+export function hingeAngles(parent, t, ring = false) {
+  if (!ring) return parent.map(() => (t * Math.PI) / 2);
+  const d = depths(parent), H = Math.max(...d), s = (1 - t) * H;
+  return d.map((k) => (Math.PI / 2) * (1 - Math.min(1, Math.max(0, s - (k - 1)))));
+}
 /** The rigid motion of each cell at fold angle t (0 folded up into the tesseract, 1 flat net): a function x → x′.
  *  Child c of parent p turns by t·90° about their shared square (where x·n_p = ½ and x·n_c = ½), in the plane of
  *  n_p and n_c, sending its inward direction −n_p toward +n_c; then everything p's motion does. */
-export function motions(parent, t) {
+export function motions(parent, t, ring = false) {
+  const ang = hingeAngles(parent, t, ring);
   const M = new Array(8);
   const order = []; { const seen = new Set([ROOT]); order.push(ROOT); for (let k = 0; k < order.length; k++) for (let c = 0; c < 8; c++) if (parent[c] === order[k] && !seen.has(c)) { seen.add(c); order.push(c); } }
   for (const c of order) {
     if (c === ROOT) { M[c] = (x) => x; continue; }
-    const p = parent[c], np = CELLS[p].n, nc = CELLS[c].n, q = add(scale(np, 0.5), nc, 0.5), th = (t * Math.PI) / 2, co = Math.cos(th), si = Math.sin(th);
+    const p = parent[c], np = CELLS[p].n, nc = CELLS[c].n, q = add(scale(np, 0.5), nc, 0.5), th = ang[c], co = Math.cos(th), si = Math.sin(th);
     const R = (x) => {                                    // turn about the square through q: n_p → co·n_p − si·n_c, n_c → co·n_c + si·n_p
       const d = add(x, q, -1), a = dot(d, np), b = dot(d, nc);
       const r = add(add(d, np, a * (co - 1) + b * si), nc, -a * si + b * (co - 1));

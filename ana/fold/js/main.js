@@ -4,6 +4,7 @@ import * as F from './fold.js';
 import { NETS } from './nets-data.js';
 import { JOHNSON, SNUB_DODECAHEDRON } from '../../johnson/js/johnson-data.js';
 import * as UF from './unfold4.js';
+import { depth as clashDepth } from './clash.js';
 import { OVERLAP_24, NET_24 } from './unfold4-data.js';
 
 const $ = (id) => document.getElementById(id);
@@ -12,7 +13,7 @@ const gl = canvas.getContext('webgl2', { antialias: true });
 if (!gl) { $('nogl').hidden = false; throw new Error('no WebGL2'); }
 
 const DALI = NETS.indexOf(F.daliNet(NETS));
-const S = { f24: 0, t24: null, mode: 'nets', view: 'shadow', net: DALI, f: 0, playing: 0, spin: true, obj: 'snub', a: 0, R: 2.4 };
+const S = { f24: 0, t24: null, mode: 'nets', view: 'shadow', net: DALI, f: 0, ring: true, playing: 0, spin: true, obj: 'snub', a: 0, R: 2.4 };
 let E = ident(), off = -0.5, yaw = -0.5, pitch = 0.45, zoom = 1, dirty = true, need = true;
 function ident() { return [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]; }
 const dot = F.dot, sub = (a, b) => a.map((v, i) => v - b[i]);
@@ -53,8 +54,20 @@ const REACH = new Map();
 function reach(i) {
   if (REACH.has(i)) return REACH.get(i);
   let m = 0;
-  for (let k = 0; k <= 40; k++) { const M = F.motions(NETS[i].parent, k / 40); F.CELLS.forEach((c, j) => { for (const v of c.V) m = Math.max(m, Math.abs(M[j](v)[3] + 0.5)); }); }
+  for (let k = 0; k <= 80; k++) { const M = F.motions(NETS[i].parent, (k % 41) / 40, k > 40); F.CELLS.forEach((c, j) => { for (const v of c.V) m = Math.max(m, Math.abs(M[j](v)[3] + 0.5)); }); }
   REACH.set(i, m); return m;
+}
+/** The cubes passing through each other at this moment of the fold: [{ a, b, d }], d how deep (in cube widths) the
+ *  deepest common point is inside both. Touching along a hinge, an edge or a corner doesn't count. */
+function clashes(parent, M) {
+  const box = (i) => { const c = F.CELLS[i], o = M[i](c.n.map((v) => v / 2)), O0 = M[i]([0, 0, 0, 0]);
+    return [o, [0, 1, 2, 3].filter((k) => k !== c.axis).map((k) => { const e = [0, 0, 0, 0]; e[k] = 1; return sub(M[i](e), O0); })]; };
+  const B = F.CELLS.map((_, i) => box(i)), out = [];
+  for (let a = 0; a < 8; a++) for (let b = a + 1; b < 8; b++) {
+    if (Math.hypot(...sub(B[a][0], B[b][0])) > Math.sqrt(3)) continue;
+    const d = clashDepth(B[a][0], B[a][1], 0.5, B[b][0], B[b][1], 0.5); if (d > 1e-6) out.push({ a, b, d });
+  }
+  return out;
 }
 // ------------------------------------------------------------------ the scene
 // cell colours: ±x ice, ±y gold, ±z rose, ±w violet (the root, −w, the palest)
@@ -144,11 +157,14 @@ function build() {
   const O = origin();
   if (S.mode === 'c24') build24(T, L, O);
   else if (S.mode === 'nets') {
-    const net = NETS[S.net], M = F.motions(net.parent, 1 - S.f);
+    const net = NETS[S.net], M = F.motions(net.parent, 1 - S.f, S.ring);
     EYE = Math.max(2.5, reach(S.net) * 1.5 + 1);
+    const cl = clashes(net.parent, M), bad = new Set(cl.flatMap((x) => [x.a, x.b]));
+    if (JSON.stringify(cl.map((x) => [x.a, x.b])) !== JSON.stringify((S.clash || []).map((x) => [x.a, x.b]))) { S.clash = cl; info(); } else S.clash = cl;
     F.CELLS.forEach((c, i) => {
       const W = c.V.map(M[i]), nn = sub(M[i](c.n), M[i]([0, 0, 0, 0]));
-      piece(W, CUBE_FACES, CUBE_EDGES, CELLCOL[i], dot(nn, E[3]) * (S.view === 'slice' ? 1 : 0.6), T, L, O);
+      if (bad.has(i)) piece(W, CUBE_FACES, CUBE_EDGES, [1.0, 0.18, 0.22], 0, T, L, O, [1.0, 0.3, 0.3]);
+      else piece(W, CUBE_FACES, CUBE_EDGES, CELLCOL[i], dot(nn, E[3]) * (S.view === 'slice' ? 1 : 0.6), T, L, O);
     });
     // the hinges: each child's shared square with its parent, gold
     net.parent.forEach((p, i) => {
@@ -229,13 +245,19 @@ function overlay(v) {
 
 // ------------------------------------------------------------------ the panel
 function rows(el, list) { el.textContent = ''; for (const [k, v] of list) { const a = document.createElement('i'), b = document.createElement('span'); a.textContent = k; b.textContent = v; el.append(a, b); } }
+const CELLNAME = ['+x', '−x', '+y', '−y', '+z', '−z', '+w', '−w'];
+function ringText(net) {
+  const H = Math.max(...F.depths(net.parent)), s = S.f * H;
+  return s >= H - 1e-9 ? `100%: all ${H} rings in` : s <= 1e-9 ? `0%: ${H} rings to fold` : `ring ${Math.floor(s) + 1} of ${H}, ${Math.round((s - Math.floor(s)) * 90)}° into w`;
+}
 function info() {
   if (S.mode === 'nets') {
     const net = NETS[S.net];
     $('netN').value = S.net + 1;
     $('title').textContent = S.net === DALI ? `net ${S.net + 1}: Dalí's` : `net ${S.net + 1} of 261`;
-    rows($('facts'), [['hinges', '7 squares (of the 24 two cubes share)'], ['longest row', `${net.run} cubes`], ['hinge trees giving this shape', String(net.trees)], ['its mirror image', net.chiral ? 'a different net' : 'itself'], ['folded', `${Math.round(S.f * 100)}%: every cube turned ${Math.round(S.f * 90)}° into w`]]);
+    rows($('facts'), [['hinges', '7 squares (of the 24 two cubes share)'], ['longest row', `${net.run} cubes`], ['hinge trees giving this shape', String(net.trees)], ['its mirror image', net.chiral ? 'a different net' : 'itself'], ['folded', S.ring ? ringText(net) : `${Math.round(S.f * 100)}%: every cube turned ${Math.round(S.f * 90)}° into w`], ['cubes passing through each other', (S.clash || []).length ? S.clash.map((x) => `${CELLNAME[x.a]} and ${CELLNAME[x.b]}, ${(x.d * 100).toFixed(1)}% of a cube deep`).join('; ') : 'none']]);
     $('cap').textContent = S.f < 0.02 ? `Net ${S.net + 1}: the tesseract's eight cubes, flat in our space, hinged on the gold squares. Slide to fold, or ▶.` : S.f > 0.98 ? (S.view === 'slice' ? (Math.abs(off + 0.5) < 0.01 ? 'Folded: the tesseract. Our slice is its bottom cube, the one cell left in our space. Push the lever ana to scan up through it.' : Math.abs(off) <= 0.5 ? 'Folded: the tesseract, sliced partway up in w. The slice is a cube: its six faces are where the six side cubes cross our space.' : 'Folded: the tesseract, and our slice has left it.') : 'Folded: the tesseract: in the shadow, its cube in a cube.') : (S.view === 'slice' ? 'Folding, in our slice: a cube turning about a hinge square that lies in our space leaves it at once; only its hinge stays. Push the lever ana to catch the rising cubes as sections.' : 'Folding: each cube turns about its gold hinge, out of our space into w (teal: going ana).');
+    if ((S.clash || []).length && S.f > 0.02 && S.f < 0.98) $('cap').textContent = `Red: cubes ${S.clash.map((x) => `${CELLNAME[x.a]} and ${CELLNAME[x.b]}`).join(', ')} are passing through each other. With every hinge turning at once they can't all get out of each other's way; fold ring by ring and they never meet.`;
   } else if (S.mode === 'c24') {
     const t = S.t24, n = t.over.length;
     $('title24').textContent = `the 24-cell: ${t.label}`;
@@ -261,6 +283,7 @@ for (const b of $('mode').children) b.onclick = () => setMode(b.dataset.v);
 for (const b of $('view').children) b.onclick = () => { S.view = b.dataset.v; for (const x of $('view').children) x.classList.toggle('on', x === b); need = dirty = true; info(); };
 $('fold').oninput = () => { S.f = +$('fold').value; S.playing = 0; $('playB').classList.remove('on'); need = dirty = true; info(); };
 $('turn').oninput = () => { S.a = +$('turn').value; S.playing = 0; $('playB').classList.remove('on'); need = dirty = true; info(); };
+for (const b of $('sched').children) b.onclick = () => { S.ring = b.dataset.v === 'ring'; for (const x of $('sched').children) x.classList.toggle('on', x === b); need = dirty = true; info(); };
 const goNet = (i) => { S.net = ((i % 261) + 261) % 261; need = dirty = true; info(); history.replaceState(null, '', `#net${S.net + 1}`); };
 $('prevN').onclick = () => goNet(S.net - 1); $('nextN').onclick = () => goNet(S.net + 1);
 $('netN').onchange = () => goNet((+$('netN').value || 1) - 1);
