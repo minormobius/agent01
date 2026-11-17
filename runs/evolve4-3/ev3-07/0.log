@@ -1,0 +1,75 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.5
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 100 yr: L 6.1549e+40 W, Tc 13.85 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 200 yr: L 6.2672e+40 W, Tc 13.69 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 400 yr: L 6.4123e+40 W, Tc 13.50 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 800 yr: L 6.5242e+40 W, Tc 13.37 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 1.60e+3 yr: L 6.5658e+40 W, Tc 13.28 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 3.20e+3 yr: L 6.6503e+40 W, Tc 13.20 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 6.40e+3 yr: L 6.7127e+40 W, Tc 13.10 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 1.28e+4 yr: L 6.7823e+40 W, Tc 13.00 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 2.56e+4 yr: L 6.9038e+40 W, Tc 12.91 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 5.12e+4 yr: L 6.8943e+40 W, Tc 12.84 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 1.02e+5 yr: L 6.8391e+40 W, Tc 12.80 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 2.05e+5 yr: L 6.9160e+40 W, Tc 12.81 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 4.10e+5 yr: L 6.9392e+40 W, Tc 12.81 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch settling 8.19e+5 yr: L 6.9612e+40 W, Tc 12.81 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.000 Gyr: L 6.9612e+40 W, R 7.3814e+7 m, Teff 12376 K, Tc 12.81 MK, ρc 2.684e+16 kg/m⁴, Xc 0.7500, stirred core 0.119, pp 13.4%, half the light inside q 0.015
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.000 Gyr: L 6.9814e+40 W, R 7.3832e+7 m, Teff 12381 K, Tc 12.81 MK, ρc 2.682e+16 kg/m⁴, Xc 0.7500, stirred core 0.119, pp 13.4%, half the light inside q 0.015, burnt/radiated 1.0014
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.001 Gyr: L 7.0042e+40 W, R 7.3856e+7 m, Teff 12387 K, Tc 12.81 MK, ρc 2.679e+16 kg/m⁴, Xc 0.7500, stirred core 0.118, pp 13.4%, half the light inside q 0.015, burnt/radiated 1.0014
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.003 Gyr: L 6.8931e+40 W, R 7.3804e+7 m, Teff 12352 K, Tc 12.79 MK, ρc 2.683e+16 kg/m⁴, Xc 0.7500, stirred core 0.117, pp 13.3%, half the light inside q 0.015, burnt/radiated 0.9993
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.006 Gyr: L 6.8840e+40 W, R 7.3833e+7 m, Teff 12346 K, Tc 12.79 MK, ρc 2.677e+16 kg/m⁴, Xc 0.7500, stirred core 0.118, pp 13.2%, half the light inside q 0.014, burnt/radiated 1.0009
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.013 Gyr: L 6.8886e+40 W, R 7.3899e+7 m, Teff 12341 K, Tc 12.77 MK, ρc 2.665e+16 kg/m⁴, Xc 0.7500, stirred core 0.118, pp 12.8%, half the light inside q 0.014, burnt/radiated 1.0014
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.026 Gyr: L 6.7669e+40 W, R 7.3849e+7 m, Teff 12302 K, Tc 12.73 MK, ρc 2.650e+16 kg/m⁴, Xc 0.7500, stirred core 0.117, pp 12.2%, half the light inside q 0.014, burnt/radiated 0.9975
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.052 Gyr: L 6.9089e+40 W, R 7.4293e+7 m, Teff 12309 K, Tc 12.71 MK, ρc 2.612e+16 kg/m⁴, Xc 0.7500, stirred core 0.118, pp 11.5%, half the light inside q 0.014, burnt/radiated 0.9991
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.078 Gyr: L 6.9703e+40 W, R 7.4546e+7 m, Teff 12306 K, Tc 12.70 MK, ρc 2.588e+16 kg/m⁴, Xc 0.7500, stirred core 0.118, pp 11.1%, half the light inside q 0.014, burnt/radiated 1.0009
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.131 Gyr: L 7.0476e+40 W, R 7.4767e+7 m, Teff 12311 K, Tc 12.68 MK, ρc 2.566e+16 kg/m⁴, Xc 0.7500, stirred core 0.118, pp 10.6%, half the light inside q 0.014, burnt/radiated 0.9984
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.236 Gyr: L 7.1035e+40 W, R 7.4901e+7 m, Teff 12317 K, Tc 12.68 MK, ρc 2.554e+16 kg/m⁴, Xc 0.7500, stirred core 0.118, pp 10.4%, half the light inside q 0.014, burnt/radiated 0.9995
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.445 Gyr: L 7.1200e+40 W, R 7.4937e+7 m, Teff 12320 K, Tc 12.68 MK, ρc 2.551e+16 kg/m⁴, Xc 0.7499, stirred core 0.118, pp 10.4%, half the light inside q 0.014, burnt/radiated 1.0009
+4D G 1e-17 s 1.5152 0.5000 M_Ch 0.865 Gyr: L 7.1097e+40 W, R 7.4961e+7 m, Teff 12314 K, Tc 12.67 MK, ρc 2.549e+16 kg/m⁴, Xc 0.7498, stirred core 0.118, pp 10.3%, half the light inside q 0.014, burnt/radiated 1.0008
+4D G 1e-17 s 1.5152 0.5000 M_Ch 1.704 Gyr: L 7.1116e+40 W, R 7.5006e+7 m, Teff 12310 K, Tc 12.67 MK, ρc 2.543e+16 kg/m⁴, Xc 0.7497, stirred core 0.118, pp 10.3%, half the light inside q 0.014, burnt/radiated 1.0008
+4D G 1e-17 s 1.5152 0.5000 M_Ch 3.381 Gyr: L 7.1265e+40 W, R 7.5115e+7 m, Teff 12304 K, Tc 12.66 MK, ρc 2.532e+16 kg/m⁴, Xc 0.7494, stirred core 0.118, pp 10.2%, half the light inside q 0.013, burnt/radiated 1.0006
+4D G 1e-17 s 1.5152 0.5000 M_Ch 6.737 Gyr: L 7.1594e+40 W, R 7.5322e+7 m, Teff 12295 K, Tc 12.64 MK, ρc 2.510e+16 kg/m⁴, Xc 0.7488, stirred core 0.119, pp 9.9%, half the light inside q 0.013, burnt/radiated 0.9998
+4D G 1e-17 s 1.5152 0.5000 M_Ch 11.982 Gyr: L 7.1959e+40 W, R 7.5582e+7 m, Teff 12282 K, Tc 12.61 MK, ρc 2.483e+16 kg/m⁴, Xc 0.7479, stirred core 0.119, pp 9.4%, half the light inside q 0.013, burnt/radiated 0.9996
+4D G 1e-17 s 1.5152 0.5000 M_Ch 14.607 Gyr: L 7.2255e+40 W, R 7.5704e+7 m, Teff 12281 K, Tc 12.60 MK, ρc 2.471e+16 kg/m⁴, Xc 0.7475, stirred core 0.119, pp 9.2%, half the light inside q 0.013, burnt/radiated 1.0019
+4D G 1e-17 s 1.5152 0.5000 M_Ch 19.852 Gyr: L 7.2568e+40 W, R 7.5928e+7 m, Teff 12269 K, Tc 12.58 MK, ρc 2.451e+16 kg/m⁴, Xc 0.7466, stirred core 0.119, pp 8.8%, half the light inside q 0.013, burnt/radiated 1.0008
+4D G 1e-17 s 1.5152 0.5000 M_Ch 25.096 Gyr: L 7.2790e+40 W, R 7.6095e+7 m, Teff 12261 K, Tc 12.56 MK, ρc 2.436e+16 kg/m⁴, Xc 0.7458, stirred core 0.119, pp 8.5%, half the light inside q 0.012, burnt/radiated 1.0012
+4D G 1e-17 s 1.5152 0.5000 M_Ch 30.343 Gyr: L 7.2377e+40 W, R 7.6170e+7 m, Teff 12240 K, Tc 12.54 MK, ρc 2.428e+16 kg/m⁴, Xc 0.7450, stirred core 0.119, pp 8.2%, half the light inside q 0.012, burnt/radiated 1.0000
+4D G 1e-17 s 1.5152 0.5000 M_Ch 35.632 Gyr: L 7.3030e+40 W, R 7.6341e+7 m, Teff 12245 K, Tc 12.54 MK, ρc 2.415e+16 kg/m⁴, Xc 0.7441, stirred core 0.119, pp 8.0%, half the light inside q 0.012, burnt/radiated 1.0020
+4D G 1e-17 s 1.5152 0.5000 M_Ch 40.888 Gyr: L 7.2056e+40 W, R 7.6317e+7 m, Teff 12214 K, Tc 12.52 MK, ρc 2.413e+16 kg/m⁴, Xc 0.7433, stirred core 0.119, pp 7.9%, half the light inside q 0.012, burnt/radiated 1.0009
+4D G 1e-17 s 1.5152 0.5000 M_Ch 46.208 Gyr: L 7.2013e+40 W, R 7.6378e+7 m, Teff 12207 K, Tc 12.51 MK, ρc 2.409e+16 kg/m⁴, Xc 0.7425, stirred core 0.119, pp 7.7%, half the light inside q 0.012, burnt/radiated 1.0016
+4D G 1e-17 s 1.5152 0.5000 M_Ch 51.531 Gyr: L 7.1890e+40 W, R 7.6437e+7 m, Teff 12197 K, Tc 12.51 MK, ρc 2.405e+16 kg/m⁴, Xc 0.7416, stirred core 0.119, pp 7.6%, half the light inside q 0.012, burnt/radiated 1.0013
+4D G 1e-17 s 1.5152 0.5000 M_Ch 56.859 Gyr: L 7.3159e+40 W, R 7.6632e+7 m, Teff 12221 K, Tc 12.52 MK, ρc 2.396e+16 kg/m⁴, Xc 0.7408, stirred core 0.119, pp 7.5%, half the light inside q 0.012, burnt/radiated 1.0017
+4D G 1e-17 s 1.5152 0.5000 M_Ch 62.100 Gyr: L 7.3358e+40 W, R 7.6706e+7 m, Teff 12221 K, Tc 12.51 MK, ρc 2.392e+16 kg/m⁴, Xc 0.7402, stirred core 0.120, pp 7.5%, half the light inside q 0.012, burnt/radiated 1.0004
+4D G 1e-17 s 1.5152 0.5000 M_Ch 67.358 Gyr: L 7.4013e+40 W, R 7.6808e+7 m, Teff 12233 K, Tc 12.52 MK, ρc 2.389e+16 kg/m⁴, Xc 0.7395, stirred core 0.123, pp 7.4%, half the light inside q 0.012, burnt/radiated 0.9983
+4D G 1e-17 s 1.5152 0.5000 M_Ch 72.530 Gyr: L 7.3731e+40 W, R 7.6802e+7 m, Teff 12224 K, Tc 12.52 MK, ρc 2.389e+16 kg/m⁴, Xc 0.7387, stirred core 0.123, pp 7.4%, half the light inside q 0.012, burnt/radiated 1.0014
+4D G 1e-17 s 1.5152 0.5000 M_Ch 77.707 Gyr: L 7.4229e+40 W, R 7.6884e+7 m, Teff 12233 K, Tc 12.52 MK, ρc 2.386e+16 kg/m⁴, Xc 0.7379, stirred core 0.123, pp 7.3%, half the light inside q 0.012, burnt/radiated 1.0016
+4D G 1e-17 s 1.5152 0.5000 M_Ch 82.841 Gyr: L 7.3780e+40 W, R 7.6891e+7 m, Teff 12217 K, Tc 12.52 MK, ρc 2.388e+16 kg/m⁴, Xc 0.7372, stirred core 0.123, pp 7.3%, half the light inside q 0.012, burnt/radiated 1.0009
+4D G 1e-17 s 1.5152 0.5000 M_Ch 87.990 Gyr: L 7.3574e+40 W, R 7.6895e+7 m, Teff 12210 K, Tc 12.51 MK, ρc 2.389e+16 kg/m⁴, Xc 0.7364, stirred core 0.123, pp 7.2%, half the light inside q 0.012, burnt/radiated 1.0010
+4D G 1e-17 s 1.5152 0.5000 M_Ch 93.140 Gyr: L 7.4032e+40 W, R 7.6962e+7 m, Teff 12219 K, Tc 12.52 MK, ρc 2.387e+16 kg/m⁴, Xc 0.7356, stirred core 0.123, pp 7.2%, half the light inside q 0.012, burnt/radiated 1.0016
+4D G 1e-17 s 1.5152 0.5000 M_Ch 98.247 Gyr: L 7.4568e+40 W, R 7.7022e+7 m, Teff 12231 K, Tc 12.52 MK, ρc 2.385e+16 kg/m⁴, Xc 0.7348, stirred core 0.123, pp 7.1%, half the light inside q 0.012, burnt/radiated 1.0015
+4D G 1e-17 s 1.5152 0.5000 M_Ch 103.309 Gyr: L 7.5002e+40 W, R 7.7089e+7 m, Teff 12239 K, Tc 12.53 MK, ρc 2.384e+16 kg/m⁴, Xc 0.7341, stirred core 0.123, pp 7.1%, half the light inside q 0.011, burnt/radiated 1.0011
+4D G 1e-17 s 1.5152 0.5000 M_Ch 108.329 Gyr: L 7.4561e+40 W, R 7.7054e+7 m, Teff 12228 K, Tc 12.53 MK, ρc 2.387e+16 kg/m⁴, Xc 0.7333, stirred core 0.123, pp 7.1%, half the light inside q 0.011, burnt/radiated 1.0001
+4D G 1e-17 s 1.5152 0.5000 M_Ch 113.362 Gyr: L 7.4790e+40 W, R 7.7093e+7 m, Teff 12231 K, Tc 12.53 MK, ρc 2.387e+16 kg/m⁴, Xc 0.7328, stirred core 0.123, pp 7.1%, half the light inside q 0.011, burnt/radiated 1.0013
+4D G 1e-17 s 1.5152 0.5000 M_Ch 118.402 Gyr: L 7.4794e+40 W, R 7.7116e+7 m, Teff 12229 K, Tc 12.53 MK, ρc 2.389e+16 kg/m⁴, Xc 0.7320, stirred core 0.125, pp 7.1%, half the light inside q 0.011, burnt/radiated 1.0010
+4D G 1e-17 s 1.5152 0.5000 M_Ch 123.395 Gyr: L 7.4704e+40 W, R 7.7124e+7 m, Teff 12226 K, Tc 12.53 MK, ρc 2.391e+16 kg/m⁴, Xc 0.7313, stirred core 0.125, pp 7.1%, half the light inside q 0.011, burnt/radiated 1.0009
+4D G 1e-17 s 1.5152 0.5000 M_Ch 128.377 Gyr: L 7.4844e+40 W, R 7.7128e+7 m, Teff 12230 K, Tc 12.54 MK, ρc 2.392e+16 kg/m⁴, Xc 0.7305, stirred core 0.125, pp 7.0%, half the light inside q 0.011, burnt/radiated 1.0008
+4D G 1e-17 s 1.5152 0.5000 M_Ch 133.338 Gyr: L 7.5347e+40 W, R 7.7213e+7 m, Teff 12238 K, Tc 12.54 MK, ρc 2.391e+16 kg/m⁴, Xc 0.7298, stirred core 0.125, pp 7.0%, half the light inside q 0.011, burnt/radiated 1.0007
+4D G 1e-17 s 1.5152 0.5000 M_Ch 138.256 Gyr: L 7.4770e+40 W, R 7.7163e+7 m, Teff 12224 K, Tc 12.54 MK, ρc 2.396e+16 kg/m⁴, Xc 0.7290, stirred core 0.125, pp 7.0%, half the light inside q 0.011, burnt/radiated 1.0005
+4D G 1e-17 s 1.5152 0.5000 M_Ch 143.193 Gyr: L 7.4858e+40 W, R 7.7182e+7 m, Teff 12225 K, Tc 12.54 MK, ρc 2.397e+16 kg/m⁴, Xc 0.7283, stirred core 0.125, pp 7.0%, half the light inside q 0.011, burnt/radiated 1.0007
+4D G 1e-17 s 1.5152 0.5000 M_Ch 148.113 Gyr: L 7.4963e+40 W, R 7.7203e+7 m, Teff 12227 K, Tc 12.55 MK, ρc 2.399e+16 kg/m⁴, Xc 0.7275, stirred core 0.125, pp 7.0%, half the light inside q 0.011, burnt/radiated 1.0006
+4D G 1e-17 s 1.5152 0.5000 M_Ch 153.012 Gyr: L 7.5634e+40 W, R 7.7296e+7 m, Teff 12239 K, Tc 12.56 MK, ρc 2.397e+16 kg/m⁴, Xc 0.7268, stirred core 0.125, pp 7.0%, half the light inside q 0.011, burnt/radiated 1.0004
+4D G 1e-17 s 1.5152 0.5000 M_Ch 157.860 Gyr: L 7.5609e+40 W, R 7.7294e+7 m, Teff 12239 K, Tc 12.56 MK, ρc 2.399e+16 kg/m⁴, Xc 0.7260, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0009
+4D G 1e-17 s 1.5152 0.5000 M_Ch 162.693 Gyr: L 7.5340e+40 W, R 7.7275e+7 m, Teff 12232 K, Tc 12.56 MK, ρc 2.403e+16 kg/m⁴, Xc 0.7253, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0004
+4D G 1e-17 s 1.5152 0.5000 M_Ch 167.529 Gyr: L 7.5319e+40 W, R 7.7284e+7 m, Teff 12230 K, Tc 12.56 MK, ρc 2.405e+16 kg/m⁴, Xc 0.7245, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0005
+4D G 1e-17 s 1.5152 0.5000 M_Ch 172.354 Gyr: L 7.5396e+40 W, R 7.7300e+7 m, Teff 12231 K, Tc 12.56 MK, ρc 2.407e+16 kg/m⁴, Xc 0.7238, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0006
+4D G 1e-17 s 1.5152 0.5000 M_Ch 177.162 Gyr: L 7.5524e+40 W, R 7.7325e+7 m, Teff 12233 K, Tc 12.57 MK, ρc 2.409e+16 kg/m⁴, Xc 0.7231, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0006
+4D G 1e-17 s 1.5152 0.5000 M_Ch 181.950 Gyr: L 7.5816e+40 W, R 7.7371e+7 m, Teff 12238 K, Tc 12.57 MK, ρc 2.410e+16 kg/m⁴, Xc 0.7223, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0006
+4D G 1e-17 s 1.5152 0.5000 M_Ch 186.709 Gyr: L 7.5750e+40 W, R 7.7365e+7 m, Teff 12237 K, Tc 12.58 MK, ρc 2.412e+16 kg/m⁴, Xc 0.7216, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0006
+4D G 1e-17 s 1.5152 0.5000 M_Ch 191.459 Gyr: L 7.6997e+40 W, R 7.7522e+7 m, Teff 12262 K, Tc 12.59 MK, ρc 2.408e+16 kg/m⁴, Xc 0.7209, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0012
+4D G 1e-17 s 1.5152 0.5000 M_Ch 196.128 Gyr: L 7.7326e+40 W, R 7.7570e+7 m, Teff 12268 K, Tc 12.60 MK, ρc 2.409e+16 kg/m⁴, Xc 0.7201, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0006
+4D G 1e-17 s 1.5152 0.5000 M_Ch 200.000 Gyr: L 7.7623e+40 W, R 7.7602e+7 m, Teff 12274 K, Tc 12.60 MK, ρc 2.410e+16 kg/m⁴, Xc 0.7195, stirred core 0.125, pp 6.9%, half the light inside q 0.011, burnt/radiated 1.0007
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-0.5000-lp.json (739 s, 55 models; tmax)
+(node:2530) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

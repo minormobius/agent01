@@ -1,0 +1,11 @@
+$ node four/atom/tools/evolve.mjs four 1e-11 1.6 sun
+file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:176
+    if (!f.s.ok) { if (++fails > 6) throw new Error(`settling failed at ${tp.toPrecision(3)} yr (${f.s.why})`); tp /= 2; continue; } fails = 0;
+                                          ^
+
+Error: settling failed at 1.56 yr (stalled)
+    at run (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:176:43)
+    at evolve (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:165:10)
+    at file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:243:13
+
+Node.js v22.23.4

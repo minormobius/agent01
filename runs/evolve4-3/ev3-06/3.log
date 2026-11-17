@@ -1,0 +1,11 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.25
+file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:169
+  if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
+                           ^
+
+Error: zero-age star didn't solve (pinned blend stalled at 1.000)
+    at run (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:169:28)
+    at evolve (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:165:10)
+    at file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:243:13
+
+Node.js v22.23.4

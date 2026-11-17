@@ -1,0 +1,25 @@
+$ node four/atom/tools/evolve.mjs four 1e-11 1.8 sun
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 50.0 yr: L 8.3339e+33 W, Tc 2.81 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 100 yr: L 8.5043e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 200 yr: L 8.5476e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 400 yr: L 8.6650e+33 W, Tc 2.81 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 800 yr: L 8.5850e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 1.60e+3 yr: L 8.6634e+33 W, Tc 2.81 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 3.20e+3 yr: L 8.6495e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 6.40e+3 yr: L 8.5347e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 1.28e+4 yr: L 8.5481e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 2.56e+4 yr: L 8.6359e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 5.12e+4 yr: L 8.5681e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 1.02e+5 yr: L 8.5365e+33 W, Tc 2.80 MK, central H 0.75000
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 2.05e+5 yr: L 8.4830e+33 W, Tc 2.80 MK, central H 0.74999
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 4.10e+5 yr: L 8.4578e+33 W, Tc 2.80 MK, central H 0.74998
+4D G 1e-11 s 1.8 0.2072 M_Ch settling 8.19e+5 yr: L 8.6015e+33 W, Tc 2.80 MK, central H 0.74997
+4D G 1e-11 s 1.8 0.2072 M_Ch 0.000 Gyr: L 8.6015e+33 W, R 1.4279e+6 m, Teff 5483 K, Tc 2.80 MK, ρc 8.554e+14 kg/m⁴, Xc 0.7500, stirred core 0.022, pp 100.0%, half the light inside q 0.036
+4D G 1e-11 s 1.8 0.2072 M_Ch 0.000 Gyr: L 8.7563e+33 W, R 1.4298e+6 m, Teff 5498 K, Tc 2.81 MK, ρc 8.569e+14 kg/m⁴, Xc 0.7500, stirred core 0.022, pp 100.0%, half the light inside q 0.036, burnt/radiated 0.9998
+4D G 1e-11 s 1.8 0.2072 M_Ch 0.001 Gyr: L 8.7879e+33 W, R 1.4300e+6 m, Teff 5502 K, Tc 2.81 MK, ρc 8.574e+14 kg/m⁴, Xc 0.7499, stirred core 0.022, pp 100.0%, half the light inside q 0.036, burnt/radiated 1.0000
+4D G 1e-11 s 1.8 0.2072 M_Ch: stopped at 0.001 Gyr, Xc 0.7499 (the star didn't solve on a smaller step)
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-11-1.8-0.2072-lp.json (93 s, 3 models; no solution past Xc 0.7499)
+(node:2341) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
