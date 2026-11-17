@@ -1,0 +1,40 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.25
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 100 yr: L 4.0628e+37 W, Tc 7.00 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 200 yr: L 4.1120e+37 W, Tc 7.02 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 400 yr: L 4.1210e+37 W, Tc 7.02 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 800 yr: L 4.1236e+37 W, Tc 7.02 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 1.60e+3 yr: L 4.0739e+37 W, Tc 7.01 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 3.20e+3 yr: L 4.1055e+37 W, Tc 7.02 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 6.40e+3 yr: L 4.1174e+37 W, Tc 7.02 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 1.28e+4 yr: L 4.0728e+37 W, Tc 7.01 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 2.56e+4 yr: L 4.1429e+37 W, Tc 7.02 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 5.12e+4 yr: L 4.1836e+37 W, Tc 7.04 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 1.02e+5 yr: L 4.1909e+37 W, Tc 7.04 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 2.05e+5 yr: L 4.2034e+37 W, Tc 7.04 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 4.10e+5 yr: L 4.2205e+37 W, Tc 7.05 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch settling 8.19e+5 yr: L 4.1192e+37 W, Tc 7.03 MK, central H 0.75000
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.000 Gyr: L 4.1192e+37 W, R 4.6190e+7 m, Teff 3708 K, Tc 7.03 MK, ρc 5.155e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.9%, half the light inside q 0.072
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.000 Gyr: L 4.2177e+37 W, R 4.6228e+7 m, Teff 3724 K, Tc 7.05 MK, ρc 5.184e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.8%, half the light inside q 0.072, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.001 Gyr: L 4.0340e+37 W, R 4.6185e+7 m, Teff 3693 K, Tc 7.00 MK, ρc 5.129e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.8%, half the light inside q 0.072, burnt/radiated 1.0001
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.003 Gyr: L 4.1188e+37 W, R 4.6214e+7 m, Teff 3707 K, Tc 7.03 MK, ρc 5.153e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.8%, half the light inside q 0.072, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.006 Gyr: L 4.1782e+37 W, R 4.6227e+7 m, Teff 3717 K, Tc 7.04 MK, ρc 5.168e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.7%, half the light inside q 0.072, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.013 Gyr: L 4.2292e+37 W, R 4.6230e+7 m, Teff 3726 K, Tc 7.06 MK, ρc 5.180e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.7%, half the light inside q 0.072, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.026 Gyr: L 4.1643e+37 W, R 4.6249e+7 m, Teff 3713 K, Tc 7.04 MK, ρc 5.160e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.6%, half the light inside q 0.070, burnt/radiated 1.0001
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.052 Gyr: L 4.1451e+37 W, R 4.6239e+7 m, Teff 3710 K, Tc 7.04 MK, ρc 5.151e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.5%, half the light inside q 0.070, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.104 Gyr: L 4.1598e+37 W, R 4.6251e+7 m, Teff 3712 K, Tc 7.05 MK, ρc 5.148e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.4%, half the light inside q 0.070, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.209 Gyr: L 4.2101e+37 W, R 4.6258e+7 m, Teff 3721 K, Tc 7.06 MK, ρc 5.155e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.2%, half the light inside q 0.070, burnt/radiated 1.0003
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.419 Gyr: L 4.2395e+37 W, R 4.6269e+7 m, Teff 3726 K, Tc 7.07 MK, ρc 5.156e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.0%, half the light inside q 0.070, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 0.838 Gyr: L 4.0721e+37 W, R 4.6264e+7 m, Teff 3696 K, Tc 7.03 MK, ρc 5.111e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.0%, half the light inside q 0.070, burnt/radiated 1.0000
+4D G 1e-17 s 1.5152 0.2500 M_Ch 1.677 Gyr: L 4.0447e+37 W, R 4.6282e+7 m, Teff 3690 K, Tc 7.02 MK, ρc 5.103e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 99.0%, half the light inside q 0.070, burnt/radiated 1.0001
+4D G 1e-17 s 1.5152 0.2500 M_Ch 3.355 Gyr: L 4.0423e+37 W, R 4.6286e+7 m, Teff 3690 K, Tc 7.02 MK, ρc 5.102e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 98.9%, half the light inside q 0.070, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 6.710 Gyr: L 4.0530e+37 W, R 4.6286e+7 m, Teff 3691 K, Tc 7.02 MK, ρc 5.104e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 98.9%, half the light inside q 0.070, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 13.421 Gyr: L 4.0854e+37 W, R 4.6285e+7 m, Teff 3697 K, Tc 7.03 MK, ρc 5.111e+16 kg/m⁴, Xc 0.7500, stirred core 0.000, pp 98.9%, half the light inside q 0.070, burnt/radiated 1.0002
+4D G 1e-17 s 1.5152 0.2500 M_Ch 26.843 Gyr: L 4.2076e+37 W, R 4.6310e+7 m, Teff 3718 K, Tc 7.07 MK, ρc 5.136e+16 kg/m⁴, Xc 0.7499, stirred core 0.000, pp 98.8%, half the light inside q 0.070, burnt/radiated 1.0004
+4D G 1e-17 s 1.5152 0.2500 M_Ch 53.687 Gyr: L 4.2178e+37 W, R 4.6332e+7 m, Teff 3719 K, Tc 7.08 MK, ρc 5.117e+16 kg/m⁴, Xc 0.7499, stirred core 0.001, pp 98.7%, half the light inside q 0.069, burnt/radiated 1.0004
+4D G 1e-17 s 1.5152 0.2500 M_Ch 107.374 Gyr: L 4.3011e+37 W, R 4.6447e+7 m, Teff 3728 K, Tc 7.13 MK, ρc 5.066e+16 kg/m⁴, Xc 0.7498, stirred core 0.007, pp 98.6%, half the light inside q 0.067, burnt/radiated 1.0012
+4D G 1e-17 s 1.5152 0.2500 M_Ch 200.000 Gyr: L 4.4324e+37 W, R 4.6762e+7 m, Teff 3735 K, Tc 7.17 MK, ρc 4.942e+16 kg/m⁴, Xc 0.7497, stirred core 0.020, pp 98.5%, half the light inside q 0.060, burnt/radiated 1.0003
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-0.2500-lp.json (266 s, 20 models; tmax)
+(node:2371) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

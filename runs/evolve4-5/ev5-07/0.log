@@ -1,0 +1,7 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.5
+4D G 1e-17 s 1.5152 0.5000 M_Ch: resumed at 200.0000 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-0.5000-lp.ckpt.json
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-0.5000-lp.json (13 s, 55 models; tmax)
+(node:2365) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

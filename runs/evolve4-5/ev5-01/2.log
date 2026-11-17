@@ -1,0 +1,8 @@
+$ node four/atom/tools/evolve.mjs four 1e-14 1.5152 sun
+4D G 1e-14 s 1.5152 0.4870 M_Ch: resumed at 43.2703 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-14-1.5152-0.4870-lp.ckpt.json
+4D G 1e-14 s 1.5152 0.4870 M_Ch: stopped at 43.270 Gyr, Xc 0.3743 (the star didn't solve on a smaller step)
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-14-1.5152-0.4870-lp.json (76 s, 722 models; no solution past Xc 0.3743)
+(node:2366) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
