@@ -33,10 +33,10 @@ _Regenerated 2026-11-17 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-17, 100 members / 258 posts):
+**Neighborhood spark** (bisk 2026-11-17, 100 members / 250 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: bluesky, llm, tbh
-- Top post: "on bluesky you can just accuse someone of hating trans women and a thousand of the most obnoxious people on earth will s" — @segyges.bsky.social
+- Distinctive words: bluesky, llm, polyhedra
+- Top post: "who knew that Clippy was the least annoying a helpful digital assistant would ever be again" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
