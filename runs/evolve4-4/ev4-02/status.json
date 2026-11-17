@@ -1,0 +1,33 @@
+{
+ "group": "ev4-02",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-14 1.6 sun",
+   "code": 1,
+   "signal": null,
+   "cut": false,
+   "seconds": 48
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-14 1.65 sun",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-14 1.75 sun",
+   "code": 1,
+   "signal": null,
+   "cut": false,
+   "seconds": 36
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-14 1.8 sun",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}
