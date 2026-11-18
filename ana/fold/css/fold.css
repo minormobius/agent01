@@ -68,5 +68,5 @@ body:not(.isSeat) .seatonly { display: none !important; }
 .slider span { font: 11px var(--mono); color: var(--dim); }
 #playB.on { border-color: var(--gold); color: var(--gold); }
 .netnav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
-.netnav input { width: 64px; font: 600 12px var(--mono); background: #11141c; color: var(--text); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 5px 7px; }
+.netnav input, #duoSec input[type=number] { width: 64px; font: 600 12px var(--mono); background: #11141c; color: var(--text); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 5px 7px; }
 .btns select { font: 600 12px var(--mono); background: #11141c; color: var(--gold); border: 1px solid var(--gold); border-radius: 8px; padding: 5px 7px; }

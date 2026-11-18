@@ -71,5 +71,43 @@ let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return 
   while (n < 12) { const parent = U.randomTree(P, rnd() < 0.75 ? 'dfs' : 'bfs', rnd); if (U.overlaps(U.unfold(P, parent).cells).length) continue; n++; const a = worst(parent, false, 24), r = worst(parent, true, 24); if (a > 1e-6) all++; if (r > 1e-6) ring++; deep = Math.max(deep, a); }
   ok(all >= 6 && ring === 0, `of ${n} random nets of the 24-cell, ${all} have octahedra pass through each other with every hinge turning at once (up to ${deep.toFixed(2)} deep); ring by ring, ${ring} (the page claims 148 and 0 of 200, measured with HiGHS agreeing)`);
 }
+// duoprisms: the structure, the tesseract among them, which are all-net, and folding them
+{
+  const nrm = (a) => Math.hypot(...a);
+  let struct = true;
+  for (const [p, q] of [[3, 3], [3, 7], [5, 6], [12, 12]]) {
+    const P = U.duoprism(p, q), edges = P.V.flatMap((u, i) => P.V.slice(i + 1).filter((w) => Math.abs(nrm(u.map((x, k) => x - w[k])) - 1) < 1e-9)).length;
+    const ringA = P.cells.slice(0, p).every((c) => c.verts.length === 2 * q), ringB = P.cells.slice(p).every((c) => c.verts.length === 2 * p);
+    // each prism meets its two ring neighbours on a polygon and every prism of the other ring on a square
+    const adjOk = P.cells.every((c, i) => { const mine = i < p, n = mine ? p : q, k = mine ? i : i - p, off = mine ? 0 : p; return [...P.adj[i]].every(([j, sh]) => (j - off >= 0 && j - off < n) === true && (j < p) === mine ? sh.length === (mine ? q : p) && (Math.abs(j - off - k) === 1 || Math.abs(j - off - k) === n - 1) : sh.length === 4) && P.adj[i].size === 2 + (mine ? q : p); });
+    struct = struct && P.V.length === p * q && edges === 2 * p * q && P.cells.length === p + q && ringA && ringB && adjOk;
+  }
+  ok(struct, 'the p,q-duoprism: pq vertices, 2pq unit edges, p q-gonal prisms and q p-gonal prisms, each meeting its two ring neighbours on a polygon and every prism of the other ring on a square');
+  ok(U.treeCount(U.duoprism(4, 4)) === 82944, 'the 4,4-duoprism is the tesseract: the same 82,944 hinge trees');
+  for (const [p, q, want] of [[3, 3, 1296], [3, 4, 8575]]) {
+    const P = U.duoprism(p, q); let n = 0, over = 0; U.eachTree(P, (par) => { n++; if (U.overlaps(U.unfold(P, par).cells).length) over++; return false; });
+    ok(n === want && over === 0, `the ${p},${q}-duoprism: all ${n} of its unfoldings are nets (Kirchhoff: ${U.treeCount(P)})`);
+  }
+  let seed = 31; const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const P8 = U.duoprism(8, 8); let found = null;
+  for (let k = 0; k < 400 && !found; k++) { const par = U.randomTree(P8, k % 4 ? 'dfs' : 'bfs', rnd, Math.floor(rnd() * 16)), fl = U.unfold(P8, par), o = U.overlaps(fl.cells); if (o.length) found = { o, w: U.witness(fl.cells[o[0].a], fl.cells[o[0].b]) }; }
+  ok(found && found.w.margin > 0.01, `the 8,8-duoprism is not all-net: an unfolding with two prisms overlapping, a point inside both by ${found ? found.w.margin.toFixed(3) : '?'}`);
+  // folding: ring by ring no prisms cross, in sampled nets of a few; all at once some do
+  let all = 0, ring = 0, nets = 0;
+  for (const [p, q] of [[3, 3], [5, 6], [3, 8]]) {
+    const P = U.duoprism(p, q);
+    for (let k = 0; k < 4; k++) { const par = U.randomTree(P, 'dfs', rnd, Math.floor(rnd() * (p + q))); if (U.overlaps(U.unfold(P, par).cells).length) continue; nets++;
+      const worst = (rg) => { let m = 0; for (let s = 1; s < 24; s++) { const C = U.movedCells(P, U.motionsAt(P, par, s / 24, rg)); for (let a = 0; a < C.length; a++) for (let b = a + 1; b < C.length; b++) { if (nrm(C[a].ctr.map((v, j) => v - C[b].ctr[j])) >= C[a].rad + C[b].rad) continue; m = Math.max(m, depthCells(C[a], C[b])); } } return m; };
+      if (worst(false) > 1e-6) all++; if (worst(true) > 1e-6) ring++; }
+  }
+  ok(ring === 0 && all > 0, `folding sampled duoprism nets (3,3, 5,6, 3,8): ${all} of ${nets} have prisms crossing with every hinge at once, ${ring} ring by ring`);
+  // the quick separating test never hides a crossing the exact one finds
+  let pairs = 0, dis = 0;
+  for (const P of [U.duoprism(5, 6), U.duoprism(8, 8), U.cell24()]) for (let r = 0; r < 3; r++) { const par = U.randomTree(P, 'dfs', rnd, 0);
+    for (const rg of [false, true]) for (const t of [0.1, 0.5, 0.9]) { const C = U.movedCells(P, U.motionsAt(P, par, t, rg));
+      for (let a = 0; a < C.length; a++) for (let b = a + 1; b < C.length; b++) { if (nrm(C[a].ctr.map((v, j) => v - C[b].ctr[j])) >= C[a].rad + C[b].rad) continue; pairs++;
+        const d1 = depthCells(C[a], C[b]), d0 = depthCells({ ...C[a], pts: null }, { ...C[b], pts: null }); if ((d0 > 1e-6) !== (d1 > 1e-6) || (d0 > 1e-6 && Math.abs(d0 - d1) > 1e-12)) dis++; } } }
+  ok(dis === 0, `the quick separating test agrees with the exact depth on all ${pairs} nearby pairs sampled (it only skips pairs that can't cross)`);
+}
 console.log(`${fails ? '✗' : '✓'} unfold4: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

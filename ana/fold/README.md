@@ -108,3 +108,29 @@ This is a measurement for the tesseract's nets, not a theorem. For 3D polyhedra,
 convex polyhedra*, 2011); the same switch works on the 24-cell (`motionsAt(P, parent, t, ring)`): over 200 random nets (75% DFS, as the
 page draws), all at once 148 have octahedra passing through each other, up to 0.50 deep on an edge of √2; ring by ring,
 none (deepest 4·10⁻¹², rounding). HiGHS agreed with all 148 to 10⁻¹⁵. A sample, not a proof.
+
+## Duoprisms
+
+The p,q-duoprism (`unfold4.js` `duoprism`) is a p-gon times a q-gon, edges 1: pq vertices, p q-gonal prisms (cells
+0…p−1, one over each edge of the p-gon) and q p-gonal prisms (cells p…p+q−1). Each prism meets its two ring neighbours
+on a polygon and every prism of the other ring on a square, so the two rings close into two solid tori, linked. The page
+(mode *duoprism*, `#duo5,6`, p and q from 3 to 12) is the 24-cell's machinery made general: `solid`, `setPoly` and
+`buildPoly` in `main.js` serve both, with a hinge polygon of any size (`ringOrder`).
+
+Measured (the selftest re-checks the first three and the 8,8 overlap):
+
+| | |
+|---|---|
+| 4,4 | the tesseract: 82,944 hinge trees, all nets |
+| 3,3 · 3,4 · 3,5 | all-net: every one of 1,296 · 8,575 · 53,824 unfoldings checked |
+| 4,6 · 5,5 · 5,6 · 4,8 · 3,12 | 0 overlaps in 2,000 random unfoldings each (not a proof) |
+| 6,6 · 4,12 | 28 and 15 of 2,000 overlap; 5,8 · 8,8 · 10,10: 9, 26, 64 of 200 |
+
+Folding: all at once, prisms cross in many sampled nets; ring by ring, in none sampled (3,3 to 10,10). Kirchhoff's counts
+for the big ones are floating point (the page says "about").
+
+**The quick separating test.** Big duoprisms made the clash check slow (most nearby pairs only touch, and the exact test
+enumerates vertices of a small LP). `depthCells` now first projects both cells' vertices on each face normal lifted into
+4D and both hyperplane normals; a gap rules the pair out. A direction along which both cells are flat (two cells in one
+hyperplane, along its normal) is skipped: an early version counted it and missed real crossings, caught by comparing
+against the exact answer on 22,524 pairs. The selftest keeps that comparison.

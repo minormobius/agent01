@@ -17,7 +17,7 @@
     <div id="bar">
       <a class="home" href="../">ana</a>
       <b>FOLD</b>
-      <div class="seg" id="mode"><button data-v="nets" class="on">nets</button><button data-v="c24">24-cell</button><button data-v="mirror">mirror</button></div>
+      <div class="seg" id="mode"><button data-v="nets" class="on">nets</button><button data-v="c24">24-cell</button><button data-v="duo">duoprism</button><button data-v="mirror">mirror</button></div>
       <div class="seg" id="view"><button data-v="shadow" class="on">shadow</button><button data-v="slice">slice</button></div>
       <button type="button" id="playB" aria-label="fold and unfold">▶ fold</button>
       <button type="button" id="squareB" aria-label="square your slice up">⊞</button>
@@ -46,6 +46,15 @@
       <div class="btns"><button class="ghost" id="net24B">a net</button><button class="ghost" id="col24B">the collision</button><button class="ghost" id="rand24B">draw a random one</button></div>
       <div id="facts24" class="rows"></div>
       <p class="foot">Every way to unfold the tesseract is a net. Not so the 24-cell: some of its unfoldings put two octahedra in the same place (drawn red, the gold cross a point inside both). Draw random ones and keep count; about one in twenty-three collides. And a net that lies flat cleanly can still collide on the way up: with every hinge turning at once, 148 of 200 random nets have octahedra pass through each other mid-fold (red). Ring by ring, none of the 200 did.</p>
+    </section>
+    <section id="duoSec" hidden>
+      <h2 id="titleD">duoprisms</h2>
+      <div class="btns"><label class="foot">p <input id="duoP" type="number" min="3" max="12" value="5" aria-label="p" /></label><label class="foot">q <input id="duoQ" type="number" min="3" max="12" value="6" aria-label="q" /></label></div>
+      <div class="slider"><span>flat</span><input type="range" id="foldD" min="0" max="1" step="0.001" value="0" aria-label="fold the duoprism" /><span>folded</span></div>
+      <div class="btns" id="schedD"><button data-v="ring" class="on">ring by ring</button><button data-v="all">all at once</button></div>
+      <div class="btns"><button class="ghost" id="netDB">a net</button><button class="ghost" id="overDB">find an overlap</button><button class="ghost" id="randDB">draw a random one</button></div>
+      <div id="factsD" class="rows"></div>
+      <p class="foot" id="duoFoot">A p-gon times a q-gon. Its cells come in two rings: p prisms on q-gons, one over each edge of the p-gon, and q prisms on p-gons. Each ring closes into a circle, and the two circles link through each other. The 4,4-duoprism is the tesseract. Small ones are all-net: every one of the 3,3's 1,296 unfoldings, the 3,4's 8,575 and the 3,5's 53,824 is a net (checked one by one). Bigger ones aren't: about one in seventy unfoldings of the 6,6 overlaps, and so do some of the 4,12's, while 2,000 random draws found none for 4,6, 5,5, 5,6, 4,8 or 3,12. Folding them, the rule of the tesseract and the 24-cell holds: all at once, prisms cross; ring by ring, none did in any we sampled.</p>
     </section>
     <section id="mirSec" hidden>
       <h2>the mirror fold</h2>

@@ -54,8 +54,30 @@ function maxMargin(C, d) {
   return best;
 }
 
-/** How deep two cells interpenetrate (see the top of the file): > 0 crossing, 0 touching, < 0 apart. */
+/** A quick separating test before the exact one (most pairs that are checked only touch, along a hinge or an edge):
+ *  if both cells' vertices (pts) project onto opposite sides of some candidate direction (each face's normal lifted
+ *  into 4D, and the two hyperplane normals), their insides can't meet. Returns the gap (≥ 0) or null. */
+function separated(A, B) {
+  if (!A.pts || !B.pts) return null;
+  const dirs = [normal(A.P), normal(B.P), ...A.H.map((h) => A.P.reduce((s, p, i) => add(s, p, h.n[i]), [0, 0, 0, 0])), ...B.H.map((h) => B.P.reduce((s, p, i) => add(s, p, h.n[i]), [0, 0, 0, 0]))];
+  for (const d of dirs) {
+    let aLo = Infinity, aHi = -Infinity, bLo = Infinity, bHi = -Infinity;
+    for (const p of A.pts) { const x = dot(d, p); if (x < aLo) aLo = x; if (x > aHi) aHi = x; }
+    for (const p of B.pts) { const x = dot(d, p); if (x < bLo) bLo = x; if (x > bHi) bHi = x; }
+    // a direction along which both cells are flat (both project to one value) separates nothing: two cells in the
+    // same hyperplane both project to a point along its normal. Otherwise the open interior of the one with a real
+    // interval lies strictly on its side.
+    if (aHi - aLo < 1e-9 && bHi - bLo < 1e-9) continue;
+    const gap = Math.max(bLo - aHi, aLo - bHi);
+    if (gap > -1e-9) return gap;
+  }
+  return null;
+}
+/** How deep two cells interpenetrate (see the top of the file): > 0 crossing, 0 touching, < 0 apart. When the cells
+ *  carry their vertices (pts) and a quick test separates them, the answer is 0 (touching) or −gap/2 (apart; then only
+ *  a bound, not the exact margin). */
 export function depthCells(A, B) {
+  const sep = separated(A, B); if (sep !== null) return sep < 1e-9 ? 0 : -sep / 2;
   const nB = normal(B.P);
   // A's points o_A + P_A u that also lie in B's hyperplane: g·u = c
   const g = A.P.map((p) => dot(nB, p)), c = dot(nB, add(B.o, A.o, -1)), gl = Math.sqrt(dot(g, g));
@@ -84,4 +106,7 @@ export function depthCells(A, B) {
 
 /** A cube of side 1 as a cell: centre o, its three edge directions P (unit). */
 export const CUBE_FACES = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map((n) => ({ n, b: 0.5 }));
-export const cube = (o, P) => ({ o, P, H: CUBE_FACES });
+export const cube = (o, P) => {
+  const pts = []; for (let m = 0; m < 8; m++) pts.push([0, 1, 2].reduce((x, i) => add(x, P[i], (m >> i) & 1 ? 0.5 : -0.5), o));
+  return { o, P, H: CUBE_FACES, pts };
+};

@@ -94,6 +94,15 @@ export function eachTree(P, visit) {
   rec(0, [], Array.from({ length: n }, (_, i) => i));
   return stop;
 }
+/** The p,q-duoprism, edges 1: a p-gon times a q-gon. Its cells are two linked rings: p q-gonal prisms (cells 0…p−1,
+ *  one over each edge of the p-gon, normals in the xy plane) and q p-gonal prisms (cells p…p+q−1, normals in zw). */
+export function duoprism(p, q) {
+  const a = 1 / (2 * Math.sin(Math.PI / p)), b = 1 / (2 * Math.sin(Math.PI / q)), V = [], N = [], t = 2 * Math.PI;
+  for (let i = 0; i < p; i++) for (let j = 0; j < q; j++) V.push([a * Math.cos((t * i) / p), a * Math.sin((t * i) / p), b * Math.cos((t * j) / q), b * Math.sin((t * j) / q)]);
+  for (let k = 0; k < p; k++) N.push([Math.cos((t * (k + 0.5)) / p), Math.sin((t * (k + 0.5)) / p), 0, 0]);
+  for (let k = 0; k < q; k++) N.push([0, 0, Math.cos((t * (k + 0.5)) / q), Math.sin((t * (k + 0.5)) / q)]);
+  return polytope(V, N);
+}
 export function cell24() {
   const V = uniq(perms([1, 1, 0, 0]).flatMap(signs));                       // 24 vertices, edge √2
   const N = [...uniq(perms([1, 0, 0, 0]).flatMap(signs)), ...signs([0.5, 0.5, 0.5, 0.5])];   // 24 octahedral cells
@@ -168,7 +177,7 @@ export function movedCells(P, M) {
     const Pm = B.map((b) => add(M[i](add(base, b)), o, -1));
     const ctr = scale(c.verts.reduce((s, v) => add(s, M[i](P.V[v])), [0, 0, 0, 0]), 1 / c.verts.length);
     const rad = Math.max(...c.verts.map((v) => norm(add(M[i](P.V[v]), ctr, -1))));
-    return { o, P: Pm, H, ctr, rad };
+    return { o, P: Pm, H, ctr, rad, pts: c.verts.map((v) => M[i](P.V[v])) };
   });
 }
 
