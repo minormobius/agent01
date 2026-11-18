@@ -1,0 +1,43 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5
+4D G 1e-17 s 1.5152 2.500 M_Ch: resumed at 0.5862 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-2.500-lp.ckpt.json
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.586 Gyr: L 6.5622e+46 W, R 4.2037e+8 m, Teff 68257 K, Tc 87.51 MK, ρc 4.970e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 0.5%, half the light inside q 0.179, burnt/radiated 0.9979
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.586 Gyr: L 6.6062e+46 W, R 4.2118e+8 m, Teff 68269 K, Tc 87.54 MK, ρc 4.991e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9972
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.586 Gyr: L 6.6287e+46 W, R 4.2126e+8 m, Teff 68308 K, Tc 87.55 MK, ρc 5.014e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9972
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.586 Gyr: L 6.6645e+46 W, R 4.2197e+8 m, Teff 68312 K, Tc 87.58 MK, ρc 5.037e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9972
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.586 Gyr: L 6.6877e+46 W, R 4.2261e+8 m, Teff 68298 K, Tc 87.60 MK, ρc 5.060e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9972
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.6845e+46 W, R 4.2331e+8 m, Teff 68223 K, Tc 87.65 MK, ρc 5.078e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.6765e+46 W, R 4.2360e+8 m, Teff 68179 K, Tc 87.71 MK, ρc 5.099e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7168e+46 W, R 4.2421e+8 m, Teff 68202 K, Tc 87.74 MK, ρc 5.120e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9972
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7332e+46 W, R 4.2467e+8 m, Teff 68191 K, Tc 87.77 MK, ρc 5.143e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7442e+46 W, R 4.2515e+8 m, Teff 68167 K, Tc 87.80 MK, ρc 5.166e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7269e+46 W, R 4.2536e+8 m, Teff 68112 K, Tc 87.83 MK, ρc 5.189e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7637e+46 W, R 4.2606e+8 m, Teff 68119 K, Tc 87.86 MK, ρc 5.212e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9973
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7684e+46 W, R 4.2652e+8 m, Teff 68084 K, Tc 87.90 MK, ρc 5.234e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7628e+46 W, R 4.2692e+8 m, Teff 68035 K, Tc 87.93 MK, ρc 5.257e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7266e+46 W, R 4.2616e+8 m, Teff 68035 K, Tc 87.95 MK, ρc 5.270e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.179, burnt/radiated 0.9979
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7617e+46 W, R 4.2679e+8 m, Teff 68045 K, Tc 87.98 MK, ρc 5.293e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.7905e+46 W, R 4.2779e+8 m, Teff 68007 K, Tc 88.01 MK, ρc 5.316e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.8223e+46 W, R 4.2887e+8 m, Teff 67968 K, Tc 88.04 MK, ρc 5.342e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.8329e+46 W, R 4.2910e+8 m, Teff 67967 K, Tc 88.08 MK, ρc 5.367e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.8602e+46 W, R 4.3043e+8 m, Teff 67895 K, Tc 88.11 MK, ρc 5.393e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.8550e+46 W, R 4.3009e+8 m, Teff 67917 K, Tc 88.15 MK, ρc 5.416e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.8547e+46 W, R 4.3066e+8 m, Teff 67863 K, Tc 88.20 MK, ρc 5.440e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9970
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.8725e+46 W, R 4.3122e+8 m, Teff 67845 K, Tc 88.23 MK, ρc 5.466e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.587 Gyr: L 6.8976e+46 W, R 4.3188e+8 m, Teff 67832 K, Tc 88.25 MK, ρc 5.499e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9970
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9001e+46 W, R 4.3193e+8 m, Teff 67832 K, Tc 88.27 MK, ρc 5.515e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9980
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.8582e+46 W, R 4.3192e+8 m, Teff 67751 K, Tc 88.31 MK, ρc 5.538e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9970
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.8390e+46 W, R 4.3252e+8 m, Teff 67657 K, Tc 88.32 MK, ρc 5.552e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9979
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.8705e+46 W, R 4.3264e+8 m, Teff 67707 K, Tc 88.34 MK, ρc 5.578e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9971
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.8999e+46 W, R 4.3333e+8 m, Teff 67700 K, Tc 88.38 MK, ρc 5.605e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9970
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9145e+46 W, R 4.3444e+8 m, Teff 67625 K, Tc 88.42 MK, ρc 5.630e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9970
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9499e+46 W, R 4.3587e+8 m, Teff 67561 K, Tc 88.46 MK, ρc 5.659e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9970
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9504e+46 W, R 4.3637e+8 m, Teff 67515 K, Tc 88.49 MK, ρc 5.673e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9980
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9679e+46 W, R 4.3675e+8 m, Teff 67514 K, Tc 88.51 MK, ρc 5.686e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9980
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9636e+46 W, R 4.3610e+8 m, Teff 67566 K, Tc 88.54 MK, ρc 5.699e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9980
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9658e+46 W, R 4.3566e+8 m, Teff 67611 K, Tc 88.55 MK, ρc 5.711e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.5%, half the light inside q 0.181, burnt/radiated 0.9980
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.588 Gyr: L 6.9585e+46 W, R 4.3634e+8 m, Teff 67534 K, Tc 88.58 MK, ρc 5.725e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 0.4%, half the light inside q 0.181, burnt/radiated 0.9980
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-2.500-lp.json (367 s, 1542 models; central hydrogen below 0.001)
+(node:2360) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
