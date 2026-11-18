@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers());
+  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), statusNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -163,6 +163,14 @@ function ash4Numbers() {
     const h = xs.map((x) => x.heavyShare), els = [...new Set(xs.flatMap((x) => x.lead.filter(([, v]) => v >= 0.01).map(([z]) => z)))].sort((a, b) => a - b);
     const p1 = (x) => (100 * x < 0.1 ? f(100 * x, 2) : 100 * x < 1 ? f(100 * x, 1) : f(100 * x, 0)); t[`ash${k}`] = `${p1(Math.min(...h))}–${p1(Math.max(...h))}%`; t[`ash${k}max`] = `${p1(Math.max(...h))}%`; t[`ash${k}el`] = els.length ? list(els.map(nm)) : "none above 1%"; }
   return t;
+}
+/* the status page's own numbers (text/status.md): what metals do to 4D opacity (data/metals4.json, fusion/tools/metals4.mjs)
+   and the charge law's plasma on the zero-age profiles (data/lensplasma.json) */
+function statusNumbers() {
+  const M = J("metals4.json").summary, P = J("lensplasma.json").byG, sg = (x) => `${x >= 0 ? "+" : "−"}${f(Math.abs(100 * x), 1)}%`, span = (k, i) => Object.values(P).map((g) => g[k][i]);
+  const hl = Math.min(M["held0.01"][0], M["held0.02"][0]) - 1, hh = Math.max(M["held0.01"][1], M["held0.02"][1]) - 1, rl = Math.min(M["rock0.01"][0], M["rock0.02"][0]) - 1, rh = Math.max(M["rock0.01"][1], M["rock0.02"][1]) - 1;
+  return { m4HeldLo: sg(hl), m4HeldHi: sg(hh), m4RockLo: sg(rl), m4RockHi: sg(rh), lpPPlo: f(Math.min(...span("ppScreen", 0)), 2), lpPPhi: f(Math.max(...span("ppScreen", 1)), 2),
+    lpOpHi: f(Math.max(...span("factor", 1)), 2), lpDPlo: f(100 * Math.min(...span("dPgas", 0)), 1).replace("-", "−"), lpDPhi: f(100 * Math.max(...span("dPgas", 1)), 1).replace("-", "−") };
 }
 function ages4Numbers() {
   const A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);

@@ -149,13 +149,28 @@ a carried rate; where the climb ends rests on A2's masses.
     climb's captures are as steep as our CNO cycle (ν 15–19 above 18 MK at s = 1.5152, ours' CNO 15–16 and pp 4.6 computed
     the same way), so heavy low-s stars have convective cores (0.19 of 5 M_Ch at G 10⁻¹⁷; s = 1.85, which never climbs,
     0.09). **computed, zero-age, ε̄ a mean over half the hydrogen.**
+12a. **Stars that age (2026-11-15 → 18; section 4, `text/ageing.md`).** `atom/tools/evolve.mjs`: hydrogen burnt shell by
+    shell on the network (`fusion/js/shell4.js`), stirred zones mixed, energy-checked steps; ours checked first against
+    Model S, BP2001 and MIST (OPAL and the book's own opacity). With the charge law's plasma (screening under the pinned
+    1/r, the lens vacuum's cutoff), runs evolve4-1 … 4-7: 28 of the 29 analogues in gravity.json halve their central
+    hydrogen in 10.6–177 Gyr, 2.3–39× the 4.6 Gyr convention (`data/ages4.json`, figure on the status page). Two runs at
+    s 1.5152 (G 10⁻¹¹, 10⁻¹⁴) stop when the core's oitrogen runs out (helium gone, pxygen 0.59): physical, not numerical;
+    following them needs ε_grav. What the aged stars hold (`data/ash4.json`): 9–30% past helium at s ≤ 1.55, 2–20% at
+    1.6–1.65, ≤ 4% above. **computed; the life after hydrogen not computed.**
 13. **Which stars do what.** How far each core mass burns (`js/burning.js`, ours to 40% in mass), stirred cores, which
     explode and when (`nuclei.mjs cores`, `explode`). **computed / rough.** *To do (C):* post-main-sequence growth.
+    **2026-11-18:** `fusion/tools/yields4.mjs` reworks it on the aged stars: the processed core at the run's end, its
+    growth, the dead-remnant or explosion choice and the winds declared and carried as a band; a first pass on the
+    s 1.5152 ladder has the 1.6–2.5 M_Ch stars exploding. **declared endings, provisional** until run evolve4-8's ladders
+    (G 10⁻¹⁷, s 1.5152–1.8, 1.25–4 M_Ch). The real fix is ε_grav in the structure (the giant phase computed).
 
 ## Part V — Abundances over time
 
 14. **What stars give back.** `nuclei.mjs giveback`, `starmix`: declared mass function and lifetimes, reported as a
-    band. **rough.** *To do (D):* yields per stellar mass from the network; a one-zone galaxy (star formation, a mass
+    band. **rough.** **2026-11-18:** `yields4.mjs`'s net yield p (metals returned per mass locked; closed-box
+    Z = p ln(1/μ)) on the aged ladders: first pass p 0.03–0.14, 76–96% the rock row from exploding cores. **provisional.**
+    What metals do to 4D opacity is computed (`fusion/tools/metals4.mjs` → `data/metals4.json`, the book's ions 4–23):
+    Z 0.01–0.02 moves it −0.4% to +7.4%, so a metal-rich second generation should look like the first. *To do (D):* yields per stellar mass from the network; a one-zone galaxy (star formation, a mass
     function, C's lifetimes) → composition against age, as a band.
 15. **The heavy elements.** No neutron source (section 6), so no slow capture; what explosions make. **open.**
 16. **What planets are made of.** The hand-off to the Earth roadmap (rock, ocean, air). **open.**
