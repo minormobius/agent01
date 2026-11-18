@@ -92,6 +92,7 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## How it was built
 
-The full record of every stage that changed a result, checked one or replaced a convention, with its runs and what it
+How each link is modelled (the techniques, their checks on our world, the code and what each leaves out) is
+[how the stars are modelled](methods.html). The full record of every stage that changed a result, checked one or replaced a convention, with its runs and what it
 moved, is [supplement S1](stages.html). The claim map is the [outline](../OUTLINE.md). The aged stars can be looked
 inside at [four.mino.mobi/star/](https://four.mino.mobi/star/).

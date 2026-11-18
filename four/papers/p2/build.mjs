@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), statusNumbers());
+  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), statusNumbers(), methodNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -171,6 +171,20 @@ function statusNumbers() {
   const hl = Math.min(M["held0.01"][0], M["held0.02"][0]) - 1, hh = Math.max(M["held0.01"][1], M["held0.02"][1]) - 1, rl = Math.min(M["rock0.01"][0], M["rock0.02"][0]) - 1, rh = Math.max(M["rock0.01"][1], M["rock0.02"][1]) - 1;
   return { m4HeldLo: sg(hl), m4HeldHi: sg(hh), m4RockLo: sg(rl), m4RockHi: sg(rh), lpPPlo: f(Math.min(...span("ppScreen", 0)), 2), lpPPhi: f(Math.max(...span("ppScreen", 1)), 2),
     lpOpHi: f(Math.max(...span("factor", 1)), 2), lpDPlo: f(100 * Math.min(...span("dPgas", 0)), 1).replace("-", "−"), lpDPhi: f(100 * Math.max(...span("dPgas", 1)), 1).replace("-", "−") };
+}
+/* the methods page's numbers (text/methods.md), read from the code that runs, so the page can't drift from it: a pattern
+   that stops matching stops the build */
+function methodNumbers() {
+  const src = (rel) => readFileSync(path.join(here, rel), "utf8"), grab = (rel, re, what) => { const m = src(rel).match(re); if (!m) throw new Error(`methods: ${what} not found in ${rel}`); return m[1]; };
+  const ev = "../../atom/tools/evolve.mjs", y4 = "../../fusion/tools/yields4.mjs", list = (a) => (a.length < 3 ? a.join(" and ") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`);
+  const arr = (rel, name) => JSON.parse(grab(rel, new RegExp(`for \\(const ${name} of (\\[[^\\]]+\\])`), `the ${name} choices`));
+  const nq = +grab(ev, /const NQ = (\d+)/, "NQ"), bal = +grab(ev, /BALTOL = \+\(process\.env\.BALTOL \?\? ([\d.]+)\)/, "BALTOL");
+  const four = grab(ev, /(Tburn: [^,]+, loose: [^,]+, fit: [^,]+),/, "the 4D world's constants"), tb = +four.match(/Tburn: ([\d.e+-]+)/)[1], lo = +four.match(/loose: ([\d.e+-]+)/)[1], fit4 = +four.match(/fit: ([\d.]+)/)[1];
+  const fit3 = +grab("../../atom/js/mainseq.js", /opts\.fit \?\? ([\d.]+)/, "ours' fit"), settle = +grab(ev, /settle: \+\(kv\.settle \?\? ([\d.e+]+)\)/, "the 4D settle");
+  const sci = (x) => { const e = Math.floor(Math.log10(x)), m = x / 10 ** e; return `${m === 1 ? "" : `${+m.toPrecision(3)} × `}10${String(e).replace("-", "⁻").replace(/\d/g, (d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d])}`; };
+  const pc = (x) => `${+(100 * x).toPrecision(3)}%`;
+  return { mNQ: String(nq), mNQ1: String(nq + 1), mBal: pc(bal), mTburn: String(tb / 1e6), mLoose: sci(lo), mFit4: String(fit4), mFit3: String(fit3), mSettle: sci(settle),
+    mGs: list(arr(y4, "g")), mWs: list(arr(y4, "w").map(pc)), mFs: list(arr(y4, "fx")), mAlphas: list(arr(y4, "alpha")), mTaus: list(JSON.parse(grab(y4, /for \(const tau of (\[[^\]]+\])/, "the tau choices"))), mTgs: list(arr(y4, "tg")) };
 }
 function ages4Numbers() {
   const A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);

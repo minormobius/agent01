@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="source-sha256" content="a8b3c1cc0cc7201f2722d17e19a626b3727b30f83e9793d3fe650a6feb610928" />
+<title>Paper 2 · How the stars are modelled</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../../p1/paper.css" />
+</head>
+<body>
+<div class="toolbar"><span class="brand"><a href="../../">four · papers</a></span><span>paper 2 · draft section</span><span class="grow" style="flex:1"></span><a href="../OUTLINE.md">outline</a></div>
+<article class="sheet">
+<div class="p-venue">four.mino.mobi · paper 2 · in preparation</div>
+<div class="p-body single">
+<h1 id="how-the-stars-are-modelled">How the stars are modelled</h1>
+<p>Paper 2 builds four-dimensional stars from the bottom up: from a
+choice of forces, through the nuclei those forces bind and the reactions
+between them, to stars that burn and age, what those stars make, and
+what they give back to the gas the next stars form from. Every link is a
+calculation written for any number of dimensions and run first on our
+own world, where the answer is known, before it is run in four. This
+page walks the chain one link at a time: what each link computes, how,
+what it is checked against, where its code lives, and what it leaves
+out.</p>
+<figure>
+<img src="../figures/pipeline.svg"
+alt="The modelling chain. Each link’s technique and its code (in the repository under four/). The colour says how it stands: computed by the book’s own physics and checked on our world, partly carried from our world, a set of declared choices carried as a band, or provisional while runs finish. The dashed arrow is the loop not yet closed: the gas’s metals feeding a second generation of stars." />
+<figcaption aria-hidden="true"><strong>The modelling chain.</strong>
+Each link’s technique and its code (in the repository under
+<code>four/</code>). The colour says how it stands: computed by the
+book’s own physics and checked on our world, partly carried from our
+world, a set of declared choices carried as a band, or provisional while
+runs finish. The dashed arrow is the loop not yet closed: the gas’s
+metals feeding a second generation of stars.</figcaption>
+</figure>
+<h2 id="the-forces">1 The forces</h2>
+<p>Three forces are not given by four dimensions and have to be chosen.
+The nucleon force is taken as one of two standard shapes from our world,
+Minnesota’s and Malfliet–Tjon’s, with its attraction multiplied by a
+strength
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>;
+the weak force is Fermi’s contact theory in 4 + 1 dimensions <span
+class="citation" data-cites="fermi1934">(<a href="#ref-fermi1934"
+role="doc-biblioref">Fermi 1934</a>)</span> with its own coupling
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>G</mi><mn>4</mn></msub><annotation encoding="application/x-tex">G_4</annotation></semantics></math>;
+gravity is pinned at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+like the charge law, with strength
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>G</mi><annotation encoding="application/x-tex">G</annotation></semantics></math>
+in multiples of ours. None is fitted to a wanted outcome. Each is
+scanned, and the paper reports where in each scan a universe can burn
+hydrogen at all: the windows of <a href="windows.html">section 2</a>.
+The electromagnetic side (the pinned
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+between charges, light through the lens vacuum) is paper 1’s,
+unchanged.</p>
+<h2 id="light-nuclei">2 Light nuclei</h2>
+<p><strong>What:</strong> the binding of the nuclei hydrogen burning
+passes through. <strong>How:</strong> nuclei up to helium-4 by diffusion
+Monte Carlo, exact for these few bodies; heavier ones as clusters of
+helium-4s, two ways that bracket each other. One is a ladder (a helium-4
+pair potential with its Pauli-forbidden states removed, then many-body
+Monte Carlo); the other is Brink’s antisymmetrized Gaussian clusters
+<span class="citation" data-cites="brink1966 freer2018">(<a
+href="#ref-brink1966" role="doc-biblioref">Brink 1966</a>; <a
+href="#ref-freer2018" role="doc-biblioref">Freer et al. 2018</a>)</span>
+mixed over many placements by the Hill–Wheeler method <span
+class="citation" data-cites="hill1953">(<a href="#ref-hill1953"
+role="doc-biblioref">Hill and Wheeler 1953</a>)</span>. A nucleon, or
+two or three, on a core of helium-4s is placed on the same basis. One
+question the two models disagreed on, whether a ceryllium cycle can
+close, was settled by a variational bound that holds at every basis
+size. <strong>Checked:</strong> on our world the same machinery is set
+against measured masses <span class="citation" data-cites="wang2021">(<a
+href="#ref-wang2021" role="doc-biblioref">Wang et al. 2021</a>)</span>:
+the ladder underbinds, the grid overbinds, and the two models are
+carried as the band’s edges. Since the bound, they give the same stars
+at every point computed. <strong>Code:</strong>
+<code>atom/js/nuclear.js</code>, <code>atom/js/brink.js</code>,
+<code>fusion/tools/nuc4.mjs</code>,
+<code>fusion/tools/masscheck.mjs</code>. <strong>Detail:</strong>
+section 2.2.</p>
+<h2 id="reaction-rates">3 Reaction rates</h2>
+<p><strong>What:</strong> how fast each pair of nuclei fuses at each
+temperature. <strong>How:</strong> proton + proton from the deuteron’s
+and the colliding protons’ wavefunctions under the same nucleon force,
+with the rate’s one constant set on our measured S(0) <span
+class="citation" data-cites="adelberger2011">(<a
+href="#ref-adelberger2011" role="doc-biblioref">Adelberger et al.
+2011</a>)</span>; helium-4 captures through the lens vacuum’s light (E1
+and E2). Where the book has no calculation of its own, a rate is
+<strong>carried</strong>: our world’s REACLIB rate <span
+class="citation" data-cites="cyburt2010">(<a href="#ref-cyburt2010"
+role="doc-biblioref">Cyburt et al. 2010</a>)</span> for the analogous
+reaction, taken relative to our proton + proton, passed back through our
+Coulomb barrier and forward through four dimensions’. β decays and
+electron captures take 4D’s own weak force at each one’s energy.
+<strong>Checked:</strong> our proton + proton reproduces the Sun’s rate.
+<strong>Code:</strong> <code>atom/tools/ppfusion.mjs</code>,
+<code>fusion/tools/rates4.mjs</code> (→ <code>fusion/data4.js</code>).
+<strong>Limit:</strong> the carried rates are the largest single
+assumption below the stars; section 2.2.6 lists which they are.</p>
+<h2 id="burning">4 Burning</h2>
+<p><strong>What:</strong> what a hot gas turns into, and the energy it
+releases. <strong>How:</strong> a reaction network on those rates,
+solved implicitly (backward Euler with Newton’s method, since the rates
+span sixty orders of magnitude). For the stars, each shell carries its
+own composition; species that live less than a year sit at their steady
+state, and the rest are evolved. The energy is the loss of atomic rest
+mass, neutrinos not taken off. Reactions between charged nuclei are
+screened by the plasma (link 6). <strong>Checked:</strong> the same
+scheme on our REACLIB network burns our Sun’s centre at 0.96–1.04 times
+Model S’s energy generation <span class="citation"
+data-cites="jcd1996">(<a href="#ref-jcd1996"
+role="doc-biblioref">Christensen-Dalsgaard et al. 1996</a>)</span>.
+<strong>Code:</strong> <code>fusion/js/net4.js</code>,
+<code>fusion/js/shell4.js</code>; ours <code>fusion/js/shell.js</code>.
+<strong>Section 3’s shortcut:</strong> for zero-age stars the network is
+reduced to a table, a fresh core burnt at fixed temperature and density
+to half its hydrogen, its mean energy rate and half-life on a grid
+(<code>fusion/tools/eps4.mjs</code>); the ageing below burns shell by
+shell instead.</p>
+<h2 id="the-star">5 The star</h2>
+<p><strong>What:</strong> a star in hydrostatic and thermal balance.
+<strong>How:</strong> the four structure equations in
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>d</mi><annotation encoding="application/x-tex">d</annotation></semantics></math>
+dimensions, in the mass
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>m</mi><annotation encoding="application/x-tex">m</annotation></semantics></math>
+inside radius
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>r</mi><annotation encoding="application/x-tex">r</annotation></semantics></math>,
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>S</mi><mi>d</mi></msub><annotation encoding="application/x-tex">S_d</annotation></semantics></math>
+the area of the unit sphere
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><msup><mi>π</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">2\pi^2</annotation></semantics></math>
+in four dimensions):</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mi>d</mi><mi>r</mi></mrow><mrow><mi>d</mi><mi>m</mi></mrow></mfrac><mo>=</mo><mfrac><mn>1</mn><mrow><msub><mi>S</mi><mi>d</mi></msub><msup><mi>r</mi><mrow><mi>d</mi><mo>−</mo><mn>1</mn></mrow></msup><mi>ρ</mi></mrow></mfrac><mo>,</mo><mspace width="1.0em"></mspace><mfrac><mrow><mi>d</mi><mi>P</mi></mrow><mrow><mi>d</mi><mi>m</mi></mrow></mfrac><mo>=</mo><mo>−</mo><mfrac><mi>g</mi><mrow><msub><mi>S</mi><mi>d</mi></msub><msup><mi>r</mi><mrow><mi>d</mi><mo>−</mo><mn>1</mn></mrow></msup></mrow></mfrac><mo>,</mo><mspace width="1.0em"></mspace><mfrac><mrow><mi>d</mi><mi>T</mi></mrow><mrow><mi>d</mi><mi>m</mi></mrow></mfrac><mo>=</mo><mi>∇</mi><mspace width="0.167em"></mspace><mfrac><mi>T</mi><mi>P</mi></mfrac><mfrac><mrow><mi>d</mi><mi>P</mi></mrow><mrow><mi>d</mi><mi>m</mi></mrow></mfrac><mo>,</mo><mspace width="1.0em"></mspace><mfrac><mrow><mi>d</mi><mi>L</mi></mrow><mrow><mi>d</mi><mi>m</mi></mrow></mfrac><mo>=</mo><mi>ε</mi><mo>,</mo></mrow><annotation encoding="application/x-tex"> \frac{dr}{dm} = \frac{1}{S_d r^{d-1}\rho}, \quad \frac{dP}{dm} = -\frac{g}{S_d r^{d-1}}, \quad
+\frac{dT}{dm} = \nabla\,\frac{T}{P}\frac{dP}{dm}, \quad \frac{dL}{dm} = \varepsilon , </annotation></semantics></math></p>
+<p>with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>∇</mi><annotation encoding="application/x-tex">\nabla</annotation></semantics></math>
+the radiative gradient or, where radiation cannot carry the flux, the
+adiabatic one,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>d</mi><mo>+</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">2/(d+2)</annotation></semantics></math>
+(Schwarzschild’s criterion; no overshoot). They are solved by
+<strong>shooting</strong>: integrated from the centre and from the
+surface (Runge–Kutta with step doubling) to meet at a fitting mass, with
+Newton’s method on the central pressure and temperature, the radius and
+the luminosity, and a line search. In four dimensions the solutions meet
+at 0.2 of the mass (ours at 0.5): in a cool four-dimensional core a
+change in the central temperature grows several hundredfold by mid-mass,
+which left Newton’s method ill-conditioned there. A Newton stall below a
+residual of 5 × 10⁻⁴ counts as solved, the floor the gravity table’s
+noise sets.</p>
+<ul>
+<li><strong>Gravity</strong> is pinned at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>,
+which has no shell theorem: the pull at a radius depends on all the
+mass, inside and out. It is summed over the whole profile with the
+book’s four-dimensional shell kernel, written as a factor
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>f</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>m</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">f(m)</annotation></semantics></math>
+on
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>g</mi><mo>=</mo><mi>G</mi><mi>m</mi><mi>f</mi><mi>/</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">g = Gmf/r^2</annotation></semantics></math>,
+held fixed through each solve and updated from the solution,
+damped.</li>
+<li><strong>The gas:</strong> ideal ions; electrons Fermi–Dirac,
+relativistic and partly degenerate; light pressing
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mi>/</mi><mi>d</mi></mrow><annotation encoding="application/x-tex">u/d</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>=</mo><mi>a</mi><msup><mi>T</mi><mrow><mi>d</mi><mo>+</mo><mn>1</mn></mrow></msup></mrow><annotation encoding="application/x-tex">u = aT^{d+1}</annotation></semantics></math>.
+The plasma’s Coulomb correction to the pressure (link 6) is computed but
+left out, as our own stars’ models leave theirs out.</li>
+<li><strong>Opacity:</strong> electrons scatter light through the lens
+vacuum, with a cross-section falling as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>ω</mi></mrow><annotation encoding="application/x-tex">1/\omega</annotation></semantics></math>;
+free electrons absorb it passing ions (classical free–free, which in
+four dimensions needs no Gaunt logarithm); the Rosseland mean over four
+dimensions’ Planck spectrum, with the plasma’s cutoff (link 6). Metals:
+link 10.</li>
+<li><strong>The surface</strong> is the photosphere at optical depth
+2/3. <strong>The first star</strong> of each run is built on section 3’s
+energy table and carried to the shell-by-shell burning by walking a
+scale on it from what balances the first star to 1, or started from the
+zero-age sequence’s own star of that mass.</li>
+</ul>
+<p><strong>Checked:</strong> with OPAL’s measured opacity <span
+class="citation" data-cites="iglesias1996">(<a href="#ref-iglesias1996"
+role="doc-biblioref">Iglesias and Rogers 1996</a>)</span> and a
+mixing-length envelope, our Sun at 4.57 Gyr has its centre at 15.39 MK
+(the standard model’s 15.70 <span class="citation"
+data-cites="bahcall2001">(<a href="#ref-bahcall2001"
+role="doc-biblioref">Bahcall, Pinsonneault, and Basu 2001</a>)</span>),
+and 1–3 M☉ stars at half their central hydrogen have 0.90–0.94 of the
+published tracks’ luminosity and 0.99–1.03 of their surface temperature
+<span class="citation" data-cites="choi2016 dotter2016">(<a
+href="#ref-choi2016" role="doc-biblioref">Choi et al. 2016</a>; <a
+href="#ref-dotter2016" role="doc-biblioref">Dotter 2016</a>)</span>.
+<strong>Code:</strong> <code>atom/js/mainseq.js</code> (the solver, the
+gas, the 4D opacity), <code>atom/js/envelope.js</code> and
+<code>atom/js/opal.js</code> (ours). <strong>Detail:</strong> sections
+3.2.2 and 4.2.1.</p>
+<h2 id="the-charge-law-in-the-plasma">6 The charge law in the
+plasma</h2>
+<p>A star’s interior is a plasma, and the pinned
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
+changes how a plasma behaves in two ways, both computed from the law
+itself. <strong>Screening:</strong> the electrons and ions crowd round
+each nucleus and lower the barrier between two. In Debye–Hückel’s
+picture under the pinned law, the screening wavenumber obeys
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>k</mi><mi>D</mi><mn>3</mn></msubsup><mo>=</mo><mn>4</mn><msup><mi>π</mi><mn>2</mn></msup><mi>α</mi><mi>ℏ</mi><mi>c</mi><mspace width="0.167em"></mspace><mo>∑</mo><mi>n</mi><msup><mi>z</mi><mn>2</mn></msup><mi>/</mi><mi>k</mi><mi>T</mi></mrow><annotation encoding="application/x-tex">k_D^3 = 4\pi^2\alpha\hbar c\,\sum n z^2/kT</annotation></semantics></math>
+and a pair gains
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>H</mi><mo>=</mo><msub><mi>C</mi><mn>4</mn></msub><msub><mi>Z</mi><mn>1</mn></msub><msub><mi>Z</mi><mn>2</mn></msub><mspace width="0.167em"></mspace><mi>α</mi><mi>ℏ</mi><mi>c</mi><mspace width="0.167em"></mspace><msub><mi>k</mi><mi>D</mi></msub></mrow><annotation encoding="application/x-tex">H = C_4 Z_1Z_2\,\alpha\hbar c\,k_D</annotation></semantics></math>
+with
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>C</mi><mn>4</mn></msub><mo>=</mo><mi>π</mi><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mn>3</mn><msqrt><mn>3</mn></msqrt><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">C_4 = \pi/(3\sqrt3)</annotation></semantics></math>
+from the screened potential’s own transform. A four-dimensional core
+holds less than one electron to a screening ball, where that picture
+overshoots, so it is bridged to the ion-sphere limit, whose constant
+comes from the book’s shell kernel. Every reaction between charged
+nuclei is multiplied by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>e</mi><mrow><mi>H</mi><mi>/</mi><mi>k</mi><mi>T</mi></mrow></msup><annotation encoding="application/x-tex">e^{H/kT}</annotation></semantics></math>:
+proton + proton by 1.02–1.38. <strong>Light:</strong> a charge answers
+light of wavenumber
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math>
+as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>k</mi></mrow><annotation encoding="application/x-tex">1/k</annotation></semantics></math>,
+so the plasma passes no light below a cutoff,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>ω</mi><mn>2</mn></msup><mo>=</mo><msup><mi>c</mi><mn>2</mn></msup><msup><mi>k</mi><mn>2</mn></msup><mo>+</mo><mi>𝒜</mi><mi>/</mi><mi>k</mi></mrow><annotation encoding="application/x-tex">\omega^2 = c^2k^2 + \mathcal A/k</annotation></semantics></math>,
+and the Rosseland mean weighs each frequency by the cube of its index
+(up to ×1.55 at the strongest gravity). <strong>Checked:</strong> the
+same code on our Sun gives the textbook weak-screening factor for proton
++ proton and the textbook pressure correction <span class="citation"
+data-cites="pols2026">(<a href="#ref-pols2026" role="doc-biblioref">Pols
+n.d.</a>)</span>. <strong>Code:</strong> <code>atom/js/screen.js</code>,
+<code>atom/js/mainseq.js</code> (<code>lensPlasma4</code>),
+<code>fusion/tools/lensplasma.mjs</code>.</p>
+<h2 id="ageing-a-star">7 Ageing a star</h2>
+<p><strong>What:</strong> the star’s life, hydrogen burnt shell by
+shell. <strong>How:</strong> the composition lives on 401 points in the
+mass, spaced as
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mi>/</mi><mn>400</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>1.5</mn></msup></mrow><annotation encoding="application/x-tex">q = (j/400)^{1.5}</annotation></semantics></math>
+to be finer at the centre. Each step burns every shell implicitly at its
+own temperature and density; a region the solver finds stirred
+(convective) burns as one zone, on its shells’ mass-weighted rate
+constants, so the stirring feeds the centre. Each step is second-order:
+half a step’s burning, re-solve, then the whole step at that half-way
+star. <strong>A step is kept only if what the shells burnt matches what
+the star radiated to 0.3%</strong>, else it is halved, unless halving
+leaves the mismatch where it was, which marks it as structural rather
+than an error of the step. In the structure each shell’s energy is a
+local power law in density and temperature, refitted until the
+luminosity settles. Every star is first <strong>settled</strong> (10⁶
+years in four dimensions), so its burning’s intermediate nuclei come
+into balance before the clock starts. Runs checkpoint themselves and
+resume. <strong>Checked:</strong> our Sun (section 4): its light against
+the standard model to its present age, its central hydrogen’s exhaustion
+against the textbook’s. <strong>Left out:</strong> the energy a
+contracting core releases
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ε</mi><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">v</mi></mrow></msub><annotation encoding="application/x-tex">\varepsilon_\mathrm{grav}</annotation></semantics></math>),
+small on the main sequence but not where a core changes fast. That is
+why two runs stop in the oitrogen stall; adding it is the next change to
+the solver. Also left out, as in many first models of ours: overshoot
+past the convective edge, element diffusion, rotation and mass loss on
+the main sequence. <strong>Code:</strong>
+<code>atom/tools/evolve.mjs</code>; collected by
+<code>fusion/tools/ages4.mjs</code> (each run’s finished file or
+checkpoint, whichever got further). <strong>Detail:</strong> sections
+4.2.1–4.2.3.</p>
+<h2 id="what-a-star-holds-and-how-it-ends">8 What a star holds, and how
+it ends</h2>
+<p><strong>Held</strong> (computed): each run’s last kept profile summed
+over the star’s mass element by element
+(<code>fusion/tools/ash4.mjs</code>). <strong>How it ends</strong>
+(declared, carried as a band): nothing in the chain yet computes a
+star’s life after hydrogen, so its end is a set of stated choices. The
+star’s <strong>processed core</strong> is everything burning has
+touched; shell burning afterwards grows it by
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>g</mi><annotation encoding="application/x-tex">g</annotation></semantics></math>
+= 1, 1.25 and 1.5. A core that stays under the Chandrasekhar mass ends
+as a dead remnant, and the star returns its envelope plus a share
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
+= 3% and 30% of the core’s ash by winds. A core that reaches the
+Chandrasekhar mass explodes and returns everything, its ash burnt as
+<code>atom/tools/nuclei.mjs explode</code> finds: this world’s iron, the
+rock row (elements 13–23) or unburnt, by how hot each shell gets. That
+calculation’s one free number, how far the core expands before the
+burning reaches it
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+= 30 and 100), is calibrated on our own exploding white dwarfs.
+<strong>Code:</strong> <code>fusion/tools/yields4.mjs</code>.</p>
+<h2 id="what-the-stars-give-back">9 What the stars give back</h2>
+<p><strong>The net yield</strong>
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>:
+elements past helium returned to the gas, per unit of mass locked away
+in remnants and in stars still burning, over a mass function
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>m</mi><mrow><mo>−</mo><mi>α</mi></mrow></msup><annotation encoding="application/x-tex">m^{-\alpha}</annotation></semantics></math>
+(<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>α</mi><annotation encoding="application/x-tex">\alpha</annotation></semantics></math>
+= 2.35 and 1.9, ours and a top-heavy one) for stars that end within 10
+and 30 Gyr. It is the standard closed-box measure: with instant
+recycling the gas’s metal share is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>Z</mi><mo>=</mo><mi>p</mi><mo>ln</mo><mrow><mo stretchy="true" form="prefix">(</mo><mn>1</mn><mi>/</mi><mi>μ</mi><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">Z = p\ln(1/\mu)</annotation></semantics></math>
+at gas fraction
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>μ</mi><annotation encoding="application/x-tex">\mu</annotation></semantics></math>,
+whatever the pace of star formation. Beside it, one-zone galaxies: gas
+that starts primordial forms stars at a rate set by a timescale
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
+= 1 and 3 Gyr, each returning its gas when its life ends.
+<strong>Provisional:</strong> both rest on link 8’s declared endings and
+on mass ladders still running. <strong>Code:</strong>
+<code>fusion/tools/yields4.mjs</code>.</p>
+<h2 id="metals-in-the-gas">10 Metals in the gas</h2>
+<p><strong>What:</strong> what the stars’ elements do to the next stars’
+opacity. <strong>How:</strong> every ion of elements 4–23 solved by the
+book’s own atom in four dimensions (a self-consistent field with local
+exchange); ionization energies as differences of total energies, each
+subshell’s orbital energy as its absorption edge. The ions’ populations
+by Saha’s equation in four dimensions,
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>n</mi><mrow><mi>q</mi><mo>+</mo><mn>1</mn></mrow></msub><msub><mi>n</mi><mi>e</mi></msub><mi>/</mi><msub><mi>n</mi><mi>q</mi></msub><mo>=</mo><mn>2</mn><msup><mrow><mo stretchy="true" form="prefix">(</mo><msub><mi>m</mi><mi>e</mi></msub><mi>k</mi><mi>T</mi><mi>/</mi><mn>2</mn><mi>π</mi><msup><mi>ℏ</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mn>2</mn></msup><msup><mi>e</mi><mrow><mo>−</mo><mi>I</mi><mi>/</mi><mi>k</mi><mi>T</mi></mrow></msup></mrow><annotation encoding="application/x-tex">n_{q+1}n_e/n_q = 2(m_ekT/2\pi\hbar^2)^2e^{-I/kT}</annotation></semantics></math>,
+with ionization energies lowered by the plasma (link 6’s bridge).
+Absorption from each occupied subshell takes the exact hydrogen-like
+cross-section of its own level from the book’s dipole rate, scaled to
+the subshell’s edge: in four dimensions it falls as the fourth power of
+the effective charge, ours as the second. That is why metals matter so
+little there. The ions’ free–free is the classical four-dimensional
+form. <strong>Checked:</strong> every neutral’s first ionization equals
+the book’s periodic table; the scaled shapes match direct calculation;
+and the same construction for our world, with Kramers’s law in place of
+the exact shapes, supplies about half of what OPAL’s metals add in the
+Sun, the missing half being the spectral lines it leaves out (section
+4). <strong>Code:</strong> <code>fusion/tools/ions3.mjs</code> (→
+<code>atom/js/iondata4.js</code>),
+<code>fusion/tools/photoshape.mjs</code>,
+<code>atom/js/metals.js</code>, <code>fusion/tools/metals4.mjs</code>.
+<strong>Left out:</strong> lines (bound–bound absorption).</p>
+<h2 id="how-the-work-is-run-and-kept-honest">How the work is run and
+kept honest</h2>
+<ul>
+<li><strong>Where it runs.</strong> Serial steps run in a sandbox;
+anything long, such as aging dozens of stars, runs as batches on
+GitHub’s runners, queued in <code>.github/compute/atom4.json</code>.
+Every run’s logs and the tools’ caches are kept on a data branch,
+<code>atom4-data</code>, so any result can be collected again from the
+files that made it.</li>
+<li><strong>Every number traced.</strong> The paper’s text holds no
+hand-typed numbers. Each is a token that
+<code>papers/p2/build.mjs</code> reads from the committed data or from
+the code itself; an unknown token, a stale draft, or a result that moves
+without the record being updated stops the build.</li>
+<li><strong>Every change recorded.</strong> <a
+href="stages.html">Supplement S1</a> lists each stage that changed a
+result, checked one or replaced a convention: what it replaced, the
+runs, the decision rule fixed beforehand, what moved and what held.</li>
+<li><strong>Our world first.</strong> Each method above is run on our
+own Sun and nuclei before four dimensions, and its check is stated with
+it. Where a check fails or only half passes, that is reported too (the
+book’s metal opacity, for one).</li>
+<li><strong>The code.</strong> All of it is in the repository under
+<code>four/</code> (paths above). The atomic solvers already have a
+standalone, licensed mirror with a known-answer test; the stellar code
+(links 4–10) is to join it.</li>
+</ul>
+<h1 class="unnumbered" id="bibliography">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent"
+role="list">
+<div id="ref-adelberger2011" class="csl-entry" role="listitem">
+Adelberger, E. G., A. García, R. G. Hamish Robertson, K. A. Snover, A.
+B. Balantekin, K. Heeger, M. J. Ramsey-Musolf, et al. 2011. <span>“Solar
+Fusion Cross Sections. II. The Pp Chain and CNO Cycles.”</span>
+<em>Reviews of Modern Physics</em>. American Physical Society (APS). <a
+href="https://doi.org/10.1103/RevModPhys.83.195">https://doi.org/10.1103/RevModPhys.83.195</a>.
+</div>
+<div id="ref-bahcall2001" class="csl-entry" role="listitem">
+Bahcall, John N., M. H. Pinsonneault, and Sarbani Basu. 2001.
+<span>“Solar Models: Current Epoch and Time Dependences, Neutrinos, and
+Helioseismological Properties.”</span> <em>The Astrophysical
+Journal</em>. American Astronomical Society. <a
+href="https://doi.org/10.1086/321493">https://doi.org/10.1086/321493</a>.
+</div>
+<div id="ref-brink1966" class="csl-entry" role="listitem">
+Brink, D. M. 1966. <span>“Alpha Cluster Model.”</span> In
+<em>Proceedings of the International School of Physics <span>“Enrico
+Fermi,”</span> Course 36 (Varenna)</em>, 247.
+ <em class="unchecked">(Checked as freer2018 cites it; the chapter itself is not online.)</em></div>
+<div id="ref-choi2016" class="csl-entry" role="listitem">
+Choi, Jieun, Aaron Dotter, Charlie Conroy, Matteo Cantiello, Bill
+Paxton, and Benjamin D. Johnson. 2016. <span>“MESA ISOCHRONES AND
+STELLAR TRACKS (MIST). I. SOLAR-SCALED MODELS.”</span> <em>The
+Astrophysical Journal</em>. American Astronomical Society. <a
+href="https://doi.org/10.3847/0004-637X/823/2/102">https://doi.org/10.3847/0004-637X/823/2/102</a>.
+</div>
+<div id="ref-jcd1996" class="csl-entry" role="listitem">
+Christensen-Dalsgaard, J., W. Däppen, S. V. Ajukov, E. R. Anderson, H.
+M. Antia, S. Basu, V. A. Baturin, et al. 1996. <span>“The Current State
+of Solar Modeling.”</span> <em>Science</em>. American Association for
+the Advancement of Science (AAAS). <a
+href="https://doi.org/10.1126/science.272.5266.1286">https://doi.org/10.1126/science.272.5266.1286</a>.
+</div>
+<div id="ref-cyburt2010" class="csl-entry" role="listitem">
+Cyburt, Richard H., A. Matthew Amthor, Ryan Ferguson, Zach Meisel, Karl
+Smith, Scott Warren, Alexander Heger, et al. 2010. <span>“The JINA
+REACLIB Database: Its Recent Updates and Impact on Type-I X-Ray
+Bursts.”</span> <em>The Astrophysical Journal Supplement Series</em>.
+American Astronomical Society. <a
+href="https://doi.org/10.1088/0067-0049/189/1/240">https://doi.org/10.1088/0067-0049/189/1/240</a>.
+</div>
+<div id="ref-dotter2016" class="csl-entry" role="listitem">
+Dotter, Aaron. 2016. <span>“MESA ISOCHRONES AND STELLAR TRACKS (MIST) 0:
+METHODS FOR THE CONSTRUCTION OF STELLAR ISOCHRONES.”</span> <em>The
+Astrophysical Journal Supplement Series</em>. American Astronomical
+Society. <a
+href="https://doi.org/10.3847/0067-0049/222/1/8">https://doi.org/10.3847/0067-0049/222/1/8</a>.
+</div>
+<div id="ref-fermi1934" class="csl-entry" role="listitem">
+Fermi, E. 1934. <span>“Versuch Einer Theorie Der β-Strahlen. I.”</span>
+<em>Zeitschrift f�r Physik</em>. Springer Science and Business Media
+LLC. <a
+href="https://doi.org/10.1007/BF01351864">https://doi.org/10.1007/BF01351864</a>.
+</div>
+<div id="ref-freer2018" class="csl-entry" role="listitem">
+Freer, Martin, Hisashi Horiuchi, Yoshiko Kanada-En’yo, Dean Lee, and
+Ulf-G. Meißner. 2018. <span>“Microscopic Clustering in Light
+Nuclei.”</span> <em>Reviews of Modern Physics</em>. American Physical
+Society (APS). <a
+href="https://doi.org/10.1103/RevModPhys.90.035004">https://doi.org/10.1103/RevModPhys.90.035004</a>.
+</div>
+<div id="ref-hill1953" class="csl-entry" role="listitem">
+Hill, David Lawrence, and John Archibald Wheeler. 1953. <span>“Nuclear
+Constitution and the Interpretation of Fission Phenomena.”</span>
+<em>Physical Review</em>. American Physical Society (APS). <a
+href="https://doi.org/10.1103/PhysRev.89.1102">https://doi.org/10.1103/PhysRev.89.1102</a>.
+</div>
+<div id="ref-iglesias1996" class="csl-entry" role="listitem">
+Iglesias, Carlos A., and Forrest J. Rogers. 1996. <span>“Updated Opal
+Opacities.”</span> <em>The Astrophysical Journal</em>. American
+Astronomical Society. <a
+href="https://doi.org/10.1086/177381">https://doi.org/10.1086/177381</a>.
+</div>
+<div id="ref-pols2026" class="csl-entry" role="listitem">
+Pols, Onno. n.d. <span>“Stellar Structure and Evolution.”</span> Utrecht
+University (MSc lecture notes). Accessed November 14, 2026. <a
+href="https://www.astro.ru.nl/~onnop/education/stev_utrecht_notes/">https://www.astro.ru.nl/~onnop/education/stev_utrecht_notes/</a>.
+</div>
+<div id="ref-wang2021" class="csl-entry" role="listitem">
+Wang, Meng, W.J. Huang, F.G. Kondev, G. Audi, and S. Naimi. 2021.
+<span>“The AME 2020 Atomic Mass Evaluation (II). Tables, Graphs and
+References*.”</span> <em>Chinese Physics C</em>. IOP Publishing. <a
+href="https://doi.org/10.1088/1674-1137/abddaf">https://doi.org/10.1088/1674-1137/abddaf</a>.
+</div>
+</div>
+
+</div>
+<div class="p-source">Generated from <code>papers/p2/text/methods.md</code>: every number in it is read by <code>build.mjs</code> from the computed data or the solvers, so this text says what the code does.</div>
+</article>
+</body>
+</html>
