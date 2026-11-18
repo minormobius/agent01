@@ -271,6 +271,17 @@
       "d": "The communities inside a crowd. Give it a Bluesky list or a handle's mutuals; it finds the groups, measures how tight each is against a random graph, shows how the confederation splits as you ask for finer resolution, and names the people who bridge them."
     },
     {
+      "n": "wheel of misfortune",
+      "u": "https://mino.mobi/misfortune/",
+      "c": "games",
+      "k": 10,
+      "a": "hot",
+      "t": "2026-11-18",
+      "b": "2026-11-18",
+      "surface": "root",
+      "d": "The game show for the end times. Spin a giant glittering wheel of critical-infrastructure misfortune: the red wedges already happened this month (dated and sourced), the rest are jokes. Pegs ping, the needle flaps, and you get a shareable card of your postmodern horror."
+    },
+    {
       "n": "wild",
       "u": "https://mino.mobi/wild/",
       "c": "bluesky",

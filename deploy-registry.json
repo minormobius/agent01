@@ -137,7 +137,8 @@
         "mino.css",
         "eigensite/**",
         "cluster/**",
-        "kith/**"
+        "kith/**",
+        "misfortune/**"
       ]
     },
     {

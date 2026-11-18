@@ -185,6 +185,15 @@
    "parent": "cluster"
   },
   {
+   "id": "wheel of misfortune",
+   "name": "wheel of misfortune",
+   "url": "https://mino.mobi/misfortune/",
+   "cat": "games",
+   "commits": 10,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "wild",
    "name": "wild",
    "url": "https://mino.mobi/wild/",

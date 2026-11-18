@@ -84,6 +84,8 @@ on:
       - 'cluster/**'
       # kith: community detection over a list or a handle's mutuals (cluster's sibling)
       - 'kith/**'
+      # misfortune: the satirical infrastructure wheel
+      - 'misfortune/**'
       - 'density/**'
       - 'echo/**'
       - 'judge/**'
