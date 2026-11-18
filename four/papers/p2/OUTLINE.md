@@ -211,7 +211,13 @@ in advance, and each current value recomputed from the data at every build. Add 
 3. The first minutes: helium left against G₄ and the clock.
 4. Hydrogen burning's ash against s (the network sweep).
 5. **Drawn as figure 2, and written up** (`text/lifetimes.md` → `draft/lifetimes.html`, section 3: results, caption, methods 3.2.1–3.2.8) (`figures/lifetimes.svg`): core half-life against mass per strength at G = 10⁻¹⁷, and our Sun's analogue across G × s coloured by what its own centre burns to, under both mass models (identical since the bound) (C).
-6. Composition against age (D).
+6. **Drawn as figure 3** (section 4's "What they give back", and the status page) (`figures/fates.mjs` →
+   `figures/fates.svg`, from `data/yields4.json`): the third strength plane, after the windows and the lives. (a) star
+   mass against s at G 10⁻¹⁷: locked away (outlives 30 Gyr), dies and returns its envelope, explodes and returns the
+   rock row, the explosion boundary drawn as the band over core growth g; each ladder star filled by its share past
+   helium, cut runs outlined dashed. (b) the net yield p against s (the band over every choice, the middle choice as a
+   line) and its make-up (rock row, iron, light ash). One gravity only: a G × s version needs ladders at other G.
+7. Composition against age (D).
 
 ## Companion objects
 

@@ -6,7 +6,9 @@
      node four/papers/p2/figures/ages.mjs */
 import { readFileSync, writeFileSync } from "node:fs";
 const A = JSON.parse(readFileSync(new URL("../data/ages4.json", import.meta.url), "utf8")), H = JSON.parse(readFileSync(new URL("../data/ash4.json", import.meta.url), "utf8"));
-const analog = (x) => !(x.G === 1e-17 && x.s === 1.5152 && Math.abs(x.m - 0.7812) > 0.01);
+// the analogues: the star at each (G, s) whose mass is gravity.json's Sun analogue (the G 1e-17 mass ladders are not)
+const SUNS = JSON.parse(readFileSync(new URL("../data/gravity.json", import.meta.url), "utf8")).runs.filter((r) => r.sun);
+const analog = (x) => SUNS.some((r) => r.G === x.G && r.s === x.s && Math.abs(x.m / r.sun.m - 1) < 0.01);
 const stars = A.stars.filter(analog), GS = [...new Set(stars.map((x) => x.G))].sort((a, b) => b - a), S = [...new Set(stars.map((x) => x.s))].sort((a, b) => a - b);
 const GC = ["#D55E00", "#E69F00", "#009E73", "#0072B2"], W = 760, Ht = 440, L = 70, R = 600, T = 40, B = 380;
 const x0 = 1.5, x1 = 1.87, y0 = Math.log10(1.5), y1 = Math.log10(300);

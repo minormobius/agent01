@@ -72,8 +72,8 @@ $w$ = 3% and 30% of the core's ash by winds. One that reaches it explodes, retur
 this world's iron or the rock row (elements 13–23), by how far the core expands before the burning reaches it. The
 mass ladders at G = 10^−17^ hold 38 stars at six strengths. Of the 29 that die within 30 Gyr,
 17 reached central hydrogen 10⁻³; the other 12 were cut with at most 0.16 of it left, and
-their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes is 1.6 M~Ch~ at
-s ≤ 1.55, 2 at 1.6–1.65 and 2.5 at 1.7. The net yield $p$, the elements past helium returned per unit of
+their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes (figure 3a) is 1.6 M~Ch~ at
+s ≤ 1.55, 2 at 1.6–1.65 and 2.5 at 1.7. The net yield $p$ (figure 3b), the elements past helium returned per unit of
 mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = 2.35 and 1.9)
 from 0.25 to 2.5 M~Ch~ for the stars that die within 10 and 30 Gyr, is 0.042–0.17 at s ≤ 1.55, 0.011–0.086 at 1.6–1.65,
 0.00062–0.027 at 1.7 and 0.00038–0.0015 at 1.8. Most of that band comes from $g$, which sets which masses explode. At the middle
@@ -82,6 +82,18 @@ to 22% is iron. The light ash the stars held, which dead stars' envelopes and wi
 of it, or 13–29% with winds of 30%. A one-zone galaxy on the
 same stars is in the data. Its gas's own share of metals mostly measures how little gas is left, so $p$ is the
 number to carry. The second generation built from that gas comes next.
+
+![**Figure 3. What the first stars give back, at G = 10^−17^ × ours.** (a) Each aged star of the mass ladders
+(vertical: its mass in Chandrasekhar masses) at each strength $s$ of the nucleon force, filled by its share past helium
+when its run ends; a dashed outline marks a star whose run was cut short of exhaustion and whose life is carried on at
+its last rate. Below the solid line a star outlives 30 Gyr and its mass stays locked away (the dashed grey line: 10
+Gyr). Above it a star dies, as a dead remnant returning its envelope, or, once its core grown by $g$ reaches the
+Chandrasekhar mass, by exploding and returning everything. The hatched band is where that depends on $g$, from 1 at
+its top to 1.5 at its bottom; the dashed orange line is $g$ = 1.25, by which each star's outline is coloured. From
+$s$ = 1.75 up the stars burn hydrogen to helium and little further. (b) The net yield $p$, the elements past helium
+returned per unit of mass locked away, over every declared choice (shaded) and at the middle choice (α = 2.35, $g$ =
+1.25, winds 3%, stars dying within 30 Gyr; the line), with the middle choice's make-up beneath: the rock row
+(elements 13–23), this world's iron, and the light ash the stars held.](../figures/fates.svg)
 
 **The opacity, measured and then computed.** Everything above carries the textbook opacity: electron scattering plus
 Kramers's law. Along Model S's interior that law is 0.16–1.35 times OPAL's tables [@iglesias1996], and it is

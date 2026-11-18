@@ -1286,6 +1286,14 @@ for games, and this is a modelling programme with publications to come. The game
   s ≥ 1.55 (they had excluded only the s 1.5152 ladder, so the ladders leaked into the analogue summaries and the
   provenance checks stopped the build); a ladder star's "no solution" stop is kept as `stop`, not `stall` (s 1.5152
   1 M_Ch stops at Xc 0.0097, not the oitrogen stall).
+  **Figure 3, what the first stars give back (PI, 2026-11-18: "that almost sounds like another phase diagram"):**
+  `papers/p2/figures/fates.mjs` → `fates.svg`, from `yields4.json`. It is the paper's third strength plane, after the
+  windows and the lives. (a) Mass against s, with three regions: locked (below where life = 30 Gyr, interpolated in ln
+  m), dies, and explodes (where g × q_core × m crosses 1 M_Ch, interpolated in ln m), the explosion edge shown as the
+  band g = 1 … 1.5. Each star is filled by its share past helium, with cut runs outlined dashed. (b) p against s and the
+  middle choice's make-up. Section 4 cites it after "What they give back", and the status page shows it under the ages
+  figure with a fifth finding. **Redraw it (`node figures/fates.mjs`) after `yields4.mjs`.** `figures/ages.mjs` also
+  picks analogues by gravity.json's mass now; ages.svg came out byte-identical.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

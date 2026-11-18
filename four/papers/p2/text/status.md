@@ -8,7 +8,7 @@
 The forces that decide it are not given, so the paper narrows them in windows: how strong the nucleon force is (its
 strength $s$, with 1.5152 the value nearest ours), how strong the weak force is, and how strong gravity is ($G$, in
 multiples of ours). The latest stretch of work aged the stars themselves, shell by shell, instead of judging their
-lives from a frozen zero-age core. Four things came out of it.
+lives from a frozen zero-age core. Five things came out of it.
 
 1. **Sun-like stars live far longer than assumed.** Of the {{a4grid}} Sun analogues, {{a4n}} burn half their central
    hydrogen in {{a4min}}–{{a4max}} Gyr, {{a4rlo}}–{{a4rhi}} times the 4.6 Gyr the earlier convention gave every one of
@@ -23,7 +23,10 @@ lives from a frozen zero-age core. Four things came out of it.
    the rock row, comes out {{g2L}} fainter, {{g2R}} larger and {{g2T}} cooler at the surface than the same star built
    primordial, and over its first {{g2Gyr}} Gyr its centre burns {{g2B}} slower. With 2% of the stars' own ash instead,
    nothing moves by more than {{g2Held}}.
-4. **One limit is real physics, not numerics.** Two stars at $s$ = 1.5152 stop when their core's oitrogen runs out and
+4. **What comes back is mostly the rock row, and less of it the further the strength is from ours.** Stars heavy
+   enough to grow a Chandrasekhar-mass core explode and return the elements that make planets in our world. Near our
+   strength the metals returned come to {{yPA}} of the mass the stars lock away; at $s$ = 1.8, {{yPD}}.
+5. **One limit is real physics, not numerics.** Two stars at $s$ = 1.5152 stop when their core's oitrogen runs out and
    the stirred core collapses faster than a solver in thermal balance can follow.
 
 What is still declared rather than computed is the stars' lives after hydrogen: how their cores grow, and which end
@@ -35,6 +38,18 @@ of gravity (a line per $G$, in multiples of ours), the time the star's centre ta
 point is shaded by how much of the star is past helium when its run ends. The dashed rings mark the two runs that stop
 in the oitrogen stall; the lower one stops just short of half its hydrogen. The dashed line is the 4.6 Gyr every
 analogue was given before the stars were aged.](../figures/ages.svg)
+
+![**What the first stars give back, at $G$ = 10⁻¹⁷ × ours.** (a) Each aged star of the mass ladders
+(vertical: its mass in Chandrasekhar masses) at each strength $s$ of the nucleon force, filled by its share past helium
+when its run ends; a dashed outline marks a star whose run was cut short of exhaustion and whose life is carried on at
+its last rate. Below the solid line a star outlives 30 Gyr and its mass stays locked away (the dashed grey line: 10
+Gyr). Above it a star dies, as a dead remnant returning its envelope, or, once its core grown by $g$ reaches the
+Chandrasekhar mass, by exploding and returning everything. The hatched band is where that depends on $g$, from 1 at
+its top to 1.5 at its bottom; the dashed orange line is $g$ = 1.25, by which each star's outline is coloured. From
+$s$ = 1.75 up the stars burn hydrogen to helium and little further. (b) The net yield $p$, the elements past helium
+returned per unit of mass locked away, over every declared choice (shaded) and at the middle choice (α = 2.35, $g$ =
+1.25, winds 3%, stars dying within 30 Gyr; the line), with the middle choice's make-up beneath: the rock row
+(elements 13–23), this world's iron, and the light ash the stars held.](../figures/fates.svg)
 
 ## What is established
 
