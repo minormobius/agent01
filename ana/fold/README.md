@@ -122,7 +122,7 @@ Measured (the selftest re-checks the first three and the 8,8 overlap):
 | | |
 |---|---|
 | 4,4 | the tesseract: 82,944 hinge trees, all nets |
-| 3,3 · 3,4 · 3,5 | all-net: every one of 1,296 · 8,575 · 53,824 unfoldings checked |
+| 3,3 · 3,4 · 3,5 · 3,6 | all-net: every one of 1,296 · 8,575 · 53,824 · 326,592 unfoldings checked |
 | 4,6 · 5,5 · 5,6 · 4,8 · 3,12 | 0 overlaps in 2,000 random unfoldings each (not a proof) |
 | 6,6 · 4,12 | 28 and 15 of 2,000 overlap; 5,8 · 8,8 · 10,10: 9, 26, 64 of 200 |
 
@@ -134,3 +134,21 @@ enumerates vertices of a small LP). `depthCells` now first projects both cells' 
 4D and both hyperplane normals; a gap rules the pair out. A direction along which both cells are flat (two cells in one
 hyperplane, along its normal) is skipped: an early version counted it and missed real crossings, caught by comparing
 against the exact answer on 22,524 pairs. The selftest keeps that comparison.
+
+## The grand antiprism
+
+Conway and Guy's (1965) one convex uniform polytope that Wythoff's kaleidoscope can't build. `unfold4.js`
+`grandAntiprism()` makes it from the 600-cell (`h600` from JOHNSON's `poly.js`, edge 1) by deleting the 20 vertices on two
+completely orthogonal great decagons, then finds its facets directly: every hyperplane through four nearby vertices
+(within 2.05) with all 100 on one side, merged by vertex set. Half a second; the page builds it on first use. Checked by
+the selftest: 100 vertices, 500 unit edges, 700 triangles and 20 pentagons, 300 tetrahedra and 20 pentagonal antiprisms,
+Euler, and the antiprisms joining pentagon to pentagon into two rings of ten. About 3.59 × 10¹⁷⁸ hinge trees.
+
+Measured: every one of 40 random winding (DFS) unfoldings overlaps, with witnesses up to 0.35 deep on an edge of 1; none
+of 40 bushy (BFS) ones does. Folding 8 bushy nets at 15 moments, all at once 7 have cells crossing (up to 0.11 deep);
+ring by ring none. The page draws bushy trees for "a net" and winding ones for "find an overlap", and marks the deepest
+witness of the first 30 overlapping pairs.
+
+**Speed.** `motionsAt` now composes each cell's motion as one affine matrix instead of a chain of closures: on a winding
+tree 255 hinges deep that made every point cost 255 calls, and turning the view took 260 ms a frame (43 ms now). The page
+also keeps each solid's 4D vertex positions until the fold changes.

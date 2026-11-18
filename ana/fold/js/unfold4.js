@@ -9,7 +9,7 @@
 //
 // Overlap is decided by clipping one cell (a convex polyhedron, in the root's 3D) by the other's face planes and
 // measuring the volume left. A witness for an overlap is a point strictly inside both cells, with its margins.
-import { hull3, volume3, orient } from '../../johnson/js/poly.js';
+import { hull3, volume3, orient, h600 } from '../../johnson/js/poly.js';
 
 const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
 const add = (a, b, k = 1) => a.map((v, i) => v + k * b[i]);
@@ -103,6 +103,27 @@ export function duoprism(p, q) {
   for (let k = 0; k < q; k++) N.push([0, 0, Math.cos((t * (k + 0.5)) / q), Math.sin((t * (k + 0.5)) / q)]);
   return polytope(V, N);
 }
+/** The grand antiprism (Conway and Guy, 1965), edges 1: the 600-cell with the 20 vertices of two completely orthogonal
+ *  great decagons deleted. 100 vertices, 300 tetrahedra and 20 pentagonal antiprisms in two linked rings of ten.
+ *  Facets found directly: every hyperplane through four nearby vertices with all 100 on one side. */
+export function grandAntiprism() {
+  const W0 = h600().V, a = W0[0], nb = W0.find((v) => Math.abs(norm(add(v, a, -1)) - 1) < 1e-9);
+  const b = unit(add(nb, a, -dot(nb, a) / dot(a, a))), au = unit(a), R = norm(a);
+  const gone = (v) => Math.abs(Math.hypot(dot(v, au), dot(v, b)) - R) < 1e-9 || (Math.abs(dot(v, au)) < 1e-9 && Math.abs(dot(v, b)) < 1e-9);
+  const V = W0.filter((v) => !gone(v)), n = V.length;
+  const near = V.map((p) => V.map((q, j) => [norm(add(p, q, -1)), j]).filter(([d]) => d > 1e-9 && d < 2.05).map(([, j]) => j));
+  const det3 = (m) => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const seen = new Map();
+  for (let i = 0; i < n; i++) for (const j of near[i]) if (j > i) for (const k of near[i]) if (k > j) for (const l of near[i]) if (l > k) {
+    const D = [j, k, l].map((t) => add(V[t], V[i], -1));
+    let N = [0, 1, 2, 3].map((c) => { const cols = [0, 1, 2, 3].filter((x) => x !== c); return (c % 2 ? -1 : 1) * det3(D.map((r) => cols.map((x) => r[x]))); });
+    const L = norm(N); if (L < 1e-9) continue; N = scale(N, 1 / L); let h = dot(N, V[i]); if (h < 0) { N = scale(N, -1); h = -h; }
+    if (!V.every((q) => dot(N, q) <= h + 1e-9)) continue;
+    const key = V.map((q, t) => t).filter((t) => Math.abs(dot(N, V[t]) - h) < 1e-9).join();
+    if (!seen.has(key)) seen.set(key, N);
+  }
+  return polytope(V, [...seen.values()]);
+}
 export function cell24() {
   const V = uniq(perms([1, 1, 0, 0]).flatMap(signs));                       // 24 vertices, edge √2
   const N = [...uniq(perms([1, 0, 0, 0]).flatMap(signs)), ...signs([0.5, 0.5, 0.5, 0.5])];   // 24 octahedral cells
@@ -144,17 +165,22 @@ export function motionsAt(P, parent, t, ring = false) {
   const root = parent.indexOf(-1), n = P.cells.length;
   const order = [root]; { const seen = new Set([root]); for (let k = 0; k < order.length; k++) for (let c = 0; c < n; c++) if (parent[c] === order[k] && !seen.has(c)) { seen.add(c); order.push(c); } }
   if (order.length !== n) throw new Error('not a spanning tree');
-  const M = new Array(n);
+  const M = new Array(n), A = new Array(n);
+  const affine = (Am, bm) => (x) => [0, 1, 2, 3].map((r) => Am[r][0] * x[0] + Am[r][1] * x[1] + Am[r][2] * x[2] + Am[r][3] * x[3] + bm[r]);
   for (const c of order) {
-    if (c === root) { M[c] = (x) => x; continue; }
+    if (c === root) { A[c] = [[[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], [0, 0, 0, 0]]; M[c] = (x) => x.slice(); continue; }
     const p = parent[c], np = P.cells[p].n, nc = P.cells[c].n, ridge = P.adj[p].get(c);
     if (!ridge) throw new Error(`cells ${p} and ${c} don't share a ridge`);
     const q = P.V[ridge[0]];
     // the plane of the two normals: u = n_p, v = n_c's part across it; n_c = cos φ u + sin φ v. Turn by −φ.
     const u = np, vv = unit(add(nc, np, -dot(nc, np))), phi = frac[c] * Math.acos(Math.max(-1, Math.min(1, dot(np, nc)))), co = Math.cos(-phi), si = Math.sin(-phi);
-    const R = (x) => { const d = add(x, q, -1), a = dot(d, u), b = dot(d, vv); return add(add(add(d, u, a * (co - 1) - b * si), vv, a * si + b * (co - 1)), q); };
-    const Mp = M[p];
-    M[c] = (x) => Mp(R(x));
+    // the turn as an affine map x → L x + (q − L q), L = I + u (u(co−1) − v si)ᵀ + v (u si + v(co−1))ᵀ, composed with
+    // the parent's as one matrix: a deep tree costs no more per point than a shallow one
+    const L = [0, 1, 2, 3].map((r) => [0, 1, 2, 3].map((k) => (r === k ? 1 : 0) + u[r] * (u[k] * (co - 1) - vv[k] * si) + vv[r] * (u[k] * si + vv[k] * (co - 1))));
+    const tq = q.map((x, r) => x - dot(L[r], q)), [Ap, bp] = A[p];
+    const Ac = [0, 1, 2, 3].map((r) => [0, 1, 2, 3].map((k) => Ap[r][0] * L[0][k] + Ap[r][1] * L[1][k] + Ap[r][2] * L[2][k] + Ap[r][3] * L[3][k]));
+    const bc = [0, 1, 2, 3].map((r) => dot(Ap[r], tq) + bp[r]);
+    A[c] = [Ac, bc]; M[c] = affine(Ac, bc);
   }
   return M;
 }

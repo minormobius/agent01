@@ -109,5 +109,27 @@ let seed = 4242; const rnd = () => { seed = (seed * 16807) % 2147483647; return 
         const d1 = depthCells(C[a], C[b]), d0 = depthCells({ ...C[a], pts: null }, { ...C[b], pts: null }); if ((d0 > 1e-6) !== (d1 > 1e-6) || (d0 > 1e-6 && Math.abs(d0 - d1) > 1e-12)) dis++; } } }
   ok(dis === 0, `the quick separating test agrees with the exact depth on all ${pairs} nearby pairs sampled (it only skips pairs that can't cross)`);
 }
+// the grand antiprism: built from the 600-cell, counted, its rings, and its unfoldings
+{
+  const P = U.grandAntiprism(), nrm = (a) => Math.hypot(...a);
+  const edges = []; for (let i = 0; i < 100; i++) for (let j = i + 1; j < 100; j++) { const d = nrm(P.V[i].map((x, k) => x - P.V[j][k])); if (d < 1 + 1e-9) edges.push(d); }
+  const tet = P.cells.filter((c) => c.verts.length === 4).length, anti = P.cells.filter((c) => c.verts.length === 10).length;
+  const ridges = { 3: 0, 5: 0 }; P.adj.forEach((m, i) => m.forEach((sh, j) => { if (j > i) ridges[sh.length] = (ridges[sh.length] || 0) + 1; }));
+  ok(P.V.length === 100 && edges.length === 500 && edges.every((d) => Math.abs(d - 1) < 1e-9) && tet === 300 && anti === 20 && ridges[3] === 700 && ridges[5] === 20 && 100 - 500 + 720 - 320 === 0,
+    'the grand antiprism: 100 vertices, 500 unit edges, 720 faces (700 triangles, 20 pentagons), 300 tetrahedra and 20 pentagonal antiprisms; V − E + F − C = 0');
+  // every face regular: each cell's faces have unit edges only (checked via edges above), and each antiprism's two pentagons are regular
+  const rings = []; const seen = new Set();
+  P.cells.forEach((c, i) => { if (c.verts.length !== 10 || seen.has(i)) return; const r = [i], st = [i]; seen.add(i); while (st.length) { const x = st.pop(); for (const [y, sh] of P.adj[x]) if (sh.length === 5 && !seen.has(y)) { seen.add(y); r.push(y); st.push(y); } } rings.push(r); });
+  const cyc = rings.every((r) => r.every((i) => [...P.adj[i]].filter(([j, sh]) => sh.length === 5).length === 2));
+  ok(rings.length === 2 && rings.every((r) => r.length === 10) && cyc, 'its antiprisms join pentagon to pentagon into two rings of ten, each antiprism between two others');
+  ok(Math.abs(Math.log10(U.treeCount(P)) - 178.5555) < 0.001, `its hinge trees: about 3.59 × 10¹⁷⁸ (Kirchhoff, in floating point)`);
+  let seed = 77; const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const wind = U.unfold(P, U.randomTree(P, 'dfs', rnd, 0)), ov = U.overlaps(wind.cells), best = Math.max(...ov.slice(0, 30).map((x) => U.witness(wind.cells[x.a], wind.cells[x.b]).margin));
+  ok(ov.length > 0 && best > 0.05 && wind.offPlane < 1e-9, `it is not all-net: a winding unfolding has ${ov.length} overlapping pairs, one with a point inside both by ${best.toFixed(3)} (edge 1; laid flat to ${wind.offPlane.toExponential(0)})`);
+  const bushy = U.randomTree(P, 'bfs', rnd, 0);
+  ok(U.overlaps(U.unfold(P, bushy).cells).length === 0, 'a bushy unfolding of it is a net');
+  let worst = 0; for (const t of [0.2, 0.5, 0.8]) { const C = U.movedCells(P, U.motionsAt(P, bushy, t, true)); for (let a = 0; a < 320; a++) for (let b = a + 1; b < 320; b++) { if (nrm(C[a].ctr.map((v, j) => v - C[b].ctr[j])) >= C[a].rad + C[b].rad) continue; worst = Math.max(worst, depthCells(C[a], C[b])); } }
+  ok(worst < 1e-6, 'and folding it ring by ring, no two of its 320 cells pass through each other (three moments checked)');
+}
 console.log(`${fails ? '✗' : '✓'} unfold4: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);
