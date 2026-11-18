@@ -307,7 +307,23 @@ for games, and this is a modelling programme with publications to come. The game
   2–20% at 1.6–1.65 (coron … oitrogen, darbon leading), 0.3–4% at 1.7 (element 6), ≤ 0.14% from 1.75 (helium only);
   weaker gravity mostly makes more. Held, not returned: the next step is what the stars give back (winds, ends), then
   the second generation's mix and stars (the opacity above takes it as `metals: {Z: share}`). Provenance stage `ash4`,
-  check `ash4Heavy`; section 4's "What the aged stars hold". `star/aged.js` baked
+  check `ash4Heavy`; section 4's "What the aged stars hold".
+  **Step two, what the stars give back (PI, 2026-11-18: "go for it"):** `fusion/tools/yields4.mjs <dir> [G=1e-17]`
+  (seconds) → `papers/p2/data/yields4.json` (not committed until evolve4-8's ladders are in): per ladder star the life (to
+  Xc 10⁻³, or the last stretch's rate carried on, flagged), the processed core (out to where H is within 0.05 of its
+  start and ash < 1%: a shrinking stirred core leaves its ash in the layers it once stirred, so the stirred core alone
+  undercounts it — the first pass made that mistake and returned 15–31% ash from dead stars), and its return under
+  declared choices: growth g = 1 / 1.25 / 1.5 on the processed core; under M_Ch a dead remnant returning its envelope
+  and w = 3% / 30% of the core's ash; at M_Ch an explosion returning all, the core's ash burnt by `nuclei.mjs explode`'s
+  shares (from `nucleidata.js`, f = 30 / 100). Then the net yield p (metals returned per mass locked, on m^(−α), α 2.35 /
+  1.9, stars dying within 10 / 30 Gyr; closed-box Z = p ln(1/μ)) and one-zone closed-box galaxies (τ 1 / 3 Gyr). **First
+  pass on the s 1.5152 ladder alone (0.25–2.5 M_Ch, the 1.6 and 2.5 extrapolated from cut runs):** stars ≤ 1 M_Ch live
+  55–250 Gyr and leave 0.5–0.8 of themselves as remnants; 1.6 and 2.5 M_Ch (5.3, 0.58 Gyr) grow M_Ch cores and explode,
+  returning 26–34% of their mass as burnt ash; p 0.027–0.14, of which 76–96% the rock row (elements 13–23), 1.5–23%
+  equilibrium's iron, a few % unburnt light ash. g sets which masses explode and so most of the band. The closed box's own
+  Z (8–49% at 10 Gyr) is mostly the box (1–10% of the gas left): quote p. So the second generation's metals are mostly
+  the rock row, beyond `iondata4.js` (4–13): the next opacity step is elements 13–23. evolve4-8 (queued 606cbda49,
+  31 commands) brings ladders at s 1.55–1.8 and carries the s 1.5152 one to exhaustion. `star/aged.js` baked
   from evolve4-7 (34 4D tracks, the further record of each run, cut runs rebuilt from checkpoints with plasma: true,
   M_Ch ∝ G^(−4/3)).
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
