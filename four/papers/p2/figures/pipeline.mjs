@@ -28,7 +28,7 @@ LINKS.forEach(([st, title, how, code], i) => { const y = T + i * (BH + GAP), [co
 // the loop back: the gas's metals feed the next generation's stars
 const yTop = T + 4 * (BH + GAP) + BH / 2, yBot = T + 9 * (BH + GAP) + BH / 2, xr = L + BW + 22;
 s += `<path d="M${L + BW},${yBot} H${xr} V${yTop} H${L + BW + 6}" fill="none" stroke="#555" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#ar)"/>`;
-s += `<text x="${xr + 6}" y="${(yTop + yBot) / 2}" fill="#555" font-size="11"><tspan x="${xr + 6}">the next</tspan><tspan x="${xr + 6}" dy="14">generation</tspan><tspan x="${xr + 6}" dy="14">(to do)</tspan></text>`;
+s += `<text x="${xr + 6}" y="${(yTop + yBot) / 2}" fill="#555" font-size="11"><tspan x="${xr + 6}">the next</tspan><tspan x="${xr + 6}" dy="14">generation</tspan><tspan x="${xr + 6}" dy="14">(first look)</tspan></text>`;
 const ly = H - 56; Object.values(ST).forEach(([col, name], i) => { const lx = L + (i % 3) * 220, y = ly + Math.floor(i / 3) * 22; s += `<rect x="${lx}" y="${y}" width="16" height="12" rx="3" fill="${col}33" stroke="${col}" stroke-width="2"/><text x="${lx + 22}" y="${y + 10}" font-size="11">${name}</text>`; });
 s += `</svg>\n`;
 writeFileSync(new URL("pipeline.svg", import.meta.url), s);

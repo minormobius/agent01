@@ -19,7 +19,10 @@ lives from a frozen zero-age core. Four things came out of it.
    four-dimensional star's opacity by only {{m4HeldLo}} to {{m4HeldHi}}: absorption by a light ion falls much faster
    with its charge than in our world. The rock row (elements 13–23), which the exploding stars return, is different:
    {{m4RockCore}} at the centre and {{m4RockOut}} at {{m4OutQ}} of the mass, where heavy ions keep their inner electrons.
-   So a second generation built on the rock row may not look like the first; that is now the open question.
+   The first second-generation star bears that out: the Sun analogue at $G$ = 10⁻¹⁷, $s$ = 1.5152, built with 2% of
+   the rock row, comes out {{g2L}} fainter, {{g2R}} larger and {{g2T}} cooler at the surface than the same star built
+   primordial, and over its first {{g2Gyr}} Gyr its centre burns {{g2B}} slower. With 2% of the stars' own ash instead,
+   nothing moves by more than {{g2Held}}.
 4. **One limit is real physics, not numerics.** Two stars at $s$ = 1.5152 stop when their core's oitrogen runs out and
    the stirred core collapses faster than a solver in thermal balance can follow.
 
@@ -59,6 +62,10 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
 - **What the first stars hold** (computed; section 4). Elements past helium: {{ashA}} of the star at $s$ ≤ 1.55,
   {{ashB}} at 1.6–1.65 ({{ashBel}}), {{ashC}} at 1.7, and at most {{ashDmax}} from 1.75 up, where stars burn hydrogen to
   helium and stop.
+- **The second generation, a first look** (computed; one analogue, zero age and the first {{g2Gyr}} Gyr). The star built
+  with the metals in its starting composition (as seed nuclei in the burning network) and in its opacity, each switched
+  on alone and then together: 2% of the rock row makes it {{g2L}} fainter and {{g2R}} larger, its stirred core
+  {{g2Q}} of the mass against {{g2Q0}}; almost all of that is opacity.
 - **What metals do to the opacity** (computed, without spectral lines). The book's own four-dimensional ions, elements
   4–23, every first ionization equal to the periodic table's: the figures in point 3 above. (A first version of this
   line said metals barely change a four-dimensional star at all; a slip in the code had dropped every ion's bound–free
@@ -79,8 +86,9 @@ in our world, make planets.
 **Whether the second generation looks like the first depends on what comes back.** In our world a star's metals set
 its opacity, and so its size, colour and life. In four dimensions the first stars' own light ash barely touches it,
 but the rock row thickens the outer layers several times over. If, as the first look at the yields says, the rock row
-is most of what returns, the second generation's stars will differ from the first, and how much is the next thing to
-compute.
+is most of what returns, the second generation's stars are fainter, larger and cooler than the first, and their
+centres burn more slowly. The ash's nuclei also act as catalysts, as carbon, nitrogen and oxygen do in our Sun,
+quickening the burning by a few per cent; in a rock-rich star the opacity wins.
 
 **The strongest gravity behaves differently.** At $G$ = 10⁻¹¹ the Sun analogue chosen at zero age burns far faster
 once aged than any other, and stalls early: the zero-age choice of analogue is not reliable there.
@@ -89,8 +97,8 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 1. **The mass ladders land** (running on the compute runner; automatic). They give the yields by mass at five more
    strengths, settle what the stars give back, and go into section 4 with their declared choices listed.
-2. **A second-generation star** (sandbox, hours). The four-dimensional structure solver needs the metal opacity built
-   above; then one analogue with its galaxy's gas.
+2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
+   and first {{g2Gyr}} Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return.
 3. **The energy of contraction in the structure** (a change to the solver; every aged run redone on the runner). It
    would follow the stalled stars and the giant phase, and replace the declared endings with computed ones. This is
    the step that most changes what the paper can claim.

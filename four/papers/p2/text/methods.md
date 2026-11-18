@@ -14,7 +14,7 @@ what each link computes, how, what it is checked against, where its code lives, 
 ![**The modelling chain.** Each link's technique and its code (in the repository under `four/`). The colour says how
 it stands: computed by the book's own physics and checked on our world, partly carried from our world, a set of
 declared choices carried as a band, or provisional while runs finish. The dashed arrow is the loop not yet closed: the
-gas's metals feeding a second generation of stars.](../figures/pipeline.svg)
+gas's metals feeding a second generation of stars, so far as a first look.](../figures/pipeline.svg)
 
 ## 1 The forces
 
@@ -169,6 +169,13 @@ shapes match direct calculation; and the same construction for our world, with K
 shapes, supplies about half of what OPAL's metals add in the Sun, the missing half being the spectral lines it leaves
 out (section 4). **Code:** `fusion/tools/ions3.mjs` (→ `atom/js/iondata4.js`), `fusion/tools/photoshape.mjs`,
 `atom/js/metals.js`, `fusion/tools/metals4.mjs`. **Left out:** lines (bound–bound absorption).
+
+**The loop closed, a first look.** A second-generation star is built with the metals in two places, each switchable so
+their effects separate: as seed nuclei in the burning network's starting composition (elements up to 16 as their N = Z
+isotopes, heavier ones as an inert stand-in) and as a factor on the structure's opacity, tabulated over temperature and
+density at the gas's starting make-up and held fixed (`atom/tools/evolve.mjs four … gen2=<held|rock> Z2=<Z>
+parts=<seeds,kappa>`; collected by `fusion/tools/gen2.mjs`). With the seeds in, the factor carries only the metals'
+bound–free, their free–free already counting in the structure's own.
 
 ## How the work is run and kept honest
 

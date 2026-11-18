@@ -172,7 +172,12 @@ function statusNumbers() {
   // the rock row by depth: at the centre and at the outermost sampled point (q ≈ 0.9), over both Z and every analogue
   const qs = [...new Set(M4.rows.map((r) => r.q))].sort((a, b) => a - b), at = (q) => M4.rows.filter((r) => r.q === q).flatMap((r) => [r["rock0.01"], r["rock0.02"]]).filter((x) => x != null);
   const xr = (v) => `×${f(Math.min(...v), 2)}–${Math.max(...v) < 10 ? f(Math.max(...v), 1) : f(Math.max(...v), 0)}`;
-  return { m4HeldLo: sg(hl), m4HeldHi: sg(hh), m4RockCore: xr(at(qs[0])), m4RockOut: xr(at(qs.at(-1))), m4OutQ: f(qs.at(-1), 1), lpPPlo: f(Math.min(...span("ppScreen", 0)), 2), lpPPhi: f(Math.max(...span("ppScreen", 1)), 2),
+  // the second generation's first look (data/gen2.json, fusion/tools/gen2.mjs): both effects on, by mix
+  const G2 = J("gen2.json"), both = (mix) => { const c = G2.cases.find((x) => x.mix === mix && x.seeds && x.kappa); if (!c) throw new Error(`gen2: no ${mix} case with seeds and opacity`); return c; };
+  const pc = (x) => `${Math.round(Math.abs(100 * (x - 1)))}%`, rk = both("rock"), hd = both("held"), hmax = Math.max(...["L", "R", "Teff", "Tc", "burnt"].map((k) => Math.abs(hd[k] - 1)));
+  if (!(rk.L < 1 && rk.R > 1 && rk.Teff < 1 && rk.burnt < 1)) throw new Error("gen2: the rock-row star no longer comes out fainter, larger, cooler and slower: rewrite the status page");
+  return { g2Gyr: String(G2.runGyr), g2L: pc(rk.L), g2R: pc(rk.R), g2T: pc(rk.Teff), g2B: pc(rk.burnt), g2Held: `${Math.round(100 * hmax)}%`, g2Q: f(rk.qcc, 2), g2Q0: f(G2.qcc0, 2),
+    m4HeldLo: sg(hl), m4HeldHi: sg(hh), m4RockCore: xr(at(qs[0])), m4RockOut: xr(at(qs.at(-1))), m4OutQ: f(qs.at(-1), 1), lpPPlo: f(Math.min(...span("ppScreen", 0)), 2), lpPPhi: f(Math.max(...span("ppScreen", 1)), 2),
     lpOpHi: f(Math.max(...span("factor", 1)), 2), lpDPlo: f(100 * Math.min(...span("dPgas", 0)), 1).replace("-", "−"), lpDPhi: f(100 * Math.max(...span("dPgas", 1)), 1).replace("-", "−") };
 }
 /* the methods page's numbers (text/methods.md), read from the code that runs, so the page can't drift from it: a pattern

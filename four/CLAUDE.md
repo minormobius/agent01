@@ -1262,6 +1262,18 @@ for games, and this is a modelling programme with publications to come. The game
   4D's edges all came out NaN and were skipped: the first metals4.json and the status page said −0.4% to +7.4% from
   free–free alone. metals4.mjs now stops if the 4D bound–free is zero. `prep(…, { ff: false })` gives bound–free only, for
   a structure whose free–free already counts the ions (`surface.js` `metalsFF: false`).
+  **The second generation, a first look (2026-11-18):** `evolve.mjs four … gen2=<held|rock> Z2=<Z, 0.02>
+  parts=<seeds,kappa>` (files `-g2<mix>-Z<Z>-<s|k|sk>`): the mix as seed nuclei in the starting composition (elements ≤
+  16 as their N = Z isotopes, heavier as an inert stand-in, the network's heaviest) and/or a fixed opacity factor
+  (`kappaFactor4`: surface.js κ_R with the mix over without, log T 5–8 × log ρ 9–19, bound–free only with seeds in).
+  `fusion/tools/gen2.mjs <dir>` → `papers/p2/data/gen2.json` (primordial `-lp-to<t>` run beside the cases). **G 10⁻¹⁷
+  s 1.5152 analogue, Z 0.02, zero age and 3 Gyr (sandbox, ~10 min, 7 runs):** rock row, both: L ×0.71, R ×1.23, Teff
+  ×0.83, stirred core 0.112 against 0.134, central burning ×0.85; opacity alone ×0.62 L, ×0.74 burning; seeds alone
+  ×1.04 L, ×1.06 burning (catalysts, as CNO). Held ash, both: within 11% (L ×1.07, R ×1.11). `build.mjs`
+  `statusNumbers` stops if the rock star stops coming out fainter, larger, cooler and slower. Next: whole lives on the
+  runner, other strengths, the yields' actual mix. **evolve4-9 (collected 2026-11-18):** 10 of 30 ladder stars
+  exhausted (all of s 1.8, s 1.5152 at 1.6 / 2.5, s 1.7 at 4); s 1.5152 at 1.25 / 2 M_Ch passed Xc 0.376 with no
+  oitrogen stall; evolve4-10 (22 commands, beb607e50) carries the rest on. No yields committed yet.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

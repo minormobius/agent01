@@ -1,0 +1,82 @@
+{
+ "about": "fusion/tools/gen2.mjs: a second-generation 4D Sun analogue against the primordial one. Ratios to the primordial star at zero age (L, R, Teff, Tc), its stirred core qcc (primordial qcc0), and burnt: the central hydrogen burnt over the run over the primordial's (the early pace). mix held: the analogue's own held ash (ash4.json); rock: elements 13–23 evenly. seeds: the mix in the starting composition; kappa: the mix's opacity factor.",
+ "G": 1e-17,
+ "s": 1.5152,
+ "m": 0.7812,
+ "runGyr": 3,
+ "qcc0": 0.134,
+ "cases": [
+  {
+   "mix": "held",
+   "Z": 0.02,
+   "seeds": true,
+   "kappa": false,
+   "L": 1.0688,
+   "R": 1.0054,
+   "Teff": 1.0101,
+   "Tc": 1.0065,
+   "qcc": 0.134,
+   "burnt": 1.0875
+  },
+  {
+   "mix": "held",
+   "Z": 0.02,
+   "seeds": true,
+   "kappa": true,
+   "L": 1.0726,
+   "R": 1.1096,
+   "Teff": 0.9528,
+   "Tc": 1.007,
+   "qcc": 0.134,
+   "burnt": 1.0764
+  },
+  {
+   "mix": "held",
+   "Z": 0.02,
+   "seeds": false,
+   "kappa": true,
+   "L": 0.9412,
+   "R": 1.105,
+   "Teff": 0.9305,
+   "Tc": 0.9977,
+   "qcc": 0.133,
+   "burnt": 0.9554
+  },
+  {
+   "mix": "rock",
+   "Z": 0.02,
+   "seeds": true,
+   "kappa": false,
+   "L": 1.0355,
+   "R": 1.0057,
+   "Teff": 1.0036,
+   "Tc": 1.0058,
+   "qcc": 0.134,
+   "burnt": 1.062
+  },
+  {
+   "mix": "rock",
+   "Z": 0.02,
+   "seeds": true,
+   "kappa": true,
+   "L": 0.7095,
+   "R": 1.2251,
+   "Teff": 0.8266,
+   "Tc": 0.9845,
+   "qcc": 0.112,
+   "burnt": 0.8465
+  },
+  {
+   "mix": "rock",
+   "Z": 0.02,
+   "seeds": false,
+   "kappa": true,
+   "L": 0.6247,
+   "R": 1.2129,
+   "Teff": 0.8107,
+   "Tc": 0.9753,
+   "qcc": 0.113,
+   "burnt": 0.7414
+  }
+ ]
+}

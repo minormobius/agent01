@@ -93,8 +93,23 @@ function simpleWorld(X0 = 0.70) {
    (kappaFF4, with each shell's own Σ n Z² and electrons), pinned 1/r gravity summed over the profile (mainseq.js
    pinnedF, damped as nextPinned damps it), primordial gas (hydrogen 0.75, helium-4 0.25). The ash past helium counts in
    the EOS by its own ions per mass. The first star is mainseq.mjs's on eps4.json's table (firstStar, then toPinned). */
-function fourWorld(Grel, s, ff = 1, plasma = false) {
-  const sh = shell4(s, "ladder", { screen: plasma }), iP = sh.I["1-1"], A = sh.AS, Z = sh.ZS, init = sh.fromX({ "1-1": 0.75, "2-4": 0.25 });
+/* the metals' opacity factor for a second-generation 4D star: κ_R with the mix over κ_R without, surface.js's gas at
+   X, Y of the start, on log T 5–8 × log ρ 9–19 (kg/m⁴), bilinear in the logs, clamped at the edges */
+function kappaFactor4(g) { const lt = Array.from({ length: 21 }, (_, i) => 5 + 0.15 * i), lr = Array.from({ length: 21 }, (_, i) => 9 + 0.5 * i);
+  const X = 0.75 * (1 - g.Z), Y = 0.25 * (1 - g.Z), w0 = SURF.world(4, { X, Y }), w1 = SURF.world(4, { X, Y, Z: g.Z, metals: g.mix, metalsFF: !g.seeds });
+  const F = lt.map((t) => lr.map((r) => Math.log(w1.kappaR(10 ** t, 10 ** r) / w0.kappaR(10 ** t, 10 ** r))));
+  const at = (g0, x) => { const i = Math.max(0, Math.min(g0.length - 2, Math.floor((x - g0[0]) / (g0[1] - g0[0])))), u = Math.max(0, Math.min(1, (x - g0[i]) / (g0[1] - g0[0]))); return [i, u]; };
+  return (rho, T) => { const [i, u] = at(lt, Math.log10(T)), [j, v] = at(lr, Math.log10(rho)); return Math.exp(F[i][j] * (1 - u) * (1 - v) + F[i + 1][j] * u * (1 - v) + F[i][j + 1] * (1 - u) * v + F[i + 1][j + 1] * u * v); }; }
+/* gen2 (the second generation, PI 2026-11-18): { Z, mix: {Z: share by mass}, seeds, kappa }. seeds: the mix in the starting
+   composition, each element up to the network's heaviest (16) as its N = Z isotope (or the nearest the network holds),
+   heavier ones as an inert stand-in, the network's heaviest nucleus (declared). kappa: a factor on the structure's
+   opacity, κ with the metals over κ without, from surface.js / metals.js on a grid of T and ρ at the gas's start (fixed
+   in time; declared), bound–free only when the seeds are in (their free–free already counts in kappaFF4's Σ n Z²). */
+function fourWorld(Grel, s, ff = 1, plasma = false, gen2 = null) {
+  const sh = shell4(s, "ladder", { screen: plasma }), iP = sh.I["1-1"], A = sh.AS, Z = sh.ZS;
+  const X0 = { "1-1": 0.75 * (gen2?.seeds ? 1 - gen2.Z : 1), "2-4": 0.25 * (gen2?.seeds ? 1 - gen2.Z : 1) };
+  if (gen2?.seeds) { const top = sh.SPEC.at(-1); for (const [z, share] of Object.entries(gen2.mix)) { const k = [`${z}-${2 * z}`, `${z}-${2 * z + 1}`, `${z}-${2 * z - 1}`].find((x) => sh.SPEC.includes(x)) ?? top; X0[k] = (X0[k] ?? 0) + gen2.Z * share; } }
+  const init = sh.fromX(X0), kf = gen2?.kappa ? kappaFactor4(gen2) : null;
   const parts = (y) => { let X = y[iP] * A[iP], He = 0, ions = 0, zz = 0; for (let i = 0; i < sh.NS; i++) { const x = y[i] * A[i]; zz += y[i] * Z[i] * Z[i]; if (i === iP) continue; if (Z[i] <= 2) He += x; else ions += y[i]; } return { X, He, ions, zz }; };
   const comp = (y) => { const p = parts(y); return { X: p.X, Y: p.He, Z: 14 * p.ions }; }; // rhoOf counts ions as X + Y/4 + Z/14
   // Tburn: shells cooler than this neither burn nor enter the structure's energy law. Ours' 2 MK sits far below the Sun's
@@ -106,8 +121,8 @@ function fourWorld(Grel, s, ff = 1, plasma = false) {
   // ×300 by mid-mass, so the Jacobian went near-singular (P_c and T_c columns parallel) and Newton overshot: the mid-life
   // stall of evolve4-1/2. Meeting at 0.2 of the mass, the stalled G 1e-11 s 1.85 star runs on with no failed solve.
   return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, Tburn: 1e6, loose: 5e-4, fit: 0.2, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
-    kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T); },
-    kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T), // Y here carries Σ n Z² less hydrogen's
+    kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1); },
+    kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1), // Y here carries Σ n Z² less hydrogen's
     eps: (rho, T, y) => sh.eps(rho, T, y), dHdt: (rho, T, y) => sh.dYdt(rho, T, y)[iP] * A[iP],
     burn: (rho, T, y, dt) => { const r = sh.burn(rho, T, y, dt); return { s: r.Y, E: r.E }; },
     burnZone: (rows, y, ws, dt) => { const K = new Float64Array(sh.RS.length); let sw = 0; rows.forEach((r, i) => { const k = sh.constants(r.T, r.rho, y); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
@@ -257,13 +272,20 @@ if (cmd === "ours") {
   writeFileSync(file, JSON.stringify({ about: `atom/tools/evolve.mjs ours: our star's main sequence (${W.name} burning, ${kap} opacity${alpha ? `, envelope α ${alpha}` : ""}), burnt shell by shell, stirred regions mixed`, m, dX, X0, Z, kap, alpha, NQ, burning: W.name, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
 } else if (cmd === "four") {
+  // gen2=<held|rock> Z2=<Z, 0.02> parts=<seeds,kappa (both)>: a second-generation star. held: the Sun analogue's own held
+  // ash at this G and s (papers/p2/data/ash4.json, elements 4–23 by mass); rock: elements 13–23 evenly
+  function gen2Of(kv, G, s) { const Zm = +(kv.Z2 ?? 0.02), parts = (kv.parts ?? "seeds,kappa").split(",");
+    let mix; if (kv.gen2 === "rock") mix = Object.fromEntries(Array.from({ length: 11 }, (_, i) => [13 + i, 1 / 11]));
+    else { const A4 = JSON.parse(readFileSync(new URL("../../papers/p2/data/ash4.json", import.meta.url), "utf8")).stars.filter((x) => x.G === G && x.s === s), a = A4.find((x) => !(G === 1e-17 && s === 1.5152) || Math.abs(x.m - 0.7812) < 0.01);
+      if (!a) throw new Error(`gen2: no held ash for G ${G}, s ${s} in ash4.json`); const h = Object.entries(a.made).filter(([z]) => +z >= 4 && +z <= 23), t = h.reduce((q, [, v]) => q + v, 0); mix = Object.fromEntries(h.map(([z, v]) => [z, v / t])); }
+    return { Z: Zm, mix, seeds: parts.includes("seeds"), kappa: parts.includes("kappa") }; }
   // node four/atom/tools/evolve.mjs four <G × ours> <s> <mass in M_Ch | sun> [dX] [ff=1] [tmax=<Gyr>] [settle=<yr, 1e6>] [plasma=1]
   // plasma: the charge law's plasma, on by default: the lens vacuum's cutoff in the opacity (mainseq.js kappaFF4) and
   // screening of the network's rates (shell4.js, atom/js/screen.js); its runs' files carry -lp
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
-  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", W = fourWorld(Grel, sv, ff, plasma), t0 = Date.now();
+  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now();
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
-  m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
+  m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   const r = evolve(W, m * W.Mch, { dX, tmax, settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });
   writeFileSync(file, JSON.stringify({ about: "atom/tools/evolve.mjs four: a 4D star's main sequence on the 4D network, burnt shell by shell, stirred regions mixed", Grel, s: sv, ff, plasma, m, Mch: W.Mch, dX, NQ, settle: +(kv.settle ?? 1e6), settled: r.settled, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
