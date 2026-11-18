@@ -125,6 +125,7 @@ function solid(P, o) {
 const hsl = (h, c = 0.5, l = 0.35) => { const x = c * (1 - Math.abs((h % 2) - 1)), [r, g, b] = h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x]; return [r + l, g + l, b + l]; };
 // the 24-cell: cool colours (ice through teal to violet) so the colliding pair's red stands out
 const P24 = UF.cell24();
+const TALLY = { drawn: 0, collided: 0 };   // the 24-cell's random draws
 const G24 = solid(P24, { key: 'c24', name: 'the 24-cell', cell: 'octahedra', hue: P24.cells.map((_, i) => hsl(2.4 + (i / 24) * 2.6)), edgeNote: '(an edge is √2)' });
 // a duoprism: ring A (q-gonal prisms over the p-gon's edges) ice to teal, ring B (p-gonal prisms) gold to rose
 function makeDuo(p, q) {
