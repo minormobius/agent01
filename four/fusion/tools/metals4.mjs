@@ -13,6 +13,11 @@ import { world } from "../../atom/js/surface.js";
 
 const args = process.argv.slice(2), dir = args.find((a) => !a.includes("=")), GSEL = +(Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))).G ?? 1e-17);
 const ASH = JSON.parse(readFileSync(new URL("../../papers/p2/data/ash4.json", import.meta.url), "utf8")).stars, ROCK = Object.fromEntries(Array.from({ length: 11 }, (_, i) => [13 + i, 1 / 11]));
+import { prep } from "../../atom/js/metals.js";
+// a guard: the 4D path's bound–free must be there. Pxygen in a 0.1 MK gas keeps most of its electrons, so its absorption
+// just above an L edge has to exceed what free–free alone gives (a slip once dropped every edge and left free–free only)
+{ const st = world(4, { X: 0.75, Y: 0.25 }).state(1e5, 1e13), bf = prep(st, 1e13, 0.02, 4, { 10: 1 }, { ff: false });
+  if (!([30, 60, 120].some((w) => bf(w) > 0))) throw new Error("metals4: the 4D bound–free is zero: check atom/js/metals.js prep4"); }
 const rows = [], seen = new Set();
 for (const f of readdirSync(dir).filter((x) => /^evolve-four-.*-lp(\.ckpt)?\.json$/.test(x)).sort()) {
   const key = f.replace(".ckpt", ""), [, G, s, m] = key.match(/^evolve-four-([^-]+e-\d+)-([\d.]+)-([\d.]+)-lp\.json$/) ?? []; if (!G || +G !== GSEL || seen.has(key)) continue;

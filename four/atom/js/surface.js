@@ -54,7 +54,7 @@ export const gauntFF = GFF;
    hence its H⁻; their own bound–free opacity is not included. */
 export const SOLAR_DONORS = [ // [symbol, log ε, χ (eV), 2g₊/g₀]
   ["Na", 6.24, 5.139, 1], ["Mg", 7.60, 7.646, 4], ["Al", 6.45, 5.986, 2 / 6], ["Si", 7.51, 8.152, 12 / 9], ["K", 5.03, 4.341, 1], ["Ca", 6.34, 6.113, 4], ["Fe", 7.50, 7.902, 2 * 30 / 25]];
-export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, gff = 1, metals = false, hm = 1, hff = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV, Z = 0, donors = d === 3 && Z > 0 ? SOLAR_DONORS : [] } = {}) {
+export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, ff = 1, gff = 1, metals = false, metalsFF = true, hm = 1, hff = 1, chiHm = SURFACE.worlds[d].Hminus.affinity_eV, Z = 0, donors = d === 3 && Z > 0 ? SOLAR_DONORS : [] } = {}) {
   const DON = donors.map(([sym, le, chi, gr]) => ({ sym, perH: 10 ** (le - 12) * (Z / 0.0134), chi, gr }));
   // H⁻'s photodetachment from the baked table (a₀^(d−1) → m^(d−1)), × hm (1 as computed; ours' computed peak is ~2× the
   // measured one, so 0.5 is the band's other edge); 0 leaves H⁻ out
@@ -101,7 +101,7 @@ export function world(d, { X = d === 3 ? 0.7 : 0.75, Y = d === 3 ? 0.3 : 0.25, f
   const XS = Array.from({ length: 900 }, (_, i) => 0.01 * 1.0095 ** i).filter((x) => x < 60), WT = XS.map((x) => x ** (d + 1) * Math.exp(x) / Math.expm1(x) ** 2);
   const dX = XS.map((x, i) => (i ? x - XS[i - 1] : x)), W0 = WT.reduce((t, w, i) => t + w * dX[i], 0);
   function kappaParts(st) {
-    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [], hff: [], met: [] }, mk = metals && Z > 0 ? metalPrep(st, st.rho, Z, d, typeof metals === "object" ? metals : null) : null, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
+    const { T, ne, kT } = st, x0 = (SI.hbar * SI.c) / (SI.k * T), out = { es: [], ff: [], bfH: [], bfHe: [], hm: [], hff: [], met: [] }, mk = metals && Z > 0 ? metalPrep(st, st.rho, Z, d, typeof metals === "object" ? metals : null, { ff: metalsFF }) : null, ions = st.hp + st.he1 + 4 * st.he2, aU = A0 ** (d - 1);
     const popH = st.LH.map((v) => (st.h0 * v.w * v.g * Math.exp(-(v.E_eV - st.LH[0].E_eV) / kT)) / st.UH), popHe = st.LHe.map((v) => (st.he1 * v.w * v.g * Math.exp(-(v.E_eV - st.LHe[0].E_eV) / kT)) / st.UHe2);
     for (const x of XS) { const wEv = x * kT, stim = -Math.expm1(-x), om = (x * SI.k * T) / SI.hbar;
       out.es.push(ne * (d === 3 ? (8 * Math.PI * RE * RE) / 3 : ((3 * Math.PI ** 3) / 4) * RE * RE * (SI.c / om)));

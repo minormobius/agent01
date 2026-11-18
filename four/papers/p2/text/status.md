@@ -15,9 +15,11 @@ lives from a frozen zero-age core. Four things came out of it.
    them. Time is not what limits this universe.
 2. **Near our strength, the stars make heavy elements while still burning hydrogen.** At $s$ ≤ 1.55, {{ashA}} of a star
    is past helium by the end of its run, mostly {{ashAel}}. Our own main-sequence stars make only helium.
-3. **Metals barely change a four-dimensional star.** One to two per cent of metals by mass moves the opacity by {{m4HeldLo}}
-   to {{m4HeldHi}} as the stars' own ash and {{m4RockLo}} to {{m4RockHi}} as the rock row. In our world metals roughly
-   double it. Absorption by a metal ion falls much faster with its charge in four dimensions.
+3. **What metals do depends on which metals.** One to two per cent of the first stars' own ash (elements 6–12) moves a
+   four-dimensional star's opacity by only {{m4HeldLo}} to {{m4HeldHi}}: absorption by a light ion falls much faster
+   with its charge than in our world. The rock row (elements 13–23), which the exploding stars return, is different:
+   {{m4RockCore}} at the centre and {{m4RockOut}} at {{m4OutQ}} of the mass, where heavy ions keep their inner electrons.
+   So a second generation built on the rock row may not look like the first; that is now the open question.
 4. **One limit is real physics, not numerics.** Two stars at $s$ = 1.5152 stop when their core's oitrogen runs out and
    the stirred core collapses faster than a solver in thermal balance can follow.
 
@@ -58,7 +60,9 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   {{ashB}} at 1.6–1.65 ({{ashBel}}), {{ashC}} at 1.7, and at most {{ashDmax}} from 1.75 up, where stars burn hydrogen to
   helium and stop.
 - **What metals do to the opacity** (computed, without spectral lines). The book's own four-dimensional ions, elements
-  4–23, every first ionization equal to the periodic table's: the figures in point 3 above.
+  4–23, every first ionization equal to the periodic table's: the figures in point 3 above. (A first version of this
+  line said metals barely change a four-dimensional star at all; a slip in the code had dropped every ion's bound–free
+  absorption, leaving only free–free. Corrected the same day.)
 - **What the stars give back** (provisional, and resting on declared endings). A first pass on one mass ladder says the
   returned metals are mostly the rock row (elements 13–23), made when the cores of the heaviest stars reach the
   Chandrasekhar mass and explode, with little of the light ash the stars held. The mass ladders that decide it are
@@ -72,9 +76,11 @@ elements 8–12 on the main sequence, which ours never do. Whether those element
 how the stars end, and the first look says the heavy ones explode and return mostly the rock row: the elements that,
 in our world, make planets.
 
-**The second generation will look much like the first.** In our world a star's metals set its opacity, and so its
-size, colour and life. In four dimensions they barely touch it, so the metal-rich stars that follow should be close
-to the primordial ones already computed. That turns a large uncertainty in our world into a small one there.
+**Whether the second generation looks like the first depends on what comes back.** In our world a star's metals set
+its opacity, and so its size, colour and life. In four dimensions the first stars' own light ash barely touches it,
+but the rock row thickens the outer layers several times over. If, as the first look at the yields says, the rock row
+is most of what returns, the second generation's stars will differ from the first, and how much is the next thing to
+compute.
 
 **The strongest gravity behaves differently.** At $G$ = 10⁻¹¹ the Sun analogue chosen at zero age burns far faster
 once aged than any other, and stalls early: the zero-age choice of analogue is not reliable there.

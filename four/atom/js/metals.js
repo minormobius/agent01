@@ -34,8 +34,8 @@ const MASS = { C: 12.011, N: 14.007, O: 15.999, Ne: 20.18, Na: 22.99, Mg: 24.305
 const W = (() => { const w = IONS.map((e) => 10 ** (e.eps - 12) * MASS[e.sym]), s = w.reduce((a, b) => a + b, 0); return w.map((x) => x / s); })();
 const IP = IONS.map((e) => e.ions.map((x, i) => (i ? e.ions[i - 1].E - x.E : -x.E))); // IP[el][n−1]: the ion with n electrons → n − 1
 
-export function prep(st, rho, Z, d = 3, mix = null) {
-  if (d === 4) return prep4(st, rho, Z, mix);
+export function prep(st, rho, Z, d = 3, mix = null, { ff: withFF = true } = {}) {
+  if (d === 4) return prep4(st, rho, Z, mix, withFF);
   const { T, ne } = st, kT = KB * T, nH = (rho * (st.X ?? 0.7)) / (1.00784 * MU);
   // Debye length (ions and electrons; atomic units), lowering per unit of the ion's charge
   const nAll = ne + (st.hp ?? 0) + (st.he1 ?? 0) + 4 * (st.he2 ?? 0), lD = Math.sqrt((kT / 27.211386) / (4 * Math.PI * nAll * A0 ** 3)), dI = 27.211386 / lD;
@@ -47,7 +47,7 @@ export function prep(st, rho, Z, d = 3, mix = null) {
   // the edges: [χ (eV), σ at the edge (m²)·density] for every subshell of every ion present
   const edges = []; let ff = 0;
   IONS.forEach((e, k) => e.ions.forEach((ion) => { const nd = pops[k][ion.n]; if (!(nd > 1e-30 * nH)) return; const q = e.Z - ion.n;
-    for (const [n, , occ, eps] of ion.sub) { const chi = -eps - dI(q); if (!(chi > 0)) continue; const zeff2 = (n * n * chi) / RY; edges.push([chi, nd * occ * 7.91e-22 * (n / zeff2)]); } }));
+    for (const [n, , occ, eps] of ion.sub) { const chi = -eps - (q + 1) * dI; if (!(chi > 0)) continue; const zeff2 = (n * n * chi) / RY; edges.push([chi, nd * occ * 7.91e-22 * (n / zeff2)]); } }));
   IONS.forEach((e, k) => pops[k].forEach((nd, n) => { const q = e.Z - n; ff += nd * q * q; })); // Σ n_i q² for the ions' free–free
   edges.sort((a, b) => a[0] - b[0]);
   return (wEv) => { let k = 0; for (const [chi, s] of edges) { if (chi > wEv) break; k += s * (chi / wEv) ** 3; }
@@ -70,12 +70,12 @@ export function pops4(st, rho, Z, mix) {
     const mx = Math.max(...lr), w = Array.from(lr, (v) => Math.exp(v - mx)), s = w.reduce((a, b) => a + b, 0); return { e, pop: w.map((v) => (N * v) / s) }; }).filter(Boolean);
   return { els, dI, weak1: w1, kD: p.kD, HA };
 }
-function prep4(st, rho, Z, mix) {
+function prep4(st, rho, Z, mix, withFF = true) { // withFF false: bound–free only (a caller whose free–free already counts the ions)
   const { T, ne } = st, { els, dI, HA } = pops4(st, rho, Z, mix), A3 = A0 ** 3, edges = []; let zz = 0;
   for (const { e, pop } of els) e.ions.forEach((ion) => { const nd = pop[ion.n]; if (!(nd > 0)) return; const q = e.Z - ion.n;
-    for (const [n, l, occ, eps] of ion.sub) { const chi = -eps - (q + 1) * dI; if (!(chi > 0)) continue; const zeff = (n + 0.5) * Math.sqrt((2 * chi) / HA); edges.push([chi, `${n}${l}`, (nd * occ * A3) / zeff ** 4]); } });
+    for (const [n, l, occ, eps] of ion.sub) { const chi = -eps - dI(q); if (!(chi > 0)) continue; const zeff = (n + 0.5) * Math.sqrt((2 * chi) / HA); edges.push([chi, `${n}${l}`, (nd * occ * A3) / zeff ** 4]); } });
   for (const { e, pop } of els) pop.forEach((nd, n) => { const q = e.Z - n; zz += nd * q * q; });
   const ALPHA = 7.2973525693e-3, C = 2.99792458e8;
   return (wEv) => { let k = 0; for (const [chi, key, a] of edges) if (wEv >= chi) k += a * shape4(key, wEv / chi);
-    const om = (wEv * K_EV) / HBAR, x = wEv / (KB * T); return k + (ne * zz * Math.PI ** 5 * ALPHA ** 3 * HBAR ** 2 * C ** 3 * (1 + x)) / (ME ** 2 * om ** 5); };
+    if (!withFF) return k; const om = (wEv * K_EV) / HBAR, x = wEv / (KB * T); return k + (ne * zz * Math.PI ** 5 * ALPHA ** 3 * HBAR ** 2 * C ** 3 * (1 + x)) / (ME ** 2 * om ** 5); };
 }

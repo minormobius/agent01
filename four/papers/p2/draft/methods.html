@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="a8b3c1cc0cc7201f2722d17e19a626b3727b30f83e9793d3fe650a6feb610928" />
+<meta name="source-sha256" content="f72addc017284b8e271cc8b2d64244f924815bd706ea0a1a06c34f8937525593" />
 <title>Paper 2 · How the stars are modelled</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -318,14 +318,18 @@ with ionization energies lowered by the plasma (link 6’s bridge).
 Absorption from each occupied subshell takes the exact hydrogen-like
 cross-section of its own level from the book’s dipole rate, scaled to
 the subshell’s edge: in four dimensions it falls as the fourth power of
-the effective charge, ours as the second. That is why metals matter so
-little there. The ions’ free–free is the classical four-dimensional
-form. <strong>Checked:</strong> every neutral’s first ionization equals
-the book’s periodic table; the scaled shapes match direct calculation;
-and the same construction for our world, with Kramers’s law in place of
-the exact shapes, supplies about half of what OPAL’s metals add in the
-Sun, the missing half being the spectral lines it leaves out (section
-4). <strong>Code:</strong> <code>fusion/tools/ions3.mjs</code> (→
+the effective charge, ours as the second. That is why the first stars’
+light ash matters so little; the rock row’s heavier ions keep inner
+electrons that still absorb strongly in a star’s outer layers. The ions’
+free–free is the classical four-dimensional form; in a star whose
+composition already holds the ions (their free–free counted with
+hydrogen’s and helium’s), only their bound–free is added.
+<strong>Checked:</strong> every neutral’s first ionization equals the
+book’s periodic table; the scaled shapes match direct calculation; and
+the same construction for our world, with Kramers’s law in place of the
+exact shapes, supplies about half of what OPAL’s metals add in the Sun,
+the missing half being the spectral lines it leaves out (section 4).
+<strong>Code:</strong> <code>fusion/tools/ions3.mjs</code> (→
 <code>atom/js/iondata4.js</code>),
 <code>fusion/tools/photoshape.mjs</code>,
 <code>atom/js/metals.js</code>, <code>fusion/tools/metals4.mjs</code>.

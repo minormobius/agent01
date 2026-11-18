@@ -161,8 +161,10 @@ of total energies, each subshell's orbital energy as its absorption edge. The io
 four dimensions, $n_{q+1}n_e/n_q = 2(m_ekT/2\pi\hbar^2)^2e^{-I/kT}$, with ionization energies lowered by the plasma
 (link 6's bridge). Absorption from each occupied subshell takes the exact hydrogen-like cross-section of its own level
 from the book's dipole rate, scaled to the subshell's edge: in four dimensions it falls as the fourth power of the
-effective charge, ours as the second. That is why metals matter so little there. The ions' free–free is the classical
-four-dimensional form. **Checked:** every neutral's first ionization equals the book's periodic table; the scaled
+effective charge, ours as the second. That is why the first stars' light ash matters so little; the rock row's heavier
+ions keep inner electrons that still absorb strongly in a star's outer layers. The ions' free–free is the classical
+four-dimensional form; in a star whose composition already holds the ions (their free–free counted with hydrogen's
+and helium's), only their bound–free is added. **Checked:** every neutral's first ionization equals the book's periodic table; the scaled
 shapes match direct calculation; and the same construction for our world, with Kramers's law in place of the exact
 shapes, supplies about half of what OPAL's metals add in the Sun, the missing half being the spectral lines it leaves
 out (section 4). **Code:** `fusion/tools/ions3.mjs` (→ `atom/js/iondata4.js`), `fusion/tools/photoshape.mjs`,

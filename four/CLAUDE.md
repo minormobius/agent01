@@ -293,9 +293,8 @@ for games, and this is a modelling programme with publications to come. The game
   ion sphere (Debye–Hückel overshoots in a 4D core: ion-sphere lowering is half the weak at 0.1–1 MK), bound–free on
   each subshell's own hydrogenic shape (Z_eff = (n + ½)√(2χ)), the ions' classical 4D free–free; `surface.js` takes
   `metals: {Z: share}` in 4D (ours' path untouched: kappacheck.json identical). **First look:** 1% by mass of a
-  pxygen-rich ash (pxygen 0.72, oitrogen 0.27) raises 4D interior opacity only ×1.03–1.06 at 0.3–15 MK (ours' Z 0.014
-  roughly doubles it), nearly all through the metals' free–free: 4D bound–free on a charge-Z ion falls as Z⁻⁴ (ours
-  Z⁻²). Not committed as data yet: the mix waits on step two, the yields.
+  pxygen-rich ash raises 4D interior opacity only a few per cent: 4D bound–free on a charge-Z ion falls as Z⁻⁴ (ours Z⁻²).
+  (See metals4 below for the rock row, which is different.)
   **evolve4-7 (collected 2026-11-18):** G 10⁻¹¹ s 1.5152 stops 0.5% short of half its hydrogen at 2.56 Gyr, the same
   stall as G 10⁻¹⁴ s 1.5152 and at the same point in the chemistry: the centre's helium gone, hydrogen 0.377, pxygen
   0.59, oitrogen 0.03. The proton captures turning oitrogen into pxygen-20 (the stirred core's burning) run out of
@@ -322,7 +321,7 @@ for games, and this is a modelling programme with publications to come. The game
   returning 26–34% of their mass as burnt ash; p 0.027–0.14, of which 76–96% the rock row (elements 13–23), 1.5–23%
   equilibrium's iron, a few % unburnt light ash. g sets which masses explode and so most of the band. The closed box's own
   Z (8–49% at 10 Gyr) is mostly the box (1–10% of the gas left): quote p. So the second generation's metals are mostly
-  the rock row: `iondata4.js` now runs to element 23 (`ions3.mjs 4`, 75 s; all 20 neutrals' ionizations equal the table's, 23 to 0.01 eV) and `photoshape.js` to n = 4 (element 23's 4s); a trial rock-row mix at Z 0.02 raises 4D opacity ×1.03–1.18 (the light ash ×1.00–1.11), Z⁻⁴ again. evolve4-8 (queued 606cbda49,
+  the rock row: `iondata4.js` now runs to element 23 (`ions3.mjs 4`, 75 s; all 20 neutrals' ionizations equal the table's, 23 to 0.01 eV) and `photoshape.js` to n = 4 (element 23's 4s); (the rock row's opacity: metals4, below). evolve4-8 (queued 606cbda49,
   31 commands) brings ladders at s 1.55–1.8 and carries the s 1.5152 one to exhaustion. `star/aged.js` baked
   from evolve4-7 (34 4D tracks, the further record of each run, cut runs rebuilt from checkpoints with plasma: true,
   M_Ch ∝ G^(−4/3)).
@@ -1256,8 +1255,13 @@ for games, and this is a modelling programme with publications to come. The game
   changes meaning, and redraw the figure (`node figures/ages.mjs`) after `ages4.mjs` or `ash4.mjs`.** Its provisional
   line on what stars give back has no numbers until evolve4-8's yields are committed. `fusion/tools/metals4.mjs <dir>`
   → `papers/p2/data/metals4.json`: along each analogue's zero-age profile, 4D opacity with Z 0.01 / 0.02 of each
-  analogue's own held ash or an even rock-row mix over the metal-free gas's (−0.4% to +7.4%; the earlier ×1.03–1.18
-  trial also changed the hydrogen and overstated it).
+  analogue's own held ash or an even rock-row mix over the metal-free gas's. **Held ash −0.4% to +4.2% everywhere; the
+  rock row ×1.03–6.5 at the centre (most in the cooler, higher-s cores) and ×2–14 at 0.9 of the mass**, where heavy ions
+  keep inner electrons. **A bug (2026-11-18, found the same day):** the edit bridging the 4D lowering to the ion sphere
+  matched ours' bound–free line first, so ours' prep crashed (kappacheck failed; its committed json predates it) and
+  4D's edges all came out NaN and were skipped: the first metals4.json and the status page said −0.4% to +7.4% from
+  free–free alone. metals4.mjs now stops if the 4D bound–free is zero. `prep(…, { ff: false })` gives bound–free only, for
+  a structure whose free–free already counts the ions (`surface.js` `metalsFF: false`).
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

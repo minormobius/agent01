@@ -170,7 +170,8 @@ a carried rate; where the climb ends rests on A2's masses.
     band. **rough.** **2026-11-18:** `yields4.mjs`'s net yield p (metals returned per mass locked; closed-box
     Z = p ln(1/μ)) on the aged ladders: first pass p 0.03–0.14, 76–96% the rock row from exploding cores. **provisional.**
     What metals do to 4D opacity is computed (`fusion/tools/metals4.mjs` → `data/metals4.json`, the book's ions 4–23):
-    Z 0.01–0.02 moves it −0.4% to +7.4%, so a metal-rich second generation should look like the first. *To do (D):* yields per stellar mass from the network; a one-zone galaxy (star formation, a mass
+    Z 0.01–0.02 of the first stars' light ash moves it −0.4% to +4.2%, but the rock row ×1.03–6.5 at the centre and up to
+    ×14 in the outer layers, so a rock-rich second generation may differ (first version wrong: bound–free had dropped out). *To do (D):* yields per stellar mass from the network; a one-zone galaxy (star formation, a mass
     function, C's lifetimes) → composition against age, as a band.
 15. **The heavy elements.** No neutron source (section 6), so no slow capture; what explosions make. **open.**
 16. **What planets are made of.** The hand-off to the Earth roadmap (rock, ocean, air). **open.**

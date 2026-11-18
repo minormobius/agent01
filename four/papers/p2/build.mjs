@@ -167,9 +167,12 @@ function ash4Numbers() {
 /* the status page's own numbers (text/status.md): what metals do to 4D opacity (data/metals4.json, fusion/tools/metals4.mjs)
    and the charge law's plasma on the zero-age profiles (data/lensplasma.json) */
 function statusNumbers() {
-  const M = J("metals4.json").summary, P = J("lensplasma.json").byG, sg = (x) => `${x >= 0 ? "+" : "−"}${f(Math.abs(100 * x), 1)}%`, span = (k, i) => Object.values(P).map((g) => g[k][i]);
-  const hl = Math.min(M["held0.01"][0], M["held0.02"][0]) - 1, hh = Math.max(M["held0.01"][1], M["held0.02"][1]) - 1, rl = Math.min(M["rock0.01"][0], M["rock0.02"][0]) - 1, rh = Math.max(M["rock0.01"][1], M["rock0.02"][1]) - 1;
-  return { m4HeldLo: sg(hl), m4HeldHi: sg(hh), m4RockLo: sg(rl), m4RockHi: sg(rh), lpPPlo: f(Math.min(...span("ppScreen", 0)), 2), lpPPhi: f(Math.max(...span("ppScreen", 1)), 2),
+  const M4 = J("metals4.json"), M = M4.summary, P = J("lensplasma.json").byG, sg = (x) => `${x >= 0 ? "+" : "−"}${f(Math.abs(100 * x), 1)}%`, span = (k, i) => Object.values(P).map((g) => g[k][i]);
+  const hl = Math.min(M["held0.01"][0], M["held0.02"][0]) - 1, hh = Math.max(M["held0.01"][1], M["held0.02"][1]) - 1;
+  // the rock row by depth: at the centre and at the outermost sampled point (q ≈ 0.9), over both Z and every analogue
+  const qs = [...new Set(M4.rows.map((r) => r.q))].sort((a, b) => a - b), at = (q) => M4.rows.filter((r) => r.q === q).flatMap((r) => [r["rock0.01"], r["rock0.02"]]).filter((x) => x != null);
+  const xr = (v) => `×${f(Math.min(...v), 2)}–${Math.max(...v) < 10 ? f(Math.max(...v), 1) : f(Math.max(...v), 0)}`;
+  return { m4HeldLo: sg(hl), m4HeldHi: sg(hh), m4RockCore: xr(at(qs[0])), m4RockOut: xr(at(qs.at(-1))), m4OutQ: f(qs.at(-1), 1), lpPPlo: f(Math.min(...span("ppScreen", 0)), 2), lpPPhi: f(Math.max(...span("ppScreen", 1)), 2),
     lpOpHi: f(Math.max(...span("factor", 1)), 2), lpDPlo: f(100 * Math.min(...span("dPgas", 0)), 1).replace("-", "−"), lpDPhi: f(100 * Math.max(...span("dPgas", 1)), 1).replace("-", "−") };
 }
 /* the methods page's numbers (text/methods.md), read from the code that runs, so the page can't drift from it: a pattern
