@@ -322,7 +322,7 @@ for games, and this is a modelling programme with publications to come. The game
   returning 26–34% of their mass as burnt ash; p 0.027–0.14, of which 76–96% the rock row (elements 13–23), 1.5–23%
   equilibrium's iron, a few % unburnt light ash. g sets which masses explode and so most of the band. The closed box's own
   Z (8–49% at 10 Gyr) is mostly the box (1–10% of the gas left): quote p. So the second generation's metals are mostly
-  the rock row, beyond `iondata4.js` (4–13): the next opacity step is elements 13–23. evolve4-8 (queued 606cbda49,
+  the rock row: `iondata4.js` now runs to element 23 (`ions3.mjs 4`, 75 s; all 20 neutrals' ionizations equal the table's, 23 to 0.01 eV) and `photoshape.js` to n = 4 (element 23's 4s); a trial rock-row mix at Z 0.02 raises 4D opacity ×1.03–1.18 (the light ash ×1.00–1.11), Z⁻⁴ again. evolve4-8 (queued 606cbda49,
   31 commands) brings ladders at s 1.55–1.8 and carries the s 1.5152 one to exhaustion. `star/aged.js` baked
   from evolve4-7 (34 4D tracks, the further record of each run, cut runs rebuilt from checkpoints with plasma: true,
   M_Ch ∝ G^(−4/3)).
