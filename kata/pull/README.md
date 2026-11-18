@@ -352,13 +352,13 @@ So tighter presses harder and splits more, and **the tightness is optimised** wi
 
 | the hose's skin | modulus 5 | modulus 10 |
 |---|---|---|
-| baseline | 0.97 (τ 0.1, hoop 0.3, 24% split) | 0.92 (τ 0.1, hoop 0.3, 4% split) |
-| axial criterion: von Mises | 1.00 (τ 0.1, hoop 0.3, 24% split) | 0.94 (τ 0.1, hoop 0.3, 4% split) |
-| axial criterion: linear interaction | 0.91 (τ 0.1, hoop 0.3, 24% split) | 0.86 (τ 0.05, hoop 0.3, 2% split) |
-| skin evenly stressed (no peak) | 1.06 (τ 0.1, hoop 0.5, 6% split) | 0.94 (τ 0.1, hoop 0.5, 0% split) |
-| a split runs the whole rope | 0.83 (τ 0.1, hoop 0.05, 0% split) | 0.89 (τ 0.05, hoop 0.2, 0% split) |
-| no size effect | 1.06 (τ 0.2, hoop 0.3, 10% split) | 0.93 (τ 0.1, hoop 0.3, 2% split) |
-| hoops: no axial member | 0.81 (τ 0.05, hoop 0.3, 13% split) | 0.80 (τ 0.05, hoop 0.3, 2% split) |
+| baseline | 0.93 (τ 0.1, hoop 0.3, 24% split) | 0.90 (τ 0.1, hoop 0.3, 4% split) |
+| axial criterion: von Mises | 0.95 (τ 0.1, hoop 0.2, 4% split) | 0.93 (τ 0.1, hoop 0.3, 4% split) |
+| axial criterion: linear interaction | 0.89 (τ 0.05, hoop 0.3, 13% split) | 0.85 (τ 0.05, hoop 0.3, 2% split) |
+| skin evenly stressed (no peak) | 1.02 (τ 0.1, hoop 0.5, 6% split) | 0.93 (τ 0.1, hoop 0.5, 0% split) |
+| a split runs the whole rope | 0.81 (τ 0.1, hoop 0.05, 0% split) | 0.87 (τ 0.05, hoop 0.2, 0% split) |
+| no size effect | 1.03 (τ 0.2, hoop 0.3, 10% split) | 0.92 (τ 0.1, hoop 0.3, 2% split) |
+| hoops: no axial member | 0.78 (τ 0.05, hoop 0.3, 13% split) | 0.79 (τ 0.05, hoop 0.3, 2% split) |
 | the same filaments, loose | 0.71 | 0.81 |
 
 At the half-strength tightness the first model assumed, 97% of the skin's sections split under this one.
@@ -367,19 +367,26 @@ At the half-strength tightness the first model assumed, 97% of the skin's sectio
 
 | Weibull modulus | loose | hose μ 0.15 | hose μ 0.3 | hose μ 0.6 | hoops μ 0.3 |
 |---|---|---|---|---|---|
-| 3 | 0.64 | 0.99 | 1.11 | 1.29 | 0.88 |
-| 5 | 0.71 | 0.88 | 0.97 | 1.04 | 0.81 |
-| 10 | 0.81 | 0.87 | 0.92 | 0.95 | 0.80 |
-| 20 | 0.89 | 0.90 | 0.92 | 0.92 | 0.82 |
+| 3 | 0.64 | 0.93 | 1.07 | 1.22 | 0.83 |
+| 5 | 0.71 | 0.87 | 0.93 | 1.01 | 0.78 |
+| 10 | 0.81 | 0.87 | 0.90 | 0.93 | 0.79 |
+| 20 | 0.89 | 0.90 | 0.92 | 0.93 | 0.82 |
 
-- The hose rope is above the loose bundle in every cell, by 1.02× to 2.03×: a lot for scattered fibre, almost nothing
+- The hose rope is above the loose bundle in every cell, by 1.01× to 1.91×: a lot for scattered fibre, almost nothing
   for uniform fibre.
-- It is above a single strand in three cells of twelve.
+- It is above a single strand in 3 cells of twelve.
 - How far a split runs is the assumption that matters most and nothing here determines it.
 
 `node kata/pull/verify.mjs closure-5 closure-10 map-3 map-5 map-10 map-20` re-pulls every reported row and writes its
-convergence into the file (`reported`): 2 280 pulls, all converged, all reproducing. The studies' own `status` also
-covers tuning-grid cells, a few of which did not converge and were not chosen.
+convergence into the file (`reported`): 2 280 pulls, all converged, all reproducing. **A tuning candidate with any
+unconverged pull is ineligible, whole** (the recheck of 2026-11-18): 14 candidates were excluded that way, and each
+candidate's count is in the file (`grid[].unconverged`, `ineligible`).
+
+**Units (the same recheck).** Every stress in `hose.js` is a fraction of a link's *mean* strength, σ Γ(1 + 1/m), and
+the press is the vessel formula's times the taut-skin factor 0.806 (`TAUT`, from `data/press.json`). Before that the
+press used the Weibull scale σ and left the factor out, 27 to 39% too hard; the tables here are the corrected runs
+(the reference hose rope went from 0.97 to 0.93). The map's tightness grid stops at 0.3 and most cells chose it,
+so those cells are a lower bound; the closure grid runs to 0.5.
 
 ### Bundle size, and twelve neighbours against six
 
@@ -391,16 +398,17 @@ size on seeds 1–15, reported on seeds 16–55; 48 sections.
 
 | world, fibres | loose | in a hose | hose ÷ loose | spread loose → hose | best τ, hoop |
 |---|---|---|---|---|---|
-| 4D, 13 | 0.70 | 0.86 ± 0.010 | 1.23 | 13% → 7% | 0.050, 0.3 |
-| 4D, 55 | 0.68 | 0.79 ± 0.005 | 1.17 | 6% → 4% | 0.083, 0.2 |
-| 3D, 7 | 0.72 | 0.80 ± 0.015 | 1.12 | 16% → 12% | 0.100, 0.3 |
-| 3D, 19 | 0.70 | 0.79 ± 0.008 | 1.12 | 10% → 6% | 0.167, 0.3 |
-| 3D, 37 | 0.68 | 0.77 ± 0.005 | 1.13 | 7% → 4% | 0.233, 0.3 |
-| 3D, 61 | 0.68 | 0.75 ± 0.005 | 1.11 | 6% → 4% | 0.300, 0.3 |
+| 4D, 13 | 0.70 | 0.83 ± 0.009 | 1.18 | 13% → 7% | 0.050, 0.3 |
+| 4D, 55 | 0.68 | 0.76 ± 0.005 | 1.12 | 6% → 4% | 0.083, 0.2 |
+| 3D, 7 | 0.72 | 0.80 ± 0.015 | 1.11 | 16% → 12% | 0.100, 0.3 |
+| 3D, 19 | 0.70 | 0.78 ± 0.008 | 1.12 | 10% → 7% | 0.167, 0.3 |
+| 3D, 37 | 0.68 | 0.77 ± 0.005 | 1.12 | 7% → 4% | 0.233, 0.3 |
+| 3D, 61 | 0.68 | 0.75 ± 0.005 | 1.10 | 6% → 4% | 0.300, 0.3 |
 
 - A bigger bundle is not stronger per weight in either world; it is more consistent.
-- The hose is worth more in 4D (1.17–1.23× the loose bundle) than the tube in 3D (1.11–1.13×). Neighbour count and
-  skin geometry are not separated by this.
+- No clear advantage of twelve neighbours over six: the 4D hose is worth 1.18× its loose bundle at 13 fibres and 1.12× at 55,
+  the 3D tube 1.10–1.12×. (The run with the press too hard showed a wider gap.) Neighbour count and skin
+  geometry are not separated by this, and the taut-skin factor is measured for 13 and assumed for 55.
 - The larger 4D skin is best made less tight (0.2 against 0.3): more material, more flaws, more splitting.
 - 147 fibres is out of reach: the solver's band is as wide as the bundle, so cost goes as the cube of the fibre count
   (a 55-fibre pull takes about 12 s).

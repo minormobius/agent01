@@ -1,6 +1,6 @@
 # Rope after the knot: the full account
 
-*The full account behind the note ([paper.html](paper.html)): every method, table and check. Draft 5, 2026-11-17, revised after two reviews of the code and claims, one of them an independent audit, and with the hose remodelled as the audit asked. Not submitted. The open items are listed at the end.*
+*The full account behind the note ([paper.html](paper.html)): every method, table and check. Draft 7, 2026-11-18, revised after two reviews of the code and claims, one of them an independent audit, and with the hose remodelled as the audit asked. Not submitted. The open items are listed at the end.*
 
 ## Abstract
 
@@ -11,8 +11,8 @@ own fibres, braiding, being made fast) fails for thread against thread and retur
 surface. We build each case as geometry in a solid-modelling kernel written for four dimensions, test twist in a
 frictionless bead-chain simulation run identically in three dimensions and in four, and compare the resulting ropes
 per weight in one tensile model. Three results. In a frictionless relaxation a twisted bundle of threads sheds every whole turn in four
-dimensions. Confined between a core and a sheath, the same bundle kept one turn and shed two in every run, as the
-topology of braids on a sphere would require. And a rope of continuous filaments in a thin closed hose, with the hose modelled as a material that can split and
+dimensions. Confined between a core and a sheath, the same bundle kept one turn and shed two in every run,
+consistent with the order-two full twist in the sphere braid group. And a rope of continuous filaments in a thin closed hose, with the hose modelled as a material that can split and
 its tightness optimised, is worth {{mapRatioMin}} to {{mapRatioMax}} times the same filaments loose, per weight:
 most where the fibre is most scattered, and almost nothing where it is uniform. Against a single strand it runs
 from {{mapHoseMin}} to {{mapHoseMax}}. The topology is known and cited. The mechanics and
@@ -139,7 +139,11 @@ What differs between ropes is who touches whom, and the press:
 | cable | 13 elements with the level below's measured strength distribution, stiffness and weight | as hoops |
 
 The skin's force on a fibre comes from treating a hose τ thick as a thin pressure vessel (D1) under a hoop stress
-that is a chosen share of its strength.
+that is a share of its strength. One convention runs through the second model below: every stress is a fraction of
+the mean strength of a fibre link, so the hoop stress, the hoop strength it is compared with and the press derived
+from it are in one unit, and the press is the vessel formula's times the taut-skin factor of section 2.4
+({{skin}}). The first model, and every study made with it, uses the uncorrected vessel formula and the Weibull
+scale in place of the mean, which presses 27 to 39% harder than this, depending on the fibre scatter.
 
 **Two models of the hose.** The first, *uncoupled*, model sets that share at a half, and gives the hose's own track
 a stiffness and a strength equal to its weight with a fibre's scatter; its hoop stress never enters its failure. The
@@ -205,15 +209,22 @@ half. (This test used a wall tight enough to compress the bundle, where runs som
 whole turns there rest at {{wtEven}} when even and {{wtOdd}} when odd. An earlier draft reported that overlap
 without the looser walls, and understated the result.)
 
-The reason is known mathematics. The twelve outer fibres are confined to a shell between the core and the wall, so
-in each cross-section they are twelve points on a sphere, and their paths along the rope are a braid on the
-sphere. In the braid group of the sphere the full twist has order two (H3). Equivalently, a framed curve in four
+Known mathematics gives the same count, under a reduction we have not established. Suppose the twelve outer
+fibres, confined to a shell between the core and the wall, can be treated in each cross-section as twelve points
+on a sphere. Then their paths along the rope are a braid on the sphere. In the braid group of the sphere the full twist has order two (H3). Equivalently, a framed curve in four
 dimensions has two framings, not a whole number of them, because the rotations of three-dimensional space have a
 single non-trivial loop (H1, H2, F6): the belt trick. In three dimensions the corresponding count is a whole
 number, and a clamped elastic rod there already has exactly these two classes once it is allowed to pass round its
-own ends (H4). We did not find the consequence for a twisted bundle in four dimensions stated anywhere. The evidence here is
-rest energies; following the bundle's orientation along its length, and showing that its allowed configurations are
-those of a rotating body or a sphere braid, would be stronger.
+own ends (H4). We did not find the consequence for a twisted bundle in four dimensions stated anywhere.
+
+Two things are being compared and they are not the same kind of thing. The theorem counts topological classes of
+an idealised configuration space. The simulation reports which rest energy a relaxation reached. The model's
+fibres have thickness and soft contacts, the wall is a penalty and not a bound, and the core moves, so that its
+configurations reduce to sphere braids is a separate argument, and it is open. A class is also not an energy
+minimum: the odd class could in principle hold several rest states, and a run can jam above the lowest. What
+supports the reading is the even/odd pattern at two wall radii and in the annealed quarter-turn runs, and the
+auditor's independent replays, in which an orientation fitted along the bundle had parity even, odd, even for the
+confined zero, one and two turns and even for every free case.
 
 So a hose does not give a four-dimensional rope twist to grip with: at most one turn in its whole length. This was
 shown for one shell of twelve. Bundles of several layers are untested.
@@ -293,7 +304,10 @@ fibre scatter has its own reference strand, which is 1.
 - **Hoops** grip and carry nothing. They are below the loose bundle per weight in {{hoopsBelowLoose}} of the
   {{mapCells}} cells: with uniform fibre their weight costs more than their grip returns.
 - **How tight.** The optimiser chooses a hoop stress of {{c5_hoop}} of the skin's strength at modulus 5, where
-  {{c5_split}} of its sections have split. At the half we had assumed before, {{oldSplit}} would.
+  {{c5_split}} of its sections have split. At the half we had assumed before, {{oldSplit}} would. The map's grid of
+  tightness stops at {{mapEdge}}, and the optimiser chose that top value in {{mapAtEdge}} of the {{mapCells}} cells, so
+  those cells are a lower bound on the best hose. The closure study of section 5 searches up to {{closureTop}} and
+  chose {{c5_hoop}} at modulus 5 and {{c10_hoop}} at modulus 10.
 
 **Bundle size, and twelve neighbours against six.** A four-dimensional fibre has twelve neighbours in a bundle and
 ours has six, and a larger bundle has a smaller share of its fibres at the skin. We ran both worlds: clusters of 13
@@ -313,10 +327,11 @@ because the larger bundles are slow, so these figures are not comparable with th
 
 - **A bigger bundle is not stronger per weight, in either world.** The mean falls slightly with size. What grows is
   consistency: the spread of the 55-fibre rope is {{z4_55_hcv}} against {{z4_13_hcv}} for thirteen.
-- **The hose is worth more in four dimensions than the tube is in three**: {{z4_55_ratio}} to {{z4_13_ratio}} times
-  the loose bundle, against {{z3_61_ratio}} to {{z3_37_ratio}}. We cannot say how much of that is the twelve
-  neighbours: the two skins also differ (a sphere's skin pulls two ways and has a stress peak; a band has neither),
-  and a loose bundle, having no contact, is the same in both.
+- **No clear advantage of twelve neighbours over six.** The four-dimensional hose is worth {{z4_13_ratio}} times
+  its loose bundle at thirteen fibres and {{z4_55_ratio}} at 55; the tube in three dimensions is worth
+  {{z3_61_ratio}} to {{z3_19_ratio}} at every size. An earlier run, with the press set too hard, showed a wider gap.
+  The two skins also differ (a sphere's skin pulls two ways and has a stress peak; a band has neither), and a loose
+  bundle, having no contact, is the same in both, so the comparison does not isolate the neighbour count either way.
 - **The larger four-dimensional skin had to be made less tight** (a hoop stress of {{z4_55_hoop}} of strength, against
   {{z4_13_hoop}}): a bigger skin has more flaws, and at the same tightness more of it splits.
 
@@ -368,12 +383,13 @@ most of its advantage), and how evenly the skin is stressed. The distortion-ener
 to four dimensions and gives a hose that is helped by its hoop tension; we show it as a bracket, not a result.
 
 **What is still uncoupled.** A split is all or nothing at a section; partial loss of press, the stress round a
-split's ends, and damage that grows under load are not modelled. The press is still a vessel formula scaled by the
-taut-skin factor below.
+split's ends, and damage that grows under load are not modelled. The press is a vessel formula scaled by the
+taut-skin factor below, which was measured for thirteen fibres and is assumed for the 55-fibre cluster.
 
-**Convergence and reproduction.** All {{closurePulls}} pulls behind the reported rows of the two tables above were
-re-pulled; each reproduced its stored figure and converged ({{closureBad}} failures). Some cells of the tuning
-grids that were not chosen did not converge, and were not used.
+**Convergence and reproduction.** A candidate thickness and tightness is eligible only if every one of its thirty
+tuning pulls converged: {{ineligible}} of {{candidates}} candidates were excluded whole on that ground, and each
+candidate's count is kept in the data files. All {{closurePulls}} pulls behind the reported rows of the two tables
+above were then re-pulled; each reproduced its stored figure and converged ({{closureBad}} failures).
 
 **The uncoupled model's dials.** In the first model, friction and hose stress enter only as a product. Halved and
 doubled, with the thickness re-tuned, the hose rope reads {{dialLo}} and {{dialHi}}; with both halved and held-out
@@ -394,17 +410,17 @@ grip on the middle fibre scatters widely.
 **Grip law.** Against the bead yarn, tension times curvature is within 20% below 20° (worst ratio {{helixLow}}) and
 understates by a factor of {{helixHigh}} above, on four twists. The braids were run at the boundary.
 
-**The ideal isotropic material.** Three statements that hold for any material the same in every direction, from
-linear elasticity written in n dimensions; they are our own short derivations and no source is cited for them. A
-bar pulled along its length shrinks by Poisson's ratio ν in each of the other n − 1 directions, and ν cannot exceed
-1/(n − 1): a half in three dimensions, a third in four. So a four-dimensional fibre thins by at most two thirds as
-much in each transverse direction as ours. Its cross-section loses the same amount all the same, since three
-directions shrinking by a third remove what two shrinking by a half do, and so a ductile strand reaches its peak
-load at the same stretch as ours (the condition depends only on how fast the cross-section is lost). What differs
-is after the peak, where the neck is shallower, and in two things the bench does include or bracket: a sheath that
-grips by contracting more than its fibres has a third to work with where ours has a half, and a flaw population
-that scales with volume makes a thick fibre weaker faster (as the cube of its radius, not the square). The bench's
-links are elastic and brittle, so none of this changes its numbers.
+**The ideal isotropic material.** From linear elasticity written in n dimensions; these are our own short
+derivations and no source is cited for them. A bar pulled along its length by a small strain ε shrinks by νε in
+each of the other n − 1 directions, and stability bounds Poisson's ratio at ν ≤ 1/(n − 1): a half in three
+dimensions, a third in four. Its cross-section changes by −(n − 1)νε, which depends on the material and not only
+on the dimension: at the same ν of 0.2 a four-dimensional bar loses 0.6ε where ours loses 0.4ε. Only at the bound,
+an incompressible material, is the loss the same in both (ε), and only for such a material, with the same
+hardening law, does the usual condition for peak load in a ductile strand give the same stretch. We make no claim
+about necking beyond that. Two geometric statements do hold generally: a sheath that grips by contracting more
+than its fibres has at most a third to work with where ours has a half, and a flaw population that scales with
+volume makes a thick fibre weaker faster (its volume per length goes as the cube of its radius, not the square).
+The bench's links are elastic and brittle, so none of this changes its numbers.
 
 **Not modelled.** How far a split runs, and damage that grows; bending; fibre migration; a hose's bending
 stiffness; creep of a shrink fit; bundles larger than thirteen; any mechanical difference between a tube and a

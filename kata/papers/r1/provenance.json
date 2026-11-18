@@ -18,25 +18,25 @@
   {
    "file": "kata/pull/data/closure-10.json",
    "madeBy": "kata/pull/closure.mjs",
-   "bytes": 9410,
-   "sha256": "322b1b5e1d50b32337ec09e374ca09b1c80389762e577bd79dc6f6d8c6c4d2bb",
+   "bytes": 11212,
+   "sha256": "0b34bc89a5a5faa12a01d131c064a4a92cebe54e9a93279f64484cc187da6484",
    "status": {
     "pulls": 4030,
-    "worstLeft": 6091338.016393157,
-    "stalled": 18920,
-    "worstResidual": 9.195560429442148e-7
+    "worstLeft": 14537938.933354313,
+    "stalled": 19754,
+    "worstResidual": 9.157226174658518e-7
    }
   },
   {
    "file": "kata/pull/data/closure-5.json",
    "madeBy": "kata/pull/closure.mjs",
-   "bytes": 9386,
-   "sha256": "5c82feb751eebd0abad0e564fef68680daa62a575922674a8ac185d39662108d",
+   "bytes": 11185,
+   "sha256": "67fbd95e8575c0731070565fbddae7ca0db3c4803fa2bee002f47ac1f513cb89",
    "status": {
     "pulls": 4030,
-    "worstLeft": 262152.5152282916,
-    "stalled": 19428,
-    "worstResidual": 9.948192550144523e-7
+    "worstLeft": 985554.0105317849,
+    "stalled": 19747,
+    "worstResidual": 7.203160221720337e-7
    }
   },
   {
@@ -61,49 +61,49 @@
   {
    "file": "kata/pull/data/map-10.json",
    "madeBy": "kata/pull/map.mjs",
-   "bytes": 1322,
-   "sha256": "090add0e35f210a7b9254b4bc4c2dfa6cb32d5042f4c0bdb7db33b102382a4f4",
+   "bytes": 3957,
+   "sha256": "1f2d17f7d0fd1a9748921ca29bb935f28927d74b413385c4ac8938b80eb5b2f6",
    "status": {
     "pulls": 2110,
-    "worstLeft": 6091338.016393157,
-    "stalled": 8563,
-    "worstResidual": 7.944302158902896e-7
+    "worstLeft": 14537938.933354313,
+    "stalled": 8952,
+    "worstResidual": 9.278915080192761e-7
    }
   },
   {
    "file": "kata/pull/data/map-20.json",
    "madeBy": "kata/pull/map.mjs",
-   "bytes": 1326,
-   "sha256": "6e0ed14a6e776f871ebb06a4828964fce383d37ef006bee6c374ccb89e7147fd",
+   "bytes": 3968,
+   "sha256": "077323e0dd45c34c8376c45c0c1f962c5ce90d8206a7e5390bec3be20e022fbf",
    "status": {
     "pulls": 2110,
-    "worstLeft": 39791876.64557503,
-    "stalled": 9273,
-    "worstResidual": 8.011118989678016e-7
+    "worstLeft": 605862.7060754969,
+    "stalled": 9657,
+    "worstResidual": 9.950892407619425e-7
    }
   },
   {
    "file": "kata/pull/data/map-3.json",
    "madeBy": "kata/pull/map.mjs",
-   "bytes": 1311,
-   "sha256": "050baebeeb562e5420e8dd707921fc0c438a730e9e244cedab34e0a5f580671c",
+   "bytes": 3944,
+   "sha256": "9dee71d4920bf4e6027c78b932f3fa8a308fa01135e0f4fac33449207d1cd659",
    "status": {
     "pulls": 2110,
-    "worstLeft": 1.115903898064135,
-    "stalled": 6676,
-    "worstResidual": 5.910060056485964e-7
+    "worstLeft": 0.9999999470147238,
+    "stalled": 6600,
+    "worstResidual": 5.168110167629632e-7
    }
   },
   {
    "file": "kata/pull/data/map-5.json",
    "madeBy": "kata/pull/map.mjs",
-   "bytes": 1322,
-   "sha256": "98b49abfa9d1d9525a389c881842c71ad6ecb160f43de2628030836873b8b3f8",
+   "bytes": 3953,
+   "sha256": "fac29ed45e280e78507bbaeedc515d88519f694447a8ca0ef36081ef179d5d5b",
    "status": {
     "pulls": 2110,
-    "worstLeft": 262152.5152282916,
-    "stalled": 8810,
-    "worstResidual": 7.934439049794156e-7
+    "worstLeft": 845673.7884394333,
+    "stalled": 8484,
+    "worstResidual": 6.5540264797357e-7
    }
   },
   {
@@ -144,73 +144,73 @@
   {
    "file": "kata/pull/data/size-3-1.json",
    "madeBy": "kata/pull/size.mjs",
-   "bytes": 951,
-   "sha256": "1749f51a9cb4dd47cf19cc557e20dba068af8626d483876aa9ceded248e2e810",
+   "bytes": 1047,
+   "sha256": "f34713d57cabb763779470537a3286bfadb423aac4ec1f3b431ec324da201350",
    "status": {
     "pulls": 170,
-    "worstLeft": 0.9983493137336988,
-    "stalled": 367,
-    "worstResidual": 1.139110395056666e-7
+    "worstLeft": 0.9977519660383912,
+    "stalled": 281,
+    "worstResidual": 1.7290415686904215e-7
    }
   },
   {
    "file": "kata/pull/data/size-3-2.json",
    "madeBy": "kata/pull/size.mjs",
-   "bytes": 970,
-   "sha256": "d05511f7c933e6c1553ddfb0ff41a7552cb28f2f2fc7c37c4624a576d25ef6ed",
+   "bytes": 1062,
+   "sha256": "e91b8cfaee54871b19fce493912cb78dbcae2f8a0463e4f5dbe6a90685082fec",
    "status": {
     "pulls": 170,
-    "worstLeft": 0.9996868529326999,
-    "stalled": 1056,
-    "worstResidual": 5.268126840660267e-7
+    "worstLeft": 0.9999955965364715,
+    "stalled": 1158,
+    "worstResidual": 2.5485155123392e-7
    }
   },
   {
    "file": "kata/pull/data/size-3-3.json",
    "madeBy": "kata/pull/size.mjs",
-   "bytes": 972,
-   "sha256": "0b4189c56a1e51583a682696d2ec9be4beccf9e42ba5499f9a83c2fa43184d94",
+   "bytes": 1066,
+   "sha256": "dfcd67f0c125db032f45128d927ec737c29203edb2673366ce8cdd6ea033c169",
    "status": {
     "pulls": 170,
-    "worstLeft": 0.9998295548317307,
-    "stalled": 2032,
-    "worstResidual": 7.123067944109099e-7
+    "worstLeft": 0.999536355581102,
+    "stalled": 2001,
+    "worstResidual": 8.022362869384645e-7
    }
   },
   {
    "file": "kata/pull/data/size-3-4.json",
    "madeBy": "kata/pull/size.mjs",
-   "bytes": 837,
-   "sha256": "67137bdc85f1071e90635a1b72b6f576c48c9f10947fd98f8cb0800b76e627f8",
+   "bytes": 934,
+   "sha256": "b83a312080ad9772766fb5d4e1dde6ad460214c6af8eac2ea78774b0767b13b1",
    "status": {
     "pulls": 170,
-    "worstLeft": 0.9994575613886457,
-    "stalled": 2676,
-    "worstResidual": 9.91684137238713e-7
+    "worstLeft": 0.9999365288290973,
+    "stalled": 2597,
+    "worstResidual": 9.303941717320717e-7
    }
   },
   {
    "file": "kata/pull/data/size-4-1.json",
    "madeBy": "kata/pull/size.mjs",
-   "bytes": 958,
-   "sha256": "362c8fa2f4f32a13cec0b9ed3d54085b3cad58cfa945306b58f7cf5ab48b8663",
+   "bytes": 1051,
+   "sha256": "354e734167e03208f5c7cc556df1f263dcb08501164278c5880e88e9500e3eee",
    "status": {
     "pulls": 170,
-    "worstLeft": 0.9999149159995069,
-    "stalled": 703,
-    "worstResidual": 2.1681452350716737e-7
+    "worstLeft": 0.9990913016616062,
+    "stalled": 716,
+    "worstResidual": 2.3022333120172002e-7
    }
   },
   {
    "file": "kata/pull/data/size-4-2.json",
    "madeBy": "kata/pull/size.mjs",
-   "bytes": 955,
-   "sha256": "1e82848a8473e66256fd7662febc1c09b04fa85daabe7e4aedfb6b9500b6160e",
+   "bytes": 1037,
+   "sha256": "736b58e86a07f6981dc8286b75b0f52de1341cf84a8f7c2f9535226f2cea5870",
    "status": {
     "pulls": 170,
-    "worstLeft": 0.9995001910208959,
-    "stalled": 1981,
-    "worstResidual": 9.473692112901383e-7
+    "worstLeft": 1000,
+    "stalled": 2385,
+    "worstResidual": 8.90420674416444e-7
    }
   },
   {

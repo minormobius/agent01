@@ -90,3 +90,30 @@ twelve. The paper now leads with that.
 Still not done: how far a split runs (bracketed, not modelled); damage that grows under load; the new model at other
 rope lengths and for the other constructions; event-driven breaking; an orientation field for the kept turn; re-baking
 the first model's study files under the explicit convergence flag.
+
+## The recheck by Astra, 2026-11-18 (commit e007b7d5b)
+
+The auditor re-read the note and the full account after the shortening. It confirmed the page target, that the live
+documents match the commit, that the ledger catches a corrupted cell in either document, and that the H references
+now render (F06, closed). Five findings stayed open. What was done about each:
+
+| finding | what it said | what was done |
+|---|---|---|
+| F01 | The note says the press is 0.81 of the vessel value; `hoseRope` did not apply the factor. | Applied in `pull/js/hose.js` (`TAUT`, `force(m)`), and the closure, map and bundle-size studies were run again. |
+| F02 | The hoop strength was normalised to unit mean while the press used the Weibull scale. | One convention, written at the top of `hose.js`: every stress is a fraction of a link's **mean** strength. The press is now σ Γ(1 + 1/m) × TAUT per unit of hoop × τ. Together with F01 the old press was 27 to 39% too hard, by modulus. |
+| F03 | The isotropic-material paragraph claimed the same stretch at peak load and a shallower neck for any material. | Rewritten in the full account: the bound on Poisson's ratio and the two geometric statements are kept; equal loss of cross-section and equal stretch at peak load are stated only for an incompressible material with the same hardening law; the necking claim is gone. |
+| F04 | Tuning candidates with unconverged pulls were scored like any other. | A candidate with any unconverged tuning pull is ineligible, whole. `map.mjs`, `closure.mjs` and `size.mjs` record each candidate's count (`grid[].unconverged`, `ineligible`), and the paper reports how many were excluded. No seed is dropped from a candidate. |
+| F05 | "As the topology would require" claimed more than was shown: the bead model's reduction to a sphere braid is not established. | Abstract: "consistent with the order-two full twist in the sphere braid group". Section 3.1 of the note says the reduction for the finite-thickness, soft-contact model is open, and separates a topological class from a rest energy. The full account says the same at more length and records the auditor's orientation diagnostic. "In the frictionless relaxation" is now in the abstract's first result. |
+
+Not done: the first, uncoupled model's studies (sheath, cable, braid, sens, poisson, gauge, corner) were not run
+again. The full account now says they use the uncorrected vessel formula and the Weibull scale. The taut-skin factor
+was measured for thirteen fibres and is assumed for the 55-fibre cluster.
+
+What the re-run changed, at the same seeds: the reference hose rope (modulus 5, μ 0.3) went from 0.97 to 0.93 against
+0.71 loose, as the auditor's fixed-design estimate (0.934) predicted; the hose's worth over the loose bundle went from
+1.02–2.03 to 1.01–1.91 across the map; against a strand, from 0.87–1.29 to 0.87–1.22, still above 1 in three cells of
+twelve. Fourteen of 366 tuning candidates were excluded for an unconverged pull; all 2,280 reported pulls were
+re-pulled, reproduced and converged. One conclusion weakened: at 55 fibres the four-dimensional hose is now worth
+1.12 times its loose bundle, the same as the three-dimensional tube (1.10–1.12), so the paper no longer says the hose
+is worth more in four dimensions; at thirteen fibres it still reads 1.18. And one new caveat: the map's tightness
+grid stops at 0.3 and nine of its twelve cells chose that top value, so those cells are a lower bound.

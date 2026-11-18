@@ -7,8 +7,14 @@
      an axial strength   Weibull, the fibre's modulus m, with the weakest-link size effect of a piece that large:
                          a section τ thick is 27τ fibre-links of material, so its strength per area is 27τ^(−1/m) of a link's
      a hoop strength     an independent draw of the same kind
-   It is made tight: its mean hoop stress is `hoop` × the mean strength of a link, and where it bends over a fibre the
-   stress is `peak` × that (2.3 from the net of springs, js/skin.js).
+   ONE CONVENTION FOR STRESS (the recheck's F01 and F02): every stress here is a fraction of the MEAN strength of a
+   fibre link, σ Γ(1 + 1/m), where σ is the bench's Weibull scale. `hoop` is the skin's mean hoop stress in that unit;
+   a section's hoop strength is a unit-mean Weibull draw times the size effect, the same unit; and the skin's force on
+   a fibre is derived from it: `force(m)` = σ Γ(1 + 1/m) × TAUT per unit of hoop × τ at a fibre-to-fibre contact, three
+   times that from skin to fibre. TAUT is what a taut skin lying on twelve fibres presses with, as a share of the thin
+   vessel formula's value (0.806: the spring net and the Steiner hull agree, data/press.json `factor`). Before
+   2026-11-18 the press used σ where it needed σ Γ and left TAUT out, which pressed 27 to 39% too hard (by modulus).
+   Where the skin bends over a fibre its stress is `peak` × the mean (2.3 from the net of springs, js/skin.js).
      splitting    a section whose hoop strength is under hoop × peak splits lengthwise and stops pressing, there and
                   for `run` sections either side (how far a split runs is not known: 0 and the whole rope bracket it)
      axial        what a section carries along the rope while stressed in hoop, by criterion:
@@ -23,23 +29,24 @@
    neighbours are untouched) and carry nothing along the rope. */
 import { rng, SECTIONS } from "./bench.js";
 const lg = (z) => { const c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.001208650973866179, -0.000005395239384953]; let x = z, y = z, t = x + 5.5; t -= (x + 0.5) * Math.log(t); let ser = 1.000000000190015; for (const cj of c) ser += cj / ++y; return -t + Math.log((2.5066282746310005 * ser) / x); };
+export const TAUT = 0.806137, SIGMA = 0.02, meanLink = (m) => Math.exp(lg(1 + 1 / m)), force = (m, taut = TAUT) => SIGMA * meanLink(m) * taut;
 export const AXIAL = { rankine: () => 1, mises: (h) => (h + Math.sqrt(Math.max(0, 2.25 - 2 * h * h))) / 1.5, linear: (h) => Math.max(0, 1 - h) };
 /* the press along the rope: 1, or 0 where the skin has split */
-function mask(S, m, demand, size, run, seed) { const r = rng(seed * 104729 + 71), mean = Math.exp(lg(1 + 1 / m)), split = new Uint8Array(S); let any = 0;
+function mask(S, m, demand, size, run, seed) { const r = rng(seed * 104729 + 71), mean = meanLink(m), split = new Uint8Array(S); let any = 0;
   for (let s = 0; s < S; s++) if (((-Math.log(1 - r())) ** (1 / m) / mean) * size < demand) { split[s] = 1; any++; }
   const out = new Float64Array(S).fill(1); if (run === Infinity) { if (any) out.fill(0); } else for (let s = 0; s < S; s++) if (split[s]) for (let k = Math.max(0, s - run); k <= Math.min(S - 1, s + run); k++) out[k] = 0;
   return { at: (s) => out[s], split: any / S }; }
 /* thirteen fibres in a hose, or in hoops: bench options, the rope's weight, and the share of the skin that split */
 export function hoseRope({ tau, hoop, m = 5, mu = 0.3, S = 96, staple = 0, crit = "rankine", peak = 2.3, run = 0, size = true, member = true }, seed) {
-  const M = 27 * tau, sz = size ? M ** (-1 / m) : 1, k = mask(S, m, hoop * peak, sz, run, seed), press = { kind: "hoop", p: 0.02 * hoop * tau, at: k.at };
-  return member ? { opts: { section: "fcc13s", S, m, mu, staple, press: { ...press, wall: 0.06 * hoop * tau }, ribbon: { k: M, strength: M * sz * AXIAL[crit](hoop) }, seed }, material: 13 + M, split: k.split }
+  const M = 27 * tau, sz = size ? M ** (-1 / m) : 1, k = mask(S, m, hoop * peak, sz, run, seed), F = force(m), press = { kind: "hoop", p: F * hoop * tau, at: k.at };
+  return member ? { opts: { section: "fcc13s", S, m, mu, staple, press: { ...press, wall: 3 * F * hoop * tau }, ribbon: { k: M, strength: M * sz * AXIAL[crit](hoop) }, seed }, material: 13 + M, split: k.split }
     : { opts: { section: "fcc13", S, m, mu, staple, press, seed }, material: 13 + M, split: k.split }; }
 
 /* BUNDLES OF ANY SIZE, in either world, for the bundle-size study (size.mjs).
    A 4D rope's cross-section is three-dimensional: fibres pack as a cuboctahedral cluster of k shells, 13, 55, 147 …,
    each inner fibre touching twelve. A 3D rope's is two-dimensional: hexagonal rings, 7, 19, 37, 61 …, each touching six.
    Both have radius R = (2k + 1) fibre radii. A skin τ fibre-radii thick round it:
-     4D   weighs 3 (R/r)² τ fibres; presses P = 2στ/R; its tension peaks at 2.3 × the mean where it bends over a fibre
+     4D   weighs 3 (R/r)² τ fibres; presses P = 2στ/R × TAUT (measured for thirteen; assumed for larger clusters); its tension peaks at 2.3 × the mean where it bends over a fibre
      3D   weighs 2 (R/r) τ;         presses P = στ/R;  a band's tension is uniform (peak 1)
    and inside a pack under pressure P every contact carries about the same force, π r² P (4D) or (π/2) r P (3D): the
    values that give a third and a half of the skin's force on a fibre for 13 and for 7. That uniform-pressure rule for
@@ -57,5 +64,5 @@ export function bundleRope({ dim = 4, k = 1, tau, hoop, m = 5, mu = 0.3, S = 48,
   if (loose) return { opts: { section: name, S, m, mu, press: { kind: "none" }, seed }, material: B.n, fibres: B.n, split: 0 };
   const M = dim === 4 ? 3 * B.R * B.R * tau : 2 * B.R * tau, peak = dim === 4 ? 2.3 : 1, sz = M ** (-1 / m), msk = mask(S, m, hoop * peak, sz, 0, seed);
   /* wall: the skin's force on an outer fibre; p: a contact's force inside the pack; both per diameter, in the bench's units */
-  const wall = (dim === 4 ? 0.06 * (B.R / 3) * (12 / B.outer.length) : (0.04 / 3) * (6 / B.outer.length)) * hoop * tau, p = (dim === 4 ? 0.02 : 0.02 / 3) * (3 / B.R) * hoop * tau;
+  const F = force(m, dim === 4 ? TAUT : 1), wall = (dim === 4 ? 3 * F * (B.R / 3) * (12 / B.outer.length) : ((2 * F) / 3) * (6 / B.outer.length)) * hoop * tau, p = (dim === 4 ? F : F / 3) * (3 / B.R) * hoop * tau;
   return { opts: { section: name, S, m, mu, press: { kind: "hoop", p, wall, at: msk.at }, ...(member ? { ribbon: { k: M, strength: M * sz } } : {}), seed }, material: B.n + M, fibres: B.n, split: msk.split }; }
