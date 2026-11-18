@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), statusNumbers(), methodNumbers());
+  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), yields4Numbers(), statusNumbers(), methodNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -164,6 +164,25 @@ function ash4Numbers() {
     const p1 = (x) => (100 * x < 0.1 ? f(100 * x, 2) : 100 * x < 1 ? f(100 * x, 1) : f(100 * x, 0)); t[`ash${k}`] = `${p1(Math.min(...h))}–${p1(Math.max(...h))}%`; t[`ash${k}max`] = `${p1(Math.max(...h))}%`; t[`ash${k}el`] = els.length ? list(els.map(nm)) : "none above 1%"; }
   return t;
 }
+/* what the first generation gives back (data/yields4.json, fusion/tools/yields4.mjs, the G 1e-17 mass ladders): the net
+   yield p by bands of strength over every declared choice (g, w, f, alpha) and both cut-offs (stars dying within 10 and
+   30 Gyr); the rock row's and iron's shares of it; the lowest exploding mass at g 1.25; how many stars dying within 30 Gyr
+   reached central hydrogen 10⁻³ and how far the rest were from it */
+function yields4Numbers() {
+  const Y = J("yields4.json"), sig = (x) => String(Number(x.toPrecision(2))), t = {};
+  const bands = [["A", (s) => s <= 1.55], ["B", (s) => s >= 1.6 && s <= 1.65], ["C", (s) => s === 1.7], ["D", (s) => s >= 1.75]];
+  for (const [k, ok] of bands) { const ys = Y.yields.filter((y) => ok(y.s)); if (!ys.length) throw new Error(`yields4: no yields in band ${k}`); const p = ys.map((y) => y.p);
+    t[`yP${k}`] = `${sig(Math.min(...p))}–${sig(Math.max(...p))}`;
+    const st = Y.stars.filter((x) => ok(x.s)), ex = st.filter((x) => x.choices.find((c) => c.g === 1.25).fate === "explodes").map((x) => x.m); t[`yEx${k}`] = ex.length ? String(Math.min(...ex)) : "none"; }
+  // the mix at the middle choice (alpha 2.35, g 1.25, f 100, stars dying within 30 Gyr) at s ≤ 1.65, with winds of 3% and 30%
+  const light = (y) => Object.entries(y.mix).filter(([z]) => /^\d+$/.test(z)).reduce((a, [, v]) => a + v, 0), mid = (w) => Y.yields.filter((y) => y.s <= 1.65 && y.alpha === 2.35 && y.g === 1.25 && y.w === w && y.f === 100 && y.tg === 30);
+  const M3 = mid(0.03), M30 = mid(0.3), rng = (a) => `${Math.round(100 * Math.min(...a))}–${pct(Math.max(...a))}`, rock = M3.map((y) => y.mix.rock ?? 0);
+  Object.assign(t, { yRock: rng(rock), yIronHi: pct(Math.max(...M3.map((y) => y.mix.iron ?? 0))), yLight: rng(M3.map(light)), yLight30: rng(M30.map(light)) });
+  const ladS = new Set(Y.yields.map((y) => y.s)), short = Y.stars.filter((x) => ladS.has(x.s) && x.life < 30), reached = short.filter((x) => x.lifeFlag === "reached"), carried = short.filter((x) => x.lifeFlag !== "reached");
+  Object.assign(t, { yN: String(Y.stars.filter((x) => ladS.has(x.s)).length), yNs: ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"][ladS.size], yShort: String(short.length), yReached: String(reached.length), yCarried: String(carried.length), yXcMax: f(Math.max(...carried.map((x) => x.XcEnd)), 2) });
+  if (!(Math.min(...rock) > 0.5)) throw new Error("yields4: the rock row is no longer most of what is returned at the middle choice; rewrite section 4's paragraph and the status page");
+  return t;
+}
 /* the status page's own numbers (text/status.md): what metals do to 4D opacity (data/metals4.json, fusion/tools/metals4.mjs)
    and the charge law's plasma on the zero-age profiles (data/lensplasma.json) */
 function statusNumbers() {
@@ -229,6 +248,7 @@ function ageNumbers() {
    stops the build, so the ledger can't drift from the results. The supplement section renders it (text/stages.md) */
 const PCHECKS = {
   ash4Heavy: () => ash4Numbers().ashA,
+  yields4P: () => yields4Numbers().yPA,
   ages4Half: () => { const S = J("ages4.json").summary; return `${S.halfMin.toFixed(1)}–${S.halfMax.toFixed(0)}`; },
   opalSunRho: () => J("mistcheck.json").sets.opal.sun457.rhoc,
   opalHalfR: () => { const M = J("mistcheck.json").sets, v = ["1", "1.25", "1.6", "2", "3"].map((m) => M.opal.stars[m].ratio.halfR); return `${Math.min(...v).toFixed(2)}–${Math.max(...v).toFixed(2)}`; },

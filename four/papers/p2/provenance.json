@@ -381,6 +381,31 @@
      "tol": 0.01
     }
    ]
+  },
+  {
+   "id": "yields4",
+   "date": "2026-11-18",
+   "title": "What the first generation gives back",
+   "replaced": "returns judged on zero-age stars (nuclei.mjs giveback, starmix, cores: declared lifetimes, stirred cores at zero age)",
+   "by": "the aged mass ladders at G 1e-17 (six strengths, 0.25–4 M_Ch): each star's processed core at its run's end and its return under declared endings (core growth g 1/1.25/1.5; dead remnants returning their envelope and w 3%/30% of the core's ash; explosion at the Chandrasekhar mass with nuclei.mjs explode's burn shares, expansion f 30/100), then the net yield p on a mass function (alpha 2.35/1.9, 0.25–2.5 M_Ch at every strength, stars dying within 10/30 Gyr) and one-zone galaxies (fusion/tools/yields4.mjs). A first pass on the s 1.5152 ladder alone (p 0.027–0.14) was superseded before it was committed; two slips found on the way: ladders starting at the analogue mass left out the low-mass stars that lock mass away (p above 1 at s 1.55), and the galaxy gave a star born with metals its full primordial ash on top of them (gas Z above 1)",
+   "runs": [
+    "evolve4-8",
+    "evolve4-9",
+    "evolve4-10"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "the net yield p at s ≤ 1.55, over every declared choice",
+     "before": "none computed on aged stars (zero-age giveback: declared lifetimes)",
+     "after": "mostly the rock row from exploding cores; much smaller from s 1.7 up; 12 of the 29 short-lived ladder stars carried on from just short of exhaustion, evolve4-11 finishing them",
+     "check": "yields4P",
+     "now": "0.042–0.17"
+    }
+   ],
+   "held": [
+    "the rock row as most of what explosions return, as the first pass said"
+   ]
   }
  ]
 }

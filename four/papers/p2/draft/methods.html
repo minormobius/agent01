@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="8655e48f523151998e8872363bbb70b056c6ec06efcc0a3061b91d47b731016e" />
+<meta name="source-sha256" content="2805f20a68b2d03b8166193970ff39d4fb0c8a80a0e26a3971546eaecfa065d7" />
 <title>Paper 2 · How the stars are modelled</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -303,9 +303,12 @@ at gas fraction
 whatever the pace of star formation. Beside it, one-zone galaxies: gas
 that starts primordial forms stars at a rate set by a timescale
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>τ</mi><annotation encoding="application/x-tex">\tau</annotation></semantics></math>
-= 1 and 3 Gyr, each returning its gas when its life ends.
-<strong>Provisional:</strong> both rest on link 8’s declared endings and
-on mass ladders still running. <strong>Code:</strong>
+= 1 and 3 Gyr, each returning its gas when its life ends. Both are taken
+on one mass range, 0.25–2.5 M<sub>Ch</sub>, at every strength: a star
+lighter than a ladder’s lightest is counted as locked away, since that
+star already outlives 30 Gyr. Both rest on link 8’s declared endings,
+and a few of the ladder’s stars were cut short of exhaustion and carried
+on at their last rate (section 4 says how many). <strong>Code:</strong>
 <code>fusion/tools/yields4.mjs</code>.</p>
 <h2 id="metals-in-the-gas">10 Metals in the gas</h2>
 <p><strong>What:</strong> what the stars’ elements do to the next stars’

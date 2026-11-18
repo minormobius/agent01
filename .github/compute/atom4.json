@@ -1,58 +1,33 @@
 {
- "run": "evolve4-10",
- "why": "Carry on the G 1e-17 mass ladders still burning after evolve4-9 (central hydrogen 0.002-0.25), from their checkpoints, so every ladder star's yield is taken at exhaustion. Finished in evolve4-9: all five at s 1.8, s 1.5152 at 1.6 / 2.5 M_Ch and s 1.7 at 4 M_Ch. The s 1.5152 1.25 / 2 M_Ch stars passed Xc 0.376 without the analogues' oitrogen stall.",
+ "run": "evolve4-11",
+ "why": "Finish the 12 G 1e-17 ladder stars evolve4-10 cut at the deadline (central hydrogen 0.002-0.16), from their checkpoints, so their yields are taken at exhaustion instead of carried on from the last stretch. yields4.json was first committed with these 12 flagged extrapolated. Done in evolve4-10: s 1.6 at 1.6 / 2, s 1.65 at 1.6 / 2 / 2.5, all of s 1.7.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev10-00",
+   "name": "ev11-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6"
    ]
   },
   {
-   "name": "ev10-01",
+   "name": "ev11-01",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25"
    ]
   },
   {
-   "name": "ev10-02",
+   "name": "ev11-02",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.6",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5"
-   ]
-  },
-  {
-   "name": "ev10-03",
-   "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 4",
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.6",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 2"
-   ]
-  },
-  {
-   "name": "ev10-04",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 2.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 4",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 1.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 1.6"
-   ]
-  },
-  {
-   "name": "ev10-05",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2.5"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.65 4"
    ]
   }
  ]

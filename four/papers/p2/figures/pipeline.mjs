@@ -13,7 +13,7 @@ const LINKS = [
   ["computed", "6  Ageing", "shells burnt · stirred zones mixed · energy-checked steps", "evolve.mjs"],
   ["computed", "7  What stars hold", "last profile summed element by element", "ash4.mjs"],
   ["declared", "8  How stars end", "core growth · dead remnant or explosion · winds", "yields4.mjs, nuclei.mjs explode"],
-  ["provisional", "9  What they give back", "net yield on a mass function · one-zone galaxy", "yields4.mjs"],
+  ["declared", "9  What they give back", "net yield on a mass function · one-zone galaxy", "yields4.mjs"],
   ["computed", "10  Metals in the gas", "the book's 4D ions · Saha · hydrogen-like bound–free", "metals.js, metals4.mjs"],
 ];
 const W = 680, BH = 52, GAP = 16, T = 20, L = 20, BW = 540, H = T + LINKS.length * (BH + GAP) + 70;

@@ -18,6 +18,7 @@
        what it made plus the metals it was born with (instant mixing, no infall, no outflow). Out: the gas's share of
        elements past helium, and their mix by element, against time.
    What a star made is its last kept profile's (ash4.mjs); a cut run's profile can lag its track, flagged.
+   Every strength is taken on one mass range (MLO–MHI, below), so p and the galaxies compare.
      node four/fusion/tools/yields4.mjs <dir of evolve-four-*-lp*.json> [G=1e-17]   → papers/p2/data/yields4.json */
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { NUCLEI } from "../../atom/js/nucleidata.js";
@@ -56,10 +57,17 @@ for (const [key, { f, j }] of recs) {
 }
 stars.sort((a, b) => a.s - b.s || a.m - b.m);
 
+/* every strength on one mass range (declared), so p and the galaxies compare: 0.25–2.5 M_Ch, the s 1.5152 ladder's
+   span. A star below a ladder's lowest computed mass is locked away (it outlives that star, which outlives 30 Gyr at
+   every strength: checked below); none is above (every ladder reaches 2.5). */
+const MLO = 0.25, MHI = 2.5;
 /* the one-zone galaxy at one strength: its ladder's stars (at least three), interpolated in ln m */
 function galaxy(ladder, { alpha, tau, g, w, f, tEnd = 60, dt = 0.02 }) {
-  const ms = ladder.map((x) => x.m), lo = Math.log(ms[0]), hi = Math.log(ms.at(-1)), NB = 40, bins = [];
+  // the track kept at a few times, enough to draw (the text quotes p, not the galaxy)
+  const KEEP = new Set([0, 1, 2, 3, 5, 7, 10, 15, 20, 30, 40, 50, 59].map((x) => Math.round(x / dt)));
+  const ms = ladder.map((x) => x.m), lo = Math.log(MLO), hi = Math.log(MHI), NB = 40, bins = [];
   for (let b = 0; b < NB; b++) { const lm = lo + ((hi - lo) * (b + 0.5)) / NB, m = Math.exp(lm), i = Math.max(1, ms.findIndex((x) => x >= m)), A = ladder[i - 1], B = ladder[Math.min(i, ladder.length - 1)], t = B === A ? 0 : (lm - Math.log(A.m)) / (Math.log(B.m) - Math.log(A.m));
+    if (m < ms[0]) { bins.push({ m, life: Infinity, rem: 1, made: {}, wt: m ** (1 - alpha) * m * ((hi - lo) / NB) }); continue; }
     const ca = A.choices.find((c) => c.g === g && c.w === w && c.f === f), cb = B.choices.find((c) => c.g === g && c.w === w && c.f === f), made = {};
     for (const z of new Set([...Object.keys(ca.returned), ...Object.keys(cb.returned)])) if (+z >= 3) made[z] = (ca.returned[z] ?? 0) * (1 - t) + (cb.returned[z] ?? 0) * t;
     made.iron = ca.iron * (1 - t) + cb.iron * t; made.rock = ca.rock * (1 - t) + cb.rock * t;
@@ -70,29 +78,34 @@ function galaxy(ladder, { alpha, tau, g, w, f, tEnd = 60, dt = 0.02 }) {
   for (let n = 0; n < N; n++) { const t = n * dt, Zg = Object.values(metals).reduce((a, v) => a + v, 0) / gas, form = (gas / tau) * dt; sfr[n] = form; zb.push(Object.fromEntries(Object.entries(metals).map(([z, v]) => [z, v / gas])));
     gas -= form; for (const z in metals) metals[z] -= form * (zb[n][z] ?? 0);
     // stars born at step k with life L return now
-    for (const b of bins) { const k = n - Math.round(b.life / dt); if (k < 0 || !(b.life < tEnd)) continue; const born = sfr[k] * b.wt, back = born * (1 - b.rem); gas += back;
-      for (const [z, v] of Object.entries(b.made)) metals[z] = (metals[z] ?? 0) + born * v; for (const [z, v] of Object.entries(zb[k])) metals[z] = (metals[z] ?? 0) + back * v; }
-    if (n % Math.round(1 / dt) === 0) { const tot = Object.values(metals).reduce((a, v) => a + v, 0); out.push({ t: +t.toFixed(2), gas: +gas.toFixed(5), Z: +(tot / gas).toExponential(4), mix: Object.fromEntries(Object.entries(metals).filter(([, v]) => v > 1e-3 * tot).map(([z, v]) => [z, +(v / tot).toFixed(4)])) }); } }
+    for (const b of bins) { const k = n - Math.round(b.life / dt); if (k < 0 || !(b.life < tEnd)) continue; const born = sfr[k] * b.wt, back = born * (1 - b.rem), Zb = Object.values(zb[k]).reduce((a, v) => a + v, 0); gas += back;
+      // the ash is a primordial star's; one born with Z burns only its 1 − Z of hydrogen and helium
+      for (const [z, v] of Object.entries(b.made)) metals[z] = (metals[z] ?? 0) + born * v * (1 - Zb); for (const [z, v] of Object.entries(zb[k])) metals[z] = (metals[z] ?? 0) + back * v; }
+    if (KEEP.has(Math.round(t / dt))) { const tot = Object.values(metals).reduce((a, v) => a + v, 0); out.push({ t: +t.toFixed(2), gas: +gas.toFixed(5), Z: +(tot / gas).toExponential(4), mix: Object.fromEntries(Object.entries(metals).filter(([, v]) => v > 1e-3 * tot).map(([z, v]) => [z, +(v / tot).toFixed(4)])) }); } }
   return out;
 }
 /* the net yield (the standard closed-box measure; Z = p ln(1/μ) at gas fraction μ with instant recycling, whatever τ):
    elements past helium returned, per mass locked away in remnants and in stars still living at tg, on the mass function
    over the ladder (ln m, linear between its stars), and what share of it each element or burnt group is */
-function netYield(ladder, { alpha, g, w, f, tg }) { const ms = ladder.map((x) => x.m), lo = Math.log(ms[0]), hi = Math.log(ms.at(-1)), NB = 200; let made = 0, locked = 0; const by = {};
+function netYield(ladder, { alpha, g, w, f, tg }) { const ms = ladder.map((x) => x.m), lo = Math.log(MLO), hi = Math.log(MHI), NB = 200; let made = 0, locked = 0; const by = {};
   for (let b = 0; b < NB; b++) { const lm = lo + ((hi - lo) * (b + 0.5)) / NB, m = Math.exp(lm), i = Math.max(1, ms.findIndex((x) => x >= m)), A = ladder[i - 1], B = ladder[Math.min(i, ladder.length - 1)], t = B === A ? 0 : (lm - Math.log(A.m)) / (Math.log(B.m) - Math.log(A.m)), wt = m ** (2 - alpha);
+    if (m < ms[0]) { locked += wt; continue; }
     const ca = A.choices.find((c) => c.g === g && c.w === w && c.f === f), cb = B.choices.find((c) => c.g === g && c.w === w && c.f === f), life = Math.exp(Math.log(A.life) * (1 - t) + Math.log(B.life) * t);
     if (!(life < tg)) { locked += wt; continue; } locked += wt * (ca.remnant * (1 - t) + cb.remnant * t);
     const part = {}; for (const z of new Set([...Object.keys(ca.returned), ...Object.keys(cb.returned)])) if (+z >= 3) part[z] = (ca.returned[z] ?? 0) * (1 - t) + (cb.returned[z] ?? 0) * t;
     part.iron = ca.iron * (1 - t) + cb.iron * t; part.rock = ca.rock * (1 - t) + cb.rock * t; for (const [z, v] of Object.entries(part)) { made += wt * v; by[z] = (by[z] ?? 0) + wt * v; } }
   return { p: made / locked, mix: Object.fromEntries(Object.entries(by).filter(([, v]) => v > 1e-3 * made).map(([z, v]) => [z, +(v / made).toFixed(4)])) }; }
 const byS = {}; for (const x of stars) (byS[x.s] ??= []).push(x);
+for (const [s, all] of Object.entries(byS)) { const lad = all.filter((x) => isFinite(x.life)).sort((a, b) => a.m - b.m); if (lad.length < 3) continue;
+  if (!(lad[0].m <= MLO + 1e-9 || lad[0].life > 30)) throw new Error(`yields4: s ${s}'s lowest star (${lad[0].m} M_Ch) dies within 30 Gyr; the stars below it can't be counted as locked`);
+  if (lad.at(-1).m < MHI - 1e-9) throw new Error(`yields4: s ${s}'s ladder stops below ${MHI} M_Ch`); }
 const yields = [];
 for (const [s, all] of Object.entries(byS)) { const lad = all.filter((x) => isFinite(x.life)).sort((a, b) => a.m - b.m); if (lad.length < 3) continue;
   for (const alpha of [2.35, 1.9]) for (const g of [1, 1.25, 1.5]) for (const w of [0.03, 0.3]) for (const f of [30, 100]) for (const tg of [10, 30]) { const y = netYield(lad, { alpha, g, w, f, tg }); yields.push({ s: +s, alpha, g, w, f, tg, p: +y.p.toExponential(4), mix: y.mix }); } }
 const galaxies = [];
 for (const [s, all] of Object.entries(byS)) { const lad = all.filter((x) => isFinite(x.life)).sort((a, b) => a.m - b.m); if (lad.length < 3) continue;
   for (const alpha of [2.35, 1.9]) for (const tau of [1, 3]) for (const g of [1, 1.25, 1.5]) for (const w of [0.03, 0.3]) for (const f of [30, 100]) galaxies.push({ s: +s, alpha, tau, g, w, f, masses: lad.map((x) => x.m), track: galaxy(lad, { alpha, tau, g, w, f }) }); }
-writeFileSync(new URL("../../papers/p2/data/yields4.json", import.meta.url), JSON.stringify({ about: "fusion/tools/yields4.mjs: at G " + GSEL + ", each aged 4D star's life, burning core and what it returns (as shares of its mass, by element; iron and rock: an exploding core's burnt ash) under the declared choices g (core growth), w (wind share of a dead star's core ash), f (an explosion's expansion); and one-zone galaxies on each strength's ladder (alpha: mass function, tau: Gyr of star formation), the gas's share Z of elements past helium and their mix against time t (Gyr). Profiles lag a cut run's track (profileXc against XcEnd).", G: GSEL, stars, yields, galaxies }, null, 1));
+writeFileSync(new URL("../../papers/p2/data/yields4.json", import.meta.url), JSON.stringify({ about: "fusion/tools/yields4.mjs: at G " + GSEL + ", each aged 4D star's life, burning core and what it returns (as shares of its mass, by element; iron and rock: an exploding core's burnt ash) under the declared choices g (core growth), w (wind share of a dead star's core ash), f (an explosion's expansion); and one-zone galaxies on each strength's ladder (alpha: mass function, tau: Gyr of star formation), the gas's share Z of elements past helium and their mix against time t (Gyr). Profiles lag a cut run's track (profileXc against XcEnd).", G: GSEL, stars, yields, galaxies }));
 for (const x of stars) { const c = x.choices.find((c) => c.g === 1.25 && c.w === 0.03 && c.f === 100); console.log(`s ${x.s} ${x.m} M_Ch: life ${x.life} Gyr (${x.lifeFlag}), core ${x.qcore} holding ${(100 * x.ashCore).toFixed(1)}% of the star in ash (of ${(100 * x.ashAll).toFixed(1)}% in all) (lead ${x.lead}); g 1.25 w 3%: ${c.fate}, returns ${(100 * (1 - c.remnant)).toFixed(0)}%, ash ${(100 * (heavyOf(c.returned) + c.iron + c.rock)).toFixed(2)}%`); }
 for (const s of Object.keys(byS)) { const ys = yields.filter((y) => y.s === +s); if (!ys.length) continue; for (const tg of [10, 30]) { const ps = ys.filter((y) => y.tg === tg).map((y) => y.p); console.log(`net yield s ${s}, stars dying within ${tg} Gyr: p ${Math.min(...ps).toExponential(2)}–${Math.max(...ps).toExponential(2)}`); } }
 for (const gx of galaxies.filter((x) => x.alpha === 2.35 && x.tau === 1 && x.g === 1.25 && x.w === 0.03 && x.f === 100)) console.log(`galaxy s ${gx.s}: Z at 10/30/60 Gyr ${[10, 30, 59].map((t) => gx.track.find((r) => r.t >= t)?.Z).join(" / ")}, mix at 30 Gyr ${JSON.stringify(gx.track.find((r) => r.t >= 30)?.mix)}`);

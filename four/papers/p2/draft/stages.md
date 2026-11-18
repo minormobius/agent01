@@ -5,7 +5,7 @@
      to provenance.json, never here. -->
 
 The model in this paper was not written down once and run. It was built in stages, from
-2026-11-11 to 2026-11-16. Each stage replaced a guess, a convention or a cruder method with something computed,
+2026-11-11 to 2026-11-18. Each stage replaced a guess, a convention or a cruder method with something computed,
 then ran the cascade again. The main text gives only the final method. This supplement records the route, for two
 reasons.
 
@@ -15,14 +15,14 @@ artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was foun
 good within two days, and only the last of those rests on something that cannot move: a variational bound.
 
 Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
-states whether a decision rule was fixed before its results came in. 9 of the 11 stages had
+states whether a decision rule was fixed before its results came in. 10 of the 12 stages had
 none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
 
 **What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 33 entries, 16 are marked ✓: the value given is recomputed from the committed data each
+data. Of the 35 entries, 17 are marked ✓: the value given is recomputed from the committed data each
 time the paper is built, and the build stops if they disagree. 0 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
@@ -181,4 +181,18 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 |---|---|
 | the book's metal-free opacity against OPAL's along Model S | within 2–9% (Gaunt factor 1: 20–49% over) ✓ |
 | the book's ions supply at least this share of OPAL's metal opacity along Model S (no lines) | 45–61% ✓ |
+
+### S1.12 What the first generation gives back (2026-11-18)
+
+**Replaced:** returns judged on zero-age stars (nuclei.mjs giveback, starmix, cores: declared lifetimes, stirred cores at zero age). **By:** the aged mass ladders at G 1e-17 (six strengths, 0.25–4 M_Ch): each star's processed core at its run's end and its return under declared endings (core growth g 1/1.25/1.5; dead remnants returning their envelope and w 3%/30% of the core's ash; explosion at the Chandrasekhar mass with nuclei.mjs explode's burn shares, expansion f 30/100), then the net yield p on a mass function (alpha 2.35/1.9, 0.25–2.5 M_Ch at every strength, stars dying within 10/30 Gyr) and one-zone galaxies (fusion/tools/yields4.mjs). A first pass on the s 1.5152 ladder alone (p 0.027–0.14) was superseded before it was committed; two slips found on the way: ladders starting at the analogue mass left out the low-mass stars that lock mass away (p above 1 at s 1.55), and the galaxy gave a star born with metals its full primordial ash on top of them (gas Z above 1). **Runs:** `evolve4-8`, `evolve4-9`, `evolve4-10`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| the net yield p at s ≤ 1.55, over every declared choice | none computed on aged stars (zero-age giveback: declared lifetimes) | mostly the rock row from exploding cores; much smaller from s 1.7 up; 12 of the 29 short-lived ladder stars carried on from just short of exhaustion, evolve4-11 finishing them ✓ |
+
+| what held | |
+|---|---|
+| undefined | undefined |
 

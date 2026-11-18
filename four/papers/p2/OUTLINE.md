@@ -161,18 +161,24 @@ a carried rate; where the climb ends rests on A2's masses.
     explode and when (`nuclei.mjs cores`, `explode`). **computed / rough.** *To do (C):* post-main-sequence growth.
     **2026-11-18:** `fusion/tools/yields4.mjs` reworks it on the aged stars: the processed core at the run's end, its
     growth, the dead-remnant or explosion choice and the winds declared and carried as a band; a first pass on the
-    s 1.5152 ladder has the 1.6–2.5 M_Ch stars exploding. **declared endings, provisional** until run evolve4-8's ladders
-    (G 10⁻¹⁷, s 1.5152–1.8, 1.25–4 M_Ch). The real fix is ε_grav in the structure (the giant phase computed).
+    s 1.5152 ladder has the 1.6–2.5 M_Ch stars exploding. **evolve4-10 (collected 2026-11-18):** ladders at six strengths
+    (s 1.5152–1.8, 0.25–4 M_Ch); at g 1.25 the lightest exploding star is 1.6 M_Ch at s ≤ 1.55, 2 at 1.6–1.65, 2.5 at
+    1.7. **declared endings** (evolve4-11 finishes the 12 stars cut short of exhaustion). The real fix is ε_grav in the
+    structure (the giant phase computed).
 
 ## Part V — Abundances over time
 
 14. **What stars give back.** `nuclei.mjs giveback`, `starmix`: declared mass function and lifetimes, reported as a
     band. **rough.** **2026-11-18:** `yields4.mjs`'s net yield p (metals returned per mass locked; closed-box
-    Z = p ln(1/μ)) on the aged ladders: first pass p 0.03–0.14, 76–96% the rock row from exploding cores. **provisional.**
+    Z = p ln(1/μ)) on the aged ladders (`data/yields4.json`, section 4's "What they give back", provenance `yields4`): over
+    every declared choice p 0.042–0.17 at s ≤ 1.55, 0.011–0.086 at 1.6–1.65, ≤ 0.027 at 1.7, ≤ 0.0015 at 1.8; at the
+    middle choice 73–95% the rock row, 3–5% light ash (13–29% with 30% winds). All strengths on one mass range,
+    0.25–2.5 M_Ch (a first version took each ladder's own span and gave p > 1 at s 1.55). **computed on declared
+    endings.** The one-zone galaxies are in the data; their gas's Z mostly measures the gas left, so p is quoted.
     What metals do to 4D opacity is computed (`fusion/tools/metals4.mjs` → `data/metals4.json`, the book's ions 4–23):
     Z 0.01–0.02 of the first stars' light ash moves it −0.4% to +4.2%, but the rock row ×1.03–6.5 at the centre and up to
-    ×14 in the outer layers, so a rock-rich second generation may differ (first version wrong: bound–free had dropped out). *To do (D):* yields per stellar mass from the network; a one-zone galaxy (star formation, a mass
-    function, C's lifetimes) → composition against age, as a band.
+    ×14 in the outer layers, so a rock-rich second generation may differ (first version wrong: bound–free had dropped out). *To do (D):* the galaxy's composition against age as a band in section 5; second-generation stars
+    on that gas (a first look: `data/gen2.json`).
 15. **The heavy elements.** No neutron source (section 6), so no slow capture; what explosions make. **open.**
 16. **What planets are made of.** The hand-off to the Earth roadmap (rock, ocean, air). **open.**
 

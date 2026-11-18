@@ -23,7 +23,9 @@ for (const [key, { f, j }] of recs) {
     made, heavyShare: +heavy.reduce((t, [, v]) => t + v, 0).toFixed(5), lead: heavy.slice(0, 3).map(([z, v]) => [+z, v]), qcc: +qcc.toFixed(3), centre: Object.fromEntries(Object.entries(c0).map(([z, v]) => [z, +v.toFixed(4)])) });
 }
 stars.sort((a, b) => b.G - a.G || a.s - b.s || a.m - b.m);
-const analogues = stars.filter((x) => !(x.G === 1e-17 && x.s === 1.5152 && Math.abs(x.m - 0.7812) > 0.01)), byS = {};
+// the analogues: the star at each (G, s) whose mass is gravity.json's Sun analogue (the mass ladders at G 1e-17 are not)
+const SUNS = JSON.parse(readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs.filter((r) => r.sun), isAnalogue = (x) => SUNS.some((r) => r.G === x.G && r.s === x.s && Math.abs(x.m / r.sun.m - 1) < 0.01);
+const analogues = stars.filter(isAnalogue), byS = {};
 for (const x of analogues) (byS[x.s] ??= []).push({ G: x.G, heavyShare: x.heavyShare, lead: x.lead, tGyr: x.tGyr, Xc: x.Xc });
 writeFileSync(new URL("../../papers/p2/data/ash4.json", import.meta.url), JSON.stringify({ about: "fusion/tools/ash4.mjs: what each aged 4D analogue (and the G 1e-17 s 1.5152 ladder) holds at its last kept profile, element by element as shares of the star's mass (made: Z → share; heavyShare: elements ≥ 3 together; lead: the three largest), the stirred core's extent qcc and the centre's make-up by element. Profiles are kept at 90%, 80%, … 10%, 1% of the centre's hydrogen and at the run's end; a cut run's last profile can lag its track's end (tGyr against runEndGyr).", byS, stars }, null, 1));
 for (const x of stars) console.log(`G ${x.G} s ${x.s} m ${x.m}: at ${x.tGyr} Gyr (run to ${x.runEndGyr}, Xc ${x.Xc}): elements ≥ 3 ${(100 * x.heavyShare).toFixed(2)}% of the star — ${x.lead.map(([z, v]) => `${z}: ${(100 * v).toFixed(2)}%`).join(", ")}; core q ${x.qcc}`);

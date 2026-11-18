@@ -70,23 +70,26 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   4–23, every first ionization equal to the periodic table's: the figures in point 3 above. (A first version of this
   line said metals barely change a four-dimensional star at all; a slip in the code had dropped every ion's bound–free
   absorption, leaving only free–free. Corrected the same day.)
-- **What the stars give back** (provisional, and resting on declared endings). A first pass on one mass ladder says the
-  returned metals are mostly the rock row (elements 13–23), made when the cores of the heaviest stars reach the
-  Chandrasekhar mass and explode, with little of the light ash the stars held. The mass ladders that decide it are
-  running.
+- **What the stars give back** (computed on declared endings; [section 4](ageing.html)). On mass ladders at {{yNs}}
+  strengths, the metals returned per unit of mass locked away (the net yield $p$) are {{yPA}} at $s$ ≤ 1.55,
+  {{yPB}} at 1.6–1.65, {{yPC}} at 1.7 and {{yPD}} at 1.8. How the cores grow decides which masses explode and sets most
+  of the band. At the middle choice, {{yRock}} of it at $s$ ≤ 1.65 is the rock row (elements 13–23), made when the
+  cores of the heaviest stars reach the Chandrasekhar mass, and only {{yLight}} is the light ash the stars held ({{yLight30}}
+  with strong winds). {{yCarried}} of the {{yShort}} short-lived stars were cut short of exhaustion (at most {{yXcMax}} of
+  their central hydrogen left) and are carried on at their last rate.
 
 ## What it means
 
 **A four-dimensional universe near our forces is not short of time, and not short of heavy elements.** Its Sun-like
 stars outlive ours several times over, and at the strengths nearest ours they turn a large share of themselves into
 elements 8–12 on the main sequence, which ours never do. Whether those elements reach the next generation depends on
-how the stars end, and the first look says the heavy ones explode and return mostly the rock row: the elements that,
-in our world, make planets.
+how the stars end. On the declared endings the heavy ones explode and return mostly the rock row: the elements that,
+in our world, make planets. Near our strength the metals they give back come to {{yPA}} of the mass they lock away; at
+$s$ = 1.8, where stars burn hydrogen to helium and little further, {{yPD}}.
 
 **Whether the second generation looks like the first depends on what comes back.** In our world a star's metals set
 its opacity, and so its size, colour and life. In four dimensions the first stars' own light ash barely touches it,
-but the rock row thickens the outer layers several times over. If, as the first look at the yields says, the rock row
-is most of what returns, the second generation's stars are fainter, larger and cooler than the first, and their
+but the rock row thickens the outer layers several times over. Since the rock row is most of what returns, the second generation's stars are fainter, larger and cooler than the first, and their
 centres burn more slowly. The ash's nuclei also act as catalysts, as carbon, nitrogen and oxygen do in our Sun,
 quickening the burning by a few per cent; in a rock-rich star the opacity wins.
 
@@ -95,8 +98,8 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **The mass ladders land** (running on the compute runner; automatic). They give the yields by mass at five more
-   strengths, settle what the stars give back, and go into section 4 with their declared choices listed.
+1. **The last ladder stars finish** (evolve4-11 on the compute runner; automatic). {{yCarried}} short-lived stars are
+   carried to exhaustion so no life or yield is extrapolated; little should move.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
    and first {{g2Gyr}} Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return.
 3. **The energy of contraction in the structure** (a change to the solver; every aged run redone on the runner). It

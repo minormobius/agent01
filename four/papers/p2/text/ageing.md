@@ -63,7 +63,25 @@ the shooting meets. Following these stars further needs that energy in the struc
 its mass at s ≤ 1.55, mostly {{ashAel}}; {{ashB}} at s = 1.6–1.65, {{ashBel}}; {{ashC}} at s = 1.7, {{ashCel}};
 and at most {{ashDmax}} from s = 1.75 up, where the stars burn hydrogen to helium and no further. Where the climb runs,
 the stars of weaker gravity (heavier, with hotter cores) mostly make more. This is what the stars hold when their runs
-end, not what they return to the gas. What they return, and the second generation built from it, come next.
+end, not what they return to the gas.
+
+**What they give back.** What a star returns depends on how it ends, and nothing here follows a star past its central
+hydrogen, so the ending is declared and carried as a band. Burning in a shell round the core grows it by a factor $g$
+= {{mGs}}. A core that stays under the Chandrasekhar mass leaves a dead star, which returns its envelope and a share
+$w$ = {{mWs}} of the core's ash by winds. One that reaches it explodes, returns everything and burns the core's ash to
+this world's iron or the rock row (elements 13–23), by how far the core expands before the burning reaches it. The
+mass ladders at G = 10^−17^ hold {{yN}} stars at {{yNs}} strengths. Of the {{yShort}} that die within 30 Gyr,
+{{yReached}} reached central hydrogen 10⁻³; the other {{yCarried}} were cut with at most {{yXcMax}} of it left, and
+their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes is {{yExA}} M~Ch~ at
+s ≤ 1.55, {{yExB}} at 1.6–1.65 and {{yExC}} at 1.7. The net yield $p$, the elements past helium returned per unit of
+mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = {{mAlphas}})
+from 0.25 to 2.5 M~Ch~ for the stars that die within {{mTgs}} Gyr, is {{yPA}} at s ≤ 1.55, {{yPB}} at 1.6–1.65,
+{{yPC}} at 1.7 and {{yPD}} at 1.8. Most of that band comes from $g$, which sets which masses explode. At the middle
+choice (α = 2.35, $g$ = 1.25, $w$ = 3%, stars dying within 30 Gyr), {{yRock}} of $p$ at s ≤ 1.65 is the rock row and up
+to {{yIronHi}} is iron. The light ash the stars held, which dead stars' envelopes and winds return, is only {{yLight}}
+of it, or {{yLight30}} with winds of 30%. A one-zone galaxy on the
+same stars is in the data. Its gas's own share of metals mostly measures how little gas is left, so $p$ is the
+number to carry. The second generation built from that gas comes next.
 
 **The opacity, measured and then computed.** Everything above carries the textbook opacity: electron scattering plus
 Kramers's law. Along Model S's interior that law is {{krLo}}–{{krHi}} times OPAL's tables [@iglesias1996], and it is

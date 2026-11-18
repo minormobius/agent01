@@ -1273,7 +1273,19 @@ for games, and this is a modelling programme with publications to come. The game
   `statusNumbers` stops if the rock star stops coming out fainter, larger, cooler and slower. Next: whole lives on the
   runner, other strengths, the yields' actual mix. **evolve4-9 (collected 2026-11-18):** 10 of 30 ladder stars
   exhausted (all of s 1.8, s 1.5152 at 1.6 / 2.5, s 1.7 at 4); s 1.5152 at 1.25 / 2 M_Ch passed Xc 0.376 with no
-  oitrogen stall; evolve4-10 (22 commands, beb607e50) carries the rest on. No yields committed yet.
+  oitrogen stall; evolve4-10 (22 commands, beb607e50) carries the rest on. **evolve4-10 (collected 2026-11-18) and the
+  yields:** 17 of the 29 ladder stars dying within 30 Gyr exhausted, 12 cut with Xc ≤ 0.16 (evolve4-11, 12 commands,
+  finishes them). `yields4.mjs` → `papers/p2/data/yields4.json`, committed; section 4's "What they give back",
+  provenance stage `yields4` (check `yields4P`), the status page, methods link 9 (now "declared"). **Two fixes before
+  committing:** every strength on one mass range, 0.25–2.5 M_Ch (stars below a ladder's lightest counted locked; the tool
+  stops if that star dies within 30 Gyr or a ladder stops short of 2.5), since ladders starting at the analogue left out
+  the low-mass stars that lock mass away (p > 1 at s 1.55); and the galaxy scales a star's ash by 1 − Z_born (it had
+  added a primordial star's full ash on top of its born metals, gas Z > 1). p over every choice: 0.042–0.17 (s ≤ 1.55),
+  0.011–0.086 (1.6–1.65), ≤ 0.027 (1.7), ≤ 0.0015 (1.8); middle choice 73–95% rock row, 3–5% light ash.
+  **`ages4.mjs` and `ash4.mjs` pick analogues by gravity.json's Sun mass** (within 1%) now that ladders exist at every
+  s ≥ 1.55 (they had excluded only the s 1.5152 ladder, so the ladders leaked into the analogue summaries and the
+  provenance checks stopped the build); a ladder star's "no solution" stop is kept as `stop`, not `stall` (s 1.5152
+  1 M_Ch stops at Xc 0.0097, not the oitrogen stall).
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

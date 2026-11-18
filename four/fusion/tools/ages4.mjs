@@ -26,7 +26,11 @@ for (const { f } of recs.values()) {
   stars.push({ G: +G, s: +s, m: +m, half: half && +half.toFixed(2), halfAfter: half ? null : +last.tGyr.toFixed(1), exhaust: at(T, 1e-3) && +at(T, 1e-3).toFixed(1), lastGyr: +last.tGyr.toFixed(1), lastXc: +last.Xc.toFixed(4), Tc0: +(T[0].Tc / 1e6).toFixed(2), state: f.includes("ckpt") ? "cut" : j.stopped ?? "ended", ...(stall ? { stall } : {}) });
 }
 stars.sort((a, b) => b.G - a.G || a.s - b.s || a.m - b.m);
-const analogues = stars.filter((x) => !(x.G === 1e-17 && x.s === 1.5152 && Math.abs(x.m - 0.7812) > 0.01)), halves = analogues.filter((x) => x.half).map((x) => x.half);
+// the analogues: the star at each (G, s) whose mass is gravity.json's Sun analogue (the mass ladders at G 1e-17 are not)
+const SUNS = JSON.parse(readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs.filter((r) => r.sun), isAnalogue = (x) => SUNS.some((r) => r.G === x.G && r.s === x.s && Math.abs(x.m / r.sun.m - 1) < 0.01);
+// a ladder star's "no solution" stop is kept as stop, not stall: the stall record is the analogues' (section 4's)
+for (const x of stars) if (x.stall && !isAnalogue(x)) { x.stop = x.stall; delete x.stall; }
+const analogues = stars.filter(isAnalogue), halves = analogues.filter((x) => x.half).map((x) => x.half);
 // every Sun analogue gravity.json holds (the four G × eight s, less those with none), and which of them aren't aged here
 const GR = JSON.parse(readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs.filter((r) => r.sun && [1e-11, 1e-14, 1e-17, 1e-20].includes(r.G));
 const notAged = GR.filter((r) => !analogues.some((x) => x.G === r.G && x.s === r.s)).map((r) => `${r.G}/${r.s}`);

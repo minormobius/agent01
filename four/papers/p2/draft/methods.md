@@ -150,7 +150,9 @@ still burning, over a mass function $m^{-\alpha}$ ($\alpha$ = 2.35 and 1.9, ours
 end within 10 and 30 Gyr. It is the standard closed-box measure: with instant recycling the gas's metal share is
 $Z = p\ln(1/\mu)$ at gas fraction $\mu$, whatever the pace of star formation. Beside it, one-zone galaxies: gas that
 starts primordial forms stars at a rate set by a timescale $\tau$ = 1 and 3 Gyr, each returning its gas when its life
-ends. **Provisional:** both rest on link 8's declared endings and on mass ladders still running. **Code:**
+ends. Both are taken on one mass range, 0.25–2.5 M~Ch~, at every strength: a star lighter than a ladder's lightest is
+counted as locked away, since that star already outlives 30 Gyr. Both rest on link 8's declared endings, and a few of
+the ladder's stars were cut short of exhaustion and carried on at their last rate (section 4 says how many). **Code:**
 `fusion/tools/yields4.mjs`.
 
 ## 10 Metals in the gas
