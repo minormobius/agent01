@@ -33,10 +33,10 @@ _Regenerated 2026-11-18 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-18, 100 members / 224 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: polyhedra, llms, llm
-- Top post: "LA has elected a new pope" — @samuel.fm
+**Neighborhood spark** (bisk 2026-11-18, 100 members / 234 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: ppl, bluesky, llms
+- Top post: "I just think it's interesting that after 9 years and 1B dollars Palmer Luckey is showing off AI image gen output instead" — @hikikomorphism.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
