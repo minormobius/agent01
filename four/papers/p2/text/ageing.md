@@ -46,14 +46,24 @@ factor depends on what counts as zero age. The run's very first star, before its
 into balance, sits at {{freshTc}} MK and would take {{clockFresh}} Gyr, a factor of only {{clockFreshR}}. Ageing the
 four-dimensional analogues themselves removes the convention, and they have now been aged on this machinery, with
 the charge law's plasma (screening under the pinned $1/r$ and the lens vacuum's cutoff on light). Of the {{a4grid}}
-Sun analogues section 3 found, {{a4n}} have been aged past half their central hydrogen so far, in
-{{a4min}}–{{a4max}} Gyr: {{a4rlo}}–{{a4rhi}} times the 4.6 Gyr section 3 gave them.{{a4rest}} The slowest sit at the
-strength nearest ours, s = 1.5152: {{a4s15}} Gyr from G = 10⁻¹⁴ to 10⁻²⁰. One run stops soon after halving: at
-G = {{a4stG}}, s = {{a4stS}}, half the hydrogen is gone at {{a4stHalf}} Gyr and the solver finds no star past
-{{a4stEnd}}. Over its last {{a4stDt}} Gyr the stirred core shrank from {{a4stQ0}} to {{a4stQ1}} of the mass, while the
-centre grew {{a4stRho}} denser and {{a4stTc}} cooler and the light rose {{a4stL}}. The solver keeps every shell in
-thermal balance, with no energy drawn from contraction, so it cannot follow a core changing that fast. Where it fails
-does not depend on where the shooting meets.
+Sun analogues section 3 found, {{a4n}} burn half their central hydrogen, in
+{{a4min}}–{{a4max}} Gyr: {{a4rlo}}–{{a4rhi}} times the 4.6 Gyr section 3 gave them.{{a4rest}} From G = 10⁻¹⁴ to 10⁻²⁰ the
+slowest sit at the strength nearest ours, s = 1.5152: {{a4s15}} Gyr.
+
+At that strength {{a4nStall}} runs stop at the same point in the core's chemistry, at G = {{a4stGs}}. The centre has
+burnt all its helium and holds, by mass, hydrogen {{a4cH}}, pxygen {{a4cPx}} and oitrogen {{a4cOx}}: the proton
+captures that turn oitrogen into pxygen-20, the burning that stirred the core, are running out of oitrogen. At
+G = {{a4stG}} half the hydrogen is gone at {{a4stHalf}} Gyr and the solver finds no star past {{a4stEnd}}. Over its
+last {{a4stDt}} Gyr the stirred core shrank from {{a4stQ0}} to {{a4stQ1}} of the mass, while the centre grew {{a4stRho}}
+denser and {{a4stTc}} cooler and the light rose {{a4stL}}. The solver keeps every shell in thermal balance, with no
+energy drawn from contraction, so it cannot follow a core changing that fast; where it fails does not depend on where
+the shooting meets. Following these stars further needs that energy in the structure.
+
+**What the aged stars hold.** Summed over each analogue's last kept profile, the elements past helium are {{ashA}} of
+its mass at s ≤ 1.55, mostly {{ashAel}}; {{ashB}} at s = 1.6–1.65, {{ashBel}}; {{ashC}} at s = 1.7, {{ashCel}};
+and at most {{ashDmax}} from s = 1.75 up, where the stars burn hydrogen to helium and no further. Where the climb runs,
+the stars of weaker gravity (heavier, with hotter cores) mostly make more. This is what the stars hold when their runs
+end, not what they return to the gas. What they return, and the second generation built from it, come next.
 
 **The opacity, measured and then computed.** Everything above carries the textbook opacity: electron scattering plus
 Kramers's law. Along Model S's interior that law is {{krLo}}–{{krHi}} times OPAL's tables [@iglesias1996], and it is

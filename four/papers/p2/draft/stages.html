@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="5f22dea44343f609681e2303e013d59451f0091383e6e6fd67aeaf1e784ee7d6" />
+<meta name="source-sha256" content="7ada1b78bc84bfd4f2616ad12ea896bedb2159ecd01130409873b44099c6ae2f" />
 <title>Paper 2 · Supplement S1: how the model was built, and what each stage changed</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -30,7 +30,7 @@ within two days, and only the last of those rests on something that
 cannot move: a variational bound.</p>
 <p>Second, a sequence of improvements can look like tuning until the
 answer looks right. Against that, each stage below states whether a
-decision rule was fixed before its results came in. 8 of the 10 stages
+decision rule was fixed before its results came in. 9 of the 11 stages
 had none: their results were read as they came. That is said plainly
 rather than reconstructed after the fact.</p>
 <p><strong>What enters this record.</strong> A stage enters when it
@@ -40,7 +40,7 @@ way are not stages; they are in the code’s history. Each stage lists
 what it replaced and by what, the runs behind it, what moved (with the
 earlier value and where it was recorded), and what held. The earlier
 values are historical: by their nature they are no longer in the data.
-Of the 32 entries, 15 are marked ✓: the value given is recomputed from
+Of the 33 entries, 16 are marked ✓: the value given is recomputed from
 the committed data each time the paper is built, and the build stops if
 they disagree. 0 marked ⧗ waits on a run in progress.</p>
 <h3 id="s1.1-proton-proton-computed-2026-11-11">S1.1 Proton + proton
@@ -457,7 +457,8 @@ network at its own conditions, stirred zones mixed, energy-checked steps
 (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against
 standard solar models. <strong>Runs:</strong> <code>evolve4-1</code>,
 <code>evolve4-2</code>, <code>evolve4-3</code>, <code>evolve4-4</code>,
-<code>evolve4-5</code>, <code>evolve4-6</code>.</p>
+<code>evolve4-5</code>, <code>evolve4-6</code>,
+<code>evolve4-7</code>.</p>
 <p><strong>Decision rule, fixed before the results:</strong> a step is
 accepted only if what the shells burnt matches what the star radiated to
 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57
@@ -487,10 +488,12 @@ ours</td>
 <td>as long as ours, by the convention</td>
 <td>28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their
 central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started
-only by evolve.mjs firstShell, evolve4-6), is at Xc 0.45 after 1.65 Gyr
-and runs on in evolve4-7, with screening under the pinned 1/r and the
-lens vacuum’s opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G
-10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓</td>
+only by evolve.mjs firstShell, evolve4-6), burns far faster and stops
+0.5% short of half at 2.56 Gyr (evolve4-7), where G 10⁻¹⁴ s 1.5152 also
+stops: the core’s helium gone and its oitrogen nearly so, the stirred
+core collapsing faster than a thermal-balance solver follows, with
+screening under the pinned 1/r and the lens vacuum’s opacity cutoff; s
+1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓</td>
 </tr>
 </tbody>
 </table>
@@ -512,7 +515,44 @@ lens vacuum’s opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G
 </tr>
 </tbody>
 </table>
-<h3 id="s1.10-opacity-measured-and-computed-2026-11-16">S1.10 Opacity,
+<h3 id="s1.10-what-the-aged-first-generation-holds-2026-11-18">S1.10
+What the aged first generation holds (2026-11-18)</h3>
+<p><strong>Replaced:</strong> 4D stars taken as primordial throughout:
+no element past helium in their gas or their opacity.
+<strong>By:</strong> each aged analogue’s last kept profile summed
+element by element (fusion/tools/ash4.mjs), the first step of the 4D
+metals route; the book’s 4D metal opacity built beside it (ions3.mjs 4,
+photoshape.mjs, metals.js prep4), not yet in any star.
+<strong>Runs:</strong> <code>evolve4-3</code>, <code>evolve4-4</code>,
+<code>evolve4-5</code>, <code>evolve4-6</code>,
+<code>evolve4-7</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>elements past helium in an aged analogue at s ≤ 1.55, as a share of
+its mass</td>
+<td>none (primordial, by convention)</td>
+<td>what the stars hold when their runs end, mostly oitrogen, pxygen,
+gluorine; 2–20% at s 1.6–1.65, at most 0.14% from s 1.75 up; not yet
+what they return to the gas ✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.11-opacity-measured-and-computed-2026-11-16">S1.11 Opacity,
 measured and computed (2026-11-16)</h3>
 <p><strong>Replaced:</strong> ours’ textbook opacity (electron
 scattering + Kramers) in the interior and a τ = ⅔ surface on the

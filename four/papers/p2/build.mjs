@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers());
+  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -154,16 +154,30 @@ function opacityNumbers() {
     fo08L: free("free-opal", "0.8", "halfL"), fb08L: free("free-book", "0.8", "halfL"), fo16L: free("free-opal", "1.6", "halfL"), fb16L: free("free-book", "1.6", "halfL"), fo16life: free("free-opal", "1.6", "life"), fb16life: free("free-book", "1.6", "life") };
 }
 /* the 4D analogues aged (data/ages4.json, fusion/tools/ages4.mjs) */
+/* what the aged first generation holds (fusion/tools/ash4.mjs): elements past helium as a share of each analogue's mass,
+   by bands of strength, and the elements carrying it (any with ≥ 1% of a star's mass in the band) */
+function ash4Numbers() {
+  const A = J("ash4.json"), bands = [["A", (s) => s <= 1.55], ["B", (s) => s >= 1.6 && s <= 1.65], ["C", (s) => s === 1.7], ["D", (s) => s >= 1.75]], t = {};
+  const nm = (z) => NAME4[z] ?? `element ${z}`, list = (a) => (a.length < 3 ? a.join(" and ") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`);
+  for (const [k, ok] of bands) { const xs = Object.entries(A.byS).filter(([s]) => ok(+s)).flatMap(([, v]) => v); if (!xs.length) throw new Error(`ash4: no analogues in band ${k}`);
+    const h = xs.map((x) => x.heavyShare), els = [...new Set(xs.flatMap((x) => x.lead.filter(([, v]) => v >= 0.01).map(([z]) => z)))].sort((a, b) => a - b);
+    const p1 = (x) => (100 * x < 0.1 ? f(100 * x, 2) : 100 * x < 1 ? f(100 * x, 1) : f(100 * x, 0)); t[`ash${k}`] = `${p1(Math.min(...h))}–${p1(Math.max(...h))}%`; t[`ash${k}max`] = `${p1(Math.max(...h))}%`; t[`ash${k}el`] = els.length ? list(els.map(nm)) : "none above 1%"; }
+  return t;
+}
 function ages4Numbers() {
   const A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);
   // an analogue not yet halved must be one still running (a cut run), and the text then says where it got to
   const unhalved = A.stars.filter((x) => !x.half && S.notHalved.includes(`${x.G}/${x.s}`));
-  if (unhalved.some((x) => x.state !== "cut")) throw new Error(`ages4: an analogue stopped before halving: ${S.notHalved}`);
+  // an unhalved analogue is either still running (cut) or stopped in the stall the text describes (with its record)
+  if (unhalved.some((x) => x.state !== "cut" && !x.stall)) throw new Error(`ages4: an analogue stopped before halving, not in the described stall: ${S.notHalved}`);
   const st = A.stars.find((x) => x.stall && x.half), word = ["no", "one", "two", "three", "four", "five", "six"], who = (k) => { const [g, s] = k.split("/"); return `G = ${Gs(+g)} at s = ${s}`; };
   if (!st) throw new Error("ages4: the text describes a stalled analogue and there is none: rewrite it");
   const rest = (S.notAged.length ? ` The other ${word[S.notAged.length] ?? S.notAged.length} (${S.notAged.map(who).join("; ")}) never started on the earlier solver and are being aged now.` : "")
-    + unhalved.map((x) => ` One is still burning: at G = ${Gs(x.G)}, s = ${x.s}, the centre is down to ${f(x.lastXc, 2)} of its hydrogen after ${f(x.lastGyr, 1)} Gyr, from ${f(0.75, 2)}, faster than any other, and the run goes on.`).join("");
-  return { a4grid: String(S.inGravity), a4rest: rest, a4stG: Gs(st.G), a4stS: String(st.s), a4stHalf: f(st.half, 1), a4stEnd: f(st.lastGyr, 1), a4stQ0: f(st.stall.qccPeak, 2), a4stQ1: f(st.stall.qccEnd, 2), a4stDt: f(st.stall.overGyr, 0), a4stRho: pct(st.stall.rhoUp - 1), a4stTc: pct(1 - st.stall.TcDown), a4stL: pct(st.stall.LUp - 1),
+    + unhalved.filter((x) => x.stall).map((x) => ` The ${S.analogues === S.inGravity ? "last" : "other"}, at G = ${Gs(x.G)}, s = ${x.s}, burns far faster than the rest and stops ${f(100 * x.stall.short, 1)}% short of half, at ${f(x.lastGyr, 1)} Gyr, in the stall described below.`).join("")
+    + unhalved.filter((x) => !x.stall).map((x) => ` One is still burning: at G = ${Gs(x.G)}, s = ${x.s}, the centre is down to ${f(x.lastXc, 2)} of its hydrogen after ${f(x.lastGyr, 1)} Gyr, from ${f(0.75, 2)}, faster than any other, and the run goes on.`).join("");
+  const stalls = A.stars.filter((x) => x.stall), rng = (k, n = 2) => { const v = stalls.map((x) => x.stall.centre[k] ?? 0), lo = Math.min(...v), hi = Math.max(...v); return f(lo, n) === f(hi, n) ? f(lo, n) : `${f(lo, n)}–${f(hi, n)}`; };
+  if (stalls.some((x) => x.s !== st.s || (x.stall.centre["2"] ?? 0) > 1e-3)) throw new Error("ages4: a stall the text doesn't describe (another s, or helium left at the centre)");
+  return { a4grid: String(S.inGravity), a4rest: rest, a4nStall: word[stalls.length], a4stGs: stalls.map((x) => Gs(x.G)).sort().join(" and "), a4cH: rng("1"), a4cPx: rng("10"), a4cOx: rng("9"), a4stG: Gs(st.G), a4stS: String(st.s), a4stHalf: f(st.half, 1), a4stEnd: f(st.lastGyr, 1), a4stQ0: f(st.stall.qccPeak, 2), a4stQ1: f(st.stall.qccEnd, 2), a4stDt: f(st.stall.overGyr, 0), a4stRho: pct(st.stall.rhoUp - 1), a4stTc: pct(1 - st.stall.TcDown), a4stL: pct(st.stall.LUp - 1),
     a4n: String(S.halved), a4min: f(S.halfMin, 1), a4max: f(S.halfMax, 0), a4rlo: f(S.halfMin / A.convention, 1), a4rhi: f(S.halfMax / A.convention, 0), a4s15: s15.map((x) => f(x.half, 0)).join(", ") };
 }
 function ageNumbers() {
@@ -184,6 +198,7 @@ function ageNumbers() {
 /* the provenance ledger (provenance.json): every 'now' with a check recomputed here from the committed data; a mismatch
    stops the build, so the ledger can't drift from the results. The supplement section renders it (text/stages.md) */
 const PCHECKS = {
+  ash4Heavy: () => ash4Numbers().ashA,
   ages4Half: () => { const S = J("ages4.json").summary; return `${S.halfMin.toFixed(1)}–${S.halfMax.toFixed(0)}`; },
   opalSunRho: () => J("mistcheck.json").sets.opal.sun457.rhoc,
   opalHalfR: () => { const M = J("mistcheck.json").sets, v = ["1", "1.25", "1.6", "2", "3"].map((m) => M.opal.stars[m].ratio.halfR); return `${Math.min(...v).toFixed(2)}–${Math.max(...v).toFixed(2)}`; },

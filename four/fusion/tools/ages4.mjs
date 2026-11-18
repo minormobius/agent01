@@ -19,7 +19,10 @@ for (const { f } of recs.values()) {
   // a run that stopped with no solution: how its last Gyr went (the stirred core's peak against its end, the centre's
   // density and temperature over the same span), so the text can say what the solver couldn't follow
   const stall = /no solution/.test(j.stopped ?? "") ? (() => { const W = T.filter((r) => r.tGyr >= last.tGyr - 1), pk = W.reduce((a, b) => (b.qcc > a.qcc ? b : a));
-    return { qccPeak: +pk.qcc.toFixed(3), qccEnd: +last.qcc.toFixed(3), overGyr: +(last.tGyr - pk.tGyr).toFixed(2), rhoUp: +(last.rhoc / pk.rhoc).toFixed(3), TcDown: +(last.Tc / pk.Tc).toFixed(3), LUp: +(last.L / pk.L).toFixed(3) }; })() : undefined;
+    // and what the centre holds by mass when it stops: hydrogen, helium, and the ash by element (Z from "Z-A")
+    const byZ = {}; for (const [k, v] of Object.entries(last.centre ?? {})) { const z = k.split("-")[0]; byZ[z] = (byZ[z] ?? 0) + v; }
+    return { qccPeak: +pk.qcc.toFixed(3), qccEnd: +last.qcc.toFixed(3), overGyr: +(last.tGyr - pk.tGyr).toFixed(2), rhoUp: +(last.rhoc / pk.rhoc).toFixed(3), TcDown: +(last.Tc / pk.Tc).toFixed(3), LUp: +(last.L / pk.L).toFixed(3),
+      short: half ? 0 : +((last.Xc - X0 / 2) / (X0 / 2)).toFixed(4), centre: Object.fromEntries(Object.entries(byZ).map(([z, v]) => [z, +v.toFixed(4)])) }; })() : undefined;
   stars.push({ G: +G, s: +s, m: +m, half: half && +half.toFixed(2), halfAfter: half ? null : +last.tGyr.toFixed(1), exhaust: at(T, 1e-3) && +at(T, 1e-3).toFixed(1), lastGyr: +last.tGyr.toFixed(1), lastXc: +last.Xc.toFixed(4), Tc0: +(T[0].Tc / 1e6).toFixed(2), state: f.includes("ckpt") ? "cut" : j.stopped ?? "ended", ...(stall ? { stall } : {}) });
 }
 stars.sort((a, b) => b.G - a.G || a.s - b.s || a.m - b.m);

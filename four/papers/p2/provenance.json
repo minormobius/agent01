@@ -276,7 +276,8 @@
     "evolve4-3",
     "evolve4-4",
     "evolve4-5",
-    "evolve4-6"
+    "evolve4-6",
+    "evolve4-7"
    ],
    "rule": "a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else",
    "moved": [
@@ -291,7 +292,7 @@
     {
      "claim": "the 4D Sun analogue's life",
      "before": "as long as ours, by the convention",
-     "after": "28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), is at Xc 0.45 after 1.65 Gyr and runs on in evolve4-7, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰)",
+     "after": "28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), burns far faster and stops 0.5% short of half at 2.56 Gyr (evolve4-7), where G 10⁻¹⁴ s 1.5152 also stops: the core's helium gone and its oitrogen nearly so, the stirred core collapsing faster than a thermal-balance solver follows, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰)",
      "check": "ages4Half",
      "now": "10.6–177",
      "unit": "Gyr (the convention: 4.6)"
@@ -313,6 +314,31 @@
      "tol": 0.05
     }
    ]
+  },
+  {
+   "id": "ash4",
+   "date": "2026-11-18",
+   "title": "What the aged first generation holds",
+   "replaced": "4D stars taken as primordial throughout: no element past helium in their gas or their opacity",
+   "by": "each aged analogue's last kept profile summed element by element (fusion/tools/ash4.mjs), the first step of the 4D metals route; the book's 4D metal opacity built beside it (ions3.mjs 4, photoshape.mjs, metals.js prep4), not yet in any star",
+   "runs": [
+    "evolve4-3",
+    "evolve4-4",
+    "evolve4-5",
+    "evolve4-6",
+    "evolve4-7"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "elements past helium in an aged analogue at s ≤ 1.55, as a share of its mass",
+     "before": "none (primordial, by convention)",
+     "after": "what the stars hold when their runs end, mostly oitrogen, pxygen, gluorine; 2–20% at s 1.6–1.65, at most 0.14% from s 1.75 up; not yet what they return to the gas",
+     "check": "ash4Heavy",
+     "now": "9–30%"
+    }
+   ],
+   "held": []
   },
   {
    "id": "opacity",

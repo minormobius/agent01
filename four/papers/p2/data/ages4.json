@@ -4,7 +4,8 @@
   "evolve4-3",
   "evolve4-4",
   "evolve4-5",
-  "evolve4-6"
+  "evolve4-6",
+  "evolve4-7"
  ],
  "convention": 4.6,
  "summary": {
@@ -24,12 +25,26 @@
    "s": 1.5152,
    "m": 0.4374,
    "half": null,
-   "halfAfter": 1.6,
+   "halfAfter": 2.6,
    "exhaust": null,
-   "lastGyr": 1.6,
-   "lastXc": 0.4524,
+   "lastGyr": 2.6,
+   "lastXc": 0.3766,
    "Tc0": 16.4,
-   "state": "cut"
+   "state": "no solution past Xc 0.3766",
+   "stall": {
+    "qccPeak": 0.152,
+    "qccEnd": 0.06,
+    "overGyr": 0.42,
+    "rhoUp": 1.451,
+    "TcDown": 1.027,
+    "LUp": 1.126,
+    "short": 0.0047,
+    "centre": {
+     "1": 0.3766,
+     "9": 0.0356,
+     "10": 0.5864
+    }
+   }
   },
   {
    "G": 1e-11,
@@ -108,7 +123,13 @@
     "overGyr": 0.98,
     "rhoUp": 1.26,
     "TcDown": 0.972,
-    "LUp": 1.167
+    "LUp": 1.167,
+    "short": 0,
+    "centre": {
+     "1": 0.3743,
+     "9": 0.0324,
+     "10": 0.5923
+    }
    }
   },
   {

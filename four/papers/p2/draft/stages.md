@@ -15,14 +15,14 @@ artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was foun
 good within two days, and only the last of those rests on something that cannot move: a variational bound.
 
 Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
-states whether a decision rule was fixed before its results came in. 8 of the 10 stages had
+states whether a decision rule was fixed before its results came in. 9 of the 11 stages had
 none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
 
 **What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 32 entries, 15 are marked ✓: the value given is recomputed from the committed data each
+data. Of the 33 entries, 16 are marked ✓: the value given is recomputed from the committed data each
 time the paper is built, and the build stops if they disagree. 0 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
@@ -142,21 +142,31 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 
 ### S1.9 Stars that age (2026-11-15)
 
-**Replaced:** zero-age stars, and the clock factor that stood in for their lives. **By:** each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models. **Runs:** `evolve4-1`, `evolve4-2`, `evolve4-3`, `evolve4-4`, `evolve4-5`, `evolve4-6`.
+**Replaced:** zero-age stars, and the clock factor that stood in for their lives. **By:** each shell burnt on the network at its own conditions, stirred zones mixed, energy-checked steps (evolve.mjs, shell.js, shell4.js); ours checked layer by layer against standard solar models. **Runs:** `evolve4-1`, `evolve4-2`, `evolve4-3`, `evolve4-4`, `evolve4-5`, `evolve4-6`, `evolve4-7`.
 
 **Decision rule, fixed before the results:** a step is accepted only if what the shells burnt matches what the star radiated to 0.3%; ours is calibrated as standard solar models are (X₀ to L☉ at 4.57 Gyr) and judged on everything else.
 
 | what moved | before | after |
 |---|---|---|
 | the clock factor (fixed zero-age centre over aged centre), on ours | 2.41 (assumed) | 1.99 (computed, from the settled zero-age centre) ✓ |
-| the 4D Sun analogue's life | as long as ours, by the convention | 28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), is at Xc 0.45 after 1.65 Gyr and runs on in evolve4-7, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓ |
+| the 4D Sun analogue's life | as long as ours, by the convention | 28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), burns far faster and stops 0.5% short of half at 2.56 Gyr (evolve4-7), where G 10⁻¹⁴ s 1.5152 also stops: the core's helium gone and its oitrogen nearly so, the stirred core collapsing faster than a thermal-balance solver follows, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓ |
 
 | what held | |
 |---|---|
 | ours' centre today | 15.73 MK against BP2000's 15.70 ✓ |
 | ours' central hydrogen exhausted | 9.0 Gyr against Pols's 9 ✓ |
 
-### S1.10 Opacity, measured and computed (2026-11-16)
+### S1.10 What the aged first generation holds (2026-11-18)
+
+**Replaced:** 4D stars taken as primordial throughout: no element past helium in their gas or their opacity. **By:** each aged analogue's last kept profile summed element by element (fusion/tools/ash4.mjs), the first step of the 4D metals route; the book's 4D metal opacity built beside it (ions3.mjs 4, photoshape.mjs, metals.js prep4), not yet in any star. **Runs:** `evolve4-3`, `evolve4-4`, `evolve4-5`, `evolve4-6`, `evolve4-7`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| elements past helium in an aged analogue at s ≤ 1.55, as a share of its mass | none (primordial, by convention) | what the stars hold when their runs end, mostly oitrogen, pxygen, gluorine; 2–20% at s 1.6–1.65, at most 0.14% from s 1.75 up; not yet what they return to the gas ✓ |
+
+### S1.11 Opacity, measured and computed (2026-11-16)
 
 **Replaced:** ours' textbook opacity (electron scattering + Kramers) in the interior and a τ = ⅔ surface on the interior's fully ionized gas. **By:** (a) OPAL's tables (Iglesias & Rogers 1996; Ferguson et al. 2005; Asplund 2009 mixture, MIST's own) as measured input inside and in a mixing-length envelope integrated on the surface model's gas, the Sun calibrated on X0 and α; (b) the book's own opacity, a Born–Elwert free–free and the metals' bound–free and free–free from every ion of fifteen elements solved by the book's atom, checked against OPAL (opal.js, envelope.js, metals.js, ions3.mjs, kappacheck.mjs, mistcheck.mjs).
 

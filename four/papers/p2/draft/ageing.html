@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="bf670c31837d7796b7fade24151b265d9b3427519e13f1fc4923948c1854340e" />
+<meta name="source-sha256" content="8f0b4bc019cd10b127804f70a8295c014300e34c724d077c4cee2ec1a65ba875" />
 <title>Paper 2 · Stars that age: our Sun first</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -88,19 +88,35 @@ convention, and they have now been aged on this machinery, with the
 charge law’s plasma (screening under the pinned
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>1</mn><mi>/</mi><mi>r</mi></mrow><annotation encoding="application/x-tex">1/r</annotation></semantics></math>
 and the lens vacuum’s cutoff on light). Of the 29 Sun analogues section
-3 found, 28 have been aged past half their central hydrogen so far, in
-10.6–177 Gyr: 2.3–39 times the 4.6 Gyr section 3 gave them. One is still
-burning: at G = 10<sup>−11</sup>, s = 1.5152, the centre is down to 0.45
-of its hydrogen after 1.6 Gyr, from 0.75, faster than any other, and the
-run goes on. The slowest sit at the strength nearest ours, s = 1.5152:
-43, 125, 177 Gyr from G = 10⁻¹⁴ to 10⁻²⁰. One run stops soon after
-halving: at G = 10<sup>−14</sup>, s = 1.5152, half the hydrogen is gone
-at 43.1 Gyr and the solver finds no star past 43.3. Over its last 1 Gyr
-the stirred core shrank from 0.14 to 0.05 of the mass, while the centre
-grew 26% denser and 3% cooler and the light rose 17%. The solver keeps
-every shell in thermal balance, with no energy drawn from contraction,
-so it cannot follow a core changing that fast. Where it fails does not
-depend on where the shooting meets.</p>
+3 found, 28 burn half their central hydrogen, in 10.6–177 Gyr: 2.3–39
+times the 4.6 Gyr section 3 gave them. The last, at G =
+10<sup>−11</sup>, s = 1.5152, burns far faster than the rest and stops
+0.5% short of half, at 2.6 Gyr, in the stall described below. From G =
+10⁻¹⁴ to 10⁻²⁰ the slowest sit at the strength nearest ours, s = 1.5152:
+43, 125, 177 Gyr.</p>
+<p>At that strength two runs stop at the same point in the core’s
+chemistry, at G = 10<sup>−11</sup> and 10<sup>−14</sup>. The centre has
+burnt all its helium and holds, by mass, hydrogen 0.37–0.38, pxygen 0.59
+and oitrogen 0.03–0.04: the proton captures that turn oitrogen into
+pxygen-20, the burning that stirred the core, are running out of
+oitrogen. At G = 10<sup>−14</sup> half the hydrogen is gone at 43.1 Gyr
+and the solver finds no star past 43.3. Over its last 1 Gyr the stirred
+core shrank from 0.14 to 0.05 of the mass, while the centre grew 26%
+denser and 3% cooler and the light rose 17%. The solver keeps every
+shell in thermal balance, with no energy drawn from contraction, so it
+cannot follow a core changing that fast; where it fails does not depend
+on where the shooting meets. Following these stars further needs that
+energy in the structure.</p>
+<p><strong>What the aged stars hold.</strong> Summed over each
+analogue’s last kept profile, the elements past helium are 9–30% of its
+mass at s ≤ 1.55, mostly element 8, oitrogen, pxygen and gluorine; 2–20%
+at s = 1.6–1.65, coron, element 6, darbon, element 8 and oitrogen;
+0.3–4% at s = 1.7, element 6; and at most 0.1% from s = 1.75 up, where
+the stars burn hydrogen to helium and no further. Where the climb runs,
+the stars of weaker gravity (heavier, with hotter cores) mostly make
+more. This is what the stars hold when their runs end, not what they
+return to the gas. What they return, and the second generation built
+from it, come next.</p>
 <p><strong>The opacity, measured and then computed.</strong> Everything
 above carries the textbook opacity: electron scattering plus Kramers’s
 law. Along Model S’s interior that law is 0.16–1.35 times OPAL’s tables

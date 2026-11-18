@@ -295,8 +295,20 @@ for games, and this is a modelling programme with publications to come. The game
   `metals: {Z: share}` in 4D (ours' path untouched: kappacheck.json identical). **First look:** 1% by mass of a
   pxygen-rich ash (pxygen 0.72, oitrogen 0.27) raises 4D interior opacity only ×1.03–1.06 at 0.3–15 MK (ours' Z 0.014
   roughly doubles it), nearly all through the metals' free–free: 4D bound–free on a charge-Z ion falls as Z⁻⁴ (ours
-  Z⁻²). Not committed as data yet: the mix waits on step two, the yields. `star/aged.js` baked
-  from evolve4-6 (34 4D tracks, the further record of each run, cut runs rebuilt from checkpoints with plasma: true,
+  Z⁻²). Not committed as data yet: the mix waits on step two, the yields.
+  **evolve4-7 (collected 2026-11-18):** G 10⁻¹¹ s 1.5152 stops 0.5% short of half its hydrogen at 2.56 Gyr, the same
+  stall as G 10⁻¹⁴ s 1.5152 and at the same point in the chemistry: the centre's helium gone, hydrogen 0.377, pxygen
+  0.59, oitrogen 0.03. The proton captures turning oitrogen into pxygen-20 (the stirred core's burning) run out of
+  oitrogen and the core collapses (`ages4.json` `stall.centre`). Section 4 describes the two as one stall; `build.mjs`
+  stops on a stall at another s or with helium left at the centre. Following them needs ε_grav in the structure.
+  **Step two, what the aged first generation holds:** `fusion/tools/ash4.mjs <dir>` (seconds) →
+  `papers/p2/data/ash4.json`, each analogue's last kept profile summed element by element (shares add to 0.9995–1).
+  Elements past helium: 9–30% of the star at s ≤ 1.55 (element 8, oitrogen, pxygen, gluorine; oeon in the heaviest),
+  2–20% at 1.6–1.65 (coron … oitrogen, darbon leading), 0.3–4% at 1.7 (element 6), ≤ 0.14% from 1.75 (helium only);
+  weaker gravity mostly makes more. Held, not returned: the next step is what the stars give back (winds, ends), then
+  the second generation's mix and stars (the opacity above takes it as `metals: {Z: share}`). Provenance stage `ash4`,
+  check `ash4Heavy`; section 4's "What the aged stars hold". `star/aged.js` baked
+  from evolve4-7 (34 4D tracks, the further record of each run, cut runs rebuilt from checkpoints with plasma: true,
   M_Ch ∝ G^(−4/3)).
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
