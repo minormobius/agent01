@@ -1,0 +1,1 @@
+{ "sha": "bc65faeeec440513", "verdict": "yes", "why": "Two lines changed, both as CHOICE 11-12 words them. 1d 4+ = 127/256 = 0.496 and 2d keep-higher = 1-(129/256)^2 = 0.746 under the v1 tilt, rechecked. Copied to www/gangs/rules/index.html unchanged. — Mozzie, 11-13 town" }
