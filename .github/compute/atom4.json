@@ -1,10 +1,10 @@
 {
- "run": "evolve4-8",
- "why": "Mass ladders at G 1e-17 for the 4D metals route's next step: what stars give back, and a one-zone galaxy, need yields and lifetimes by mass, not only the Sun analogue. s 1.5152: the cut ladder (1, 1.6, 2.5 M_Ch) carried on to hydrogen exhaustion, plus 1.25, 2, 4. s 1.55, 1.6, 1.65, 1.7, 1.8: 1.25, 1.6, 2, 2.5, 4 M_Ch, new. The first star now starts from mainseq.mjs net's zero-age sequence at the same mass (firstStar alone failed at 1.25 M_Ch s 1.8 and stalled at 4 M_Ch s 1.6; both start this way in a sandbox trial).",
+ "run": "evolve4-9",
+ "why": "Carry on evolve4-8's mass ladders at G 1e-17 from their checkpoints: all 30 that started were cut at the deadline, most with central hydrogen 0.2-0.5, so lives and yields by mass are not yet in hand (s 1.8 and s 1.5152's 1.6 / 2.5 M_Ch are near exhaustion). s 1.5152 at 4 M_Ch failed while settling (12.5 yr) and is left out.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev8-00",
+   "name": "ev9-00",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25",
@@ -13,63 +13,62 @@
    ]
   },
   {
-   "name": "ev8-01",
+   "name": "ev9-01",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 4",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2"
    ]
   },
   {
-   "name": "ev8-02",
+   "name": "ev9-02",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 4",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.6"
    ]
   },
   {
-   "name": "ev8-03",
+   "name": "ev9-03",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.6",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 4"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 4",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25"
    ]
   },
   {
-   "name": "ev8-04",
+   "name": "ev9-04",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25",
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.6",
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 2.5"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.65 2.5",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.65 4"
    ]
   },
   {
-   "name": "ev8-05",
+   "name": "ev9-05",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 4",
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 1.25",
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 1.6",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2.5"
    ]
   },
   {
-   "name": "ev8-06",
+   "name": "ev9-06",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2.5",
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 4",
     "node four/atom/tools/evolve.mjs four 1e-17 1.8 1.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 1.6"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.8 1.6",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.8 2"
    ]
   },
   {
-   "name": "ev8-07",
+   "name": "ev9-07",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.8 2.5",
     "node four/atom/tools/evolve.mjs four 1e-17 1.8 4"
    ]
