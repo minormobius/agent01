@@ -112,7 +112,12 @@ function fourWorld(Grel, s, ff = 1, plasma = false) {
     burn: (rho, T, y, dt) => { const r = sh.burn(rho, T, y, dt); return { s: r.Y, E: r.E }; },
     burnZone: (rows, y, ws, dt) => { const K = new Float64Array(sh.RS.length); let sw = 0; rows.forEach((r, i) => { const k = sh.constants(r.T, r.rho, y); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
       for (let c = 0; c < K.length; c++) K[c] /= sw; const r = sh.burnK(K, y, dt); return { s: r.Y, E: r.E }; },
-    first: (M) => { const o = { ...fourNet(Grel, s, "ladder", ff), fit: 0.2 }, a = firstStar(o, M); if (!a) return null; return toPinned({ ...o, M }, a); },
+    // the first star: from the zero-age sequence's own star at this mass where mainseq.mjs net has one (its centre, size
+    // and light as Newton's guess; a ladder star far from the analogue can defeat firstStar's search), else firstStar
+    first: (M) => { const o = { ...fourNet(Grel, s, "ladder", ff), fit: 0.2 };
+      const nf = path.join(DIR, `net-${Grel}-${s}-ladder-ff${ff}.json`), row = existsSync(nf) ? JSON.parse(readFileSync(nf, "utf8")).rows.find((r) => Math.abs(r.M / M - 1) < 0.01) : null;
+      if (row) { const a = star({ ...o, M }, [Math.log(row.Pc), Math.log(row.Tc), Math.log(row.R), Math.log(row.L)]); if (a.ok) { const t = toPinned({ ...o, M }, a); if (t.ok) return t; } }
+      const a = firstStar(o, M); if (!a) return null; return toPinned({ ...o, M }, a); },
     extra: (y) => Object.fromEntries(sh.SPEC.map((k, i) => [k, y[i] * A[i]]).filter(([, v]) => v > 1e-3)) };
 }
 
