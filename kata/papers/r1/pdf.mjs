@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 const here = path.dirname(fileURLToPath(import.meta.url)), { chromium } = createRequire(import.meta.url)("playwright"), LIVE = "https://kata.mino.mobi/papers/r1/paper.html";
 const b = await chromium.launch(), report = {};
-for (const [name, two] of [["paper", false], ["paper-journal", true]]) { const pg = await b.newPage(); await pg.goto("file://" + path.join(here, "paper.html")); 
+for (const [name, two, src] of [["paper", false, "paper.html"], ["paper-journal", true, "paper.html"], ["full", false, "full.html"]]) { const pg = await b.newPage(); await pg.goto("file://" + path.join(here, src)); 
   await pg.evaluate(({ base, two }) => { document.querySelectorAll("img").forEach((i) => (i.loading = "eager")); document.querySelectorAll("a[href]").forEach((a) => { const h = a.getAttribute("href"); if (!/^(#|[a-z]+:)/i.test(h)) a.href = new URL(h, base).href; }); if (two) document.querySelector(".p-body").classList.remove("single"); }, { base: LIVE, two });
   await pg.waitForFunction(() => [...document.images].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 30000 }); await pg.waitForTimeout(400);
   await pg.pdf({ path: path.join(here, name + ".pdf"), format: two ? "Letter" : "A4", margin: two ? { top: "18mm", bottom: "18mm", left: "14mm", right: "14mm" } : { top: "18mm", bottom: "18mm", left: "16mm", right: "16mm" }, printBackground: true });

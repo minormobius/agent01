@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-/* R1's build: text.md → DRAFT.md and paper.html. text.md is the source: its {{tokens}} are filled from values.mjs
-   (which reads the baked data), so DRAFT.md is the text with its numbers and paper.html the same as a page, with the
-   five main figures in place and the reference list made from REFERENCES.md (only the sources cited, each with how
-   far it was checked). Edit text.md only.
+/* R1's build: two documents from one pipeline. text.md → DRAFT.md and paper.html (the note, held to seven journal
+   pages); full.md → FULL.md and full.html (the full account, supplement G). A source's {{tokens}} are filled from
+   values.mjs (which reads the baked data), [[fig:N]] markers become that document's figures (FIGS), and the reference
+   list is made from REFERENCES.md (only the sources cited, each with how far it was checked). Edit the sources only.
    node kata/papers/r1/build.mjs           write
    node kata/papers/r1/build.mjs --check   exit 1 if a token has no value or the files on disk are not what this gives */
 import fs from "node:fs";
@@ -11,26 +11,34 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { panel, LABEL, LIVE_CSS, LIVE_JS } from "./ropes.mjs";
 import { fill } from "./values.mjs";
-const here = path.dirname(fileURLToPath(import.meta.url)), CHECK = process.argv.includes("--check"), filled = fill(fs.readFileSync(path.join(here, "text.md"), "utf8")), md = filled.out, refsMd = fs.readFileSync(path.join(here, "REFERENCES.md"), "utf8");
+const here = path.dirname(fileURLToPath(import.meta.url)), CHECK = process.argv.includes("--check"), refsMd = fs.readFileSync(path.join(here, "REFERENCES.md"), "utf8");
+/* two documents from one pipeline: the note (seven journal pages) and the full account it points into */
+const DOCS = [{ key: "paper", src: "text.md", md: "DRAFT.md", html: "paper.html", label: "paper 2 · rope after the knot" }, { key: "full", src: "full.md", md: "FULL.md", html: "full.html", label: "paper 2 · supplement G: the full account" }];
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-/* the five figures of the main text */
+/* the figures of each document */
 const rope = (n, title) => ({ title, name: n });
-const FIG = {
+const FIGS = { full: {
   1: { groups: [rope("hoserope", "(a) Thirteen filaments in a closed hose"), rope("ringed", "(b) Seven rods in a ring")], cap: "A hose encloses a bundle and a ring does not. Every rope here lies along the fourth direction, w. A cross-section (the slice x, y, z at one place along the rope) shows what it is made of: a thread is a ball, a hose is a sphere, a ring is a ring. The side views (x, y, w, with the rope running up) show how the parts run. (a) Thirteen filaments in a closed hose. Cut through the hose, the filaments are hidden inside a sphere; cut past its end, they are thirteen balls. (b) The same kind of bundle in a ring. The ring surrounds the bundle in one plane only, and in the second side view, a little off z = 0, it is gone while the rods are still there: in the kernel a rod swept that way meets nothing." },
   2: { charts: [["twist-kept", "(a) Seven free fibres: turns kept at rest against turns given"], ["twist-walls", "(b) Thirteen fibres between a core and a wall: rest energy against whole turns given"]], cap: "Twist. (a) Seven fibres as bead chains, twisted, clamped, stretched 3% and relaxed (section 2.2), by the same code in three dimensions and in four. Ours keeps what it is given; the four-dimensional yarn keeps nothing of a whole turn. (b) Thirteen fibres confined between a core and a wall, three seeds at each point, for a wall that just touches the fibres and one that is loose. Even twists rest at the untwisted energy and odd twists at one higher value: one turn is kept and two are shed." },
   3: { stack: true, charts: [["bench-model", "(a) The model"], ["bench-curve", "(b) One pull of four ropes: force at the jaw against stretch"]], cap: "The tensile model. (a) Tracks of links between two jaws; each link has its own strength; neighbours are joined by friction that sticks, then slips at μ times the press. (b) A strand fails at its weakest link. A loose bundle fails in a cascade. In a hose a broken filament is gripped and carries load again a little way along, so the rope climbs higher. One sample of each." },
   4: { charts: [["bench-map", ""]], cap: "Strength per weight of thirteen filaments loose, in hoops and in a hose, against the fibre's scatter, for three values of friction. The hose is a material with flaws and its thickness and tightness are optimised in every cell on one set of seeds and reported on another; each fibre scatter has its own reference strand, which is 1. The hose rope is above the loose bundle everywhere and above a single strand only where the fibre is scattered." },
   5: { groups: [rope("hosebraid", "(a) Plait of three tubes"), rope("ribbonbraid", "(b) Plait of three ribbons")], cap: "A plait of tubes and a plait of ribbons. (a) A tube's cross-section is a ring. Three rings, which have changed places between the two cuts: one has passed through another. From the side each tube is cut twice, and the two halves are ordinary plaits that merge off z = 0. (b) A ribbon's cross-section is a strip with two ends. One strip slides along its length past the others' ends and is free." },
-};
+}, paper: {
+  1: { groups: [rope("hoserope", "(a) Thirteen filaments in a closed hose"), rope("ringed", "(b) Seven rods in a ring")], cap: "A hose encloses a bundle and a ring does not. Every rope here lies along the fourth direction, w. A cross-section (the slice x, y, z at one place along the rope) shows what it is made of: a thread is a ball, a hose is a sphere, a ring is a ring. The side views (x, y, w, with the rope running up) show how the parts run. (a) Thirteen filaments in a closed hose. Cut through the hose, the filaments are hidden inside a sphere; cut past its end, they are thirteen balls. (b) The same kind of bundle in a ring. The ring surrounds the bundle in one plane only, and in the second side view, a little off z = 0, it is gone while the rods are still there: in the kernel a rod swept that way meets nothing." },
+  2: { charts: [["twist-kept", "(a) Seven free fibres: turns kept at rest against turns given"], ["twist-walls", "(b) Thirteen fibres between a core and a wall: rest energy against whole turns given"]], cap: "Twist. (a) Seven fibres as bead chains, twisted, clamped, stretched 3% and relaxed (section 2.2), by the same code in three dimensions and in four. Ours keeps what it is given; the four-dimensional yarn keeps nothing of a whole turn. (b) Thirteen fibres confined between a core and a wall, three seeds at each point, for a wall that just touches the fibres and one that is loose. Even twists rest at the untwisted energy and odd twists at one higher value: one turn is kept and two are shed." },
+  3: { charts: [["bench-map", ""]], cap: "Strength per weight of thirteen filaments loose, in hoops and in a hose, against the fibre's scatter, for three values of friction. The hose is a material with flaws and its thickness and tightness are optimised in every cell on one set of seeds and reported on another; each fibre scatter has its own reference strand, which is 1. The hose rope is above the loose bundle everywhere and above a single strand only where the fibre is scattered." },
+  4: { groups: [rope("hosebraid", "Plait of three tubes")], cap: "A plait of three tubes. A tube's cross-section is a ring. Between the two cuts the three rings have changed places: one has passed through another. From the side each tube is cut twice, and the two halves are ordinary plaits that merge off z = 0. The same plait in flat ribbons comes apart (supplement A)." },
+} };
+function build(doc) { const filled = fill(fs.readFileSync(path.join(here, doc.src), "utf8")), md = filled.out, FIG = FIGS[doc.key];
 const figure = (n) => { const f = FIG[n]; let h = `<figure id="fig${n}">`;
   if (f.groups) for (const g of f.groups) h += `<div class="sub">${esc(g.title)}</div><div class="row4">${["a", "b", "c", "d"].map((t) => panel(g.name, t, esc(g.title) + ", " + LABEL(g.name)[t], LABEL(g.name)[t])).join("")}</div>`;
   if (f.charts) h += `<div class="${f.charts.length > 1 && !f.stack ? "row2" : "row1"}">${f.charts.map(([s, l]) => `<div><img class="chart" src="fig/${s}.svg" alt="${esc(l || f.cap)}">${l ? `<span>${esc(l)}</span>` : ""}</div>`).join("")}</div>`;
   return h + `<figcaption><b>Figure ${n}.</b> ${esc(f.cap)}${f.groups ? ' <span class="hint">Click a picture to make it live: drag to turn it, slide to move the cut.</span>' : ""}</figcaption></figure>`; };
 /* the references the text cites: keys like A1, E8, and ranges like A1–A7 */
-const REF = {}; for (const line of refsMd.split("\n")) { const c = line.split("|").map((x) => x.trim()); if (c.length >= 5 && /^[A-G]\d+$/.test(c[1])) REF[c[1]] = { src: c[2], bib: c[3], content: c[5] || "" }; }
-const cited = new Set(); for (const m of md.matchAll(/\b([A-G])(\d+)(?:–\1?(\d+))?\b/g)) { const a = +m[2], b = m[3] ? +m[3] : a; for (let k = a; k <= b; k++) if (REF[m[1] + k]) cited.add(m[1] + k); }
+const REF = {}; for (const line of refsMd.split("\n")) { const c = line.split("|").map((x) => x.trim()); if (c.length >= 5 && /^[A-H]\d+$/.test(c[1])) REF[c[1]] = { src: c[2], bib: c[3], content: c[5] || "" }; }
+const cited = new Set(); for (const m of md.matchAll(/\b([A-H])(\d+)(?:–\1?(\d+))?\b/g)) { const a = +m[2], b = m[3] ? +m[3] : a; for (let k = a; k <= b; k++) if (REF[m[1] + k]) cited.add(m[1] + k); }
 const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*(.+?)\*(?=[\s).,;:]|$)/g, "$1<i>$2</i>").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
-  .replace(/\b([A-G]\d+)(–([A-G]?\d+))?\b/g, (m, a) => (REF[a] ? `<a class="cite" href="#ref-${a}">${m}</a>` : m)).replace(/\bfigure (\d)\b/g, '<a href="#fig$1">figure $1</a>');
+  .replace(/\b([A-H]\d+)(–([A-H]?\d+))?\b/g, (m, a) => (REF[a] ? `<a class="cite" href="#ref-${a}">${m}</a>` : m)).replace(/\bfigure (\d)\b/g, '<a href="#fig$1">figure $1</a>');
 const mdInline = (s) => inline(s).replace(/\*(.+?)\*/g, "<i>$1</i>");
 /* a small markdown: headings, paragraphs, lists, tables, figure markers */
 const out = [], L = md.split("\n"); let i = 0, title = "";
@@ -52,19 +60,20 @@ const iR = out.findIndex((h) => h.startsWith('<h2 id="references"')); if (iR >= 
 const body = out.join("\n").replace(/<div class="tw"><table>/g, '<div class="table-fig"><table class="booktabs">').replace(/<figure id=/g, '<figure class="fig wide" id=');
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><link rel="icon" href="data:,">
 <meta name="description" content="Knots untie in four dimensions, but rope does not go with them: what holds, how it was tested, and what each rope is worth. Paper 2 of the mino.mobi journal.">
-<meta property="og:title" content="${esc(title)}"><meta property="og:url" content="https://kata.mino.mobi/papers/r1/paper"><meta property="og:image" content="https://kata.mino.mobi/papers/r1/og.png"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:title" content="${esc(title)}"><meta property="og:url" content="https://kata.mino.mobi/papers/r1/${doc.html.replace(".html", "")}"><meta property="og:image" content="https://kata.mino.mobi/papers/r1/og.png"><meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="paper.css"><style>${LIVE_CSS}</style></head><body>
-<div class="toolbar"><span class="brand"><a href="../../">kata</a></span><span>paper 2 · rope after the knot</span><span class="grow" style="flex:1"></span><a href="figures.html">supplement A: ropes</a><a href="results.html">supplement B: methods and results</a><a href="paper.pdf">PDF</a><a href="paper-journal.pdf">two-column PDF</a><a href="text.md">source</a></div>
+<div class="toolbar"><span class="brand"><a href="../../">kata</a></span><span>${doc.label}</span><span class="grow" style="flex:1"></span><a href="figures.html">supplement A: ropes</a><a href="results.html">supplement B: methods and results</a>${doc.key === "paper" ? `<a href="full.html">supplement G: the full account</a><a href="paper-journal.pdf">PDF</a><a href="paper.pdf">one-column PDF</a>` : `<a href="paper.html">the note</a><a href="full.pdf">PDF</a>`}<a href="${doc.src}">source</a></div>
 <article class="sheet"><div class="p-venue">kata.mino.mobi · paper 2 · draft, not audited</div><div class="p-body single">
 ${body}
 </div></article><script>${LIVE_JS}</script></body></html>`;
+return { md_: md, html_: html, missing: filled.missing, blocks: out.length, cited: [...cited].sort() }; }
+const built = DOCS.map((d) => ({ ...d, ...build(d) })), filled = { missing: built.flatMap((d) => d.missing) };
 if (filled.missing.length) { console.error("no value for: " + filled.missing.join(", ")); process.exit(1); }
-if (CHECK) { const same = (f, v) => fs.existsSync(path.join(here, f)) && fs.readFileSync(path.join(here, f), "utf8") === v, stale = [["DRAFT.md", md], ["paper.html", html]].filter(([f, v]) => !same(f, v)).map((q) => q[0]); if (stale.length) { console.error("stale (run build.mjs): " + stale.join(", ")); process.exit(1); } console.error("DRAFT.md and paper.html are what text.md and the data give"); process.exit(0); }
+if (CHECK) { const same = (f, v) => fs.existsSync(path.join(here, f)) && fs.readFileSync(path.join(here, f), "utf8") === v, stale = built.flatMap((d) => [[d.md, d.md_], [d.html, d.html_]]).filter(([f, v]) => !same(f, v)).map((q) => q[0]); if (stale.length) { console.error("stale (run build.mjs): " + stale.join(", ")); process.exit(1); } console.error("the built documents are what their sources and the data give"); process.exit(0); }
 /* provenance: every data file the paper's numbers come from, with its size, hash, the script that makes it and the
    convergence record it carries, so a published number can be traced to exact bytes */
 const DATA = { "pull/data/samples.json": "pull/sample.mjs", "pull/data/sheath.json": "pull/sheath.mjs", "pull/data/cable.json": "pull/cable.mjs", "pull/data/braid.json": "pull/braid.mjs", "pull/data/sens.json": "pull/sens.mjs", "pull/data/press.json": "pull/press.mjs", "pull/data/poisson.json": "pull/poisson.mjs", "pull/data/gauge.json": "pull/gauge.mjs", "pull/data/corner.json": "pull/corner.mjs", "twist/data/twist.json": "twist/bake.mjs", "twist/data/hosed.json": "twist/hosed.mjs", "twist/data/walls.json": "twist/walls.mjs" };
 for (const f of fs.readdirSync(path.join(here, "../../pull/data"))) if (/^(closure|map|size)-[\d-]+\.json$/.test(f)) DATA["pull/data/" + f] = "pull/" + f.split("-")[0] + ".mjs";
 const prov = Object.entries(DATA).sort().map(([f, by]) => { const b = fs.readFileSync(path.join(here, "../..", f)), j = JSON.parse(b); return { file: "kata/" + f, madeBy: "kata/" + by, bytes: b.length, sha256: createHash("sha256").update(b).digest("hex"), status: j.status || null }; });
 fs.writeFileSync(path.join(here, "provenance.json"), JSON.stringify({ note: "Every data file the paper's numbers are read from (papers/r1/values.mjs). status is the convergence record of the pulls behind the file, where the study wrote one.", files: prov }, null, 1) + "\n");
-fs.writeFileSync(path.join(here, "DRAFT.md"), md);
-fs.writeFileSync(path.join(here, "paper.html"), html); console.error(`wrote paper.html: ${out.length} blocks, ${cited.size} references cited (${[...cited].sort().join(" ")})`);
+for (const d of built) { fs.writeFileSync(path.join(here, d.md), d.md_); fs.writeFileSync(path.join(here, d.html), d.html_); console.error(`wrote ${d.html}: ${d.blocks} blocks, ${d.cited.length} references cited (${d.cited.join(" ")})`); }

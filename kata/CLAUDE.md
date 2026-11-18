@@ -271,10 +271,10 @@ study changes the data, so rebuild afterwards. The rope figures (`papers/r1/figu
 The analytic figures and the methods page are `papers/r1/charts.mjs` (→ `fig/*.svg`, `results.html`; < 2 s), drawn with
 `packages/dataviz` from the baked files, including `twist/data/twist.json` (`node kata/twist/bake.mjs`, ~3 min: traces,
 rest states, the ribbon threshold, and the hosed bundle over three seeds). Re-run `charts.mjs` after any study.
-**`text.md` is the paper's source. `DRAFT.md` and `paper.html` are built from it** (`node kata/papers/r1/build.mjs`, < 1 s):
+**The paper is two documents from one build** (`node kata/papers/r1/build.mjs`, < 1 s): **the note**, `text.md` → `DRAFT.md` and `paper.html`, held to seven journal pages by the PI (2026-11-18; it prints at six two-column, seven one-column), and **the full account**, `full.md` → `FULL.md` and `full.html` (supplement G: every method, table, check and the open items; `full.pdf`). New detail goes in `full.md`; the note gets a sentence and a pointer. In both:
 every number from data is a `{{token}}` filled from `values.mjs`, which reads the baked files; `[[fig:N]]` markers become
-the five main figures (defined in `build.mjs`); the reference list is made from the keys the text cites out of
-`REFERENCES.md`. **Never edit `DRAFT.md` or `paper.html`**: the ledger test is `build.mjs --check` plus a negative control (it corrupts each
+that document's figures (`FIGS` in `build.mjs`); the reference list is made from the keys the text cites out of
+`REFERENCES.md`. **Never edit `DRAFT.md`, `FULL.md`, `paper.html` or `full.html`**: the ledger test is `build.mjs --check` plus a negative control (it corrupts each
 value in turn and the text must change), and fails if either file differs from a fresh build or a token has no value. The page uses the mino.mobi journal's stylesheet (`paper.css`,
 forked from the atoms paper's), and `NODE_PATH=$(npm root -g) node kata/papers/r1/pdf.mjs` prints `paper.pdf` (one
 column), `paper-journal.pdf` (two) and `og.png`: rerun it after a rebuild. `REVIEW.md` records the two reviews

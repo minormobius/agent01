@@ -1,4 +1,4 @@
-/* R1's values: every number the paper takes from a baked data file, by name. The text (text.md) carries {{name}}
+/* R1's values: every number the paper takes from a baked data file, by name. The sources (text.md, the note; full.md, the full account) carry {{name}}
    tokens and the build fills them from here, so a number in the paper is the data's or it is not there.
    Parameters of the methods (33 beads, 110 steps, …) are read from the code's own records where it keeps them. */
 import fs from "node:fs";
