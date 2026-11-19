@@ -120,7 +120,7 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   knob); designed backwards (solved pieces, solved beam traced, targets put where it goes), so solvable by construction;
   the levels' prism sits at least deviation for green (`MIN_DEV_TILT`). `js/main.js`: FOLD's polytope drawing (imports
   `polytope`/`cellFaces` from `../../fold/js/unfold4.js`, same site), beams on the 2D overlay (glowing lines in the
-  shadow; sparks where they pierce the slice, ringed teal/rose by heading); the shadow's home frame is turned 35° between
+  shadow; sparks where they pierce the slice, ringed teal/rose by heading, beams within `BEAM` of the slice drawn fading, the whole path faint and dashed); the shadow's home frame is turned 35° between
   z and w (`homeE`), since straight out along w a beam bent into w looks unbent. See [`prism/README.md`](prism/README.md).
 
 ## Checks

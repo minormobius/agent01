@@ -18,7 +18,7 @@ What's 4D is the geometry:
 - **a 4D prism** is a triangle times a square (a 3,4-duoprism). Its refracting faces are 3D cells, and it bends light only
   in its triangle's plane. Turn that plane to contain w and the beam goes ana or kata.
 - **in a slice a beam is a spark.** A line meets a 3D hyperplane in one point, so the slice view draws a spark where each
-  segment pierces it, ringed teal if the beam is heading ana (+w), rose if kata. Segments lying in the slice draw whole.
+  segment pierces it, ringed teal if the beam is heading ana (+w), rose if kata. Beams have width (`BEAM`, 0.12): every part within that of the slice draws, fading with distance, so a beam along our space survives a nudge of the lever (at first only segments exactly in the slice drew, and the beam from the emitter vanished at the slightest touch). Under it all, the whole path faint and dashed, flattened onto the slice.
 - **targets are 4D solids.** A ray almost never meets a 2D patch or a point in 4D; it meets a solid.
 - **the shadow's eye is tilted.** Projected from an eye straight out along w, a beam bent into w looks almost unbent
   (w only scales the picture radially). The shadow's home frame (`homeE`) turns 35° between z and w, so w shows as its own

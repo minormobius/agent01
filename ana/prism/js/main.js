@@ -176,15 +176,36 @@ function overlay(v) {
       for (const p of pts) { const s = scr(to3(p, O0)); if (!s) { pen = false; continue; } if (pen) octx.lineTo(...s); else octx.moveTo(...s); pen = true; }
       octx.stroke(); octx.shadowBlur = 0;
     } else {
-      // the slice: where each segment pierces it, a spark ringed by which way it's going (teal ana, rose kata)
+      // the slice. A beam has some width, so the slice catches every part of it within BEAM of our space: drawn
+      // bright where it lies in the slice and fading out to BEAM away (a beam running along our space stays visible
+      // when the slice is nudged a little off it). Where a segment pierces the slice exactly, a spark ringed by which
+      // way it's going (teal ana, rose kata). Under it all, the whole path faint and dashed, flattened onto the
+      // slice, so you can see where the light goes even where it's out of our space.
+      const BEAM = 0.12, flat = pts.map((p) => scr(to3(p, O0)));
+      octx.setLineDash([3, 6]); octx.strokeStyle = CSS(col, 0.3); octx.lineWidth = 1.2; octx.beginPath();
+      flat.forEach((q, i) => { if (q) { if (i && flat[i - 1]) octx.lineTo(...q); else octx.moveTo(...q); } }); octx.stroke(); octx.setLineDash([]);
       for (let i = 0; i + 1 < pts.length; i++) {
         const a = pts[i], b = pts[i + 1], sa = dot(sub(a, O0), E[3]), sb = dot(sub(b, O0), E[3]);
-        if (Math.abs(sa) < 1e-6 && Math.abs(sb) < 1e-6) { const p = scr(to3(a, O0)), q = scr(to3(b, O0)); if (p && q) { octx.strokeStyle = CSS(col); octx.lineWidth = 2.6; octx.shadowColor = CSS(col); octx.shadowBlur = 10; octx.beginPath(); octx.moveTo(...p); octx.lineTo(...q); octx.stroke(); octx.shadowBlur = 0; } continue; }
-        if ((sa < 0) === (sb < 0)) continue;
-        const t = sa / (sa - sb), x = O0.map((_, k) => a[k] + (b[k] - a[k]) * t), s = scr(to3(x, O0)); if (!s) continue;
-        const g = octx.createRadialGradient(s[0], s[1], 0, s[0], s[1], 14); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, CSS(col, 0.95)); g.addColorStop(1, CSS(col, 0));
-        octx.fillStyle = g; octx.beginPath(); octx.arc(s[0], s[1], 14, 0, 7); octx.fill();
-        octx.strokeStyle = sb > sa ? '#38f2e0' : '#ff66b8'; octx.lineWidth = 1.5; octx.beginPath(); octx.arc(s[0], s[1], 9, 0, 7); octx.stroke();
+        // the part of the segment with |s| ≤ BEAM, in steps so the brightness can follow |s|
+        let t0 = 0, t1 = 1;
+        if (Math.abs(sb - sa) > 1e-12) { const u = (BEAM - sa) / (sb - sa), v = (-BEAM - sa) / (sb - sa); t0 = Math.max(0, Math.min(u, v)); t1 = Math.min(1, Math.max(u, v)); }
+        else if (Math.abs(sa) > BEAM) t1 = -1;
+        if (t1 > t0) {
+          const N = 12, at = (t) => O0.map((_, k) => a[k] + (b[k] - a[k]) * t);
+          octx.lineWidth = 2.6;
+          for (let j = 0; j < N; j++) {
+            const ta = t0 + ((t1 - t0) * j) / N, tb = t0 + ((t1 - t0) * (j + 1)) / N, sm = Math.abs(sa + (sb - sa) * ((ta + tb) / 2)), alpha = Math.max(0, 1 - sm / BEAM);
+            const p = scr(to3(at(ta), O0)), q = scr(to3(at(tb), O0)); if (!p || !q || alpha < 0.02) continue;
+            octx.strokeStyle = CSS(col, alpha); octx.shadowColor = CSS(col, alpha); octx.shadowBlur = 10 * alpha; octx.beginPath(); octx.moveTo(...p); octx.lineTo(...q); octx.stroke();
+          }
+          octx.shadowBlur = 0;
+        }
+        if ((sa < -1e-9 && sb > 1e-9) || (sa > 1e-9 && sb < -1e-9)) {
+          const t = sa / (sa - sb), x = O0.map((_, k) => a[k] + (b[k] - a[k]) * t), s = scr(to3(x, O0)); if (!s) continue;
+          const g = octx.createRadialGradient(s[0], s[1], 0, s[0], s[1], 14); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, CSS(col, 0.95)); g.addColorStop(1, CSS(col, 0));
+          octx.fillStyle = g; octx.beginPath(); octx.arc(s[0], s[1], 14, 0, 7); octx.fill();
+          octx.strokeStyle = sb > sa ? '#38f2e0' : '#ff66b8'; octx.lineWidth = 1.5; octx.beginPath(); octx.arc(s[0], s[1], 9, 0, 7); octx.stroke();
+        }
       }
     }
   }
