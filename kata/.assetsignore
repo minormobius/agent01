@@ -5,3 +5,9 @@ test/
 */test/
 wrangler.jsonc
 papers/*/test/
+# wire4's study scripts and the nonlinear runs' raw states (the page reads only data/mode-*, data/flow-*)
+wire4/*.py
+wire4/*.mjs
+wire4/data/nl-*
+wire4/data/scan-*
+wire4/data/thresholds.txt

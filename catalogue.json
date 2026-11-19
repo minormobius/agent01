@@ -6010,6 +6010,23 @@
       ]
     },
     {
+      "n": "kata-wire4",
+      "u": "https://kata.mino.mobi/wire4/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-19",
+      "b": "2026-11-19",
+      "p": "kata",
+      "surface": "kata",
+      "d": "WIRE⁴: the wake of a wire in four dimensions. Across the wire it is a sphere's wake; along the wire it ripples, an instability a sphere cannot have, starting at a Reynolds number of about 191 where a sphere's wake holds until 212. Two slices of a computed flow, with tracers.",
+      "tags": [
+        "math",
+        "canvas",
+        "simulation"
+      ]
+    },
+    {
       "n": "kata-twist",
       "u": "https://kata.mino.mobi/twist/",
       "c": "data",

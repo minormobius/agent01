@@ -348,7 +348,7 @@ of it by the PI's decision (2026-11-17) and are a later option of their own; the
 laminar results in any dimension. Found: a wire in 4D is flow past a sphere and a ribbon is flow past a cylinder, so
 the 4D hot wire keeps a law of King's shape (the guess below that it would not is wrong); and, computed, the wire's
 wake goes unstable along the wire at Re ≈ 191, before a sphere's wake is unstable at all (212). `wake4.py` needs
-Python with scipy and scikit-fem, the only non-node code in kata; read `wire4/README.md` first.
+Python with scipy and scikit-fem, the only non-node code in kata; read `wire4/README.md` first. **The page at `/wire4/`** (`index.html`, `js/main.js`, 2D canvas) draws two slices of a computed field with tracers: across the wire (x, y at one w) and along it (x, w). It computes nothing: it reads `data/mode-<Re>.bin` (base flow plus the unstable mode, size on a slider) and `data/flow-<Re>.bin` (the last state of a nonlinear run), both written by `export4.py` from `wake4.py` and `nl4.py` (the full equations in the family symmetric round the flow axis, Fourier along the wire). `.assetsignore` keeps the scripts and raw run states out of the upload.
 
 **Logged 2026-11-16, the PI's idea, not started: a hot-wire anemometer in a 4D pipe flow, with the vortices it sheds
 modelled.** Continuum only, so none of the atoms question. Notes from the first conversation, to check before building:

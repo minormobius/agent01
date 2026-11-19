@@ -1,0 +1,1 @@
+{"nx": 341, "nr": 101, "x0": -1.5, "r0": 0.0, "h": 0.025, "kind": "mode", "Re": 200.0, "beta": 2.5, "growth": 0.02020344633135398, "ks": [1], "note": "linear mode, scaled so that its largest streamwise velocity is 1; its size is not determined"}

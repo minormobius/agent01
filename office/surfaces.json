@@ -3830,6 +3830,15 @@
    "parent": "kata"
   },
   {
+   "id": "kata-wire4",
+   "name": "kata-wire4",
+   "url": "https://kata.mino.mobi/wire4/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "kata"
+  },
+  {
    "id": "kata-twist",
    "name": "kata-twist",
    "url": "https://kata.mino.mobi/twist/",

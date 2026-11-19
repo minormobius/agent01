@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="WIRE⁴ — the wake of a wire in four dimensions. Across the wire it is a sphere's wake; along the wire it ripples, an instability a sphere cannot have, at a Reynolds number of about 191." />
+<title>WIRE⁴ — kata.mino.mobi</title>
+<link rel="icon" href="data:," />
+<style>
+:root { --bg: #07080c; --panel: #0e1017; --text: #e9e4da; --dim: #9a958c; --border: #262833; --ice: #6fe0ff; --gold: #ffd27a; --rose: #ff86c6; --mono: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; --sans: -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif; }
+* { box-sizing: border-box; } html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); }
+#bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; border-bottom: 1px solid var(--border); font: 600 12px var(--mono); color: var(--dim); }
+#bar b { color: var(--text); font-size: 15px; letter-spacing: 0.12em; } #bar a { color: var(--dim); }
+#bar label { display: flex; gap: 8px; align-items: center; } #bar span.v { color: var(--gold); min-width: 3.2em; }
+select, button { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font: 600 12px var(--mono); padding: 6px 10px; }
+input[type=range] { accent-color: var(--ice); width: 130px; }
+main { max-width: 980px; margin: 0 auto; padding: 14px 16px 50px; }
+section { margin: 0 0 18px; } h2 { font: 700 12px var(--mono); color: var(--dim); letter-spacing: 0.1em; text-transform: uppercase; margin: 14px 0 6px; } h2 em { color: var(--gold); font-style: normal; text-transform: none; letter-spacing: 0; }
+canvas { width: 100%; display: block; border: 1px solid var(--border); border-radius: 10px; background: #000; image-rendering: auto; touch-action: none; }
+.rows { font: 12px var(--mono); color: var(--dim); margin-top: 6px; } .rows b { color: var(--text); }
+p { line-height: 1.6; color: #c9c3b8; max-width: 760px; } p b { color: var(--text); } .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>WIRE⁴</b>
+  <label>flow <select id="set"></select></label>
+  <label id="ampL">size of the ripple <span class="v" id="ampV"></span><input type="range" id="amp" min="0" max="0.4" step="0.01" value="0.15" /></label>
+  <label>place along the wire <span class="v" id="wV"></span><input type="range" id="w" min="0" max="1" step="0.005" value="0" /></label>
+  <button type="button" id="play">slide along it</button>
+  <a href="../">kata</a>
+</div>
+<main>
+  <section><h2>Across the wire <em>the slice x, y at one place along it: a sphere's wake</em></h2><canvas id="c1" aria-label="the flow in the plane across the wire"></canvas><div class="rows" id="r1"></div></section>
+  <section><h2>Along the wire <em>the slice x, w: the wire is the band on the left, the flow comes from the left</em></h2><canvas id="c2" aria-label="the flow in the plane that contains the wire"></canvas>
+    <div class="rows"><label>this slice is <b id="yV"></b> diameters off the flow's axis <input type="range" id="y" min="0" max="1.5" step="0.025" value="0" /></label></div></section>
+  <p class="key"><i style="background:#6fe0ff"></i>flowing downstream <i style="background:#ff86c6"></i>flowing back toward the wire <i style="background:#ffd27a"></i>where the two meet (the edge of the bubble)</p>
+  <p><b>WIRE⁴.</b> A wire in four dimensions is a ball in three directions and long in the fourth. Put it across a stream and, at every place along it, the flow round it is the flow round a sphere in our world: the top picture. Behind a sphere at this speed sits a bubble of slow water turning back on itself.</p>
+  <p>The second picture is the one our world has no room for: a slice that holds the wire's own length. If nothing varied along the wire it would be the same from bottom to top. It isn't. Above a Reynolds number of about <b>191</b> the bubble grows fat and thin by turns along the wire, about every 2.5 diameters. A sphere's wake is stable until 212; this ripple needs the extra direction, so the wire's wake gives way first.</p>
+  <p id="what"></p>
+  <p>How this was computed, what was checked and what was not: <a href="README.md" style="color:var(--ice)">the notes</a>.</p>
+</main>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
