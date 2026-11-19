@@ -33,9 +33,9 @@ _Regenerated 2026-11-19 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-19, 100 members / 243 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: bluesky, idk, gta
+**Neighborhood spark** (bisk 2026-11-19, 100 members / 240 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: nagel, anthropic, bluesky
 - Top post: "dear god it's a three day. calm down. just go to the penalty box have some dignity" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
