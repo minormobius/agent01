@@ -40,7 +40,7 @@ else:
     W = Wake(Nr=J["Nr"], Nt=J["Nt"]); n2 = W.n2; fields = [Z["U0"] + Z["x0"][:n2], Z["V0"] + Z["x0"][n2:2 * n2]]; ks = []
     for k in range(1, J["K"] + 1):
         x = Z[f"x{k}"]
-        if np.abs(x[:n2]).max() < 1e-6: continue
+        if np.abs(x[:n2]).max() < 3e-3: continue      # harmonics too small to see
         ks.append(k); fields += [x[:n2], x[n2:2 * n2], -x[2 * n2:3 * n2]]
     F = sample(W, fields); h = J["hist"][-1]
     meta = dict(kind="flow", Re=J["Re"], beta=J["beta0"], ks=ks, t=h["t"], bubble=[h["bub0"], h["bubpi"]])

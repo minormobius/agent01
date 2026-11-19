@@ -1,6 +1,6 @@
 # wire4 — a hot wire in a four-dimensional pipe: derivations and the first computation
 
-Study scripts and notes, no page yet. Started 2026-11-19, after the rope paper. The aim is a hot-wire anemometer in a
+Study scripts, notes and a page (kata.mino.mobi/wire4/). Started 2026-11-19, after the rope paper. The aim is a hot-wire anemometer in a
 4D pipe flow with the vortices it sheds modelled; this directory holds what has been derived and computed so far.
 Nothing here has been reviewed by anyone but its author.
 
@@ -80,6 +80,34 @@ oscillation is known in our world behind steps and bumps (Barkley, Gomes & Hende
 guess. The nearest published thing found is Nikitin (J. Fluid Mech. 680, 2011), who adds a formal fourth coordinate
 to a turbulent channel and finds 4D disturbances grow; a search found nothing on 4D wakes or bluff bodies.
 
+## 4. Past the threshold the wake settles into a steady ripple (`nl4.py`), and the page shows it
+
+`nl4.py` steps the full equations in the family of flows that stay symmetric round the flow axis: the steady base
+flow plus a disturbance expanded in cosines along the wire (harmonics 0 to 6 of a period of 2π/2.5 diameters), the
+linear part implicit (second-order backward differences, the same operators as section 3), the quadratic term
+explicit. Started from a small bump, the first harmonic grows at the rate section 3 predicts (energy doubling every
+17 flow times at Re 200, a growth rate of 0.0202), then saturates:
+
+| Re | first harmonic's energy at rest | bubble length, fattest / thinnest (diameters) | base flow's bubble |
+|---|---|---|---|
+| 200 | 3.2 × 10⁻³ | 1.57 / 1.31 | 1.435 |
+| 210 | 6.1 × 10⁻³ | 1.66 / 1.32 | 1.474 |
+| 220 | 8.5 × 10⁻³ | 1.72 / 1.33 | 1.512 |
+
+Each run ends steady (the energy drifts by less than 4 parts in 10⁵ over the last 20 flow times, and by parts in
+10¹³ at 210 and 220). The energy rises roughly in proportion to Re − 191, which is what a gentle (supercritical)
+onset looks like. **So what replaces the uniform wake is not a street: it is a standing row of cells along the wire,
+fat and thin by turns, and nothing sheds.**
+
+Limits. The period along the wire is fixed at the most unstable wavelength; other wavelengths, and patterns that
+drift or modulate, are excluded. So are all modes that break the symmetry round the flow axis: above Re about 207 one
+of them is unstable on the uniform wake, so the 210 and 220 states are solutions that may themselves be unstable, and
+whether the rippled wake sheds earlier or later than a sphere's 277 is not known. Coarse mesh only (50 × 40).
+
+**The page** (`index.html`, `js/main.js`) draws two slices with tracers: across the wire and along it. It computes
+nothing. `export4.py mode 200` writes the base flow and the unstable mode (its size is a slider, because a linear
+calculation does not fix it); `export4.py nl 210` writes a run's final state.
+
 ## Running it
 
 ```bash
@@ -89,6 +117,8 @@ export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1   # several runs at once fight o
 venv/bin/python kata/wire4/wake4.py 50 40         # base flow and the sphere validation, ~2 min
 venv/bin/python kata/wire4/crit4.py '{"Nr":80,"Nt":64}' 188,190,192,194 2.25,2.5,2.75 0   # growth at (Re, β), m = 0
 venv/bin/python kata/wire4/scan4.py 200 50 40 out.json   # m = 0, 1, 2 over β at one Re
+cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run, ~15 min alone -> data/nl-210.*
+../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 
 In the scans, rows near −0.13 to −0.17 that are the same for every m are the truncated domain's free-stream modes,
@@ -97,7 +127,8 @@ not wake modes.
 ## Next
 
 - An independent check of the β > 0 result (a second discretisation, or a time-stepped 4D run near Re 191).
-- What the unstable wake becomes: weakly nonlinear, or a direct simulation periodic along the wire.
+- The rippled wake's own stability, to modes that break the symmetry round the flow axis and to other wavelengths:
+  that is where shedding, if any, comes from.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
   pattern. Floquet analysis with a spanwise wavevector of any direction in that plane.
 - Then the instrument: heat loss from the wire with the wake it actually has.
