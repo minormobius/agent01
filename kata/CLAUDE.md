@@ -340,8 +340,15 @@ record exists, `wrangler deploy` uploads, and the run fails unless `kata.mino.mo
 
 ## Next
 
-**Rope (paper R1) is closing: machines are out of it by the PI's decision (2026-11-17)** and are a later option of their
-own; the note is at the foot of `papers/r1/OUTLINE.md`.
+**Rope (paper R1) is closed as a draft (2026-11-19)**; its limits are the full account's open items. Machines are out
+of it by the PI's decision (2026-11-17) and are a later option of their own; the note is at the foot of
+`papers/r1/OUTLINE.md`.
+
+**Started 2026-11-19: `wire4/`, the hot wire in a 4D pipe.** Study scripts and a README, no page. Derived: the pipe's
+laminar results in any dimension. Found: a wire in 4D is flow past a sphere and a ribbon is flow past a cylinder, so
+the 4D hot wire keeps a law of King's shape (the guess below that it would not is wrong); and, computed, the wire's
+wake goes unstable along the wire at Re ≈ 191, before a sphere's wake is unstable at all (212). `wake4.py` needs
+Python with scipy and scikit-fem, the only non-node code in kata; read `wire4/README.md` first.
 
 **Logged 2026-11-16, the PI's idea, not started: a hot-wire anemometer in a 4D pipe flow, with the vortices it sheds
 modelled.** Continuum only, so none of the atoms question. Notes from the first conversation, to check before building:
