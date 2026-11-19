@@ -178,9 +178,13 @@ function yields4Numbers() {
   const light = (y) => Object.entries(y.mix).filter(([z]) => /^\d+$/.test(z)).reduce((a, [, v]) => a + v, 0), mid = (w) => Y.yields.filter((y) => y.s <= 1.65 && y.alpha === 2.35 && y.g === 1.25 && y.w === w && y.f === 100 && y.tg === 30);
   const M3 = mid(0.03), M30 = mid(0.3), rng = (a) => `${Math.round(100 * Math.min(...a))}–${pct(Math.max(...a))}`, rock = M3.map((y) => y.mix.rock ?? 0);
   Object.assign(t, { yRock: rng(rock), yIronHi: pct(Math.max(...M3.map((y) => y.mix.iron ?? 0))), yLight: rng(M3.map(light)), yLight30: rng(M30.map(light)) });
+  // near our strength (s ≤ 1.55) the explosions' iron against the rock row, over every choice; and from 1.6 the rock row alone
+  const all = (ok) => Y.yields.filter((y) => ok(y.s) && (y.mix.rock ?? 0) + (y.mix.iron ?? 0) > 0), A = all((s) => s <= 1.55), Bm = M3.filter((y) => y.s >= 1.6);
+  Object.assign(t, { yIronA: rng(A.map((y) => y.mix.iron ?? 0)), yRockA: rng(A.map((y) => y.mix.rock ?? 0)), yIronMidA: rng(M3.filter((y) => y.s <= 1.55).map((y) => y.mix.iron ?? 0)), yRockB: rng(Bm.map((y) => y.mix.rock ?? 0)) });
+  if (!(Math.min(...M3.map((y) => (y.mix.rock ?? 0) + (y.mix.iron ?? 0))) > 0.8)) throw new Error("yields4: the rock row and iron are no longer most of what is returned at the middle choice; rewrite section 4 and the status page");
+  if (!(Math.min(...Bm.map((y) => y.mix.rock ?? 0)) > 0.8)) throw new Error("yields4: from s 1.6 the rock row is no longer most of what is returned at the middle choice; rewrite section 4 and the status page");
   const ladS = new Set(Y.yields.map((y) => y.s)), short = Y.stars.filter((x) => ladS.has(x.s) && x.life < 30), reached = short.filter((x) => x.lifeFlag === "reached"), carried = short.filter((x) => x.lifeFlag !== "reached");
   Object.assign(t, { yN: String(Y.stars.filter((x) => ladS.has(x.s)).length), yNs: ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"][ladS.size], yShort: String(short.length), yReached: String(reached.length), yCarried: String(carried.length), yXcMax: f(Math.max(...carried.map((x) => x.XcEnd)), 2) });
-  if (!(Math.min(...rock) > 0.5)) throw new Error("yields4: the rock row is no longer most of what is returned at the middle choice; rewrite section 4's paragraph and the status page");
   return t;
 }
 /* the status page's own numbers (text/status.md): what metals do to 4D opacity (data/metals4.json, fusion/tools/metals4.mjs)

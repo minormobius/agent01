@@ -393,20 +393,21 @@
     "evolve4-9",
     "evolve4-10",
     "evolve4-11",
-    "evolve4-12"
+    "evolve4-12",
+    "evolve4-13"
    ],
    "rule": null,
    "moved": [
     {
      "claim": "the net yield p at s ≤ 1.55, over every declared choice",
      "before": "none computed on aged stars (zero-age giveback: declared lifetimes)",
-     "after": "mostly the rock row from exploding cores; much smaller from s 1.7 up. evolve4-11 and -12 carried 11 of the 12 cut stars to exhaustion (27 of 29 short-lived stars reached; s 1.65 4 M_Ch stops at Xc 0.0033, s 1.5152 1.25 M_Ch is cut at 0.007), and the last stretch mattered: ash grew by up to a quarter (s 1.55, 2.5 M_Ch: 33% to 41% of the star) and turned heavier (elements 12–15 leading), which raised p's band at s ≤ 1.55 from 0.042–0.17 (evolve4-10; 0.048–0.23 after evolve4-11) and, at s 1.55, iron's share of p from 1% to 19%. An exploding core's ash is now burnt element by element on explode's rows, weighted by mass (it had taken the leading element's row for all of it, so the split jumped when the lead flipped)",
+     "after": "mostly the rock row from exploding cores; much smaller from s 1.7 up. evolve4-11 to -13 carried all 12 cut stars to the end (28 of 29 short-lived stars reached Xc 10⁻³; s 1.65 4 M_Ch stops at Xc 0.0033), and the last stretch mattered: ash grew by up to a quarter (s 1.55, 2.5 M_Ch: 33% to 41% of the star) and turned heavier (elements 12–15 leading), which raised p's band at s ≤ 1.55 from 0.042–0.17 (evolve4-10; 0.048–0.23 after evolve4-11) and, at s 1.55, iron's share of p from 1% to 19%. An exploding core's ash is now burnt element by element on explode's rows, weighted by mass (it had taken the leading element's row for all of it, so the split jumped when the lead flipped). The last star in (s 1.5152, 1.25 M_Ch) grew a core just over the Chandrasekhar mass at g 1.25, so it explodes at the middle choice too, and a core only just at the limit burns mostly to iron: at s 1.5152 the middle choice returns iron and the rock row about equally (p 0.095 → 0.15), and over the choices iron is 15–63% of p at s ≤ 1.55. From s 1.6 up the rock row stays most of it",
      "check": "yields4P",
      "now": "0.049–0.25"
     }
    ],
    "held": [
-    "the rock row as most of what explosions return (72–95% of p at the middle choice, s ≤ 1.65)"
+    "from s 1.6 up the rock row is most of what explosions return (86–98% of p at the middle choice); near our strength it shares that with this world's iron"
    ]
   }
  ]

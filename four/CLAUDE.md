@@ -1307,6 +1307,16 @@ for games, and this is a modelling programme with publications to come. The game
   ash 34% → 42%; it still explodes only at g 1.5. Middle-choice p is up 1–2% at s ≤ 1.55, the mix is unchanged, and
   p's band at s ≤ 1.55 is 0.049–0.25 (provenance updated). The explosion edge at s 1.5152, g 1.5 is 1.08 M_Ch.
   evolve4-13 carries the 1.25 M_Ch star alone.
+  **evolve4-13 (collected 2026-11-19): the ladders are done.** s 1.5152 1.25 M_Ch reaches Xc 10⁻³ at 14.9 Gyr (ash 44%),
+  so 28 of the 29 short-lived ladder stars are exhausted; s 1.65 4 M_Ch stops at 0.0033. Its core at g 1.25 is 1.015
+  M_Ch, just over the limit, so it explodes at the middle choice too. explode burns a core at the limit mostly to iron
+  (a tenth heavier, mostly rock row), so **near our strength what comes back is the rock row and iron**: middle choice at
+  s 1.5152 p 0.095 → 0.147, rock 50% and iron 47%; over every choice at s ≤ 1.55, iron is 15–63% of p. From s 1.6 up it
+  is still mostly rock row (86–98% at the middle choice). Section 4, the status page (finding 4, the bullet, "what it
+  means", next steps: ε_grav first, the second generation needs iron's opacity) and the figure label are rewritten. The
+  build's guards are now rock + iron > 80% of p at the middle choice, and rock row > 80% from s 1.6. p's band at
+  s ≤ 1.55 is unchanged (0.049–0.25). Iron here is the explosion's equilibrium end, which the book's ions (to element 23)
+  don't reach. No more ladder runs are queued.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

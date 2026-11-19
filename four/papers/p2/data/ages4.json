@@ -266,11 +266,11 @@
    "m": 1.25,
    "half": 9.08,
    "halfAfter": null,
-   "exhaust": null,
-   "lastGyr": 14.8,
-   "lastXc": 0.0073,
+   "exhaust": 14.9,
+   "lastGyr": 14.9,
+   "lastXc": 0.001,
    "Tc0": 19.34,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-17,

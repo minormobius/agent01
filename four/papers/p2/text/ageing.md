@@ -76,10 +76,13 @@ and their lives are carried on at their last rate. At $g$ = 1.25 the lightest st
 s ≤ 1.55, {{yExB}} at 1.6–1.65 and {{yExC}} at 1.7. The net yield $p$ (figure 3b), the elements past helium returned per unit of
 mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = {{mAlphas}})
 from 0.25 to 2.5 M~Ch~ for the stars that die within {{mTgs}} Gyr, is {{yPA}} at s ≤ 1.55, {{yPB}} at 1.6–1.65,
-{{yPC}} at 1.7 and {{yPD}} at 1.8. Most of that band comes from $g$, which sets which masses explode. At the middle
-choice (α = 2.35, $g$ = 1.25, $w$ = 3%, stars dying within 30 Gyr), {{yRock}} of $p$ at s ≤ 1.65 is the rock row and up
-to {{yIronHi}} is iron. The light ash the stars held, which dead stars' envelopes and winds return, is only {{yLight}}
-of it, or {{yLight30}} with winds of 30%. A one-zone galaxy on the
+{{yPC}} at 1.7 and {{yPD}} at 1.8. Most of that band comes from $g$, which sets which masses explode. What comes
+back is heavy: the explosions' burnt ash, the rock row and this world's iron, with little of the light ash the stars
+held. Which of the two depends on how dense the exploding core is: one that only just reaches the Chandrasekhar mass
+burns mostly to iron, one a tenth heavier mostly to the rock row. Near our strength, s ≤ 1.55, the cores reach it
+both ways, and iron is {{yIronA}} of $p$ over the choices ({{yIronMidA}} at the middle choice: α = 2.35, $g$ = 1.25,
+$w$ = 3%, stars dying within 30 Gyr). From s = 1.6 up the rock row is {{yRockB}} of it at the middle choice. The light
+ash, which dead stars' envelopes and winds return, is only {{yLight}} of $p$ there, or {{yLight30}} with winds of 30%. A one-zone galaxy on the
 same stars is in the data. Its gas's own share of metals mostly measures how little gas is left, so $p$ is the
 number to carry. The second generation built from that gas comes next.
 

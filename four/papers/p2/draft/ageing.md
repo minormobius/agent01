@@ -71,15 +71,18 @@ hydrogen, so the ending is declared and carried as a band. Burning in a shell ro
 $w$ = 3% and 30% of the core's ash by winds. One that reaches it explodes, returns everything and burns the core's ash to
 this world's iron or the rock row (elements 13–23), by how far the core expands before the burning reaches it. The
 mass ladders at G = 10^−17^ hold 38 stars at six strengths. Of the 29 that die within 30 Gyr,
-27 reached central hydrogen 10⁻³; the other 2 stopped or were cut with at most 0.01 of it left,
-and their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes (figure 3a) is 1.6 M~Ch~ at
+28 reached central hydrogen 10⁻³; the other 1 stopped or were cut with at most 0.00 of it left,
+and their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes (figure 3a) is 1.25 M~Ch~ at
 s ≤ 1.55, 2 at 1.6–1.65 and 2.5 at 1.7. The net yield $p$ (figure 3b), the elements past helium returned per unit of
 mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = 2.35 and 1.9)
 from 0.25 to 2.5 M~Ch~ for the stars that die within 10 and 30 Gyr, is 0.049–0.25 at s ≤ 1.55, 0.011–0.088 at 1.6–1.65,
-0.00062–0.027 at 1.7 and 0.00038–0.0015 at 1.8. Most of that band comes from $g$, which sets which masses explode. At the middle
-choice (α = 2.35, $g$ = 1.25, $w$ = 3%, stars dying within 30 Gyr), 72–95% of $p$ at s ≤ 1.65 is the rock row and up
-to 24% is iron. The light ash the stars held, which dead stars' envelopes and winds return, is only 4–6%
-of it, or 13–30% with winds of 30%. A one-zone galaxy on the
+0.00062–0.027 at 1.7 and 0.00038–0.0015 at 1.8. Most of that band comes from $g$, which sets which masses explode. What comes
+back is heavy: the explosions' burnt ash, the rock row and this world's iron, with little of the light ash the stars
+held. Which of the two depends on how dense the exploding core is: one that only just reaches the Chandrasekhar mass
+burns mostly to iron, one a tenth heavier mostly to the rock row. Near our strength, s ≤ 1.55, the cores reach it
+both ways, and iron is 15–63% of $p$ over the choices (20–47% at the middle choice: α = 2.35, $g$ = 1.25,
+$w$ = 3%, stars dying within 30 Gyr). From s = 1.6 up the rock row is 89–95% of it at the middle choice. The light
+ash, which dead stars' envelopes and winds return, is only 2–6% of $p$ there, or 4–30% with winds of 30%. A one-zone galaxy on the
 same stars is in the data. Its gas's own share of metals mostly measures how little gas is left, so $p$ is the
 number to carry. The second generation built from that gas comes next.
 

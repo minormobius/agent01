@@ -51,7 +51,7 @@ s += `<text class="lb" x="${(X(1.75) + R) / 2}" y="${Ym(0.42)}" text-anchor="mid
 const lx = X(1.575);
 s += `<text class="lb" x="${lx}" y="${Ym(0.35)}" text-anchor="middle" fill="#444">outlives 30 Gyr: mass locked away</text>`;
 s += `<text class="lb" x="${X(1.675)}" y="${Ym(Math.sqrt(1.25 * 1.6)) + 4}" text-anchor="middle" fill="#0b4f7a">dies: returns its envelope</text>`;
-s += `<text class="lb" x="${X(1.625)}" y="${Ym(3.3)}" text-anchor="middle" fill="#7a2e00" font-weight="600">explodes: returns the rock row</text>`;
+s += `<text class="lb" x="${X(1.625)}" y="${Ym(3.3)}" text-anchor="middle" fill="#7a2e00" font-weight="600">explodes: returns the rock row and iron</text>`;
 // the stars
 for (const sv of S) for (const x of lad(sv)) { const c = x.choices.find((k) => k.g === 1.25 && k.w === 0.03 && k.f === 100), carried = x.lifeFlag !== "reached" && x.life < 30;
   s += `<circle cx="${X(sv).toFixed(1)}" cy="${Ym(x.m).toFixed(1)}" r="6" fill="${shade(x.ashAll)}" stroke="${x.life >= 30 ? "#777" : c.fate === "explodes" ? C.boomE : C.deadE}" stroke-width="2"${carried ? ' stroke-dasharray="2.5 2"' : ""}/>`; }

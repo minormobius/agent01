@@ -23,8 +23,10 @@ lives from a frozen zero-age core. Five things came out of it.
    the rock row, comes out 29% fainter, 23% larger and 17% cooler at the surface than the same star built
    primordial, and over its first 3 Gyr its centre burns 15% slower. With 2% of the stars' own ash instead,
    nothing moves by more than 11%.
-4. **What comes back is mostly the rock row, and less of it the further the strength is from ours.** Stars heavy
-   enough to grow a Chandrasekhar-mass core explode and return the elements that make planets in our world. Near our
+4. **What comes back is heavy, and less of it the further the strength is from ours.** Stars heavy enough to grow a
+   Chandrasekhar-mass core explode and return the rock row (elements 13–23) and this world's iron: in our world, a
+   planet's rock and its core. Near our strength the two come back in comparable amounts; from $s$ = 1.6 up, mostly the
+   rock row. Near our
    strength the metals returned come to 0.049–0.25 of the mass the stars lock away; at $s$ = 1.8, 0.00038–0.0015.
 5. **One limit is real physics, not numerics.** Two stars at $s$ = 1.5152 stop when their core's oitrogen runs out and
    the stirred core collapses faster than a solver in thermal balance can follow.
@@ -88,23 +90,25 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
 - **What the stars give back** (computed on declared endings; [section 4](ageing.html)). On mass ladders at six
   strengths, the metals returned per unit of mass locked away (the net yield $p$) are 0.049–0.25 at $s$ ≤ 1.55,
   0.011–0.088 at 1.6–1.65, 0.00062–0.027 at 1.7 and 0.00038–0.0015 at 1.8. How the cores grow decides which masses explode and sets most
-  of the band. At the middle choice, 72–95% of it at $s$ ≤ 1.65 is the rock row (elements 13–23), made when the
-  cores of the heaviest stars reach the Chandrasekhar mass, and only 4–6% is the light ash the stars held (13–30%
-  with strong winds). 2 of the 29 short-lived stars stopped or were cut short of exhaustion (at most
-  0.01 of their central hydrogen left) and are carried on at their last rate.
+  of the band. It is the exploding cores' burnt ash: the rock row (elements 13–23) and this world's iron. A core that
+  only just reaches the Chandrasekhar mass burns mostly to iron, one a tenth heavier mostly to the rock row, so near our
+  strength ($s$ ≤ 1.55) iron is 15–63% of $p$ over the choices; from 1.6 up the rock row is 89–95% of it at the
+  middle choice. Only 2–6% is the light ash the stars held (4–30% with strong winds). 1 of the 29 short-lived stars stopped or were cut short of exhaustion (at most
+  0.00 of their central hydrogen left) and are carried on at their last rate.
 
 ## What it means
 
 **A four-dimensional universe near our forces is not short of time, and not short of heavy elements.** Its Sun-like
 stars outlive ours several times over, and at the strengths nearest ours they turn a large share of themselves into
 elements 8–12 on the main sequence, which ours never do. Whether those elements reach the next generation depends on
-how the stars end. On the declared endings the heavy ones explode and return mostly the rock row: the elements that,
-in our world, make planets. Near our strength the metals they give back come to 0.049–0.25 of the mass they lock away; at
+how the stars end. On the declared endings the heavy ones explode and return the rock row and this world's iron: in
+our world, the stuff of a planet's rock and its core. Near our strength the metals they give back come to 0.049–0.25 of the mass they lock away; at
 $s$ = 1.8, where stars burn hydrogen to helium and little further, 0.00038–0.0015.
 
 **Whether the second generation looks like the first depends on what comes back.** In our world a star's metals set
 its opacity, and so its size, colour and life. In four dimensions the first stars' own light ash barely touches it,
-but the rock row thickens the outer layers several times over. Since the rock row is most of what returns, the second generation's stars are fainter, larger and cooler than the first, and their
+but the rock row thickens the outer layers several times over. Where the rock row is most of what returns, as from
+$s$ = 1.6 up, the second generation's stars are fainter, larger and cooler than the first, and their
 centres burn more slowly. The ash's nuclei also act as catalysts, as carbon, nitrogen and oxygen do in our Sun,
 quickening the burning by a few per cent; in a rock-rich star the opacity wins.
 
@@ -113,15 +117,16 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **The last ladder star finishes** (evolve4-13 on the compute runner; automatic). The star at $s$ = 1.5152 and
-   1.25 Chandrasekhar masses sets the top of the band near our strength, and is carried to exhaustion. The last stretch matters: the run before this one found
-   the stars still adding up to a quarter more ash between the last few per cent of their central hydrogen and its end.
+1. **The energy of contraction in the structure** (a change to the solver; every aged run redone on the runner). The
+   mass ladders are done: 28 of the 29 stars that die within 30 Gyr reach the end of their central
+   hydrogen. What is left declared is how their cores grow afterwards, which sets which stars explode and, near our
+   strength, how much of what they return is iron. Following the cores past hydrogen would compute it, and would follow
+   the two analogues that stall. This is the step that most changes what the paper can claim.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
-   and first 3 Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return.
-3. **The energy of contraction in the structure** (a change to the solver; every aged run redone on the runner). It
-   would follow the stalled stars and the giant phase, and replace the declared endings with computed ones. This is
-   the step that most changes what the paper can claim.
-4. **Writing it up.** Sections 4 and 5 (abundances over time) from the data above, and the outline brought up to date.
+   and first 3 Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return. Near
+   our strength that mix holds this world's iron as well as the rock row, and the book's ions don't reach iron yet, so
+   its opacity comes first.
+3. **Writing it up.** Sections 4 and 5 (abundances over time) from the data above, and the outline brought up to date.
 
 ## How it was built
 
