@@ -113,8 +113,9 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **The last ladder stars finish** (evolve4-11 on the compute runner; automatic). {{yCarried}} short-lived stars are
-   carried to exhaustion so no life or yield is extrapolated; little should move.
+1. **The last ladder stars finish** (evolve4-12 on the compute runner; automatic). {{yCarried}} short-lived stars are
+   carried to exhaustion so no life or yield is extrapolated. The last stretch matters: the run before this one found
+   the stars still adding up to a quarter more ash between the last few per cent of their central hydrogen and its end.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
    and first {{g2Gyr}} Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return.
 3. **The energy of contraction in the structure** (a change to the solver; every aged run redone on the runner). It

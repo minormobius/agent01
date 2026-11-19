@@ -12,7 +12,7 @@
        core under the Chandrasekhar mass is a dead star that returns its envelope (everything outside g × core, as the
        last profile holds it) and a share w = 3% or 30% of its core's ash by winds; one that reaches M_Ch explodes and
        returns everything, its core burnt to this world's iron, the rock row or left unburnt by nuclei.mjs explode's
-       shares (expansion f = 30 or 100; ash of elements 9–12 there, others taken as the nearest);
+       shares (expansion f = 30 or 100), each element of the ash by its own row (9–12 there, others taken as the nearest);
      · a one-zone galaxy: gas that starts primordial makes stars at gas/τ (τ = 1 or 3 Gyr) on a mass function m^(−α)
        (α = 2.35, ours; or 1.9, top-heavy) over the ladder's masses, each star returning its gas when its life ends, with
        what it made plus the metals it was born with (instant mixing, no infall, no outflow). Out: the gas's share of
@@ -49,7 +49,10 @@ for (const [key, { f, j }] of recs) {
   const lead = Object.entries(core).filter(([z]) => +z >= 3).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null, choices = [];
   for (const g of [1, 1.25, 1.5]) for (const w of [0.03, 0.3]) for (const fx of [30, 100]) {
     const qg = Math.min(1, g * qcore), mcore = qg * +m, ret = integ(rows, qg, 1); let remnant, iron = 0, rock = 0, fate;
-    if (mcore >= 1 && lead) { const x = exShares(+lead, mcore, fx), cg = integ(rows, 0, qg), ash = heavyOf(cg); fate = "explodes"; remnant = 0;
+    // each element of the core's ash burnt by its own row of explode's shares, weighted by its mass (taking the leading
+    // element's row for all of it made the split jump when the lead flipped late in a run)
+    if (mcore >= 1 && lead) { const cg = integ(rows, 0, qg), ash = heavyOf(cg), x = { iron: 0, rock: 0, unburnt: 0 }; fate = "explodes"; remnant = 0;
+      for (const [z, v] of Object.entries(cg)) if (+z >= 3 && v > 0) { const e = exShares(+z, mcore, fx); for (const k in x) x[k] += (v / ash) * e[k]; }
       for (const [z, v] of Object.entries(cg)) { if (+z >= 3) ret[z] = (ret[z] ?? 0) + v * x.unburnt; else ret[z] = (ret[z] ?? 0) + v; } iron = ash * x.iron; rock = ash * x.rock; }
     else { fate = "dead"; const wind = {}; for (const [z, v] of Object.entries(core)) if (+z >= 3) wind[z] = w * v; add(ret, wind); remnant = qg - w * ashCore; }
     choices.push({ g, w, f: fx, fate, remnant: +remnant.toFixed(5), returned: Object.fromEntries(Object.entries(ret).map(([z, v]) => [z, +v.toFixed(6)])), iron: +iron.toFixed(6), rock: +rock.toFixed(6) }); }

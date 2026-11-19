@@ -1,32 +1,20 @@
 {
- "run": "evolve4-11",
- "why": "Finish the 12 G 1e-17 ladder stars evolve4-10 cut at the deadline (central hydrogen 0.002-0.16), from their checkpoints, so their yields are taken at exhaustion instead of carried on from the last stretch. yields4.json was first committed with these 12 flagged extrapolated. Done in evolve4-10: s 1.6 at 1.6 / 2, s 1.65 at 1.6 / 2 / 2.5, all of s 1.7.",
+ "run": "evolve4-12",
+ "why": "Finish the 5 G 1e-17 ladder stars evolve4-11 cut again (central hydrogen 0.001-0.093), from their checkpoints. evolve4-11 showed the last stretch matters: ash grew by up to a quarter between Xc ~0.08 and exhaustion. s 1.5152 1.25 M_Ch (Xc 0.093) is the slowest and decides whether it explodes at g 1.5.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev11-00",
+   "name": "ev12-00",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6"
    ]
   },
   {
-   "name": "ev11-01",
+   "name": "ev12-01",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25"
-   ]
-  },
-  {
-   "name": "ev11-02",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 4",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25",
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 4"
    ]
   }

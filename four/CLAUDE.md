@@ -1294,6 +1294,14 @@ for games, and this is a modelling programme with publications to come. The game
   middle choice's make-up. Section 4 cites it after "What they give back", and the status page shows it under the ages
   figure with a fifth finding. **Redraw it (`node figures/fates.mjs`) after `yields4.mjs`.** `figures/ages.mjs` also
   picks analogues by gravity.json's mass now; ages.svg came out byte-identical.
+  **evolve4-11 (collected 2026-11-19):** 7 of the 12 finished. 24 of the 29 short-lived ladder stars are now exhausted;
+  5 were cut again, 4 of them at Xc ≤ 0.006 and s 1.5152 1.25 M_Ch at 0.093. **The last stretch matters:** ash grew
+  by up to a quarter between Xc ~0.08 and exhaustion (s 1.55, 2.5 M_Ch: 33% to 41% of the star) and got heavier
+  (elements 12–15 leading, not 10). p's band at s ≤ 1.55 went from 0.042–0.17 to 0.048–0.23; its top is the s 1.5152,
+  1.25 M_Ch star, whose core now explodes at g 1.5. **Fix:** an exploding core's ash is burnt element by element on
+  explode's rows, weighted by mass. It had used the leading element's row for all of it, so iron jumped from 1% to 14%
+  of a star when the lead flipped. Middle choice now: rock row 72–95% of p at s ≤ 1.65, iron up to 23% (s 1.55: 19%,
+  real, since the ash is heavier). provenance yields4 now 0.048–0.23. evolve4-12 (5 commands) finishes the rest.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /
