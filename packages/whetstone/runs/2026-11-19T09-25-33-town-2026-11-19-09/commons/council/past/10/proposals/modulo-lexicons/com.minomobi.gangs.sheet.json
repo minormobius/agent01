@@ -1,0 +1,43 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.gangs.sheet",
+  "description": "A character as created: a birth certificate, not a status board. Changing state (stress, harm, coin, xp, advances) is computed by the fold from moves. The fold uses the cid the character's first move pins; later edits to this record are ignored and reported.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["game", "name", "playbook", "look", "drive", "controller", "actions", "createdAt"],
+        "properties": {
+          "game": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "name": { "type": "string", "maxGraphemes": 64, "maxLength": 640 },
+          "playbook": { "type": "string", "maxGraphemes": 64, "maxLength": 640 },
+          "look": { "type": "string", "maxGraphemes": 300, "maxLength": 3000 },
+          "drive": { "type": "string", "maxGraphemes": 300, "maxLength": 3000 },
+          "controller": { "type": "string", "knownValues": ["human", "agent"] },
+          "operator": { "type": "string", "format": "did", "description": "For an agent: the DID of the person who runs it. The fold's gate counts operators, not accounts." },
+          "actions": {
+            "type": "object",
+            "description": "Action name -> dots. Names, total and per-action cap come from the game root's rules; check.js enforces them, a lexicon can't.",
+            "properties": {
+              "hunt": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "study": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "survey": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "tinker": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "finesse": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "prowl": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "skirmish": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "wreck": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "attune": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "command": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "consort": { "type": "integer", "minimum": 0, "maximum": 6 },
+              "sway": { "type": "integer", "minimum": 0, "maximum": 6 }
+            }
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}
