@@ -1,0 +1,24 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6
+4D G 1e-17 s 1.55 1.600 M_Ch: resumed at 4.8766 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.55-1.600-lp.ckpt.json
+4D G 1e-17 s 1.55 1.600 M_Ch 4.877 Gyr: L 4.9483e+45 W, R 2.8686e+8 m, Teff 51192 K, Tc 63.04 MK, ρc 7.655e+17 kg/m⁴, Xc 0.0015, stirred core 0.000, pp 1.4%, half the light inside q 0.209, burnt/radiated 0.9979
+4D G 1e-17 s 1.55 1.600 M_Ch 4.877 Gyr: L 4.9595e+45 W, R 2.8672e+8 m, Teff 51230 K, Tc 63.01 MK, ρc 7.654e+17 kg/m⁴, Xc 0.0014, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9973
+4D G 1e-17 s 1.55 1.600 M_Ch 4.878 Gyr: L 4.9679e+45 W, R 2.8715e+8 m, Teff 51202 K, Tc 63.01 MK, ρc 7.651e+17 kg/m⁴, Xc 0.0014, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9971
+4D G 1e-17 s 1.55 1.600 M_Ch 4.878 Gyr: L 4.9760e+45 W, R 2.8742e+8 m, Teff 51189 K, Tc 63.02 MK, ρc 7.649e+17 kg/m⁴, Xc 0.0014, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.879 Gyr: L 4.9794e+45 W, R 2.8750e+8 m, Teff 51187 K, Tc 63.04 MK, ρc 7.648e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.879 Gyr: L 4.9695e+45 W, R 2.8699e+8 m, Teff 51222 K, Tc 63.08 MK, ρc 7.643e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.880 Gyr: L 4.9861e+45 W, R 2.8706e+8 m, Teff 51248 K, Tc 63.06 MK, ρc 7.641e+17 kg/m⁴, Xc 0.0013, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.880 Gyr: L 5.0045e+45 W, R 2.8736e+8 m, Teff 51255 K, Tc 63.09 MK, ρc 7.638e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9973
+4D G 1e-17 s 1.55 1.600 M_Ch 4.881 Gyr: L 5.0357e+45 W, R 2.8799e+8 m, Teff 51251 K, Tc 63.10 MK, ρc 7.639e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9973
+4D G 1e-17 s 1.55 1.600 M_Ch 4.881 Gyr: L 5.0409e+45 W, R 2.8813e+8 m, Teff 51246 K, Tc 63.12 MK, ρc 7.638e+17 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9971
+4D G 1e-17 s 1.55 1.600 M_Ch 4.882 Gyr: L 5.0461e+45 W, R 2.8812e+8 m, Teff 51258 K, Tc 63.15 MK, ρc 7.637e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.882 Gyr: L 5.0385e+45 W, R 2.8820e+8 m, Teff 51234 K, Tc 63.18 MK, ρc 7.636e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9970
+4D G 1e-17 s 1.55 1.600 M_Ch 4.883 Gyr: L 5.0432e+45 W, R 2.8792e+8 m, Teff 51274 K, Tc 63.17 MK, ρc 7.636e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.883 Gyr: L 5.0648e+45 W, R 2.8857e+8 m, Teff 51248 K, Tc 63.16 MK, ρc 7.637e+17 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9971
+4D G 1e-17 s 1.55 1.600 M_Ch 4.883 Gyr: L 5.0497e+45 W, R 2.8839e+8 m, Teff 51236 K, Tc 63.17 MK, ρc 7.642e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.884 Gyr: L 5.0635e+45 W, R 2.8831e+8 m, Teff 51273 K, Tc 63.20 MK, ρc 7.640e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 1.4%, half the light inside q 0.214, burnt/radiated 0.9972
+4D G 1e-17 s 1.55 1.600 M_Ch 4.884 Gyr: L 5.0577e+45 W, R 2.8865e+8 m, Teff 51225 K, Tc 63.23 MK, ρc 7.640e+17 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 1.4%, half the light inside q 0.212, burnt/radiated 0.9972
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.55-1.600-lp.json (205 s, 1736 models; central hydrogen below 0.001)
+(node:2567) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
