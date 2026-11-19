@@ -1,21 +1,12 @@
 {
- "run": "evolve4-12",
- "why": "Finish the 5 G 1e-17 ladder stars evolve4-11 cut again (central hydrogen 0.001-0.093), from their checkpoints. evolve4-11 showed the last stretch matters: ash grew by up to a quarter between Xc ~0.08 and exhaustion. s 1.5152 1.25 M_Ch (Xc 0.093) is the slowest and decides whether it explodes at g 1.5.",
+ "run": "evolve4-13",
+ "why": "Finish the last G 1e-17 ladder star still cut: s 1.5152 1.25 M_Ch (Xc 0.0073 after evolve4-12; ash 34% to 42% of the star over that run). It sets the top of the net yield band at s <= 1.55 and explodes only at core growth g 1.5.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev12-00",
+   "name": "ev13-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6"
-   ]
-  },
-  {
-   "name": "ev12-01",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 4"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25"
    ]
   }
  ]

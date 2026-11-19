@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="28740ff3eaa51c7c100af5c953bfae41ec21e621295e76175573a892a1bbb118" />
+<meta name="source-sha256" content="5bc8c5ba9d2f07082f9adf7cbcd5a2df07f9bada47fa3353ca9799ab668f431f" />
 <title>Paper 2 · Supplement S1: how the model was built, and what each stage changed</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -634,7 +634,7 @@ analogue mass left out the low-mass stars that lock mass away (p above 1
 at s 1.55), and the galaxy gave a star born with metals its full
 primordial ash on top of them (gas Z above 1). <strong>Runs:</strong>
 <code>evolve4-8</code>, <code>evolve4-9</code>, <code>evolve4-10</code>,
-<code>evolve4-11</code>.</p>
+<code>evolve4-11</code>, <code>evolve4-12</code>.</p>
 <p><strong>Decision rule:</strong> none was fixed in advance; the
 stage’s results were read as they came.</p>
 <table>
@@ -656,14 +656,16 @@ stage’s results were read as they came.</p>
 <td>none computed on aged stars (zero-age giveback: declared
 lifetimes)</td>
 <td>mostly the rock row from exploding cores; much smaller from s 1.7
-up. evolve4-11 carried 7 of the 12 cut stars to exhaustion (24 of 29
-short-lived stars reached), and the last stretch mattered: ash grew by
-up to a quarter (s 1.55, 2.5 M_Ch: 33% to 41% of the star) and turned
-heavier (elements 12–15 leading), which raised p’s band at s ≤ 1.55 from
-0.042–0.17 (evolve4-10) and, at s 1.55, iron’s share of p from 1% to
-19%. An exploding core’s ash is now burnt element by element on
-explode’s rows, weighted by mass (it had taken the leading element’s row
-for all of it, so the split jumped when the lead flipped) ✓</td>
+up. evolve4-11 and -12 carried 11 of the 12 cut stars to exhaustion (27
+of 29 short-lived stars reached; s 1.65 4 M_Ch stops at Xc 0.0033, s
+1.5152 1.25 M_Ch is cut at 0.007), and the last stretch mattered: ash
+grew by up to a quarter (s 1.55, 2.5 M_Ch: 33% to 41% of the star) and
+turned heavier (elements 12–15 leading), which raised p’s band at s ≤
+1.55 from 0.042–0.17 (evolve4-10; 0.048–0.23 after evolve4-11) and, at s
+1.55, iron’s share of p from 1% to 19%. An exploding core’s ash is now
+burnt element by element on explode’s rows, weighted by mass (it had
+taken the leading element’s row for all of it, so the split jumped when
+the lead flipped) ✓</td>
 </tr>
 </tbody>
 </table>

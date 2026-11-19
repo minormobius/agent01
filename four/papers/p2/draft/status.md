@@ -25,7 +25,7 @@ lives from a frozen zero-age core. Five things came out of it.
    nothing moves by more than 11%.
 4. **What comes back is mostly the rock row, and less of it the further the strength is from ours.** Stars heavy
    enough to grow a Chandrasekhar-mass core explode and return the elements that make planets in our world. Near our
-   strength the metals returned come to 0.048–0.23 of the mass the stars lock away; at $s$ = 1.8, 0.00038–0.0015.
+   strength the metals returned come to 0.049–0.25 of the mass the stars lock away; at $s$ = 1.8, 0.00038–0.0015.
 5. **One limit is real physics, not numerics.** Two stars at $s$ = 1.5152 stop when their core's oitrogen runs out and
    the stirred core collapses faster than a solver in thermal balance can follow.
 
@@ -86,12 +86,12 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   line said metals barely change a four-dimensional star at all; a slip in the code had dropped every ion's bound–free
   absorption, leaving only free–free. Corrected the same day.)
 - **What the stars give back** (computed on declared endings; [section 4](ageing.html)). On mass ladders at six
-  strengths, the metals returned per unit of mass locked away (the net yield $p$) are 0.048–0.23 at $s$ ≤ 1.55,
-  0.011–0.087 at 1.6–1.65, 0.00062–0.027 at 1.7 and 0.00038–0.0015 at 1.8. How the cores grow decides which masses explode and sets most
+  strengths, the metals returned per unit of mass locked away (the net yield $p$) are 0.049–0.25 at $s$ ≤ 1.55,
+  0.011–0.088 at 1.6–1.65, 0.00062–0.027 at 1.7 and 0.00038–0.0015 at 1.8. How the cores grow decides which masses explode and sets most
   of the band. At the middle choice, 72–95% of it at $s$ ≤ 1.65 is the rock row (elements 13–23), made when the
   cores of the heaviest stars reach the Chandrasekhar mass, and only 4–6% is the light ash the stars held (13–30%
-  with strong winds). 5 of the 29 short-lived stars were cut short of exhaustion (at most 0.09 of
-  their central hydrogen left) and are carried on at their last rate.
+  with strong winds). 2 of the 29 short-lived stars stopped or were cut short of exhaustion (at most
+  0.01 of their central hydrogen left) and are carried on at their last rate.
 
 ## What it means
 
@@ -99,7 +99,7 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
 stars outlive ours several times over, and at the strengths nearest ours they turn a large share of themselves into
 elements 8–12 on the main sequence, which ours never do. Whether those elements reach the next generation depends on
 how the stars end. On the declared endings the heavy ones explode and return mostly the rock row: the elements that,
-in our world, make planets. Near our strength the metals they give back come to 0.048–0.23 of the mass they lock away; at
+in our world, make planets. Near our strength the metals they give back come to 0.049–0.25 of the mass they lock away; at
 $s$ = 1.8, where stars burn hydrogen to helium and little further, 0.00038–0.0015.
 
 **Whether the second generation looks like the first depends on what comes back.** In our world a star's metals set
@@ -113,8 +113,8 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **The last ladder stars finish** (evolve4-12 on the compute runner; automatic). 5 short-lived stars are
-   carried to exhaustion so no life or yield is extrapolated. The last stretch matters: the run before this one found
+1. **The last ladder star finishes** (evolve4-13 on the compute runner; automatic). The star at $s$ = 1.5152 and
+   1.25 Chandrasekhar masses sets the top of the band near our strength, and is carried to exhaustion. The last stretch matters: the run before this one found
    the stars still adding up to a quarter more ash between the last few per cent of their central hydrogen and its end.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
    and first 3 Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return.

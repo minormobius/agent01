@@ -71,8 +71,8 @@ hydrogen, so the ending is declared and carried as a band. Burning in a shell ro
 $w$ = {{mWs}} of the core's ash by winds. One that reaches it explodes, returns everything and burns the core's ash to
 this world's iron or the rock row (elements 13–23), by how far the core expands before the burning reaches it. The
 mass ladders at G = 10^−17^ hold {{yN}} stars at {{yNs}} strengths. Of the {{yShort}} that die within 30 Gyr,
-{{yReached}} reached central hydrogen 10⁻³; the other {{yCarried}} were cut with at most {{yXcMax}} of it left, and
-their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes (figure 3a) is {{yExA}} M~Ch~ at
+{{yReached}} reached central hydrogen 10⁻³; the other {{yCarried}} stopped or were cut with at most {{yXcMax}} of it left,
+and their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes (figure 3a) is {{yExA}} M~Ch~ at
 s ≤ 1.55, {{yExB}} at 1.6–1.65 and {{yExC}} at 1.7. The net yield $p$ (figure 3b), the elements past helium returned per unit of
 mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = {{mAlphas}})
 from 0.25 to 2.5 M~Ch~ for the stars that die within {{mTgs}} Gyr, is {{yPA}} at s ≤ 1.55, {{yPB}} at 1.6–1.65,

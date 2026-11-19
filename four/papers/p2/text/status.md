@@ -90,8 +90,8 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   {{yPB}} at 1.6–1.65, {{yPC}} at 1.7 and {{yPD}} at 1.8. How the cores grow decides which masses explode and sets most
   of the band. At the middle choice, {{yRock}} of it at $s$ ≤ 1.65 is the rock row (elements 13–23), made when the
   cores of the heaviest stars reach the Chandrasekhar mass, and only {{yLight}} is the light ash the stars held ({{yLight30}}
-  with strong winds). {{yCarried}} of the {{yShort}} short-lived stars were cut short of exhaustion (at most {{yXcMax}} of
-  their central hydrogen left) and are carried on at their last rate.
+  with strong winds). {{yCarried}} of the {{yShort}} short-lived stars stopped or were cut short of exhaustion (at most
+  {{yXcMax}} of their central hydrogen left) and are carried on at their last rate.
 
 ## What it means
 
@@ -113,8 +113,8 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **The last ladder stars finish** (evolve4-12 on the compute runner; automatic). {{yCarried}} short-lived stars are
-   carried to exhaustion so no life or yield is extrapolated. The last stretch matters: the run before this one found
+1. **The last ladder star finishes** (evolve4-13 on the compute runner; automatic). The star at $s$ = 1.5152 and
+   1.25 Chandrasekhar masses sets the top of the band near our strength, and is carried to exhaustion. The last stretch matters: the run before this one found
    the stars still adding up to a quarter more ash between the last few per cent of their central hydrogen and its end.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
    and first {{g2Gyr}} Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return.

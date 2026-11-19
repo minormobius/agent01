@@ -1302,6 +1302,11 @@ for games, and this is a modelling programme with publications to come. The game
   explode's rows, weighted by mass. It had used the leading element's row for all of it, so iron jumped from 1% to 14%
   of a star when the lead flipped. Middle choice now: rock row 72–95% of p at s ≤ 1.65, iron up to 23% (s 1.55: 19%,
   real, since the ash is heavier). provenance yields4 now 0.048–0.23. evolve4-12 (5 commands) finishes the rest.
+  **evolve4-12 (collected 2026-11-19):** 4 of the 5 finished. s 1.65 4 M_Ch stops "no solution past Xc 0.0033", as
+  s 1.5152 1 M_Ch did at 0.0097; both are carried on at their last rate. s 1.5152 1.25 M_Ch is cut at Xc 0.0073, with
+  ash 34% → 42%; it still explodes only at g 1.5. Middle-choice p is up 1–2% at s ≤ 1.55, the mix is unchanged, and
+  p's band at s ≤ 1.55 is 0.049–0.25 (provenance updated). The explosion edge at s 1.5152, g 1.5 is 1.08 M_Ch.
+  evolve4-13 carries the 1.25 M_Ch star alone.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

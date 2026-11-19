@@ -267,8 +267,8 @@
    "half": 9.08,
    "halfAfter": null,
    "exhaust": null,
-   "lastGyr": 14.3,
-   "lastXc": 0.0929,
+   "lastGyr": 14.8,
+   "lastXc": 0.0073,
    "Tc0": 19.34,
    "state": "cut"
   },
@@ -290,11 +290,11 @@
    "m": 2,
    "half": 0.93,
    "halfAfter": null,
-   "exhaust": null,
+   "exhaust": 1.6,
    "lastGyr": 1.6,
-   "lastXc": 0.0035,
+   "lastXc": 0.001,
    "Tc0": 23.25,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-17,
@@ -338,11 +338,11 @@
    "m": 1.6,
    "half": 2.95,
    "halfAfter": null,
-   "exhaust": null,
+   "exhaust": 4.9,
    "lastGyr": 4.9,
-   "lastXc": 0.0015,
+   "lastXc": 0.001,
    "Tc0": 20.14,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-17,
@@ -398,11 +398,11 @@
    "m": 1.25,
    "half": 8.54,
    "halfAfter": null,
-   "exhaust": null,
+   "exhaust": 13.4,
    "lastGyr": 13.4,
-   "lastXc": 0.0011,
+   "lastXc": 0.001,
    "Tc0": 16.29,
-   "state": "cut"
+   "state": "central hydrogen below 0.001"
   },
   {
    "G": 1e-17,
@@ -520,9 +520,22 @@
    "halfAfter": null,
    "exhaust": null,
    "lastGyr": 0.1,
-   "lastXc": 0.0056,
+   "lastXc": 0.0033,
    "Tc0": 18.53,
-   "state": "cut"
+   "state": "no solution past Xc 0.0033",
+   "stop": {
+    "qccPeak": 0.19,
+    "qccEnd": 0,
+    "overGyr": 0.11,
+    "rhoUp": 14641.184,
+    "TcDown": 8.124,
+    "LUp": 21.261,
+    "short": 0,
+    "centre": {
+     "1": 0.0033,
+     "12": 0.9967
+    }
+   }
   },
   {
    "G": 1e-17,
