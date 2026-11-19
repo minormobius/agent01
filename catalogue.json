@@ -5816,6 +5816,22 @@
       ]
     },
     {
+      "n": "ana-prism",
+      "u": "https://ana.mino.mobi/prism/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-19",
+      "b": "2026-11-19",
+      "p": "ana",
+      "surface": "ana",
+      "d": "Light puzzles in four dimensions. Turn 4D prisms (a triangle times a square, bending light only in the triangle's plane) and mirrors to steer a beam ana and kata: bend it into w to reach a target off in w, send it over a wall that fills our space from edge to edge, split white light into a rainbow that runs along w so no single slice shows all three colours, and turn a corner in two planes. Real ray optics: Snell's law in vector form (the same in any dimension), total internal reflection, mirrors, dispersion in a dense flint glass. In the shadow every beam shows whole; in the slice a beam is a spark where it pierces our space, ringed by which way it's heading. A selftest holds Snell's law on random rays in 4D, the prism's least deviation, and every level solvable.",
+      "tags": [
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "hyperball",
       "u": "https://hyperball.mino.mobi/",
       "c": "games",
