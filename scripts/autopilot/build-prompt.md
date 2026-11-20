@@ -33,9 +33,9 @@ _Regenerated 2026-11-20 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-20, 100 members / 216 posts):
+**Neighborhood spark** (bisk 2026-11-20, 100 members / 237 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: anthropic, llm, bluesky
+- Distinctive words: riemann, bluesky, gta
 - Top post: "seriously this shit works on people i can make it say anything dude that's how they work" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
