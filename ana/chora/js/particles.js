@@ -255,3 +255,22 @@ export function kickModes(ms, i, dv) {
 }
 /** Kick one particle in the simulation itself. */
 export function kick(s, i, dv) { for (let c = 0; c < s.dim; c++) s.vel[i * 4 + c] += dv[c] ?? 0; }
+
+/** Record the swarm itself, not its modes: a copy, kicked, run for `steps` steps with drag f, listened to by two
+ *  microphones. Each microphone hears every particle's velocity along its own fixed direction, weighted ±1 (so the
+ *  symmetric modes don't cancel out): mic L along directions in `spaceDirs(i)`, mic R along `wDir(i)`. This is the full
+ *  nonlinear motion: small kicks ring at the modes' frequencies, hard ones bend the pitches and trade energy between
+ *  modes. Returns two Float32Arrays, one sample per step. */
+export function record(s, kicks, { steps, f, spaceDirs, wDir }) {
+  const c = { ...s, pos: Float64Array.from(s.pos), vel: Float64Array.from(s.vel), f };
+  for (const [i, dv] of kicks) kick(c, i, dv);
+  const L = new Float32Array(steps), R = new Float32Array(steps), n = s.n;
+  const wl = Array.from({ length: n }, (_, i) => ((i * 2654435761) % 7 < 4 ? 1 : -1)), wr = Array.from({ length: n }, (_, i) => ((i * 40503) % 5 < 3 ? 1 : -1));
+  const dl = Array.from({ length: n }, (_, i) => spaceDirs(i)), dr = Array.from({ length: n }, (_, i) => wDir(i));
+  for (let k = 0; k < steps; k++) {
+    step(c); let l = 0, r = 0;
+    for (let i = 0; i < n; i++) { const o = i * 4, v = [c.vel[o], c.vel[o + 1], c.vel[o + 2], c.vel[o + 3]]; l += wl[i] * (v[0] * dl[i][0] + v[1] * dl[i][1] + v[2] * dl[i][2] + v[3] * dl[i][3]); r += wr[i] * (v[0] * dr[i][0] + v[1] * dr[i][1] + v[2] * dr[i][2] + v[3] * dr[i][3]); }
+    L[k] = l; R[k] = r;
+  }
+  return { L, R };
+}

@@ -72,3 +72,33 @@ in your space: left; even in all four directions: centre; mostly ana/kata: right
 in ~60 steps; the sound is slowed (1.2 s at the paper's drag) and scales with the drag slider. "ring it" and arriving at
 a shape sound every mode evenly. While settling, a hiss follows the swarm's mean speed. Each ring is normalised to a fixed
 peak, so a harder kick changes the balance of notes, not the loudness.
+
+## Voices and tuning
+
+Each voice is a choice of what strikes the swarm, what damps it, and what listens (`VOICES` in `main.js`):
+
+| voice | strike | damping | listening | sounds |
+|---|---|---|---|---|
+| bell | a kick to the velocity | air drag: every mode rings equally long | velocity | a bell |
+| wood | the same | friction inside the swarm (on how fast neighbours part): damping ∝ stiffness, so high notes die fast | velocity | a knock |
+| glass | a hard small hammer | almost none (3× the bell) | acceleration (× ω) | long and bright |
+| pluck | pulled aside and let go (the kick as a displacement) | a little less than the bell | position (÷ ω) | soft, low |
+| live | the kick, in a copy of the swarm | the drag turned nearly off, so it rings as long as the bell | two microphones on the particles | the real thing |
+
+The first four are the modes (linear: what the swarm does for small kicks). **live** records the simulation itself
+(`record`), one step a sample at 2π × 1600 steps a second so its pitches line up with the modes'. The selftest checks
+that a gentle kick along a mode rings at the mode's pitch, and that a hard one moves the loudest pitch well away (from
+0.142 to 0.416 rad/step for the 16-cell's lowest mode): the forces aren't springs, so hard kicks bend the notes and pass
+energy between modes. Big swarms get a shorter recording (about 6·10⁷ pair checks of work: half a second for the
+600-cell).
+
+**Tuning** (`tune` in `sound.js`) snaps each note to a scale on C: true (as the physics gives it), semitones (equal
+temperament), C major pentatonic, or just-intonation C major. Modes on one note stay on one note. Live can't be tuned.
+
+**The swoosh.** The first version's kick sounded like a whoosh: it was the settling hiss, which followed the swarm's
+speed and so fired on every kick. The hiss now sounds only while a dropped-in or shaken swarm settles (and can be
+switched off).
+
+**Interaction.** A tap on a particle kicks it in a random direction; a drag from a particle flings it; a drag anywhere
+else turns the view. The first version caught any drag within 16 px of a particle as a fling, which with a dense swarm
+was nearly every drag, so the view couldn't be turned; now a particle is hit only within its drawn disc.

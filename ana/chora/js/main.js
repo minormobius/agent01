@@ -2,12 +2,12 @@
 // each tier's edges in its colour). 3D presets are drawn straight; 4D ones as a shadow from an eye out in w (tilted 35°
 // off w, as PRISM's) or a slice. The pad, lever and ⊞ are CAD⁴'s.
 import * as P from './particles.js';
-import { Bell, HZ } from './sound.js';
+import { Bell, HZ, tune } from './sound.js';
 
 const $ = (id) => document.getElementById(id);
 const cv = $('ov'), ctx = cv.getContext('2d');
 const S = { preset: 0, n: 12, sim: null, run: true, settled: false, view: 'shadow', spin: true, frame: 0, ids: [], edges: [], union: true, scaleR: 1.5,
-  thick: 0.025, forces: { a: P.A, f: P.F, rk: 1, mk: 1 }, kickV: 0.25, sel: -1, fling: null, C: [], modes: null, notes: null, sound: false };
+  thick: 0.025, forces: { a: P.A, f: P.F, rk: 1, mk: 1 }, kickV: 0.25, sel: -1, fling: null, C: [], modes: null, notes: null, sound: false, voice: 'bell', scale: 'true', hiss: true, hissOn: true, Rr: [] };
 let E = null, off = 0, yaw = 0.5, pitch = 0.35, zoom = 1;
 const TILT = (35 * Math.PI) / 180;
 const homeE = () => (S.view === 'shadow' ? [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, Math.cos(TILT), Math.sin(TILT)], [0, 0, -Math.sin(TILT), Math.cos(TILT)]] : [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]);
@@ -18,7 +18,7 @@ const pr = () => P.PRESETS[S.preset], is4 = () => pr().dim === 4;
 // ------------------------------------------------------------------ the system
 function start() {
   const p = pr(); S.sim = P.create(p.make(S.n), Math.random); Object.assign(S.sim, S.forces); S.settled = false; S.run = true; S.modes = null; S.sel = -1; $('pauseB').textContent = 'pause';
-  S.ids = []; S.edges = []; S.frame = 0; info(); modeInfo();
+  S.ids = []; S.edges = []; S.frame = 0; S.hiss = true; info(); modeInfo();
 }
 /** The points to draw for each particle (the 24-cell preset can put the tesseract tier on the seed's sphere). */
 function shown() {
@@ -76,10 +76,10 @@ function draw() {
       ctx.lineWidth = Math.max(0.8, 2 * Math.sqrt(r) * F * (qa[3] + qb[3]) / 2); ctx.beginPath(); ctx.moveTo(qa[0], qa[1]); ctx.lineTo(qb[0], qb[1]); ctx.stroke();
     }
   }
-  const order = C.map((c, i) => [c[2], i]).sort((p, q) => p[0] - q[0]);
+  const order = C.map((c, i) => [c[2], i]).sort((p, q) => p[0] - q[0]); S.Rr = new Array(C.length).fill(0);
   for (const [, i] of order) {
     let rr = rhoP; if (slicing) { const q = rhoP * rhoP - P3[i][3] ** 2; if (q <= 0) continue; rr = Math.sqrt(q); }
-    const col = s.preset.types[s.type[i]].col, r = Math.max(2, rr * F * C[i][3] * k4(P3[i]));
+    const col = s.preset.types[s.type[i]].col, r = Math.max(2, rr * F * C[i][3] * k4(P3[i])); S.Rr[i] = r;
     ctx.globalAlpha = 1; const g = ctx.createRadialGradient(C[i][0] - r * 0.3, C[i][1] - r * 0.3, r * 0.1, C[i][0], C[i][1], r);
     g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, col); g.addColorStop(1, 'rgba(0,0,0,0.6)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(C[i][0], C[i][1], r, 0, 7); ctx.fill();
     if (i === S.sel) { ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(C[i][0], C[i][1], r + 5, 0, 7); ctx.stroke(); }
@@ -133,8 +133,8 @@ function screenDir(dx, dy) {
 /** Kick particle i along unit direction dir (4 numbers), scaled by the kick slider: in the simulation, and, if the
  *  swarm was settled and sound is on, as a ring of its modes. */
 function kickAlong(i, dir, scale = 1) {
-  const dv = dir.map((x) => x * S.kickV * scale), wasSettled = S.settled;
-  if (S.sound && S.modes && wasSettled) playKicks([[i, dv]]);
+  const dv = dir.map((x) => x * S.kickV * scale); S.hiss = false;
+  if (S.sound && S.modes) playKicks([[i, dv]]);
   P.kick(S.sim, i, dv); S.settled = false; S.run = true; $('pauseB').textContent = 'pause'; info();
 }
 const pick = () => (S.sel >= 0 && S.sel < S.sim.n ? S.sel : Math.floor(Math.random() * S.sim.n));
@@ -148,14 +148,47 @@ function computeModes() {
 }
 const panOf = (m) => { if (!is4()) return 0; let sh = 0; for (let p = 0; p < m.idx.length; p++) { let c = 0; for (let k = 0; k < 4; k++) c += m.shape[p * 4 + k] * E[3][k]; sh += c * c; } return Math.max(-1, Math.min(1, (sh - 0.25) / 0.25)); };
 const decay = () => (1.2 * Math.log(0.97)) / Math.log(S.forces.f);
-/** Ring the modes set going by kicks [[particle, dv], ...]. */
+/** The voices: what strikes the swarm, what damps it, and what listens.
+ *  bell:  a strike (a kick to the velocity), air drag (every mode rings equally long), listening to velocity.
+ *  wood:  the same strike, but friction inside the swarm, on how fast neighbours move apart: it damps a mode in
+ *         proportion to its stiffness, so the high notes die fast and the sound is a knock.
+ *  glass: a hard, small hammer and almost no damping: listening to acceleration (each mode × ω), long and bright.
+ *  pluck: pull the particle aside and let go (the kick as a displacement), listening to position (each mode ÷ ω):
+ *         soft and low.
+ *  live:  not the modes at all: the swarm itself, kicked and run with the drag turned almost off, two microphones
+ *         listening to the particles. Gentle kicks ring at the modes' pitches; hard ones bend them and spill energy
+ *         between modes, because the real forces aren't springs. (Tuning doesn't apply: it's the raw motion.) */
+const VOICES = {
+  bell: { amp: (a) => a, decay: (m, d) => d },
+  wood: { amp: (a) => a, decay: (m, d, lo) => Math.max(0.025, 0.45 * (lo * lo) / (m.lam || lo * lo)) },
+  glass: { amp: (a, m) => a * m.omega, decay: (m, d) => d * 3 },
+  pluck: { amp: (a, m) => a / Math.max(0.02, m.omega), decay: (m, d) => d * 0.8 },
+};
+const STEP_RATE = 2 * Math.PI * HZ;          // simulation steps per second of sound, so the live voice and the modes agree on pitch
+/** Ring the modes set going by kicks [[particle, dv], ...] (or play the live swarm). */
 function playKicks(kicks) {
-  const D = S.sim.dim, amp = new Float64Array(S.modes.length);
+  if (S.voice === 'live') return playLive(kicks);
+  const D = S.sim.dim, amp = new Float64Array(S.modes.length), V = VOICES[S.voice], d = decay();
   for (const [i, dv] of kicks) P.kickModes(S.modes, i, dv.slice(0, D)).forEach((a, k) => { amp[k] += a; });
-  S.bell.ring(S.modes.map((m, k) => ({ hz: m.zero ? 0 : HZ * m.omega, amp: amp[k], pan: panOf(m) })), decay());
+  const lo = Math.min(...S.modes.filter((m) => !m.zero).map((m) => m.lam));
+  S.bell.ring(S.modes.map((m, k) => (m.zero ? { hz: 0 } : { hz: tune(HZ * m.omega, S.scale), amp: V.amp(amp[k], m), pan: panOf(m), decay: V.decay(m, d, lo) })), d);
 }
-/** On arriving, or on "ring it": every mode at once, evenly. */
-function chime() { S.bell.ring(S.modes.map((m) => ({ hz: m.zero ? 0 : HZ * m.omega, amp: 1, pan: panOf(m) })), decay()); }
+/** The live voice: record the swarm itself after the kicks (drag set so it rings as long as the bell would). */
+function playLive(kicks) {
+  // up to 2.5 s of sound, but no more than about 6·10⁷ pair checks of work (the 600-cell gets about half a second)
+  const n = S.sim.n, steps = Math.round(Math.min(STEP_RATE * 2.5, Math.max(3000, 6e7 / (n * n)))), f = Math.exp(-2 / (decay() * STEP_RATE));
+  const own = (i) => { const v = [Math.sin(i * 1.3 + 0.2), Math.cos(i * 2.1), Math.sin(i * 0.7 + 1), 0], l = Math.hypot(...v); return is4() ? [0, 1, 2, 3].map((c) => (v[0] * E[0][c] + v[1] * E[1][c] + v[2] * E[2][c]) / l) : v.map((x) => x / l); };
+  const wdir = (i) => (is4() ? E[3] : (() => { const v = [Math.cos(i * 0.9), Math.sin(i * 1.7 + 2), Math.cos(i * 2.9 + 1), 0], l = Math.hypot(...v); return v.map((x) => x / l); })());
+  const snap = { ...S.sim, pos: Float64Array.from(S.sim.pos), vel: Float64Array.from(S.sim.vel) };
+  if (n > 40) toast('recording the swarm…');
+  setTimeout(() => { const { L, R } = P.record(snap, kicks, { steps, f, spaceDirs: own, wDir: wdir }); S.bell.play(L, R, STEP_RATE); }, 20);
+}
+/** On arriving, or on "ring it": every mode at once, evenly, in the chosen voice and tuning. */
+function chime() {
+  if (S.voice === 'live') { const kicks = []; for (let i = 0; i < S.sim.n; i++) kicks.push([i, [0, 1, 2, 3].map((c) => (c < S.sim.dim ? (Math.random() * 2 - 1) * 0.004 : 0))]); return playLive(kicks); }
+  const V = VOICES[S.voice], d = decay(), lo = Math.min(...S.modes.filter((m) => !m.zero).map((m) => m.lam));
+  S.bell.ring(S.modes.map((m) => (m.zero ? { hz: 0 } : { hz: tune(HZ * m.omega, S.scale), amp: V.amp(1, m), pan: panOf(m), decay: V.decay(m, d, lo) })), d);
+}
 function ensureSound() { if (!S.bell) S.bell = new Bell(); if (S.bell.ctx.state === 'suspended') S.bell.ctx.resume(); S.sound = true; $('soundB').textContent = '♪ sound on'; $('soundB').classList.add('on'); }
 $('soundB').onclick = () => { if (S.sound) { S.sound = false; S.bell?.ctx.suspend(); $('soundB').textContent = '♪ sound off'; $('soundB').classList.remove('on'); } else { ensureSound(); if (S.modes) chime(); } };
 // the forces: change them and the swarm re-settles from where it is
@@ -165,6 +198,9 @@ function setForces() {
   if (S.sim) { Object.assign(S.sim, S.forces); S.settled = false; S.run = true; S.modes = null; info(); modeInfo(); }
 }
 for (const id of ['fa', 'fr', 'fm', 'ff']) $(id).oninput = setForces;
+for (const b of $('voice').children) b.onclick = () => { S.voice = b.dataset.v; for (const x of $('voice').children) x.classList.toggle('on', x === b); $('scaleRow').classList.toggle('dim', S.voice === 'live'); ensureSound(); if (S.modes) chime(); };
+for (const b of $('scale').children) b.onclick = () => { S.scale = b.dataset.v; for (const x of $('scale').children) x.classList.toggle('on', x === b); ensureSound(); if (S.modes) chime(); };
+$('hissC').onchange = () => { S.hissOn = $('hissC').checked; };
 $('kickV').oninput = () => { S.kickV = +$('kickV').value; $('kickVV').textContent = S.kickV.toFixed(2); };
 $('thick').oninput = () => { S.thick = +$('thick').value; $('thickV').textContent = `${S.thick.toFixed(3)} × radius`; };
 /** The spectrum: each note a bar at its pitch (log scale, 30 Hz to 2 kHz), as tall as the number of modes on it. */
@@ -184,7 +220,7 @@ function modeInfo() {
   row('modes on the most-shared note', String(top));
   row('pitch range', `${Math.round(HZ * S.notes[0].omega)}–${Math.round(HZ * S.notes[S.notes.length - 1].omega)} Hz`);
 }
-$('shakeB').onclick = () => { P.shake(S.sim, 0.6); S.settled = false; S.run = true; $('pauseB').textContent = 'pause'; info(); };
+$('shakeB').onclick = () => { S.hiss = true; if (S.sound && S.modes) { const kicks = []; for (let i = 0; i < S.sim.n; i++) kicks.push([i, [0, 1, 2, 3].map(() => (Math.random() * 2 - 1) * 0.6).map((x, c) => (c < S.sim.dim ? x : 0))]); playKicks(kicks); for (const [i, dv] of kicks) P.kick(S.sim, i, dv); S.settled = false; S.run = true; info(); return; } P.shake(S.sim, 0.6); S.settled = false; S.run = true; $('pauseB').textContent = 'pause'; info(); };
 $('pauseB').onclick = () => { S.run = !S.run; $('pauseB').textContent = S.run ? 'pause' : 'run'; };
 for (const b of $('view').children) b.onclick = () => { S.view = b.dataset.v; for (const x of $('view').children) x.classList.toggle('on', x === b); E = homeE(); };
 $('squareB').onclick = () => { E = homeE(); off = 0; };
@@ -194,11 +230,11 @@ $('cap').onclick = () => $('cap').classList.toggle('min');
 // ------------------------------------------------------------------ controls
 {
   const pts = new Map(); let pinch = 0;
-  const hit = (e) => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; let best = -1, bd = 16; S.C.forEach((c, i) => { const d = Math.hypot(c[0] - x, c[1] - y); if (d < bd) { bd = d; best = i; } }); return best; };
+  const hit = (e) => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; let best = -1, bd = Infinity; S.C.forEach((c, i) => { const d = Math.hypot(c[0] - x, c[1] - y); if (d < (S.Rr[i] || 6) + 5 && d < bd) { bd = d; best = i; } }); return best; };
   let grab = null;
   cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; $('cap').classList.add('min'); const i = pts.size === 1 ? hit(e) : -1; grab = i >= 0 ? { i, x: e.clientX, y: e.clientY } : null; if (grab) { S.sel = i; S.fling = { i, dx: 0, dy: 0 }; } });
   cv.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; if (grab && pts.size === 1) { S.fling = { i: grab.i, dx: e.clientX - grab.x, dy: e.clientY - grab.y }; return; } if (pts.size === 1) { yaw += (e.clientX - p[0]) * 0.008; pitch = Math.max(-1.5, Math.min(1.5, pitch + (e.clientY - p[1]) * 0.008)); } pts.set(e.pointerId, [e.clientX, e.clientY]); if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) zoom = Math.max(0.3, Math.min(6, (zoom * d) / pinch)); pinch = d; } });
-  const up = (e) => { pts.delete(e.pointerId); pinch = 0; if (grab) { const { dx, dy } = S.fling || { dx: 0, dy: 0 }; if (Math.hypot(dx, dy) > 8) kickAlong(grab.i, screenDir(dx, dy), Math.min(1.5, Math.hypot(dx, dy) / 120)); grab = null; S.fling = null; } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  const up = (e) => { pts.delete(e.pointerId); pinch = 0; if (grab) { const { dx, dy } = S.fling || { dx: 0, dy: 0 }; if (Math.hypot(dx, dy) > 8) kickAlong(grab.i, screenDir(dx, dy), Math.min(1.5, Math.hypot(dx, dy) / 120)); else { const g = () => { let u = 0; for (let k = 0; k < 6; k++) u += Math.random(); return u - 3; }, v = [g(), g(), g(), is4() ? g() : 0], l = Math.hypot(...v); kickAlong(grab.i, v.map((q) => q / l)); } grab = null; S.fling = null; } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math.min(6, zoom * Math.exp(-e.deltaY * 0.0015))); }, { passive: false });
 }
 const stick = { x: 0, y: 0 }, lever = { y: 0 }, keys = new Set();
@@ -235,7 +271,7 @@ function tick(now) {
     if (v < 1e-9 && S.sim.steps > 100) { S.settled = true; read(); setTimeout(() => { computeModes(); if (S.sound && S.modes) chime(); }, 30); }
     else if (++S.frame % 15 === 0) read();
   }
-  if (S.bell) { let v2 = 0; if (S.run && !S.settled) { for (let i = 0; i < S.sim.n * 4; i++) v2 += S.sim.vel[i] ** 2; v2 /= S.sim.n; } S.bell.hiss(Math.sqrt(v2)); }
+  if (S.bell) { let v2 = 0; if (S.run && !S.settled && S.hiss && S.hissOn) { for (let i = 0; i < S.sim.n * 4; i++) v2 += S.sim.vel[i] ** 2; v2 /= S.sim.n; } S.bell.hiss(Math.sqrt(v2)); }
   if (S.spin) yaw += dt * 0.25;
   draw();
   requestAnimationFrame(tick);

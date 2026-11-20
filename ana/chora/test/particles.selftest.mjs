@@ -77,5 +77,21 @@ const name = (X) => { const sh = P.shapeOf(X); return sh ? (sh.exact ? sh.name :
   const s120 = P.create(P.oneKind(4, 120), rnd); P.settle(s120, 40000); const n120 = P.notes(P.modes(s120), 1e-5);
   ok(P.shapeOf(P.ofType(s120, 0))?.name === '600-cell' && n120.length === 23 && n120.reduce((t, x) => t + x.count, 0) === 474, `the 600-cell's 474 ringing modes sound only ${n120.length} distinct notes (up to ${Math.max(...n120.map((x) => x.count))} modes on one)`);
 }
+// the sound's maths: tuning snaps to its scale, and the live voice is the simulation's own motion
+{
+  const { tune } = await import('../js/sound.js');
+  const C0 = 16.351597831287414, pc = (hz) => ((Math.round(12 * Math.log2(hz / C0)) % 12) + 12) % 12;
+  const fs = Array.from({ length: 300 }, () => 40 + rnd() * 1500);
+  const eq = fs.every((f) => { const t = tune(f, 'equal'), x = 12 * Math.log2(t / C0); return Math.abs(x - Math.round(x)) < 1e-9 && Math.abs(Math.log2(t / f)) <= 1 / 24 + 1e-12; });
+  const pent = fs.every((f) => [0, 2, 4, 7, 9].includes(pc(tune(f, 'pentatonic'))));
+  const just = fs.every((f) => { const t = tune(f, 'just'), r = t / (C0 * 2 ** Math.floor(Math.log2(t / C0) + 1e-9)); return [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8].some((q) => Math.abs(r - q) < 1e-9); });
+  ok(eq && pent && just && tune(437, 'true') === 437, 'tuning: semitones land on equal temperament (never more than a quarter-tone away), pentatonic on C D E G A, just on the just C major ratios; true leaves pitch alone');
+  const s = P.create(P.oneKind(4, 8), rnd); P.settle(s, 40000); const ms = P.modes(s).filter((m) => !m.zero), m = ms[0];
+  const dir = (i) => { const v = [Math.sin(i * 1.3), Math.cos(i * 2.1), Math.sin(i * 0.7 + 1), 0], l = Math.hypot(...v); return v.map((x) => x / l); };
+  const loudest = (amp) => { const kicks = []; for (let p = 0; p < 8; p++) kicks.push([p, [0, 1, 2, 3].map((c) => amp * m.shape[p * 4 + c])]); const { L } = P.record(s, kicks, { steps: 2500, f: 0.99995, spaceDirs: dir, wDir: () => [0, 0, 0, 1] });
+    let best = [0, 0]; for (let k = 0; k < 400; k++) { const w = 0.02 + (0.6 * k) / 400; let re = 0, im = 0; for (let t = 0; t < L.length; t++) { re += L[t] * Math.cos(w * t); im += L[t] * Math.sin(w * t); } const a = Math.hypot(re, im); if (a > best[1]) best = [w, a]; } return best[0]; };
+  const soft = loudest(1e-4), hard = loudest(0.3);
+  ok(Math.abs(soft - m.omega) < 0.0016 && Math.abs(hard - m.omega) / m.omega > 0.1, `the live voice records the swarm itself: kicked gently along its lowest mode it rings at ${soft.toFixed(4)} (the mode: ${m.omega.toFixed(4)}); kicked hard, the loudest pitch moves to ${hard.toFixed(4)}, because the real forces aren't springs`);
+}
 console.log(`${fails ? '✗' : '✓'} particles: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

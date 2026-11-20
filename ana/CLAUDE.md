@@ -136,7 +136,9 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   as strict as the selftest's (10⁻⁹; looser left shapes unrecognised). Thickness: edges as 4D tubes, particles as 4D balls,
   sliced exactly (radius √(ρ² − s²)). Kicks (fling, ana/kata), force sliders (`a`, `f`, `rk`, `mk` on the sim). Vibration:
   `stiffness` (per tier; block-triangular overall), `eigSym` (tred2/tql2), `modes` (ω from the step rule), `notes`,
-  `kickModes`; `js/sound.js` rings them (WebAudio, panned by share along your w). Results table in [`chora/README.md`](chora/README.md).
+  `kickModes`; `js/sound.js` rings them (WebAudio, panned by share along your w). Voices bell/wood/glass/pluck (strike,
+  damping, listening) and live (`record`: the simulation itself, one step a sample); `tune` snaps to a scale. The hiss
+  only follows a fresh settle (it was the kick's swoosh). A tap on a particle kicks it; hits only within its disc. Results table in [`chora/README.md`](chora/README.md).
 
 ## Checks
 

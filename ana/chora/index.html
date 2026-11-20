@@ -39,8 +39,11 @@
     </section>
     <section>
       <h2>kick it, tune it, hear it</h2>
-      <p class="foot">Drag from a particle to fling it, or tap one and kick it ana or kata. Settled, the swarm vibrates in its modes; with sound on, a kick rings each mode with the part of the kick along it: pitch from its frequency, panned right by how much it moves along your w.</p>
+      <p class="foot">Tap a particle to kick it, drag from one to fling it (drag anywhere else turns the view), or kick the last one tapped ana or kata. Settled, the swarm vibrates in its modes; with sound on, a kick rings each mode with the part of the kick along it: pitch from its frequency, panned right by how much it moves along your w.</p>
       <div class="btns"><button id="soundB">♪ sound off</button><button id="kickAnaB" class="four">kick ana</button><button id="kickKataB" class="four">kick kata</button><button id="kickB">kick</button><button id="chimeB">ring it</button></div>
+      <div class="btns" id="voice"><span class="foot">voice</span><button data-v="bell" class="on">bell</button><button data-v="wood">wood</button><button data-v="glass">glass</button><button data-v="pluck">pluck</button><button data-v="live">live</button></div>
+      <div class="btns" id="scaleRow"><span class="foot">tuning</span><span id="scale" class="btns" style="margin:0"><button data-v="true" class="on">true</button><button data-v="equal">semitones</button><button data-v="pentatonic">pentatonic</button><button data-v="just">just C major</button></span></div>
+      <label class="foot"><input type="checkbox" id="hissC" checked /> hiss while it settles</label>
       <div class="knob"><label><span>kick</span><b id="kickVV"></b></label><div class="slider"><span>soft</span><input type="range" id="kickV" min="0.02" max="1" step="0.01" value="0.25" /><span>hard</span></div></div>
       <div class="knob"><label><span>pull to the centre, a</span><b id="faV"></b></label><div class="slider"><span>0.05</span><input type="range" id="fa" min="0.05" max="0.6" step="0.005" value="0.2" /><span>0.6</span></div></div>
       <div class="knob"><label><span>pushes, × r</span><b id="frV"></b></label><div class="slider"><span>¼</span><input type="range" id="fr" min="-2" max="2" step="0.05" value="0" /><span>4</span></div></div>

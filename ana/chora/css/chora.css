@@ -55,3 +55,4 @@ body:not(.is4) .four { display: none !important; }
 #presets { display: flex; flex-wrap: wrap; gap: 6px; }
 #presets button.on { border-color: var(--gold); color: var(--gold); }
 .rows .ok { color: var(--ana); } .rows .near { color: var(--gold); }
+.dim { opacity: 0.4; }
