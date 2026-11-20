@@ -178,6 +178,52 @@ more surface for its area.
 **The ribbon** has an edge of another kind: a ribbon spanning the pipe meets the wall along a circle, and a strip
 narrower than the pipe has two free edges that shed their own vortices. Not estimated.
 
+## 7. The Reynolds ladder: 200 to 1600 in steps of √2 (`ladder4.py`)
+
+The uniform wake's base flow, continued up a ladder spaced evenly in log Re (200, 283, 400, 566, 800, 1131, 1600;
+Newton fails at the next rung, 2263), and at each rung the fastest disturbance found for azimuthal wavenumbers 0 to 3
+and eleven wavenumbers along the wire from 0 to 12 (wavelengths from uniform down to half a diameter). 308 eigenvalue
+problems, each solved near two shifts, one steady and one oscillating.
+
+| Re | C_D | bubble | m = 0 | m = 1 | m = 2 | m = 3 |
+|---|---|---|---|---|---|---|
+| 200 | 0.771 | 1.43 | +0.020, λ 2.5 D | −0.019 | stable | stable |
+| 283 | 0.650 | 1.71 | +0.145, λ 2.5 D | +0.145, uniform | stable | stable |
+| 400 | 0.545 | 1.93 | +0.232, λ 2.5–3 D | +0.267, uniform | +0.007, uniform, **f 0.76** | −0.10 |
+| 566 | 0.451 | 2.08 | +0.296, λ 3 D | +0.350, uniform | +0.202, uniform, **f 0.81** | +0.048, uniform |
+| 800 | 0.368 | 2.18 | +0.350, λ 1.6–2 D | +0.419, uniform, **f 0.74** | +0.348, λ 3–4 D | +0.262, uniform |
+| 1131 | 0.296 | 2.27 | +0.443, λ 1.6 D | +0.478, λ 2 D | +0.454, λ 3 D | +0.397, uniform |
+| 1600 | 0.237 | 2.38 | +0.488, λ 1.6 D | +0.523, λ 2 D | +0.506, λ 3 D | +0.463, uniform |
+
+Growth is per flow time (diameter over speed), λ the wavelength along the wire (2π/β, in diameters), **f** the
+angular frequency where the fastest mode oscillates; no f means it is steady. "Stable" rows returned only the
+truncated domain's free-stream modes. The full grid is `data/ladder-<Re>.json`, and the page charts it.
+
+What it says:
+
+- **Each rung of m switches on in turn**: m = 0 at 191, m = 1 at 207, m = 2 just under 400, m = 3 near 500
+  (interpolated between rungs). The first two arrive steady; m = 2 arrives oscillating.
+- **Growth rises like log Re, not Re.** From 283 the fastest rate goes 0.145, 0.27, 0.35, 0.42, 0.48, 0.52: each
+  factor of √2 adds less. The base flow's bubble lengthens the same way (1.71 to 2.38), and the drag falls roughly as
+  Re^−0.6.
+- **Oscillation competes from 400 and never clearly wins.** m = 2 is oscillating when it arrives and at 566. At 800
+  the fastest mode of all is an oscillating m = 1, uniform along the wire (f 0.74, a Strouhal number of 0.12 on
+  diameter): a sphere's shedding mode. At 1131 it is still there at +0.452, behind a steady m = 1 at +0.478. Linear
+  theory does not pick between them.
+- **By 1600 nothing is selected.** All four m grow within 12% of one another, and each across a band of wavelengths
+  an octave or two wide: at m = 2 the rate changes by 4% from uniform to λ 2 D. A flow with that spectrum has no
+  preferred cell; it goes to disorder in every direction at once, including along the wire.
+- **Short waves along the wire come in.** The band's upper edge moves from λ ≈ 1.6 D (Re 283) to shorter than 0.5 D
+  (1600), and m = 0's fastest wavelength shortens from 2.5 D to 1.6 D.
+
+**Limits.** Above 191 the uniform wake is not the state a wire would have, so every row past the first is the
+instability of an unstable state: what the flow is trying to do and how fast, not what it does. Shift-invert returns
+the modes nearest each shift; a faster mode far from both (a frequency well above 1, say) would be missed, and where a
+steady and an oscillating mode are close the table shows only the faster. Mesh: Re 800 and 1131 were repeated on a
+finer mesh (100 × 80 against 70 × 56) at seven points between them and agree to 0.001 in growth; Re 1600 has one mesh only (on the finer one Newton would not converge there, even stepping up from 1470), and its near-flat spectrum is
+the kind of result under-resolution can produce, so hold it more loosely than the rest. The
+outer boundary is where it was for Re 200, and the bubble is now 2.4 D long: not tested for these rungs.
+
 ## Running it
 
 ```bash
@@ -189,6 +235,7 @@ venv/bin/python kata/wire4/crit4.py '{"Nr":80,"Nt":64}' 188,190,192,194 2.25,2.5
 venv/bin/python kata/wire4/scan4.py 200 50 40 out.json   # m = 0, 1, 2 over β at one Re
 cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run, ~15 min alone -> data/nl-210.*
 ../../venv/bin/python sec4.py 210 300 0.05 5      # the ripple's stability to lopsided modes, ~30 min
+../../venv/bin/python ladder4.py 800,1131               # two rungs of the ladder, ~2 h a rung on one core
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 

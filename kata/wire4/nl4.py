@@ -22,7 +22,7 @@ dt = float(sys.argv[4]) if len(sys.argv) > 4 else 0.05; K = int(sys.argv[5]) if 
 Nr = int(sys.argv[6]) if len(sys.argv) > 6 else 50; Nt = int(sys.argv[7]) if len(sys.argv) > 7 else 40
 tag = sys.argv[8] if len(sys.argv) > 8 else f"{Re:.0f}"
 W = Wake(Nr=Nr, Nt=Nt); n2, n1 = W.n2, W.n1; g = None
-for R in sorted(set([1, 10, 40, 100, 150, 200, Re])):
+for R in sorted(set([1, 10, 40, 100, 150, 200, 283, 400, 566, 800, 1131, 1600, Re])):
     if R <= Re: g = W.base(R, g)
 U0, V0, P0 = g
 
