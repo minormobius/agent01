@@ -3740,6 +3740,15 @@
    "parent": "ana"
   },
   {
+   "id": "ana-coin",
+   "name": "ana-coin",
+   "url": "https://ana.mino.mobi/coin/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "ana"
+  },
+  {
    "id": "hyperball",
    "name": "hyperball",
    "url": "https://hyperball.mino.mobi/",

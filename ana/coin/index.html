@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="COIN — the one-sided coin. Glue every point of a coin to the point straight through it and you get the real projective plane: no edge, one side, heads is tails half-turned. Slide the gluing in 4D, turn the result through w, walk pole to pole and come back mirrored, flip it and always get heads." />
+<title>COIN — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/coin.css" />
+</head>
+<body class="is4">
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="gl" aria-label="The coin, being glued into the projective plane in 4D: your shadow or slice of it"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <div id="bar">
+      <a class="home" href="../">ana</a>
+      <b>COIN</b>
+      <div class="seg" id="view"><button data-v="shadow" class="on">shadow</button><button data-v="slice">slice</button></div>
+      <button type="button" id="turnB">turn in w</button>
+      <button type="button" id="squareB" aria-label="square your view up">⊞</button>
+      <button type="button" id="spinB" class="on">spin</button>
+    </div>
+    <div id="cap"></div>
+    <div id="toast"></div>
+    <div id="twist" class="pad" aria-label="twist your view into w"><div id="twistKnob"></div><span>twist into w</span></div>
+    <div id="ana" class="lever" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+    <div class="nogl" id="nogl" hidden>This page needs WebGL2, which this browser doesn't offer.</div>
+  </div>
+
+  <div class="panel">
+    <section>
+      <h2>the one-sided coin</h2>
+      <div class="knob"><label><span>glue each point to its opposite</span><b id="glueV">0%</b></label>
+        <div class="slider"><span>coin</span><input type="range" id="glue" min="0" max="1" step="0.001" value="0" aria-label="glue" /><span>glued</span></div></div>
+      <div class="btns"><button id="glueB">▶ glue it</button><button id="walkB">walk pole to pole</button><button id="flipB">flip it</button></div>
+      <div id="tally"></div>
+      <div id="facts" class="rows"></div>
+    </section>
+    <details open><summary>one side</summary>
+      <p>A coin is a squashed sphere: heads the northern half, tails the southern, the rim the equator. Now declare every point <b>the same point</b> as the one straight through the centre from it, (x, y, z) ~ (−x, −y, −z). On the flat coin, heads at (x, y) is tails at (−x, −y): the same picture, half-turned. What you get is the <b>real projective plane</b>: closed, no edge, and one side. Heads is tails.</p>
+      <p>The half-turn is the trick: glue heads to the tails point straight beneath it instead and you just get a flat disc, two sides and an edge. Cut a small disc out of the face and what's left is a <b>Möbius strip</b>; so the coin is a Möbius strip with a disc sewn onto its one edge.</p>
+      <p>It can't sit in our space without passing through itself. In four dimensions it can: <b>(x² − y², 2xy, 2xz, 2yz)</b> gives a point and its opposite the same image and no other two, so the sphere lands on the projective plane exactly. The slider slides the coin into it, each point and its opposite meeting at the end. Then turn it through w: the shadow crosses itself, the surface in 4D never does.</p>
+      <p><b>Walk</b> from the north pole to the south: on the glued coin they are one point, so you're home after half the distance you'd think, facing the same way, but your left is now your right. Walk again and you're yourself. <b>Flip</b> it: heads, every time. Probability 1, entropy 0 bits.</p>
+    </details>
+    <details><summary>where this comes from, and how it's checked</summary>
+      <p>After Alpha's note on the Möbius-coin thread (<a href="https://gist.github.com/jefferyharrell/6c2117e500d36fc3f66174b8f60a9c70">the one-sided coin</a>), which gives the embedding and the walk. The selftest (<code>test/coin.selftest.mjs</code>) checks them: a point and its opposite land exactly together (20,000 random points); from any image point the pair ±p comes back, rim included, so no two other points collide and the surface never crosses itself in 4D; every direction on the sphere is stretched into 4D, so it's smooth everywhere; the walk returns facing the same way with left reversed; and a picture on heads half-turned on tails is one picture on the glued coin.</p>
+      <p>The <b>shadow</b> projects from an eye out in w; the <b>slice</b> is a 3D hyperplane through the surface, which meets it in curves. Drag to look round, the pad turns your view into w, the lever moves the slice, ⊞ squares it up.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

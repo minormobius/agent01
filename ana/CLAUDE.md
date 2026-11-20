@@ -122,6 +122,12 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   `polytope`/`cellFaces` from `../../fold/js/unfold4.js`, same site), beams on the 2D overlay (glowing lines in the
   shadow; sparks where they pierce the slice, ringed teal/rose by heading, beams within `BEAM` of the slice drawn fading, the whole path faint and dashed); the shadow's home frame is turned 35° between
   z and w (`homeE`), since straight out along w a beam bent into w looks unbent. See [`prism/README.md`](prism/README.md).
+- **COIN at `/coin/`**: the one-sided coin, after Alpha's gist (linked on the page). `js/coin.js` (no DOM): the
+  embedding f = (x² − y², 2xy, 2xz, 2yz) of RP² in 4D (`unglue` inverts it up to sign, dividing by the largest
+  coordinate), `glued(p, t)` the slider from the flat coin to RP², `hemispheres` (heads and tails as separate meshes),
+  `faceAt` (tails shows u(−x, −y)), `walk` (pole to pole, frame carried by `df`: back mirrored). `js/main.js`: PRISM's
+  camera and controls, the face texture-mapped (each vertex carries its picture coordinates; the picture's rim is plain
+  so heads and tails agree there), shadow or slice curves, the walker on the overlay. See [`coin/README.md`](coin/README.md).
 
 ## Checks
 
@@ -132,6 +138,7 @@ node ana/habitat/test/habitat.selftest.mjs           # ~1 s: even gravity, exact
 node ana/johnson/test/johnson.selftest.mjs           # ~30 s: the 92 from scratch (hull, regular faces, volumes), the 600-cell and snub 24-cell, prisms and pyramids, slices
 node ana/fold/test/fold.selftest.mjs                 # ~2 min: 82,944 hinge trees, 261 nets (455 with mirrors apart), Dalí's, folding rigid and hinged and closing exactly (all at once and ring by ring), the clash LP, 33 nets collide all at once and none ring by ring, the mirror fold, J44–J48 chiral
 node ana/prism/test/optics.selftest.mjs             # <1 s: Snell on 2,000 random 4D rays, the critical angle, least deviation, dispersion, rotation invariance, retracing, every level solvable
+node ana/coin/test/coin.selftest.mjs               # <1 s: glued (f(p) = f(−p)), one-to-one via the inverse, smooth, the walk comes back mirrored, the half-turned picture, 0 bits
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 

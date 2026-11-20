@@ -5832,6 +5832,22 @@
       ]
     },
     {
+      "n": "ana-coin",
+      "u": "https://ana.mino.mobi/coin/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-20",
+      "b": "2026-11-20",
+      "p": "ana",
+      "surface": "ana",
+      "d": "The one-sided coin, after Alpha's note on the Möbius-coin thread. A coin is a squashed sphere; glue every point to the one straight through the centre and it becomes the real projective plane: closed, no edge, one side, heads is tails half-turned (the R on heads reads upside down and mirrored from below). Slide the gluing in 4D, where (x² − y², 2xy, 2xz, 2yz) takes each point and its opposite to one place and no others, so the surface never crosses itself; turn it through w and watch its shadow cross itself instead; walk pole to pole and come home in half the distance, mirrored; flip it and get heads every time, entropy 0 bits. A selftest checks the gluing, the inverse, the smoothness and the walk.",
+      "tags": [
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "hyperball",
       "u": "https://hyperball.mino.mobi/",
       "c": "games",
