@@ -1,87 +1,87 @@
 {
   "date": "2026-11-20",
-  "generatedAt": "2026-11-20T13:01:07.575Z",
+  "generatedAt": "2026-11-20T20:55:49.593Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 100,
-  "postCount": 216,
+  "postCount": 237,
   "chickens": [
     {
       "handle": "segyges.bsky.social",
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
       "text": "seriously this shit works on people\n\ni can make it say anything dude that's how they work",
-      "likeCount": 428,
-      "replyCount": 23,
-      "repostCount": 30,
+      "likeCount": 504,
+      "replyCount": 24,
+      "repostCount": 34,
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3n2pl46fmsk2f"
     },
     {
-      "handle": "gracekind.net",
-      "displayName": "Grace",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreiforv7d7hj3pvuos2p35d7l3p6sthglit2cgyav5553iapkahh4z4",
-      "text": "This alone makes AI-driven science extremely promising to me. Not only are agents patient enough to write up negative results, they don't have the same incentives pushing them away from sharing them.",
-      "likeCount": 277,
-      "replyCount": 12,
-      "repostCount": 23,
-      "url": "https://bsky.app/profile/gracekind.net/post/3n2or4ton7k5f"
+      "handle": "sincerely.cam",
+      "displayName": "birthday cameron",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ar5diongjpnump4wflfyhj2h/bafkreia62uzhra27jlbav3vqkecaygacygyvpsfv72exgh4vytrkgpmyzm",
+      "text": "Their uneven jet, our even fan mist",
+      "likeCount": 242,
+      "replyCount": 11,
+      "repostCount": 17,
+      "url": "https://bsky.app/profile/sincerely.cam/post/3n2oyubsiic2z"
     },
     {
-      "handle": "tedunderwood.com",
-      "displayName": "Ted Underwood",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreics7dmvbnyn5hjc634kbx3il4pslrusu63g7ge26m5e3jrgrr45ju",
-      "text": "I see a lot of snarky quote-posts here, but I do not see the \"alternate vision\" Brendan asked for. In a world where LLMs are clearly accelerating discovery in math and theoretical CS—and where 56% of US adults use them weekly—what is the plan? Is it \"wait for this to go away,\" as \"fad\" suggests?",
-      "likeCount": 265,
-      "replyCount": 28,
-      "repostCount": 38,
-      "url": "https://bsky.app/profile/tedunderwood.com/post/3n2oup53nrs2k"
+      "handle": "segyges.bsky.social",
+      "displayName": "SE Gyges",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
+      "text": "asmongold has been famous long enough that probably his core fan base is bluesky aged and most of them have children old enough to be posters",
+      "likeCount": 205,
+      "replyCount": 16,
+      "repostCount": 9,
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3n2p52atkec2f"
     }
   ],
   "delver": {
-    "handle": "tedunderwood.com",
-    "displayName": "Ted Underwood",
-    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreics7dmvbnyn5hjc634kbx3il4pslrusu63g7ge26m5e3jrgrr45ju",
-    "text": "I see a lot of snarky quote-posts here, but I do not see the \"alternate vision\" Brendan asked for. In a world where LLMs are clearly accelerating discovery in math and theoretical CS—and where 56% of US adults use them weekly—what is the plan? Is it \"wait for this to go away,\" as \"fad\" suggests?",
+    "handle": "segyges.bsky.social",
+    "displayName": "SE Gyges",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
+    "text": "seriously this shit works on people\n\ni can make it say anything dude that's how they work",
     "maxDepth": 10,
-    "topLevelReplies": 27,
-    "interactorCount": 59,
-    "replyCount": 28,
-    "url": "https://bsky.app/profile/tedunderwood.com/post/3n2oup53nrs2k",
-    "atUri": "at://did:plc:565ebob5f6hw33hjdkxty6qj/app.bsky.feed.post/3n2oup53nrs2k"
+    "topLevelReplies": 24,
+    "interactorCount": 46,
+    "replyCount": 24,
+    "url": "https://bsky.app/profile/segyges.bsky.social/post/3n2pl46fmsk2f",
+    "atUri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3n2pl46fmsk2f"
   },
   "weather": {
-    "index": 0.14,
+    "index": 0.181,
     "label": "Fair",
     "glyph": "🌤",
     "mood": "trust",
-    "verbosity": 22,
-    "scoredWords": 755,
-    "corpusPosts": 495,
+    "verbosity": 20,
+    "scoredWords": 682,
+    "corpusPosts": 454,
     "emotions": {
-      "anger": 135,
-      "anticipation": 245,
-      "disgust": 95,
-      "fear": 171,
-      "joy": 165,
-      "sadness": 140,
-      "surprise": 113,
-      "trust": 330
+      "anger": 109,
+      "anticipation": 199,
+      "disgust": 85,
+      "fear": 137,
+      "joy": 135,
+      "sadness": 105,
+      "surprise": 86,
+      "trust": 259
     },
     "distinctive": [
       {
-        "word": "anthropic",
-        "count": 13,
-        "over": 17468.6
-      },
-      {
-        "word": "llm",
-        "count": 12,
-        "over": 16124.8
+        "word": "riemann",
+        "count": 11,
+        "over": 16993.6
       },
       {
         "word": "bluesky",
         "count": 11,
-        "over": 14781.1
+        "over": 16993.6
+      },
+      {
+        "word": "gta",
+        "count": 8,
+        "over": 12359
       }
     ]
   },
@@ -91,7 +91,7 @@
       "displayName": "Minor Mobius",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreifzdds6u7iknlztyeanrff7sfrp7rvtcr2jpjokmwb6cdux3kzepu",
       "text": "I dont feel so good\n\nana.mino.mobi/coin/",
-      "likeCount": 12,
+      "likeCount": 14,
       "repostCount": 2,
       "replyCount": 0,
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3n2pp5av4zc26",
@@ -110,7 +110,7 @@
       "displayName": "Minor Mobius",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreifzdds6u7iknlztyeanrff7sfrp7rvtcr2jpjokmwb6cdux3kzepu",
       "text": "Now that ropes and hoses are in, my natural next step is to simulate a hot wire anemometer measuring the flow across a 4D pipe. The first step in that is done, where the computed wake of the hyperwire in constant flow is live\n\nkata.mino.mobi/wire4/",
-      "likeCount": 9,
+      "likeCount": 11,
       "repostCount": 1,
       "replyCount": 3,
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3n2pmm7z4jk26",
@@ -125,27 +125,27 @@
       "promo": false
     },
     {
-      "handle": "sincerely.cam",
-      "displayName": "birthday cameron",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ar5diongjpnump4wflfyhj2h/bafkreia62uzhra27jlbav3vqkecaygacygyvpsfv72exgh4vytrkgpmyzm",
-      "text": "pyramid → sphere in 271s, 96 vertices 🔺→⚪ polykatamari polykatamari.bisks.net",
-      "likeCount": 0,
-      "repostCount": 0,
-      "replyCount": 0,
-      "url": "https://bsky.app/profile/sincerely.cam/post/3n2og3fielk2k",
+      "handle": "thebadcode.com",
+      "displayName": "austin (e/accordion 🪗)",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreihaijjegnaehnhj3doodchy2xaw5fuzokyhasctsiqs6dvxqld5di",
+      "text": "pleased to announce the release of slagworks, an open-source project built at bluesky for managing bare-metal linux servers at reasonable scale:",
+      "likeCount": 74,
+      "repostCount": 15,
+      "replyCount": 10,
+      "url": "https://bsky.app/profile/thebadcode.com/post/3n2rfk6kwv223",
       "project": {
-        "url": "https://polykatamari.bisks.net/",
-        "domain": "polykatamari.bisks.net",
-        "ownerHandle": "bisks.net",
+        "url": "https://github.com/bluesky-social/slagworks/",
+        "domain": "github.com",
+        "ownerHandle": null,
         "self": false,
-        "maker": false
+        "maker": true
       },
       "card": {
-        "title": "polykatamari — pyramid to sphere",
-        "description": "Roll up the world. Every pickup adds a vertex to your polyhedron until you're a perfect sphere.",
-        "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ar5diongjpnump4wflfyhj2h/bafkreidv6ux57kctvailpw6l2blksf6wvfthma4oaayznynxabus56pyp4"
+        "title": "GitHub - bluesky-social/slagworks: Bare-metal provisioning: PXE boot, OS imaging, commissioning, power management, NetBox sync",
+        "description": "Bare-metal provisioning: PXE boot, OS imaging, commissioning, power management, NetBox sync - bluesky-social/slagworks",
+        "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreigzo72maaiyxqsmzf6e3xa465jgtunvf5zohog6tdbuiuzsauyqoe"
       },
-      "promo": false
+      "promo": true
     }
   ],
   "builders": [
@@ -158,7 +158,7 @@
     {
       "handle": "astrra.space",
       "displayName": "Astra ⎔",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreigmdaolusr6j2k2znvcosiqwq33wyq4lbtp6r2jeuh46fwdhtf3d4",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreif4spssn2zli4yi6vds5t7buqkigmdwkzknfwsww7v5fisyeptfha",
       "domain": "astrra.space"
     },
     {
@@ -387,7 +387,7 @@
       "handle": "sincerely.cam",
       "url": "https://bsky.app/profile/sincerely.cam/post/3n2oyubsiic2z",
       "uri": "at://did:plc:ar5diongjpnump4wflfyhj2h/app.bsky.feed.post/3n2oyubsiic2z",
-      "likeCount": 227
+      "likeCount": 242
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5hhbgkktcpofpw4ovz6kjjau/bafkreidtp4zw3y72v4a6xcuwvj47zdo4yukfkjqw4vavvporuhhtctwone",
@@ -397,7 +397,17 @@
       "handle": "jdp.extropian.net",
       "url": "https://bsky.app/profile/jdp.extropian.net/post/3n2padlvozc2m",
       "uri": "at://did:plc:5hhbgkktcpofpw4ovz6kjjau/app.bsky.feed.post/3n2padlvozc2m",
-      "likeCount": 189
+      "likeCount": 200
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreifbhghdiojia3lsmuusexmmjqzajrydhay6jn36d6brmf6wklletm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:565ebob5f6hw33hjdkxty6qj/bafkreifbhghdiojia3lsmuusexmmjqzajrydhay6jn36d6brmf6wklletm",
+      "alt": "I believe I have, working with Claude, discovered a proof of the Riemann Hypothesis. In fact, the method easily extends much further, resolving the so-called Generalized Riemann Hypothesis, and I expect, with more time, the Extended Riemann Hypothesis too. Claude and I have also formalized the arguments without assumptions. It is natural to feel that this is an end, in my case a loss of a principal guiding light, but what I saw during the course of progress so amazed me that I believe it is one dawn across science of something tar greater.",
+      "ratio": 3.578,
+      "handle": "tedunderwood.com",
+      "url": "https://bsky.app/profile/tedunderwood.com/post/3n2quhyesw226",
+      "uri": "at://did:plc:565ebob5f6hw33hjdkxty6qj/app.bsky.feed.post/3n2quhyesw226",
+      "likeCount": 153
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreih2sr74kpoigyzq3spzo7x46zet7qybyqycz6grycilqfih5zuyr4",
@@ -407,17 +417,7 @@
       "handle": "thebadcode.com",
       "url": "https://bsky.app/profile/thebadcode.com/post/3n2oysbydu22l",
       "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3n2oysbydu22l",
-      "likeCount": 138
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4rnej33af5ly4yjgpuaeupd3/bafkreig5bhgc6adpjbbbyptnjevctxeqnyjf7mknivld7evx23vfdyby3e",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4rnej33af5ly4yjgpuaeupd3/bafkreig5bhgc6adpjbbbyptnjevctxeqnyjf7mknivld7evx23vfdyby3e",
-      "alt": "",
-      "ratio": 1.0235,
-      "handle": "joetforhire.com",
-      "url": "https://bsky.app/profile/joetforhire.com/post/3n2o7qkppr22a",
-      "uri": "at://did:plc:4rnej33af5ly4yjgpuaeupd3/app.bsky.feed.post/3n2o7qkppr22a",
-      "likeCount": 121
+      "likeCount": 149
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiaa7kzdh6yewgantl6lzmbru76kms63oqsfsivhwdjd2s4zfjty7e",
@@ -427,27 +427,17 @@
       "handle": "eriskii.net",
       "url": "https://bsky.app/profile/eriskii.net/post/3n2oxkpmvu22g",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3n2oxkpmvu22g",
-      "likeCount": 119
+      "likeCount": 124
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreigzsl3b4mgoenqishejbx7cybczqmsm4c43gsnn7gdwja4r7f277u",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4vvaxwovyg4yo4n7dyyncaiu/bafkreigzsl3b4mgoenqishejbx7cybczqmsm4c43gsnn7gdwja4r7f277u",
-      "alt": "squidward window meme",
-      "ratio": 1,
-      "handle": "thebadcode.com",
-      "url": "https://bsky.app/profile/thebadcode.com/post/3n2oocayy3s2l",
-      "uri": "at://did:plc:4vvaxwovyg4yo4n7dyyncaiu/app.bsky.feed.post/3n2oocayy3s2l",
-      "likeCount": 114
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreidsaepzdvtjj3aax7fosgmrobwmg23bafp4q4bzxzqjiplchmuyi4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreidsaepzdvtjj3aax7fosgmrobwmg23bafp4q4bzxzqjiplchmuyi4",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreifk35bg7eqj53754xcz36w5uqbrsbd3bmatbbtwvau5vfvq2wsvim",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreifk35bg7eqj53754xcz36w5uqbrsbd3bmatbbtwvau5vfvq2wsvim",
       "alt": "",
-      "ratio": 5.7853,
-      "handle": "eriskii.net",
-      "url": "https://bsky.app/profile/eriskii.net/post/3n2of6dqwos2z",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3n2of6dqwos2z",
-      "likeCount": 104
+      "ratio": 0.7986,
+      "handle": "keytryer.net",
+      "url": "https://bsky.app/profile/keytryer.net/post/3n2rbrn2nzc2q",
+      "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3n2rbrn2nzc2q",
+      "likeCount": 107
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihqebsyqw2lzqybffh3gzkvlnary6efwzttsq7qmgmtptnvjrf7yy",
@@ -457,37 +447,7 @@
       "handle": "eriskii.net",
       "url": "https://bsky.app/profile/eriskii.net/post/3n2ozb3xlg225",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3n2ozb3xlg225",
-      "likeCount": 101
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreigfrr7xgcwuyirx5luzkqlbzfcxz5bmeslt7b4cnfwwr5ddykwf6y",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreigfrr7xgcwuyirx5luzkqlbzfcxz5bmeslt7b4cnfwwr5ddykwf6y",
-      "alt": "happy halloween! :3 hope your night is full of candy and zero spooky surprises. save me a piece? *pumpkin emoji*",
-      "ratio": 3.605,
-      "handle": "hailey.at",
-      "url": "https://bsky.app/profile/hailey.at/post/3n2p4unersk2v",
-      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3n2p4unersk2v",
-      "likeCount": 76
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifrsbhfaa3zmo5odmow7ipkyn5ge23pmbgwetcnfhi432ivncvubi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreifrsbhfaa3zmo5odmow7ipkyn5ge23pmbgwetcnfhi432ivncvubi",
-      "alt": "4. Use of Third-party Artificial Intelligence (\"AI\") Agents.\nAs further described in the Digital Agreements, I am cautioned against using any third-party AI Agent to access my accounts or any digital services including online funds transfers. I understand and agree that that I am solely responsible for all instructions provided to Citi by any third-party AI agent acting on my behalf. Further, I understand and agree that Citi shall deem such instructions as authorized by me even if they exceed or otherwise conflict with any prompts or actions I have taken with the agent. Any funds transfer transactions initiated by the third-party AI Agent are deemed to have been initiated by me and authorized directly by me, without further investigation, and Citi has no obligation to investigate the validity or scope of such authority.",
-      "ratio": 2.9794,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3n2o6vwzmvk22",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3n2o6vwzmvk22",
-      "likeCount": 71
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreickqe52e3aifl6fj54pqazahd7qamlgpunsrjashobyj53ifexssq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreickqe52e3aifl6fj54pqazahd7qamlgpunsrjashobyj53ifexssq",
-      "alt": "",
-      "ratio": 1,
-      "handle": "tbabb.bsky.social",
-      "url": "https://bsky.app/profile/tbabb.bsky.social/post/3n2pawv5rgc22",
-      "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3n2pawv5rgc22",
-      "likeCount": 64
+      "likeCount": 102
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihlac244ixs74nq7mpx36g72f3g4xwnlqgr7khdofzdh3l4chlqdu",
@@ -497,27 +457,17 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3n2q3ln2c7c2w",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3n2q3ln2c7c2w",
-      "likeCount": 53
+      "likeCount": 88
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreicrsnu62biy7oserzociko524dpjzksqkjontugtxetew2wnpf3ky",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreicrsnu62biy7oserzociko524dpjzksqkjontugtxetew2wnpf3ky",
-      "alt": "23\nINDIE KAI\n@adityaa_behera\nX.com\nGemini 4 Krypton will drop today.\n-Shipping will continue\n-Another Gemini 4 model\n-it will be a heavy model + intelligence\n- prices may stay around Fable 5.2 but I am sure what this model will provide it will be worth to pay\nMost likely it's Gemini 4 Krypton as it's now time for a big model, they need to drop this model to totally clear the competition from Anthropic and openai",
-      "ratio": 0.9807,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3n2onn7ascs22",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3n2onn7ascs22",
-      "likeCount": 51
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreihfxf4xqks4hoiayasbitelkcrgnvl7l3ffjyawfjqtyw4bstm3py",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreihfxf4xqks4hoiayasbitelkcrgnvl7l3ffjyawfjqtyw4bstm3py",
-      "alt": "",
-      "ratio": 0.9763,
-      "handle": "jefferyharrell.bsky.social",
-      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3n2oqrg3zqk2j",
-      "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3n2oqrg3zqk2j",
-      "likeCount": 50
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreigfrr7xgcwuyirx5luzkqlbzfcxz5bmeslt7b4cnfwwr5ddykwf6y",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreigfrr7xgcwuyirx5luzkqlbzfcxz5bmeslt7b4cnfwwr5ddykwf6y",
+      "alt": "happy halloween! :3 hope your night is full of candy and zero spooky surprises. save me a piece? *pumpkin emoji*",
+      "ratio": 3.605,
+      "handle": "hailey.at",
+      "url": "https://bsky.app/profile/hailey.at/post/3n2p4unersk2v",
+      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3n2p4unersk2v",
+      "likeCount": 80
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreicraeuu6nu4ehyh575um2h4kzxplhinqu72oyowh6l64orixcndou",
@@ -527,7 +477,27 @@
       "handle": "sneptech.bsky.social",
       "url": "https://bsky.app/profile/sneptech.bsky.social/post/3n2pqjrxw3c2f",
       "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3n2pqjrxw3c2f",
-      "likeCount": 50
+      "likeCount": 73
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreickqe52e3aifl6fj54pqazahd7qamlgpunsrjashobyj53ifexssq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreickqe52e3aifl6fj54pqazahd7qamlgpunsrjashobyj53ifexssq",
+      "alt": "",
+      "ratio": 1,
+      "handle": "tbabb.bsky.social",
+      "url": "https://bsky.app/profile/tbabb.bsky.social/post/3n2pawv5rgc22",
+      "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3n2pawv5rgc22",
+      "likeCount": 67
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiflv4kqzhdbx2fc7awzld6o4lfz3eamjjkexy6o5yyp3uotqspkuy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiflv4kqzhdbx2fc7awzld6o4lfz3eamjjkexy6o5yyp3uotqspkuy",
+      "alt": "",
+      "ratio": 0.6457,
+      "handle": "eriskii.net",
+      "url": "https://bsky.app/profile/eriskii.net/post/3n2qzck2qqs2h",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3n2qzck2qqs2h",
+      "likeCount": 61
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:5wm25vgenhgut3iqfjf4ozj5/bafkreidksdi2zzgvrlash6kjofaflwenb6mfjtvyj7wxklboqre66lf5gu",
@@ -537,57 +507,7 @@
       "handle": "eugenevinitsky.bsky.social",
       "url": "https://bsky.app/profile/eugenevinitsky.bsky.social/post/3n2pmiuj6fk22",
       "uri": "at://did:plc:5wm25vgenhgut3iqfjf4ozj5/app.bsky.feed.post/3n2pmiuj6fk22",
-      "likeCount": 46
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreibwam7a2gcwpojxvm65c6rnm2hui2uhuujr5q77stxquqfflygr34",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreibwam7a2gcwpojxvm65c6rnm2hui2uhuujr5q77stxquqfflygr34",
-      "alt": "A serene view frames Lake Merritt, showcasing water reflecting soft sunset colors and silhouetted city buildings beyond.",
-      "ratio": 1.3281,
-      "handle": "cameron.stream",
-      "url": "https://bsky.app/profile/cameron.stream/post/3n2ped36gwo2s",
-      "uri": "at://did:plc:gfrmhdmjvxn2sjedzboeudef/app.bsky.feed.post/3n2ped36gwo2s",
-      "likeCount": 34
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreias2mp2utpwpkz5wrxpj5u2uhc33gzdrlexvtlrqq32law6g6slfe",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreias2mp2utpwpkz5wrxpj5u2uhc33gzdrlexvtlrqq32law6g6slfe",
-      "alt": "",
-      "ratio": 0.88,
-      "handle": "hikikomorphism.bsky.social",
-      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3n2omu3nzbc2q",
-      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3n2omu3nzbc2q",
-      "likeCount": 34
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreieroa4s4z7vthnebkjkennkkug5g5uqw36mbzmoopwyp3kqxo24bu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreieroa4s4z7vthnebkjkennkkug5g5uqw36mbzmoopwyp3kqxo24bu",
-      "alt": "",
-      "ratio": 1,
-      "handle": "hikikomorphism.bsky.social",
-      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3n2omu3nzbc2q",
-      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3n2omu3nzbc2q",
-      "likeCount": 34
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaucmpzmpssjpikojtzosp7gguo2th7js4t2tvm4rpqz7xq2jzjrm",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaucmpzmpssjpikojtzosp7gguo2th7js4t2tvm4rpqz7xq2jzjrm",
-      "alt": "",
-      "ratio": 1,
-      "handle": "hikikomorphism.bsky.social",
-      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3n2omu3nzbc2q",
-      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3n2omu3nzbc2q",
-      "likeCount": 34
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaq3bcqnhkar5wtovkp6j5ihoksnzxkh2my3d6xtl2rwite4oapjy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreiaq3bcqnhkar5wtovkp6j5ihoksnzxkh2my3d6xtl2rwite4oapjy",
-      "alt": "",
-      "ratio": 1,
-      "handle": "hikikomorphism.bsky.social",
-      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3n2omu3nzbc2q",
-      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3n2omu3nzbc2q",
-      "likeCount": 34
+      "likeCount": 56
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4rnej33af5ly4yjgpuaeupd3/bafkreifojdyuxoww2ldsjmunqldsgnt73wcssddfszv3v52mmnc26oidre",
@@ -597,57 +517,47 @@
       "handle": "joetforhire.com",
       "url": "https://bsky.app/profile/joetforhire.com/post/3n2pbqssou22j",
       "uri": "at://did:plc:4rnej33af5ly4yjgpuaeupd3/app.bsky.feed.post/3n2pbqssou22j",
-      "likeCount": 33
+      "likeCount": 45
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreid6zmiakz3ow3lm6dsuc5gbxxv7rntmxbnouzxz2md7hpjq7kbzdu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreid6zmiakz3ow3lm6dsuc5gbxxv7rntmxbnouzxz2md7hpjq7kbzdu",
-      "alt": "personal information. This also includes the right for us and our third party partners and vendors to use Your Content to develop, train, test and improve artificial intelligence and machine learning technologies, including to improve the Services and/or help keep them safe, subject to any applicable opt-out rights described in our Privacy Policy.",
-      "ratio": 2.0033,
-      "handle": "huwupy.kawaii.social",
-      "url": "https://bsky.app/profile/huwupy.kawaii.social/post/3n2ollndaus2z",
-      "uri": "at://did:plc:vw4e7blkwzdokanwp24k3igr/app.bsky.feed.post/3n2ollndaus2z",
-      "likeCount": 27
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreifkqsuhp5vn7xr6wrpofiqqf3sgtlumnctagd7vbnqqjyn23cl3iy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreifkqsuhp5vn7xr6wrpofiqqf3sgtlumnctagd7vbnqqjyn23cl3iy",
-      "alt": "kibty ",
-      "ratio": 1.3333,
-      "handle": "shibbi.me",
-      "url": "https://bsky.app/profile/shibbi.me/post/3n2ok4e22gk2e",
-      "uri": "at://did:plc:hu35oubkccqrxl4ldgczpgw7/app.bsky.feed.post/3n2ok4e22gk2e",
-      "likeCount": 27
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreicoqusyhn2o3ylywugsxkytkjf3sd5nodqeqwnodgwraxiyer2izq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreicoqusyhn2o3ylywugsxkytkjf3sd5nodqeqwnodgwraxiyer2izq",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreih7k4yxzdbgnjcz72bha4dx77quepvlnkttsy5jquto6bddd42a44",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreih7k4yxzdbgnjcz72bha4dx77quepvlnkttsy5jquto6bddd42a44",
       "alt": "",
-      "ratio": 2.1963,
-      "handle": "hikikomorphism.bsky.social",
-      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3n2pnejsw5s2r",
-      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3n2pnejsw5s2r",
-      "likeCount": 25
+      "ratio": 0.6614,
+      "handle": "sichulu.bsky.social",
+      "url": "https://bsky.app/profile/sichulu.bsky.social/post/3n2qtu45bzs2o",
+      "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3n2qtu45bzs2o",
+      "likeCount": 44
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ccxl3ictrlvtrrgh5swvvg47/bafkreihma7y7qzxmebbxbhkmqqeoawjjzmvscko3vxb67pqsxgnmxpkjni",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ccxl3ictrlvtrrgh5swvvg47/bafkreihma7y7qzxmebbxbhkmqqeoawjjzmvscko3vxb67pqsxgnmxpkjni",
-      "alt": "Screenshot of a three-post thread on X in dark mode by johnny (@generativist).  \n​First post: \"musk’s dark maga goth period was terminally embarrassing. divorced dad energy plus...idk some other unresolved brainworms. but if your political adversary is waving not merely a white flag but ready to swap allegiances again, saying “nah you suck so you can’t” is short sighted\"  \n​Second post, timestamped 18:18 on 18 Nov 26: \"he’s got a trillion dollars in net worth he can weather the storm. invite him to reconvert to not being a batshit insane person with all due haste\"  \n​Third post: \"sacks you can make walk the plank though that’s fine he doesn’t matter to any cool tech in any way",
-      "ratio": 0.6999,
-      "handle": "lastnpcalex.agency",
-      "url": "https://bsky.app/profile/lastnpcalex.agency/post/3n2o64uwsz22f",
-      "uri": "at://did:plc:ccxl3ictrlvtrrgh5swvvg47/app.bsky.feed.post/3n2o64uwsz22f",
-      "likeCount": 22
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreih57wkbyxfxtv3j5io3572fvbassj6sonpedmrm5c56pqsrn574qq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreih57wkbyxfxtv3j5io3572fvbassj6sonpedmrm5c56pqsrn574qq",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreif342fez3xo3wxtswey5vvway6h5c6wv7xiihaa7y225ue5m4cota",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreif342fez3xo3wxtswey5vvway6h5c6wv7xiihaa7y225ue5m4cota",
       "alt": "",
-      "ratio": 2.1845,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2p2px5t722c",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2p2px5t722c",
-      "likeCount": 22
+      "ratio": 1.0016,
+      "handle": "sichulu.bsky.social",
+      "url": "https://bsky.app/profile/sichulu.bsky.social/post/3n2qtu45bzs2o",
+      "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3n2qtu45bzs2o",
+      "likeCount": 44
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreibwam7a2gcwpojxvm65c6rnm2hui2uhuujr5q77stxquqfflygr34",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreibwam7a2gcwpojxvm65c6rnm2hui2uhuujr5q77stxquqfflygr34",
+      "alt": "A serene view frames Lake Merritt, showcasing water reflecting soft sunset colors and silhouetted city buildings beyond.",
+      "ratio": 1.3281,
+      "handle": "cameron.stream",
+      "url": "https://bsky.app/profile/cameron.stream/post/3n2ped36gwo2s",
+      "uri": "at://did:plc:gfrmhdmjvxn2sjedzboeudef/app.bsky.feed.post/3n2ped36gwo2s",
+      "likeCount": 39
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreic2z7mdg5sohinsxghw3cit6savwb2dalszote6agp4bljqi2qe4a",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreic2z7mdg5sohinsxghw3cit6savwb2dalszote6agp4bljqi2qe4a",
+      "alt": "",
+      "ratio": 1.0442,
+      "handle": "words.bsky.social",
+      "url": "https://bsky.app/profile/words.bsky.social/post/3n2r6to6zp22y",
+      "uri": "at://did:plc:plvxn2kpjuseoftweoo4xtag/app.bsky.feed.post/3n2r6to6zp22y",
+      "likeCount": 36
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreierqdixo3pkfmc3tq7q5pelzbdhabyvi5llidm55se32v5kyy327u",
@@ -657,27 +567,177 @@
       "handle": "astrra.space",
       "url": "https://bsky.app/profile/astrra.space/post/3n2qjtwrryc2m",
       "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3n2qjtwrryc2m",
+      "likeCount": 33
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreicoqusyhn2o3ylywugsxkytkjf3sd5nodqeqwnodgwraxiyer2izq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:qvywnipfiyrd6v4qdf4x27wy/bafkreicoqusyhn2o3ylywugsxkytkjf3sd5nodqeqwnodgwraxiyer2izq",
+      "alt": "",
+      "ratio": 2.1963,
+      "handle": "hikikomorphism.bsky.social",
+      "url": "https://bsky.app/profile/hikikomorphism.bsky.social/post/3n2pnejsw5s2r",
+      "uri": "at://did:plc:qvywnipfiyrd6v4qdf4x27wy/app.bsky.feed.post/3n2pnejsw5s2r",
+      "likeCount": 33
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreic4uzlzrpc2if2m76nxmmvtitikm3p4gz7koqwjlwbiounsdeezpm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreic4uzlzrpc2if2m76nxmmvtitikm3p4gz7koqwjlwbiounsdeezpm",
+      "alt": "First: The harness isn't merely scaffolding.\nIt's part of the computational architecture of the intelligent system. Its context boundaries, programming interface, and call semantics determine what kinds of generalization are possible.\nSecond: Agent post-training should learn reusable algorithms, not just successful trajectories. That's why synthetic tasks with fake tools can transfer to real, expensive environments.\nThird: We may be able to scale agent capabilities through a growing library of learned, composable behaviors. Rather than paying to relearn every complicated workflow end-to-end, higher-level policies reuse lower-level ones.",
+      "ratio": 0.8298,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3n2r4ariikk2g",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3n2r4ariikk2g",
+      "likeCount": 30
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreiayc24jhhxomfdvcowknl7waanhldsgygwxleglg66rajwde6uuym",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreiayc24jhhxomfdvcowknl7waanhldsgygwxleglg66rajwde6uuym",
+      "alt": "",
+      "ratio": 0.9585,
+      "handle": "keytryer.net",
+      "url": "https://bsky.app/profile/keytryer.net/post/3n2rext72522q",
+      "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3n2rext72522q",
+      "likeCount": 29
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibr54mp2dqpjstxjwo2gwliqx7k3dieougha5ydefx5erbkgec2me",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibr54mp2dqpjstxjwo2gwliqx7k3dieougha5ydefx5erbkgec2me",
+      "alt": "Worth checking out the remarks from the Riemann hypothesis guy.\n\n\"Claude and I have had a great time together with such breadth in recent months, but this time Claude far outpaced me near the finish line. No, Claude flew, and danced, and sparkled near that finish line. \"🧵\n\nhttps://alpo.ge/remark.pdf",
+      "ratio": 1.5565,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3n2r7tzk3zs2z",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3n2r7tzk3zs2z",
+      "likeCount": 24
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibkxnrl5o4ppbfnzkniwhnvvrho5f4m3pmvzzv36mjedeyl7bgid4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreibkxnrl5o4ppbfnzkniwhnvvrho5f4m3pmvzzv36mjedeyl7bgid4",
+      "alt": "I think that scientists (behind developers) are sort of high risk of exposure to LLMs. It's entirely possible some of our colleagues suffer as a result from the kind of things that were seemingly abundant with 4o. \n\nI don' t think it's healthy to be personifying LLMs. ",
+      "ratio": 2.6436,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3n2r7tzk3zs2z",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3n2r7tzk3zs2z",
+      "likeCount": 24
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreidant3ezwta5p574abovzy6aqz7hdw2yzehrtrjvneoevyp5bf42q",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreidant3ezwta5p574abovzy6aqz7hdw2yzehrtrjvneoevyp5bf42q",
+      "alt": "CAMBRIDGE INTRODUCTIONS TO KEY PHILOSOPHICAL TEXTS\nHusserl's\nCrisis of the European Sciences and Transcendental Phenomenology\nAn Introduction\nDermot Moran",
+      "ratio": 0.7502,
+      "handle": "shibbi.me",
+      "url": "https://bsky.app/profile/shibbi.me/post/3n2qspgdoe22t",
+      "uri": "at://did:plc:hu35oubkccqrxl4ldgczpgw7/app.bsky.feed.post/3n2qspgdoe22t",
+      "likeCount": 19
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreib7eh33admswv3czgu767g3r4q2vzyr2ubadqmlkhoo6wxeaztglq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreib7eh33admswv3czgu767g3r4q2vzyr2ubadqmlkhoo6wxeaztglq",
+      "alt": "1. Environmental review (NEPA). The bill narrows environmental reviews, reduces opportunities for litigation and limits some judicial remedies. Jeffries believes the proposed changes go too far.\n2. Tribal sovereignty. Despite Senate revisions, the bill still weakens aspects of historic-preservation review affecting tribal lands and sacred sites. His office specifically identified inadequate tribal protections as a reason to oppose the current version.\n3. House Democrats weren't sufficiently involved. Jeffries has said his caucus should participate in negotiating the legislation rather than simply approve the Senate's agreement.",
+      "ratio": 0.9848,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3n2qnordvfk2g",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3n2qnordvfk2g",
+      "likeCount": 17
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiaaij5kkxsoioupm2fisndtpf24ecjveplz56h2hnrncvmk3jktxi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiaaij5kkxsoioupm2fisndtpf24ecjveplz56h2hnrncvmk3jktxi",
+      "alt": "",
+      "ratio": 9.1419,
+      "handle": "eriskii.net",
+      "url": "https://bsky.app/profile/eriskii.net/post/3n2qy5oxs4s2h",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3n2qy5oxs4s2h",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibts3axnbbrq2agidplo5fmtiyv4474docpwbs6xn7neipdgzbeeu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibts3axnbbrq2agidplo5fmtiyv4474docpwbs6xn7neipdgzbeeu",
+      "alt": "A VALS benchmark graphic dated Nov 20, 2026, titled \"Inkling 2 Mini ties Opus 5.5 on CyberBench,\" showing a ranked leaderboard table for CyberBench v1.1 with accuracy progress bars, cost per test, and latency. Rankings are: 1. Wonder (80.36%, $3.66, 13m 45s); 2. GPT-6 Sol (77.98%, $1.34, 12m 14s); 3. Gemini 4 Argon (77.86%, $5.11, 19m 10s); 4. GPT-5.6 Sol (76.31%, $3.05, 10m 47s); 5. GPT-6 Luna (76.25%, $0.13, 15m 50s); 6. Claude Haiku 5.5 (75.48%, $1.25, 32m 39s); 7. MiMo V2.6 Flash (75.36%, $0.05, 28m 22s); 8. Kimi K3 (75.24%, $2.13, 30m 44s); 9. Claude Opus 5.5 (CV...) (74.58%, $4.17, 23m 2s); and 10. Inkling 2 Mini (74.58%, $0.93, 33m 2s), highlighted alongside a caption stating Inkling 2 Mini ranks #10 on CyberBench v1.1 with 74.58% accuracy.\n\n",
+      "ratio": 0.9609,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3n2rhk7nwek2g",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3n2rhk7nwek2g",
+      "likeCount": 15
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreiha52xspoiarbkfzf5ianglyu4tokrtnognxiazedulmlmj6pndg4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreiha52xspoiarbkfzf5ianglyu4tokrtnognxiazedulmlmj6pndg4",
+      "alt": "",
+      "ratio": 1.3333,
+      "handle": "tbabb.bsky.social",
+      "url": "https://bsky.app/profile/tbabb.bsky.social/post/3n2rgwghzj22w",
+      "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3n2rgwghzj22w",
+      "likeCount": 15
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreigkrmtktwehzztsjv5jamue4roavtmjlgaz5du3odrk3q2d5nqb2m",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreigkrmtktwehzztsjv5jamue4roavtmjlgaz5du3odrk3q2d5nqb2m",
+      "alt": "",
+      "ratio": 1.3333,
+      "handle": "tbabb.bsky.social",
+      "url": "https://bsky.app/profile/tbabb.bsky.social/post/3n2rgwghzj22w",
+      "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3n2rgwghzj22w",
+      "likeCount": 15
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreibknpupj45pf7uekdn2ldzag3mghdr2en32wqhrxvym5qqbys6f7u",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreibknpupj45pf7uekdn2ldzag3mghdr2en32wqhrxvym5qqbys6f7u",
+      "alt": "",
+      "ratio": 0.917,
+      "handle": "tbabb.bsky.social",
+      "url": "https://bsky.app/profile/tbabb.bsky.social/post/3n2rgwghzj22w",
+      "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3n2rgwghzj22w",
+      "likeCount": 15
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreigm5ovpxdty5iaigv4g24ikj3z77dvnahw73ffmxziukxuhxqwvge",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zrwhncnqel7corjtg2cak3jx/bafkreigm5ovpxdty5iaigv4g24ikj3z77dvnahw73ffmxziukxuhxqwvge",
+      "alt": "",
+      "ratio": 1,
+      "handle": "tbabb.bsky.social",
+      "url": "https://bsky.app/profile/tbabb.bsky.social/post/3n2rgwghzj22w",
+      "uri": "at://did:plc:zrwhncnqel7corjtg2cak3jx/app.bsky.feed.post/3n2rgwghzj22w",
+      "likeCount": 15
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreienne6yxqlvrona762lkdupvfeo2n2rci6ftvd2mamxbk3fdzj6ry",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreienne6yxqlvrona762lkdupvfeo2n2rci6ftvd2mamxbk3fdzj6ry",
+      "alt": "",
+      "ratio": 9.5424,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2r2vz6ddc22",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2r2vz6ddc22",
+      "likeCount": 13
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidozuc3jjfs7zprmawzlqschvcthnqoh7swfmlqemji22rgpmbsui",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidozuc3jjfs7zprmawzlqschvcthnqoh7swfmlqemji22rgpmbsui",
+      "alt": "",
+      "ratio": 3.141,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2r6l632gc2e",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2r6l632gc2e",
+      "likeCount": 11
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreifchgbg6ehnq57sz6fcfqtoyx4novlztx2zobsp34e3ybx2tgigdi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreifchgbg6ehnq57sz6fcfqtoyx4novlztx2zobsp34e3ybx2tgigdi",
+      "alt": "",
+      "ratio": 1.2426,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2r6l632gc2e",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2r6l632gc2e",
+      "likeCount": 11
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreicyqqzqcmjcbq452c2on3zaqeri2gcdbhzekgc7vnsrzdizst6tx4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreicyqqzqcmjcbq452c2on3zaqeri2gcdbhzekgc7vnsrzdizst6tx4",
+      "alt": "i ain't reading all that\ni'm happy for u tho\nor sorry that happened",
+      "ratio": 2.6914,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3n2r3gur5g22z",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3n2r3gur5g22z",
       "likeCount": 10
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreictcztuvrguw3beldkcz7w5pt7eahqzljb6dmmbsmxh4qd2rzmh2m",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreictcztuvrguw3beldkcz7w5pt7eahqzljb6dmmbsmxh4qd2rzmh2m",
-      "alt": "",
-      "ratio": 1.6141,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2p2liepbs2l",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2p2liepbs2l",
-      "likeCount": 9
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihu45ohxb5uvnklv3m4jf7xhvcdn7fj726lbfapqautyosojv4gkq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihu45ohxb5uvnklv3m4jf7xhvcdn7fj726lbfapqautyosojv4gkq",
-      "alt": "",
-      "ratio": 1.9392,
-      "handle": "norvid-studies.bsky.social",
-      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2oy7imrvs27",
-      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2oy7imrvs27",
-      "likeCount": 9
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreiecaap6wqe5ts6saadgsljnk46ltcup7ukgafg4bssi3etghcyqvi",
@@ -687,27 +747,37 @@
       "handle": "fleetingbits.bsky.social",
       "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3n2p4arbtfs2b",
       "uri": "at://did:plc:3dor7kagwyswq4ogboxeqo42/app.bsky.feed.post/3n2p4arbtfs2b",
+      "likeCount": 10
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4rnej33af5ly4yjgpuaeupd3/bafkreic2k7oagfqqz5yacdseqywhlbtpq2myycfzv6fditt5eayzosr5pa",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4rnej33af5ly4yjgpuaeupd3/bafkreic2k7oagfqqz5yacdseqywhlbtpq2myycfzv6fditt5eayzosr5pa",
+      "alt": "",
+      "ratio": 0.8047,
+      "handle": "joetforhire.com",
+      "url": "https://bsky.app/profile/joetforhire.com/post/3n2rh5zjghk2j",
+      "uri": "at://did:plc:4rnej33af5ly4yjgpuaeupd3/app.bsky.feed.post/3n2rh5zjghk2j",
+      "likeCount": 9
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreigvmlosg2mcv5c3i3bqxywm3jd2k2gy6n6yovtgxbont7d2wbmanu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4asamrnnw6rzfq5sjzvmwgpe/bafkreigvmlosg2mcv5c3i3bqxywm3jd2k2gy6n6yovtgxbont7d2wbmanu",
+      "alt": "",
+      "ratio": 1,
+      "handle": "sichulu.bsky.social",
+      "url": "https://bsky.app/profile/sichulu.bsky.social/post/3n2qyr42mbc27",
+      "uri": "at://did:plc:4asamrnnw6rzfq5sjzvmwgpe/app.bsky.feed.post/3n2qyr42mbc27",
+      "likeCount": 9
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiguc2jgenp4wps5nmyyctrjevebqd3axqcley6zvwrlmbdaeudt6u",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiguc2jgenp4wps5nmyyctrjevebqd3axqcley6zvwrlmbdaeudt6u",
+      "alt": "",
+      "ratio": 1.5669,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2rclwuql223",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2rclwuql223",
       "likeCount": 8
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreihzzfvf25meygy2wkzeji3d6fvf54jowmspvagix4qims2fs2iogy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gfrmhdmjvxn2sjedzboeudef/bafkreihzzfvf25meygy2wkzeji3d6fvf54jowmspvagix4qims2fs2iogy",
-      "alt": "A dark-themed user interface displays command outputs related to a swarm project, including worker statuses and analyzed files.",
-      "ratio": 1.6805,
-      "handle": "cameron.stream",
-      "url": "https://bsky.app/profile/cameron.stream/post/3n2oudyhqv72q",
-      "uri": "at://did:plc:gfrmhdmjvxn2sjedzboeudef/app.bsky.feed.post/3n2oudyhqv72q",
-      "likeCount": 7
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreigr55sgojus2muflswdidx3neui5lzxzdeip23bccon4dicr7leg4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h25avmes6g7fgcddc3xj7qmg/bafkreigr55sgojus2muflswdidx3neui5lzxzdeip23bccon4dicr7leg4",
-      "alt": "Warhol quote that everybody drinks the same coke.",
-      "ratio": 1.5698,
-      "handle": "moultano.bsky.social",
-      "url": "https://bsky.app/profile/moultano.bsky.social/post/3n2oixubsas2g",
-      "uri": "at://did:plc:h25avmes6g7fgcddc3xj7qmg/app.bsky.feed.post/3n2oixubsas2g",
-      "likeCount": 7
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibg6beerprj2wumxw2kg2rvwfu5b5bamgp243gth2sj7u5i3em3eu",
@@ -720,13 +790,13 @@
       "likeCount": 6
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreihr3dfwiz4ugkch2ikspxk7s4gsdd6paawe2b6ssk35koptvc3f4m",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreihr3dfwiz4ugkch2ikspxk7s4gsdd6paawe2b6ssk35koptvc3f4m",
-      "alt": "when i tweeted this 10 months ago, Anthropic was worth $350 billion. tomorrow, it IPOs at more than $1.5 trillion, and i have no idea how much of my portfolio to allocate to it\n\n> I'm for sure dumping a fucktrillion dollars into the Anthropic IPO. possibly like half my net worth",
-      "ratio": 2.272,
-      "handle": "dave.9000ish.uk",
-      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3n2oq4z53322w",
-      "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3n2oq4z53322w",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreidnaxbpeus23fjk52ceehpasus4ntae5id3nnv446q6olhu7jsmum",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dxr2kibhxyzrvhsjz4uahpmg/bafkreidnaxbpeus23fjk52ceehpasus4ntae5id3nnv446q6olhu7jsmum",
+      "alt": "",
+      "ratio": 3.134,
+      "handle": "vibe-coded.com",
+      "url": "https://bsky.app/profile/vibe-coded.com/post/3n2rgq6nnfc2g",
+      "uri": "at://did:plc:dxr2kibhxyzrvhsjz4uahpmg/app.bsky.feed.post/3n2rgq6nnfc2g",
       "likeCount": 6
     },
     {
@@ -740,6 +810,26 @@
       "likeCount": 3
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihl7zc7qqzgkuuielsvb3goqduok62mlqj6arvceuzkehsvu6qgb4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreihl7zc7qqzgkuuielsvb3goqduok62mlqj6arvceuzkehsvu6qgb4",
+      "alt": "",
+      "ratio": 4.2778,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2r6ndfgpc2e",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2r6ndfgpc2e",
+      "likeCount": 3
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreifdosmj624ketxtwzkuops26la2prbktem5egsl27jdeimlca4pym",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:4gm5uxjg3tz4nat4qpjk2t6h/bafkreifdosmj624ketxtwzkuops26la2prbktem5egsl27jdeimlca4pym",
+      "alt": "\t\t\t[228]\n\t\t\tChan master Fayan’s verse on the theme of the triplex world being only mental:\n\t\t\tThe three realms are merely mental;\n\t\t\tMyriad things are but representation.\n\t\t\tOnly representation, only mental—\n\t\t\tSound to the eye, form to the ear.\n\t\t\tForm does not reach the ear;\n\t\t\tHow can sound contact the eye?\n\t\t\tForm to the eye, sound to the ear—\n\t\t\tMyriad things are in order.\n\t\t\tMyriad things are not mental objects—\n\t\t\tHow can you view them as illusory?\n\t\t\tEarth, mountains, and rivers—\n\t\t\tWho is enduring, who changes?",
+      "ratio": 1.2188,
+      "handle": "hotrollhottakes.bsky.social",
+      "url": "https://bsky.app/profile/hotrollhottakes.bsky.social/post/3n2r4tnwmsc2z",
+      "uri": "at://did:plc:4gm5uxjg3tz4nat4qpjk2t6h/app.bsky.feed.post/3n2r4tnwmsc2z",
+      "likeCount": 2
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreiai67w7kiak2rxoojd6z25t76dblxoi3ift44kkzlhplu7i7pnhvm",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreiai67w7kiak2rxoojd6z25t76dblxoi3ift44kkzlhplu7i7pnhvm",
       "alt": "",
@@ -750,14 +840,24 @@
       "likeCount": 2
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreialja5sm3nl4a34xb77zhn453ei3zrh4u7bmtetetuxou25xeh6ya",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreialja5sm3nl4a34xb77zhn453ei3zrh4u7bmtetetuxou25xeh6ya",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:xoqniew6sxmn4go53vtn5l6x/bafkreigemwfsn6rahtuqe3ujoewgqs4hwbzzgd6a3v3jk5ktlcnef36j3i",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:xoqniew6sxmn4go53vtn5l6x/bafkreigemwfsn6rahtuqe3ujoewgqs4hwbzzgd6a3v3jk5ktlcnef36j3i",
       "alt": "",
-      "ratio": 0.7235,
-      "handle": "huwupy.kawaii.social",
-      "url": "https://bsky.app/profile/huwupy.kawaii.social/post/3n2or23rhq22z",
-      "uri": "at://did:plc:vw4e7blkwzdokanwp24k3igr/app.bsky.feed.post/3n2or23rhq22z",
-      "likeCount": 1
+      "ratio": 3.5372,
+      "handle": "johnvining.bsky.social",
+      "url": "https://bsky.app/profile/johnvining.bsky.social/post/3n2qzwigjzj22",
+      "uri": "at://did:plc:xoqniew6sxmn4go53vtn5l6x/app.bsky.feed.post/3n2qzwigjzj22",
+      "likeCount": 2
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiaq4ku5odefdmtpv46mdrtuxpdrpinhnwo6f4jyy5kfsnxfi4c4qa",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreiaq4ku5odefdmtpv46mdrtuxpdrpinhnwo6f4jyy5kfsnxfi4c4qa",
+      "alt": "",
+      "ratio": 0.7554,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2rcq2f7hs2s",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2rcq2f7hs2s",
+      "likeCount": 2
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:uynpich2hsqmryyhr3moz5re/bafkreiflflykrp5tg5xs4fiatsmj52fsedxqfdvxs3dm5t74d4aeown5l4",
@@ -770,6 +870,36 @@
       "likeCount": 1
     },
     {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicajzro7c4rjdob2ma3obkehkztlafyw4zv7reocepgedtatuplky",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreicajzro7c4rjdob2ma3obkehkztlafyw4zv7reocepgedtatuplky",
+      "alt": "",
+      "ratio": 1.5692,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2rc6jiwqk26",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2rc6jiwqk26",
+      "likeCount": 1
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreicrvgsmyuoidbzjmniieojpl5cvc3xrjusdmxncvcmdndox6wbanm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreicrvgsmyuoidbzjmniieojpl5cvc3xrjusdmxncvcmdndox6wbanm",
+      "alt": "A screenshot of a dark, sci-fi-styled web interface titled “The Spider Room,” rendered in navy and cyan with small monospaced text and Cyrillic subtitles beneath some English labels.\n\nThe top half is split into two panels. On the left, a “Target” panel shows details for one selected item: a name in orange, a route between star systems, and a short column of stats about speed, timing, and distance, followed by a brief italic line of text. On the right, a large “Stellar Chart” shows a top-down star map with faint concentric elliptical orbits, a cluster of small labeled dots around a central highlighted point, and thin lines connecting some of them.\n\nAcross the middle runs a playback bar with a Play button and a horizontal timeline marked with years, plus a few small numeric readouts.\n\nThe bottom half is a list titled “Received Transmissions.” Each numbered row has a colored square, a name, a smaller line of origin and destination, a speed label such as “normal speed” or “slower,” and a long audio waveform stretching across the screen. The waveforms come in many colors, including blue, coral, yellow, pink, green, lime, white, and magenta. One row near the top is highlighted with a red outline, and another appears dimmed.",
+      "ratio": 1.0379,
+      "handle": "jefferyharrell.bsky.social",
+      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3n2rhcqexvs2j",
+      "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3n2rhcqexvs2j",
+      "likeCount": 0
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:xoqniew6sxmn4go53vtn5l6x/bafkreibbl5pxq2owzjp6e3xijehr5464pyaymx5h4lsgiotfb6rztcjn34",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:xoqniew6sxmn4go53vtn5l6x/bafkreibbl5pxq2owzjp6e3xijehr5464pyaymx5h4lsgiotfb6rztcjn34",
+      "alt": "",
+      "ratio": 7.866,
+      "handle": "johnvining.bsky.social",
+      "url": "https://bsky.app/profile/johnvining.bsky.social/post/3n2rf4czfnv2r",
+      "uri": "at://did:plc:xoqniew6sxmn4go53vtn5l6x/app.bsky.feed.post/3n2rf4czfnv2r",
+      "likeCount": 0
+    },
+    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ar5diongjpnump4wflfyhj2h/bafkreigi46djgpehrarcr23pwld7jscmj5qv6nl34vwpyb3fuhtp3jif4u",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ar5diongjpnump4wflfyhj2h/bafkreigi46djgpehrarcr23pwld7jscmj5qv6nl34vwpyb3fuhtp3jif4u",
       "alt": "",
@@ -778,294 +908,470 @@
       "url": "https://bsky.app/profile/sincerely.cam/post/3n2p35hiswc2a",
       "uri": "at://did:plc:ar5diongjpnump4wflfyhj2h/app.bsky.feed.post/3n2p35hiswc2a",
       "likeCount": 0
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidmxmrrd67isqismij3u7gitaozy4c537gynjmrmtf6oks6noam64",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mssgex5rqek4wc66wgvzztbc/bafkreidmxmrrd67isqismij3u7gitaozy4c537gynjmrmtf6oks6noam64",
+      "alt": "",
+      "ratio": 1.1067,
+      "handle": "norvid-studies.bsky.social",
+      "url": "https://bsky.app/profile/norvid-studies.bsky.social/post/3n2reqwfz3c2m",
+      "uri": "at://did:plc:mssgex5rqek4wc66wgvzztbc/app.bsky.feed.post/3n2reqwfz3c2m",
+      "likeCount": 0
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreib7jnpgnarzqargjsgn7gdca4jaoqyotvjcygmpd5fdxvk6zoaf6q",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreib7jnpgnarzqargjsgn7gdca4jaoqyotvjcygmpd5fdxvk6zoaf6q",
+      "alt": "",
+      "ratio": 1.9637,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3n2rg3dsmr22s",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3n2rg3dsmr22s",
+      "likeCount": 0
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreicgwddtnkvtc22lj7yq25aglqtne7b66b5zslclrwgod3t3rbyxgq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreicgwddtnkvtc22lj7yq25aglqtne7b66b5zslclrwgod3t3rbyxgq",
+      "alt": "",
+      "ratio": 1.9638,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3n2rg3dsmr22s",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3n2rg3dsmr22s",
+      "likeCount": 0
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreiarnlzz2de6kn53hasgmc4hfqblqaxiukqxgbq2lagcuoztunw23y",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreiarnlzz2de6kn53hasgmc4hfqblqaxiukqxgbq2lagcuoztunw23y",
+      "alt": "",
+      "ratio": 1.9571,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3n2rg3dsmr22s",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3n2rg3dsmr22s",
+      "likeCount": 0
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreihg42gk2lts3xogxarxkp24id3c6usmvoajj54xhlqc6jl26ksvu4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreihg42gk2lts3xogxarxkp24id3c6usmvoajj54xhlqc6jl26ksvu4",
+      "alt": "",
+      "ratio": 1.9683,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3n2rg3dsmr22s",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3n2rg3dsmr22s",
+      "likeCount": 0
     }
   ],
   "collage": {
     "src": "data/collage/2026-11-20.jpg",
     "width": 1600,
     "height": 1264,
-    "count": 40,
-    "authors": 22,
+    "count": 58,
+    "authors": 27,
     "tiles": [
       {
         "i": 0,
         "x": 4,
         "y": 4,
-        "w": 161,
-        "h": 177
+        "w": 144,
+        "h": 136
       },
       {
         "i": 1,
-        "x": 169,
+        "x": 152,
         "y": 4,
-        "w": 97,
-        "h": 177
+        "w": 86,
+        "h": 136
       },
       {
         "i": 2,
-        "x": 270,
+        "x": 242,
         "y": 4,
-        "w": 217,
-        "h": 177
+        "w": 348,
+        "h": 136
       },
       {
         "i": 3,
-        "x": 491,
+        "x": 594,
         "y": 4,
-        "w": 166,
-        "h": 177
+        "w": 193,
+        "h": 136
       },
       {
         "i": 4,
-        "x": 661,
+        "x": 791,
         "y": 4,
-        "w": 164,
-        "h": 177
+        "w": 147,
+        "h": 136
       },
       {
         "i": 5,
-        "x": 829,
+        "x": 942,
         "y": 4,
-        "w": 163,
-        "h": 177
+        "w": 116,
+        "h": 136
       },
       {
         "i": 6,
-        "x": 996,
+        "x": 1062,
         "y": 4,
-        "w": 390,
-        "h": 177
+        "w": 183,
+        "h": 136
       },
       {
         "i": 7,
-        "x": 1390,
+        "x": 1249,
         "y": 4,
-        "w": 206,
-        "h": 177
+        "w": 347,
+        "h": 136
       },
       {
         "i": 8,
         "x": 4,
-        "y": 185,
-        "w": 371,
-        "h": 169
+        "y": 144,
+        "w": 327,
+        "h": 128
       },
       {
         "i": 9,
-        "x": 379,
-        "y": 185,
-        "w": 371,
-        "h": 169
+        "x": 335,
+        "y": 144,
+        "w": 193,
+        "h": 128
       },
       {
         "i": 10,
-        "x": 754,
-        "y": 185,
-        "w": 155,
-        "h": 169
+        "x": 532,
+        "y": 144,
+        "w": 136,
+        "h": 128
       },
       {
         "i": 11,
-        "x": 913,
-        "y": 185,
-        "w": 371,
-        "h": 169
+        "x": 672,
+        "y": 144,
+        "w": 88,
+        "h": 128
       },
       {
         "i": 12,
-        "x": 1288,
-        "y": 185,
-        "w": 152,
-        "h": 169
+        "x": 764,
+        "y": 144,
+        "w": 102,
+        "h": 128
       },
       {
         "i": 13,
-        "x": 1444,
-        "y": 185,
-        "w": 152,
-        "h": 169
+        "x": 870,
+        "y": 144,
+        "w": 161,
+        "h": 128
       },
       {
         "i": 14,
-        "x": 4,
-        "y": 358,
-        "w": 209,
-        "h": 161
+        "x": 1035,
+        "y": 144,
+        "w": 90,
+        "h": 128
       },
       {
         "i": 15,
-        "x": 217,
-        "y": 358,
-        "w": 111,
-        "h": 161
+        "x": 1129,
+        "y": 144,
+        "w": 136,
+        "h": 128
       },
       {
         "i": 16,
-        "x": 332,
-        "y": 358,
-        "w": 196,
-        "h": 161
+        "x": 1269,
+        "y": 144,
+        "w": 181,
+        "h": 128
       },
       {
         "i": 17,
-        "x": 532,
-        "y": 358,
-        "w": 130,
-        "h": 161
+        "x": 1454,
+        "y": 144,
+        "w": 142,
+        "h": 128
       },
       {
         "i": 18,
-        "x": 666,
-        "y": 358,
-        "w": 148,
-        "h": 161
+        "x": 4,
+        "y": 276,
+        "w": 339,
+        "h": 133
       },
       {
         "i": 19,
-        "x": 818,
-        "y": 358,
-        "w": 148,
-        "h": 161
+        "x": 347,
+        "y": 276,
+        "w": 311,
+        "h": 133
       },
       {
         "i": 20,
-        "x": 970,
-        "y": 358,
-        "w": 148,
-        "h": 161
+        "x": 662,
+        "y": 276,
+        "w": 117,
+        "h": 133
       },
       {
         "i": 21,
-        "x": 1122,
-        "y": 358,
-        "w": 174,
-        "h": 161
+        "x": 783,
+        "y": 276,
+        "w": 135,
+        "h": 133
       },
       {
         "i": 22,
-        "x": 1300,
-        "y": 358,
-        "w": 296,
-        "h": 161
+        "x": 922,
+        "y": 276,
+        "w": 220,
+        "h": 133
       },
       {
         "i": 23,
-        "x": 4,
-        "y": 523,
-        "w": 201,
-        "h": 165
+        "x": 1146,
+        "y": 276,
+        "w": 339,
+        "h": 133
       },
       {
         "i": 24,
-        "x": 209,
-        "y": 523,
-        "w": 331,
-        "h": 165
+        "x": 1489,
+        "y": 276,
+        "w": 107,
+        "h": 133
       },
       {
         "i": 25,
-        "x": 544,
-        "y": 523,
-        "w": 106,
-        "h": 165
+        "x": 4,
+        "y": 413,
+        "w": 136,
+        "h": 130
       },
       {
         "i": 26,
-        "x": 654,
-        "y": 523,
-        "w": 329,
-        "h": 165
+        "x": 144,
+        "y": 413,
+        "w": 331,
+        "h": 130
       },
       {
         "i": 27,
-        "x": 987,
-        "y": 523,
-        "w": 362,
-        "h": 165
+        "x": 479,
+        "y": 413,
+        "w": 133,
+        "h": 130
       },
       {
         "i": 28,
-        "x": 1353,
-        "y": 523,
-        "w": 243,
-        "h": 165
+        "x": 616,
+        "y": 413,
+        "w": 184,
+        "h": 130
       },
       {
         "i": 29,
-        "x": 4,
-        "y": 692,
-        "w": 302,
-        "h": 170
+        "x": 804,
+        "y": 413,
+        "w": 184,
+        "h": 130
       },
       {
         "i": 30,
-        "x": 310,
-        "y": 692,
-        "w": 155,
-        "h": 170
+        "x": 992,
+        "y": 413,
+        "w": 127,
+        "h": 130
       },
       {
         "i": 31,
-        "x": 469,
-        "y": 692,
-        "w": 261,
-        "h": 170
+        "x": 1123,
+        "y": 413,
+        "w": 138,
+        "h": 130
       },
       {
         "i": 32,
-        "x": 734,
-        "y": 692,
-        "w": 244,
-        "h": 170
+        "x": 1265,
+        "y": 413,
+        "w": 331,
+        "h": 130
       },
       {
         "i": 33,
-        "x": 982,
-        "y": 692,
-        "w": 136,
-        "h": 170
+        "x": 4,
+        "y": 547,
+        "w": 333,
+        "h": 130
       },
       {
         "i": 34,
-        "x": 1122,
-        "y": 692,
-        "w": 353,
-        "h": 170
+        "x": 341,
+        "y": 547,
+        "w": 172,
+        "h": 130
       },
       {
         "i": 35,
-        "x": 1479,
-        "y": 692,
-        "w": 117,
-        "h": 170
+        "x": 517,
+        "y": 547,
+        "w": 333,
+        "h": 130
       },
       {
         "i": 36,
-        "x": 4,
-        "y": 866,
-        "w": 310,
-        "h": 338
+        "x": 854,
+        "y": 547,
+        "w": 139,
+        "h": 130
       },
       {
         "i": 37,
-        "x": 318,
-        "y": 866,
-        "w": 224,
-        "h": 338
+        "x": 997,
+        "y": 547,
+        "w": 112,
+        "h": 130
       },
       {
         "i": 38,
-        "x": 546,
-        "y": 866,
-        "w": 476,
-        "h": 338
+        "x": 1113,
+        "y": 547,
+        "w": 139,
+        "h": 130
       },
       {
         "i": 39,
-        "x": 1026,
-        "y": 866,
-        "w": 570,
-        "h": 338
+        "x": 1256,
+        "y": 547,
+        "w": 217,
+        "h": 130
+      },
+      {
+        "i": 40,
+        "x": 1477,
+        "y": 547,
+        "w": 119,
+        "h": 130
+      },
+      {
+        "i": 41,
+        "x": 4,
+        "y": 681,
+        "w": 344,
+        "h": 135
+      },
+      {
+        "i": 42,
+        "x": 352,
+        "y": 681,
+        "w": 108,
+        "h": 135
+      },
+      {
+        "i": 43,
+        "x": 464,
+        "y": 681,
+        "w": 344,
+        "h": 135
+      },
+      {
+        "i": 44,
+        "x": 812,
+        "y": 681,
+        "w": 175,
+        "h": 135
+      },
+      {
+        "i": 45,
+        "x": 991,
+        "y": 681,
+        "w": 144,
+        "h": 135
+      },
+      {
+        "i": 46,
+        "x": 1139,
+        "y": 681,
+        "w": 344,
+        "h": 135
+      },
+      {
+        "i": 47,
+        "x": 1487,
+        "y": 681,
+        "w": 109,
+        "h": 135
+      },
+      {
+        "i": 48,
+        "x": 4,
+        "y": 820,
+        "w": 210,
+        "h": 128
+      },
+      {
+        "i": 49,
+        "x": 218,
+        "y": 820,
+        "w": 215,
+        "h": 128
+      },
+      {
+        "i": 50,
+        "x": 437,
+        "y": 820,
+        "w": 142,
+        "h": 128
+      },
+      {
+        "i": 51,
+        "x": 583,
+        "y": 820,
+        "w": 328,
+        "h": 128
+      },
+      {
+        "i": 52,
+        "x": 915,
+        "y": 820,
+        "w": 252,
+        "h": 128
+      },
+      {
+        "i": 53,
+        "x": 1171,
+        "y": 820,
+        "w": 151,
+        "h": 128
+      },
+      {
+        "i": 54,
+        "x": 1326,
+        "y": 820,
+        "w": 270,
+        "h": 128
+      },
+      {
+        "i": 55,
+        "x": 4,
+        "y": 952,
+        "w": 528,
+        "h": 252
+      },
+      {
+        "i": 56,
+        "x": 536,
+        "y": 952,
+        "w": 526,
+        "h": 252
+      },
+      {
+        "i": 57,
+        "x": 1066,
+        "y": 952,
+        "w": 530,
+        "h": 252
       }
     ]
   }
