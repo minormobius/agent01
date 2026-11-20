@@ -11,3 +11,4 @@ wire4/*.mjs
 wire4/data/nl-*
 wire4/data/scan-*
 wire4/data/thresholds.txt
+wire4/data/sec-*

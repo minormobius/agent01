@@ -108,6 +108,76 @@ whether the rippled wake sheds earlier or later than a sphere's 277 is not known
 nothing. `export4.py mode 200` writes the base flow and the unstable mode (its size is a slider, because a linear
 calculation does not fix it); `export4.py nl 210` writes a run's final state.
 
+## 5. Higher Reynolds numbers (`nl4.py` to 350, `sec4.py`)
+
+**In the symmetric family the ripple stays steady.** Runs at Re 250, 300 and 350 (eight harmonics, step 0.04):
+
+| Re | bubble, fattest / thinnest | end of run |
+|---|---|---|
+| 250 | 1.83 / 1.41 | steady |
+| 300 | 1.96 / 1.58 | steady; a pulsation of period 25 flow times dies out (swing 5.9%, 1.0%, 0.2% over successive windows) |
+| 350 | about 2.07 / 1.76 | the same pulsation still dying at t = 400 (41%, 25%, 16%) |
+
+The pulsation's decay slows as Re rises and extrapolates to zero near Re 370. That is two points and a straight line,
+not a threshold. Its period, 25 diameters of travel, is about five times slower than a sphere's shedding.
+
+**The ripple is unstable to a lopsided mode from about Re 209.** `sec4.py` steps the equations linearised about a
+rippled state for disturbances of azimuthal wavenumber 1 with the ripple's period and mirror planes, and reads the
+fastest mode's growth off a probe. With the ripple switched off at Re 210 it returns −0.0075, wake4's eigenvalue
+(−0.0076). With it on:
+
+| Re | growth of the fastest lopsided mode | oscillating? |
+|---|---|---|
+| 200 | −0.016 | no |
+| 210 | +0.0023 | no |
+| 220 | +0.012 | no |
+| 250 | +0.022 | no |
+| 300 | about +0.02 to +0.03 (the fit had not settled) | none seen |
+
+So the order of events on a 4D wire, as far as this goes: uniform wake until 191; steady ripple along the wire; from
+about 209 the ripple also tilts to one side, steadily (a sphere tilts at 212, so the ripple changes that little).
+**No shedding was found up to 300.** That is weaker than it sounds: this method sees only the fastest mode, so an
+oscillating one growing more slowly would be hidden; past 209 the true base state is the tilted ripple, which was not
+computed; and disturbances with another period along the wire were not tried. Finding where shedding starts needs a
+solver that carries the lopsided harmonics nonlinearly.
+
+## 6. Edge effects: first estimates, nothing computed with a wall in it
+
+What was computed is periodic along the wire with mirror planes, which is exactly a wire between two frictionless
+walls a whole number of half-wavelengths apart. A real wire across a pipe differs in three ways. The estimates use
+the ripple's amplitude equation, with coefficients fitted to the computed growth rates (`data/thresholds.txt`):
+growth σ = 0.00237 (Re − 191.7) at the best wavenumber, falling off as 0.036 (β − 2.5)².
+
+**Ends.** A no-slip wall where the wire meets the pipe slows the flow there, so the wake differs at the ends at every
+Reynolds number, and that forces a ripple without waiting for the threshold. Below it the forced ripple dies away
+from the end over √(0.036/|σ|) diameters: 0.6 at Re 150, 1.1 at 180, 3 at 190, and without limit at 191. So there is
+no sharp onset on a finite wire: cells spread inward from the ends as the threshold nears (the same thing happens to
+Taylor cells between end plates). The junction itself, with its horseshoe vortex, is not in this estimate.
+
+**The pipe's profile.** A wire along a diameter sees 2.5 times the mean speed at the centre and none at the wall, so
+the local Reynolds number falls as 1 − w²/R² along it. Treating the wake as locally uniform (fair only when the pipe
+is many wavelengths across), the ripple first appears as a patch at the centre:
+
+| pipe radius, in wire diameters | onset, Re on the centreline speed | half-width of the first patch |
+|---|---|---|
+| 5 | 203 | 1.7 |
+| 10 | 197 | 2.4 |
+| 25 | 194 | 3.7 |
+| 50 | 193 | 5.3 |
+| 100 | 192 | 7.5 |
+
+A patch a few diameters wide holds one or two cells of the 2.5-diameter ripple, so in a narrow pipe the picture is a
+single fat spot in the middle of the wire. Not included: the sheared stream also drives a flow along the wire even
+below threshold (higher stagnation pressure at the centre), as it does along a cylinder in a shear flow.
+
+**For the instrument.** A hot wire would read the speed where it is, weighted by the ripple: past 191 the heat loss
+varies along the wire with the cell pattern. And the wire's cold ends: conduction to the supports reaches a length
+√(k_w a / 3h) into the wire, 0.82 of ours at the same heat-transfer coefficient, because a ball cross-section has
+more surface for its area.
+
+**The ribbon** has an edge of another kind: a ribbon spanning the pipe meets the wall along a circle, and a strip
+narrower than the pipe has two free edges that shed their own vortices. Not estimated.
+
 ## Running it
 
 ```bash
@@ -118,6 +188,7 @@ venv/bin/python kata/wire4/wake4.py 50 40         # base flow and the sphere val
 venv/bin/python kata/wire4/crit4.py '{"Nr":80,"Nt":64}' 188,190,192,194 2.25,2.5,2.75 0   # growth at (Re, β), m = 0
 venv/bin/python kata/wire4/scan4.py 200 50 40 out.json   # m = 0, 1, 2 over β at one Re
 cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run, ~15 min alone -> data/nl-210.*
+../../venv/bin/python sec4.py 210 300 0.05 5      # the ripple's stability to lopsided modes, ~30 min
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 
@@ -127,8 +198,8 @@ not wake modes.
 ## Next
 
 - An independent check of the β > 0 result (a second discretisation, or a time-stepped 4D run near Re 191).
-- The rippled wake's own stability, to modes that break the symmetry round the flow axis and to other wavelengths:
-  that is where shedding, if any, comes from.
+- A nonlinear solver that carries the lopsided harmonics, to find the tilted ripple and where it starts to shed.
+- A finite wire with no-slip ends, and a sheared stream: the estimates of section 6 computed.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
   pattern. Floquet analysis with a spanwise wavevector of any direction in that plane.
 - Then the instrument: heat loss from the wire with the wake it actually has.
