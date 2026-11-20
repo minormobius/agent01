@@ -28,13 +28,26 @@
 
   <div class="panel">
     <section>
-      <div id="presets"></div>
+      <div id="presets" class="btns"></div>
       <h2 id="title"></h2>
       <p class="foot" id="note"></p>
       <div class="knob" id="nKnob"><label><span>particles</span><b id="nV"></b></label><div class="slider"><span id="nMin"></span><input type="range" id="n" min="2" max="60" step="1" /><span id="nMax"></span></div></div>
       <label class="foot" id="unionL" hidden><input type="checkbox" id="union" checked /> bring both tiers onto one sphere</label>
       <div class="btns"><button id="restartB">drop them in again</button><button id="shakeB">shake</button><button id="pauseB">pause</button></div>
+      <div class="knob"><label><span>thickness: edges as 4D tubes, particles as 4D balls</span><b id="thickV"></b></label><div class="slider"><span>thin</span><input type="range" id="thick" min="0.005" max="0.15" step="0.0025" value="0.025" /><span>thick</span></div></div>
       <div id="facts" class="rows"></div>
+    </section>
+    <section>
+      <h2>kick it, tune it, hear it</h2>
+      <p class="foot">Drag from a particle to fling it, or tap one and kick it ana or kata. Settled, the swarm vibrates in its modes; with sound on, a kick rings each mode with the part of the kick along it: pitch from its frequency, panned right by how much it moves along your w.</p>
+      <div class="btns"><button id="soundB">♪ sound off</button><button id="kickAnaB" class="four">kick ana</button><button id="kickKataB" class="four">kick kata</button><button id="kickB">kick</button><button id="chimeB">ring it</button></div>
+      <div class="knob"><label><span>kick</span><b id="kickVV"></b></label><div class="slider"><span>soft</span><input type="range" id="kickV" min="0.02" max="1" step="0.01" value="0.25" /><span>hard</span></div></div>
+      <div class="knob"><label><span>pull to the centre, a</span><b id="faV"></b></label><div class="slider"><span>0.05</span><input type="range" id="fa" min="0.05" max="0.6" step="0.005" value="0.2" /><span>0.6</span></div></div>
+      <div class="knob"><label><span>pushes, × r</span><b id="frV"></b></label><div class="slider"><span>¼</span><input type="range" id="fr" min="-2" max="2" step="0.05" value="0" /><span>4</span></div></div>
+      <div class="knob"><label><span>reach, × m</span><b id="fmV"></b></label><div class="slider"><span>½</span><input type="range" id="fm" min="0.5" max="2" step="0.01" value="1" /><span>2</span></div></div>
+      <div class="knob"><label><span>drag, f (rings longer near 1)</span><b id="ffV"></b></label><div class="slider"><span>0.85</span><input type="range" id="ff" min="0.85" max="0.995" step="0.001" value="0.97" /><span>0.995</span></div></div>
+      <canvas id="spec" style="display:block;width:100%;height:90px;margin:8px 0;background:#07080c;border:1px solid rgba(255,255,255,.12);border-radius:8px" aria-label="the swarm's modes: each note's pitch and how many modes share it"></canvas>
+      <div id="modeFacts" class="rows"></div>
     </section>
     <details open><summary>particles that make polytopes</summary>
       <p>From Jeffrey Ventrella's <a href="https://www.ventrella.com/particlehedra/paper.pdf"><i>Particle-hedra: Generating Polyhedra with Inter-Particle Forces</i></a> (Bridges 2024; <a href="http://www.ventrella.com/particlehedra">his app</a>). Every particle is pulled toward the centre (force −0.2·p) and pushed away from every other within a cut-off distance m, by (1 − d/m)·r. Velocities are damped by 0.97 each step. Drop particles in at random and they settle into an even spread: 4 into a tetrahedron, 6 an octahedron, 12 an icosahedron. But 8 don't make a cube: a square antiprism, a Thomson-problem answer.</p>
@@ -43,6 +56,7 @@
     </details>
     <details><summary>how it's identified, and checked</summary>
       <p>Edges as in the paper: the closest pair sets the edge length, and every pair within 3% of it is an edge. A tier is <b>exactly</b> a known shape when all its distances, sorted and scaled to unit radius, match that shape's to 0.02; it has a shape's <b>structure</b> when its edges make the same graph counts (edges, degrees, triangles, squares) but the distances differ. <code>test/particles.selftest.mjs</code> holds every claim on this page from fixed random seeds, including Ventrella's Figure 8 run with his own numbers: the inner three tiers exact, the outer 24 with the rhombicuboctahedron's structure but rhombic squares. The 120-cell (600 particles on a 600-cell seed) did not settle into shape in our tries; like the paper's empty spheres, it waits for a better balance of forces.</p>
+      <p><b>Kick it, hear it.</b> Settled, a swarm vibrates in fixed patterns, its modes, found from its stiffness (the selftest checks it against the simulation's own forces, and that a swarm kicked along one mode swings at that mode's frequency). The 16-cell rings 5 notes from 26 modes, the 600-cell 23 notes from 474: its symmetry makes many modes share a note. A kick rings each mode with the part of the kick along it, pitched by frequency and panned by how much it moves along your w. The sound is slowed about 180 times from the simulation's own ring-down so you can hear it.</p>
       <p>Drag to look round, pinch or scroll to zoom. In 4D: the pad turns your view into w, the lever moves the slice, ⊞ squares it up. The shadow's eye is tilted 35° off w so the fourth direction shows.</p>
     </details>
   </div>

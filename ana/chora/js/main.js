@@ -2,10 +2,12 @@
 // each tier's edges in its colour). 3D presets are drawn straight; 4D ones as a shadow from an eye out in w (tilted 35°
 // off w, as PRISM's) or a slice. The pad, lever and ⊞ are CAD⁴'s.
 import * as P from './particles.js';
+import { Bell, HZ } from './sound.js';
 
 const $ = (id) => document.getElementById(id);
 const cv = $('ov'), ctx = cv.getContext('2d');
-const S = { preset: 0, n: 12, sim: null, run: true, settled: false, view: 'shadow', spin: true, frame: 0, ids: [], edges: [], union: true, scaleR: 1.5 };
+const S = { preset: 0, n: 12, sim: null, run: true, settled: false, view: 'shadow', spin: true, frame: 0, ids: [], edges: [], union: true, scaleR: 1.5,
+  thick: 0.025, forces: { a: P.A, f: P.F, rk: 1, mk: 1 }, kickV: 0.25, sel: -1, fling: null, C: [], modes: null, notes: null, sound: false };
 let E = null, off = 0, yaw = 0.5, pitch = 0.35, zoom = 1;
 const TILT = (35 * Math.PI) / 180;
 const homeE = () => (S.view === 'shadow' ? [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, Math.cos(TILT), Math.sin(TILT)], [0, 0, -Math.sin(TILT), Math.cos(TILT)]] : [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]);
@@ -15,8 +17,8 @@ const pr = () => P.PRESETS[S.preset], is4 = () => pr().dim === 4;
 
 // ------------------------------------------------------------------ the system
 function start() {
-  const p = pr(); S.sim = P.create(p.make(S.n), Math.random); S.settled = false; S.run = true; $('pauseB').textContent = 'pause';
-  S.ids = []; S.edges = []; S.frame = 0; info();
+  const p = pr(); S.sim = P.create(p.make(S.n), Math.random); Object.assign(S.sim, S.forces); S.settled = false; S.run = true; S.modes = null; S.sel = -1; $('pauseB').textContent = 'pause';
+  S.ids = []; S.edges = []; S.frame = 0; info(); modeInfo();
 }
 /** The points to draw for each particle (the 24-cell preset can put the tesseract tier on the seed's sphere). */
 function shown() {
@@ -51,20 +53,39 @@ function draw() {
   const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), F = Math.min(w, h) * 0.42 * zoom / S.scaleR, dist = 4 * S.scaleR;
   const cam = (q) => { const x1 = cy * q[0] + sy * q[2], z1 = -sy * q[0] + cy * q[2], y2 = cp * q[1] - sp * z1, z2 = sp * q[1] + cp * z1, k = dist / (dist - z2); return [w / 2 + x1 * F * k, h / 2 - y2 * F * k, z2, k]; };
   const P3 = X.map(to3), C = P3.map(cam);
-  const inSlice = (i) => (S.view === 'slice' && four ? Math.max(0, 1 - Math.abs(P3[i][3]) / (0.18 * S.scaleR)) : 1);
-  // edges, then particles back to front
-  ctx.lineWidth = 1.4;
+  S.C = C;
+  // Thick, in all four dimensions: every edge a 4D tube of radius ρ round its segment, every particle a 4D ball of
+  // radius 1.7ρ. The shadow draws them their projected width; the slice draws what a 3D slice really cuts from them.
+  // A tube's slice is the union of the slices of the 4D balls along it: at each point p(t) of the segment, a 3D ball
+  // round p(t)'s place in the slice, radius √(ρ² − s(t)²), s(t) the distance from the slice. So an edge crossing the
+  // slice shows as a short tapering stroke, one lying in it as a whole tube, and a ball just off it as a small disc.
+  const rho = S.thick * S.scaleR, rhoP = 1.7 * rho, slicing = S.view === 'slice' && four;
+  const k4 = (q) => (four && S.view === 'shadow' ? EYE / (EYE - q[3]) : 1);
+  ctx.lineCap = 'round';
   for (const [a, b, col] of S.edges) {
-    const al = S.view === 'slice' && four ? Math.min(inSlice(a), inSlice(b)) : 0.75; if (al < 0.03) continue;
-    ctx.strokeStyle = col; ctx.globalAlpha = al * 0.8; ctx.beginPath(); ctx.moveTo(C[a][0], C[a][1]); ctx.lineTo(C[b][0], C[b][1]); ctx.stroke();
+    ctx.strokeStyle = col;
+    if (!slicing) {
+      const wd = 2 * rho * F * ((k4(P3[a]) * C[a][3] + k4(P3[b]) * C[b][3]) / 2); ctx.globalAlpha = 0.8; ctx.lineWidth = Math.max(1, wd);
+      ctx.beginPath(); ctx.moveTo(C[a][0], C[a][1]); ctx.lineTo(C[b][0], C[b][1]); ctx.stroke(); continue;
+    }
+    const sa = P3[a][3], sb = P3[b][3]; if (Math.min(sa, sb) > rho || Math.max(sa, sb) < -rho) continue;
+    const N = 14; ctx.globalAlpha = 1;
+    for (let k = 0; k < N; k++) {
+      const t0 = k / N, t1 = (k + 1) / N, sm = sa + (sb - sa) * (t0 + t1) / 2, r = rho * rho - sm * sm; if (r <= 0) continue;
+      const pa = P3[a].map((v, c) => v + (P3[b][c] - v) * t0), pb = P3[a].map((v, c) => v + (P3[b][c] - v) * t1), qa = cam(pa), qb = cam(pb);
+      ctx.lineWidth = Math.max(0.8, 2 * Math.sqrt(r) * F * (qa[3] + qb[3]) / 2); ctx.beginPath(); ctx.moveTo(qa[0], qa[1]); ctx.lineTo(qb[0], qb[1]); ctx.stroke();
+    }
   }
   const order = C.map((c, i) => [c[2], i]).sort((p, q) => p[0] - q[0]);
   for (const [, i] of order) {
-    const al = inSlice(i); if (al < 0.03) continue;
-    const col = s.preset.types[s.type[i]].col, r = Math.max(2, 5.5 * C[i][3] * Math.min(1.4, zoom));
-    ctx.globalAlpha = al; const g = ctx.createRadialGradient(C[i][0] - r * 0.3, C[i][1] - r * 0.3, r * 0.1, C[i][0], C[i][1], r);
+    let rr = rhoP; if (slicing) { const q = rhoP * rhoP - P3[i][3] ** 2; if (q <= 0) continue; rr = Math.sqrt(q); }
+    const col = s.preset.types[s.type[i]].col, r = Math.max(2, rr * F * C[i][3] * k4(P3[i]));
+    ctx.globalAlpha = 1; const g = ctx.createRadialGradient(C[i][0] - r * 0.3, C[i][1] - r * 0.3, r * 0.1, C[i][0], C[i][1], r);
     g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, col); g.addColorStop(1, 'rgba(0,0,0,0.6)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(C[i][0], C[i][1], r, 0, 7); ctx.fill();
+    if (i === S.sel) { ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(C[i][0], C[i][1], r + 5, 0, 7); ctx.stroke(); }
   }
+  // a fling in progress: the arrow from the particle
+  if (S.fling) { const f0 = C[S.fling.i]; ctx.strokeStyle = '#ffd27a'; ctx.globalAlpha = 1; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(f0[0], f0[1]); ctx.lineTo(f0[0] + S.fling.dx, f0[1] + S.fling.dy); ctx.stroke(); }
   ctx.globalAlpha = 1;
   // axes gizmo and label
   const gx = w - 52, gy = 96, L = 34; ctx.font = '600 11px ui-monospace, Menlo, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 1.6;
@@ -103,6 +124,66 @@ function setPreset(i) {
 $('n').oninput = () => { S.n = +$('n').value; $('nV').textContent = S.n; history.replaceState(null, '', `#${pr().id}-${S.n}`); start(); };
 $('union').onchange = () => { S.union = $('union').checked; read(); };
 $('restartB').onclick = () => start();
+/** A screen drag as a direction in the swarm's space: the camera's right and up, lifted into 4D by your frame. */
+function screenDir(dx, dy) {
+  const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), Rv = [cy, 0, sy], Uv = [sp * sy, cp, -sp * cy];
+  const v3 = [0, 1, 2].map((k) => Rv[k] * dx - Uv[k] * dy), l = Math.hypot(...v3) || 1;
+  return is4() ? [0, 1, 2, 3].map((c) => (v3[0] * E[0][c] + v3[1] * E[1][c] + v3[2] * E[2][c]) / l) : [...v3.map((x) => x / l), 0];
+}
+/** Kick particle i along unit direction dir (4 numbers), scaled by the kick slider: in the simulation, and, if the
+ *  swarm was settled and sound is on, as a ring of its modes. */
+function kickAlong(i, dir, scale = 1) {
+  const dv = dir.map((x) => x * S.kickV * scale), wasSettled = S.settled;
+  if (S.sound && S.modes && wasSettled) playKicks([[i, dv]]);
+  P.kick(S.sim, i, dv); S.settled = false; S.run = true; $('pauseB').textContent = 'pause'; info();
+}
+const pick = () => (S.sel >= 0 && S.sel < S.sim.n ? S.sel : Math.floor(Math.random() * S.sim.n));
+$('kickAnaB').onclick = () => kickAlong(pick(), E[3]);
+$('kickKataB').onclick = () => kickAlong(pick(), E[3].map((x) => -x));
+$('kickB').onclick = () => { const g = () => { let u = 0; for (let k = 0; k < 6; k++) u += Math.random(); return u - 3; }, v = [g(), g(), g(), is4() ? g() : 0], l = Math.hypot(...v); kickAlong(pick(), v.map((x) => x / l)); };
+$('chimeB').onclick = () => { ensureSound(); if (S.modes) chime(); else toast('let it settle first'); };
+/** The modes of the settled swarm (each tier's own), and its notes. */
+function computeModes() {
+  if (!S.settled) return; S.modes = P.modes(S.sim); S.notes = P.notes(S.modes, 1e-5); modeInfo();
+}
+const panOf = (m) => { if (!is4()) return 0; let sh = 0; for (let p = 0; p < m.idx.length; p++) { let c = 0; for (let k = 0; k < 4; k++) c += m.shape[p * 4 + k] * E[3][k]; sh += c * c; } return Math.max(-1, Math.min(1, (sh - 0.25) / 0.25)); };
+const decay = () => (1.2 * Math.log(0.97)) / Math.log(S.forces.f);
+/** Ring the modes set going by kicks [[particle, dv], ...]. */
+function playKicks(kicks) {
+  const D = S.sim.dim, amp = new Float64Array(S.modes.length);
+  for (const [i, dv] of kicks) P.kickModes(S.modes, i, dv.slice(0, D)).forEach((a, k) => { amp[k] += a; });
+  S.bell.ring(S.modes.map((m, k) => ({ hz: m.zero ? 0 : HZ * m.omega, amp: amp[k], pan: panOf(m) })), decay());
+}
+/** On arriving, or on "ring it": every mode at once, evenly. */
+function chime() { S.bell.ring(S.modes.map((m) => ({ hz: m.zero ? 0 : HZ * m.omega, amp: 1, pan: panOf(m) })), decay()); }
+function ensureSound() { if (!S.bell) S.bell = new Bell(); if (S.bell.ctx.state === 'suspended') S.bell.ctx.resume(); S.sound = true; $('soundB').textContent = '♪ sound on'; $('soundB').classList.add('on'); }
+$('soundB').onclick = () => { if (S.sound) { S.sound = false; S.bell?.ctx.suspend(); $('soundB').textContent = '♪ sound off'; $('soundB').classList.remove('on'); } else { ensureSound(); if (S.modes) chime(); } };
+// the forces: change them and the swarm re-settles from where it is
+function setForces() {
+  S.forces = { a: +$('fa').value, f: +$('ff').value, rk: 2 ** +$('fr').value, mk: +$('fm').value };
+  $('faV').textContent = S.forces.a.toFixed(3); $('ffV').textContent = S.forces.f.toFixed(3); $('frV').textContent = `${S.forces.rk.toFixed(2)}×`; $('fmV').textContent = `${S.forces.mk.toFixed(2)}×`;
+  if (S.sim) { Object.assign(S.sim, S.forces); S.settled = false; S.run = true; S.modes = null; info(); modeInfo(); }
+}
+for (const id of ['fa', 'fr', 'fm', 'ff']) $(id).oninput = setForces;
+$('kickV').oninput = () => { S.kickV = +$('kickV').value; $('kickVV').textContent = S.kickV.toFixed(2); };
+$('thick').oninput = () => { S.thick = +$('thick').value; $('thickV').textContent = `${S.thick.toFixed(3)} × radius`; };
+/** The spectrum: each note a bar at its pitch (log scale, 30 Hz to 2 kHz), as tall as the number of modes on it. */
+function modeInfo() {
+  const el = $('modeFacts'); el.textContent = '';
+  const row = (k, v) => { const a = document.createElement('i'), b = document.createElement('span'); a.textContent = k; b.textContent = v; el.append(a, b); };
+  const cvs = $('spec'), dpr = Math.min(window.devicePixelRatio || 1, 2), w = cvs.clientWidth, h = cvs.clientHeight; cvs.width = w * dpr; cvs.height = h * dpr;
+  const g = cvs.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  if (!S.modes) { row('modes', S.settled ? 'computing…' : 'once it settles'); return; }
+  const live = S.modes.filter((m) => !m.zero), zero = S.modes.length - live.length, top = Math.max(...S.notes.map((x) => x.count));
+  const x = (hz) => 6 + ((Math.log(hz) - Math.log(30)) / (Math.log(2000) - Math.log(30))) * (w - 12);
+  g.strokeStyle = 'rgba(255,255,255,0.12)'; g.fillStyle = '#9a958c'; g.font = '10px ui-monospace, Menlo, monospace';
+  for (const f0 of [50, 100, 200, 500, 1000]) { g.beginPath(); g.moveTo(x(f0), 0); g.lineTo(x(f0), h - 12); g.stroke(); g.fillText(f0 >= 1000 ? `${f0 / 1000}k` : String(f0), x(f0) - 8, h - 2); }
+  g.fillStyle = '#ffd27a'; for (const nt of S.notes) { const xx = x(HZ * nt.omega), hh = 6 + ((h - 22) * nt.count) / top; g.fillRect(xx - 1.5, h - 14 - hh, 3, hh); }
+  row('modes', `${S.modes.length}: ${live.length} ring, ${zero} silent (turning the whole tier, which nothing holds)`);
+  row('distinct notes', `${S.notes.length}`);
+  row('modes on the most-shared note', String(top));
+  row('pitch range', `${Math.round(HZ * S.notes[0].omega)}–${Math.round(HZ * S.notes[S.notes.length - 1].omega)} Hz`);
+}
 $('shakeB').onclick = () => { P.shake(S.sim, 0.6); S.settled = false; S.run = true; $('pauseB').textContent = 'pause'; info(); };
 $('pauseB').onclick = () => { S.run = !S.run; $('pauseB').textContent = S.run ? 'pause' : 'run'; };
 for (const b of $('view').children) b.onclick = () => { S.view = b.dataset.v; for (const x of $('view').children) x.classList.toggle('on', x === b); E = homeE(); };
@@ -113,9 +194,11 @@ $('cap').onclick = () => $('cap').classList.toggle('min');
 // ------------------------------------------------------------------ controls
 {
   const pts = new Map(); let pinch = 0;
-  cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; $('cap').classList.add('min'); });
-  cv.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; if (pts.size === 1) { yaw += (e.clientX - p[0]) * 0.008; pitch = Math.max(-1.5, Math.min(1.5, pitch + (e.clientY - p[1]) * 0.008)); } pts.set(e.pointerId, [e.clientX, e.clientY]); if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) zoom = Math.max(0.3, Math.min(6, (zoom * d) / pinch)); pinch = d; } });
-  const up = (e) => { pts.delete(e.pointerId); pinch = 0; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  const hit = (e) => { const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; let best = -1, bd = 16; S.C.forEach((c, i) => { const d = Math.hypot(c[0] - x, c[1] - y); if (d < bd) { bd = d; best = i; } }); return best; };
+  let grab = null;
+  cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; $('cap').classList.add('min'); const i = pts.size === 1 ? hit(e) : -1; grab = i >= 0 ? { i, x: e.clientX, y: e.clientY } : null; if (grab) { S.sel = i; S.fling = { i, dx: 0, dy: 0 }; } });
+  cv.addEventListener('pointermove', (e) => { const p = pts.get(e.pointerId); if (!p) return; if (grab && pts.size === 1) { S.fling = { i: grab.i, dx: e.clientX - grab.x, dy: e.clientY - grab.y }; return; } if (pts.size === 1) { yaw += (e.clientX - p[0]) * 0.008; pitch = Math.max(-1.5, Math.min(1.5, pitch + (e.clientY - p[1]) * 0.008)); } pts.set(e.pointerId, [e.clientX, e.clientY]); if (pts.size === 2) { const [a, b] = [...pts.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) zoom = Math.max(0.3, Math.min(6, (zoom * d) / pinch)); pinch = d; } });
+  const up = (e) => { pts.delete(e.pointerId); pinch = 0; if (grab) { const { dx, dy } = S.fling || { dx: 0, dy: 0 }; if (Math.hypot(dx, dy) > 8) kickAlong(grab.i, screenDir(dx, dy), Math.min(1.5, Math.hypot(dx, dy) / 120)); grab = null; S.fling = null; } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   cv.addEventListener('wheel', (e) => { e.preventDefault(); zoom = Math.max(0.3, Math.min(6, zoom * Math.exp(-e.deltaY * 0.0015))); }, { passive: false });
 }
 const stick = { x: 0, y: 0 }, lever = { y: 0 }, keys = new Set();
@@ -149,9 +232,10 @@ function tick(now) {
     const n = S.sim.n, k = n < 40 ? 6 : Math.max(1, Math.min(30, Math.round(400000 / (n * n)))); let v = 0;
     for (let j = 0; j < k; j++) v = P.step(S.sim);
     // settled: as strict as the selftest's (a looser stop leaves the shape a little off and unrecognised)
-    if (v < 1e-9 && S.sim.steps > 100) { S.settled = true; read(); }
+    if (v < 1e-9 && S.sim.steps > 100) { S.settled = true; read(); setTimeout(() => { computeModes(); if (S.sound && S.modes) chime(); }, 30); }
     else if (++S.frame % 15 === 0) read();
   }
+  if (S.bell) { let v2 = 0; if (S.run && !S.settled) { for (let i = 0; i < S.sim.n * 4; i++) v2 += S.sim.vel[i] ** 2; v2 /= S.sim.n; } S.bell.hiss(Math.sqrt(v2)); }
   if (S.spin) yaw += dt * 0.25;
   draw();
   requestAnimationFrame(tick);
@@ -162,5 +246,7 @@ addEventListener('resize', () => draw());
   if (m && m[2]) S.n = Math.max(2, Math.min(130, +m[2]));
   const keep = S.n; setPreset(i >= 0 ? i : 4); if (m && m[2]) { S.n = keep; $('n').value = keep; $('nV').textContent = keep; start(); }
 }
-window.chora = { S, P, setPreset, start, pose: (p) => { if (p.E) E = p.E; if (p.off !== undefined) off = p.off; if (p.yaw !== undefined) yaw = p.yaw; if (p.pitch !== undefined) pitch = p.pitch; } };
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 1800); }
+$('kickVV').textContent = S.kickV.toFixed(2); $('thickV').textContent = `${S.thick.toFixed(3)} × radius`; setForces();
+window.chora = { S, P, setPreset, start, kickAlong, computeModes, playKicks: (k) => playKicks(k), pose: (p) => { if (p.E) E = p.E; if (p.off !== undefined) off = p.off; if (p.yaw !== undefined) yaw = p.yaw; if (p.pitch !== undefined) pitch = p.pitch; } };
 requestAnimationFrame(tick);

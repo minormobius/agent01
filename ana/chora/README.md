@@ -43,3 +43,32 @@ stop (fastest particle under 10⁻⁹): a looser stop on the page once left the 
 
 `node ana/chora/test/particles.selftest.mjs` (~2 s): every row above except the 120-cell, from fixed seeds; and the
 identifier (each reference shape, turned, moved and scaled at random, is itself and nothing else).
+
+## Thickness, kicks, sound
+
+**Thick in all four dimensions.** Every edge is a 4D tube of radius ρ (the thickness slider, a fraction of the swarm's
+radius) and every particle a 4D ball of radius 1.7ρ. The shadow draws them at their projected width. The slice draws
+what a 3D slice really cuts from them: a tube is a union of 4D balls along its segment, and the slice of the ball at
+p(t) is a 3D ball round p(t)'s place in the slice of radius √(ρ² − s(t)²), s the distance from the slice. So an edge
+crossing the slice is a short tapering stroke, one lying in it a whole tube, a particle just off it a small disc.
+
+**Kicks.** Drag from a particle to fling it (the drag, through your camera and lifted into 4D by your frame), or tap one
+and kick it ana or kata (along your w), or at random. "shake" kicks everyone.
+
+**Tuning.** Pull a, push ×r, reach ×m, drag f, applied to every pair's numbers; the swarm re-settles from where it is
+(and may settle into something else: doubling the push on a 600-cell once re-settled into a slightly higher-energy shape).
+
+**The modes** (`stiffness`, `eigSym`, `modes`, `notes`, `kickModes`). Near equilibrium the force is −Kδx. Pushes run one
+way between tiers, so K is block-triangular by tier and its frequencies are each tier's own block's, the others held
+still; within a tier the block is symmetric. `eigSym` is Householder to tridiagonal then implicit QL (EISPACK tred2/tql2,
+as JAMA). ω per step from the simulation's step rule, cos ω = 1 − λ/2. The selftest checks K against finite differences of
+the simulation's own force, the silent modes (6 free turns in 4D, 3 in 3D, none for a held tier), that a kick's energy
+splits among the modes without loss, and that the simulation kicked along one mode swings at that mode's ω. The 16-cell
+sounds 5 notes from 26 modes; the 600-cell 23 notes from 474, up to 48 modes on one note.
+
+**Sound** (`js/sound.js`). A kick on a settled swarm rings each of its tier's modes with the kick's component along the
+mode's shape: a decaying sine at 1600 Hz per radian-per-step, panned by the share of the shape's motion along your w (all
+in your space: left; even in all four directions: centre; mostly ana/kata: right). The simulation's drag rings a mode out
+in ~60 steps; the sound is slowed (1.2 s at the paper's drag) and scales with the drag slider. "ring it" and arriving at
+a shape sound every mode evenly. While settling, a hiss follows the swarm's mean speed. Each ring is normalised to a fixed
+peak, so a harder kick changes the balance of notes, not the loudness.

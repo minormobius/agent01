@@ -133,7 +133,10 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   mutual: tiers), `edges` (closest pair + 3%), `identify`/`fingerprint` (exact shape), `structure`/`shapeOf` (same edge
   graph, out of shape), `energy`, `SHAPES` (references), `PRESETS`. In 4D one kind past 40 particles uses m = 6 (at the
   paper's 3 the swarm outgrows its cut-off). `js/main.js`: one 2D canvas, depth-sorted discs and tier edges; settle stop
-  as strict as the selftest's (10⁻⁹; looser left shapes unrecognised). Results table in [`chora/README.md`](chora/README.md).
+  as strict as the selftest's (10⁻⁹; looser left shapes unrecognised). Thickness: edges as 4D tubes, particles as 4D balls,
+  sliced exactly (radius √(ρ² − s²)). Kicks (fling, ana/kata), force sliders (`a`, `f`, `rk`, `mk` on the sim). Vibration:
+  `stiffness` (per tier; block-triangular overall), `eigSym` (tred2/tql2), `modes` (ω from the step rule), `notes`,
+  `kickModes`; `js/sound.js` rings them (WebAudio, panned by share along your w). Results table in [`chora/README.md`](chora/README.md).
 
 ## Checks
 
@@ -145,7 +148,7 @@ node ana/johnson/test/johnson.selftest.mjs           # ~30 s: the 92 from scratc
 node ana/fold/test/fold.selftest.mjs                 # ~2 min: 82,944 hinge trees, 261 nets (455 with mirrors apart), Dalí's, folding rigid and hinged and closing exactly (all at once and ring by ring), the clash LP, 33 nets collide all at once and none ring by ring, the mirror fold, J44–J48 chiral
 node ana/prism/test/optics.selftest.mjs             # <1 s: Snell on 2,000 random 4D rays, the critical angle, least deviation, dispersion, rotation invariance, retracing, every level solvable
 node ana/coin/test/coin.selftest.mjs               # <1 s: glued (f(p) = f(−p)), one-to-one via the inverse, smooth, the walk comes back mirrored, the half-turned picture, 0 bits
-node ana/chora/test/particles.selftest.mjs          # ~2 s: the identifier, the paper's 3D results and Figure 8, 5/8/16/24/120 in 4D, shaking to the 24-cell, the tesseract and 24-cell tiers
+node ana/chora/test/particles.selftest.mjs          # ~3 s: the identifier, the paper's 3D results and Figure 8, 5/8/16/24/120 in 4D, shaking to the 24-cell, the tiers; the eigen-solver, stiffness vs finite differences, silent modes, a mode swung in the sim, the 600-cell's 23 notes
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 

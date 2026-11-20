@@ -16,19 +16,20 @@ export function create(preset, rnd = Math.random) {
   const types = preset.types, n = types.reduce((s, t) => s + t.n, 0), dim = preset.dim;
   const pos = new Float64Array(n * 4), vel = new Float64Array(n * 4), type = new Int32Array(n);
   let k = 0; types.forEach((t, ti) => { for (let c = 0; c < t.n; c++, k++) { type[k] = ti; for (let d = 0; d < dim; d++) pos[k * 4 + d] = (rnd() * 2 - 1) * 1.5; } });
-  return { preset, n, dim, pos, vel, type, R: preset.R, M: preset.M, steps: 0 };
+  // the tunable forces: pull a, drag f, and multipliers on every push (rk) and cut-off (mk); the paper's at 1
+  return { preset, n, dim, pos, vel, type, R: preset.R, M: preset.M, steps: 0, a: A, f: F, rk: 1, mk: 1 };
 }
 
 /** One step for everyone (forces from the positions at the start of the step). Returns the largest speed. */
 export function step(s) {
-  const { n, pos, vel, type, R, M, dim } = s, frc = new Float64Array(n * 4);
+  const { n, pos, vel, type, R, M, dim } = s, frc = new Float64Array(n * 4), a = s.a ?? A, fd = s.f ?? F, rk = s.rk ?? 1, mk = s.mk ?? 1;
   for (let i = 0; i < n; i++) {
     const ti = type[i], Ri = R[ti], Mi = M[ti], o = i * 4;
-    let fx = -A * pos[o], fy = -A * pos[o + 1], fz = -A * pos[o + 2], fw = -A * pos[o + 3];
+    let fx = -a * pos[o], fy = -a * pos[o + 1], fz = -a * pos[o + 2], fw = -a * pos[o + 3];
     for (let j = 0; j < n; j++) {
       if (j === i) continue;
-      const tj = type[j], r = Ri[tj]; if (!r) continue;
-      const m = Mi[tj], p = j * 4, dx = pos[o] - pos[p], dy = pos[o + 1] - pos[p + 1], dz = pos[o + 2] - pos[p + 2], dw = pos[o + 3] - pos[p + 3];
+      const tj = type[j], r = Ri[tj] * rk; if (!r) continue;
+      const m = Mi[tj] * mk, p = j * 4, dx = pos[o] - pos[p], dy = pos[o + 1] - pos[p + 1], dz = pos[o + 2] - pos[p + 2], dw = pos[o + 3] - pos[p + 3];
       const d2 = dx * dx + dy * dy + dz * dz + dw * dw; if (d2 >= m * m) continue;
       const d = Math.sqrt(d2); if (d < 1e-12) { fx += r * 1e-3 * (Math.random() - 0.5); continue; }   // two on one spot: nudge apart
       const g = ((1 - d / m) * r) / d; fx += g * dx; fy += g * dy; fz += g * dz; fw += g * dw;
@@ -36,7 +37,7 @@ export function step(s) {
     frc[o] = fx; frc[o + 1] = fy; frc[o + 2] = fz; frc[o + 3] = dim === 4 ? fw : 0;
   }
   let vmax = 0;
-  for (let i = 0; i < n * 4; i++) { vel[i] = (vel[i] + frc[i]) * F; pos[i] += vel[i]; }
+  for (let i = 0; i < n * 4; i++) { vel[i] = (vel[i] + frc[i]) * fd; pos[i] += vel[i]; }
   for (let i = 0; i < n; i++) { const o = i * 4, v = Math.hypot(vel[o], vel[o + 1], vel[o + 2], vel[o + 3]); if (v > vmax) vmax = v; }
   s.steps++;
   return vmax;
@@ -139,3 +140,118 @@ export const PRESETS = [
   { id: 'tess', name: 'tesseract on a 16-cell', dim: 4, make: () => tiered(4, { name: '16-cell seed', n: 8 }, { name: 'tesseract', n: 16 }, 0.06, 0.01), note: 'Tier two in 4D: 8 settle into the 16-cell, and 16 more, pushed harder by the seed than by each other, settle into its dual, the tesseract.' },
   { id: '24', name: '24-cell = 16-cell + tesseract', dim: 4, union: true, make: () => tiered(4, { name: '16-cell seed', n: 8 }, { name: 'tesseract', n: 16 }, 0.06, 0.01), note: 'The 24-cell\'s 24 vertices are a 16-cell\'s 8 and a tesseract\'s 16, at the same radius. The two tiers settle at different radii; brought onto one sphere, they are the 24-cell.' },
 ];
+
+
+// ------------------------------------------------------------------ vibration: the modes a settled swarm rings with
+// Near equilibrium the force is F ≈ −K δx, K the stiffness (the Hessian of the energy). From the force law,
+//   K_ii = a I − Σ_j J_ij,  K_ij = J_ij,  J_ij = g I − r u uᵀ/d³,  g = r (1/d − 1/m),  u = x_i − x_j
+// for the pushes i feels from j. Pushes needn't be mutual, so K as a whole isn't symmetric; but they only ever run one
+// way between tiers (an upper tier feels a lower, not the reverse), so K is block-triangular by tier and its
+// frequencies are those of each tier's own block, holding the others still. Within a tier pushes are mutual and the
+// block is symmetric: real modes, orthogonal shapes.
+
+/** The stiffness block of one tier (its particles' coordinates, dim each), the other tiers held still. */
+export function stiffness(s, t) {
+  const idx = []; for (let i = 0; i < s.n; i++) if (s.type[i] === t) idx.push(i);
+  const D = s.dim, N = idx.length * D, K = Array.from({ length: N }, () => new Float64Array(N)), a = s.a ?? A, rk = s.rk ?? 1, mk = s.mk ?? 1;
+  const where = new Map(idx.map((i, k) => [i, k]));
+  idx.forEach((i, ki) => {
+    for (let c = 0; c < D; c++) K[ki * D + c][ki * D + c] += a;
+    for (let j = 0; j < s.n; j++) {
+      if (j === i) continue;
+      const r = s.R[s.type[i]][s.type[j]] * rk, m = s.M[s.type[i]][s.type[j]] * mk; if (!r) continue;
+      const u = [0, 1, 2, 3].map((c) => s.pos[i * 4 + c] - s.pos[j * 4 + c]), d = Math.hypot(...u); if (d >= m || d < 1e-12) continue;
+      const g = r * (1 / d - 1 / m);
+      for (let p = 0; p < D; p++) for (let q = 0; q < D; q++) {
+        const Jpq = (p === q ? g : 0) - (r * u[p] * u[q]) / (d * d * d);
+        K[ki * D + p][ki * D + q] -= Jpq;                                      // i's own block: −Σ J
+        if (where.has(j)) K[ki * D + p][where.get(j) * D + q] += Jpq;          // a partner in the same tier
+      }
+    }
+  });
+  return { K, idx };
+}
+
+/** Eigen-decomposition of a symmetric matrix: Householder to tridiagonal, then implicit QL (the EISPACK tred2/tql2
+ *  pair, as in JAMA). Returns eigenvalues ascending and eigenvectors as columns V[row][k]. */
+export function eigSym(A0) {
+  const n = A0.length, V = A0.map((r) => Float64Array.from(r)), d = new Float64Array(n), e = new Float64Array(n);
+  for (let j = 0; j < n; j++) d[j] = V[n - 1][j];
+  for (let i = n - 1; i > 0; i--) {
+    let scale = 0, h = 0;
+    for (let k = 0; k < i; k++) scale += Math.abs(d[k]);
+    if (scale === 0) { e[i] = d[i - 1]; for (let j = 0; j < i; j++) { d[j] = V[i - 1][j]; V[i][j] = 0; V[j][i] = 0; } }
+    else {
+      for (let k = 0; k < i; k++) { d[k] /= scale; h += d[k] * d[k]; }
+      let f = d[i - 1], g = Math.sqrt(h); if (f > 0) g = -g;
+      e[i] = scale * g; h -= f * g; d[i - 1] = f - g;
+      for (let j = 0; j < i; j++) e[j] = 0;
+      for (let j = 0; j < i; j++) { f = d[j]; V[j][i] = f; g = e[j] + V[j][j] * f; for (let k = j + 1; k <= i - 1; k++) { g += V[k][j] * d[k]; e[k] += V[k][j] * f; } e[j] = g; }
+      f = 0; for (let j = 0; j < i; j++) { e[j] /= h; f += e[j] * d[j]; }
+      const hh = f / (h + h); for (let j = 0; j < i; j++) e[j] -= hh * d[j];
+      for (let j = 0; j < i; j++) { f = d[j]; g = e[j]; for (let k = j; k <= i - 1; k++) V[k][j] -= f * e[k] + g * d[k]; d[j] = V[i - 1][j]; V[i][j] = 0; }
+    }
+    d[i] = h;
+  }
+  for (let i = 0; i < n - 1; i++) {
+    V[n - 1][i] = V[i][i]; V[i][i] = 1; const h = d[i + 1];
+    if (h !== 0) { for (let k = 0; k <= i; k++) d[k] = V[k][i + 1] / h; for (let j = 0; j <= i; j++) { let g = 0; for (let k = 0; k <= i; k++) g += V[k][i + 1] * V[k][j]; for (let k = 0; k <= i; k++) V[k][j] -= g * d[k]; } }
+    for (let k = 0; k <= i; k++) V[k][i + 1] = 0;
+  }
+  for (let j = 0; j < n; j++) { d[j] = V[n - 1][j]; V[n - 1][j] = 0; }
+  V[n - 1][n - 1] = 1; e[0] = 0;
+  for (let i = 1; i < n; i++) e[i - 1] = e[i];
+  e[n - 1] = 0;
+  let f = 0, tst1 = 0; const eps = 2 ** -52;
+  for (let l = 0; l < n; l++) {
+    tst1 = Math.max(tst1, Math.abs(d[l]) + Math.abs(e[l]));
+    let m = l; while (m < n) { if (Math.abs(e[m]) <= eps * tst1) break; m++; }
+    if (m > l) {
+      do {
+        let g = d[l], p = (d[l + 1] - g) / (2 * e[l]), r = Math.hypot(p, 1); if (p < 0) r = -r;
+        d[l] = e[l] / (p + r); d[l + 1] = e[l] * (p + r); const dl1 = d[l + 1]; let h = g - d[l];
+        for (let i = l + 2; i < n; i++) d[i] -= h;
+        f += h; p = d[m]; let c = 1, c2 = c, c3 = c; const el1 = e[l + 1]; let s = 0, s2 = 0;
+        for (let i = m - 1; i >= l; i--) {
+          c3 = c2; c2 = c; s2 = s; g = c * e[i]; h = c * p; r = Math.hypot(p, e[i]); e[i + 1] = s * r; s = e[i] / r; c = p / r; p = c * d[i] - s * g; d[i + 1] = h + s * (c * g + s * d[i]);
+          for (let k = 0; k < n; k++) { h = V[k][i + 1]; V[k][i + 1] = s * V[k][i] + c * h; V[k][i] = c * V[k][i] - s * h; }
+        }
+        p = (-s * s2 * c3 * el1 * e[l]) / dl1; e[l] = s * p; d[l] = c * p;
+      } while (Math.abs(e[l]) > eps * tst1);
+    }
+    d[l] += f; e[l] = 0;
+  }
+  const ord = [...d.keys()].sort((x, y) => d[x] - d[y]);
+  return { values: ord.map((k) => d[k]), vectors: V.map((row) => Float64Array.from(ord.map((k) => row[k]))) };
+}
+
+/** Every tier's modes: stiffness λ (ω = √λ, radians per unit time), shape (unit vector over the tier's coordinates),
+ *  and how much of the shape moves along w (0 to 1). ω is per simulation step, from the step rule (cos ω = 1 − λ/2). Zero modes (turning the whole tier: free when nothing else holds
+ *  it) come out with λ ≈ 0 and are marked. */
+export function modes(s) {
+  const out = [];
+  s.preset.types.forEach((t, ti) => {
+    const { K, idx } = stiffness(s, ti); if (!idx.length) return;
+    const { values, vectors } = eigSym(K), D = s.dim, top = Math.max(...values.map(Math.abs));
+    values.forEach((lam, k) => {
+      const shape = vectors.map((row) => row[k]); let wpart = 0; if (D === 4) for (let p = 0; p < idx.length; p++) wpart += shape[p * 4 + 3] ** 2;
+      // ω as the simulation itself swings: its step rule (drag aside) turns λ into cos ω = 1 − λ/2, which is √λ for
+      // small λ and runs about 3% sharp of it for the stiffest modes here
+      out.push({ tier: ti, idx, lam, omega: Math.acos(Math.max(-1, Math.min(1, 1 - lam / 2))), shape, w: wpart, zero: Math.abs(lam) < 1e-7 * top });
+    });
+  });
+  return out;
+}
+/** Group frequencies that agree to tol (relative): the distinct notes, and how many modes share each. */
+export function notes(ms, tol = 1e-6) {
+  const live = ms.filter((x) => !x.zero).map((x) => x.omega).sort((a, b) => a - b), out = [];
+  for (const w of live) { const last = out[out.length - 1]; if (last && Math.abs(w - last.omega) <= tol * w) last.count++; else out.push({ omega: w, count: 1 }); }
+  return out;
+}
+/** A kick dv (a velocity, over the particle's coordinates) to particle i: how strongly it sets each of its tier's modes
+ *  ringing (the kick's component along each mode shape; their squares sum to |dv|²). */
+export function kickModes(ms, i, dv) {
+  return ms.map((m) => { const k = m.idx.indexOf(i); if (k < 0) return 0; let a = 0; for (let c = 0; c < dv.length; c++) a += m.shape[k * dv.length + c] * dv[c]; return a; });
+}
+/** Kick one particle in the simulation itself. */
+export function kick(s, i, dv) { for (let c = 0; c < s.dim; c++) s.vel[i * 4 + c] += dv[c] ?? 0; }
