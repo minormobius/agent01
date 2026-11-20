@@ -1317,6 +1317,26 @@ for games, and this is a modelling programme with publications to come. The game
   build's guards are now rock + iron > 80% of p at the middle choice, and rock row > 80% from s 1.6. p's band at
   s ≤ 1.55 is unchanged (0.049–0.25). Iron here is the explosion's equilibrium end, which the book's ions (to element 23)
   don't reach. No more ladder runs are queued.
+  **ε_grav, option A (PI, 2026-11-20: "let's do A … B only makes sense if there's something to gain"):** `evolve.mjs …
+  grav=1` (files `-eg`; off by default, so no committed result changes). ε_grav = −du/dt + (P/ρ²)dρ/dt with u = (d/2)P/ρ
+  (ideal ions, non-relativistic Fermi–Dirac electrons; radiation left out), implicit in each trial's ρ, P, against a
+  reference model on its dense integration path. **What failed first:** (1) a reference on the composition grid: its
+  interpolation noise (~10⁻⁴ in ln P) divided by a short step swamped the burning; (2) the last step as the baseline:
+  on the main sequence ε_grav is a small difference of two large terms and the shooting matches only to ~10⁻⁵, so the
+  solve went stiff (ours failed on its first step); (3) a lagged source from the last two models: pure noise
+  (−71% of L). **What works:** the reference is the latest earlier model whose central ρ differs by GREF (1%), else the
+  oldest kept, and ε_grav is on only once that reference is KHMIN (env, default 0.01; **0.3 used for ours**, past the
+  zero-age CN transient, where 0.01 stalls at 1 Myr) of GM²/RL back. Steps are halved when the centre's ρ moves more
+  than DRHO (5%). `LOOSE` overrides the 4D world's Newton tolerance (diagnostic). **Checks on ours (sandbox, OPAL Sun
+  settings):** the Sun to 4.57 Gyr moves ≤ 0.1% (L −0.01%, ρc +0.1%), contraction a few × 10⁻⁴ of L; 2 M☉ to Xc 10⁻³
+  moves ≤ 0.14% (life +0.05%), contraction rising to ~1% of L as the core runs out. **The stalls:** G 10⁻¹⁴ s 1.5152
+  (from its checkpoint at 43.27 Gyr) passes the stall and lives 1.5 Gyr more: the stirred core switches off, the
+  centre cools 21 → 16.6 MK and densifies 30%, then reheats; central H frozen (0.374), the light from further out
+  (half beyond q 0.21); contraction ≤ 0.4% of L. It stops again at 44.77 Gyr as a stirred core re-forms (residual
+  ~4 × 10⁻³). G 10⁻¹¹ s 1.5152 (from 2.557 Gyr) does the same: past the stall, the core off, cooling 22.8 → 17.4 MK,
+  then reheating; stops at 2.707 Gyr as the core re-forms; LOOSE=1e-3 stops at 2.710 too, so not the tolerance.
+  So the oitrogen stall was the missing contraction energy; the second stop, at the centre's re-ignition, is open.
+  Runs in the sandbox only (not committed); a paper result needs them on the runner.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

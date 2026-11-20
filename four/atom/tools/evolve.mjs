@@ -1,10 +1,14 @@
 /* A star's main-sequence life: burnt shell by shell, the stirred regions mixed, the star re-solved at every step.
    Ours first, as the check against the standard solar model; 4D follows on the same driver.
-     node four/atom/tools/evolve.mjs ours [M☉=1] [dX=0.01] [simple] [X0=0.70] [Z=0.02] [kap=kramers|book|opal] [alpha=<MLT α; 0 = no envelope>] [settle=<yr>] [tmax=<Gyr>]
+     node four/atom/tools/evolve.mjs ours [M☉=1] [dX=0.01] [simple] [X0=0.70] [Z=0.02] [kap=kramers|book|opal] [alpha=<MLT α; 0 = no envelope>] [settle=<yr>] [tmax=<Gyr>] [grav=1]
        → $TMPDIR/atom4-mainseq/evolve-ours-<M>….json
    The star is atom/js/mainseq.js's (hydrostatic and thermal equilibrium, our opacity, Fermi–Dirac electrons), now with
-   a composition that varies with mass (opts.compAt). Energy only from burning: the slow contraction's share (ε_grav)
-   is left out, which is small on the main sequence. Composition on a fixed grid in q = m/M.
+   a composition that varies with mass (opts.compAt). Energy from burning, and with `grav=1` also from contraction
+   (ε_grav = −du/dt + (P/ρ²) dρ/dt at each mass; the gas, ideal ions and Fermi–Dirac electrons, both non-relativistic,
+   has u = (d/2) P/ρ exactly, so ε_grav = (P/ρ)[(d+2)/2 · d ln ρ − d/2 · d ln P]/dt, the earlier model's ρ taken at the
+   later one's composition so burning's change of μ isn't counted; radiation's share left out; its reference model: see
+   gravRef). Without
+   it, a core changing faster than burning can follow has no solution (the oitrogen stall). Composition on a fixed grid in q = m/M.
    Burning, two ways:
      · the network (default): fusion/js/shell.js, every REACLIB reaction of the pp chains and the CN and NO cycles, with
        weak screening and the neutrinos' share taken off. Each shell keeps its own p, ³He, ⁴He and CNO isotopes; the
@@ -34,7 +38,7 @@ import { makeEnvelope } from "../js/envelope.js";
 import * as SURF from "../js/surface.js";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-mainseq"); mkdirSync(DIR, { recursive: true });
-const GYR = 3.15576e16, YR = 3.15576e7, BALTOL = +(process.env.BALTOL ?? 0.003), [cmd, ...args] = process.argv.slice(2);
+const GYR = 3.15576e16, YR = 3.15576e7, BALTOL = +(process.env.BALTOL ?? 0.003), DRHO = +(process.env.DRHO ?? 0.05), [cmd, ...args] = process.argv.slice(2);
 
 /* the composition grid: q_j = (j/N)^1.5, finer at the centre where the burning is */
 const NQ = 400, QS = Float64Array.from({ length: NQ + 1 }, (_, j) => (j / NQ) ** 1.5), WQ = (() => { const w = new Float64Array(NQ + 1); for (let j = 0; j < NQ; j++) { const h = QS[j + 1] - QS[j]; w[j] += h / 2; w[j + 1] += h / 2; } return w; })();
@@ -120,7 +124,7 @@ function fourWorld(Grel, s, ff = 1, plasma = false, gen2 = null) {
   // fit: where the shooting meets (mass fraction; ours 0.5). In a 4D core at 2.5–3.5 MK a change of 10⁻⁵ in ln T_c grew
   // ×300 by mid-mass, so the Jacobian went near-singular (P_c and T_c columns parallel) and Newton overshot: the mid-life
   // stall of evolve4-1/2. Meeting at 0.2 of the mass, the stalled G 1e-11 s 1.85 star runs on with no failed solve.
-  return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, Tburn: 1e6, loose: 5e-4, fit: 0.2, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
+  return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, Tburn: 1e6, loose: +(process.env.LOOSE ?? 5e-4), fit: 0.2, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
     kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1); },
     kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1), // Y here carries Σ n Z² less hydrogen's
     eps: (rho, T, y) => sh.eps(rho, T, y), dHdt: (rho, T, y) => sh.dYdt(rho, T, y)[iP] * A[iP],
@@ -142,13 +146,26 @@ function fitLaws(W, S, at) { return S.map((s, j) => { const { rho, T } = at[j]; 
   const er = W.eps(rho * 1.02, T, s).eps, eT = W.eps(rho, T * 1.01, s).eps; return { l0: Math.log(e0), a: Math.log(er / e0) / Math.log(1.02), b: Math.log(eT / e0) / Math.log(1.01), lr: Math.log(rho), lT: Math.log(T) }; }); }
 const law = (f, lr, lT) => (f ? Math.exp(f.l0 + f.a * (lr - f.lr) + f.b * (lT - f.lT)) : 0);
 /* solve the star for the shells S: the fitted laws refitted at each solution until L settles */
-function solve(W, M, S, guess, at0, f0 = null, scale = 1) {
+/* ε_grav, implicit in each trial's own ρ and P, against a reference model on its dense integration path (a grid's
+   interpolation error, ~10⁻⁴ in ln P, would swamp it). The reference is the latest earlier model whose central ρ differs
+   from now by GREF (1%), else the oldest kept: on the main sequence ε_grav is a small difference of two large terms, and
+   the shooting matches its two integrations only to ~10⁻⁵, so a baseline of one short step leaves noise as large as the
+   burning and makes the solve stiff (a trial's small departure became an energy term many times the burning). It is
+   left out while the reference is under KHMIN (1%) of the thermal time GM²/RL back, where it is negligible anyway. */
+const GREF = +(process.env.GREF ?? 0.01), KHMIN = +(process.env.KHMIN ?? 0.01);
+function gravRef(W, gr, comp) { if (!gr) return null; const P = gr.prof, ms = P.map((x) => x.m), lP = P.map((x) => Math.log(x.P)), lT = P.map((x) => Math.log(x.T));
+  return { ms, lP, lT, comp, dt: gr.dt }; }
+const epsGrav = (W, G, M, rho, m, P) => { const lP0 = interp(G.ms, G.lP, m), lT0 = interp(G.ms, G.lT, m), r0 = rhoOf(W.d, Math.exp(lP0), Math.exp(lT0), G.comp(m));
+  return ((P / rho) * (((W.d + 2) / 2) * Math.log(rho / r0) - (W.d / 2) * (Math.log(P) - lP0))) / G.dt; };
+function solve(W, M, S, guess, at0, f0 = null, scale = 1, gr = null) {
+
   // the EOS and opacity need only a few numbers from each shell: precomputed, then interpolated in q
   const CQ = S.map((y) => W.comp(y)), KQ = S.map((y) => (W.kcomp ? W.kcomp(y) : W.comp(y))), mixQ = (A, m) => { const [a, b, t] = bracket(QS, m / M); if (!t) return A[a]; const o = {}; for (const k in A[a]) o[k] = A[a][k] * (1 - t) + A[b][k] * t; return o; };
   const comp = (m) => mixQ(CQ, m), kap = W.kappaC ?? ((rho, T, c) => W.kappa(rho, T, null, c));
+  const GR = gravRef(W, gr, comp);
   let at = at0, s = null, p = guess, last = null, f = f0;
   for (let k = 0; k < 8; k++) {
-    const laws = fitLaws(W, S, at), eps = (rho, T, m) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return scale * (law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t); };
+    const laws = fitLaws(W, S, at), eps = (rho, T, m, P) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return scale * (law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t) + (GR && P > 0 ? epsGrav(W, GR, M, rho, m, P) : 0); };
     s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}), ...(W.fit ? { fit: W.fit } : {}) }, p);
     if (!s.ok) return { s }; p = s.p; at = sample(W, M, S, s).rows;
     if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (Newton ${s.it})`);
@@ -157,6 +174,8 @@ function solve(W, M, S, guess, at0, f0 = null, scale = 1) {
   // pinned gravity is held through the solve (pinnedF from a profile carries ~1% noise, which would never let L settle)
   // and updated once from the solution, damped, for the next one: it lags the star by one step, over which it barely moves
   if (W.pinned && s.ok && !process.env.FREEZE_PINNED) { const fo = f, fn = pinnedF(s.prof); f = fo ? (m) => 0.5 * (fo(m) + fn(m)) : fn; }
+  // the whole star's gravothermal power on the composition grid (the solution's own P, ρ at each q)
+  if (GR && s.ok) s.Lgrav = M * at.reduce((acc, r, j) => acc + WQ[j] * epsGrav(W, GR, M, r.rho, QS[j] * M, r.P), 0);
   return { s, at, f };
 }
 /* the profile on the composition grid: P, T, ρ at each q (ρ from the shell's own composition), and the stirred flag */
@@ -207,7 +226,12 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
   let { s, f: grav } = C ? { s: s1, f: g1 } : firstShell(s0);
   if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
-  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1;
+  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1, lgrav = null;
+  // ε_grav's references: the accepted models, newest last ({ t, rhoc, prof }); a resumed run starts with its checkpoint's
+  const hist = []; const remember = () => { hist.push({ t, rhoc: smp.rows[0].rho, prof: s.prof }); if (hist.length > 400) hist.shift(); };
+  const refFor = (tEnd) => { if (!W.grav || !hist.length) return null; const now = smp.rows[0].rho; let R = null;
+    for (let k = hist.length - 1; k >= 0; k--) if (Math.abs(Math.log(now / hist[k].rhoc)) >= GREF) { R = hist[k]; break; }
+    R = R ?? hist[0]; const dte = tEnd - R.t, tKH = (W.G * M * M) / (s.R * s.L); return dte >= KHMIN * tKH ? { prof: R.prof, dt: dte } : null; };
   // settling (settle > 0 years): fresh gas has none of its burning's intermediates; burn the shells for 10², 2 × 10², …
   // years up to `settle` at the star's own conditions, re-solving each time, and only then start the clock, so the
   // zero-age star has its short- and middle-lived nuclei in balance (the usual zero-age convention)
@@ -217,21 +241,21 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   const track = C ? C.track : [], profiles = C ? C.profiles : [], keepProf = (s, smp) => profiles.push({ tGyr: t / GYR, R: s.R, L: s.L, rows: smp.rows.filter((_, j) => j % 10 === 0).map((r, i) => ({ q: r.q, r: +r.r.toPrecision(5), T: +r.T.toPrecision(5), rho: +r.rho.toPrecision(5), l: +r.l.toPrecision(5), H: +W.H(S[i * 10]).toPrecision(5), stir: smp.stir[i * 10], ...Object.fromEntries(Object.entries(W.extra(S[i * 10])).map(([k, v]) => [k, +v.toPrecision(4)])) })) });
   const keep = () => { const c = smp.rows[0], e = smp.rows.map((r, j) => W.eps(r.rho, r.T, S[j])), lpp = e.reduce((a, x, j) => a + WQ[j] * x.pp, 0), lcno = e.reduce((a, x, j) => a + WQ[j] * x.cno, 0);
     const lq = (f) => { for (let j = 1; j <= NQ; j++) if (smp.rows[j].l >= f) return QS[j]; return 1; };
-    const row = { t, tGyr: t / GYR, L: s.L, R: s.R, Teff: teff(W.d, s), Tc: s.Tc, rhoc: c.rho, Pc: s.Pc, Xc: W.H(S[0]), qcc: convectiveCore(W.d, s), ppShare: lpp / (lpp + lcno), Lnuc: (lpp + lcno) * M, q50: lq(0.5), q90: lq(0.9), eBal,
+    const row = { t, tGyr: t / GYR, L: s.L, R: s.R, Teff: teff(W.d, s), Tc: s.Tc, rhoc: c.rho, Pc: s.Pc, Xc: W.H(S[0]), qcc: convectiveCore(W.d, s), ppShare: lpp / (lpp + lcno), Lnuc: (lpp + lcno) * M, q50: lq(0.5), q90: lq(0.9), eBal, ...(W.grav ? { Lgrav: lgrav } : {}),
       Hq: Array.from({ length: 21 }, (_, i) => +W.H(lerpState(S, i / 20)).toFixed(5)), centre: W.extra(S[0]) };
-    track.push(row); console.log(`${label} ${row.tGyr.toFixed(3)} Gyr: ${W.d === 3 ? `L ${(s.L / LSUN).toFixed(4)} L☉, R ${(s.R / RSUN).toFixed(4)} R☉` : `L ${s.L.toExponential(4)} W, R ${s.R.toExponential(4)} m`}, Teff ${row.Teff.toFixed(0)} K, Tc ${(s.Tc / 1e6).toFixed(2)} MK, ρc ${W.d === 3 ? `${(c.rho / 1000).toFixed(1)} g/cm³` : `${c.rho.toExponential(3)} kg/m⁴`}, Xc ${row.Xc.toFixed(4)}, stirred core ${row.qcc.toFixed(3)}, pp ${(row.ppShare * 100).toFixed(1)}%, half the light inside q ${row.q50.toFixed(3)}${eBal ? `, burnt/radiated ${eBal.toFixed(4)}` : ""}`); };
+    track.push(row); console.log(`${label} ${row.tGyr.toFixed(3)} Gyr: ${W.d === 3 ? `L ${(s.L / LSUN).toFixed(4)} L☉, R ${(s.R / RSUN).toFixed(4)} R☉` : `L ${s.L.toExponential(4)} W, R ${s.R.toExponential(4)} m`}, Teff ${row.Teff.toFixed(0)} K, Tc ${(s.Tc / 1e6).toFixed(2)} MK, ρc ${W.d === 3 ? `${(c.rho / 1000).toFixed(1)} g/cm³` : `${c.rho.toExponential(3)} kg/m⁴`}, Xc ${row.Xc.toFixed(4)}, stirred core ${row.qcc.toFixed(3)}, pp ${(row.ppShare * 100).toFixed(1)}%, half the light inside q ${row.q50.toFixed(3)}${eBal ? `, burnt/radiated ${eBal.toFixed(4)}` : ""}${lgrav != null ? `, contraction ${(100 * lgrav / s.L).toFixed(2)}% of L` : ""}`); };
   // profiles at every 0.5 Gyr (ours) and as the centre's hydrogen falls past 90%, 80%, … 10%, 1% of its start (both)
   const H0 = W.H(W.init()), fracs = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.01]; let nextProf = C ? C.nextProf : 0.5, nextFrac = C ? C.nextFrac : 0, lastCk = Date.now();
   const save = () => { if (!ckpt) return; const ft = W.pinned && grav ? s.prof.filter((_, i) => i % 4 === 0).map((q) => [q.m, grav(q.m)]) : null;
     writeFileSync(ckpt + ".part", JSON.stringify({ S: S.map((x) => Array.from(x)), t, dtLast, p: s.p, at: smp.rows.map((r) => ({ rho: r.rho, T: r.T })), fTab: ft, track, profiles, settled, nextProf, nextFrac })); renameSync(ckpt + ".part", ckpt); lastCk = Date.now(); };
-  if (!C) { keep(); keepProf(s, smp); }
+  if (!C) { keep(); keepProf(s, smp); } if (W.grav) remember();
   for (let n = 0; n < 3000 && t < tmax && W.H(S[0]) > Hstop; n++) {
     let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, Hstop)) / -d); }
     if (process.env.DEBUG_DT) { let jm = -1, dm = Infinity; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const d = W.dHdt(r.rho, r.T, S[j]); if (d < 0 && dX / -d < dm) { dm = dX / -d; jm = j; } } console.log(`    dt ${(dt / YR).toExponential(2)} yr; the tightest shell q ${QS[jm]?.toFixed(4)} T ${(smp.rows[jm]?.T / 1e6).toFixed(2)} MK, X ${W.H(S[jm]).toFixed(4)}, dX/dt ${(-dX / dm * YR).toExponential(2)} /yr`); }
     dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {
-      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}, residual ${h.s.res?.toExponential(2)}, Newton ${h.s.it}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
-      const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = (b.E * M) / (h.s.L * dt); // what the shells burnt over the step against what the half-way star radiated
+      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav, 1, refFor(t + dt / 2)); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}, residual ${h.s.res?.toExponential(2)}, Newton ${h.s.it}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
+      const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = (b.E * M + (h.s.Lgrav ?? 0) * dt) / (h.s.L * dt); // what the shells burnt (and, with grav, the star's contraction released) over the step against what the half-way star radiated
       // the step's energy doesn't add up: shorter, unless halving it left the mismatch where it was. A step's own error
       // falls about fourfold a halving (second order); one that doesn't fall is structural (a stirred core's short-lived
       // nuclei, ⁷Be's branch above all, are uniform in its zone burn but in balance shell by shell in the structure: up
@@ -240,12 +264,15 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
       const structural = prevBal != null && Math.abs(bal - prevBal) < BALTOL / 3;
       if (Math.abs(bal - balRef) > BALTOL && !structural && tries < 5 && dt > 1e3 * YR) { prevBal = bal; dt /= 2; continue; }
       balRef = structural || Math.abs(bal - 1) > BALTOL ? bal : 1;
-      const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why}, residual ${f.s.res?.toExponential(2)}, Newton ${f.s.it})`); dt /= 2; continue; }
-      eBal = bal; grav = f.f;
+      const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f, 1, refFor(t + dt)); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why}, residual ${f.s.res?.toExponential(2)}, Newton ${f.s.it})`); dt /= 2; continue; }
+      // with grav, a step that moves the centre's density by more than DRHO (5%) is too long for the backward difference
+      const dRho = W.grav ? Math.abs(Math.log(rhoOf(W.d, f.s.prof[0].P, f.s.prof[0].T, W.comp(Sn[0])) / smp.rows[0].rho)) : 0;
+      if (W.grav && tries < 5 && dRho > DRHO) { if (process.env.DEBUG_SOLVE) console.log(`    centre ρ moved ${(100 * dRho).toFixed(1)}%: halving`); dt /= 2; continue; }
+      eBal = bal; grav = f.f; lgrav = h.s.Lgrav ?? null;
       if (process.env.DEBUG_BAL) { const bands = [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1.01], acc = bands.slice(1).map(() => [0, 0]);
         for (let j = 0; j <= NQ; j++) { const r = smh.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const k = bands.findIndex((x, i) => QS[j] >= x && QS[j] < bands[i + 1]), e = W.eps(r.rho, r.T, Sh[j]).eps, eb = W.burn(r.rho, r.T, S[j], dt).E / dt; acc[k][0] += WQ[j] * e; acc[k][1] += WQ[j] * eb; }
         console.log(`  balance by q band (burnt/structure): ${acc.map(([e, b], i) => `${bands[i]}–${bands[i + 1]}: ${(b / e).toFixed(4)} (${((e * M) / h.s.L * 100).toFixed(1)}%)`).join("; ")}`); }
-      const smn = sample(W, M, Sn, f.s); S = mix(Sn, smn.stir); s = f.s; smp = smn; t += dt; dtLast = dt; done = true;
+      const smn = sample(W, M, Sn, f.s); S = mix(Sn, smn.stir); s = f.s; smp = smn; t += dt; dtLast = dt; done = true; if (W.grav) remember();
     }
     if (!done) { console.log(`${label}: stopped at ${(t / GYR).toFixed(3)} Gyr, Xc ${W.H(S[0]).toFixed(4)} (the star didn't solve on a smaller step)`); return { track, profiles, settled, stopped: `no solution past Xc ${W.H(S[0]).toFixed(4)}` }; }
     keep(); let kp = false; if (W.d === 3 && t / GYR >= nextProf) { kp = true; nextProf += 0.5; } while (nextFrac < fracs.length && W.H(S[0]) <= fracs[nextFrac] * H0) { kp = true; nextFrac++; } if (kp) keepProf(s, smp);
@@ -260,8 +287,8 @@ if (cmd === "ours") {
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("=") && a !== "simple");
   const m = +(pos[0] ?? 1), dX = +(pos[1] ?? 0.01), simple = args.includes("simple"), X0 = +(kv.X0 ?? 0.70), tmax = kv.tmax ? +kv.tmax * GYR : 20 * GYR;
   const Z = +(kv.Z ?? 0.02), kap = kv.kap ?? "kramers", alpha = +(kv.alpha ?? 0), settle = +(kv.settle ?? 0);
-  const W = simple ? simpleWorld(X0) : networkWorld(X0, Z, { kap, alpha }), t0 = Date.now();
-  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.Z ? `-Z${Z}` : ""}${kap !== "kramers" ? `-${kap}` : ""}${alpha ? `-a${alpha}` : ""}${settle ? `-s${kv.settle}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
+  const W = simple ? simpleWorld(X0) : networkWorld(X0, Z, { kap, alpha }), t0 = Date.now(); W.grav = kv.grav === "1";
+  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.Z ? `-Z${Z}` : ""}${kap !== "kramers" ? `-${kap}` : ""}${alpha ? `-a${alpha}` : ""}${settle ? `-s${kv.settle}` : ""}${W.grav ? "-eg" : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   // the first guess: the 1 M☉ zero-age star under the simple law, walked in mass to m in steps of ×1.12 (as mainseq.mjs
   // ours walks its sequence), each star's unknowns extrapolated from the last two
   const o = ours(), walk = () => { let p = [Math.log(2.3e16), Math.log(1.4e7), Math.log(0.9 * RSUN), Math.log(0.7 * LSUN)], hist = [], mm = 1; const dir = m >= 1 ? 1.12 : 1 / 1.12;
@@ -269,7 +296,7 @@ if (cmd === "ours") {
       if (!st.ok) throw new Error(`the zero-age walk failed at ${mm.toFixed(3)} M☉`); p = st.p; hist = [...hist.slice(-1), { m: mm, p }]; if (Math.abs(mm - m) < 1e-9) return p; mm = (dir > 1 ? Math.min(m, mm * dir) : Math.max(m, mm * dir)); }
     return p; };
   const r = evolve(W, m * MSUN, { dX, tmax, ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `${m} M☉ ${W.name} X0 ${X0}`, guess: walk(), settle });
-  writeFileSync(file, JSON.stringify({ about: `atom/tools/evolve.mjs ours: our star's main sequence (${W.name} burning, ${kap} opacity${alpha ? `, envelope α ${alpha}` : ""}), burnt shell by shell, stirred regions mixed`, m, dX, X0, Z, kap, alpha, NQ, burning: W.name, stopped: r.stopped, track: r.track, profiles: r.profiles }));
+  writeFileSync(file, JSON.stringify({ about: `atom/tools/evolve.mjs ours: our star's main sequence (${W.name} burning, ${kap} opacity${alpha ? `, envelope α ${alpha}` : ""}), burnt shell by shell, stirred regions mixed`, m, dX, X0, Z, kap, alpha, NQ, burning: W.name, grav: W.grav, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
 } else if (cmd === "four") {
   // gen2=<held|rock> Z2=<Z, 0.02> parts=<seeds,kappa (both)>: a second-generation star. held: the Sun analogue's own held
@@ -279,14 +306,15 @@ if (cmd === "ours") {
     else { const A4 = JSON.parse(readFileSync(new URL("../../papers/p2/data/ash4.json", import.meta.url), "utf8")).stars.filter((x) => x.G === G && x.s === s), a = A4.find((x) => !(G === 1e-17 && s === 1.5152) || Math.abs(x.m - 0.7812) < 0.01);
       if (!a) throw new Error(`gen2: no held ash for G ${G}, s ${s} in ash4.json`); const h = Object.entries(a.made).filter(([z]) => +z >= 4 && +z <= 23), t = h.reduce((q, [, v]) => q + v, 0); mix = Object.fromEntries(h.map(([z, v]) => [z, v / t])); }
     return { Z: Zm, mix, seeds: parts.includes("seeds"), kappa: parts.includes("kappa") }; }
-  // node four/atom/tools/evolve.mjs four <G × ours> <s> <mass in M_Ch | sun> [dX] [ff=1] [tmax=<Gyr>] [settle=<yr, 1e6>] [plasma=1]
+  // node four/atom/tools/evolve.mjs four <G × ours> <s> <mass in M_Ch | sun> [dX] [ff=1] [tmax=<Gyr>] [settle=<yr, 1e6>] [plasma=1] [grav=1]
+  // grav=1: ε_grav in the structure (files -eg). A run can start from an old run's checkpoint copied to its -eg name.
   // plasma: the charge law's plasma, on by default: the lens vacuum's cutoff in the opacity (mainseq.js kappaFF4) and
   // screening of the network's rates (shell4.js, atom/js/screen.js); its runs' files carry -lp
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
-  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now();
+  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1";
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
-  m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
+  m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${W.grav ? "-eg" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   const r = evolve(W, m * W.Mch, { dX, tmax, settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });
-  writeFileSync(file, JSON.stringify({ about: "atom/tools/evolve.mjs four: a 4D star's main sequence on the 4D network, burnt shell by shell, stirred regions mixed", Grel, s: sv, ff, plasma, m, Mch: W.Mch, dX, NQ, settle: +(kv.settle ?? 1e6), settled: r.settled, stopped: r.stopped, track: r.track, profiles: r.profiles }));
+  writeFileSync(file, JSON.stringify({ about: "atom/tools/evolve.mjs four: a 4D star's main sequence on the 4D network, burnt shell by shell, stirred regions mixed", Grel, s: sv, ff, plasma, m, Mch: W.Mch, dX, NQ, settle: +(kv.settle ?? 1e6), grav: W.grav, settled: r.settled, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
 } else console.log("commands: ours [M☉] [dX] [simple] [X0=] [tmax=] | four <G> <s> <M_Ch|sun> [dX] [ff=] [tmax=]");

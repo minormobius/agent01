@@ -104,7 +104,7 @@ function solve4(A, b) { const n = 4; A = A.map((r) => r.slice()); b = b.slice();
   for (let c = 0; c < n; c++) { let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r; [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]]; for (let r = c + 1; r < n; r++) { const q = A[r][c] / A[c][c]; for (let k = c; k < n; k++) A[r][k] -= q * A[c][k]; b[r] -= q * b[c]; } }
   const x = Array(n).fill(0); for (let r = n - 1; r >= 0; r--) { let s = b[r]; for (let k = r + 1; k < n; k++) s -= A[r][k] * x[k]; x[r] = s / A[r][r]; } return x; }
 
-/* one star: opts { d, M (kg), G, comp {X, Y, Z}, eps(ρ, T, m) W/kg, kappa(ρ, T, m), f(m) gravity factor (else g = G m/r²),
+/* one star: opts { d, M (kg), G, comp {X, Y, Z}, eps(ρ, T, m, P) W/kg, kappa(ρ, T, m), f(m) gravity factor (else g = G m/r²),
    fit (fitting mass ÷ M, 0.5), compAt(m) (optional: a composition that varies with mass, for an evolved star; eps and
    kappa are then handed m too, and comp is ignored), envelope(R, L, f_surface) (optional: the outer boundary from an
    integrated envelope, returning { m, r, P, T } where the interior takes over) }, guess [ln P_c, ln T_c, ln R, ln L]. Returns ok, the unknowns,
@@ -114,9 +114,9 @@ export function star(opts, guess) {
   const rhs = (m, y) => { const r = Math.exp(y[0]), P = Math.exp(y[1]), T = Math.exp(y[2]), L = y[3], rho = rhoOf(d, P, T, cAt(m));
     if (!(rho > 0)) return [NaN, NaN, NaN, NaN];
     const g = (G * Math.max(m, 1e-300) * (ff ? ff(m) : 1)) / (r * r), dPdm = -g / (S * r ** (d - 1)), dTdmRad = (-d * kappa(rho, T, m) * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1)));
-    const nab = Math.min((dTdmRad * P) / (T * dPdm), gad); return [1 / (S * r ** d * rho), dPdm / P, (nab * dPdm) / P, eps(rho, T, m)]; };
+    const nab = Math.min((dTdmRad * P) / (T * dPdm), gad); return [1 / (S * r ** d * rho), dPdm / P, (nab * dPdm) / P, eps(rho, T, m, P)]; };
   const centre = (lnPc, lnTc) => { const Pc = Math.exp(lnPc), Tc = Math.exp(lnTc), m0 = 1e-8 * M, rhoc = rhoOf(d, Pc, Tc, cAt(m0)), r0 = Math.pow((d * m0) / (S * rhoc), 1 / d);
-    const P0 = ff ? Pc - (rhoc * ((G * m0 * ff(m0)) / (r0 * r0)) * r0) / 2 : Pc - (G * rhoc * rhoc * S * r0 ** (d - 1)) / (d * (d - 1)); return { m0, y: [Math.log(r0), Math.log(P0), lnTc, eps(rhoc, Tc, m0) * m0] }; };
+    const P0 = ff ? Pc - (rhoc * ((G * m0 * ff(m0)) / (r0 * r0)) * r0) / 2 : Pc - (G * rhoc * rhoc * S * r0 ** (d - 1)) / (d * (d - 1)); return { m0, y: [Math.log(r0), Math.log(P0), lnTc, eps(rhoc, Tc, m0, Pc) * m0] }; };
   const surface = (lnR, lnL) => { const R = Math.exp(lnR), L = Math.exp(lnL), Te = Math.pow(L / (S * R ** (d - 1) * sigmaSB(d)), 1 / (d + 1)), g = (G * M) / (R * R);
     let P = 1; for (let i = 0; i < 30; i++) { const rho = rhoOf(d, P, Te, cAt(M)) || 1e-30; P = ((2 / 3) * g) / kappa(rho, Te, M) + (a * Te ** (d + 1)) / d; } return [lnR, Math.log(P), Math.log(Te), L]; };
   // the outer boundary: τ = ⅔ on the interior's own gas, or (opts.envelope) an envelope integrated on the surface model
