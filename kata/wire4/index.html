@@ -39,6 +39,10 @@ p { line-height: 1.6; color: #c9c3b8; max-width: 760px; } p b { color: var(--tex
   <p><b>WIRE⁴.</b> A wire in four dimensions is a ball in three directions and long in the fourth. Put it across a stream and, at every place along it, the flow round it is the flow round a sphere in our world: the top picture. Behind a sphere at this speed sits a bubble of slow water turning back on itself.</p>
   <p>The second picture is the one our world has no room for: a slice that holds the wire's own length. If nothing varied along the wire it would be the same from bottom to top. It isn't. Above a Reynolds number of about <b>191</b> the bubble grows fat and thin by turns along the wire, about every 2.5 diameters. A sphere's wake is stable until 212; this ripple needs the extra direction, so the wire's wake gives way first.</p>
   <p id="what"></p>
+  <section><h2>Up the Reynolds ladder <em>how fast each kind of disturbance grows on the uniform wake</em></h2>
+    <div class="rows" id="rungs"></div><canvas id="c3" aria-label="growth rate against wavenumber along the wire, one line per azimuthal wavenumber"></canvas>
+    <div class="rows" id="r3"></div>
+    <p>Each line is one way the wake can break its symmetry round the stream's axis: not at all (0), tilting to one side (1), or in two or three lobes. Across is how tightly the disturbance is rippled along the wire; the left edge is no ripple at all, which is all a sphere can do. Up is how fast it grows; below the line it dies. A filled dot marks a disturbance that oscillates as it grows, an open one a steady one. Past 191 the uniform wake is not what a wire would have, so this is what the flow is trying to do, not what it does.</p></section>
   <p>How this was computed, what was checked and what was not: <a href="README.md" style="color:var(--ice)">the notes</a>.</p>
 </main>
 <script type="module" src="js/main.js"></script>
