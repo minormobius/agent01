@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="PARTICLE-CHORA — Jeffrey Ventrella's particle-hedra, in 3D and in 4D: particles pulled to a centre and pushing each other apart settle into polyhedra, and one dimension up into the 5-cell, the 16-cell, the tesseract, the 24-cell and the 600-cell." />
+<title>PARTICLE-CHORA — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/chora.css" />
+</head>
+<body class="is4">
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="ov" aria-label="The particles and the edges between nearest ones, in 3D, or your shadow or slice of them in 4D" style="pointer-events:auto;touch-action:none;cursor:grab"></canvas>
+    <div id="bar">
+      <a class="home" href="../">ana</a>
+      <b>PARTICLE-CHORA</b>
+      <div class="seg four" id="view"><button data-v="shadow" class="on">shadow</button><button data-v="slice">slice</button></div>
+      <button type="button" id="squareB" aria-label="square your view up">⊞</button>
+      <button type="button" id="spinB" class="on">spin</button>
+    </div>
+    <div id="cap"></div>
+    <div id="toast"></div>
+    <div id="twist" class="pad four" aria-label="twist your view into w"><div id="twistKnob"></div><span>twist into w</span></div>
+    <div id="ana" class="lever four" aria-label="move your slice ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+  </div>
+
+  <div class="panel">
+    <section>
+      <div id="presets"></div>
+      <h2 id="title"></h2>
+      <p class="foot" id="note"></p>
+      <div class="knob" id="nKnob"><label><span>particles</span><b id="nV"></b></label><div class="slider"><span id="nMin"></span><input type="range" id="n" min="2" max="60" step="1" /><span id="nMax"></span></div></div>
+      <label class="foot" id="unionL" hidden><input type="checkbox" id="union" checked /> bring both tiers onto one sphere</label>
+      <div class="btns"><button id="restartB">drop them in again</button><button id="shakeB">shake</button><button id="pauseB">pause</button></div>
+      <div id="facts" class="rows"></div>
+    </section>
+    <details open><summary>particles that make polytopes</summary>
+      <p>From Jeffrey Ventrella's <a href="https://www.ventrella.com/particlehedra/paper.pdf"><i>Particle-hedra: Generating Polyhedra with Inter-Particle Forces</i></a> (Bridges 2024; <a href="http://www.ventrella.com/particlehedra">his app</a>). Every particle is pulled toward the centre (force −0.2·p) and pushed away from every other within a cut-off distance m, by (1 − d/m)·r. Velocities are damped by 0.97 each step. Drop particles in at random and they settle into an even spread: 4 into a tetrahedron, 6 an octahedron, 12 an icosahedron. But 8 don't make a cube: a square antiprism, a Thomson-problem answer.</p>
+      <p>The trick for the rest is <b>tiers</b>: several kinds of particle, with pushes that needn't be mutual. Six particles that ignore everyone else make an octahedron; eight more, pushed by the six and by each other, settle in the gaps: the cube. Stack enough tiers and you get Archimedean solids.</p>
+      <p><b>One dimension up</b>, the same rules with w let free: 5 particles make the 5-cell, 8 the 16-cell, 120 the 600-cell. 16 do <i>not</i> make a tesseract, just as 8 don't make a cube; but on a 16-cell seed, 16 settle into one. And the 24-cell's vertices are exactly a 16-cell's and a tesseract's, put on one sphere. Left to themselves, 24 particles usually stop just short of the 24-cell; shake them a few times and they find it (it has the lower energy).</p>
+    </details>
+    <details><summary>how it's identified, and checked</summary>
+      <p>Edges as in the paper: the closest pair sets the edge length, and every pair within 3% of it is an edge. A tier is <b>exactly</b> a known shape when all its distances, sorted and scaled to unit radius, match that shape's to 0.02; it has a shape's <b>structure</b> when its edges make the same graph counts (edges, degrees, triangles, squares) but the distances differ. <code>test/particles.selftest.mjs</code> holds every claim on this page from fixed random seeds, including Ventrella's Figure 8 run with his own numbers: the inner three tiers exact, the outer 24 with the rhombicuboctahedron's structure but rhombic squares. The 120-cell (600 particles on a 600-cell seed) did not settle into shape in our tries; like the paper's empty spheres, it waits for a better balance of forces.</p>
+      <p>Drag to look round, pinch or scroll to zoom. In 4D: the pad turns your view into w, the lever moves the slice, ⊞ squares it up. The shadow's eye is tilted 35° off w so the fourth direction shows.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

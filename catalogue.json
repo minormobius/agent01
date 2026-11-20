@@ -5848,6 +5848,22 @@
       ]
     },
     {
+      "n": "ana-chora",
+      "u": "https://ana.mino.mobi/chora/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-20",
+      "b": "2026-11-20",
+      "p": "ana",
+      "surface": "ana",
+      "d": "Jeffrey Ventrella's particle-hedra (Bridges 2024), ported and run one dimension up. Particles pulled toward a centre and pushing each other apart settle into polyhedra: 4 a tetrahedron, 6 an octahedron, 12 an icosahedron, but 8 not a cube. Tiers of particles with one-sided pushes build duals and Archimedean solids, including the paper's Figure 8 run with its own numbers. In 4D: 5 particles make the 5-cell, 8 the 16-cell, 120 the 600-cell; 16 do not make a tesseract, but on a 16-cell seed they do, and the two tiers on one sphere are the 24-cell. A swarm of 24 usually stops just short of the 24-cell; shake it and it finds it. Live simulation, shadow or slice, each tier identified as it settles, every claim held by a selftest.",
+      "tags": [
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "hyperball",
       "u": "https://hyperball.mino.mobi/",
       "c": "games",

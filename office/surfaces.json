@@ -3749,6 +3749,15 @@
    "parent": "ana"
   },
   {
+   "id": "ana-chora",
+   "name": "ana-chora",
+   "url": "https://ana.mino.mobi/chora/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "ana"
+  },
+  {
    "id": "hyperball",
    "name": "hyperball",
    "url": "https://hyperball.mino.mobi/",

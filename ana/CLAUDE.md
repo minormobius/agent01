@@ -128,6 +128,12 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   `faceAt` (tails shows u(−x, −y)), `walk` (pole to pole, frame carried by `df`: back mirrored). `js/main.js`: PRISM's
   camera and controls, the face texture-mapped (each vertex carries its picture coordinates; the picture's rim is plain
   so heads and tails agree there), shadow or slice curves, the walker on the overlay. See [`coin/README.md`](coin/README.md).
+- **PARTICLE-CHORA at `/chora/`**: Ventrella's particle-hedra (Bridges 2024, linked) in 3D and 4D. `js/particles.js` (no
+  DOM): `create`/`step`/`settle`/`shake` (pull −0.2·p, push (1 − d/m)·r within m, drag 0.97; R/M per type pair, not
+  mutual: tiers), `edges` (closest pair + 3%), `identify`/`fingerprint` (exact shape), `structure`/`shapeOf` (same edge
+  graph, out of shape), `energy`, `SHAPES` (references), `PRESETS`. In 4D one kind past 40 particles uses m = 6 (at the
+  paper's 3 the swarm outgrows its cut-off). `js/main.js`: one 2D canvas, depth-sorted discs and tier edges; settle stop
+  as strict as the selftest's (10⁻⁹; looser left shapes unrecognised). Results table in [`chora/README.md`](chora/README.md).
 
 ## Checks
 
@@ -139,6 +145,7 @@ node ana/johnson/test/johnson.selftest.mjs           # ~30 s: the 92 from scratc
 node ana/fold/test/fold.selftest.mjs                 # ~2 min: 82,944 hinge trees, 261 nets (455 with mirrors apart), Dalí's, folding rigid and hinged and closing exactly (all at once and ring by ring), the clash LP, 33 nets collide all at once and none ring by ring, the mirror fold, J44–J48 chiral
 node ana/prism/test/optics.selftest.mjs             # <1 s: Snell on 2,000 random 4D rays, the critical angle, least deviation, dispersion, rotation invariance, retracing, every level solvable
 node ana/coin/test/coin.selftest.mjs               # <1 s: glued (f(p) = f(−p)), one-to-one via the inverse, smooth, the walk comes back mirrored, the half-turned picture, 0 bits
+node ana/chora/test/particles.selftest.mjs          # ~2 s: the identifier, the paper's 3D results and Figure 8, 5/8/16/24/120 in 4D, shaking to the 24-cell, the tesseract and 24-cell tiers
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 
