@@ -1,0 +1,25 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 fit=0.1
+4D G 1e-17 s 1.5152 1.250 M_Ch: resumed at 15.1110 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-30.ckpt.json
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4116e+45 W, R 5.4263e+8 m, Teff 34130 K, Tc 87.20 MK, ρc 7.465e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.74% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4185e+45 W, R 5.4463e+8 m, Teff 34065 K, Tc 87.27 MK, ρc 7.489e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.75% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4234e+45 W, R 5.4646e+8 m, Teff 34004 K, Tc 87.33 MK, ρc 7.513e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.72% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4262e+45 W, R 5.4785e+8 m, Teff 33957 K, Tc 87.39 MK, ρc 7.536e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.77% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4213e+45 W, R 5.4932e+8 m, Teff 33894 K, Tc 87.46 MK, ρc 7.559e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.74% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4265e+45 W, R 5.4981e+8 m, Teff 33884 K, Tc 87.50 MK, ρc 7.578e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.74% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4544e+45 W, R 5.5162e+8 m, Teff 33860 K, Tc 87.57 MK, ρc 7.602e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.72% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4525e+45 W, R 5.5319e+8 m, Teff 33799 K, Tc 87.62 MK, ρc 7.624e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.72% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4688e+45 W, R 5.5470e+8 m, Teff 33769 K, Tc 87.67 MK, ρc 7.644e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.75% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4759e+45 W, R 5.5671e+8 m, Teff 33706 K, Tc 87.74 MK, ρc 7.667e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.75% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4822e+45 W, R 5.5782e+8 m, Teff 33676 K, Tc 87.84 MK, ρc 7.697e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975, contraction -0.92% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4814e+45 W, R 5.5848e+8 m, Teff 33651 K, Tc 87.88 MK, ρc 7.716e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9976, contraction -0.96% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.112 Gyr: L 4.4751e+45 W, R 5.5982e+8 m, Teff 33593 K, Tc 87.91 MK, ρc 7.731e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9976, contraction -0.80% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.112 Gyr: L 4.4800e+45 W, R 5.6100e+8 m, Teff 33558 K, Tc 87.96 MK, ρc 7.751e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9976, contraction -0.85% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.112 Gyr: L 4.4893e+45 W, R 5.6137e+8 m, Teff 33558 K, Tc 88.00 MK, ρc 7.767e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9976, contraction -0.69% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.112 Gyr: L 4.4919e+45 W, R 5.6277e+8 m, Teff 33512 K, Tc 88.03 MK, ρc 7.784e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9976, contraction -0.66% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.112 Gyr: L 4.4985e+45 W, R 5.6494e+8 m, Teff 33445 K, Tc 88.11 MK, ρc 7.810e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.177, burnt/radiated 0.9976, contraction -0.63% of L
+4D G 1e-17 s 1.5152 1.250 M_Ch: stopped at 15.112 Gyr, Xc 0.0000 (the star didn't solve on a smaller step)
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-30.json (938 s, 2592 models; no solution past Xc 0.0000)
+(node:2431) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
