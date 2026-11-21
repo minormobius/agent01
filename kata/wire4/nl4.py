@@ -9,9 +9,9 @@ q; the linear part (wake4's operator at beta = k beta0) is implicit (BDF2), the 
 (extrapolated) and evaluated at Nw points along w, which is exact for the products kept.
 Modes that break the symmetry round the flow axis (m = 1 and up) are NOT in this run; above Re about 207 one of them is
 linearly unstable on the base flow, so there this is a solution of the equations that may itself be unstable.
-    python nl4.py Re [beta0=2.5] [T=400] [dt=0.05] [K=6] [Nr=50] [Nt=40]  ->  data/nl-<Re>.npz, data/nl-<Re>.json
+    python nl4.py Re [beta0=2.5] [T=400] [dt=0.05] [K=6] [Nr=50] [Nt=40]  ->  data/nl-<Re>.npz, data/nl-<Re>.json   (RESUME=1 continues a saved run)
 """
-import sys, json, time
+import os, sys, json, time
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spl
@@ -75,18 +75,23 @@ x = [np.zeros(S[k]['N']) for k in kk]
 X, Rr = b2.doflocs; seed = 1e-3 * np.exp(-((X - 1.2) ** 2 + (Rr - 0.35) ** 2) / 0.15); seed[np.union1d(wall, ax)] = 0
 x[1][n2:2 * n2] = seed
 xm = [a.copy() for a in x]; Nm = None; hist = []; t0 = time.time(); steps = int(round(T / dt))
+n0 = 0
+if os.environ.get("RESUME") and os.path.exists(f"data/nl-{tag}.npz"):   # pick up a run a lost container cut short (the first step back is first order)
+    z = np.load(f"data/nl-{tag}.npz"); old = json.load(open(f"data/nl-{tag}.json"))
+    if old["dt"] == dt and old["K"] == K and old["Nr"] == Nr and old["Nt"] == Nt and old["hist"]:
+        x = [z[f"x{k}"] for k in kk]; xm = [a.copy() for a in x]; hist = old["hist"]; n0 = int(round(hist.pop()["t"] / dt)); print("resumed at t", n0 * dt, flush=True)
 axo = np.argsort(X[ax]); axd = ax[axo]; xa = X[axd]
 def bubble(sign):
     ut = U0[axd] + sum((sign ** k) * x[k][:n2][axd] for k in kk); i = np.where((xa > 0.5 + 1e-9) & (ut < 0))[0]
     if not len(i) or i.max() + 1 >= len(xa): return 0.0
     j = i.max(); return float(xa[j] + (xa[j + 1] - xa[j]) * (-ut[j]) / (ut[j + 1] - ut[j]) - 0.5)
-for n in range(steps + 1):
+for n in range(n0, steps + 1):
     if n % 20 == 0:
         E = [float(0.5 * sum(c @ (W.M @ c) for c in split(k, x[k]))) for k in kk]
         hist.append(dict(t=n * dt, E=E, bub0=bubble(1), bubpi=bubble(-1)))
         if n % 400 == 0: print(f"t {n * dt:7.1f}  E1 {E[1]:.3e} E0 {E[0]:.3e} E2 {E[2]:.3e}  bubble {hist[-1]['bub0']:.3f} / {hist[-1]['bubpi']:.3f}  {time.time() - t0:.0f}s", flush=True)
         if not np.isfinite(E[1]) or E[1] > 1e3: print("blew up"); break
-    if n % 2000 == 0 or n == steps:
+    if n % 500 == 0 or n == steps:
         np.savez_compressed(f"data/nl-{tag}.npz", U0=U0, V0=V0, **{f"x{k}": x[k] for k in kk})
         json.dump(dict(Re=Re, beta0=beta0, dt=dt, K=K, Nr=Nr, Nt=Nt, hist=hist), open(f"data/nl-{tag}.json", "w"))
     Nn = nonlinear([split(k, x[k]) for k in kk]); Ne = Nn if Nm is None else [2 * a - b for a, b in zip(Nn, Nm)]
