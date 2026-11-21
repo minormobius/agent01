@@ -8,7 +8,16 @@
 // origin check and a per-IP rate limit keep the free model from being used as a
 // general-purpose endpoint.
 
+// Gemini first (needs the GEMINI_API_KEY secret, synced from the GEMINI_API_KEY_PROOFS repo
+// secret by deploy-proofs.yml), Workers AI as the fallback. GEMINI_MODEL may override the
+// model; the default alias follows Google's current Flash.
 const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+const GEMINI_DEFAULT = 'gemini-flash-latest';
+const LABELS = { gemini: 'Gemini Flash (Google)', workers: 'Llama 3.3 70B (Cloudflare)' };
+// After Gemini refuses (429, quota), skip it for a while in this isolate so readers
+// don't wait on a call that will fail.
+let geminiCooldownUntil = 0;
+export const _resetCooldown = () => { geminiCooldownUntil = 0; };
 const DECKS = { riemann: '/riemann/learn/context.txt' };
 const ORIGINS = ['https://proofs.mino.mobi'];
 const MAX_Q = 600, MAX_TURNS = 6, MAX_TURN = 1200, MAX_TOKENS = 700;
@@ -56,13 +65,69 @@ async function ask(req, env) {
   if (!ctxRes.ok) return json({ error: 'context missing' }, 500);
   const context = await ctxRes.text();
 
-  const messages = [{ role: 'system', content: SYSTEM(context, slide) }, ...history, { role: 'user', content: q }];
+  const system = SYSTEM(context, slide);
+  const why = [];
+  if (env.GEMINI_API_KEY && Date.now() >= geminiCooldownUntil) {
+    const g = await gemini(env, system, history, q).catch((e) => ({ error: String(e?.message || e) }));
+    if (g.stream) return sse(g.stream, 'gemini', env.GEMINI_MODEL || GEMINI_DEFAULT);
+    why.push(g.error);
+    if (g.status === 429) geminiCooldownUntil = Date.now() + (g.retryMs || 60_000);
+  }
   try {
+    const messages = [{ role: 'system', content: system }, ...history, { role: 'user', content: q }];
     const stream = await env.AI.run(MODEL, { messages, max_tokens: MAX_TOKENS, temperature: 0.3, stream: true });
-    return new Response(stream, { headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-store' } });
+    return sse(stream, 'workers', MODEL, why[0]);
   } catch (e) {
     return json({ error: 'the model did not answer', detail: String(e?.message || e).slice(0, 200) }, 502);
   }
+}
+
+// Calls Gemini's streaming endpoint. Returns { stream } (already re-encoded as
+// `data: {"response": …}` events) or { error, status, retryMs } so the caller falls back.
+// The key goes in a header, never the URL.
+async function gemini(env, system, history, q) {
+  const model = env.GEMINI_MODEL || GEMINI_DEFAULT;
+  const contents = [...history, { role: 'user', content: q }].map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+    // maxOutputTokens leaves room for a Flash model's thinking on top of the ~700-token answer
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, generationConfig: { temperature: 0.3, maxOutputTokens: 3000 } }),
+  });
+  if (!r.ok || !r.body) {
+    const retry = /"retryDelay":\s*"(\d+)s"/.exec(await r.text().catch(() => ''));
+    return { error: `gemini ${r.status}`, status: r.status, retryMs: retry ? Math.min(600, +retry[1]) * 1000 : null };
+  }
+  // Gemini SSE: data: {"candidates":[{"content":{"parts":[{"text":"…"}, {"thought":true,…}]}}]}
+  const dec = new TextDecoder(), enc = new TextEncoder();
+  let buf = '';
+  const out = new TransformStream({
+    transform(chunk, ctl) {
+      buf += dec.decode(chunk, { stream: true });
+      let k;
+      while ((k = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, k).trim(); buf = buf.slice(k + 1);
+        if (!line.startsWith('data:')) continue;
+        try {
+          const j = JSON.parse(line.slice(5));
+          for (const p of j.candidates?.[0]?.content?.parts || []) {
+            if (p.text && !p.thought) ctl.enqueue(enc.encode(`data: ${JSON.stringify({ response: p.text })}\n\n`));
+          }
+        } catch {}
+      }
+    },
+    flush(ctl) { ctl.enqueue(enc.encode('data: [DONE]\n\n')); },
+  });
+  return { stream: r.body.pipeThrough(out) };
+}
+
+// One stream format for the client: a first event naming who answers, then the
+// model's `data: {"response": …}` events unchanged.
+function sse(stream, provider, model, fellBack) {
+  const head = new TextEncoder().encode(`data: ${JSON.stringify({ provider, model, label: LABELS[provider], ...(fellBack ? { fellBack } : {}) })}\n\n`);
+  const { readable, writable } = new TransformStream();
+  (async () => { const w = writable.getWriter(); await w.write(head); w.releaseLock(); await stream.pipeTo(writable); })().catch(() => {});
+  return new Response(readable, { headers: { 'content-type': 'text/event-stream', 'cache-control': 'no-store' } });
 }
 
 export default {

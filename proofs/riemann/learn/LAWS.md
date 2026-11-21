@@ -94,8 +94,10 @@ in `riemann.selftest.mjs`, over the deck and the reference page.*
 **15. A follow-up question gets an answer from the deck, in place.** The
 header's **ask** button opens a panel over the notes. The panel knows the
 current slide, suggests three questions, and streams the answer.
-- The model is Llama 3.3 70B on Cloudflare Workers AI, behind `POST /api/ask`
-  on the surface's own worker. The **server** loads the deck's text
+- The model is Gemini Flash (Google) first, with Llama 3.3 70B on Cloudflare
+  Workers AI as the fallback when Gemini refuses (quota or rate limit) or fails.
+  Both sit behind `POST /api/ask` on the surface's own worker, and every answer
+  names the model that wrote it. The **server** loads the deck's text
   (`context.txt`, generated from the slides, the notes, the reference page, the
   timeline and the audit). The browser sends only the deck, the slide number,
   the question and the last six turns, so the context cannot be swapped or
@@ -106,7 +108,8 @@ current slide, suggests three questions, and streams the answer.
 - Answers are selectable. Typing never turns the page, Esc closes the panel,
   and a refused question (too long, rate-limited) shows its reason in the
   thread.
-- The panel says which model answers and that it can be wrong.
+- The panel says which models answer, that they can be wrong, and that
+  questions go to Google or Cloudflare.
 - Limits: 600 characters a question, 700 tokens an answer, 8 questions a
   minute per IP, and same-origin requests only.
 - *Machine-checked*, with the endpoint mocked so no test calls a model: the

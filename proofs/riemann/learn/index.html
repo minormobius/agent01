@@ -166,7 +166,7 @@ button.b.on { border-color: var(--accent); color: var(--accent); background: var
   <div class="stage" id="stage"></div>
   <div class="toast" id="toast">done ✓</div>
   <div class="chat" id="chat" role="dialog" aria-label="ask about this deck">
-    <div class="top"><b>Ask about slide <span id="chatSlide">1</span></b><small>Llama 3.3 70B · answers from this deck · can be wrong</small><button id="chatClose">close</button></div>
+    <div class="top"><b>Ask about slide <span id="chatSlide">1</span></b><small>Gemini, or Llama when busy · answers from this deck · can be wrong</small><button id="chatClose">close</button></div>
     <div class="msgs" id="msgs" aria-live="polite"></div>
     <div class="chips" id="chips"></div>
     <div class="composer"><textarea id="q" rows="1" maxlength="600" placeholder="Ask a follow-up…"></textarea><button id="send">ask</button></div>
@@ -825,8 +825,8 @@ try { chatLog = JSON.parse(localStorage.getItem(CHAT_KEY) || '[]').slice(-30); }
 const saveChat = () => { try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatLog.slice(-30))); } catch {} };
 const linkSlides = (t) => esc(t).replace(/\b[Ss]lides? (\d{1,2})\b/g, (m, n) => +n >= 1 && +n <= SLIDES.length ? `<a href="#${n}">${m}</a>` : m);
 function renderMsgs() {
-  $('msgs').innerHTML = chatLog.length ? chatLog.map((m) => `<div class="msg ${m.role}${m.err ? ' err' : ''}"><span class="meta">${m.role === 'user' ? `you · slide ${m.slide}` : 'answer'}</span>${linkSlides(m.content)}</div>`).join('')
-    : `<p style="color:var(--muted);font-size:0.8rem">Ask anything about this slide or the deck. The model has the whole deck, its notes and the reference page in front of it, and it answers from them first.</p>`;
+  $('msgs').innerHTML = chatLog.length ? chatLog.map((m) => `<div class="msg ${m.role}${m.err ? ' err' : ''}"><span class="meta">${m.role === 'user' ? `you · slide ${m.slide}` : `answer${m.by ? ' · ' + esc(m.by) : ''}`}</span>${linkSlides(m.content)}</div>`).join('')
+    : `<p style="color:var(--muted);font-size:0.8rem">Ask anything about this slide or the deck. The model has the whole deck, its notes and the reference page in front of it, and it answers from them first.</p><p style="color:var(--muted);font-size:0.72rem">Your question is sent to Google (Gemini) to answer, or to Cloudflare (Llama) when Gemini is busy. Don't include anything private.</p>`;
   $('msgs').scrollTop = $('msgs').scrollHeight;
 }
 function renderChips() {
@@ -857,7 +857,7 @@ async function sendQ(q) {
         const data = line.slice(5).trim(); if (data === '[DONE]') continue;
         // Workers AI sometimes sends a token as a JSON number ("response": 2026): a lone 0 is falsy, and the
         // space before the number is lost ("November2026"), so restore it after a letter or punctuation
-        try { const j = JSON.parse(data); if (j.response != null && j.response !== '') { ans.content += (typeof j.response === 'number' && /[\p{L}.,;:)]$/u.test(ans.content) ? ' ' : '') + String(j.response); renderMsgs(); } } catch {}
+        try { const j = JSON.parse(data); if (j.provider) { ans.by = j.label || j.provider; renderMsgs(); continue; } if (j.response != null && j.response !== '') { ans.content += (typeof j.response === 'number' && /[\p{L}.,;:)]$/u.test(ans.content) ? ' ' : '') + String(j.response); renderMsgs(); } } catch {}
       }
     }
     if (!ans.content.trim()) throw new Error('The model sent an empty answer. Try rephrasing.');

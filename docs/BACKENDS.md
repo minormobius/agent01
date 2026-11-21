@@ -11,7 +11,7 @@
 | **api** | real request handlers, no storage of its own | 25 |
 | **stateful** | binds D1 / KV / R2 / Durable Objects / queues / containers — holds data | 29 |
 
-Scheduled (cron): **11** workers. Reading secrets: **26**. Calling third-party hosts: **35**.
+Scheduled (cron): **11** workers. Reading secrets: **26**. Calling third-party hosts: **36**.
 
 ## Shared state — the blast radius
 
@@ -77,7 +77,7 @@ Scheduled (cron): **11** workers. Reading secrets: **26**. Calling third-party h
 | `minomobi-cron` | cron | api | — | 0 13 * * *, 30 13 * * *, 30 21 * * 1-5, 0 6 1 * *, 0 * * * *, 0 */6 * * *, 0 6 * * *, 10,30,50 * * * * | ADMIN_KEY, GITHUB_PAT | api.github.com |
 | `ocr` | ocr | api | — | — | GEMINI_API_KEY, GEMINI_MODEL | generativelanguage.googleapis.com, ocrs-models.s3-accelerate.amazonaws.com |
 | `photo` | photo | api | — | — | — | plc.directory, public.api.bsky.app |
-| `proofs` | proofs | api | ai | — | ASK_LIMIT | — |
+| `proofs` | proofs | api | ai | — | ASK_LIMIT, GEMINI_API_KEY, GEMINI_MODEL | generativelanguage.googleapis.com |
 | `rant` | rant | api | — | — | — | — |
 | `splice` | splice | api | — | — | — | — |
 | `table` | table | api | — | — | COMMIT | — |

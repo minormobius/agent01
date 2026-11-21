@@ -34,6 +34,21 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # The decks' chatbot asks Gemini first. Its key lives in its own Google project (repo
+      # secret GEMINI_API_KEY_PROOFS) so it never spends b's or hoop's quota. Without it,
+      # /api/ask answers from Workers AI alone.
+      - name: Sync the chatbot's Gemini key
+        env:
+          GEMINI_API_KEY_PROOFS: ${{ secrets.GEMINI_API_KEY_PROOFS }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$GEMINI_API_KEY_PROOFS" ]; then
+            printf '%s' "$GEMINI_API_KEY_PROOFS" | npx wrangler secret put GEMINI_API_KEY
+            echo "✓ GEMINI_API_KEY set: /api/ask asks Gemini first, Workers AI as fallback"
+          else
+            echo "::notice::GEMINI_API_KEY_PROOFS is not set, so /api/ask answers from Workers AI only."
+          fi
       # A green deploy is not proof, least of all on a route: the check is the HOST answering.
       # Strict — a route surface whose host does not serve is a failed deploy.
       - name: Verify proofs.mino.mobi serves (route)
