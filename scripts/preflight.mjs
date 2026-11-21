@@ -757,7 +757,8 @@ if (!quick) {
   // Give the browser tests room; leave the tight cap where it does its job.
   // whetstone.selftest.mjs runs whole lab days against a fake model (41 tests, ~170 s alone on
   // 2026-10-04): slow by design, not hung.
-  const SLOW = [/browser\.selftest\.mjs$/, /whetstone\.selftest\.mjs$/];
+  // four/atom/test/atom4.selftest.mjs is ATOM⁴'s whole book (202 checks, ~107 s alone on 2026-11-21): killed at 120 s on CI.
+  const SLOW = [/browser\.selftest\.mjs$/, /whetstone\.selftest\.mjs$/, /atom4\.selftest\.mjs$/];
   const timeoutFor = (f) => (SLOW.some((re) => re.test(f)) ? 420000 : 120000);
   console.log(`\nselftests (${scope.length} of ${found.length} — ${scopeLabel}; --all-tests for every one)`);
   let pass = 0; const failed = [];
