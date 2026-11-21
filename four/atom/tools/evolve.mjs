@@ -201,7 +201,7 @@ const burnAll = (W, S0, sm, dt) => { const at = sm.rows, S = mix(S0, sm.stir), O
     const { rho, T } = at[j]; if (!(T > (W.Tburn ?? 2e6))) O[j] = Float64Array.from(S[j]); else { const r = W.burn(rho, T, S[j], dt); E += WQ[j] * r.E; O[j] = r.s; } j++; }
   return { S: O, E }; };
 
-function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, settle = 0, ckpt = null, from = null }) {
+function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, settle = 0, ckpt = null, from = null, gravAfter = 0 }) {
   let S = Array.from({ length: NQ + 1 }, () => W.init()), t = 0;
   // a checkpoint (written every few minutes, so a run cut at a deadline resumes): the shells, the clock, the star's
   // unknowns and its last conditions, pinned gravity as a table, and what has been kept so far
@@ -210,7 +210,10 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   const src = ckpt && existsSync(ckpt) ? ckpt : from && existsSync(path.join(DIR, from)) ? path.join(DIR, from) : null, C = src ? JSON.parse(readFileSync(src, "utf8")) : null;
   if (from && !src) throw new Error(`from: neither ${ckpt} nor ${path.join(DIR, from)} exists`);
   if (C) { const ft = C.fTab, fOf = ft ? (m) => { const [a, b, u] = bracket(ft.map((x) => x[0]), m); return ft[a][1] * (1 - u) + ft[b][1] * u; } : null;
-    S = C.S.map((x) => Float64Array.from(x)); t = C.t; const r = solve(W, M, S, C.p, C.at, fOf); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
+    S = C.S.map((x) => Float64Array.from(x)); t = C.t;
+    // with ε_grav, the checkpointed star is re-solved as it was saved: against its own reference (gref[0]), else a star
+    // re-solved without it comes out a few per cent off (1.9% in ρc past exhaustion) and mistakes itself for a new model
+    const g0 = W.grav && C.gref?.length > 1 && C.t > C.gref[0].t ? { prof: C.gref[0].prof, dt: C.t - C.gref[0].t } : null, r = solve(W, M, S, C.p, C.at, fOf, 1, g0); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
     console.log(`${label}: resumed at ${(t / GYR).toFixed(4)} Gyr from ${src}`); return run(r.s, r.f, C); }
   return run(null, null, null);
   function run(s1, g1, C) {
@@ -231,8 +234,12 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
   let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1, lgrav = null;
   // ε_grav's references: the accepted models, newest last ({ t, rhoc, prof }); a resumed run starts with its checkpoint's
-  const hist = []; const remember = () => { hist.push({ t, rhoc: smp.rows[0].rho, prof: s.prof }); if (hist.length > 400) hist.shift(); };
-  const refFor = (tEnd) => { if (!W.grav || !hist.length) return null; const now = smp.rows[0].rho; let R = null;
+  // A checkpoint keeps the reference it would use (gref), so a resumed run measures against a real baseline; one written
+  // before that resumes with only itself, a one-step baseline, which is stiff (evolve4-15 stopped on it at once). gravAfter:
+  // keep ε_grav off until the centre's ρ has moved that much (in ln) since this run began, for such old checkpoints.
+  const hist = (C?.gref ?? []).map((h) => ({ ...h })); const remember = () => { hist.push({ t, rhoc: smp.rows[0].rho, prof: s.prof }); if (hist.length > 400) hist.shift(); };
+  const rho0 = smp.rows[0].rho;
+  const refFor = (tEnd) => { if (!W.grav || !hist.length) return null; const now = smp.rows[0].rho; if (Math.abs(Math.log(now / rho0)) < gravAfter) return null; let R = null;
     for (let k = hist.length - 1; k >= 0; k--) if (Math.abs(Math.log(now / hist[k].rhoc)) >= GREF) { R = hist[k]; break; }
     R = R ?? hist[0]; const dte = tEnd - R.t, tKH = (W.G * M * M) / (s.R * s.L); return dte >= KHMIN * tKH ? { prof: R.prof, dt: dte } : null; };
   // settling (settle > 0 years): fresh gas has none of its burning's intermediates; burn the shells for 10², 2 × 10², …
@@ -249,8 +256,11 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     track.push(row); console.log(`${label} ${row.tGyr.toFixed(3)} Gyr: ${W.d === 3 ? `L ${(s.L / LSUN).toFixed(4)} L☉, R ${(s.R / RSUN).toFixed(4)} R☉` : `L ${s.L.toExponential(4)} W, R ${s.R.toExponential(4)} m`}, Teff ${row.Teff.toFixed(0)} K, Tc ${(s.Tc / 1e6).toFixed(2)} MK, ρc ${W.d === 3 ? `${(c.rho / 1000).toFixed(1)} g/cm³` : `${c.rho.toExponential(3)} kg/m⁴`}, Xc ${row.Xc.toFixed(4)}, stirred core ${row.qcc.toFixed(3)}, pp ${(row.ppShare * 100).toFixed(1)}%, half the light inside q ${row.q50.toFixed(3)}${eBal ? `, burnt/radiated ${eBal.toFixed(4)}` : ""}${lgrav != null ? `, contraction ${(100 * lgrav / s.L).toFixed(2)}% of L` : ""}`); };
   // profiles at every 0.5 Gyr (ours) and as the centre's hydrogen falls past 90%, 80%, … 10%, 1% of its start (both)
   const H0 = W.H(W.init()), fracs = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.01]; let nextProf = C ? C.nextProf : 0.5, nextFrac = C ? C.nextFrac : 0, lastCk = Date.now();
+  const grefOf = () => { if (!hist.length) return []; const now = smp.rows[0].rho; let k = hist.length - 1; for (; k >= 0; k--) if (Math.abs(Math.log(now / hist[k].rhoc)) >= GREF) break;
+    const keepH = k >= 0 ? [hist[k]] : [hist[0]], last = hist.at(-1); if (last !== keepH[0]) keepH.push(last);
+    return keepH.map((h) => ({ t: h.t, rhoc: h.rhoc, prof: h.prof.map((x) => ({ m: x.m, P: x.P, T: x.T })) })); };
   const save = () => { if (!ckpt) return; const ft = W.pinned && grav ? s.prof.filter((_, i) => i % 4 === 0).map((q) => [q.m, grav(q.m)]) : null;
-    writeFileSync(ckpt + ".part", JSON.stringify({ S: S.map((x) => Array.from(x)), t, dtLast, p: s.p, at: smp.rows.map((r) => ({ rho: r.rho, T: r.T })), fTab: ft, track, profiles, settled, nextProf, nextFrac })); renameSync(ckpt + ".part", ckpt); lastCk = Date.now(); };
+    writeFileSync(ckpt + ".part", JSON.stringify({ S: S.map((x) => Array.from(x)), t, dtLast, p: s.p, at: smp.rows.map((r) => ({ rho: r.rho, T: r.T })), fTab: ft, track, profiles, settled, nextProf, nextFrac, ...(W.grav ? { gref: grefOf() } : {}) })); renameSync(ckpt + ".part", ckpt); lastCk = Date.now(); };
   if (!C) { keep(); keepProf(s, smp); } if (W.grav) remember();
   for (let n = 0; n < 3000 && t < tmax && W.H(S[0]) > Hstop; n++) {
     let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, Hstop)) / -d); }
@@ -315,13 +325,15 @@ if (cmd === "ours") {
   // grav=1: ε_grav in the structure (files -eg). A run can start from an old run's checkpoint copied to its -eg name.
   // Hstop below 10⁻³ (files -Hs<x>) carries a star past the end of its central hydrogen, keeping a profile every 10 models.
   // from=<checkpoint file name in the cache>: start there when this run has no checkpoint of its own.
+  // gravAfter=<Δ ln ρ_c>: with grav, keep ε_grav off until the centre's ρ has moved that much since this run began (for a
+  // checkpoint written before checkpoints kept ε_grav's reference).
   // plasma: the charge law's plasma, on by default: the lens vacuum's cutoff in the opacity (mainseq.js kappaFF4) and
   // screening of the network's rates (shell4.js, atom/js/screen.js); its runs' files carry -lp
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
   const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1";
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
   m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${W.grav ? "-eg" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
-  const r = evolve(W, m * W.Mch, { dX, tmax, Hstop, from: kv.from ?? null, settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });
+  const r = evolve(W, m * W.Mch, { dX, tmax, Hstop, from: kv.from ?? null, gravAfter: +(kv.gravAfter ?? 0), settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });
   writeFileSync(file, JSON.stringify({ about: "atom/tools/evolve.mjs four: a 4D star's main sequence on the 4D network, burnt shell by shell, stirred regions mixed", Grel, s: sv, ff, plasma, m, Mch: W.Mch, dX, NQ, settle: +(kv.settle ?? 1e6), grav: W.grav, settled: r.settled, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
 } else console.log("commands: ours [M☉] [dX] [simple] [X0=] [tmax=] | four <G> <s> <M_Ch|sun> [dX] [ff=] [tmax=]");

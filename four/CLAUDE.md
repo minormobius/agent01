@@ -1357,6 +1357,14 @@ for games, and this is a modelling programme with publications to come. The game
   swelling without trouble. It stopped at its own stopping point, not the physics, so the gate for B (does the core
   reach 1 M_Ch, ×1.23 on the processed core) is still open; evolve4-15 carries it on (Hstop=1e-30, from= its
   checkpoint). The sandbox copy died with the container at 15.064 Gyr.
+  **evolve4-15 stopped at once (2026-11-21):** "no solution past Xc 0.0000" with no new model. A resumed run had only
+  itself as ε_grav's reference, a one-step baseline, which is stiff (the failure ours' first steps had). **Fixes:** the
+  checkpoint keeps the reference (`gref`: the latest earlier model ≥ GREF away in ρc, plus the current one, each profile
+  as m, P, T), and a resumed star is re-solved against it; re-solved without ε_grav it came out 1.9% off in ρc and took
+  itself for a new model. `gravAfter=<Δ ln ρc>` keeps ε_grav off until the centre has moved that much, for checkpoints
+  written before gref (the stalled-analogue resumes need the old behaviour, gravAfter 0, the default). Sandbox: from
+  evolve4-14's checkpoint with gravAfter=0.01, 30 models and no failed solve; its checkpoint resumed with gref, 11 more,
+  none failed. evolve4-16 carries the star on.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /
