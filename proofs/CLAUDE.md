@@ -489,3 +489,37 @@ a slide. Progress, predictions and quiz answers stay in localStorage
   fudge constant; the de la Vallée Poussin saving depends on an unspecified c.
 - The last content slide reads `../audit.json`, so the deck and the reference
   page always agree about the 2026 claim.
+
+**The format has laws: [`riemann/learn/LAWS.md`](riemann/learn/LAWS.md).** Read
+them before adding a slide or starting another deck. The machine-checkable ones
+are enforced by:
+
+```bash
+node proofs/riemann/learn/browser.selftest.mjs   # ~15 s, 178 checks, real Chromium at 390 px
+```
+
+It walks every slide. For every chart it sweeps the pointer diagonally,
+requiring a tooltip and different points, then checks that the keyboard steps
+the cursor and does not turn the page. It also cycles the theme toggle (the
+background and the chart strokes must change, and the choice must survive a
+reload), checks the sheet's peek height and the absence of horizontal scroll,
+and requires zero console errors in both themes. It serves `proofs/riemann/`
+itself on a random port. Preflight runs it as a slow selftest whenever
+`proofs/riemann/learn/` changes. Without Playwright it skips with exit 0.
+
+- **`learn/kit.js` holds the format's shared parts**: `frame`/`axes`/`path`,
+  `cursor()` (law 3), `tip()` and `theme` (law 4). `cursor(svg, f, series,
+  {snap: 'x'|'y'|'xy'})` must be called after every redraw. It snaps to the
+  `pts` it is given, so give it the points the chart was drawn from, with an
+  optional third element as the display label. Duplicate x values make the
+  keyboard cursor look stuck (slide 2 had this from rounding a log grid), so
+  dedupe.
+- **The theme** is `data-theme` on `<html>` (absent means follow the system),
+  stored as `proofs-theme`. The CSS defines dark tokens twice: under
+  `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` and
+  under `:root[data-theme="dark"]`. Canvas code must ask `theme.isDark()`,
+  never `matchMedia`, or it ignores the toggle.
+- **The ζ map's cursor** redraws only the SVG overlay. Recomputing the map on
+  every pointer move costs about 400 ms. Its data points are the grid cells.
+- The reference page (`riemann/index.html`) predates the laws: its charts have
+  no cursor and it has no theme toggle.
