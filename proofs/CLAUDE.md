@@ -15,7 +15,7 @@ that have something real to recompute. Repo-wide rules are in
 | Dir | `proofs/` |
 | Endpoint | `proofs.mino.mobi`, a **plain route** (no custom-domain slot) |
 | Worker | `proofs`, thin assets Worker: no script, no bindings, no secrets |
-| Owning branch | `claude/3d-einstein-tile-math-n4t93d` (also owns `math`) |
+| Owning branch | `claude/brave-allen-3un2fh` (taken over 2026-11-21 for `/riemann/`; `math` stays on `claude/3d-einstein-tile-math-n4t93d`) |
 | Deploy | `.github/workflows/deploy-proofs.yml`: route DNS, then `wrangler deploy`, then fail unless the host serves |
 
 ## Files
@@ -28,6 +28,7 @@ that have something real to recompute. Repo-wide rules are in
 | `assessment.json` | the editorial layer: tier, effort, page idea, related site pages, built `page` | hand (seeded by model readers) |
 | `build.mjs` | joins the release with `assessment.json` | hand |
 | `crossing/`, `hadamard/`, `seymour/`, `catalan/`, `mub/`, `petty/`, `ramsey/`, `sidorenko/` | the built pages (families 165, 179, 173, 005, 266, 088, 189, 161), one section each below | hand |
+| `riemann/` | the Riemann hypothesis page. It is **not** a release family; the landing links it by hand above the built pages | hand (+ generated `zeros.js`, `audit.json`) |
 | `.assetsignore` | keeps `CLAUDE.md`, `build.mjs`, `assessment.json` and `wrangler.jsonc` off the web | hand |
 
 ## Rebuilding the data
@@ -409,3 +410,54 @@ page quotes `faces` and `main` verbatim, and `FACES` is the Lean list.
 - **The drawing** is a Tutte embedding with outer face 19, reweighted 4
   rounds by edge length. Any positive weights stay crossing-free, and the
   selftest checks it.
+
+## `/riemann/`: the Riemann hypothesis, and the November 2026 claim
+
+```bash
+node proofs/riemann/riemann.selftest.mjs           # ~0.8 s, 1776 checks
+node proofs/riemann/riemann.selftest.mjs --write   # rewrites zeros.js
+node proofs/riemann/audit.mjs --src <lean dir> --write   # rewrites audit.json
+```
+
+This is not a family of the openai/math release. It was built after a claimed
+proof of RH and GRH (alpo.ge/remark.pdf, 2026-11-20, "working with Claude")
+went round Bluesky. It explains RH, computes it, gives a history of attempts,
+and states plainly what has been checked about the claim. The landing links
+it with a hand-written card above the built pages, because `build.mjs` only
+knows release families. Family 003 (quasi-RH, Re s > 7/8) is its nearest
+relative and is cross-linked.
+
+- **The engine is `riemann/riemann.js`**, imported by the page and the
+  selftest. ζ uses Euler–Maclaurin with 20 Bernoulli terms, and N is chosen
+  so |s + 40| ≤ πN, so every term shrinks about 4×. Below Re s = −½ it goes
+  through the functional equation. θ comes from complex log Γ (Stirling
+  after shifting Re z ≥ 12) with principal logs, which makes θ continuous
+  rather than wrapped. Z(t) = Re(e^{iθ} ζ(½+it)).
+- **The selftest is independent where it can be.** It checks known values
+  (ζ(2), ζ(3), ζ(½), ζ(−1), trivial zeros), the functional equation at 40
+  random points, θ against its asymptotic series, Im(e^{iθ}ζ) = 0 along the
+  line, the first ten zeros against Odlyzko to 1e-9, N(100) = 29 and
+  N(1000) = 649, and the count against θ(T)/π + 1 at every gap. It also
+  checks that `zeros.js` is byte-for-byte what the engine finds. Zeros come
+  from sign changes at step 0.05, refined by bisection. The step is well
+  under the closest pair below 1000, and a miss would show as 648.
+- **The explicit formula** uses the ψ₀ convention (half the jump at a prime
+  power). With 649 zeros the mean error on [10, 100] is about 0.06.
+- **The classical zero-free region** is drawn with the shape σ > 1 − 1/(R log t)
+  and R = 5.558691 (Mossinghoff–Trudgian–Yang). The 7/8 band is family
+  003's *claim*, drawn in the claim colour.
+- **`audit.json` is a static read of the claim's Lean archive** (14 parts,
+  about 240 MB compressed and 1.4 GB unpacked: 175,187 files and 17.4M lines,
+  Lean v4.33.1, Mathlib pinned). `audit.mjs` reads text only. Nothing from
+  the archive was built or run; it is third-party, so keep it that way. The
+  archive is **not** vendored. Findings: `Main.lean` proves
+  `riemannHypothesis : RiemannHypothesis` (Mathlib's definition) plus four
+  GRH statements in `Statements.lean`, which imports only Mathlib. There are
+  zero `axiom`, `sorry`, `admit`, `native_decide`, `implemented_by`,
+  `extern`, `opaque` or `unsafe` uses. Custom tactics (`kexactB`, `kcopy`)
+  and an `addDecl`-based copier exist, but they all pass terms to the
+  kernel. The `run_cmd` lines only edit a library-suggestion deny list.
+- **The page must keep saying "unverified"** until someone reports a build
+  with `#print axioms` and an independent replay. Once that happens, update
+  the 2026 tab, the timeline's last entry and the tagline together. Do not
+  add RH to `/conjectures/` as solved before it is accepted.

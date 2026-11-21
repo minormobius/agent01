@@ -2,7 +2,7 @@ name: Deploy proofs (openai/math release index + interactive pages)
 
 on:
   push:
-    branches: ['claude/3d-einstein-tile-math-n4t93d']
+    branches: ['claude/brave-allen-3un2fh']
     paths:
       - 'proofs/**'
       - '.github/workflows/deploy-proofs.yml'

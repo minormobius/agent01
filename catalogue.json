@@ -4505,6 +4505,23 @@
       ]
     },
     {
+      "n": "riemann",
+      "u": "https://proofs.mino.mobi/riemann/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-21",
+      "b": "2026-11-21",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "What the Riemann hypothesis says and why the primes care: the critical strip, Hardy's Z function and the first 649 zeros computed in your browser, and the prime staircase rebuilt from zeros alone. A timeline of 167 years of partial results, computations and claimed proofs, ending with the November 2026 announcement of a proof found with Claude and formalized in Lean, plus a static audit of that 17-million-line archive and what still has to be checked.",
+      "tags": [
+        "svg",
+        "math",
+        "selftest"
+      ]
+    },
+    {
       "n": "crossing",
       "u": "https://proofs.mino.mobi/crossing/",
       "c": "data",

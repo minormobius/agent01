@@ -140,7 +140,7 @@ footer { margin-top: 2rem; padding-top: 0.8rem; border-top: 1px solid var(--rule
 
   // ---------------------------------------------------------- featured ---
   const built = P.families.filter((f) => f.page);
-  $('featured').innerHTML = built.map((f) => `<a class="feat" href="./${esc(f.page)}"><div class="k">family ${f.id} · ${esc(P.disciplines[f.disc])}${f.lean ? ' · Lean' : ''}</div><div class="t">${esc(f.t)}</div><div class="d">${esc(f.d)}</div></a>`).join('') +
+  $('featured').innerHTML = `<a class="feat" href="./riemann/"><div class="k">not in the release · Nov 2026 · claimed in Lean</div><div class="t">The Riemann hypothesis</div><div class="d">What it says and why primes care, with zeros computed live and the prime staircase rebuilt from them. Then 167 years of attempts, and what is (and isn't) known about the November 2026 Lean claim.</div></a>` + built.map((f) => `<a class="feat" href="./${esc(f.page)}"><div class="k">family ${f.id} · ${esc(P.disciplines[f.disc])}${f.lean ? ' · Lean' : ''}</div><div class="t">${esc(f.t)}</div><div class="d">${esc(f.d)}</div></a>`).join('') +
     `<div class="feat" style="border-style:dashed;background:none"><div class="k">next</div><div class="t">${P.families.filter((f) => f.tier === 'A' && !f.page).length} more tier-A results</div><div class="d">Filter the list to A to see them, each with the computation its page would run.</div></div>`;
 
   // -------------------------------------------------- discipline bars ---

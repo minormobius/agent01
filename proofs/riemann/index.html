@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>riemann — where are the zeros?</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="What the Riemann hypothesis says and why primes care, computed live: Hardy's Z function, the first 649 zeros, and the prime staircase rebuilt from them. Then 167 years of attempts, and the November 2026 claim of a proof made with Claude and checked in Lean. What is in that Lean archive, and what has not been checked yet.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4;
+  --claim: #eb6834; --claim-faint: rgba(235,104,52,0.16);
+  --good: #1f7a3f; --good-faint: rgba(31,122,63,0.16); --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211;
+    --claim: #d95926; --claim-faint: rgba(217,89,38,0.2);
+    --good: #6ec48f; --good-faint: rgba(110,196,143,0.16); --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: var(--serif); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+.head { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top)); }
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+.score { padding: 0.45rem 0.8rem 0; font-family: var(--mono); display: flex; gap: 1.2rem; flex-wrap: wrap; align-items: baseline; }
+.score .big { font-size: 1.35rem; font-weight: 700; line-height: 1.1; }
+.score .lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.04em; }
+.view { display: none; flex: 1 1 0; min-height: 0; flex-direction: column; }
+.view.on { display: flex; }
+.chart { flex: 1 1 0; min-height: 0; padding: 0.3rem 0.6rem 0.5rem; position: relative; }
+.chart svg { width: 100%; height: 100%; display: block; }
+.chart svg text { font-family: var(--mono); fill: var(--muted); }
+.card { position: absolute; left: 0.8rem; right: 0.8rem; bottom: 0.6rem; background: var(--bg); border: 1px solid var(--rule); border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.8rem; display: none; }
+.card.on { display: block; }
+.card .k { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.checks { padding: 0.6rem 0.9rem; overflow-y: auto; flex: 1 1 0; min-height: 0; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 0.45rem; margin-bottom: 0.8rem; }
+.tile { border: 1px solid var(--rule); border-radius: 7px; padding: 0.45rem 0.6rem; background: var(--bg); }
+.tile .v { font-family: var(--mono); font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
+.tile .l { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+ul.list { list-style: none; padding: 0; margin: 0; font-size: 0.82rem; }
+ul.list li { padding: 0.35rem 0 0.35rem 1.6rem; border-bottom: 1px solid var(--rule); position: relative; }
+ul.list li::before { position: absolute; left: 0.2rem; top: 0.33rem; font-family: var(--mono); font-weight: 700; }
+ul.list li.y::before { content: "✓"; color: var(--good); }
+ul.list li.n::before { content: "·"; color: var(--claim); font-size: 1.3rem; top: 0; }
+ul.list li.x::before { content: "?"; color: var(--claim); }
+ul.list small { display: block; color: var(--muted); font-size: 0.72rem; }
+
+nav.tabs { display: flex; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab { flex: 1 1 0; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted); padding: 0.55rem 0.1rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+.knob { display: grid; grid-template-columns: 4.6rem 1fr 3.6rem; align-items: center; gap: 0.4rem; margin: 0.1rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.66rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.4rem; }
+button.act { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.42rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.act:hover { border-color: var(--accent); color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-family: var(--mono); font-size: 0.58rem; color: var(--muted); margin-top: 0.45rem; }
+.legend i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -0.1rem; margin-right: 0.3rem; }
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose code, pre { font-family: var(--mono); font-size: 0.7rem; }
+.prose blockquote { margin: 0.5rem 0; padding: 0.2rem 0 0.2rem 0.7rem; border-left: 3px solid var(--rule); color: var(--muted); font-style: italic; }
+.prose .eq { font-family: var(--serif); font-size: 0.95rem; text-align: center; margin: 0.55rem 0; }
+pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.5rem 0.6rem; overflow-x: auto; line-height: 1.4; white-space: pre; }
+.warn { border: 1px solid var(--claim); background: var(--claim-faint); border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.8rem; margin: 0.5rem 0; }
+.hist { list-style: none; padding: 0; margin: 0; }
+.hist li { padding: 0.4rem 0; border-bottom: 1px solid var(--rule); font-size: 0.82rem; cursor: pointer; }
+.hist li.sel { background: var(--accent-tint); }
+.hist .y { font-family: var(--mono); font-size: 0.66rem; font-weight: 700; margin-right: 0.4rem; }
+.hist .tag { font-family: var(--mono); font-size: 0.54rem; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 3px; padding: 0.05rem 0.3rem; margin-left: 0.3rem; vertical-align: 0.05rem; }
+.tag.theory { background: var(--accent-faint); color: var(--accent); }
+.tag.computation { background: var(--good-faint); color: var(--good); }
+.tag.claim { background: var(--claim-faint); color: var(--claim); }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+@media (min-width: 860px) {
+  .app { flex-direction: row; } .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 29rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; } .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
+      <h1>riemann</h1>
+      <span class="tagline">open since 1859 · a Lean proof claimed Nov 2026, unverified</span>
+    </div>
+    <div class="stage">
+      <div class="view on" id="v-strip">
+        <div class="score">
+          <div><div class="big" id="sZeros">—</div><div class="lbl">zeros drawn, all on the line</div></div>
+          <div><div class="big" id="sErr">—</div><div class="lbl" id="sErrL">prime-count error if no zeros right of σ</div></div>
+        </div>
+        <div class="chart"><svg id="strip" role="img" aria-label="the critical strip with the zeros of zeta"></svg><div class="card" id="stripCard"></div></div>
+      </div>
+      <div class="view" id="v-z">
+        <div class="score">
+          <div><div class="big" id="zCount">—</div><div class="lbl">zeros with 0 &lt; t ≤ T, counted</div></div>
+          <div><div class="big" id="zSmooth">—</div><div class="lbl">θ(T)/π + 1, the predicted count</div></div>
+        </div>
+        <div class="chart"><svg id="zplot" role="img" aria-label="Hardy's Z function"></svg></div>
+      </div>
+      <div class="view" id="v-psi">
+        <div class="score">
+          <div><div class="big" id="pK">—</div><div class="lbl">zeros used</div></div>
+          <div><div class="big" id="pErr">—</div><div class="lbl">mean |ψ − rebuilt| on the chart</div></div>
+        </div>
+        <div class="chart"><svg id="pplot" role="img" aria-label="Chebyshev psi rebuilt from zeros"></svg></div>
+      </div>
+      <div class="view" id="v-time">
+        <div class="chart"><svg id="timeline" role="img" aria-label="timeline of attempts on the Riemann hypothesis"></svg><div class="card" id="timeCard"></div></div>
+      </div>
+      <div class="view" id="v-claim">
+        <div class="checks" id="claimStage">loading the audit…</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-pane="rh">what</button>
+      <button class="tab" data-pane="zeros">zeros</button>
+      <button class="tab" data-pane="primes">primes</button>
+      <button class="tab" data-pane="history">history</button>
+      <button class="tab" data-pane="claim">2026</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+
+      <div class="pane prose active" id="pane-rh">
+        <h2>The question</h2>
+        <p>The primes thin out: about 1 in 2.3 numbers near 10 is prime, about 1 in 23 near 10¹⁰. Gauss guessed the density near x is 1/log x, so the number of primes up to x should be about li(x) = ∫ dt/log t. That guess is the <b>prime number theorem</b>, proved in 1896. The Riemann hypothesis asks how <i>good</i> the guess is.</p>
+        <p>Euler noticed that primes are built into a sum over all whole numbers:</p>
+        <p class="eq">ζ(s) = 1 + 1/2ˢ + 1/3ˢ + 1/4ˢ + … = ∏<sub>p prime</sub> 1/(1 − p⁻ˢ)</p>
+        <p>In 1859 Riemann extended ζ(s) to every complex number s except 1. He found that the errors in the prime count are controlled by the places where ζ(s) = 0. There are "trivial" zeros at −2, −4, −6, …. Every other zero lies in the <b>critical strip</b> 0 &lt; Re s &lt; 1, the shaded band in the picture, and they come in mirror pairs about the line Re s = ½.</p>
+        <h2>The hypothesis</h2>
+        <p class="eq"><b>Every non-trivial zero of ζ has real part exactly ½.</b></p>
+        <p>Riemann called it "very probable" and moved on. Each dot in the picture is a zero ½ + iγ that has actually been computed (this page computes them in your browser; tap one). Every zero up to height 3 × 10¹², about twelve trillion of them, is on the line. Being on the line is equivalent to the best possible error term, a statement about primes with no complex numbers in it:</p>
+        <p class="eq">|π(x) − li(x)| ≤ √x · log x / 8π &nbsp; for x ≥ 2657</p>
+        <p>(von Koch 1901 gave the equivalence; the explicit constant is Schoenfeld's, 1976.)</p>
+        <h2>Play: how much does the line matter?</h2>
+        <p>Suppose we only knew there were no zeros to the right of Re s = σ. Then π(x) = li(x) + O(x<sup>σ</sup> log x). Slide σ to see the error at x = 10¹² (about 3.8 × 10¹⁰ primes).</p>
+        <div class="knob"><label for="kSig">σ</label><input type="range" id="kSig" min="0.5" max="1" step="0.005" value="0.875"><output id="oSig">7/8</output></div>
+        <div class="knob"><label for="kT">height T</label><input type="range" id="kT" min="20" max="1000" step="1" value="60"><output id="oT">60</output></div>
+        <div class="row"><button class="act" data-sig="1">σ = 1 (1896)</button><button class="act" data-sig="0.875">7/8 (claimed Sep 2026)</button><button class="act" data-sig="0.5">½ (RH)</button></div>
+        <div class="legend">
+          <span><i style="background:var(--accent)"></i>computed zero</span>
+          <span><i style="background:var(--good-faint);border:1px solid var(--good)"></i>proved zero-free</span>
+          <span><i style="background:var(--claim-faint);border:1px solid var(--claim)"></i>claimed zero-free, 2026</span>
+        </div>
+        <p>The green sliver along Re s = 1 is everything that has been proved unconditionally about where zeros cannot be. It gets thinner as t grows, like 1/(5.56 log t). The orange half-plane Re s &gt; 7/8 is the <a href="../#003">quasi-Riemann hypothesis</a> claimed in the 2026 openai/math release, with a Lean proof. If it holds up, it is the first zero-free half-plane ever. The functional equation mirrors everything onto the left of the strip.</p>
+        <h2>Generalized</h2>
+        <p>Every Dirichlet character χ has its own L-function L(s, χ), and the <b>Generalized Riemann Hypothesis</b> says all their non-trivial zeros are on the line too. GRH controls primes in arithmetic progressions: how soon the first prime ≡ a mod q appears, and how fast primality tests can be made. A great deal of modern number theory is proved "assuming GRH".</p>
+        <h2>Why it's famous</h2>
+        <p>It is the only problem on both Hilbert's 1900 list (number 8) and the Clay Institute's 2000 Millennium list (with a $1,000,000 prize). Thousands of theorems begin "if RH is true…".</p>
+      </div>
+
+      <div class="pane" id="pane-zeros">
+        <div class="knob"><label for="kZ0">from t =</label><input type="range" id="kZ0" min="0" max="960" step="1" value="0"><output id="oZ0">0</output></div>
+        <div class="knob"><label for="kZw">width</label><input type="range" id="kZw" min="5" max="120" step="1" value="50"><output id="oZw">50</output></div>
+        <div class="row">
+          <button class="act" id="bClose">closest pair below 1000</button>
+          <button class="act" id="bPeak">tallest peak below 1000</button>
+          <button class="act" id="bFirst">first zeros</button>
+        </div>
+        <div class="prose">
+          <h2>Hardy's Z function</h2>
+          <p>On the critical line ζ(½ + it) is complex, but it can be rotated to be real: Z(t) = e<sup>iθ(t)</sup> ζ(½ + it), where θ is the Riemann–Siegel theta function. |Z(t)| = |ζ(½ + it)|, so every sign change of Z is a zero <b>exactly on the line</b>. That is how every zero ever "verified" was verified: you find sign changes and count them.</p>
+          <p>Counting is where the hypothesis enters. Riemann–von Mangoldt says the number of zeros in the whole strip up to height T is θ(T)/π + 1 + S(T), with S(T) small. If the sign changes on the line account for that whole count, then no zero up to T is off the line. Below 1000 this page finds all 649. Turing turned the idea into a rigorous method in 1953.</p>
+          <h2>Watch for</h2>
+          <p>The zeros repel each other. Close pairs are rare, and between them Z barely dips across the axis ("Lehmer's phenomenon"). A pair that failed to cross would be a pair of zeros off the line. The tallest peaks sit in unusually wide gaps.</p>
+          <p id="zinfo" class="note"></p>
+          <h2>How it's computed</h2>
+          <p>ζ comes from Euler–Maclaurin summation with 20 Bernoulli terms. θ comes from log Γ, by Stirling's series after shifting. Both are in <code>riemann.js</code>, held to ζ(2), ζ(3), ζ(½), the functional equation, the first ten tabulated zeros, and the counts N(100) = 29 and N(1000) = 649 by a 1776-check selftest.</p>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-primes">
+        <div class="knob"><label for="kK">zeros</label><input type="range" id="kK" min="0" max="649" step="1" value="10"><output id="oK">10</output></div>
+        <div class="knob"><label for="kX">x up to</label><input type="range" id="kX" min="20" max="400" step="1" value="100"><output id="oX">100</output></div>
+        <div class="row"><button class="act" id="bPlay">play: add zeros</button><button class="act" id="bNone">no zeros</button><button class="act" id="bAll">all 649</button></div>
+        <div class="legend">
+          <span><i style="background:var(--fg)"></i>ψ(x), counted from primes</span>
+          <span><i style="background:var(--accent)"></i>rebuilt from zeros alone</span>
+        </div>
+        <div class="prose">
+          <h2>The explicit formula</h2>
+          <p>Count each prime power pᵏ ≤ x with weight log p, and call the total ψ(x). It is a staircase that climbs by log p at every prime power. Riemann's explicit formula writes it as a smooth curve plus one wave per zero:</p>
+          <p class="eq">ψ(x) = x − Σ<sub>ρ</sub> x<sup>ρ</sup>/ρ − log 2π − ½ log(1 − x⁻²)</p>
+          <p>Each zero ρ = ½ + iγ adds a wave of frequency γ in log x, with amplitude √x/|ρ|. Add them, and the corners of the staircase appear at exactly the primes. With no zeros you get the straight line x. With 649 the staircase is sharp to within a fraction of a step.</p>
+          <p>The amplitudes are √x only <i>because</i> Re ρ = ½. A single zero at β + iγ with β &gt; ½ would add a wave growing like x<sup>β</sup>, and the primes would show irregularities bigger than √x forever. That is the precise sense in which RH says "the primes are as regular as they can be".</p>
+          <p>The rebuilt curve uses only the 649 zeros below 1000, which this page computed, and no primes at all.</p>
+        </div>
+      </div>
+
+      <div class="pane prose" id="pane-history">
+        <h2>167 years</h2>
+        <p>Three kinds of progress: <span class="tag theory">theory</span> partial theorems, <span class="tag computation">computation</span> zeros checked by machine, and <span class="tag claim">claim</span> announced proofs of the whole thing. Tap a dot or a line.</p>
+        <ul class="hist" id="histList"></ul>
+        <p class="note" style="font-size:0.75rem;color:var(--muted)">Dates are first announcement or preprint where that differs from publication. Claimed proofs listed here are the prominent ones. Many more have been posted over the years, and none before 2026 was accepted.</p>
+      </div>
+
+      <div class="pane prose" id="pane-claim">
+        <h2>20 November 2026</h2>
+        <p>A mathematician posted a four-page note, <a href="https://alpo.ge/remark.pdf">alpo.ge/remark.pdf</a>, which opens:</p>
+        <blockquote>I believe I have, working with Claude, discovered a proof of the Riemann Hypothesis. In fact, the method easily extends much further, resolving the so-called Generalized Riemann Hypothesis… Claude and I have also formalized the arguments without assumptions.</blockquote>
+        <p>There is no paper. The author says a full write-up ran past 250,000 pages and chose not to post it, so the evidence is a Lean project in fourteen parts (<code>lean.tar.gz.part01…14</code>). The note says that "Claude far outpaced me near the finish line", and that the author does not yet understand every part.</p>
+        <div class="warn">Not verified. No refereed paper, and no independent build of the Lean project has been reported that we have seen. Treat this as an announcement.</div>
+        <h2>The idea, as the note tells it</h2>
+        <p><b>Start where RH is already a theorem.</b> For curves over finite fields, the analogue of RH was proved by Weil (1948). In 1969 Stepanov found an elementary proof: build an auxiliary polynomial that vanishes to <i>high multiplicity</i> at every point you want to count. Then a degree bound caps the count, and the cap is the √q error term.</p>
+        <p><b>The obstacle.</b> Over the integers there is no obvious notion of multiplicity. It would mean something like "differentiating whole numbers", and it is the standard reason the method was thought not to transfer.</p>
+        <p><b>The claimed trick.</b> Fake the multiplicity with automorphic forms. Each <i>theta lift</i> carries an automorphic form from one unitary group to a bigger one, and the note says each lift buys one more order of vanishing. A chain of about √X lifts is used for a prime sum of length X. Around that come the Guinand–Weil explicit formula, Iwasawa towers, Bessel periods and a weakened Vandiver conjecture. The timeline in the note runs from 6 October to "11/16/26: GRH."</p>
+        <p>This paraphrases the note. We cannot assess the argument, and the note warns that some of its own summaries are a model's paraphrase.</p>
+        <h2>What we checked in the Lean</h2>
+        <p>We downloaded all fourteen parts (240 MB compressed, 1.4 GB unpacked) and read them as text. We did <b>not</b> build them. The stage on the left shows the numbers. The headline theorem is</p>
+        <pre id="mainLean">…</pre>
+        <p>and <code>RiemannHypothesis</code> is <b>Mathlib's own definition</b>, not one made up inside the project. The project restates it word for word as</p>
+        <pre id="stmtLean">…</pre>
+        <p>That matters because the commonest way a formal "proof" goes wrong is by proving a different statement. This one, at least, says the right thing.</p>
+        <p>A Lean proof is only as good as its axioms and the kernel that checked it. A text search finds no new <code>axiom</code>, no <code>sorry</code>, no <code>native_decide</code> and no kernel bypasses. There is some metaprogramming (custom tactics, and one command that copies declarations), and those still hand their terms to the kernel. Nobody can read 17 million lines, though, so a search like this only sorts the archive into "worth building" and "not worth building". It is worth building.</p>
+        <h2>What would settle it</h2>
+        <p>Build it with the pinned toolchain and Mathlib, run <code>#print axioms riemannHypothesis</code>, which should list only <code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code>, and replay the result with an independent checker. That is days of machine time, not years of refereeing, which is new in the history of this problem. Then comes the human part: understanding why it is true.</p>
+        <h2>The reaction</h2>
+        <p>"riemann" was the most distinctive word of the day in our <a href="https://bisk.mino.mobi/">bisk</a> Bluesky digest. Reactions split three ways: awe, jokes about AI-induced delusion, and the point that this author has a track record. One reply asked for exactly the step above: "I would love to see these tagged with … iterated adversarial review … until cold-context reviewers were convinced."</p>
+        <p class="crossref">see also <a href="../#003">003 quasi-RH (Re s &gt; 7/8)</a> · <a href="../">all 372 results</a></p>
+      </div>
+
+      <div class="pane prose" id="pane-about">
+        <h2>What this page checks</h2>
+        <p><code>node proofs/riemann/riemann.selftest.mjs</code> (0.8 s, 1776 checks): ζ at 2, 3, 4, 0, −1, −3, ½ and its trivial zeros; the functional equation at 40 random complex points; θ against its asymptotic series; Z(t) real to 10⁻¹⁰ along the line; the first ten zeros against Odlyzko's tables to 10⁻⁹; N(100) = 29 and N(1000) = 649; the count against θ(T)/π + 1 at every gap; and that the zero list this page loads is exactly what the engine finds. The explicit formula is held to a mean error under 0.1 on [10, 100].</p>
+        <p><code>node proofs/riemann/audit.mjs --src &lt;lean dir&gt;</code> produces <code>audit.json</code>, the static read of the 2026 archive. It reads text and runs nothing from the archive.</p>
+        <h2>What it cannot check</h2>
+        <p>Computing zeros proves nothing about RH beyond the height computed. Rigorous verification needs interval arithmetic and Turing's method, which this page doesn't do: a missed close pair would show up as a count of 648, so the count is the honest part. The Lean archive was not built or run here.</p>
+        <h2>Sources</h2>
+        <p>Riemann 1859; Edwards, <i>Riemann's Zeta Function</i> (1974); Titchmarsh, <i>The Theory of the Riemann Zeta-Function</i> (2nd ed., Heath-Brown); Odlyzko's zero tables; Bombieri's Clay problem description; the papers named in the history. The 2026 note and archive are at alpo.ge. Family 003 is from <a href="https://github.com/openai/math">openai/math</a> (Apache-2.0). Not affiliated with either.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as R from './riemann.js';
+import { ZEROS } from './zeros.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const size = (svg) => { const r = svg.getBoundingClientRect(); const w = Math.max(200, r.width), h = Math.max(160, r.height); svg.setAttribute('viewBox', `0 0 ${w} ${h}`); return [w, h]; };
+const sup = (n) => String(n).replace(/[0-9.-]/g, (c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'['0123456789'.indexOf(c)] ?? (c === '-' ? '⁻' : '·'));
+const sci = (v) => { const e = Math.floor(Math.log10(v)); const m = v / 10 ** e; return `${m.toFixed(1)}×10${sup(e)}`; };
+
+// ------------------------------------------------------------ tabs ---
+const VIEW = { rh: 'v-strip', zeros: 'v-z', primes: 'v-psi', history: 'v-time', claim: 'v-claim', about: 'v-strip' };
+let current = 'rh';
+document.querySelectorAll('.tab').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('active', x === b));
+  current = b.dataset.pane;
+  document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.id === 'pane-' + current));
+  document.querySelectorAll('.view').forEach((v) => v.classList.toggle('on', v.id === VIEW[current]));
+  draw();
+});
+
+// ------------------------------------------------------ the strip ---
+const st = { sigma: 0.875, T: 60, pick: null };
+function drawStrip() {
+  const svg = $('strip'), [W, H] = size(svg);
+  const pad = { l: 34, r: 10, t: 16, b: 22 };
+  const s0 = -0.12, s1 = 1.12;
+  const X = (s) => pad.l + (s - s0) / (s1 - s0) * (W - pad.l - pad.r);
+  const Y = (t) => H - pad.b - t / st.T * (H - pad.t - pad.b);
+  const acc = css('--accent'), good = css('--good'), claim = css('--claim'), rule = css('--rule'), fg = css('--fg');
+  let g = '';
+  g += `<rect x="${X(0)}" y="${pad.t}" width="${X(1) - X(0)}" height="${H - pad.t - pad.b}" fill="${css('--accent-tint')}"/>`;
+  // claimed 7/8 half-plane and its mirror
+  g += `<rect x="${X(7 / 8)}" y="${pad.t}" width="${X(1) - X(7 / 8)}" height="${H - pad.t - pad.b}" fill="${css('--claim-faint')}"/>`;
+  g += `<rect x="${X(0)}" y="${pad.t}" width="${X(1 / 8) - X(0)}" height="${H - pad.t - pad.b}" fill="${css('--claim-faint')}" opacity="0.6"/>`;
+  // classical zero-free region (t ≥ 2) and its mirror
+  let right = `M${X(1)},${Y(2)}`, left = `M${X(0)},${Y(2)}`;
+  for (let i = 0; i <= 80; i++) { const t = 2 + (st.T - 2) * i / 80, e = R.classicalEdge(t); right += ` L${X(e)},${Y(t)}`; left += ` L${X(1 - e)},${Y(t)}`; }
+  g += `<path d="${right} L${X(1)},${Y(st.T)} Z" fill="${css('--good-faint')}" stroke="${good}" stroke-width="1"/>`;
+  g += `<path d="${left} L${X(0)},${Y(st.T)} Z" fill="${css('--good-faint')}" stroke="${good}" stroke-width="1" opacity="0.6"/>`;
+  // axes and lines
+  for (const s of [0, 1]) g += `<line x1="${X(s)}" x2="${X(s)}" y1="${pad.t}" y2="${H - pad.b}" stroke="${fg}" stroke-width="1"/>`;
+  g += `<line x1="${X(0.5)}" x2="${X(0.5)}" y1="${pad.t}" y2="${H - pad.b}" stroke="${acc}" stroke-dasharray="3 3"/>`;
+  g += `<line x1="${X(st.sigma)}" x2="${X(st.sigma)}" y1="${pad.t}" y2="${H - pad.b}" stroke="${claim}" stroke-width="2"/>`;
+  g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${H - pad.b}" y2="${H - pad.b}" stroke="${rule}"/>`;
+  for (const [s, l] of [[0, '0'], [0.5, '½'], [7 / 8, '⅞'], [1, '1']]) g += `<text x="${X(s)}" y="${H - 6}" font-size="10" text-anchor="middle">${l}</text>`;
+  g += `<text x="${X(st.sigma)}" y="${pad.t - 4}" font-size="10" text-anchor="middle" style="fill:${claim}">σ</text>`;
+  const step = st.T <= 80 ? 10 : st.T <= 300 ? 50 : 100;
+  for (let t = step; t <= st.T; t += step) g += `<text x="${pad.l - 4}" y="${Y(t) + 3}" font-size="9" text-anchor="end">${t}</text>`;
+  g += `<text x="${pad.l - 4}" y="${pad.t - 4}" font-size="9" text-anchor="end">t</text>`;
+  // zeros
+  const zs = ZEROS.filter((z) => z <= st.T);
+  const r = Math.max(1.4, Math.min(5, (H - pad.t - pad.b) / st.T * 0.9));
+  zs.forEach((z, i) => { g += `<circle data-i="${i}" cx="${X(0.5)}" cy="${Y(z)}" r="${st.pick === i ? r + 2.5 : r}" fill="${acc}" style="cursor:pointer"/>`; });
+  // invisible wider hit target for taps
+  g += `<rect id="hit" x="${X(0.5) - 18}" y="${pad.t}" width="36" height="${H - pad.t - pad.b}" fill="transparent" style="cursor:pointer"/>`;
+  svg.innerHTML = g;
+  svg.querySelector('#hit').onclick = (ev) => {
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const t = (H - pad.b - p.y) / (H - pad.t - pad.b) * st.T;
+    let best = 0; zs.forEach((z, i) => { if (Math.abs(z - t) < Math.abs(zs[best] - t)) best = i; });
+    st.pick = best; drawStrip();
+    const c = $('stripCard'); c.classList.add('on');
+    c.innerHTML = `<div class="k">zero #${best + 1}</div>ρ = ½ + ${zs[best].toFixed(9)} i &nbsp;·&nbsp; |Z| there: ${Math.abs(R.Z(zs[best])).toExponential(1)}<br><span style="color:var(--muted);font-size:0.75rem">Its mirror ½ − ${zs[best].toFixed(3)} i is a zero too. Tap elsewhere on the line for another.</span>`;
+  };
+  $('sZeros').textContent = zs.length;
+  const x = 1e12, err = x ** st.sigma * Math.log(x);
+  $('sErr').textContent = sci(err);
+  $('sErrL').textContent = `error scale x^σ·log x at x = 10¹², σ = ${st.sigma.toFixed(3)} (there are 3.8×10¹⁰ primes below 10¹²)`;
+}
+const fracName = (s) => ({ 1: '1', 0.875: '7/8', 0.5: '½' }[s] ?? s.toFixed(3));
+$('kSig').oninput = (e) => { st.sigma = +e.target.value; $('oSig').textContent = fracName(st.sigma); drawStrip(); };
+$('kT').oninput = (e) => { st.T = +e.target.value; $('oT').textContent = st.T; st.pick = null; $('stripCard').classList.remove('on'); drawStrip(); };
+document.querySelectorAll('[data-sig]').forEach((b) => b.onclick = () => { st.sigma = +b.dataset.sig; $('kSig').value = st.sigma; $('oSig').textContent = fracName(st.sigma); drawStrip(); });
+
+// ------------------------------------------------------ Z(t) ---
+const zs = { t0: 0, w: 50 };
+const zCache = new Map();
+function drawZ() {
+  const svg = $('zplot'), [W, H] = size(svg);
+  const pad = { l: 36, r: 10, t: 10, b: 22 };
+  const a = Math.max(0.5, zs.t0), b = zs.t0 + zs.w;
+  const n = Math.min(1400, Math.max(300, Math.round(W * 1.5)));
+  const key = `${a}|${b}|${n}`;
+  let pts = zCache.get(key);
+  if (!pts) { pts = []; for (let i = 0; i <= n; i++) { const t = a + (b - a) * i / n; pts.push([t, R.Z(t)]); } zCache.clear(); zCache.set(key, pts); }
+  const m = Math.max(1, ...pts.map((p) => Math.abs(p[1]))) * 1.08;
+  const X = (t) => pad.l + (t - a) / (b - a) * (W - pad.l - pad.r);
+  const Y = (v) => pad.t + (1 - (v + m) / (2 * m)) * (H - pad.t - pad.b);
+  const acc = css('--accent'), rule = css('--rule'), fg = css('--fg');
+  let g = `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="${rule}"/>`;
+  const zIn = ZEROS.filter((z) => z >= a && z <= b);
+  for (const z of zIn) g += `<line x1="${X(z)}" x2="${X(z)}" y1="${Y(0) - 5}" y2="${Y(0) + 5}" stroke="${acc}" stroke-width="2"/>`;
+  g += `<path d="${pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="${fg}" stroke-width="1.3"/>`;
+  const ticks = 6;
+  for (let i = 0; i <= ticks; i++) { const t = a + (b - a) * i / ticks; g += `<text x="${X(t)}" y="${H - 6}" font-size="9" text-anchor="middle">${t.toFixed(b - a < 20 ? 1 : 0)}</text>`; }
+  for (const v of [-m / 1.08, 0, m / 1.08]) g += `<text x="${pad.l - 4}" y="${Y(v) + 3}" font-size="9" text-anchor="end">${v.toFixed(1)}</text>`;
+  g += `<text x="${pad.l + 4}" y="${pad.t + 10}" font-size="10">Z(t)</text>`;
+  svg.innerHTML = g;
+  const count = ZEROS.filter((z) => z <= b).length;
+  $('zCount').textContent = count;
+  $('zSmooth').textContent = R.Nsmooth(b).toFixed(2);
+  $('zinfo').textContent = `In view: ${zIn.length} zeros between t = ${a.toFixed(1)} and ${b.toFixed(1)}. Counted up to T = ${b.toFixed(1)}: ${count}; the smooth prediction ${R.Nsmooth(b).toFixed(2)}. The difference is S(T), which stays small.`;
+}
+const setZ = (t0, w) => { zs.t0 = Math.max(0, Math.min(960, t0)); zs.w = w; $('kZ0').value = Math.round(zs.t0); $('kZw').value = w; $('oZ0').textContent = zs.t0.toFixed(0); $('oZw').textContent = w; drawZ(); };
+$('kZ0').oninput = (e) => setZ(+e.target.value, zs.w);
+$('kZw').oninput = (e) => setZ(zs.t0, +e.target.value);
+$('bFirst').onclick = () => setZ(0, 50);
+$('bClose').onclick = () => { let bi = 1; for (let i = 1; i < ZEROS.length; i++) if (ZEROS[i] - ZEROS[i - 1] < ZEROS[bi] - ZEROS[bi - 1]) bi = i; const mid = (ZEROS[bi] + ZEROS[bi - 1]) / 2; setZ(mid - 3, 6); $('zinfo').textContent += ` Closest pair: ${ZEROS[bi - 1].toFixed(4)} and ${ZEROS[bi].toFixed(4)}, gap ${(ZEROS[bi] - ZEROS[bi - 1]).toFixed(4)}.`; };
+$('bPeak').onclick = () => { let bi = 1; for (let i = 1; i < ZEROS.length; i++) if (ZEROS[i] - ZEROS[i - 1] > ZEROS[bi] - ZEROS[bi - 1]) bi = i; const mid = (ZEROS[bi] + ZEROS[bi - 1]) / 2; setZ(mid - 5, 10); $('zinfo').textContent += ` Widest gap: ${(ZEROS[bi] - ZEROS[bi - 1]).toFixed(3)}, peak |Z| ≈ ${Math.abs(R.Z(mid)).toFixed(2)}.`; };
+
+// ------------------------------------------------------ ψ(x) ---
+const ps = { K: 10, X: 100, timer: null };
+let primeCache = R.sieve(400);
+function drawPsi() {
+  const svg = $('pplot'), [W, H] = size(svg);
+  const pad = { l: 36, r: 10, t: 10, b: 22 };
+  const X0 = 1, X1 = ps.X;
+  const ymax = R.psi(X1, primeCache) * 1.1 + 2;
+  const X = (x) => pad.l + (x - X0) / (X1 - X0) * (W - pad.l - pad.r);
+  const Y = (v) => pad.t + (1 - (v + 2) / (ymax + 2)) * (H - pad.t - pad.b);
+  const acc = css('--accent'), rule = css('--rule'), fg = css('--fg');
+  let g = `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="${rule}"/>`;
+  // staircase
+  let d = `M${X(X0)},${Y(0)}`, v = 0;
+  for (let n = 2; n <= X1; n++) { const L = R.vonMangoldt(n); if (L) { d += ` L${X(n)},${Y(v)}`; v += L; d += ` L${X(n)},${Y(v)}`; } }
+  d += ` L${X(X1)},${Y(v)}`;
+  g += `<path d="${d}" fill="none" stroke="${fg}" stroke-width="1.4"/>`;
+  // explicit
+  const n = Math.min(1600, Math.round(W * 2));
+  let e = '', errSum = 0, errN = 0;
+  for (let i = 0; i <= n; i++) {
+    const x = 1.5 + (X1 - 1.5) * i / n, y = R.psiExplicit(x, ZEROS, ps.K);
+    e += `${i ? 'L' : 'M'}${X(x).toFixed(1)},${Y(Math.max(-2, Math.min(ymax, y))).toFixed(1)}`;
+    if (x > 2) { errSum += Math.abs(y - R.psi0(x)); errN++; }
+  }
+  g += `<path d="${e}" fill="none" stroke="${acc}" stroke-width="1.4" opacity="0.9"/>`;
+  for (let i = 0; i <= 5; i++) { const x = X0 + (X1 - X0) * i / 5; g += `<text x="${X(x)}" y="${H - 6}" font-size="9" text-anchor="middle">${Math.round(x)}</text>`; }
+  for (const yv of [0, Math.round(ymax / 2), Math.round(ymax / 1.1)]) g += `<text x="${pad.l - 4}" y="${Y(yv) + 3}" font-size="9" text-anchor="end">${yv}</text>`;
+  g += `<text x="${pad.l + 4}" y="${pad.t + 10}" font-size="10">ψ(x)</text>`;
+  svg.innerHTML = g;
+  $('pK').textContent = ps.K;
+  $('pErr').textContent = (errSum / errN).toFixed(3);
+}
+const setK = (k) => { ps.K = k; $('kK').value = k; $('oK').textContent = k; drawPsi(); };
+$('kK').oninput = (e) => setK(+e.target.value);
+$('kX').oninput = (e) => { ps.X = +e.target.value; $('oX').textContent = ps.X; drawPsi(); };
+$('bNone').onclick = () => setK(0);
+$('bAll').onclick = () => setK(649);
+$('bPlay').onclick = () => {
+  if (ps.timer) { clearInterval(ps.timer); ps.timer = null; return; }
+  let k = 0; setK(0);
+  ps.timer = setInterval(() => { k = k < 40 ? k + 1 : Math.min(649, Math.round(k * 1.08)); setK(k); if (k >= 649) { clearInterval(ps.timer); ps.timer = null; } }, 90);
+};
+
+// ------------------------------------------------------ history ---
+const HIST = [
+  { y: 1737, k: 'theory', t: 'Euler\'s product', d: 'Σ 1/nˢ = ∏ 1/(1 − p⁻ˢ). The sum over all numbers factors over the primes, which is why ζ knows where they are.' },
+  { y: 1859, k: 'theory', t: 'Riemann\'s eight pages', d: '"On the number of primes less than a given magnitude": ζ extended to the complex plane, the functional equation, the explicit formula, and the remark that all non-trivial zeros are "very probably" on Re s = ½. His only paper on number theory.' },
+  { y: 1896, k: 'theory', t: 'No zeros on Re s = 1', d: 'Hadamard and de la Vallée Poussin, independently. This is exactly what the prime number theorem needs: π(x) ~ x / log x.' },
+  { y: 1899, k: 'theory', t: 'The first zero-free region', d: 'De la Vallée Poussin: no zeros with σ > 1 − c / log t. Its shape has barely changed since; this is the green sliver in the picture.' },
+  { y: 1900, k: 'theory', t: 'Hilbert\'s 8th problem', d: 'Hilbert lists RH, together with the Goldbach and twin prime conjectures, among the problems for the new century.' },
+  { y: 1901, k: 'theory', t: 'RH is a statement about primes', d: 'Von Koch: RH holds exactly when π(x) = li(x) + O(√x log x).' },
+  { y: 1903, k: 'computation', t: 'Gram: 15 zeros', d: 'J. P. Gram computes the first 15 zeros by hand. All are on the line.' },
+  { y: 1914, k: 'theory', t: 'Infinitely many on the line', d: 'Hardy proves infinitely many zeros lie on Re s = ½. The same year Littlewood shows π(x) − li(x) changes sign infinitely often, against all numerical evidence at the time.' },
+  { y: 1932, k: 'theory', t: 'Riemann had been computing', d: 'Siegel, reading Riemann\'s unpublished notes in Göttingen, finds a fast formula for ζ on the line that Riemann had used himself: the Riemann–Siegel formula, still the workhorse of every large computation.' },
+  { y: 1936, k: 'computation', t: '1,041 zeros', d: 'Titchmarsh and Comrie, with punched-card tabulating machines.' },
+  { y: 1942, k: 'theory', t: 'A positive proportion', d: 'Selberg: a fixed positive fraction of all zeros lies on the line.' },
+  { y: 1948, k: 'theory', t: 'RH where it is true', d: 'Weil proves the analogue of RH for curves over finite fields (announced 1940–41). This is the "toy" the 2026 claim works from.' },
+  { y: 1953, k: 'computation', t: 'Turing on the Mark 1', d: 'Alan Turing runs the Manchester Mark 1 up to t ≈ 1540, and invents the method that certifies a count of zeros rigorously.' },
+  { y: 1958, k: 'theory', t: 'Vinogradov–Korobov', d: 'A wider zero-free region, σ > 1 − c / (log t)^⅔ (log log t)^⅓. Still the best asymptotic shape known.' },
+  { y: 1969, k: 'theory', t: 'Stepanov\'s method', d: 'An elementary proof of RH for hyperelliptic curves: an auxiliary polynomial vanishing to high multiplicity. Bombieri extends it to all curves in 1973. The 2026 claim describes itself as a descendant.' },
+  { y: 1972, k: 'theory', t: 'Zeros behave like eigenvalues', d: 'Montgomery\'s pair correlation conjecture. Over tea at the IAS, Dyson recognises it as the statistics of random Hermitian matrices (GUE). This revives the Hilbert–Pólya hope that the zeros are the spectrum of some operator.' },
+  { y: 1974, k: 'theory', t: 'Deligne; Levinson', d: 'Deligne completes the Weil conjectures: RH for all varieties over finite fields. Levinson shows more than a third of the zeros lie on the line.' },
+  { y: 1985, k: 'computation', t: 'Mertens disproved', d: 'Odlyzko and te Riele show the Mertens conjecture, a stronger cousin that implies RH, is false. RH survives.' },
+  { y: 1987, k: 'computation', t: 'Zeros near the 10²⁰th', d: 'Odlyzko computes zeros far up the line and finds GUE statistics to great precision.' },
+  { y: 1989, k: 'theory', t: 'Two fifths', d: 'Conrey: more than 40% of the zeros lie on the line.' },
+  { y: 1999, k: 'theory', t: 'Connes\' trace formula', d: 'A reformulation of RH in noncommutative geometry, one of several programmes aimed at a spectral interpretation.' },
+  { y: 2000, k: 'theory', t: 'A million dollars', d: 'The Clay Mathematics Institute names RH one of seven Millennium Prize Problems. The same year Conrey and Li show that the positivity condition de Branges\'s approach needs fails as stated.' },
+  { y: 2004, k: 'claim', t: 'De Branges', d: 'Louis de Branges, who proved the Bieberbach conjecture in 1985, posts a claimed proof of RH, one of several since the 1980s. It was not accepted.' },
+  { y: 2004.5, k: 'computation', t: '10¹³ zeros', d: 'Gourdon and Demichel check the first ten trillion zeros, all on the line.' },
+  { y: 2018, k: 'claim', t: 'Atiyah', d: 'Sir Michael Atiyah presents a short claimed proof at the Heidelberg Laureate Forum. It is not accepted.' },
+  { y: 2018.4, k: 'theory', t: 'Barely true', d: 'Rodgers and Tao prove Newman\'s conjecture, that the de Bruijn–Newman constant Λ ≥ 0. RH is equivalent to Λ ≤ 0, so if RH is true it is only barely true. Polymath 15 shows Λ ≤ 0.22 (2019).' },
+  { y: 2021, k: 'computation', t: '3 × 10¹²', d: 'Platt and Trudgian: RH holds for every zero up to height 3 × 10¹², rigorously, with interval arithmetic.' },
+  { y: 2024, k: 'theory', t: 'Guth–Maynard', d: 'The first substantial improvement since Ingham in 1940 on how many zeros can sit off the line. Large values of Dirichlet polynomials.' },
+  { y: 2026.7, k: 'claim', t: 'Quasi-RH, with Lean', d: 'The openai/math release (family 003) claims every Dirichlet L-function has no zeros in Re s > 7/8, with a Lean proof. It would be the first zero-free half-plane. It is the orange band in the picture. See the proofs index.' },
+  { y: 2026.88, k: 'claim', t: 'RH and GRH, with Claude', d: 'A mathematician announces a proof of RH and GRH found with Claude, published only as a Lean project of about 17 million lines. Unrefereed and not yet independently built. See the 2026 tab.' },
+];
+let hpick = null;
+function drawTime() {
+  const svg = $('timeline'), [W, H] = size(svg);
+  const card = $('timeCard'), cardH = card.classList.contains('on') ? card.offsetHeight + 12 : 0;
+  const pad = { l: 12, r: 12, t: 26, b: 26 + cardH };
+  // piecewise scale: 1735–1890 compressed, 1890–2030 linear
+  const segs = [[1735, 1890, 0.16], [1890, 2030, 0.84]];
+  const X = (y) => { let x = 0; for (const [a, b, f] of segs) { if (y >= b) x += f; else if (y > a) x += f * (y - a) / (b - a); } return pad.l + x * (W - pad.l - pad.r); };
+  const lanes = { theory: 0, computation: 1, claim: 2 };
+  const laneY = (k) => pad.t + (lanes[k] + 0.5) * (H - pad.t - pad.b) / 3;
+  const col = { theory: css('--accent'), computation: css('--good'), claim: css('--claim') };
+  const rule = css('--rule');
+  let g = '';
+  for (const k in lanes) {
+    g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${laneY(k)}" y2="${laneY(k)}" stroke="${rule}"/>`;
+    g += `<text x="${pad.l}" y="${laneY(k) - 10}" font-size="9" style="fill:${col[k]}">${k}</text>`;
+  }
+  for (const y of [1750, 1850, 1900, 1925, 1950, 1975, 2000, 2025]) g += `<text x="${X(y)}" y="${H - pad.b + 16}" font-size="9" text-anchor="middle">${y}</text><line x1="${X(y)}" x2="${X(y)}" y1="${pad.t}" y2="${H - pad.b}" stroke="${rule}" stroke-dasharray="2 4"/>`;
+  HIST.forEach((h, i) => {
+    const r = hpick === i ? 8 : 5;
+    g += `<circle data-i="${i}" cx="${X(h.y)}" cy="${laneY(h.k)}" r="${r}" fill="${col[h.k]}" stroke="${css('--stage')}" stroke-width="1.5" style="cursor:pointer"/>`;
+  });
+  svg.innerHTML = g;
+  svg.querySelectorAll('circle').forEach((c) => c.onclick = () => pickHist(+c.dataset.i));
+}
+function pickHist(i) {
+  hpick = i;
+  const h = HIST[i], c = $('timeCard');
+  c.classList.add('on');
+  c.innerHTML = `<div class="k">${Math.floor(h.y)} · ${h.k}</div><b>${esc(h.t)}</b>. ${esc(h.d)}`;
+  drawTime();
+  document.querySelectorAll('#histList li').forEach((li, j) => li.classList.toggle('sel', j === i));
+}
+$('histList').innerHTML = HIST.map((h, i) => `<li data-i="${i}"><span class="y">${Math.floor(h.y)}</span><b>${esc(h.t)}</b><span class="tag ${h.k}">${h.k}</span><br>${esc(h.d)}</li>`).join('');
+document.querySelectorAll('#histList li').forEach((li) => li.onclick = () => {
+  pickHist(+li.dataset.i);
+  if (window.innerWidth < 860) document.querySelector('.stage').scrollIntoView({ behavior: 'smooth' });
+});
+
+// ------------------------------------------------------ 2026 claim ---
+fetch('./audit.json').then((r) => r.json()).then((A) => {
+  const pat = Object.fromEntries(A.patterns.map((p) => [p.pattern, p]));
+  const zero = (k) => pat[k] && pat[k].files === 0;
+  const fmt = (n) => n.toLocaleString('en-US');
+  $('mainLean').textContent = A.main.trim();
+  $('stmtLean').textContent = A.statements.split('\n\n')[1] ?? A.statements;
+  $('claimStage').innerHTML = `
+    <div class="tiles">
+      <div class="tile"><div class="v">${fmt(A.files)}</div><div class="l">Lean files</div></div>
+      <div class="tile"><div class="v">${(A.lines / 1e6).toFixed(1)}M</div><div class="l">lines of Lean</div></div>
+      <div class="tile"><div class="v">${(A.bytes / 1e9).toFixed(2)} GB</div><div class="l">of source text</div></div>
+      <div class="tile"><div class="v">${esc(A.toolchain.split(':')[1] || A.toolchain)}</div><div class="l">Lean toolchain</div></div>
+    </div>
+    <ul class="list">
+      <li class="y">The headline theorem is typed <code>RiemannHypothesis</code>, Mathlib's own definition<small>Also GRH for every Dirichlet character, as four further statements in <code>Statements.lean</code>, which imports only Mathlib.</small></li>
+      <li class="${zero('axiom') ? 'y' : 'n'}">No new <code>axiom</code> declarations<small>${pat.axiom.files} files</small></li>
+      <li class="${zero('sorry') && zero('admit') ? 'y' : 'n'}">No <code>sorry</code> or <code>admit</code><small>${pat.sorry.files + pat.admit.files} files</small></li>
+      <li class="${zero('native_decide') && zero('ofReduceBool') ? 'y' : 'n'}">No <code>native_decide</code>: nothing trusts compiled code over the kernel</li>
+      <li class="${['implemented_by', 'extern', 'opaque', 'unsafe', 'debug.skipKernelTC'].every(zero) ? 'y' : 'n'}">No <code>implemented_by</code>, <code>extern</code>, <code>opaque</code>, <code>unsafe</code>, or kernel-check switches</li>
+      <li class="x">Metaprogramming present, read by hand<small>${pat['custom elab / macro'].files} files with custom tactics or syntax, ${pat['run_cmd / run_elab'].files} with <code>run_cmd</code> (they edit a library-suggestion deny list), and ${pat.addDecl.files} that copies declarations with <code>addDecl</code>. All of it still passes terms to the kernel.</small></li>
+      ${A.notDone.map((s) => `<li class="n">Not done here: ${esc(s)}</li>`).join('')}
+      <li class="n">No human-readable paper, and no public referee report</li>
+    </ul>
+    <p style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);margin-top:0.8rem">Static read of ${esc(A.source)}, ${esc(A.auditedAt)}, by <code>audit.mjs</code>. Mathlib pinned at ${esc(A.mathlibRev.slice(0, 12))}.</p>`;
+}).catch(() => { $('claimStage').textContent = 'audit.json did not load.'; });
+
+// ------------------------------------------------------ draw ---
+function draw() {
+  if (current === 'rh' || current === 'about') drawStrip();
+  else if (current === 'zeros') drawZ();
+  else if (current === 'primes') drawPsi();
+  else if (current === 'history') drawTime();
+}
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(draw, 120); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
+draw();
+</script>
+</body>
+</html>

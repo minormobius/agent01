@@ -1,0 +1,135 @@
+{
+ "source": "alpo.ge/lean.tar.gz.part01 … part14",
+ "auditedAt": "2026-11-21",
+ "toolchain": "leanprover/lean4:v4.33.1",
+ "mathlibRev": "0df444a360eaa60ab8c11dca51a86af692955474",
+ "files": 175187,
+ "lines": 17374215,
+ "bytes": 1030531854,
+ "topLevelDirs": [
+  "BuildAid",
+  "CompanionTheory",
+  "Development",
+  "Formalism",
+  "GroundTheory",
+  "Lemmata",
+  "PositivityTheory",
+  "ReciprocityTheory",
+  "Supplements"
+ ],
+ "main": "import Statements\nimport Supplements.Kernels.MainTheoremsAll\n\ntheorem riemannHypothesis : RiemannHypothesis := rhOfAll\n\ntheorem riemannZeta_eq_zero_re : RiemannZetaZerosOnLine := rhOfAll\n\ntheorem LFunction_ne_zero_of_half_lt_re : DirichletLNonvanishingRightOfHalf := allChi\n\ntheorem LFunction_eq_zero_re : DirichletLZerosOnLine := claimAll.2.1\n\ntheorem LFunction_eq_zero_re_of_isPrimitive : PrimitiveDirichletLZerosOnLine := critAll\n",
+ "statements": "import Mathlib\n\ndef RiemannZetaZerosOnLine : Prop :=\n  ∀ s : ℂ, riemannZeta s = 0 → (¬∃ n : ℕ, s = -2 * ((n : ℂ) + 1)) → s ≠ 1 → s.re = 1 / 2\n\ndef DirichletLNonvanishingRightOfHalf : Prop :=\n  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),\n    1 / 2 < s.re → (χ ≠ 1 ∨ s ≠ 1) → DirichletCharacter.LFunction χ s ≠ 0\n\ndef DirichletLZerosOnLine : Prop :=\n  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),\n    0 < s.re → s.re < 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2\n\ndef PrimitiveDirichletLZerosOnLine : Prop :=\n  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N), χ.IsPrimitive →\n    ∀ s : ℂ, 0 < s.re → s.re < 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2\n",
+ "patterns": [
+  {
+   "pattern": "axiom",
+   "why": "a new axiom: anything can follow from it",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "sorry",
+   "why": "an unproved hole",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "admit",
+   "why": "an unproved hole (tactic form)",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "native_decide",
+   "why": "trusts compiled code instead of the kernel",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "ofReduceBool",
+   "why": "the axiom native_decide rests on",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "implemented_by",
+   "why": "swaps a definition for other code at runtime",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "extern",
+   "why": "foreign code",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "opaque",
+   "why": "a constant whose body the kernel cannot see",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "unsafe",
+   "why": "outside the kernel's guarantees",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "debug.skipKernelTC",
+   "why": "turns off kernel type checking",
+   "files": 0,
+   "examples": []
+  },
+  {
+   "pattern": "import Lean",
+   "why": "metaprogramming: harmless by itself, worth reading",
+   "files": 7,
+   "examples": [
+    "BuildAid/D1.lean",
+    "BuildAid/D2.lean",
+    "BuildAid/D3.lean",
+    "BuildAid/D4.lean",
+    "BuildAid/D5.lean",
+    "Formalism/LocalToGlobal/IndefiniteReal/HeckeNonvanishing/Imports.lean"
+   ]
+  },
+  {
+   "pattern": "addDecl",
+   "why": "adds declarations from code (still kernel-checked)",
+   "files": 1,
+   "examples": [
+    "Formalism/HermitianCurvature/HermitianCurvatureProofs/CutCptCopy.lean"
+   ]
+  },
+  {
+   "pattern": "run_cmd / run_elab",
+   "why": "runs code while compiling",
+   "files": 5,
+   "examples": [
+    "BuildAid/D1.lean",
+    "BuildAid/D2.lean",
+    "BuildAid/D3.lean",
+    "BuildAid/D4.lean",
+    "BuildAid/D5.lean"
+   ]
+  },
+  {
+   "pattern": "custom elab / macro",
+   "why": "new syntax or tactics",
+   "files": 22,
+   "examples": [
+    "Development/AbelianVarietyTheory/Definitions/GaloisGeometry/NegOnePowBoundaryTermsCancel.lean",
+    "Development/AbelianVarietyTheory/Proofs/DivisorProofs/IsProperOfFiniteType.lean",
+    "Development/AbelianVarietyTheory/Proofs/IwasawaDecomposition/RigidFrameSymmetricRatioSeries.lean",
+    "Development/AutomorphicSpectrum/Proofs/BlockDecomposition/Cup1CoboundaryMemBoundaries.lean",
+    "Development/AutomorphicSpectrum/Proofs/BlockDecomposition/ShuffleCup1FormulaPositiveDegree.lean",
+    "Development/EtaleCohomology/EtaleSheaves/ChasePf.lean"
+   ]
+  }
+ ],
+ "notDone": [
+  "build the project (lake build) and so have the kernel check every proof",
+  "run #print axioms riemannHypothesis on the built environment",
+  "replay the .olean files with an independent checker (lean4checker, or a Comparator-style challenge)"
+ ]
+}
