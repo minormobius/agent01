@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>riemann · learn — a deck you can touch</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#2a78d6">
+<meta name="description" content="The Riemann hypothesis in 17 phone-sized slides, each one a live widget, with lecture notes you pull up over it. Count primes, hunt a zero of ζ by hand, rebuild the primes from zeros, watch zeros repel, check Hasse's bound on elliptic curves, then look at what is and isn't known about the November 2026 Lean claim.">
+<style>
+:root {
+  --bg: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --faint: #8f8e87; --rule: #dcdbd6;
+  --accent: #2a78d6; --accent-faint: rgba(42,120,214,0.13); --accent-tint: rgba(42,120,214,0.06);
+  --panel: #f3f3f0; --stage: #f7f7f4; --sheet: rgba(252,252,251,0.94);
+  --claim: #eb6834; --claim-faint: rgba(235,104,52,0.16);
+  --good: #1f7a3f; --good-faint: rgba(31,122,63,0.16); --bad: #b3261e;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --peek: 200px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1a1a19; --fg: #ffffff; --muted: #c3c2b7; --faint: #8f8e87; --rule: #34332f;
+    --accent: #3987e5; --accent-faint: rgba(57,135,229,0.18); --accent-tint: rgba(57,135,229,0.08);
+    --panel: #20201e; --stage: #121211; --sheet: rgba(32,32,30,0.95);
+    --claim: #d95926; --claim-faint: rgba(217,89,38,0.2);
+    --good: #6ec48f; --good-faint: rgba(110,196,143,0.16); --bad: #e66767;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--panel); color: var(--fg); font-family: var(--serif); line-height: 1.45; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
+body { display: flex; align-items: center; justify-content: center; }
+.device { position: relative; width: 100vw; height: 100vh; height: 100dvh; background: var(--stage); overflow: hidden; display: flex; flex-direction: column; }
+@media (min-width: 720px) and (min-height: 640px) {
+  .device { width: min(410px, calc(92vh * 0.47)); height: min(880px, 92vh); border-radius: 34px; border: 1px solid var(--rule); box-shadow: 0 20px 60px rgba(0,0,0,0.12); }
+  .aside { display: block !important; }
+}
+.aside { display: none; position: fixed; left: 1.4rem; top: 1.4rem; max-width: 16rem; font-size: 0.8rem; color: var(--muted); }
+.aside a { color: var(--accent); text-decoration: none; }
+.aside .k { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.aside ol { padding-left: 1.2rem; margin: 0.5rem 0; font-size: 0.75rem; }
+.aside li { cursor: pointer; margin: 0.1rem 0; }
+.aside li.cur { color: var(--fg); font-weight: 700; }
+.aside li.done::marker { color: var(--good); }
+
+.bars { display: flex; gap: 3px; padding: calc(0.5rem + env(safe-area-inset-top)) 0.7rem 0.3rem; flex: 0 0 auto; }
+.bars i { flex: 1; height: 3px; border-radius: 2px; background: var(--rule); cursor: pointer; }
+.bars i.past { background: var(--accent); opacity: 0.55; }
+.bars i.cur { background: var(--accent); }
+.hdr { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.15rem 0.8rem 0.35rem; flex: 0 0 auto; }
+.hdr a { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.hdr .ch { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--accent); margin-left: auto; }
+
+.stage { position: relative; flex: 1 1 auto; min-height: 0; padding-bottom: var(--peek); transition: filter 0.25s; }
+.stage.dim { filter: saturate(0.4) opacity(0.5); }
+.w { position: absolute; inset: 0 0 var(--peek) 0; display: flex; flex-direction: column; }
+.w .ctl { flex: 0 0 auto; padding: 0.2rem 0.8rem 0; font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+.w .read { display: flex; gap: 1rem; flex-wrap: wrap; align-items: baseline; padding: 0.1rem 0.8rem; font-family: var(--mono); }
+.w .read b { font-size: 1.25rem; color: var(--fg); }
+.w .read span { font-size: 0.58rem; color: var(--muted); display: block; }
+.w .plot { flex: 1 1 0; min-height: 0; position: relative; padding: 0 0.4rem 0.3rem; }
+.w svg, .w canvas { width: 100%; height: 100%; display: block; }
+.w svg text { font-family: var(--mono); fill: var(--muted); }
+.knob { display: grid; grid-template-columns: 3.6rem 1fr 4rem; align-items: center; gap: 0.35rem; }
+.knob label { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.64rem; text-align: right; color: var(--fg); }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.8rem; background: none; margin: 0; touch-action: pan-y; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; margin-top: -11px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+.btns { display: flex; gap: 0.3rem; flex-wrap: wrap; margin: 0.25rem 0; }
+button.b { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.02em; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 6px; padding: 0.4rem 0.55rem; cursor: pointer; min-height: 2rem; }
+button.b.on { border-color: var(--accent); color: var(--accent); background: var(--accent-tint); }
+
+/* the notes sheet, over the widget */
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--sheet); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-top: 1px solid var(--rule); border-radius: 18px 18px 0 0; display: flex; flex-direction: column; max-height: 90%; transition: height 0.28s cubic-bezier(.2,.8,.2,1); padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
+.handle { flex: 0 0 auto; padding: 0.45rem 0 0.2rem; cursor: grab; touch-action: none; display: flex; justify-content: center; }
+.handle i { width: 2.4rem; height: 4px; border-radius: 2px; background: var(--faint); opacity: 0.6; }
+.sbody { flex: 1 1 auto; overflow-y: auto; padding: 0 1rem 0.4rem; overscroll-behavior: contain; }
+.sheet h2 { font-size: 1.15rem; margin: 0.05rem 0 0.25rem; line-height: 1.2; }
+.cap { font-size: 0.9rem; margin: 0 0 0.4rem; }
+.do { display: flex; gap: 0.45rem; align-items: flex-start; font-family: var(--mono); font-size: 0.64rem; color: var(--accent); background: var(--accent-tint); border: 1px solid var(--accent-faint); border-radius: 8px; padding: 0.4rem 0.55rem; margin: 0.2rem 0 0.45rem; }
+.do.done { color: var(--good); background: var(--good-faint); border-color: var(--good-faint); }
+.do .ic { font-weight: 700; }
+.pred { border: 1px solid var(--claim); background: var(--claim-faint); border-radius: 8px; padding: 0.45rem 0.55rem; margin: 0.2rem 0 0.45rem; font-size: 0.84rem; }
+.pred .k { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--claim); }
+.pred .opts { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.pred button { font-family: var(--serif); font-size: 0.8rem; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 6px; padding: 0.35rem 0.55rem; cursor: pointer; text-align: left; }
+.pred button.right { border-color: var(--good); background: var(--good-faint); }
+.pred button.wrong { border-color: var(--bad); opacity: 0.7; }
+.pred .why { margin-top: 0.35rem; font-size: 0.8rem; }
+.more { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: none; border: none; padding: 0.3rem 0; cursor: pointer; }
+.notes { font-size: 0.86rem; border-top: 1px solid var(--rule); margin-top: 0.3rem; padding-top: 0.2rem; }
+.notes h3 { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 0.9rem 0 0.2rem; }
+.notes p { margin: 0.4rem 0; }
+.notes .eq { text-align: center; font-size: 0.95rem; margin: 0.5rem 0; }
+.notes a { color: var(--accent); text-decoration: none; }
+.notes code, .notes pre { font-family: var(--mono); font-size: 0.68rem; }
+.notes pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; padding: 0.45rem; overflow-x: auto; }
+.sheet.full .notes { display: block; }
+.sheet:not(.full) .notes { display: none; }
+.nav { display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.8rem 0.5rem; border-top: 1px solid var(--rule); flex: 0 0 auto; }
+.nav button { font-family: var(--mono); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; background: none; border: 1px solid var(--rule); color: var(--fg); border-radius: 18px; padding: 0.45rem 0.9rem; cursor: pointer; min-height: 2.2rem; }
+.nav button.next { margin-left: auto; background: var(--accent); color: #fff; border-color: var(--accent); }
+.nav .pos { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); }
+.toast { position: absolute; left: 50%; top: 4.2rem; transform: translateX(-50%); background: var(--good); color: #fff; font-family: var(--mono); font-size: 0.62rem; padding: 0.35rem 0.7rem; border-radius: 14px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9; }
+.toast.on { opacity: 1; }
+.quiz .q { margin: 0.4rem 0 0.7rem; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; padding: 0.3rem 0.8rem; }
+.tile { border: 1px solid var(--rule); border-radius: 8px; padding: 0.4rem 0.55rem; background: var(--bg); }
+.tile .v { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; }
+.tile .l { font-family: var(--mono); font-size: 0.54rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.chk { list-style: none; margin: 0; padding: 0.2rem 0.8rem; font-size: 0.8rem; }
+.chk li { padding: 0.25rem 0 0.25rem 1.4rem; position: relative; border-bottom: 1px solid var(--rule); }
+.chk li::before { position: absolute; left: 0; font-family: var(--mono); font-weight: 700; }
+.chk li.y::before { content: "✓"; color: var(--good); }
+.chk li.n::before { content: "○"; color: var(--claim); }
+</style>
+</head>
+<body>
+<div class="aside">
+  <div class="k">riemann · learn</div>
+  <p>Seventeen slides. Each is a live widget; the notes sit over it. Pull the sheet up for the lecture, tap <b>next</b> or use ← → keys.</p>
+  <ol id="toc"></ol>
+  <p><a href="../">← the reference page</a></p>
+</div>
+<div class="device" id="device">
+  <div class="bars" id="bars"></div>
+  <div class="hdr"><a href="../">← riemann</a><span class="ch" id="ch"></span></div>
+  <div class="stage" id="stage"></div>
+  <div class="toast" id="toast">done ✓</div>
+  <div class="sheet" id="sheet">
+    <div class="handle" id="handle"><i></i></div>
+    <div class="sbody" id="sbody"></div>
+    <div class="nav"><button id="prev">←</button><span class="pos" id="pos"></span><button class="next" id="next">next →</button></div>
+  </div>
+</div>
+
+<script type="module">
+import * as R from '../riemann.js';
+import { ZEROS } from '../zeros.js';
+
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const pow10 = (e) => '10' + String(e).split('').map((c) => SUP[+c] ?? c).join('');
+
+// ----------------------------------------------------------- state ---
+const KEY = 'riemann-learn-v1';
+let S = { i: 0, done: {}, pred: {} };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.i === 'number') S = { ...S, ...s }; } catch {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+
+// ----------------------------------------------------------- data, lazily ---
+let _pi = null;     // prefix prime counts to 10⁶
+const piTable = () => {
+  if (_pi) return _pi;
+  const N = 1e6, comp = new Uint8Array(N + 1), c = new Uint32Array(N + 1);
+  let k = 0;
+  for (let i = 2; i <= N; i++) { if (!comp[i]) { k++; for (let j = i * i; j <= N; j += i) comp[j] = 1; } c[i] = k; }
+  return (_pi = c);
+};
+
+// ----------------------------------------------------------- plotting ---
+function frame(el, opts = {}) {
+  const r = el.getBoundingClientRect(), W = Math.max(200, r.width), H = Math.max(140, r.height);
+  const pad = { l: 38, r: 10, t: 8, b: 20, ...(opts.pad || {}) };
+  const [x0, x1] = opts.x, [y0, y1] = opts.y;
+  const lx = opts.logx, ly = opts.logy;
+  const fx = (v) => lx ? Math.log10(v) : v, fy = (v) => ly ? Math.log10(v) : v;
+  const X = (v) => pad.l + (fx(v) - fx(x0)) / (fx(x1) - fx(x0)) * (W - pad.l - pad.r);
+  const Y = (v) => H - pad.b - (fy(v) - fy(y0)) / (fy(y1) - fy(y0)) * (H - pad.t - pad.b);
+  return { W, H, pad, X, Y };
+}
+const path = (pts, X, Y) => pts.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
+function axes(f, xt, yt, xl = '', yl = '') {
+  const rule = css('--rule');
+  let g = `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.H - f.pad.b}" y2="${f.H - f.pad.b}" stroke="${rule}"/>`;
+  g += `<line x1="${f.pad.l}" x2="${f.pad.l}" y1="${f.pad.t}" y2="${f.H - f.pad.b}" stroke="${rule}"/>`;
+  for (const [v, l] of xt) g += `<text x="${f.X(v)}" y="${f.H - 5}" font-size="9" text-anchor="middle">${l}</text>`;
+  for (const [v, l] of yt) g += `<text x="${f.pad.l - 4}" y="${f.Y(v) + 3}" font-size="9" text-anchor="end">${l}</text>`;
+  if (xl) g += `<text x="${f.W - f.pad.r}" y="${f.H - f.pad.b - 4}" font-size="9" text-anchor="end">${xl}</text>`;
+  if (yl) g += `<text x="${f.pad.l + 4}" y="${f.pad.t + 9}" font-size="9">${yl}</text>`;
+  return g;
+}
+function knob(id, label, min, max, step, val) {
+  return `<div class="knob"><label for="${id}">${label}</label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"><output id="${id}o"></output></div>`;
+}
+const W = (html) => `<div class="w">${html}</div>`;
+
+// ----------------------------------------------------------- slides ---
+// Each slide: ch (chapter), t (title), cap (one-line caption), do (an action),
+// pred (a prediction to commit to before the reveal), notes (the lecture), mount(el, ctx).
+const SLIDES = [
+{
+  ch: 'primes', t: 'Count the primes',
+  cap: 'π(x) counts the primes up to x. It is a staircase: one step at every prime, and no formula for where the next step is.',
+  pred: { q: 'How many primes are there below 100?', opts: ['15', '25', '40'], a: 1, why: '25: 2, 3, 5, 7, 11, … 97. A quarter of the numbers, and the fraction keeps falling.' },
+  do: 'Drag x all the way to 1000.',
+  notes: `<h3>Why start here</h3><p>Every question in this deck is about this staircase. The primes look random step by step but are very regular in bulk. The Riemann hypothesis is a precise statement of <i>how</i> regular.</p><h3>What to notice</h3><p>The steps get sparser as you go right. At 100 the staircase has climbed 25, at 1000 it has climbed 168. Doubling x doesn't double π(x).</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kx', 'x', 10, 1000, 1, 100)}</div><div class="read"><div><b id="r1"></b><span>π(x)</span></div><div><b id="r2"></b><span>fraction prime</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const pi = piTable();
+    const draw = () => {
+      const x = +$('kx').value; $('kxo').textContent = x;
+      const f = frame($('p'), { x: [0, x], y: [0, pi[x] * 1.08 + 1] });
+      let d = `M${f.X(0)},${f.Y(0)}`;
+      for (let n = 2; n <= x; n++) if (pi[n] !== pi[n - 1]) d += `L${f.X(n)},${f.Y(pi[n - 1])}L${f.X(n)},${f.Y(pi[n])}`;
+      d += `L${f.X(x)},${f.Y(pi[x])}`;
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      $('p').innerHTML = axes(f, [[0, 0], [x / 2, Math.round(x / 2)], [x, x]], [[0, 0], [pi[x], pi[x]]], 'x', 'π(x)') + `<path d="${d}" fill="none" stroke="${css('--accent')}" stroke-width="1.6"/>`;
+      $('r1').textContent = pi[x]; $('r2').textContent = (pi[x] / x).toFixed(3);
+      if (x >= 1000) ctx.done();
+    };
+    $('kx').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'primes', t: 'They thin out like 1/log x',
+  cap: 'Gauss, at 15, guessed that near x about one number in log x is prime. Add that up and you get li(x), the logarithmic integral.',
+  do: 'Slide x to 10⁶ and read the ratio π(x)/li(x).',
+  notes: `<h3>The guess</h3><p class="eq">li(x) = ∫₂ˣ dt / log t</p><p>Near 10, log x ≈ 2.3 and about 1 in 2.3 numbers is prime. Near 10¹⁰, log x ≈ 23 and about 1 in 23 is. The simpler x / log x has the same leading behaviour but is visibly worse.</p><h3>The prime number theorem</h3><p>π(x)/li(x) → 1. Hadamard and de la Vallée Poussin proved it in 1896, a century after Gauss's guess. Their proof went through complex numbers, through ζ, which is where the rest of this deck goes.</p><p>The axes here are logarithmic in x: each tick is ten times the last.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kx', 'x', 2, 6, 0.01, 3)}</div><div class="read"><div><b id="r1"></b><span>π(x)</span></div><div><b id="r2"></b><span>li(x)</span></div><div><b id="r3"></b><span>π / li</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const pi = piTable();
+    const draw = () => {
+      const e = +$('kx').value, x = Math.round(10 ** e);
+      $('kxo').textContent = x >= 1e5 ? pow10(e.toFixed(1)).replace('.', '·') : fmt(x);
+      const f = frame($('p'), { x: [10, x], y: [1, R.li(x) * 1.2], logx: true, logy: true });
+      const pts = [], L = [], G = [];
+      for (let i = 0; i <= 200; i++) { const v = Math.round(10 ** (1 + (e - 1) * i / 200)); pts.push([v, Math.max(1, pi[v])]); L.push([v, R.li(v)]); G.push([v, v / Math.log(v)]); }
+      const xt = []; for (let k = 1; k <= Math.floor(e); k++) xt.push([10 ** k, pow10(k)]);
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      $('p').innerHTML = axes(f, xt, [[1, 1], [R.li(x), fmt(R.li(x))]], 'x', '') +
+        `<path d="${path(G, f.X, f.Y)}" fill="none" stroke="${css('--faint')}" stroke-dasharray="3 3"/>` +
+        `<path d="${path(L, f.X, f.Y)}" fill="none" stroke="${css('--claim')}" stroke-width="1.5"/>` +
+        `<path d="${path(pts, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="2"/>` +
+        `<text x="${f.pad.l + 6}" y="${f.pad.t + 10}" font-size="9" style="fill:${css('--accent')}">π(x)</text><text x="${f.pad.l + 6}" y="${f.pad.t + 22}" font-size="9" style="fill:${css('--claim')}">li(x)</text><text x="${f.pad.l + 6}" y="${f.pad.t + 34}" font-size="9">x / log x (dashed)</text>`;
+      $('r1').textContent = fmt(pi[x]); $('r2').textContent = fmt(R.li(x)); $('r3').textContent = (pi[x] / R.li(x)).toFixed(4);
+      if (x >= 999000) ctx.done();
+    };
+    $('kx').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'primes', t: 'How wrong is the guess?',
+  cap: 'The error π(x) − li(x) wanders. The Riemann hypothesis is the claim that it never wanders further than about √x · log x.',
+  pred: { q: 'In this whole range li(x) overestimates π(x). Is that true for every x?', opts: ['Yes, always', 'No, it flips infinitely often', 'Only flips once'], a: 1, why: 'Littlewood (1914): the sign flips infinitely often. The first flip is somewhere below about 10³¹⁶, and nobody has seen it.' },
+  do: 'Slide x to 10⁶ and compare the blue error with the envelope.',
+  notes: `<h3>The envelope</h3><p>If RH is true, then for every x ≥ 2657</p><p class="eq">|π(x) − li(x)| &lt; √x · log x / 8π</p><p>That constant is Schoenfeld's (1976), and von Koch (1901) showed that an error of that shape is <i>equivalent</i> to RH. So you can state RH without any complex numbers: it is a bound on how badly a staircase can drift from a smooth curve.</p><h3>Skewes</h3><p>Littlewood proved the error changes sign infinitely often without finding one sign change. Skewes then bounded the first one by 10^10^10^34, one of the largest numbers ever used in a proof. It is now known to be below about 1.4 × 10³¹⁶.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kx', 'x', 3.5, 6, 0.01, 4)}</div><div class="read"><div><b id="r1"></b><span>π(x) − li(x)</span></div><div><b id="r2"></b><span>RH envelope √x log x / 8π</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const pi = piTable();
+    const draw = () => {
+      const e = +$('kx').value, x = Math.round(10 ** e);
+      $('kxo').textContent = fmt(x);
+      const env = (v) => Math.sqrt(v) * Math.log(v) / (8 * Math.PI);
+      const m = env(x) * 1.15;
+      const f = frame($('p'), { x: [2657, x], y: [-m, m] });
+      const pts = [], up = [], dn = [];
+      const n = 500; for (let i = 0; i <= n; i++) { const v = Math.round(2657 + (x - 2657) * i / n); pts.push([v, pi[v] - R.li(v)]); up.push([v, env(v)]); dn.push([v, -env(v)]); }
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      $('p').innerHTML = axes(f, [[2657, '2657'], [x, fmt(x)]], [[-Math.round(m / 1.15), -Math.round(m / 1.15)], [0, 0], [Math.round(m / 1.15), Math.round(m / 1.15)]], 'x', '') +
+        `<path d="${path(up, f.X, f.Y)}L${f.X(x)},${f.Y(-env(x))}${path(dn.slice().reverse(), f.X, f.Y).replace('M', 'L')}Z" fill="${css('--good-faint')}" stroke="${css('--good')}"/>` +
+        `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="${css('--rule')}"/>` +
+        `<path d="${path(pts, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="1.4"/>`;
+      $('r1').textContent = (pi[x] - R.li(x)).toFixed(1); $('r2').textContent = '±' + env(x).toFixed(0);
+      if (x >= 999000) ctx.done();
+    };
+    $('kx').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'ζ', t: 'Euler\'s product',
+  cap: 'Sum 1/n² over all whole numbers, or multiply 1/(1 − 1/p²) over all primes: you get the same number, π²/6. The primes are hiding inside ζ.',
+  pred: { q: 'Which gets close to π²/6 faster as N grows?', opts: ['the sum over n ≤ N', 'the product over primes p ≤ N', 'they match exactly'], a: 1, why: 'The product. Its error is about 1/(N log N), the sum\'s about 1/N, because the product skips composites, which the primes below N already account for.' },
+  do: 'Slide N to 200 and compare the two errors.',
+  notes: `<h3>The identity</h3><p class="eq">Σ<sub>n≥1</sub> 1/nˢ = ∏<sub>p</sub> 1/(1 − p⁻ˢ)</p><p>Expand each factor as a geometric series 1 + p⁻ˢ + p⁻²ˢ + … and multiply them all out. Every n appears exactly once, because every n factors into primes in exactly one way. Euler found this in 1737, and it is the whole reason ζ knows about primes.</p><h3>Why s = 2</h3><p>At s = 2 both sides converge, and Euler had already shown the sum is π²/6 (the Basel problem). At s = 1 both blow up, which gives Euler's proof that there are infinitely many primes.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kn', 'N', 2, 200, 1, 10)}</div><div class="read"><div><b id="r1"></b><span>sum error</span></div><div><b id="r2"></b><span>product error</span></div><div><b id="r3">1.644934</b><span>π²/6</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const Z2 = Math.PI ** 2 / 6, primes = R.sieve(200);
+    const draw = () => {
+      const N = +$('kn').value; $('kno').textContent = N;
+      const S1 = [], S2 = []; let s = 0, p = 1, pi = 0;
+      for (let n = 1; n <= N; n++) { s += 1 / (n * n); if (primes[pi] === n) { p *= 1 / (1 - 1 / (n * n)); pi++; } S1.push([n, s]); S2.push([n, p]); }
+      const f = frame($('p'), { x: [1, N], y: [1, 1.7] });
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      $('p').innerHTML = axes(f, [[1, 1], [N, N]], [[1, '1.0'], [Z2, 'π²/6'], [1.7, '1.7']], 'N', '') +
+        `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(Z2)}" y2="${f.Y(Z2)}" stroke="${css('--good')}" stroke-dasharray="4 3"/>` +
+        `<path d="${path(S1, f.X, f.Y)}" fill="none" stroke="${css('--faint')}" stroke-width="1.6"/>` +
+        `<path d="${path(S2, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="2"/>` +
+        `<text x="${f.W - 12}" y="${f.Y(S1.at(-1)[1]) + 14}" font-size="9" text-anchor="end">sum</text><text x="${f.W - 12}" y="${f.Y(S2.at(-1)[1]) - 6}" font-size="9" text-anchor="end" style="fill:${css('--accent')}">product</text>`;
+      $('r1').textContent = (Z2 - s).toExponential(2); $('r2').textContent = (Z2 - p).toExponential(2);
+      if (N >= 200) ctx.done();
+    };
+    $('kn').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'ζ', t: 'Into the complex plane',
+  cap: 'Riemann extended ζ(s) to complex s, shown here up to height 35. Orange curves are where Re ζ = 0, blue where Im ζ = 0. A zero is where an orange and a blue curve cross.',
+  do: 'Tap a crossing to read off where the zero is.',
+  notes: `<h3>Reading the map</h3><p>Horizontal is Re s, vertical is Im s = t. ζ(s) is a complex number, so it vanishes only where its real part <i>and</i> its imaginary part are both zero: where an orange curve (Re ζ = 0) crosses a blue one (Im ζ = 0). The shading is |ζ|, darker where it is small. The dashed line is Re s = ½.</p><h3>What you should find</h3><p>Every crossing sits on the dashed line. The first is at ½ + 14.1347…i. In this window there are five, and they line up perfectly. Away from the line, orange and blue curves run side by side without ever meeting.</p><h3>Why this region</h3><p>For Re s &gt; 1 the Euler product converges and has no zeros. For Re s &lt; 0, the functional equation ζ(s) = 2ˢπˢ⁻¹ sin(πs/2) Γ(1−s) ζ(1−s) mirrors everything, and the only zeros are the trivial ones at −2, −4, …. Everything interesting lives in the critical strip 0 ≤ Re s ≤ 1.</p><p>Computed in your browser by Euler–Maclaurin summation, about 20,000 evaluations of ζ.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="read"><div><b id="r1">tap the map</b><span id="r2">s and |ζ(s)|</span></div></div><div class="plot"><canvas id="c"></canvas><svg id="o" style="position:absolute;inset:0;pointer-events:none"></svg></div>`);
+    const s0 = -1, s1 = 2, t0 = 0, t1 = 35;
+    let mark = null;
+    const draw = () => {
+      const c = $('c'), r = c.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+      const cw = Math.max(80, Math.round(r.width / 1.5)), chh = Math.max(80, Math.round(r.height / 1.5));
+      c.width = cw; c.height = chh; c.style.imageRendering = 'pixelated';
+      const ctx2 = c.getContext('2d'), img = ctx2.createImageData(cw, chh);
+      const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+      const hex = (v) => { const h = css(v).replace('#', ''); return [0, 2, 4].map((k) => parseInt(h.slice(k, k + 2), 16)); };
+      const cRe = hex('--claim'), cIm = hex('--accent');
+      const re = new Float64Array(cw * chh), im = new Float64Array(cw * chh), ab = new Float64Array(cw * chh);
+      for (let j = 0; j < chh; j++) for (let i = 0; i < cw; i++) {
+        const z = R.zeta([s0 + (s1 - s0) * (i + 0.5) / cw, t1 - (t1 - t0) * (j + 0.5) / chh]), k = j * cw + i;
+        re[k] = z[0]; im[k] = z[1]; ab[k] = Math.log10(Math.max(1e-6, Math.hypot(z[0], z[1])));
+      }
+      const flip = (a, k) => { const i = k % cw, j = (k / cw) | 0; return (i + 1 < cw && a[k] * a[k + 1] < 0) || (j + 1 < chh && a[k] * a[k + cw] < 0); };
+      for (let k = 0; k < cw * chh; k++) {
+        const l = Math.max(0, Math.min(1, (ab[k] + 1.5) / 2.5));            // 0 near a zero … 1 near the pole
+        let px = dark ? [14 + 40 * l, 14 + 40 * l, 14 + 44 * l] : [255 - 70 * (1 - l), 255 - 66 * (1 - l), 255 - 50 * (1 - l)];
+        if (flip(re, k)) px = cRe; else if (flip(im, k)) px = cIm;
+        const o = 4 * k; img.data[o] = px[0]; img.data[o + 1] = px[1]; img.data[o + 2] = px[2]; img.data[o + 3] = 255;
+      }
+      ctx2.putImageData(img, 0, 0);
+      const o = $('o'); o.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+      const X = (s) => (s - s0) / (s1 - s0) * r.width, Y = (t) => (t1 - t) / (t1 - t0) * r.height;
+      let g = `<line x1="${X(0.5)}" x2="${X(0.5)}" y1="0" y2="${r.height}" stroke="${css('--fg')}" stroke-dasharray="3 4" opacity="0.5"/>`;
+      for (const s of [0, 1]) g += `<line x1="${X(s)}" x2="${X(s)}" y1="0" y2="${r.height}" stroke="${css('--fg')}" opacity="0.25"/>`;
+      for (const [s, l] of [[-1, '−1'], [0, '0'], [0.5, '½'], [1, '1'], [2, '2']]) g += `<text x="${X(s) + 3}" y="${r.height - 4}" font-size="9">${l}</text>`;
+      for (const t of [10, 20, 30]) g += `<text x="3" y="${Y(t) + 3}" font-size="9">${t}i</text>`;
+      g += `<text x="${X(1) + 4}" y="${r.height - 16}" font-size="9">pole</text>`;
+      if (mark) g += `<circle cx="${X(mark[0])}" cy="${Y(mark[1])}" r="9" fill="none" stroke="${css('--claim')}" stroke-width="2"/>`;
+      o.innerHTML = g;
+      c.onclick = (ev) => {
+        const b = c.getBoundingClientRect(), s = [s0 + (s1 - s0) * (ev.clientX - b.left) / b.width, t1 - (t1 - t0) * (ev.clientY - b.top) / b.height];
+        mark = s; const a = R.cabs(R.zeta(s));
+        $('r1').textContent = `${s[0].toFixed(2)} + ${s[1].toFixed(2)}i`;
+        const near = ZEROS.find((g) => Math.abs(g - s[1]) < 0.9 && Math.abs(s[0] - 0.5) < 0.12);
+        $('r2').textContent = `|ζ| = ${a.toFixed(3)}` + (near ? ` · near the zero ½ + ${near.toFixed(4)}i` : '');
+        if (near) ctx.done();
+        draw();
+      };
+    };
+    draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'ζ', t: 'The trivial zeros',
+  cap: 'Along the real line ζ also vanishes at −2, −4, −6, …. These are the "trivial" zeros, forced by the sine in the functional equation, and nobody worries about them.',
+  do: 'Slide the cursor onto a trivial zero.',
+  notes: `<h3>Plotted how</h3><p>Between the trivial zeros ζ is tiny (ζ(−11) is about 0.02), and then it grows explosively, so the vertical axis is stretched: asinh(400 ζ). Zeros are still where the curve crosses the axis.</p><h3>Famous values</h3><p>ζ(0) = −½, ζ(−1) = −1/12 (the infamous "1 + 2 + 3 + ⋯ = −1/12" is this value, read too literally), ζ(−3) = 1/120. They are all rational, given by Bernoulli numbers.</p><p>The Riemann hypothesis is about the <i>other</i> zeros, the non-trivial ones in the strip.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('ks', 's', -12, 0.9, 0.01, -1)}</div><div class="read"><div><b id="r1"></b><span>ζ(s)</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const sl = (v) => Math.asinh(400 * v);
+    const pts = []; for (let i = 0; i <= 600; i++) { const s = -12 + 12.9 * i / 600; pts.push([s, sl(R.zeta([s, 0])[0])]); }
+    const ym = Math.max(...pts.map((p) => Math.abs(p[1]))) * 1.1;
+    const draw = () => {
+      const s = +$('ks').value; $('kso').textContent = s.toFixed(2);
+      const f = frame($('p'), { x: [-12, 0.9], y: [-ym, ym] });
+      const z = R.zeta([s, 0])[0];
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      let g = axes(f, [-12, -10, -8, -6, -4, -2, 0].map((v) => [v, v]), [[0, 0]], 's', '');
+      g += `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="${css('--rule')}"/>`;
+      for (let k = 2; k <= 12; k += 2) g += `<circle cx="${f.X(-k)}" cy="${f.Y(0)}" r="3.5" fill="${css('--claim')}"/>`;
+      g += `<path d="${path(pts, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="1.6"/>`;
+      g += `<line x1="${f.X(s)}" x2="${f.X(s)}" y1="${f.pad.t}" y2="${f.H - f.pad.b}" stroke="${css('--fg')}" opacity="0.4"/><circle cx="${f.X(s)}" cy="${f.Y(sl(z))}" r="4" fill="${css('--fg')}"/>`;
+      $('p').innerHTML = g;
+      $('r1').textContent = Math.abs(z) < 1e-3 ? '≈ 0' : z.toPrecision(4);
+      if (Math.abs(s + Math.round(-s / 2) * 2) < 0.03 && s < -1) ctx.done();
+    };
+    $('ks').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'the hypothesis', t: 'All on one line',
+  cap: 'The non-trivial zeros come in mirror pairs about Re s = ½. The Riemann hypothesis: they are all exactly on it.',
+  pred: { q: 'People have computed zeros up to height 3 × 10¹², about 12 trillion of them. How many were off the line?', opts: ['none', 'a handful', 'about 1%'], a: 0, why: 'None. Platt and Trudgian (2021), with rigorous interval arithmetic. Evidence, but not proof: Littlewood\'s sign change shows how far out the first exception to a pattern can hide.' },
+  do: 'Raise the height to 1000. Every dot is a zero your browser found.',
+  notes: `<h3>The statement</h3><p class="eq"><b>ζ(s) = 0 with 0 &lt; Re s &lt; 1 ⟹ Re s = ½</b></p><p>Riemann wrote in 1859 that it is "very probable", that he had put aside the search for a proof "after some fleeting vain attempts", and moved on. Hilbert put it on his 1900 list, and the Clay Institute put a million dollars on it in 2000.</p><h3>The green sliver</h3><p>All that has been <i>proved</i> about where zeros can't be is a sliver hugging Re s = 1 that narrows like 1/log t. Proving there are no zeros on Re s = 1 at all was enough for the prime number theorem. Pushing the sliver to a fixed half-plane Re s &gt; 1 − δ would already be historic.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kt', 'height', 20, 1000, 1, 60)}</div><div class="read"><div><b id="r1"></b><span>zeros drawn</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const draw = () => {
+      const T = +$('kt').value; $('kto').textContent = T;
+      const f = frame($('p'), { x: [-0.1, 1.1], y: [0, T], pad: { l: 32 } });
+      let g = `<rect x="${f.X(0)}" y="${f.pad.t}" width="${f.X(1) - f.X(0)}" height="${f.H - f.pad.t - f.pad.b}" fill="${css('--accent-tint')}"/>`;
+      let rp = `M${f.X(1)},${f.Y(2)}`, lp = `M${f.X(0)},${f.Y(2)}`;
+      for (let i = 0; i <= 60; i++) { const t = 2 + (T - 2) * i / 60, e = R.classicalEdge(t); rp += `L${f.X(e)},${f.Y(t)}`; lp += `L${f.X(1 - e)},${f.Y(t)}`; }
+      g += `<path d="${rp}L${f.X(1)},${f.Y(T)}Z" fill="${css('--good-faint')}" stroke="${css('--good')}"/><path d="${lp}L${f.X(0)},${f.Y(T)}Z" fill="${css('--good-faint')}" stroke="${css('--good')}" opacity="0.6"/>`;
+      g += axes(f, [[0, '0'], [0.5, '½'], [1, '1']], [[T / 2, Math.round(T / 2)], [T, T]], '', 't');
+      g += `<line x1="${f.X(0.5)}" x2="${f.X(0.5)}" y1="${f.pad.t}" y2="${f.H - f.pad.b}" stroke="${css('--accent')}" stroke-dasharray="3 3"/>`;
+      const zs = ZEROS.filter((z) => z <= T), r = Math.max(1.3, Math.min(4.5, (f.H - 30) / T * 0.9));
+      for (const z of zs) g += `<circle cx="${f.X(0.5)}" cy="${f.Y(z)}" r="${r}" fill="${css('--accent')}"/>`;
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`); $('p').innerHTML = g;
+      $('r1').textContent = zs.length;
+      if (T >= 1000) ctx.done();
+    };
+    $('kt').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'the hypothesis', t: 'Hunt a zero by hand',
+  cap: 'On the line, ζ can be turned into a real function Z(t). A zero is where Z changes sign. Find the first one yourself.',
+  do: 'Pin t to within 0.01 of the first zero. Use the nudge buttons.',
+  notes: `<h3>Hardy's Z function</h3><p class="eq">Z(t) = e<sup>iθ(t)</sup> ζ(½ + it)</p><p>θ is the Riemann–Siegel theta function, chosen to cancel ζ's phase on the line, so Z is real and |Z| = |ζ|. If Z is positive at one t and negative at the next, then ζ has a zero between them <i>exactly on the line</i>. That is not an approximation; it is the intermediate value theorem.</p><h3>Bisection</h3><p>What you're doing with the nudges is what every zero-finder does: bracket a sign change and halve the bracket. This deck found all 649 zeros below t = 1000 that way before you opened it.</p><p>Riemann did this by hand in the 1850s. Siegel found his calculations of the first zeros in his unpublished notes in 1932.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kt', 't', 10, 20, 0.001, 12)}<div class="btns"><button class="b" data-d="-0.1">−0.1</button><button class="b" data-d="-0.01">−0.01</button><button class="b" data-d="-0.001">−0.001</button><button class="b" data-d="0.001">+0.001</button><button class="b" data-d="0.01">+0.01</button><button class="b" data-d="0.1">+0.1</button></div></div><div class="read"><div><b id="r1"></b><span>Z(t)</span></div><div><b id="r2"></b><span>sign</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const pts = []; for (let i = 0; i <= 400; i++) { const t = 10 + 10 * i / 400; pts.push([t, R.Z(t)]); }
+    const m = Math.max(...pts.map((p) => Math.abs(p[1]))) * 1.1;
+    const draw = () => {
+      const t = +$('kt').value; $('kto').textContent = t.toFixed(3);
+      const f = frame($('p'), { x: [10, 20], y: [-m, m] });
+      const z = R.Z(t);
+      let g = axes(f, [10, 12, 14, 16, 18, 20].map((v) => [v, v]), [[0, 0]], 't', 'Z(t)');
+      g += `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="${css('--rule')}"/>`;
+      g += `<path d="${path(pts, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="1.6"/>`;
+      g += `<line x1="${f.X(t)}" x2="${f.X(t)}" y1="${f.pad.t}" y2="${f.H - f.pad.b}" stroke="${css('--claim')}" stroke-width="1.5"/><circle cx="${f.X(t)}" cy="${f.Y(z)}" r="4.5" fill="${css('--claim')}"/>`;
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`); $('p').innerHTML = g;
+      $('r1').textContent = z.toFixed(5); $('r2').textContent = z > 0 ? '+' : '−';
+      if (Math.abs(t - ZEROS[0]) < 0.01) { ctx.done(); $('r2').textContent += `  · zero at ${ZEROS[0].toFixed(6)}`; }
+    };
+    $('kt').oninput = draw;
+    el.querySelectorAll('[data-d]').forEach((b) => b.onclick = () => { $('kt').value = (+$('kt').value + +b.dataset.d).toFixed(3); draw(); });
+    draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'the hypothesis', t: 'Count them, and you know',
+  cap: 'A formula predicts how many zeros the whole strip holds up to height T. If the sign changes on the line account for all of them, none is off the line.',
+  pred: { q: 'How many zeros are there with 0 < t ≤ 100?', opts: ['10', '29', '100'], a: 1, why: '29. The smooth count θ(T)/π + 1 gives 28.9 at T = 100; the real count never strays more than a couple from it.' },
+  do: 'Raise T to 1000. Watch the staircase hug the curve.',
+  notes: `<h3>Riemann–von Mangoldt</h3><p class="eq">N(T) = θ(T)/π + 1 + S(T)</p><p>N(T) counts zeros in the whole strip with 0 &lt; t ≤ T, on the line or not. The smooth part grows like (T/2π) log(T/2π). S(T) is small and wobbles.</p><h3>Why counting proves things</h3><p>Sign changes of Z find zeros <i>on</i> the line. The formula counts zeros <i>everywhere</i> in the strip. If the two counts agree up to T, every zero up to T is on the line. Turing turned that into a rigorous procedure in 1953, on one of the first stored-program computers.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kt', 'T', 30, 1000, 1, 100)}</div><div class="read"><div><b id="r1"></b><span>zeros counted</span></div><div><b id="r2"></b><span>θ(T)/π + 1</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const draw = () => {
+      const T = +$('kt').value; $('kto').textContent = T;
+      const zs = ZEROS.filter((z) => z <= T);
+      const f = frame($('p'), { x: [0, T], y: [0, zs.length * 1.1 + 2] });
+      let d = `M${f.X(0)},${f.Y(0)}`; zs.forEach((z, i) => { d += `L${f.X(z)},${f.Y(i)}L${f.X(z)},${f.Y(i + 1)}`; }); d += `L${f.X(T)},${f.Y(zs.length)}`;
+      const sm = []; for (let i = 0; i <= 200; i++) { const t = 8 + (T - 8) * i / 200; sm.push([t, R.Nsmooth(t)]); }
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      $('p').innerHTML = axes(f, [[0, 0], [T, T]], [[0, 0], [zs.length, zs.length]], 'T', 'N(T)') + `<path d="${path(sm, f.X, f.Y)}" fill="none" stroke="${css('--claim')}" stroke-width="1.5"/><path d="${d}" fill="none" stroke="${css('--accent')}" stroke-width="1.3"/>`;
+      $('r1').textContent = zs.length; $('r2').textContent = R.Nsmooth(T).toFixed(2);
+      if (T >= 1000) ctx.done();
+    };
+    $('kt').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'the hypothesis', t: 'Zeros repel',
+  cap: 'Rescale the gaps between consecutive zeros to average 1 and histogram them. They are not random: small gaps are rare, as if the zeros push each other apart.',
+  pred: { q: 'Which curve will the 648 gaps follow?', opts: ['Random (Poisson): small gaps most common', 'Eigenvalues of a random matrix', 'All gaps equal'], a: 1, why: 'Random-matrix eigenvalues (GUE). Montgomery found it in 1972; Dyson recognised the formula over tea. Odlyzko confirmed it at the 10²⁰th zero.' },
+  do: 'Toggle both curves on and compare.',
+  notes: `<h3>Unfolding</h3><p>Zeros get denser as t grows, so raw gaps shrink. Mapping each zero γ to θ(γ)/π + 1 makes the average gap exactly 1, and then gaps from anywhere on the line can be compared.</p><h3>Montgomery and Dyson</h3><p>In 1972 Hugh Montgomery computed the pair correlation of the zeros and showed it to Freeman Dyson at the IAS. Dyson recognised it at once: the same formula describes the energy levels of heavy nuclei, modelled by random Hermitian matrices. Nobody knows why. The hope it revives, from Hilbert and Pólya, is that the zeros <i>are</i> the eigenvalues of some self-adjoint operator. Then they would be real, and that is RH.</p><p>The curves: Poisson e⁻ˢ, and the Wigner surmise (32/π²) s² e^(−4s²/π), a close approximation to the GUE law.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl"><div class="btns"><button class="b" id="bP">random (Poisson)</button><button class="b" id="bG">random matrix (GUE)</button></div></div><div class="read"><div><b id="r1"></b><span>gaps &lt; 0.2</span></div><div><b>18%</b><span>Poisson would give</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const gaps = R.unfoldedGaps(ZEROS), bins = 24, w = 3 / bins, h = new Array(bins).fill(0);
+    for (const g of gaps) { const b = Math.floor(g / w); if (b < bins) h[b]++; }
+    const dens = h.map((c) => c / gaps.length / w);
+    let showP = false, showG = false;
+    const draw = () => {
+      const f = frame($('p'), { x: [0, 3], y: [0, 1.15] });
+      let g = axes(f, [0, 1, 2, 3].map((v) => [v, v]), [[0, 0], [1, 1]], 'gap', 'density');
+      dens.forEach((d, i) => { g += `<rect x="${f.X(i * w) + 1}" y="${f.Y(d)}" width="${f.X(w) - f.X(0) - 2}" height="${f.Y(0) - f.Y(d)}" fill="${css('--accent-faint')}" stroke="${css('--accent')}" stroke-width="0.6"/>`; });
+      const curve = (fn) => { const p = []; for (let i = 0; i <= 120; i++) { const s = 3 * i / 120; p.push([s, fn(s)]); } return p; };
+      if (showP) g += `<path d="${path(curve(R.poisson), f.X, f.Y)}" fill="none" stroke="${css('--faint')}" stroke-width="2" stroke-dasharray="5 3"/>`;
+      if (showG) g += `<path d="${path(curve(R.wignerGUE), f.X, f.Y)}" fill="none" stroke="${css('--claim')}" stroke-width="2.2"/>`;
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`); $('p').innerHTML = g;
+      $('r1').textContent = (100 * gaps.filter((x) => x < 0.2).length / gaps.length).toFixed(1) + '%';
+      $('bP').classList.toggle('on', showP); $('bG').classList.toggle('on', showG);
+      if (showP && showG) ctx.done();
+    };
+    $('bP').onclick = () => { showP = !showP; draw(); };
+    $('bG').onclick = () => { showG = !showG; draw(); };
+    draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'why primes care', t: 'The music of the primes',
+  cap: 'Each zero contributes one wave. Add enough of them to the smooth line x and the prime staircase appears, built from zeros alone.',
+  do: 'Press play and watch the corners sharpen.',
+  notes: `<h3>Riemann's explicit formula</h3><p class="eq">ψ(x) = x − Σ<sub>ρ</sub> x<sup>ρ</sup>/ρ − log 2π − ½ log(1 − x⁻²)</p><p>ψ(x) adds log p for every prime power pᵏ ≤ x, a cousin of π(x) that makes the formula clean. The sum runs over the non-trivial zeros ρ. The zero ρ = ½ + iγ and its mirror together contribute a wave √x · cos(γ log x − φ) / |ρ|.</p><p>The zeros are the frequencies; the primes are where the waves line up. The blue curve uses no primes at all, only the 649 zeros below 1000.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kk', 'zeros', 0, 649, 1, 0)}<div class="btns"><button class="b" id="play">play</button></div></div><div class="plot"><svg id="p"></svg></div>`);
+    let timer = null;
+    const X1 = 60;
+    const stair = (() => { let v = 0, d = []; for (let n = 2; n <= X1; n++) { const L = R.vonMangoldt(n); if (L) { d.push([n, v]); v += L; d.push([n, v]); } } d.push([X1, v]); return d; })();
+    const draw = () => {
+      const K = +$('kk').value; $('kko').textContent = K;
+      const f = frame($('p'), { x: [1, X1], y: [-2, 62] });
+      const e = []; for (let i = 0; i <= 700; i++) { const x = 1.5 + (X1 - 1.5) * i / 700; e.push([x, Math.max(-2, Math.min(62, R.psiExplicit(x, ZEROS, K)))]); }
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      $('p').innerHTML = axes(f, [[2, 2], [10, 10], [30, 30], [60, 60]], [[0, 0], [30, 30], [60, 60]], 'x', 'ψ(x)') +
+        `<path d="M${f.X(1)},${f.Y(0)}${path(stair, f.X, f.Y).replace('M', 'L')}" fill="none" stroke="${css('--fg')}" stroke-width="1.3" opacity="0.6"/>` +
+        `<path d="${path(e, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="1.6"/>`;
+      if (K >= 200) ctx.done();
+    };
+    $('kk').oninput = draw;
+    $('play').onclick = () => {
+      if (timer) { clearInterval(timer); timer = null; return; }
+      let k = 0; timer = setInterval(() => { k = k < 30 ? k + 1 : Math.min(649, Math.round(k * 1.1)); $('kk').value = k; draw(); if (k >= 649) { clearInterval(timer); timer = null; } }, 110);
+    };
+    draw(); return { resize: draw, destroy: () => clearInterval(timer) };
+  },
+},
+{
+  ch: 'why primes care', t: 'If one zero were off the line',
+  cap: 'A zero at β + iγ adds a wave of size x^β. Every zero on the line gives √x. Move one zero off the line and see how long it takes to dominate.',
+  pred: { q: 'A zero at Re s = 0.51, only just off the line. Would that change prime counts we could ever check?', opts: ['No, it\'s too small to matter', 'Yes, eventually it dominates everything'], a: 1, why: 'Eventually, x^0.51 beats √x · log x. But "eventually" can be astronomically far, which is why computation alone will never settle RH.' },
+  do: 'Drag β down toward ½ and watch the crossover run away.',
+  notes: `<h3>Why ½</h3><p>The functional equation pairs each zero β + iγ with 1 − β + iγ. So if any zero is off the line, one of the pair has β &gt; ½, and its wave x^β eventually outgrows every on-line wave. The error in counting primes would then be bigger than √x, infinitely often.</p><p>RH is the statement that this never happens: the primes are exactly as regular as the √x scale allows, and no more irregular.</p><h3>The crossover</h3><p>The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kb', 'β', 0.505, 0.95, 0.001, 0.75)}</div><div class="read"><div><b id="r1"></b><span>x where x^β overtakes √x log x</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const draw = () => {
+      const b = +$('kb').value; $('kbo').textContent = b.toFixed(3);
+      // solve βL = L/2 + ln L for L = ln x, the larger root
+      let L = 50; for (let i = 0; i < 200; i++) L = Math.log(L) / (b - 0.5);
+      const ex = L / Math.LN10;
+      const Emax = Math.max(12, Math.min(400, ex * 1.25));
+      const f = frame($('p'), { x: [1, Emax], y: [0, Emax] });
+      const A = [], B = []; for (let i = 0; i <= 200; i++) { const e = 1 + (Emax - 1) * i / 200, l = e * Math.LN10; A.push([e, (b * l) / Math.LN10]); B.push([e, (l / 2 + Math.log(l)) / Math.LN10]); }
+      const xt = [[1, '10'], [Emax / 2, pow10(Math.round(Emax / 2))], [Emax, pow10(Math.round(Emax))]];
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
+      $('p').innerHTML = axes(f, xt, [[0, '1'], [Emax, pow10(Math.round(Emax))]], 'x (log)', 'size (log)') +
+        `<path d="${path(B, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="2"/><path d="${path(A, f.X, f.Y)}" fill="none" stroke="${css('--claim')}" stroke-width="2"/>` +
+        (ex <= Emax ? `<circle cx="${f.X(ex)}" cy="${f.Y((b * L) / Math.LN10)}" r="5" fill="none" stroke="${css('--fg')}" stroke-width="1.5"/>` : '') +
+        `<text x="${f.W - 12}" y="${f.Y(A.at(-1)[1]) - 6}" font-size="9" text-anchor="end" style="fill:${css('--claim')}">x^β</text><text x="${f.W - 12}" y="${f.Y(B.at(-1)[1]) + 14}" font-size="9" text-anchor="end" style="fill:${css('--accent')}">√x log x</text>`;
+      $('r1').textContent = ex > 300 ? `beyond 10³⁰⁰ (about ${pow10(Math.round(ex))})` : `about ${pow10(Math.round(ex))}`;
+      if (b < 0.53) ctx.done();
+    };
+    $('kb').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'why primes care', t: 'The ladder of half-planes',
+  cap: 'Knowing "no zeros right of σ" buys a prime-count error of x^σ. This is how far each step up the ladder gets you at x = 10¹².',
+  do: 'Tap each rung: 1, then 7/8, then ½.',
+  notes: `<h3>The rungs</h3><p><b>σ = 1</b> (1896): no zeros on the line Re s = 1. Gives the prime number theorem, with an error only slightly smaller than x.</p><p><b>σ = 7/8</b> (claimed September 2026, with a Lean proof, in OpenAI's math release): no zeros in Re s &gt; 7/8. It would be the first zero-free half-plane ever proved, and it is not yet confirmed.</p><p><b>σ = ½</b>: RH. The error drops to about the square root of the count: at 10¹², about 10⁶ out of 3.8 × 10¹⁰ primes.</p>`,
+  mount(el, ctx) {
+    const seen = new Set();
+    el.innerHTML = W(`<div class="ctl"><div class="btns"><button class="b" data-s="1">σ = 1 · 1896</button><button class="b" data-s="0.875">σ = 7/8 · claimed 2026</button><button class="b" data-s="0.5">σ = ½ · RH</button></div></div><div class="read"><div><b id="r1"></b><span>error scale x^σ log x at 10¹²</span></div><div><b>3.8×10¹⁰</b><span>primes below 10¹²</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    let sig = 1;
+    const draw = () => {
+      const f = frame($('p'), { x: [0, 3], y: [0, 14] });
+      const rungs = [[1, '1', css('--good')], [0.875, '7/8', css('--claim')], [0.5, '½', css('--accent')]];
+      let g = axes(f, [], [[0, '1'], [6, pow10(6)], [10.6, '3.8×10¹⁰'], [14, pow10(14)]], '', '');
+      g += `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(Math.log10(3.76e10))}" y2="${f.Y(Math.log10(3.76e10))}" stroke="${css('--fg')}" stroke-dasharray="4 3" opacity="0.5"/>`;
+      rungs.forEach(([s, l, c], i) => {
+        const v = s === 1 ? 12 : Math.log10(1e12 ** s * Math.log(1e12));   // σ = 1 only gives o(x): drawn at x itself
+        g += `<rect x="${f.X(i + 0.2)}" y="${f.Y(v)}" width="${f.X(0.6) - f.X(0)}" height="${f.Y(0) - f.Y(v)}" fill="${c}" opacity="${sig === s ? 0.9 : 0.3}"/><text x="${f.X(i + 0.5)}" y="${f.H - 5}" font-size="10" text-anchor="middle">σ = ${l}</text>`;
+      });
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`); $('p').innerHTML = g;
+      $('r1').textContent = sig === 1 ? 'o(x): below 10¹², barely' : `≈ ${pow10(Math.round(Math.log10(1e12 ** sig * Math.log(1e12))))}`;
+      el.querySelectorAll('[data-s]').forEach((b) => b.classList.toggle('on', +b.dataset.s === sig));
+    };
+    el.querySelectorAll('[data-s]').forEach((b) => b.onclick = () => { sig = +b.dataset.s; seen.add(sig); draw(); if (seen.size === 3) ctx.done(); });
+    draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'where it\'s true', t: 'RH you can check: curves mod p',
+  cap: 'Count the solutions of y² = x³ + ax + b with x, y taken mod p. The count is always within 2√p of p + 1. That is the Riemann hypothesis for this curve, and it is a theorem.',
+  pred: { q: 'Out of thousands of random curves, how many will land outside the band?', opts: ['none', 'a few', 'about 5%'], a: 0, why: 'None, ever. Hasse proved it in 1933; Weil proved it for all curves over finite fields in 1948, and Deligne for all varieties in 1974.' },
+  do: 'Add curves until there are at least 1000 dots.',
+  notes: `<h3>Why this is RH</h3><p>A curve over a finite field has its own zeta function, built from its point counts. Its "Riemann hypothesis" says its zeros have real part ½, and that turns out to be exactly the bound |#E − (p + 1)| ≤ 2√p. Each dot here is one curve and one prime, plotted as a_p / 2√p with a_p = p + 1 − #E. RH says every dot is in [−1, 1].</p><h3>Sato–Tate</h3><p>The dots aren't uniform in the band. For a typical curve they follow the semicircle (2/π)√(1 − x²), the Sato–Tate law, proved in 2008–2011. That is another random-matrix law, for a different group.</p><h3>Why it matters for 2026</h3><p>The analogy between primes and curves over finite fields is the oldest strategy for RH. The November 2026 claim begins from an elementary proof of exactly this theorem, Stepanov's. That is the next slide.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl"><div class="btns"><button class="b" id="add">+200 curves</button><button class="b" id="st">Sato–Tate curve</button></div></div><div class="read"><div><b id="r1">0</b><span>curves counted</span></div><div><b id="r2">0</b><span>outside the band</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const primes = R.sieve(1500).filter((p) => p > 3), pts = [];
+    let showST = false, seed = 1234567;
+    const rnd = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+    const add = (n) => {
+      for (let k = 0; k < n; k++) {
+        const p = primes[Math.floor(rnd() * primes.length)], a = Math.floor(rnd() * p), b = Math.floor(rnd() * p);
+        if (!R.isSquarefreeCubic(a, b, p)) continue;
+        const N = R.ecCount(a, b, p); pts.push([p, (p + 1 - N) / (2 * Math.sqrt(p))]);
+      }
+    };
+    const draw = () => {
+      const f = frame($('p'), { x: [0, 1500], y: [-1.4, 1.4], pad: { r: 54 } });
+      let g = axes(f, [[0, 0], [750, 750], [1500, 1500]], [[-1, '−1'], [0, 0], [1, 1]], 'p', 'a_p / 2√p');
+      g += `<rect x="${f.pad.l}" y="${f.Y(1)}" width="${f.X(1500) - f.pad.l}" height="${f.Y(-1) - f.Y(1)}" fill="${css('--good-faint')}"/>`;
+      for (const [p, v] of pts) g += `<circle cx="${f.X(p).toFixed(1)}" cy="${f.Y(v).toFixed(1)}" r="1.6" fill="${css('--accent')}" opacity="0.7"/>`;
+      // side histogram
+      const bins = 20, h = new Array(bins).fill(0); for (const [, v] of pts) h[Math.min(bins - 1, Math.max(0, Math.floor((v + 1) / 2 * bins)))]++;
+      const mx = Math.max(1, ...h), x0 = f.W - f.pad.r + 6, bw = 44;
+      h.forEach((c, i) => { const y1 = f.Y(-1 + 2 * (i + 1) / bins), y2 = f.Y(-1 + 2 * i / bins); g += `<rect x="${x0}" y="${y1}" width="${bw * c / mx}" height="${y2 - y1 - 0.5}" fill="${css('--accent-faint')}" stroke="${css('--accent')}" stroke-width="0.4"/>`; });
+      if (showST && pts.length) {
+        const peak = (2 / Math.PI), scale = bw / (mx / (pts.length * 2 / bins));
+        let d = ''; for (let i = 0; i <= 60; i++) { const v = -1 + 2 * i / 60, dens = (2 / Math.PI) * Math.sqrt(Math.max(0, 1 - v * v)); d += `${i ? 'L' : 'M'}${x0 + dens * scale},${f.Y(v)}`; }
+        g += `<path d="${d}" fill="none" stroke="${css('--claim')}" stroke-width="1.8"/>`;
+      }
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`); $('p').innerHTML = g;
+      $('r1').textContent = pts.length; $('r2').textContent = pts.filter((q) => Math.abs(q[1]) > 1).length;
+      $('st').classList.toggle('on', showST);
+      if (pts.length >= 1000) ctx.done();
+    };
+    $('add').onclick = () => { add(200); draw(); };
+    $('st').onclick = () => { showST = !showST; draw(); };
+    add(200); draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'where it\'s true', t: 'Stepanov\'s trick: multiplicity',
+  cap: 'To show a curve has few points, build a polynomial that vanishes at every point to high order. A polynomial of degree D can only vanish k times to order m if k·m ≤ D.',
+  do: 'Raise the multiplicity and watch the degree it costs.',
+  notes: `<h3>The idea (1969)</h3><p>Stepanov wanted to bound the number of points k on a curve over 𝔽_q. He built an auxiliary polynomial with two properties: it vanishes to order m at every point of the curve, and its degree D is not much larger than about √q · m. Then k · m ≤ D gives k ≲ q + O(√q), which is the Riemann hypothesis for the curve, by elementary algebra. Bombieri extended it to every curve in 1973.</p><h3>The obstacle over ℤ</h3><p>The trick needs "vanishing to order m", which means derivatives. Over 𝔽_q you can differentiate polynomials. Over the integers there is no good notion of differentiating a number, so the method seemed stuck there for fifty years.</p><h3>The 2026 claim</h3><p>The November 2026 note says it found a substitute: chains of <i>theta lifts</i> between automorphic forms, each lift buying one order of multiplicity, about √X lifts for primes up to X. That is its claim, not something this deck can check.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('km', 'order m', 1, 6, 1, 1)}${knob('kk', 'points k', 2, 6, 1, 4)}</div><div class="read"><div><b id="r1"></b><span>degree needed = k · m</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const draw = () => {
+      const m = +$('km').value, k = +$('kk').value; $('kmo').textContent = m; $('kko').textContent = k;
+      const roots = Array.from({ length: k }, (_, i) => -1 + 2 * (i + 0.5) / k);
+      const P = (x) => roots.reduce((a, r) => a * (x - r) ** m, 1);
+      const pts = []; let mx = 0; for (let i = 0; i <= 500; i++) { const x = -1.05 + 2.1 * i / 500, v = P(x); pts.push([x, v]); mx = Math.max(mx, Math.abs(v)); }
+      const sc = pts.map(([x, v]) => [x, Math.sign(v) * Math.pow(Math.abs(v) / mx, 1 / (k * m) * 2)]);
+      const f = frame($('p'), { x: [-1.05, 1.05], y: [-1.1, 1.1] });
+      let g = `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="${css('--rule')}"/>`;
+      g += `<path d="${path(sc, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="2"/>`;
+      for (const r of roots) g += `<circle cx="${f.X(r)}" cy="${f.Y(0)}" r="${3 + m}" fill="none" stroke="${css('--claim')}" stroke-width="2"/>`;
+      g += `<text x="${f.pad.l}" y="${f.pad.t + 10}" font-size="9">P(x) = ∏ (x − aᵢ)^${m}, shape only</text>`;
+      $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`); $('p').innerHTML = g;
+      $('r1').textContent = k * m;
+      if (m >= 4) ctx.done();
+    };
+    $('km').oninput = draw; $('kk').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: '2026', t: 'The claim, and what\'s in the box',
+  cap: 'On 20 November 2026 a mathematician announced a proof of RH and GRH found with Claude, published only as a Lean project. Here is what a static read of it shows.',
+  do: 'Pull the sheet up and read what would settle it.',
+  notes: `<h3>What was announced</h3><p>A four-page note (alpo.ge/remark.pdf) and a Lean project in fourteen parts. No paper: the author says a full write-up ran past 250,000 pages, and that "Claude far outpaced me near the finish line".</p><h3>What a text read shows</h3><p>The headline theorem is <code>riemannHypothesis : RiemannHypothesis</code>, and <code>RiemannHypothesis</code> is Mathlib's own definition. So the statement is right, which is the commonest place formal "proofs" go wrong. There is no new <code>axiom</code>, no <code>sorry</code>, and no <code>native_decide</code>.</p><h3>What would settle it</h3><p>Build it with the pinned Lean and Mathlib, run <code>#print axioms</code>, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time. It has not been reported, and this site did not do it. Until then: <b>unverified</b>.</p><p>Then comes the part no kernel does: understanding why it's true.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="tiles" id="tl"><div class="tile"><div class="v">…</div><div class="l">loading the audit</div></div></div><ul class="chk" id="ck"></ul>`);
+    fetch('../audit.json').then((r) => r.json()).then((A) => {
+      const z = (k) => A.patterns.find((p) => p.pattern === k)?.files === 0;
+      $('tl').innerHTML = `<div class="tile"><div class="v">${(A.lines / 1e6).toFixed(1)}M</div><div class="l">lines of Lean</div></div><div class="tile"><div class="v">${A.files.toLocaleString('en-US')}</div><div class="l">files</div></div>`;
+      $('ck').innerHTML = `<li class="y">Proves Mathlib's <code>RiemannHypothesis</code></li><li class="${z('axiom') ? 'y' : 'n'}">no new axioms</li><li class="${z('sorry') ? 'y' : 'n'}">no sorry</li><li class="${z('native_decide') ? 'y' : 'n'}">no native_decide</li><li class="n">built and kernel-checked</li><li class="n">#print axioms</li><li class="n">independent replay</li><li class="n">human-readable proof</li>`;
+    }).catch(() => { $('tl').innerHTML = '<div class="tile">audit.json did not load</div>'; });
+    return { onFull: () => ctx.done() };
+  },
+},
+{
+  ch: 'recall', t: 'Five questions, from memory',
+  cap: 'Retrieval is where learning sticks. Answer without scrolling back; each answer links to its slide.',
+  do: 'Answer all five.',
+  notes: `<h3>Why a quiz</h3><p>Pulling something out of memory strengthens it far more than reading it again: that is the testing effect. The predictions on earlier slides did a version of this before the reveal. This does it after.</p><p>Your answers and progress are kept only in this browser.</p>`,
+  mount(el, ctx) {
+    const Q = [
+      { q: 'How many zeros of ζ have 0 < t ≤ 100?', o: ['10', '29', '649'], a: 1, s: 8 },
+      { q: 'RH is equivalent to an error in counting primes of about…', o: ['x / log x', '√x · log x', 'log x'], a: 1, s: 2 },
+      { q: 'For y² = x³ + ax + b mod p, the count is always within … of p + 1.', o: ['√p', '2√p', 'p / 2'], a: 1, s: 13 },
+      { q: 'Gaps between consecutive zeros look like…', o: ['random (Poisson)', 'random-matrix eigenvalues', 'all equal'], a: 1, s: 9 },
+      { q: 'What has been checked about the November 2026 Lean proof?', o: ['It was built and verified', 'Its statement is Mathlib\'s RH and it has no sorry or axioms, but nobody has reported a build', 'Nothing'], a: 1, s: 15 },
+    ];
+    const ans = S.quiz || (S.quiz = {});
+    const render = () => {
+      el.innerHTML = W(`<div class="ctl quiz" style="overflow-y:auto;flex:1 1 0;font-family:var(--serif);font-size:0.85rem;color:var(--fg)">` + Q.map((q, i) => `<div class="q pred" style="border-color:var(--rule);background:var(--bg)"><div>${esc(q.q)}</div><div class="opts">${q.o.map((o, j) => `<button data-q="${i}" data-o="${j}" class="${ans[i] === undefined ? '' : j === q.a ? 'right' : j === ans[i] ? 'wrong' : ''}">${esc(o)}</button>`).join('')}</div>${ans[i] !== undefined ? `<div class="why"><a href="#${q.s + 1}" style="color:var(--accent)">revisit slide ${q.s + 1} →</a></div>` : ''}</div>`).join('') +
+        `<p style="font-family:var(--mono);font-size:0.7rem">${Object.keys(ans).length}/5 answered · ${Object.entries(ans).filter(([i, v]) => Q[i].a === v).length} right</p></div>`);
+      el.querySelectorAll('[data-q]').forEach((b) => b.onclick = () => { ans[+b.dataset.q] = +b.dataset.o; save(); render(); if (Object.keys(ans).length === 5) ctx.done(); });
+    };
+    render(); return {};
+  },
+},
+];
+
+// ----------------------------------------------------------- the deck ---
+const stage = $('stage'), sheet = $('sheet'), sbody = $('sbody');
+let live = null, full = false;
+$('bars').innerHTML = SLIDES.map((_, i) => `<i data-i="${i}"></i>`).join('');
+$('bars').querySelectorAll('i').forEach((b) => b.onclick = () => go(+b.dataset.i));
+$('toc').innerHTML = SLIDES.map((s, i) => `<li data-i="${i}">${esc(s.t)}</li>`).join('');
+$('toc').querySelectorAll('li').forEach((li) => li.onclick = () => go(+li.dataset.i));
+
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('on'); setTimeout(() => e.classList.remove('on'), 1300); }
+
+function setPeek() {
+  if (full) return;
+  // peek height = the sheet's content, capped
+  sheet.style.height = 'auto';
+  const h = Math.min(sheet.scrollHeight, $('device').clientHeight * 0.46);
+  sheet.style.height = h + 'px';
+  document.documentElement.style.setProperty('--peek', h + 'px');
+}
+function setFull(on) {
+  full = on;
+  sheet.classList.toggle('full', on);
+  stage.classList.toggle('dim', on);
+  if (on) { sheet.style.height = ($('device').clientHeight * 0.88) + 'px'; live?.onFull?.(); }
+  else { sbody.scrollTop = 0; requestAnimationFrame(setPeek); }
+  const m = sbody.querySelector('.more'); if (m) m.textContent = on ? '▾ close the notes' : '▴ lecture notes';
+}
+
+function renderSheet(i) {
+  const s = SLIDES[i];
+  const done = !!S.done[i];
+  let h = `<h2>${esc(s.t)}</h2><p class="cap">${esc(s.cap)}</p>`;
+  if (s.pred) {
+    const p = S.pred[i];
+    h += `<div class="pred"><div class="k">predict first</div>${esc(s.pred.q)}<div class="opts">${s.pred.opts.map((o, j) => `<button data-p="${j}" class="${p === undefined ? '' : j === s.pred.a ? 'right' : j === p ? 'wrong' : ''}">${esc(o)}</button>`).join('')}</div>${p !== undefined ? `<div class="why">${p === s.pred.a ? '✓ ' : ''}${esc(s.pred.why)}</div>` : ''}</div>`;
+  }
+  h += `<div class="do ${done ? 'done' : ''}"><span class="ic">${done ? '✓' : '→'}</span><span>${esc(s.do)}</span></div>`;
+  h += `<button class="more">${full ? '▾ close the notes' : '▴ lecture notes'}</button><div class="notes">${s.notes}</div>`;
+  sbody.innerHTML = h;
+  sbody.querySelector('.more').onclick = () => setFull(!full);
+  sbody.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => { if (S.pred[i] !== undefined) return; S.pred[i] = +b.dataset.p; save(); renderSheet(i); requestAnimationFrame(setPeek); });
+}
+
+function go(i) {
+  i = Math.max(0, Math.min(SLIDES.length - 1, i));
+  live?.destroy?.();
+  S.i = i; save();
+  if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+  if (full) setFull(false);
+  renderSheet(i);
+  $('ch').textContent = `${SLIDES[i].ch}`;
+  $('pos').textContent = `${i + 1} / ${SLIDES.length}`;
+  $('prev').disabled = i === 0;
+  $('next').textContent = i === SLIDES.length - 1 ? 'back to start' : 'next →';
+  $('bars').querySelectorAll('i').forEach((b, j) => { b.className = j < i ? 'past' : j === i ? 'cur' : ''; });
+  $('toc').querySelectorAll('li').forEach((li, j) => { li.classList.toggle('cur', j === i); li.classList.toggle('done', !!S.done[j]); });
+  setPeek();
+  stage.innerHTML = '';
+  const ctx = { done: () => { if (S.done[i]) return; S.done[i] = true; save(); toast('done ✓'); const d = sbody.querySelector('.do'); if (d) { d.classList.add('done'); d.querySelector('.ic').textContent = '✓'; } $('toc').querySelectorAll('li')[i]?.classList.add('done'); } };
+  requestAnimationFrame(() => { live = SLIDES[i].mount(stage, ctx) || {}; });
+}
+
+$('prev').onclick = () => go(S.i - 1);
+$('next').onclick = () => go(S.i === SLIDES.length - 1 ? 0 : S.i + 1);
+addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight') go(S.i + 1); if (e.key === 'ArrowLeft') go(S.i - 1); if (e.key === 'Escape' && full) setFull(false); });
+addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1), 10); if (n && n - 1 !== S.i) go(n - 1); });
+
+// drag the sheet: up opens the notes, down closes; a horizontal swipe on the handle or caption turns the page
+{
+  let y0 = null, x0 = null, h0 = 0, moved = false;
+  const start = (e) => { const p = e.touches ? e.touches[0] : e; y0 = p.clientY; x0 = p.clientX; h0 = sheet.getBoundingClientRect().height; moved = false; sheet.style.transition = 'none'; };
+  const move = (e) => {
+    if (y0 === null) return; const p = e.touches ? e.touches[0] : e;
+    const dy = p.clientY - y0, dx = p.clientX - x0;
+    if (Math.abs(dy) > 6 && Math.abs(dy) > Math.abs(dx)) { moved = true; sheet.style.height = Math.max(80, Math.min($('device').clientHeight * 0.9, h0 - dy)) + 'px'; }
+  };
+  const end = (e) => {
+    if (y0 === null) return; const p = e.changedTouches ? e.changedTouches[0] : e;
+    const dy = p.clientY - y0, dx = p.clientX - x0; sheet.style.transition = '';
+    if (!moved && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) go(S.i + (dx < 0 ? 1 : -1));
+    else if (moved) setFull(dy < -40 ? true : dy > 40 ? false : full);
+    else setFull(!full);
+    y0 = null;
+  };
+  for (const el of [$('handle')]) { el.addEventListener('touchstart', start, { passive: true }); el.addEventListener('touchmove', move, { passive: true }); el.addEventListener('touchend', end); el.addEventListener('mousedown', start); }
+  addEventListener('mousemove', move); addEventListener('mouseup', (e) => { if (y0 !== null) end(e); });
+  // horizontal swipe anywhere on the caption area turns the page (not on the widget, which needs its own gestures)
+  let sx = null, sy = null;
+  sbody.addEventListener('touchstart', (e) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  sbody.addEventListener('touchend', (e) => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy) && !full) go(S.i + (dx < 0 ? 1 : -1)); sx = null; });
+}
+
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (full) sheet.style.height = ($('device').clientHeight * 0.88) + 'px'; else setPeek(); live?.resize?.(); }, 120); });
+const start = parseInt(location.hash.slice(1), 10);
+go(start ? start - 1 : S.i);
+</script>
+</body>
+</html>

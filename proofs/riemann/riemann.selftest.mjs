@@ -87,6 +87,37 @@ ok(R.sieve(10000).length === 1229, 'π(10⁴) = 1229');
   ok(Math.abs(R.psi0(31) - R.psiExplicit(31, zeros)) < 0.3, 'ψ₀ midpoint convention at x = 31');
 }
 
+// ---- elliptic curves over F_p: Hasse, and a known exact count --------------------
+{
+  const ps = R.sieve(200).filter((p) => p > 3);
+  let worst = 0, curves = 0;
+  for (const p of ps) {
+    const leg = R.legendreTable(p);
+    for (let a = 0; a < p; a += 3) for (let b = 1; b < p; b += 5) {
+      if (!R.isSquarefreeCubic(a, b, p)) continue;
+      // brute force: count (x, y) with y² = x³ + ax + b directly
+      const n = R.ecCount(a, b, p, leg);
+      if (p < 60) { let m = 1; for (let x = 0; x < p; x++) for (let y = 0; y < p; y++) if ((y * y - (x * x * x + a * x + b)) % p === 0) m++; ok(m === n, `#E brute vs Legendre, p=${p} a=${a} b=${b}`); }
+      worst = Math.max(worst, Math.abs(n - p - 1) / (2 * Math.sqrt(p))); curves++;
+    }
+  }
+  ok(worst <= 1, `Hasse holds on ${curves} curves (worst ratio ${worst.toFixed(3)})`);
+  // y² = x³ − x is supersingular for p ≡ 3 mod 4: exactly p + 1 points
+  for (const p of ps.filter((p) => p % 4 === 3)) ok(R.ecCount(-1, 0, p) === p + 1, `y²=x³−x has p+1 points mod ${p}`);
+}
+
+// ---- li, prime counts, gap statistics --------------------------------------------------
+near(R.li(2), 1.045163780117492784, 1e-12, 'li(2)');
+near(R.li(1e6), 78627.549159462181919, 1e-6, 'li(10⁶)');
+ok(R.sieve(1e6).length === 78498, 'π(10⁶) = 78498');
+{
+  const g = R.unfoldedGaps(zeros), mean = g.reduce((a, b) => a + b, 0) / g.length;
+  near(mean, 1, 0.01, 'unfolded gaps have mean 1');
+  const small = g.filter((x) => x < 0.2).length / g.length;
+  ok(small < 0.03, `zeros repel: only ${(small * 100).toFixed(1)}% of gaps < 0.2 (Poisson would give 18%)`);
+  let int = 0; for (let s = 0; s < 6; s += 0.001) int += R.wignerGUE(s) * 0.001; near(int, 1, 1e-3, 'Wigner surmise integrates to 1');
+}
+
 // ---- zero-free region -----------------------------------------------------------
 ok(R.classicalEdge(10) > 0.9 && R.classicalEdge(1e6) < 1 && R.classicalEdge(1e6) > R.classicalEdge(10), 'classical edge shape');
 

@@ -414,7 +414,7 @@ page quotes `faces` and `main` verbatim, and `FACES` is the Lean list.
 ## `/riemann/`: the Riemann hypothesis, and the November 2026 claim
 
 ```bash
-node proofs/riemann/riemann.selftest.mjs           # ~0.8 s, 1776 checks
+node proofs/riemann/riemann.selftest.mjs           # ~0.9 s, 2977 checks
 node proofs/riemann/riemann.selftest.mjs --write   # rewrites zeros.js
 node proofs/riemann/audit.mjs --src <lean dir> --write   # rewrites audit.json
 ```
@@ -461,3 +461,31 @@ relative and is cross-linked.
   with `#print axioms` and an independent replay. Once that happens, update
   the 2026 tab, the timeline's last entry and the tagline together. Do not
   add RH to `/conjectures/` as solved before it is accepted.
+
+### `/riemann/learn/`: the deck
+
+A phone-shaped deck of 17 slides. Each slide is a live widget (`mount(el, ctx)`
+in the `SLIDES` array) with a notes sheet over it. The sheet peeks with a
+title, a caption, an optional **predict** card (commit to an answer, then the
+reveal) and a **do** task (`ctx.done()` ticks it). Drag or tap the handle to
+open the lecture notes. Swiping sideways on the sheet or using ← → turns the
+page; the widget area is left alone so sliders keep their gestures. `#n` deep-links
+a slide. Progress, predictions and quiz answers stay in localStorage
+(`riemann-learn-v1`, every access in try/catch).
+
+- **One engine.** The deck imports `../riemann.js` and `../zeros.js` and
+  computes nothing of its own beyond a sieve to 10⁶ (prefix counts) and
+  plotting. The selftest also covers what only the deck uses: `li` (Ramanujan
+  series, held to li(10⁶)), π(10⁶) = 78498, unfolded gaps (mean 1, < 3% below
+  0.2), the Wigner surmise, and `ecCount` (Legendre symbols against brute force
+  for p < 60, Hasse on every sampled curve to 200, and y² = x³ − x having
+  p + 1 points for p ≡ 3 mod 4).
+- **The ζ map** (slide 5) draws the Re ζ = 0 and Im ζ = 0 curves as
+  sign-change pixels on a grid at 1.5 px per cell. Zeros are where they cross.
+  A plain |ζ| heatmap was tried first and failed: the plane is drawn
+  anisotropically (3 units of σ against 35 of t), so holes smear into
+  horizontal bands.
+- **Slide 13's σ = 1 bar** is drawn at x itself and labelled o(x). There is no
+  fudge constant; the de la Vallée Poussin saving depends on an unspecified c.
+- The last content slide reads `../audit.json`, so the deck and the reference
+  page always agree about the 2026 claim.

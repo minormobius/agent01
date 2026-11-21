@@ -180,3 +180,47 @@ export function psiExplicit(x, zeros, K = zeros.length) {
 // constant R = 5.558691 (Mossinghoff, Trudgian & Yang). Valid for t ≥ 2.
 export const R_CLASSICAL = 5.558691;
 export const classicalEdge = (t) => 1 - 1 / (R_CLASSICAL * Math.log(Math.max(t, 2)));
+
+// ---- RH where it is a theorem: elliptic curves over 𝔽_p ---------------------
+// #E(𝔽_p) for y² = x³ + a x + b, counting the point at infinity, by Legendre symbols.
+// Hasse (1933, the genus-1 case of Weil's RH): |#E − (p + 1)| ≤ 2√p.
+export function legendreTable(p) {
+  const t = new Int8Array(p).fill(-1);
+  t[0] = 0;
+  for (let y = 1; y < p; y++) t[(y * y) % p] = 1;
+  return t;
+}
+export function ecCount(a, b, p, leg = legendreTable(p)) {
+  let n = p + 1;                       // ∞, plus p for the "1 +" in Σ (1 + (f(x)/p))
+  for (let x = 0; x < p; x++) {
+    const f = ((((x * x) % p) * x + a * x + b) % p + p) % p;
+    n += leg[f];
+  }
+  return n;
+}
+export const isSquarefreeCubic = (a, b, p) => ((4 * a * a * a + 27 * b * b) % p + p) % p !== 0;
+
+// ---- li(x), by Ramanujan's series --------------------------------------------------
+// li(x) = γ + ln ln x + √x Σ_{n≥1} (−1)^(n−1) (ln x)^n / (n! 2^(n−1)) Σ_{k=0}^{⌊(n−1)/2⌋} 1/(2k+1)
+export const EULER_GAMMA = 0.5772156649015329;
+export function li(x) {
+  const L = Math.log(x);
+  let sum = 0, term = 1, inner = 0;
+  for (let n = 1; n < 200; n++) {
+    term *= L / n;                                    // L^n / n!
+    if ((n - 1) % 2 === 0) inner += 1 / (n);          // adds 1/(2k+1) with 2k+1 = n when n is odd
+    const t = (n % 2 ? 1 : -1) * term / 2 ** (n - 1) * inner;
+    sum += t;
+    if (Math.abs(t) < 1e-17 * Math.abs(sum) && n > 2 * L) break;
+  }
+  return EULER_GAMMA + Math.log(L) + Math.sqrt(x) * sum;
+}
+// unfolded spacings: u = θ(γ)/π + 1 has mean gap 1 (for the gap-statistics slide)
+export function unfoldedGaps(zeros) {
+  const u = zeros.map(Nsmooth), g = [];
+  for (let i = 1; i < u.length; i++) g.push(u[i] - u[i - 1]);
+  return g;
+}
+// GUE nearest-neighbour spacing (Wigner surmise, β = 2) and Poisson
+export const wignerGUE = (s) => (32 / (Math.PI ** 2)) * s * s * Math.exp(-4 * s * s / Math.PI);
+export const poisson = (s) => Math.exp(-s);

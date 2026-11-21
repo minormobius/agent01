@@ -4522,6 +4522,25 @@
       ]
     },
     {
+      "n": "riemann · learn",
+      "u": "https://proofs.mino.mobi/riemann/learn/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-21",
+      "b": "2026-11-21",
+      "p": "proofs",
+      "surface": "proofs",
+      "d": "The Riemann hypothesis as a phone-shaped deck: 17 slides, each a live widget with lecture notes you pull up over it. Predict before each reveal, then count primes, map ζ's zero curves, hunt the first zero by hand, rebuild the primes from zeros, watch zeros repel like random-matrix eigenvalues, check Hasse's bound on a thousand elliptic curves, and finish with a recall quiz.",
+      "tags": [
+        "svg",
+        "canvas",
+        "math",
+        "learn",
+        "selftest"
+      ]
+    },
+    {
       "n": "crossing",
       "u": "https://proofs.mino.mobi/crossing/",
       "c": "data",

@@ -112,6 +112,7 @@ pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; 
     <div class="head">
       <a class="crumb" href="https://proofs.mino.mobi/">← proofs</a>
       <h1>riemann</h1>
+      <a class="crumb" href="./learn/" style="color:var(--accent)">learn it: 17-slide deck →</a>
       <span class="tagline">open since 1859 · a Lean proof claimed Nov 2026, unverified</span>
     </div>
     <div class="stage">
@@ -156,6 +157,7 @@ pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; 
     <div class="panes">
 
       <div class="pane prose active" id="pane-rh">
+        <p class="warn" style="border-color:var(--accent);background:var(--accent-tint)">New to this? <a href="./learn/">Take the deck</a>: seventeen phone-sized slides, each a live widget with lecture notes over it. Predict, poke, then read. About twenty minutes.</p>
         <h2>The question</h2>
         <p>The primes thin out: about 1 in 2.3 numbers near 10 is prime, about 1 in 23 near 10¹⁰. Gauss guessed the density near x is 1/log x, so the number of primes up to x should be about li(x) = ∫ dt/log t. That guess is the <b>prime number theorem</b>, proved in 1896. The Riemann hypothesis asks how <i>good</i> the guess is.</p>
         <p>Euler noticed that primes are built into a sum over all whole numbers:</p>
@@ -199,7 +201,7 @@ pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; 
           <p>The zeros repel each other. Close pairs are rare, and between them Z barely dips across the axis ("Lehmer's phenomenon"). A pair that failed to cross would be a pair of zeros off the line. The tallest peaks sit in unusually wide gaps.</p>
           <p id="zinfo" class="note"></p>
           <h2>How it's computed</h2>
-          <p>ζ comes from Euler–Maclaurin summation with 20 Bernoulli terms. θ comes from log Γ, by Stirling's series after shifting. Both are in <code>riemann.js</code>, held to ζ(2), ζ(3), ζ(½), the functional equation, the first ten tabulated zeros, and the counts N(100) = 29 and N(1000) = 649 by a 1776-check selftest.</p>
+          <p>ζ comes from Euler–Maclaurin summation with 20 Bernoulli terms. θ comes from log Γ, by Stirling's series after shifting. Both are in <code>riemann.js</code>, held to ζ(2), ζ(3), ζ(½), the functional equation, the first ten tabulated zeros, and the counts N(100) = 29 and N(1000) = 649 by a 2977-check selftest.</p>
         </div>
       </div>
 
@@ -255,7 +257,7 @@ pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; 
 
       <div class="pane prose" id="pane-about">
         <h2>What this page checks</h2>
-        <p><code>node proofs/riemann/riemann.selftest.mjs</code> (0.8 s, 1776 checks): ζ at 2, 3, 4, 0, −1, −3, ½ and its trivial zeros; the functional equation at 40 random complex points; θ against its asymptotic series; Z(t) real to 10⁻¹⁰ along the line; the first ten zeros against Odlyzko's tables to 10⁻⁹; N(100) = 29 and N(1000) = 649; the count against θ(T)/π + 1 at every gap; and that the zero list this page loads is exactly what the engine finds. The explicit formula is held to a mean error under 0.1 on [10, 100].</p>
+        <p><code>node proofs/riemann/riemann.selftest.mjs</code> (0.9 s, 2977 checks): ζ at 2, 3, 4, 0, −1, −3, ½ and its trivial zeros; the functional equation at 40 random complex points; θ against its asymptotic series; Z(t) real to 10⁻¹⁰ along the line; the first ten zeros against Odlyzko's tables to 10⁻⁹; N(100) = 29 and N(1000) = 649; the count against θ(T)/π + 1 at every gap; and that the zero list this page loads is exactly what the engine finds. The explicit formula is held to a mean error under 0.1 on [10, 100].</p>
         <p><code>node proofs/riemann/audit.mjs --src &lt;lean dir&gt;</code> produces <code>audit.json</code>, the static read of the 2026 archive. It reads text and runs nothing from the archive.</p>
         <h2>What it cannot check</h2>
         <p>Computing zeros proves nothing about RH beyond the height computed. Rigorous verification needs interval arithmetic and Turing's method, which this page doesn't do: a missed close pair would show up as a count of 648, so the count is the honest part. The Lean archive was not built or run here.</p>
