@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), yields4Numbers(), statusNumbers(), methodNumbers());
+  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), yields4Numbers(), egravNumbers(), statusNumbers(), methodNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -187,6 +187,24 @@ function yields4Numbers() {
   Object.assign(t, { yN: String(Y.stars.filter((x) => ladS.has(x.s)).length), yNs: ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"][ladS.size], yShort: String(short.length), yReached: String(reached.length), yCarried: String(carried.length), yXcMax: f(Math.max(...carried.map((x) => x.XcEnd)), 2) });
   return t;
 }
+/* the energy of contraction (data/egrav.json, fusion/tools/egrav4.mjs): the checks on ours, the two stalled analogues
+   resumed with it, and the first star past exhaustion (provisional). Stops if the checks on ours stop being small, or a
+   stalled analogue no longer gets past its stall */
+function egravNumbers() {
+  const E = J("egrav.json"), o = E.ours, sig = (x, n = 2) => String(Number(x.toPrecision(n))), pc = (x, n = 2) => `${sig(Math.abs(100 * x), n)}%`;
+  if (!(o.sun.maxAbsPct < 0.5 && o.m2.maxAbsPct < 0.5)) throw new Error("egrav: ε_grav moves ours by more than 0.5%: the text says it barely moves them");
+  const st = Object.fromEntries(E.stalls.map((x) => [x.G, x])), a = st[1e-14], b = st[1e-11];
+  if (!a || !b || !(a.moreMyr > 0 && b.moreMyr > 0)) throw new Error("egrav: a stalled analogue no longer gets past its stall");
+  const yrs = (myr) => (myr >= 1000 ? `${sig(myr / 1000)} Gyr` : `${sig(myr)} Myr`), cmax = E.stalls.map((x) => Math.max(Math.abs(x.contraction.min), Math.abs(x.contraction.max)));
+  const t = { egSun: sig(o.sun.maxAbsPct), egM2: sig(o.m2.maxAbsPct), egSunC: pc(o.sun.contraction.median, 1), egM2C: pc(o.m2.contractionNearEnd.max),
+    egM2life: pc(o.m2.atXc.at(-1).dAge / 100, 1), egMore14: yrs(a.moreMyr), egMore11: yrs(b.moreMyr), egStall14: sig(a.stallGyr, 4), egStall11: sig(b.stallGyr, 4),
+    egStop14: sig(a.stopGyr, 4), egStop11: sig(b.stopGyr, 4), egTc14: `${sig(a.TcStall, 3)} to ${sig(a.TcMin, 3)}`, egTc11: `${sig(b.TcStall, 3)} to ${sig(b.TcMin, 3)}`,
+    egRho: `${Math.round(100 * (Math.min(a.rhoMaxOverStall, b.rhoMaxOverStall) - 1))}–${Math.round(100 * (Math.max(a.rhoMaxOverStall, b.rhoMaxOverStall) - 1))}%`,
+    egC14: pc(cmax[E.stalls.indexOf(a)], 1), egC11: pc(cmax[E.stalls.indexOf(b)], 2) };
+  const P = E.past; if (P) Object.assign(t, { egPmyr: sig(P.myr), egPH0: sig(P.Hfree[0]), egPH1: sig(P.Hfree[1]), egPproc: sig(P.processed[1]), egPR: sig(P.R), egPL: sig(P.L),
+    egPT0: (Math.round(P.Teff[0] / 100) * 100).toLocaleString("en-GB"), egPT1: (Math.round(P.Teff[1] / 100) * 100).toLocaleString("en-GB"), egPTc0: sig(P.Tc[0], 2), egPTc1: sig(P.Tc[1], 2), egPrho: sig(P.rhoc) });
+  return t;
+}
 /* the status page's own numbers (text/status.md): what metals do to 4D opacity (data/metals4.json, fusion/tools/metals4.mjs)
    and the charge law's plasma on the zero-age profiles (data/lensplasma.json) */
 function statusNumbers() {
@@ -253,6 +271,7 @@ function ageNumbers() {
 const PCHECKS = {
   ash4Heavy: () => ash4Numbers().ashA,
   yields4P: () => yields4Numbers().yPA,
+  egravOurs: () => { const o = J("egrav.json").ours; return `${o.sun.maxAbsPct.toPrecision(2)}/${o.m2.maxAbsPct.toPrecision(2)}`; },
   ages4Half: () => { const S = J("ages4.json").summary; return `${S.halfMin.toFixed(1)}–${S.halfMax.toFixed(0)}`; },
   opalSunRho: () => J("mistcheck.json").sets.opal.sun457.rhoc,
   opalHalfR: () => { const M = J("mistcheck.json").sets, v = ["1", "1.25", "1.6", "2", "3"].map((m) => M.opal.stars[m].ratio.halfR); return `${Math.min(...v).toFixed(2)}–${Math.max(...v).toFixed(2)}`; },

@@ -28,8 +28,10 @@ lives from a frozen zero-age core. Five things came out of it.
    planet's rock and its core. Near our strength the two come back in comparable amounts; from $s$ = 1.6 up, mostly the
    rock row. Near our
    strength the metals returned come to 0.049–0.25 of the mass the stars lock away; at $s$ = 1.8, 0.00038–0.0015.
-5. **One limit is real physics, not numerics.** Two stars at $s$ = 1.5152 stop when their core's oitrogen runs out and
-   the stirred core collapses faster than a solver in thermal balance can follow.
+5. **The one limit was missing physics, now added.** Two stars at $s$ = 1.5152 stopped when their core's oitrogen ran out
+   and the stirred core collapsed faster than a solver in thermal balance could follow. With the energy of contraction in
+   the solver, checked first on our Sun, both pass that point and live on (1.5 Gyr and 150 Myr), before stopping
+   again where their centres reheat.
 
 What is still declared rather than computed is the stars' lives after hydrogen: how their cores grow, and which end
 as dead remnants and which explode. That decides what goes back into the gas for the next generation, and it is the
@@ -74,8 +76,14 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
 - **Stars that age** (computed; [section 4](ageing.html)). 28 of 29 analogues halve their central hydrogen
   in 10.6–177 Gyr. The slowest are at $s$ = 1.5152: 43, 125, 177 Gyr from $G$ = 10⁻¹⁴ to 10⁻²⁰.
 - **The oitrogen stall** (computed; section 4). At $G$ = 10^−11^ and 10^−14^, $s$ = 1.5152, the centre stops at hydrogen
-  0.37–0.38, pxygen 0.59 and oitrogen 0.03–0.04 by mass. Following those stars further needs the energy a
-  contracting core releases, which the solver leaves out.
+  0.37–0.38, pxygen 0.59 and oitrogen 0.03–0.04 by mass, without the energy a contracting core releases.
+- **The energy of contraction** (computed; section 4). In the solver behind a switch, so no result above moved. It moves
+  our Sun by at most 0.099% and a 2 M☉ star to the end of its hydrogen by at most 0.14%. With it both stalled
+  analogues pass the stall: the stirred core switches off and the centre cools and contracts, then reheats, and they
+  stop again at 44.77 and 2.707 Gyr where a stirred core begins to re-form.
+- **Past the end of the hydrogen** (provisional; one star, running). The 1.25 M~Ch~ star on the explosion line, carried
+  200 Myr past it: its hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and the star swells ×1.8.
+  Whether the core reaches the 1 M~Ch~ it needs to explode is not settled yet.
 - **What the first stars hold** (computed; section 4). Elements past helium: 9–30% of the star at $s$ ≤ 1.55,
   2–20% at 1.6–1.65 (coron, element 6, darbon, element 8 and oitrogen), 0.3–4% at 1.7, and at most 0.1% from 1.75 up, where stars burn hydrogen to
   helium and stop.
@@ -117,11 +125,12 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **The energy of contraction in the structure** (a change to the solver; every aged run redone on the runner). The
-   mass ladders are done: 28 of the 29 stars that die within 30 Gyr reach the end of their central
-   hydrogen. What is left declared is how their cores grow afterwards, which sets which stars explode and, near our
-   strength, how much of what they return is iron. Following the cores past hydrogen would compute it, and would follow
-   the two analogues that stall. This is the step that most changes what the paper can claim.
+1. **Following cores past the end of the hydrogen** (the compute runner; one star running). The energy of contraction
+   is now in the solver. The mass ladders are done: 28 of the 29 stars that die within 30 Gyr reach
+   the end of their central hydrogen. What is left declared is how their cores grow afterwards, which sets which stars
+   explode and, near our strength, how much of what they return is iron. The first star past it, the one on the
+   explosion line, decides whether computing that for every ladder star is worth the runner time. This is the step that
+   most changes what the paper can claim.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
    and first 3 Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return. Near
    our strength that mix holds this world's iron as well as the rock row, and the book's ions don't reach iron yet, so

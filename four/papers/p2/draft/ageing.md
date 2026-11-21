@@ -59,6 +59,27 @@ denser and 3% cooler and the light rose 17%. The solver keeps every shell in the
 energy drawn from contraction, so it cannot follow a core changing that fast; where it fails does not depend on where
 the shooting meets. Following these stars further needs that energy in the structure.
 
+**The energy of contraction.** With it added (4.2.5) and checked on our own stars first, the stall is passed. Our Sun to
+4.57 Gyr moves by at most 0.099% in light, radius, central temperature or central density, and a 2 M☉ star to the end
+of its central hydrogen by at most 0.14% (its life by 0.05%). Contraction supplies a few parts in 10⁴ of the
+Sun's light (0.03%) and rises to 1.3% of the 2 M☉ star's as its core runs dry. Resumed from their checkpoints at
+the stall (43.27 and 2.557 Gyr), the analogue at G = 10^−14^ lives 1.5 Gyr more and the one at
+G = 10^−11^ 150 Myr. In both the stirred core switches off. The centre cools, from 21.8 to 16.6 MK and from 23.4 to 17.3 MK,
+and grows 31–39% denser, then slowly reheats, while its hydrogen barely burns and the light comes from layers further
+out. Contraction's share of the light stays within 0.4% and 2.2% respectively: a small term, but without it no
+star exists there.
+Both stop again where the centre reheats and a stirred core begins to re-form, at 44.77 and 2.707 Gyr, and a
+looser solver tolerance stops at the same place. Whether that is a real flare of the centre's hydrogen or the edge of
+the method is open. The ages above end at the stall and stand.
+
+**Past the end of the hydrogen (provisional).** With the same energy in the structure, the ladder star that sits on the
+explosion line (s = 1.5152, 1.25 M~Ch~) has been carried 200 Myr past the end of its central hydrogen. Its
+hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and is still speeding up; the processed core it must burn
+through holds at 0.81 M~Ch~. The star swells ×1.8 in radius and ×1.9 in light, and its surface cools from
+46,100 to 37,000 K, while its centre heats from 71 to 83 MK and grows ×4.6 denser: a subgiant
+beginning. Whether its core reaches the Chandrasekhar mass, which decides whether it explodes and so tests the declared
+core growth above, is the run now going on.
+
 **What the aged stars hold.** Summed over each analogue's last kept profile, the elements past helium are 9–30% of
 its mass at s ≤ 1.55, mostly element 8, oitrogen, pxygen and gluorine; 2–20% at s = 1.6–1.65, coron, element 6, darbon, element 8 and oitrogen; 0.3–4% at s = 1.7, element 6;
 and at most 0.1% from s = 1.75 up, where the stars burn hydrogen to helium and no further. Where the climb runs,
@@ -133,8 +154,9 @@ in a metal-poor star, whose stirred envelope is thin. Its equation of state is a
 ### 4.2.1 The star
 
 The star is section 3's solver: hydrostatic and thermal equilibrium, Fermi–Dirac electrons, convection at the
-adiabatic gradient, our opacity. Its composition may now vary with mass. The energy comes from burning only. The slow
-contraction's share, $\varepsilon_\mathrm{grav}$, is left out; it is small on the main sequence. The composition
+adiabatic gradient, our opacity. Its composition may now vary with mass. The energy comes from burning. The slow
+contraction's share, $\varepsilon_\mathrm{grav}$, is left out of the runs whose results are above, where it is small;
+it is added where a core changes fast (4.2.5). The composition
 lives on a fixed grid in $q = m/M$, 401 points spaced as $q = (j/400)^{1.5}$, finer at the centre.
 
 With OPAL's opacity, the tables are read in $\log T$ and $\log R$ ($R = \rho/T_6^3$) by cubic interpolation, linearly in
@@ -173,3 +195,20 @@ Bahcall, Pinsonneault & Basu's standard model (BP2000) gives $L$, $R$ and $T_\ma
 Sun, read from its authors' model file [@jcd1996]. Its abundances, ε and κ serve the first two checks. B16-GS98 gives
 the present centre's helium and metals [@vinyoles2017, table 4]. Every number used is kept in `data/ssm-ref.json` and
 `data/modelS.json` with its locator.
+
+### 4.2.5 The energy of contraction
+
+A layer that contracts releases heat; one that expands takes it in. Per unit mass that is
+$\varepsilon_\mathrm{grav} = -\mathrm{d}u/\mathrm{d}t + (P/\rho^2)\,\mathrm{d}\rho/\mathrm{d}t$ at fixed mass coordinate. The
+gas here is ideal ions and Fermi–Dirac electrons, both non-relativistic, for which the internal energy per unit mass is
+exactly $u = (d/2)P/\rho$. So
+$\varepsilon_\mathrm{grav} = (P/\rho)\,[\tfrac{d+2}{2}\,\mathrm{d}\ln\rho - \tfrac{d}{2}\,\mathrm{d}\ln P]/\mathrm{d}t$; radiation's share is left
+out. It enters the structure beside the burning, implicit in each trial star's own $\rho$ and $P$, measured against a
+reference model at the same mass coordinate, with the reference's density taken at today's composition so that burning's
+change of the mean particle mass is not counted as contraction. The care is in the reference. On the main sequence
+$\varepsilon_\mathrm{grav}$ is a small difference of two large terms, and the shooting meets its two halves only to about
+10⁻⁵, so against the last step alone the term is mostly noise and the solve goes stiff. The reference is therefore the
+latest earlier model whose central density differs from now by at least 1%, taken from its own integration path (the
+composition grid's interpolation error would swamp the term), and the term is switched on only once that reference lies
+a set fraction of the thermal time $GM^2/RL$ back. Steps are halved if the centre's density moves more than 5%. A run's
+checkpoint keeps its reference, and a resumed star is re-solved against it.

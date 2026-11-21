@@ -1365,6 +1365,16 @@ for games, and this is a modelling programme with publications to come. The game
   written before gref (the stalled-analogue resumes need the old behaviour, gravAfter 0, the default). Sandbox: from
   evolve4-14's checkpoint with gravAfter=0.01, 30 models and no failed solve; its checkpoint resumed with gref, 11 more,
   none failed. evolve4-16 carries the star on.
+  **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
+  `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
+  stalled analogues resumed with it, the first star past exhaustion, provisional, from the further of its `-Hs` runs);
+  `build.mjs` `egravNumbers` (stops if ε_grav moves ours by 0.5% or more, or a stalled analogue no longer passes its
+  stall); section 4 gets "The energy of contraction", "Past the end of the hydrogen (provisional)" and methods 4.2.5;
+  the status page's finding 5, two established lines and next step 1; methods link 7; provenance stage `egrav` (check
+  `egravOurs`); OUTLINE items 12a/13; the pipeline's ageing box. **The habit:** each collected run moves its data file,
+  its provenance entry and the status page in the same commit; the sections take it when it settles. Rerun `egrav4.mjs`
+  (with the sandbox dirs of ours' runs and the stall resumes, plus the runner's `-Hs` runs) when a past-exhaustion run
+  lands, then build.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /

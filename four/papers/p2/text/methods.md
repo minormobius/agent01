@@ -124,9 +124,10 @@ structural rather than an error of the step. In the structure each shell's energ
 and temperature, refitted until the luminosity settles. Every star is first **settled** ({{mSettle}} years in four
 dimensions), so its burning's intermediate nuclei come into balance before the clock starts. Runs checkpoint
 themselves and resume. **Checked:** our Sun (section 4): its light against the standard model to its present age, its
-central hydrogen's exhaustion against the textbook's. **Left out:** the energy a contracting core releases
-($\varepsilon_\mathrm{grav}$), small on the main sequence but not where a core changes fast. That is why two runs stop
-in the oitrogen stall; adding it is the next change to the solver. Also left out, as in many first models of ours:
+central hydrogen's exhaustion against the textbook's. **The energy a contracting core releases**
+($\varepsilon_\mathrm{grav}$) is small on the main sequence and left out of the runs whose results are quoted; it is
+added, behind a switch, where a core changes fast (section 4.2.5). It moves our Sun by at most {{egSun}}%, and with it
+the two runs that stopped in the oitrogen stall pass it. Also left out, as in many first models of ours:
 overshoot past the convective edge, element diffusion, rotation and mass loss on the main sequence. **Code:**
 `atom/tools/evolve.mjs`; collected by `fusion/tools/ages4.mjs` (each run's finished file or checkpoint, whichever got
 further). **Detail:** sections 4.2.1–4.2.3.

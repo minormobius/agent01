@@ -10,7 +10,7 @@ const LINKS = [
   ["carried", "3  Reaction rates", "p + p, ⁴He captures computed · the rest REACLIB through 4D's barrier", "ppfusion.mjs, rates4.mjs"],
   ["computed", "4  Burning", "implicit network · fast species at steady state · screening", "net4.js, shell4.js, screen.js"],
   ["computed", "5  The star", "shooting · pinned gravity · Fermi–Dirac gas · lens-vacuum opacity", "mainseq.js"],
-  ["computed", "6  Ageing", "shells burnt · stirred zones mixed · energy-checked steps", "evolve.mjs"],
+  ["computed", "6  Ageing", "shells burnt · stirred zones mixed · energy-checked steps · contraction", "evolve.mjs"],
   ["computed", "7  What stars hold", "last profile summed element by element", "ash4.mjs"],
   ["declared", "8  How stars end", "core growth · dead remnant or explosion · winds", "yields4.mjs, nuclei.mjs explode"],
   ["declared", "9  What they give back", "net yield on a mass function · one-zone galaxy", "yields4.mjs"],

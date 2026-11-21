@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="6d185028c70c8c2ad36efebd4c9990e0a6715121c97df5686a5e81437dc14c85" />
+<meta name="source-sha256" content="b2f08feb3fd4d5be4d6c343193c56ae857e60b021fbf1ca513fd3a91db3d99ea" />
 <title>Paper 2 · Stars that age: our Sun first</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -107,6 +107,35 @@ shell in thermal balance, with no energy drawn from contraction, so it
 cannot follow a core changing that fast; where it fails does not depend
 on where the shooting meets. Following these stars further needs that
 energy in the structure.</p>
+<p><strong>The energy of contraction.</strong> With it added (4.2.5) and
+checked on our own stars first, the stall is passed. Our Sun to 4.57 Gyr
+moves by at most 0.099% in light, radius, central temperature or central
+density, and a 2 M☉ star to the end of its central hydrogen by at most
+0.14% (its life by 0.05%). Contraction supplies a few parts in 10⁴ of
+the Sun’s light (0.03%) and rises to 1.3% of the 2 M☉ star’s as its core
+runs dry. Resumed from their checkpoints at the stall (43.27 and 2.557
+Gyr), the analogue at G = 10<sup>−14</sup> lives 1.5 Gyr more and the
+one at G = 10<sup>−11</sup> 150 Myr. In both the stirred core switches
+off. The centre cools, from 21.8 to 16.6 MK and from 23.4 to 17.3 MK,
+and grows 31–39% denser, then slowly reheats, while its hydrogen barely
+burns and the light comes from layers further out. Contraction’s share
+of the light stays within 0.4% and 2.2% respectively: a small term, but
+without it no star exists there. Both stop again where the centre
+reheats and a stirred core begins to re-form, at 44.77 and 2.707 Gyr,
+and a looser solver tolerance stops at the same place. Whether that is a
+real flare of the centre’s hydrogen or the edge of the method is open.
+The ages above end at the stall and stand.</p>
+<p><strong>Past the end of the hydrogen (provisional).</strong> With the
+same energy in the structure, the ladder star that sits on the explosion
+line (s = 1.5152, 1.25 M<sub>Ch</sub>) has been carried 200 Myr past the
+end of its central hydrogen. Its hydrogen-free core grows from 0.026 to
+0.16 M<sub>Ch</sub> and is still speeding up; the processed core it must
+burn through holds at 0.81 M<sub>Ch</sub>. The star swells ×1.8 in
+radius and ×1.9 in light, and its surface cools from 46,100 to 37,000 K,
+while its centre heats from 71 to 83 MK and grows ×4.6 denser: a
+subgiant beginning. Whether its core reaches the Chandrasekhar mass,
+which decides whether it explodes and so tests the declared core growth
+above, is the run now going on.</p>
 <p><strong>What the aged stars hold.</strong> Summed over each
 analogue’s last kept profile, the elements past helium are 9–30% of its
 mass at s ≤ 1.55, mostly element 8, oitrogen, pxygen and gluorine; 2–20%
@@ -274,10 +303,11 @@ difference.</p>
 <p>The star is section 3’s solver: hydrostatic and thermal equilibrium,
 Fermi–Dirac electrons, convection at the adiabatic gradient, our
 opacity. Its composition may now vary with mass. The energy comes from
-burning only. The slow contraction’s share,
+burning. The slow contraction’s share,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ε</mi><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">v</mi></mrow></msub><annotation encoding="application/x-tex">\varepsilon_\mathrm{grav}</annotation></semantics></math>,
-is left out; it is small on the main sequence. The composition lives on
-a fixed grid in
+is left out of the runs whose results are above, where it is small; it
+is added where a core changes fast (4.2.5). The composition lives on a
+fixed grid in
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><mi>m</mi><mi>/</mi><mi>M</mi></mrow><annotation encoding="application/x-tex">q = m/M</annotation></semantics></math>,
 401 points spaced as
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>q</mi><mo>=</mo><msup><mrow><mo stretchy="true" form="prefix">(</mo><mi>j</mi><mi>/</mi><mn>400</mn><mo stretchy="true" form="postfix">)</mo></mrow><mn>1.5</mn></msup></mrow><annotation encoding="application/x-tex">q = (j/400)^{1.5}</annotation></semantics></math>,
@@ -367,6 +397,37 @@ data-cites="vinyoles2017">(<a href="#ref-vinyoles2017"
 role="doc-biblioref">Vinyoles et al. 2017</a>, table 4)</span>. Every
 number used is kept in <code>data/ssm-ref.json</code> and
 <code>data/modelS.json</code> with its locator.</p>
+<h3 id="the-energy-of-contraction">4.2.5 The energy of contraction</h3>
+<p>A layer that contracts releases heat; one that expands takes it in.
+Per unit mass that is
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ε</mi><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">v</mi></mrow></msub><mo>=</mo><mo>−</mo><mi mathvariant="normal">d</mi><mi>u</mi><mi>/</mi><mi mathvariant="normal">d</mi><mi>t</mi><mo>+</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>P</mi><mi>/</mi><msup><mi>ρ</mi><mn>2</mn></msup><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mi mathvariant="normal">d</mi><mi>ρ</mi><mi>/</mi><mi mathvariant="normal">d</mi><mi>t</mi></mrow><annotation encoding="application/x-tex">\varepsilon_\mathrm{grav} = -\mathrm{d}u/\mathrm{d}t + (P/\rho^2)\,\mathrm{d}\rho/\mathrm{d}t</annotation></semantics></math>
+at fixed mass coordinate. The gas here is ideal ions and Fermi–Dirac
+electrons, both non-relativistic, for which the internal energy per unit
+mass is exactly
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>u</mi><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>d</mi><mi>/</mi><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow><mi>P</mi><mi>/</mi><mi>ρ</mi></mrow><annotation encoding="application/x-tex">u = (d/2)P/\rho</annotation></semantics></math>.
+So
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>ε</mi><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">v</mi></mrow></msub><mo>=</mo><mrow><mo stretchy="true" form="prefix">(</mo><mi>P</mi><mi>/</mi><mi>ρ</mi><mo stretchy="true" form="postfix">)</mo></mrow><mspace width="0.167em"></mspace><mrow><mo stretchy="true" form="prefix">[</mo><mfrac displaystyle="false"><mrow><mi>d</mi><mo>+</mo><mn>2</mn></mrow><mn>2</mn></mfrac><mspace width="0.167em"></mspace><mi mathvariant="normal">d</mi><mo>ln</mo><mi>ρ</mi><mo>−</mo><mfrac displaystyle="false"><mi>d</mi><mn>2</mn></mfrac><mspace width="0.167em"></mspace><mi mathvariant="normal">d</mi><mo>ln</mo><mi>P</mi><mo stretchy="true" form="postfix">]</mo></mrow><mi>/</mi><mi mathvariant="normal">d</mi><mi>t</mi></mrow><annotation encoding="application/x-tex">\varepsilon_\mathrm{grav} = (P/\rho)\,[\tfrac{d+2}{2}\,\mathrm{d}\ln\rho - \tfrac{d}{2}\,\mathrm{d}\ln P]/\mathrm{d}t</annotation></semantics></math>;
+radiation’s share is left out. It enters the structure beside the
+burning, implicit in each trial star’s own
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>ρ</mi><annotation encoding="application/x-tex">\rho</annotation></semantics></math>
+and
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>P</mi><annotation encoding="application/x-tex">P</annotation></semantics></math>,
+measured against a reference model at the same mass coordinate, with the
+reference’s density taken at today’s composition so that burning’s
+change of the mean particle mass is not counted as contraction. The care
+is in the reference. On the main sequence
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ε</mi><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">v</mi></mrow></msub><annotation encoding="application/x-tex">\varepsilon_\mathrm{grav}</annotation></semantics></math>
+is a small difference of two large terms, and the shooting meets its two
+halves only to about 10⁻⁵, so against the last step alone the term is
+mostly noise and the solve goes stiff. The reference is therefore the
+latest earlier model whose central density differs from now by at least
+1%, taken from its own integration path (the composition grid’s
+interpolation error would swamp the term), and the term is switched on
+only once that reference lies a set fraction of the thermal time
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>G</mi><msup><mi>M</mi><mn>2</mn></msup><mi>/</mi><mi>R</mi><mi>L</mi></mrow><annotation encoding="application/x-tex">GM^2/RL</annotation></semantics></math>
+back. Steps are halved if the centre’s density moves more than 5%. A
+run’s checkpoint keeps its reference, and a resumed star is re-solved
+against it.</p>
 <h1 class="unnumbered" id="bibliography">References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent"
 role="list">

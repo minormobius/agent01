@@ -154,8 +154,10 @@ a carried rate; where the climb ends rests on A2's masses.
     Model S, BP2001 and MIST (OPAL and the book's own opacity). With the charge law's plasma (screening under the pinned
     1/r, the lens vacuum's cutoff), runs evolve4-1 … 4-7: 28 of the 29 analogues in gravity.json halve their central
     hydrogen in 10.6–177 Gyr, 2.3–39× the 4.6 Gyr convention (`data/ages4.json`, figure on the status page). Two runs at
-    s 1.5152 (G 10⁻¹¹, 10⁻¹⁴) stop when the core's oitrogen runs out (helium gone, pxygen 0.59): physical, not numerical;
-    following them needs ε_grav. What the aged stars hold (`data/ash4.json`): 9–30% past helium at s ≤ 1.55, 2–20% at
+    s 1.5152 (G 10⁻¹¹, 10⁻¹⁴) stop when the core's oitrogen runs out (helium gone, pxygen 0.59): physical, not numerical.
+    **2026-11-21: ε_grav is in the solver** (`grav=1`, section 4.2.5, `data/egrav.json`): ours barely moves (Sun ≤ 0.1%,
+    2 M☉ ≤ 0.14%); both stalled analogues pass the stall (+1.5 Gyr, +150 Myr), the core switching off and the centre
+    cooling and contracting, then stop again where a stirred core re-forms (open: real or the method's edge). What the aged stars hold (`data/ash4.json`): 9–30% past helium at s ≤ 1.55, 2–20% at
     1.6–1.65, ≤ 4% above. **computed; the life after hydrogen not computed.**
 13. **Which stars do what.** How far each core mass burns (`js/burning.js`, ours to 40% in mass), stirred cores, which
     explode and when (`nuclei.mjs cores`, `explode`). **computed / rough.** *To do (C):* post-main-sequence growth.
@@ -164,7 +166,8 @@ a carried rate; where the climb ends rests on A2's masses.
     s 1.5152 ladder has the 1.6–2.5 M_Ch stars exploding. **evolve4-10 (collected 2026-11-18):** ladders at six strengths
     (s 1.5152–1.8, 0.25–4 M_Ch); at g 1.25 the lightest exploding star is 1.6 M_Ch at s ≤ 1.55, 2 at 1.6–1.65, 2.5 at
     1.7. **declared endings** (evolve4-11 finishes the 12 stars cut short of exhaustion). The real fix is ε_grav in the
-    structure (the giant phase computed).
+    structure (the giant phase computed): now in, and the first star past exhaustion (s 1.5152, 1.25 M_Ch) is running;
+    over 200 Myr its hydrogen-free core grows 0.026 → 0.16 M_Ch and the star swells ×1.8 (**provisional**).
 
 ## Part V — Abundances over time
 

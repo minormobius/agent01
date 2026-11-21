@@ -1,0 +1,341 @@
+{
+ "about": "fusion/tools/egrav4.mjs: the energy of contraction (ε_grav, evolve.mjs grav=1). ours: the Sun (1 M☉, to 4.57 Gyr) and 2 M☉ (to Xc 1e-3) on OPAL with it against without, differences in per cent; contraction = Lgrav/L. stalls: the two stalled s 1.5152 analogues resumed with it from the stall. past: a ladder star past central-hydrogen exhaustion (cores in M_Ch; provisional while its run goes on).",
+ "ours": {
+  "sun": {
+   "ages": [
+    {
+     "tGyr": 1,
+     "dL": -0.009393,
+     "dR": -0.005891,
+     "dTc": 0.002876,
+     "drhoc": 0.09874,
+     "Xc": [
+      0.6359,
+      0.6349
+     ]
+    },
+    {
+     "tGyr": 2,
+     "dL": -0.006023,
+     "dR": -0.005281,
+     "dTc": 0.005022,
+     "drhoc": 0.09681,
+     "Xc": [
+      0.5614,
+      0.5605
+     ]
+    },
+    {
+     "tGyr": 3,
+     "dL": -0.01171,
+     "dR": -0.005427,
+     "dTc": 0.001811,
+     "drhoc": 0.0774,
+     "Xc": [
+      0.485,
+      0.4843
+     ]
+    },
+    {
+     "tGyr": 4,
+     "dL": -0.01102,
+     "dR": -0.004791,
+     "dTc": 0.0005498,
+     "drhoc": 0.06896,
+     "Xc": [
+      0.4064,
+      0.4059
+     ]
+    },
+    {
+     "tGyr": 4.57,
+     "dL": -0.01027,
+     "dR": -0.006272,
+     "dTc": 0.003367,
+     "drhoc": 0.06796,
+     "Xc": [
+      0.3605,
+      0.36
+     ]
+    }
+   ],
+   "maxAbsPct": 0.09874,
+   "contraction": {
+    "min": -0.001848,
+    "max": -0.0002734,
+    "median": -0.0003132
+   }
+  },
+  "m2": {
+   "atXc": [
+    {
+     "Xc": 0.35,
+     "dAge": 0.1299,
+     "dL": 0.0094,
+     "dR": 0.03177,
+     "dTeff": -0.01353,
+     "dTc": 0.01625,
+     "drhoc": -0.0466
+    },
+    {
+     "Xc": 0.1,
+     "dAge": 0.0632,
+     "dL": -0.002331,
+     "dR": 0.06444,
+     "dTeff": -0.03278,
+     "dTc": 0.01744,
+     "drhoc": -0.07414
+    },
+    {
+     "Xc": 0.01,
+     "dAge": 0.05353,
+     "dL": 0.09776,
+     "dR": 0.1393,
+     "dTeff": -0.04517,
+     "dTc": 0.008885,
+     "drhoc": -0.04383
+    },
+    {
+     "Xc": 0.001,
+     "dAge": 0.05269,
+     "dL": 0.0929,
+     "dR": 0.1395,
+     "dTeff": -0.04647,
+     "dTc": 0.01396,
+     "drhoc": -0.07942
+    }
+   ],
+   "maxAbsPct": 0.1395,
+   "contractionNearEnd": {
+    "min": -0.0009945,
+    "max": 0.01308,
+    "median": 0.003084
+   }
+  }
+ },
+ "stalls": [
+  {
+   "G": 1e-11,
+   "s": 1.5152,
+   "m": 0.4374,
+   "stallGyr": 2.557,
+   "stopGyr": 2.707,
+   "moreMyr": 150.1,
+   "XcStall": 0.3766,
+   "XcStop": 0.376,
+   "qccStall": 0.06013,
+   "qccMin": 8.662e-7,
+   "qccStop": 0.002423,
+   "TcStall": 23.43,
+   "TcMin": 17.31,
+   "TcStop": 19.31,
+   "rhoMaxOverStall": 1.308,
+   "contraction": {
+    "min": -0.02195,
+    "max": 0.01011,
+    "median": 0.0001255
+   },
+   "stopped": "no solution past Xc 0.3760"
+  },
+  {
+   "G": 1e-14,
+   "s": 1.5152,
+   "m": 0.487,
+   "stallGyr": 43.27,
+   "stopGyr": 44.77,
+   "moreMyr": 1502,
+   "XcStall": 0.3743,
+   "XcStop": 0.3738,
+   "qccStall": 0.04861,
+   "qccMin": 8.662e-7,
+   "qccStop": 0.01041,
+   "TcStall": 21.8,
+   "TcMin": 16.57,
+   "TcStop": 19.05,
+   "rhoMaxOverStall": 1.389,
+   "contraction": {
+    "min": -0.002348,
+    "max": 0.003574,
+    "median": -0.000007731
+   },
+   "stopped": "no solution past Xc 0.3738"
+  }
+ ],
+ "past": {
+  "G": 1e-17,
+  "s": 1.5152,
+  "m": 1.25,
+  "fromGyr": 14.9,
+  "toGyr": 15.11,
+  "myr": 204.7,
+  "Hfree": [
+   0.02567,
+   0.1563
+  ],
+  "processed": [
+   0.8119,
+   0.8119
+  ],
+  "explodesAt": 1,
+  "R": 1.8,
+  "L": 1.928,
+  "Teff": [
+   46120,
+   36960
+  ],
+  "Tc": [
+   71.07,
+   82.73
+  ],
+  "rhoc": 4.594,
+  "contraction": {
+   "min": -0.002524,
+   "max": -0.0000747,
+   "median": -0.0002704
+  },
+  "stopped": "cut",
+  "provisional": true,
+  "cores": [
+   {
+    "tGyr": 14.9,
+    "processed": 0.8119,
+    "Hfree": 0.02567
+   },
+   {
+    "tGyr": 14.91,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.91,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.92,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.93,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.93,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.94,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.94,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.95,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.96,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.96,
+    "processed": 0.8119,
+    "Hfree": 0.03953
+   },
+   {
+    "tGyr": 14.97,
+    "processed": 0.8119,
+    "Hfree": 0.05524
+   },
+   {
+    "tGyr": 14.98,
+    "processed": 0.8119,
+    "Hfree": 0.05524
+   },
+   {
+    "tGyr": 14.98,
+    "processed": 0.8119,
+    "Hfree": 0.05524
+   },
+   {
+    "tGyr": 14.99,
+    "processed": 0.8119,
+    "Hfree": 0.05524
+   },
+   {
+    "tGyr": 14.99,
+    "processed": 0.8119,
+    "Hfree": 0.05524
+   },
+   {
+    "tGyr": 15.01,
+    "processed": 0.8119,
+    "Hfree": 0.07262
+   },
+   {
+    "tGyr": 15.03,
+    "processed": 0.8119,
+    "Hfree": 0.07262
+   },
+   {
+    "tGyr": 15.05,
+    "processed": 0.8119,
+    "Hfree": 0.09151
+   },
+   {
+    "tGyr": 15.07,
+    "processed": 0.8119,
+    "Hfree": 0.1118
+   },
+   {
+    "tGyr": 15.08,
+    "processed": 0.8119,
+    "Hfree": 0.1118
+   },
+   {
+    "tGyr": 15.09,
+    "processed": 0.8119,
+    "Hfree": 0.1334
+   },
+   {
+    "tGyr": 15.09,
+    "processed": 0.8119,
+    "Hfree": 0.1334
+   },
+   {
+    "tGyr": 15.1,
+    "processed": 0.8119,
+    "Hfree": 0.1334
+   },
+   {
+    "tGyr": 15.1,
+    "processed": 0.8119,
+    "Hfree": 0.1334
+   },
+   {
+    "tGyr": 15.1,
+    "processed": 0.8119,
+    "Hfree": 0.1563
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1563
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1563
+   }
+  ]
+ }
+}

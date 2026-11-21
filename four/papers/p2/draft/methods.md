@@ -76,7 +76,7 @@ surface (Runge–Kutta with step doubling) to meet at a fitting mass, with Newto
 temperature, the radius and the luminosity, and a line search. In four dimensions the solutions meet at 0.2 of
 the mass (ours at 0.5): in a cool four-dimensional core a change in the central temperature grows several
 hundredfold by mid-mass, which left Newton's method ill-conditioned there. A Newton stall below a residual of
-5 × 10⁻⁴ counts as solved, the floor the gravity table's noise sets.
+NaN × 10NaN counts as solved, the floor the gravity table's noise sets.
 
 - **Gravity** is pinned at $1/r$, which has no shell theorem: the pull at a radius depends on all the mass, inside and
   out. It is summed over the whole profile with the book's four-dimensional shell kernel, written as a factor $f(m)$ on
@@ -124,9 +124,10 @@ structural rather than an error of the step. In the structure each shell's energ
 and temperature, refitted until the luminosity settles. Every star is first **settled** (10⁶ years in four
 dimensions), so its burning's intermediate nuclei come into balance before the clock starts. Runs checkpoint
 themselves and resume. **Checked:** our Sun (section 4): its light against the standard model to its present age, its
-central hydrogen's exhaustion against the textbook's. **Left out:** the energy a contracting core releases
-($\varepsilon_\mathrm{grav}$), small on the main sequence but not where a core changes fast. That is why two runs stop
-in the oitrogen stall; adding it is the next change to the solver. Also left out, as in many first models of ours:
+central hydrogen's exhaustion against the textbook's. **The energy a contracting core releases**
+($\varepsilon_\mathrm{grav}$) is small on the main sequence and left out of the runs whose results are quoted; it is
+added, behind a switch, where a core changes fast (section 4.2.5). It moves our Sun by at most 0.099%, and with it
+the two runs that stopped in the oitrogen stall pass it. Also left out, as in many first models of ours:
 overshoot past the convective edge, element diffusion, rotation and mass loss on the main sequence. **Code:**
 `atom/tools/evolve.mjs`; collected by `fusion/tools/ages4.mjs` (each run's finished file or checkpoint, whichever got
 further). **Detail:** sections 4.2.1–4.2.3.

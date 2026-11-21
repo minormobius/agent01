@@ -409,6 +409,31 @@
    "held": [
     "from s 1.6 up the rock row is most of what explosions return (86–98% of p at the middle choice); near our strength it shares that with this world's iron"
    ]
+  },
+  {
+   "id": "egrav",
+   "date": "2026-11-21",
+   "title": "The energy of contraction",
+   "replaced": "stars in complete equilibrium: every shell's light from its burning alone, no energy from contraction, so two runs (s 1.5152, G 1e-14 and 1e-11) stopped in the oitrogen stall",
+   "by": "ε_grav = -du/dt + (P/ρ²)dρ/dt with u = (d/2)P/ρ (ideal ions, non-relativistic Fermi–Dirac electrons), implicit in each trial's ρ and P against a reference model at least 1% away in central density (evolve.mjs grav=1, behind a switch, so no quoted result moved); checked on ours first. Three simpler forms failed and are recorded in the code: a grid reference (its interpolation noise swamped the burning), a one-step baseline (the shooting went stiff) and a lagged source (noise)",
+   "runs": [
+    "sandbox: ours 1 and 2 M☉ on OPAL with and without; the two stalled analogues resumed from their checkpoints",
+    "evolve4-14 (one star past exhaustion)"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "the oitrogen stall",
+     "before": "physical, not numerical: no star in complete equilibrium past it (section 4; ages4.json stall)",
+     "after": "it was the missing contraction energy: with it both analogues pass the stall and live 1.5 Gyr and 150 Myr more (the stirred core off, the centre cooling, contracting and reheating), then stop again where a stirred core re-forms, which is open",
+     "check": "egravOurs",
+     "now": "0.099/0.14"
+    }
+   ],
+   "held": [
+    "every quoted age and yield (they were computed without it and end at the stall or at exhaustion)",
+    "our Sun and a 2 M☉ star: ε_grav moves them by at most 0.1% and 0.14% (the check's value: the largest change in per cent for each)"
+   ]
   }
  ]
 }
