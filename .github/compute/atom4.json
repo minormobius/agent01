@@ -1,12 +1,12 @@
 {
- "run": "evolve4-13",
- "why": "Finish the last G 1e-17 ladder star still cut: s 1.5152 1.25 M_Ch (Xc 0.0073 after evolve4-12; ash 34% to 42% of the star over that run). It sets the top of the net yield band at s <= 1.55 and explodes only at core growth g 1.5.",
+ "run": "evolve4-14",
+ "why": "The first star past the end of its central hydrogen, with the energy of contraction on (grav=1): G 1e-17, s 1.5152, 1.25 M_Ch, the ladder star sitting on the explosion line (its processed core is 0.81 M_Ch, so it explodes only if the core grows by 1.23). It starts from its plain run's checkpoint at exhaustion (from=) and runs to central hydrogen 1e-8, keeping a profile every 10 models, to measure how far the core grows in shell burning: the gate for computing the declared core growth g.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev13-00",
+   "name": "ev14-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-8 from=evolve-four-1e-17-1.5152-1.250-lp.ckpt.json"
    ]
   }
  ]

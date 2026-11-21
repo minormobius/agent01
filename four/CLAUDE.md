@@ -1337,6 +1337,13 @@ for games, and this is a modelling programme with publications to come. The game
   then reheating; stops at 2.707 Gyr as the core re-forms; LOOSE=1e-3 stops at 2.710 too, so not the tolerance.
   So the oitrogen stall was the missing contraction energy; the second stop, at the centre's re-ignition, is open.
   Runs in the sandbox only (not committed); a paper result needs them on the runner.
+  **Past exhaustion (2026-11-21):** `Hstop=<x>` (files `-Hs<x>`) carries a star past central hydrogen 10⁻³, keeping a
+  profile every 10 models there; `from=<checkpoint in the cache>` starts a run from another run's checkpoint when it has
+  none of its own (how an `-eg` or `-Hs` run picks up on the runner). First star: G 10⁻¹⁷ s 1.5152 1.25 M_Ch (the one on
+  the explosion line: processed core 0.81 M_Ch, explodes only if it grows ×1.23), run `evolve4-14`, plus a sandbox
+  copy. Over its first 70 Myr past exhaustion the processed core holds at q 0.6495, the hydrogen-free core grows from
+  q 0.032 to 0.044, R +7%, L +12%. Core growth is measured with the scratch `coregrow.mjs` logic (yields4's processed
+  core and an H < 0.01 core over the kept profiles).
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /
