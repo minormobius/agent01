@@ -1371,7 +1371,10 @@ for games, and this is a modelling programme with publications to come. The game
   3.7 × 10⁻³ (loose 5 × 10⁻⁴) with the 0.2 meeting point. Meeting further out fails worse (0.35: 0.42; 0.5, 0.7: the
   outward integration fails before it). Meeting further in works: at 0.1 it resumes and runs on (8 models in 4 min,
   none failed; 0.15 stalls at 5 × 10⁻⁵ after 60 Newton steps). **`fit=<q>`** (default 0.2, not in the file name, so a run
-  resumes its checkpoint) sets it; the sandbox `FIT` env override is gone. evolve4-17 carries the star on at fit=0.1.
+  resumes its checkpoint) sets it; the sandbox `FIT` env override is gone. **evolve4-17 stopped after one model**: its
+  command kept `gravAfter=0.01`, which on a resume switched ε_grav off until the centre moved 1% since the restart, so
+  the star jumped (Tc 87.2 → 85.2 MK) and failed. gravAfter is now ignored on a checkpoint that keeps gref (only
+  pre-gref checkpoints need it); the same command then runs on. evolve4-18 carries the star on at fit=0.1.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

@@ -236,7 +236,9 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   // ε_grav's references: the accepted models, newest last ({ t, rhoc, prof }); a resumed run starts with its checkpoint's
   // A checkpoint keeps the reference it would use (gref), so a resumed run measures against a real baseline; one written
   // before that resumes with only itself, a one-step baseline, which is stiff (evolve4-15 stopped on it at once). gravAfter:
-  // keep ε_grav off until the centre's ρ has moved that much (in ln) since this run began, for such old checkpoints.
+  // keep ε_grav off until the centre's ρ has moved that much (in ln) since this run began, for such old checkpoints. It is
+  // ignored on a checkpoint that keeps gref: there it switched ε_grav off at the resume and the star jumped (evolve4-17).
+  if (C?.gref?.length) gravAfter = 0;
   const hist = (C?.gref ?? []).map((h) => ({ ...h })); const remember = () => { hist.push({ t, rhoc: smp.rows[0].rho, prof: s.prof }); if (hist.length > 400) hist.shift(); };
   const rho0 = smp.rows[0].rho;
   const refFor = (tEnd) => { if (!W.grav || !hist.length) return null; const now = smp.rows[0].rho; if (Math.abs(Math.log(now / rho0)) < gravAfter) return null; let R = null;
