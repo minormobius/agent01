@@ -88,7 +88,24 @@ try {
       const after = await tipText();
       ok(after.length > 0 && after !== first, `${tag}: chart ${k} steps by keyboard (law 3)`);
       ok((await page.evaluate(() => location.hash)) === hash, `${tag}: arrow keys on a focused chart do not turn the page (law 5)`);
+      // law 5: dragging across the chart (labels included) selects no text
+      await page.evaluate(() => getSelection().removeAllRanges());
+      await page.mouse.move(box.x + 3, box.y + box.height - 6);
+      await page.mouse.down();
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5, { steps: 6 });
+      await page.mouse.move(box.x + box.width - 3, box.y + 4, { steps: 6 });
+      await page.mouse.up();
+      const sel = await page.evaluate(() => getSelection().toString());
+      ok(sel === '', `${tag}: chart ${k} drag selects no text (got "${sel.slice(0, 30)}") (law 5)`);
       await page.mouse.move(2, 2);
+    }
+    // ... while the notes stay selectable
+    if (i === 1 || i === n) {
+      await page.evaluate(() => getSelection().removeAllRanges());
+      await page.click('.sheet .cap', { clickCount: 3 });
+      const sel = await page.evaluate(() => getSelection().toString());
+      ok(sel.length > 10, `${tag}: caption text can still be selected (law 5)`);
+      await page.evaluate(() => getSelection().removeAllRanges());
     }
     if (i === 1) ok(charts.length > 0, 'slide 1 has a chart (the test is looking in the right place)');
   }

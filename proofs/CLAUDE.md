@@ -495,7 +495,7 @@ them before adding a slide or starting another deck. The machine-checkable ones
 are enforced by:
 
 ```bash
-node proofs/riemann/learn/browser.selftest.mjs   # ~15 s, 178 checks, real Chromium at 390 px
+node proofs/riemann/learn/browser.selftest.mjs   # ~18 s, 204 checks, real Chromium at 390 px
 ```
 
 It walks every slide. For every chart it sweeps the pointer diagonally,
@@ -519,6 +519,15 @@ itself on a random port. Preflight runs it as a slow selftest whenever
   `@media (prefers-color-scheme: dark) :root:not([data-theme="light"])` and
   under `:root[data-theme="dark"]`. Canvas code must ask `theme.isDark()`,
   never `matchMedia`, or it ignores the toggle.
+- **No text selection from a chart drag.** On phones a press-and-drag across
+  a chart used to select its SVG axis labels, a stray highlight. Charts are
+  now `user-select: none` with `-webkit-touch-callout: none` (deck CSS plus
+  `noSelect()`, which `cursor()` applies and the ζ map's canvas calls). Touch
+  `pointerdown` is `preventDefault`ed, but mouse is not, so a click still
+  focuses the chart for the keyboard. `.sheet .sbody` is explicitly
+  selectable. The selftest drags corner to corner over every chart and
+  requires an empty selection, and it requires that the caption can still be
+  selected.
 - **The ζ map's cursor** redraws only the SVG overlay. Recomputing the map on
   every pointer move costs about 400 ms. Its data points are the grid cells.
 - The reference page (`riemann/index.html`) predates the laws: its charts have

@@ -73,6 +73,20 @@ export function tip(g, x, y, lines, W, H) {
   g.insertAdjacentHTML('beforeend', s);
 }
 
+// A drag on a chart must move the cursor, not select its labels (law 5). CSS on the
+// page does most of it; this also covers a chart used outside the deck's stylesheet,
+// and iOS, which starts a selection on long-press unless the gesture is claimed.
+export function noSelect(el) {
+  if (!el || el.__noSelect) return;
+  el.__noSelect = true;
+  el.style.userSelect = 'none'; el.style.webkitUserSelect = 'none'; el.style.webkitTouchCallout = 'none';
+  el.addEventListener('selectstart', (e) => e.preventDefault());
+  // on touch, claiming pointerdown stops the long-press selection and callout; mouse keeps
+  // its default so a click still focuses the chart for the keyboard cursor
+  el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') e.preventDefault(); });
+  el.addEventListener('contextmenu', (e) => { if (e.pointerType !== 'mouse') e.preventDefault(); });
+}
+
 // --------------------------------------------------------------- cursor ---
 // LAW 3. Every chart gets one. It snaps to real data points (never interpolates),
 // reaches every point by pointer, touch-drag and keyboard (← → Home End, Esc hides),
@@ -89,6 +103,7 @@ export function cursor(svg, f, series, opts = {}) {
   svg.setAttribute('tabindex', '0');
   svg.style.touchAction = 'none';
   svg.style.outline = 'none';
+  noSelect(svg);
   svg.dataset.cursor = snap;
   const P = series.map((s) => s.pts.map((p) => [f.X(p[0]), f.Y(p[1])]));
   const valid = (si, i) => Number.isFinite(P[si][i][0]) && Number.isFinite(P[si][i][1]);

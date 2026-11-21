@@ -39,6 +39,11 @@ toggle changes the page background, and a chart's strokes change with it.*
 **5. The widget owns its gestures.** Sliders, drags and taps on the stage
 never turn the page. Pages turn from the sheet (a sideways swipe), the arrow
 buttons, the progress bars and the ← → keys, but not while a chart has focus.
+A drag across a chart moves its cursor and **never starts a text selection**:
+the chart and its labels are unselectable, and on touch the long-press
+selection and callout are suppressed (`noSelect()` in `kit.js`, applied by
+`cursor()`). The notes stay selectable. *Machine-checked: a corner-to-corner drag
+over every chart selects nothing, and the caption can still be selected.*
 
 ## The notes
 

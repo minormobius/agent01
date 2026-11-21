@@ -38,6 +38,9 @@
 :root { color-scheme: light; } :root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
 .th { font-family: var(--mono); font-size: 0.6rem; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 12px; padding: 0.2rem 0.55rem; cursor: pointer; min-height: 1.7rem; }
+/* law 5: a drag on a chart moves the cursor, it never starts a text selection; the notes stay selectable */
+.w .plot, .w .plot * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.sheet .sbody { -webkit-user-select: text; user-select: text; }
 .w svg:focus-visible, .w canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 html, body { margin: 0; height: 100%; background: var(--panel); color: var(--fg); font-family: var(--serif); line-height: 1.45; -webkit-font-smoothing: antialiased; overscroll-behavior: none; }
 body { display: flex; align-items: center; justify-content: center; }
@@ -151,7 +154,7 @@ button.b.on { border-color: var(--accent); color: var(--accent); background: var
 <script type="module">
 import * as R from '../riemann.js';
 import { ZEROS } from '../zeros.js';
-import { css, frame, path, axes, cursor, tip, theme } from './kit.js';
+import { css, frame, path, axes, cursor, tip, theme, noSelect } from './kit.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -348,7 +351,7 @@ const SLIDES = [
     // the data points are the grid cells: the cursor snaps to a cell centre, and arrow keys walk cells (shift: 10)
     const cellS = ([i, j]) => [s0 + (s1 - s0) * (i + 0.5) / grid.cw, t1 - (t1 - t0) * (j + 0.5) / grid.chh];
     const c = $('c');
-    c.tabIndex = 0; c.style.touchAction = 'none';
+    c.tabIndex = 0; c.style.touchAction = 'none'; noSelect(c); noSelect($('o'));
     const at = (e) => { const b = c.getBoundingClientRect(); mark = [Math.max(0, Math.min(grid.cw - 1, Math.floor((e.clientX - b.left) / b.width * grid.cw))), Math.max(0, Math.min(grid.chh - 1, Math.floor((e.clientY - b.top) / b.height * grid.chh)))]; overlay(); };
     c.onpointerdown = (e) => { c.setPointerCapture?.(e.pointerId); at(e); };
     c.onpointermove = (e) => { if (e.pointerType === 'mouse' || e.buttons) at(e); };
