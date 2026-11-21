@@ -1,12 +1,12 @@
 {
- "run": "evolve4-14",
- "why": "The first star past the end of its central hydrogen, with the energy of contraction on (grav=1): G 1e-17, s 1.5152, 1.25 M_Ch, the ladder star sitting on the explosion line (its processed core is 0.81 M_Ch, so it explodes only if the core grows by 1.23). It starts from its plain run's checkpoint at exhaustion (from=) and runs to central hydrogen 1e-8, keeping a profile every 10 models, to measure how far the core grows in shell burning: the gate for computing the declared core growth g.",
+ "run": "evolve4-15",
+ "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch star on through shell burning (grav=1). evolve4-14 stopped at its own stopping point, central hydrogen 1e-8, 205 Myr past exhaustion: the hydrogen-free core had grown 0.026 to 0.156 M_Ch and was speeding up, the star had swollen ×1.8 in radius. It explodes only if the core reaches 1 M_Ch. This run starts from that checkpoint (from=) with the stopping point at 1e-30, so only the step limit, the deadline or the solver stops it.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev14-00",
+   "name": "ev15-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-8 from=evolve-four-1e-17-1.5152-1.250-lp.ckpt.json"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 from=evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-8.ckpt.json"
    ]
   }
  ]

@@ -1350,6 +1350,13 @@ for games, and this is a modelling programme with publications to come. The game
   checkpoint given G, s, m and M_Ch (from a finished file at the same G); then `starcut.mjs aged <folder>
   -X0.7068-Z0.0143-opal-a1.61-s1e6` with ours' OPAL runs in the folder. It takes ~45 min (≈40 s a 4D track), so give a
   background run a long time limit.
+  **evolve4-14 (collected 2026-11-21):** the 1.25 M_Ch star from exhaustion (14.90 Gyr) to central H 10⁻⁸ (15.106 Gyr,
+  205 Myr, 2512 models, 88 min): the hydrogen-free core grows 0.026 → 0.156 M_Ch (q 0.020 → 0.125) and speeds up; the
+  processed core holds at 0.81 M_Ch (q 0.6495, the old stirred zone, which shell burning is finishing off from inside);
+  R ×1.80, L ×1.93, Teff 46 → 37 kK, Tc 71 → 83 MK, ρc ×4.6; contraction −0.01% to −0.25% of L. The solver follows the
+  swelling without trouble. It stopped at its own stopping point, not the physics, so the gate for B (does the core
+  reach 1 M_Ch, ×1.23 on the processed core) is still open; evolve4-15 carries it on (Hstop=1e-30, from= its
+  checkpoint). The sandbox copy died with the container at 15.064 Gyr.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /
