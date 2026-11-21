@@ -76,7 +76,7 @@ async function ask(req, env) {
   try {
     const messages = [{ role: 'system', content: system }, ...history, { role: 'user', content: q }];
     const stream = await env.AI.run(MODEL, { messages, max_tokens: MAX_TOKENS, temperature: 0.3, stream: true });
-    return sse(stream, 'workers', MODEL, why[0]);
+    return sse(normalizeWorkersAI(stream), 'workers', MODEL, why[0]);
   } catch (e) {
     return json({ error: 'the model did not answer', detail: String(e?.message || e).slice(0, 200) }, 502);
   }
@@ -119,6 +119,33 @@ async function gemini(env, system, history, q) {
     flush(ctl) { ctl.enqueue(enc.encode('data: [DONE]\n\n')); },
   });
   return { stream: r.body.pipeThrough(out) };
+}
+
+// Workers AI streams chunks that carry the token twice: `response` (which arrives as a JSON
+// number for numeric tokens and loses the space before it: "In1933") and, in the
+// OpenAI-style `choices[0].delta.content`, the exact text ("In 1933"). Re-encode as
+// {"response": <exact string>}, preferring the delta.
+function normalizeWorkersAI(stream) {
+  const dec = new TextDecoder(), enc = new TextEncoder();
+  let buf = '';
+  const emit = (ctl, line) => {
+    if (!line.startsWith('data:')) return;
+    const d = line.slice(5).trim();
+    if (d === '[DONE]') return;
+    try {
+      const j = JSON.parse(d);
+      const delta = j.choices?.[0]?.delta?.content;
+      const text = typeof delta === 'string' ? delta : (j.response != null ? String(j.response) : '');
+      if (text) ctl.enqueue(enc.encode(`data: ${JSON.stringify({ response: text })}\n\n`));
+    } catch {}
+  };
+  return stream.pipeThrough(new TransformStream({
+    transform(chunk, ctl) {
+      buf += dec.decode(chunk, { stream: true });
+      let k; while ((k = buf.indexOf('\n')) >= 0) { emit(ctl, buf.slice(0, k).trim()); buf = buf.slice(k + 1); }
+    },
+    flush(ctl) { emit(ctl, buf.trim()); ctl.enqueue(enc.encode('data: [DONE]\n\n')); },
+  }));
 }
 
 // One stream format for the client: a first event naming who answers, then the

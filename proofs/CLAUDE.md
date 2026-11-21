@@ -550,9 +550,14 @@ itself on a random port. Preflight runs it as a slow selftest whenever
     prompts to improve its products, and the free tier may not serve users in
     the EEA, Switzerland or the UK. A billing-enabled project avoids both.
     The panel tells readers their question goes to Google or Cloudflare.
-  - Workers AI streams some tokens as JSON numbers (`"response": 2026`),
-    dropping the space before them. The client keeps them and restores the
-    space.
+  - **Workers AI's stream carries each token twice.** One copy is `response`,
+    which turns numeric tokens into JSON numbers and loses the space before
+    them ("In1933"). The other is OpenAI-style `choices[0].delta.content`, which
+    has the exact text. `normalizeWorkersAI()` re-encodes the stream as
+    `{"response": <delta text>}`, using `response` only when there is no
+    delta. So every token reaches the client as a string, and the client
+    doesn't have to guess about spaces (an earlier version did, and got it
+    wrong).
 - **Serving and context.** Static assets are matched first, so the script only
   sees requests no file matched. The context is
   `riemann/learn/context.txt` (about 36 KB, about 10k tokens, under the
@@ -566,7 +571,7 @@ itself on a random port. Preflight runs it as a slow selftest whenever
   are in `.assetsignore`.
 
 ```bash
-node proofs/worker.selftest.mjs                    # guards, Gemini path and fallback, against fakes, 29 checks
+node proofs/worker.selftest.mjs                    # guards, Gemini path and fallback, stream normalising, against fakes, 32 checks
 node proofs/riemann/learn/build-context.mjs        # rewrite context.txt
 ```
 

@@ -92,6 +92,20 @@ const sseBody = (chunks) => new ReadableStream({ start(c) { for (const t of chun
   const e2 = { ...env(), GEMINI_API_KEY: 'k' }; const ev2 = events(await readAll(await worker.fetch(req(good), e2)));
   ok(ev2[0].provider === 'workers', 'a network error falls back'); }
 globalThis.fetch = realFetch;
+{ // Workers AI's double-carried tokens: prefer the exact delta text over `response`
+  const e = env();
+  e.AI.run = async () => sseBody([
+    'data: {"choices":[{"delta":{"role":"assistant","content":""}}],"response":""}\n\n',
+    'data: {"choices":[{"delta":{"content":"In"}}],"response":"In"}\n\n',
+    'data: {"choices":[{"delta":{"content":" 1933"}}],"response":1933}\n\ndata: {"choices":[{"de',
+    'lta":{"content":", 0 left"}}],"response":", 0 left"}\n\n',
+    'data: {"response":0}\n\n',
+    'data: [DONE]\n\n']);
+  const ev = events(await readAll(await worker.fetch(req(good), e)));
+  ok(ev[0].provider === 'workers', 'Workers AI stream opens with its name');
+  const text = ev.slice(1).map((x) => x.response).join('');
+  ok(text === 'In 1933, 0 left0', `exact delta text kept, numeric response-only token stringified (${JSON.stringify(text)})`);
+  ok(ev.slice(1).every((x) => typeof x.response === 'string'), 'every token leaves the worker as a string'); }
 
 console.log(`${fail ? 'FAILED' : 'ok'}: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
