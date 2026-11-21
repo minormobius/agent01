@@ -855,7 +855,9 @@ async function sendQ(q) {
         const line = buf.slice(0, k).trim(); buf = buf.slice(k + 1);
         if (!line.startsWith('data:')) continue;
         const data = line.slice(5).trim(); if (data === '[DONE]') continue;
-        try { const j = JSON.parse(data); if (j.response) { ans.content += j.response; renderMsgs(); } } catch {}
+        // Workers AI sometimes sends a token as a JSON number ("response": 2026): a lone 0 is falsy, and the
+        // space before the number is lost ("November2026"), so restore it after a letter or punctuation
+        try { const j = JSON.parse(data); if (j.response != null && j.response !== '') { ans.content += (typeof j.response === 'number' && /[\p{L}.,;:)]$/u.test(ans.content) ? ' ' : '') + String(j.response); renderMsgs(); } } catch {}
       }
     }
     if (!ans.content.trim()) throw new Error('The model sent an empty answer. Try rephrasing.');

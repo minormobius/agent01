@@ -114,7 +114,7 @@ try {
   let sent = null;
   await page.route('**/api/ask', async (route) => {
     sent = JSON.parse(route.request().postData());
-    await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: 'data: {"response":"Z is real because θ cancels the phase; "}\n\ndata: {"response":"see slide 8."}\n\ndata: [DONE]\n\n' });
+    await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: 'data: {"response":"Z is real because θ cancels the phase; "}\n\ndata: {"response":"see slide 8. Zeros below 1000:"}\n\ndata: {"response":649}\n\ndata: {"response":0}\n\ndata: [DONE]\n\n' });
   });
   await page.goto(`http://localhost:${port}/learn/#8`); await page.waitForTimeout(300);
   await page.click('#askBtn'); await page.waitForTimeout(100);
@@ -125,7 +125,10 @@ try {
   ok((await page.evaluate(() => location.hash)) === '#8', 'arrow keys while typing do not turn the page (law 15)');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => document.querySelector('.msg.assistant')?.textContent.includes('see slide 8'), null, { timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(100);
   const answer = await page.textContent('.msg.assistant').catch(() => '');
+  // Workers AI sends some tokens as JSON numbers, dropping the space before them; a lone 0 is falsy
+  ok(answer.includes('Zeros below 1000: 6490'), `numeric tokens are kept, 0 included, with the lost space restored (law 15): …${answer.slice(-30)}`);
   ok(answer.includes('θ cancels the phase') && answer.includes('see slide 8'), 'streamed answer renders (law 15)');
   ok(sent && sent.deck === 'riemann' && sent.slide === 8 && sent.q === 'Why is Z real?' && !('context' in sent), 'request carries deck, slide and question, and no context (law 15)');
   ok(await page.$('.msg.assistant a[href="#8"]'), '"slide 8" in an answer links to the slide (law 15)');
