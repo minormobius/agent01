@@ -2,7 +2,7 @@
    A field is U0, V0 and, per harmonic k along the wire, u_k, v_k, b_k on a regular (x, r) grid:
      u = U0 + a Σ u_k cos(kβw)   v = V0 + a Σ v_k cos(kβw)   b = a Σ b_k sin(kβw)
    a is the slider for a linear mode (its size is not determined by a linear calculation) and 1 for a computed flow. */
-const SETS = [["mode-200", "the unstable mode, Re 200 (linear: you set its size)"], ["flow-200", "computed, Re 200"], ["flow-210", "computed, Re 210"], ["flow-220", "computed, Re 220"], ["flow-300", "computed, Re 300"]];
+const SETS = [["mode-200", "the unstable mode, Re 200 (linear: you set its size)"], ["flow-200", "computed, Re 200"], ["flow-210", "computed, Re 210"], ["flow-220", "computed, Re 220"], ["flow-300", "computed, Re 300"], ["flow-400", "computed, Re 400: one moment of a pulsing wake"], ["flow-566", "computed, Re 566: one moment of an irregular wake"], ["flow-800", "computed, Re 800: one moment, coarse along the wire"]];
 const $ = (id) => document.getElementById(id), S = { D: null, amp: 0.15, w: 0, y: 0, play: false, t: 0 };
 const c1 = $("c1"), c2 = $("c2"), g1 = c1.getContext("2d"), g2 = c2.getContext("2d");
 async function load(name) { const m = await (await fetch(`data/${name}.json`)).json(), buf = new Float32Array(await (await fetch(`data/${name}.bin`)).arrayBuffer()), n = m.nx * m.nr, f = (i) => buf.subarray(i * n, (i + 1) * n);

@@ -108,7 +108,7 @@ whether the rippled wake sheds earlier or later than a sphere's 277 is not known
 nothing. `export4.py mode 200` writes the base flow and the unstable mode (its size is a slider, because a linear
 calculation does not fix it); `export4.py nl 210` writes a run's final state.
 
-## 5. Higher Reynolds numbers (`nl4.py` to 350, `sec4.py`)
+## 5. Higher Reynolds numbers (`nl4.py` to 800, `sec4.py`)
 
 **In the symmetric family the ripple stays steady.** Runs at Re 250, 300 and 350 (eight harmonics, step 0.04):
 
@@ -120,6 +120,22 @@ calculation does not fix it); `export4.py nl 210` writes a run's final state.
 
 The pulsation's decay slows as Re rises and extrapolates to zero near Re 370. That is two points and a straight line,
 not a threshold. Its period, 25 diameters of travel, is about five times slower than a sphere's shedding.
+
+**Up the ladder (2026-11-21): the symmetric family stops being steady.** Runs at Re 400, 566 and 800 on a finer mesh
+(60 × 48, ten harmonics, step 0.03; 0.015 at 800, where 0.03 blew up), 300 flow times at 400 and 566, 150 at 800:
+
+| Re | bubble at the fat station over the last quarter | what it does | top harmonic's energy over the first's |
+|---|---|---|---|
+| 400 | 2.14 to 2.22 | pulses with period 25; the swing was still shrinking, but more slowly each window (0.089, 0.077, 0.072) | 2 × 10⁻⁵ |
+| 566 | 2.0 to 2.7 (to 3.2 earlier) | irregular; periods from 38 to 150 share the energy | 2 × 10⁻³ |
+| 800 | 1.6 to 4.2 (to 5.3 earlier) | irregular, large excursions | 10⁻³ to 6 × 10⁻³ |
+
+The period at 400 is the pulsation seen dying at 300 and 350, so the guess of an onset near 370 is not contradicted,
+and 300 flow times do not say whether 400 ends pulsing or steady. At 566 and 800 the flow never repeats in the time
+run. Whether that is chaos or a long transient is not settled by one run each, and at 800 ten harmonics along the wire
+are too few (the spectrum falls by only a thousand), so read its picture as qualitative. These are still flows with
+the symmetry round the flow axis imposed, which the real wake loses at 209: they show that the ripple has its own road
+to unsteadiness, not what a wire's wake does at these Reynolds numbers. The page's flow picker has one moment of each.
 
 **The ripple is unstable to a lopsided mode from about Re 209.** `sec4.py` steps the equations linearised about a
 rippled state for disturbances of azimuthal wavenumber 1 with the ripple's period and mirror planes, and reads the
