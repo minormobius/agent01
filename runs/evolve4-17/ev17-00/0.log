@@ -1,0 +1,9 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 gravAfter=0.01 fit=0.1 from=evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-8.ckpt.json
+4D G 1e-17 s 1.5152 1.250 M_Ch: resumed at 15.1110 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-30.ckpt.json
+4D G 1e-17 s 1.5152 1.250 M_Ch 15.111 Gyr: L 4.4049e+45 W, R 5.4926e+8 m, Teff 33871 K, Tc 85.23 MK, ρc 7.670e+18 kg/m⁴, Xc 0.0000, stirred core 0.000, pp 0.0%, half the light inside q 0.179, burnt/radiated 0.9975
+4D G 1e-17 s 1.5152 1.250 M_Ch: stopped at 15.111 Gyr, Xc 0.0000 (the star didn't solve on a smaller step)
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-30.json (157 s, 2576 models; no solution past Xc 0.0000)
+(node:2566) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
