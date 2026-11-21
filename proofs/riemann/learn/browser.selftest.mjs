@@ -110,6 +110,41 @@ try {
     if (i === 1) ok(charts.length > 0, 'slide 1 has a chart (the test is looking in the right place)');
   }
 
+  // the chatbot (law 15), with /api/ask mocked: no model is called from a test
+  let sent = null;
+  await page.route('**/api/ask', async (route) => {
+    sent = JSON.parse(route.request().postData());
+    await route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: 'data: {"response":"Z is real because θ cancels the phase; "}\n\ndata: {"response":"see slide 8."}\n\ndata: [DONE]\n\n' });
+  });
+  await page.goto(`http://localhost:${port}/learn/#8`); await page.waitForTimeout(300);
+  await page.click('#askBtn'); await page.waitForTimeout(100);
+  ok(await page.isVisible('#chat'), 'ask opens the chat panel (law 15)');
+  ok((await page.textContent('#chatSlide')) === '8', 'chat knows the slide (law 15)');
+  await page.fill('#q', 'Why is Z real?');
+  await page.keyboard.press('ArrowRight');
+  ok((await page.evaluate(() => location.hash)) === '#8', 'arrow keys while typing do not turn the page (law 15)');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.querySelector('.msg.assistant')?.textContent.includes('see slide 8'), null, { timeout: 3000 }).catch(() => {});
+  const answer = await page.textContent('.msg.assistant').catch(() => '');
+  ok(answer.includes('θ cancels the phase') && answer.includes('see slide 8'), 'streamed answer renders (law 15)');
+  ok(sent && sent.deck === 'riemann' && sent.slide === 8 && sent.q === 'Why is Z real?' && !('context' in sent), 'request carries deck, slide and question, and no context (law 15)');
+  ok(await page.$('.msg.assistant a[href="#8"]'), '"slide 8" in an answer links to the slide (law 15)');
+  await page.evaluate(() => getSelection().removeAllRanges());
+  await page.click('.msg.assistant', { clickCount: 3 });
+  ok((await page.evaluate(() => getSelection().toString())).length > 10, 'answers can be selected and copied (law 15)');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(50);
+  ok(!(await page.isVisible('#chat')), 'Esc closes the chat (law 15)');
+  await page.unroute('**/api/ask');
+  await page.route('**/api/ask', (route) => route.fulfill({ status: 429, headers: { 'content-type': 'application/json' }, body: '{"error":"Too many questions in a minute. Try again shortly."}' }));
+  await page.click('#askBtn'); await page.fill('#q', 'again'); await page.click('#send');
+  await page.waitForTimeout(300);
+  ok((await page.textContent('.msg.err').catch(() => '')).includes('Too many questions'), 'a refused question shows the reason (law 15)');
+  // that 429 was ours: drop the browser's log line for it, and only it
+  for (let k = errors.length - 1; k >= 0; k--) if (/status of 429/.test(errors[k])) errors.splice(k, 1);
+  await page.unroute('**/api/ask');
+  await page.click('#chatClose');
+  await page.evaluate(() => { try { localStorage.removeItem('riemann-learn-chat-v1'); } catch {} });
+
   // law 4: theme toggle, on a chart slide
   await page.goto(`http://localhost:${port}/learn/#8`); await page.waitForTimeout(300);
   const look = () => page.evaluate(() => ({

@@ -38,6 +38,27 @@
 :root { color-scheme: light; } :root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
 .th { font-family: var(--mono); font-size: 0.6rem; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 12px; padding: 0.2rem 0.55rem; cursor: pointer; min-height: 1.7rem; }
+/* the chatbot: a panel over the sheet; its text is selectable */
+.ask { font-family: var(--mono); font-size: 0.6rem; background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 12px; padding: 0.2rem 0.6rem; cursor: pointer; min-height: 1.7rem; }
+.chat { position: absolute; left: 0; right: 0; bottom: 0; height: 78%; z-index: 8; background: var(--bg); border-top: 1px solid var(--rule); border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.12); display: none; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+.chat.on { display: flex; }
+.chat .top { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.6rem 0.9rem 0.4rem; border-bottom: 1px solid var(--rule); }
+.chat .top b { font-size: 0.95rem; }
+.chat .top small { font-family: var(--mono); font-size: 0.55rem; color: var(--muted); }
+.chat .top button { margin-left: auto; font-family: var(--mono); font-size: 0.6rem; background: none; border: 1px solid var(--rule); color: var(--fg); border-radius: 12px; padding: 0.25rem 0.6rem; cursor: pointer; }
+.msgs { flex: 1 1 auto; overflow-y: auto; padding: 0.5rem 0.9rem; font-size: 0.86rem; -webkit-user-select: text; user-select: text; overscroll-behavior: contain; }
+.msg { margin: 0.45rem 0; padding: 0.45rem 0.6rem; border-radius: 10px; max-width: 92%; white-space: pre-wrap; }
+.msg.user { background: var(--accent-tint); border: 1px solid var(--accent-faint); margin-left: auto; }
+.msg.assistant { background: var(--panel); border: 1px solid var(--rule); }
+.msg.err { background: var(--claim-faint); border: 1px solid var(--claim); }
+.msg .meta { display: block; font-family: var(--mono); font-size: 0.52rem; color: var(--muted); margin-bottom: 0.15rem; }
+.msg a { color: var(--accent); }
+.chips { display: flex; gap: 0.3rem; flex-wrap: wrap; padding: 0.3rem 0.9rem; }
+.chips button { font-family: var(--serif); font-size: 0.76rem; background: var(--panel); color: var(--fg); border: 1px solid var(--rule); border-radius: 14px; padding: 0.3rem 0.6rem; cursor: pointer; }
+.composer { display: flex; gap: 0.4rem; padding: 0.45rem 0.9rem 0.6rem; border-top: 1px solid var(--rule); }
+.composer textarea { flex: 1; resize: none; font-family: var(--serif); font-size: 0.9rem; background: var(--panel); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px; padding: 0.45rem 0.55rem; min-height: 2.4rem; max-height: 6rem; }
+.composer button { font-family: var(--mono); font-size: 0.62rem; background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 0 0.8rem; cursor: pointer; }
+.composer button:disabled { opacity: 0.5; }
 /* law 5: a drag on a chart moves the cursor, it never starts a text selection; the notes stay selectable */
 .w .plot, .w .plot * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .sheet .sbody { -webkit-user-select: text; user-select: text; }
@@ -141,9 +162,15 @@ button.b.on { border-color: var(--accent); color: var(--accent); background: var
 </div>
 <div class="device" id="device">
   <div class="bars" id="bars"></div>
-  <div class="hdr"><a href="../">← riemann</a><span class="ch" id="ch"></span><button class="th" id="theme"></button></div>
+  <div class="hdr"><a href="../">← riemann</a><span class="ch" id="ch"></span><button class="ask" id="askBtn" aria-label="ask a question about this slide">ask</button><button class="th" id="theme"></button></div>
   <div class="stage" id="stage"></div>
   <div class="toast" id="toast">done ✓</div>
+  <div class="chat" id="chat" role="dialog" aria-label="ask about this deck">
+    <div class="top"><b>Ask about slide <span id="chatSlide">1</span></b><small>Llama 3.3 70B · answers from this deck · can be wrong</small><button id="chatClose">close</button></div>
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+    <div class="chips" id="chips"></div>
+    <div class="composer"><textarea id="q" rows="1" maxlength="600" placeholder="Ask a follow-up…"></textarea><button id="send">ask</button></div>
+  </div>
   <div class="sheet" id="sheet">
     <div class="handle" id="handle"><i></i></div>
     <div class="sbody" id="sbody"></div>
@@ -192,7 +219,7 @@ const SLIDES = [
   cap: 'π(x) counts the primes up to x. It is a staircase: one step at every prime, and no formula for where the next step is.',
   pred: { q: 'How many primes are there below 100?', opts: ['15', '25', '40'], a: 1, why: '25: 2, 3, 5, 7, 11, … 97. A quarter of the numbers, and the fraction keeps falling.' },
   do: 'Drag x all the way to 1000.',
-  notes: `<h3>Why start here</h3><p>Every question in this deck is about this staircase. The primes look random step by step but are very regular in bulk. The Riemann hypothesis is a precise statement of <i>how</i> regular.</p><h3>What to notice</h3><p>The steps get sparser as you go right. At 100 the staircase has climbed 25, at 1000 it has climbed 168. Doubling x doesn't double π(x).</p>`,
+  notes: `<h3>π(x), the subject of the whole deck</h3><p>Every question in this deck is about this staircase. The primes look random step by step but are very regular in bulk. The Riemann hypothesis is a precise statement of <i>how</i> regular.</p><h3>25 primes below 100, 168 below 1000</h3><p>The steps get sparser as you go right. At 100 the staircase has climbed 25, at 1000 it has climbed 168. Doubling x doesn't double π(x).</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kx', 'x', 10, 1000, 1, 100)}</div><div class="read"><div><b id="r1"></b><span>π(x)</span></div><div><b id="r2"></b><span>fraction prime</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const pi = piTable();
@@ -213,10 +240,10 @@ const SLIDES = [
   },
 },
 {
-  ch: 'primes', t: 'They thin out like 1/log x',
+  ch: 'primes', t: 'Primes thin out like 1/log x',
   cap: 'Gauss, at 15, guessed that near x about one number in log x is prime. Add that up and you get li(x), the logarithmic integral.',
   do: 'Slide x to 10⁶ and read the ratio π(x)/li(x).',
-  notes: `<h3>The guess</h3><p class="eq">li(x) = ∫₂ˣ dt / log t</p><p>Near 10, log x ≈ 2.3 and about 1 in 2.3 numbers is prime. Near 10¹⁰, log x ≈ 23 and about 1 in 23 is. The simpler x / log x has the same leading behaviour but is visibly worse.</p><h3>The prime number theorem</h3><p>π(x)/li(x) → 1. Hadamard and de la Vallée Poussin proved it in 1896, a century after Gauss's guess. Their proof went through complex numbers, through ζ, which is where the rest of this deck goes.</p><p>The axes here are logarithmic in x: each tick is ten times the last.</p>`,
+  notes: `<h3>Gauss's estimate li(x)</h3><p class="eq">li(x) = ∫₂ˣ dt / log t</p><p>Near 10, log x ≈ 2.3 and about 1 in 2.3 numbers is prime. Near 10¹⁰, log x ≈ 23 and about 1 in 23 is. The simpler x / log x has the same leading behaviour but is visibly worse.</p><h3>The prime number theorem</h3><p>π(x)/li(x) → 1. Hadamard and de la Vallée Poussin proved it in 1896, a century after Gauss's guess. Their proof went through complex numbers, through ζ, which is where the rest of this deck goes.</p><p>The axes here are logarithmic in x: each tick is ten times the last.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kx', 'x', 2, 6, 0.01, 3)}</div><div class="read"><div><b id="r1"></b><span>π(x)</span></div><div><b id="r2"></b><span>li(x)</span></div><div><b id="r3"></b><span>π / li</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const pi = piTable();
@@ -241,11 +268,11 @@ const SLIDES = [
   },
 },
 {
-  ch: 'primes', t: 'How wrong is the guess?',
+  ch: 'primes', t: 'The error π(x) − li(x)',
   cap: 'The error π(x) − li(x) wanders. The Riemann hypothesis is the claim that it never wanders further than about √x · log x.',
   pred: { q: 'In this whole range li(x) overestimates π(x). Is that true for every x?', opts: ['Yes, always', 'No, it flips infinitely often', 'Only flips once'], a: 1, why: 'Littlewood (1914): the sign flips infinitely often. The first flip is somewhere below about 10³¹⁶, and nobody has seen it.' },
   do: 'Slide x to 10⁶ and compare the blue error with the envelope.',
-  notes: `<h3>The envelope</h3><p>If RH is true, then for every x ≥ 2657</p><p class="eq">|π(x) − li(x)| &lt; √x · log x / 8π</p><p>That constant is Schoenfeld's (1976), and von Koch (1901) showed that an error of that shape is <i>equivalent</i> to RH. So you can state RH without any complex numbers: it is a bound on how badly a staircase can drift from a smooth curve.</p><h3>Skewes</h3><p>Littlewood proved the error changes sign infinitely often without finding one sign change. Skewes then bounded the first one by 10^10^10^34, one of the largest numbers ever used in a proof. It is now known to be below about 1.4 × 10³¹⁶.</p>`,
+  notes: `<h3>Schoenfeld's bound, equivalent to RH</h3><p>If RH is true, then for every x ≥ 2657</p><p class="eq">|π(x) − li(x)| &lt; √x · log x / 8π</p><p>That constant is Schoenfeld's (1976), and von Koch (1901) showed that an error of that shape is <i>equivalent</i> to RH. So you can state RH without any complex numbers: it is a bound on how badly a staircase can drift from a smooth curve.</p><h3>Skewes's number and the first sign change</h3><p>Littlewood proved the error changes sign infinitely often without finding one sign change. Skewes then bounded the first one by 10^10^10^34, one of the largest numbers ever used in a proof. It is now known to be below about 1.4 × 10³¹⁶.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kx', 'x', 3.5, 6, 0.01, 4)}</div><div class="read"><div><b id="r1"></b><span>π(x) − li(x)</span></div><div><b id="r2"></b><span>RH envelope √x log x / 8π</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const pi = piTable();
@@ -274,7 +301,7 @@ const SLIDES = [
   cap: 'Sum 1/n² over all whole numbers, or multiply 1/(1 − 1/p²) over all primes: you get the same number, π²/6. The primes are hiding inside ζ.',
   pred: { q: 'Which gets close to π²/6 faster as N grows?', opts: ['the sum over n ≤ N', 'the product over primes p ≤ N', 'they match exactly'], a: 1, why: 'The product. Its error is about 1/(N log N), the sum\'s about 1/N, because the product skips composites, which the primes below N already account for.' },
   do: 'Slide N to 200 and compare the two errors.',
-  notes: `<h3>The identity</h3><p class="eq">Σ<sub>n≥1</sub> 1/nˢ = ∏<sub>p</sub> 1/(1 − p⁻ˢ)</p><p>Expand each factor as a geometric series 1 + p⁻ˢ + p⁻²ˢ + … and multiply them all out. Every n appears exactly once, because every n factors into primes in exactly one way. Euler found this in 1737, and it is the whole reason ζ knows about primes.</p><h3>Why s = 2</h3><p>At s = 2 both sides converge, and Euler had already shown the sum is π²/6 (the Basel problem). At s = 1 both blow up, which gives Euler's proof that there are infinitely many primes.</p>`,
+  notes: `<h3>Euler's product, from unique factorisation</h3><p class="eq">Σ<sub>n≥1</sub> 1/nˢ = ∏<sub>p</sub> 1/(1 − p⁻ˢ)</p><p>Expand each factor as a geometric series 1 + p⁻ˢ + p⁻²ˢ + … and multiply them all out. Every n appears exactly once, because every n factors into primes in exactly one way. Euler found this in 1737, and it is the whole reason ζ knows about primes.</p><h3>s = 2 (the Basel sum) and s = 1 (infinitely many primes)</h3><p>At s = 2 both sides converge, and Euler had already shown the sum is π²/6 (the Basel problem). At s = 1 both blow up, which gives Euler's proof that there are infinitely many primes.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kn', 'N', 2, 200, 1, 10)}</div><div class="read"><div><b id="r1"></b><span>sum error</span></div><div><b id="r2"></b><span>product error</span></div><div><b id="r3">1.644934</b><span>π²/6</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const Z2 = Math.PI ** 2 / 6, primes = R.sieve(200);
@@ -297,10 +324,10 @@ const SLIDES = [
   },
 },
 {
-  ch: 'ζ', t: 'Into the complex plane',
+  ch: 'ζ', t: 'ζ in the complex plane',
   cap: 'Riemann extended ζ(s) to complex s, shown here up to height 35. Orange curves are where Re ζ = 0, blue where Im ζ = 0. A zero is where an orange and a blue curve cross.',
   do: 'Tap a crossing to read off where the zero is.',
-  notes: `<h3>Reading the map</h3><p>Horizontal is Re s, vertical is Im s = t. ζ(s) is a complex number, so it vanishes only where its real part <i>and</i> its imaginary part are both zero: where an orange curve (Re ζ = 0) crosses a blue one (Im ζ = 0). The shading is |ζ|, darker where it is small. The dashed line is Re s = ½.</p><h3>What you should find</h3><p>Every crossing sits on the dashed line. The first is at ½ + 14.1347…i. In this window there are five, and they line up perfectly. Away from the line, orange and blue curves run side by side without ever meeting.</p><h3>Why this region</h3><p>For Re s &gt; 1 the Euler product converges and has no zeros. For Re s &lt; 0, the functional equation ζ(s) = 2ˢπˢ⁻¹ sin(πs/2) Γ(1−s) ζ(1−s) mirrors everything, and the only zeros are the trivial ones at −2, −4, …. Everything interesting lives in the critical strip 0 ≤ Re s ≤ 1.</p><p>Computed in your browser by Euler–Maclaurin summation, about 20,000 evaluations of ζ.</p>`,
+  notes: `<h3>The zero curves of Re ζ and Im ζ</h3><p>Horizontal is Re s, vertical is Im s = t. ζ(s) is a complex number, so it vanishes only where its real part <i>and</i> its imaginary part are both zero: where an orange curve (Re ζ = 0) crosses a blue one (Im ζ = 0). The shading is |ζ|, darker where it is small. The dashed line is Re s = ½.</p><h3>Five zeros below height 35, all on Re s = ½</h3><p>Every crossing sits on the dashed line. The first is at ½ + 14.1347…i. In this window there are five, and they line up perfectly. Away from the line, orange and blue curves run side by side without ever meeting.</p><h3>The critical strip: no zeros for Re s > 1, only trivial ones for Re s < 0</h3><p>For Re s &gt; 1 the Euler product converges and has no zeros. For Re s &lt; 0, the functional equation ζ(s) = 2ˢπˢ⁻¹ sin(πs/2) Γ(1−s) ζ(1−s) mirrors everything, and the only zeros are the trivial ones at −2, −4, …. Everything interesting lives in the critical strip 0 ≤ Re s ≤ 1.</p><p>Computed in your browser by Euler–Maclaurin summation, about 20,000 evaluations of ζ.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="read"><div><b id="r1">tap the map</b><span id="r2">s and |ζ(s)|</span></div></div><div class="plot"><canvas id="c"></canvas><svg id="o" style="position:absolute;inset:0;pointer-events:none"></svg></div>`);
     const s0 = -1, s1 = 2, t0 = 0, t1 = 35;
@@ -368,7 +395,7 @@ const SLIDES = [
   ch: 'ζ', t: 'The trivial zeros',
   cap: 'Along the real line ζ also vanishes at −2, −4, −6, …. These are the "trivial" zeros, forced by the sine in the functional equation, and nobody worries about them.',
   do: 'Slide the cursor onto a trivial zero.',
-  notes: `<h3>Plotted how</h3><p>Between the trivial zeros ζ is tiny (ζ(−11) is about 0.02), and then it grows explosively, so the vertical axis is stretched: asinh(400 ζ). Zeros are still where the curve crosses the axis.</p><h3>Famous values</h3><p>ζ(0) = −½, ζ(−1) = −1/12 (the infamous "1 + 2 + 3 + ⋯ = −1/12" is this value, read too literally), ζ(−3) = 1/120. They are all rational, given by Bernoulli numbers.</p><p>The Riemann hypothesis is about the <i>other</i> zeros, the non-trivial ones in the strip.</p>`,
+  notes: `<h3>Vertical scale: asinh(400 ζ)</h3><p>Between the trivial zeros ζ is tiny (ζ(−11) is about 0.02), and then it grows explosively, so the vertical axis is stretched: asinh(400 ζ). Zeros are still where the curve crosses the axis.</p><h3>ζ(0) = −½, ζ(−1) = −1/12, ζ(−3) = 1/120</h3><p>ζ(0) = −½, ζ(−1) = −1/12 (the infamous "1 + 2 + 3 + ⋯ = −1/12" is this value, read too literally), ζ(−3) = 1/120. They are all rational, given by Bernoulli numbers.</p><p>The Riemann hypothesis is about the <i>other</i> zeros, the non-trivial ones in the strip.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('ks', 's', -12, 0.9, 0.01, -1)}</div><div class="read"><div><b id="r1"></b><span>ζ(s)</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const sl = (v) => Math.asinh(400 * v);
@@ -393,11 +420,11 @@ const SLIDES = [
   },
 },
 {
-  ch: 'the hypothesis', t: 'All on one line',
+  ch: 'the hypothesis', t: 'Every computed zero is on Re s = ½',
   cap: 'The non-trivial zeros come in mirror pairs about Re s = ½. The Riemann hypothesis: they are all exactly on it.',
   pred: { q: 'People have computed zeros up to height 3 × 10¹², about 12 trillion of them. How many were off the line?', opts: ['none', 'a handful', 'about 1%'], a: 0, why: 'None. Platt and Trudgian (2021), with rigorous interval arithmetic. Evidence, but not proof: Littlewood\'s sign change shows how far out the first exception to a pattern can hide.' },
   do: 'Raise the height to 1000. Every dot is a zero your browser found.',
-  notes: `<h3>The statement</h3><p class="eq"><b>ζ(s) = 0 with 0 &lt; Re s &lt; 1 ⟹ Re s = ½</b></p><p>Riemann wrote in 1859 that it is "very probable", that he had put aside the search for a proof "after some fleeting vain attempts", and moved on. Hilbert put it on his 1900 list, and the Clay Institute put a million dollars on it in 2000.</p><h3>The green sliver</h3><p>All that has been <i>proved</i> about where zeros can't be is a sliver hugging Re s = 1 that narrows like 1/log t. Proving there are no zeros on Re s = 1 at all was enough for the prime number theorem. Pushing the sliver to a fixed half-plane Re s &gt; 1 − δ would already be historic.</p>`,
+  notes: `<h3>Statement of RH</h3><p class="eq"><b>ζ(s) = 0 with 0 &lt; Re s &lt; 1 ⟹ Re s = ½</b></p><p>Riemann wrote in 1859 that it is "very probable", that he had put aside the search for a proof "after some fleeting vain attempts", and moved on. Hilbert put it on his 1900 list, and the Clay Institute put a million dollars on it in 2000.</p><h3>The proved zero-free region along Re s = 1</h3><p>All that has been <i>proved</i> about where zeros can't be is a sliver hugging Re s = 1 that narrows like 1/log t. Proving there are no zeros on Re s = 1 at all was enough for the prime number theorem. Pushing the sliver to a fixed half-plane Re s &gt; 1 − δ would already be historic.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kt', 'height', 20, 1000, 1, 60)}</div><div class="read"><div><b id="r1"></b><span>zeros drawn</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const draw = () => {
@@ -423,7 +450,7 @@ const SLIDES = [
   ch: 'the hypothesis', t: 'Hunt a zero by hand',
   cap: 'On the line, ζ can be turned into a real function Z(t). A zero is where Z changes sign. Find the first one yourself.',
   do: 'Pin t to within 0.01 of the first zero. Use the nudge buttons.',
-  notes: `<h3>Hardy's Z function</h3><p class="eq">Z(t) = e<sup>iθ(t)</sup> ζ(½ + it)</p><p>θ is the Riemann–Siegel theta function, chosen to cancel ζ's phase on the line, so Z is real and |Z| = |ζ|. If Z is positive at one t and negative at the next, then ζ has a zero between them <i>exactly on the line</i>. That is not an approximation; it is the intermediate value theorem.</p><h3>Bisection</h3><p>What you're doing with the nudges is what every zero-finder does: bracket a sign change and halve the bracket. This deck found all 649 zeros below t = 1000 that way before you opened it.</p><p>Riemann did this by hand in the 1850s. Siegel found his calculations of the first zeros in his unpublished notes in 1932.</p>`,
+  notes: `<h3>Hardy's Z function</h3><p class="eq">Z(t) = e<sup>iθ(t)</sup> ζ(½ + it)</p><p>θ is the Riemann–Siegel theta function, chosen to cancel ζ's phase on the line, so Z is real and |Z| = |ζ|. If Z is positive at one t and negative at the next, then ζ has a zero between them <i>exactly on the line</i>. That is not an approximation; it is the intermediate value theorem.</p><h3>Finding zeros by bisection</h3><p>What you're doing with the nudges is what every zero-finder does: bracket a sign change and halve the bracket. This deck found all 649 zeros below t = 1000 that way before you opened it.</p><p>Riemann did this by hand in the 1850s. Siegel found his calculations of the first zeros in his unpublished notes in 1932.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kt', 't', 10, 20, 0.001, 12)}<div class="btns"><button class="b" data-d="-0.1">−0.1</button><button class="b" data-d="-0.01">−0.01</button><button class="b" data-d="-0.001">−0.001</button><button class="b" data-d="0.001">+0.001</button><button class="b" data-d="0.01">+0.01</button><button class="b" data-d="0.1">+0.1</button></div></div><div class="read"><div><b id="r1"></b><span>Z(t)</span></div><div><b id="r2"></b><span>sign</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const pts = []; for (let i = 0; i <= 400; i++) { const t = 10 + 10 * i / 400; pts.push([t, R.Z(t)]); }
@@ -447,11 +474,11 @@ const SLIDES = [
   },
 },
 {
-  ch: 'the hypothesis', t: 'Count them, and you know',
+  ch: 'the hypothesis', t: 'Counting zeros up to height T',
   cap: 'A formula predicts how many zeros the whole strip holds up to height T. If the sign changes on the line account for all of them, none is off the line.',
   pred: { q: 'How many zeros are there with 0 < t ≤ 100?', opts: ['10', '29', '100'], a: 1, why: '29. The smooth count θ(T)/π + 1 gives 28.9 at T = 100; the real count never strays more than a couple from it.' },
   do: 'Raise T to 1000. Watch the staircase hug the curve.',
-  notes: `<h3>Riemann–von Mangoldt</h3><p class="eq">N(T) = θ(T)/π + 1 + S(T)</p><p>N(T) counts zeros in the whole strip with 0 &lt; t ≤ T, on the line or not. The smooth part grows like (T/2π) log(T/2π). S(T) is small and wobbles.</p><h3>Why counting proves things</h3><p>Sign changes of Z find zeros <i>on</i> the line. The formula counts zeros <i>everywhere</i> in the strip. If the two counts agree up to T, every zero up to T is on the line. Turing turned that into a rigorous procedure in 1953, on one of the first stored-program computers.</p>`,
+  notes: `<h3>The Riemann–von Mangoldt formula</h3><p class="eq">N(T) = θ(T)/π + 1 + S(T)</p><p>N(T) counts zeros in the whole strip with 0 &lt; t ≤ T, on the line or not. The smooth part grows like (T/2π) log(T/2π). S(T) is small and wobbles.</p><h3>Turing's method: a matching count puts every zero on the line</h3><p>Sign changes of Z find zeros <i>on</i> the line. The formula counts zeros <i>everywhere</i> in the strip. If the two counts agree up to T, every zero up to T is on the line. Turing turned that into a rigorous procedure in 1953, on one of the first stored-program computers.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kt', 'T', 30, 1000, 1, 100)}</div><div class="read"><div><b id="r1"></b><span>zeros counted</span></div><div><b id="r2"></b><span>θ(T)/π + 1</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const draw = () => {
@@ -474,7 +501,7 @@ const SLIDES = [
   cap: 'Rescale the gaps between consecutive zeros to average 1 and histogram them. They are not random: small gaps are rare, as if the zeros push each other apart.',
   pred: { q: 'Which curve will the 648 gaps follow?', opts: ['Random (Poisson): small gaps most common', 'Eigenvalues of a random matrix', 'All gaps equal'], a: 1, why: 'Random-matrix eigenvalues (GUE). Montgomery found it in 1972; Dyson recognised the formula over tea. Odlyzko confirmed it at the 10²⁰th zero.' },
   do: 'Toggle both curves on and compare.',
-  notes: `<h3>Unfolding</h3><p>Zeros get denser as t grows, so raw gaps shrink. Mapping each zero γ to θ(γ)/π + 1 makes the average gap exactly 1, and then gaps from anywhere on the line can be compared.</p><h3>Montgomery and Dyson</h3><p>In 1972 Hugh Montgomery computed the pair correlation of the zeros and showed it to Freeman Dyson at the IAS. Dyson recognised it at once: the same formula describes the energy levels of heavy nuclei, modelled by random Hermitian matrices. Nobody knows why. The hope it revives, from Hilbert and Pólya, is that the zeros <i>are</i> the eigenvalues of some self-adjoint operator. Then they would be real, and that is RH.</p><p>The curves: Poisson e⁻ˢ, and the Wigner surmise (32/π²) s² e^(−4s²/π), a close approximation to the GUE law.</p>`,
+  notes: `<h3>Unfolding the gaps to mean 1</h3><p>Zeros get denser as t grows, so raw gaps shrink. Mapping each zero γ to θ(γ)/π + 1 makes the average gap exactly 1, and then gaps from anywhere on the line can be compared.</p><h3>Montgomery and Dyson: zeros as random-matrix eigenvalues</h3><p>In 1972 Hugh Montgomery computed the pair correlation of the zeros and showed it to Freeman Dyson at the IAS. Dyson recognised it at once: the same formula describes the energy levels of heavy nuclei, modelled by random Hermitian matrices. Nobody knows why. The hope it revives, from Hilbert and Pólya, is that the zeros <i>are</i> the eigenvalues of some self-adjoint operator. Then they would be real, and that is RH.</p><p>The curves: Poisson e⁻ˢ, and the Wigner surmise (32/π²) s² e^(−4s²/π), a close approximation to the GUE law.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl"><div class="btns"><button class="b" id="bP">random (Poisson)</button><button class="b" id="bG">random matrix (GUE)</button></div></div><div class="read"><div><b id="r1"></b><span>gaps &lt; 0.2</span></div><div><b>18%</b><span>Poisson would give</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const gaps = R.unfoldedGaps(ZEROS), bins = 24, w = 3 / bins, h = new Array(bins).fill(0);
@@ -503,7 +530,7 @@ const SLIDES = [
   },
 },
 {
-  ch: 'why primes care', t: 'The music of the primes',
+  ch: 'why primes care', t: 'Rebuilding ψ(x) from the zeros',
   cap: 'Each zero contributes one wave. Add enough of them to the smooth line x and the prime staircase appears, built from zeros alone.',
   do: 'Press play and watch the corners sharpen.',
   notes: `<h3>Riemann's explicit formula</h3><p class="eq">ψ(x) = x − Σ<sub>ρ</sub> x<sup>ρ</sup>/ρ − log 2π − ½ log(1 − x⁻²)</p><p>ψ(x) adds log p for every prime power pᵏ ≤ x, a cousin of π(x) that makes the formula clean. The sum runs over the non-trivial zeros ρ. The zero ρ = ½ + iγ and its mirror together contribute a wave √x · cos(γ log x − φ) / |ρ|.</p><p>The zeros are the frequencies; the primes are where the waves line up. The blue curve uses no primes at all, only the 649 zeros below 1000.</p>`,
@@ -532,11 +559,11 @@ const SLIDES = [
   },
 },
 {
-  ch: 'why primes care', t: 'If one zero were off the line',
+  ch: 'why primes care', t: 'The effect of one zero off the line',
   cap: 'A zero at β + iγ adds a wave of size x^β. Every zero on the line gives √x. Move one zero off the line and see how long it takes to dominate.',
   pred: { q: 'A zero at Re s = 0.51, only just off the line. Would that change prime counts we could ever check?', opts: ['No, it\'s too small to matter', 'Yes, eventually it dominates everything'], a: 1, why: 'Eventually, x^0.51 beats √x · log x. But "eventually" can be astronomically far, which is why computation alone will never settle RH.' },
   do: 'Drag β down toward ½ and watch the crossover run away.',
-  notes: `<h3>Why ½</h3><p>The functional equation pairs each zero β + iγ with 1 − β + iγ. So if any zero is off the line, one of the pair has β &gt; ½, and its wave x^β eventually outgrows every on-line wave. The error in counting primes would then be bigger than √x, infinitely often.</p><p>RH is the statement that this never happens: the primes are exactly as regular as the √x scale allows, and no more irregular.</p><h3>The crossover</h3><p>The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out.</p>`,
+  notes: `<h3>Off-line zeros come in pairs, so one has β > ½</h3><p>The functional equation pairs each zero β + iγ with 1 − β + iγ. So if any zero is off the line, one of the pair has β &gt; ½, and its wave x^β eventually outgrows every on-line wave. The error in counting primes would then be bigger than √x, infinitely often.</p><p>RH is the statement that this never happens: the primes are exactly as regular as the √x scale allows, and no more irregular.</p><h3>Where x^β overtakes √x log x</h3><p>The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kb', 'β', 0.505, 0.95, 0.001, 0.75)}</div><div class="read"><div><b id="r1"></b><span>x where x^β overtakes √x log x</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const draw = () => {
@@ -561,10 +588,10 @@ const SLIDES = [
   },
 },
 {
-  ch: 'why primes care', t: 'The ladder of half-planes',
+  ch: 'why primes care', t: 'Zero-free half-planes compared',
   cap: 'Knowing "no zeros right of σ" buys a prime-count error of x^σ. This is how far each step up the ladder gets you at x = 10¹².',
   do: 'Tap each rung: 1, then 7/8, then ½.',
-  notes: `<h3>The rungs</h3><p><b>σ = 1</b> (1896): no zeros on the line Re s = 1. Gives the prime number theorem, with an error only slightly smaller than x.</p><p><b>σ = 7/8</b> (claimed September 2026, with a Lean proof, in OpenAI's math release): no zeros in Re s &gt; 7/8. It would be the first zero-free half-plane ever proved, and it is not yet confirmed.</p><p><b>σ = ½</b>: RH. The error drops to about the square root of the count: at 10¹², about 10⁶ out of 3.8 × 10¹⁰ primes.</p>`,
+  notes: `<h3>σ = 1, 7/8 and ½ compared</h3><p><b>σ = 1</b> (1896): no zeros on the line Re s = 1. Gives the prime number theorem, with an error only slightly smaller than x.</p><p><b>σ = 7/8</b> (claimed September 2026, with a Lean proof, in OpenAI's math release): no zeros in Re s &gt; 7/8. It would be the first zero-free half-plane ever proved, and it is not yet confirmed.</p><p><b>σ = ½</b>: RH. The error drops to about the square root of the count: at 10¹², about 10⁶ out of 3.8 × 10¹⁰ primes.</p>`,
   mount(el, ctx) {
     const seen = new Set();
     el.innerHTML = W(`<div class="ctl"><div class="btns"><button class="b" data-s="1">σ = 1 · 1896</button><button class="b" data-s="0.875">σ = 7/8 · claimed 2026</button><button class="b" data-s="0.5">σ = ½ · RH</button></div></div><div class="read"><div><b id="r1"></b><span>error scale x^σ log x at 10¹²</span></div><div><b>3.8×10¹⁰</b><span>primes below 10¹²</span></div></div><div class="plot"><svg id="p"></svg></div>`);
@@ -588,11 +615,11 @@ const SLIDES = [
   },
 },
 {
-  ch: 'where it\'s true', t: 'RH you can check: curves mod p',
+  ch: 'where it\'s true', t: 'RH for elliptic curves mod p',
   cap: 'Count the solutions of y² = x³ + ax + b with x, y taken mod p. The count is always within 2√p of p + 1. That is the Riemann hypothesis for this curve, and it is a theorem.',
   pred: { q: 'Out of thousands of random curves, how many will land outside the band?', opts: ['none', 'a few', 'about 5%'], a: 0, why: 'None, ever. Hasse proved it in 1933; Weil proved it for all curves over finite fields in 1948, and Deligne for all varieties in 1974.' },
   do: 'Add curves until there are at least 1000 dots.',
-  notes: `<h3>Why this is RH</h3><p>A curve over a finite field has its own zeta function, built from its point counts. Its "Riemann hypothesis" says its zeros have real part ½, and that turns out to be exactly the bound |#E − (p + 1)| ≤ 2√p. Each dot here is one curve and one prime, plotted as a_p / 2√p with a_p = p + 1 − #E. RH says every dot is in [−1, 1].</p><h3>Sato–Tate</h3><p>The dots aren't uniform in the band. For a typical curve they follow the semicircle (2/π)√(1 − x²), the Sato–Tate law, proved in 2008–2011. That is another random-matrix law, for a different group.</p><h3>Why it matters for 2026</h3><p>The analogy between primes and curves over finite fields is the oldest strategy for RH. The November 2026 claim begins from an elementary proof of exactly this theorem, Stepanov's. That is the next slide.</p>`,
+  notes: `<h3>Hasse's bound is RH for the curve</h3><p>A curve over a finite field has its own zeta function, built from its point counts. Its "Riemann hypothesis" says its zeros have real part ½, and that turns out to be exactly the bound |#E − (p + 1)| ≤ 2√p. Each dot here is one curve and one prime, plotted as a_p / 2√p with a_p = p + 1 − #E. RH says every dot is in [−1, 1].</p><h3>The Sato–Tate distribution of a_p</h3><p>The dots aren't uniform in the band. For a typical curve they follow the semicircle (2/π)√(1 − x²), the Sato–Tate law, proved in 2008–2011. That is another random-matrix law, for a different group.</p><h3>Stepanov's proof, the 2026 claim's starting point</h3><p>The analogy between primes and curves over finite fields is the oldest strategy for RH. The November 2026 claim begins from an elementary proof of exactly this theorem, Stepanov's. That is the next slide.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl"><div class="btns"><button class="b" id="add">+200 curves</button><button class="b" id="st">Sato–Tate curve</button></div></div><div class="read"><div><b id="r1">0</b><span>curves counted</span></div><div><b id="r2">0</b><span>outside the band</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const primes = R.sieve(1500).filter((p) => p > 3), pts = [];
@@ -631,10 +658,10 @@ const SLIDES = [
   },
 },
 {
-  ch: 'where it\'s true', t: 'Stepanov\'s trick: multiplicity',
+  ch: 'where it\'s true', t: 'Stepanov\'s method: vanishing to high order',
   cap: 'To show a curve has few points, build a polynomial that vanishes at every point to high order. A polynomial of degree D can only vanish k times to order m if k·m ≤ D.',
   do: 'Raise the multiplicity and watch the degree it costs.',
-  notes: `<h3>The idea (1969)</h3><p>Stepanov wanted to bound the number of points k on a curve over 𝔽_q. He built an auxiliary polynomial with two properties: it vanishes to order m at every point of the curve, and its degree D is not much larger than about √q · m. Then k · m ≤ D gives k ≲ q + O(√q), which is the Riemann hypothesis for the curve, by elementary algebra. Bombieri extended it to every curve in 1973.</p><h3>The obstacle over ℤ</h3><p>The trick needs "vanishing to order m", which means derivatives. Over 𝔽_q you can differentiate polynomials. Over the integers there is no good notion of differentiating a number, so the method seemed stuck there for fifty years.</p><h3>The 2026 claim</h3><p>The November 2026 note says it found a substitute: chains of <i>theta lifts</i> between automorphic forms, each lift buying one order of multiplicity, about √X lifts for primes up to X. That is its claim, not something this deck can check.</p>`,
+  notes: `<h3>Stepanov's auxiliary polynomial (1969)</h3><p>Stepanov wanted to bound the number of points k on a curve over 𝔽_q. He built an auxiliary polynomial with two properties: it vanishes to order m at every point of the curve, and its degree D is not much larger than about √q · m. Then k · m ≤ D gives k ≲ q + O(√q), which is the Riemann hypothesis for the curve, by elementary algebra. Bombieri extended it to every curve in 1973.</p><h3>No multiplicity over the integers</h3><p>The trick needs "vanishing to order m", which means derivatives. Over 𝔽_q you can differentiate polynomials. Over the integers there is no good notion of differentiating a number, so the method seemed stuck there for fifty years.</p><h3>Theta lifts as a substitute (the 2026 claim)</h3><p>The November 2026 note says it found a substitute: chains of <i>theta lifts</i> between automorphic forms, each lift buying one order of multiplicity, about √X lifts for primes up to X. That is its claim, not something this deck can check.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('km', 'order m', 1, 6, 1, 1)}${knob('kk', 'points k', 2, 6, 1, 4)}</div><div class="read"><div><b id="r1"></b><span>degree needed = k · m</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const draw = () => {
@@ -657,10 +684,10 @@ const SLIDES = [
   },
 },
 {
-  ch: '2026', t: 'The claim, and what\'s in the box',
+  ch: '2026', t: 'The 2026 claim and its Lean archive',
   cap: 'On 20 November 2026 a mathematician announced a proof of RH and GRH found with Claude, published only as a Lean project. Here is what a static read of it shows.',
   do: 'Pull the sheet up and read what would settle it.',
-  notes: `<h3>What was announced</h3><p>A four-page note (alpo.ge/remark.pdf) and a Lean project in fourteen parts. No paper: the author says a full write-up ran past 250,000 pages, and that "Claude far outpaced me near the finish line".</p><h3>What a text read shows</h3><p>The headline theorem is <code>riemannHypothesis : RiemannHypothesis</code>, and <code>RiemannHypothesis</code> is Mathlib's own definition. So the statement is right, which is the commonest place formal "proofs" go wrong. There is no new <code>axiom</code>, no <code>sorry</code>, and no <code>native_decide</code>.</p><h3>What would settle it</h3><p>Build it with the pinned Lean and Mathlib, run <code>#print axioms</code>, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time. It has not been reported, and this site did not do it. Until then: <b>unverified</b>.</p><p>Then comes the part no kernel does: understanding why it's true.</p>`,
+  notes: `<h3>The announcement: a note and a Lean project</h3><p>A four-page note (alpo.ge/remark.pdf) and a Lean project in fourteen parts. No paper: the author says a full write-up ran past 250,000 pages, and that "Claude far outpaced me near the finish line".</p><h3>Static audit: correct statement, no axioms or sorry</h3><p>The headline theorem is <code>riemannHypothesis : RiemannHypothesis</code>, and <code>RiemannHypothesis</code> is Mathlib's own definition. So the statement is right, which is the commonest place formal "proofs" go wrong. There is no new <code>axiom</code>, no <code>sorry</code>, and no <code>native_decide</code>.</p><h3>Steps still needed: build, #print axioms, independent replay</h3><p>Build it with the pinned Lean and Mathlib, run <code>#print axioms</code>, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time. It has not been reported, and this site did not do it. Until then: <b>unverified</b>.</p><p>Then comes the part no kernel does: understanding why it's true.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="tiles" id="tl"><div class="tile"><div class="v">…</div><div class="l">loading the audit</div></div></div><ul class="chk" id="ck"></ul>`);
     fetch('../audit.json').then((r) => r.json()).then((A) => {
@@ -672,10 +699,10 @@ const SLIDES = [
   },
 },
 {
-  ch: 'recall', t: 'Five questions, from memory',
+  ch: 'recall', t: 'Recall quiz: five questions',
   cap: 'Retrieval is where learning sticks. Answer without scrolling back; each answer links to its slide.',
   do: 'Answer all five.',
-  notes: `<h3>Why a quiz</h3><p>Pulling something out of memory strengthens it far more than reading it again: that is the testing effect. The predictions on earlier slides did a version of this before the reveal. This does it after.</p><p>Your answers and progress are kept only in this browser.</p>`,
+  notes: `<h3>Retrieval practice and the testing effect</h3><p>Pulling something out of memory strengthens it far more than reading it again: that is the testing effect. The predictions on earlier slides did a version of this before the reveal. This does it after.</p><p>Your answers and progress are kept only in this browser.</p>`,
   mount(el, ctx) {
     const Q = [
       { q: 'How many zeros of ζ have 0 < t ≤ 100?', o: ['10', '29', '649'], a: 1, s: 8 },
@@ -746,6 +773,7 @@ function go(i) {
   renderSheet(i);
   $('ch').textContent = `${SLIDES[i].ch}`;
   $('pos').textContent = `${i + 1} / ${SLIDES.length}`;
+  if ($('chat').classList.contains('on')) { $('chatSlide').textContent = i + 1; renderChips(); }
   $('prev').disabled = i === 0;
   $('next').textContent = i === SLIDES.length - 1 ? 'back to start' : 'next →';
   $('bars').querySelectorAll('i').forEach((b, j) => { b.className = j < i ? 'past' : j === i ? 'cur' : ''; });
@@ -758,7 +786,7 @@ function go(i) {
 
 $('prev').onclick = () => go(S.i - 1);
 $('next').onclick = () => go(S.i === SLIDES.length - 1 ? 0 : S.i + 1);
-addEventListener('keydown', (e) => { if (e.target.tagName === 'INPUT') return; if (e.key === 'ArrowRight') go(S.i + 1); if (e.key === 'ArrowLeft') go(S.i - 1); if (e.key === 'Escape' && full) setFull(false); });
+addEventListener('keydown', (e) => { if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return; if (e.key === 'Escape' && $('chat').classList.contains('on')) { closeChat(); return; } if (e.key === 'ArrowRight') go(S.i + 1); if (e.key === 'ArrowLeft') go(S.i - 1); if (e.key === 'Escape' && full) setFull(false); });
 addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1), 10); if (n && n - 1 !== S.i) go(n - 1); });
 
 // drag the sheet: up opens the notes, down closes; a horizontal swipe on the handle or caption turns the page
@@ -787,6 +815,59 @@ addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1)
 }
 
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (full) sheet.style.height = ($('device').clientHeight * 0.88) + 'px'; else setPeek(); live?.resize?.(); }, 120); });
+// ----------------------------------------------------------- the chatbot ---
+// POST /api/ask on the proofs worker: Llama 3.3 70B on Workers AI, with this deck's
+// text (context.txt) loaded server-side. We send only the question, the slide and
+// a short history. Answers stream back as server-sent events.
+const CHAT_KEY = 'riemann-learn-chat-v1';
+let chatLog = [];
+try { chatLog = JSON.parse(localStorage.getItem(CHAT_KEY) || '[]').slice(-30); } catch {}
+const saveChat = () => { try { localStorage.setItem(CHAT_KEY, JSON.stringify(chatLog.slice(-30))); } catch {} };
+const linkSlides = (t) => esc(t).replace(/\b[Ss]lides? (\d{1,2})\b/g, (m, n) => +n >= 1 && +n <= SLIDES.length ? `<a href="#${n}">${m}</a>` : m);
+function renderMsgs() {
+  $('msgs').innerHTML = chatLog.length ? chatLog.map((m) => `<div class="msg ${m.role}${m.err ? ' err' : ''}"><span class="meta">${m.role === 'user' ? `you · slide ${m.slide}` : 'answer'}</span>${linkSlides(m.content)}</div>`).join('')
+    : `<p style="color:var(--muted);font-size:0.8rem">Ask anything about this slide or the deck. The model has the whole deck, its notes and the reference page in front of it, and it answers from them first.</p>`;
+  $('msgs').scrollTop = $('msgs').scrollHeight;
+}
+function renderChips() {
+  const t = SLIDES[S.i].t;
+  const chips = [`Explain "${t}" more simply`, 'Why does this matter for the primes?', 'What should I take away from this slide?'];
+  $('chips').innerHTML = chips.map((c) => `<button>${esc(c)}</button>`).join('');
+  $('chips').querySelectorAll('button').forEach((b) => b.onclick = () => sendQ(b.textContent));
+}
+function openChat() { $('chat').classList.add('on'); $('chatSlide').textContent = S.i + 1; renderChips(); renderMsgs(); setTimeout(() => $('q').focus(), 50); }
+function closeChat() { $('chat').classList.remove('on'); }
+let asking = false;
+async function sendQ(q) {
+  q = q.trim(); if (!q || asking) return;
+  asking = true; $('send').disabled = true; $('q').value = '';
+  const history = chatLog.filter((m) => !m.err).slice(-6).map(({ role, content }) => ({ role, content }));
+  chatLog.push({ role: 'user', content: q, slide: S.i + 1 });
+  const ans = { role: 'assistant', content: '' }; chatLog.push(ans); renderMsgs();
+  try {
+    const r = await fetch('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ deck: 'riemann', slide: S.i + 1, q, history }) });
+    if (!r.ok) { let m = `The model did not answer (${r.status}).`; try { m = (await r.json()).error || m; } catch {} throw new Error(m); }
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+    for (;;) {
+      const { value, done } = await rd.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let k; while ((k = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, k).trim(); buf = buf.slice(k + 1);
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim(); if (data === '[DONE]') continue;
+        try { const j = JSON.parse(data); if (j.response) { ans.content += j.response; renderMsgs(); } } catch {}
+      }
+    }
+    if (!ans.content.trim()) throw new Error('The model sent an empty answer. Try rephrasing.');
+  } catch (e) { ans.content = String(e.message || e); ans.err = true; }
+  saveChat(); renderMsgs(); asking = false; $('send').disabled = false;
+}
+$('askBtn').onclick = () => ($('chat').classList.contains('on') ? closeChat() : openChat());
+$('chatClose').onclick = closeChat;
+$('send').onclick = () => sendQ($('q').value);
+$('q').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQ($('q').value); } });
+$('msgs').addEventListener('click', (e) => { if (e.target.tagName === 'A' && e.target.getAttribute('href')?.startsWith('#')) closeChat(); });
+
 theme.mount($('theme'));
 theme.onChange(() => live?.resize?.());
 const start = parseInt(location.hash.slice(1), 10);

@@ -79,3 +79,38 @@ so a private window still works.
 
 **13. Nothing breaks.** No console errors on any slide in either theme.
 *Machine-checked.*
+
+## Writing
+
+**14. Headings name their section.** A heading says what the section contains
+("Turing's method: a matching count puts every zero on the line"), not a
+teaser that withholds it ("Why counting proves things", "The guess", "Watch
+for", "Plotted how"). No heading opens with Why, What or How, none ends in a
+question mark, and the same goes for slide titles. *Machine-checked by a lint
+in `riemann.selftest.mjs`, over the deck and the reference page.*
+
+## The chatbot
+
+**15. A follow-up question gets an answer from the deck, in place.** The
+header's **ask** button opens a panel over the notes. The panel knows the
+current slide, suggests three questions, and streams the answer.
+- The model is Llama 3.3 70B on Cloudflare Workers AI, behind `POST /api/ask`
+  on the surface's own worker. The **server** loads the deck's text
+  (`context.txt`, generated from the slides, the notes, the reference page, the
+  timeline and the audit). The browser sends only the deck, the slide number,
+  the question and the last six turns, so the context cannot be swapped or
+  padded.
+- The system prompt makes the model answer from the deck first, flag anything
+  beyond it, refuse to call RH proved, and point to slides by number. Slide
+  numbers in answers become links.
+- Answers are selectable. Typing never turns the page, Esc closes the panel,
+  and a refused question (too long, rate-limited) shows its reason in the
+  thread.
+- The panel says which model answers and that it can be wrong.
+- Limits: 600 characters a question, 700 tokens an answer, 8 questions a
+  minute per IP, and same-origin requests only.
+- *Machine-checked*, with the endpoint mocked so no test calls a model: the
+  panel opens on the right slide, the request carries no context, a streamed
+  answer renders with slide links, the keyboard behaves, and a 429 is shown.
+  `proofs/worker.selftest.mjs` checks the endpoint's guards against a fake AI,
+  and `riemann.selftest.mjs` fails if `context.txt` is stale.

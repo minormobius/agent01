@@ -6,12 +6,12 @@
 
 | tier | meaning | workers |
 |---|---|---|
-| **static** | no code: Static Assets hands out files | 36 |
+| **static** | no code: Static Assets hands out files | 35 |
 | **thin** | code that only forwards to the assets (a fallback, a redirect) | 25 |
-| **api** | real request handlers, no storage of its own | 24 |
+| **api** | real request handlers, no storage of its own | 25 |
 | **stateful** | binds D1 / KV / R2 / Durable Objects / queues / containers — holds data | 29 |
 
-Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party hosts: **35**.
+Scheduled (cron): **11** workers. Reading secrets: **26**. Calling third-party hosts: **35**.
 
 ## Shared state — the blast radius
 
@@ -77,6 +77,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 | `minomobi-cron` | cron | api | — | 0 13 * * *, 30 13 * * *, 30 21 * * 1-5, 0 6 1 * *, 0 * * * *, 0 */6 * * *, 0 6 * * *, 10,30,50 * * * * | ADMIN_KEY, GITHUB_PAT | api.github.com |
 | `ocr` | ocr | api | — | — | GEMINI_API_KEY, GEMINI_MODEL | generativelanguage.googleapis.com, ocrs-models.s3-accelerate.amazonaws.com |
 | `photo` | photo | api | — | — | — | plc.directory, public.api.bsky.app |
+| `proofs` | proofs | api | ai | — | ASK_LIMIT | — |
 | `rant` | rant | api | — | — | — | — |
 | `splice` | splice | api | — | — | — | — |
 | `table` | table | api | — | — | COMMIT | — |
@@ -108,7 +109,7 @@ Scheduled (cron): **11** workers. Reading secrets: **25**. Calling third-party h
 
 ## Static workers (no code)
 
-`ai-edu` · `ask` · `aub` · `bakery` · `board` · `canvas` · `cards` · `cell` · `crm` · `del` · `empathy` · `farm` · `fipo` · `four` · `g` · `glass` · `golem` · `harvestople-next` · `j-minomobi` · `jog` · `mappa` · `math` · `minomobi` · `neuro` · `ns` · `org` · `os` · `poke` · `polis` · `proofs` · `studio` · `time` · `tjs` · `torus` · `war` · `zoom`
+`ai-edu` · `ask` · `aub` · `bakery` · `board` · `canvas` · `cards` · `cell` · `crm` · `del` · `empathy` · `farm` · `fipo` · `four` · `g` · `glass` · `golem` · `harvestople-next` · `j-minomobi` · `jog` · `mappa` · `math` · `minomobi` · `neuro` · `ns` · `org` · `os` · `poke` · `polis` · `studio` · `time` · `tjs` · `torus` · `war` · `zoom`
 
 ## Pages Functions
 

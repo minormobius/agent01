@@ -1,0 +1,346 @@
+# The Riemann hypothesis: a deck at proofs.mino.mobi/riemann/learn/ and a reference page at proofs.mino.mobi/riemann/
+
+## The deck, slide by slide
+
+### Slide 1: Count the primes  (chapter: primes)
+Caption: π(x) counts the primes up to x. It is a staircase: one step at every prime, and no formula for where the next step is.
+Prediction asked: How many primes are there below 100? Options: 15 / 25 / 40. Answer: 25. 25: 2, 3, 5, 7, 11, … 97. A quarter of the numbers, and the fraction keeps falling.
+Task: Drag x all the way to 1000.
+Notes:
+## π(x), the subject of the whole deck
+Every question in this deck is about this staircase. The primes look random step by step but are very regular in bulk. The Riemann hypothesis is a precise statement of how regular.
+## 25 primes below 100, 168 below 1000
+The steps get sparser as you go right. At 100 the staircase has climbed 25, at 1000 it has climbed 168. Doubling x doesn't double π(x).
+
+### Slide 2: Primes thin out like 1/log x  (chapter: primes)
+Caption: Gauss, at 15, guessed that near x about one number in log x is prime. Add that up and you get li(x), the logarithmic integral.
+Task: Slide x to 10⁶ and read the ratio π(x)/li(x).
+Notes:
+## Gauss's estimate li(x)
+li(x) = ∫₂ˣ dt / log t
+Near 10, log x ≈ 2.3 and about 1 in 2.3 numbers is prime. Near 10¹⁰, log x ≈ 23 and about 1 in 23 is. The simpler x / log x has the same leading behaviour but is visibly worse.
+## The prime number theorem
+π(x)/li(x) → 1. Hadamard and de la Vallée Poussin proved it in 1896, a century after Gauss's guess. Their proof went through complex numbers, through ζ, which is where the rest of this deck goes.
+The axes here are logarithmic in x: each tick is ten times the last.
+
+### Slide 3: The error π(x) − li(x)  (chapter: primes)
+Caption: The error π(x) − li(x) wanders. The Riemann hypothesis is the claim that it never wanders further than about √x · log x.
+Prediction asked: In this whole range li(x) overestimates π(x). Is that true for every x? Options: Yes, always / No, it flips infinitely often / Only flips once. Answer: No, it flips infinitely often. Littlewood (1914): the sign flips infinitely often. The first flip is somewhere below about 10³¹⁶, and nobody has seen it.
+Task: Slide x to 10⁶ and compare the blue error with the envelope.
+Notes:
+## Schoenfeld's bound, equivalent to RH
+If RH is true, then for every x ≥ 2657
+|π(x) − li(x)| < √x · log x / 8π
+That constant is Schoenfeld's (1976), and von Koch (1901) showed that an error of that shape is equivalent to RH. So you can state RH without any complex numbers: it is a bound on how badly a staircase can drift from a smooth curve.
+## Skewes's number and the first sign change
+Littlewood proved the error changes sign infinitely often without finding one sign change. Skewes then bounded the first one by 10^10^10^34, one of the largest numbers ever used in a proof. It is now known to be below about 1.4 × 10³¹⁶.
+
+### Slide 4: Euler's product  (chapter: ζ)
+Caption: Sum 1/n² over all whole numbers, or multiply 1/(1 − 1/p²) over all primes: you get the same number, π²/6. The primes are hiding inside ζ.
+Prediction asked: Which gets close to π²/6 faster as N grows? Options: the sum over n ≤ N / the product over primes p ≤ N / they match exactly. Answer: the product over primes p ≤ N. The product. Its error is about 1/(N log N), the sum's about 1/N, because the product skips composites, which the primes below N already account for.
+Task: Slide N to 200 and compare the two errors.
+Notes:
+## Euler's product, from unique factorisation
+Σ_n≥1 1/nˢ = ∏_p 1/(1 − p⁻ˢ)
+Expand each factor as a geometric series 1 + p⁻ˢ + p⁻²ˢ + … and multiply them all out. Every n appears exactly once, because every n factors into primes in exactly one way. Euler found this in 1737, and it is the whole reason ζ knows about primes.
+## s = 2 (the Basel sum) and s = 1 (infinitely many primes)
+At s = 2 both sides converge, and Euler had already shown the sum is π²/6 (the Basel problem). At s = 1 both blow up, which gives Euler's proof that there are infinitely many primes.
+
+### Slide 5: ζ in the complex plane  (chapter: ζ)
+Caption: Riemann extended ζ(s) to complex s, shown here up to height 35. Orange curves are where Re ζ = 0, blue where Im ζ = 0. A zero is where an orange and a blue curve cross.
+Task: Tap a crossing to read off where the zero is.
+Notes:
+## The zero curves of Re ζ and Im ζ
+Horizontal is Re s, vertical is Im s = t. ζ(s) is a complex number, so it vanishes only where its real part and its imaginary part are both zero: where an orange curve (Re ζ = 0) crosses a blue one (Im ζ = 0). The shading is |ζ|, darker where it is small. The dashed line is Re s = ½.
+## Five zeros below height 35, all on Re s = ½
+Every crossing sits on the dashed line. The first is at ½ + 14.1347…i. In this window there are five, and they line up perfectly. Away from the line, orange and blue curves run side by side without ever meeting.
+## The critical strip: no zeros for Re s > 1, only trivial ones for Re s 
+Computed in your browser by Euler–Maclaurin summation, about 20,000 evaluations of ζ.
+
+### Slide 6: The trivial zeros  (chapter: ζ)
+Caption: Along the real line ζ also vanishes at −2, −4, −6, …. These are the "trivial" zeros, forced by the sine in the functional equation, and nobody worries about them.
+Task: Slide the cursor onto a trivial zero.
+Notes:
+## Vertical scale: asinh(400 ζ)
+Between the trivial zeros ζ is tiny (ζ(−11) is about 0.02), and then it grows explosively, so the vertical axis is stretched: asinh(400 ζ). Zeros are still where the curve crosses the axis.
+## ζ(0) = −½, ζ(−1) = −1/12, ζ(−3) = 1/120
+ζ(0) = −½, ζ(−1) = −1/12 (the infamous "1 + 2 + 3 + ⋯ = −1/12" is this value, read too literally), ζ(−3) = 1/120. They are all rational, given by Bernoulli numbers.
+The Riemann hypothesis is about the other zeros, the non-trivial ones in the strip.
+
+### Slide 7: Every computed zero is on Re s = ½  (chapter: the hypothesis)
+Caption: The non-trivial zeros come in mirror pairs about Re s = ½. The Riemann hypothesis: they are all exactly on it.
+Prediction asked: People have computed zeros up to height 3 × 10¹², about 12 trillion of them. How many were off the line? Options: none / a handful / about 1%. Answer: none. None. Platt and Trudgian (2021), with rigorous interval arithmetic. Evidence, but not proof: Littlewood's sign change shows how far out the first exception to a pattern can hide.
+Task: Raise the height to 1000. Every dot is a zero your browser found.
+Notes:
+## Statement of RH
+ζ(s) = 0 with 0 < Re s < 1 ⟹ Re s = ½
+Riemann wrote in 1859 that it is "very probable", that he had put aside the search for a proof "after some fleeting vain attempts", and moved on. Hilbert put it on his 1900 list, and the Clay Institute put a million dollars on it in 2000.
+## The proved zero-free region along Re s = 1
+All that has been proved about where zeros can't be is a sliver hugging Re s = 1 that narrows like 1/log t. Proving there are no zeros on Re s = 1 at all was enough for the prime number theorem. Pushing the sliver to a fixed half-plane Re s > 1 − δ would already be historic.
+
+### Slide 8: Hunt a zero by hand  (chapter: the hypothesis)
+Caption: On the line, ζ can be turned into a real function Z(t). A zero is where Z changes sign. Find the first one yourself.
+Task: Pin t to within 0.01 of the first zero. Use the nudge buttons.
+Notes:
+## Hardy's Z function
+Z(t) = e^(iθ(t)) ζ(½ + it)
+θ is the Riemann–Siegel theta function, chosen to cancel ζ's phase on the line, so Z is real and |Z| = |ζ|. If Z is positive at one t and negative at the next, then ζ has a zero between them exactly on the line. That is not an approximation; it is the intermediate value theorem.
+## Finding zeros by bisection
+What you're doing with the nudges is what every zero-finder does: bracket a sign change and halve the bracket. This deck found all 649 zeros below t = 1000 that way before you opened it.
+Riemann did this by hand in the 1850s. Siegel found his calculations of the first zeros in his unpublished notes in 1932.
+
+### Slide 9: Counting zeros up to height T  (chapter: the hypothesis)
+Caption: A formula predicts how many zeros the whole strip holds up to height T. If the sign changes on the line account for all of them, none is off the line.
+Prediction asked: How many zeros are there with 0 < t ≤ 100? Options: 10 / 29 / 100. Answer: 29. 29. The smooth count θ(T)/π + 1 gives 28.9 at T = 100; the real count never strays more than a couple from it.
+Task: Raise T to 1000. Watch the staircase hug the curve.
+Notes:
+## The Riemann–von Mangoldt formula
+N(T) = θ(T)/π + 1 + S(T)
+N(T) counts zeros in the whole strip with 0 < t ≤ T, on the line or not. The smooth part grows like (T/2π) log(T/2π). S(T) is small and wobbles.
+## Turing's method: a matching count puts every zero on the line
+Sign changes of Z find zeros on the line. The formula counts zeros everywhere in the strip. If the two counts agree up to T, every zero up to T is on the line. Turing turned that into a rigorous procedure in 1953, on one of the first stored-program computers.
+
+### Slide 10: Zeros repel  (chapter: the hypothesis)
+Caption: Rescale the gaps between consecutive zeros to average 1 and histogram them. They are not random: small gaps are rare, as if the zeros push each other apart.
+Prediction asked: Which curve will the 648 gaps follow? Options: Random (Poisson): small gaps most common / Eigenvalues of a random matrix / All gaps equal. Answer: Eigenvalues of a random matrix. Random-matrix eigenvalues (GUE). Montgomery found it in 1972; Dyson recognised the formula over tea. Odlyzko confirmed it at the 10²⁰th zero.
+Task: Toggle both curves on and compare.
+Notes:
+## Unfolding the gaps to mean 1
+Zeros get denser as t grows, so raw gaps shrink. Mapping each zero γ to θ(γ)/π + 1 makes the average gap exactly 1, and then gaps from anywhere on the line can be compared.
+## Montgomery and Dyson: zeros as random-matrix eigenvalues
+In 1972 Hugh Montgomery computed the pair correlation of the zeros and showed it to Freeman Dyson at the IAS. Dyson recognised it at once: the same formula describes the energy levels of heavy nuclei, modelled by random Hermitian matrices. Nobody knows why. The hope it revives, from Hilbert and Pólya, is that the zeros are the eigenvalues of some self-adjoint operator. Then they would be real, and that is RH.
+The curves: Poisson e⁻ˢ, and the Wigner surmise (32/π²) s² e^(−4s²/π), a close approximation to the GUE law.
+
+### Slide 11: Rebuilding ψ(x) from the zeros  (chapter: why primes care)
+Caption: Each zero contributes one wave. Add enough of them to the smooth line x and the prime staircase appears, built from zeros alone.
+Task: Press play and watch the corners sharpen.
+Notes:
+## Riemann's explicit formula
+ψ(x) = x − Σ_ρ x^(ρ)/ρ − log 2π − ½ log(1 − x⁻²)
+ψ(x) adds log p for every prime power pᵏ ≤ x, a cousin of π(x) that makes the formula clean. The sum runs over the non-trivial zeros ρ. The zero ρ = ½ + iγ and its mirror together contribute a wave √x · cos(γ log x − φ) / |ρ|.
+The zeros are the frequencies; the primes are where the waves line up. The blue curve uses no primes at all, only the 649 zeros below 1000.
+
+### Slide 12: The effect of one zero off the line  (chapter: why primes care)
+Caption: A zero at β + iγ adds a wave of size x^β. Every zero on the line gives √x. Move one zero off the line and see how long it takes to dominate.
+Prediction asked: A zero at Re s = 0.51, only just off the line. Would that change prime counts we could ever check? Options: No, it's too small to matter / Yes, eventually it dominates everything. Answer: Yes, eventually it dominates everything. Eventually, x^0.51 beats √x · log x. But "eventually" can be astronomically far, which is why computation alone will never settle RH.
+Task: Drag β down toward ½ and watch the crossover run away.
+Notes:
+## Off-line zeros come in pairs, so one has β > ½
+The functional equation pairs each zero β + iγ with 1 − β + iγ. So if any zero is off the line, one of the pair has β > ½, and its wave x^β eventually outgrows every on-line wave. The error in counting primes would then be bigger than √x, infinitely often.
+RH is the statement that this never happens: the primes are exactly as regular as the √x scale allows, and no more irregular.
+## Where x^β overtakes √x log x
+The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out.
+
+### Slide 13: Zero-free half-planes compared  (chapter: why primes care)
+Caption: Knowing "no zeros right of σ" buys a prime-count error of x^σ. This is how far each step up the ladder gets you at x = 10¹².
+Task: Tap each rung: 1, then 7/8, then ½.
+Notes:
+## σ = 1, 7/8 and ½ compared
+σ = 1 (1896): no zeros on the line Re s = 1. Gives the prime number theorem, with an error only slightly smaller than x.
+σ = 7/8 (claimed September 2026, with a Lean proof, in OpenAI's math release): no zeros in Re s > 7/8. It would be the first zero-free half-plane ever proved, and it is not yet confirmed.
+σ = ½: RH. The error drops to about the square root of the count: at 10¹², about 10⁶ out of 3.8 × 10¹⁰ primes.
+
+### Slide 14: RH for elliptic curves mod p  (chapter: where it's true)
+Caption: Count the solutions of y² = x³ + ax + b with x, y taken mod p. The count is always within 2√p of p + 1. That is the Riemann hypothesis for this curve, and it is a theorem.
+Prediction asked: Out of thousands of random curves, how many will land outside the band? Options: none / a few / about 5%. Answer: none. None, ever. Hasse proved it in 1933; Weil proved it for all curves over finite fields in 1948, and Deligne for all varieties in 1974.
+Task: Add curves until there are at least 1000 dots.
+Notes:
+## Hasse's bound is RH for the curve
+A curve over a finite field has its own zeta function, built from its point counts. Its "Riemann hypothesis" says its zeros have real part ½, and that turns out to be exactly the bound |#E − (p + 1)| ≤ 2√p. Each dot here is one curve and one prime, plotted as a_p / 2√p with a_p = p + 1 − #E. RH says every dot is in [−1, 1].
+## The Sato–Tate distribution of a_p
+The dots aren't uniform in the band. For a typical curve they follow the semicircle (2/π)√(1 − x²), the Sato–Tate law, proved in 2008–2011. That is another random-matrix law, for a different group.
+## Stepanov's proof, the 2026 claim's starting point
+The analogy between primes and curves over finite fields is the oldest strategy for RH. The November 2026 claim begins from an elementary proof of exactly this theorem, Stepanov's. That is the next slide.
+
+### Slide 15: Stepanov's method: vanishing to high order  (chapter: where it's true)
+Caption: To show a curve has few points, build a polynomial that vanishes at every point to high order. A polynomial of degree D can only vanish k times to order m if k·m ≤ D.
+Task: Raise the multiplicity and watch the degree it costs.
+Notes:
+## Stepanov's auxiliary polynomial (1969)
+Stepanov wanted to bound the number of points k on a curve over 𝔽_q. He built an auxiliary polynomial with two properties: it vanishes to order m at every point of the curve, and its degree D is not much larger than about √q · m. Then k · m ≤ D gives k ≲ q + O(√q), which is the Riemann hypothesis for the curve, by elementary algebra. Bombieri extended it to every curve in 1973.
+## No multiplicity over the integers
+The trick needs "vanishing to order m", which means derivatives. Over 𝔽_q you can differentiate polynomials. Over the integers there is no good notion of differentiating a number, so the method seemed stuck there for fifty years.
+## Theta lifts as a substitute (the 2026 claim)
+The November 2026 note says it found a substitute: chains of theta lifts between automorphic forms, each lift buying one order of multiplicity, about √X lifts for primes up to X. That is its claim, not something this deck can check.
+
+### Slide 16: The 2026 claim and its Lean archive  (chapter: 2026)
+Caption: On 20 November 2026 a mathematician announced a proof of RH and GRH found with Claude, published only as a Lean project. Here is what a static read of it shows.
+Task: Pull the sheet up and read what would settle it.
+Notes:
+## The announcement: a note and a Lean project
+A four-page note (alpo.ge/remark.pdf) and a Lean project in fourteen parts. No paper: the author says a full write-up ran past 250,000 pages, and that "Claude far outpaced me near the finish line".
+## Static audit: correct statement, no axioms or sorry
+The headline theorem is riemannHypothesis : RiemannHypothesis, and RiemannHypothesis is Mathlib's own definition. So the statement is right, which is the commonest place formal "proofs" go wrong. There is no new axiom, no sorry, and no native_decide.
+## Steps still needed: build, #print axioms, independent replay
+Build it with the pinned Lean and Mathlib, run #print axioms, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time. It has not been reported, and this site did not do it. Until then: unverified.
+Then comes the part no kernel does: understanding why it's true.
+
+### Slide 17: Recall quiz: five questions  (chapter: recall)
+Caption: Retrieval is where learning sticks. Answer without scrolling back; each answer links to its slide.
+Task: Answer all five.
+Notes:
+## Retrieval practice and the testing effect
+Pulling something out of memory strengthens it far more than reading it again: that is the testing effect. The predictions on earlier slides did a version of this before the reveal. This does it after.
+Your answers and progress are kept only in this browser.
+
+## The reference page
+New to this? Take the deck: seventeen phone-sized slides, each a live widget with lecture notes over it. Predict, poke, then read. About twenty minutes.
+## Counting primes: li(x) and its error
+The primes thin out: about 1 in 2.3 numbers near 10 is prime, about 1 in 23 near 10¹⁰. Gauss guessed the density near x is 1/log x, so the number of primes up to x should be about li(x) = ∫ dt/log t. That guess is the prime number theorem, proved in 1896. The Riemann hypothesis asks how good the guess is.
+Euler noticed that primes are built into a sum over all whole numbers:
+ζ(s) = 1 + 1/2ˢ + 1/3ˢ + 1/4ˢ + … = ∏_p prime 1/(1 − p⁻ˢ)
+In 1859 Riemann extended ζ(s) to every complex number s except 1. He found that the errors in the prime count are controlled by the places where ζ(s) = 0. There are "trivial" zeros at −2, −4, −6, …. Every other zero lies in the critical strip 0 < Re s < 1, the shaded band in the picture, and they come in mirror pairs about the line Re s = ½.
+## Statement of RH
+Every non-trivial zero of ζ has real part exactly ½.
+Riemann called it "very probable" and moved on. Each dot in the picture is a zero ½ + iγ that has actually been computed (this page computes them in your browser; tap one). Every zero up to height 3 × 10¹², about twelve trillion of them, is on the line. Being on the line is equivalent to the best possible error term, a statement about primes with no complex numbers in it:
+|π(x) − li(x)| ≤ √x · log x / 8π for x ≥ 2657
+(von Koch 1901 gave the equivalence; the explicit constant is Schoenfeld's, 1976.)
+## Zero-free half-planes and the prime-count error
+Suppose we only knew there were no zeros to the right of Re s = σ. Then π(x) = li(x) + O(x^(σ) log x). Slide σ to see the error at x = 10¹² (about 3.8 × 10¹⁰ primes).
+σ7/8
+height T60
+σ = 1 (1896)7/8 (claimed Sep 2026)½ (RH)
+ computed zero
+ proved zero-free
+ claimed zero-free, 2026
+The green sliver along Re s = 1 is everything that has been proved unconditionally about where zeros cannot be. It gets thinner as t grows, like 1/(5.56 log t). The orange half-plane Re s > 7/8 is the quasi-Riemann hypothesis claimed in the 2026 openai/math release, with a Lean proof. If it holds up, it is the first zero-free half-plane ever. The functional equation mirrors everything onto the left of the strip.
+## The Generalized Riemann Hypothesis (GRH)
+Every Dirichlet character χ has its own L-function L(s, χ), and the Generalized Riemann Hypothesis says all their non-trivial zeros are on the line too. GRH controls primes in arithmetic progressions: how soon the first prime ≡ a mod q appears, and how fast primality tests can be made. A great deal of modern number theory is proved "assuming GRH".
+## Hilbert's 8th problem and the Clay prize
+It is the only problem on both Hilbert's 1900 list (number 8) and the Clay Institute's 2000 Millennium list (with a $1,000,000 prize). Thousands of theorems begin "if RH is true…".
+from t =0
+width50
+ closest pair below 1000
+ tallest peak below 1000
+ first zeros
+## Hardy's Z function
+On the critical line ζ(½ + it) is complex, but it can be rotated to be real: Z(t) = e^(iθ(t)) ζ(½ + it), where θ is the Riemann–Siegel theta function. |Z(t)| = |ζ(½ + it)|, so every sign change of Z is a zero exactly on the line. That is how every zero ever "verified" was verified: you find sign changes and count them.
+Counting is where the hypothesis enters. Riemann–von Mangoldt says the number of zeros in the whole strip up to height T is θ(T)/π + 1 + S(T), with S(T) small. If the sign changes on the line account for that whole count, then no zero up to T is off the line. Below 1000 this page finds all 649. Turing turned the idea into a rigorous method in 1953.
+## Lehmer pairs and wide gaps
+The zeros repel each other. Close pairs are rare, and between them Z barely dips across the axis ("Lehmer's phenomenon"). A pair that failed to cross would be a pair of zeros off the line. The tallest peaks sit in unusually wide gaps.
+## Computation: Euler–Maclaurin and log Γ
+ζ comes from Euler–Maclaurin summation with 20 Bernoulli terms. θ comes from log Γ, by Stirling's series after shifting. Both are in riemann.js, held to ζ(2), ζ(3), ζ(½), the functional equation, the first ten tabulated zeros, and the counts N(100) = 29 and N(1000) = 649 by a 2977-check selftest.
+zeros10
+x up to100
+play: add zerosno zerosall 649
+ ψ(x), counted from primes
+ rebuilt from zeros alone
+## The explicit formula
+Count each prime power pᵏ ≤ x with weight log p, and call the total ψ(x). It is a staircase that climbs by log p at every prime power. Riemann's explicit formula writes it as a smooth curve plus one wave per zero:
+ψ(x) = x − Σ_ρ x^(ρ)/ρ − log 2π − ½ log(1 − x⁻²)
+Each zero ρ = ½ + iγ adds a wave of frequency γ in log x, with amplitude √x/|ρ|. Add them, and the corners of the staircase appear at exactly the primes. With no zeros you get the straight line x. With 649 the staircase is sharp to within a fraction of a step.
+The amplitudes are √x only because Re ρ = ½. A single zero at β + iγ with β > ½ would add a wave growing like x^(β), and the primes would show irregularities bigger than √x forever. That is the precise sense in which RH says "the primes are as regular as they can be".
+The rebuilt curve uses only the 649 zeros below 1000, which this page computed, and no primes at all.
+## Timeline, 1737–2026
+Three kinds of progress: theory partial theorems, computation zeros checked by machine, and claim announced proofs of the whole thing. Tap a dot or a line.
+Dates are first announcement or preprint where that differs from publication. Claimed proofs listed here are the prominent ones. Many more have been posted over the years, and none before 2026 was accepted.
+## The announcement, 20 November 2026
+A mathematician posted a four-page note, alpo.ge/remark.pdf, which opens:
+I believe I have, working with Claude, discovered a proof of the Riemann Hypothesis. In fact, the method easily extends much further, resolving the so-called Generalized Riemann Hypothesis… Claude and I have also formalized the arguments without assumptions.
+There is no paper. The author says a full write-up ran past 250,000 pages and chose not to post it, so the evidence is a Lean project in fourteen parts (lean.tar.gz.part01…14). The note says that "Claude far outpaced me near the finish line", and that the author does not yet understand every part.
+Not verified. No refereed paper, and no independent build of the Lean project has been reported that we have seen. Treat this as an announcement.
+## The method, as the note describes it
+Start where RH is already a theorem. For curves over finite fields, the analogue of RH was proved by Weil (1948). In 1969 Stepanov found an elementary proof: build an auxiliary polynomial that vanishes to high multiplicity at every point you want to count. Then a degree bound caps the count, and the cap is the √q error term.
+The obstacle. Over the integers there is no obvious notion of multiplicity. It would mean something like "differentiating whole numbers", and it is the standard reason the method was thought not to transfer.
+The claimed trick. Fake the multiplicity with automorphic forms. Each theta lift carries an automorphic form from one unitary group to a bigger one, and the note says each lift buys one more order of vanishing. A chain of about √X lifts is used for a prime sum of length X. Around that come the Guinand–Weil explicit formula, Iwasawa towers, Bessel periods and a weakened Vandiver conjecture. The timeline in the note runs from 6 October to "11/16/26: GRH."
+This paraphrases the note. We cannot assess the argument, and the note warns that some of its own summaries are a model's paraphrase.
+## Static audit of the Lean archive
+We downloaded all fourteen parts (240 MB compressed, 1.4 GB unpacked) and read them as text. We did not build them. The stage on the left shows the numbers. The headline theorem is
+…
+and RiemannHypothesis is Mathlib's own definition, not one made up inside the project. The project restates it word for word as
+…
+That matters because the commonest way a formal "proof" goes wrong is by proving a different statement. This one, at least, says the right thing.
+A Lean proof is only as good as its axioms and the kernel that checked it. A text search finds no new axiom, no sorry, no native_decide and no kernel bypasses. There is some metaprogramming (custom tactics, and one command that copies declarations), and those still hand their terms to the kernel. Nobody can read 17 million lines, though, so a search like this only sorts the archive into "worth building" and "not worth building". It is worth building.
+## Steps still needed to verify it
+Build it with the pinned toolchain and Mathlib, run #print axioms riemannHypothesis, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time, not years of refereeing, which is new in the history of this problem. Then comes the human part: understanding why it is true.
+## Reaction on Bluesky
+"riemann" was the most distinctive word of the day in our bisk Bluesky digest. Reactions split three ways: awe, jokes about AI-induced delusion, and the point that this author has a track record. One reply asked for exactly the step above: "I would love to see these tagged with … iterated adversarial review … until cold-context reviewers were convinced."
+see also 003 quasi-RH (Re s > 7/8) · all 372 results
+## Selftests and the Lean audit script
+node proofs/riemann/riemann.selftest.mjs (0.9 s, 2977 checks): ζ at 2, 3, 4, 0, −1, −3, ½ and its trivial zeros; the functional equation at 40 random complex points; θ against its asymptotic series; Z(t) real to 10⁻¹⁰ along the line; the first ten zeros against Odlyzko's tables to 10⁻⁹; N(100) = 29 and N(1000) = 649; the count against θ(T)/π + 1 at every gap; and that the zero list this page loads is exactly what the engine finds. The explicit formula is held to a mean error under 0.1 on [10, 100].
+node proofs/riemann/audit.mjs --src <lean dir> produces audit.json, the static read of the 2026 archive. It reads text and runs nothing from the archive.
+## Limits of these checks
+Computing zeros proves nothing about RH beyond the height computed. Rigorous verification needs interval arithmetic and Turing's method, which this page doesn't do: a missed close pair would show up as a count of 648, so the count is the honest part. The Lean archive was not built or run here.
+## Sources
+Riemann 1859; Edwards, Riemann's Zeta Function (1974); Titchmarsh, The Theory of the Riemann Zeta-Function (2nd ed., Heath-Brown); Odlyzko's zero tables; Bombieri's Clay problem description; the papers named in the history. The 2026 note and archive are at alpo.ge. Family 003 is from openai/math (Apache-2.0). Not affiliated with either.
+
+## Timeline of attempts
+- 1737 [theory] Euler's product: Σ 1/nˢ = ∏ 1/(1 − p⁻ˢ). The sum over all numbers factors over the primes, which is why ζ knows where they are.
+- 1859 [theory] Riemann's eight pages: "On the number of primes less than a given magnitude": ζ extended to the complex plane, the functional equation, the explicit formula, and the remark that all non-trivial zeros are "very probably" on Re s = ½. His only paper on number theory.
+- 1896 [theory] No zeros on Re s = 1: Hadamard and de la Vallée Poussin, independently. This is exactly what the prime number theorem needs: π(x) ~ x / log x.
+- 1899 [theory] The first zero-free region: De la Vallée Poussin: no zeros with σ > 1 − c / log t. Its shape has barely changed since; this is the green sliver in the picture.
+- 1900 [theory] Hilbert's 8th problem: Hilbert lists RH, together with the Goldbach and twin prime conjectures, among the problems for the new century.
+- 1901 [theory] RH is a statement about primes: Von Koch: RH holds exactly when π(x) = li(x) + O(√x log x).
+- 1903 [computation] Gram: 15 zeros: J. P. Gram computes the first 15 zeros by hand. All are on the line.
+- 1914 [theory] Infinitely many on the line: Hardy proves infinitely many zeros lie on Re s = ½. The same year Littlewood shows π(x) − li(x) changes sign infinitely often, against all numerical evidence at the time.
+- 1932 [theory] Riemann had been computing: Siegel, reading Riemann's unpublished notes in Göttingen, finds a fast formula for ζ on the line that Riemann had used himself: the Riemann–Siegel formula, still the workhorse of every large computation.
+- 1936 [computation] 1,041 zeros: Titchmarsh and Comrie, with punched-card tabulating machines.
+- 1942 [theory] A positive proportion: Selberg: a fixed positive fraction of all zeros lies on the line.
+- 1948 [theory] RH where it is true: Weil proves the analogue of RH for curves over finite fields (announced 1940–41). This is the "toy" the 2026 claim works from.
+- 1953 [computation] Turing on the Mark 1: Alan Turing runs the Manchester Mark 1 up to t ≈ 1540, and invents the method that certifies a count of zeros rigorously.
+- 1958 [theory] Vinogradov–Korobov: A wider zero-free region, σ > 1 − c / (log t)^⅔ (log log t)^⅓. Still the best asymptotic shape known.
+- 1969 [theory] Stepanov's method: An elementary proof of RH for hyperelliptic curves: an auxiliary polynomial vanishing to high multiplicity. Bombieri extends it to all curves in 1973. The 2026 claim describes itself as a descendant.
+- 1972 [theory] Zeros behave like eigenvalues: Montgomery's pair correlation conjecture. Over tea at the IAS, Dyson recognises it as the statistics of random Hermitian matrices (GUE). This revives the Hilbert–Pólya hope that the zeros are the spectrum of some operator.
+- 1974 [theory] Deligne; Levinson: Deligne completes the Weil conjectures: RH for all varieties over finite fields. Levinson shows more than a third of the zeros lie on the line.
+- 1985 [computation] Mertens disproved: Odlyzko and te Riele show the Mertens conjecture, a stronger cousin that implies RH, is false. RH survives.
+- 1987 [computation] Zeros near the 10²⁰th: Odlyzko computes zeros far up the line and finds GUE statistics to great precision.
+- 1989 [theory] Two fifths: Conrey: more than 40% of the zeros lie on the line.
+- 1999 [theory] Connes' trace formula: A reformulation of RH in noncommutative geometry, one of several programmes aimed at a spectral interpretation.
+- 2000 [theory] A million dollars: The Clay Mathematics Institute names RH one of seven Millennium Prize Problems. The same year Conrey and Li show that the positivity condition de Branges's approach needs fails as stated.
+- 2004 [claim] De Branges: Louis de Branges, who proved the Bieberbach conjecture in 1985, posts a claimed proof of RH, one of several since the 1980s. It was not accepted.
+- 2004 [computation] 10¹³ zeros: Gourdon and Demichel check the first ten trillion zeros, all on the line.
+- 2018 [claim] Atiyah: Sir Michael Atiyah presents a short claimed proof at the Heidelberg Laureate Forum. It is not accepted.
+- 2018 [theory] Barely true: Rodgers and Tao prove Newman's conjecture, that the de Bruijn–Newman constant Λ ≥ 0. RH is equivalent to Λ ≤ 0, so if RH is true it is only barely true. Polymath 15 shows Λ ≤ 0.22 (2019).
+- 2021 [computation] 3 × 10¹²: Platt and Trudgian: RH holds for every zero up to height 3 × 10¹², rigorously, with interval arithmetic.
+- 2024 [theory] Guth–Maynard: The first substantial improvement since Ingham in 1940 on how many zeros can sit off the line. Large values of Dirichlet polynomials.
+- 2026 [claim] Quasi-RH, with Lean: The openai/math release (family 003) claims every Dirichlet L-function has no zeros in Re s > 7/8, with a Lean proof. It would be the first zero-free half-plane. It is the orange band in the picture. See the proofs index.
+- 2026 [claim] RH and GRH, with Claude: A mathematician announces a proof of RH and GRH found with Claude, published only as a Lean project of about 17 million lines. Unrefereed and not yet independently built. See the 2026 tab.
+
+## Static audit of the November 2026 Lean archive (read as text; not built)
+Source: alpo.ge/lean.tar.gz.part01 … part14, audited 2026-11-21. Toolchain leanprover/lean4:v4.33.1, Mathlib 0df444a360eaa60ab8c11dca51a86af692955474.
+175187 Lean files, 17374215 lines, 1030531854 bytes.
+Main.lean:
+import Statements
+import Supplements.Kernels.MainTheoremsAll
+
+theorem riemannHypothesis : RiemannHypothesis := rhOfAll
+
+theorem riemannZeta_eq_zero_re : RiemannZetaZerosOnLine := rhOfAll
+
+theorem LFunction_ne_zero_of_half_lt_re : DirichletLNonvanishingRightOfHalf := allChi
+
+theorem LFunction_eq_zero_re : DirichletLZerosOnLine := claimAll.2.1
+
+theorem LFunction_eq_zero_re_of_isPrimitive : PrimitiveDirichletLZerosOnLine := critAll
+Statements.lean:
+import Mathlib
+
+def RiemannZetaZerosOnLine : Prop :=
+  ∀ s : ℂ, riemannZeta s = 0 → (¬∃ n : ℕ, s = -2 * ((n : ℂ) + 1)) → s ≠ 1 → s.re = 1 / 2
+
+def DirichletLNonvanishingRightOfHalf : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    1 / 2 < s.re → (χ ≠ 1 ∨ s ≠ 1) → DirichletCharacter.LFunction χ s ≠ 0
+
+def DirichletLZerosOnLine : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N) (s : ℂ),
+    0 < s.re → s.re < 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2
+
+def PrimitiveDirichletLZerosOnLine : Prop :=
+  ∀ (N : ℕ) [NeZero N] (χ : DirichletCharacter ℂ N), χ.IsPrimitive →
+    ∀ s : ℂ, 0 < s.re → s.re < 1 → DirichletCharacter.LFunction χ s = 0 → s.re = 1 / 2
+- axiom: 0 files (a new axiom: anything can follow from it)
+- sorry: 0 files (an unproved hole)
+- admit: 0 files (an unproved hole (tactic form))
+- native_decide: 0 files (trusts compiled code instead of the kernel)
+- ofReduceBool: 0 files (the axiom native_decide rests on)
+- implemented_by: 0 files (swaps a definition for other code at runtime)
+- extern: 0 files (foreign code)
+- opaque: 0 files (a constant whose body the kernel cannot see)
+- unsafe: 0 files (outside the kernel's guarantees)
+- debug.skipKernelTC: 0 files (turns off kernel type checking)
+- import Lean: 7 files (metaprogramming: harmless by itself, worth reading)
+- addDecl: 1 files (adds declarations from code (still kernel-checked))
+- run_cmd / run_elab: 5 files (runs code while compiling)
+- custom elab / macro: 22 files (new syntax or tactics)
+Not done: build the project (lake build) and so have the kernel check every proof; run #print axioms riemannHypothesis on the built environment; replay the .olean files with an independent checker (lean4checker, or a Comparator-style challenge).

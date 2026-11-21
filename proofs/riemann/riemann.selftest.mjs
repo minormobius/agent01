@@ -121,5 +121,26 @@ ok(R.sieve(1e6).length === 78498, 'π(10⁶) = 78498');
 // ---- zero-free region -----------------------------------------------------------
 ok(R.classicalEdge(10) > 0.9 && R.classicalEdge(1e6) < 1 && R.classicalEdge(1e6) > R.classicalEdge(10), 'classical edge shape');
 
+// ---- writing: headings name their section (LAWS.md, law 14) ------------------------
+// No teaser headings: nothing that opens with Why/What/How/Watch/Play, asks a
+// question, or withholds its subject ("The guess", "Plotted how").
+for (const f of ['index.html', 'learn/index.html']) {
+  const html = readFileSync(join(here, f), 'utf8');
+  const heads = [...html.matchAll(/<h[23]>([^<$]+)<\/h[23]>/g)].map((m) => m[1]);
+  if (f.startsWith('learn')) for (const m of html.matchAll(/\bt: '((?:[^'\\]|\\.)+)'/g)) heads.push(m[1].replace(/\\'/g, "'"));   // slide titles
+  for (const raw of heads) {
+    const h = raw.trim();
+    ok(!/^(why|what|how|watch|play|where to)\b/i.test(h) && !h.endsWith('?') && !/^(the (guess|question|idea|reaction|rungs|crossover|envelope|identity))$/i.test(h),
+      `${f}: heading "${h}" should say what the section contains`);
+  }
+}
+
+// ---- the chatbot's context is current with the deck and the page -----------------------
+{
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, [join(here, 'learn', 'build-context.mjs'), '--check'], { encoding: 'utf8' });
+  ok(r.status === 0, `learn/context.txt is current (${(r.stderr || r.stdout).trim()})`);
+}
+
 console.log(`${fail ? 'FAILED' : 'ok'}: ${pass} passed, ${fail} failed, ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 process.exit(fail ? 1 : 0);

@@ -5,3 +5,5 @@ build.mjs
 assessment.json
 wrangler.jsonc
 ramsey/build-traces.mjs
+worker.js
+riemann/learn/build-context.mjs
