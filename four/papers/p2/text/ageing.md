@@ -77,7 +77,8 @@ explosion line (s = 1.5152, 1.25 M~Ch~) has been carried {{egPmyr}} Myr past the
 hydrogen-free core grows from {{egPH0}} to {{egPH1}} M~Ch~ and is still speeding up; the processed core it must burn
 through holds at {{egPproc}} M~Ch~. The star swells ×{{egPR}} in radius and ×{{egPL}} in light, and its surface cools from
 {{egPT0}} to {{egPT1}} K, while its centre heats from {{egPTc0}} to {{egPTc1}} MK and grows ×{{egPrho}} denser: a subgiant
-beginning. Whether its core reaches the Chandrasekhar mass, which decides whether it explodes and so tests the declared
+beginning. (As the envelope swells, the shooting solution meeting at a fifth of the mass stops converging; from there it
+meets at a tenth.) Whether its core reaches the Chandrasekhar mass, which decides whether it explodes and so tests the declared
 core growth above, is the run now going on.
 
 **What the aged stars hold.** Summed over each analogue's last kept profile, the elements past helium are {{ashA}} of

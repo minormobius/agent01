@@ -1,12 +1,12 @@
 {
- "run": "evolve4-16",
- "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch star on through shell burning (grav=1). evolve4-15 stopped at once: a resumed run had only itself as the energy of contraction's reference, a one-step baseline, which is stiff. Checkpoints now keep that reference (gref) and a resumed star is re-solved against it; evolve4-14's checkpoint predates this, so ε_grav stays off until the centre's density has moved 1% (gravAfter=0.01, about a million years here). Same question: does the core reach the 1 M_Ch it needs to explode.",
+ "run": "evolve4-17",
+ "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch star on through shell burning (grav=1). evolve4-16 got 210 Myr past exhaustion (hydrogen-free core 0.156 M_Ch, star swollen x2.1) and stopped: as the envelope swells the shooting solution meeting at 0.2 of the mass stops converging. Meeting at 0.1 (fit=0.1) resumes its checkpoint and runs on in the sandbox. Same question: does the core reach the 1 M_Ch it needs to explode.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev16-00",
+   "name": "ev17-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 gravAfter=0.01 from=evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-8.ckpt.json"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 gravAfter=0.01 fit=0.1 from=evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-8.ckpt.json"
    ]
   }
  ]

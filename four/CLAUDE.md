@@ -1365,6 +1365,14 @@ for games, and this is a modelling programme with publications to come. The game
   written before gref (the stalled-analogue resumes need the old behaviour, gravAfter 0, the default). Sandbox: from
   evolve4-14's checkpoint with gravAfter=0.01, 30 models and no failed solve; its checkpoint resumed with gref, 11 more,
   none failed. evolve4-16 carries the star on.
+  **evolve4-16 (collected 2026-11-21):** 63 models, 5.5 Myr, then "no solution" at 15.111 Gyr (Xc 0); 210 Myr past
+  exhaustion in all. Hydrogen-free core 0.156 M_Ch (q 0.125, the profiles' resolution), processed core 0.81, R ×2.1,
+  L ×2.1, Teff 46 → 34 kK, Tc 71 → 87 MK, ρc ×6, contraction to −0.7% of L. Its own checkpoint stalls at residual
+  3.7 × 10⁻³ (loose 5 × 10⁻⁴) with the 0.2 meeting point. Meeting further out fails worse (0.35: 0.42; 0.5, 0.7: the
+  outward integration fails before it). Meeting further in works: at 0.1 it resumes and runs on (8 models in 4 min,
+  none failed; 0.15 stalls at 5 × 10⁻⁵ after 60 Newton steps). **`fit=<q>`** (default 0.2, not in the file name, so a run
+  resumes its checkpoint) sets it; the sandbox `FIT` env override is gone. evolve4-17 carries the star on at fit=0.1.
+  egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
   stalled analogues resumed with it, the first star past exhaustion, provisional, from the further of its `-Hs` runs);

@@ -82,7 +82,7 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   analogues pass the stall: the stirred core switches off and the centre cools and contracts, then reheats, and they
   stop again at 44.77 and 2.707 Gyr where a stirred core begins to re-form.
 - **Past the end of the hydrogen** (provisional; one star, running). The 1.25 M~Ch~ star on the explosion line, carried
-  200 Myr past it: its hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and the star swells ×1.8.
+  210 Myr past it: its hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and the star swells ×2.1.
   Whether the core reaches the 1 M~Ch~ it needs to explode is not settled yet.
 - **What the first stars hold** (computed; section 4). Elements past helium: 9–30% of the star at $s$ ≤ 1.55,
   2–20% at 1.6–1.65 (coron, element 6, darbon, element 8 and oitrogen), 0.3–4% at 1.7, and at most 0.1% from 1.75 up, where stars burn hydrogen to

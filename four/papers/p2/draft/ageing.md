@@ -73,11 +73,12 @@ looser solver tolerance stops at the same place. Whether that is a real flare of
 the method is open. The ages above end at the stall and stand.
 
 **Past the end of the hydrogen (provisional).** With the same energy in the structure, the ladder star that sits on the
-explosion line (s = 1.5152, 1.25 M~Ch~) has been carried 200 Myr past the end of its central hydrogen. Its
+explosion line (s = 1.5152, 1.25 M~Ch~) has been carried 210 Myr past the end of its central hydrogen. Its
 hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and is still speeding up; the processed core it must burn
-through holds at 0.81 M~Ch~. The star swells ×1.8 in radius and ×1.9 in light, and its surface cools from
-46,100 to 37,000 K, while its centre heats from 71 to 83 MK and grows ×4.6 denser: a subgiant
-beginning. Whether its core reaches the Chandrasekhar mass, which decides whether it explodes and so tests the declared
+through holds at 0.81 M~Ch~. The star swells ×2.1 in radius and ×2.1 in light, and its surface cools from
+46,100 to 34,200 K, while its centre heats from 71 to 87 MK and grows ×6 denser: a subgiant
+beginning. (As the envelope swells, the shooting solution meeting at a fifth of the mass stops converging; from there it
+meets at a tenth.) Whether its core reaches the Chandrasekhar mass, which decides whether it explodes and so tests the declared
 core growth above, is the run now going on.
 
 **What the aged stars hold.** Summed over each analogue's last kept profile, the elements past helium are 9–30% of
