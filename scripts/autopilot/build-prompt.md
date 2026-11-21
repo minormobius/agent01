@@ -33,10 +33,10 @@ _Regenerated 2026-11-21 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-21, 100 members / 279 posts):
+**Neighborhood spark** (bisk 2026-11-21, 100 members / 249 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: riemann, diderot, llm
-- Top post: "holy shit Thinking Machine just dropped Inkling-2-Mini, a 26B looped transformer that runs on your laptop thinkingmachin" — @timkellogg.me
+- Distinctive words: riemann, diderot, slagworks
+- Top post: "i have never been more proud to release a piece of software: diderot, an open-source, self-hosted agentic memory and int" — @thebadcode.com
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
