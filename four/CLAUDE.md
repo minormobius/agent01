@@ -1344,6 +1344,12 @@ for games, and this is a modelling programme with publications to come. The game
   copy. Over its first 70 Myr past exhaustion the processed core holds at q 0.6495, the hydrogen-free core grows from
   q 0.032 to 0.044, R +7%, L +12%. Core growth is measured with the scratch `coregrow.mjs` logic (yields4's processed
   core and an H < 0.01 core over the kept profiles).
+  **`star/aged.js` rebaked (2026-11-21) from everything through evolve4-13:** 61 4D tracks (was 34): every G 10⁻¹⁷
+  ladder (s 1.5152–1.8, 1.25–4 M_Ch) beside the analogues; ours' seven OPAL tracks unchanged (byte-identical). The bake
+  folder is assembled by taking, for each `-lp` run, whichever of its finished file and checkpoint reached further, a
+  checkpoint given G, s, m and M_Ch (from a finished file at the same G); then `starcut.mjs aged <folder>
+  -X0.7068-Z0.0143-opal-a1.61-s1e6` with ours' OPAL runs in the folder. It takes ~45 min (≈40 s a 4D track), so give a
+  background run a long time limit.
   **Paper 2's methods page (PI, 2026-11-18: "give a bit more space on how you're modeling this … eventually we'll mirror
   the repo like with atom"): `papers/p2/text/methods.md` → `draft/methods.html`**, linked from the status page and the
   papers page: the chain from the forces to the galaxy's gas in ten links, each with what / how / checked / code /
