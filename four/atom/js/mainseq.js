@@ -120,16 +120,22 @@ function solve4(A, b) { const n = 4; A = A.map((r) => r.slice()); b = b.slice();
    kappa are then handed m too, and comp is ignored), envelope(R, L, f_surface) (optional: the outer boundary from an
    integrated envelope, returning { m, r, P, T } where the interior takes over) }, guess [ln P_c, ln T_c, ln R, ln L]. Returns ok, the unknowns,
    and the profile */
-export function star(opts, guess) {
-  const { d, M, G, comp, eps, kappa } = opts, S = SD[d], a = aRad(d), gad = gradAd(d), mf = (opts.fit ?? 0.5) * M, ff = opts.f ?? null, cAt = opts.compAt ?? (() => comp);
+/* the structure equations, shared by the shooting solver (star) and the relaxation solver (relax.js): y = [ln r, ln P,
+   ln T, L] against m, and the photosphere (τ = ⅔ on the interior's own gas) given ln R, ln L */
+export function equations(opts) {
+  const { d, M, G, comp, eps, kappa } = opts, S = SD[d], a = aRad(d), gad = gradAd(d), ff = opts.f ?? null, cAt = opts.compAt ?? (() => comp);
   const rhs = (m, y) => { const r = Math.exp(y[0]), P = Math.exp(y[1]), T = Math.exp(y[2]), L = y[3], rho = rhoOf(d, P, T, cAt(m));
     if (!(rho > 0)) return [NaN, NaN, NaN, NaN];
     const g = (G * Math.max(m, 1e-300) * (ff ? ff(m) : 1)) / (r * r), dPdm = -g / (S * r ** (d - 1)), dTdmRad = (-d * kappa(rho, T, m) * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1)));
     const nab = Math.min((dTdmRad * P) / (T * dPdm), gad); return [1 / (S * r ** d * rho), dPdm / P, (nab * dPdm) / P, eps(rho, T, m, P)]; };
-  const centre = (lnPc, lnTc) => { const Pc = Math.exp(lnPc), Tc = Math.exp(lnTc), m0 = 1e-8 * M, rhoc = rhoOf(d, Pc, Tc, cAt(m0)), r0 = Math.pow((d * m0) / (S * rhoc), 1 / d);
-    const P0 = ff ? Pc - (rhoc * ((G * m0 * ff(m0)) / (r0 * r0)) * r0) / 2 : Pc - (G * rhoc * rhoc * S * r0 ** (d - 1)) / (d * (d - 1)); return { m0, y: [Math.log(r0), Math.log(P0), lnTc, eps(rhoc, Tc, m0, Pc) * m0] }; };
   const surface = (lnR, lnL) => { const R = Math.exp(lnR), L = Math.exp(lnL), Te = Math.pow(L / (S * R ** (d - 1) * sigmaSB(d)), 1 / (d + 1)), g = (G * M) / (R * R);
     let P = 1; for (let i = 0; i < 30; i++) { const rho = rhoOf(d, P, Te, cAt(M)) || 1e-30; P = ((2 / 3) * g) / kappa(rho, Te, M) + (a * Te ** (d + 1)) / d; } return [lnR, Math.log(P), Math.log(Te), L]; };
+  return { S, a, gad, ff, cAt, rhs, surface };
+}
+export function star(opts, guess) {
+  const { d, M, G, eps } = opts, mf = (opts.fit ?? 0.5) * M, { S, ff, cAt, rhs, surface } = equations(opts);
+  const centre = (lnPc, lnTc) => { const Pc = Math.exp(lnPc), Tc = Math.exp(lnTc), m0 = 1e-8 * M, rhoc = rhoOf(d, Pc, Tc, cAt(m0)), r0 = Math.pow((d * m0) / (S * rhoc), 1 / d);
+    const P0 = ff ? Pc - (rhoc * ((G * m0 * ff(m0)) / (r0 * r0)) * r0) / 2 : Pc - (G * rhoc * rhoc * S * r0 ** (d - 1)) / (d * (d - 1)); return { m0, y: [Math.log(r0), Math.log(P0), lnTc, eps(rhoc, Tc, m0, Pc) * m0] }; };
   // the outer boundary: τ = ⅔ on the interior's own gas, or (opts.envelope) an envelope integrated on the surface model
   // down to where the gas is fully ionized, which hands the interior its state at that mass (atom/js/envelope.js)
   const outer = (lnR, lnL) => { if (!opts.envelope) return { m: M, y: surface(lnR, lnL) }; const e = opts.envelope(Math.exp(lnR), Math.exp(lnL), ff ? ff(M) : 1); return { m: e.m, y: [Math.log(e.r), Math.log(e.P), Math.log(e.T), Math.exp(lnL)] }; };
@@ -158,7 +164,10 @@ export const teff = (d, s) => Math.pow(s.L / (SD[d] * s.R ** (d - 1) * sigmaSB(d
 
 /* pinned-4D gravity from a solved profile: Φ(r) = −G Σ k(min/max)/max dm, g = dΦ/dr inward; as f(m) = g r²/(G m) */
 export function pinnedF(prof) {
-  const n = prof.length, rs = prof.map((p) => p.r), dm = prof.map((p, i) => (i ? p.m - prof[i - 1].m : p.m)), R = rs[n - 1];
+  // each shell's mass at its middle radius (2026-11-22): it sat at its outer edge, exactly where the field is then taken,
+  // so the central difference felt about half of each point's own shell, and f came out 0.4–4% low (most at the centre),
+  // by an amount that depended on where the profile's points fell (the relaxation solver's mesh exposed it)
+  const n = prof.length, rs = prof.map((p, i) => (i ? 0.5 * (p.r + prof[i - 1].r) : 0.5 * p.r)), dm = prof.map((p, i) => (i ? p.m - prof[i - 1].m : p.m)), R = prof[n - 1].r;
   const phi = (r) => { let s = 0; for (let j = 0; j < n; j++) { const a = Math.min(r, rs[j]), b = Math.max(r, rs[j]); s += (kTab(a / b) / b) * dm[j]; } return -s; };
   const pts = prof.filter((p) => p.r > 0.02 * R && p.m > 0).map((p) => { const h = 0.004 * R; return { m: p.m, f: (((phi(p.r + h) - phi(p.r - h)) / (2 * h)) * p.r * p.r) / p.m }; });
   return (m) => { if (m <= pts[0].m) return pts[0].f * Math.pow(pts[0].m / Math.max(m, 1e-300 * pts[0].m), 0.25); if (m >= pts[pts.length - 1].m) return pts[pts.length - 1].f;

@@ -1461,6 +1461,24 @@ for games, and this is a modelling programme with publications to come. The game
   adopted: not bit-identical); and parallelism, since a single star uses one of the runner's 4 cores (shells' burning and
   law fits, and the shooting Jacobian's four integrations, are independent). Where the time is now: the structure
   integration ~57% (rhoOf ~22%), the network's LU ~20%, the EOS table's one-off build 3.7 s a process.
+  **The relaxation solver (PI, 2026-11-22: "yes do"): `atom/js/relax.js`** (no DOM), `evolve.mjs … relax=1` (or
+  `relax=<mesh points>`, default 1000; not in the file name). Henyey: ln r, ln P, ln T and L/L₀ at every node, the mesh
+  uniform in s = ln m − ln(M − m + δ) (δ the mass above the photosphere), trapezoid differences of star()'s own dy/dm,
+  star()'s centre (r from the node's ρ, L = ε m₀ at m₀ = 10⁻⁸ M) and photosphere, Newton on the banded system from the last
+  model's profile. star()'s right-hand side and surface are now `mainseq.js`'s exported `equations(opts)`, shared by both
+  (byte-identical refactor). A model with no profile (zero age, a resume) is shot first; a failed relaxation falls back to
+  shooting. No envelope boundary yet (ours on OPAL is refused). **Checked:** relaxing a shooting solution converges to it
+  at second order (L 0.066 / 0.020 / 0.0024 / 0.0007% at N 250 / 500 / 1000 / 2000), 85 ms a solve at N 1000; inside evolve,
+  the benchmark star agrees with shooting to ≤ 0.24% in L and ≤ 0.8% in ρc (a transient from the old-gravity checkpoint),
+  ≤ 0.13% by the end, and runs 34% faster (40.8 against 61.4 s).
+  **Pinned gravity was biased weak (found by the relaxation check, 2026-11-22).** `pinnedF` put each shell's mass at its
+  outer edge, the radius where the field is then taken, so the central difference felt about half of each point's own
+  shell: f came out 0.4–4.2% low (most at the centre) against a converged quadrature (4000 even radial shells), by an
+  amount that depended on where the profile's points fell (shooting's points 0.4–4.2%, relaxation's 0.2–1.5%). Midpoint
+  radii fix it (within 0.06% on shooting's points, 0.2% on relaxation's), at the same cost. **Every 4D run before
+  2026-11-22 had gravity 0.4–4% weak:** the benchmark star (G 1e-17 s 1.5152 0.78 M_Ch, mid-life) comes out ~7% brighter
+  and 1.5% larger with it corrected, so ages and yields move by a few per cent; nothing committed has been rerun yet.
+  Scratch checks: relaxcheck.mjs, pinned.mjs.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

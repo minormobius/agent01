@@ -29,6 +29,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync, renameSync } from "
 import path from "node:path";
 import os from "node:os";
 import { star, convectiveCore, teff, rhoOf, gradAd, SI, kappaOurs, kappaFF4, pinnedF, toPinned } from "../js/mainseq.js";
+import { relax } from "../js/relax.js";
 import { ours, fourNet, firstStar, G0, MSUN, LSUN, RSUN } from "./mainseq.mjs";
 import { shell4 } from "../../fusion/js/shell4.js";
 import * as SH from "../../fusion/js/shell.js";
@@ -166,7 +167,11 @@ function solve(W, M, S, guess, at0, f0 = null, scale = 1, gr = null) {
   let at = at0, s = null, p = guess, last = null, f = f0;
   for (let k = 0; k < 8; k++) {
     const laws = fitLaws(W, S, at), eps = (rho, T, m, P) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return scale * (law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t) + (GR && P > 0 ? epsGrav(W, GR, M, rho, m, P) : 0); };
-    s = star({ d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}), ...(W.fit ? { fit: W.fit } : {}) }, p);
+    const so = { d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}), ...(W.fit ? { fit: W.fit } : {}) };
+    // relax=1: relaxation from the last model's whole profile where there is one (atom/js/relax.js), else shooting
+    s = W.relax && p.prof ? relax(so, p.prof, { N: W.relaxN ?? 1000 }) : star(so, p);
+    if (W.relax && !s.ok && p.prof) { if (process.env.DEBUG_SOLVE) console.log(`    relax failed (${s.why}, res ${s.res?.toExponential(2)}): shooting`); s = star(so, p); }
+    if (s.ok) s.p.prof = s.prof;
     if (!s.ok) return { s }; p = s.p; at = sample(W, M, S, s).rows;
     if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (Newton ${s.it})`);
     if (last && Math.abs(Math.log(s.L / last)) < 1e-4) break; last = s.L;
@@ -332,12 +337,14 @@ if (cmd === "ours") {
   // loose=<residual, 5e-4>: the Newton residual that counts as solved (the env LOOSE does the same in the sandbox). Past
   // exhaustion the floor rises as the envelope swells (capped solves at 7e-4–1.8e-3 by 15.112 Gyr); 1e-3 is a 0.1% mismatch
   // at the meeting point. Not in the file name.
+  // relax=1 (or relax=<mesh points>): the structure by relaxation (atom/js/relax.js) from each model's profile, shooting only
+  // for a model with none (zero age, a resume). Not in the file name.
   // gravAfter=<Δ ln ρ_c>: with grav, keep ε_grav off until the centre's ρ has moved that much since this run began (for a
   // checkpoint written before checkpoints kept ε_grav's reference).
   // plasma: the charge law's plasma, on by default: the lens vacuum's cutoff in the opacity (mainseq.js kappaFF4) and
   // screening of the network's rates (shell4.js, atom/js/screen.js); its runs' files carry -lp
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
-  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.fit) W.fit = +kv.fit; if (kv.loose) W.loose = +kv.loose;
+  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.fit) W.fit = +kv.fit; if (kv.loose) W.loose = +kv.loose; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; }
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
   m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${W.grav ? "-eg" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   const r = evolve(W, m * W.Mch, { dX, tmax, Hstop, from: kv.from ?? null, gravAfter: +(kv.gravAfter ?? 0), settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });
