@@ -345,6 +345,19 @@ for games, and this is a modelling programme with publications to come. The game
   C 18%); the first 4D stars put ~2% there: 47% at the equilibrium peak, 22% in counterparts of our row 3, 18% of row 4
   (K–V), 12% in elements with no counterpart (16, 18). Rerun `abund4.mjs` after `yields4.mjs` or `solar.mjs`. Catalogue
   `four-abundance`; the hub's "Nuclei and stars" group and /table/'s foot link it.
+  **The equilibrium share is wrong twice over (PI, 2026-11-22: "how tf are we half bstatine").** (1) Its amount: explode's
+  core at ignition comes from the polytrope, whose central density runs to infinity as m → 1 M_Ch (6.9 × 10²⁷ kg/m⁴ at
+  1.01, 9.4 × 10²⁵ at 1.05, 3.2 × 10²³ at 1.5), so a core just over the limit burns 98–100% to equilibrium; yields4 takes
+  the nearest explode row, and the 1.25 M_Ch star at s 1.5152 grows to 1.015 at g 1.25 and carries most of the 47%
+  (iron 23% / 47% / 24% at g 1 / 1.25 / 1.5: not monotonic). Ours never hit it: its density is set by hand (2–3 × 10⁹
+  g/cm³). (2) Its place: a sandbox NSE (4D Saha, n_i ∝ A^{d/2}2^{−A}nQ^{1−A}n_p^Z n_n^N e^{B/kT}, the trusted MN s 1.5152
+  b 1.4 drop, helium-4 at its computed 73.06 MeV, Ye 0.5, 3–16 GK, ρ 10²³–10²⁸) gives 80% within Z 131–140 at every
+  T and ρ, nucleons and helium-4 ≤ 3%: narrow, not a tail. The drop's stable line at A 274 is Z ≈ 120, so each is ~17
+  β⁺/EC steps proton-rich (first endpoints ~45 MeV, ~1.5 MeV a nucleon in all, ours' ⁵⁶Ni → ⁵⁶Fe 0.12); no alpha decay
+  (Q −91), fission (−547) or proton emission (S_p 17). The ceiling is not low: on the stable line the drop binds best at
+  A 388 (43 MeV/n), fission is exothermic only from Z ≈ 245, alpha decay from Z ≈ 860 (MT s 1.2292: 175, 480); ours as
+  the check, 94 / 152 in A. Scratch scripts nse4.mjs, valley4.mjs, ceiling4.mjs. Correction notes are on the abundance
+  page and the status page's finding 4; the rework is to come.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

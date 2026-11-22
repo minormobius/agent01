@@ -28,6 +28,13 @@ lives from a frozen zero-age core. Five things came out of it.
    planet's rock and its core. Near our strength the two come back in comparable amounts; from $s$ = 1.6 up, mostly the
    rock row. Near our
    strength the metals returned come to {{yPA}} of the mass the stars lock away; at $s$ = 1.8, {{yPD}}.
+   **Under correction (2026-11-22): the iron near our strength is overstated.** The explosion model takes a core's
+   density at ignition from a star model whose density runs to infinity as the core nears the Chandrasekhar mass, so a
+   core just over it counts as burning wholly to equilibrium. At the middle choice one star (1.25 M~Ch~, whose core
+   grows to 1.015) carries most of the iron, and the share is not monotonic in core growth. And this world's "iron" is
+   not one nucleus: equilibrium with equal protons and neutrons makes about ten elements around $Z$ ≈ 131–140, all far
+   too proton-rich, which decay to $Z$ ≈ 115–122. Both are being reworked; the rock row from $s$ = 1.6 up does not hang
+   on either.
 5. **The one limit was missing physics, now added.** Two stars at $s$ = 1.5152 stopped when their core's oitrogen ran out
    and the stirred core collapsed faster than a solver in thermal balance could follow. With the energy of contraction in
    the solver, checked first on our Sun, both pass that point and live on ({{egMore14}} and {{egMore11}}), before stopping
@@ -100,7 +107,7 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   {{yPB}} at 1.6–1.65, {{yPC}} at 1.7 and {{yPD}} at 1.8. How the cores grow decides which masses explode and sets most
   of the band. It is the exploding cores' burnt ash: the rock row (elements 13–23) and this world's iron. A core that
   only just reaches the Chandrasekhar mass burns mostly to iron, one a tenth heavier mostly to the rock row, so near our
-  strength ($s$ ≤ 1.55) iron is {{yIronA}} of $p$ over the choices; from 1.6 up the rock row is {{yRockB}} of it at the
+  strength ($s$ ≤ 1.55) iron is {{yIronA}} of $p$ over the choices (overstated: see finding 4's correction); from 1.6 up the rock row is {{yRockB}} of it at the
   middle choice. Only {{yLight}} is the light ash the stars held ({{yLight30}} with strong winds). {{yCarried}} of the {{yShort}} short-lived stars stopped or were cut short of exhaustion (at most
   {{yXcMax}} of their central hydrogen left) and are carried on at their last rate.
 
