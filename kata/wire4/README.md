@@ -240,6 +240,48 @@ finer mesh (100 × 80 against 70 × 56) at seven points between them and agree t
 the kind of result under-resolution can produce, so hold it more loosely than the rest. The
 outer boundary is where it was for Re 200, and the bubble is now 2.4 D long: not tested for these rungs.
 
+## 8. A sheared stream between mirror planes: the first edge effect computed (`shear4.py`)
+
+Step one of the edge effects, and only the second of section 6's three: the pipe's profile, without its wall. The
+stream is U(w) = 1 − (1 − cos(2w/R))/2, which matches the pipe's parabola 1 − w²/R² near the axis and falls to zero,
+with zero slope, at w = πR/2, where a mirror plane stands in for the wall. A body force holds the profile. The stream
+does not vary across the wire, so this is a sheared slab, not a tube, and nothing is no-slip except the wire. Same
+method as `nl4.py`: cosine series along the wire (harmonics of 2/R), symmetric about the flow axis, even about w = 0.
+Reynolds number on the centreline speed. Mesh 50×40, 14 harmonics for R = 5 and 28 for R = 10.
+
+| Re | R | bubble at the axis | same Re, uniform stream | 1 D along the wire | 2 D along |
+|---|---|---|---|---|---|
+| 150 | 5 | 1.28 | 1.19 | 1.12 | 0.97 |
+| 180 | 5 | 1.60 | 1.37 | 1.26 | 1.08 |
+| 190 | 5 | 1.70 | 1.41 | 1.30 | 1.11 |
+| 200 | 5 | 1.79 | 1.43 | 1.34 | 1.13 |
+| 210 | 5 | 1.87 | 1.46 | 1.37 | 1.16 |
+| 220 | 5 | 1.93 | 1.49 | 1.41 | 1.18 |
+| 230 | 5 | 1.98 | | 1.44 | 1.20 |
+| 250 | 5 | 2.06 | | 1.50 | 1.25 |
+| 200 | 10 | 1.57 | 1.43 | 1.50 | 1.43 |
+
+- **Every run settles to a steady flow, and none shows the 2.5-diameter ripple.** The bubble is longest on the axis
+  and shortens steadily toward the planes; there are no side crests, and the energy per harmonic falls steadily with
+  no bump at the ripple's wavenumber. That holds to Re 250 at R = 5, where a uniform stream at the centreline speed
+  would grow the ripple at 0.14 per flow time.
+- **The bubble on the axis is longer than in a uniform stream at the same speed**, at every Reynolds number, including
+  150, well below the threshold. This is the flow along the wire that section 6 said it left out: the pressure behind
+  the wire is lowest where the stream is fastest, so wake fluid is drawn along the wire toward the axis and collects
+  there. (The mechanism is inferred from the bubble shape; the pressure field was not examined.)
+- **There is no sharp onset, at 203 or anywhere.** The excess grows smoothly from 0.09 at Re 150 to 0.44 at 220,
+  fastest between 190 and 200. That is what a smeared-out threshold would look like, but it is a weak signal.
+- The estimate in section 6 assumed the pipe was many ripple wavelengths across. At R = 5 the patch it predicts is
+  narrower than one wavelength, so there was never room for a ripple distinct from the bulge.
+
+**Limits.** At R = 5 with 14 harmonics the top harmonic holds about 1% of the first one's energy at Re 220 to 250
+and is not smaller than its neighbours, so those runs are under-resolved along the wire. Bubble lengths within about
+2 D of the mirror planes are meaningless (the stream is nearly at rest there). The R = 10 run at Re 200 is barely past
+the threshold on the axis alone, so it does not test whether a wider tube brings the ripple back; R = 10 at 220 and
+250 is the test, and is running. Runs at Re 230 and above need time step 0.02; 0.04 blows up. One mesh. The runs were
+150 to 300 flow times, and the rate of change was still falling slowly at the end (like 1/t) with the bubble fixed
+to four figures.
+
 ## Running it
 
 ```bash
@@ -252,6 +294,7 @@ venv/bin/python kata/wire4/scan4.py 200 50 40 out.json   # m = 0, 1, 2 over β a
 cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run, ~15 min alone -> data/nl-210.*
 ../../venv/bin/python sec4.py 210 300 0.05 5      # the ripple's stability to lopsided modes, ~30 min
 ../../venv/bin/python ladder4.py 800,1131               # two rungs of the ladder, ~2 h a rung on one core
+../../venv/bin/python shear4.py 200 5                   # sheared stream, tube radius 5, ~1 h -> data/shear-200-R5.*
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 
@@ -262,7 +305,8 @@ not wake modes.
 
 - An independent check of the β > 0 result (a second discretisation, or a time-stepped 4D run near Re 191).
 - A nonlinear solver that carries the lopsided harmonics, to find the tilted ripple and where it starts to shed.
-- A finite wire with no-slip ends, and a sheared stream: the estimates of section 6 computed.
+- The true tube: a curved no-slip wall, the stream varying across the wire as well as along it, and the wire's
+  junction with the wall. Section 8 did only the shear, between mirror planes.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
   pattern. Floquet analysis with a spanwise wavevector of any direction in that plane.
 - Then the instrument: heat loss from the wire with the wake it actually has.
