@@ -69,6 +69,7 @@ function networkWorld(X0 = 0.70, Z = 0.02, { kap = "kramers", alpha = 0 } = {}) 
   const E = alpha > 0 ? makeEnvelope(3, { X: X0, Y: 1 - X0 - Z, Z, alpha, gff: kap === "book" ? "elwert" : 1, kappa: kap === "opal" ? (rho, T) => K(rho, T, { X: X0, Y: 1 - X0 - Z, Z }) : null }) : null;
   return { name: "network", d: 3, G: o.G, Z, kap, alpha, init: () => Float64Array.from(init), H: (s) => s[iP], comp: (s) => ({ X: s[iP], Y: 1 - Z - s[iP], Z }),
     envelope: E ? (M) => (R, L, f) => E.envelope({ M, R, L, G: o.G, f }) : null,
+    cool: E ? { gas: E.gas, nabla: E.nabla, photosphere: E.photosphere } : null, // relax=1 carries the envelope's gas in the structure instead
     kappa: (rho, T, s) => K(rho, T, { X: s[iP], Y: 1 - Z - s[iP], Z }), kappaC: K,
     eps: (rho, T, s) => SH.eps(rho, T, s, sh), dHdt: (rho, T, s) => SH.dYdt(rho, T, s, sh)[iP],
     burn: (rho, T, s, dt) => { const r = SH.burn(rho, T, s, dt, sh); return { s: r.Y, E: r.E }; },
@@ -164,10 +165,13 @@ function solve(W, M, S, guess, at0, f0 = null, scale = 1, gr = null) {
   const CQ = S.map((y) => W.comp(y)), KQ = S.map((y) => (W.kcomp ? W.kcomp(y) : W.comp(y))), mixQ = (A, m) => { const [a, b, t] = bracket(QS, m / M); if (!t) return A[a]; const o = {}; for (const k in A[a]) o[k] = A[a][k] * (1 - t) + A[b][k] * t; return o; };
   const comp = (m) => mixQ(CQ, m), kap = W.kappaC ?? ((rho, T, c) => W.kappa(rho, T, null, c));
   const GR = gravRef(W, gr, comp);
-  let at = at0, s = null, p = guess, last = null, f = f0;
+  let at = at0, s = null, p = guess, last = null, f = f0; let lawsLast = null;
   for (let k = 0; k < 8; k++) {
-    const laws = fitLaws(W, S, at), eps = (rho, T, m, P) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return scale * (law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t) + (GR && P > 0 ? epsGrav(W, GR, M, rho, m, P) : 0); };
+    const laws = (lawsLast = fitLaws(W, S, at)), eps = (rho, T, m, P) => { const [a, b, t] = bracket(QS, m / M), lr = Math.log(rho), lT = Math.log(T); return scale * (law(laws[a], lr, lT) * (1 - t) + law(laws[b], lr, lT) * t) + (GR && P > 0 ? epsGrav(W, GR, M, rho, m, P) : 0); };
     const so = { d: W.d, M, G: W.G, comp: CQ[0], compAt: comp, eps, kappa: (rho, T, m) => kap(rho, T, mixQ(KQ, m)), ...(f ? { f } : {}), ...(W.envelope ? { envelope: W.envelope(M) } : {}), ...(W.loose ? { loose: W.loose } : {}), ...(W.fit ? { fit: W.fit } : {}) };
+    // with relax=1 and a cool gas (ours' envelope, or 4D's cool=), the partial-ionization gas sits in the structure itself
+    // (mainseq.js equations' `cool`) instead of an envelope bolted on at T_fit, whose own mass is left off g (a giant's isn't small)
+    if (W.relax && W.cool) { delete so.envelope; so.cool = W.cool; }
     // relax=1: relaxation from the last model's whole profile where there is one (atom/js/relax.js), else shooting
     s = W.relax && p.prof ? relax(so, p.prof, { N: W.relaxN ?? 1000 }) : star(so, p);
     if (W.relax && !s.ok && p.prof) { if (process.env.DEBUG_SOLVE) console.log(`    relax failed (${s.why}, res ${s.res?.toExponential(2)}): shooting`); s = star(so, p); }
@@ -181,6 +185,13 @@ function solve(W, M, S, guess, at0, f0 = null, scale = 1, gr = null) {
   if (W.pinned && s.ok && !process.env.FREEZE_PINNED) { const fo = f, fn = pinnedF(s.prof); f = fo ? (m) => 0.5 * (fo(m) + fn(m)) : fn; }
   // the whole star's gravothermal power on the composition grid (the solution's own P, ρ at each q)
   if (GR && s.ok) s.Lgrav = M * at.reduce((acc, r, j) => acc + WQ[j] * epsGrav(W, GR, M, r.rho, QS[j] * M, r.P), 0);
+  // and the nuclear luminosity the structure itself assumed: its burning laws integrated over its own profile (the balance
+  // test grades the shells' burning against this; the contraction term on the composition grid, coarse where a swelling
+  // envelope stores its energy, had held a giant's steps to a few kyr)
+  if (GR && s.ok && lawsLast) { const pr = s.prof; let Ln = 0, prev = null;
+    for (const q of pr) { let e = 0; if (q.T > (W.Tburn ?? 2e6)) { const rho = rhoOf(W.d, q.P, q.T, comp(q.m)), [a, b, t] = bracket(QS, q.m / M), lr = Math.log(rho), lT = Math.log(q.T); e = scale * (law(lawsLast[a], lr, lT) * (1 - t) + law(lawsLast[b], lr, lT) * t); }
+      if (prev) Ln += 0.5 * (e + prev.e) * (q.m - prev.m); prev = { m: q.m, e }; }
+    s.Lnuc = Ln; }
   return { s, at, f };
 }
 /* the profile on the composition grid: P, T, ρ at each q (ρ from the shell's own composition), and the stirred flag */
@@ -281,15 +292,15 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {
       const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav, 1, refFor(t + dt / 2)); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}, residual ${h.s.res?.toExponential(2)}, Newton ${h.s.it}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
-      const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = (b.E * M + (h.s.Lgrav ?? 0) * dt) / (h.s.L * dt); // what the shells burnt (and, with grav, the star's contraction released) over the step against what the half-way star radiated
+      const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = W.grav && h.s.Lnuc > 0 ? (b.E * M) / (h.s.Lnuc * dt) : (b.E * M + (h.s.Lgrav ?? 0) * dt) / (h.s.L * dt); // what the shells burnt (and, with grav, the star's contraction released) over the step against what the half-way star radiated
       // the step's energy doesn't add up: shorter, unless halving it left the mismatch where it was. A step's own error
       // falls about fourfold a halving (second order); one that doesn't fall is structural (a stirred core's short-lived
       // nuclei, ⁷Be's branch above all, are uniform in its zone burn but in balance shell by shell in the structure: up
       // to ~0.5% of the energy in a CNO core), and is recorded rather than chased
       // once a mismatch is known to be structural, later steps are judged against its level, not against 1
-      const structural = prevBal != null && Math.abs(bal - prevBal) < BALTOL / 3;
-      if (Math.abs(bal - balRef) > BALTOL && !structural && tries < 5 && dt > 1e3 * YR) { prevBal = bal; dt /= 2; continue; }
-      balRef = structural || Math.abs(bal - 1) > BALTOL ? bal : 1;
+      const structural = prevBal != null && Math.abs(bal - prevBal) < (W.baltol ?? BALTOL) / 3;
+      if (Math.abs(bal - balRef) > (W.baltol ?? BALTOL) && !structural && tries < 5 && dt > 1e3 * YR) { if (process.env.DEBUG_DT) console.log(`    balance ${bal.toFixed(5)} against ${balRef.toFixed(5)} (burnt/L ${(b.E * M / (h.s.L * dt)).toFixed(5)}, Lgrav/L ${((h.s.Lgrav ?? 0) / h.s.L).toFixed(5)}, Lnuc/L ${((h.s.Lnuc ?? NaN) / h.s.L).toFixed(5)}): halving ${(dt / YR).toExponential(2)} yr`); prevBal = bal; dt /= 2; continue; }
+      balRef = structural || Math.abs(bal - 1) > (W.baltol ?? BALTOL) ? bal : 1;
       const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f, 1, refFor(t + dt)); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why}, residual ${f.s.res?.toExponential(2)}, Newton ${f.s.it})`); dt /= 2; continue; }
       // with grav, a step that moves the centre's density by more than DRHO (5%) is too long for the backward difference
       const dRho = W.grav ? Math.abs(Math.log(rhoOf(W.d, f.s.prof[0].P, f.s.prof[0].T, W.comp(Sn[0])) / smp.rows[0].rho)) : 0;
@@ -315,15 +326,15 @@ if (cmd === "ours") {
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("=") && a !== "simple");
   const m = +(pos[0] ?? 1), dX = +(pos[1] ?? 0.01), simple = args.includes("simple"), X0 = +(kv.X0 ?? 0.70), tmax = kv.tmax ? +kv.tmax * GYR : 20 * GYR;
   const Z = +(kv.Z ?? 0.02), kap = kv.kap ?? "kramers", alpha = +(kv.alpha ?? 0), settle = +(kv.settle ?? 0);
-  const W = simple ? simpleWorld(X0) : networkWorld(X0, Z, { kap, alpha }), t0 = Date.now(); W.grav = kv.grav === "1";
-  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.Z ? `-Z${Z}` : ""}${kap !== "kramers" ? `-${kap}` : ""}${alpha ? `-a${alpha}` : ""}${settle ? `-s${kv.settle}` : ""}${W.grav ? "-eg" : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
+  const W = simple ? simpleWorld(X0) : networkWorld(X0, Z, { kap, alpha }), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; } const Hstop = +(kv.Hstop ?? 1e-3);
+  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.Z ? `-Z${Z}` : ""}${kap !== "kramers" ? `-${kap}` : ""}${alpha ? `-a${alpha}` : ""}${settle ? `-s${kv.settle}` : ""}${W.grav ? "-eg" : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   // the first guess: the 1 M☉ zero-age star under the simple law, walked in mass to m in steps of ×1.12 (as mainseq.mjs
   // ours walks its sequence), each star's unknowns extrapolated from the last two
   const o = ours(), walk = () => { let p = [Math.log(2.3e16), Math.log(1.4e7), Math.log(0.9 * RSUN), Math.log(0.7 * LSUN)], hist = [], mm = 1; const dir = m >= 1 ? 1.12 : 1 / 1.12;
     for (let k = 0; k < 60; k++) { const g = hist.length >= 2 ? hist[1].p.map((v, i) => v + (Math.log(mm / hist[1].m) / Math.log(hist[1].m / hist[0].m)) * (v - hist[0].p[i])) : p, st = star({ ...o, M: mm * MSUN }, g);
       if (!st.ok) throw new Error(`the zero-age walk failed at ${mm.toFixed(3)} M☉`); p = st.p; hist = [...hist.slice(-1), { m: mm, p }]; if (Math.abs(mm - m) < 1e-9) return p; mm = (dir > 1 ? Math.min(m, mm * dir) : Math.max(m, mm * dir)); }
     return p; };
-  const r = evolve(W, m * MSUN, { dX, tmax, ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `${m} M☉ ${W.name} X0 ${X0}`, guess: walk(), settle });
+  const r = evolve(W, m * MSUN, { dX, tmax, Hstop, ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `${m} M☉ ${W.name} X0 ${X0}`, guess: walk(), settle });
   writeFileSync(file, JSON.stringify({ about: `atom/tools/evolve.mjs ours: our star's main sequence (${W.name} burning, ${kap} opacity${alpha ? `, envelope α ${alpha}` : ""}), burnt shell by shell, stirred regions mixed`, m, dX, X0, Z, kap, alpha, NQ, burning: W.name, grav: W.grav, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
 } else if (cmd === "four") {
@@ -343,6 +354,9 @@ if (cmd === "ours") {
   // loose=<residual, 5e-4>: the Newton residual that counts as solved (the env LOOSE does the same in the sandbox). Past
   // exhaustion the floor rises as the envelope swells (capped solves at 7e-4–1.8e-3 by 15.112 Gyr); 1e-3 is a 0.1% mismatch
   // at the meeting point. Not in the file name.
+  // baltol=<fraction, 0.003>: the step's energy-balance tolerance (the env BALTOL in the sandbox). Not in the file name.
+  // cool=1 (or cool=<MLT α>, default ours' 1.61), with relax=1: 4D's partial-ionization gas (envelope.js on surface.js) in the
+  // structure below 4 × 10⁵ K and its grey photosphere as the outer edge. Not in the file name.
   // relax=1 (or relax=<mesh points>): the structure by relaxation (atom/js/relax.js) from each model's profile, shooting only
   // for a model with none (zero age, a resume). Not in the file name.
   // gravAfter=<Δ ln ρ_c>: with grav, keep ε_grav off until the centre's ρ has moved that much since this run began (for a
@@ -350,7 +364,7 @@ if (cmd === "ours") {
   // plasma: the charge law's plasma, on by default: the lens vacuum's cutoff in the opacity (mainseq.js kappaFF4) and
   // screening of the network's rates (shell4.js, atom/js/screen.js); its runs' files carry -lp
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
-  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.fit) W.fit = +kv.fit; if (kv.loose) W.loose = +kv.loose; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; }
+  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.fit) W.fit = +kv.fit; if (kv.loose) W.loose = +kv.loose; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; } if (kv.baltol) W.baltol = +kv.baltol; if (kv.cool) { const c0 = W.comp(W.init()), E = makeEnvelope(4, { X: c0.X, Y: c0.Y, Z: 0, ff, alpha: kv.cool === "1" ? 1.61 : +kv.cool }); W.cool = { gas: E.gas, nabla: E.nabla, photosphere: E.photosphere }; }
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
   m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${W.grav ? "-eg" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   const r = evolve(W, m * W.Mch, { dX, tmax, Hstop, from: kv.from ?? null, gravAfter: +(kv.gravAfter ?? 0), settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });

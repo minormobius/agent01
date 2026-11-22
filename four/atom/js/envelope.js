@@ -67,5 +67,13 @@ export function makeEnvelope(d, { X, Y, Z = 0, alpha = 1.8, hm = 1, ff = 1, gff 
     if (cur) { cur.bot = { r, T, P, m }; cur.open = true; zones.push(cur); }
     return { Teff, m: M - m, menv: m, r, P, T, rows, zones: zones.map((z) => ({ rTop: z.top.r / R, rBot: z.bot.r / R, Ttop: z.top.T, Tbot: z.bot.T, mass: (z.bot.m - z.top.m) / M, open: !!z.open })) };
   }
-  return { envelope, gas, cells: () => cache.size, world: w };
+  /* the photosphere alone (the same grey atmosphere as envelope(), the same arithmetic): T_eff and P at τ = ⅔, for a
+     structure that carries the cool gas itself (relax.js through mainseq.js equations' `cool`) */
+  function photosphere({ M, R, L, G, f = 1 }) {
+    const Teff = (L / (SD[d] * R ** (d - 1) * sig)) ** (1 / (d + 1)), cq = d === 3 ? [0.75, 2 / 3] : [8 / (3 * Math.PI), (3 * Math.PI) / 8 - 2 / 3];
+    const Tof = (tau) => (cq[0] * Teff ** (d + 1) * (tau + cq[1])) ** (1 / (d + 1)), g0 = (G * M * f) / (R * R);
+    let tau = 1e-4, P = 0; { let Pg = 1; for (let it = 0; it < 40; it++) Pg = (g0 * tau) / gas(Tof(tau), Math.max(Pg, 1e-30) + (a * Tof(tau) ** (d + 1)) / d).kappa; P = Pg + (a * Tof(tau) ** (d + 1)) / d; }
+    const nT = 60, h = Math.log(2 / 3 / tau) / nT; for (let k = 0; k < nT; k++) { const t0 = tau, f0 = (g0 * t0) / gas(Tof(t0), P).kappa, tm = t0 * Math.exp(h / 2), Pm = P + (h / 2) * f0, fm = (g0 * tm) / gas(Tof(tm), Pm).kappa; P += h * fm; tau = t0 * Math.exp(h); }
+    return { Teff, P }; }
+  return { envelope, photosphere, gas, nabla, cells: () => cache.size, world: w };
 }

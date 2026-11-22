@@ -1497,6 +1497,21 @@ for games, and this is a modelling programme with publications to come. The game
   **Done (2026-11-22): a relax=1 checkpoint carries its model's profile** (`prof`: [m, r, P, T, L] per node; other runs'
   checkpoints unchanged) and the resume relaxes from it (checked: the resumed solves say "relax"; DEBUG_SOLVE now names
   the method).
+  **The cool gas in the structure (2026-11-22):** `mainseq.js` `equations(opts)` takes `opts.cool` = { gas(T, P), nabla(…),
+  photosphere({M, R, L, G, f}) } (`envelope.js` now exposes `photosphere`, the same grey atmosphere as `envelope()`, and its
+  mixing-length `nabla`): below 4 × 10⁵ K the gas is the envelope model's (Saha ρ, its opacity, ∇ by mixing length), blended
+  in ln T with the interior's over 2–4 × 10⁵ K, and the outer edge is the photosphere. With relax=1 ours uses its envelope's
+  gas this way instead of the bolted-on envelope (whose own mass is left off g, which a giant's isn't); 4D gets it with
+  `cool=1` (α ours' 1.61, declared) or `cool=<α>`. Off unless given: other runs byte-identical. **Checked on ours:** our Sun
+  (OPAL, X0 0.7068, α 1.61, settle 10⁶ yr) to 4.6 Gyr by relaxation in 242 s (shooting ~30 min), against the calibrated
+  shooting track within 0.03% in L, 0.14% in R, 0.07% in Teff, 0.02% at the centre, all along; at 4.572 Gyr L 1.0001 L☉,
+  R 0.9998 R☉. `ours` now takes `relax=` and `Hstop=` (files `-Hs<x>`).
+  **The giant's short steps, found:** the energy-balance test (burnt + contraction against radiated, 0.3%) halved them.
+  Its contraction term was summed on the composition grid, coarse where a swelling envelope stores its energy; with ε_grav
+  the test now grades the shells' burning against the structure's own nuclear luminosity (its laws integrated over its
+  profile, `s.Lnuc`; runs without ε_grav unchanged). The real mismatch left is the thin H-burning shell crossing the
+  composition grid (1.8% at 14 kyr steps, 0.8% at 1.8 kyr): `baltol=<fraction>` (default 0.003; env BALTOL) loosens it
+  past exhaustion, where a percent is harmless to the question (does the core reach 1 M_Ch).
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

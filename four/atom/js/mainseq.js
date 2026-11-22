@@ -124,11 +124,21 @@ function solve4(A, b) { const n = 4; A = A.map((r) => r.slice()); b = b.slice();
    ln T, L] against m, and the photosphere (τ = ⅔ on the interior's own gas) given ln R, ln L */
 export function equations(opts) {
   const { d, M, G, comp, eps, kappa } = opts, S = SD[d], a = aRad(d), gad = gradAd(d), ff = opts.f ?? null, cAt = opts.compAt ?? (() => comp);
-  const rhs = (m, y) => { const r = Math.exp(y[0]), P = Math.exp(y[1]), T = Math.exp(y[2]), L = y[3], rho = rhoOf(d, P, T, cAt(m));
-    if (!(rho > 0)) return [NaN, NaN, NaN, NaN];
-    const g = (G * Math.max(m, 1e-300) * (ff ? ff(m) : 1)) / (r * r), dPdm = -g / (S * r ** (d - 1)), dTdmRad = (-d * kappa(rho, T, m) * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1)));
-    const nab = Math.min((dTdmRad * P) / (T * dPdm), gad); return [1 / (S * r ** d * rho), dPdm / P, (nab * dPdm) / P, eps(rho, T, m, P)]; };
-  const surface = (lnR, lnL) => { const R = Math.exp(lnR), L = Math.exp(lnL), Te = Math.pow(L / (S * R ** (d - 1) * sigmaSB(d)), 1 / (d + 1)), g = (G * M) / (R * R);
+  // opts.cool (optional; relax.js's giants): the gas below T_hi on an envelope's partial-ionization model (atom/js/envelope.js:
+  // Saha ρ, its opacity, ∇ by mixing length), blended in ln T with the interior's fully ionized gas over [T_lo, T_hi], and the
+  // photosphere its grey atmosphere's. Off unless given, so every other run is as it was
+  const cool = opts.cool ?? null, lT1 = cool ? Math.log(cool.Tlo ?? 2e5) : 0, lT2 = cool ? Math.log(cool.Thi ?? 4e5) : 0;
+  const rhs = (m, y) => { const r = Math.exp(y[0]), P = Math.exp(y[1]), T = Math.exp(y[2]), L = y[3];
+    const wc = cool ? Math.max(0, Math.min(1, (lT2 - y[2]) / (lT2 - lT1))) : 0; // 1: all cool gas, 0: the interior's
+    const g = (G * Math.max(m, 1e-300) * (ff ? ff(m) : 1)) / (r * r), dPdm = -g / (S * r ** (d - 1));
+    let rho = NaN, nab = NaN;
+    if (wc < 1) { rho = rhoOf(d, P, T, cAt(m)); if (!(rho > 0)) return [NaN, NaN, NaN, NaN];
+      const dTdmRad = (-d * kappa(rho, T, m) * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1))); nab = Math.min((dTdmRad * P) / (T * dPdm), gad); }
+    if (wc > 0) { const gs = cool.gas(T, P), dTdmRad = (-d * gs.kappa * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1))), grad = (dTdmRad * P) / (T * dPdm);
+      const nc = cool.nabla(T, P, gs.rho, g, gs.kappa, gs.gad, gs.delta, gs.cp, grad).nab; if (!(gs.rho > 0) || !Number.isFinite(nc)) return [NaN, NaN, NaN, NaN];
+      if (wc === 1) { rho = gs.rho; nab = nc; } else { rho = Math.exp((1 - wc) * Math.log(rho) + wc * Math.log(gs.rho)); nab = (1 - wc) * nab + wc * nc; } }
+    return [1 / (S * r ** d * rho), dPdm / P, (nab * dPdm) / P, eps(rho, T, m, P)]; };
+  const surface = cool ? (lnR, lnL) => { const ph = cool.photosphere({ M, R: Math.exp(lnR), L: Math.exp(lnL), G, f: ff ? ff(M) : 1 }); return [lnR, Math.log(ph.P), Math.log(ph.Teff), Math.exp(lnL)]; } : (lnR, lnL) => { const R = Math.exp(lnR), L = Math.exp(lnL), Te = Math.pow(L / (S * R ** (d - 1) * sigmaSB(d)), 1 / (d + 1)), g = (G * M) / (R * R);
     let P = 1; for (let i = 0; i < 30; i++) { const rho = rhoOf(d, P, Te, cAt(M)) || 1e-30; P = ((2 / 3) * g) / kappa(rho, Te, M) + (a * Te ** (d + 1)) / d; } return [lnR, Math.log(P), Math.log(Te), L]; };
   return { S, a, gad, ff, cAt, rhs, surface };
 }
