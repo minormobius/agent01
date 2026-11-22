@@ -61,6 +61,19 @@ try {
     ok(peek <= 0.465, `${tag}: sheet peek ${(peek * 100).toFixed(0)}% ≤ 46% (law 6)`);
     ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${tag}: no horizontal scroll (law 11)`);
 
+    // law 13: every slider, swept end to end, draws finite numbers (slide 12 drew NaN above β ≈ 0.868)
+    const nanBefore = errors.length;
+    await page.evaluate(async () => {
+      for (const el of document.querySelectorAll('#stage input[type=range]')) {
+        const lo = +el.min, hi = +el.max, v0 = el.value;
+        for (let u = 0; u <= 1.0001; u += 0.1) { el.value = lo + (hi - lo) * u; el.dispatchEvent(new Event('input', { bubbles: true })); await new Promise((r) => setTimeout(r, 5)); }
+        el.value = v0; el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+    await page.waitForTimeout(50);
+    const bad = await page.evaluate(() => [...document.querySelectorAll('#stage svg [d], #stage svg [x], #stage svg [cx]')].filter((n) => /NaN/.test((n.getAttribute('d') || '') + (n.getAttribute('x') || '') + (n.getAttribute('cx') || ''))).length);
+    ok(errors.length === nanBefore && bad === 0, `${tag}: every slider swept end to end draws finite numbers (${errors.length - nanBefore} errors, ${bad} NaN nodes) (law 13)`);
+
     // law 3: every chart in the widget area
     const charts = await page.$$('.w .plot svg:not([style*="pointer-events:none"]), .w .plot canvas');
     for (const [k, ch] of charts.entries()) {
@@ -126,8 +139,12 @@ try {
     ok(missing.length === 0, `slide ${i}: autopilot targets exist (${missing.join(', ')}) (law 16)`);
   }
   // autopilot runs: voice renders, subtitle shows, the slider moves, no task is credited, a real touch pauses
+  // a fresh deck: earlier checks ticked tasks for real, and a same-document hash change keeps the page's
+  // in-memory progress, so clear storage only after navigating, then reload
+  await page.goto(`http://localhost:${port}/learn/#1`); await page.waitForTimeout(100);
   await page.evaluate(() => { localStorage.removeItem('riemann-learn-v1'); });
-  await page.goto(`http://localhost:${port}/learn/#1`); await page.reload(); await page.waitForTimeout(300);
+  await page.reload(); await page.waitForTimeout(300);
+  ok(await page.evaluate(() => !JSON.parse(localStorage.getItem('riemann-learn-v1') || '{}').done?.[0]), 'the autopilot check starts from a fresh deck');
   await page.click('#lectureBtn');
   await page.waitForFunction(() => document.getElementById('sub').classList.contains('on'), null, { timeout: 5000 }).catch(() => {});
   ok((await page.textContent('#subText')) === "Let's start by counting primes.", 'autopilot shows the first line as a subtitle (law 16)');
@@ -140,7 +157,8 @@ try {
   const seen = new Set();
   for (let t = 0; t < 26; t++) { seen.add(+(await page.inputValue('#kx'))); await page.waitForTimeout(100); }
   ok(seen.size >= 5 && Math.min(...seen) < 50, `autopilot sweeps the slider (${seen.size} values, from ${Math.min(...seen)} to ${Math.max(...seen)}) (law 16)`);
-  ok(await page.evaluate(() => !JSON.parse(localStorage.getItem('riemann-learn-v1') || '{}').done?.[0]), 'autopilot does not tick the task (law 16)');
+  const doneNow = await page.evaluate(() => localStorage.getItem('riemann-learn-v1'));
+  ok(!JSON.parse(doneNow || '{}').done?.[0], `autopilot does not tick the task (law 16): ${doneNow}`);
   const box1 = await (await page.$('.w .plot svg')).boundingBox();
   await page.mouse.click(box1.x + box1.width * 0.3, box1.y + box1.height * 0.5);
   await page.waitForTimeout(150);

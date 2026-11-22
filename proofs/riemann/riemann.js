@@ -224,3 +224,19 @@ export function unfoldedGaps(zeros) {
 // GUE nearest-neighbour spacing (Wigner surmise, β = 2) and Poisson
 export const wignerGUE = (s) => (32 / (Math.PI ** 2)) * s * s * Math.exp(-4 * s * s / Math.PI);
 export const poisson = (s) => Math.exp(-s);
+
+// ---- one zero off the line: where x^β overtakes √x · log x -------------------------------
+// With L = ln x, x^β > √x ln x  ⟺  g(L) = (β − ½)L − ln L > 0. g is convex with its minimum at
+// L* = 1/(β − ½), where g(L*) = 1 + ln(β − ½). If that is ≥ 0 (β ≥ ½ + 1/e ≈ 0.868), x^β is never
+// smaller: there is no crossover, and this returns null. Otherwise the crossover for good is g's
+// larger root, found by bisection on [L*, ∞). Returns L = ln x.
+export function offLineCrossover(beta) {
+  const d = beta - 0.5;
+  if (!(d > 0)) return Infinity;
+  if (1 + Math.log(d) >= 0) return null;
+  const g = (L) => d * L - Math.log(L);
+  let lo = 1 / d, hi = 2 / d;
+  while (g(hi) <= 0) hi *= 2;
+  for (let i = 0; i < 200 && hi - lo > 1e-12 * hi; i++) { const m = (lo + hi) / 2; if (g(m) > 0) hi = m; else lo = m; }
+  return (lo + hi) / 2;
+}

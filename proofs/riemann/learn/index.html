@@ -573,25 +573,24 @@ const SLIDES = [
   cap: 'A zero at β + iγ adds a wave of size x^β. Every zero on the line gives √x. Move one zero off the line and see how long it takes to dominate.',
   pred: { q: 'A zero at Re s = 0.51, only just off the line. Would that change prime counts we could ever check?', opts: ['No, it\'s too small to matter', 'Yes, eventually it dominates everything'], a: 1, why: 'Eventually, x^0.51 beats √x · log x. But "eventually" can be astronomically far, which is why computation alone will never settle RH.' },
   do: 'Drag β down toward ½ and watch the crossover run away.',
-  notes: `<h3>Off-line zeros come in pairs, so one has β > ½</h3><p>The functional equation pairs each zero β + iγ with 1 − β + iγ. So if any zero is off the line, one of the pair has β &gt; ½, and its wave x^β eventually outgrows every on-line wave. The error in counting primes would then be bigger than √x, infinitely often.</p><p>RH is the statement that this never happens: the primes are exactly as regular as the √x scale allows, and no more irregular.</p><h3>Where x^β overtakes √x log x</h3><p>The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out.</p>`,
+  notes: `<h3>Off-line zeros come in pairs, so one has β > ½</h3><p>The functional equation pairs each zero β + iγ with 1 − β + iγ. So if any zero is off the line, one of the pair has β &gt; ½, and its wave x^β eventually outgrows every on-line wave. The error in counting primes would then be bigger than √x, infinitely often.</p><p>RH is the statement that this never happens: the primes are exactly as regular as the √x scale allows, and no more irregular.</p><h3>Where x^β overtakes √x log x</h3><p>The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out. Above β = ½ + 1/e ≈ 0.868 there is no crossover at all: x^β is the bigger of the two at every x.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="ctl">${knob('kb', 'β', 0.505, 0.95, 0.001, 0.75)}</div><div class="read"><div><b id="r1"></b><span>x where x^β overtakes √x log x</span></div></div><div class="plot"><svg id="p"></svg></div>`);
     const draw = () => {
       const b = +$('kb').value; $('kbo').textContent = b.toFixed(3);
-      // solve βL = L/2 + ln L for L = ln x, the larger root
-      let L = 50; for (let i = 0; i < 200; i++) L = Math.log(L) / (b - 0.5);
-      const ex = L / Math.LN10;
-      const Emax = Math.max(12, Math.min(400, ex * 1.25));
+      // where x^β overtakes √x log x for good, as L = ln x; null when x^β is bigger at every x (β ≥ ½ + 1/e)
+      const L = R.offLineCrossover(b), ex = L == null ? null : L / Math.LN10;
+      const Emax = ex == null ? 12 : Math.max(12, Math.min(400, ex * 1.25));
       const f = frame($('p'), { x: [1, Emax], y: [0, Emax] });
       const A = [], B = []; for (let i = 0; i <= 200; i++) { const e = 1 + (Emax - 1) * i / 200, l = e * Math.LN10; A.push([e, (b * l) / Math.LN10]); B.push([e, (l / 2 + Math.log(l)) / Math.LN10]); }
       const xt = [[1, '10'], [Emax / 2, pow10(Math.round(Emax / 2))], [Emax, pow10(Math.round(Emax))]];
       $('p').setAttribute('viewBox', `0 0 ${f.W} ${f.H}`);
       $('p').innerHTML = axes(f, xt, [[0, '1'], [Emax, pow10(Math.round(Emax))]], 'x (log)', 'size (log)') +
         `<path d="${path(B, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="2"/><path d="${path(A, f.X, f.Y)}" fill="none" stroke="${css('--claim')}" stroke-width="2"/>` +
-        (ex <= Emax ? `<circle cx="${f.X(ex)}" cy="${f.Y((b * L) / Math.LN10)}" r="5" fill="none" stroke="${css('--fg')}" stroke-width="1.5"/>` : '') +
+        (ex != null && ex <= Emax ? `<circle cx="${f.X(ex)}" cy="${f.Y((b * L) / Math.LN10)}" r="5" fill="none" stroke="${css('--fg')}" stroke-width="1.5"/>` : '') +
         `<text x="${f.W - 12}" y="${f.Y(A.at(-1)[1]) - 6}" font-size="9" text-anchor="end" style="fill:${css('--claim')}">x^β</text><text x="${f.W - 12}" y="${f.Y(B.at(-1)[1]) + 14}" font-size="9" text-anchor="end" style="fill:${css('--accent')}">√x log x</text>`;
       cursor($('p'), f, [{ name: 'x^β', color: css('--claim'), pts: A }, { name: '√x log x', color: css('--accent'), pts: B }], { xfmt: (v) => `x ≈ 10^${v.toFixed(1)}`, yfmt: (v) => `≈ 10^${v.toFixed(2)}` });
-      $('r1').textContent = ex > 300 ? `beyond 10³⁰⁰ (about ${pow10(Math.round(ex))})` : `about ${pow10(Math.round(ex))}`;
+      $('r1').textContent = ex == null ? 'never: x^β is bigger at every x' : ex > 300 ? `beyond 10³⁰⁰ (about ${pow10(Math.round(ex))})` : `about ${pow10(Math.round(ex))}`;
       if (b < 0.53) ctx.done();
     };
     $('kb').oninput = draw; draw(); return { resize: draw };

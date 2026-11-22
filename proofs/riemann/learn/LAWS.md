@@ -77,8 +77,11 @@ least 2rem tall. *Machine-checked: no horizontal scroll.*
 answers are saved in this browser only, and every storage access is wrapped
 so a private window still works.
 
-**13. Nothing breaks.** No console errors on any slide in either theme.
-*Machine-checked.*
+**13. Nothing breaks.** No console errors on any slide in either theme, and
+every slider, swept from end to end, draws finite numbers. *Machine-checked.*
+(The sweep exists because autopilot's first full run found slide 12 drawing NaN
+above β ≈ 0.868, where its crossover stops existing. No test had touched the
+top of that slider.)
 
 ## Writing
 

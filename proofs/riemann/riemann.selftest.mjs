@@ -118,6 +118,20 @@ ok(R.sieve(1e6).length === 78498, 'π(10⁶) = 78498');
   let int = 0; for (let s = 0; s < 6; s += 0.001) int += R.wignerGUE(s) * 0.001; near(int, 1, 1e-3, 'Wigner surmise integrates to 1');
 }
 
+// ---- one zero off the line: the crossover (slide 12) -------------------------------------------
+{
+  let prev = 0;
+  for (const beta of [0.86, 0.8, 0.75, 0.7, 0.6, 0.55, 0.52, 0.505]) {
+    const L = R.offLineCrossover(beta);
+    ok(Number.isFinite(L) && Math.abs((beta - 0.5) * L - Math.log(L)) < 1e-9 && L > 1 / (beta - 0.5), `crossover root at β=${beta}`);
+    ok(L > prev, `crossover moves out as β falls toward ½ (β=${beta})`); prev = L;
+    // just past the root x^β is bigger, just before it smaller
+    ok(beta * (L * 1.001) > (L * 1.001) / 2 + Math.log(L * 1.001) && beta * (L * 0.999) < (L * 0.999) / 2 + Math.log(L * 0.999), `crossover is where x^β overtakes (β=${beta})`);
+  }
+  for (const beta of [0.87, 0.9, 0.95]) ok(R.offLineCrossover(beta) === null, `no crossover at β=${beta}: x^β is bigger for every x > 1`);
+  ok(R.offLineCrossover(0.52) / Math.LN10 > 100, 'β = 0.52 crosses beyond 10^100, as slide 12 says');
+}
+
 // ---- zero-free region -----------------------------------------------------------
 ok(R.classicalEdge(10) > 0.9 && R.classicalEdge(1e6) < 1 && R.classicalEdge(1e6) > R.classicalEdge(10), 'classical edge shape');
 

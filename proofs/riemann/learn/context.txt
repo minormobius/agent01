@@ -129,7 +129,7 @@ Notes:
 The functional equation pairs each zero β + iγ with 1 − β + iγ. So if any zero is off the line, one of the pair has β > ½, and its wave x^β eventually outgrows every on-line wave. The error in counting primes would then be bigger than √x, infinitely often.
 RH is the statement that this never happens: the primes are exactly as regular as the √x scale allows, and no more irregular.
 ## Where x^β overtakes √x log x
-The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out.
+The plot compares x^β with √x · log x on log–log axes. The x where they cross grows explosively as β → ½. That is the sense in which RH, if false, might be false only very far out. Above β = ½ + 1/e ≈ 0.868 there is no crossover at all: x^β is the bigger of the two at every x.
 
 ### Slide 13: Zero-free half-planes compared  (chapter: why primes care)
 Caption: Knowing "no zeros right of σ" buys a prime-count error of x^σ. This is how far each step up the ladder gets you at x = 10¹².

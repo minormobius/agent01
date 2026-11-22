@@ -414,7 +414,7 @@ page quotes `faces` and `main` verbatim, and `FACES` is the Lean list.
 ## `/riemann/`: the Riemann hypothesis, and the November 2026 claim
 
 ```bash
-node proofs/riemann/riemann.selftest.mjs           # ~2 s, 3109 checks
+node proofs/riemann/riemann.selftest.mjs           # ~2 s, 3137 checks
 node proofs/riemann/riemann.selftest.mjs --write   # rewrites zeros.js
 node proofs/riemann/audit.mjs --src <lean dir> --write   # rewrites audit.json
 ```
@@ -485,6 +485,11 @@ a slide. Progress, predictions and quiz answers stay in localStorage
   A plain |ζ| heatmap was tried first and failed: the plane is drawn
   anisotropically (3 units of σ against 35 of t), so holes smear into
   horizontal bands.
+- **Slide 12's crossover** is `offLineCrossover(β)` in the engine. With
+  L = ln x it is the larger root of (β − ½)L = ln L, found by bisection. It is
+  `null` for β ≥ ½ + 1/e ≈ 0.868, where x^β is already bigger at every x. An
+  earlier fixed-point iteration ran to ln of a negative there and drew NaN;
+  autopilot's sweep to β = 0.9 found it.
 - **Slide 13's σ = 1 bar** is drawn at x itself and labelled o(x). There is no
   fudge constant; the de la Vallée Poussin saving depends on an unspecified c.
 - The last content slide reads `../audit.json`, so the deck and the reference
@@ -495,7 +500,7 @@ them before adding a slide or starting another deck. The machine-checkable ones
 are enforced by:
 
 ```bash
-node proofs/riemann/learn/browser.selftest.mjs   # ~26 s, 240 checks, real Chromium at 390 px
+node proofs/riemann/learn/browser.selftest.mjs   # ~28 s, 258 checks, real Chromium at 390 px
 ```
 
 It walks every slide. For every chart it sweeps the pointer diagonally,
