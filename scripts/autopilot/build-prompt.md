@@ -33,10 +33,10 @@ _Regenerated 2026-11-22 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-22, 100 members / 200 posts):
+**Neighborhood spark** (bisk 2026-11-22, 100 members / 194 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: inference, gta, riemann
-- Top post: "cuckulus" — @timkellogg.me
+- Distinctive words: riemann, inference, gta
+- Top post: "nate soares has been predicting the ai apocalypse every year since about the year 2012 and no information changes his pe" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
