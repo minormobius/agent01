@@ -74,9 +74,9 @@ the method is open. The ages above end at the stall and stand.
 
 **Past the end of the hydrogen (provisional).** With the same energy in the structure, the ladder star that sits on the
 explosion line (s = 1.5152, 1.25 M~Ch~) has been carried 210 Myr past the end of its central hydrogen. Its
-hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and is still speeding up; the processed core it must burn
+hydrogen-free core grows from 0.026 to 0.18 M~Ch~ and is still speeding up; the processed core it must burn
 through holds at 0.81 M~Ch~. The star swells ×2.2 in radius and ×2.2 in light, and its surface cools from
-46,100 to 33,400 K, while its centre heats from 71 to 88 MK and grows ×6.3 denser: a subgiant
+46,100 to 33,300 K, while its centre heats from 71 to 88 MK and grows ×6.3 denser: a subgiant
 beginning. (As the envelope swells, the shooting solution meeting at a fifth of the mass stops converging; from there it
 meets at a tenth.) Whether its core reaches the Chandrasekhar mass, which decides whether it explodes and so tests the declared
 core growth above, is still open: past here the solver fails every few dozen models as the envelope swells, and the

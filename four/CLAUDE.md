@@ -1442,6 +1442,12 @@ for games, and this is a modelling programme with publications to come. The game
   timeout, not the solver), but the residual floor is rising as the envelope swells (capped solves at 7 × 10⁻⁴–1.8 × 10⁻³),
   so **`loose=<residual>`** is now a CLI option (the runner can't take env; not in the file name). evolve4-19 carries the
   star on at fit=0.1 loose=1e-3 (a 0.1% mismatch at the meeting point); it resumes evolve4-18's checkpoint.
+  **evolve4-19 (collected 2026-11-22): 10 models in 29 min, then "didn't solve on a smaller step" at 15.112 Gyr** (211 Myr
+  past exhaustion; R ×2.23, L ×2.18, Teff 33 kK; H-free core 0.18 M_Ch on the profile's grid). The last ten steps shrank from
+  30 to 4–7 kyr. So the two-point shooting solver can't follow the swelling envelope whatever its meeting point or bar
+  (fit 0.05–0.7 and loose 5e-4–1e-3 all tried): not queued again. What would carry the star on is a relaxation (Henyey)
+  solver: the whole star's discretized structure solved at once by Newton from the last model, as stellar codes do past
+  the main sequence. Still paused on the solver (section 4, the status page).
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
