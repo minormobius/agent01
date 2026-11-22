@@ -1,0 +1,772 @@
+{
+ "about": "fusion/tools/solar.mjs: Asplund et al. 2009's solar mixture (table 1: present-day photosphere, else CI chondrites) as mass fractions, by NIST's standard atomic weights. metals: share of Z (elements past helium) by element.",
+ "source": {
+  "key": "asplund2009",
+  "table": 1,
+  "weights": "NIST Atomic Weights and Isotopic Compositions"
+ },
+ "bulk": {
+  "X": 0.7374,
+  "Y": 0.2492,
+  "Z": 0.0134,
+  "paper": {
+   "X": 0.7381,
+   "Y": 0.2485,
+   "Z": 0.0134
+  },
+  "protosolar": {
+   "X": 0.7154,
+   "Y": 0.2703,
+   "Z": 0.0142
+  }
+ },
+ "elements": [
+  {
+   "Z": 1,
+   "sym": "H",
+   "A": 12,
+   "from": "photosphere",
+   "weight": 1.00798,
+   "x": 0.7374,
+   "ofZ": null
+  },
+  {
+   "Z": 2,
+   "sym": "He",
+   "A": 10.93,
+   "from": "photosphere",
+   "weight": 4.0026,
+   "x": 0.24923,
+   "ofZ": null
+  },
+  {
+   "Z": 3,
+   "sym": "Li",
+   "A": 1.05,
+   "from": "photosphere",
+   "weight": 6.9675,
+   "x": 5.7191e-11,
+   "ofZ": 4.2774e-9
+  },
+  {
+   "Z": 4,
+   "sym": "Be",
+   "A": 1.38,
+   "from": "photosphere",
+   "weight": 9.01218,
+   "x": 1.5816e-10,
+   "ofZ": 1.1829e-8
+  },
+  {
+   "Z": 5,
+   "sym": "B",
+   "A": 2.7,
+   "from": "photosphere",
+   "weight": 10.8135,
+   "x": 3.9648e-9,
+   "ofZ": 2.9653e-7
+  },
+  {
+   "Z": 6,
+   "sym": "C",
+   "A": 8.43,
+   "from": "photosphere",
+   "weight": 12.0106,
+   "x": 0.0023649,
+   "ofZ": 0.17688
+  },
+  {
+   "Z": 7,
+   "sym": "N",
+   "A": 7.83,
+   "from": "photosphere",
+   "weight": 14.0069,
+   "x": 0.00069278,
+   "ofZ": 0.051814
+  },
+  {
+   "Z": 8,
+   "sym": "O",
+   "A": 8.69,
+   "from": "photosphere",
+   "weight": 15.9994,
+   "x": 0.0057327,
+   "ofZ": 0.42876
+  },
+  {
+   "Z": 9,
+   "sym": "F",
+   "A": 4.56,
+   "from": "photosphere",
+   "weight": 18.9984,
+   "x": 5.0463e-7,
+   "ofZ": 0.000037742
+  },
+  {
+   "Z": 10,
+   "sym": "Ne",
+   "A": 7.93,
+   "from": "photosphere",
+   "weight": 20.1797,
+   "x": 0.0012565,
+   "ofZ": 0.093977
+  },
+  {
+   "Z": 11,
+   "sym": "Na",
+   "A": 6.24,
+   "from": "photosphere",
+   "weight": 22.9898,
+   "x": 0.000029227,
+   "ofZ": 0.002186
+  },
+  {
+   "Z": 12,
+   "sym": "Mg",
+   "A": 7.6,
+   "from": "photosphere",
+   "weight": 24.3055,
+   "x": 0.00070788,
+   "ofZ": 0.052943
+  },
+  {
+   "Z": 13,
+   "sym": "Al",
+   "A": 6.45,
+   "from": "photosphere",
+   "weight": 26.9815,
+   "x": 0.000055632,
+   "ofZ": 0.0041608
+  },
+  {
+   "Z": 14,
+   "sym": "Si",
+   "A": 7.51,
+   "from": "photosphere",
+   "weight": 28.085,
+   "x": 0.00066486,
+   "ofZ": 0.049726
+  },
+  {
+   "Z": 15,
+   "sym": "P",
+   "A": 5.41,
+   "from": "photosphere",
+   "weight": 30.9738,
+   "x": 0.0000058244,
+   "ofZ": 0.00043561
+  },
+  {
+   "Z": 16,
+   "sym": "S",
+   "A": 7.12,
+   "from": "photosphere",
+   "weight": 32.0675,
+   "x": 0.00030926,
+   "ofZ": 0.02313
+  },
+  {
+   "Z": 17,
+   "sym": "Cl",
+   "A": 5.5,
+   "from": "photosphere",
+   "weight": 35.4515,
+   "x": 0.0000082014,
+   "ofZ": 0.0006134
+  },
+  {
+   "Z": 18,
+   "sym": "Ar",
+   "A": 6.4,
+   "from": "photosphere",
+   "weight": 39.948,
+   "x": 0.000073409,
+   "ofZ": 0.0054904
+  },
+  {
+   "Z": 19,
+   "sym": "K",
+   "A": 5.03,
+   "from": "photosphere",
+   "weight": 39.0983,
+   "x": 0.0000030649,
+   "ofZ": 0.00022923
+  },
+  {
+   "Z": 20,
+   "sym": "Ca",
+   "A": 6.34,
+   "from": "photosphere",
+   "weight": 40.078,
+   "x": 0.000064145,
+   "ofZ": 0.0047975
+  },
+  {
+   "Z": 21,
+   "sym": "Sc",
+   "A": 3.15,
+   "from": "photosphere",
+   "weight": 44.9559,
+   "x": 4.6456e-8,
+   "ofZ": 0.0000034745
+  },
+  {
+   "Z": 22,
+   "sym": "Ti",
+   "A": 4.95,
+   "from": "photosphere",
+   "weight": 47.867,
+   "x": 0.000003121,
+   "ofZ": 0.00023342
+  },
+  {
+   "Z": 23,
+   "sym": "V",
+   "A": 3.93,
+   "from": "photosphere",
+   "weight": 50.9415,
+   "x": 3.1719e-7,
+   "ofZ": 0.000023724
+  },
+  {
+   "Z": 24,
+   "sym": "Cr",
+   "A": 5.64,
+   "from": "photosphere",
+   "weight": 51.9961,
+   "x": 0.000016604,
+   "ofZ": 0.0012419
+  },
+  {
+   "Z": 25,
+   "sym": "Mn",
+   "A": 5.43,
+   "from": "photosphere",
+   "weight": 54.938,
+   "x": 0.000010818,
+   "ofZ": 0.00080906
+  },
+  {
+   "Z": 26,
+   "sym": "Fe",
+   "A": 7.5,
+   "from": "photosphere",
+   "weight": 55.845,
+   "x": 0.0012919,
+   "ofZ": 0.096625
+  },
+  {
+   "Z": 27,
+   "sym": "Co",
+   "A": 4.99,
+   "from": "photosphere",
+   "weight": 58.9332,
+   "x": 0.0000042132,
+   "ofZ": 0.00031511
+  },
+  {
+   "Z": 28,
+   "sym": "Ni",
+   "A": 6.22,
+   "from": "photosphere",
+   "weight": 58.6934,
+   "x": 0.00007126,
+   "ofZ": 0.0053296
+  },
+  {
+   "Z": 29,
+   "sym": "Cu",
+   "A": 4.19,
+   "from": "photosphere",
+   "weight": 63.546,
+   "x": 7.2002e-7,
+   "ofZ": 0.000053851
+  },
+  {
+   "Z": 30,
+   "sym": "Zn",
+   "A": 4.56,
+   "from": "photosphere",
+   "weight": 65.38,
+   "x": 0.0000017366,
+   "ofZ": 0.00012988
+  },
+  {
+   "Z": 31,
+   "sym": "Ga",
+   "A": 3.04,
+   "from": "photosphere",
+   "weight": 69.723,
+   "x": 5.5928e-8,
+   "ofZ": 0.000004183
+  },
+  {
+   "Z": 32,
+   "sym": "Ge",
+   "A": 3.65,
+   "from": "photosphere",
+   "weight": 72.63,
+   "x": 2.3734e-7,
+   "ofZ": 0.000017751
+  },
+  {
+   "Z": 33,
+   "sym": "As",
+   "A": 2.3,
+   "from": "meteorites",
+   "weight": 74.9216,
+   "x": 1.0936e-8,
+   "ofZ": 8.1793e-7
+  },
+  {
+   "Z": 34,
+   "sym": "Se",
+   "A": 3.34,
+   "from": "meteorites",
+   "weight": 78.971,
+   "x": 1.2639e-7,
+   "ofZ": 0.0000094531
+  },
+  {
+   "Z": 35,
+   "sym": "Br",
+   "A": 2.54,
+   "from": "meteorites",
+   "weight": 79.904,
+   "x": 2.0269e-8,
+   "ofZ": 0.0000015159
+  },
+  {
+   "Z": 36,
+   "sym": "Kr",
+   "A": 3.25,
+   "from": "photosphere",
+   "weight": 83.798,
+   "x": 1.0902e-7,
+   "ofZ": 0.0000081534
+  },
+  {
+   "Z": 37,
+   "sym": "Rb",
+   "A": 2.52,
+   "from": "photosphere",
+   "weight": 85.4678,
+   "x": 2.0704e-8,
+   "ofZ": 0.0000015485
+  },
+  {
+   "Z": 38,
+   "sym": "Sr",
+   "A": 2.87,
+   "from": "photosphere",
+   "weight": 87.62,
+   "x": 4.7518e-8,
+   "ofZ": 0.0000035539
+  },
+  {
+   "Z": 39,
+   "sym": "Y",
+   "A": 2.21,
+   "from": "photosphere",
+   "weight": 88.9058,
+   "x": 1.0548e-8,
+   "ofZ": 7.8893e-7
+  },
+  {
+   "Z": 40,
+   "sym": "Zr",
+   "A": 2.58,
+   "from": "photosphere",
+   "weight": 91.224,
+   "x": 2.5373e-8,
+   "ofZ": 0.0000018977
+  },
+  {
+   "Z": 41,
+   "sym": "Nb",
+   "A": 1.46,
+   "from": "photosphere",
+   "weight": 92.9064,
+   "x": 1.9602e-9,
+   "ofZ": 1.4661e-7
+  },
+  {
+   "Z": 42,
+   "sym": "Mo",
+   "A": 1.88,
+   "from": "photosphere",
+   "weight": 95.95,
+   "x": 5.3248e-9,
+   "ofZ": 3.9825e-7
+  },
+  {
+   "Z": 44,
+   "sym": "Ru",
+   "A": 1.75,
+   "from": "photosphere",
+   "weight": 101.07,
+   "x": 4.1579e-9,
+   "ofZ": 3.1098e-7
+  },
+  {
+   "Z": 45,
+   "sym": "Rh",
+   "A": 0.91,
+   "from": "photosphere",
+   "weight": 102.906,
+   "x": 6.1192e-10,
+   "ofZ": 4.5766e-8
+  },
+  {
+   "Z": 46,
+   "sym": "Pd",
+   "A": 1.57,
+   "from": "photosphere",
+   "weight": 106.42,
+   "x": 2.8925e-9,
+   "ofZ": 2.1634e-7
+  },
+  {
+   "Z": 47,
+   "sym": "Ag",
+   "A": 0.94,
+   "from": "photosphere",
+   "weight": 107.868,
+   "x": 6.873e-10,
+   "ofZ": 5.1404e-8
+  },
+  {
+   "Z": 48,
+   "sym": "Cd",
+   "A": 1.71,
+   "from": "meteorites",
+   "weight": 112.414,
+   "x": 4.2177e-9,
+   "ofZ": 3.1545e-7
+  },
+  {
+   "Z": 49,
+   "sym": "In",
+   "A": 0.8,
+   "from": "photosphere",
+   "weight": 114.818,
+   "x": 5.2999e-10,
+   "ofZ": 3.9639e-8
+  },
+  {
+   "Z": 50,
+   "sym": "Sn",
+   "A": 2.04,
+   "from": "photosphere",
+   "weight": 118.71,
+   "x": 9.5223e-9,
+   "ofZ": 7.1219e-7
+  },
+  {
+   "Z": 51,
+   "sym": "Sb",
+   "A": 1.01,
+   "from": "meteorites",
+   "weight": 121.76,
+   "x": 9.115e-10,
+   "ofZ": 6.8173e-8
+  },
+  {
+   "Z": 52,
+   "sym": "Te",
+   "A": 2.18,
+   "from": "meteorites",
+   "weight": 127.6,
+   "x": 1.4129e-8,
+   "ofZ": 0.0000010567
+  },
+  {
+   "Z": 53,
+   "sym": "I",
+   "A": 1.55,
+   "from": "meteorites",
+   "weight": 126.904,
+   "x": 3.2941e-9,
+   "ofZ": 2.4637e-7
+  },
+  {
+   "Z": 54,
+   "sym": "Xe",
+   "A": 2.24,
+   "from": "photosphere",
+   "weight": 131.293,
+   "x": 1.6692e-8,
+   "ofZ": 0.0000012484
+  },
+  {
+   "Z": 55,
+   "sym": "Cs",
+   "A": 1.08,
+   "from": "meteorites",
+   "weight": 132.905,
+   "x": 1.169e-9,
+   "ofZ": 8.7428e-8
+  },
+  {
+   "Z": 56,
+   "sym": "Ba",
+   "A": 2.18,
+   "from": "photosphere",
+   "weight": 137.327,
+   "x": 1.5206e-8,
+   "ofZ": 0.0000011373
+  },
+  {
+   "Z": 57,
+   "sym": "La",
+   "A": 1.1,
+   "from": "photosphere",
+   "weight": 138.905,
+   "x": 1.2793e-9,
+   "ofZ": 9.5681e-8
+  },
+  {
+   "Z": 58,
+   "sym": "Ce",
+   "A": 1.58,
+   "from": "photosphere",
+   "weight": 140.116,
+   "x": 3.8971e-9,
+   "ofZ": 2.9147e-7
+  },
+  {
+   "Z": 59,
+   "sym": "Pr",
+   "A": 0.72,
+   "from": "photosphere",
+   "weight": 140.908,
+   "x": 5.4099e-10,
+   "ofZ": 4.0462e-8
+  },
+  {
+   "Z": 60,
+   "sym": "Nd",
+   "A": 1.42,
+   "from": "photosphere",
+   "weight": 144.242,
+   "x": 2.7755e-9,
+   "ofZ": 2.0759e-7
+  },
+  {
+   "Z": 62,
+   "sym": "Sm",
+   "A": 0.96,
+   "from": "photosphere",
+   "weight": 150.36,
+   "x": 1.0032e-9,
+   "ofZ": 7.5031e-8
+  },
+  {
+   "Z": 63,
+   "sym": "Eu",
+   "A": 0.52,
+   "from": "photosphere",
+   "weight": 151.964,
+   "x": 3.6812e-10,
+   "ofZ": 2.7533e-8
+  },
+  {
+   "Z": 64,
+   "sym": "Gd",
+   "A": 1.07,
+   "from": "photosphere",
+   "weight": 157.25,
+   "x": 1.3516e-9,
+   "ofZ": 1.0109e-7
+  },
+  {
+   "Z": 65,
+   "sym": "Tb",
+   "A": 0.3,
+   "from": "photosphere",
+   "weight": 158.925,
+   "x": 2.3198e-10,
+   "ofZ": 1.735e-8
+  },
+  {
+   "Z": 66,
+   "sym": "Dy",
+   "A": 1.1,
+   "from": "photosphere",
+   "weight": 162.5,
+   "x": 1.4966e-9,
+   "ofZ": 1.1193e-7
+  },
+  {
+   "Z": 67,
+   "sym": "Ho",
+   "A": 0.48,
+   "from": "photosphere",
+   "weight": 164.93,
+   "x": 3.6438e-10,
+   "ofZ": 2.7253e-8
+  },
+  {
+   "Z": 68,
+   "sym": "Er",
+   "A": 0.92,
+   "from": "photosphere",
+   "weight": 167.259,
+   "x": 1.0178e-9,
+   "ofZ": 7.612e-8
+  },
+  {
+   "Z": 69,
+   "sym": "Tm",
+   "A": 0.1,
+   "from": "photosphere",
+   "weight": 168.934,
+   "x": 1.5559e-10,
+   "ofZ": 1.1637e-8
+  },
+  {
+   "Z": 70,
+   "sym": "Yb",
+   "A": 0.84,
+   "from": "photosphere",
+   "weight": 173.054,
+   "x": 8.7586e-10,
+   "ofZ": 6.5507e-8
+  },
+  {
+   "Z": 71,
+   "sym": "Lu",
+   "A": 0.1,
+   "from": "photosphere",
+   "weight": 174.967,
+   "x": 1.6114e-10,
+   "ofZ": 1.2052e-8
+  },
+  {
+   "Z": 72,
+   "sym": "Hf",
+   "A": 0.85,
+   "from": "photosphere",
+   "weight": 178.49,
+   "x": 9.2442e-10,
+   "ofZ": 6.9139e-8
+  },
+  {
+   "Z": 73,
+   "sym": "Ta",
+   "A": -0.12,
+   "from": "meteorites",
+   "weight": 180.948,
+   "x": 1.0042e-10,
+   "ofZ": 7.5104e-9
+  },
+  {
+   "Z": 74,
+   "sym": "W",
+   "A": 0.85,
+   "from": "photosphere",
+   "weight": 183.84,
+   "x": 9.5213e-10,
+   "ofZ": 7.1211e-8
+  },
+  {
+   "Z": 75,
+   "sym": "Re",
+   "A": 0.26,
+   "from": "meteorites",
+   "weight": 186.207,
+   "x": 2.4789e-10,
+   "ofZ": 1.854e-8
+  },
+  {
+   "Z": 76,
+   "sym": "Os",
+   "A": 1.4,
+   "from": "photosphere",
+   "weight": 190.23,
+   "x": 3.4957e-9,
+   "ofZ": 2.6145e-7
+  },
+  {
+   "Z": 77,
+   "sym": "Ir",
+   "A": 1.38,
+   "from": "photosphere",
+   "weight": 192.217,
+   "x": 3.3732e-9,
+   "ofZ": 2.5229e-7
+  },
+  {
+   "Z": 78,
+   "sym": "Pt",
+   "A": 1.62,
+   "from": "meteorites",
+   "weight": 195.084,
+   "x": 5.9494e-9,
+   "ofZ": 4.4497e-7
+  },
+  {
+   "Z": 79,
+   "sym": "Au",
+   "A": 0.92,
+   "from": "photosphere",
+   "weight": 196.967,
+   "x": 1.1985e-9,
+   "ofZ": 8.964e-8
+  },
+  {
+   "Z": 80,
+   "sym": "Hg",
+   "A": 1.17,
+   "from": "meteorites",
+   "weight": 200.592,
+   "x": 2.1705e-9,
+   "ofZ": 1.6234e-7
+  },
+  {
+   "Z": 81,
+   "sym": "Tl",
+   "A": 0.9,
+   "from": "photosphere",
+   "weight": 204.383,
+   "x": 1.1877e-9,
+   "ofZ": 8.8829e-8
+  },
+  {
+   "Z": 82,
+   "sym": "Pb",
+   "A": 1.75,
+   "from": "photosphere",
+   "weight": 207.2,
+   "x": 8.524e-9,
+   "ofZ": 6.3752e-7
+  },
+  {
+   "Z": 83,
+   "sym": "Bi",
+   "A": 0.65,
+   "from": "meteorites",
+   "weight": 208.98,
+   "x": 6.829e-10,
+   "ofZ": 5.1076e-8
+  },
+  {
+   "Z": 90,
+   "sym": "Th",
+   "A": 0.02,
+   "from": "photosphere",
+   "weight": 232.038,
+   "x": 1.7775e-10,
+   "ofZ": 1.3294e-8
+  },
+  {
+   "Z": 92,
+   "sym": "U",
+   "A": -0.54,
+   "from": "meteorites",
+   "weight": 238.029,
+   "x": 5.0221e-11,
+   "ofZ": 3.7561e-9
+  }
+ ]
+}

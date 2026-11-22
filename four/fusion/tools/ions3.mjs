@@ -8,8 +8,8 @@
    For each element and each electron count 1…Z: the configuration (filled in hydrogenic order n, l, and also in
    Madelung's n + l order from 19 electrons on; the lower converged energy kept), the total energy and every occupied
    subshell's orbital energy (its bound–free edge, by Koopmans). Ionization energies follow as total-energy differences
-   (ΔSCF). The abundances are Asplund et al. 2009's photospheric log ε, from memory (standard table), not yet checked
-   against the source here. */
+   (ΔSCF). The abundances are Asplund et al. 2009's photospheric log ε, first from memory; all 15 checked
+   against its table 1 on 2026-11-22 (papers/p2/data/solar.json, fusion/tools/solar.mjs) and equal to it. */
 import { writeFileSync } from "node:fs";
 import { scf, subshells } from "../../atom/js/atom.js";
 import { TABLE } from "../../atom/js/tablec.js";

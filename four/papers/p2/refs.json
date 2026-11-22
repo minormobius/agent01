@@ -164,8 +164,8 @@
   {
    "key": "asplund2009",
    "doi": "10.1146/annurev.astro.46.060407.145222",
-   "status": "index",
-   "for": "the solar mixture of the OPAL tables and of the book's metal opacity (abundances taken from memory of its table 1; flagged in fusion/tools/ions3.mjs)"
+   "status": "read",
+   "for": "the solar mixture: of the OPAL tables, of the book's metal opacity (fusion/tools/ions3.mjs, whose 15 values from memory match table 1 exactly, checked 2026-11-22), and our side of four/abundance/ (fusion/tools/solar.mjs reads table 1 from the paper's LaTeX source, arXiv:0909.0948, and reproduces its present-day Z = 0.0134)"
   },
   {
    "key": "choi2016",

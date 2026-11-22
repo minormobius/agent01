@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="What the first stars of a four-dimensional universe give back, element by element, set on both periodic tables beside our Sun's metals (Asplund et al. 2009). Near our nuclear strength they make the row below 4D's oxygen and an element far down the table, where our Sun's metals are mostly oxygen and carbon." />
+<title>Four · what the first stars made</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="../atom/css/atom4.css" />
+<style>
+  header, section.wide { max-width: 1440px; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 6px 0; font: 12px var(--mono); color: var(--dim); }
+  .bar .k { min-width: 9.5em; }
+  .seg { margin: 0; }
+  .seg button { font-size: 11.5px; padding: 4px 9px; }
+  .seg.sun button.on { border-color: var(--d3); color: var(--d3); }
+  .readout { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 12px 0; font: 13px/1.65 var(--mono); color: var(--dim); }
+  .readout b { color: var(--text); } .readout .d4 { color: var(--d4); } .readout .d3 { color: var(--d3); }
+  .warn { color: #ffd166; }
+  .scroll { overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+  .grid { display: grid; gap: 3px; min-width: max-content; }
+  .grid .lab { font: 10px var(--mono); color: var(--dim); display: flex; align-items: center; justify-content: flex-end; padding-right: 5px; }
+  .el { position: relative; width: var(--cw); height: calc(var(--cw) * 1.12); border-radius: 5px; border: 1px solid #262833; color: var(--text); cursor: pointer; padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); background: #0b0d13; transition: transform 0.08s; -webkit-tap-highlight-color: transparent; }
+  .el:hover, .el.on { transform: scale(1.12); z-index: 2; border-color: var(--text); }
+  .el.on { box-shadow: 0 0 0 2px var(--text); }
+  .el .z { position: absolute; top: 2px; left: 3px; font-size: 8px; color: #c9c3b8b0; }
+  .el .sym { font-size: calc(var(--cw) * 0.34); font-weight: 700; line-height: 1; margin-top: 3px; text-shadow: 0 0 3px #000; }
+  .el .pc { font-size: 8px; margin-top: 2px; color: var(--text); text-shadow: 0 0 3px #000; }
+  .el.new .sym { font-size: calc(var(--cw) * 0.24); color: #ffd166; }
+  .el.none { opacity: 0.55; }
+  #ours { --cw: 40px; } #pt4 { --cw: 34px; }
+  #pt4 .el .pc { display: none; } #pt4 .el .z { display: none; }
+  @media (max-width: 700px) { #ours { --cw: 32px; } #ours .el .pc { display: none; } }
+  .scale { display: flex; flex-wrap: wrap; gap: 6px 22px; font: 11px var(--mono); color: var(--dim); margin: 6px 0 4px; align-items: center; }
+  .ramp { display: inline-flex; vertical-align: middle; margin: 0 6px; } .ramp i { width: 18px; height: 11px; display: inline-block; }
+  .halves { display: inline-block; width: 13px; height: 15px; border-radius: 3px; vertical-align: -3px; margin-right: 5px; background: linear-gradient(to bottom, var(--d3) 50%, var(--d4) 50%); }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; align-items: start; }
+  @media (max-width: 1000px) { .two { grid-template-columns: minmax(0, 1fr); } }
+  #detail { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-height: 150px; font: 12.5px/1.6 var(--mono); color: var(--dim); }
+  #detail h4 { font: 700 17px var(--mono); margin: 0 0 6px; color: var(--text); } #detail b { color: var(--text); }
+  #detail .d3 { color: var(--d3); } #detail .d4 { color: var(--d4); }
+  .tray { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
+  .tray .el { --cw: 46px; }
+  .lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin: 10px 0; }
+  .lists h4 { font: 700 13px var(--mono); margin: 0 0 6px; } .lists h4.d3 { color: var(--d3); } .lists h4.d4 { color: var(--d4); }
+  .rank { font: 12px/1.5 var(--mono); color: var(--dim); width: 100%; border-collapse: collapse; }
+  .rank td { padding: 1px 4px; vertical-align: top; } .rank td.v { text-align: right; color: var(--text); white-space: nowrap; }
+  .rank .barc { width: 34%; } .rank .barc i { display: block; height: 9px; border-radius: 2px; margin-top: 5px; }
+  .groups { margin: 10px 0 4px; }
+  .grow { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 8px; align-items: center; font: 12px var(--mono); color: var(--dim); margin: 5px 0; }
+  .gbar { display: flex; height: 22px; border-radius: 5px; overflow: hidden; border: 1px solid var(--border); }
+  .gbar span { display: flex; align-items: center; justify-content: center; font: 10.5px var(--mono); color: #07080c; white-space: nowrap; overflow: hidden; }
+  .gkey { display: flex; flex-wrap: wrap; gap: 4px 14px; font: 11px var(--mono); color: var(--dim); margin: 4px 0 0; }
+  .gkey i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+  details.more { margin: 6px 0; } details.more summary { cursor: pointer; font: 12px var(--mono); color: var(--dim); }
+  p.small { font-size: 14px; color: var(--dim); }
+</style>
+</head>
+<body>
+<header>
+  <nav class="chapters"><a href="../" class="home">FOUR</a><a href="../table/">the table</a><a href="../atom/">ATOM⁴</a><a href="../star/">a star, cut open</a><a href="../papers/">papers</a></nav>
+  <h2>four.mino.mobi · the table's sister</h2>
+  <h1 class="ch">What the first stars made</h1>
+  <p class="lede">A four-dimensional universe starts, as ours did, with hydrogen and helium. Its first stars burn them, and the heavier ones explode. This page shows what those stars give back, element by element, on <a href="../table/" style="color: var(--text)">4D's periodic table</a> and then on ours. <b style="color: var(--d4)">Their metals</b> sit next to <b style="color: var(--d3)">our Sun's</b>, each 4D element placed where its counterpart sits in our table.</p>
+</header>
+<section class="wide">
+  <div class="bar"><span class="k">nuclear strength s</span><div class="seg" id="c-s"></div></div>
+  <div class="bar"><span class="k">core growth after H</span><div class="seg" id="c-g"></div></div>
+  <details class="more"><summary>the other declared choices</summary>
+    <div class="bar"><span class="k">mass function</span><div class="seg" id="c-alpha"></div></div>
+    <div class="bar"><span class="k">dead stars' winds</span><div class="seg" id="c-w"></div></div>
+    <div class="bar"><span class="k">explosion's spread</span><div class="seg" id="c-f"></div></div>
+    <div class="bar"><span class="k">stars counted</span><div class="seg" id="c-tg"></div></div>
+  </details>
+  <div class="readout" id="readout"></div>
+
+  <h3 class="sub">On our table</h3>
+  <p class="small">Each square is one of our elements. Its <b style="color: var(--d3)">top half</b> is that element's share of the Sun's metals, by mass. Its <b style="color: var(--d4)">bottom half</b> is the share of the first 4D stars' metals in the element that does what this one does: 4D's counterpart, named by place in its table (pxygen answers to our oxygen). 4D elements with no counterpart are in the tray below. Point at or tap a square for the numbers.</p>
+  <div class="seg sun" id="c-view"></div>
+  <div class="scale" id="scale"></div>
+  <div class="two">
+    <div>
+      <div class="scroll"><div class="grid" id="ours"></div></div>
+      <div class="tray" id="tray"></div>
+      <p class="small" id="traynote"></p>
+    </div>
+    <div id="detail"></div>
+  </div>
+
+  <h3 class="sub">What kind of element</h3>
+  <p class="small">Both mixtures by the row of our table they fall in, 4D's through its counterparts. Our Sun's metals are mostly in our second row: oxygen, carbon, neon, nitrogen. The first 4D stars put almost nothing there.</p>
+  <div class="groups" id="groups"></div>
+
+  <div class="lists" id="lists"></div>
+
+  <h3 class="sub">On 4D's own table</h3>
+  <p class="small">The same metals on the table they belong to: all 140 elements of <a href="../table/" style="color: var(--text)">the table of four dimensions</a>, shaded by their share of the first stars' metals (log scale). The dashed-gold squares are new: elements with no counterpart in ours.</p>
+  <div class="scroll"><div class="grid" id="pt4"></div></div>
+
+  <h3 class="sub">How this was made</h3>
+  <p><b>The 4D side is computed up to two declared choices.</b> The stars are aged on the book's own nuclear network, from zero age to the end of their central hydrogen, in mass ladders at a gravity of 10⁻¹⁷ of ours (<a href="../papers/p2/draft/ageing" style="color: var(--text)">paper 2, section 4</a>). A star returns what its envelope holds, plus a share of its core's ash on the wind if its core stays under the Chandrasekhar mass. A core that reaches the Chandrasekhar mass explodes and returns everything. How far an explosion burns is computed the same way for both worlds, calibrated on our white dwarfs: some of the core reaches equilibrium, some burns to the rock row (the ash fused with itself), and some stays as it was. Then a mass function weights the stars, and the net yield p is the metals returned per mass locked away in remnants and long-lived stars, the standard measure.</p>
+  <p><b>Declared, not computed.</b> How much a core grows after its hydrogen runs out decides which stars explode, so it is the main control above. The first star is being followed past exhaustion now, to compute it. Also declared: the winds and the explosion's expansion (both calibrated on ours, carried over), the mass function, and which product each ash element burns to (<span id="prodnote"></span>).</p>
+  <p><b>"Iron" is not iron here.</b> In our world an explosion's equilibrium ends at the iron peak, nickel-56. In 4D the liquid-drop model of nuclei puts the most tightly bound nucleus at <span id="peaknote"></span>. The page places that share there. It is the least certain number on the page: the drop is a fit, far past the nuclei the book computes directly.</p>
+  <p><b>The comparison is not like for like.</b> The Sun's metals are what about nine billion years of our galaxy's stars made before it formed, every generation and every process (massive stars, white dwarfs, merging neutron stars). The 4D side is one generation, the first. The like-for-like comparison is our own first stars, which can only be read from the oldest, most metal-poor stars; that is a next step. So read this as <i>where the first 4D metals sit</i>, not as a forecast of a 4D sun.</p>
+  <p><b>Ours.</b> The solar mixture is Asplund, Grevesse, Sauval &amp; Scott 2009 (<a href="https://doi.org/10.1146/annurev.astro.46.060407.145222" style="color: var(--text)">ARA&amp;A 47, 481</a>), table 1: the present-day photosphere, or the meteorites where the photosphere gives no value. It is turned into mass fractions with <a href="https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl" style="color: var(--text)">NIST's standard atomic weights</a>, and checked against the paper's own bulk composition: Z = 0.0134, as theirs.</p>
+  <p class="small">Code: <code>fusion/tools/solar.mjs</code> (ours), <code>fusion/tools/yields4.mjs</code> (what the stars give back), <code>fusion/tools/abund4.mjs</code> (this page's data), all in the four directory of the repository.</p>
+  <p class="foot"><a href="../">Four</a> · <a href="../table/">the table of four dimensions</a> · <a href="../star/">a star, cut open</a> · <a href="../papers/p2/draft/status">paper 2: where it stands</a></p>
+</section>
+<script type="module" src="abundance.js"></script>
+</body>
+</html>

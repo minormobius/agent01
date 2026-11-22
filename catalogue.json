@@ -5653,6 +5653,22 @@
       ]
     },
     {
+      "n": "four-abundance",
+      "u": "https://four.mino.mobi/abundance/",
+      "c": "data",
+      "k": 2,
+      "a": "warm",
+      "t": "2026-11-22",
+      "b": "2026-11-22",
+      "p": "four",
+      "surface": "four",
+      "d": "What the first stars of a four-dimensional universe give back, element by element, set on both periodic tables beside our Sun's metals (Asplund et al. 2009). Each 4D element sits where its counterpart sits in ours. Our Sun's metals are three-quarters our second row, oxygen and carbon above all; near our nuclear strength the first 4D stars put almost nothing there, making instead the row below and, from exploding cores, an element far down the table. Set the strong force's strength and how much a star's core grows, and see what moves.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
       "n": "atom4",
       "u": "https://four.mino.mobi/atom/",
       "c": "data",

@@ -325,6 +325,26 @@ for games, and this is a modelling programme with publications to come. The game
   31 commands) brings ladders at s 1.55–1.8 and carries the s 1.5152 one to exhaustion. `star/aged.js` baked
   from evolve4-7 (34 4D tracks, the further record of each run, cut runs rebuilt from checkpoints with plasma: true,
   M_Ch ∝ G^(−4/3)).
+- **what the first stars made at `/abundance/`** (PI, 2026-11-22: "publish the abundance we have found after the first
+  generation compared to where that distribution sits in our world … a sister site to the table"): `abundance/abundance.js`
+  draws only. Our table (to 92) with each square split, the Sun's share of metals on top and 4D's counterpart's share of the
+  first stars' metals below (log colour, 10⁻⁵–1); a tray for 4D elements with no counterpart; both mixtures by our table's
+  row; the two top-ten lists; 4D's own 140-element table shaded the same; controls for every declared choice in
+  yields4.json (defaults paper 2's middle choice; the hash keeps them). **Generated** `abundance/data.js` from
+  `fusion/tools/abund4.mjs` (seconds): yields4.json's net-yield mix with the rock row placed element by element, each ash
+  element burnt to heavy's product of it fused with itself (shared over the drops; an element with no row takes the
+  nearest row's products moved by 2ΔZ: element 15 between rows, below 8 past them, counted as `extrapolated`, which the
+  page warns about: ≤ 0.4% of the metals at s ≤ 1.55, 42–98% from 1.65 up) and "iron" placed at the Minnesota drop's peak
+  at s 1.5152, **element 137 (bstatine, mass 274; counterpart our astatine)**, 103–137 over the four drops. `yields4.mjs`
+  now also writes `rockBy` (the rock row by source ash element) per choice and per net yield; nothing else in yields4.json
+  moved (checked byte for byte with the field stripped). Ours: `fusion/tools/solar.mjs <sun.tex> <NIST ascii>` →
+  `papers/p2/data/solar.json`, Asplund et al. 2009's table 1 read from its arXiv LaTeX source (photosphere, else CI
+  chondrites) with NIST's standard atomic weights; it stops unless X and Z match the paper's bulk composition to 0.5% (it
+  gives X 0.7374, Z 0.0134 against 0.7381, 0.0134). ions3.mjs's 15 from-memory abundances match table 1 exactly, so
+  refs.json's asplund2009 is now `read`. **Result at s 1.5152, middle choice:** the Sun's metals are 75% our row 2 (O 43%,
+  C 18%); the first 4D stars put ~2% there: 47% at the equilibrium peak, 22% in counterparts of our row 3, 18% of row 4
+  (K–V), 12% in elements with no counterpart (16, 18). Rerun `abund4.mjs` after `yields4.mjs` or `solar.mjs`. Catalogue
+  `four-abundance`; the hub's "Nuclei and stars" group and /table/'s foot link it.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

@@ -48,14 +48,14 @@ for (const [key, { f, j }] of recs) {
   const qcore = Math.max(touched.length ? touched.at(-1).q : 0, stirred.length ? stirred.at(-1).q : 0), core = integ(rows, 0, qcore), ashCore = heavyOf(core), ashAll = heavyOf(integ(rows, 0, 1));
   const lead = Object.entries(core).filter(([z]) => +z >= 3).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null, choices = [];
   for (const g of [1, 1.25, 1.5]) for (const w of [0.03, 0.3]) for (const fx of [30, 100]) {
-    const qg = Math.min(1, g * qcore), mcore = qg * +m, ret = integ(rows, qg, 1); let remnant, iron = 0, rock = 0, fate;
+    const qg = Math.min(1, g * qcore), mcore = qg * +m, ret = integ(rows, qg, 1), rockBy = {}; let remnant, iron = 0, rock = 0, fate;
     // each element of the core's ash burnt by its own row of explode's shares, weighted by its mass (taking the leading
     // element's row for all of it made the split jump when the lead flipped late in a run)
     if (mcore >= 1 && lead) { const cg = integ(rows, 0, qg), ash = heavyOf(cg), x = { iron: 0, rock: 0, unburnt: 0 }; fate = "explodes"; remnant = 0;
-      for (const [z, v] of Object.entries(cg)) if (+z >= 3 && v > 0) { const e = exShares(+z, mcore, fx); for (const k in x) x[k] += (v / ash) * e[k]; }
+      for (const [z, v] of Object.entries(cg)) if (+z >= 3 && v > 0) { const e = exShares(+z, mcore, fx); for (const k in x) x[k] += (v / ash) * e[k]; rockBy[z] = v * e.rock; }
       for (const [z, v] of Object.entries(cg)) { if (+z >= 3) ret[z] = (ret[z] ?? 0) + v * x.unburnt; else ret[z] = (ret[z] ?? 0) + v; } iron = ash * x.iron; rock = ash * x.rock; }
     else { fate = "dead"; const wind = {}; for (const [z, v] of Object.entries(core)) if (+z >= 3) wind[z] = w * v; add(ret, wind); remnant = qg - w * ashCore; }
-    choices.push({ g, w, f: fx, fate, remnant: +remnant.toFixed(5), returned: Object.fromEntries(Object.entries(ret).map(([z, v]) => [z, +v.toFixed(6)])), iron: +iron.toFixed(6), rock: +rock.toFixed(6) }); }
+    choices.push({ g, w, f: fx, fate, remnant: +remnant.toFixed(5), returned: Object.fromEntries(Object.entries(ret).map(([z, v]) => [z, +v.toFixed(6)])), iron: +iron.toFixed(6), rock: +rock.toFixed(6), ...(rock > 0 ? { rockBy: Object.fromEntries(Object.entries(rockBy).filter(([, v]) => v > 1e-7).map(([z, v]) => [z, +v.toFixed(6)])) } : {}) }); }
   stars.push({ G: +G, s: +s, m: +m, life: +life.toFixed(3), lifeFlag: flag, runEnd: +T.at(-1).tGyr.toFixed(2), XcEnd: +T.at(-1).Xc.toFixed(4), profileXc: +(rows[0]["1-1"] ?? rows[0].H).toFixed(4), X0: +X0.toFixed(4), qcore: +qcore.toFixed(4), ashCore: +ashCore.toFixed(5), ashAll: +ashAll.toFixed(5), lead: lead && +lead, choices });
 }
 stars.sort((a, b) => a.s - b.s || a.m - b.m);
@@ -90,21 +90,23 @@ function galaxy(ladder, { alpha, tau, g, w, f, tEnd = 60, dt = 0.02 }) {
 /* the net yield (the standard closed-box measure; Z = p ln(1/μ) at gas fraction μ with instant recycling, whatever τ):
    elements past helium returned, per mass locked away in remnants and in stars still living at tg, on the mass function
    over the ladder (ln m, linear between its stars), and what share of it each element or burnt group is */
-function netYield(ladder, { alpha, g, w, f, tg }) { const ms = ladder.map((x) => x.m), lo = Math.log(MLO), hi = Math.log(MHI), NB = 200; let made = 0, locked = 0; const by = {};
+function netYield(ladder, { alpha, g, w, f, tg }) { const ms = ladder.map((x) => x.m), lo = Math.log(MLO), hi = Math.log(MHI), NB = 200; let made = 0, locked = 0; const by = {}, rb = {};
   for (let b = 0; b < NB; b++) { const lm = lo + ((hi - lo) * (b + 0.5)) / NB, m = Math.exp(lm), i = Math.max(1, ms.findIndex((x) => x >= m)), A = ladder[i - 1], B = ladder[Math.min(i, ladder.length - 1)], t = B === A ? 0 : (lm - Math.log(A.m)) / (Math.log(B.m) - Math.log(A.m)), wt = m ** (2 - alpha);
     if (m < ms[0]) { locked += wt; continue; }
     const ca = A.choices.find((c) => c.g === g && c.w === w && c.f === f), cb = B.choices.find((c) => c.g === g && c.w === w && c.f === f), life = Math.exp(Math.log(A.life) * (1 - t) + Math.log(B.life) * t);
     if (!(life < tg)) { locked += wt; continue; } locked += wt * (ca.remnant * (1 - t) + cb.remnant * t);
     const part = {}; for (const z of new Set([...Object.keys(ca.returned), ...Object.keys(cb.returned)])) if (+z >= 3) part[z] = (ca.returned[z] ?? 0) * (1 - t) + (cb.returned[z] ?? 0) * t;
-    part.iron = ca.iron * (1 - t) + cb.iron * t; part.rock = ca.rock * (1 - t) + cb.rock * t; for (const [z, v] of Object.entries(part)) { made += wt * v; by[z] = (by[z] ?? 0) + wt * v; } }
-  return { p: made / locked, mix: Object.fromEntries(Object.entries(by).filter(([, v]) => v > 1e-3 * made).map(([z, v]) => [z, +(v / made).toFixed(4)])) }; }
+    part.iron = ca.iron * (1 - t) + cb.iron * t; part.rock = ca.rock * (1 - t) + cb.rock * t; for (const [z, v] of Object.entries(part)) { made += wt * v; by[z] = (by[z] ?? 0) + wt * v; }
+    for (const z of new Set([...Object.keys(ca.rockBy ?? {}), ...Object.keys(cb.rockBy ?? {})])) rb[z] = (rb[z] ?? 0) + wt * ((ca.rockBy?.[z] ?? 0) * (1 - t) + (cb.rockBy?.[z] ?? 0) * t); }
+  // rockBy: the rock row by the ash element that burnt to it, as shares of p (its sum is mix.rock), for abund4.mjs
+  return { p: made / locked, mix: Object.fromEntries(Object.entries(by).filter(([, v]) => v > 1e-3 * made).map(([z, v]) => [z, +(v / made).toFixed(4)])), rockBy: Object.fromEntries(Object.entries(rb).filter(([, v]) => v > 1e-4 * made).map(([z, v]) => [z, +(v / made).toFixed(4)])) }; }
 const byS = {}; for (const x of stars) (byS[x.s] ??= []).push(x);
 for (const [s, all] of Object.entries(byS)) { const lad = all.filter((x) => isFinite(x.life)).sort((a, b) => a.m - b.m); if (lad.length < 3) continue;
   if (!(lad[0].m <= MLO + 1e-9 || lad[0].life > 30)) throw new Error(`yields4: s ${s}'s lowest star (${lad[0].m} M_Ch) dies within 30 Gyr; the stars below it can't be counted as locked`);
   if (lad.at(-1).m < MHI - 1e-9) throw new Error(`yields4: s ${s}'s ladder stops below ${MHI} M_Ch`); }
 const yields = [];
 for (const [s, all] of Object.entries(byS)) { const lad = all.filter((x) => isFinite(x.life)).sort((a, b) => a.m - b.m); if (lad.length < 3) continue;
-  for (const alpha of [2.35, 1.9]) for (const g of [1, 1.25, 1.5]) for (const w of [0.03, 0.3]) for (const f of [30, 100]) for (const tg of [10, 30]) { const y = netYield(lad, { alpha, g, w, f, tg }); yields.push({ s: +s, alpha, g, w, f, tg, p: +y.p.toExponential(4), mix: y.mix }); } }
+  for (const alpha of [2.35, 1.9]) for (const g of [1, 1.25, 1.5]) for (const w of [0.03, 0.3]) for (const f of [30, 100]) for (const tg of [10, 30]) { const y = netYield(lad, { alpha, g, w, f, tg }); yields.push({ s: +s, alpha, g, w, f, tg, p: +y.p.toExponential(4), mix: y.mix, ...(Object.keys(y.rockBy).length ? { rockBy: y.rockBy } : {}) }); } }
 const galaxies = [];
 for (const [s, all] of Object.entries(byS)) { const lad = all.filter((x) => isFinite(x.life)).sort((a, b) => a.m - b.m); if (lad.length < 3) continue;
   for (const alpha of [2.35, 1.9]) for (const tau of [1, 3]) for (const g of [1, 1.25, 1.5]) for (const w of [0.03, 0.3]) for (const f of [30, 100]) galaxies.push({ s: +s, alpha, tau, g, w, f, masses: lad.map((x) => x.m), track: galaxy(lad, { alpha, tau, g, w, f }) }); }
