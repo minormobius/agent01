@@ -38,6 +38,13 @@
 :root { color-scheme: light; } :root[data-theme="dark"] { color-scheme: dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
 .th { font-family: var(--mono); font-size: 0.6rem; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 12px; padding: 0.2rem 0.55rem; cursor: pointer; min-height: 1.7rem; }
+/* autopilot: the lecturer's subtitle sits just above the sheet; the widget stays visible behind it */
+.lec { font-family: var(--mono); font-size: 0.6rem; background: var(--bg); color: var(--fg); border: 1px solid var(--accent); border-radius: 12px; padding: 0.2rem 0.6rem; cursor: pointer; min-height: 1.7rem; }
+.lec.on { background: var(--accent-tint); color: var(--accent); }
+.sub { position: absolute; left: 0.7rem; right: 0.7rem; bottom: calc(var(--peek) + 10px); z-index: 6; display: none; gap: 0.5rem; align-items: flex-end; pointer-events: none; }
+.sub.on { display: flex; }
+.sub p { flex: 1; margin: 0; padding: 0.45rem 0.65rem; border-radius: 10px; background: rgba(11,11,11,0.78); color: #fff; font-size: 0.9rem; line-height: 1.35; -webkit-user-select: text; user-select: text; pointer-events: auto; }
+.sub button { pointer-events: auto; font-family: var(--mono); font-size: 0.58rem; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px; padding: 0.35rem 0.55rem; cursor: pointer; }
 /* the chatbot: a panel over the sheet; its text is selectable */
 .ask { font-family: var(--mono); font-size: 0.6rem; background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 12px; padding: 0.2rem 0.6rem; cursor: pointer; min-height: 1.7rem; }
 .chat { position: absolute; left: 0; right: 0; bottom: 0; height: 78%; z-index: 8; background: var(--bg); border-top: 1px solid var(--rule); border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.12); display: none; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
@@ -162,9 +169,10 @@ button.b.on { border-color: var(--accent); color: var(--accent); background: var
 </div>
 <div class="device" id="device">
   <div class="bars" id="bars"></div>
-  <div class="hdr"><a href="../">← riemann</a><span class="ch" id="ch"></span><button class="ask" id="askBtn" aria-label="ask a question about this slide">ask</button><button class="th" id="theme"></button></div>
+  <div class="hdr"><a href="../">← riemann</a><span class="ch" id="ch"></span><button class="lec" id="lectureBtn" aria-label="lecture mode: the deck plays itself, spoken">▶ lecture</button><button class="ask" id="askBtn" aria-label="ask a question about this slide">ask</button><button class="th" id="theme"></button></div>
   <div class="stage" id="stage"></div>
   <div class="toast" id="toast">done ✓</div>
+  <div class="sub" id="sub" aria-live="polite"><p id="subText"></p><button id="apStop" aria-label="stop the lecture">stop</button></div>
   <div class="chat" id="chat" role="dialog" aria-label="ask about this deck">
     <div class="top"><b>Ask about slide <span id="chatSlide">1</span></b><small>Gemini, or Llama when busy · answers from this deck · can be wrong</small><button id="chatClose">close</button></div>
     <div class="msgs" id="msgs" aria-live="polite"></div>
@@ -182,6 +190,8 @@ button.b.on { border-color: var(--accent); color: var(--accent); background: var
 import * as R from '../riemann.js';
 import { ZEROS } from '../zeros.js';
 import { css, frame, path, axes, cursor, tip, theme, noSelect } from './kit.js';
+import { LECTURE } from './lecture.js';
+import { DUR } from './narration.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -764,8 +774,9 @@ function renderSheet(i) {
   sbody.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => { if (S.pred[i] !== undefined) return; S.pred[i] = +b.dataset.p; save(); renderSheet(i); requestAnimationFrame(setPeek); });
 }
 
-function go(i) {
+function go(i, how = {}) {
   i = Math.max(0, Math.min(SLIDES.length - 1, i));
+  if (!how.auto && AP.on && i !== S.i) { AP.k = 0; if (!AP.paused) restartLecture(); }
   live?.destroy?.();
   S.i = i; save();
   if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
@@ -780,7 +791,7 @@ function go(i) {
   $('toc').querySelectorAll('li').forEach((li, j) => { li.classList.toggle('cur', j === i); li.classList.toggle('done', !!S.done[j]); });
   setPeek();
   stage.innerHTML = '';
-  const ctx = { done: () => { if (S.done[i]) return; S.done[i] = true; save(); toast('done ✓'); const d = sbody.querySelector('.do'); if (d) { d.classList.add('done'); d.querySelector('.ic').textContent = '✓'; } $('toc').querySelectorAll('li')[i]?.classList.add('done'); } };
+  const ctx = { done: () => { if (S.done[i] || (AP.on && !AP.paused)) return; S.done[i] = true; save(); toast('done ✓'); const d = sbody.querySelector('.do'); if (d) { d.classList.add('done'); d.querySelector('.ic').textContent = '✓'; } $('toc').querySelectorAll('li')[i]?.classList.add('done'); } };
   requestAnimationFrame(() => { live = SLIDES[i].mount(stage, ctx) || {}; });
 }
 
@@ -815,6 +826,101 @@ addEventListener('hashchange', () => { const n = parseInt(location.hash.slice(1)
 }
 
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (full) sheet.style.height = ($('device').clientHeight * 0.88) + 'px'; else setPeek(); live?.resize?.(); }, 120); });
+// ----------------------------------------------------------- autopilot ---
+// The deck plays itself: studio's formant voice (vendor/chipvoice) reads lecture.js line by line,
+// each line driving the widget (sweep a slider, press a button, place the cursor) while it is said.
+// Subtitles always. The reader's own touch, key or page turn takes over: a touch pauses, a page
+// turn restarts the lecture on that slide. Autopilot never ticks a task or answers a prediction.
+const AP = { on: false, paused: false, k: 0, token: 0, actx: null, src: null, anim: null };
+window.__autopilot = AP;   // for the browser selftest
+let voice = null, vid = 0;
+const pendingVoice = new Map(), voiceCache = new Map();
+function renderLine(text) {
+  if (!voice) {
+    voice = new Worker(new URL('./voice.worker.js', import.meta.url), { type: 'module' });
+    voice.onmessage = (e) => { pendingVoice.get(e.data.id)?.(e.data); pendingVoice.delete(e.data.id); };
+  }
+  return new Promise((res) => { const id = ++vid; pendingVoice.set(id, res); voice.postMessage({ id, text }); });
+}
+const audioFor = (s, k) => {
+  const line = LECTURE[s]?.[k]; if (!line) return null;
+  const key = s + ':' + k;
+  if (!voiceCache.has(key)) voiceCache.set(key, renderLine(line.say));
+  return voiceCache.get(key);
+};
+const sleep = (ms, token) => new Promise((r) => setTimeout(r, ms));
+function play(rendered, seconds, token) {
+  // falls back to silence of the line's length if audio is unavailable, so the lecture still runs
+  return new Promise((resolve) => {
+    const done = () => { AP.src = null; resolve(); };
+    try {
+      if (!AP.actx || !rendered?.audio) throw new Error('no audio');
+      const buf = AP.actx.createBuffer(1, rendered.audio.length, rendered.rate);
+      buf.copyToChannel(rendered.audio, 0);
+      const src = AP.actx.createBufferSource(), g = AP.actx.createGain();
+      g.gain.value = 0.9; src.buffer = buf; src.connect(g).connect(AP.actx.destination);
+      src.onended = done; AP.src = src; src.start();
+    } catch { AP.src = { stop: done }; setTimeout(() => { if (AP.src) done(); }, seconds * 1000); }
+  });
+}
+function stopSound() { const s = AP.src; AP.src = null; try { s?.stop(); } catch {} cancelAnimationFrame(AP.anim); }
+function chartEl() { return stage.querySelector('.w .plot svg:not([style*="pointer-events:none"]), .w .plot canvas'); }
+function act(line, seconds) {
+  if (line.click) stage.querySelector(line.click)?.click();
+  if (line.hover) {
+    const el = chartEl(), b = el?.getBoundingClientRect();
+    if (b) el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse', clientX: b.left + b.width * line.hover[0], clientY: b.top + b.height * line.hover[1] }));
+  }
+  if (line.drive) {
+    const [id, from, to] = line.drive, el = $(id); if (!el) return;
+    const t0 = performance.now(), T = Math.max(400, seconds * 850);
+    const step = (now) => {
+      const u = Math.min(1, (now - t0) / T), e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+      el.value = from + (to - from) * e; el.dispatchEvent(new Event('input', { bubbles: true }));
+      if (u < 1) AP.anim = requestAnimationFrame(step);
+    };
+    AP.anim = requestAnimationFrame(step);
+  }
+}
+function showSub(text) { $('subText').textContent = text; $('sub').classList.toggle('on', !!text); }
+function lectureLabel() {
+  const b = $('lectureBtn');
+  b.textContent = !AP.on ? '▶ lecture' : AP.paused ? '▶ resume' : '❚❚ pause';
+  b.classList.toggle('on', AP.on);
+}
+async function lectureLoop(token) {
+  while (AP.on && !AP.paused && token === AP.token) {
+    const lines = LECTURE[S.i] || [];
+    if (AP.k >= lines.length) {
+      if (S.i >= SLIDES.length - 1) { stopLecture(); return; }
+      await sleep(900); if (token !== AP.token) return;
+      AP.k = 0; go(S.i + 1, { auto: true }); await sleep(500); if (token !== AP.token) return;
+      continue;
+    }
+    const s = S.i, k = AP.k, line = lines[k], seconds = DUR[s]?.[k] || 3;
+    audioFor(s, k + 1) || audioFor(s + 1, 0);           // render the next line while this one plays
+    const rendered = await audioFor(s, k); if (token !== AP.token) return;
+    showSub(line.text || line.say);
+    act(line, seconds);
+    await play(rendered, seconds, token); if (token !== AP.token) return;
+    if (line.wait) { await sleep(line.wait); if (token !== AP.token) return; }
+    AP.k++;
+  }
+}
+function startLecture() {
+  try { AP.actx = AP.actx || new (window.AudioContext || window.webkitAudioContext)(); AP.actx.resume?.(); } catch { AP.actx = null; }
+  if (full) setFull(false);
+  closeChat();
+  AP.on = true; AP.paused = false; lectureLabel(); lectureLoop(++AP.token);
+}
+function pauseLecture() { if (!AP.on || AP.paused) return; AP.paused = true; AP.token++; stopSound(); lectureLabel(); }
+function restartLecture() { AP.token++; stopSound(); AP.paused = false; lectureLabel(); setTimeout(() => lectureLoop(AP.token), 350); }
+function stopLecture() { AP.on = false; AP.paused = false; AP.token++; AP.k = 0; stopSound(); showSub(''); lectureLabel(); }
+$('lectureBtn').onclick = () => (!AP.on ? startLecture() : AP.paused ? (AP.paused = false, lectureLabel(), lectureLoop(++AP.token)) : pauseLecture());
+$('apStop').onclick = stopLecture;
+// the reader's own hands take over (synthetic events from act() are not trusted, so they don't count)
+for (const ev of ['pointerdown', 'keydown', 'wheel']) stage.addEventListener(ev, (e) => { if (e.isTrusted && AP.on && !AP.paused) pauseLecture(); }, { capture: true, passive: true });
+
 // ----------------------------------------------------------- the chatbot ---
 // POST /api/ask on the proofs worker: Llama 3.3 70B on Workers AI, with this deck's
 // text (context.txt) loaded server-side. We send only the question, the slide and
@@ -835,7 +941,7 @@ function renderChips() {
   $('chips').innerHTML = chips.map((c) => `<button>${esc(c)}</button>`).join('');
   $('chips').querySelectorAll('button').forEach((b) => b.onclick = () => sendQ(b.textContent));
 }
-function openChat() { $('chat').classList.add('on'); $('chatSlide').textContent = S.i + 1; renderChips(); renderMsgs(); setTimeout(() => $('q').focus(), 50); }
+function openChat() { pauseLecture(); $('chat').classList.add('on'); $('chatSlide').textContent = S.i + 1; renderChips(); renderMsgs(); setTimeout(() => $('q').focus(), 50); }
 function closeChat() { $('chat').classList.remove('on'); }
 let asking = false;
 async function sendQ(q) {

@@ -135,6 +135,24 @@ for (const f of ['index.html', 'learn/index.html']) {
   }
 }
 
+// ---- autopilot: the lecturer's voice is studio's, unchanged, and its narration is current ----
+{
+  const { spawnSync } = await import('node:child_process');
+  for (const f of ['chipvoice.js', 'chipvoice-profile.js', 'chipvoice-fit.js']) {
+    const ours = readFileSync(join(here, 'learn', 'vendor', 'chipvoice', f), 'utf8');
+    let theirs = null; try { theirs = readFileSync(join(here, '..', '..', 'studio', 'lib', f), 'utf8'); } catch {}
+    ok(theirs === null || ours === theirs, `learn/vendor/chipvoice/${f} is byte-identical to studio/lib/${f} (copy it again)`);
+  }
+  const r = spawnSync(process.execPath, [join(here, 'learn', 'build-narration.mjs'), '--check'], { encoding: 'utf8' });
+  ok(r.status === 0, `learn/narration.js is current (${(r.stderr || r.stdout).trim().split('\n').pop()})`);
+  const { LECTURE } = await import('./learn/lecture.js');
+  const slides = (readFileSync(join(here, 'learn', 'index.html'), 'utf8').match(/\n\s*ch: '/g) || []).length;
+  ok(LECTURE.length === slides, `lecture.js has a script for every slide (${LECTURE.length} of ${slides})`);
+  for (const [i, lines] of LECTURE.entries()) for (const l of lines) {
+    ok(typeof l.say === 'string' && l.say.length > 0 && !/[0-9ζπσ√½]/.test(l.say), `slide ${i + 1}: "say" is words only: ${l.say}`);
+  }
+}
+
 // ---- the chatbot's context is current with the deck and the page -----------------------
 {
   const { spawnSync } = await import('node:child_process');

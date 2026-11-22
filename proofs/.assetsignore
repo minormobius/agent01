@@ -7,3 +7,4 @@ wrangler.jsonc
 ramsey/build-traces.mjs
 worker.js
 riemann/learn/build-context.mjs
+riemann/learn/build-narration.mjs

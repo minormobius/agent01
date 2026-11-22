@@ -38,7 +38,7 @@ let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('FAIL', m); } };
 const t0 = Date.now();
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: false });
   const errors = [];
@@ -109,6 +109,45 @@ try {
     }
     if (i === 1) ok(charts.length > 0, 'slide 1 has a chart (the test is looking in the right place)');
   }
+
+  // autopilot (law 16): every line's target exists on its slide
+  for (let i = 1; i <= n; i++) {
+    await page.goto(`http://localhost:${port}/learn/#${i}`); await page.waitForTimeout(i === 5 ? 700 : 150);
+    const missing = await page.evaluate(async (i) => {
+      const { LECTURE } = await import('./lecture.js');
+      const st = document.getElementById('stage'), bad = [];
+      for (const l of LECTURE[i - 1] || []) {
+        if (l.drive && !document.getElementById(l.drive[0])) bad.push('drive ' + l.drive[0]);
+        if (l.click && !st.querySelector(l.click)) bad.push('click ' + l.click);
+        if (l.hover && !st.querySelector('.w .plot svg, .w .plot canvas')) bad.push('hover: no chart');
+      }
+      return bad;
+    }, i);
+    ok(missing.length === 0, `slide ${i}: autopilot targets exist (${missing.join(', ')}) (law 16)`);
+  }
+  // autopilot runs: voice renders, subtitle shows, the slider moves, no task is credited, a real touch pauses
+  await page.evaluate(() => { localStorage.removeItem('riemann-learn-v1'); });
+  await page.goto(`http://localhost:${port}/learn/#1`); await page.reload(); await page.waitForTimeout(300);
+  await page.click('#lectureBtn');
+  await page.waitForFunction(() => document.getElementById('sub').classList.contains('on'), null, { timeout: 5000 }).catch(() => {});
+  ok((await page.textContent('#subText')) === "Let's start by counting primes.", 'autopilot shows the first line as a subtitle (law 16)');
+  ok((await page.textContent('#lectureBtn')).includes('pause'), 'the lecture button becomes pause (law 16)');
+  const rendered = await page.evaluate(async () => {
+    const { speak } = await import('./vendor/chipvoice/chipvoice.js'); const { LEXICON, DUR } = await import('./narration.js');
+    const r = speak("Let's start by counting primes.", LEXICON, { rate: 16000 }); return { secs: r.audio.length / 16000, dur: DUR[0][0], peak: Math.max(...r.audio.map(Math.abs)) };
+  });
+  ok(Math.abs(rendered.secs - rendered.dur) < 0.05 && rendered.peak > 0.05, `the voice renders the line in the browser (${rendered.secs.toFixed(2)} s vs ${rendered.dur} s, peak ${rendered.peak.toFixed(2)}) (law 16)`);
+  const seen = new Set();
+  for (let t = 0; t < 26; t++) { seen.add(+(await page.inputValue('#kx'))); await page.waitForTimeout(100); }
+  ok(seen.size >= 5 && Math.min(...seen) < 50, `autopilot sweeps the slider (${seen.size} values, from ${Math.min(...seen)} to ${Math.max(...seen)}) (law 16)`);
+  ok(await page.evaluate(() => !JSON.parse(localStorage.getItem('riemann-learn-v1') || '{}').done?.[0]), 'autopilot does not tick the task (law 16)');
+  const box1 = await (await page.$('.w .plot svg')).boundingBox();
+  await page.mouse.click(box1.x + box1.width * 0.3, box1.y + box1.height * 0.5);
+  await page.waitForTimeout(150);
+  ok(await page.evaluate(() => window.__autopilot.paused === true), 'a real touch on the widget pauses the lecture (law 16)');
+  ok((await page.textContent('#lectureBtn')).includes('resume'), 'the button offers resume (law 16)');
+  await page.click('#apStop'); await page.waitForTimeout(100);
+  ok(await page.evaluate(() => !window.__autopilot.on && !document.getElementById('sub').classList.contains('on')), 'stop ends the lecture and hides the subtitle (law 16)');
 
   // the chatbot (law 15), with /api/ask mocked: no model is called from a test
   let sent = null;

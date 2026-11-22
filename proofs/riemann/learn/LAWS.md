@@ -117,3 +117,33 @@ current slide, suggests three questions, and streams the answer.
   answer renders with slide links, the keyboard behaves, and a 429 is shown.
   `proofs/worker.selftest.mjs` checks the endpoint's guards against a fake AI,
   and `riemann.selftest.mjs` fails if `context.txt` is stale.
+
+## Autopilot
+
+**16. The deck can lecture itself, and the reader can always take over.** The
+header's **▶ lecture** button starts autopilot. Studio's formant voice
+(`studio/lib/chipvoice.js`, copied byte-identically to `vendor/chipvoice/`)
+reads each slide's script in `lecture.js`. Each line can sweep a slider, press
+a button or place the chart's cursor for as long as it takes to say. At the end
+of a slide's lines the deck turns the page.
+- **Subtitles always.** Every spoken line is shown, written the way a reader
+  would write it (`text`), over the widget and above the sheet. The voice is
+  synthetic and the subtitle is the record.
+- **The reader takes over.** A real touch, key or scroll on the widget pauses
+  the lecture (autopilot's own events are synthetic, so they don't count). A
+  page turn restarts it on the new slide. Opening the chat pauses it. **Stop**
+  ends it.
+- **Autopilot never acts for the reader**: it doesn't tick a slide's task and
+  doesn't answer a prediction. It asks, leaves a beat to think, and says the
+  answer.
+- **Lines are words.** `say` holds no digits or symbols ("pi of x", "one half"),
+  and every word must be in the generated lexicon. `build-narration.mjs` fails
+  on a word the CMU dictionary lacks.
+- *Machine-checked:*
+  - the voice is studio's, unchanged
+  - `narration.js` is current, and every slide has a script of words only
+  - every line's target exists on its slide
+  - the voice renders a line in the browser at the length `narration.js` says
+  - the subtitle shows and the slider sweeps
+  - no task is credited
+  - a real touch pauses the lecture, and Stop ends it
