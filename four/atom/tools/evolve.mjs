@@ -207,6 +207,7 @@ const burnAll = (W, S0, sm, dt) => { const at = sm.rows, S = mix(S0, sm.stir), O
   return { S: O, E }; };
 
 function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, settle = 0, ckpt = null, from = null, gravAfter = 0 }) {
+  const HFLOOR = Math.max(Hstop, 1e-3); // the step rule's floor on a shell's hydrogen (below)
   let S = Array.from({ length: NQ + 1 }, () => W.init()), t = 0;
   // a checkpoint (written every few minutes, so a run cut at a deadline resumes): the shells, the clock, the star's
   // unknowns and its last conditions, pinned gravity as a table, and what has been kept so far
@@ -270,7 +271,11 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     writeFileSync(ckpt + ".part", JSON.stringify({ S: S.map((x) => Array.from(x)), t, dtLast, p: s.p, at: smp.rows.map((r) => ({ rho: r.rho, T: r.T })), fTab: ft, track, profiles, settled, nextProf, nextFrac, ...(W.grav ? { gref: grefOf() } : {}) })); renameSync(ckpt + ".part", ckpt); lastCk = Date.now(); };
   if (!C) { keep(); keepProf(s, smp); } if (W.grav) remember();
   for (let n = 0; n < 3000 && t < tmax && W.H(S[0]) > Hstop; n++) {
-    let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, Hstop)) / -d); }
+    // the step: no shell's hydrogen to change by more than dX, nor by more than a tenth of what it holds down to HFLOOR.
+    // HFLOOR is Hstop's 10⁻³ in a main-sequence run (so those are unchanged); past exhaustion (Hstop below it) it stays
+    // 10⁻³, since a burning shell always has a layer nearly out of hydrogen, which with Hstop 10⁻³⁰ as the floor held
+    // every step to a few thousand years (evolve4-16 to -19, and the first relaxation run)
+    let dt = dtLast * 2; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const h = W.H(S[j]), d = W.dHdt(r.rho, r.T, S[j]); if (d < 0) dt = Math.min(dt, dX / -d, (0.1 * Math.max(h, HFLOOR)) / -d); }
     if (process.env.DEBUG_DT) { let jm = -1, dm = Infinity; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const d = W.dHdt(r.rho, r.T, S[j]); if (d < 0 && dX / -d < dm) { dm = dX / -d; jm = j; } } console.log(`    dt ${(dt / YR).toExponential(2)} yr; the tightest shell q ${QS[jm]?.toFixed(4)} T ${(smp.rows[jm]?.T / 1e6).toFixed(2)} MK, X ${W.H(S[jm]).toFixed(4)}, dX/dt ${(-dX / dm * YR).toExponential(2)} /yr`); }
     dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {

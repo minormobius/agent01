@@ -1479,6 +1479,10 @@ for games, and this is a modelling programme with publications to come. The game
   2026-11-22 had gravity 0.4–4% weak:** the benchmark star (G 1e-17 s 1.5152 0.78 M_Ch, mid-life) comes out ~7% brighter
   and 1.5% larger with it corrected, so ages and yields move by a few per cent; nothing committed has been rerun yet.
   Scratch checks: relaxcheck.mjs, pinned.mjs.
+  **The other half of the stall (2026-11-22):** with relaxation the star past exhaustion solved 61 models with no failure,
+  but its steps stayed at ~7 kyr. The step rule caps a step at a tenth of each burning shell's hydrogen down to a floor,
+  which was Hstop: 10⁻³ on the main sequence, but 10⁻³⁰ in the past-exhaustion runs, and a burning shell always has a
+  layer nearly out of hydrogen. The floor is now max(Hstop, 10⁻³) (`HFLOOR`); main-sequence runs are byte-identical.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
