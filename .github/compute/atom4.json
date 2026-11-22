@@ -1,12 +1,12 @@
 {
- "run": "evolve4-18",
- "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch star on through shell burning (grav=1), meeting at 0.1 of the mass (evolve4-16 stopped at 0.2 as the envelope swelled). evolve4-17 stopped after one model because its command kept gravAfter=0.01, which switched the energy of contraction off at the resume; that flag is now ignored on checkpoints that keep their reference. Same question: does the core reach the 1 M_Ch it needs to explode.",
+ "run": "evolve4-19",
+ "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch star on past central-hydrogen exhaustion (grav=1, meeting at 0.1 of the mass). evolve4-16 and -18 stopped because Newton solves ending at the 60-step cap were refused even under the loose bar (fixed in mainseq.js), and the residual floor rises as the envelope swells (7e-4 to 1.8e-3 by 15.112 Gyr), so the bar is 1e-3 here (loose=1e-3, a 0.1% mismatch at the meeting point). The question: does the core reach the 1 M_Ch it needs to explode; the run also measures how many models a runner run buys.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev18-00",
+   "name": "ev19-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 fit=0.1"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 fit=0.1 loose=1e-3"
    ]
   }
  ]

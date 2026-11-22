@@ -1434,6 +1434,14 @@ for games, and this is a modelling programme with publications to come. The game
   Candidate fix, untested: when all tries fail, re-solve the current star as a resume does, then retry the step. Not
   queued again until that is tested: as is, a runner run buys ~1 Myr, and the core has ~0.85 M_Ch to go. egrav.json,
   section 4's provisional paragraph and the status page say the run is paused on the solver.
+  **The stop, found (2026-11-22):** reproduced in the sandbox from evolve4-16's checkpoint (17 models, stop at 15.112 Gyr,
+  DEBUG_SOLVE): the half-step solves ended at mainseq.js's 60-step Newton cap with residuals 6 × 10⁻⁵–2 × 10⁻⁴, under the
+  5 × 10⁻⁴ loose bar, but only a stall was allowed that bar, so the step was refused and halved into tiny steps that did
+  stall. **Fix (mainseq.js):** a capped solve under `opts.loose` counts as solved, as a stall does (ours sets no loose bar,
+  so its stars are unaffected; selftest passes). With it the same case runs on (23 models in 40 min, cut by the sandbox
+  timeout, not the solver), but the residual floor is rising as the envelope swells (capped solves at 7 × 10⁻⁴–1.8 × 10⁻³),
+  so **`loose=<residual>`** is now a CLI option (the runner can't take env; not in the file name). evolve4-19 carries the
+  star on at fit=0.1 loose=1e-3 (a 0.1% mismatch at the meeting point); it resumes evolve4-18's checkpoint.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
