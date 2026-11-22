@@ -1494,6 +1494,9 @@ for games, and this is a modelling programme with publications to come. The game
   out of reach without longer steps; (3) **a giant's checkpoint can't resume**: a resume shoots its first model (the
   checkpoint carries no profile), and shooting can't solve a giant ("residual 1.1 × 10³"). Checkpoints should carry the
   profile so a relax run resumes by relaxation. The H-free core read 0.18 M_Ch at the end (the grid's resolution).
+  **Done (2026-11-22): a relax=1 checkpoint carries its model's profile** (`prof`: [m, r, P, T, L] per node; other runs'
+  checkpoints unchanged) and the resume relaxes from it (checked: the resumed solves say "relax"; DEBUG_SOLVE now names
+  the method).
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

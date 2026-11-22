@@ -173,7 +173,7 @@ function solve(W, M, S, guess, at0, f0 = null, scale = 1, gr = null) {
     if (W.relax && !s.ok && p.prof) { if (process.env.DEBUG_SOLVE) console.log(`    relax failed (${s.why}, res ${s.res?.toExponential(2)}): shooting`); s = star(so, p); }
     if (s.ok) s.p.prof = s.prof;
     if (!s.ok) return { s }; p = s.p; at = sample(W, M, S, s).rows;
-    if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (Newton ${s.it})`);
+    if (process.env.DEBUG_SOLVE) console.log(`    solve ${k}: L ${s.L.toExponential(6)} (${s.relax ? "relax" : "shoot"}, Newton ${s.it})`);
     if (last && Math.abs(Math.log(s.L / last)) < 1e-4) break; last = s.L;
   }
   // pinned gravity is held through the solve (pinnedF from a profile carries ~1% noise, which would never let L settle)
@@ -217,9 +217,10 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   if (from && !src) throw new Error(`from: neither ${ckpt} nor ${path.join(DIR, from)} exists`);
   if (C) { const ft = C.fTab, fOf = ft ? (m) => { const [a, b, u] = bracket(ft.map((x) => x[0]), m); return ft[a][1] * (1 - u) + ft[b][1] * u; } : null;
     S = C.S.map((x) => Float64Array.from(x)); t = C.t;
+    // a relax=1 checkpoint carries its model's profile, so the resume relaxes from it (shooting can't solve a giant)
     // with ε_grav, the checkpointed star is re-solved as it was saved: against its own reference (gref[0]), else a star
     // re-solved without it comes out a few per cent off (1.9% in ρc past exhaustion) and mistakes itself for a new model
-    const g0 = W.grav && C.gref?.length > 1 && C.t > C.gref[0].t ? { prof: C.gref[0].prof, dt: C.t - C.gref[0].t } : null, r = solve(W, M, S, C.p, C.at, fOf, 1, g0); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
+    const g0 = W.grav && C.gref?.length > 1 && C.t > C.gref[0].t ? { prof: C.gref[0].prof, dt: C.t - C.gref[0].t } : null, r = solve(W, M, S, Object.assign(C.p.slice(), W.relax && C.prof ? { prof: C.prof.map(([m, rr, P, T, L]) => ({ m, r: rr, P, T, L })) } : {}), C.at, fOf, 1, g0); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
     console.log(`${label}: resumed at ${(t / GYR).toFixed(4)} Gyr from ${src}`); return run(r.s, r.f, C); }
   return run(null, null, null);
   function run(s1, g1, C) {
@@ -268,7 +269,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     const keepH = k >= 0 ? [hist[k]] : [hist[0]], last = hist.at(-1); if (last !== keepH[0]) keepH.push(last);
     return keepH.map((h) => ({ t: h.t, rhoc: h.rhoc, prof: h.prof.map((x) => ({ m: x.m, P: x.P, T: x.T })) })); };
   const save = () => { if (!ckpt) return; const ft = W.pinned && grav ? s.prof.filter((_, i) => i % 4 === 0).map((q) => [q.m, grav(q.m)]) : null;
-    writeFileSync(ckpt + ".part", JSON.stringify({ S: S.map((x) => Array.from(x)), t, dtLast, p: s.p, at: smp.rows.map((r) => ({ rho: r.rho, T: r.T })), fTab: ft, track, profiles, settled, nextProf, nextFrac, ...(W.grav ? { gref: grefOf() } : {}) })); renameSync(ckpt + ".part", ckpt); lastCk = Date.now(); };
+    writeFileSync(ckpt + ".part", JSON.stringify({ S: S.map((x) => Array.from(x)), t, dtLast, p: s.p, at: smp.rows.map((r) => ({ rho: r.rho, T: r.T })), fTab: ft, track, profiles, settled, nextProf, nextFrac, ...(W.grav ? { gref: grefOf() } : {}), ...(W.relax ? { prof: s.prof.map((q) => [q.m, q.r, q.P, q.T, q.L]) } : {}) })); renameSync(ckpt + ".part", ckpt); lastCk = Date.now(); };
   if (!C) { keep(); keepProf(s, smp); } if (W.grav) remember();
   for (let n = 0; n < 3000 && t < tmax && W.H(S[0]) > Hstop; n++) {
     // the step: no shell's hydrogen to change by more than dX, nor by more than a tenth of what it holds down to HFLOOR.
