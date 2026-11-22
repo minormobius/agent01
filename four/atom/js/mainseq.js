@@ -129,14 +129,22 @@ export function equations(opts) {
   // photosphere its grey atmosphere's. Off unless given, so every other run is as it was
   const cool = opts.cool ?? null, lT1 = cool ? Math.log(cool.Tlo ?? 2e5) : 0, lT2 = cool ? Math.log(cool.Thi ?? 4e5) : 0;
   const rhs = (m, y) => { const r = Math.exp(y[0]), P = Math.exp(y[1]), T = Math.exp(y[2]), L = y[3];
-    const wc = cool ? Math.max(0, Math.min(1, (lT2 - y[2]) / (lT2 - lT1))) : 0; // 1: all cool gas, 0: the interior's
+    // 1: all cool gas, 0: the interior's; smoothstep in ln T, so the blend's slope is continuous at both edges (a linear
+    // ramp kinked there, and relaxation's Newton pinned a node on the kink at exactly 2 × 10⁵ K, stalled at 4 × 10⁻³)
+    const tc = cool ? Math.max(0, Math.min(1, (lT2 - y[2]) / (lT2 - lT1))) : 0, wc = tc * tc * (3 - 2 * tc);
     const g = (G * Math.max(m, 1e-300) * (ff ? ff(m) : 1)) / (r * r), dPdm = -g / (S * r ** (d - 1));
     let rho = NaN, nab = NaN;
     if (wc < 1) { rho = rhoOf(d, P, T, cAt(m)); if (!(rho > 0)) return [NaN, NaN, NaN, NaN];
       const dTdmRad = (-d * kappa(rho, T, m) * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1))); nab = Math.min((dTdmRad * P) / (T * dPdm), gad); }
-    if (wc > 0) { const gs = cool.gas(T, P), dTdmRad = (-d * gs.kappa * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1))), grad = (dTdmRad * P) / (T * dPdm);
-      const nc = cool.nabla(T, P, gs.rho, g, gs.kappa, gs.gad, gs.delta, gs.cp, grad).nab; if (!(gs.rho > 0) || !Number.isFinite(nc)) return [NaN, NaN, NaN, NaN];
-      if (wc === 1) { rho = gs.rho; nab = nc; } else { rho = Math.exp((1 - wc) * Math.log(rho) + wc * Math.log(gs.rho)); nab = (1 - wc) * nab + wc * nc; } }
+    if (wc > 0) { const gs = cool.gas(T, P), cm = cAt(m), c0 = cAt(M); let fr = 1, fk = 1;
+      // the cool gas is the envelope's own composition (cAt(M)); where a deep convective envelope reaches processed matter
+      // (the 4D giant's, X 0.37 with Z 0.44 at m/M 0.47, where it sat 0.65× the interior's ρ at every T, μ not ionization)
+      // ρ, κ and c_p take the interior physics' ratio between the local composition and the envelope's at the same (P, T):
+      // exact where the gas is ionized, first order in its partial-ionization zones; an identity where nothing burnt
+      if (cm !== c0 && (Math.abs(cm.X - c0.X) > 1e-9 || Math.abs((cm.Y ?? 0) - (c0.Y ?? 0)) > 1e-9)) { const ri = wc < 1 ? rho : rhoOf(d, P, T, cm), r0 = rhoOf(d, P, T, c0); fr = ri / r0; fk = kappa(ri, T, m) / kappa(r0, T, M); }
+      const rc = gs.rho * fr, kc = gs.kappa * fk, dTdmRad = (-d * kc * L) / (SI.c * (d + 1) * a * T ** d * S * S * r ** (2 * (d - 1))), grad = (dTdmRad * P) / (T * dPdm);
+      const nc = cool.nabla(T, P, rc, g, kc, gs.gad, gs.delta, gs.cp / fr, grad).nab; if (!(rc > 0) || !Number.isFinite(nc)) return [NaN, NaN, NaN, NaN];
+      if (wc === 1) { rho = rc; nab = nc; } else { rho = Math.exp((1 - wc) * Math.log(rho) + wc * Math.log(rc)); nab = (1 - wc) * nab + wc * nc; } }
     return [1 / (S * r ** d * rho), dPdm / P, (nab * dPdm) / P, eps(rho, T, m, P)]; };
   const surface = cool ? (lnR, lnL) => { const ph = cool.photosphere({ M, R: Math.exp(lnR), L: Math.exp(lnL), G, f: ff ? ff(M) : 1 }); return [lnR, Math.log(ph.P), Math.log(ph.Teff), Math.exp(lnL)]; } : (lnR, lnL) => { const R = Math.exp(lnR), L = Math.exp(lnL), Te = Math.pow(L / (S * R ** (d - 1) * sigmaSB(d)), 1 / (d + 1)), g = (G * M) / (R * R);
     let P = 1; for (let i = 0; i < 30; i++) { const rho = rhoOf(d, P, Te, cAt(M)) || 1e-30; P = ((2 / 3) * g) / kappa(rho, Te, M) + (a * Te ** (d + 1)) / d; } return [lnR, Math.log(P), Math.log(Te), L]; };

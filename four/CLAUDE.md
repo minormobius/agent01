@@ -1513,8 +1513,27 @@ for games, and this is a modelling programme with publications to come. The game
   composition grid (1.8% at 14 kyr steps, 0.8% at 1.8 kyr): `baltol=<fraction>` (default 0.003; env BALTOL) loosens it
   past exhaustion, where a percent is harmless to the question (does the core reach 1 M_Ch).
   **The 4D giant with the cool gas (sandbox, 4 min from evolve4-19's checkpoint, relax=1 cool=1 baltol=0.02):** 24 models,
-  no halvings; the star swells to R ≈ 4.3 × 10¹⁰ m and stops cooling at Teff ≈ 3200–3300 K, where 4D hydrogen recombines:
-  4D's Hayashi line (without the cool gas it ran on to 900 K). evolve4-20 (queued) carries it on the runner.
+  no halvings; the star swells to R ≈ 4.3 × 10¹⁰ m at Teff ≈ 3300 K (without the cool gas it ran on to 900 K).
+  **Correction (2026-11-22): 3300 K was not a Hayashi line, it was relax.js stalling.** evolve4-20 stopped there on the
+  runner exactly as in the sandbox (15.114 Gyr, "didn't solve on a smaller step"). DEBUG_RELAX=1 (names the worst
+  equation at a stall) put it at the photosphere's ln P, 0.3–0.7% off, with the outer boundary smooth in ln R: the line
+  search on the max norm refused every step though the system as a whole could fall. Fixed: the line search is on the sum
+  of squares; then a stall at 2–3 × 10⁻⁴ in one envelope interval's ln T (4700 K, where ∇ switches radiative ↔ convective
+  through a min(), not smooth) and Newtons creeping at the 40-step cap: both accepted under `opts.loose` and flagged,
+  shooting's own rule. With that the sandbox giant runs to central H 10⁻³⁰ (`Hstop`'s floor, 463 s, 2654 models) with no
+  failures: R 7.8 × 10¹⁰ m, Teff 2456 K and still cooling slowly, L 2.5 × 10⁴⁶ W, Tc 144 MK, H-free core 0.164 q
+  (0.205 M_Ch) from 0.144 over ~0.4 Myr; the processed core still 0.6495 q. `Hstop=0` carries a run on (stops only at
+  H exactly 0, tmax, or 3000 models a leg). Selftest 56 now checks relaxation against shooting (3 × 10⁻⁴ at 400 nodes).
+  **Two more, found going on (2026-11-22):** (1) the cool-gas blend's weight was a linear ramp in ln T, kinked at both
+  edges, and a node pinned on the kink at exactly 2 × 10⁵ K (residual 4 × 10⁻³ in ln r, Tc 169 MK): now a smoothstep.
+  (2) **A physics error, not a solver one:** the cool gas was built at the star's initial composition, but the giant's
+  cool layers reach m/M ≈ 0.46–0.49, inside matter the old convective core processed (X 0.37, Z 0.44); there it sat at
+  0.65× the interior's ρ at every T from 1.1 MK down to 1.4 × 10⁵ K (μ, not ionization), and the blend joined two
+  compositions across half the star's mass. 4D's surface.js gas has no heavy elements (Z enters only ours' donors), so
+  the fix is first order: where the local composition differs from the envelope's (cAt(M)), the cool gas's ρ, κ and c_p
+  take the interior physics' own ratio between the two at the same (P, T); exact where ionized, an identity where nothing
+  burnt (ours' Sun byte-identical). Teaching surface.js 4D heavies' ionization is the proper fix, not done. Ours' Sun by
+  relaxation with both: within 0.05% L, 0.12% R, 0.07% Teff, 0.03% Tc of the calibrated shooting track to 4.6 Gyr.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

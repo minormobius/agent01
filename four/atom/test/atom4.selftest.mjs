@@ -1025,6 +1025,11 @@ function G4rank(pts) { return G.rank(pts.slice(1).map((p) => p.map((v, i) => v -
   const ratio = a.ok && b.ok ? b.L / a.L : NaN;
   ok(Math.abs(MS.aRad(3) / 7.565733e-16 - 1) < 1e-5 && Math.abs(MS.sigmaSB(3) / 5.670374e-8 - 1) < 1e-5 && eosErr < 0.005 && Math.abs(ratio / 8 - 1) < 0.1,
     `the main sequence: light's a and σ to 10⁻⁵, the tabulated electrons within ${(100 * eosErr).toFixed(2)}% of Fermi–Dirac, and doubling a radiative star's mass brightens it ${ratio.toFixed(2)}× (Eddington's homology: 8)`);
+  // relaxation (js/relax.js) solves the same equations on a mesh all at once: from the shot star's profile it lands on
+  // the same star, to the mesh's second-order error (3×10⁻⁴ at 400 nodes)
+  const RX = await import(path.join(here, "../js/relax.js")), rx = a.ok ? RX.relax({ d: 3, M, G, comp, eps, kappa }, a.prof, { N: 400 }) : { ok: false };
+  const rxErr = rx.ok ? Math.max(...["L", "R", "Pc", "Tc"].map((k) => Math.abs(rx[k] / a[k] - 1))) : NaN;
+  ok(rx.ok && rxErr < 1e-3, `relaxation from the shot star's profile: ${rx.ok ? `the same star to ${rxErr.toExponential(1)} (L, R, Pc, Tc) in ${rx.it} Newton steps` : `failed (${rx.why})`}`);
 }
 
 /* 57 · liquid and vapour by Gibbs-ensemble Monte Carlo (js/gibbs.js, the liquids): a box's energy is md.js's Ewald sum

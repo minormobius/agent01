@@ -13,7 +13,8 @@
        edge m = M: P and T the photosphere's for the node's R and L (star()'s `surface`). No envelope (`opts.envelope`)
        yet: that is ours on OPAL, and a star that has one is refused;
      · Newton on the banded system (4 unknowns a node; partial pivoting within the band), each node's 4×4 Jacobian by
-       differences, steps damped to 0.5 in any ln and a line search on the residual.
+       differences, steps damped to 0.5 in any ln and a line search on the residual's sum of squares; a stall, or the
+     iteration cap, under opts.loose is accepted and flagged (shooting's rule), DEBUG_RELAX=1 naming the worst equation.
    relax(opts, guessProf, { N, tol, maxIt }) → star()'s shape: { ok, p, Pc, Tc, R, L, prof, res, it }. */
 import { equations } from "./mainseq.js";
 
@@ -56,22 +57,35 @@ export function relax(opts, guess, { N = 1000, tol = 1e-9, maxIt = 40 } = {}) {
     bc(outer, Array.from(y.subarray(4 * N, 4 * N + 4)), 4 * N + 2, 4 * N);
     return { Rv, rows };
   }
+  const l2 = (R) => { let s = 0; for (const x of R) { if (!Number.isFinite(x)) return Infinity; s += x * x; } return s; };
   const norm = (R) => { let s = 0; for (const x of R) { if (!Number.isFinite(x)) return Infinity; s = Math.max(s, Math.abs(x)); } return s; };
-  let sys = system(y, true), res = norm(sys.Rv), it = 0;
+  let sys = system(y, true), res = norm(sys.Rv), it = 0, looseRes = null;
   for (; it < maxIt; it++) {
     if (!(res < Infinity)) return { ok: false, why: "relax: the guess gives no finite residual", it };
     if (res < tol) break;
     const dx = bandSolve(sys.rows, Float64Array.from(sys.Rv, (v) => -v)); if (!dx) return { ok: false, why: "relax: singular", it, res };
     let big = 0; for (let i = 0; i < dx.length; i++) big = Math.max(big, Math.abs(i % 4 === 3 ? dx[i] / Math.max(Math.abs(y[i]), 1e-3) : dx[i]));
     let lam = Math.min(1, 0.5 / big), next = null;
-    for (; lam > 1e-4; lam /= 2) { const q = Float64Array.from(y, (v, i) => v + lam * dx[i]), s2 = system(q, false), r2 = norm(s2.Rv); if (r2 < res || (big * lam < 1e-10)) { y.set(q); next = r2; break; } }
-    if (next == null) return { ok: false, why: "relax: stalled", it, res };
+    // the line search on the sum of squares (a single largest entry, the max norm, can rise while the whole system
+    // falls: the giant's surface sat 0.3–0.7% off in ln P with the max norm refusing every step, evolve4-20)
+    const r0 = l2(sys.Rv);
+    for (; lam > 1e-4; lam /= 2) { const q = Float64Array.from(y, (v, i) => v + lam * dx[i]), s2 = system(q, false), r2 = l2(s2.Rv); if (r2 < r0 * (1 - 1e-4 * lam) || (big * lam < 1e-10)) { y.set(q); next = norm(s2.Rv); break; } }
+    if (next == null) { if (process.env.DEBUG_RELAX) { let im = 0; for (let i = 0; i < sys.Rv.length; i++) if (Math.abs(sys.Rv[i]) > Math.abs(sys.Rv[im])) im = i;
+        const k = im < 2 ? 0 : im >= 4 * N + 2 ? N : Math.floor((im - 2) / 4), v = im < 2 ? `inner ${im}` : im >= 4 * N + 2 ? `outer ${im - 4 * N - 2}` : ["ln r", "ln P", "ln T", "L"][(im - 2) % 4];
+        console.log(`      relax stall: largest residual ${sys.Rv[im].toExponential(2)} at node ${k}/${N} (m/M ${(ms[k] / M).toPrecision(8)}, T ${Math.exp(y[4 * k + 2]).toExponential(3)} K), equation ${v}`); }
+      // shooting's rule (opts.loose, evolve's loose=): a stall below the bar is accepted, flagged. What stalls it there is
+      // the kink where ∇ switches between radiative and convective (a min(), not smooth): 2–3e-4 in one interval's ln T
+      if (opts.loose != null && res < opts.loose) { looseRes = res; break; }
+      return { ok: false, why: "relax: stalled", it, res }; }
     if (big * lam < 1e-11) { res = next; break; }
     sys = system(y, true); res = norm(sys.Rv);
   }
+  // and a Newton still creeping at the iteration cap is held to the same bar (shooting's 60-step rule)
+  if (looseRes == null && it >= maxIt && opts.loose != null && res < opts.loose) looseRes = res;
+  const why = it >= maxIt && looseRes == null && !(res < Math.max(tol * 1e3, 1e-6)) ? { why: "relax: iteration cap" } : {};
   const prof = []; for (let k = 0; k <= N; k++) prof.push({ m: ms[k], r: Math.exp(y[4 * k]), P: Math.exp(y[4 * k + 1]), T: Math.exp(y[4 * k + 2]), L: y[4 * k + 3] * L0 });
   const p = [y[1], y[2], y[4 * N], Math.log(y[4 * N + 3] * L0)];
-  return { ok: res < Math.max(tol * 1e3, 1e-6), it, res, p, Pc: Math.exp(p[0]), Tc: Math.exp(p[1]), R: Math.exp(p[2]), L: Math.exp(p[3]), prof, relax: true };
+  return { ok: looseRes != null || res < Math.max(tol * 1e3, 1e-6), loose: looseRes != null, ...why, it, res, p, Pc: Math.exp(p[0]), Tc: Math.exp(p[1]), R: Math.exp(p[2]), L: Math.exp(p[3]), prof, relax: true };
 }
 
 /* Gaussian elimination with partial pivoting on sparse rows (Map col → value); the system is banded (a node couples only
