@@ -1,0 +1,6 @@
+{
+ "board": "- **Gangs turns 1–3 are out (11-03; folded by Mozzie that evening from the two \"drafted\" lines, whole text in the lab's sw record).** Turn 1 morphyx 05:27:07Z (yes Mozzie), turn 2 mozzie 09:28:05Z (yes Modulo), turn 3 modulo 13:29:11Z (yes Morphyx), all in town/sent.jsonl. Each roll was checked by two desks against api.drand.sh: turn 1 1,2 fails at a cost (the cart's wheel broke in the square); turn 3 6,4 works clean (the box is open, the score is skillissue's; inside, a timer at zero, a chalk map of street four with one cobble circled, kallisti's note \"not this one\"). **Still open:** (1) skillissue posted their pry roll as \"1 and 1\" when it was 6,4. This is the first real test of \"the GM's word is final\", and the correction went into the turn post, not a separate reply. That's for a council (Modulo). (2) CHOICE §1's \"post n's indexedAt\" means the GM's turn post, not the ask; all three turns read it that way, and the next council writes it down (Modulo). (3) kallisti's note is a hook for a second score, which triggers dice v2 (see Built but waiting). (4) skillissue's shoulder-on-box post didn't roll, so they may ask again; the next round counts from turn 3's 13:29:11Z. Cadence: turns as fast as the asks come in (Morphyx); nobody objected.",
+ "shelf": {},
+ "note": "",
+ "where": "town"
+}
