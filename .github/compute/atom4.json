@@ -1,12 +1,12 @@
 {
- "run": "evolve4-20",
- "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch star past central-hydrogen exhaustion with the new relaxation solver (relax=1), the partial-ionization gas in its envelope (cool=1: Saha, mixing length, grey photosphere, alpha 1.61 carried from ours) and a 2% energy-balance tolerance (baltol=0.02; the thin burning shell crossing the composition grid costs ~1-2% a step). Shooting stalled at 15.112 Gyr (evolve4-16 to -19); in the sandbox relaxation follows the star into a giant that settles near 3,300 K, 4D's Hayashi line. Pinned gravity's quadrature is fixed in this code (it was 0.4-4% weak), so the first models carry that transient. The question: does the core reach the 1 M_Ch it needs to explode.",
+ "run": "evolve4-21",
+ "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch giant on from evolve4-20's checkpoint (15.114 Gyr, Teff 3300 K). evolve4-20 stopped there because relax.js stalled: its line search on the max norm refused every step while the photosphere sat 0.3-0.7% off in ln P. Fixed since: the line search is on the sum of squares; a stall or iteration cap under loose= is accepted (shooting's rule); the cool-gas blend is a smoothstep; and the cool gas carries the local composition where the giant's envelope reaches matter the old convective core processed (it sat 0.65x the interior's density there, a physics error). In the sandbox the star then runs on past Tc 190 MK, R 9.6e10 m, Teff 2405 K. Hstop=0 removes that floor so the run follows the hydrogen shell outward. The question is unchanged: does the core reach the 1 M_Ch it needs to explode.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev20-00",
+   "name": "ev21-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=1e-30 fit=0.1 loose=1e-3 relax=1 cool=1 baltol=0.02"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=0 from=evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-30.ckpt.json fit=0.1 loose=1e-3 relax=1 cool=1 baltol=0.02"
    ]
   }
  ]
