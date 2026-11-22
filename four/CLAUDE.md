@@ -1512,6 +1512,9 @@ for games, and this is a modelling programme with publications to come. The game
   profile, `s.Lnuc`; runs without ε_grav unchanged). The real mismatch left is the thin H-burning shell crossing the
   composition grid (1.8% at 14 kyr steps, 0.8% at 1.8 kyr): `baltol=<fraction>` (default 0.003; env BALTOL) loosens it
   past exhaustion, where a percent is harmless to the question (does the core reach 1 M_Ch).
+  **The 4D giant with the cool gas (sandbox, 4 min from evolve4-19's checkpoint, relax=1 cool=1 baltol=0.02):** 24 models,
+  no halvings; the star swells to R ≈ 4.3 × 10¹⁰ m and stops cooling at Teff ≈ 3200–3300 K, where 4D hydrogen recombines:
+  4D's Hayashi line (without the cool gas it ran on to 900 K). evolve4-20 (queued) carries it on the runner.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
