@@ -1448,6 +1448,19 @@ for games, and this is a modelling programme with publications to come. The game
   (fit 0.05–0.7 and loose 5e-4–1e-3 all tried): not queued again. What would carry the star on is a relaxation (Henyey)
   solver: the whole star's discretized structure solved at once by Newton from the last model, as stellar codes do past
   the main sequence. Still paused on the solver (section 4, the status page).
+  **Speed (PI, 2026-11-22: "spend a turn on perf gains").** Benchmark: the G 1e-17 s 1.5152 0.78 M_Ch ladder star, 9
+  models from its checkpoint (`tmax=173.13`), `node --cpu-prof`, output compared to the baseline's byte for byte.
+  **95.7 → 57.5 s (−40%), output identical**, from: (1) `rhoOf` at T = 0 (a trial integration's ln T underflowing)
+  returned Infinity only after 37 pressures off the EOS table's edge, each a direct Fermi–Dirac integral (~1 ms): 4,500
+  such calls a step; now at once. (2) shell4.js: reactions flattened to typed arrays (same operation order), Jacobian
+  buffers reused (allocation churn was the GC), `steady` reuses `fastSet`'s Jacobian for its first iteration (it
+  recomputed the same), `burnK` refills its Newton matrix by native zero-fill plus J's sparsity pattern, `steady`'s small
+  matrix built with plain loops (`Float64Array.from(…, fn)` was the single hottest line), `linIn` subtracts only the pivot
+  row's nonzeros. (3) the EOS table's `.at(T)` computes T's grid coordinate once per `rhoOf`. Left as options, measured:
+  a bracketed secant (Illinois) for `rhoOf` instead of 36 bisections, 57.5 → 49.3 s, outputs moved ≤ 10⁻⁹ relative (not
+  adopted: not bit-identical); and parallelism, since a single star uses one of the runner's 4 cores (shells' burning and
+  law fits, and the shooting Jacobian's four integrations, are independent). Where the time is now: the structure
+  integration ~57% (rhoOf ~22%), the network's LU ~20%, the EOS table's one-off build 3.7 s a process.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

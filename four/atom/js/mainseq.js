@@ -29,19 +29,30 @@ function peTable(d) {
   if (EOS[d]) return EOS[d];
   const lx = d === 3 ? [Math.log(1e24), Math.log(1e36)] : [Math.log(1e30), Math.log(1e50)], ly = [Math.log(1e3), Math.log(3e9)], NI = 140, NJ = 80, tab = [];
   for (let i = 0; i <= NI; i++) { const ne = Math.exp(lx[0] + ((lx[1] - lx[0]) * i) / NI), row = []; for (let j = 0; j <= NJ; j++) row.push(Math.log(electronPressure(d, ne, Math.exp(ly[0] + ((ly[1] - ly[0]) * j) / NJ)))); tab.push(row); }
-  return (EOS[d] = (ne, T) => { const x = ((Math.log(ne) - lx[0]) / (lx[1] - lx[0])) * NI, y = ((Math.log(T) - ly[0]) / (ly[1] - ly[0])) * NJ;
+  const fn = (ne, T) => { const x = ((Math.log(ne) - lx[0]) / (lx[1] - lx[0])) * NI, y = ((Math.log(T) - ly[0]) / (ly[1] - ly[0])) * NJ;
     // outside the table: denser or colder than it, where degeneracy can matter, the direct Fermi–Dirac pressure (an ideal
     // gas there dropped 99.9% of the pressure just past the dense edge at 10⁶ K, a cliff); thinner or hotter, where the gas
     // is nondegenerate, ideal. Each excursion is counted (eosExcursions)
     if (x >= NI || y < 0) { eosExcursions[d] = (eosExcursions[d] || 0) + 1; return electronPressure(d, ne, T); }
     if (x < 0 || y >= NJ) return ne * SI.k * T; const i = Math.floor(x), j = Math.floor(y), u = x - i, v = y - j;
-    return Math.exp(tab[i][j] * (1 - u) * (1 - v) + tab[i + 1][j] * u * (1 - v) + tab[i][j + 1] * (1 - u) * v + tab[i + 1][j + 1] * u * v); });
+    return Math.exp(tab[i][j] * (1 - u) * (1 - v) + tab[i + 1][j] * u * (1 - v) + tab[i][j + 1] * (1 - u) * v + tab[i + 1][j + 1] * u * v); };
+  // the same pressure at one temperature, its grid coordinate computed once (rhoOf's bisection asks at one T 37 times):
+  // every expression as above, so the same bits (speed, 2026-11-22)
+  fn.at = (T) => { const y = ((Math.log(T) - ly[0]) / (ly[1] - ly[0])) * NJ, j = Math.floor(y), v = y - j, out = y < 0;
+    return (ne) => { const x = ((Math.log(ne) - lx[0]) / (lx[1] - lx[0])) * NI;
+      if (x >= NI || out) { eosExcursions[d] = (eosExcursions[d] || 0) + 1; return electronPressure(d, ne, T); }
+      if (x < 0 || y >= NJ) return ne * SI.k * T; const i = Math.floor(x), u = x - i;
+      return Math.exp(tab[i][j] * (1 - u) * (1 - v) + tab[i + 1][j] * u * (1 - v) + tab[i][j + 1] * (1 - u) * v + tab[i + 1][j + 1] * u * v); }; };
+  return (EOS[d] = fn);
 }
 export const electronP = (d, ne, T) => peTable(d)(ne, T);
 /* the density at pressure P and temperature T (NaN where light alone presses harder) */
 export function rhoOf(d, P, T, comp) {
   const Pg = P - (aRad(d) * T ** (d + 1)) / d; if (!(Pg > 0)) return NaN;
-  const ye = (1 + comp.X) / 2, yi = comp.X + comp.Y / 4 + comp.Z / 14, pe = peTable(d), Pof = (rho) => (rho / SI.mu) * yi * SI.k * T + pe((rho / SI.mu) * ye, T);
+  // T = 0 (a trial integration whose ln T underflowed): the bisection below returns Infinity there (the ideal-gas guess is
+  // infinite), after 37 pressures off the table's edge, each a direct Fermi–Dirac integral (~1 ms). Same answer, at once.
+  if (!(T > 0)) return Infinity;
+  const ye = (1 + comp.X) / 2, yi = comp.X + comp.Y / 4 + comp.Z / 14, pe = peTable(d).at(T), Pof = (rho) => (rho / SI.mu) * yi * SI.k * T + pe((rho / SI.mu) * ye);
   const r0 = (Pg * muOf(comp) * SI.mu) / (SI.k * T); let lo = r0 * 1e-3, hi = r0 * 1.0000001; if (Pof(hi) < Pg) return r0;
   for (let it = 0; it < 36; it++) { const m = Math.sqrt(lo * hi); if (Pof(m) < Pg) lo = m; else hi = m; } return Math.sqrt(lo * hi);
 }
