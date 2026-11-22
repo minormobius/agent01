@@ -434,6 +434,29 @@
     "every quoted age and yield (they were computed without it and end at the stall or at exhaustion)",
     "our Sun and a 2 M☉ star: ε_grav moves them by at most 0.1% and 0.14% (the check's value: the largest change in per cent for each)"
    ]
+  },
+  {
+   "id": "drop",
+   "date": "2026-11-22",
+   "title": "The liquid drop, checked",
+   "replaced": "the heavy end of 4D's burning (equilibrium's end, the stable line, how heavy a stable nucleus gets) read off the trusted liquid drops untested: 'element 103–137, this world's iron'; the abundance page placed its equilibrium share at element 137",
+   "by": "fusion/tools/dropcheck.mjs: the drop built by nuclei.mjs bake's construction (through its own exports, reproducing the baked drops exactly) for ours and held to AME2020's measured masses; the trusted 4D drop held to the network's light nuclei (the adopted ladder model, mass 8–32) beside ours' drop against our ladder; the heavy end with the carried surface thickness ×0.7–1.3 and the three-nucleon range; and a second route, a drop fitted only to light N = Z nuclei, tested on ours and run on 4D's ladder. A first-generation equilibrium share placed on one nucleus was also wrong in itself: equilibrium makes about ten elements (the book's tools/nse.mjs, and a sandbox repeat)",
+   "runs": [
+    "sandbox: dropcheck.mjs on AME2020 (mass_1.mas20)"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "where 4D's burning ends",
+     "before": "element 103–137 on the trusted drops (the nuclei and stars chapters); element 137 on the abundance page",
+     "after": "somewhere about element 100–250 (mass ~200–500): ours built the same way finds the iron region but low (N = Z peak mass 46 against 56; light fits 40–44); the trusted 4D drop gives only 49–59% of the binding the book computes for its light nuclei (ours: 100–103%); its peak runs 192–356 with the carried surface thickness and 556 at b = 1; a fit to the book's light 4D nuclei puts it at 324–402, which ours says lands low",
+     "where": "papers/p2/data/dropcheck.json; the nuclei chapter's 'How far to trust the drop'"
+    }
+   ],
+   "held": [
+    "the drops' stable line in ours: within three charges of the measured one to mass 240",
+    "what holds whatever the drop: equilibrium keeps equal protons and neutrons, so its nuclei sit proton-rich of the stable line and decay toward it; nuclei far heavier than ours stay stable (fission and alpha decay open only far past ours on every drop)"
+   ]
   }
  ]
 }

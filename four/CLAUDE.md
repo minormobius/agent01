@@ -358,6 +358,24 @@ for games, and this is a modelling programme with publications to come. The game
   A 388 (43 MeV/n), fission is exothermic only from Z ≈ 245, alpha decay from Z ≈ 860 (MT s 1.2292: 175, 480); ours as
   the check, 94 / 152 in A. Scratch scripts nse4.mjs, valley4.mjs, ceiling4.mjs. Correction notes are on the abundance
   page and the status page's finding 4; the rework is to come.
+  **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
+  `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
+  www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
+  construction (imports `saturation`, `wellOf`, `FORCES`, `B_RANGE`; importing nuclei.mjs prints its usage line, so it's
+  silenced) and stops unless the 4D drops reproduce the baked ones. **Ours, built the same way:** rms 0.19 (MT) / 0.58 (MN)
+  MeV/n from A 40; N = Z peak at A 46 (real ⁵⁶Ni), most bound A 54 (⁶²Ni), stable line within 0–3 charges to A 240, alpha
+  opening A 128 (144), fission A 78 (94): the iron region, ~15–20% low in A. The computed symmetry energy is 41–43 MeV
+  (real ~32). **4D:** the trusted drop (MN s 1.5152 b 1.4) gives only 49–59% of the network's ladder binding at A 16–32
+  (ours' drop against our ladder: 100–103%); the ladder's B/A is still climbing at A 32 (24.6 → 42.2 from A 12). The N = Z
+  peak moves 192–356 with the carried surface thickness ×0.7–1.3, and 274 → 556 → 1120 at b 1.4 → 1.0 → 0.7 (only 1.4
+  trusted, and it is the scan's edge, so not bracketed below). **Second route:** a drop fitted only to light N = Z nuclei;
+  on ours (AME, A 12–40) its N = Z peak lands at A 40–44 (real 56: a quarter low); on 4D's ladder at s 1.5152, A 324–402
+  (63–72 MeV/n), not settled with the fit window. **Defensible:** the end of 4D burning is far up the table, about element
+  100–250 (A ~200–500); element 137 is one point in it. The book already had nuclear statistical equilibrium on these drops
+  (`atom/tools/nse.mjs` → `js/nsedata.js`, the nuclei chapter's "Equilibrium, solved": ours' check ends at titanium-44,
+  4D at 101–136); the sandbox nse4.mjs repeated it unawares. The nuclei chapter now has "How far to trust the drop"
+  (`gennuclei.py` `DC_text`, from dropcheck.json), and the stars chapter and landing widen "103–137" to "perhaps as far as
+  250"; provenance stage `drop`; the status page's and abundance page's correction notes give the band.
 - **how stars burn at `/fusion/`** (PI, 2026-11-12: "teach me how fusion works"): our own world's burning stages as a
   teaching widget, the anchor for 4D's. `fusion/js/net.js` (no DOM) is a reaction network on REACLIB: **generated**
   `fusion/reaclib.js` (`fusion/tools/extract.py <reaclib file>`, from pynucastro's snapshot `reaclib_default2_20250330`,

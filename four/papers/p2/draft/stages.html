@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="0a22790bdcac4055b43fdd3e324b53e32048d9fe306645f02c266b797e67dadf" />
+<meta name="source-sha256" content="dc95810111dc9bb97df3294b82b1fb39e177dbdc083da1d9ee1a52b01837b2a7" />
 <title>Paper 2 · Supplement S1: how the model was built, and what each stage changed</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -17,7 +17,7 @@
 id="supplement-s1-how-the-model-was-built-and-what-each-stage-changed">Supplement
 S1: how the model was built, and what each stage changed</h1>
 <p>The model in this paper was not written down once and run. It was
-built in stages, from 2026-11-11 to 2026-11-21. Each stage replaced a
+built in stages, from 2026-11-11 to 2026-11-22. Each stage replaced a
 guess, a convention or a cruder method with something computed, then ran
 the cascade again. The main text gives only the final method. This
 supplement records the route, for two reasons.</p>
@@ -30,7 +30,7 @@ within two days, and only the last of those rests on something that
 cannot move: a variational bound.</p>
 <p>Second, a sequence of improvements can look like tuning until the
 answer looks right. Against that, each stage below states whether a
-decision rule was fixed before its results came in. 11 of the 13 stages
+decision rule was fixed before its results came in. 12 of the 14 stages
 had none: their results were read as they came. That is said plainly
 rather than reconstructed after the fact.</p>
 <p><strong>What enters this record.</strong> A stage enters when it
@@ -40,7 +40,7 @@ way are not stages; they are in the code’s history. Each stage lists
 what it replaced and by what, the runs behind it, what moved (with the
 earlier value and where it was recorded), and what held. The earlier
 values are historical: by their nature they are no longer in the data.
-Of the 38 entries, 18 are marked ✓: the value given is recomputed from
+Of the 41 entries, 18 are marked ✓: the value given is recomputed from
 the committed data each time the paper is built, and the build stops if
 they disagree. 0 marked ⧗ waits on a run in progress.</p>
 <h3 id="s1.1-proton-proton-computed-2026-11-11">S1.1 Proton + proton
@@ -728,6 +728,72 @@ stage’s results were read as they came.</p>
 the stall and live 1.5 Gyr and 150 Myr more (the stirred core off, the
 centre cooling, contracting and reheating), then stop again where a
 stirred core re-forms, which is open ✓</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th>what held</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>undefined</td>
+<td>undefined</td>
+</tr>
+<tr class="even">
+<td>undefined</td>
+<td>undefined</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.14-the-liquid-drop-checked-2026-11-22">S1.14 The liquid drop,
+checked (2026-11-22)</h3>
+<p><strong>Replaced:</strong> the heavy end of 4D’s burning
+(equilibrium’s end, the stable line, how heavy a stable nucleus gets)
+read off the trusted liquid drops untested: ‘element 103–137, this
+world’s iron’; the abundance page placed its equilibrium share at
+element 137. <strong>By:</strong> fusion/tools/dropcheck.mjs: the drop
+built by nuclei.mjs bake’s construction (through its own exports,
+reproducing the baked drops exactly) for ours and held to AME2020’s
+measured masses; the trusted 4D drop held to the network’s light nuclei
+(the adopted ladder model, mass 8–32) beside ours’ drop against our
+ladder; the heavy end with the carried surface thickness ×0.7–1.3 and
+the three-nucleon range; and a second route, a drop fitted only to light
+N = Z nuclei, tested on ours and run on 4D’s ladder. A first-generation
+equilibrium share placed on one nucleus was also wrong in itself:
+equilibrium makes about ten elements (the book’s tools/nse.mjs, and a
+sandbox repeat). <strong>Runs:</strong>
+<code>sandbox: dropcheck.mjs on AME2020 (mass_1.mas20)</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>where 4D’s burning ends</td>
+<td>element 103–137 on the trusted drops (the nuclei and stars
+chapters); element 137 on the abundance page</td>
+<td>somewhere about element 100–250 (mass ~200–500): ours built the same
+way finds the iron region but low (N = Z peak mass 46 against 56; light
+fits 40–44); the trusted 4D drop gives only 49–59% of the binding the
+book computes for its light nuclei (ours: 100–103%); its peak runs
+192–356 with the carried surface thickness and 556 at b = 1; a fit to
+the book’s light 4D nuclei puts it at 324–402, which ours says lands
+low</td>
 </tr>
 </tbody>
 </table>

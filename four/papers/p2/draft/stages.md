@@ -5,7 +5,7 @@
      to provenance.json, never here. -->
 
 The model in this paper was not written down once and run. It was built in stages, from
-2026-11-11 to 2026-11-21. Each stage replaced a guess, a convention or a cruder method with something computed,
+2026-11-11 to 2026-11-22. Each stage replaced a guess, a convention or a cruder method with something computed,
 then ran the cascade again. The main text gives only the final method. This supplement records the route, for two
 reasons.
 
@@ -15,14 +15,14 @@ artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was foun
 good within two days, and only the last of those rests on something that cannot move: a variational bound.
 
 Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
-states whether a decision rule was fixed before its results came in. 11 of the 13 stages had
+states whether a decision rule was fixed before its results came in. 12 of the 14 stages had
 none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
 
 **What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 38 entries, 18 are marked ✓: the value given is recomputed from the committed data each
+data. Of the 41 entries, 18 are marked ✓: the value given is recomputed from the committed data each
 time the paper is built, and the build stops if they disagree. 0 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
@@ -205,6 +205,21 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 | what moved | before | after |
 |---|---|---|
 | the oitrogen stall | physical, not numerical: no star in complete equilibrium past it (section 4; ages4.json stall) | it was the missing contraction energy: with it both analogues pass the stall and live 1.5 Gyr and 150 Myr more (the stirred core off, the centre cooling, contracting and reheating), then stop again where a stirred core re-forms, which is open ✓ |
+
+| what held | |
+|---|---|
+| undefined | undefined |
+| undefined | undefined |
+
+### S1.14 The liquid drop, checked (2026-11-22)
+
+**Replaced:** the heavy end of 4D's burning (equilibrium's end, the stable line, how heavy a stable nucleus gets) read off the trusted liquid drops untested: 'element 103–137, this world's iron'; the abundance page placed its equilibrium share at element 137. **By:** fusion/tools/dropcheck.mjs: the drop built by nuclei.mjs bake's construction (through its own exports, reproducing the baked drops exactly) for ours and held to AME2020's measured masses; the trusted 4D drop held to the network's light nuclei (the adopted ladder model, mass 8–32) beside ours' drop against our ladder; the heavy end with the carried surface thickness ×0.7–1.3 and the three-nucleon range; and a second route, a drop fitted only to light N = Z nuclei, tested on ours and run on 4D's ladder. A first-generation equilibrium share placed on one nucleus was also wrong in itself: equilibrium makes about ten elements (the book's tools/nse.mjs, and a sandbox repeat). **Runs:** `sandbox: dropcheck.mjs on AME2020 (mass_1.mas20)`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| where 4D's burning ends | element 103–137 on the trusted drops (the nuclei and stars chapters); element 137 on the abundance page | somewhere about element 100–250 (mass ~200–500): ours built the same way finds the iron region but low (N = Z peak mass 46 against 56; light fits 40–44); the trusted 4D drop gives only 49–59% of the binding the book computes for its light nuclei (ours: 100–103%); its peak runs 192–356 with the carried surface thickness and 556 at b = 1; a fit to the book's light 4D nuclei puts it at 324–402, which ours says lands low |
 
 | what held | |
 |---|---|

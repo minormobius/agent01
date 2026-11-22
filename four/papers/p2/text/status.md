@@ -32,9 +32,11 @@ lives from a frozen zero-age core. Five things came out of it.
    density at ignition from a star model whose density runs to infinity as the core nears the Chandrasekhar mass, so a
    core just over it counts as burning wholly to equilibrium. At the middle choice one star (1.25 M~Ch~, whose core
    grows to 1.015) carries most of the iron, and the share is not monotonic in core growth. And this world's "iron" is
-   not one nucleus: equilibrium with equal protons and neutrons makes about ten elements around $Z$ ≈ 131–140, all far
-   too proton-rich, which decay to $Z$ ≈ 115–122. Both are being reworked; the rock row from $s$ = 1.6 up does not hang
-   on either.
+   not one nucleus: equilibrium with equal protons and neutrons makes about ten elements at the drop's peak, all
+   proton-rich, which decay toward the stable line. And where that peak sits is itself uncertain: held to our own masses
+   and to the book's light 4D nuclei, the liquid drop puts it somewhere about element 100–250, not at a named element
+   (supplement S1, stage "The liquid drop, checked"). Both are being reworked; the rock row from $s$ = 1.6 up does not
+   hang on either.
 5. **The one limit was missing physics, now added.** Two stars at $s$ = 1.5152 stopped when their core's oitrogen ran out
    and the stirred core collapsed faster than a solver in thermal balance could follow. With the energy of contraction in
    the solver, checked first on our Sun, both pass that point and live on ({{egMore14}} and {{egMore11}}), before stopping
