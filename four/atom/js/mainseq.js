@@ -136,6 +136,9 @@ export function star(opts, guess) {
   if (!R0) return { ok: false, p, why: "integration", it };
   const prof = [...R0.out.path, ...R0.inn.path.slice().reverse()].map(([m, y]) => ({ m, r: Math.exp(y[0]), P: Math.exp(y[1]), T: Math.exp(y[2]), L: y[3] }));
   const res = Math.hypot(...R0.r);
+  // a Newton still creeping downhill at the 60-step cap is held to the same bar as one that stalls (opts.loose): it had
+  // been refused, which past central-hydrogen exhaustion threw away steps at residuals of 6 × 10⁻⁵–2 × 10⁻⁴ (evolve4-18)
+  if (loose == null && it >= 60 && opts.loose != null && res < opts.loose) loose = res;
   return { ok: res < 1e-5 || (loose != null && res < opts.loose), loose: loose != null, it, p, Pc: Math.exp(p[0]), Tc: Math.exp(p[1]), R: Math.exp(p[2]), L: Math.exp(p[3]), prof, res };
 }
 /* the stirred core: the mass (÷ M) out to where the profile's gradient d ln T/d ln P first drops below the adiabatic one */
