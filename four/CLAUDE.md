@@ -1483,6 +1483,17 @@ for games, and this is a modelling programme with publications to come. The game
   but its steps stayed at ~7 kyr. The step rule caps a step at a tenth of each burning shell's hydrogen down to a floor,
   which was Hstop: 10⁻³ on the main sequence, but 10⁻³⁰ in the past-exhaustion runs, and a burning shell always has a
   layer nearly out of hydrogen. The floor is now max(Hstop, 10⁻³) (`HFLOOR`); main-sequence runs are byte-identical.
+  **First relaxation run past exhaustion (sandbox, from evolve4-19's checkpoint, 50 min, 65 models, 4 fallbacks to
+  shooting):** the star leaves the subgiant stage. In 2 Myr R grows ×770 (5.8 × 10⁸ → 4.4 × 10¹¹ m), L ×6, Teff 33 kK →
+  900 K, while the core contracts and heats (Tc 88 → 142 MK, ρc ×3): a giant forming, envelope out as the core goes in.
+  Three things stop it being a result: (1) **the envelope leaves the model's physics** below a few thousand K at the
+  surface: the structure's gas is fully ionized (opacity free–free on ions, ∇_ad fixed at 2/(d+2)), where 4D hydrogen
+  recombines at 3300–5400 K at photospheric densities (surface.js; models below ~2100–3100 K are outside it), so a 4D
+  giant needs a partial-ionization envelope as its outer boundary, as ours has on OPAL; (2) **steps stayed 1–7 kyr**
+  (not diagnosed: see 3); at this L the hydrogen-free core grows ~4 × 10⁻⁴ of M a Myr, so reaching 1 M_Ch this way is
+  out of reach without longer steps; (3) **a giant's checkpoint can't resume**: a resume shoots its first model (the
+  checkpoint carries no profile), and shooting can't solve a giant ("residual 1.1 × 10³"). Checkpoints should carry the
+  profile so a relax run resumes by relaxation. The H-free core read 0.18 M_Ch at the end (the grid's resolution).
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
