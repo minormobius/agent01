@@ -79,7 +79,8 @@ through holds at {{egPproc}} M~Ch~. The star swells ×{{egPR}} in radius and ×{
 {{egPT0}} to {{egPT1}} K, while its centre heats from {{egPTc0}} to {{egPTc1}} MK and grows ×{{egPrho}} denser: a subgiant
 beginning. (As the envelope swells, the shooting solution meeting at a fifth of the mass stops converging; from there it
 meets at a tenth.) Whether its core reaches the Chandrasekhar mass, which decides whether it explodes and so tests the declared
-core growth above, is the run now going on.
+core growth above, is still open: past here the solver fails every few dozen models as the envelope swells, and the
+run is paused until it is fixed.
 
 **What the aged stars hold.** Summed over each analogue's last kept profile, the elements past helium are {{ashA}} of
 its mass at s ≤ 1.55, mostly {{ashAel}}; {{ashB}} at s = 1.6–1.65, {{ashBel}}; {{ashC}} at s = 1.7, {{ashCel}};

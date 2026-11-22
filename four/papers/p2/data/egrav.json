@@ -167,7 +167,7 @@
   "m": 1.25,
   "fromGyr": 14.9,
   "toGyr": 15.11,
-  "myr": 210.2,
+  "myr": 210.8,
   "Hfree": [
    0.02567,
    0.1563
@@ -177,23 +177,23 @@
    0.8119
   ],
   "explodesAt": 1,
-  "R": 2.118,
-  "L": 2.115,
+  "R": 2.211,
+  "L": 2.167,
   "Teff": [
    46120,
-   34150
+   33440
   ],
   "Tc": [
    71.07,
-   87.15
+   88.11
   ],
-  "rhoc": 5.965,
+  "rhoc": 6.258,
   "contraction": {
-   "min": -0.006834,
+   "min": -0.0096,
    "max": -0.0000747,
-   "median": -0.0003161
+   "median": -0.0003278
   },
-  "stopped": "cut",
+  "stopped": "no solution past Xc 0.0000",
   "provisional": true,
   "cores": [
    {
@@ -323,6 +323,16 @@
    },
    {
     "tGyr": 15.1,
+    "processed": 0.8119,
+    "Hfree": 0.1563
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1563
+   },
+   {
+    "tGyr": 15.11,
     "processed": 0.8119,
     "Hfree": 0.1563
    },

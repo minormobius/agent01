@@ -88,8 +88,8 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   our Sun by at most 0.099% and a 2 M☉ star to the end of its hydrogen by at most 0.14%. With it both stalled
   analogues pass the stall: the stirred core switches off and the centre cools and contracts, then reheats, and they
   stop again at 44.77 and 2.707 Gyr where a stirred core begins to re-form.
-- **Past the end of the hydrogen** (provisional; one star, running). The 1.25 M~Ch~ star on the explosion line, carried
-  210 Myr past it: its hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and the star swells ×2.1.
+- **Past the end of the hydrogen** (provisional; one star, paused). The 1.25 M~Ch~ star on the explosion line, carried
+  210 Myr past it: its hydrogen-free core grows from 0.026 to 0.16 M~Ch~ and the star swells ×2.2.
   Whether the core reaches the 1 M~Ch~ it needs to explode is not settled yet.
 - **What the first stars hold** (computed; section 4). Elements past helium: 9–30% of the star at $s$ ≤ 1.55,
   2–20% at 1.6–1.65 (coron, element 6, darbon, element 8 and oitrogen), 0.3–4% at 1.7, and at most 0.1% from 1.75 up, where stars burn hydrogen to
@@ -132,7 +132,7 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **Following cores past the end of the hydrogen** (the compute runner; one star running). The energy of contraction
+1. **Following cores past the end of the hydrogen** (the compute runner; one star, paused on the solver). The energy of contraction
    is now in the solver. The mass ladders are done: 28 of the 29 stars that die within 30 Gyr reach
    the end of their central hydrogen. What is left declared is how their cores grow afterwards, which sets which stars
    explode and, near our strength, how much of what they return is iron. The first star past it, the one on the

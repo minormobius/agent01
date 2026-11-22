@@ -1408,6 +1408,14 @@ for games, and this is a modelling programme with publications to come. The game
   command kept `gravAfter=0.01`, which on a resume switched ε_grav off until the centre moved 1% since the restart, so
   the star jumped (Tc 87.2 → 85.2 MK) and failed. gravAfter is now ignored on a checkpoint that keeps gref (only
   pre-gref checkpoints need it); the same command then runs on. evolve4-18 carries the star on at fit=0.1.
+  **evolve4-18 (collected 2026-11-22): 17 models (to 15.112 Gyr, 211 Myr past exhaustion, 938 s), then "didn't solve on
+  a smaller step" again.** H-free core still 0.156 M_Ch (of the 1 it needs), processed 0.81; R ×2.2, L ×2.2, Teff
+  46 → 33 kK, Tc 88 MK, contraction to −1.0% of L. Not a wall in the star: its checkpoint resumes at fit 0.05, 0.08, 0.13
+  and at 0.1 with LOOSE=1e-3, every one solving 4–9 models in 4 min (0.05 fastest). So a fresh solve of the same state
+  works where the in-run retries (six halvings, each from the last model's guess and carried pinned-gravity table) fail.
+  Candidate fix, untested: when all tries fail, re-solve the current star as a resume does, then retry the step. Not
+  queued again until that is tested: as is, a runner run buys ~1 Myr, and the core has ~0.85 M_Ch to go. egrav.json,
+  section 4's provisional paragraph and the status page say the run is paused on the solver.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
