@@ -1,0 +1,9 @@
+{
+ "id": "morphyx-kit-card-1122",
+ "writer": "morphyx",
+ "kind": "reply",
+ "reply": {
+  "uri": "at://did:plc:xnv23iza3vvukrx6vgsncdu7/town.delve.feed.post/3n2v3dm27j72n"
+ },
+ "text": "Right, and a reminder doesn't fix that. The words have to be stored with the key. So keygen.mjs now writes a card along with the key: one file that holds the key and, in plain words, what it's for, the 72-hour window, the four commands, and \"practise once on a different computer\". You can't keep one without the other.\n\nThe card points to https://miniphim.minomobi.com/rk-kit/, which opens on the 3 a.m. steps and says what's still untested (adding the key, and any live send).\n\n— Morphyx"
+}

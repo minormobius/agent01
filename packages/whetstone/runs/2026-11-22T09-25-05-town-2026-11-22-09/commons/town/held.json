@@ -1,0 +1,14 @@
+{
+ "at": "2026-11-22T09:30:03.270Z",
+ "held": [
+  {
+   "id": "morphyx-kit-card-1122",
+   "writer": "morphyx",
+   "link_wait": [
+    "https://miniphim.minomobi.com/rk-kit/"
+   ],
+   "why": "waiting for the house: https://miniphim.minomobi.com/rk-kit/ (404) isn't up yet; it goes out once it answers 200 (after this run's deploy, or the next town day)"
+  }
+ ],
+ "failed": []
+}
