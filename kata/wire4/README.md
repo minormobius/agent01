@@ -278,7 +278,8 @@ Reynolds number on the centreline speed. Mesh 50×40, 14 harmonics for R = 5 and
   the rate of change stays near 0.01. This is the first unsteady flow in the sheared stream. It is as under-resolved
   along the wire as the Re 250 run, so the amplitudes are rough. Re 280 pulses too: four successive peaks at 2.333, 2.333, 2.333, 2.332 (t = 80 to
   190, period 36.6), troughs near 2.17, so the cycle has saturated and is not decaying. The onset is between 250 and
-  280. (That run stopped at t = 210 of 300 when the sandbox restarted; the saved state is t = 210.) The Re 250 spectrum is
+  280. The page plays one cycle (36.75 flow times; first and last frames differ by 1% of the swing): the tip of the
+  bubble on the axis draws out into a narrow point and sinks back, and nothing detaches. (That run stopped at t = 210 of 300 when the sandbox restarted; the saved state is t = 210.) The Re 250 spectrum is
   flat from harmonic 10 to 22, so the peak is not resolved by 28 harmonics. The bubble profile carries small steps
   1.2 D apart; the same steps, four times weaker, are in the Re 220 run, and 1.2 D is the wavelength of the last
   harmonics kept, so they are read as truncation, not as a ripple.
@@ -385,6 +386,7 @@ cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run,
 ../../venv/bin/pip install gmsh && apt-get install -y libglu1-mesa   # tube4.py only
 ../../venv/bin/python tube4.py 200 5 150                 # the true tube, ~3 h -> data/tube-200-R5.*  (geom=slab: section 8's problem)
 ../../venv/bin/python heat4.py 200-R5 0.7 4               # heat from the wire on that flow, ~2 min -> data/heat-200-R5.json
+RESUME=1 FRAMES=25 ../../venv/bin/python shear4.py 280 10 255 0.015 28 50 40 && ../../venv/bin/python export4.py pulse 280-R10 40   # one cycle for the page
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 

@@ -12,7 +12,8 @@ The state is (uniform-stream base flow B at Re) + q, as in nl4.py; q carries the
 +s/2 (k = 1) on the outer boundary and starts as B scaled by the local stream, which is divergence-free.
 Still the family symmetric round the flow axis, and even about the pipe's axis (w = 0).
     python shear4.py Re R [T=300] [dt=0.04] [K=14] [Nr=50] [Nt=40] [s=1] [tag]  ->  data/shear-<tag>.npz, .json
-    (RESUME=1 continues a saved run)
+    (RESUME=1 continues a saved run; FRAMES=n also saves u and b of every harmonic each n steps to
+    data/frames-<tag>/<step>.npy, for export4.py pulse)
 """
 import os, sys, json, time
 import numpy as np
@@ -94,6 +95,8 @@ def bubble(w):
     ut = U0[axd] + sum(np.cos(k * beta0 * w) * x[k][:n2][axd] for k in kk); i = np.where((xa > 0.5 + 1e-9) & (ut < 0))[0]
     if not len(i) or i.max() + 1 >= len(xa): return 0.0
     j = i.max(); return float(xa[j] + (xa[j + 1] - xa[j]) * (-ut[j]) / (ut[j + 1] - ut[j]) - 0.5)
+FR = int(os.environ.get("FRAMES", 0)); fdir = f"data/frames-{tag}"
+if FR: os.makedirs(fdir, exist_ok=True)
 for n in range(n0, steps + 1):
     if n % 20 == 0:
         E = [float(0.5 * sum(c @ (W.M @ c) for c in split(k, x[k]))) for k in kk]
@@ -104,6 +107,7 @@ for n in range(n0, steps + 1):
     if n % 500 == 0 or n == steps:
         np.savez_compressed(f"data/shear-{tag}.npz", U0=U0, V0=V0, **{f"x{k}": x[k] for k in kk})
         json.dump(dict(Re=Re, R=Rp, s=sh, beta0=beta0, dt=dt, K=K, Nr=Nr, Nt=Nt, ws=list(ws), bub=[bubble(w) for w in ws], hist=hist), open(f"data/shear-{tag}.json", "w"))
+    if FR and n % FR == 0: np.save(f"{fdir}/{n:07d}.npy", np.array([[x[k][:n2], split(k, x[k])[2]] for k in kk], dtype=np.float32))
     Nn = nonlinear([split(k, x[k]) for k in kk]); Ne = Nn if Nm is None else [2 * a - b for a, b in zip(Nn, Nm)]
     new = []
     for k in kk:
