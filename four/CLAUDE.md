@@ -1590,6 +1590,15 @@ for games, and this is a modelling programme with publications to come. The game
   0.2%. (3) **The books follow the step, not the grid:** max |eBal − 1| 5.3–7.1% at dX 0.01 (either grid), 3.2–3.3% at
   0.005; the longest run over 3% 26/91 models → 5/17 (2 and 9 with both); a ~2% median offset stays at every resolution
   (the stirred core's distribution, see DEBUG_BAL above). evolve4-23 resumes all eight for the late main sequence.
+  **evolve4-23 (collected 2026-11-23) corrects (3):** further on (2.5 M_Ch to Xc 0.27, 4.0 to Xc 0.10) the books do
+  **not** follow the step: the longest run over 3% is 110–176 models at dX 0.005 against 91–150 at 0.01, and the worst
+  reaches 7–8% at every resolution. Both 2.5 M_Ch dX 0.005 runs were **stopped by the new bar** at Xc 0.48 (books 1.08
+  for 10 models), so `balmax` 0.08, chosen on the cached tracks, does not hold for main-sequence stars on the current
+  code. (1) and (2) stand: against the cached tracks −7 to −9% in time at fixed Xc, L +3.5 to +9.4%; resolution under
+  0.7% at every Xc reached. **Reading:** the books' mismatch is a method error in stirred cores (the grid's burn
+  against the structure's shell-by-shell laws), not resolution; burn above the structure spends hydrogen faster than the
+  light warrants, a few per cent bias in age that no resolution test shows. It needs a code fix before the final ladder
+  rerun. evolve4-24 resumes all eight (the two stopped with balmax=0.15, diagnostic runs only) for the late main sequence.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

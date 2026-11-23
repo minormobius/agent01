@@ -1,19 +1,19 @@
 {
- "run": "evolve4-23",
- "why": "Resume evolve4-22 (the main-sequence resolution check, cut at the deadline near Xc 0.43-0.62) from its checkpoints, to cover the late main sequence (the convective core receding, the single-model spikes). So far: against the paper's cached tracks the current code is ~8% younger and 6-9% brighter at fixed Xc (pinned gravity's quadrature fix); against each other the resolutions move the time at fixed Xc by 0.1-0.7% and L by under 0.2%; halving the step halves the energy books' worst mismatch (5-7% to 3.3%), doubling the shells doesn't. Same commands (each resumes its own -tres checkpoint).",
+ "run": "evolve4-24",
+ "why": "Resume the main-sequence resolution check again for the late main sequence (evolve4-23 reached Xc 0.27 for 2.5 M_Ch at dX 0.01 and 0.10 for 4.0). The two 2.5 M_Ch dX 0.005 runs were stopped by the energy-books bar (1.08 for 10 models) at Xc 0.48; they resume with balmax=0.15 as diagnostic runs only. Findings so far: resolution moves the time at fixed Xc under 0.7%; pinned gravity's fix -7 to -9%; the books' 7-8% stretches persist at every resolution (a method error in stirred cores, not resolution).",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev23-a",
+   "name": "ev24-a",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 tag=res",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 nq=800 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 nq=800 tag=res"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 balmax=0.15 tag=res",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 nq=800 balmax=0.15 tag=res"
    ]
   },
   {
-   "name": "ev23-b",
+   "name": "ev24-b",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 tag=res",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 nq=800 tag=res",
