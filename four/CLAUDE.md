@@ -1616,7 +1616,9 @@ for games, and this is a modelling programme with publications to come. The game
   from mid-step. ~7% slower. **From zero age** (sandbox, against evolve4-22's baselines, same code otherwise): |books − 1|
   median 2.24% → 0.04% (2.5 M_Ch), 1.35% → 0.03% (4.0), worst 3.3% → 1.3% and 3.0% → 0.17%; **time at fixed Xc +2.3%
   (2.5) and +1.6% (4.0), L unchanged (≤0.1%)**: the grid had spent hydrogen faster than the star radiated, and the stars
-  live longer. Selftests (atom4, fusion) pass.
+  live longer. Selftests (atom4, fusion) pass. **Through the old 5–8% stretches** (sandbox, 2.5 M_Ch to Xc 0.41, 4.0 to 0.32): |books − 1|
+  median 2.31% → 0.18% and 1.35% → 0.07%, 90th percentile 6.86% → 0.71% and 5.12% → 0.35%, worst 8.18% → 1.31% and
+  7.14% → 0.78%; time at fixed Xc +2.8% (2.5, Xc 0.42) and +1.7% (4.0, Xc 0.34), L within 0.07%.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
