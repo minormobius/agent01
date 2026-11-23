@@ -42,7 +42,7 @@ window.SPEC_CURATED = {
     hose: 'social', del: 'social', mail: 'social', miniphim: 'social',
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social', rant: 'social', parts: 'social',
-    fifty: 'social', zest: 'social',
+    fifty: 'social', zest: 'social', o: 'social',
     bakery: 'work', org: 'work', crm: 'work', jog: 'work',
     clef: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', imp: 'work', audio: 'work', board: 'work',

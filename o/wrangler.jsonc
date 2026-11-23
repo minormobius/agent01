@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "o",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-01",
+  // o.mino.mobi — "handle in, circle out". Static site + a small worker:
+  // /av/<did>/<cid> re-serves Bluesky avatar thumbnails with CORS so the card can
+  // be exported, and /<handle> gets that handle in its page title. No bindings
+  // beyond ASSETS, no D1, no secrets.
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    // o.mino.mobi/<handle> has no file behind it: serve the app
+    "not_found_handling": "single-page-application",
+    // the worker must see every request: /av/ is not a file, and HTML for a
+    // handle path gets its title rewritten
+    "run_worker_first": true
+  },
+  // A PLAIN ROUTE, not a custom domain: costs none of the zone's 100 custom-domain
+  // slots. It makes no DNS, so deploy-o.yml runs scripts/route-dns.mjs first.
+  "routes": [
+    { "pattern": "o.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}

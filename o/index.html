@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>o — your Bluesky circle</title>
+<meta name="description" content="Your closest people on Bluesky, in a circle. Every like, repost, reply and quote between you and everyone else over 20 days, counted from public data. No sign-in, no app password, nothing stored.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="o — your Bluesky circle">
+<meta property="og:description" content="Handle in, circle out. No sign-in, no app password, nothing stored.">
+<meta property="og:url" content="https://o.mino.mobi/">
+<meta property="og:image" content="https://o.mino.mobi/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="o — your Bluesky circle">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23141414' stroke-width='9'/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #fbfaf7; --paper: #ffffff; --text: #141414; --muted: #8a877f; --rule: #e7e4dc; --accent: #141414; --accent-ink: #fbfaf7;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; --bg: #111111; --paper: #1a1a19; --text: #f2f0eb; --muted: #8d8a83; --rule: #2a2a28; --accent: #f2f0eb; --accent-ink: #111111; }
+}
+:root[data-theme="dark"] { color-scheme: dark; --bg: #111111; --paper: #1a1a19; --text: #f2f0eb; --muted: #8d8a83; --rule: #2a2a28; --accent: #f2f0eb; --accent-ink: #111111; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+main { max-width: 620px; margin: 0 auto; padding: 48px 16px 64px; }
+header { display: flex; align-items: center; gap: 14px; }
+.mark { width: 44px; height: 44px; border-radius: 50%; border: 7px solid var(--text); flex: none; }
+h1 { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; line-height: 1; }
+.sub { color: var(--muted); font-size: 15px; margin-top: 4px; }
+form { display: flex; gap: 8px; margin-top: 28px; }
+input[type=text] { flex: 1; min-width: 0; font: 500 17px var(--sans); padding: 13px 14px; border-radius: 12px; border: 1px solid var(--rule); background: var(--paper); color: var(--text); }
+input[type=text]:focus { outline: none; border-color: var(--text); }
+button { font: 600 15px var(--sans); border-radius: 12px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); padding: 0 18px; cursor: pointer; }
+button:disabled { opacity: .45; cursor: default; }
+button.ghost { background: none; color: var(--text); border-color: var(--rule); padding: 9px 14px; font-size: 14px; }
+button.ghost:hover { border-color: var(--text); }
+.status { color: var(--muted); font-size: 14px; min-height: 21px; margin-top: 12px; }
+.status.err { color: #c0392b; }
+.out { margin-top: 18px; }
+.out.hidden, .hidden { display: none !important; }
+.canvaswrap { position: relative; }
+canvas#c { width: 100%; height: auto; display: block; border-radius: 18px; border: 1px solid var(--rule); aspect-ratio: 1; cursor: pointer; }
+.spinner { position: absolute; inset: 0; display: grid; place-items: center; }
+.spinner i { width: 46px; height: 46px; border-radius: 50%; border: 5px solid var(--rule); border-top-color: var(--text); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.acts { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.meta { color: var(--muted); font-size: 13px; margin-top: 10px; }
+details { margin-top: 18px; border-top: 1px solid var(--rule); padding-top: 12px; }
+summary { cursor: pointer; color: var(--muted); font-size: 14px; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+summary::before { content: '+ '; }
+details[open] summary::before { content: '− '; }
+table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+td a { color: var(--text); text-decoration: none; }
+td a:hover { text-decoration: underline; }
+.who { display: flex; align-items: center; gap: 8px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.who img { width: 22px; height: 22px; border-radius: 50%; flex: none; background: var(--rule); }
+.tablewrap { overflow-x: auto; }
+.tune { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 16px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.tune label { display: flex; flex-direction: column; gap: 4px; }
+.tune select, .tune input { font: 500 14px var(--sans); color: var(--text); background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 7px 8px; }
+.tune .note { grid-column: 1 / -1; font-size: 12px; }
+.tip { position: fixed; z-index: 10; pointer-events: none; background: var(--paper); color: var(--text); border: 1px solid var(--rule); border-radius: 10px; padding: 8px 10px; font-size: 13px; box-shadow: 0 8px 24px -12px rgba(0,0,0,.35); max-width: 260px; }
+.tip .m { color: var(--muted); font-size: 12px; }
+footer { margin-top: 40px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="mark" aria-hidden="true"></div>
+    <div><h1>o</h1><div class="sub">your circle on Bluesky. handle in, circle out.</div></div>
+  </header>
+
+  <form id="f" autocomplete="off">
+    <input type="text" id="h" placeholder="your.handle" spellcheck="false" autocapitalize="off" aria-label="Bluesky handle" data-bsky-typeahead>
+    <button id="go" type="submit" aria-label="make my circle">→</button>
+  </form>
+  <div class="status" id="status" aria-live="polite"></div>
+
+  <section class="out hidden" id="out">
+    <div class="canvaswrap">
+      <canvas id="c" width="1200" height="1200" aria-label="your circle"></canvas>
+      <div class="spinner hidden" id="spin"><i></i></div>
+    </div>
+    <div class="acts">
+      <button class="ghost" id="share">share</button>
+      <button class="ghost" id="save">save image</button>
+      <button class="ghost" id="copy">copy link</button>
+    </div>
+    <div class="meta" id="meta"></div>
+
+    <details id="numbers">
+      <summary>the numbers</summary>
+      <div class="tablewrap"><table id="table"></table></div>
+    </details>
+
+    <details id="tunePanel">
+      <summary>tune</summary>
+      <div class="tune">
+        <label>window
+          <select id="days"><option value="7">7 days</option><option value="14">14 days</option><option value="20" selected>20 days</option><option value="30">30 days</option><option value="60">60 days</option></select>
+        </label>
+        <label>counting
+          <select id="dir"><option value="both">both ways</option><option value="in">them → you</option><option value="out">you → them</option></select>
+        </label>
+        <label>inner ring <input type="number" id="inner" min="3" max="12" value="8"></label>
+        <label>outer ring <input type="number" id="outer" min="0" max="24" value="16"></label>
+        <label>a like is worth <input type="number" id="wl" min="0" max="10" step="0.5" value="1"></label>
+        <label>a repost <input type="number" id="wp" min="0" max="10" step="0.5" value="1"></label>
+        <label>a reply <input type="number" id="wr" min="0" max="10" step="0.5" value="1"></label>
+        <label>a quote <input type="number" id="wq" min="0" max="10" step="0.5" value="1"></label>
+        <div class="note">By default every interaction counts once, both ways: plain totals. Changes go in the link, so a shared circle is the circle you made.</div>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    No sign-in. No app password. Nothing stored, nothing posted. o reads public Bluesky data in your browser:
+    your likes, reposts, replies and quotes from your own repo, and other people's on your posts.
+    It never asks for anything it doesn't need, and never will.
+    · <a href="https://mino.mobi">mino.mobi</a>
+  </footer>
+</main>
+<div class="tip hidden" id="tip"></div>
+<script src="./typeahead.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

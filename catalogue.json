@@ -271,6 +271,17 @@
       "d": "The communities inside a crowd. Give it a Bluesky list or a handle's mutuals; it finds the groups, measures how tight each is against a random graph, shows how the confederation splits as you ask for finer resolution, and names the people who bridge them."
     },
     {
+      "n": "o",
+      "u": "https://o.mino.mobi/",
+      "c": "bluesky",
+      "k": 10,
+      "a": "hot",
+      "t": "2026-11-23",
+      "b": "2026-11-23",
+      "surface": "o",
+      "d": "Your Bluesky circle. Handle in, circle out: you in the middle, your closest 24 in two rings, ranked by every like, repost, reply and quote between you over 20 days. No sign-in, no app password, nothing stored; a shareable card with the numbers behind it."
+    },
+    {
       "n": "wheel of misfortune",
       "u": "https://mino.mobi/misfortune/",
       "c": "games",

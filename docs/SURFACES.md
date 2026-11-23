@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **112 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **113 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -104,6 +104,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `moji` | frontend | `moji` | [moji.mino.mobi](https://moji.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`moji/CLAUDE.md`](../moji/CLAUDE.md) | The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) — no build, no D1, no AI, no secrets… |
 | `neuro` | frontend | `neuro` | [neuro.mino.mobi](https://neuro.mino.mobi) | `claude/website-hidden-paper-8vum5k` | [`neuro/CLAUDE.md`](../neuro/CLAUDE.md) | Cognitive-science models rebuilt from their papers in Rust, compiled to WASM, and made runnable in a tab — each shown against the published result it replicates. |
 | `ns` | frontend | `ns` | [ns.mino.mobi](https://ns.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`ns/CLAUDE.md`](../ns/CLAUDE.md) | The 2026 OpenAI paper claiming finite-time blowup for the forced 3D Navier–Stokes equations (Fefferman’s alternatives C and D), taken apart: an animated r–z anatomy of the collapsing core, the pulse a… |
+| `o` | frontend | `o` | [o.mino.mobi](https://o.mino.mobi) | `claude/focused-knuth-f0oawl` | [`o/CLAUDE.md`](../o/CLAUDE.md) | Your Bluesky circle. Handle in, circle out: you in the middle, your closest 24 in two rings, ranked by every like, repost, reply and quote between you over 20 days… |
 | `ocr` | frontend | `ocr` | [ocr.mino.mobi](https://ocr.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`ocr/CLAUDE.md`](../ocr/CLAUDE.md) | Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/)… (full description: ocr/CLAUDE.md) |
 | `org` | frontend | `org` | [org.mino.mobi](https://org.mino.mobi) | `claude/agent-social-media-drlzxn` | [`org/CLAUDE.md`](../org/CLAUDE.md) | Organization hub. Create orgs, manage members and tiers, with calendar, CRM, PM, and Wave apps built in. |
 | `os` | frontend | `os` | [os.mino.mobi](https://os.mino.mobi) | `claude/codex-container-auth-sngj6k` | [`os/CLAUDE.md`](../os/CLAUDE.md) | Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. |

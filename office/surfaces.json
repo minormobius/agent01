@@ -185,6 +185,15 @@
    "parent": "cluster"
   },
   {
+   "id": "o",
+   "name": "o",
+   "url": "https://o.mino.mobi/",
+   "cat": "bluesky",
+   "commits": 10,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "wheel of misfortune",
    "name": "wheel of misfortune",
    "url": "https://mino.mobi/misfortune/",

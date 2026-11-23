@@ -1,0 +1,5 @@
+CLAUDE.md
+wrangler.jsonc
+worker.js
+*.selftest.mjs
+node_modules

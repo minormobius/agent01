@@ -940,6 +940,21 @@
       ]
     },
     {
+      "surface": "o",
+      "dir": "o",
+      "endpoint": "o.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/focused-knuth-f0oawl",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "o/**",
+        ".github/workflows/deploy-o.yml"
+      ],
+      "note": "o — your Bluesky circle. Handle in, circle out: the account's avatar in the middle and its closest 8 + 16 around it, ranked by total interactions (likes, reposts, replies, quotes, both directions) over 20 days. Everything measured in the browser from public data; no sign-in. Worker `o` (plain route o.mino.mobi/*) serves the assets, re-serves avatar thumbnails with CORS at /av/<did>/<cid> so the card can be exported, and titles /<handle> pages. No D1, no secrets. (full description: o/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-11-23) — new; plain route, no custom-domain slot. deploy-o.yml runs the selftest, scripts/route-dns.mjs, wrangler deploy, then fails unless o.mino.mobi answers."
+    },
+    {
       "surface": "ns",
       "dir": "ns",
       "endpoint": "ns.mino.mobi",
