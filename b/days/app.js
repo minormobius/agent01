@@ -197,19 +197,31 @@ async function openDay(d) {
     upgrade(posts.slice(SHOW));
   };
 
-  const load = async (col, target, title, render) => {
+  const load = async (col, target, title, render, body = target) => {
     if (!row[col]) return;
-    target.innerHTML = `<h4>${title}</h4><p class="note">loading ${num(row[col])}…</p>`;
+    body.innerHTML = `<p class="note">loading ${num(row[col])}…</p>`;
     try {
       const recs = await dayRecords(S.pds, did, col, start, end, { limit: 100, signal });
       if (signal.aborted) return;
-      target.innerHTML = `<h4>${title} · ${num(row[col])}</h4>` + await render(recs, signal)
+      body.innerHTML = await render(recs, signal)
         + (row[col] > recs.length ? `<p class="more">showing the latest ${num(recs.length)} of ${num(row[col])}</p>` : '');
-    } catch (e) { if (e?.name !== 'AbortError') target.innerHTML = `<h4>${title}</h4><p class="note">couldn't load these (${esc(e.message)})</p>`; }
+    } catch (e) { if (e?.name !== 'AbortError') body.innerHTML = `<p class="note">couldn't load these (${esc(e.message)})</p>`; }
   };
-  load(L, $('dlikes'), 'liked', (recs, sig) => subjectsHtml(recs, sig));
-  load(R, $('dreposts'), 'reposted', (recs, sig) => subjectsHtml(recs, sig));
-  load(F, $('dfollows'), 'followed', (recs, sig) => followsHtml(recs, sig));
+  // Liked and reposted are OTHER people's posts, and a busy day holds hundreds:
+  // they start folded, so scrolling down the day's own posts never runs on into
+  // a stranger's feed unannounced. Fetched on first open only, which also
+  // spares the requests on every day nobody unfolds.
+  const folded = (col, target, title, render) => {
+    if (!row[col]) return;
+    target.innerHTML = `<details class="fold"><summary>${title} · ${num(row[col])}</summary><div class="foldbody"></div></details>`;
+    const det = target.querySelector('details');
+    det.addEventListener('toggle', () => {
+      if (det.open && !det.dataset.loaded) { det.dataset.loaded = '1'; load(col, target, title, render, det.querySelector('.foldbody')); }
+    });
+  };
+  folded(L, $('dlikes'), 'liked', (recs, sig) => subjectsHtml(recs, sig));
+  folded(R, $('dreposts'), 'reposted', (recs, sig) => subjectsHtml(recs, sig));
+  if (row[F]) { $('dfollows').innerHTML = `<h4>followed · ${num(row[F])}</h4><div class="foldbody"></div>`; load(F, $('dfollows'), 'followed', (recs, sig) => followsHtml(recs, sig), $('dfollows').querySelector('.foldbody')); }
 }
 // a busy day can hold hundreds of posts: the first SHOW, then a button
 const SHOW = 40;
@@ -374,6 +386,20 @@ $('day').addEventListener('click', (e) => {
   const b = e.target.closest('.replyto');
   if (b) { e.preventDefault(); showThread(b.closest('.card')); }
 });
+
+// ── back to the top ──────────────────────────────────────────────────────────
+// A day can run thousands of pixels; a small pull button appears once you are a
+// screen below the grid and brings you back to the top.
+const toTop = document.createElement('button');
+toTop.className = 'totop hidden'; toTop.type = 'button'; toTop.setAttribute('aria-label', 'back to top'); toTop.textContent = '↑';
+toTop.onclick = () => window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+document.body.appendChild(toTop);
+let topTick = false;
+addEventListener('scroll', () => {
+  if (topTick) return;
+  topTick = true;
+  requestAnimationFrame(() => { toTop.classList.toggle('hidden', scrollY < innerHeight * 0.9); topTick = false; });
+}, { passive: true });
 
 // ── events ───────────────────────────────────────────────────────────────────
 $('f').addEventListener('submit', (e) => { e.preventDefault(); selected = null; $('day').classList.add('hidden'); run($('h').value); });

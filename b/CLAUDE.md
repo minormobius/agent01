@@ -905,6 +905,13 @@ skipping would join two posts that were never adjacent. Video posters open the
 post on bsky.app (HLS plays natively only in Safari). Four headline tiles, no
 current streak.
 
+**Liked and reposted start folded** (a `<details>` per section, "liked · 62"):
+they are other people's posts, and a busy day holds hundreds, so scrolling the
+day's own posts must never run on into them unannounced. They are fetched on
+first open only (checked: zero like requests until opened, one on open, none on
+re-open). Followed stays open; it is a row of faces. A round **↑** button
+appears once you are a screen down and returns to the top.
+
 ## Deploying
 
 Pushes to `claude/focused-knuth-f0oawl` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
