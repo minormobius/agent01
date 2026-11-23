@@ -20,7 +20,7 @@ serves the page **and** the avatar proxy answers. Owned by
 
 | file | holds |
 |---|---|
-| `circle.js` | pure: `rank` (events → people, weights/direction/window), `rings` (seat geometry, no overlaps), URL ⇄ settings, input cleaning |
+| `circle.js` | pure: `rank` (events → people, weights/direction/window), `rings` (seat geometry, no overlaps), `altText` (the circle as plain text for image alt text), URL ⇄ settings, input cleaning |
 | `data.js` | browser fetching: OUT from the account's own repo (likes, reposts, replies, quotes); IN from the AppView per post (getLikes, getRepostedBy, getQuotes, getPostThread depth 1), busiest posts first under `LIMITS.inRequests` |
 | `render.js` | the card; the canvas the page shows IS the PNG that is shared |
 | `app.js` | input, typeahead submit, cache (sessionStorage, 10 min), tune panel, share/save/copy, hover + click on seats |
@@ -45,6 +45,15 @@ inner 8. `LIMITS.inRequests = 400`. Whatever the budget cuts is printed under
 the circle ("not read: …"), never hidden. Read directly, the full pass took
 ~4 s; in the sandbox's proxied browser ~16–26 s, which is the proxy, not the
 work. Measure from a real network before tuning further.
+
+## Alt text
+
+"copy alt text" (next to share, and as a selectable box under "the numbers")
+gives the circle as plain text: a header (who, window, how it was ranked,
+o.mino.mobi), then a numbered list per ring with each count. A numbered list,
+not a padded table, because a screen reader reads padding as noise. It must
+fit Bluesky's 2,000-character alt-text cap: if it doesn't, counts are dropped
+first, then the tail is cut with "…and N more", never mid-handle (selftest).
 
 ## Tune
 

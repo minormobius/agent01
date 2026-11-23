@@ -1,5 +1,5 @@
 // o.selftest.mjs — ranking, rings, URL round-trips. node o/o.selftest.mjs
-import { rank, rings, toQuery, fromQuery, cleanActor, authorOf, DEFAULTS, sum } from './circle.js';
+import { rank, rings, toQuery, fromQuery, cleanActor, authorOf, DEFAULTS, sum, altText, ALT_LIMIT } from './circle.js';
 import { handleFromPath, avatarPath } from './worker.js';
 
 let fails = 0, passes = 0;
@@ -62,6 +62,24 @@ ok(g.inner[0].r > g.outer[0].r && g.centre.r > g.inner[0].r, 'centre > inner > o
 ok(g.third.length === 0 && g.guides.length === 2, 'no third ring by default');
 const g3 = rings(1200, 8, 16, 24);
 ok(g3.outer[0].r > g3.third[0].r && g3.guides.length === 3, 'third ring: smaller seats, its own guide');
+
+// ── alt text ─────────────────────────────────────────────────────────────────
+const mk = (n, len = 12) => Array.from({ length: n }, (_, i) => ({ did: 'd' + i, total: 100 - i, score: (100 - i) * 2, profile: { handle: ('h' + i).padEnd(len, 'x') + '.bsky.social' } }));
+const S0 = { ...DEFAULTS, weights: { ...DEFAULTS.weights } };
+const A = altText({ handle: 'me.bsky.social' }, mk(24), S0);
+ok(A.startsWith('My Bluesky circle, @me.bsky.social, last 20 days, ranked by interactions both ways. Made with o.mino.mobi.'), 'alt: header says who, when, how, where');
+ok(/\nInner ring:\n1\. @h0x+\.bsky\.social \(100\)/.test(A) && /\nOuter ring:\n9\. @h8/.test(A), 'alt: rings in rank order, numbered, with counts');
+ok(!/Third ring/.test(A) && !/more$/.test(A), 'alt: no third ring when off, nothing cut');
+ok(A.length <= ALT_LIMIT, 'alt: default circle fits');
+const A3 = altText({ handle: 'me.bsky.social' }, mk(48, 20), { ...S0, third: 24 });
+ok(A3.length <= ALT_LIMIT, `alt: a 48-seat circle with long handles still fits (${A3.length})`);
+ok(!/\(\d+\)/.test(A3) && /Third ring:/.test(A3), 'alt: when too long, counts go first, rings stay');
+const Atiny = altText({ handle: 'me.bsky.social' }, mk(48, 60), { ...S0, third: 24 }, { limit: 600 });
+ok(Atiny.length <= 600 && /…and \d+ more$/.test(Atiny), 'alt: past that, the tail is cut and says how many');
+ok(Atiny.split('\n').filter((l) => /^\d+\./.test(l)).every((l) => /^\d+\. @h\d+x+\.bsky\.social$/.test(l)), 'alt: never cut mid-handle');
+const Aw = altText({ handle: 'me.bsky.social' }, mk(3), { ...S0, dir: 'in', weights: { like: 1, repost: 1, reply: 3, quote: 1 } });
+ok(/their interactions with me \(weighted\)/.test(Aw) && /1\. @h0x+\.bsky\.social \(200\)/.test(Aw), 'alt: weighted circles show the score and say so');
+ok(altText({ handle: 'me.bsky.social' }, mk(5), S0).split('\n').filter((l) => /^\d+\./.test(l)).length === 5, 'alt: fewer people than seats lists who there is');
 
 // ── settings in the URL ──────────────────────────────────────────────────────
 ok(toQuery({ ...DEFAULTS, weights: { ...DEFAULTS.weights } }) === '', 'defaults write an empty query');

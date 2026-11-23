@@ -118,3 +118,48 @@ export function cleanActor(s) {
 
 /** `at://did:plc:x/coll/rkey` → `did:plc:x`. */
 export const authorOf = (uri) => (typeof uri === 'string' && uri.startsWith('at://') ? uri.slice(5).split('/')[0] : null);
+
+/**
+ * The circle as plain text, for alt text: who sits where, in rank order, with
+ * their count. Screen readers read it top to bottom, so it is a numbered list,
+ * not a space-padded table (padding is noise when read aloud).
+ *
+ * Bluesky caps alt text at 2,000 characters. If the full list does not fit,
+ * the counts go first (handles only), then the tail is cut with "…and N more"
+ * — never a silent truncation mid-handle.
+ */
+export const ALT_LIMIT = 2000;
+export function altText(centre, people, s, { limit = ALT_LIMIT } = {}) {
+  const sizes = [['inner ring', s.inner], ['outer ring', s.outer], ['third ring', s.third || 0]];
+  const weighted = KINDS.some((k) => (s.weights?.[k] ?? 1) !== 1);
+  const how = s.dir === 'in' ? 'their interactions with me' : s.dir === 'out' ? 'my interactions with them' : 'interactions both ways';
+  const head = `My Bluesky circle, @${centre.handle}, last ${s.days} days, ranked by ${how}${weighted ? ' (weighted)' : ''}. Made with o.mino.mobi.`;
+  const build = (withCounts, cap = Infinity) => {
+    const lines = [head];
+    let i = 0, shown = 0;
+    for (const [name, n] of sizes) {
+      const seat = people.slice(i, i + n);
+      i += n;
+      if (!seat.length) continue;
+      lines.push('', `${name[0].toUpperCase() + name.slice(1)}:`);
+      for (const p of seat) {
+        if (shown >= cap) break;
+        const rank = people.indexOf(p) + 1;
+        const h = '@' + (p.profile?.handle || p.did);
+        lines.push(withCounts ? `${rank}. ${h} (${num(weighted ? p.score : p.total)})` : `${rank}. ${h}`);
+        shown++;
+      }
+    }
+    const total = Math.min(people.length, i);
+    if (shown < total) lines.push(`…and ${total - shown} more`);
+    return lines.join('\n');
+  };
+  let t = build(true);
+  if (t.length <= limit) return t;
+  t = build(false);
+  if (t.length <= limit) return t;
+  let lo = 0, hi = people.length;               // the most seats that fit, handles only
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (build(false, mid).length <= limit) lo = mid; else hi = mid - 1; }
+  return build(false, lo);
+}
+const num = (n) => (Number.isInteger(n) ? n : Math.round(n * 10) / 10).toLocaleString('en-US');

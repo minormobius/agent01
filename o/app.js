@@ -1,5 +1,5 @@
 // o/app.js — handle in, circle out.
-import { rank, toQuery, fromQuery, cleanActor, DEFAULTS, sum } from './circle.js';
+import { rank, toQuery, fromQuery, cleanActor, DEFAULTS, sum, altText, ALT_LIMIT } from './circle.js';
 import { gather, profile, profiles, proxied, stats } from './data.js';
 import { draw, loadImages, SIZE } from './render.js';
 
@@ -76,13 +76,20 @@ async function paint(signal) {
     + (meta.capped.length ? ` · not read: ${meta.capped.join(', ')}` : '')
     + (meta.failed ? ` · ${meta.failed} lookups failed` : '');
   table(ranked);
+  // the circle as plain text: what the image shows, in order, for alt text
+  alt = altText(centre, people, settings);
+  $('alt').value = alt;
+  $('altCount').textContent = `${num(alt.length)} / ${num(ALT_LIMIT)} characters`;
 }
+let alt = '';
 
+let lastRanked = [];
 function table(ranked) {
+  lastRanked = ranked;
   const rows = ranked.slice(0, 50).map((r, i) => {
     const p = prof.get(r.did);
     const h = p?.handle || r.did;
-    const av = p?.avatar ? `<img src="${esc(p.avatar.replace('/avatar/', '/avatar_thumbnail/'))}" alt="" loading="lazy">` : '<img alt="">';
+    const av = p?.avatar ? `<img src="${esc(p.avatar.replace('/avatar/', '/avatar_thumbnail/'))}" alt="">` : '<img alt="">';
     return `<tr><td class="n">${i + 1}</td><td><a class="who" href="https://bsky.app/profile/${esc(h)}" target="_blank" rel="noopener">${av}@${esc(h)}</a></td>`
       + `<td class="n">${num(sum(r.in))}</td><td class="n">${num(sum(r.out))}</td><td class="n">${num(r.in.reply + r.out.reply)}</td><td class="n"><b>${num(r.score)}</b></td></tr>`;
   }).join('');
@@ -149,6 +156,13 @@ $('save').onclick = async () => {
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch { flash($('save'), 'long-press the image to save'); }
 };
+async function copyAlt(btn) {
+  if (!alt) return;
+  try { await navigator.clipboard.writeText(alt); flash(btn, 'copied'); }
+  catch { $('numbers').open = true; $('alt').focus(); $('alt').select(); flash(btn, 'selected: copy it'); }
+}
+$('copyAlt').onclick = () => copyAlt($('copyAlt'));
+$('copyAlt2').onclick = () => copyAlt($('copyAlt2'));
 $('copy').onclick = async () => { try { await navigator.clipboard.writeText(link()); flash($('copy'), 'copied'); } catch { flash($('copy'), 'copy failed'); } };
 
 // ── the canvas is live: hover for who, click for their profile ───────────────
@@ -176,6 +190,8 @@ $('c').addEventListener('click', (ev) => { const i = seatAt(ev); if (i >= 0) win
 // ── input ────────────────────────────────────────────────────────────────────
 $('f').addEventListener('submit', (e) => { e.preventDefault(); run($('h').value); });
 $('h').addEventListener('bsky-select', () => run($('h').value));
+// names past the drawn seats arrive after the first paint; redraw when the panel opens
+$('numbers').addEventListener('toggle', () => { if ($('numbers').open && lastRanked.length) table(lastRanked); });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (events) paint(); });
 addEventListener('popstate', () => { settings = fromQuery(location.search); syncTune(); const h = location.pathname.slice(1); if (h) run(h, { push: false }); });
 
