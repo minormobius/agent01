@@ -1,24 +1,15 @@
 {
- "run": "evolve4-24",
- "why": "Resume the main-sequence resolution check again for the late main sequence (evolve4-23 reached Xc 0.27 for 2.5 M_Ch at dX 0.01 and 0.10 for 4.0). The two 2.5 M_Ch dX 0.005 runs were stopped by the energy-books bar (1.08 for 10 models) at Xc 0.48; they resume with balmax=0.15 as diagnostic runs only. Findings so far: resolution moves the time at fixed Xc under 0.7%; pinned gravity's fix -7 to -9%; the books' 7-8% stretches persist at every resolution (a method error in stirred cores, not resolution).",
+ "run": "evolve4-25",
+ "why": "The stirred-core fix (one burning model for a convective core, shared by the structure and the zone burn) to the end of central hydrogen, for the two stars of the resolution check (G 1e-17: s 1.5152 2.5 M_Ch and s 1.55 4.0 M_Ch), at the paper's resolution and at half the step. In the sandbox the fix took the main sequence's energy books from a median 1.4-2.3% off (worst 7-8%) to 0.07-0.18% (worst 0.8-1.3%) through Xc 0.3-0.4, and the stars live 1.7-2.8% longer at fixed Xc with L unchanged. On the old code the late main sequence still had single models up to 30% off (evolve4-24); this checks the fix there, and gives the life itself against the cached production tracks and evolve4-24's baselines. Tagged (tag=zf) so no production track is overwritten.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev24-a",
+   "name": "ev25-a",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 nq=800 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 balmax=0.15 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 nq=800 balmax=0.15 tag=res"
-   ]
-  },
-  {
-   "name": "ev24-b",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 nq=800 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 0.005 tag=res",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 0.005 nq=800 tag=res"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 tag=zf",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 tag=zf",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 tag=zf",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 0.005 tag=zf"
    ]
   }
  ]
