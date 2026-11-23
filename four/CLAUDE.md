@@ -1534,6 +1534,29 @@ for games, and this is a modelling programme with publications to come. The game
   take the interior physics' own ratio between the two at the same (P, T); exact where ionized, an identity where nothing
   burnt (ours' Sun byte-identical). Teaching surface.js 4D heavies' ionization is the proper fix, not done. Ours' Sun by
   relaxation with both: within 0.05% L, 0.12% R, 0.07% Teff, 0.03% Tc of the calibrated shooting track to 4.6 Gyr.
+  **The giant's energy books (2026-11-23; PI: "where could it be going" … "yes do"):** the printed "burnt/radiated"
+  is, with ε_grav, the shells' burn over the step against the structure's own nuclear luminosity (`s.Lnuc`), not
+  against L. In the giant it drifted 0.99 → 0.87 as Tc rose past 140 MK, and the step test (each step against the last)
+  let it through. Nothing physical is lost; the same burning is integrated twice and the two disagree because the
+  hydrogen shell (q ≈ 0.234–0.246 at Tc 200 MK) had narrowed to ~5 composition-grid cells and 2–3 relaxation nodes.
+  Measured on one model (scratch `evolve.burnprobe.mjs`, DEBUG_BURN): fuel running out within a step ~1% (the burn
+  against the mid-step composition's rate 0.988–0.994: time-centring is fine); the relaxation mesh 4–7 points
+  (1000 → 4000 nodes took the structure's excess from 12–15% to 7.5–8%, L moving 0.7%); the composition grid the
+  remaining ~7.5% (NQ 400, q^1.5 spacing, dq 0.0022 there). Fixed so far:
+  (1) **relax.js's mesh adapts:** nodes equidistribute a blend of the uniform-in-s spacing (0.5) and the guess's
+  cumulative change in ℓ = L/L₀ (0.3) and in hydrogen (0.2, opts.compAt's X), so they follow the shell; on the giant
+  1000 adaptive nodes give what 4000 uniform did (0.922 vs 0.9215). Main sequence: L −0.014%, R 0.001% against shooting
+  at 1000 nodes (was +0.0024%, 0.0037%), second order; selftest 56 passes (3 × 10⁻⁴ at 400). Ours' Sun by relaxation
+  to 4.6 Gyr: within 0.08% L, 0.15% R, 0.08% Teff, 0.11% Tc of the calibrated shooting track (uniform mesh: 0.05, 0.12,
+  0.07, 0.03; the centre gives up nodes to the shell, Tc pays most).
+  (2) **the books are judged absolutely:** off by more than `balmax=` (default 0.08) for 10 models in a row, a run stops,
+  checkpointed, saying so. The rule was chosen on the 63 finished 4D tracks (atom4-data), where it stops none; the
+  giant stops at 15.118 Gyr, 9.2% off. **Found doing so, not yet resolved:** those main-sequence tracks are not at the
+  ~0.5% "structural" level the step test's comment claims. 23 of 63 have models >5% off with Xc > 10⁻³: sustained
+  stretches of +5–6% (burn above the structure) while a convective core sits at Xc ~0.5 (2.5 M_Ch: 91 models;
+  4.0: 43; 2.0; 0.4374 at G 10⁻¹¹), and single models of +12–38% where a convective core grows into fresh hydrogen
+  (Xc rising, qcc 0.08 → 0.17). What that does to paper 2's ages is unmeasured.
+  Still open: (3) the composition grid's ~7.5% at the giant's shell (NQ 1600, or a grid that follows the shell).
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

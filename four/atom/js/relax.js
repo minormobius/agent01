@@ -18,7 +18,7 @@
    relax(opts, guessProf, { N, tol, maxIt }) → star()'s shape: { ok, p, Pc, Tc, R, L, prof, res, it }. */
 import { equations } from "./mainseq.js";
 
-export function relax(opts, guess, { N = 1000, tol = 1e-9, maxIt = 40 } = {}) {
+export function relax(opts, guess, { N = 1000, tol = 1e-9, maxIt = 40, adapt = { L: 0.3, X: 0.2 } } = {}) {
   const { d, M, G } = opts; if (opts.envelope) return { ok: false, why: "relax: no envelope boundary yet" };
   const { S, ff, rhs, surface, cAt } = equations(opts), eps = opts.eps;
   const g = guess.filter((q) => q.m > 0 && q.r > 0 && q.P > 0 && q.T > 0).sort((a, b) => a.m - b.m), last = g.at(-1);
@@ -27,10 +27,23 @@ export function relax(opts, guess, { N = 1000, tol = 1e-9, maxIt = 40 } = {}) {
   const sOf = (m) => Math.log(m) - Math.log(M - m + delta), m0 = 1e-8 * M, s0 = sOf(m0), s1 = sOf(M);
   // the mesh: m from s by bisection (s is monotone in m)
   const mOf = (s) => { let lo = m0 * 0.5, hi = M; for (let i = 0; i < 200; i++) { const mid = 0.5 * (lo + hi); if (sOf(mid) < s) lo = mid; else hi = mid; } return 0.5 * (lo + hi); };
-  const ms = new Float64Array(N + 1); for (let k = 0; k <= N; k++) ms[k] = k === 0 ? m0 : k === N ? M : mOf(s0 + ((s1 - s0) * k) / N);
-  const ds = (s1 - s0) / N, w = Float64Array.from(ms, (m) => (m * (M - m + delta)) / (M + delta)); // dm/ds
+  const gsv = g.map((q) => sOf(q.m));
+  // the nodes equidistribute a blend of three measures over the guess, so they follow a thin burning shell from model to
+  // model: the uniform-in-s spacing (weight 1 − adapt.L − adapt.X), and the guess's cumulative change in ℓ = L/L₀ and in
+  // hydrogen (opts.compAt's X). Uniform in s alone left a 4D giant's hydrogen shell 2–3 nodes wide, and the structure's
+  // trapezoid of the burning laws ran 12–15% above the composition grid's burn (evolve4-21's sandbox copy)
+  const aL = adapt?.L ?? 0, aX = adapt?.X ?? 0, Xof = (m) => cAt(m)?.X ?? 0, phi = [0], sv = [s0];
+  { let cl = 0, cx = 0; const pts = gsv.map((s, i) => [s, g[i].L / L0, Xof(g[i].m)]).filter((p) => p[0] > s0 && p[0] < s1);
+    const all = [[s0, 0, Xof(m0)], ...pts, [s1, last.L / L0, Xof(M)]], dl = [], dx = [];
+    for (let i = 1; i < all.length; i++) { dl.push(Math.abs(all[i][1] - all[i - 1][1])); dx.push(Math.abs(all[i][2] - all[i - 1][2])); }
+    const tl = dl.reduce((a, v) => a + v, 0) || 1, tx = dx.reduce((a, v) => a + v, 0), wb = 1 - aL * (tl > 0) - aX * (tx > 0);
+    for (let i = 1; i < all.length; i++) { cl += dl[i - 1] / tl; cx += tx > 0 ? dx[i - 1] / tx : 0; sv.push(all[i][0]); phi.push(wb * (all[i][0] - s0) / (s1 - s0) + aL * cl + (tx > 0 ? aX * cx : 0)); } }
+  const sAt = (u) => { const target = u * phi.at(-1); let i = phi.findIndex((x) => x >= target); if (i <= 0) return s0; const t = (target - phi[i - 1]) / (phi[i] - phi[i - 1] || 1); return sv[i - 1] + (sv[i] - sv[i - 1]) * t; };
+  const sk = Float64Array.from({ length: N + 1 }, (_, k) => (k === 0 ? s0 : k === N ? s1 : sAt(k / N)));
+  const ms = new Float64Array(N + 1); for (let k = 0; k <= N; k++) ms[k] = k === 0 ? m0 : k === N ? M : mOf(sk[k]);
+  const dsk = Float64Array.from({ length: N }, (_, k) => sk[k + 1] - sk[k]), w = Float64Array.from(ms, (m) => (m * (M - m + delta)) / (M + delta)); // dm/ds
   // the guess on the mesh: ln r, ln P, ln T and ℓ, linear in s (the guess's own points crowd at both ends too)
-  const gsv = g.map((q) => sOf(q.m)), y = new Float64Array(4 * (N + 1));
+  const y = new Float64Array(4 * (N + 1));
   for (let k = 0, j = 0; k <= N; k++) { const s = sOf(ms[k]); while (j < g.length - 2 && gsv[j + 1] < s) j++;
     const a = g[j], b = g[j + 1], t = Math.max(0, Math.min(1, (s - gsv[j]) / (gsv[j + 1] - gsv[j] || 1)));
     let lr = Math.log(a.r) * (1 - t) + Math.log(b.r) * t; if (s < gsv[0]) lr = Math.log(g[0].r) + Math.log(ms[k] / g[0].m) / d;
@@ -51,6 +64,7 @@ export function relax(opts, guess, { N = 1000, tol = 1e-9, maxIt = 40 } = {}) {
       for (let v = 0; v < 4; v++) { const q = yk.slice(), h = v === 3 ? H * Math.max(Math.abs(yk[3]), 1e-3) : H; q[v] += h; const bq = fn(q); for (let i = 0; i < 2; i++) put(r0 + i, c0 + v, (bq[i] - b0[i]) / h); } };
     bc(inner, Array.from(y.subarray(0, 4)), 0, 0);
     for (let k = 0; k < N; k++) { const r0 = 2 + 4 * k;
+      const ds = dsk[k];
       for (let v = 0; v < 4; v++) { Rv[r0 + v] = y[4 * (k + 1) + v] - y[4 * k + v] - 0.5 * ds * (w[k] * F[k][v] + w[k + 1] * F[k + 1][v]);
         if (wantJ) { put(r0 + v, 4 * k + v, -1); put(r0 + v, 4 * (k + 1) + v, 1);
           for (let u = 0; u < 4; u++) { put(r0 + v, 4 * k + u, -0.5 * ds * w[k] * JF[k][u][v]); put(r0 + v, 4 * (k + 1) + u, -0.5 * ds * w[k + 1] * JF[k + 1][u][v]); } } } }

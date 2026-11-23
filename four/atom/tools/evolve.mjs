@@ -39,7 +39,7 @@ import { makeEnvelope } from "../js/envelope.js";
 import * as SURF from "../js/surface.js";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-mainseq"); mkdirSync(DIR, { recursive: true });
-const GYR = 3.15576e16, YR = 3.15576e7, BALTOL = +(process.env.BALTOL ?? 0.003), DRHO = +(process.env.DRHO ?? 0.05), [cmd, ...args] = process.argv.slice(2);
+const GYR = 3.15576e16, YR = 3.15576e7, BALTOL = +(process.env.BALTOL ?? 0.003), DRHO = +(process.env.DRHO ?? 0.05), BALRUN = 10, [cmd, ...args] = process.argv.slice(2);
 
 /* the composition grid: q_j = (j/N)^1.5, finer at the centre where the burning is */
 const NQ = 400, QS = Float64Array.from({ length: NQ + 1 }, (_, j) => (j / NQ) ** 1.5), WQ = (() => { const w = new Float64Array(NQ + 1); for (let j = 0; j < NQ; j++) { const h = QS[j + 1] - QS[j]; w[j] += h / 2; w[j + 1] += h / 2; } return w; })();
@@ -250,7 +250,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
   let { s, f: grav } = C ? { s: s1, f: g1 } : firstShell(s0);
   if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
-  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1, lgrav = null;
+  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1, lgrav = null, booksOff = 0;
   // ε_grav's references: the accepted models, newest last ({ t, rhoc, prof }); a resumed run starts with its checkpoint's
   // A checkpoint keeps the reference it would use (gref), so a resumed run measures against a real baseline; one written
   // before that resumes with only itself, a one-step baseline, which is stiff (evolve4-15 stopped on it at once). gravAfter:
@@ -312,6 +312,15 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
       const smn = sample(W, M, Sn, f.s); S = mix(Sn, smn.stir); s = f.s; smp = smn; t += dt; dtLast = dt; done = true; if (W.grav) remember();
     }
     if (!done) { console.log(`${label}: stopped at ${(t / GYR).toFixed(3)} Gyr, Xc ${W.H(S[0]).toFixed(4)} (the star didn't solve on a smaller step)`); return { track, profiles, settled, stopped: `no solution past Xc ${W.H(S[0]).toFixed(4)}` }; }
+    // the energy books, judged absolutely: the step test above grades each step against the last (a known structural
+    // mismatch is carried, not chased), so a slow drift passes step by step; evolve4-21's giant ran from 0.99 to 0.87
+    // that way, its hydrogen shell narrowing under the composition grid. A shorter step does not cure that, so off by
+    // more than balmax= (default 0.08) for BALRUN (10) models in a row, the run stops, checkpointed, and says so. Over
+    // the 63 finished 4D tracks that rule stops none: their sustained stretches peak at 5–6% (convective cores at Xc ~0.5)
+    // and their larger excursions (12–38%) are single models where a convective core grows into fresh hydrogen
+    booksOff = eBal != null && Math.abs(eBal - 1) > (W.balmax ?? 0.08) ? booksOff + 1 : 0;
+    if (booksOff >= BALRUN) { const why = `the energy books are off by ${(100 * Math.abs(eBal - 1)).toFixed(1)}%: the shells burnt ${eBal.toFixed(4)} of what the structure assumed, past balmax=${W.balmax ?? 0.08} for ${BALRUN} models (a resolution limit; a shorter step does not cure it)`;
+      console.log(`${label}: stopped at ${(t / GYR).toFixed(3)} Gyr, Xc ${W.H(S[0]).toExponential(2)} (${why})`); keepProf(s, smp); save(); return { track, profiles, settled, stopped: why }; }
     keep(); let kp = false; if (W.d === 3 && t / GYR >= nextProf) { kp = true; nextProf += 0.5; }
     // past central exhaustion (Hstop < 10⁻³), a profile every 10 models: the core's growth is what such a run is for
     if (Hstop < 1e-3 && W.H(S[0]) < 1e-3 && track.length % 10 === 0) kp = true; while (nextFrac < fracs.length && W.H(S[0]) <= fracs[nextFrac] * H0) { kp = true; nextFrac++; } if (kp) keepProf(s, smp);
@@ -355,6 +364,8 @@ if (cmd === "ours") {
   // exhaustion the floor rises as the envelope swells (capped solves at 7e-4–1.8e-3 by 15.112 Gyr); 1e-3 is a 0.1% mismatch
   // at the meeting point. Not in the file name.
   // baltol=<fraction, 0.003>: the step's energy-balance tolerance (the env BALTOL in the sandbox). Not in the file name.
+  // balmax=<fraction, 0.08>: the absolute bar on the energy books (shells' burn against the structure's nuclear luminosity);
+  // past it for 10 models in a row the run stops, checkpointed. Not in the file name.
   // cool=1 (or cool=<MLT α>, default ours' 1.61), with relax=1: 4D's partial-ionization gas (envelope.js on surface.js) in the
   // structure below 4 × 10⁵ K and its grey photosphere as the outer edge. Not in the file name.
   // relax=1 (or relax=<mesh points>): the structure by relaxation (atom/js/relax.js) from each model's profile, shooting only
@@ -364,7 +375,7 @@ if (cmd === "ours") {
   // plasma: the charge law's plasma, on by default: the lens vacuum's cutoff in the opacity (mainseq.js kappaFF4) and
   // screening of the network's rates (shell4.js, atom/js/screen.js); its runs' files carry -lp
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
-  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.fit) W.fit = +kv.fit; if (kv.loose) W.loose = +kv.loose; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; } if (kv.baltol) W.baltol = +kv.baltol; if (kv.cool) { const c0 = W.comp(W.init()), E = makeEnvelope(4, { X: c0.X, Y: c0.Y, Z: 0, ff, alpha: kv.cool === "1" ? 1.61 : +kv.cool }); W.cool = { gas: E.gas, nabla: E.nabla, photosphere: E.photosphere }; }
+  const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.fit) W.fit = +kv.fit; if (kv.loose) W.loose = +kv.loose; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; } if (kv.baltol) W.baltol = +kv.baltol; if (kv.balmax) W.balmax = +kv.balmax; if (kv.cool) { const c0 = W.comp(W.init()), E = makeEnvelope(4, { X: c0.X, Y: c0.Y, Z: 0, ff, alpha: kv.cool === "1" ? 1.61 : +kv.cool }); W.cool = { gas: E.gas, nabla: E.nabla, photosphere: E.photosphere }; }
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
   m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${W.grav ? "-eg" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   const r = evolve(W, m * W.Mch, { dX, tmax, Hstop, from: kv.from ?? null, gravAfter: +(kv.gravAfter ?? 0), settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });
