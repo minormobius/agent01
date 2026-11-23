@@ -18,15 +18,26 @@ for (let t = 0; t < 20; t++) {
   const me = mk(), host = mk(), stranger = mk();
   const g = signOp({ type: 'plc_operation', rotationKeys: [me.did, host.did], verificationMethods: { atproto: host.did },
     alsoKnownAs: ['at://x.test'], services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: 'https://old.test' } }, prev: null }, host.jwk);
-  const did = didOf(g), e0 = { did, operation: g, cid: cidOf(g), nullified: false };
+  const T = Date.parse('2026-11-01T00:00:00Z'), at = h => new Date(T + h * 3600e3).toISOString();
+  const did = didOf(g), e0 = { did, operation: g, cid: cidOf(g), nullified: false, createdAt: at(0) };
   const h1 = signOp({ ...g, services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: 'https://hostile.test' } }, prev: e0.cid }, host.jwk);
-  const log = [e0, { did, operation: h1, cid: cidOf(h1), nullified: false }];
+  const log = [e0, { did, operation: h1, cid: cidOf(h1), nullified: false, createdAt: at(1) }];
   ok(checkLog(log).every(r => r.ok), 'synthetic log checks');
   const r = recover(log, me.jwk, { prev: e0.cid, pds: 'https://mine.test' });
   ok(r.rank === 0 && r.overrides[0] === log[1].cid, 'override targets the host op');
   ok(verifyOp(r.op, me.did) && !verifyOp(r.op, host.did), 'signed by us, not the host');
-  const forked = [e0, { ...log[1], nullified: true }, { did, operation: r.op, cid: r.cid, nullified: false }];
+  const forked = [e0, { ...log[1], nullified: true }, { did, operation: r.op, cid: r.cid, nullified: false, createdAt: at(30) }];
   ok(checkLog(forked).every(x => x.ok), 'forked log checks with our op live');
+  // forged forks: each must fail somewhere in the log
+  const bad = l => !checkLog(l).every(x => x.ok);
+  ok(bad([e0, log[1], forked[2]]), 'fork whose undone op is not marked nullified');
+  ok(bad([e0, { ...log[1], nullified: true }, { ...forked[2], createdAt: at(74) }]), 'fork after 72 h');
+  ok(bad([e0, { ...log[1], nullified: true }, { ...forked[2], createdAt: undefined }]), 'fork without createdAt');
+  ok(bad([e0, { ...log[1], nullified: true }]), 'nullified with no fork');
+  const m1 = signOp({ ...g, services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: 'https://me.test' } }, prev: e0.cid }, me.jwk);
+  const h2 = signOp({ ...g, services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: 'https://hostile2.test' } }, prev: e0.cid }, host.jwk);
+  ok(bad([e0, { did, operation: m1, cid: cidOf(m1), nullified: true, createdAt: at(1) }, { did, operation: h2, cid: cidOf(h2), nullified: false, createdAt: at(2) }]),
+    'host (rank 1) cannot fork away our rank-0 op');
   let threw = false; try { recover(log, stranger.jwk, {}); } catch { threw = true; } ok(threw, 'stranger key refused');
   ok(!verifyOp({ ...r.op, alsoKnownAs: ['at://evil.test'] }, me.did), 'tamper fails');
   const s = Buffer.from(r.op.sig, 'base64url'), N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;

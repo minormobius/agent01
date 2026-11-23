@@ -27,9 +27,12 @@ For a bot, "your own" means whoever runs the bot holds the file. Say so to yours
    prints it. Nothing is sent without `--submit`. It refuses if your key isn't in rotationKeys.
    **plcop.mjs** holds the parts: DAG-CBOR, op CID, did:plc from genesis, low-S ECDSA, did:key
    for secp256k1 and P-256, and `checkLog`, which re-verifies an audit log from genesis.
-   `node selftest-recover.mjs`: 142 checks. Miniphim's real log (fixture) re-verifies, and in 20
+   `node selftest-recover.mjs`: 242 checks. Miniphim's real log (fixture) re-verifies, and in 20
    synthetic DIDs a host moves the PDS and our higher-ranked key signs the override. A stranger's
-   key, a tampered op and a high-S sig are all refused.
+   key, a tampered op and a high-S sig are all refused. Forks are checked as the directory rules
+   them: an op that undoes others must outrank the first one it undoes and come within 72 h of it,
+   and the ops undone must be exactly the ones marked nullified. Five forged forks per DID fail.
+   (Tested on synthetic logs only; no real log with a nullified op has been run yet.)
    **Against the real town:** checkLog re-verifies all 1,091 ops of all 1,043 pds.delve.town
    accounts (CID, DID, prev, signature), so the encoding matches what the directory signed
    (research/rk-kit-verify-1121/).

@@ -2,7 +2,7 @@
 // What it holds: DAG-CBOR for the shapes a PLC op uses, the op's CID, the did:plc of a genesis op,
 // ECDSA over sha256 with low-S compact signatures, and did:key decoding for secp256k1 and P-256.
 // checkLog(audit) re-verifies a plc.directory audit log from genesis: every sig against a rotation
-// key of the op before it, every prev against the CID of the op before it, the DID against genesis.
+// key of the op it names as prev, the DID against genesis, and every fork against the 72 h / rank rule.
 import { createHash, createPublicKey, createPrivateKey, sign, verify } from 'node:crypto';
 import { unb58 } from './keygen.mjs';
 
@@ -88,25 +88,57 @@ export function signOp(op, jwk) {
 }
 
 // Re-verify a whole audit log (plc.directory/<did>/log/audit). Returns one line per op.
-// Who signed each op isn't recorded in it: we find it by trying the keys that were allowed to.
+// Who signed each op isn't recorded in it: we find it by trying the keys that were allowed to,
+// i.e. the rotation keys of the op it names as prev (looked up by cid, so a fork's branches each check).
+// Forks: an op whose prev is not the chain's head undoes the ops after its prev. The directory allows
+// that only if its signer outranks (lower index in prev's rotationKeys) the signer of the first undone
+// op, and within 72 h of that op. We replay the chain with every op as written, apply each fork by
+// that rule, and at the end the ops we undid must be exactly the ones the log marks nullified.
+export const RECOVERY_MS = 72 * 3600 * 1000;
 export function checkLog(audit) {
-  const out = []; let prev = null, prevCid = null;   // the last live (not nullified) op
+  const out = [], byCid = new Map(), chain = [], undone = new Set();
+  const keysOf = o => o.type === 'create' ? [o.recoveryKey, o.signingKey] : (o.rotationKeys || []);
   for (const [i, e] of audit.entries()) {
     const op = e.operation, row = { i, cid: e.cid, ok: true, notes: [] };
     const legacy = op.type === 'create' && i === 0;      // pre-2023 genesis: keys are recoveryKey, signingKey
-    if (op.type !== 'plc_operation' && !legacy) { row.notes.push('type ' + op.type + ' not checked'); out.push(row); if (!e.nullified) { prev = op; prevCid = e.cid; } continue; }
-    if (cidOf(op) !== e.cid) { row.ok = false; row.notes.push('cid mismatch: ' + cidOf(op)); }
+    const checked = op.type === 'plc_operation' || op.type === 'plc_tombstone' || legacy;
+    if (cidOf(op) !== e.cid && checked) { row.ok = false; row.notes.push('cid mismatch: ' + cidOf(op)); }
     if (i === 0) {
-      if (op.prev !== null) { row.ok = false; row.notes.push('genesis has a prev'); }
+      if (op.prev != null) { row.ok = false; row.notes.push('genesis has a prev'); }
       if (didOf(op) !== e.did) { row.ok = false; row.notes.push('did mismatch: ' + didOf(op)); }
-    } else if (op.prev !== prevCid && !e.nullified) { row.ok = false; row.notes.push('prev is not the last live op'); }
-    const keysOf = o => o.type === 'create' ? [o.recoveryKey, o.signingKey] : o.rotationKeys;
-    const allowed = keysOf(i === 0 ? op : prev);
-    const signer = allowed.findIndex(k => { try { return verifyOp(op, k); } catch { return false; } });
-    if (signer < 0) { row.ok = false; row.notes.push('no allowed rotation key verifies the sig'); }
-    else row.signer = { index: signer, key: allowed[signer] };
+    }
+    const prevE = i === 0 ? null : byCid.get(op.prev);
+    if (i > 0 && !prevE) { row.ok = false; row.notes.push('prev is no earlier op in this log'); }
+    if (checked) {
+      const allowed = i === 0 ? keysOf(op) : prevE ? keysOf(prevE.operation) : [];
+      const signer = allowed.findIndex(k => { try { return verifyOp(op, k); } catch { return false; } });
+      if (signer < 0) { row.ok = false; row.notes.push('no allowed rotation key verifies the sig'); }
+      else row.signer = { index: signer, key: allowed[signer] };
+    } else row.notes.push('type ' + op.type + ' not checked');
+    if (i > 0 && prevE) {
+      const at = chain.indexOf(op.prev);
+      if (at < 0) { row.ok = false; row.notes.push('prev was already undone'); }
+      else if (at !== chain.length - 1) {                // a fork: undo chain[at+1..]
+        const firstCid = chain[at + 1], first = out[byCid.get(firstCid).i];
+        const fe = audit[first.i];
+        row.fork = { from: op.prev, undoes: chain.slice(at + 1) };
+        if (!row.signer || !first.signer || row.signer.index >= first.signer.index) {
+          row.ok = false; row.notes.push('fork signer does not outrank the signer of the op it undoes');
+        }
+        const dt = Date.parse(e.createdAt) - Date.parse(fe.createdAt);
+        if (!(dt >= 0 && dt <= RECOVERY_MS)) {
+          row.ok = false; row.notes.push(isNaN(dt) ? 'fork without createdAt: 72 h window unchecked' : 'fork outside the 72 h window');
+        }
+        for (const c of chain.splice(at + 1)) undone.add(c);
+      }
+    }
     if (e.nullified) row.notes.push('nullified');
-    out.push(row); if (!e.nullified) { prev = op; prevCid = e.cid; }
+    byCid.set(e.cid, { i, operation: op });
+    chain.push(e.cid); out.push(row);
+  }
+  for (const row of out) {
+    const marked = !!audit[row.i].nullified, ours = undone.has(row.cid);
+    if (marked !== ours) { row.ok = false; row.notes.push(marked ? 'marked nullified but no valid fork undid it' : 'undone by a fork but not marked nullified'); }
   }
   return out;
 }
