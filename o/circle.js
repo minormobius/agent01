@@ -17,7 +17,7 @@ export const DEFAULTS = Object.freeze({
   days: 20,
   dir: 'both',                       // 'both' | 'in' | 'out'
   weights: { like: 1, repost: 1, reply: 1, quote: 1 },
-  inner: 8, outer: 16,
+  inner: 8, outer: 16, third: 0,   // third ring: off unless asked for
 });
 
 /**
@@ -54,16 +54,21 @@ export const sum = (o) => o.like + o.repost + o.reply + o.quote;
 
 /**
  * Where everything sits on a square canvas of side `S`.
- * Centre avatar, then two rings; rank 1 at twelve o'clock, clockwise.
- * Sizes are chosen so neighbours on a ring never overlap (selftest asserts it).
+ * Centre avatar, then two rings (three if `third` > 0); rank 1 at twelve
+ * o'clock, clockwise. Sizes are chosen so no avatar overlaps another, within a
+ * ring or across rings (selftest asserts it).
  */
-export function rings(S, inner = DEFAULTS.inner, outer = DEFAULTS.outer) {
+export function rings(S, inner = DEFAULTS.inner, outer = DEFAULTS.outer, third = DEFAULTS.third) {
   const c = S / 2;
-  const centreR = S * 0.13;
-  const r1 = S * 0.255, r2 = S * 0.405;
+  // three rings pull everything in to make room; two keep the roomier layout
+  const L = third > 0
+    ? { centre: 0.10, r: [0.205, 0.32, 0.435], cap: [0.060, 0.044, 0.034] }
+    : { centre: 0.13, r: [0.255, 0.405, 0], cap: [0.075, 0.052, 0] };
+  const centreR = S * L.centre;
+  const [r1, r2, r3] = L.r.map((v) => S * v);
   // the largest avatar that fits n around a ring, with a gap, capped for looks
   const fit = (R, n, cap) => Math.min(cap, R * Math.sin(Math.PI / Math.max(n, 2)) * 0.86);
-  const a1 = fit(r1, inner, S * 0.075), a2 = fit(r2, outer, S * 0.052);
+  const a1 = fit(r1, inner, S * L.cap[0]), a2 = fit(r2, outer, S * L.cap[1]), a3 = third > 0 ? fit(r3, third, S * L.cap[2]) : 0;
   const place = (R, n, r, offset) => Array.from({ length: n }, (_, i) => {
     const a = -Math.PI / 2 + offset + (i / n) * Math.PI * 2;
     return { x: c + Math.cos(a) * R, y: c + Math.sin(a) * R, r };
@@ -73,7 +78,8 @@ export function rings(S, inner = DEFAULTS.inner, outer = DEFAULTS.outer) {
     inner: place(r1, inner, a1, 0),
     // the outer ring is turned half a step so its seats sit in the inner ring's gaps
     outer: place(r2, outer, a2, Math.PI / Math.max(outer, 1)),
-    guides: [r1, r2],
+    third: third > 0 ? place(r3, third, a3, 0) : [],
+    guides: third > 0 ? [r1, r2, r3] : [r1, r2],
   };
 }
 
@@ -85,6 +91,7 @@ export function toQuery(o) {
   for (const k of KINDS) if ((o.weights[k] ?? 1) !== DEFAULTS.weights[k]) q.set(WKEY[k], o.weights[k]);
   if (o.inner !== DEFAULTS.inner) q.set('i', o.inner);
   if (o.outer !== DEFAULTS.outer) q.set('o', o.outer);
+  if ((o.third || 0) !== DEFAULTS.third) q.set('t', o.third);
   return q.toString();
 }
 export function fromQuery(qs) {
@@ -98,6 +105,7 @@ export function fromQuery(qs) {
     weights: w,
     inner: Math.round(num('i', 3, 12, DEFAULTS.inner)),
     outer: Math.round(num('o', 0, 24, DEFAULTS.outer)),
+    third: Math.round(num('t', 0, 32, DEFAULTS.third)),
   };
 }
 

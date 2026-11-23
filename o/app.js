@@ -57,7 +57,7 @@ async function run(raw, { push = true } = {}) {
 async function paint(signal) {
   $('spin').classList.remove('hidden');
   const ranked = rank(events, centre.did, settings);
-  const seats = settings.inner + settings.outer;
+  const seats = settings.inner + settings.outer + settings.third;
   const top = ranked.slice(0, seats);
   const need = [centre.did, ...top.map((r) => r.did)].filter((d) => !prof.has(d));
   if (need.length) for (const [k, v] of await profiles(need, signal)) prof.set(k, v);
@@ -65,7 +65,7 @@ async function paint(signal) {
   people = top.map((r) => ({ ...r, profile: prof.get(r.did) || { did: r.did, handle: r.did } }));
   const [cImg, ...pImgs] = await loadImages([avatarSrc(centre.avatar), ...people.map((p) => avatarSrc(p.profile.avatar))]);
   if (signal?.aborted) return;
-  geom = draw($('c'), { centre, people, imgs: { centre: cImg, people: pImgs }, days: settings.days, inner: settings.inner, outer: settings.outer, theme: theme() });
+  geom = draw($('c'), { centre, people, imgs: { centre: cImg, people: pImgs }, days: settings.days, inner: settings.inner, outer: settings.outer, third: settings.third, theme: theme() });
   $('spin').classList.add('hidden');
 
   const total = ranked.reduce((s, r) => s + r.total, 0);
@@ -102,10 +102,10 @@ function fromCache(did, days) {
 function toCache(did, days, v) { try { sessionStorage.setItem(`o:${did}:${days}`, JSON.stringify({ at: Date.now(), v })); } catch { /* full or private */ } }
 
 // ── tune ─────────────────────────────────────────────────────────────────────
-const TUNE = ['days', 'dir', 'inner', 'outer', 'wl', 'wp', 'wr', 'wq'];
+const TUNE = ['days', 'dir', 'inner', 'outer', 'third', 'wl', 'wp', 'wr', 'wq'];
 function syncTune() {
   $('days').value = String(settings.days); $('dir').value = settings.dir;
-  $('inner').value = settings.inner; $('outer').value = settings.outer;
+  $('inner').value = settings.inner; $('outer').value = settings.outer; $('third').value = settings.third;
   $('wl').value = settings.weights.like; $('wp').value = settings.weights.repost; $('wr').value = settings.weights.reply; $('wq').value = settings.weights.quote;
   if (![...$('days').options].some((o) => o.value === String(settings.days))) {
     const o = document.createElement('option'); o.value = settings.days; o.textContent = settings.days + ' days'; $('days').appendChild(o); $('days').value = String(settings.days);
@@ -116,7 +116,7 @@ for (const id of TUNE) $(id).addEventListener('change', () => {
   const clamp = (v, lo, hi, d) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, +v)) : d);
   settings = {
     days: +$('days').value, dir: $('dir').value,
-    inner: Math.round(clamp($('inner').value, 3, 12, 8)), outer: Math.round(clamp($('outer').value, 0, 24, 16)),
+    inner: Math.round(clamp($('inner').value, 3, 12, 8)), outer: Math.round(clamp($('outer').value, 0, 24, 16)), third: Math.round(clamp($('third').value, 0, 32, 0)),
     weights: { like: clamp($('wl').value, 0, 10, 1), repost: clamp($('wp').value, 0, 10, 1), reply: clamp($('wr').value, 0, 10, 1), quote: clamp($('wq').value, 0, 10, 1) },
   };
   syncTune();
@@ -156,7 +156,7 @@ function seatAt(ev) {
   if (!geom || !people.length) return -1;
   const r = $('c').getBoundingClientRect(), k = SIZE / r.width;
   const x = (ev.clientX - r.left) * k, y = (ev.clientY - r.top) * k;
-  const seats = [...geom.inner, ...geom.outer];
+  const seats = [...geom.inner, ...geom.outer, ...geom.third];
   for (let i = 0; i < seats.length && i < people.length; i++) if (Math.hypot(seats[i].x - x, seats[i].y - y) <= seats[i].r + 4) return i;
   return -1;
 }

@@ -49,6 +49,7 @@ work. Measure from a real network before tuning further.
 ## Tune
 
 Hidden behind "tune": window, direction (both / them → you / you → them),
-ring sizes (3–12, 0–24), per-kind weights. Every non-default setting goes in
-the URL (`?d=30&dir=in&wr=3`), so a shared link reproduces the circle. Changing
+ring sizes (inner 3–12, outer 0–24, an optional third ring 0–32, off by
+default; with a third ring every radius pulls in to make room), per-kind weights. Every non-default setting goes in
+the URL (`?d=30&dir=in&wr=3&t=24`), so a shared link reproduces the circle. Changing
 anything but a longer window re-ranks in memory with no refetch.

@@ -40,7 +40,7 @@ function face(ctx, img, p, T, label, ringW) {
 /**
  * @param canvas
  * @param {{ centre, people, imgs: {centre, people[]}, days, inner, outer, theme }} d
- *   people: ranked, with .profile; only the first inner+outer are drawn.
+ *   people: ranked, with .profile; only the first inner+outer+third are drawn.
  * @returns the geometry (for hit-testing on the page)
  */
 export function draw(canvas, d) {
@@ -50,22 +50,22 @@ export function draw(canvas, d) {
   // the circle lives in a square above a band reserved for the type, so a
   // handle can never run into the bottom seats
   const BAND = 120, side = S - BAND, ox = (S - side) / 2, oy = 24;
-  const raw = rings(side, d.inner, d.outer);
+  const raw = rings(side, d.inner, d.outer, d.third || 0);
   const shift = (p) => ({ ...p, x: p.x + ox, y: p.y + oy });
-  const g = { centre: shift(raw.centre), inner: raw.inner.map(shift), outer: raw.outer.map(shift), guides: raw.guides };
+  const g = { centre: shift(raw.centre), inner: raw.inner.map(shift), outer: raw.outer.map(shift), third: raw.third.map(shift), guides: raw.guides };
 
   ctx.fillStyle = T.bg; ctx.fillRect(0, 0, S, S);
   ctx.strokeStyle = T.guide; ctx.lineWidth = 2;
   for (const r of g.guides) { ctx.beginPath(); ctx.arc(g.centre.x, g.centre.y, r, 0, Math.PI * 2); ctx.stroke(); }
 
-  const seats = [...g.inner, ...g.outer];
+  const seats = [...g.inner, ...g.outer, ...g.third];
   seats.forEach((p, i) => {
     const who = d.people[i];
     if (!who) {   // fewer people than seats: an empty seat, honestly empty
       ctx.beginPath(); ctx.arc(p.x, p.y, p.r * 0.35, 0, Math.PI * 2); ctx.fillStyle = T.guide; ctx.fill();
       return;
     }
-    face(ctx, d.imgs.people[i], p, T, who.profile?.handle, i < g.inner.length ? 5 : 4);
+    face(ctx, d.imgs.people[i], p, T, who.profile?.handle, i < g.inner.length ? 5 : i < g.inner.length + g.outer.length ? 4 : 3);
   });
   // the centre, with a hairline ring in ink
   ctx.beginPath(); ctx.arc(g.centre.x, g.centre.y, g.centre.r + 9, 0, Math.PI * 2);
@@ -82,7 +82,8 @@ export function draw(canvas, d) {
   while (ctx.measureText(handle).width > S * 0.55 && size > 20) { size -= 2; ctx.font = `600 ${size}px ${FONT}`; }
   ctx.fillText(handle, pad, S - pad - 30);  // in the band below the circle
   ctx.fillStyle = T.muted; ctx.font = `400 22px ${FONT}`;
-  ctx.fillText(`closest ${d.people.length >= d.inner + d.outer ? d.inner + d.outer : d.people.length} · last ${d.days} days`, pad, S - pad);
+  const shown = Math.min(d.people.length, seats.length);
+  ctx.fillText(`closest ${shown} · last ${d.days} days`, pad, S - pad);
   ctx.textAlign = 'right'; ctx.fillStyle = T.ink; ctx.font = `600 30px ${FONT}`;
   ctx.fillText('o.mino.mobi', S - pad, S - pad);
   return g;

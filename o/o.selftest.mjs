@@ -39,10 +39,10 @@ ok(rank(T, 'ME', { now: NOW })[0].did === 'Y', 'tie: two-way beats one-way');
 ok(JSON.stringify(rank(T, 'ME', { now: NOW })) === JSON.stringify(rank([...T].reverse(), 'ME', { now: NOW })), 'order of events does not matter');
 
 // ── rings ────────────────────────────────────────────────────────────────────
-for (const [inner, outer] of [[8, 16], [12, 24], [3, 0], [6, 12]]) {
-  const S = 1200, g = rings(S, inner, outer);
-  ok(g.inner.length === inner && g.outer.length === outer, `ring counts ${inner}/${outer}`);
-  const all = [g.centre, ...g.inner, ...g.outer];
+for (const [inner, outer, third] of [[8, 16, 0], [12, 24, 0], [3, 0, 0], [6, 12, 0], [8, 16, 24], [12, 24, 32], [3, 0, 1], [8, 16, 8], [12, 24, 12]]) {
+  const S = 1200, g = rings(S, inner, outer, third);
+  ok(g.inner.length === inner && g.outer.length === outer && g.third.length === third, `ring counts ${inner}/${outer}/${third}`);
+  const all = [g.centre, ...g.inner, ...g.outer, ...g.third];
   let overlap = false, out = false;
   for (let i = 0; i < all.length; i++) {
     const p = all[i];
@@ -52,20 +52,24 @@ for (const [inner, outer] of [[8, 16], [12, 24], [3, 0], [6, 12]]) {
       if (Math.hypot(p.x - q.x, p.y - q.y) < p.r + q.r) overlap = true;
     }
   }
-  ok(!overlap, `no avatar overlaps another (${inner}/${outer})`);
-  ok(!out, `every avatar is on the canvas (${inner}/${outer})`);
+  ok(!overlap, `no avatar overlaps another (${inner}/${outer}/${third})`);
+  ok(!out, `every avatar is on the canvas (${inner}/${outer}/${third})`);
 }
 const g = rings(1200);
 ok(Math.abs(g.inner[0].x - 600) < 1e-9 && g.inner[0].y < 600, 'rank 1 sits at twelve o\'clock');
 ok(g.inner[1].x > 600, 'ranks run clockwise');
 ok(g.inner[0].r > g.outer[0].r && g.centre.r > g.inner[0].r, 'centre > inner > outer');
+ok(g.third.length === 0 && g.guides.length === 2, 'no third ring by default');
+const g3 = rings(1200, 8, 16, 24);
+ok(g3.outer[0].r > g3.third[0].r && g3.guides.length === 3, 'third ring: smaller seats, its own guide');
 
 // ── settings in the URL ──────────────────────────────────────────────────────
 ok(toQuery({ ...DEFAULTS, weights: { ...DEFAULTS.weights } }) === '', 'defaults write an empty query');
-const custom = { days: 30, dir: 'in', weights: { like: 1, repost: 2, reply: 3, quote: 3 }, inner: 10, outer: 20 };
+const custom = { days: 30, dir: 'in', weights: { like: 1, repost: 2, reply: 3, quote: 3 }, inner: 10, outer: 20, third: 24 };
 ok(JSON.stringify(fromQuery(toQuery(custom))) === JSON.stringify(custom), 'settings round-trip through the URL');
 const wild = fromQuery('d=9999&i=-4&o=500&dir=sideways&wl=abc');
 ok(wild.days === 90 && wild.inner === 3 && wild.outer === 24 && wild.dir === 'both' && wild.weights.like === 1, 'hostile query values are clamped');
+ok(fromQuery('t=999').third === 32 && fromQuery('').third === 0, 'third ring clamped, off by default');
 
 // ── input ────────────────────────────────────────────────────────────────────
 ok(cleanActor('@Alice.bsky.social ') === 'alice.bsky.social', 'handle: @ and case');
