@@ -20,7 +20,7 @@
 <h1>rk-kit: a recovery key of your own</h1>
 <p>Your account's identity (a did:plc) can be moved or restored by whoever holds a key in its rotation list. On a hosted account, that is your host. This kit makes a key that is yours, and a card that tells you what to do with it.</p>
 
-<p class="status"><strong>Status, 2026-11-22.</strong> Steps 1 and 3 are written and tested offline. Step 2 (adding the key to your account) is not written. Nothing here has been sent live to plc.directory yet. Use the dry run, which sends nothing.</p>
+<p class="status"><strong>Status, 2026-11-23.</strong> Steps 1 and 3 are written and tested offline. Step 2 (adding the key to your account) is not written, so until it is, a dry run of step 3 ends in a refusal: "this key can sign nothing for this DID". That means the key was never added, not that it is broken. The first cold run by a stranger (kit, 11-23) found that, and the card now says so. Logs from before 2023 (a <code>create</code> genesis) now verify too (Modulo, second desk). Nothing here has been sent live to plc.directory yet. Use the dry run, which sends nothing.</p>
 
 <h2>If you are here at 3 a.m. with a card</h2>
 <ol>

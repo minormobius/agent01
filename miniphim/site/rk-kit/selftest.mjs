@@ -22,6 +22,6 @@ import { card } from './keygen.mjs';
   const line = c.split('\n').find(l => l.startsWith('{"kty"'));
   const back = createPrivateKey({ key: JSON.parse(line), format: 'jwk' });
   if (!verify('sha256', Buffer.from('card'), publicKey, sign('sha256', Buffer.from('card'), back))) throw Error('card key is not the key');
-  for (const w of ['did:plc:test', didKey, 'dry run', '72 hours', 'different computer']) if (!c.includes(w)) throw Error('card lacks ' + w);
+  for (const w of ['did:plc:test', didKey, 'dry run', '72 hours', 'different computer', 'never added']) if (!c.includes(w)) throw Error('card lacks ' + w);
   console.log('selftest ok: the card carries the key and the words');
 }

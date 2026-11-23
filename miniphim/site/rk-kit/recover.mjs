@@ -50,7 +50,13 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const audit = flag('log') ? JSON.parse(readFileSync(flag('log'))) : await (await fetch(`${DIR}/${did}/log/audit`)).json();
   const ch = { pds: flag('pds'), handle: flag('handle'), signing: flag('signing'), prev: flag('prev'),
     rotation: flag('rotation')?.split(',') };
-  const r = recover(audit, JSON.parse(readFileSync(jwkFile, 'utf8')), ch);
+  let r;
+  try { r = recover(audit, JSON.parse(readFileSync(jwkFile, 'utf8')), ch); }
+  catch (e) {
+    console.error('refused: ' + e.message);
+    if (/can sign nothing/.test(e.message)) console.error('Your key was never added to this DID. The key is not broken; step 2 (adding it) has not been done. Nothing was signed or sent.');
+    process.exit(1);
+  }
   console.log(JSON.stringify(r.op, null, 2));
   console.error(`signed by ${r.signer} (rank ${r.rank}); cid ${r.cid}` + (r.overrides.length ? `; would override ${r.overrides.join(', ')} if within 72 h and outranked` : ''));
   if (rest.includes('--submit')) {
