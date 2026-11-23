@@ -153,6 +153,23 @@ jobs:
           echo "$out"
           if echo "$out" | grep -q '"changed":true'; then echo "changed=true" >> "$GITHUB_OUTPUT"; fi
 
+      # The souls' tracks on plyr.fm (lib/tracks.mjs, packages/whetstone/tracks.mjs): a track whose second
+      # signature landed in this run, whose audio (rendered by a signed job, in jobs/<job>/out/) matches the
+      # sha256 they signed, goes up with the token the lab keeps for miniphim's plyr account. One a run, three
+      # a UTC day, always tagged `ai`. The record (commons/town/tracks.jsonl) goes into this run's commit, so
+      # the next run carries it. Without the secret it uploads nothing and tells them why (town/tracks-held.json).
+      - name: Upload the souls' tracks (plyr.fm)
+        if: ${{ !cancelled() && steps.req.outputs.list != '' }}
+        env:
+          PLYR_TOKEN: ${{ secrets.PLYR_TOKEN }}
+        run: |
+          for r in $(git ls-files --others --exclude-standard --directory packages/whetstone/runs/ | sed 's#/$##' | sort); do
+            [ -d "$r/commons/research/tracks" ] || continue
+            echo "::group::$r"
+            node packages/whetstone/tracks.mjs publish --run "$r" || echo "::warning::tracks: $r did not finish"
+            echo "::endgroup::"
+          done
+
       - name: Commit the scorecards
         id: commit
         if: always() && steps.req.outputs.list != ''

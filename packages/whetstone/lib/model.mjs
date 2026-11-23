@@ -27,7 +27,7 @@ export const NET_TOOLS = ['WebFetch', 'WebSearch'];
 // the one it runs on; the others reach a soul only through a door the lab holds (models proxy,
 // the account door), never as a value it could print.
 export const SESSION_WITHHELD = ['DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'MINIPHIM_APP_PASSWORD', 'JEV_KEY', 'TYPESAFE_API_KEY',
-  'MAIL_LAB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN', 'GH_PUSH_TOKEN', 'CLOUDFLARE_API_TOKEN'];
+  'MAIL_LAB_TOKEN', 'GITHUB_TOKEN', 'GH_TOKEN', 'GH_PUSH_TOKEN', 'CLOUDFLARE_API_TOKEN', 'PLYR_TOKEN'];
 // The whole shell (2026-10-06, the person: unhobble them; the souls couldn't start Chromium, make a
 // directory or copy a file). The command list was never the boundary, since node:* already runs
 // anything: what holds is the throwaway runner, the keys withheld from the environment

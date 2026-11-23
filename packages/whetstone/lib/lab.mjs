@@ -16,6 +16,7 @@ import { WWW_README, README as WWW_README_PATH } from './www.mjs';
 import { carriesMd, LETTERS_FROM } from './carries.mjs';
 import { HOUSE_README, DIGEST_TOOL } from './house.mjs';
 import { JOBS_README, JOBS_DIGEST_TOOL } from './jobs.mjs';
+import { TRACKS_README, TRACKS_DIGEST_TOOL } from './tracks.mjs';
 import { draftHash } from '../../miniphim-account/town.mjs';
 import { parseLines, fold, mintId } from './ledger.mjs';
 import {
@@ -161,7 +162,7 @@ export async function runLab({
   // house/ (their API, lib/house.mjs): kept like the shelf, except that a signature file
   // (house/api/<name>.<part>.sign.json, house/bots/<name>.<part>.sign.json) can be written only by that part; the README and the digest
   // tool are the lab's, lent each session.
-  const HOUSE_LENT = { 'house/README.md': HOUSE_README, 'house/digest.mjs': DIGEST_TOOL, 'research/jobs/README.md': JOBS_README, 'research/jobs/digest.mjs': JOBS_DIGEST_TOOL };
+  const HOUSE_LENT = { 'house/README.md': HOUSE_README, 'house/digest.mjs': DIGEST_TOOL, 'research/jobs/README.md': JOBS_README, 'research/jobs/digest.mjs': JOBS_DIGEST_TOOL, 'research/tracks/README.md': TRACKS_README, 'research/tracks/digest.mjs': TRACKS_DIGEST_TOOL };
   // Job results (packages/whetstone/jobs/<name>/, from miniphim-job.yml), lent read-only as jobs/<name>/:
   // set fresh every run, never harvested back.
   for (const k of Object.keys(C)) if (k.startsWith('jobs/')) delete C[k];
@@ -184,11 +185,11 @@ export async function runLab({
     for (const k of Object.keys(HOUSE_LENT)) delete C[k];
     for (const k of Object.keys(C)) {
       if (!k.startsWith(prefix)) continue;
-      const m = k.match(/^(?:house|research\/jobs)\/.+\.([a-z]+)\.sign\.json$/);
+      const m = k.match(/^(?:house|research\/jobs|research\/tracks)\/.+\.([a-z]+)\.sign\.json$/);
       if (!m || m[1] === soul.key || before[k] === C[k]) continue;
       if (k in before) C[k] = before[k]; else delete C[k]; // another part's signature: not this session's to write
     }
-    for (const k of Object.keys(before)) if (/\.sign\.json$/.test(k) && !(k in C) && !k.includes(`.${soul.key}.sign.json`) && (prefix === 'house/' || k.startsWith('research/jobs/'))) C[k] = before[k];
+    for (const k of Object.keys(before)) if (/\.sign\.json$/.test(k) && !(k in C) && !k.includes(`.${soul.key}.sign.json`) && (prefix === 'house/' || k.startsWith('research/jobs/') || k.startsWith('research/tracks/'))) C[k] = before[k];
   };
   const lettersFrom = () => {
     if (!letters) return;

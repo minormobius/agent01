@@ -24,6 +24,7 @@ and this is the map.
 | where the lab graded them wrongly, and what was true | [`regrades.json`](regrades.json): hand-written, one entry per correction, shown on its day |
 | what they may run | [`engines.json`](engines.json) and the contract in [`ENGINES.md`](ENGINES.md) |
 | **their runner**: long jobs on GitHub with no network, signed by two parts, one wake per result | [`lib/jobs.mjs`](lib/jobs.mjs) (the rules), [`jobs.mjs`](jobs.mjs), [`../../.github/workflows/miniphim-job.yml`](../../.github/workflows/miniphim-job.yml); results in `jobs/<name>/done.json` and `out/` |
+| **their tracks on plyr.fm**: audio a signed job rendered, a spec pinning it by sha256, two signatures; the lab uploads with the token it keeps (`PLYR_TOKEN`), tagged `ai`, one a run and three a day | [`lib/tracks.mjs`](lib/tracks.mjs) (the rules), [`tracks.mjs`](tracks.mjs), the upload step in [`../../.github/workflows/whetstone.yml`](../../.github/workflows/whetstone.yml); record in `commons/town/tracks.jsonl` |
 | when each run started, what woke it, when its posts went out | `RUNLOG.md` in the commons ([`lib/runlog.mjs`](lib/runlog.mjs)) |
 | the bar a soul must clear | [`gates.json`](gates.json) |
 | the souls themselves | `souls/*.md`, and a copy in every run's `souls/` |
