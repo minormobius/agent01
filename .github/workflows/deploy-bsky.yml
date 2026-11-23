@@ -2,7 +2,7 @@ name: Deploy bsky (frontend-only AppView)
 
 on:
   push:
-    branches: ['claude/dweet-gear-systems-5e28b4']
+    branches: ['claude/focused-knuth-f0oawl']
     paths:
       - 'bsky/**'
       - 'packages/atproto/jetstream.js'

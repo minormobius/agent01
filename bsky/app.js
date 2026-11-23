@@ -97,6 +97,20 @@ const state = {
 
 // ─── chrome ──────────────────────────────────────────────────────
 
+/**
+ * The alt text a paste carried, keyed by File so it survives takeImages()
+ * dropping some of the files (the four-image cap, a refused type). A page that
+ * copies image + <img alt> HTML (o.mino.mobi does) arrives described here;
+ * the mainline app attaches the same paste with nothing in the post. See
+ * attach.altFrom.
+ */
+function pastedAlts(clipboard, files) {
+  const alts = attach.altFrom(clipboard, files.length);
+  const map = new Map(files.map((f, i) => [f, alts[i] || '']));
+  if (alts.some(Boolean)) say('alt text came with the picture — check it before posting');
+  return map;
+}
+
 function say(text, live = false) {
   $('statustext').textContent = text;
   $('dot').className = 'dot' + (live ? ' live' : '');
@@ -1612,10 +1626,10 @@ function replyBox(parent) {
   // Attaching, from the picker or from a paste. One rule set, shared with the
   // composer and the shuffle cards — this box used to say "images only for now"
   // where the composer named the type it had refused and why.
-  const addToReply = (files) => {
+  const addToReply = (files, alts) => {
     const { accept, reasons } = attach.takeImages(files, images.length);
     for (const r of reasons) say(r);
-    for (const file of accept) images.push({ file, url: URL.createObjectURL(file), alt: '' });
+    for (const file of accept) images.push({ file, url: URL.createObjectURL(file), alt: alts?.get(file) || '' });
     drawThumbs();
   };
 
@@ -1639,7 +1653,7 @@ function replyBox(parent) {
     const files = attach.imagesFrom(e.clipboardData);
     if (!files.length) return;        // an ordinary text paste is the browser's
     e.preventDefault();
-    addToReply(files);
+    addToReply(files, pastedAlts(e.clipboardData, files));
   });
 
   const count = () => {
@@ -2039,10 +2053,10 @@ function renderCard() {
  * refused, and the four-image cap — live in lib/attach.js, because the reply
  * box and every shuffle card apply the same ones and their copies drifted.
  */
-function addImages(files) {
+function addImages(files, alts) {
   const { accept, reasons } = attach.takeImages(files, draft.images.length);
   for (const r of reasons) say(r);
-  for (const file of accept) draft.images.push({ file, url: URL.createObjectURL(file), alt: '' });
+  for (const file of accept) draft.images.push({ file, url: URL.createObjectURL(file), alt: alts?.get(file) || '' });
   renderThumbs();
   // Images and a card are both `embed`; the pictures win.
   if (draft.images.length) { draft.card = null; renderCard(); }
@@ -2173,13 +2187,13 @@ function shuffleCard(step, i) {
  * Re-renders rather than appending, because a card that had no pictures has no
  * thumbnail strip to append to — and the strip is where the alt boxes live.
  */
-function addShuffleImages(i, files) {
+function addShuffleImages(i, files, alts) {
   const step = deck.steps[i];
   if (!step || step.posted || deck.busy) return;
   const { accept, reasons } = attach.takeImages(files, step.images.length);
   for (const r of reasons) say(r);
   if (!accept.length) return;
-  for (const file of accept) step.images.push({ file, url: URL.createObjectURL(file), alt: '' });
+  for (const file of accept) step.images.push({ file, url: URL.createObjectURL(file), alt: alts?.get(file) || '' });
   renderShuffle();
 }
 
@@ -2631,7 +2645,7 @@ $('ct').addEventListener('paste', (e) => {
   const files = attach.imagesFrom(e.clipboardData);
   if (!files.length) return;
   e.preventDefault();
-  addImages(files);
+  addImages(files, pastedAlts(e.clipboardData, files));
 });
 
 // Shuffle quote. All three are delegated to containers that outlive the cards,
@@ -2670,7 +2684,7 @@ $('sh-steps')?.addEventListener('paste', (e) => {
   const files = attach.imagesFrom(e.clipboardData);
   if (!files.length) return;          // an ordinary text paste is the browser's
   e.preventDefault();
-  addShuffleImages(Number(ta.dataset.say), files);
+  addShuffleImages(Number(ta.dataset.say), files, pastedAlts(e.clipboardData, files));
 });
 
 on('shfile', 'change', (e) => {

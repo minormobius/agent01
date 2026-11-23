@@ -55,6 +55,23 @@ not a padded table, because a screen reader reads padding as noise. It must
 fit Bluesky's 2,000-character alt-text cap: if it doesn't, counts are dropped
 first, then the tail is cut with "…and N more", never mid-handle (selftest).
 
+## Copy image + alt (one click, harmless to mainline)
+
+One clipboard item: `image/png` + `text/html` `<img src="data:…" alt="…">`, and
+deliberately **no `text/plain`**. The official Bluesky composer (read from
+social-app's `TextInput.web.tsx`) inserts the `text/plain` flavour into the post
+whenever `text/html` is present and attaches any image; with no `text/plain`
+the insert is empty, so mainline sees a plain image paste. bsky.mino.mobi reads
+the HTML (`bsky/lib/attach.js` `altFrom`) and fills the alt box. Docs/mail get
+the picture with its alt. **Never add a `text/plain` flavour** — that is
+exactly what would dump the alt text into people's posts on mainline.
+
+The card is encoded once after drawing (`encodeCard`), so the click is ~90 ms;
+encoding on click (blob + data URL) took ~1.3 s. Blobs go to `ClipboardItem` as
+promises (Safari loses the gesture across an await). Verified with a real
+Ctrl+V in Chromium: flavours `text/html` + `image/png`, bsky's `attach.js`
+recovers 1 image and the exact alt, the mainline logic inserts "" and attaches 1.
+
 ## Tune
 
 Hidden behind "tune": window, direction (both / them → you / you → them),

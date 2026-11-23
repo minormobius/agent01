@@ -9,7 +9,7 @@
  * arithmetic wrong and the reader's fifth picture vanishes without a word. So
  * the cases below are mostly about what must NOT disappear quietly.
  */
-import { MAX_IMAGES, imagesFrom, takeImages } from './attach.js';
+import { MAX_IMAGES, MAX_ALT, imagesFrom, takeImages, altFrom } from './attach.js';
 
 let fails = 0;
 const ok = (name, cond, extra = '') => {
@@ -34,6 +34,16 @@ const file = (type, name = 'x') => ({ type, name });
 
   ok('one File exposed through both is not attached twice',
     imagesFrom({ files: [png], items: [{ kind: 'file', getAsFile: () => png }] }).length === 1);
+
+  // The REAL Chromium shape, found by driving a real Ctrl+V: one picture in
+  // `files` and again in `items`, as two DIFFERENT File objects. An identity
+  // dedupe attached every pasted screenshot twice.
+  const a = { type: 'image/png', size: 951257, name: 'image.png' };
+  const b = { type: 'image/png', size: 951257, name: 'image.png' };
+  ok('one picture as two distinct File objects is attached once',
+    imagesFrom({ files: [a], items: [{ kind: 'file', getAsFile: () => b }] }).length === 1);
+  ok('two different pictures in one paste are both kept',
+    imagesFrom({ files: [a, { type: 'image/png', size: 12, name: 'image.png' }] }).length === 2);
 
   ok('a text item is not a picture',
     imagesFrom({ items: [{ kind: 'string', type: 'text/plain', getAsFile: () => null }] }).length === 0);
@@ -90,6 +100,32 @@ const file = (type, name = 'x') => ({ type, name });
   const mixed = takeImages([file('image/png'), file('video/quicktime'), file('image/gif')], 0);
   ok('a mixed batch keeps its pictures', mixed.accept.length === 2);
   ok('…and still explains the one it dropped', mixed.reasons.length === 1);
+}
+
+// ─── 5. alt text that came with the picture ──────────────────────
+// The shape o.mino.mobi writes: image/png + text/html, NO text/plain.
+{
+  const clip = (html) => ({ getData: (t) => (t === 'text/html' ? html : '') });
+  ok('one picture takes its <img alt>',
+    altFrom(clip('<img src="data:image/png;base64,AAA" alt="My Bluesky circle, @me">'), 1)[0] === 'My Bluesky circle, @me');
+  ok('entities are decoded',
+    altFrom(clip('<img alt="Tom &amp; Jerry &lt;3 &#8212; &#x1F600; &quot;hi&quot; it&#39;s">'), 1)[0] === 'Tom & Jerry <3 \u2014 \u{1F600} "hi" it\'s');
+  ok('single quotes and bare values', altFrom(clip("<img alt='a b'>"), 1)[0] === 'a b' && altFrom(clip('<IMG ALT=bare src=x>'), 1)[0] === 'bare');
+  ok('newlines in alt survive (a numbered list is the point)',
+    altFrom(clip('<img alt="Inner ring:\n1. @a\n2. @b">'), 1)[0] === 'Inner ring:\n1. @a\n2. @b');
+  ok('one picture skips an undescribed <img> before it',
+    altFrom(clip('<img src=a><img alt="the one">'), 1)[0] === 'the one');
+  ok('N pictures, N <img>s: paired in order',
+    JSON.stringify(altFrom(clip('<img alt="one"><p>x</p><img alt="two">'), 2)) === '["one","two"]');
+  ok('N pictures, a different number of <img>s: no guessing',
+    JSON.stringify(altFrom(clip('<img alt="one">'), 2)) === '["",""]');
+  ok('no html: empty, one per picture', JSON.stringify(altFrom(clip(''), 2)) === '["",""]');
+  ok('a clipboard with no getData is survivable', JSON.stringify(altFrom({ files: [] }, 1)) === '[""]');
+  ok('getData throwing is survivable', altFrom({ getData: () => { throw new Error('denied'); } }, 1)[0] === '');
+  ok('no pictures, no alt', altFrom(clip('<img alt="x">'), 0).length === 0);
+  ok('alt is capped', altFrom(clip(`<img alt="${'x'.repeat(5000)}">`), 1)[0].length === MAX_ALT);
+  ok('an alt that is only whitespace is no alt', altFrom(clip('<img alt="   ">'), 1)[0] === '');
+  ok('a lookalike attribute is not alt', altFrom(clip('<img data-alt="nope" src=x>'), 1)[0] === '');
 }
 
 // ─── 4. nothing at all ───────────────────────────────────────────

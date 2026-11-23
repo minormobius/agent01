@@ -20,7 +20,7 @@ needs no backend at all.
 | Dir | `bsky/` |
 | Endpoint | `bsky.mino.mobi` (+ `/dweet/`, see below) |
 | Type | frontend (Worker-with-assets; the worker is one route) |
-| Owning branch | `claude/dweet-gear-systems-5e28b4` (since 2026-09-25) |
+| Owning branch | `claude/focused-knuth-f0oawl` (since 2026-11-23; before that `claude/dweet-gear-systems-5e28b4`) |
 | Deploy | [`.github/workflows/deploy-bsky.yml`](../.github/workflows/deploy-bsky.yml) |
 | Uses | — (no shared backend; three public services, none of ours) |
 | Provides | — |
@@ -951,6 +951,26 @@ Copied HTML is *not* an image: it is an `<img src>` on somebody else's origin,
 behind their CORS policy, so there is nothing this page can read. Those pastes
 are left alone rather than pretended at.
 
+**But copied HTML can carry the picture's ALT TEXT, and that is read**
+(`attach.altFrom`, 2026-11-23). A clipboard item may hold `image/png` *and*
+`text/html` `<img src alt>` at once — browsers write that shape when you copy
+an image off a page, and o.mino.mobi's *copy image + alt* writes it on
+purpose, with **no `text/plain`**. Pasted here, the image attaches with its
+alt box already filled (and the status line says so, so the reader checks it).
+Pasted into the official app, which inserts the `text/plain` flavour whenever
+`text/html` is present, the insert is empty and it is an ordinary image paste.
+Paired only when unambiguous: one picture takes the first described `<img>`,
+N pictures take N in order, anything else guesses nothing. All three paste
+points (composer, reply, shuffle cards) go through `pastedAlts()`.
+
+**A real Ctrl+V found a live bug the hand-built tests could not.** Chromium
+exposes one pasted picture through `files` AND `items`, as a *different* File
+object each time, so `imagesFrom`'s identity dedupe attached every pasted
+screenshot **twice**. The tests built their payload by hand, where both reads
+return the same object, and so passed. Deduped by content (type, size, name)
+now; the real shape is a regression test. Verified by driving a real paste in
+Chromium: 1 image, alt equal to the source text, 871 characters.
+
 `lib/attach.js` exists because there were about to be four copies of "images
 only, four at most, and here is why a video is refused" — and the copies had
 already drifted: the reply box said *"images only for now"* where the composer
@@ -1652,6 +1672,12 @@ Nothing here is ever uploaded. There is no server in this design to upload it to
   so they redeploy this surface.
 
 ## Deploying
+
+**Handed over 2026-11-23** to `claude/focused-knuth-f0oawl` at the principal's
+instruction, via `take-ownership.mjs`. The last green `deploy-bsky` (run #55,
+`f9a4bd3e`) came from the registry's owner, and this tree was byte-identical to
+that commit on every registry path before the change — checked against the
+deployed sha, not the branch tip, per the trap below.
 
 **Handed over 2026-09-25** from `claude/dwitter-animation-feed-rufn9o` to
 `claude/dweet-gear-systems-5e28b4`, via `scripts/take-ownership.mjs` after a full

@@ -80,6 +80,7 @@ async function paint(signal) {
   alt = altText(centre, people, settings);
   $('alt').value = alt;
   $('altCount').textContent = `${num(alt.length)} / ${num(ALT_LIMIT)} characters`;
+  encodeCard();
 }
 let alt = '';
 
@@ -136,7 +137,23 @@ for (const id of TUNE) $(id).addEventListener('change', () => {
 
 // ── share ────────────────────────────────────────────────────────────────────
 const link = () => `https://o.mino.mobi/${centre.handle}${toQuery(settings) ? '?' + toQuery(settings) : ''}`;
-const png = () => new Promise((res, rej) => { try { $('c').toBlob((b) => (b ? res(b) : rej(new Error('blank'))), 'image/png'); } catch (e) { rej(e); } });
+// The card is encoded ONCE, right after it is drawn, and every button reuses
+// it. Encoding a 1200×1200 PNG takes most of a second; doing it on the click
+// (twice, for copy image + alt: the blob and the data URL) left a second of
+// dead air before the clipboard was ready.
+let encoded = null;   // { blob: Promise<Blob>, html: Promise<Blob> } for the current card
+function encodeCard() {
+  const blob = new Promise((res, rej) => { try { $('c').toBlob((b) => (b ? res(b) : rej(new Error('blank'))), 'image/png'); } catch (e) { rej(e); } });
+  const html = blob.then((b) => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(new Blob([altHtml(r.result)], { type: 'text/html' }));
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(b);
+  }));
+  blob.catch(() => {}); html.catch(() => {});      // a tainted canvas is reported on click, not here
+  encoded = { blob, html };
+}
+const png = () => (encoded ? encoded.blob : Promise.reject(new Error('no card')));
 function flash(btn, text) { const was = btn.textContent; btn.textContent = text; setTimeout(() => { btn.textContent = was; }, 1600); }
 $('share').onclick = async () => {
   if (!centre) return;
@@ -156,6 +173,39 @@ $('save').onclick = async () => {
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch { flash($('save'), 'long-press the image to save'); }
 };
+/**
+ * One click, image AND alt text: a single clipboard item carrying image/png and
+ * text/html `<img src alt>` — and deliberately NO text/plain.
+ *
+ * Why no text/plain: the official Bluesky composer, when the clipboard has
+ * text/html, inserts the text/plain flavour into the post and attaches any
+ * image. With no text/plain that insert is empty, so the mainline app sees an
+ * ordinary image paste and nothing lands in the post. A client that reads the
+ * HTML (bsky.mino.mobi, via attach.altFrom) fills the alt in. Rich editors
+ * (Docs, mail) get the picture with its alt, because the HTML carries it.
+ *
+ * The blobs are handed to ClipboardItem as PROMISES, not awaited first: Safari
+ * drops the user-gesture context across an await and refuses the write.
+ */
+function altHtml(dataUrl) {
+  const a = alt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<img src="${dataUrl}" alt="${a}">`;
+}
+$('copyImg').onclick = async () => {
+  if (!centre || !alt) return;
+  const btn = $('copyImg');
+  if (!window.ClipboardItem || !navigator.clipboard?.write) { flash(btn, 'not supported here: save image'); return; }
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': encoded.blob, 'text/html': encoded.html })]);
+    flash(btn, 'copied: paste into a post');
+  } catch {
+    // a browser that will not take both flavours together: the image alone is
+    // still better than nothing, and the button says what was lost
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': png() })]); flash(btn, 'image copied (alt text not supported here)'); }
+    catch { flash(btn, 'copy failed: save image'); }
+  }
+};
+
 async function copyAlt(btn) {
   if (!alt) return;
   try { await navigator.clipboard.writeText(alt); flash(btn, 'copied'); }
