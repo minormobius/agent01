@@ -890,6 +890,21 @@ the cache key includes the time zone for the same reason.
 Reuses palm's CAR primitives (`palm/car-stream.js`) and orbit's anchored post
 sniff (`orbit/repo-scan.js`): a fifth filter, not a fifth reader.
 
+**A day reads as a feed.** Its own posts are drawn instantly from the repo,
+then upgraded in place from `getPosts` (25 per call, parallel): avatar, images
+and galleries, video posters, link cards, quoted posts and counts, all through
+`thread/thread.js` `extractMedia` (one embed parser, the one that knows
+`app.bsky.embed.gallery`). Media is NOT stored in the index, on purpose: it
+would cost memory on every post to serve the few days anyone opens. The handle
+on each of the account's own cards is the one it had that day. A post the
+AppView will not return keeps the repo's text. Liked and reposted posts are the
+same cards. A reply carries **show the thread**, which fetches
+`getPostThread(depth 0, parentHeight 30)` and draws the parents root-first
+above it; a deleted or blocked parent is drawn as a gap, never skipped, since
+skipping would join two posts that were never adjacent. Video posters open the
+post on bsky.app (HLS plays natively only in Safari). Four headline tiles, no
+current streak.
+
 ## Deploying
 
 Pushes to `claude/focused-knuth-f0oawl` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).

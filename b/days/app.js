@@ -2,6 +2,7 @@
 // download) and calendar.js (the maths); this file fetches identity, draws, and
 // opens a day.
 import { indexRepo, dayRecords, localDay } from './repoindex.js';
+import { extractMedia } from '../thread/thread.js';
 import { METRICS, countFor, yearGrids, levels, summary, cumulative, handleHistory, neighbours, daysBetween, addDays } from './calendar.js';
 
 const $ = (id) => document.getElementById(id);
@@ -112,7 +113,6 @@ function renderTiles() {
     t(num(s.active), 'active days', `of ${num(daysBetween(from, to) + 1)}`),
     t(s.busiest ? num(s.busiest.n) : '—', 'busiest day', s.busiest ? `<a href="#" data-go="${s.busiest.day}">${s.busiest.day}</a>` : ''),
     t(num(s.longest), 'longest streak', s.longestFrom ? `from ${s.longestFrom}` : ''),
-    t(num(s.current), 'current streak', s.current ? 'days running' : ''),
   ].join('');
 }
 
@@ -138,7 +138,6 @@ function renderYears() {
 // ── a day ────────────────────────────────────────────────────────────────────
 const dayStart = (d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd).getTime(); };
 const timeOf = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-const postUrl = (did, rkey) => `https://bsky.app/profile/${did}/post/${rkey}`;
 
 async function openDay(d) {
   if (!S) return;
@@ -158,6 +157,10 @@ async function openDay(d) {
   const nb = neighbours(ix.days, d, metric);
   const dateLong = new Date(start).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const others = Object.entries(row).filter(([c]) => ![P, L, R, F].includes(c));
+  // the day's own posts are drawn first from the repo (instant), then upgraded
+  // in place with what the AppView adds: media, quotes, link cards, counts
+  const me = { did, handle: then, displayName: profile.displayName || then, avatar: profile.avatar };
+  const repoCard = (p) => cardHtml({ uri: `at://${did}/${P}/${p.rkey}`, author: me, t: p.t, text: p.text, reply: p.reply, pending: true });
 
   $('day').classList.remove('hidden');
   $('day').innerHTML = `
@@ -175,17 +178,25 @@ async function openDay(d) {
     </div>
     <p class="note">On this day: ${num(row[P])} posts, ${num(row[L])} likes, ${num(row[R])} reposts, ${num(row[F])} follows${others.length ? `, and ${others.map(([c, n]) => `${num(n)} ${esc(NAMES[c] || c)}`).join(', ')}` : ''}.
       Totals count what the repo still holds today. The avatar is today's; a repo keeps no history of it.</p>
-    <h4>posts and replies${posts.length ? ' · ' + num(posts.length) : ''}</h4><div id="dposts">${posts.length ? posts.slice(0, SHOW).map((p) => postHtml(did, p)).join('') : '<p class="note">none this day</p>'}</div>
+    <h4>posts and replies${posts.length ? ' · ' + num(posts.length) : ''}</h4>
+    <div id="dposts" class="feed">${posts.length ? posts.slice(0, SHOW).map(repoCard).join('') : '<p class="note">none this day</p>'}</div>
     ${posts.length > SHOW ? `<button class="ghost small" id="allposts">show all ${num(posts.length)}</button>` : ''}
     <div id="dlikes"></div><div id="dreposts"></div><div id="dfollows"></div>`;
   for (const b of $('day').querySelectorAll('[data-step]')) b.onclick = () => b.dataset.step && openDay(b.dataset.step);
-  if ($('allposts')) $('allposts').onclick = () => { $('dposts').innerHTML = posts.map((p) => postHtml(did, p)).join(''); $('allposts').remove(); };
   $('day').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  // the rest is fetched for this day only, and abandoned if another day is opened
+  // everything below is fetched for this day only, and abandoned if another day is opened
   if (dayAbort) dayAbort.abort();
   dayAbort = new AbortController();
   const signal = dayAbort.signal;
+  const upgrade = (list) => hydrateInPlace(list.map((p) => `at://${did}/${P}/${p.rkey}`), signal, { handle: then });
+  upgrade(posts.slice(0, SHOW));
+  if ($('allposts')) $('allposts').onclick = () => {
+    $('dposts').insertAdjacentHTML('beforeend', posts.slice(SHOW).map(repoCard).join(''));
+    $('allposts').remove();
+    upgrade(posts.slice(SHOW));
+  };
+
   const load = async (col, target, title, render) => {
     if (!row[col]) return;
     target.innerHTML = `<h4>${title}</h4><p class="note">loading ${num(row[col])}…</p>`;
@@ -220,31 +231,98 @@ function countRepliesUpTo(end) {
   return lo;
 }
 
-function postHtml(did, p) {
-  const tags = [p.reply ? 'reply' : null, p.embed].filter(Boolean).map((t) => `<span class="tag">${esc(t)}</span>`).join('');
-  return `<div class="post"><div class="t"><a href="${postUrl(did, p.rkey)}" target="_blank" rel="noopener">${timeOf(p.t)}</a>${tags}</div>
-    <div class="txt">${p.text ? esc(p.text) : '<span class="note">(no text)</span>'}</div></div>`;
+// ── posts as a feed ──────────────────────────────────────────────────────────
+const thumbOf = (url) => (url ? String(url).replace('/img/avatar/plain/', '/img/avatar_thumbnail/plain/') : '');
+const webUrl = (uri) => { const [, , a, , k] = String(uri || '').split('/'); return a && k ? `https://bsky.app/profile/${a}/post/${k}` : '#'; };
+
+/**
+ * One post as a feed card. `media` is extractMedia() output (b/thread/thread.js:
+ * images, galleries, video, link cards, quotes). `pending` marks a card drawn
+ * from the repo that hydration will replace.
+ */
+function cardHtml({ uri, author, t, text, reply, media = [], counts = null, pending = false, compact = false }) {
+  const a = author || {};
+  return `<article class="card${compact ? ' compact' : ''}" data-uri="${esc(uri)}"${reply ? ' data-reply="1"' : ''}${pending ? ' data-pending="1"' : ''}>
+    <a class="av" href="https://bsky.app/profile/${esc(a.did || '')}" target="_blank" rel="noopener">${a.avatar ? `<img src="${esc(thumbOf(a.avatar))}" alt="" loading="lazy">` : '<img alt="">'}</a>
+    <div class="main">
+      <div class="meta"><b>${esc(a.displayName || a.handle || '')}</b> <span>@${esc(a.handle || '')}</span> · <a href="${webUrl(uri)}" target="_blank" rel="noopener">${timeOf(t)}</a></div>
+      ${reply ? `<button class="replyto" type="button" aria-expanded="false">↳ a reply · show the thread</button>` : ''}
+      <div class="thread hidden"></div>
+      ${text ? `<div class="txt">${esc(text)}</div>` : (text === null ? '<div class="note">(this post could not be read)</div>' : '')}
+      ${mediaHtml(media, uri)}
+      ${counts ? `<div class="counts"><span title="replies">💬 ${num(counts.reply)}</span><span title="reposts">↻ ${num(counts.repost)}</span><span title="likes">♡ ${num(counts.like)}</span></div>` : ''}
+    </div></article>`;
 }
 
-// liked / reposted: hydrate the subjects so a day reads as what they actually saw
-async function subjectsHtml(recs, signal) {
-  const uris = recs.map((r) => r.value?.subject?.uri).filter(Boolean);
-  const views = new Map();
-  for (let i = 0; i < Math.min(uris.length, 50); i += 25) {
-    try {
-      const d = await j(`${API}/app.bsky.feed.getPosts?${uris.slice(i, i + 25).map((u) => 'uris=' + encodeURIComponent(u)).join('&')}`, signal);
-      for (const p of d.posts || []) views.set(p.uri, p);
-    } catch (e) { if (e?.name === 'AbortError') throw e; }
+function mediaHtml(media, uri = '') {
+  const imgs = media.filter((m) => m.type === 'image');
+  let out = '';
+  if (imgs.length) {
+    out += `<div class="imgs n${Math.min(imgs.length, 4)}">${imgs.map((m) => {
+      const ar = m.aspectRatio && m.aspectRatio.width && m.aspectRatio.height ? ` style="aspect-ratio:${m.aspectRatio.width}/${m.aspectRatio.height}"` : '';
+      return `<a href="${esc(m.fullsize || m.thumb)}" target="_blank" rel="noopener"${imgs.length === 1 ? ar : ''}><img src="${esc(m.thumb)}" alt="${esc(m.alt)}" loading="lazy"></a>`;
+    }).join('')}</div>`;
   }
-  return recs.slice(0, 50).map((r) => {
+  for (const m of media) {
+    // video is HLS, which only Safari plays from a plain <video>: the poster
+    // opens the post on bsky.app rather than pulling a player into this page
+    if (m.type === 'video' && m.thumbnail) out += `<a class="vid" href="${webUrl(uri)}" target="_blank" rel="noopener" title="play on bsky.app"><img src="${esc(m.thumbnail)}" alt="${esc(m.alt)}" loading="lazy"><span>▶</span></a>`;
+    if (m.type === 'external') {
+      let host = ''; try { host = new URL(m.uri).hostname; } catch { /* leave blank */ }
+      out += `<a class="ext" href="${esc(m.uri)}" target="_blank" rel="noopener">${m.thumb ? `<img src="${esc(m.thumb)}" alt="" loading="lazy">` : ''}<div><b>${esc(m.title || host)}</b><div class="note">${esc((m.description || '').slice(0, 160))}</div><div class="h">${esc(host)}</div></div></a>`;
+    }
+    if (m.type === 'quote') {
+      out += `<div class="quote"><div class="meta">${m.author?.avatar ? `<img src="${esc(thumbOf(m.author.avatar))}" alt="">` : ''}<b>${esc(m.author?.displayName || '')}</b> <span>@${esc(m.author?.handle || '')}</span> · <a href="${webUrl(m.uri)}" target="_blank" rel="noopener">open</a></div>
+        <div class="txt">${esc((m.text || '').slice(0, 500))}</div>${mediaHtml((m.embeds || []).filter((e) => e.type === 'image' || e.type === 'video' || e.type === 'external'), m.uri)}</div>`;
+    }
+  }
+  return out;
+}
+
+/** A hydrated postView → card fields. */
+const fromView = (v, override = {}) => ({
+  uri: v.uri, t: Date.parse(v.record?.createdAt || v.indexedAt) || 0, text: v.record?.text || '',
+  author: { ...v.author, ...override }, reply: !!v.record?.reply, media: extractMedia(v.embed),
+  counts: { reply: v.replyCount || 0, repost: v.repostCount || 0, like: v.likeCount || 0 },
+});
+
+async function getPosts(uris, signal) {
+  const out = new Map();
+  const chunks = [];
+  for (let i = 0; i < uris.length; i += 25) chunks.push(uris.slice(i, i + 25));
+  await Promise.all(chunks.map(async (c) => {
+    try {
+      const d = await j(`${API}/app.bsky.feed.getPosts?${c.map((u) => 'uris=' + encodeURIComponent(u)).join('&')}`, signal);
+      for (const p of d.posts || []) out.set(p.uri, p);
+    } catch (e) { if (e?.name === 'AbortError') throw e; }
+  }));
+  return out;
+}
+
+/** Replace repo-drawn cards with full ones, keeping the handle they had that day. */
+async function hydrateInPlace(uris, signal, override) {
+  if (!uris.length) return;
+  let views;
+  try { views = await getPosts(uris, signal); } catch { return; }
+  if (signal.aborted) return;
+  for (const uri of uris) {
+    const v = views.get(uri);
+    const el = $('dposts')?.querySelector(`article[data-uri="${CSS.escape(uri)}"]`);
+    if (!el) continue;
+    if (!v) { el.removeAttribute('data-pending'); continue; }   // hidden or taken down: keep the repo's text
+    el.outerHTML = cardHtml(fromView(v, override));
+  }
+}
+
+// liked / reposted: the posts they saw, as cards
+async function subjectsHtml(recs, signal) {
+  const uris = recs.map((r) => r.value?.subject?.uri).filter(Boolean).slice(0, 50);
+  const views = await getPosts(uris, signal);
+  return `<div class="feed">${recs.slice(0, 50).map((r) => {
     const uri = r.value?.subject?.uri, v = views.get(uri);
-    const [, , author, , rkey] = String(uri || '').split('/');
-    const link = author && rkey ? `https://bsky.app/profile/${author}/post/${rkey}` : '#';
-    if (!v) return `<div class="mini"><img alt=""><div class="body"><a href="${link}" target="_blank" rel="noopener"><span class="h">${timeOf(r.t)} · a post that is gone or hidden</span></a></div></div>`;
-    return `<div class="mini">${v.author.avatar ? `<img src="${esc(v.author.avatar.replace('/avatar/', '/avatar_thumbnail/'))}" alt="">` : '<img alt="">'}
-      <div class="body"><a href="${link}" target="_blank" rel="noopener"><div class="h">${timeOf(r.t)} · @${esc(v.author.handle)}</div>
-      <div>${esc((v.record?.text || '').slice(0, 280)) || '<span class="note">(no text)</span>'}</div></a></div></div>`;
-  }).join('') + (recs.length > 50 ? `<p class="more">and ${num(recs.length - 50)} more that day</p>` : '');
+    if (!v) return `<div class="gone"><span class="h">${timeOf(r.t)}</span> · <a href="${webUrl(uri)}" target="_blank" rel="noopener">a post that is gone or hidden</a></div>`;
+    return cardHtml(fromView(v));
+  }).join('')}</div>` + (recs.length > 50 ? `<p class="more">and ${num(recs.length - 50)} more that day</p>` : '');
 }
 
 async function followsHtml(recs, signal) {
@@ -258,9 +336,44 @@ async function followsHtml(recs, signal) {
   }
   return `<div class="faces">${dids.map((x) => {
     const p = prof.get(x);
-    return `<a href="https://bsky.app/profile/${esc(x)}" target="_blank" rel="noopener">${p?.avatar ? `<img src="${esc(p.avatar.replace('/avatar/', '/avatar_thumbnail/'))}" alt="">` : '<img alt="">'}${p ? '@' + esc(p.handle) : '<span class="note">an account that is gone</span>'}</a>`;
+    return `<a href="https://bsky.app/profile/${esc(x)}" target="_blank" rel="noopener">${p?.avatar ? `<img src="${esc(thumbOf(p.avatar))}" alt="">` : '<img alt="">'}${p ? '@' + esc(p.handle) : '<span class="note">an account that is gone</span>'}</a>`;
   }).join('')}</div>`;
 }
+
+// ── a reply's thread, in context, on demand ──────────────────────────────────
+/**
+ * The posts above a reply, root first. getPostThread walks `parent` upward;
+ * a parent that is deleted or blocked comes back as a different $type with no
+ * `post`, so it is drawn as a gap rather than skipped (skipping would join two
+ * posts that were never adjacent).
+ */
+async function showThread(card) {
+  const box = card.querySelector('.thread'), btn = card.querySelector('.replyto');
+  if (!box || !btn) return;
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); btn.setAttribute('aria-expanded', 'false'); btn.textContent = '↳ a reply · show the thread'; return; }
+  box.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true');
+  if (box.dataset.loaded) { btn.textContent = '↳ hide the thread'; return; }
+  btn.textContent = '↳ loading the thread…';
+  try {
+    const d = await j(`${API}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(card.dataset.uri)}&depth=0&parentHeight=30`);
+    const chain = [];
+    for (let n = d.thread?.parent; n; n = n.parent) chain.push(n);
+    chain.reverse();
+    box.innerHTML = chain.map((n) => n.post
+      ? cardHtml({ ...fromView(n.post), reply: false, compact: true })
+      : `<div class="gone">${n.$type?.includes('blocked') ? 'a post from an account that blocks or is blocked' : 'a post that was deleted'}</div>`).join('')
+      + (chain.length ? '' : '<div class="gone">the post this replied to is gone</div>');
+    box.dataset.loaded = '1';
+    btn.textContent = '↳ hide the thread';
+  } catch (e) {
+    box.innerHTML = `<div class="gone">couldn't load the thread (${esc(e.message)})</div>`;
+    btn.textContent = '↳ a reply · show the thread';
+  }
+}
+$('day').addEventListener('click', (e) => {
+  const b = e.target.closest('.replyto');
+  if (b) { e.preventDefault(); showThread(b.closest('.card')); }
+});
 
 // ── events ───────────────────────────────────────────────────────────────────
 $('f').addEventListener('submit', (e) => { e.preventDefault(); selected = null; $('day').classList.add('hidden'); run($('h').value); });

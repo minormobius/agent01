@@ -90,16 +90,45 @@ svg.cal text { font: 9px var(--mono); fill: var(--muted); }
 .then .m { font: .7rem var(--mono); color: var(--muted); }
 .note { font-size: .82rem; color: var(--muted); }
 h4 { font: 600 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 1.2rem 0 .4rem; }
-.post { border-top: 1px solid var(--rule-2); padding: .55rem 0; font-size: .95rem; }
-.post .t { font: .68rem var(--mono); color: var(--muted); }
-.post .t a { color: var(--muted); }
-.tag { font: .6rem var(--mono); border: 1px solid var(--rule); border-radius: 4px; padding: 0 .3rem; margin-left: .3rem; color: var(--muted); }
 .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
-.mini { display: flex; gap: .5rem; align-items: flex-start; border-top: 1px solid var(--rule-2); padding: .45rem 0; font-size: .86rem; }
-.mini img { width: 22px; height: 22px; border-radius: 50%; flex: none; background: var(--rule-2); margin-top: .1rem; }
-.mini .h { font: .7rem var(--mono); color: var(--muted); }
-.mini a { color: inherit; text-decoration: none; }
-.mini .body { min-width: 0; overflow-wrap: anywhere; }
+/* the day, as a feed */
+.feed { border-top: 1px solid var(--rule-2); }
+.card { display: flex; gap: .7rem; padding: .75rem 0; border-bottom: 1px solid var(--rule-2); }
+.card .av img { width: 40px; height: 40px; border-radius: 50%; background: var(--rule-2); display: block; }
+.card.compact .av img { width: 28px; height: 28px; }
+.card .main { min-width: 0; flex: 1; }
+.card .meta { font-size: .86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .meta b { font-weight: 600; }
+.card .meta span, .card .meta a { font: .72rem var(--mono); color: var(--muted); text-decoration: none; }
+.card .meta a:hover { text-decoration: underline; }
+.card[data-pending] .txt { opacity: .85; }
+.card .counts { display: flex; gap: 1.1rem; font: .7rem var(--mono); color: var(--muted); margin-top: .4rem; }
+.replyto { background: none; border: 0; padding: 0; margin: .15rem 0 .1rem; font: .7rem var(--mono); color: var(--sky); cursor: pointer; }
+.replyto:hover { text-decoration: underline; }
+.card .thread { border-left: 2px solid var(--rule); padding-left: .7rem; margin: .4rem 0 .6rem; }
+.card .thread .card { padding: .5rem 0; }
+.card .thread .card:last-child { border-bottom: 0; }
+.imgs { display: grid; gap: 3px; margin-top: .5rem; border-radius: 10px; overflow: hidden; max-width: 520px; }
+.imgs.n2, .imgs.n4 { grid-template-columns: 1fr 1fr; }
+.imgs.n3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+.imgs.n3 a:first-child { grid-row: span 2; }
+.imgs a { display: block; background: var(--rule-2); min-height: 0; }
+.imgs.n1 a { max-height: 520px; }
+.imgs:not(.n1) a { aspect-ratio: 1; }
+.imgs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vid { display: block; position: relative; margin-top: .5rem; max-width: 520px; border-radius: 10px; overflow: hidden; background: #000; }
+.vid img { width: 100%; display: block; max-height: 420px; object-fit: contain; }
+.vid span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 2.2rem; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.ext { display: flex; gap: .7rem; margin-top: .5rem; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; color: var(--text); text-decoration: none; max-width: 520px; }
+.ext img { width: 96px; min-height: 72px; object-fit: cover; flex: none; background: var(--rule-2); }
+.ext > div { padding: .5rem .6rem .5rem 0; min-width: 0; font-size: .86rem; }
+.ext .h { font: .66rem var(--mono); color: var(--muted); }
+.quote { margin-top: .5rem; border: 1px solid var(--rule); border-radius: 10px; padding: .55rem .7rem; max-width: 520px; font-size: .9rem; }
+.quote .meta { font-size: .8rem; display: flex; gap: .35rem; align-items: center; white-space: nowrap; overflow: hidden; }
+.quote .meta img { width: 18px; height: 18px; border-radius: 50%; }
+.gone { font: .72rem var(--mono); color: var(--muted); padding: .5rem 0; border-bottom: 1px solid var(--rule-2); }
+.gone a { color: var(--muted); }
+.lede { margin-top: 2.4rem; }
 .faces { display: flex; flex-wrap: wrap; gap: .4rem .8rem; }
 .faces a { display: flex; align-items: center; gap: .35rem; font: .72rem var(--mono); color: var(--text); text-decoration: none; }
 .faces img { width: 24px; height: 24px; border-radius: 50%; background: var(--rule-2); }
@@ -111,9 +140,7 @@ footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-h
 <a class="crumb" href="/">b.mino.mobi</a>
 <h1>days</h1>
 <div class="tagline">every day of an account, from its whole repo</div>
-<p class="lede">Downloads an account's <b>entire repository</b> (every post, like, repost and follow it still holds) and lays it out as a
-  contribution chart. <b>Click any day</b> to see who they were then: their handle that day, their totals so far, and what they posted,
-  liked, reposted and followed.</p>
+
 
 <form id="f">
   <input type="text" id="h" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false" autocapitalize="off" data-bsky-typeahead>
@@ -131,6 +158,10 @@ footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-h
   <div class="legend" id="legend"></div>
   <section class="day hidden" id="day" aria-live="polite"></section>
 </section>
+
+<p class="lede">Downloads an account's <b>entire repository</b> (every post, like, repost and follow it still holds) and lays it out as a
+  contribution chart. <b>Click any day</b> to see who they were then: their handle that day, their totals so far, and what they posted,
+  liked, reposted and followed.</p>
 
 <footer>
   Read straight from the account's own repository (com.atproto.sync.getRepo) in your browser. No sign-in; nothing leaves this tab
