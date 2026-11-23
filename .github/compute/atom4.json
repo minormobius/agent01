@@ -1,12 +1,24 @@
 {
- "run": "evolve4-21",
- "why": "Carry the G 1e-17, s 1.5152, 1.25 M_Ch giant on from evolve4-20's checkpoint (15.114 Gyr, Teff 3300 K). evolve4-20 stopped there because relax.js stalled: its line search on the max norm refused every step while the photosphere sat 0.3-0.7% off in ln P. Fixed since: the line search is on the sum of squares; a stall or iteration cap under loose= is accepted (shooting's rule); the cool-gas blend is a smoothstep; and the cool gas carries the local composition where the giant's envelope reaches matter the old convective core processed (it sat 0.65x the interior's density there, a physics error). In the sandbox the star then runs on past Tc 190 MK, R 9.6e10 m, Teff 2405 K. Hstop=0 removes that floor so the run follows the hydrogen shell outward. The question is unchanged: does the core reach the 1 M_Ch it needs to explode.",
+ "run": "evolve4-22",
+ "why": "Resolution check of the main sequence. Judged absolutely, the finished 4D tracks' energy books (the composition grid's burn against the structure's own nuclear luminosity) sit 5-6% off for long stretches while a convective core is present, and up to 38% off at single models where one grows into fresh hydrogen. Per q band the mismatch is inside the stirred core: the burn runs above the structure at the centre and below it at the core's edge. Two stars (G 1e-17: s 1.5152 2.5 M_Ch, 91 models at +5-6%; s 1.55 4.0 M_Ch, 43) at the paper's resolution (400 shells, dX 0.01), twice the shells, half the step, and both: the books and the ages at each, so we know whether the ladder's ages move and what resolution a final rerun needs. The current code also carries the pinned-gravity quadrature fix the cached tracks predate, so the baseline measures that shift too. All tagged (tag=res) so no production track is overwritten. The G 1e-11 Sun analogue, the other track with a long stretch, no longer starts on the current code (its zero-age solve stalls); that is being diagnosed separately.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev21-00",
+   "name": "ev22-a",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 Hstop=0 from=evolve-four-1e-17-1.5152-1.250-lp-eg-Hs1e-30.ckpt.json fit=0.1 loose=1e-3 relax=1 cool=1 baltol=0.02"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 tag=res",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 nq=800 tag=res",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 tag=res",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 nq=800 tag=res"
+   ]
+  },
+  {
+   "name": "ev22-b",
+   "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 tag=res",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 nq=800 tag=res",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 0.005 tag=res",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 0.005 nq=800 tag=res"
    ]
   }
  ]

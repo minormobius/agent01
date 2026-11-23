@@ -1566,6 +1566,16 @@ for games, and this is a modelling programme with publications to come. The game
   `past.books` (the last 100 models' range) and build tokens egPbk0/egPbk1. **evolve4-22 not queued:** under the bar it
   would stop within 10 models until the composition grid resolves the shell. ~54 s a model on the runner, ~12 in the
   sandbox (the giant's deep envelope; the runner is slower).
+  **Main-sequence resolution check (PI 2026-11-23: "main sequence at finer resolution, yes"), evolve4-22:** evolve.mjs
+  takes `nq=<shells>` (files `-nq<N>`; a checkpoint on another grid is refused) and `tag=<word>` (files `-t<word>`, so a
+  check can't overwrite a production track: evolve.mjs overwrites its output file). Two stars, G 10⁻¹⁷: s 1.5152
+  2.5 M_Ch and s 1.55 4.0 M_Ch, each at 400 shells / dX 0.01 (the paper's), 800, dX 0.005, and both. Per q band
+  (DEBUG_BAL, 2.5 M_Ch at 27 Myr) the mismatch is inside the stirred core: burnt/structure 1.06 at q < 0.01, 1.03 at
+  0.01–0.05, 0.85 at 0.05–0.1, 0.72 at 0.1–0.2 (the core reaches 0.18): a mixed core burnt as one unit against the
+  structure's shell-by-shell rates, not the giant's under-resolved shell. **Found:** the G 10⁻¹¹ s 1.5152 Sun analogue
+  (0.4374 M_Ch, `sun`) no longer starts on the current code: the first-star guess gives L 3.5 × 10³⁴ W against the cached
+  track's zero-age 5.8 × 10³⁵, and the zero-age solve with shell laws stalls (at 400, 600 and 800 shells alike).
+  Undiagnosed; it means the current code may not reproduce every star the paper has a track for.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

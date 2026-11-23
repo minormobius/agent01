@@ -42,7 +42,9 @@ const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-mainseq"); mkdir
 const GYR = 3.15576e16, YR = 3.15576e7, BALTOL = +(process.env.BALTOL ?? 0.003), DRHO = +(process.env.DRHO ?? 0.05), BALRUN = 10, [cmd, ...args] = process.argv.slice(2);
 
 /* the composition grid: q_j = (j/N)^1.5, finer at the centre where the burning is */
-const NQ = 400, QS = Float64Array.from({ length: NQ + 1 }, (_, j) => (j / NQ) ** 1.5), WQ = (() => { const w = new Float64Array(NQ + 1); for (let j = 0; j < NQ; j++) { const h = QS[j + 1] - QS[j]; w[j] += h / 2; w[j + 1] += h / 2; } return w; })();
+// nq=<shells> (default 400; files -nq<N> when not 400): the resolution check of 2026-11-23 (energy books in convective cores)
+// tag=<word> (files -t<word>): a run that must not overwrite a production track of the same star (the resolution check's baseline)
+const NQ = +(args.find((a) => a.startsWith("nq="))?.slice(3) ?? 400), QS = Float64Array.from({ length: NQ + 1 }, (_, j) => (j / NQ) ** 1.5), WQ = (() => { const w = new Float64Array(NQ + 1); for (let j = 0; j < NQ; j++) { const h = QS[j + 1] - QS[j]; w[j] += h / 2; w[j + 1] += h / 2; } return w; })();
 const bracket = (xs, x) => { const n = xs.length; if (x <= xs[0]) return [0, 0, 0]; if (x >= xs[n - 1]) return [n - 1, n - 1, 0]; let lo = 0, hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (xs[m] <= x) lo = m; else hi = m; } return [lo, hi, (x - xs[lo]) / (xs[hi] - xs[lo] || 1)]; };
 const interp = (xs, ys, x) => { const [a, b, t] = bracket(xs, x); return ys[a] * (1 - t) + ys[b] * t; };
 
@@ -227,6 +229,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   const src = ckpt && existsSync(ckpt) ? ckpt : from && existsSync(path.join(DIR, from)) ? path.join(DIR, from) : null, C = src ? JSON.parse(readFileSync(src, "utf8")) : null;
   if (from && !src) throw new Error(`from: neither ${ckpt} nor ${path.join(DIR, from)} exists`);
   if (C) { const ft = C.fTab, fOf = ft ? (m) => { const [a, b, u] = bracket(ft.map((x) => x[0]), m); return ft[a][1] * (1 - u) + ft[b][1] * u; } : null;
+    if (C.S.length !== NQ + 1) throw new Error(`the checkpoint is on ${C.S.length - 1} composition shells, this run on nq=${NQ}`);
     S = C.S.map((x) => Float64Array.from(x)); t = C.t;
     // a relax=1 checkpoint carries its model's profile, so the resume relaxes from it (shooting can't solve a giant)
     // with ε_grav, the checkpointed star is re-solved as it was saved: against its own reference (gref[0]), else a star
@@ -336,7 +339,7 @@ if (cmd === "ours") {
   const m = +(pos[0] ?? 1), dX = +(pos[1] ?? 0.01), simple = args.includes("simple"), X0 = +(kv.X0 ?? 0.70), tmax = kv.tmax ? +kv.tmax * GYR : 20 * GYR;
   const Z = +(kv.Z ?? 0.02), kap = kv.kap ?? "kramers", alpha = +(kv.alpha ?? 0), settle = +(kv.settle ?? 0);
   const W = simple ? simpleWorld(X0) : networkWorld(X0, Z, { kap, alpha }), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; } const Hstop = +(kv.Hstop ?? 1e-3);
-  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.Z ? `-Z${Z}` : ""}${kap !== "kramers" ? `-${kap}` : ""}${alpha ? `-a${alpha}` : ""}${settle ? `-s${kv.settle}` : ""}${W.grav ? "-eg" : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
+  const file = path.join(DIR, `evolve-ours-${m}${simple ? "-simple" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${NQ !== 400 ? `-nq${NQ}` : ""}${kv.X0 ? `-X${X0}` : ""}${kv.Z ? `-Z${Z}` : ""}${kap !== "kramers" ? `-${kap}` : ""}${alpha ? `-a${alpha}` : ""}${settle ? `-s${kv.settle}` : ""}${W.grav ? "-eg" : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
   // the first guess: the 1 M☉ zero-age star under the simple law, walked in mass to m in steps of ×1.12 (as mainseq.mjs
   // ours walks its sequence), each star's unknowns extrapolated from the last two
   const o = ours(), walk = () => { let p = [Math.log(2.3e16), Math.log(1.4e7), Math.log(0.9 * RSUN), Math.log(0.7 * LSUN)], hist = [], mm = 1; const dir = m >= 1 ? 1.12 : 1 / 1.12;
@@ -377,7 +380,7 @@ if (cmd === "ours") {
   const kv = Object.fromEntries(args.filter((a) => a.includes("=")).map((a) => a.split("="))), pos = args.filter((a) => !a.includes("="));
   const Grel = +pos[0], sv = +pos[1], ff = +(kv.ff ?? 1), dX = +(pos[3] ?? 0.01), tmax = kv.tmax ? +kv.tmax * GYR : 200 * GYR, plasma = kv.plasma !== "0", Hstop = +(kv.Hstop ?? 1e-3), gen2 = kv.gen2 ? gen2Of(kv, Grel, sv) : null, W = fourWorld(Grel, sv, ff, plasma, gen2), t0 = Date.now(); W.grav = kv.grav === "1"; if (kv.fit) W.fit = +kv.fit; if (kv.loose) W.loose = +kv.loose; if (kv.relax) { W.relax = kv.relax !== "0"; if (+kv.relax > 1) W.relaxN = +kv.relax; } if (kv.baltol) W.baltol = +kv.baltol; if (kv.balmax) W.balmax = +kv.balmax; if (kv.cool) { const c0 = W.comp(W.init()), E = makeEnvelope(4, { X: c0.X, Y: c0.Y, Z: 0, ff, alpha: kv.cool === "1" ? 1.61 : +kv.cool }); W.cool = { gas: E.gas, nabla: E.nabla, photosphere: E.photosphere }; }
   let m = pos[2]; if (m === "sun") { const GR = JSON.parse((await import("node:fs")).readFileSync(new URL("../../papers/p2/data/gravity.json", import.meta.url), "utf8")).runs, r = GR.find((x) => x.G === Grel && x.s === sv); if (!r?.sun) throw new Error(`no Sun analogue at G ${Grel}, s ${sv} in gravity.json`); m = r.sun.m; }
-  m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${W.grav ? "-eg" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}.json`);
+  m = +m; const file = path.join(DIR, `evolve-four-${pos[0]}-${pos[1]}-${(+m).toPrecision(4)}${ff !== 1 ? `-ff${ff}` : ""}${plasma ? "-lp" : ""}${gen2 ? `-g2${kv.gen2}-Z${gen2.Z}-${gen2.seeds ? "s" : ""}${gen2.kappa ? "k" : ""}` : ""}${W.grav ? "-eg" : ""}${dX !== 0.01 ? `-dX${dX}` : ""}${NQ !== 400 ? `-nq${NQ}` : ""}${kv.Hstop ? `-Hs${kv.Hstop}` : ""}${kv.tmax ? `-to${kv.tmax}` : ""}${kv.tag ? `-t${kv.tag}` : ""}.json`);
   const r = evolve(W, m * W.Mch, { dX, tmax, Hstop, from: kv.from ?? null, gravAfter: +(kv.gravAfter ?? 0), settle: +(kv.settle ?? 1e6), ckpt: file.replace(/\.json$/, ".ckpt.json"), label: `4D G ${Grel} s ${sv} ${m.toPrecision(4)} M_Ch` });
   writeFileSync(file, JSON.stringify({ about: "atom/tools/evolve.mjs four: a 4D star's main sequence on the 4D network, burnt shell by shell, stirred regions mixed", Grel, s: sv, ff, plasma, m, Mch: W.Mch, dX, NQ, settle: +(kv.settle ?? 1e6), grav: W.grav, settled: r.settled, stopped: r.stopped, track: r.track, profiles: r.profiles }));
   console.log(`wrote ${file} (${((Date.now() - t0) / 1000).toFixed(0)} s, ${r.track.length} models; ${r.stopped})`);
