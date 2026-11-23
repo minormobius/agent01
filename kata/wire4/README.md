@@ -258,13 +258,23 @@ Reynolds number on the centreline speed. Mesh 50×40, 14 harmonics for R = 5 and
 | 210 | 5 | 1.87 | 1.46 | 1.37 | 1.16 |
 | 220 | 5 | 1.93 | 1.49 | 1.41 | 1.18 |
 | 230 | 5 | 1.98 | | 1.44 | 1.20 |
-| 250 | 5 | 2.06 | | 1.50 | 1.25 |
+| 250 | 5 | 2.06 (2.10 with 28 harmonics) | | 1.50 (1.48) | 1.25 (1.24) |
 | 200 | 10 | 1.57 | 1.43 | 1.50 | 1.43 |
+| 220 | 10 | 1.76 | 1.49 | 1.60 | 1.52 |
+| 250 | 10 | 2.02, not settled | | 1.77 | 1.64 |
 
 - **Every run settles to a steady flow, and none shows the 2.5-diameter ripple.** The bubble is longest on the axis
   and shortens steadily toward the planes; there are no side crests, and the energy per harmonic falls steadily with
   no bump at the ripple's wavenumber. That holds to Re 250 at R = 5, where a uniform stream at the centreline speed
-  would grow the ripple at 0.14 per flow time.
+  would grow the ripple at 0.14 per flow time, and to Re 220 at R = 10.
+- **A wider tube does not bring the ripple back, as far as these runs go.** At R = 10 and Re 250 the stretch of wire
+  past the uniform-stream threshold is nearly 10 D long, room for four ripple wavelengths, and the bubble is again one
+  peak on the axis falling away on both sides. The peak is narrow: 2.02 on the axis, 1.77 one diameter along. This
+  run had not settled at 200 flow times: the harmonics from 8 up rise and fall together with a period near 40 flow
+  times, the swings shrinking slowly, and the axis bubble was still creeping up (2.00, 2.01, 2.02). Its spectrum is
+  flat from harmonic 10 to 22, so the peak is not resolved by 28 harmonics. The bubble profile carries small steps
+  1.2 D apart; the same steps, four times weaker, are in the Re 220 run, and 1.2 D is the wavelength of the last
+  harmonics kept, so they are read as truncation, not as a ripple.
 - **The bubble on the axis is longer than in a uniform stream at the same speed**, at every Reynolds number, including
   150, well below the threshold. This is the flow along the wire that section 6 said it left out: the pressure behind
   the wire is lowest where the stream is fastest, so wake fluid is drawn along the wire toward the axis and collects
@@ -277,8 +287,9 @@ Reynolds number on the centreline speed. Mesh 50×40, 14 harmonics for R = 5 and
 **Limits.** At R = 5 with 14 harmonics the top harmonic holds about 1% of the first one's energy at Re 220 to 250
 and is not smaller than its neighbours, so those runs are under-resolved along the wire. Bubble lengths within about
 2 D of the mirror planes are meaningless (the stream is nearly at rest there). The R = 10 run at Re 200 is barely past
-the threshold on the axis alone, so it does not test whether a wider tube brings the ripple back; R = 10 at 220 and
-250 is the test, and is running. Runs at Re 230 and above need time step 0.02; 0.04 blows up. One mesh. The runs were
+the threshold on the axis alone, so it tests nothing; R = 10 at 250 is the test, and it is unsettled and
+under-resolved along the wire. Doubling the harmonics at R = 5, Re 250 moved the axis bubble from 2.06 to 2.10 and
+the profile within 3.5 D of the axis by no more than 0.03. Runs at Re 230 and above need time step 0.02; 0.04 blows up. One mesh. The runs were
 150 to 300 flow times, and the rate of change was still falling slowly at the end (like 1/t) with the bubble fixed
 to four figures.
 
