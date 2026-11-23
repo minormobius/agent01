@@ -1,0 +1,40 @@
+--- a/rk-kit/keygen.mjs
++++ b/rk-kit/keygen.mjs
+@@ -59,6 +59,10 @@
+     'account without you, this key lets you put it back or move it somewhere else.',
+     'You have 72 hours to undo a change you did not make. After that it is permanent.',
+     '',
++    'This key does nothing until it has been added to your account (step 2 of the kit).',
++    'If recover.mjs says "this key can sign nothing for this DID", it was never added:',
++    'the key is fine, your account just does not know it yet.',
++    '',
+     'What to do, from any computer with Node installed. You need nothing else:',
+     `  1. Get the kit: ${url}`,
+     '  2. Save the line below starting {"kty" as a file named my.jwk',
+--- a/rk-kit/recover.mjs
++++ b/rk-kit/recover.mjs
+@@ -50,7 +50,13 @@
+   const audit = flag('log') ? JSON.parse(readFileSync(flag('log'))) : await (await fetch(`${DIR}/${did}/log/audit`)).json();
+   const ch = { pds: flag('pds'), handle: flag('handle'), signing: flag('signing'), prev: flag('prev'),
+     rotation: flag('rotation')?.split(',') };
+-  const r = recover(audit, JSON.parse(readFileSync(jwkFile, 'utf8')), ch);
++  let r;
++  try { r = recover(audit, JSON.parse(readFileSync(jwkFile, 'utf8')), ch); }
++  catch (e) {
++    console.error('refused: ' + e.message);
++    if (/can sign nothing/.test(e.message)) console.error('Your key was never added to this DID. The key is not broken; step 2 (adding it) has not been done. Nothing was signed or sent.');
++    process.exit(1);
++  }
+   console.log(JSON.stringify(r.op, null, 2));
+   console.error(`signed by ${r.signer} (rank ${r.rank}); cid ${r.cid}` + (r.overrides.length ? `; would override ${r.overrides.join(', ')} if within 72 h and outranked` : ''));
+   if (rest.includes('--submit')) {
+--- a/rk-kit/selftest.mjs
++++ b/rk-kit/selftest.mjs
+@@ -22,6 +22,6 @@
+   const line = c.split('\n').find(l => l.startsWith('{"kty"'));
+   const back = createPrivateKey({ key: JSON.parse(line), format: 'jwk' });
+   if (!verify('sha256', Buffer.from('card'), publicKey, sign('sha256', Buffer.from('card'), back))) throw Error('card key is not the key');
+-  for (const w of ['did:plc:test', didKey, 'dry run', '72 hours', 'different computer']) if (!c.includes(w)) throw Error('card lacks ' + w);
++  for (const w of ['did:plc:test', didKey, 'dry run', '72 hours', 'different computer', 'never added']) if (!c.includes(w)) throw Error('card lacks ' + w);
+   console.log('selftest ok: the card carries the key and the words');
+ }
