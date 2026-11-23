@@ -13,3 +13,5 @@ wire4/data/scan-*
 wire4/data/thresholds.txt
 wire4/data/sec-*
 wire4/data/shear-*
+wire4/data/tube-*
+wire4/data/heat-*

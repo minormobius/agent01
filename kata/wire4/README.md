@@ -295,6 +295,64 @@ the profile within 3.5 D of the axis by no more than 0.03. Runs at Re 230 and ab
 150 to 300 flow times, and the rate of change was still falling slowly at the end (like 1/t) with the bubble fixed
 to four figures.
 
+## 9. The true tube: a no-slip wall, and the wire meeting it (`tube4.py`, `tmesh.py`)
+
+Rotations in the two directions perpendicular to both the flow and the wire leave the wire, the tube wall and the
+stream unchanged, so the flow that keeps that symmetry is a three-dimensional problem in (x along the flow, ρ the
+distance from the plane of flow and wire, w along the wire), weighted by ρ. The wall is the quarter-circle
+ρ² + w² = R², the inflow is the pipe's own 1 − (ρ² + w²)/R², and the wire runs from the axis into the wall.
+`tmesh.py` meshes it with gmsh (tetrahedra, 0.06 D on the wire); `tube4.py` time-steps it: Taylor–Hood, BDF2,
+convection extrapolated, pressure correction in rotational form, velocity by conjugate gradients.
+
+**Checks.** (1) No wire: the solver holds the pipe's exact profile to 0.4% of the centreline speed on a coarse mesh
+(the wall is faceted). (2) The same solver on section 8's problem (mirror planes, slip lid 8 D above the wire, the
+cosine stream held by a body force; `geom=slab`), Re 200, R = 5: bubble on the axis 1.785 against `shear4.py`'s
+1.79, and within 0.03 of it at most stations out to 4.7 D along the wire (0.06 at worst; the series run has
+truncation wiggles of that size and this one has none). Two codes, two discretisations, different outer boundaries.
+
+**The tube, Re 200 on the centreline speed, R = 5** (62 000 tetrahedra, 150 flow times, steady, rate of change 2e-5):
+
+| along the wire, D | 0 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| bubble, tube | 1.71 | 1.40 | 1.23 | 1.11 | 1.02 | 0.91 | 0.79 | 0.65 | 0.50 | 0.49 |
+| bubble, mirror planes (this solver) | 1.78 | 1.49 | 1.32 | 1.21 | 1.13 | 1.05 | 0.96 | 0.87 | 0.77 | 0.66 |
+
+(The mirror-plane row is interpolated from stations 0.2 D apart.) The tube's wake is the same single bulge on the
+axis, a little shorter there (1.71 against 1.78) and shortening faster toward the wall, where the parabola is
+slower than the cosine stream and the wall adds its own drag. The bubble does not close at the wall: it is still
+half a diameter long 0.5 D from it. No ripple. One Reynolds number, one mesh, one tube radius so far; the
+junction is not examined beyond that.
+
+## 10. Heat leaving the wire (`heat4.py`)
+
+Forced convection with constant properties: the temperature rides on the flow and does not change it. So nothing
+has to be rerun: `heat4.py` solves the steady advection–diffusion equation on a flow `tube4.py` saved, directly, in
+a minute or two. That holds only while the flow is steady. A time-averaged heat loss from an unsteady wake needs the
+temperature stepped with the flow, which `tube4.py` does not yet do. Buoyancy and temperature-dependent viscosity
+would feed back on the flow and are left out (a small overheat).
+
+The wire is isothermal across its section and not along it: its excess temperature is a sum of a few shapes along
+the wire (in the tube, cos((j + ½)πw/R), zero at the wall, which is cold like the inflow). One solve per shape gives
+the heat lost per length at every station and the matrix H_ij = ∫φ_i Q_j dw. A wire energy balance, conduction
+along the wire plus Joule heat minus that loss, is then a small linear system; the current, the wire's
+conductivity and how its resistance rises with temperature come in there, with no more flow solves. For a steady
+current the heat made per length is I²/(σ·(4/3)πa³) whatever the force law between charges; σ for a 4D metal is not
+something this study has.
+
+Nusselt number per local excess (Nu = h D / k; 2 is conduction to a fluid at rest), Prandtl number 0.7, Re 200:
+
+| along the wire, D | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| tube, first shape | 9.05 | 8.92 | 8.60 | 7.83 | 6.50 |
+| stream speed there | 1 | 0.96 | 0.84 | 0.64 | 0.36 |
+
+Between mirror planes with a uniformly hot wire: 9.13 on the axis, 7.08 where the stream is half speed, 2.71 on the
+plane where it is at rest. Sphere correlations at Re 200 and Pr 0.7 give 8.7 (Whitaker) to 9.5 (Ranz–Marshall),
+and the wire's cross-section is a ball, so the level is right; that is a plausibility check, not a validation. A
+uniform-stream run of this solver against the sphere literature is the check still owed. The temperature
+undershoots by 0.02 of the excess somewhere in the wake (no upwinding). Because the stream slows along the wire, a
+wire in a tube reads less than the centreline speed: 4 D out, the coefficient is 0.72 of its value on the axis.
+
 ## Running it
 
 ```bash
@@ -308,6 +366,9 @@ cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run,
 ../../venv/bin/python sec4.py 210 300 0.05 5      # the ripple's stability to lopsided modes, ~30 min
 ../../venv/bin/python ladder4.py 800,1131               # two rungs of the ladder, ~2 h a rung on one core
 ../../venv/bin/python shear4.py 200 5                   # sheared stream, tube radius 5, ~1 h -> data/shear-200-R5.*
+../../venv/bin/pip install gmsh && apt-get install -y libglu1-mesa   # tube4.py only
+../../venv/bin/python tube4.py 200 5 150                 # the true tube, ~3 h -> data/tube-200-R5.*  (geom=slab: section 8's problem)
+../../venv/bin/python heat4.py 200-R5 0.7 4               # heat from the wire on that flow, ~2 min -> data/heat-200-R5.json
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 
@@ -318,8 +379,10 @@ not wake modes.
 
 - An independent check of the β > 0 result (a second discretisation, or a time-stepped 4D run near Re 191).
 - A nonlinear solver that carries the lopsided harmonics, to find the tilted ripple and where it starts to shed.
-- The true tube: a curved no-slip wall, the stream varying across the wire as well as along it, and the wire's
-  junction with the wall. Section 8 did only the shear, between mirror planes.
+- The tube at more Reynolds numbers and radii, a finer mesh, and a look at the junction. Lopsided flows need the
+  full 4D problem or harmonics round the axis.
+- Heat: the uniform-stream check against the sphere literature, the wire energy balance with a current, and
+  temperature stepped with the flow for unsteady wakes.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
   pattern. Floquet analysis with a spanwise wavevector of any direction in that plane.
 - Then the instrument: heat loss from the wire with the wake it actually has.
