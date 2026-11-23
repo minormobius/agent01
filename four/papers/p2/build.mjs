@@ -202,7 +202,8 @@ function egravNumbers() {
     egRho: `${Math.round(100 * (Math.min(a.rhoMaxOverStall, b.rhoMaxOverStall) - 1))}–${Math.round(100 * (Math.max(a.rhoMaxOverStall, b.rhoMaxOverStall) - 1))}%`,
     egC14: pc(cmax[E.stalls.indexOf(a)], 1), egC11: pc(cmax[E.stalls.indexOf(b)], 2) };
   const P = E.past; if (P) Object.assign(t, { egPmyr: sig(P.myr), egPH0: sig(P.Hfree[0]), egPH1: sig(P.Hfree[1]), egPproc: sig(P.processed[1]), egPR: sig(P.R), egPL: sig(P.L),
-    egPT0: (Math.round(P.Teff[0] / 100) * 100).toLocaleString("en-GB"), egPT1: (Math.round(P.Teff[1] / 100) * 100).toLocaleString("en-GB"), egPTc0: sig(P.Tc[0], 2), egPTc1: sig(P.Tc[1], 2), egPrho: sig(P.rhoc) });
+    egPT0: (Math.round(P.Teff[0] / 100) * 100).toLocaleString("en-GB"), egPT1: (Math.round(P.Teff[1] / 100) * 100).toLocaleString("en-GB"), egPTc0: sig(P.Tc[0], 2), egPTc1: sig(P.Tc[1], 2), egPrho: sig(P.rhoc),
+    egPbk0: P.books ? sig(P.books[0], 2) : "—", egPbk1: P.books ? sig(P.books[1], 2) : "—" });
   return t;
 }
 /* the status page's own numbers (text/status.md): what metals do to 4D opacity (data/metals4.json, fusion/tools/metals4.mjs)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="2303b5b597697b98ce0617c1ba054b206fdc50ec8c8f9f83616e24d87c12289c" />
+<meta name="source-sha256" content="dc8786e38664ab9e839185de73f5ac06d8171795e64d0c87044efd4bd7f05f61" />
 <title>Paper 2 · Stars that age: our Sun first</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -127,18 +127,24 @@ real flare of the centre’s hydrogen or the edge of the method is open.
 The ages above end at the stall and stand.</p>
 <p><strong>Past the end of the hydrogen (provisional).</strong> With the
 same energy in the structure, the ladder star that sits on the explosion
-line (s = 1.5152, 1.25 M<sub>Ch</sub>) has been carried 210 Myr past the
+line (s = 1.5152, 1.25 M<sub>Ch</sub>) has been carried 220 Myr past the
 end of its central hydrogen. Its hydrogen-free core grows from 0.026 to
-0.18 M<sub>Ch</sub> and is still speeding up; the processed core it must
-burn through holds at 0.81 M<sub>Ch</sub>. The star swells ×2.2 in
-radius and ×2.2 in light, and its surface cools from 46,100 to 33,300 K,
-while its centre heats from 71 to 88 MK and grows ×6.3 denser: a
-subgiant beginning. (As the envelope swells, the shooting solution
-meeting at a fifth of the mass stops converging; from there it meets at
-a tenth.) Whether its core reaches the Chandrasekhar mass, which decides
-whether it explodes and so tests the declared core growth above, is
-still open: past here the solver fails every few dozen models as the
-envelope swells, and the run is paused until it is fixed.</p>
+0.29 M<sub>Ch</sub>, faster as it goes. The star swells ×410 in radius
+and ×26 in light, and its surface cools from 46,100 to 2,400 K, while
+its centre heats from 71 to 210 MK and grows ×130 denser: a red giant.
+Shooting cannot follow an envelope swelling that far, so past the
+subgiant the structure is solved by relaxation, all at once on a mesh,
+with the envelope’s partial-ionization gas inside it. The giant’s deep
+convective envelope reaches down into matter the old convective core
+processed and stirs it outward, so the processed region (now out to 0.89
+M<sub>Ch</sub>) no longer marks a core. The last stretch is not yet
+trustworthy: the hydrogen-burning shell has narrowed to a few cells of
+the composition grid, and over the last hundred models the shells burn
+between 0.76 and 0.97 of the nuclear power the structure assumes.
+Whether the core reaches the Chandrasekhar mass, which decides whether
+the star explodes and so tests the declared core growth above, is still
+open: the run is paused until the composition grid resolves the
+shell.</p>
 <p><strong>What the aged stars hold.</strong> Summed over each
 analogue’s last kept profile, the elements past helium are 9–30% of its
 mass at s ≤ 1.55, mostly element 8, oitrogen, pxygen and gluorine; 2–20%

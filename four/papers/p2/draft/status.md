@@ -91,8 +91,10 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   analogues pass the stall: the stirred core switches off and the centre cools and contracts, then reheats, and they
   stop again at 44.77 and 2.707 Gyr where a stirred core begins to re-form.
 - **Past the end of the hydrogen** (provisional; one star, paused). The 1.25 M~Ch~ star on the explosion line, carried
-  210 Myr past it: its hydrogen-free core grows from 0.026 to 0.18 M~Ch~ and the star swells ×2.2.
-  Whether the core reaches the 1 M~Ch~ it needs to explode is not settled yet.
+  220 Myr past it into a red giant: its hydrogen-free core grows from 0.026 to 0.29 M~Ch~ and the star
+  swells ×410, its surface cooling to 2,400 K. Whether the core reaches the 1 M~Ch~ it needs to explode is not
+  settled yet, and the last stretch's energy books are off (the shells burn 0.76–0.97 of what the structure
+  assumes): the burning shell has outgrown the composition grid's resolution.
 - **What the first stars hold** (computed; section 4). Elements past helium: 9–30% of the star at $s$ ≤ 1.55,
   2–20% at 1.6–1.65 (coron, element 6, darbon, element 8 and oitrogen), 0.3–4% at 1.7, and at most 0.1% from 1.75 up, where stars burn hydrogen to
   helium and stop.
@@ -134,12 +136,14 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 
 ## What comes next
 
-1. **Following cores past the end of the hydrogen** (the compute runner; one star, paused on the solver). The energy of contraction
+1. **Following cores past the end of the hydrogen** (the compute runner; one star, paused on the composition grid's resolution of the burning shell). The energy of contraction
    is now in the solver. The mass ladders are done: 28 of the 29 stars that die within 30 Gyr reach
    the end of their central hydrogen. What is left declared is how their cores grow afterwards, which sets which stars
    explode and, near our strength, how much of what they return is iron. The first star past it, the one on the
    explosion line, decides whether computing that for every ladder star is worth the runner time. This is the step that
-   most changes what the paper can claim.
+   most changes what the paper can claim. Checking the same energy books across the finished main-sequence tracks found stretches off by several per cent
+   where a convective core sits, and single models further off where one grows into fresh hydrogen; what that does to
+   the ages is being measured.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
    and first 3 Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return. Near
    our strength that mix holds this world's iron as well as the rock row, and the book's ions don't reach iron yet, so

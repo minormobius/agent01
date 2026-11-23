@@ -418,7 +418,8 @@
    "by": "ε_grav = -du/dt + (P/ρ²)dρ/dt with u = (d/2)P/ρ (ideal ions, non-relativistic Fermi–Dirac electrons), implicit in each trial's ρ and P against a reference model at least 1% away in central density (evolve.mjs grav=1, behind a switch, so no quoted result moved); checked on ours first. Three simpler forms failed and are recorded in the code: a grid reference (its interpolation noise swamped the burning), a one-step baseline (the shooting went stiff) and a lagged source (noise)",
    "runs": [
     "sandbox: ours 1 and 2 M☉ on OPAL with and without; the two stalled analogues resumed from their checkpoints",
-    "evolve4-14 (one star past exhaustion)"
+    "evolve4-14 (one star past exhaustion)",
+    "evolve4-21 (the same star on into a red giant, by relaxation with the envelope's partial-ionization gas in the structure; cut at the runner's deadline with its energy books 0.76–0.97, the burning shell under-resolved: provisional)"
    ],
    "rule": null,
    "moved": [

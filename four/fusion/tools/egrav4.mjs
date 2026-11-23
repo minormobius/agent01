@@ -40,8 +40,11 @@ if (past) { const T = past.track, X0 = T[0].Xc, a = T.find((r) => r.Xc < 1e-3), 
   const heavy = (r) => Object.entries(r).filter(([k]) => /^\d+-\d+$/.test(k) && +k.split("-")[0] >= 3).reduce((s, [, v]) => s + v, 0);
   const cores = past.profiles.slice().sort((p, q) => p.tGyr - q.tGyr).filter((p) => p.tGyr >= a.tGyr - 1e-6).map((p) => { const t = p.rows.filter((r) => X0 - (r.H ?? X0) > 0.05 || heavy(r) > 0.01), h = p.rows.filter((r) => (r.H ?? 1) < 0.01); return { tGyr: r4(p.tGyr), processed: r4((t.length ? t.at(-1).q : 0) * m), Hfree: r4((h.length ? h.at(-1).q : 0) * m) }; });
   pastOut = { G: 1e-17, s: 1.5152, m, fromGyr: r4(a.tGyr), toGyr: r4(b.tGyr), myr: r4(1000 * (b.tGyr - a.tGyr)), Hfree: [cores[0].Hfree, cores.at(-1).Hfree], processed: [cores[0].processed, cores.at(-1).processed], explodesAt: 1,
-    R: r4(b.R / a.R), L: r4(b.L / a.L), Teff: [r4(a.Teff), r4(b.Teff)], Tc: [r4(a.Tc / 1e6), r4(b.Tc / 1e6)], rhoc: r4(b.rhoc / a.rhoc), contraction: share(T, (r) => r.tGyr >= a.tGyr), stopped: past.stopped ?? "cut", provisional: true, cores }; }
+    R: r4(b.R / a.R), L: r4(b.L / a.L), Teff: [r4(a.Teff), r4(b.Teff)], Tc: [r4(a.Tc / 1e6), r4(b.Tc / 1e6)], rhoc: r4(b.rhoc / a.rhoc), contraction: share(T, (r) => r.tGyr >= a.tGyr), stopped: past.stopped ?? "cut", provisional: true,
+    // the energy books over the last 100 models: the shells' burn against the structure's own nuclear luminosity
+    // (evolve.mjs eBal); far from 1, the burning shell is under-resolved (evolve.mjs balmax=)
+    books: (() => { const e = T.slice(-100).map((r) => r.eBal).filter((x) => x != null); return e.length ? [r4(Math.min(...e)), r4(Math.max(...e))] : null; })(), cores }; }
 
 const out = { about: "fusion/tools/egrav4.mjs: the energy of contraction (ε_grav, evolve.mjs grav=1). ours: the Sun (1 M☉, to 4.57 Gyr) and 2 M☉ (to Xc 1e-3) on OPAL with it against without, differences in per cent; contraction = Lgrav/L. stalls: the two stalled s 1.5152 analogues resumed with it from the stall. past: a ladder star past central-hydrogen exhaustion (cores in M_Ch; provisional while its run goes on).", ours, stalls, past: pastOut };
 writeFileSync(new URL("../../papers/p2/data/egrav.json", import.meta.url), JSON.stringify(out, null, 1) + "\n");
-console.log(JSON.stringify({ sun: ours.sun.maxAbsPct, m2: ours.m2.maxAbsPct, sunContr: ours.sun.contraction, stalls: stalls.map((x) => [x.G, x.stallGyr, x.stopGyr, x.moreMyr]), past: pastOut && [pastOut.myr, pastOut.Hfree, pastOut.processed] }));
+console.log(JSON.stringify({ sun: ours.sun.maxAbsPct, m2: ours.m2.maxAbsPct, sunContr: ours.sun.contraction, stalls: stalls.map((x) => [x.G, x.stallGyr, x.stopGyr, x.moreMyr]), past: pastOut && [pastOut.myr, pastOut.Hfree, pastOut.processed, pastOut.books] }));

@@ -1557,6 +1557,15 @@ for games, and this is a modelling programme with publications to come. The game
   4.0: 43; 2.0; 0.4374 at G 10⁻¹¹), and single models of +12–38% where a convective core grows into fresh hydrogen
   (Xc rising, qcc 0.08 → 0.17). What that does to paper 2's ages is unmeasured.
   Still open: (3) the composition grid's ~7.5% at the giant's shell (NQ 1600, or a grid that follows the shell).
+  **evolve4-21 (collected 2026-11-23):** from evolve4-20's checkpoint (15.1118 Gyr) on the code before the adaptive mesh
+  and the absolute bar; cut at the 330-min deadline, 369 models, 6.3 Myr: to 15.1182 Gyr, R 1.06 × 10¹¹ m, Teff 2383 K,
+  L 5.4 × 10⁴⁶ W, Tc 208 MK, H-free core 0.287 M_Ch (0.027 M_Ch/Myr over its last 4 Myr); the "processed core" reads
+  0.894 M_Ch only because the convective envelope stirred processed matter outward (dredge-up, not growth). Its books
+  fell to 0.76–0.82 (the new bar would have stopped it), so it is provisional. Section 4's past-exhaustion paragraph
+  and the status page rewritten (a red giant by relaxation; paused on the composition grid, not the solver); egrav.json
+  `past.books` (the last 100 models' range) and build tokens egPbk0/egPbk1. **evolve4-22 not queued:** under the bar it
+  would stop within 10 models until the composition grid resolves the shell. ~54 s a model on the runner, ~12 in the
+  sandbox (the giant's deep envelope; the runner is slower).
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

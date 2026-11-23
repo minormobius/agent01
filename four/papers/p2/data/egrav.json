@@ -166,35 +166,39 @@
   "s": 1.5152,
   "m": 1.25,
   "fromGyr": 14.9,
-  "toGyr": 15.11,
-  "myr": 210.9,
+  "toGyr": 15.12,
+  "myr": 217.4,
   "Hfree": [
    0.02567,
-   0.1803
+   0.287
   ],
   "processed": [
    0.8119,
-   0.8119
+   0.8944
   ],
   "explodesAt": 1,
-  "R": 2.231,
-  "L": 2.181,
+  "R": 412.8,
+  "L": 25.92,
   "Teff": [
    46120,
-   33310
+   2383
   ],
   "Tc": [
    71.07,
-   88.39
+   208.3
   ],
-  "rhoc": 6.326,
+  "rhoc": 128.2,
   "contraction": {
-   "min": -0.01098,
-   "max": -0.0000747,
-   "median": -0.0003415
+   "min": -0.4412,
+   "max": 0.01142,
+   "median": -0.0001918
   },
-  "stopped": "no solution past Xc 0.0000",
+  "stopped": "cut",
   "provisional": true,
+  "books": [
+   0.7616,
+   0.9735
+  ],
   "cores": [
    {
     "tGyr": 14.9,
@@ -380,6 +384,186 @@
     "tGyr": 15.11,
     "processed": 0.8119,
     "Hfree": 0.1803
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1803
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1803
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1803
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1803
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.1803
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.2054
+   },
+   {
+    "tGyr": 15.11,
+    "processed": 0.8119,
+    "Hfree": 0.2054
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8119,
+    "Hfree": 0.2054
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8119,
+    "Hfree": 0.2316
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8119,
+    "Hfree": 0.2316
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8119,
+    "Hfree": 0.2316
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8119,
+    "Hfree": 0.2316
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8119,
+    "Hfree": 0.2588
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.7716,
+    "Hfree": 0.2588
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.7716,
+    "Hfree": 0.2588
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.7716,
+    "Hfree": 0.2588
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.7716,
+    "Hfree": 0.2588
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.2588
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
+   },
+   {
+    "tGyr": 15.12,
+    "processed": 0.8944,
+    "Hfree": 0.287
    }
   ]
  }
