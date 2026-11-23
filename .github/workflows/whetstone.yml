@@ -161,7 +161,8 @@ jobs:
       - name: Upload the souls' tracks (plyr.fm)
         if: ${{ !cancelled() && steps.req.outputs.list != '' }}
         env:
-          PLYR_TOKEN: ${{ secrets.PLYR_TOKEN }}
+          # The person's secret is named MINI_FM (2026-11-23); the code reads it as PLYR_TOKEN.
+          PLYR_TOKEN: ${{ secrets.MINI_FM }}
         run: |
           for r in $(git ls-files --others --exclude-standard --directory packages/whetstone/runs/ | sed 's#/$##' | sort); do
             [ -d "$r/commons/research/tracks" ] || continue

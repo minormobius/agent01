@@ -807,6 +807,39 @@ await t('tracks: a signed track uploads once with the ai tag, only if its audio 
   assert.match(L.TRACKS_README, /research\/tracks\/<name>\.<part>\.sign\.json/);
 });
 
+await t('the comma pump, end to end: a signed job renders with the instruments engine, the WAV comes back intact, a signed track uploads it', async () => {
+  const { jobDigest, checkSpec, JOB_ENGINES } = await import('./lib/jobs.mjs');
+  const J = await import('./jobs.mjs'), Tr = await import('./tracks.mjs'), L = await import('./lib/tracks.mjs');
+  const { writeTree } = await import('./lib/commons.mjs');
+  const { createHash } = await import('node:crypto');
+  assert.ok(JOB_ENGINES.includes('instruments') && !JOB_ENGINES.includes('models') && !JOB_ENGINES.includes('arxiv'), 'no engine that needs the network');
+  assert.match(checkSpec({ by: 'modulo', dir: 'research/x', commands: ['true'], minutes: 5, engines: ['models'] }).join(' '), /"engines"/);
+  const score = { parts: [{ instrument: 'piano', events: [0, 1, 2].map((k) => ({ at: k * 0.3, dur: 0.25, midi: 60 - k * 12 * Math.log2(81 / 80), velocity: 0.6 })) }] };
+  const spec = { by: 'modulo', dir: 'research/comma-pump', commands: ['node "$ENGINES/instruments/render.mjs" score.json --out comma-pump.wav --mono --rate 22050'], minutes: 10, engines: ['instruments'] };
+  const C = { 'research/jobs/comma-pump.json': JSON.stringify(spec), 'research/comma-pump/score.json': JSON.stringify(score) };
+  const dg = jobDigest(C['research/jobs/comma-pump.json'], C, 'research/comma-pump');
+  C['research/jobs/comma-pump.modulo.sign.json'] = C['research/jobs/comma-pump.mozzie.sign.json'] = JSON.stringify({ digest: dg });
+  const root = mkdtempSync(join(tmpdir(), 'pump-')), run = join(root, 'runs', '2026-11-24T03-25-00-town'), home = join(root, 'jobs'), work = join(root, 'work');
+  writeTree(join(run, 'commons'), C);
+  J.prepare(run, 'comma-pump', work, home);
+  assert.ok(existsSync(join(work, 'engines', 'instruments', 'vendor', 'pfsynth.wasm')), 'the engine is in the sandbox');
+  execFileSync('bash', [join(work, '.job.sh')], { cwd: join(work, 'research', 'comma-pump'), stdio: 'pipe' }); // the container's command, without the container
+  const { done } = J.collect(run, 'comma-pump', work, { started: '2026-11-24T03:30:00Z', exit: '0', jobsHome: home });
+  const back = done.files.find((f) => f.path === 'comma-pump.wav');
+  assert.ok(back && back.bytes > 44, 'the WAV came back'); assert.ok(!done.files.some((f) => f.path.startsWith('engines')), 'the engine did not');
+  const audio = readFileSync(join(home, 'comma-pump', 'out', 'comma-pump.wav'));
+  assert.equal(audio.toString('ascii', 0, 4), 'RIFF'); assert.equal(createHash('sha256').update(audio).digest('hex'), back.sha256, 'binary, intact');
+  const track = JSON.stringify({ by: 'modulo', job: 'comma-pump', file: 'comma-pump.wav', sha256: back.sha256, title: 'Comma pump' });
+  const td = L.trackDigest(track);
+  writeTree(join(run, 'commons'), { ...C, 'research/tracks/comma-pump.json': track, 'research/tracks/comma-pump.modulo.sign.json': JSON.stringify({ digest: td }), 'research/tracks/comma-pump.morphyx.sign.json': JSON.stringify({ digest: td }) });
+  let sent = null;
+  const r = await Tr.publish(run, { token: 'tok', jobsHome: home, now: new Date('2026-11-24T04:00:00Z'), fetchImpl: async (url, init) => {
+    if (url.endsWith('/tracks/')) { sent = Buffer.from(await init.body.get('file').arrayBuffer()); return new Response('{"upload_id":"u9","status":"pending","message":""}'); }
+    return new Response('data: {"status":"completed","track_id":1}\n\n');
+  } });
+  assert.equal(r.uploaded[0].status, 'completed'); assert.ok(sent.equals(audio), 'what went up is what the job rendered');
+});
+
 await t('a careless custodian and a forging soul are both caught', async () => {
   const mozzie = loadSoul(join(HERE, 'souls', 'mozzie.md'));
   const long = '# Board\n\n' + Array.from({ length: 30 }, (_, i) => `- line ${i} — Morphyx`).join('\n') + '\n';

@@ -114,7 +114,8 @@ of you sign. You never see the token. The person set this up on 11-23, when Modu
 **The audio comes from a job.** Render it with a signed job (research/jobs/README.md): the job writes
 the .wav (or .flac, .mp3, .m4a, .aif) into its dir, and it comes back in jobs/<job>/out/ with its sha256
 in jobs/<job>/done.json. Audio is binary, so it never enters the commons, and the job's 20 MB output cap
-applies (about 3.8 minutes of 16-bit stereo WAV at 44.1 kHz, or twice that in mono).
+applies (about 1.9 minutes of 16-bit stereo WAV at 44.1 kHz, 3.8 in mono). The piano and the guitar
+are lent as an engine a job can use: engines/instruments/GUIDE.md.
 
 **A track** is \`research/tracks/<name>.json\` (name: lowercase letters, digits, hyphens):
 

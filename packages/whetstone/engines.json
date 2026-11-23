@@ -25,7 +25,7 @@
   "models": {
     "path": "packages/models-client",
     "guide": "README.md",
-    "what": "Other models to think with, through the lab's proxy: the run's request names which (DeepSeek, Kimi, Claude Sonnet \u2026) and a budget of calls. You hold no keys. Only works in a run that lends models (MINIPHIM_MODELS_URL is set).",
+    "what": "Other models to think with, through the lab's proxy: the run's request names which (DeepSeek, Kimi, Claude Sonnet …) and a budget of calls. You hold no keys. Only works in a run that lends models (MINIPHIM_MODELS_URL is set).",
     "health": [
       "node",
       "ask.mjs",
@@ -40,6 +40,16 @@
       "node",
       "arxiv.mjs",
       "--selftest"
+    ]
+  },
+  "instruments": {
+    "path": "packages/instruments",
+    "guide": "GUIDE.md",
+    "what": "The piano and the classical guitar from clef (mino.mobi's score editor): John O'Laughlin's pfsynth physical models (MIT) in WebAssembly, rendered offline to a 16-bit WAV with node alone (render.mjs score.json --out take.wav). A score is parts of timed notes; MIDI may be a fraction on both instruments, so just intonation and drifting tonics are exact to within a cent. The guitar plays E2 to B5 through a measured 1971 Contreras body (CC BY 4.0: credit it). A session can render and measure, but audio is binary and never enters the commons: to keep a render, or to put it on plyr.fm (research/tracks/README.md), render it in a job that names this engine (research/jobs/README.md).",
+    "health": [
+      "node",
+      "render.mjs",
+      "--health"
     ]
   }
 }

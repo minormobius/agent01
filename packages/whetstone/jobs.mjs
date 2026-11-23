@@ -44,7 +44,13 @@ export function prepare(runDir, name, work, home = JOBS_HOME) {
   if (existsSync(out)) cpSync(out, join(work, job.spec.dir), { recursive: true });
   // The commands side by side, each one's output in job-logs/<i>.txt in its dir (which comes back); the
   // script exits with how many failed. It sits at the sandbox root, outside the dir, so it never comes back.
-  writeFileSync(join(work, '.job.sh'), ['set -u', 'mkdir -p job-logs', ...job.spec.commands.map((c, i) => `( ${c} ) > job-logs/${i}.txt 2>&1 &`),
+  // Engines it names, from the repo, at $ENGINES/<name>/ in the sandbox: outside its dir, so they never come back.
+  const reg = JSON.parse(readFileSync(join(HERE, 'engines.json'), 'utf8'));
+  for (const name of job.spec.engines || []) {
+    const e = reg[name], src = join(HERE, '..', '..', e.path), skip = new Set(e.exclude || []);
+    cpSync(src, join(work, 'engines', name), { recursive: true, filter: (p) => !skip.has(relative(src, p).split('/')[0]) });
+  }
+  writeFileSync(join(work, '.job.sh'), ['set -u', 'export ENGINES="$(cd "$(dirname "$0")" && pwd)/engines"', 'mkdir -p job-logs', ...job.spec.commands.map((c, i) => `( ${c} ) > job-logs/${i}.txt 2>&1 &`),
     'fails=0', 'for pid in $(jobs -p); do wait "$pid" || fails=$((fails+1)); done', 'exit "$fails"'].join('\n') + '\n');
   return job;
 }
