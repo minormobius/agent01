@@ -276,8 +276,9 @@ Reynolds number on the centreline speed. Mesh 50×40, 14 harmonics for R = 5 and
   number at this radius may pulse. It does: at Re 320 (300 flow times, 28 harmonics, time step 0.015) the axis bubble
   swings between 2.1 and 2.65 with a period near 32 flow times, five cycles from t = 150 to 300 with no decay, and
   the rate of change stays near 0.01. This is the first unsteady flow in the sheared stream. It is as under-resolved
-  along the wire as the Re 250 run, so the onset (between 250 and 320) and the amplitude are rough; Re 280 is
-  running. The Re 250 spectrum is
+  along the wire as the Re 250 run, so the amplitudes are rough. Re 280 pulses too: four successive peaks at 2.333, 2.333, 2.333, 2.332 (t = 80 to
+  190, period 36.6), troughs near 2.17, so the cycle has saturated and is not decaying. The onset is between 250 and
+  280. (That run stopped at t = 210 of 300 when the sandbox restarted; the saved state is t = 210.) The Re 250 spectrum is
   flat from harmonic 10 to 22, so the peak is not resolved by 28 harmonics. The bubble profile carries small steps
   1.2 D apart; the same steps, four times weaker, are in the Re 220 run, and 1.2 D is the wavelength of the last
   harmonics kept, so they are read as truncation, not as a ripple.
