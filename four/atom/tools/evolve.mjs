@@ -251,7 +251,15 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     return cur; }
   const s0 = C ? null : W.first ? W.first(M) : star({ d: W.d, M, G: W.G, comp: W.comp(S[0]), eps: (rho, T) => W.eps(rho, T, S[0]).eps, kappa: (rho, T) => W.kappa(rho, T, S[0]), ...(W.envelope ? { envelope: W.envelope(M) } : {}) }, guess);
   if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
-  let { s, f: grav } = C ? { s: s1, f: g1 } : firstShell(s0);
+  // the zero-age solve, if it fails at the run's meeting point, is tried meeting at others, then re-solved at the run's own
+  // from there (the meeting point is numerical: a converged star doesn't depend on it). Pinned gravity's quadrature fix
+  // (f2bfbd11b) made the G 1e-11 s 1.5152 Sun analogue's first star 1.7× brighter, and at 0.2 of the mass its continuation's
+  // first scaled solve no longer integrates; at 0.3 the star solves directly
+  function firstShellAny(s0) { const r = firstShell(s0); if (r.s.ok) return r; const f0 = W.fit;
+    for (const fit of [0.3, 0.1, 0.5]) { if (fit === f0) continue; W.fit = fit; const t = firstShell(s0); W.fit = f0; if (!t.s.ok) continue;
+      const back = solve(W, M, S, t.s.p, t.at, t.f), use = back.s.ok ? back : t; console.log(`${label}: the zero-age star solved meeting at ${fit} of the mass (not at ${f0 ?? 0.5})${back.s.ok ? `, then at ${f0 ?? 0.5} from there` : `; kept as solved at ${fit}`}`); return use; }
+    return r; }
+  let { s, f: grav } = C ? { s: s1, f: g1 } : firstShellAny(s0);
   if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
   let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1, lgrav = null, booksOff = 0;
   // ε_grav's references: the accepted models, newest last ({ t, rhoc, prof }); a resumed run starts with its checkpoint's

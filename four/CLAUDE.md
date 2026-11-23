@@ -1575,7 +1575,14 @@ for games, and this is a modelling programme with publications to come. The game
   structure's shell-by-shell rates, not the giant's under-resolved shell. **Found:** the G 10⁻¹¹ s 1.5152 Sun analogue
   (0.4374 M_Ch, `sun`) no longer starts on the current code: the first-star guess gives L 3.5 × 10³⁴ W against the cached
   track's zero-age 5.8 × 10³⁵, and the zero-age solve with shell laws stalls (at 400, 600 and 800 shells alike).
-  Undiagnosed; it means the current code may not reproduce every star the paper has a track for.
+  **Diagnosed (2026-11-23):** it broke at f2bfbd11b, pinned gravity's quadrature fix (the three commits before start it):
+  the corrected, stronger gravity makes its first star 1.7× brighter, and meeting at 0.2 of the mass the continuation's
+  first scaled solve no longer integrates. Meeting at 0.3 the star solves directly. Fixed: the zero-age solve alone falls
+  back to meeting at 0.3, 0.1, 0.5, then re-solves at the run's own point from there (the meeting point is numerical).
+  Its zero-age L is now 7.2 × 10³⁵ W against the cached 5.8 × 10³⁵: +25% from the gravity fix at G 10⁻¹¹ (the benchmark
+  star at 10⁻¹⁷ moved ~7%). **All 49 `-lp` ladder stars start on the current code** with the runner's first-star cache
+  (`net-<G>-<s>-ladder-ff1.json`, restored from atom4-data; a sandbox test must copy it in, or the cache-less
+  `firstStar` path runs instead: slower, and it fails s 1.8 1.25 M_Ch). Only the G 10⁻¹¹ analogue uses the fallback.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
