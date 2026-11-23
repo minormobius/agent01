@@ -273,7 +273,11 @@ Reynolds number on the centreline speed. Mesh 50×40, 14 harmonics for R = 5 and
   run settles through a slowly damped oscillation: the axis bubble and the harmonics from 8 up swing together with a
   period near 42 flow times, the bubble's swing 0.025 near t = 100, 0.006 near 200 and 0.001 near 330 (run to 400).
   A lightly damped mode like that is what sits just below an oscillating instability, so a slightly higher Reynolds
-  number at this radius may pulse; not tried. Its spectrum is
+  number at this radius may pulse. It does: at Re 320 (300 flow times, 28 harmonics, time step 0.015) the axis bubble
+  swings between 2.1 and 2.65 with a period near 32 flow times, five cycles from t = 150 to 300 with no decay, and
+  the rate of change stays near 0.01. This is the first unsteady flow in the sheared stream. It is as under-resolved
+  along the wire as the Re 250 run, so the onset (between 250 and 320) and the amplitude are rough; Re 280 is
+  running. The Re 250 spectrum is
   flat from harmonic 10 to 22, so the peak is not resolved by 28 harmonics. The bubble profile carries small steps
   1.2 D apart; the same steps, four times weaker, are in the Re 220 run, and 1.2 D is the wavelength of the last
   harmonics kept, so they are read as truncation, not as a ripple.
@@ -310,18 +314,23 @@ cosine stream held by a body force; `geom=slab`), Re 200, R = 5: bubble on the a
 1.79, and within 0.03 of it at most stations out to 4.7 D along the wire (0.06 at worst; the series run has
 truncation wiggles of that size and this one has none). Two codes, two discretisations, different outer boundaries.
 
-**The tube, Re 200 on the centreline speed, R = 5** (62 000 tetrahedra, 150 flow times, steady, rate of change 2e-5):
+**The tube, R = 5, Reynolds number on the centreline speed** (62 000 tetrahedra, 150 flow times; all three steady,
+rate of change 1e-5 to 5e-5 at the end and the axis bubble fixed to four figures from t = 90):
 
 | along the wire, D | 0 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| bubble, tube | 1.71 | 1.40 | 1.23 | 1.11 | 1.02 | 0.91 | 0.79 | 0.65 | 0.50 | 0.49 |
-| bubble, mirror planes (this solver) | 1.78 | 1.49 | 1.32 | 1.21 | 1.13 | 1.05 | 0.96 | 0.87 | 0.77 | 0.66 |
+| bubble, tube, Re 150 | 1.21 | 1.14 | 1.05 | 0.96 | 0.87 | 0.77 | 0.65 | 0.50 | 0.35 | 0.29 |
+| bubble, tube, Re 200 | 1.71 | 1.40 | 1.23 | 1.11 | 1.02 | 0.91 | 0.79 | 0.65 | 0.50 | 0.49 |
+| bubble, tube, Re 250 | 1.97 | 1.55 | 1.34 | 1.21 | 1.11 | 1.01 | 0.89 | 0.75 | 0.62 | 0.62 |
+| bubble, mirror planes, Re 200 (this solver) | 1.78 | 1.49 | 1.32 | 1.21 | 1.13 | 1.05 | 0.96 | 0.87 | 0.77 | 0.66 |
 
 (The mirror-plane row is interpolated from stations 0.2 D apart.) The tube's wake is the same single bulge on the
 axis, a little shorter there (1.71 against 1.78) and shortening faster toward the wall, where the parabola is
 slower than the cosine stream and the wall adds its own drag. The bubble does not close at the wall: it is still
-half a diameter long 0.5 D from it. No ripple. One Reynolds number, one mesh, one tube radius so far; the
-junction is not examined beyond that.
+half a diameter long 0.5 D from it. No ripple at any of the three. On the axis the tube's bubble sits 0.07 to 0.09
+below section 8's mirror-plane values (1.28, 1.79, 2.06) at each Reynolds number, and the bulge sharpens with
+Reynolds number the same way: flat at 150, peaked at 250. One mesh, one tube radius so far; the junction is not
+examined beyond that.
 
 ## 10. Heat leaving the wire (`heat4.py`)
 
@@ -339,11 +348,14 @@ conductivity and how its resistance rises with temperature come in there, with n
 current the heat made per length is I²/(σ·(4/3)πa³) whatever the force law between charges; σ for a 4D metal is not
 something this study has.
 
-Nusselt number per local excess (Nu = h D / k; 2 is conduction to a fluid at rest), Prandtl number 0.7, Re 200:
+Nusselt number per local excess (Nu = h D / k; 2 is conduction to a fluid at rest), Prandtl number 0.7, the tube
+with the first temperature shape:
 
 | along the wire, D | 0 | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|---|
-| tube, first shape | 9.05 | 8.92 | 8.60 | 7.83 | 6.50 |
+| Re 150 | 7.98 | 7.94 | 7.61 | 6.94 | 5.82 |
+| Re 200 | 9.05 | 8.92 | 8.61 | 7.82 | 6.52 |
+| Re 250 | 9.96 | 9.88 | 9.57 | 8.64 | 7.15 |
 | stream speed there | 1 | 0.96 | 0.84 | 0.64 | 0.36 |
 
 Between mirror planes with a uniformly hot wire: 9.13 on the axis, 7.08 where the stream is half speed, 2.71 on the
@@ -351,7 +363,10 @@ plane where it is at rest. Sphere correlations at Re 200 and Pr 0.7 give 8.7 (Wh
 and the wire's cross-section is a ball, so the level is right; that is a plausibility check, not a validation. A
 uniform-stream run of this solver against the sphere literature is the check still owed. The temperature
 undershoots by 0.02 of the excess somewhere in the wake (no upwinding). Because the stream slows along the wire, a
-wire in a tube reads less than the centreline speed: 4 D out, the coefficient is 0.72 of its value on the axis.
+wire in a tube reads less than the centreline speed: 4 D out, the coefficient is 0.72 of its value on the axis, at
+all three Reynolds numbers (0.73, 0.72, 0.72). On the axis, Nu − 2 goes as Re to the power 0.56 between 150 and 250
+(5.98, 7.05, 7.96): King's shape, with an exponent between the boundary layer's ½ and the wake's ⅔, as sphere
+correlations have. Three points over less than a factor of two in Re; not a fitted law.
 
 ## Running it
 
@@ -379,7 +394,7 @@ not wake modes.
 
 - An independent check of the β > 0 result (a second discretisation, or a time-stepped 4D run near Re 191).
 - A nonlinear solver that carries the lopsided harmonics, to find the tilted ripple and where it starts to shed.
-- The tube at more Reynolds numbers and radii, a finer mesh, and a look at the junction. Lopsided flows need the
+- The tube at higher Reynolds numbers and other radii, a finer mesh, and a look at the junction. Lopsided flows need the
   full 4D problem or harmonics round the axis.
 - Heat: the uniform-stream check against the sphere literature, the wire energy balance with a current, and
   temperature stepped with the flow for unsteady wakes.
