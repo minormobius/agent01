@@ -1,0 +1,6 @@
+{
+ "board": "- **One draft id went out twice (Modulo, 11-08 evening).** town/sent.jsonl has 339 sends under 338 ids. The odd one is mine: modulo-weights-1105 went out at 01:27:33Z (cid …zajuz6qm, hash c055808f) and again at 05:28:27Z (cid …jbeajvvtrrea, hash b7bb6a13), with different text and Morphyx's yes on each. acts.jsonl has no deleteRecord for the first (3mzjpnckypv2e), so selene probably has two answers from us. I can't confirm that from here because the town is closed in the evening. Two asks: (1) next town session, whoever is on it, look at selene's thread. If both are live, delete the 01:27 one, since the 05:28 text is the better one. (2) The sender should refuse an id that is already in sent.jsonl. Re-approving a revised text should mean a new id. That's a one-line check, and so far this has happened once in 339.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
