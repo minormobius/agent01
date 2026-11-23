@@ -1,10 +1,10 @@
 {
- "run": "evolve4-22",
- "why": "Resolution check of the main sequence. Judged absolutely, the finished 4D tracks' energy books (the composition grid's burn against the structure's own nuclear luminosity) sit 5-6% off for long stretches while a convective core is present, and up to 38% off at single models where one grows into fresh hydrogen. Per q band the mismatch is inside the stirred core: the burn runs above the structure at the centre and below it at the core's edge. Two stars (G 1e-17: s 1.5152 2.5 M_Ch, 91 models at +5-6%; s 1.55 4.0 M_Ch, 43) at the paper's resolution (400 shells, dX 0.01), twice the shells, half the step, and both: the books and the ages at each, so we know whether the ladder's ages move and what resolution a final rerun needs. The current code also carries the pinned-gravity quadrature fix the cached tracks predate, so the baseline measures that shift too. All tagged (tag=res) so no production track is overwritten. The G 1e-11 Sun analogue, the other track with a long stretch, no longer starts on the current code (its zero-age solve stalls); that is being diagnosed separately.",
+ "run": "evolve4-23",
+ "why": "Resume evolve4-22 (the main-sequence resolution check, cut at the deadline near Xc 0.43-0.62) from its checkpoints, to cover the late main sequence (the convective core receding, the single-model spikes). So far: against the paper's cached tracks the current code is ~8% younger and 6-9% brighter at fixed Xc (pinned gravity's quadrature fix); against each other the resolutions move the time at fixed Xc by 0.1-0.7% and L by under 0.2%; halving the step halves the energy books' worst mismatch (5-7% to 3.3%), doubling the shells doesn't. Same commands (each resumes its own -tres checkpoint).",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev22-a",
+   "name": "ev23-a",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 tag=res",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 nq=800 tag=res",
@@ -13,7 +13,7 @@
    ]
   },
   {
-   "name": "ev22-b",
+   "name": "ev23-b",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 tag=res",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 nq=800 tag=res",

@@ -1583,6 +1583,13 @@ for games, and this is a modelling programme with publications to come. The game
   star at 10⁻¹⁷ moved ~7%). **All 49 `-lp` ladder stars start on the current code** with the runner's first-star cache
   (`net-<G>-<s>-ladder-ff1.json`, restored from atom4-data; a sandbox test must copy it in, or the cache-less
   `firstStar` path runs instead: slower, and it fails s 1.8 1.25 M_Ch). Only the G 10⁻¹¹ analogue uses the fallback.
+  **evolve4-22 (collected 2026-11-23, all 8 cut at 330 min, ~380 models each, ~52 s a model on the runner):** to Xc
+  0.43–0.62. (1) **Pinned gravity's fix dominates:** the current code's baseline (400 shells, dX 0.01) against the paper's
+  cached tracks at fixed Xc: time −8.0 to −8.2%, L +8.6% (2.5 M_Ch) and +6.1–6.3% (4.0). (2) **Resolution barely moves
+  them:** against the baseline, nq=800 −0.14% (2.5) and −0.3 to −0.5% (4.0) in time, dX 0.005 −0.1%, both −0.7%; L under
+  0.2%. (3) **The books follow the step, not the grid:** max |eBal − 1| 5.3–7.1% at dX 0.01 (either grid), 3.2–3.3% at
+  0.005; the longest run over 3% 26/91 models → 5/17 (2 and 9 with both); a ~2% median offset stays at every resolution
+  (the stirred core's distribution, see DEBUG_BAL above). evolve4-23 resumes all eight for the late main sequence.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
