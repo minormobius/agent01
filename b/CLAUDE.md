@@ -15,7 +15,7 @@ Portal to every Bluesky tool here—feeds, network maps, account analysis, and t
 | Dir | `b/` |
 | Endpoint | `b.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/orb-chapter-report` |
+| Owning branch | `claude/focused-knuth-f0oawl` (since 2026-11-23) |
 | Deploy | `.github/workflows/deploy-b.yml` |
 | Uses | — |
 | Provides | — |
@@ -848,9 +848,51 @@ the media mix in the validated five-slot categorical palette with counts in the
 legend, hover tooltips built with `textContent`, and the full artist list as a
 table.
 
+## days — the whole repo as a contribution chart
+
+`/days` streams an account's entire repo and draws one GitHub-shaped grid per
+year; clicking a day opens "who they were then". Added 2026-11-23.
+
+| file | what it is |
+|---|---|
+| `days/repoindex.js` | the download: every MST key counted into its day as it streams; posts decoded and kept; `dayRecords()` fetches one day of a collection; `tidAt()` |
+| `days/calendar.js` | pure: year grids, levels, streaks, cumulative totals, handle history, neighbours |
+| `days/app.js` | identity, the 6 h IndexedDB cache, the grid, the day view |
+| `days/days.selftest.mjs` | TIDs both ways, DST/leap/year boundaries, grid placement, levels, streaks, handle history, and the reader on a hand-built CAR (including palm's like trap) |
+
+**The whole calendar comes from KEYS.** Almost every rkey is a TID, the
+microsecond the record was minted, so each MST key is counted into its day the
+moment its node streams past and is then dropped. Only posts are decoded and
+kept. Measured on a 90 MB / 245k-record repo: 6.4 s, **149 MB peak heap**.
+Keeping a summary of every record (the first version) peaked at **623 MB**,
+a dead phone tab. Don't put the likes back in the index.
+
+**A day's likes, reposts and follows are fetched when the day is opened.**
+`listRecords` is ordered by rkey and a TID is a time, so `cursor=tidAt(endOfDay)`
+starts exactly at the end of that day and paging stops when a record falls
+before its start. Checked exact against the calendar on a 1,994-like day.
+
+**Who they were that day** is assembled honestly, and the page says which part is which:
+- the **handle that day** is real history, from `plc.directory/<did>/log/audit`
+  (nullified ops skipped, key rotations that keep the handle collapsed);
+- the **totals so far** count what the repo holds TODAY that was made by then:
+  deleted posts and undone likes are not in it;
+- the **avatar and name are today's**: a repo keeps only the current profile
+  record, so there is no past bio to show, and the page does not pretend.
+
+Two rules in `calendar.js` that are pinned by the selftest: colour levels are
+nearest-rank quartiles of the ACTIVE days, and **the busiest day is always the
+darkest square** (stated as a rule; with a handful of active days every
+quartile cut can land on the maximum). Days are the viewer's local calendar,
+walked with Date's own arithmetic so a DST change never skips or doubles one;
+the cache key includes the time zone for the same reason.
+
+Reuses palm's CAR primitives (`palm/car-stream.js`) and orbit's anchored post
+sniff (`orbit/repo-scan.js`): a fifth filter, not a fifth reader.
+
 ## Deploying
 
-Pushes to `claude/orb-chapter-report` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
+Pushes to `claude/focused-knuth-f0oawl` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
@@ -858,6 +900,11 @@ or the deploy goes green while the site never changes.
 
 ⚠️ **`main` does NOT deploy this surface.** The workflow lists exactly one
 branch and main is not it. This line used to claim otherwise.
+
+**It changed hands on 2026-11-23**, from `claude/orb-chapter-report` to
+`claude/focused-knuth-f0oawl`, which brought `/days`. Checked against the commit
+behind the last green `deploy-b` (run #69, `4d3f775c`), not just the branch
+tip: no difference anywhere under `b/`, so nothing the live site ships is lost.
 
 **It changed hands on 2026-10-08**, from `claude/mutual-closeness-game-earzue`
 to `claude/orb-chapter-report`, which brought `/obit`. Done with

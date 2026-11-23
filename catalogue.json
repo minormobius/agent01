@@ -588,6 +588,18 @@
       "surface": "b"
     },
     {
+      "n": "days",
+      "u": "https://b.mino.mobi/days/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-11-23",
+      "b": "2026-11-23",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "Every day of a Bluesky account as a contribution chart, built from its whole repository. Click any day to see who they were then: their handle that day, their totals so far, and what they posted, liked, reposted and followed."
+    },
+    {
       "n": "gc",
       "u": "https://b.mino.mobi/gc/",
       "c": "bluesky",

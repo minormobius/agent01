@@ -179,10 +179,17 @@ const json = (r) => { try { return JSON.parse(r.stdout); } catch { return null; 
 {
   // Without a browser it must SAY so and exit 2 (the tool cannot run), never
   // exit 0 having described nothing, and never exit 1 as if the dweet failed.
-  const r = run('render.mjs', ['seed:heartbeat', '--out', '/tmp/__dweet_selftest_shots']);
-  const hasBrowser = existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
-    && (existsSync(join(REPO, 'node_modules', 'playwright-core'))
-        || existsSync(join(REPO, 'node_modules', 'playwright')));
+  // heartbeat draws NOTHING at t=0 (its loop is `for(a=t%8;a>0;…)`), so the
+  // render is asked for t=2, a moment that does draw. Asking for t=0 made the
+  // with-browser branch fail by design.
+  const r = run('render.mjs', ['seed:heartbeat', '--at', '2', '--out', '/tmp/__dweet_selftest_shots']);
+  // Whether a browser exists is the TOOL's call, not this test's: a hardcoded
+  // chromium-1194 path once called a sandbox with chromium-1243 and a global
+  // playwright "no browser" while render.mjs found and used it. So the test
+  // accepts exactly the two honest outcomes and never the dishonest one:
+  // rendered (0), or could not run and said why (2). Never 1 — that would
+  // blame the dweet for the tool's environment.
+  const hasBrowser = r.code !== 2;
   if (hasBrowser) {
     ok('render: produced frames', r.code === 0, `exit ${r.code}: ${r.stderr.slice(0, 160)}`);
   } else {

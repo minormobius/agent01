@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>days — every day of a Bluesky account, from its whole repo</title>
+<meta name="description" content="A contribution chart of everything a Bluesky account ever did, built from its entire repository. Click any day to see who they were then: their handle that day, their totals so far, and what they posted, liked, reposted and followed.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="days — every day of a Bluesky account">
+<meta property="og:description" content="The whole repo as a contribution chart. Click a day, see who they were.">
+<meta property="og:url" content="https://b.mino.mobi/days/">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #faf9f6; --paper: #ffffff; --text: #1a1a1a; --muted: #777; --rule: #d8d6d0; --rule-2: #ecebe7;
+  --sky: #1a82c4; --warn: #b4472e;
+  --l0: #ebe9e4; --l1: #86b6ef; --l2: #3987e5; --l3: #1c5cab; --l4: #0d366b;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f0f0f; --paper: #171716; --text: #d4d4d4; --muted: #888; --rule: #333; --rule-2: #232321;
+    --sky: #6ec1e4; --warn: #e08b6f;
+    --l0: #232321; --l1: #184f95; --l2: #2a78d6; --l3: #6da7ec; --l4: #b7d3f6;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f0f0f; --paper: #171716; --text: #d4d4d4; --muted: #888; --rule: #333; --rule-2: #232321;
+  --sky: #6ec1e4; --warn: #e08b6f;
+  --l0: #232321; --l1: #184f95; --l2: #2a78d6; --l3: #6da7ec; --l4: #b7d3f6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--serif); line-height: 1.6;
+       -webkit-font-smoothing: antialiased; max-width: 1000px; margin: 0 auto; padding: 2.2rem 16px 6rem; }
+a { color: var(--sky); }
+.crumb { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -.01em; line-height: 1.05; margin-top: 1.2rem; }
+.tagline { font-family: var(--mono); font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin-top: .5rem; }
+.lede { color: var(--muted); margin-top: 1rem; max-width: 66ch; }
+.lede b { color: var(--text); font-weight: 600; }
+form { margin: 1.8rem 0 .6rem; display: flex; flex-wrap: wrap; gap: .6rem; }
+input[type=text] { flex: 1 1 240px; min-width: 0; font: .95rem var(--mono); padding: .7rem .85rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--text); }
+input[type=text]:focus { outline: none; border-color: var(--sky); }
+button { font: .8rem var(--mono); letter-spacing: .04em; padding: .7rem 1.1rem; border: 1px solid var(--sky); border-radius: 6px; background: var(--sky); color: #fff; cursor: pointer; }
+button:disabled { opacity: .45; cursor: default; }
+button.ghost { background: none; color: var(--sky); }
+button.small { padding: .35rem .7rem; font-size: .72rem; }
+.hidden { display: none !important; }
+.status { font: .76rem var(--mono); color: var(--muted); min-height: 1.3rem; }
+.status.err { color: var(--warn); }
+.bar { height: 3px; background: var(--rule-2); border-radius: 2px; overflow: hidden; margin: .4rem 0 1rem; }
+.bar i { display: block; height: 100%; width: 0; background: var(--sky); transition: width .2s; }
+
+.who { display: flex; gap: .9rem; align-items: center; margin: 1.4rem 0 .4rem; }
+.who img { width: 56px; height: 56px; border-radius: 50%; background: var(--rule-2); flex: none; }
+.who .n { font-size: 1.3rem; font-weight: 600; line-height: 1.2; }
+.who .h { font: .8rem var(--mono); color: var(--muted); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .6rem; margin: 1rem 0; }
+.tile { border: 1px solid var(--rule); border-radius: 8px; padding: .6rem .8rem; background: var(--paper); }
+.tile .v { font: 700 1.25rem var(--mono); line-height: 1.15; }
+.tile .l { font: .58rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: .2rem; }
+.tile .s { font: .66rem var(--mono); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: .4rem 0 .8rem; }
+.chip { font: .72rem var(--mono); padding: .35rem .7rem; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); color: var(--text); cursor: pointer; }
+.chip[aria-pressed="true"] { border-color: var(--sky); color: var(--sky); }
+
+.year { margin: .3rem 0 .9rem; }
+.year h3 { font: 600 .78rem var(--mono); color: var(--muted); margin-bottom: .2rem; }
+.year h3 span { font-weight: 400; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+svg.cal { display: block; }
+svg.cal rect.c { cursor: pointer; }
+svg.cal rect.c:hover { stroke: var(--text); stroke-width: 1; }
+svg.cal rect.sel { stroke: var(--text); stroke-width: 2; }
+svg.cal text { font: 9px var(--mono); fill: var(--muted); }
+.legend { display: flex; align-items: center; gap: 4px; font: .66rem var(--mono); color: var(--muted); justify-content: flex-end; margin: -.2rem 0 1rem; flex-wrap: wrap; }
+.legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
+.day { border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); padding: 1rem 1rem 1.2rem; margin-top: 1rem; scroll-margin-top: 1rem; }
+.day .top { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
+.day h2 { font-size: 1.35rem; font-weight: 600; }
+.day .nav { display: flex; gap: .4rem; }
+.then { display: flex; gap: .8rem; align-items: center; margin: .8rem 0; }
+.then img { width: 44px; height: 44px; border-radius: 50%; background: var(--rule-2); flex: none; }
+.then .h { font: 600 .95rem var(--mono); }
+.then .m { font: .7rem var(--mono); color: var(--muted); }
+.note { font-size: .82rem; color: var(--muted); }
+h4 { font: 600 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 1.2rem 0 .4rem; }
+.post { border-top: 1px solid var(--rule-2); padding: .55rem 0; font-size: .95rem; }
+.post .t { font: .68rem var(--mono); color: var(--muted); }
+.post .t a { color: var(--muted); }
+.tag { font: .6rem var(--mono); border: 1px solid var(--rule); border-radius: 4px; padding: 0 .3rem; margin-left: .3rem; color: var(--muted); }
+.txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mini { display: flex; gap: .5rem; align-items: flex-start; border-top: 1px solid var(--rule-2); padding: .45rem 0; font-size: .86rem; }
+.mini img { width: 22px; height: 22px; border-radius: 50%; flex: none; background: var(--rule-2); margin-top: .1rem; }
+.mini .h { font: .7rem var(--mono); color: var(--muted); }
+.mini a { color: inherit; text-decoration: none; }
+.mini .body { min-width: 0; overflow-wrap: anywhere; }
+.faces { display: flex; flex-wrap: wrap; gap: .4rem .8rem; }
+.faces a { display: flex; align-items: center; gap: .35rem; font: .72rem var(--mono); color: var(--text); text-decoration: none; }
+.faces img { width: 24px; height: 24px; border-radius: 50%; background: var(--rule-2); }
+.more { font: .7rem var(--mono); color: var(--muted); margin-top: .4rem; }
+footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-height: 1.7; }
+</style>
+</head>
+<body>
+<a class="crumb" href="/">b.mino.mobi</a>
+<h1>days</h1>
+<div class="tagline">every day of an account, from its whole repo</div>
+<p class="lede">Downloads an account's <b>entire repository</b> (every post, like, repost and follow it still holds) and lays it out as a
+  contribution chart. <b>Click any day</b> to see who they were then: their handle that day, their totals so far, and what they posted,
+  liked, reposted and followed.</p>
+
+<form id="f">
+  <input type="text" id="h" placeholder="handle.bsky.social" autocomplete="off" spellcheck="false" autocapitalize="off" data-bsky-typeahead>
+  <button id="go" type="submit">read</button>
+  <button id="stop" type="button" class="ghost hidden">stop</button>
+</form>
+<div class="status" id="status" aria-live="polite"></div>
+<div class="bar"><i id="prog"></i></div>
+
+<section id="out" class="hidden">
+  <div class="who" id="who"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="chips" id="chips" role="group" aria-label="what to count"></div>
+  <div id="years"></div>
+  <div class="legend" id="legend"></div>
+  <section class="day hidden" id="day" aria-live="polite"></section>
+</section>
+
+<footer>
+  Read straight from the account's own repository (com.atproto.sync.getRepo) in your browser. No sign-in; nothing leaves this tab
+  except requests to Bluesky's public services. Days are in your time zone. A record's day is its TID: the moment it was minted.
+  Only what the repo still holds is counted: deleted posts and undone likes are gone from it. Handles come from the account's
+  public identity log at plc.directory. Avatars and names are today's: a repo keeps no history of them.
+  Cached for 6 hours in this browser.
+</footer>
+<script src="/lib/handle-typeahead.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -88,6 +88,10 @@ export const TOOLS = [
     desc: 'The dead wood in a follow list \u2014 accounts silent for over a year, the deleted ones the app hides from the following list entirely, and everyone who never followed back. Reads the follow records from the repo rather than getFollows, which is what carries both the rkey an unfollow needs and the dead accounts getFollows drops. Sign in and each row unfollows in place.',
     chips: ['listRecords', 'getRelationships', 'OAuth unfollow'], data: 'PDS listRecords + AppView feeds' },
 
+  { id: 'days', name: 'days', glyph: '▦', district: 'commons', tier: 2, status: 'up',
+    url: '/days/',
+    desc: 'Every day of an account as a contribution chart, from its whole repository. Click a day for who they were then: their handle that day from the PLC audit log, their totals so far, and what they posted, liked, reposted and followed.',
+    chips: ['streaming CAR', 'TID dating', 'PLC audit log'], data: 'getRepo CAR, parsed in-tab; listRecords per day' },
   { id: 'palm', name: 'palm', glyph: '☙', district: 'commons', tier: 2, status: 'up',
     url: '/palm/',
     desc: 'Six stylometric lines read off a whole repository — cadence, vigil, lexicon, polish, drift, chorus — placed against a curated mutual-follow cluster and drawn as a radar card with one of 30 named archetypes. /palm/corpus tiles the whole reference pool. A percentile, never a verdict.',

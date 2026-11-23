@@ -437,6 +437,15 @@
    "parent": "atmosphere"
   },
   {
+   "id": "days",
+   "name": "days",
+   "url": "https://b.mino.mobi/days/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": "atmosphere"
+  },
+  {
    "id": "gc",
    "name": "gc",
    "url": "https://b.mino.mobi/gc/",
