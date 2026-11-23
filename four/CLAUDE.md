@@ -1599,6 +1599,24 @@ for games, and this is a modelling programme with publications to come. The game
   against the structure's shell-by-shell laws), not resolution; burn above the structure spends hydrogen faster than the
   light warrants, a few per cent bias in age that no resolution test shows. It needs a code fix before the final ladder
   rerun. evolve4-24 resumes all eight (the two stopped with balmax=0.15, diagnostic runs only) for the late main sequence.
+  **The stirred-core fix (PI 2026-11-23: "yes do the fix"):** the structure's laws came from `shell4.eps`, which puts every
+  species destroyed faster than once a year in local equilibrium shell by shell; `burnZone` burns the stirred zone on its
+  mass-averaged constants, every species mixed. Neither is physical. Measured on the 2.5 M_Ch checkpoint where the books
+  sat at 1.08 (Xc 0.485): the convective turnover (2 r_core / v, v = (F/ρ)^⅓) is **6 days**; the ¹⁰B → ¹¹C → ¹¹B analogues
+  (5-10, 6-11 → 5-11) live 0.1–0.26 yr at the centre and 16–80 yr at the core's edge, so they are mixed, and the shell-local
+  structure under-counted that branch 1.64–1.67× (13% of the core's burning): **8.6% of the books**. Then p + 4-9 → 5-10:
+  4-9 lives ~1 day at the centre (local) and 0.34 yr at the edge (mixed), and the all-mixed zone burn over-counted it 1.87×
+  (3% of the burning): **2.7%**. **Fixed:** one zone model (`zoneModel` in the 4D world) for both. Species slower than the
+  zone's turnover take the zone's mixed equilibrium; faster ones sit in local equilibrium on top of those, shell by shell.
+  The zone's effective rate constants reproduce the zone-summed fluxes of that picture at its mean abundances (iterated 4×
+  with the mixed equilibria, converged); the structure's laws (`fitLaws` → `zoneLaws`) and the zone burn (`burnAll` →
+  `burnZoneK`) both use it. `shell4`: `steady(Y, K, rate)` (the threshold, default 1/yr: every other caller unchanged),
+  `epsK`, `fluxI` exported. Ours (3D) unchanged: its world has no zoneModel. **On that checkpoint:** books 1.08 → 1.026
+  (structure only) → 1.009 (both); the 0.9% left is the burn taking its model from the start of the step, the structure
+  from mid-step. ~7% slower. **From zero age** (sandbox, against evolve4-22's baselines, same code otherwise): |books − 1|
+  median 2.24% → 0.04% (2.5 M_Ch), 1.35% → 0.03% (4.0), worst 3.3% → 1.3% and 3.0% → 0.17%; **time at fixed Xc +2.3%
+  (2.5) and +1.6% (4.0), L unchanged (≤0.1%)**: the grid had spent hydrogen faster than the star radiated, and the stars
+  live longer. Selftests (atom4, fusion) pass.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two

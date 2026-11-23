@@ -132,6 +132,20 @@ function fourWorld(Grel, s, ff = 1, plasma = false, gen2 = null) {
     kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1); },
     kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1), // Y here carries Σ n Z² less hydrogen's
     eps: (rho, T, y) => sh.eps(rho, T, y), dHdt: (rho, T, y) => sh.dYdt(rho, T, y)[iP] * A[iP],
+    // a stirred zone's burning, one model for the structure and the burn. Species that live longer than the zone's turnover
+    // are mixed (the zone's mean abundance); faster ones sit in local equilibrium, shell by shell, on top of those. The
+    // zone's effective rate constants reproduce the zone-summed fluxes of that picture at the zone's mean abundances, and
+    // the mixed species' equilibria are taken on them (iterated: they feed each other). zoneModel → { K, eps(ρ, T) }:
+    // burnZone burns the mixed zone on K, the structure's laws come from eps
+    zoneModel: (rows, y, ws, tmix) => { const NR = sh.RS.length, Kj = rows.map((r) => sh.constants(r.T, r.rho, y)), rate = 1 / tmix; let sw = 0; ws.forEach((w) => (sw += w));
+      let K = new Float64Array(NR); Kj.forEach((k, i) => { for (let c = 0; c < NR; c++) K[c] += (ws[i] * k[c]) / sw; });
+      let Zb = sh.steady(y, K);
+      for (let it = 0; it < 4; it++) { const fl = new Float64Array(NR), Zm = new Float64Array(y.length);
+        Kj.forEach((k, i) => { const Z = sh.steady(Zb, k, rate); for (let c = 0; c < y.length; c++) Zm[c] += (ws[i] * Z[c]) / sw; for (let q = 0; q < NR; q++) if (k[q]) fl[q] += (ws[i] * sh.fluxI(q, k[q], Z)) / sw; });
+        const Kn = new Float64Array(NR); for (let q = 0; q < NR; q++) { const f1 = sh.fluxI(q, 1, Zm); Kn[q] = f1 > 0 ? fl[q] / f1 : K[q]; }
+        K = Kn; Zb = sh.steady(y, K); }
+      return { K, eps: (rho, T) => { if (!(T > 1e6)) return 0; const k = sh.constants(T, rho, y); return sh.epsK(k, sh.steady(Zb, k, rate)).eps; } }; },
+    burnZoneK: (K, y, dt) => { const r = sh.burnK(K, y, dt); return { s: r.Y, E: r.E }; },
     burn: (rho, T, y, dt) => { const r = sh.burn(rho, T, y, dt); return { s: r.Y, E: r.E }; },
     burnZone: (rows, y, ws, dt) => { const K = new Float64Array(sh.RS.length); let sw = 0; rows.forEach((r, i) => { const k = sh.constants(r.T, r.rho, y); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
       for (let c = 0; c < K.length; c++) K[c] /= sw; const r = sh.burnK(K, y, dt); return { s: r.Y, E: r.E }; },
@@ -146,8 +160,25 @@ function fourWorld(Grel, s, ff = 1, plasma = false, gen2 = null) {
 
 const lerpState = (S, q) => { const [a, b, t] = bracket(QS, q); if (!t) return S[a]; const A = S[a], B = S[b], o = new Float64Array(A.length); for (let i = 0; i < A.length; i++) o[i] = A[i] * (1 - t) + B[i] * t; return o; };
 /* each shell's ε(ρ, T) as a power law fitted at (ρ₀, T₀) */
-function fitLaws(W, S, at) { return S.map((s, j) => { const { rho, T } = at[j]; if (!(T > (W.Tburn ?? 2e6)) || !(rho > 0)) return null; const e0 = W.eps(rho, T, s).eps; if (!(e0 > 0)) return null;
-  const er = W.eps(rho * 1.02, T, s).eps, eT = W.eps(rho, T * 1.01, s).eps; return { l0: Math.log(e0), a: Math.log(er / e0) / Math.log(1.02), b: Math.log(eT / e0) / Math.log(1.01), lr: Math.log(rho), lT: Math.log(T) }; }); }
+function fitLaws(W, S, at) { const ZE = W.zoneModel && at.stir ? zoneLaws(W, S, at) : null;
+  return S.map((s, j) => { const { rho, T } = at[j]; if (!(T > (W.Tburn ?? 2e6)) || !(rho > 0)) return null; const E = ZE?.[j] ?? ((r, t) => W.eps(r, t, s).eps), e0 = E(rho, T); if (!(e0 > 0)) return null;
+  const er = E(rho * 1.02, T), eT = E(rho, T * 1.01); return { l0: Math.log(e0), a: Math.log(er / e0) / Math.log(1.02), b: Math.log(eT / e0) / Math.log(1.01), lr: Math.log(rho), lT: Math.log(T) }; }); }
+/* each stirred zone's ε(ρ, T) per shell (W.zoneEps), so the structure burns what the zone burn burns. The structure had put
+   every species destroyed faster than once a year in local equilibrium, shell by shell; in a 4D core the ¹⁰B → ¹¹C → ¹¹B
+   analogues (5-10, 6-11, 5-11) live 0.1–80 yr against a turnover of days, so they are mixed, and the shell-local form
+   under-counted that branch by 1.64–1.67× (13% of a 2.5 M_Ch core's burning): the books ran 1.08 for long stretches at every
+   resolution (evolve4-22/23). The turnover: 2 r_core / v, v = (F/ρ)^⅓ at the zone's middle (mixing length's order) */
+function zoneLaws(W, S, at) { const out = new Array(NQ + 1);
+  for (const z of zonesOf(W, S, at)) for (const i of z.idx) out[i] = z.model.eps;
+  return out; }
+/* the stirred zones of a sample (rows carrying stir, R, L): their burning shells, turnover and zone model (W.zoneModel) */
+function zonesOf(W, S, at) { const out = [], Sd = W.d === 3 ? 4 * Math.PI : 2 * Math.PI ** 2; let j = 0;
+  while (j <= NQ) { if (!at.stir?.[j]) { j++; continue; } let k = j; while (k + 1 <= NQ && at.stir[k + 1]) k++;
+    const idx = []; for (let i = j; i <= k; i++) if (at[i].T > (W.Tburn ?? 2e6)) idx.push(i);
+    if (idx.length > 1 && at.R && at.L) { const mid = at[idx[idx.length >> 1]], r = mid.r * at.R, F = (mid.l * at.L) / (Sd * r ** (W.d - 1)), v = Math.cbrt(F / mid.rho), tmix = (2 * at[k].r * at.R) / v;
+      if (tmix > 0 && Number.isFinite(tmix)) out.push({ j, k, idx, tmix, model: W.zoneModel(idx.map((i) => at[i]), S[j], idx.map((i) => WQ[i]), tmix) }); }
+    j = k + 1; }
+  return out; }
 const law = (f, lr, lT) => (f ? Math.exp(f.l0 + f.a * (lr - f.lr) + f.b * (lT - f.lT)) : 0);
 /* solve the star for the shells S: the fitted laws refitted at each solution until L settles */
 /* ε_grav, implicit in each trial's own ρ and P, against a reference model on its dense integration path (a grid's
@@ -201,7 +232,7 @@ function sample(W, M, S, s) {
   const p = s.prof, ms = p.map((x) => x.m / M), lP = p.map((x) => Math.log(x.P)), lT = p.map((x) => Math.log(x.T)), lr = p.map((x) => Math.log(x.r)), Ls = p.map((x) => x.L / s.L), gad = gradAd(W.d);
   const rows = S.map((sj, j) => { const q = Math.max(QS[j], ms[0]), P = Math.exp(interp(ms, lP, q)), T = Math.exp(interp(ms, lT, q)); return { q: QS[j], P, T, rho: rhoOf(W.d, P, T, W.comp(sj)), r: Math.exp(interp(ms, lr, q)) / s.R, l: interp(ms, Ls, q) }; });
   const stir = new Uint8Array(NQ + 1); for (let i = 1; i < p.length; i++) { const a = p[i - 1], b = p[i]; if (b.P === a.P) continue; const nab = Math.log(b.T / a.T) / Math.log(b.P / a.P); if (nab >= 0.98 * gad) for (let j = 0; j <= NQ; j++) if (QS[j] >= a.m / M && QS[j] <= b.m / M) stir[j] = 1; }
-  if (stir[1]) stir[0] = 1; return { rows, stir };
+  if (stir[1]) stir[0] = 1; rows.stir = stir; rows.R = s.R; rows.L = s.L; return { rows, stir };
 }
 /* every stirred run of the grid mixed to its mass-weighted mean, species by species */
 function mix(S, stir) { const O = S.map((s) => Float64Array.from(s)); let j = 0;
@@ -211,9 +242,11 @@ function mix(S, stir) { const O = S.map((s) => Float64Array.from(s)); let j = 0;
 /* burn every shell for dt at the star sm's conditions: radiative shells each on their own, each stirred run of sm as one
    zone (its composition mixed first) */
 const burnAll = (W, S0, sm, dt) => { const at = sm.rows, S = mix(S0, sm.stir), O = new Array(NQ + 1); let E = 0, j = 0;
+  // a stirred zone with a zone model (4D) burns on its effective constants, the same picture the structure's laws use
+  const ZM = W.zoneModel && at.stir ? new Map(zonesOf(W, S, at).map((z) => [z.j, z])) : null;
   while (j <= NQ) {
     if (sm.stir[j]) { let k = j; while (k + 1 <= NQ && sm.stir[k + 1]) k++; const idx = []; for (let i = j; i <= k; i++) if (at[i].T > (W.Tburn ?? 2e6)) idx.push(i);
-      if (idx.length) { const r = W.burnZone(idx.map((i) => at[i]), S[j], idx.map((i) => WQ[i]), dt), sw = idx.reduce((a, i) => a + WQ[i], 0); E += sw * r.E; for (let i = j; i <= k; i++) O[i] = Float64Array.from(r.s); }
+      if (idx.length) { const z = ZM?.get(j), r = z ? W.burnZoneK(z.model.K, S[j], dt) : W.burnZone(idx.map((i) => at[i]), S[j], idx.map((i) => WQ[i]), dt), sw = idx.reduce((a, i) => a + WQ[i], 0); E += sw * r.E; for (let i = j; i <= k; i++) O[i] = Float64Array.from(r.s); }
       else for (let i = j; i <= k; i++) O[i] = Float64Array.from(S[i]);
       j = k + 1; continue; }
     const { rho, T } = at[j]; if (!(T > (W.Tburn ?? 2e6))) O[j] = Float64Array.from(S[j]); else { const r = W.burn(rho, T, S[j], dt); E += WQ[j] * r.E; O[j] = r.s; } j++; }

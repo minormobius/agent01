@@ -54,8 +54,10 @@ export function shell4(s, mass = "ladder", { screen = false } = {}) {
   /* the fast set at these constants: species whose destruction rate per nucleus, −∂f_i/∂Y_i, exceeds 1/yr */
   // fastSet leaves its Jacobian (at Y) in JF and returns the rates there too, which steady's first Newton iteration reuses
   // (it used to recompute exactly the same at Z = Y)
-  function fastSet(Y, K) { const f0 = rhsJ(Y, K, JF); const out = []; for (let i = 0; i < NS; i++) if (-JF[i][i] > 1 / YR && i !== I["1-1"]) out.push(i); out.f0 = f0; return out; }
-  function steady(Y, K) { const Z = Float64Array.from(Y), F = fastSet(Y, K); if (!F.length) return Z; const J = JF;
+  // rate: the destruction rate per nucleus above which a species is put in steady state (default 1/yr). A stirred core's
+  // structure (evolve.mjs) passes 1/its turnover time: slower species there are mixed, not local
+  function fastSet(Y, K, rate = 1 / YR) { const f0 = rhsJ(Y, K, JF); const out = []; for (let i = 0; i < NS; i++) if (-JF[i][i] > rate && i !== I["1-1"]) out.push(i); out.f0 = f0; return out; }
+  function steady(Y, K, rate) { const Z = Float64Array.from(Y), F = fastSet(Y, K, rate); if (!F.length) return Z; const J = JF;
     for (let it = 0; it < 12; it++) { const f = it === 0 ? F.f0 : rhsJ(Z, K, J), nf = F.length, A = new Array(nf), rb = new Float64Array(nf);
       for (let i = 0; i < nf; i++) { const Ji = J[F[i]], row = (A[i] = new Float64Array(nf)); for (let k = 0; k < nf; k++) row[k] = Ji[F[k]]; rb[i] = -f[F[i]]; } // plain loops: Float64Array.from(…, fn) was the hot spot
       const d = linIn(A, rb, nf);
@@ -66,6 +68,9 @@ export function shell4(s, mass = "ladder", { screen = false } = {}) {
   function eps(rho, T, Y) { if (!(T > 1e6)) return { eps: 0, pp: 0, cno: 0 }; const K = constants(T, rho, Y), Z = steady(Y, K); let e = 0, pp = 0;
     for (let i = 0; i < NR; i++) { if (!K[i]) continue; const w = fluxI(i, K[i], Z) * RS[i].Q; e += w; if (LIGHT[i]) pp += w; }
     return { eps: e * C, pp: pp * C, cno: (e - pp) * C }; } // "cno" here: everything past helium (captures on the ladder and its cycles)
+  /* the energy release at these constants and these abundances as given (no steady state taken) */
+  function epsK(K, Z) { let e = 0, pp = 0; for (let i = 0; i < NR; i++) { if (!K[i]) continue; const w = fluxI(i, K[i], Z) * RS[i].Q; e += w; if (LIGHT[i]) pp += w; }
+    return { eps: e * C, pp: pp * C, cno: (e - pp) * C }; }
   function dYdt(rho, T, Y) { const K = constants(T, rho, Y), Z = steady(Y, K); return rhsJ(Z, K, null); }
   function burnK(K, Y0, dt) { const J = JB; let Y = Float64Array.from(Y0), t = 0, h = dt / 32, Eg = 0;
     for (let guard = 0; t < dt * (1 - 1e-12) && guard < 5000; guard++) { if (t + h > dt) h = dt - t; const X = Float64Array.from(Y); let ok = false;
@@ -79,5 +84,5 @@ export function shell4(s, mass = "ladder", { screen = false } = {}) {
     return { Y, E: Eg * C }; }
   const burn = (rho, T, Y0, dt) => burnK(constants(T, rho, Y0), Y0, dt);
   const fromX = (Xm) => Float64Array.from(SPEC, (k, i) => (Xm[k] ?? 0) / AS[i]);
-  return { s, mass, SPEC, NS, I, ZS, AS, RS, rhoRef, constants, eps, dYdt, steady, burn, burnK, fromX, massX: (Y) => Object.fromEntries(SPEC.map((k, i) => [k, Y[i] * AS[i]])) };
+  return { s, mass, SPEC, NS, I, ZS, AS, RS, rhoRef, constants, eps, epsK, fluxI, dYdt, steady, burn, burnK, fromX, massX: (Y) => Object.fromEntries(SPEC.map((k, i) => [k, Y[i] * AS[i]])) };
 }
