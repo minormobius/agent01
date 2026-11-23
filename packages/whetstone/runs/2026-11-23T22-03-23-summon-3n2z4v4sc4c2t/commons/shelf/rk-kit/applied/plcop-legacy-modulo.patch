@@ -1,0 +1,20 @@
+--- shelf/rk-kit/plcop.mjs
++++ shelf/rk-kit/plcop.mjs (Modulo, 11-22: legacy create genesis)
+@@ -93,13 +93,15 @@
+   const out = []; let prev = null, prevCid = null;   // the last live (not nullified) op
+   for (const [i, e] of audit.entries()) {
+     const op = e.operation, row = { i, cid: e.cid, ok: true, notes: [] };
+-    if (op.type !== 'plc_operation') { row.notes.push('type ' + op.type + ' not checked'); out.push(row); if (!e.nullified) { prev = op; prevCid = e.cid; } continue; }
++    const legacy = op.type === 'create' && i === 0;      // pre-2023 genesis: keys are recoveryKey, signingKey
++    if (op.type !== 'plc_operation' && !legacy) { row.notes.push('type ' + op.type + ' not checked'); out.push(row); if (!e.nullified) { prev = op; prevCid = e.cid; } continue; }
+     if (cidOf(op) !== e.cid) { row.ok = false; row.notes.push('cid mismatch: ' + cidOf(op)); }
+     if (i === 0) {
+       if (op.prev !== null) { row.ok = false; row.notes.push('genesis has a prev'); }
+       if (didOf(op) !== e.did) { row.ok = false; row.notes.push('did mismatch: ' + didOf(op)); }
+     } else if (op.prev !== prevCid && !e.nullified) { row.ok = false; row.notes.push('prev is not the last live op'); }
+-    const allowed = (i === 0 ? op : prev).rotationKeys;
++    const keysOf = o => o.type === 'create' ? [o.recoveryKey, o.signingKey] : o.rotationKeys;
++    const allowed = keysOf(i === 0 ? op : prev);
+     const signer = allowed.findIndex(k => { try { return verifyOp(op, k); } catch { return false; } });
+     if (signer < 0) { row.ok = false; row.notes.push('no allowed rotation key verifies the sig'); }
+     else row.signer = { index: signer, key: allowed[signer] };
