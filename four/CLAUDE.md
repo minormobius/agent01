@@ -394,7 +394,12 @@ for games, and this is a modelling programme with publications to come. The game
   books median 0.22–0.24%, worst 1.2%, none over 3% (the old code spiked to 30% there); dX 0.005 to Xc 0.44/0.37, within
   0.09% in time. Against the old code +1.3–2.1% at Xc 0.5–0.2; against production −5.9 to −7.3% (pinned gravity). The
   PI chose to wait for the end before the final rerun (2026-11-24: "I'm inclined to go for the check, I would like to
-  be sure the final run succeeds"); evolve4-25c resumes.
+  be sure the final run succeeds"); evolve4-25c resumes. **evolve4-25c (collected 2026-11-24, all cut):** 4.0 M_Ch to Xc 0.009 (books ≤1.2% throughout, dX 0.005
+  within 0.27% to Xc 0.2), 2.5 M_Ch to 0.12. One transient at 2.5 M_Ch, Xc 0.165, 0.487 Gyr: the convective core regrows
+  0.021 → 0.080 in ~50 kyr and mixes fresh hydrogen in (Xc 0.164 → 0.208); the step falls to 6–12 kyr and the books run
+  1.063 / 1.252 / 1.037 for three models, then 1.0003. Inside the balmax bar by design (the old code's single-model
+  spikes were these). Against the old code +1.0–2.1% in time at Xc 0.5–0.01; against production −5.7 to −7.3%.
+  evolve4-25d resumes.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
