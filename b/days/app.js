@@ -13,6 +13,12 @@ const P = 'app.bsky.feed.post', L = 'app.bsky.feed.like', R = 'app.bsky.feed.rep
 
 let S = null;            // { profile, did, pds, ix, hist, cum, from, to }
 let metric = 'all', selected = null, abort = null, dayAbort = null;
+// The search. While a query is active the grid, the tiles and the legend show
+// the SEARCH's days instead of the chosen metric: a topic lit up across years.
+const Q = { mode: 'words', q: '', active: false, ids: [], scores: [], terms: [], days: new Map(), hit: new Set(), sort: 'best', shown: 0, seq: 0 };
+const view = () => (Q.active
+  ? { days: Q.days, metric: '__search', label: Q.mode === 'meaning' ? 'close matches' : 'matches' }
+  : { days: S.ix.days, metric, label: METRICS[metric].label });
 
 const say = (m, err = false) => { $('status').textContent = m; $('status').className = err ? 'status err' : 'status'; };
 const progress = (f) => { $('prog').style.width = Math.max(0, Math.min(1, f)) * 100 + '%'; };
@@ -41,7 +47,7 @@ async function cachePut(key, v) {
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
 
 // ── run ──────────────────────────────────────────────────────────────────────
-async function run(raw, wantDay = null) {
+async function run(raw, wantDay = null, wantQuery = null) {
   const actor = String(raw || '').trim().replace(/^@/, '').replace(/^https?:\/\/bsky\.app\/profile\//, '').split(/[/?#\s]/)[0];
   if (!actor) return;
   if (abort) abort.abort();
@@ -84,6 +90,8 @@ async function run(raw, wantDay = null) {
     history.replaceState(null, '', `?u=${encodeURIComponent(profile.handle)}${metric !== 'all' ? '&m=' + metric : ''}`);
     $('out').classList.remove('hidden');
     renderAll();
+    startSearch();
+    if (wantQuery) { $('sq').value = wantQuery.q; setMode(wantQuery.mode, false); runQuery(); }
     if (wantDay && wantDay >= from && wantDay <= to) openDay(wantDay);
   } catch (e) {
     if (e?.name === 'AbortError') { say('stopped'); return; }
@@ -99,15 +107,27 @@ function renderAll() {
   $('who').innerHTML = `${profile.avatar ? `<img src="${esc(profile.avatar)}" alt="">` : '<img alt="">'}
     <div><div class="n">${esc(profile.displayName || profile.handle)}</div>
     <div class="h">@${esc(profile.handle)} · first record ${esc(from)} · ${num(daysBetween(from, to))} days ago</div></div>`;
+  $('chips').classList.toggle('hidden', Q.active);
   $('chips').innerHTML = Object.entries(METRICS).map(([k, m]) => `<button class="chip" data-m="${k}" aria-pressed="${k === metric}">${m.label}</button>`).join('');
   renderTiles();
   renderYears();
 }
 
 function renderTiles() {
-  const { ix, from, to } = S;
-  const s = summary(ix.days, from, to, metric, to);
+  const { from, to } = S;
+  const V = view();
+  const s = summary(V.days, from, to, V.metric, to);
   const t = (v, l, sub = '') => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+  if (Q.active) {
+    const first = [...Q.days.keys()].sort()[0];
+    $('tiles').innerHTML = [
+      t(num(Q.ids.length), Q.mode === 'meaning' ? 'closest posts' : 'posts match'),
+      t(num(s.active), 'days', `of ${num(daysBetween(from, to) + 1)}`),
+      t(first ? `<a href="#" data-go="${first}">${first}</a>` : '—', 'first said'),
+      t(s.busiest ? num(s.busiest.n) : '—', 'peak day', s.busiest ? `<a href="#" data-go="${s.busiest.day}">${s.busiest.day}</a>` : ''),
+    ].join('');
+    return;
+  }
   $('tiles').innerHTML = [
     t(num(s.total), METRICS[metric].label),
     t(num(s.active), 'active days', `of ${num(daysBetween(from, to) + 1)}`),
@@ -117,29 +137,30 @@ function renderTiles() {
 }
 
 function renderYears() {
-  const { ix, from, to } = S;
-  const lv = levels(ix.days, metric);
+  const { from, to } = S;
+  const V = view();
+  const lv = levels(V.days, V.metric);
   const CELL = 11, STEP = 14, LEFT = 26, TOP = 14;
-  $('years').innerHTML = yearGrids(ix.days, from, to, metric).map((g) => {
+  $('years').innerHTML = yearGrids(V.days, from, to, V.metric).map((g) => {
     const total = g.cells.reduce((s, c) => s + c.n, 0);
     const w = LEFT + g.weeks * STEP, h = TOP + 7 * STEP;
-    const rects = g.cells.map((c) => `<rect class="c${c.day === selected ? ' sel' : ''}" data-d="${c.day}" x="${LEFT + c.col * STEP}" y="${TOP + c.row * STEP}" width="${CELL}" height="${CELL}" rx="2" fill="var(--l${lv.level(c.n)})"><title>${c.day} · ${num(c.n)} ${METRICS[metric].label}</title></rect>`).join('');
+    const rects = g.cells.map((c) => `<rect class="c${c.day === selected ? ' sel' : ''}" data-d="${c.day}" x="${LEFT + c.col * STEP}" y="${TOP + c.row * STEP}" width="${CELL}" height="${CELL}" rx="2" fill="var(--l${lv.level(c.n)})"><title>${c.day} · ${num(c.n)} ${V.label}</title></rect>`).join('');
     const months = g.months.map((m) => `<text x="${LEFT + m.col * STEP}" y="9">${m.label}</text>`).join('');
     const wd = [[1, 'Mon'], [3, 'Wed'], [5, 'Fri']].map(([r, l]) => `<text x="0" y="${TOP + r * STEP + 9}">${l}</text>`).join('');
-    return `<div class="year"><h3>${g.year} <span>· ${num(total)} ${METRICS[metric].label}</span></h3>
-      <div class="scroll"><svg class="cal" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${g.year}: ${num(total)} ${METRICS[metric].label}">${months}${wd}${rects}</svg></div></div>`;
+    return `<div class="year"><h3>${g.year} <span>· ${num(total)} ${V.label}</span></h3>
+      <div class="scroll"><svg class="cal" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${g.year}: ${num(total)} ${V.label}">${months}${wd}${rects}</svg></div></div>`;
   }).join('');
   // the newest year opens scrolled to today, like GitHub's
   const first = $('years').querySelector('.scroll');
   if (first) first.scrollLeft = first.scrollWidth;
-  $('legend').innerHTML = `less ${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--l${i})"></i>`).join('')} more · busiest days darkest · click a day`;
+  $('legend').innerHTML = `less ${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--l${i})"></i>`).join('')} more · ${Q.active ? 'the days it came up' : 'busiest days darkest'} · click a day`;
 }
 
 // ── a day ────────────────────────────────────────────────────────────────────
 const dayStart = (d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd).getTime(); };
 const timeOf = (t) => new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-async function openDay(d) {
+async function openDay(d, { scroll = true, focus = null } = {}) {
   if (!S) return;
   selected = d;
   for (const r of document.querySelectorAll('rect.sel')) r.classList.remove('sel');
@@ -152,7 +173,8 @@ async function openDay(d) {
   const start = dayStart(d), end = dayStart(addDays(d, 1));
   const then = hist.at(end - 1) || profile.handle;
   const asOf = cum.asOf(d);
-  const posts = ix.posts.filter((p) => p.t >= start && p.t < end);
+  const lo = firstAtOrAfter(ix.posts, start), hi = firstAtOrAfter(ix.posts, end);
+  const posts = ix.posts.slice(lo, hi).map((p, k) => ({ ...p, i: lo + k }));
   const repliesSoFar = countRepliesUpTo(end);
   const nb = neighbours(ix.days, d, metric);
   const dateLong = new Date(start).toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -160,7 +182,7 @@ async function openDay(d) {
   // the day's own posts are drawn first from the repo (instant), then upgraded
   // in place with what the AppView adds: media, quotes, link cards, counts
   const me = { did, handle: then, displayName: profile.displayName || then, avatar: profile.avatar };
-  const repoCard = (p) => cardHtml({ uri: `at://${did}/${P}/${p.rkey}`, author: me, t: p.t, text: p.text, reply: p.reply, pending: true });
+  const repoCard = (p) => cardHtml({ uri: `at://${did}/${P}/${p.rkey}`, author: me, t: p.t, text: p.text, reply: p.reply, pending: true, ...extraFor(p.i) });
 
   $('day').classList.remove('hidden');
   $('day').innerHTML = `
@@ -183,19 +205,30 @@ async function openDay(d) {
     ${posts.length > SHOW ? `<button class="ghost small" id="allposts">show all ${num(posts.length)}</button>` : ''}
     <div id="dlikes"></div><div id="dreposts"></div><div id="dfollows"></div>`;
   for (const b of $('day').querySelectorAll('[data-step]')) b.onclick = () => b.dataset.step && openDay(b.dataset.step);
-  $('day').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (scroll && !focus) $('day').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // everything below is fetched for this day only, and abandoned if another day is opened
   if (dayAbort) dayAbort.abort();
   dayAbort = new AbortController();
   const signal = dayAbort.signal;
-  const upgrade = (list) => hydrateInPlace(list.map((p) => `at://${did}/${P}/${p.rkey}`), signal, { handle: then });
-  upgrade(posts.slice(0, SHOW));
+  const upgrade = (list) => hydrateInPlace(list.map((p) => `at://${did}/${P}/${p.rkey}`), signal, { handle: then }, $('dposts'), list.map((p) => extraFor(p.i)));
+  const ups = [upgrade(posts.slice(0, SHOW))];
   if ($('allposts')) $('allposts').onclick = () => {
     $('dposts').insertAdjacentHTML('beforeend', posts.slice(SHOW).map(repoCard).join(''));
     $('allposts').remove();
-    upgrade(posts.slice(SHOW));
+    ups.push(upgrade(posts.slice(SHOW)));
   };
+  // opened from a search result: make sure that post is drawn (a busy day pages
+  // at SHOW, and the hit can be the 300th post) and bring it into view
+  if (focus) {
+    const k = posts.findIndex((p) => `at://${did}/${P}/${p.rkey}` === focus);
+    if (k >= SHOW && $('allposts')) $('allposts').onclick();
+    // hydration swaps the card and its images shift everything above it, so
+    // centre it now and again once the AppView has filled the day in
+    const go = () => { if (selected === d) $('dposts')?.querySelector(`article[data-uri="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: 'center' }); };
+    requestAnimationFrame(go);
+    Promise.all(ups).then(() => setTimeout(go, 150));
+  }
 
   const load = async (col, target, title, render, body = target) => {
     if (!row[col]) return;
@@ -252,15 +285,16 @@ const webUrl = (uri) => { const [, , a, , k] = String(uri || '').split('/'); ret
  * images, galleries, video, link cards, quotes). `pending` marks a card drawn
  * from the repo that hydration will replace.
  */
-function cardHtml({ uri, author, t, text, reply, media = [], counts = null, pending = false, compact = false }) {
+function cardHtml({ uri, author, t, text, reply, media = [], counts = null, pending = false, compact = false, date = false, marks = null, hit = false }) {
   const a = author || {};
-  return `<article class="card${compact ? ' compact' : ''}" data-uri="${esc(uri)}"${reply ? ' data-reply="1"' : ''}${pending ? ' data-pending="1"' : ''}>
+  const when = date ? `<a href="#" data-day="${localDay(t)}" title="open this day">${new Date(t).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}</a> · ` : '';
+  return `<article class="card${compact ? ' compact' : ''}${hit ? ' hit' : ''}" data-uri="${esc(uri)}"${reply ? ' data-reply="1"' : ''}${pending ? ' data-pending="1"' : ''}>
     <a class="av" href="https://bsky.app/profile/${esc(a.did || '')}" target="_blank" rel="noopener">${a.avatar ? `<img src="${esc(thumbOf(a.avatar))}" alt="" loading="lazy">` : '<img alt="">'}</a>
     <div class="main">
-      <div class="meta"><b>${esc(a.displayName || a.handle || '')}</b> <span>@${esc(a.handle || '')}</span> · <a href="${webUrl(uri)}" target="_blank" rel="noopener">${timeOf(t)}</a></div>
+      <div class="meta"><b>${esc(a.displayName || a.handle || '')}</b> <span>@${esc(a.handle || '')}</span> · ${when}<a href="${webUrl(uri)}" target="_blank" rel="noopener">${timeOf(t)}</a></div>
       ${reply ? `<button class="replyto" type="button" aria-expanded="false">↳ a reply · show the thread</button>` : ''}
       <div class="thread hidden"></div>
-      ${text ? `<div class="txt">${esc(text)}</div>` : (text === null ? '<div class="note">(this post could not be read)</div>' : '')}
+      ${text ? `<div class="txt">${markUp(esc(text), marks)}</div>` : (text === null ? '<div class="note">(this post could not be read)</div>' : '')}
       ${mediaHtml(media, uri)}
       ${counts ? `<div class="counts"><span title="replies">💬 ${num(counts.reply)}</span><span title="reposts">↻ ${num(counts.repost)}</span><span title="likes">♡ ${num(counts.like)}</span></div>` : ''}
     </div></article>`;
@@ -312,17 +346,17 @@ async function getPosts(uris, signal) {
 }
 
 /** Replace repo-drawn cards with full ones, keeping the handle they had that day. */
-async function hydrateInPlace(uris, signal, override) {
+async function hydrateInPlace(uris, signal, override, box = $('dposts'), extras = []) {
   if (!uris.length) return;
   let views;
   try { views = await getPosts(uris, signal); } catch { return; }
   if (signal.aborted) return;
   for (const uri of uris) {
     const v = views.get(uri);
-    const el = $('dposts')?.querySelector(`article[data-uri="${CSS.escape(uri)}"]`);
+    const el = box?.querySelector(`article[data-uri="${CSS.escape(uri)}"]`);
     if (!el) continue;
     if (!v) { el.removeAttribute('data-pending'); continue; }   // hidden or taken down: keep the repo's text
-    el.outerHTML = cardHtml(fromView(v, override));
+    el.outerHTML = cardHtml({ ...fromView(v, override), ...(extras[uris.indexOf(uri)] || {}) });
   }
 }
 
@@ -401,6 +435,119 @@ addEventListener('scroll', () => {
   requestAnimationFrame(() => { toTop.classList.toggle('hidden', scrollY < innerHeight * 0.9); topTick = false; });
 }, { passive: true });
 
+// ── search ───────────────────────────────────────────────────────────────────
+let worker = null, semReady = false, semState = '';
+function startSearch() {
+  if (worker) worker.terminate();
+  semReady = false; semState = 'loading the meaning model…';
+  worker = new Worker(new URL('./search.worker.js', import.meta.url), { type: 'module' });
+  worker.onmessage = (e) => {
+    const m = e.data;
+    if (m.type === 'keyword-ready') { $('searchbar').classList.remove('hidden'); searchStatus(); }
+    else if (m.type === 'semantic-progress') { semState = m.stage === 'model' ? 'loading the meaning model…' : `indexing meaning · ${Math.round(100 * m.done / m.n)}%`; searchStatus(); }
+    else if (m.type === 'semantic-ready') { semReady = true; semState = `meaning ready (${(m.ms / 1000).toFixed(1)}s)`; searchStatus(); }
+    else if (m.type === 'semantic-error') { semState = `meaning unavailable (${m.message})`; searchStatus(); }
+    else if (m.type === 'result' && m.id === Q.seq) showResults(m);
+  };
+  worker.postMessage({ type: 'init', texts: S.ix.posts.map((p) => p.text || '') });
+}
+function searchStatus(extra = '') {
+  const m = Q.mode === 'meaning';
+  $('sstat').textContent = extra || (m ? (semReady ? 'finds posts by what they mean, not the words in them' : semState)
+    : 'words · "a phrase" · -exclude · the word you are typing matches as a prefix') + (m || !semState ? '' : ` · ${semState}`);
+}
+function setMode(mode, rerun = true) {
+  Q.mode = mode === 'meaning' ? 'meaning' : 'words';
+  for (const b of document.querySelectorAll('[data-sm]')) b.setAttribute('aria-pressed', String(b.dataset.sm === Q.mode));
+  $('sq').placeholder = Q.mode === 'meaning' ? 'describe it: "missing someone", "a good meal"' : 'search their posts';
+  searchStatus();
+  if (rerun) runQuery();
+}
+let qTimer = null;
+function runQuery() {
+  const q = $('sq').value;
+  const u = new URL(location.href);
+  if (q.trim()) { u.searchParams.set('q', q); u.searchParams.set('sm', Q.mode); } else { u.searchParams.delete('q'); u.searchParams.delete('sm'); }
+  history.replaceState(null, '', u);
+  if (!q.trim()) { clearSearch(); return; }
+  if (Q.mode === 'meaning' && !semReady) searchStatus(`${semState} · your search runs the moment it is ready`);
+  Q.seq++;
+  worker?.postMessage({ type: 'query', id: Q.seq, mode: Q.mode, q, k: 250 });
+}
+function clearSearch() {
+  Q.active = false; Q.ids = []; Q.days = new Map(); Q.hit = new Set(); Q.terms = [];
+  $('results').classList.add('hidden'); $('results').innerHTML = '';
+  $('sclear').classList.add('hidden');
+  searchStatus();
+  renderAll();
+  if (selected) openDay(selected);
+}
+function showResults(m) {
+  const { ix } = S;
+  Q.active = true; Q.ids = Array.from(m.ids); Q.scores = Array.from(m.scores); Q.terms = m.terms || [];
+  Q.hit = new Set(Q.ids);
+  Q.days = new Map();
+  for (const i of Q.ids) { const d = localDay(ix.posts[i].t); Q.days.set(d, { hit: (Q.days.get(d)?.hit || 0) + 1 }); }
+  Q.marks = markRegex(Q.terms);
+  $('sclear').classList.remove('hidden');
+  if (m.empty) searchStatus('none of those words are in the model, so there is no meaning to search for');
+  else searchStatus(Q.mode === 'meaning' ? `the ${num(Q.ids.length)} posts closest in meaning, best first` : `${num(Q.ids.length)} posts`);
+  renderAll();
+  renderResults();
+  if (selected) openDay(selected, { scroll: false });
+}
+function orderedHits() {
+  const { ix } = S;
+  const ids = Q.ids.slice();
+  if (Q.sort === 'newest') ids.sort((a, b) => ix.posts[b].t - ix.posts[a].t);
+  else if (Q.sort === 'oldest') ids.sort((a, b) => ix.posts[a].t - ix.posts[b].t);
+  return ids;
+}
+function renderResults() {
+  const box = $('results');
+  box.classList.remove('hidden');
+  const sorts = ['best', 'newest', 'oldest'].map((k) => `<button class="chip" data-sort="${k}" aria-pressed="${Q.sort === k}">${k === 'best' ? 'best match' : k}</button>`).join('');
+  box.innerHTML = `<div class="rhead"><h4>${num(Q.ids.length)} ${Q.mode === 'meaning' ? 'closest posts' : 'posts'} on ${num(Q.days.size)} days</h4><div class="chips">${sorts}</div></div>
+    <div class="feed" id="rlist"></div><button class="ghost small hidden" id="rmore"></button>`;
+  Q.shown = 0;
+  moreResults();
+}
+const PAGE = 30;
+function moreResults() {
+  const { ix, did, profile } = S;
+  const ids = orderedHits().slice(Q.shown, Q.shown + PAGE);
+  Q.shown += ids.length;
+  const me = (t) => ({ did, handle: S.hist.at(t) || profile.handle, displayName: profile.displayName || profile.handle, avatar: profile.avatar });
+  const html = ids.map((i) => { const p = ix.posts[i]; return cardHtml({ uri: `at://${did}/${P}/${p.rkey}`, author: me(p.t), t: p.t, text: p.text, reply: p.reply, pending: true, date: true, marks: Q.marks }); }).join('');
+  $('rlist').insertAdjacentHTML('beforeend', html || '<p class="note">nothing found</p>');
+  const more = Q.ids.length - Q.shown;
+  $('rmore').classList.toggle('hidden', more <= 0);
+  $('rmore').textContent = `show ${num(Math.min(PAGE, more))} more`;
+  // upgrade in place with media and counts; each keeps the handle it had that day
+  hydrateInPlace(ids.map((i) => `at://${did}/${P}/${ix.posts[i].rkey}`), new AbortController().signal, {}, $('rlist'),
+    ids.map((i) => ({ date: true, marks: Q.marks, author: me(ix.posts[i].t) })));
+}
+// marking: the matched words, at word starts, case-insensitive
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function markRegex(terms) {
+  const ts = (terms || []).filter((t) => t.length > 1).sort((a, b) => b.length - a.length).slice(0, 80);
+  return ts.length ? new RegExp(`(^|[^\\p{L}\\p{N}])(${ts.map(reEsc).join('|')})`, 'giu') : null;
+}
+const markUp = (html, re) => (re ? html.replace(re, (_, pre, w) => `${pre}<mark>${w}</mark>`) : html);
+function extraFor(i) { return Q.active && Q.hit.has(i) ? { hit: true, marks: Q.marks } : {}; }
+function firstAtOrAfter(posts, t) { let lo = 0, hi = posts.length; while (lo < hi) { const m = (lo + hi) >> 1; if (posts[m].t < t) lo = m + 1; else hi = m; } return lo; }
+
+$('sq').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(runQuery, Q.mode === 'meaning' ? 220 : 110); });
+$('sq').addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('sq').value = ''; runQuery(); } });
+$('sclear').addEventListener('click', () => { $('sq').value = ''; runQuery(); $('sq').focus(); });
+for (const b of document.querySelectorAll('[data-sm]')) b.addEventListener('click', () => setMode(b.dataset.sm));
+$('results').addEventListener('click', (e) => {
+  const s = e.target.closest('[data-sort]'); if (s) { Q.sort = s.dataset.sort; renderResults(); return; }
+  if (e.target.closest('#rmore')) { moreResults(); return; }
+  const b = e.target.closest('.replyto'); if (b) { e.preventDefault(); showThread(b.closest('.card')); return; }
+});
+document.addEventListener('click', (e) => { const a = e.target.closest('[data-day]'); if (a) { e.preventDefault(); openDay(a.dataset.day, { focus: a.closest('article')?.dataset.uri || null }); } });
+
 // ── events ───────────────────────────────────────────────────────────────────
 $('f').addEventListener('submit', (e) => { e.preventDefault(); selected = null; $('day').classList.add('hidden'); run($('h').value); });
 $('stop').addEventListener('click', () => { if (abort) abort.abort(); });
@@ -424,4 +571,4 @@ document.addEventListener('keydown', (e) => {
 
 const qs = new URLSearchParams(location.search);
 if (METRICS[qs.get('m')]) metric = qs.get('m');
-if (qs.get('u')) { $('h').value = qs.get('u'); run(qs.get('u'), qs.get('d')); }
+if (qs.get('u')) { $('h').value = qs.get('u'); run(qs.get('u'), qs.get('d'), qs.get('q') ? { q: qs.get('q'), mode: qs.get('sm') || 'words' } : null); }

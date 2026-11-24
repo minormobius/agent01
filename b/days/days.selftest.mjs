@@ -4,6 +4,9 @@
 // every key, keep only posts, and never mistake a like for a post.
 import { yearGrids, levels, summary, cumulative, handleHistory, neighbours, countFor, addDays, weekday, daysBetween } from './calendar.js';
 import { tidTime, tidAt, plausible, createIndexer } from './repoindex.js';
+import { loadModel, tokenize, embed, embedAll, scoreAll, topK, normalize, preTokenize } from './embed.js';
+import { buildIndex, search, parse, words, expandPrefix } from './search.js';
+import { readFileSync } from 'node:fs';
 
 let fails = 0, passes = 0;
 const ok = (c, m) => { if (c) passes++; else { fails++; console.error('✗ ' + m); } };
@@ -131,6 +134,62 @@ ok(one.posts.every((p) => p.text !== null), 'the likes (whose subject names app.
 // chunk boundaries must not matter
 const chunked = (() => { const ix = createIndexer({ dayOf: utcDay }); for (let i = 0; i < car.length; i += 7) ix.push(car.subarray(i, i + 7)); return ix.finish(); })();
 ok(JSON.stringify([...chunked.days]) === JSON.stringify([...one.days]) && chunked.posts[0].text === 'hello days', 'any chunking gives the same index');
+
+// ── semantic: the tokenizer must be the real one, token for token ──────────
+const here = new URL('.', import.meta.url).pathname;
+const binBuf = readFileSync(here + 'model/potion-base-8M.bin');
+const model = loadModel(binBuf.buffer.slice(binBuf.byteOffset, binBuf.byteOffset + binBuf.length), readFileSync(here + 'model/potion-base-8M.vocab.txt', 'utf8'));
+const FX = JSON.parse(readFileSync(here + 'model/wordpiece.fixture.json', 'utf8'));
+ok(model.n === 29528 && model.dim === 256, 'model shape 29528 × 256');
+let tokBad = [];
+for (const c of FX.cases) { const got = tokenize(model, c.text); if (got.length !== c.ids.length || got.some((x, i) => x !== c.ids[i])) tokBad.push(c.text.slice(0, 30)); }
+ok(tokBad.length === 0, `tokenizer matches HF tokenizers on all ${FX.cases.length} tricky cases${tokBad.length ? ': ' + tokBad.join(' | ') : ''}`);
+let worstCos = 1;
+for (const e of FX.embeddings) {
+  const v = embed(model, e.text);
+  let d = 0, na = 0, nb = 0;
+  for (let k = 0; k < 256; k++) { d += v[k] * e.vec[k]; na += v[k] * v[k]; nb += e.vec[k] * e.vec[k]; }
+  if (!na && !nb) continue;
+  worstCos = Math.min(worstCos, d / Math.sqrt(na * nb));
+}
+ok(worstCos > 0.999, `embeddings match python model2vec (worst cosine ${worstCos.toFixed(5)})`);
+ok(embed(model, '').every((x) => x === 0) && embed(model, '🍞🍞').every((x) => x === 0), 'an empty or all-unknown text embeds to zeros (as model2vec)');
+ok(normalize('Straße ÀÉ') === 'straße ae', 'normalizer: lowercase + strip accents');
+ok(preTokenize("a,b c$d").join('|') === 'a|,|b|c|$|d', 'pre-tokenizer isolates ASCII symbols too');
+
+const docs = ['I baked sourdough bread today', 'the oven is broken', 'thinking about four dimensional geometry', 'my rust code compiles', 'bread and butter'];
+const idxE = await embedAll(model, docs);
+const qv = embed(model, 'baking bread at home');
+const scores = scoreAll(idxE, qv);
+const order = Array.from(scores.keys()).sort((a, b) => scores[b] - scores[a]);
+ok(JSON.stringify(topK(scores, 3)) === JSON.stringify(order.slice(0, 3)), 'topK equals a full sort');
+ok(order[0] === 0 || order[0] === 4, `semantic: a bread query finds a bread post first (${docs[order[0]]})`);
+ok(topK(new Float32Array([0.1, 0.9, 0.5]), 10).join() === '1,2,0', 'topK with k > n');
+
+// ── keyword ──────────────────────────────────────────────────────────────────
+const K = buildIndex([
+  'Sourdough bread, again!',            // 0
+  'bread and butter',                   // 1
+  'the sour dough was too sour',        // 2
+  "Don't panic. Café time",             // 3
+  'BREADBOARD electronics',             // 4
+  'a breakfast of bread',               // 5
+]);
+const ids = (q) => Array.from(search(K, q).ids).sort((a, b) => a - b).join();
+ok(words("Don't Café") .join() === 'dont,cafe', 'words: apostrophes dropped, accents stripped');
+ok(ids('bread ') === '0,1,5', 'a whole word (trailing space): exact term');
+ok(ids('bread') === '0,1,4,5', 'the word being typed is a prefix (bread → breadboard)');
+ok(ids('bread butter ') === '1', 'AND across words');
+ok(ids('bread -butter ') === '0,5', 'exclusion');
+ok(ids('"sour dough"') === '2', 'a phrase matches the words in order');
+ok(ids('"dough sour"') === '', 'a phrase does not match out of order');
+ok(ids('cafe ') === '3' && ids('café ') === '3' && ids('dont ') === '3', 'accents and apostrophes fold both ways');
+ok(ids('nothinghere ') === '' && ids('') === '', 'no match, no query: nothing');
+const QP = parse('alpha "beta gamma" -delta eps');
+ok(QP.terms.join() === 'alpha' && QP.phrases[0].join() === 'beta,gamma' && QP.not.join() === 'delta' && QP.prefix === 'eps', 'query grammar');
+ok(expandPrefix(K, 'bre').join() === 'bread,breadboard,breakfast', 'prefix expansion, most frequent first');
+const bm = search(K, 'sour ');
+ok(bm.ids[0] === 2, 'BM25: the post with the word twice ranks first');
 
 console.log(fails ? `✗ ${fails} failed, ${passes} passed` : `✓ days selftest: ${passes} passed`);
 process.exit(fails ? 1 : 0);

@@ -912,6 +912,41 @@ first open only (checked: zero like requests until opened, one on open, none on
 re-open). Followed stays open; it is a row of faces. A round **↑** button
 appears once you are a screen down and returns to the top.
 
+### Search — words and meaning, over the account's own posts
+
+Added 2026-11-24. The repo is already in memory, so search is free to add: a
+box above the grid, and the calendar re-lights to show **the days a thing came
+up**. Four tiles swap to posts matched / days / first said / peak day. Results
+are cards (hydrated 30 at a time) with the matched words marked; a result's
+date opens its day with that post outlined and centred, paging past `SHOW` if
+the hit is the 300th post of a busy day. `?q=` and `&sm=meaning` deep-link.
+
+| file | what it is |
+|---|---|
+| `days/search.js` | keyword: inverted index, BM25 (k1 1.2, b 0.75), AND, `"phrase"`, `-exclude`, the word being typed matches as a prefix (cap 64) |
+| `days/embed.js` | Model2Vec static embeddings: BERT WordPiece tokenizer, mean pool, int8 post vectors, top-k heap |
+| `days/search.worker.js` | both indexes in a module worker, so typing never waits on the main thread |
+| `days/model/` | `potion-base-8M` quantised to int8 rows with a per-row scale (7.7 MB) + vocab; `wordpiece.fixture.json` for parity |
+
+**Plain JS, not Rust/WASM — decided by measurement.** On `minormobius`
+(52,431 posts): keyword index 0.5 s, queries 0.1–30 ms; model load + embedding
+every post **1.5 s in Chromium**; a meaning query ~20 ms. WASM would add a
+toolchain and a staging step to shave a second off a one-time cost.
+
+**Static embeddings, no neural model at query time** (the operator's call; a
+transformer is the follow-on). Model2Vec is a lookup table: a text's vector is
+the mean of its tokens' rows. So meaning search finds *topic and vocabulary*
+neighbours, not paraphrase — "missing someone who died" surfaces "What am I
+missing". `potion-base-8M` was chosen over `potion-retrieval-32M` because
+they tied on this account's posts and it is a quarter the size.
+
+**The tokenizer is held to HuggingFace's.** The JS WordPiece matches the HF
+tokenizer on 52,431/52,431 real posts (checked offline) and on the 52 tricky
+cases in the fixture (accents, CJK, punctuation, >100-char words → [UNK]);
+embeddings agree to cosine ≥ 0.9997 after int8. `days.selftest.mjs` gates
+both, plus every keyword rule. Meaning lights the top 250 by cosine, counted
+per day; a query of nothing but unknown words says so rather than ranking noise.
+
 ## Deploying
 
 Pushes to `claude/focused-knuth-f0oawl` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).

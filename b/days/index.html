@@ -138,6 +138,20 @@ h4 { font: 600 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercas
 .totop { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); width: 44px; height: 44px; padding: 0; border-radius: 50%;
   font: 600 1.1rem var(--mono); box-shadow: 0 6px 18px -6px rgba(0,0,0,.35); z-index: 10; }
 .totop.hidden { display: none; }
+.search { margin: .4rem 0 .9rem; }
+.srow { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.srow input { flex: 1 1 220px; min-width: 0; font: .95rem var(--mono); padding: .6rem .8rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--text); }
+.srow input:focus { outline: none; border-color: var(--sky); }
+.srow input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 999px; overflow: hidden; }
+.seg button { background: var(--paper); color: var(--muted); border: 0; border-radius: 0; padding: .45rem .8rem; font: .72rem var(--mono); }
+.seg button[aria-pressed="true"] { background: var(--sky); color: #fff; }
+.sstat { font: .68rem var(--mono); color: var(--muted); margin-top: .35rem; min-height: 1em; }
+.results { margin-top: .6rem; }
+.rhead { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.rhead .chips { margin: 0; }
+.card mark { background: rgba(255, 214, 10, .45); color: inherit; border-radius: 2px; padding: 0 1px; }
+.card.hit { box-shadow: inset 3px 0 0 var(--sky); padding-left: .6rem; }
 .faces { display: flex; flex-wrap: wrap; gap: .4rem .8rem; }
 .faces a { display: flex; align-items: center; gap: .35rem; font: .72rem var(--mono); color: var(--text); text-decoration: none; }
 .faces img { width: 24px; height: 24px; border-radius: 50%; background: var(--rule-2); }
@@ -162,9 +176,20 @@ footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-h
 <section id="out" class="hidden">
   <div class="who" id="who"></div>
   <div class="tiles" id="tiles"></div>
+  <div class="search hidden" id="searchbar">
+    <div class="srow">
+      <input type="search" id="sq" placeholder="search their posts" aria-label="search their posts" autocomplete="off" spellcheck="false">
+      <button type="button" id="sclear" class="ghost small hidden" aria-label="clear the search">clear</button>
+      <div class="seg" role="group" aria-label="search by">
+        <button type="button" data-sm="words" aria-pressed="true">words</button><button type="button" data-sm="meaning" aria-pressed="false">meaning</button>
+      </div>
+    </div>
+    <div class="sstat" id="sstat"></div>
+  </div>
   <div class="chips" id="chips" role="group" aria-label="what to count"></div>
   <div id="years"></div>
   <div class="legend" id="legend"></div>
+  <section class="results hidden" id="results"></section>
   <section class="day hidden" id="day" aria-live="polite"></section>
 </section>
 
