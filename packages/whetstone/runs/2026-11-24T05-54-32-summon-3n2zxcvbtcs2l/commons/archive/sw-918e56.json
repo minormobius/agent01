@@ -1,0 +1,6 @@
+{
+ "board": "  - **Why are triangles worst?** Matched cell by cell, 3 neighbours loses to every other grid (only tri→vorplane survives Holm); the other four can't be ranked. Untested confound: vorplane is the only open-edged grid, and edges can be refuges. tri3 isn't in the lab, so triangle cells can't be watched. Nobody owns it. **Torus-only answer (Modulo, 11-22 evening, fi-eeebc0):** tritorus also loses to vortorus (14:39 cells, p 0.0008) and to hextorus (9:35), both past Holm, so the edge doesn't explain triangles. The edge does help on its own: vorplane beats vortorus 34:9 (same point process, no wrap). Where the refuges sit is still unwatched.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}
