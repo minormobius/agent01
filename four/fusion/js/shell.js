@@ -55,10 +55,18 @@ function lin(A, b) { const n = b.length; A = A.map((r) => Float64Array.from(r));
     for (let r = c + 1; r < n; r++) { const q = A[r][c] / d; if (!q) continue; for (let x = c; x < n; x++) A[r][x] -= q * A[c][x]; b[r] -= q * b[c]; } }
   const x = new Float64Array(n); for (let r = n - 1; r >= 0; r--) { let s = b[r]; for (let c = r + 1; c < n; c++) s -= A[r][c] * x[c]; x[r] = A[r][r] ? s / A[r][r] : 0; } return x; }
 /* the short-lived species at their steady state, the slow ones held: Newton on the fast block */
-export function steady(Y, K) { const Z = Float64Array.from(Y), J = Array.from({ length: NS }, () => new Float64Array(NS));
-  for (let it = 0; it < 8; it++) { const f = rhsJ(Z, K, J), A = FAST.map((a) => FAST.map((b) => J[a][b])), d = lin(A, FAST.map((a) => -f[a]));
-    let mx = 0; FAST.forEach((a, i) => { const nz = Math.max(0, Z[a] + d[i]); mx = Math.max(mx, Math.abs(nz - Z[a]) / Math.max(nz, 1e-300)); Z[a] = nz; }); if (mx < 1e-10) break; }
+// fast: the species put at steady state (default FAST); a stirred core passes the subset that outlives its turnover not
+// (evolve.mjs zoneModel: ⁷Be lives months, mixed through a convective core, not local)
+const JS = Array.from({ length: NS }, () => new Float64Array(NS)); // reused by steady and fastAbove (rhsJ zeroes it)
+export function steady(Y, K, fast = FAST) { const Z = Float64Array.from(Y), J = JS; if (!fast.length) return Z;
+  for (let it = 0; it < 8; it++) { const f = rhsJ(Z, K, J), A = fast.map((a) => fast.map((b) => J[a][b])), d = lin(A, fast.map((a) => -f[a]));
+    let mx = 0; fast.forEach((a, i) => { const nz = Math.max(0, Z[a] + d[i]); mx = Math.max(mx, Math.abs(nz - Z[a]) / Math.max(nz, 1e-300)); Z[a] = nz; }); if (mx < 1e-10) break; }
   return Z; }
+/* the members of FAST destroyed faster than `rate` (per nucleus) at these constants and abundances */
+export function fastAbove(Y, K, rate) { const J = JS; rhsJ(Y, K, J); return FAST.filter((a) => -J[a][a] > rate); }
+/* the energy release at these constants and these abundances as given (no steady state taken), W/kg */
+export function epsK(K, Z) { let e = 0; for (let i = 0; i < RS.length; i++) if (K[i]) e += flux(RS[i], K[i], Z) * RS[i].Qgas; return e * NA * MEVJ * 1000; }
+export { flux };
 /* the energy the gas gets (W/kg) and its split, at the steady state of the fast species */
 export function eps(rho, T, Y, opts) { const K = constants(T, rho, Y, opts), Z = steady(Y, K); let e = 0, pp = 0, cno = 0;
   for (let i = 0; i < RS.length; i++) { const x = RS[i]; if (!K[i]) continue; const w = flux(x, K[i], Z) * x.Qgas; e += w; if (x.zz === 6 || x.zz === 7 || x.zz === 8 || ["n13>c13", "o15>n15", "f17>o17", "f18>o18"].includes(x.key)) cno += w; else pp += w; }

@@ -77,6 +77,21 @@ function networkWorld(X0 = 0.70, Z = 0.02, { kap = "kramers", alpha = 0 } = {}) 
     burn: (rho, T, s, dt) => { const r = SH.burn(rho, T, s, dt, sh); return { s: r.Y, E: r.E }; },
     burnZone: (rows, s, ws, dt) => { const K = new Float64Array(SH.RS.length); let sw = 0; rows.forEach((r, i) => { const k = SH.constants(r.T, r.rho, s, sh); sw += ws[i]; for (let c = 0; c < K.length; c++) K[c] += ws[i] * k[c]; });
       for (let c = 0; c < K.length; c++) K[c] /= sw; const r = SH.burnK(K, s, dt, sh); return { s: r.Y, E: r.E }; },
+    // a stirred core's burning, one model for the structure and the burn (as the 4D world's zoneModel): of shell.js's
+    // fast species, those destroyed faster than the core's turnover sit in local equilibrium shell by shell, the rest
+    // (⁷Be, which lives months) at the core's mixed equilibrium; the effective constants reproduce the zone's fluxes
+    zoneModel: (rows, y, ws, tmix) => { const NR = SH.RS.length, Kj = rows.map((r) => SH.constants(r.T, r.rho, y, sh)), rate = 1 / tmix; let sw = 0; ws.forEach((w) => (sw += w));
+      let K = new Float64Array(NR); Kj.forEach((k, i) => { for (let c = 0; c < NR; c++) K[c] += (ws[i] * k[c]) / sw; });
+      let Zb = SH.steady(y, K);
+      for (let it = 0; it < 4; it++) { const fl = new Float64Array(NR), Zm = new Float64Array(y.length);
+        Kj.forEach((k, i) => { const Z = SH.steady(Zb, k, SH.fastAbove(Zb, k, rate)); for (let c = 0; c < y.length; c++) Zm[c] += (ws[i] * Z[c]) / sw; for (let q = 0; q < NR; q++) if (k[q]) fl[q] += (ws[i] * SH.flux(SH.RS[q], k[q], Z)) / sw; });
+        const Kn = new Float64Array(NR); for (let q = 0; q < NR; q++) { const f1 = SH.flux(SH.RS[q], 1, Zm); Kn[q] = f1 > 0 ? fl[q] / f1 : K[q]; }
+        K = Kn; Zb = SH.steady(y, K); }
+      // which species are local is decided once per shell (at the zone's rows), not at each law-fitting nudge of ρ or T:
+      // the set changes between shells, not across a 1–2% nudge, and finding it costs a Jacobian (2.5× a 2 M☉ run's time)
+      const lT = rows.map((r) => Math.log(r.T)), fastAt = Kj.map((k) => SH.fastAbove(Zb, k, rate));
+      return { K, eps: (rho, T) => { const k = SH.constants(T, rho, y, sh), l = Math.log(T); let b = 0; for (let i = 1; i < lT.length; i++) if (Math.abs(lT[i] - l) < Math.abs(lT[b] - l)) b = i; return SH.epsK(k, SH.steady(Zb, k, fastAt[b])); } }; },
+    burnZoneK: (K, s, dt) => { const r = SH.burnK(K, s, dt, sh); return { s: r.Y, E: r.E }; },
     extra: (s) => ({ he3: s[SH.I.he3] * 3, c12: s[SH.I.c12] * 12, n14: s[SH.I.n14] * 14 }) };
 }
 function simpleWorld(X0 = 0.70) {
@@ -241,9 +256,10 @@ function mix(S, stir) { const O = S.map((s) => Float64Array.from(s)); let j = 0;
   return O; }
 /* burn every shell for dt at the star sm's conditions: radiative shells each on their own, each stirred run of sm as one
    zone (its composition mixed first) */
-const burnAll = (W, S0, sm, dt) => { const at = sm.rows, S = mix(S0, sm.stir), O = new Array(NQ + 1); let E = 0, j = 0;
-  // a stirred zone with a zone model (4D) burns on its effective constants, the same picture the structure's laws use
-  const ZM = W.zoneModel && at.stir ? new Map(zonesOf(W, S, at).map((z) => [z.j, z])) : null;
+const burnAll = (W, S0, sm, dt, Smid = null) => { const at = sm.rows, S = mix(S0, sm.stir), O = new Array(NQ + 1); let E = 0, j = 0;
+  // a stirred zone with a zone model burns on its effective constants, the same picture the structure's laws use; taken at
+  // the step's middle (Smid, the composition the half-step structure was solved on) when given, as the structure's are
+  const ZM = W.zoneModel && at.stir ? new Map(zonesOf(W, Smid ? mix(Smid, sm.stir) : S, at).map((z) => [z.j, z])) : null;
   while (j <= NQ) {
     if (sm.stir[j]) { let k = j; while (k + 1 <= NQ && sm.stir[k + 1]) k++; const idx = []; for (let i = j; i <= k; i++) if (at[i].T > (W.Tburn ?? 2e6)) idx.push(i);
       if (idx.length) { const z = ZM?.get(j), r = z ? W.burnZoneK(z.model.K, S[j], dt) : W.burnZone(idx.map((i) => at[i]), S[j], idx.map((i) => WQ[i]), dt), sw = idx.reduce((a, i) => a + WQ[i], 0); E += sw * r.E; for (let i = j; i <= k; i++) O[i] = Float64Array.from(r.s); }
@@ -336,7 +352,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {
       const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav, 1, refFor(t + dt / 2)); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}, residual ${h.s.res?.toExponential(2)}, Newton ${h.s.it}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
-      const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt), bal = W.grav && h.s.Lnuc > 0 ? (b.E * M) / (h.s.Lnuc * dt) : (b.E * M + (h.s.Lgrav ?? 0) * dt) / (h.s.L * dt); // what the shells burnt (and, with grav, the star's contraction released) over the step against what the half-way star radiated
+      const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt, Sh), bal = W.grav && h.s.Lnuc > 0 ? (b.E * M) / (h.s.Lnuc * dt) : (b.E * M + (h.s.Lgrav ?? 0) * dt) / (h.s.L * dt); // what the shells burnt (and, with grav, the star's contraction released) over the step against what the half-way star radiated
       // the step's energy doesn't add up: shorter, unless halving it left the mismatch where it was. A step's own error
       // falls about fourfold a halving (second order); one that doesn't fall is structural (a stirred core's short-lived
       // nuclei, ⁷Be's branch above all, are uniform in its zone burn but in balance shell by shell in the structure: up

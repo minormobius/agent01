@@ -1624,6 +1624,19 @@ for games, and this is a modelling programme with publications to come. The game
   shift −6.6 to −9.2%, the 4.0 M_Ch life 0.0856–0.0866 Gyr against the production 0.0927; the old books' late spikes reach
   30% (2.5 M_Ch), the dX 0.005 runs 277–291 models over 3%. **evolve4-25** runs the fixed code to the end of central
   hydrogen for both stars, at dX 0.01 and 0.005 (tag=zf).
+  **"All fixes before the final run" (PI 2026-11-24: "I'm pro grav correction. And think we should be applying all fixes
+  we can before final run"):** (1) `grav=1` for the final ladder. (2) The zone burn takes its model at mid-step (`burnAll`'s
+  `Smid`, the composition the half-step structure was solved on), as the structure's laws do: a 3 × 10⁻⁵ change (the 0.9%
+  seen on evolve4-22's checkpoint was a transient after switching codes, not a standing error). (3) **Ours gets the same
+  zone model** (`networkWorld.zoneModel`): of shell.js's fixed FAST species, those destroyed faster than the turnover are
+  local, the rest (⁷Be, months) mixed. shell.js: `steady(Y, K, fast = FAST)`, `fastAbove`, `epsK`, `flux` exported, one
+  reused Jacobian buffer (bit-identical). Effect on ours (full main sequence, OPAL, α 1.61): 2 M☉ books median 0.15% →
+  0.10%, time at fixed Xc ≤0.17%, L/R ≤0.05%; the Sun unchanged (≤0.03%). Cost: ours with a convective core ~1.6× (the
+  zone model re-solved each solve iteration), the Sun none, 4D ~7%. **Checked with grav=1 from zero age** (2.5 M_Ch G 10⁻¹⁷
+  and the G 10⁻¹¹ Sun analogue): books 0.9996–0.9998, contraction −0.02 to −0.03% of L. Selftests pass.
+  **The final ladder must not resume old checkpoints:** the cache holds `-lp-eg` checkpoints from the ε_grav stage and the
+  past-exhaustion runs (old code), and evolve.mjs resumes any checkpoint of its own file name. Run it under a tag
+  (`tag=v2`, files `-tv2`) so every star starts fresh on the current code.
   egrav.json and section 4's provisional paragraph now read 210 Myr.
   **Written up as we go (PI, 2026-11-21: "this tremendous bolus of computation should be written up as we go"):**
   `fusion/tools/egrav4.mjs <dirs>` → `papers/p2/data/egrav.json` (ours' Sun and 2 M☉ with and without ε_grav, the two
