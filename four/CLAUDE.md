@@ -385,6 +385,12 @@ for games, and this is a modelling programme with publications to come. The game
   reproduce the file: the helium-4 runs differ, so don't re-bake for this). build.mjs: the methods page's NQ regex
   follows evolve.mjs's `nq=` form (it had broken the build); gates now on equilibrium being most of what returns, and
   on no non-β decay being open; ledger checks `yieldsEquilibriumMid`, `nseBandAfter`.
+  **evolve4-25 (collected 2026-11-24, the stirred-core fix on the runner, all 4 cut at 330 min, ~450 models, ~44 s a
+  model):** to Xc 0.45/0.59 (2.5 M_Ch, dX 0.01/0.005) and 0.39/0.56 (4.0). Books: median 0.04–0.12%, 90th 0.08–0.70%,
+  worst 0.23–1.31%, never a model over 3%. dX 0.005 against 0.01 on the fixed code: time at fixed Xc ≤0.13%, L ≤0.02%.
+  Against the old code (evolve4-22's -tres): +2.2–2.8% (2.5) and +1.6–3.7% (4.0) in time at Xc 0.7–0.6. The late main
+  sequence (Xc < 0.3, where the old books spiked to 30%) not yet reached, so the final rerun is not launched; evolve4-25b
+  resumes them.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
