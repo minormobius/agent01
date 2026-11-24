@@ -51,6 +51,8 @@ d2 = lambda s: b2.get_dofs(bf[s]).all() if s.any() else np.zeros(0, dtype=np.int
 D = {k: d2(s) for k, s in dict(inl=is_in, out=is_out, ax=is_ax, w0=is_w0, wire=is_wire, wall=is_wall, lid=is_lid, w1=is_w1).items()}
 X = b2.doflocs
 stream = (lambda x: 1 - (x[1] ** 2 + x[2] ** 2) / R ** 2) if geom == "tube" else (lambda x: (1 + np.cos(beta0 * x[2])) / 2)
+UNI = geom == "slab" and os.environ.get("UNIFORM") == "1"      # a uniform stream between the mirror planes: the sphere problem, for checking heat4.py
+if UNI: stream = lambda x: 1.0 + 0 * x[0]
 solid = np.union1d(D["wire"], D["wall"])
 fix = [np.union1d(solid, D["inl"]),                                   # u_x
        np.unique(np.concatenate([solid, D["inl"], D["ax"], D["lid"]])),  # u_rho
@@ -72,7 +74,7 @@ M1 = BilinearForm(lambda u, v, w: u * v * rho(w)).assemble(b1)
 pfree = np.setdiff1d(np.arange(n1), pfix)
 Llu = spl.splu(L1[pfree][:, pfree].tocsc()); M1lu = spl.splu(M1.tocsc())
 Fbody = np.zeros(n2)
-if geom == "slab":
+if geom == "slab" and not UNI:
     Fbody = LinearForm(lambda v, w: nu * beta0 ** 2 * np.cos(beta0 * w.x[2]) / 2 * v * rho(w)).assemble(b2)
 
 # ---- convection through quadrature-point matrices:  N_c = Phi^T W ((Phi u)(Dx c) + (Phi v)(Dy c) + (Phi w)(Dz c))
