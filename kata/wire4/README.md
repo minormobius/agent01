@@ -370,6 +370,56 @@ all three Reynolds numbers (0.73, 0.72, 0.72). On the axis, Nu − 2 goes as Re 
 (5.98, 7.05, 7.96): King's shape, with an exponent between the boundary layer's ½ and the wake's ⅔, as sphere
 correlations have. Three points over less than a factor of two in Re; not a fitted law.
 
+## 11. The anemometer: the wire's energy balance (`anem4.py`)
+
+A steady current heats the wire; the stream and the cold wall at each end cool it; its resistance rises with its
+temperature, and the resistance is the reading. With θ = α(T − T₀), α the temperature coefficient of resistivity, so
+that θ is the fractional rise in local resistance, per length of wire
+
+    Λ θ″ + P (1 + θ) − Q[θ] = 0,    θ = 0 at the wall,
+
+where Λ = (k_wire/k_fluid)·π/6 is conduction along the wire (its section is a 3-ball of volume πD³/6),
+P = α I² ρ₀/(A k_fluid D) is the current squared made dimensionless, and Q[θ] is the loss to the stream, which is
+section 10's matrix. In the same shapes this is an 8 × 8 linear system; no flow is solved. The wire's resistance is
+R₀(1 + mean θ). Two material numbers are free: Λ, and α, which only sets the scale of current and overheat. In a
+metal the wire's thermal and electrical conductivity are tied (Wiedemann–Franz), which again only rescales the
+current. A real metal wire in a gas has k_wire/k_fluid of a few thousand, so Λ of a few thousand.
+
+Constant-temperature operation, resistance held at 1.5 of cold (mean θ = 0.5), tube radius 5, Pr 0.7. P is the
+current squared needed; n = d ln P / d ln Re is the instrument's sensitivity (King's law for a long wire would give
+P = A + B Reⁿ′ and n somewhat under n′ ≈ 0.5):
+
+| Λ | P at Re 150 | 200 | 250 | n (150→200, 200→250) | share of the heat into the wall, Re 200 |
+|---|---|---|---|---|---|
+| 0 (no conduction along the wire) | 7.28 | 8.10 | 8.83 | 0.37, 0.39 | 0 |
+| 3 | 7.91 | 8.79 | 9.59 | 0.37, 0.39 | 0.05 |
+| 30 | 9.71 | 10.74 | 11.66 | 0.35, 0.37 | 0.19 |
+| 300 | 20.20 | 21.34 | 22.36 | 0.19, 0.21 | 0.57 |
+| 3000 | 121.3 | 122.5 | 123.5 | 0.033, 0.038 | 0.91 |
+
+Constant current (set to give 1.5 at Re 200), the reading R/R₀ at Re 150, 200, 250: Λ = 0: 1.592, 1.500, 1.439;
+Λ = 300: 1.546, 1.500, 1.465; Λ = 3000: 1.508, 1.500, 1.493. At constant current the wire runs away (resistance
+heating feeding itself) at P about 2.4 to 2.8 times the values above.
+
+- **The instrument works as a law.** Resistance against flow rate is a smooth, monotonic curve, and the pipe's flow
+  rate follows from the centreline speed exactly (mean speed 2/5 of it, through a 3-ball of radius R).
+- **In this tube a metal wire is nearly blind.** The wire is only 10 diameters long. With Λ = 3000, 91% of the heat
+  goes down the wire into the wall and the current needed changes by 1.8% between Re 150 and 250. This is the
+  ordinary hot-wire rule (ours are made 200 diameters long for this reason) and not a 4D effect: the length over which
+  the wall cools the wire is √(Λ/πNu), about 11 diameters at Λ = 3000, against a half-length of 5.
+- **So the instrument wants a thin wire in a wide tube**, and that changes which of this study's results it uses. A
+  wire 200 diameters long in the same pipe flow has a Reynolds number 20 times smaller than the cases computed here:
+  below every instability of sections 3 to 8, where the stream varies slowly along the wire, each station loses heat
+  as a sphere would at its local speed (section 2), and the wall's effect is this section's conduction term. The
+  tube computations of section 9 are then the check on that strip picture at the short-wire end, and the wake
+  instabilities are what a thick wire or a fast stream would add.
+
+**Limits.** Three Reynolds numbers over less than a factor of two (25, 50 and 100 are running). The heat matrices
+carry section 10's limits (not validated against the sphere literature, one mesh, Pr 0.7). The shapes all vanish at
+the wall, so a uniform heat source is represented to 2.5%: the heat balance closes to 1.7%, and the current needed
+moves by 3.5% between 4 and 8 shapes at Λ = 0 and by 0.04% at Λ = 30 and above. Properties constant: no radiation,
+no change of k or α with temperature. Fully developed flow only.
+
 ## Running it
 
 ```bash
@@ -385,7 +435,8 @@ cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run,
 ../../venv/bin/python shear4.py 200 5                   # sheared stream, tube radius 5, ~1 h -> data/shear-200-R5.*
 ../../venv/bin/pip install gmsh && apt-get install -y libglu1-mesa   # tube4.py only
 ../../venv/bin/python tube4.py 200 5 150                 # the true tube, ~3 h -> data/tube-200-R5.*  (geom=slab: section 8's problem)
-../../venv/bin/python heat4.py 200-R5 0.7 4               # heat from the wire on that flow, ~2 min -> data/heat-200-R5.json
+../../venv/bin/python heat4.py 200-R5 0.7 8               # heat from the wire on that flow, ~2 min -> data/heat-200-R5.json
+../../venv/bin/python anem4.py 0.5                        # the wire's energy balance on every data/heat-*.json, < 1 s
 RESUME=1 FRAMES=25 ../../venv/bin/python shear4.py 280 10 255 0.015 28 50 40 && ../../venv/bin/python export4.py pulse 280-R10 40   # one cycle for the page
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
@@ -399,8 +450,10 @@ not wake modes.
 - A nonlinear solver that carries the lopsided harmonics, to find the tilted ripple and where it starts to shed.
 - The tube at higher Reynolds numbers and other radii, a finer mesh, and a look at the junction. Lopsided flows need the
   full 4D problem or harmonics round the axis.
-- Heat: the uniform-stream check against the sphere literature, the wire energy balance with a current, and
-  temperature stepped with the flow for unsteady wakes.
+- Heat: the uniform-stream check against the sphere literature, and temperature stepped with the flow for unsteady
+  wakes.
+- The instrument proper: a long thin wire (low wire Reynolds number) by strip theory on the sphere's Nu(Re), checked
+  against a tube run; then a developing inlet profile.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
   pattern. Floquet analysis with a spanwise wavevector of any direction in that plane.
 - Then the instrument: heat loss from the wire with the wake it actually has.
