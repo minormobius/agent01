@@ -648,7 +648,7 @@ cycle/precip.js  rain, rings on the lake, snow, fog, the bolt, drawn in RGB over
 cycle/sound.js   the beds, the duo laid on the audio clock, the old pad and bells as its stand-in
 cycle/main.js    the page: clock (real ms), place, facing, the two views, the route clock
 cycle/crt.js     the CRT toggle: a WebGL scanline / shadow-mask / curved-glass pass over the finished frame
-cycle/ascii.js   the ASCII toggle: the frame set in type, each glyph chosen by what the pixel IS (layer / kind), edges as _ / | \
+cycle/ascii.js   the ASCII toggle: the whole picture as free-placed type on black, chosen by what each pixel IS, contours as turned dashes
 ```
 
 **The rule that makes it a look and not a filter:** the index map is authored FOR the palette. (The
@@ -909,32 +909,39 @@ glow and colour, and a phone or a retina screen gets the lines too. The index-bu
 untouched. A "crt" button; `crt=1` in the link. Both views and the city page. Not seen on a real phone.
 
 **ASCII** (owner, 2026-11-24: "I've been seeing ascii shaders out and about, they look slick… our landscapes
-running in ascii"). `ascii.js`: a WebGL pass like crt.js, on its own canvas over the page's; the two are
-exclusive (a tube and a typewriter are two ways of showing). The screen is cut into ~150 columns of
-character cells (never under 7 device px, 1 : 1.8); each cell shows one glyph from a runtime atlas (the
-system monospace font, drawn at the cell's size).
-- **Authored, not filtered** (the colour cycle's own rule). A brightness-only ASCII filter turns every
-  surface into the same @#%. The renderers know what each pixel is, so the page hands the pass a class
-  map per frame (`classes()` in main.js: the painting's `scene.layer` through `layerClasses`, the flight's
-  `knd` and `dep` through `kindClasses`, depth ∞ = sky), and each of eight materials has its own ramp:
-  sky sparse dots, stars `. + *` (a sky cell brighter than its surroundings), clouds soft, water `-~=`,
-  the fall `; | ! I #`, rock, trees `^ A`, ground, built `[ ] #`. The selftest fails if a new layer or
-  kind arrives without a material.
-- **Edges**: where a cell straddles two materials it draws `_ / | \` along the boundary (four
-  class tests: across, down, and both diagonals), so ridgelines, shores and rooflines are lines of type.
-  Clouds count as sky for this (a cloud has no outline); water draws none (the mirrored ridges would
-  double every line). Inside land, a brightness step over 0.28 is an edge too (snow on a ridge).
-- **Under the type is the picture**, darkened to 0.3, pixel by pixel: so a blue sky stays blue and the
-  glyphs are texture, not density. Two earlier versions, learned from screenshots: a near-black ground
-  made a daytime sky navy dots and the scene unreadable; the cell-averaged ground showed as blocks.
-  The ramp level is dithered per cell by a fixed hash (flat sand or sky was a grid of one character),
-  and the top glyph is kept for the very brightest (sand was a wall of `&`).
-- **Printable ASCII only**: `≈ ‖ ♣ ¦ ·` fell back to other fonts at other widths in the first draft.
-- Water and the fall shimmer: a step up or down the ramp moving with the flow (time in the shader; the
-  palette's own cycling already moves brightness through them).
-- Checked in headless Chromium (SwiftShader: CPU raster, so its 11.7 fps on the city at 1280×800 says
-  nothing about a GPU): the lake by day, dusk and night, the coast, the flight, the city at dusk. Not
-  seen on a phone. `ascii=1` in the link; an "ascii" button on the cycle and city pages.
+running in ascii"; then "the whole graphics with ascii characters… your font size is too large… you don't
+need to stick to a grid, you could place these characters wherever"). `ascii.js`: a WebGL2 overlay like
+crt.js, exclusive with it. Nothing of the picture shows: every mark is a printable ASCII character on black.
+- **No grid.** ~30–65k characters, each placed, sized and turned on its own. Their homes are a jittered
+  lattice about a character apart, a hash of the point's index (`home(i, j)`), so nothing is stored and
+  no row or column shows. Size: about a 100th of the picture's height (5–9 CSS px, never under 7 device
+  px); `glyph=` in the link overrides it. Bold monospace, a mipmapped atlas (thin strokes vanished
+  without mipmaps when drawn at half size).
+- **Two passes.** DECIDE: one fragment per point, into three RGBA8 textures (colour and whether it shows;
+  glyph, turn, size; drift). DRAW: an instanced quad per point that reads its three texels. The first
+  version did the looking (~30 samples) in the vertex shader, four times per character.
+- **What each point decides** (authored, not filtered: the renderers say what each pixel IS, through
+  `classes()` in main.js, the painting's layers and the flight's kinds):
+  - whether: tone is the COUNT of characters, a point draws if its number is under the brightness;
+  - which: each of eight materials has its ramp (sky `.:+=*o#`, water `-~=`, the fall `;|!I#`, trees
+    `^Aa`, built `[]#`…), a step varied by the point's own number;
+  - how big: brightness again, 0.8–1.3×: dim places small and faint, sunlit ones large;
+  - how it lies: on a boundary between materials (or a brightness step over 0.26 on land) a dash turned
+    ALONG THE CONTOUR (eight samples round the point give the normal), in the colour of the brighter
+    side, so a ridge is drawn in the light of the sky behind it; clouds and water draw none;
+  - motion: the fall's points slide down and fade on their own phases; water's drift sideways;
+  - stars: a sky point on a pixel brighter than its neighbours and the sky round it: `. + *`.
+- **The eye adapts**: each frame the picture's mean brightness (a 32×18 thumbnail) sets an exposure up to
+  4× (to the 0.75 power, so a night stays a night), eased over a second. Without it dusk was a few dim
+  dots. Stars and the brightness-step edges use the unexposed picture.
+- **What the screenshots taught**: thin type on black covers ~15% of its box, so v1 of this was nearly
+  black by day; bold, more characters, larger in the light and the lifted ink fixed it. Overlap at 60% of a
+  character merged everything into stitching; at ~80–100% each character stays one. Only printable ASCII
+  (other glyphs fall back to another font at another width).
+- **Cost**: ~21 µs a character in SwiftShader (CPU), so 1.4 s a frame at 65k here: the sandbox cannot run it
+  at speed, and its screenshots need long timeouts and one scene per browser. A GPU draws this in well
+  under a millisecond; not yet seen on a phone or any real GPU. Checked by screenshot: the lake by day and
+  dusk, the coast by day, a 2× phone-sized view.
 
 **The page**: hard square pixels covering the stage (drag to pan the painting when cropped). Controls:
 day speed, an hour scrubber (solar time), "sky" (place presets incl. "here" by geolocation, date,

@@ -310,7 +310,7 @@ function classes() {
   for (let i = 0; i < classBuf.length; i++) classBuf[i] = layerLut[L[i]];
   return classBuf;
 }
-const ascii = new ASCII(canvas, $('stage'), classes);
+const ascii = new ASCII(canvas, $('stage'), classes, params.has('glyph') ? Number(params.get('glyph')) : null);
 const setAscii = (on) => { ascii.set(on); $('asciibtn').classList.toggle('on', ascii.on); if (on && !ascii.ok) $('asciibtn').textContent = 'ascii (no WebGL)'; if (scene) remember(); };
 $('asciibtn').onclick = () => { if (!ascii.on && crt.on) setCrt(false); setAscii(!ascii.on); };
 $('figbtn').onclick = () => { figures = !figures; $('figbtn').classList.toggle('on', figures); };
