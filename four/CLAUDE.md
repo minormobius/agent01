@@ -390,7 +390,11 @@ for games, and this is a modelling programme with publications to come. The game
   worst 0.23–1.31%, never a model over 3%. dX 0.005 against 0.01 on the fixed code: time at fixed Xc ≤0.13%, L ≤0.02%.
   Against the old code (evolve4-22's -tres): +2.2–2.8% (2.5) and +1.6–3.7% (4.0) in time at Xc 0.7–0.6. The late main
   sequence (Xc < 0.3, where the old books spiked to 30%) not yet reached, so the final rerun is not launched; evolve4-25b
-  resumes them.
+  resumes them. **evolve4-25b (collected 2026-11-24, all cut):** dX 0.01 to Xc 0.26 (2.5 M_Ch) and 0.11 (4.0); below Xc 0.3
+  books median 0.22–0.24%, worst 1.2%, none over 3% (the old code spiked to 30% there); dX 0.005 to Xc 0.44/0.37, within
+  0.09% in time. Against the old code +1.3–2.1% at Xc 0.5–0.2; against production −5.9 to −7.3% (pinned gravity). The
+  PI chose to wait for the end before the final rerun (2026-11-24: "I'm inclined to go for the check, I would like to
+  be sure the final run succeeds"); evolve4-25c resumes.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
