@@ -91,6 +91,8 @@ function remember() {
   if (!route.on) q.set('rp', '0');
   if (crt.on) q.set('crt', '1');
   if (ascii.on) q.set('ascii', '1');
+  if (ascii.on && ascii.dens && Math.abs(ascii.dens - 1) > 0.005) q.set('dens', ascii.dens.toFixed(2));
+  if (ascii.on && ascii.glyphCss != null) q.set('glyph', String(ascii.glyphCss));
   if (cityMode) q.set('world', 'city');
   if (!ambience) q.set('amb', '0');
   if (view.wx) q.set('wx', view.wx);
@@ -311,7 +313,18 @@ function classes() {
   return classBuf;
 }
 const ascii = new ASCII(canvas, $('stage'), classes, params.has('glyph') ? Number(params.get('glyph')) : null, params.has('dens') ? Number(params.get('dens')) : 1);
-const setAscii = (on) => { ascii.set(on); $('asciibtn').classList.toggle('on', ascii.on); if (on && !ascii.ok) $('asciibtn').textContent = 'ascii (no WebGL)'; if (scene) remember(); };
+const setAscii = (on) => { ascii.set(on); $('asciibtn').classList.toggle('on', ascii.on); $('asciiRow').hidden = !ascii.on; if (on && !ascii.ok) $('asciibtn').textContent = 'ascii (no WebGL2)'; syncType(); if (scene) remember(); };
+// the type's two dials: density (how many characters, ×0.25–6 on a log scale) and size (CSS px)
+const densOf = (v) => 0.25 * Math.pow(24, v), vOfDens = (d) => Math.log(d / 0.25) / Math.log(24);
+function syncType() {
+  $('adens').value = vOfDens(ascii.dens || 1).toFixed(3); $('adensV').textContent = `×${(ascii.dens || 1).toFixed(2)}`;
+  const g = ascii.glyphCss ?? (ascii.ok ? ascii.autoGlyph() : 7);
+  $('aglyph').value = g; $('aglyphV').textContent = `${(+g).toFixed(1)} px${ascii.glyphCss == null ? ' (auto)' : ''}`;
+}
+$('adens').addEventListener('input', () => { ascii.tune({ dens: densOf(Number($('adens').value)) }); syncType(); });
+$('aglyph').addEventListener('input', () => { ascii.tune({ glyph: Number($('aglyph').value) }); syncType(); });
+$('adens').addEventListener('change', () => remember());
+$('aglyph').addEventListener('change', () => remember());
 $('asciibtn').onclick = () => { if (!ascii.on && crt.on) setCrt(false); setAscii(!ascii.on); };
 $('figbtn').onclick = () => { figures = !figures; $('figbtn').classList.toggle('on', figures); };
 $('figbtn').classList.toggle('on', figures);

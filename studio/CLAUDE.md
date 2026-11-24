@@ -917,6 +917,9 @@ crt.js, exclusive with it. Nothing of the picture shows: every mark is a printab
   no row or column shows. Size: about a 100th of the picture's height (5–9 CSS px, never under 7 device
   px); `glyph=` in the link overrides it. Bold monospace, a mipmapped atlas (thin strokes vanished
   without mipmaps when drawn at half size).
+- **Two sliders** under the buttons while ascii is on (owner: "break that out into sliders"): density
+  (×0.25–6, log scale; `dens=`) and size (3–14 CSS px; `glyph=`; a chosen size may go down to 4 device px,
+  the automatic one stops at 7). `ASCII.tune()` re-lays the lattice live.
 - **Two passes.** DECIDE: one fragment per point, into three RGBA8 textures (colour and whether it shows;
   glyph, turn, size; drift). DRAW: an instanced quad per point that reads its three texels. The first
   version did the looking (~30 samples) in the vertex shader, four times per character.

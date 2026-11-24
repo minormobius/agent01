@@ -255,6 +255,14 @@ export class ASCII {
     this.layoutFor = '';
   }
   set(on) { this.on = on && this.ok; this.cv.style.display = this.on ? 'block' : 'none'; }
+  /** Change how many characters (dens) and their size (glyph, CSS px; null: automatic), live. */
+  tune({ dens, glyph } = {}) {
+    if (dens !== undefined) this.dens = Math.min(6, Math.max(0.25, dens));
+    if (glyph !== undefined) this.glyphCss = glyph;
+    this.layoutFor = '';
+  }
+  /** The character height in CSS pixels this screen would get without a choice. */
+  autoGlyph() { return Math.min(9, Math.max(5, this.src.clientHeight / 100)); }
 
   /** The glyph atlas, every glyph in a row, white on black, at twice the drawn size (they are turned). */
   atlas(gw, gh) {
@@ -295,8 +303,8 @@ export class ASCII {
     const cssH = this.src.clientHeight, w = Math.round(this.src.clientWidth * dpr), h = Math.round(cssH * dpr);
     if (this.cv.width !== w || this.cv.height !== h) { this.cv.width = w; this.cv.height = h; }
     // a character about a 100th of the picture's height: 5–9 CSS pixels, never under 7 device pixels
-    // (smaller and a character stops reading as one on a 1× screen)
-    const gh = Math.max(7, Math.round((this.glyphCss ?? Math.min(9, Math.max(5, cssH / 100))) * dpr)), gw = Math.max(4, Math.round(gh * 0.62));
+    // (smaller and a character stops reading as one on a 1× screen) unless asked for (4: the size slider)
+    const gh = Math.max(this.glyphCss != null ? 4 : 7, Math.round((this.glyphCss ?? Math.min(9, Math.max(5, cssH / 100))) * dpr)), gw = Math.max(4, Math.round(gh * 0.62));
     const key = `${w}x${h}@${gh}`;
     if (key !== this.layoutFor) { this.layoutFor = key; this.atlas(gw, gh); this.layout(w, h, gw, gh); }
     const W = this.src.width, H = this.src.height, k = this.classes && this.classes();
