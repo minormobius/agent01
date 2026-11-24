@@ -648,6 +648,7 @@ cycle/precip.js  rain, rings on the lake, snow, fog, the bolt, drawn in RGB over
 cycle/sound.js   the beds, the duo laid on the audio clock, the old pad and bells as its stand-in
 cycle/main.js    the page: clock (real ms), place, facing, the two views, the route clock
 cycle/crt.js     the CRT toggle: a WebGL scanline / shadow-mask / curved-glass pass over the finished frame
+cycle/ascii.js   the ASCII toggle: the frame set in type, each glyph chosen by what the pixel IS (layer / kind), edges as _ / | \
 ```
 
 **The rule that makes it a look and not a filter:** the index map is authored FOR the palette. (The
@@ -907,10 +908,38 @@ moiré rings against the curved glass (seen at 1× in headless Chromium), so a d
 glow and colour, and a phone or a retina screen gets the lines too. The index-buffer art underneath is
 untouched. A "crt" button; `crt=1` in the link. Both views and the city page. Not seen on a real phone.
 
+**ASCII** (owner, 2026-11-24: "I've been seeing ascii shaders out and about, they look slick… our landscapes
+running in ascii"). `ascii.js`: a WebGL pass like crt.js, on its own canvas over the page's; the two are
+exclusive (a tube and a typewriter are two ways of showing). The screen is cut into ~150 columns of
+character cells (never under 7 device px, 1 : 1.8); each cell shows one glyph from a runtime atlas (the
+system monospace font, drawn at the cell's size).
+- **Authored, not filtered** (the colour cycle's own rule). A brightness-only ASCII filter turns every
+  surface into the same @#%. The renderers know what each pixel is, so the page hands the pass a class
+  map per frame (`classes()` in main.js: the painting's `scene.layer` through `layerClasses`, the flight's
+  `knd` and `dep` through `kindClasses`, depth ∞ = sky), and each of eight materials has its own ramp:
+  sky sparse dots, stars `. + *` (a sky cell brighter than its surroundings), clouds soft, water `-~=`,
+  the fall `; | ! I #`, rock, trees `^ A`, ground, built `[ ] #`. The selftest fails if a new layer or
+  kind arrives without a material.
+- **Edges**: where a cell straddles two materials it draws `_ / | \` along the boundary (four
+  class tests: across, down, and both diagonals), so ridgelines, shores and rooflines are lines of type.
+  Clouds count as sky for this (a cloud has no outline); water draws none (the mirrored ridges would
+  double every line). Inside land, a brightness step over 0.28 is an edge too (snow on a ridge).
+- **Under the type is the picture**, darkened to 0.3, pixel by pixel: so a blue sky stays blue and the
+  glyphs are texture, not density. Two earlier versions, learned from screenshots: a near-black ground
+  made a daytime sky navy dots and the scene unreadable; the cell-averaged ground showed as blocks.
+  The ramp level is dithered per cell by a fixed hash (flat sand or sky was a grid of one character),
+  and the top glyph is kept for the very brightest (sand was a wall of `&`).
+- **Printable ASCII only**: `≈ ‖ ♣ ¦ ·` fell back to other fonts at other widths in the first draft.
+- Water and the fall shimmer: a step up or down the ramp moving with the flow (time in the shader; the
+  palette's own cycling already moves brightness through them).
+- Checked in headless Chromium (SwiftShader: CPU raster, so its 11.7 fps on the city at 1280×800 says
+  nothing about a GPU): the lake by day, dusk and night, the coast, the flight, the city at dusk. Not
+  seen on a phone. `ascii=1` in the link; an "ascii" button on the cycle and city pages.
+
 **The page**: hard square pixels covering the stage (drag to pan the painting when cropped). Controls:
 day speed, an hour scrubber (solar time), "sky" (place presets incl. "here" by geolocation, date,
 facing, weather, an aurora storm), constellation figures, the palette strip, fly. `#seed=N&kind=coast&lat=&lon=&face=&date=YYYY-MM-DD&h=
-&speed=&fig=1&mode=fly&world=city&at=&rp=0&crt=1&wx=&amb=0&aur=1`.
+&speed=&fig=1&mode=fly&world=city&at=&rp=0&crt=1&ascii=1&wx=&amb=0&aur=1`.
 
 ## Accretion (accretion/), and packages/attractor/lib/shell.js
 

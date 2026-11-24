@@ -10,6 +10,7 @@ import { Life } from './life.js';
 import { lightning, thunderDelay, KINDS } from './weather.js';
 import { Sound, modeAt } from './sound.js';
 import { CRT } from './crt.js';
+import { ASCII, CLASS, layerClasses, kindClasses } from './ascii.js';
 
 useSky(sky);
 const $ = (id) => document.getElementById(id);
@@ -89,6 +90,7 @@ function remember() {
   if (mode === 'fly' && fly) q.set('at', routeU(clock.now()).toFixed(4));
   if (!route.on) q.set('rp', '0');
   if (crt.on) q.set('crt', '1');
+  if (ascii.on) q.set('ascii', '1');
   if (cityMode) q.set('world', 'city');
   if (!ambience) q.set('amb', '0');
   if (view.wx) q.set('wx', view.wx);
@@ -162,6 +164,7 @@ function frame() {
   const r = mode === 'fly' && fly ? fly.frame(t, ms, { figures, notes, u }) : paint(t, ms), { sk, lt } = r;
   if (mode === 'fly' && fly && !route.dragging) { $('route').value = u.toFixed(4); $('routeV').textContent = fly.place() || ''; }
   if (crt.on) crt.draw(t);
+  if (ascii.on) ascii.draw(t);
   if (r.fl) thunderFrom(r.fl);
   if (mode === 'fly' && fly) { lastAurora = r.au || null; auPeak = r.auPeak || 0; }
   if (sound) { sound.place = mode === 'fly' && fly ? fly.place() : null; if (lt.wx) sound.setWeather(lt.wx); }
@@ -289,7 +292,27 @@ syncRoute();
 // the tube: a CRT pass over the finished frame (crt.js), on or off
 const crt = new CRT(canvas, $('stage'));
 const setCrt = (on) => { crt.set(on); $('crtbtn').classList.toggle('on', crt.on); if (on && !crt.ok) $('crtbtn').textContent = 'crt (no WebGL)'; if (scene) remember(); };
-$('crtbtn').onclick = () => setCrt(!crt.on);
+$('crtbtn').onclick = () => { if (!crt.on && ascii.on) setAscii(false); setCrt(!crt.on); };
+// the type: the frame set in ASCII (ascii.js), each glyph chosen by what the pixel IS, from the painting's
+// layer map or the flight's kind buffer; a tube and a typewriter are two ways of showing, so one at a time
+const classBuf = new Uint8Array(W * H);
+let kindLut = null;   // world.js's KIND, once the flight (which imports it) has loaded
+let layerLut = null, layerOf = null;
+function classes() {
+  if (mode === 'fly' && fly && kindLut) {
+    const k = fly.knd, d = fly.dep;
+    for (let i = 0; i < classBuf.length; i++) classBuf[i] = d[i] < Infinity ? kindLut[k[i]] : CLASS.sky;
+    return classBuf;
+  }
+  if (!scene) return null;
+  if (layerOf !== scene.LAYER) { layerOf = scene.LAYER; layerLut = layerClasses(scene.LAYER); }
+  const L = scene.layer;
+  for (let i = 0; i < classBuf.length; i++) classBuf[i] = layerLut[L[i]];
+  return classBuf;
+}
+const ascii = new ASCII(canvas, $('stage'), classes);
+const setAscii = (on) => { ascii.set(on); $('asciibtn').classList.toggle('on', ascii.on); if (on && !ascii.ok) $('asciibtn').textContent = 'ascii (no WebGL)'; if (scene) remember(); };
+$('asciibtn').onclick = () => { if (!ascii.on && crt.on) setCrt(false); setAscii(!ascii.on); };
 $('figbtn').onclick = () => { figures = !figures; $('figbtn').classList.toggle('on', figures); };
 $('figbtn').classList.toggle('on', figures);
 let ambience = params.get('amb') !== '0';
@@ -304,6 +327,7 @@ $('flybtn').onclick = async () => {
     $('flybtn').textContent = cityMode ? 'building the city…' : 'building the world…';
     await new Promise((r) => setTimeout(r, 30));
     const { Flight } = await import('./fly.js');
+    kindLut = kindClasses((await import('./world.js')).KIND);
     fly = new Flight(img, g, view);
     fly.load(scene.seed, scene.bpm, flyKind());
     document.documentElement.classList.add('ready');
@@ -317,6 +341,7 @@ $('flybtn').onclick = async () => {
 
 const seed = Number(params.get('seed')) || 1 + Math.floor(Math.random() * 99999);
 if (params.get('crt') === '1') setCrt(true);
+else if (params.get('ascii') === '1') setAscii(true);
 load(seed, params.get('kind') === 'coast' ? 'coast' : 'lake');
 place(view.lat, view.lon);
 if (params.has('face')) { view.facing = Number(params.get('face')); syncFacing(); }

@@ -961,6 +961,24 @@ if (SHARD === 2) {
   ok(finite && pk < 1 && db > -35 && notes > 60 && bars >= 4 && speed > 1.5, `radio: 12 s of feria stream at ${speed.toFixed(1)}× real time (22 kHz, the hall included), ${notes} notes in ${bars} bars, ${db.toFixed(1)} dB, peak ${pk.toFixed(2)}`);
 }
 
+// The cycle in type (cycle/ascii.js): every material the renderers know has a vocabulary ------------
+if (SHARD === 3) {
+  console.log('\nThe cycle in type (ascii)');
+  const A = await import('../cycle/ascii.js');
+  const layerKeys = async (f) => Object.keys(Function(`return ${(await readFile(join(root, 'cycle', f), 'utf8')).match(/const LAYER = (\{[^}]*\})/)[1]}`)());
+  const keys = [...new Set([...(await layerKeys('scene.js')), ...(await layerKeys('coast.js'))])];
+  const LAYER = Object.fromEntries(keys.map((k, i) => [k, i]));
+  const lut = A.layerClasses(LAYER);
+  const named = { sky: 0, beam: 0, cloud: 1, lake: 2, fall: 3, far: 4, snow: 4, mid: 4, cliff: 4, tree: 5, ground: 6, sand: 6, cabin: 7 };
+  const unmapped = keys.filter((k) => !(k in named)), wrong = keys.filter((k) => k in named && lut[LAYER[k]] !== named[k]);
+  ok(!unmapped.length && !wrong.length, `every painting layer has a material (${keys.length} layers${unmapped.length ? `; new, unmapped: ${unmapped.join(', ')}` : ''}${wrong.length ? `; wrong: ${wrong.join(', ')}` : ''})`);
+  const { KIND } = await import('../cycle/world.js');
+  const kl = A.kindClasses(KIND), kinds = Object.keys(KIND);
+  ok(kinds.every((k) => kl[KIND[k]] <= 7) && kl[KIND.lake] === 2 && kl[KIND.fall] === 3 && kl[KIND.building] === 7, `every flight kind has a material (${kinds.join(', ')})`);
+  const printable = A.GLYPHS.every((g) => g.length === 1 && g.charCodeAt(0) >= 32 && g.charCodeAt(0) < 127);
+  ok(printable && A.RAMPS.every((r) => r.length === 8 && r[0] === ' '), `${A.GLYPHS.length} glyphs, all printable ASCII; each of ${A.RAMPS.length} ramps runs 8 from a space`);
+}
+
 // CHIMERA — the borrowed physical-modelling voice (vendor/chimera, lib/chimera-core.js) -------------
 if (SHARD === 3) {
   console.log('\nCHIMERA (the airway voice)');
