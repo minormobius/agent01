@@ -1,15 +1,12 @@
 {
- "run": "evolve4-25d",
- "why": "Third resume of the stirred-core validation toward the end of central hydrogen (evolve4-25c: 4.0 M_Ch at Xc 0.009, 2.5 M_Ch at 0.12, dX 0.01). Books within 1.2% except one 3-model transient at 2.5 M_Ch (peak 25%) where its convective core regrows 2% to 8% and mixes in fresh hydrogen (Xc 0.164 to 0.208), back to 1.0003 within 5 models; dX 0.005 within 0.27% in time. The final ladder rerun launches once both reach Xc 1e-3.",
+ "run": "evolve4-25e",
+ "why": "The last stretch of the stirred-core validation: 2.5 M_Ch at s 1.5152 (dX 0.01) from Xc 0.0083 to the end of central hydrogen. evolve4-25d finished the 4.0 M_Ch star (life 0.0875 Gyr, books never over 3% at dX 0.01) and showed step convergence within 0.69%; the dX 0.005 runs are dropped. The final ladder rerun launches after this.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev25d-a",
+   "name": "ev25e-a",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 tag=zf",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 0.005 tag=zf",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 tag=zf",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 0.005 tag=zf"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 tag=zf"
    ]
   }
  ]

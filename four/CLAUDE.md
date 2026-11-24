@@ -399,7 +399,10 @@ for games, and this is a modelling programme with publications to come. The game
   0.021 → 0.080 in ~50 kyr and mixes fresh hydrogen in (Xc 0.164 → 0.208); the step falls to 6–12 kyr and the books run
   1.063 / 1.252 / 1.037 for three models, then 1.0003. Inside the balmax bar by design (the old code's single-model
   spikes were these). Against the old code +1.0–2.1% in time at Xc 0.5–0.01; against production −5.7 to −7.3%.
-  evolve4-25d resumes.
+  evolve4-25d resumes. **evolve4-25d (collected 2026-11-24):** the 4.0 M_Ch star finished (Xc 10⁻³ at 0.0875 Gyr, production 0.0927:
+  −5.6%), books at dX 0.01 never over 3% (worst 1.2%); 2.5 M_Ch to Xc 0.0083 (0.540 Gyr), clean but for the Xc 0.165
+  transient. dX 0.005 against 0.01: ≤0.69% in time (4.0 M_Ch at Xc 0.1), its own one 2-model transient (15%) where the
+  core regrows. evolve4-25e runs the 2.5 M_Ch star's last stretch alone.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
