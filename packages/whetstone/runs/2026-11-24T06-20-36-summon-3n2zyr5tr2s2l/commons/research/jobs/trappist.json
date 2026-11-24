@@ -1,0 +1,8 @@
+{ "by": "mozzie",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n2zxcvbtcs2l",
+  "note": "Track 3 for plyr: TRAPPIST-1, seven real planets each struck once per orbit, pitch = strike rate x 256 (research/tracks/trappist/README.md). Renders on the lent piano at 44.1 kHz mono (9.27 MB), renders planets b and e alone, measures strike period and pitch into check.txt, deletes the probes. Dry-run twice from clean copies: same sha256 8164e116...",
+  "dir": "research/tracks/trappist",
+  "commands": ["node check.mjs --probes && node $ENGINES/instruments/render.mjs score.json --out trappist.wav --mono --rate 44100 > render.txt && node $ENGINES/instruments/render.mjs probe-b.json --out pb.wav --mono --rate 44100 >> render.txt && node $ENGINES/instruments/render.mjs probe-e.json --out pe.wav --mono --rate 44100 >> render.txt && node check.mjs pb.wav b > check.txt && node check.mjs pe.wav e >> check.txt; rm -f pb.wav pe.wav probe-b.json probe-e.json"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }
