@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Walk — studio</title>
+<meta name="description" content="The colour cycle's lake world drawn on the GPU, at the screen's own resolution, in colour or wholly in type: characters anchored in the world, so walking moves them with it.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  :root { --bg: #04050a; --ink: #e9e6dc; --dim: #8b8a86; --acc: #ff9a55; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 14px/1.4 ui-sans-serif, system-ui, sans-serif; overflow: hidden; }
+  #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #stage:active { cursor: grabbing; }
+  #hud { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(4,5,10,0.85) 40%); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+  .row[hidden], #help[hidden] { display: none; }
+  .label { color: var(--dim); font: 12px ui-monospace, Menlo, monospace; }
+  #status { font: 12px ui-monospace, Menlo, monospace; color: var(--dim); }
+  a.label { color: var(--dim); }
+  button { font: inherit; color: var(--ink); background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); border-radius: 999px; padding: 5px 13px; cursor: pointer; }
+  button.on { background: var(--acc); color: #1a0f05; border-color: var(--acc); }
+  input[type=range] { flex: 1; min-width: 120px; accent-color: var(--acc); }
+  #help { color: var(--dim); font-size: 12px; }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="The lake world, drawn live"></canvas>
+<div id="hud">
+  <div><a class="label" href="../">studio</a> <span id="status">loading…</span></div>
+  <div class="row"><span class="label">hour</span><input id="hour" type="range" min="0" max="24" step="0.01" aria-label="hour of the day"><span class="label" id="hourV"></span><button id="heldbtn" type="button">hold the hour</button></div>
+  <div class="row" id="typeRow"><span class="label">density</span><input id="adens" type="range" min="0" max="1" step="0.01" aria-label="how many characters"><span class="label" id="adensV"></span><span class="label">size</span><input id="aglyph" type="range" min="3" max="14" step="0.5" aria-label="character size in CSS pixels"><span class="label" id="aglyphV"></span></div>
+  <div class="row"><button id="typebtn" type="button" class="on">type</button><button id="modebtn" type="button">walk</button><button id="newbtn" type="button">new world</button><span id="help" hidden>W A S D or the arrows to walk, Q E to turn, shift to run, drag to look · on a phone: left half moves, right half looks</span></div>
+</div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

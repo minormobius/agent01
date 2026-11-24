@@ -979,6 +979,15 @@ if (SHARD === 3) {
   ok(printable && A.RAMPS.every((r) => r.length === 8 && r[0] === ' '), `${A.GLYPHS.length} glyphs, all printable ASCII; each of ${A.RAMPS.length} ramps runs 8 from a space`);
 }
 
+// Walk (walk/gpu.js): the world's type is printable, and the passes agree on the lattice ----------------
+if (SHARD === 3) {
+  console.log('\nWalk (the world on the GPU)');
+  const G = await import('../walk/gpu.js');
+  ok(G.GLYPHS.every((g) => g.charCodeAt(0) >= 32 && g.charCodeAt(0) < 127), `walk: ${G.GLYPHS.length} glyphs, all printable ASCII`);
+  const src = await readFile(join(root, 'walk', 'gpu.js'), 'utf8');
+  ok((src.match(/vec2 home\(int i, int j\)/g) || []).length === 1 && src.includes('${LATTICE}'), 'walk: DECIDE and DRAW share one lattice (home) definition');
+}
+
 // CHIMERA — the borrowed physical-modelling voice (vendor/chimera, lib/chimera-core.js) -------------
 if (SHARD === 3) {
   console.log('\nCHIMERA (the airway voice)');

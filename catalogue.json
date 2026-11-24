@@ -5766,6 +5766,23 @@
         "canvas",
         "math"
       ]
+    },
+    {
+      "n": "walk",
+      "u": "https://studio.mino.mobi/walk/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-11-24",
+      "b": "2026-11-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "The colour cycle's lake world drawn on the GPU at the screen's own resolution, lit by the same palette and the real sun, and walkable: glide the flight's loop or step off it and walk the shore. In colour, or wholly in type, every character anchored to a point on a rock or a direction in the sky, so walking moves the letters with the world.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
     }
   ],
   "notListed": [

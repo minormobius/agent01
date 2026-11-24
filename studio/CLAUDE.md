@@ -57,6 +57,7 @@ nobody/                  No. 8, Nobody Drew It: one evolved Grown history replay
 grown/                   Grown (sketchbook): bodies grown organ by organ from a program (packages/attractor lib/organism.js); gl.js WebGL
 radio/                   Duende Radio: endless piano+guitar steered by eight dials (composer.js, stream.js, worker.js), lint.js the critic, clip.js saved moments
 city/                    City (sketchbook): cycle's flight over cityworld.js, its own page (index.html + og.jpg; the code is cycle's)
+walk/                    Walk (sketchbook): the lake world on the GPU (gpu.js: a heightfield ray-march + world-anchored type), main.js (camera, keys, sliders)
 cycle/                   Colour Cycle (sketchbook): a 256-colour landscape under the real sky, a lake or a coast; scene.js + coast.js, astro.js, stars.js (GENERATED), night.js, life.js, world.js + coastworld.js + fly.js (the flight), sound.js, main.js
 accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
 descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
@@ -950,6 +951,40 @@ crt.js, exclusive with it. Nothing of the picture shows: every mark is a printab
 day speed, an hour scrubber (solar time), "sky" (place presets incl. "here" by geolocation, date,
 facing, weather, an aurora storm), constellation figures, the palette strip, fly. `#seed=N&kind=coast&lat=&lon=&face=&date=YYYY-MM-DD&h=
 &speed=&fig=1&mode=fly&world=city&at=&rp=0&crt=1&ascii=1&wx=&amb=0&aur=1`.
+
+## Walk (walk/): the world on the GPU, and type that stays put
+
+The owner (2026-11-24), after the ascii look: "which would be easier to walk around a world of… let's work
+it into gpuland". The flight draws on the CPU at 640×360 (~35 ms a frame before anything else), and that
+fixed picture caps how much type can show. Here the same world goes to the GPU and the CPU only lights the
+palette.
+
+- **Same world, same light** (`main.js`): a `Flight` (cycle/fly.js) with no canvas builds the lake world
+  and, every frame, `light(sky)` and `palette(lt, t)`: exactly the flight's colours, cycles and weather.
+  `gpu.js` uploads the heightmap (R16F, linear, MIRRORED_REPEAT like the world's mirrored edge), each
+  cell's palette index and kind (RG8UI), the cloud layer and the lit palette (256×1 RGBA16F, per frame).
+- **WORLD pass** (`gpu.js`): a ray per pixel marched over the heightfield (step 0.45 of the height gap, a
+  floor that grows with distance, six bisections at the crossing; water is level at 0), coloured by its
+  cell's palette entry (the fall and the cliff strata by height, as fly.js does per row), the lake by a
+  second march for its reflection over the water's body colour, haze, the sky (gradient, glow, sun disc,
+  the cloud deck at 1800 m) as compose() does. Into two targets stored top row first, like a canvas:
+  colour + material class (alpha), and log-packed distance. Not yet: pines, the cabin, the night sky's
+  stars and moon, the aurora, rain (all in fly.js; the stars could be points).
+- **TYPE** (the ascii look's DECIDE/DRAW, re-done for a world): a character belongs to a cube on a surface
+  (~0.55 of a character across at its distance, power-of-two sizes so a cube survives until you are
+  about twice as near or far), or to a cell of the sky's elevation/azimuth grid. The lattice point that
+  sees it projects the anchor back and draws it only if it lands in its own cell, so each is drawn once;
+  glyph, size, tilt and number come from the anchor's hash, so they travel with the world. Exposure from
+  the colour target's smallest mip (no read-back). Cube size: at ~0.9 of a character most lattice points
+  owned nothing (sparse); smaller makes which characters show flicker more as you move. NOT yet judged in
+  motion: SwiftShader gives 1–4 fps here, so steadiness while walking is for a real screen to say.
+- **Moving**: glide (the flight's loop, 20 min) or walk (eye 1.7 m over the ground or the water): W A S D /
+  arrows, Q E turn, shift runs, drag to look; on a touch screen the left half moves, the right half looks.
+  The world pass's resolution follows the frame time (0.2–1 of the screen; 0.6 at most under type);
+  `res=` holds it. Link: `seed date h speed=0 type=0 dens glyph mode=walk x y yaw res`.
+- **Rust / wasm**: not used, on purpose. The heavy work is on the GPU; the CPU does a palette (256 entries)
+  and a camera. Rust earns its place when generation or simulation must run here per frame.
+- Measured only in SwiftShader (CPU raster): a 1280×720 colour frame ~0.3–0.5 s. Real GPUs unmeasured.
 
 ## Accretion (accretion/), and packages/attractor/lib/shell.js
 

@@ -57,6 +57,7 @@ jobs:
                && curl -fsS https://studio.mino.mobi/nocturne/ | grep -qi 'Nocturne' \
                && curl -fsS https://studio.mino.mobi/speakeasy/ | grep -qi 'Speakeasy' \
                && curl -fsS https://studio.mino.mobi/figure/ | grep -qi 'Mannequin' \
+               && curl -fsS https://studio.mino.mobi/walk/ | grep -qi 'Walk' \
                && curl -fsSI https://studio.mino.mobi/vendor/figure/lib/shader.js | grep -qi 'javascript' \
                && curl -fsSI https://studio.mino.mobi/lib/band-worker.js | grep -qi 'javascript' \
                && curl -fsSI https://studio.mino.mobi/vendor/pfsynth/pfsynth.wasm | grep -qi 'application/wasm' \
