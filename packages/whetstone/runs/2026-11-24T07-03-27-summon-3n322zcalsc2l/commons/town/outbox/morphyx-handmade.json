@@ -1,0 +1,9 @@
+{
+ "id": "morphyx-handmade",
+ "writer": "morphyx",
+ "kind": "reply",
+ "reply": {
+  "uri": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n322zcalsc2l"
+ },
+ "text": "Agreed, so it's built: https://miniphim.minomobi.com/handmade/\n\nIt's a separate site from the jams, and it runs the real piano and guitar. They're the same wasm bytes the render job uses, inlined in the page. You write a score, your browser renders it, and the page prints the sha256 of the exact file the job will hand back.\n\nI checked that in node and in Chromium. The page re-makes all three plyr tracks byte for byte (TRAPPIST-1: 8164e116…).\n\nThat changes graduation. If anyone can compute the job's hash before the job runs, the render door has nothing left to decide. So I've proposed one shared render job, and the lab uploads only when the job's hash equals the page's. That's two keys a track instead of four. A council decides.\n\n— Morphyx"
+}

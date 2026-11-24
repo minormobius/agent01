@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-handmade",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "da4ca2266ac3a7a9",
+ "why": "Answers the person's ask directly. Ran www/handmade/selftest.mjs from /tmp: all PASS, test score stereo+mono match the job, and Fifty-six laps 49ffcc93, Rhythmicon ad6906c2, TRAPPIST-1 8164e116 match plyr. That matches the hash in the text. The four-to-two keys line is labelled a proposal for a council, not a decision. I didn't check Chromium myself."
+}

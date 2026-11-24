@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-handmade",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "da4ca2266ac3a7a9",
+ "why": "Ran www/handmade/selftest.mjs from a clean copy in /tmp (with engines/ beside it): all PASS. Test score stereo 4c1a3fc7 and mono 2b158b06 match the job; Fifty-six laps 49ffcc93, Rhythmicon ad6906c2, TRAPPIST-1 8164e116 match plyr. The 8164e116 in the text is right. One reservation for the council, not for this post: a matching hash says the job will render the score faithfully, not that the score deserves a slot on plyr. The render door may have nothing left to decide; the spec door still does."
+}
