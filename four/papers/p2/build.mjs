@@ -176,13 +176,19 @@ function yields4Numbers() {
     const st = Y.stars.filter((x) => ok(x.s)), ex = st.filter((x) => x.choices.find((c) => c.g === 1.25).fate === "explodes").map((x) => x.m); t[`yEx${k}`] = ex.length ? String(Math.min(...ex)) : "none"; }
   // the mix at the middle choice (alpha 2.35, g 1.25, f 100, stars dying within 30 Gyr) at s ≤ 1.65, with winds of 3% and 30%
   const light = (y) => Object.entries(y.mix).filter(([z]) => /^\d+$/.test(z)).reduce((a, [, v]) => a + v, 0), mid = (w) => Y.yields.filter((y) => y.s <= 1.65 && y.alpha === 2.35 && y.g === 1.25 && y.w === w && y.f === 100 && y.tg === 30);
-  const M3 = mid(0.03), M30 = mid(0.3), rng = (a) => `${Math.round(100 * Math.min(...a))}–${pct(Math.max(...a))}`, rock = M3.map((y) => y.mix.rock ?? 0);
+  const M3 = mid(0.03), M30 = mid(0.3), rng = (a) => (Math.round(100 * Math.min(...a)) === Math.round(100 * Math.max(...a)) ? pct(Math.max(...a)) : `${Math.round(100 * Math.min(...a))}–${pct(Math.max(...a))}`), rock = M3.map((y) => y.mix.rock ?? 0);
   Object.assign(t, { yRock: rng(rock), yIronHi: pct(Math.max(...M3.map((y) => y.mix.iron ?? 0))), yLight: rng(M3.map(light)), yLight30: rng(M30.map(light)) });
   // near our strength (s ≤ 1.55) the explosions' iron against the rock row, over every choice; and from 1.6 the rock row alone
   const all = (ok) => Y.yields.filter((y) => ok(y.s) && (y.mix.rock ?? 0) + (y.mix.iron ?? 0) > 0), A = all((s) => s <= 1.55), Bm = M3.filter((y) => y.s >= 1.6);
-  Object.assign(t, { yIronA: rng(A.map((y) => y.mix.iron ?? 0)), yRockA: rng(A.map((y) => y.mix.rock ?? 0)), yIronMidA: rng(M3.filter((y) => y.s <= 1.55).map((y) => y.mix.iron ?? 0)), yRockB: rng(Bm.map((y) => y.mix.rock ?? 0)) });
-  if (!(Math.min(...M3.map((y) => (y.mix.rock ?? 0) + (y.mix.iron ?? 0))) > 0.8)) throw new Error("yields4: the rock row and iron are no longer most of what is returned at the middle choice; rewrite section 4 and the status page");
-  if (!(Math.min(...Bm.map((y) => y.mix.rock ?? 0)) > 0.8)) throw new Error("yields4: from s 1.6 the rock row is no longer most of what is returned at the middle choice; rewrite section 4 and the status page");
+  Object.assign(t, { yIronA: rng(A.map((y) => y.mix.iron ?? 0)), yRockA: rng(A.map((y) => y.mix.rock ?? 0)), yIronMidA: rng(M3.filter((y) => y.s <= 1.55).map((y) => y.mix.iron ?? 0)), yRockB: rng(Bm.map((y) => y.mix.rock ?? 0)), yIronB: rng(Bm.map((y) => y.mix.iron ?? 0)), yRockMid: rng(rock) });
+  // since 2026-11-24 every exploding core burns as one at the limit (yields4's exShares), mostly to equilibrium: the claim
+  // the text makes is that equilibrium is most of what returns at the middle choice, at every strength up to 1.65
+  if (!(Math.min(...M3.map((y) => y.mix.iron ?? 0)) > 0.8)) throw new Error("yields4: equilibrium is no longer most of what is returned at the middle choice; rewrite section 4 and the status page");
+  // where equilibrium ends (nse4.mjs → data/nse4.json): the masses, the elements before and after decay, the decay's energy
+  const N4 = J("nse4.json"), lo = (k) => Math.min(...N4.runs.map(k)), hi = (k) => Math.max(...N4.runs.map(k));
+  if (N4.open.alpha.length || N4.open.fission.length || N4.open.proton.length) throw new Error("nse4: a decay other than β is open where the equilibrium share sits; rewrite section 4");
+  Object.assign(t, { nseA: `${N4.massRange[0]}–${N4.massRange[1]}`, nseBefore: `${lo((r) => r.band80[0])}–${hi((r) => r.band80[1])}`, nseAfter: `${lo((r) => r.afterDecay.band80[0])}–${hi((r) => r.afterDecay.band80[1])}`,
+    nseMeV: sig(N4.runs.reduce((a, r) => a + r.decayMeVperNucleon, 0) / N4.runs.length) });
   const ladS = new Set(Y.yields.map((y) => y.s)), short = Y.stars.filter((x) => ladS.has(x.s) && x.life < 30), reached = short.filter((x) => x.lifeFlag === "reached"), carried = short.filter((x) => x.lifeFlag !== "reached");
   Object.assign(t, { yN: String(Y.stars.filter((x) => ladS.has(x.s)).length), yNs: ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"][ladS.size], yShort: String(short.length), yReached: String(reached.length), yCarried: String(carried.length), yXcMax: f(Math.max(...carried.map((x) => x.XcEnd)), 2) });
   return t;
@@ -228,7 +234,7 @@ function methodNumbers() {
   const src = (rel) => readFileSync(path.join(here, rel), "utf8"), grab = (rel, re, what) => { const m = src(rel).match(re); if (!m) throw new Error(`methods: ${what} not found in ${rel}`); return m[1]; };
   const ev = "../../atom/tools/evolve.mjs", y4 = "../../fusion/tools/yields4.mjs", list = (a) => (a.length < 3 ? a.join(" and ") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`);
   const arr = (rel, name) => JSON.parse(grab(rel, new RegExp(`for \\(const ${name} of (\\[[^\\]]+\\])`), `the ${name} choices`));
-  const nq = +grab(ev, /const NQ = (\d+)/, "NQ"), bal = +grab(ev, /BALTOL = \+\(process\.env\.BALTOL \?\? ([\d.]+)\)/, "BALTOL");
+  const nq = +grab(ev, /const NQ = (?:\+\(args\.find\(\(a\) => a\.startsWith\("nq="\)\)\?\.slice\(3\) \?\? )?(\d+)/, "NQ"), bal = +grab(ev, /BALTOL = \+\(process\.env\.BALTOL \?\? ([\d.]+)\)/, "BALTOL");
   const four = grab(ev, /(Tburn: [^,]+, loose: [^,]+, fit: [^,]+),/, "the 4D world's constants"), tb = +four.match(/Tburn: ([\d.e+-]+)/)[1], lo = +four.match(/loose: ([\d.e+-]+)/)[1], fit4 = +four.match(/fit: ([\d.]+)/)[1];
   const fit3 = +grab("../../atom/js/mainseq.js", /opts\.fit \?\? ([\d.]+)/, "ours' fit"), settle = +grab(ev, /settle: \+\(kv\.settle \?\? ([\d.e+]+)\)/, "the 4D settle");
   const sci = (x) => { const e = Math.floor(Math.log10(x)), m = x / 10 ** e; return `${m === 1 ? "" : `${+m.toPrecision(3)} × `}10${String(e).replace("-", "⁻").replace(/\d/g, (d) => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d])}`; };
@@ -272,6 +278,9 @@ function ageNumbers() {
 const PCHECKS = {
   ash4Heavy: () => ash4Numbers().ashA,
   yields4P: () => yields4Numbers().yPA,
+  // the share of p burnt to equilibrium at s 1.5152, middle choice (alpha 2.35, g 1.25, w 3%, f 100, stars dying within 30 Gyr)
+  yieldsEquilibriumMid: () => { const y = J("yields4.json").yields.find((x) => x.s === 1.5152 && x.alpha === 2.35 && x.g === 1.25 && x.w === 0.03 && x.f === 100 && x.tg === 30); return `${Math.round(100 * (y.mix.iron ?? 0))}%`; },
+  nseBandAfter: () => { const r = J("nse4.json").runs; return `${Math.min(...r.map((x) => x.afterDecay.band80[0]))}–${Math.max(...r.map((x) => x.afterDecay.band80[1]))}`; },
   egravOurs: () => { const o = J("egrav.json").ours; return `${o.sun.maxAbsPct.toPrecision(2)}/${o.m2.maxAbsPct.toPrecision(2)}`; },
   ages4Half: () => { const S = J("ages4.json").summary; return `${S.halfMin.toFixed(1)}–${S.halfMax.toFixed(0)}`; },
   opalSunRho: () => J("mistcheck.json").sets.opal.sun457.rhoc,

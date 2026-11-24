@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="e1e328f33200f90e4e4d82c96ffddebc656d036eb6da9dcd2745a3832df2c31a" />
+<meta name="source-sha256" content="fa62d4e4d0b3fa89ed8e4ceba5c512e82fe0695574a09f167bfc52c747933664" />
 <title>Paper 2 · Supplement S1: how the model was built, and what each stage changed</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -30,7 +30,7 @@ within two days, and only the last of those rests on something that
 cannot move: a variational bound.</p>
 <p>Second, a sequence of improvements can look like tuning until the
 answer looks right. Against that, each stage below states whether a
-decision rule was fixed before its results came in. 12 of the 14 stages
+decision rule was fixed before its results came in. 13 of the 15 stages
 had none: their results were read as they came. That is said plainly
 rather than reconstructed after the fact.</p>
 <p><strong>What enters this record.</strong> A stage enters when it
@@ -40,7 +40,7 @@ way are not stages; they are in the code’s history. Each stage lists
 what it replaced and by what, the runs behind it, what moved (with the
 earlier value and where it was recorded), and what held. The earlier
 values are historical: by their nature they are no longer in the data.
-Of the 41 entries, 18 are marked ✓: the value given is recomputed from
+Of the 43 entries, 20 are marked ✓: the value given is recomputed from
 the committed data each time the paper is built, and the build stops if
 they disagree. 0 marked ⧗ waits on a run in progress.</p>
 <h3 id="s1.1-proton-proton-computed-2026-11-11">S1.1 Proton + proton
@@ -689,7 +689,63 @@ stays most of it ✓</td>
 </tr>
 </tbody>
 </table>
-<h3 id="s1.13-the-energy-of-contraction-2026-11-21">S1.13 The energy of
+<h3 id="s1.13-where-an-exploding-cores-ash-goes-2026-11-24">S1.13 Where
+an exploding core’s ash goes (2026-11-24)</h3>
+<p><strong>Replaced:</strong> an exploding core’s burn shares taken from
+nuclei.mjs explode’s row nearest the core’s paper mass (rows up to 1.1
+M_Ch: cores that cannot stand above the limit, contracting hot to
+ignition at lower density), and the share burnt to equilibrium placed on
+the Minnesota drop’s single most bound nucleus (element 137, mass 274);
+the iron near our strength came out 23% / 47% / 24% of p at g 1 / 1.25 /
+1.5, not monotonic, and the rock row most of the rest.
+<strong>By:</strong> every exploding core burnt as explode’s core at the
+limit (its 0.9999 row): a 4D core reaches its ash’s ignition temperature
+only within 4 × 10⁻⁴ of the Chandrasekhar mass, at ~7 × 10²⁷ kg/m⁴
+(electron Fermi momentum ~50 m_e c, ours ~10), so it burns 97–100% to
+equilibrium at explode’s f 30–100 (calibrated on ours); the rock row
+takes over only at f ~10⁴–10⁵ (scan, 2026-11-24). Equilibrium spread by
+fusion/tools/nse4.mjs: 4D nuclear statistical equilibrium on the trusted
+MN s 1.5152 b 1.4 drop (Y_e 0.5, ground states, helium-4 at its computed
+binding) at that density over f and a declared freeze-out 5–10 GK, then
+β-decay at fixed mass to the most bound charge (m_n − m_H ours,
+declared); no alpha decay, fission or proton emission open on the masses
+that carry it. The same at-the-limit row in nuclei.mjs cores (the book’s
+chapter 15 table). yields4.mjs on the same inputs reproduced the
+published yields4.json byte for byte before the change..
+<strong>Runs:</strong>
+<code>sandbox: nse4.mjs (6 conditions); nuclei.mjs explode's f scan at the limit; yields4.mjs on the bake folder's 40 G 1e-17 ladder stars; nuclei.mjs cores on the restored cache, spliced into nucleidata.js</code>.</p>
+<p><strong>Decision rule:</strong> none was fixed in advance; the
+stage’s results were read as they came.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>what moved</th>
+<th>before</th>
+<th>after</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>what exploding cores return near our strength</td>
+<td>the rock row and this world’s iron in comparable amounts, the iron
+at element 137</td>
+<td>almost all equilibrium (the rest light ash from winds), the rock row
+~1% ✓</td>
+</tr>
+<tr class="even">
+<td>where the equilibrium share ends</td>
+<td>one nucleus, element 137 (mass 274)</td>
+<td>a band: elements 132–139 at equilibrium, decayed to 116–122 (mass
+253–290) ✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="s1.14-the-energy-of-contraction-2026-11-21">S1.14 The energy of
 contraction (2026-11-21)</h3>
 <p><strong>Replaced:</strong> stars in complete equilibrium: every
 shell’s light from its burning alone, no energy from contraction, so two
@@ -750,7 +806,7 @@ stirred core re-forms, which is open ✓</td>
 </tr>
 </tbody>
 </table>
-<h3 id="s1.14-the-liquid-drop-checked-2026-11-22">S1.14 The liquid drop,
+<h3 id="s1.15-the-liquid-drop-checked-2026-11-22">S1.15 The liquid drop,
 checked (2026-11-22)</h3>
 <p><strong>Replaced:</strong> the heavy end of 4D’s burning
 (equilibrium’s end, the stable line, how heavy a stable nucleus gets)

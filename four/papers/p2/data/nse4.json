@@ -1,0 +1,206 @@
+{
+ "about": "fusion/tools/nse4.mjs: an exploding 4D core's equilibrium share, by element: 4D nuclear statistical equilibrium on the trusted MN s 1.5152 b 1.4 drop (Y_e 0.5, ground states, helium-4 at its computed binding) at the exploding core's ignition density over f 30 and 100 and a declared freeze-out 5–10 GK, then β-decay at fixed A to the most bound charge (m_n − m_H 0.782 MeV, ours, declared). preDecay / postDecay: mass fraction of the heavy nuclei by element, the mean over the six conditions.",
+ "drop": {
+  "force": "MN",
+  "s": 1.5152,
+  "b": 1.4
+ },
+ "helium4": 73.06,
+ "rhoIgnition": 6.932e+27,
+ "oursA56stableZ": 25,
+ "f": [
+  30,
+  100
+ ],
+ "T": [
+  5000000000,
+  7000000000,
+  10000000000
+ ],
+ "runs": [
+  {
+   "f": 30,
+   "T": 5000000000,
+   "rho": 2.311e+26,
+   "light": 0,
+   "helium4": 0,
+   "heavy": 1,
+   "meanZ": 136.4,
+   "band80": [
+    134,
+    139
+   ],
+   "afterDecay": {
+    "meanZ": 119.3,
+    "band80": [
+     117,
+     121
+    ]
+   },
+   "decayMeVperNucleon": 1.508
+  },
+  {
+   "f": 30,
+   "T": 7000000000,
+   "rho": 2.311e+26,
+   "light": 0,
+   "helium4": 0,
+   "heavy": 1,
+   "meanZ": 136.2,
+   "band80": [
+    133,
+    139
+   ],
+   "afterDecay": {
+    "meanZ": 119.1,
+    "band80": [
+     117,
+     121
+    ]
+   },
+   "decayMeVperNucleon": 1.505
+  },
+  {
+   "f": 30,
+   "T": 10000000000,
+   "rho": 2.311e+26,
+   "light": 0,
+   "helium4": 0,
+   "heavy": 1,
+   "meanZ": 135.8,
+   "band80": [
+    133,
+    139
+   ],
+   "afterDecay": {
+    "meanZ": 118.9,
+    "band80": [
+     116,
+     122
+    ]
+   },
+   "decayMeVperNucleon": 1.501
+  },
+  {
+   "f": 100,
+   "T": 5000000000,
+   "rho": 6.932e+25,
+   "light": 0,
+   "helium4": 0,
+   "heavy": 1,
+   "meanZ": 136.4,
+   "band80": [
+    134,
+    139
+   ],
+   "afterDecay": {
+    "meanZ": 119.3,
+    "band80": [
+     117,
+     121
+    ]
+   },
+   "decayMeVperNucleon": 1.508
+  },
+  {
+   "f": 100,
+   "T": 7000000000,
+   "rho": 6.932e+25,
+   "light": 0,
+   "helium4": 0,
+   "heavy": 1,
+   "meanZ": 136.1,
+   "band80": [
+    133,
+    139
+   ],
+   "afterDecay": {
+    "meanZ": 119.1,
+    "band80": [
+     117,
+     121
+    ]
+   },
+   "decayMeVperNucleon": 1.505
+  },
+  {
+   "f": 100,
+   "T": 10000000000,
+   "rho": 6.932e+25,
+   "light": 0,
+   "helium4": 0,
+   "heavy": 1,
+   "meanZ": 135.8,
+   "band80": [
+    132,
+    139
+   ],
+   "afterDecay": {
+    "meanZ": 118.8,
+    "band80": [
+     116,
+     122
+    ]
+   },
+   "decayMeVperNucleon": 1.5
+  }
+ ],
+ "preDecay": {
+  "124": 0.000002,
+  "125": 0.00001,
+  "126": 0.000046,
+  "127": 0.000182,
+  "128": 0.000637,
+  "129": 0.001985,
+  "130": 0.005547,
+  "131": 0.013964,
+  "132": 0.031576,
+  "133": 0.063152,
+  "134": 0.108735,
+  "135": 0.156323,
+  "136": 0.182882,
+  "137": 0.17129,
+  "138": 0.127744,
+  "139": 0.076285,
+  "140": 0.037088,
+  "141": 0.015067,
+  "142": 0.00527,
+  "143": 0.001627,
+  "144": 0.000449,
+  "145": 0.000111,
+  "146": 0.000024,
+  "147": 0.000005
+ },
+ "postDecay": {
+  "109": 0.000006,
+  "110": 0.000023,
+  "111": 0.00019,
+  "112": 0.000521,
+  "113": 0.003069,
+  "114": 0.006334,
+  "115": 0.027877,
+  "116": 0.043497,
+  "117": 0.131407,
+  "118": 0.139846,
+  "119": 0.246648,
+  "120": 0.153478,
+  "121": 0.154394,
+  "122": 0.051553,
+  "123": 0.031531,
+  "124": 0.006363,
+  "125": 0.002722,
+  "126": 0.000396,
+  "127": 0.000129,
+  "128": 0.000016,
+  "129": 0.000001
+ },
+ "massRange": [
+  253,
+  290
+ ],
+ "open": {
+  "alpha": [],
+  "fission": [],
+  "proton": []
+ }
+}

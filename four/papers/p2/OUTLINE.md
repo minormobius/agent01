@@ -175,7 +175,10 @@ a carried rate; where the climb ends rests on A2's masses.
     band. **rough.** **2026-11-18:** `yields4.mjs`'s net yield p (metals returned per mass locked; closed-box
     Z = p ln(1/μ)) on the aged ladders (`data/yields4.json`, section 4's "What they give back", provenance `yields4`): over
     every declared choice p 0.042–0.17 at s ≤ 1.55, 0.011–0.086 at 1.6–1.65, ≤ 0.027 at 1.7, ≤ 0.0015 at 1.8; at the
-    middle choice 73–95% the rock row, 3–5% light ash (13–29% with 30% winds). All strengths on one mass range,
+    middle choice 73–95% the rock row, 3–5% light ash (13–29% with 30% winds). **Revised 2026-11-24 (stage
+    `equilibrium`):** every exploding core burns as one at the limit, so 95–98% of p at the middle choice is
+    equilibrium and the rock row ~1%; equilibrium is a band (elements 132–139, decayed to 116–122, `nse4.mjs`), not one
+    nucleus. p itself is unchanged. All strengths on one mass range,
     0.25–2.5 M_Ch (a first version took each ladder's own span and gave p > 1 at s 1.55). **computed on declared
     endings.** The one-zone galaxies are in the data; their gas's Z mostly measures the gas left, so p is quoted.
     What metals do to 4D opacity is computed (`fusion/tools/metals4.mjs` → `data/metals4.json`, the book's ions 4–23):

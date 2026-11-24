@@ -15,14 +15,14 @@ artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was foun
 good within two days, and only the last of those rests on something that cannot move: a variational bound.
 
 Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
-states whether a decision rule was fixed before its results came in. 12 of the 14 stages had
+states whether a decision rule was fixed before its results came in. 13 of the 15 stages had
 none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
 
 **What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 41 entries, 18 are marked ✓: the value given is recomputed from the committed data each
+data. Of the 43 entries, 20 are marked ✓: the value given is recomputed from the committed data each
 time the paper is built, and the build stops if they disagree. 0 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
@@ -196,7 +196,18 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 |---|---|
 | undefined | undefined |
 
-### S1.13 The energy of contraction (2026-11-21)
+### S1.13 Where an exploding core's ash goes (2026-11-24)
+
+**Replaced:** an exploding core's burn shares taken from nuclei.mjs explode's row nearest the core's paper mass (rows up to 1.1 M_Ch: cores that cannot stand above the limit, contracting hot to ignition at lower density), and the share burnt to equilibrium placed on the Minnesota drop's single most bound nucleus (element 137, mass 274); the iron near our strength came out 23% / 47% / 24% of p at g 1 / 1.25 / 1.5, not monotonic, and the rock row most of the rest. **By:** every exploding core burnt as explode's core at the limit (its 0.9999 row): a 4D core reaches its ash's ignition temperature only within 4 × 10⁻⁴ of the Chandrasekhar mass, at ~7 × 10²⁷ kg/m⁴ (electron Fermi momentum ~50 m_e c, ours ~10), so it burns 97–100% to equilibrium at explode's f 30–100 (calibrated on ours); the rock row takes over only at f ~10⁴–10⁵ (scan, 2026-11-24). Equilibrium spread by fusion/tools/nse4.mjs: 4D nuclear statistical equilibrium on the trusted MN s 1.5152 b 1.4 drop (Y_e 0.5, ground states, helium-4 at its computed binding) at that density over f and a declared freeze-out 5–10 GK, then β-decay at fixed mass to the most bound charge (m_n − m_H ours, declared); no alpha decay, fission or proton emission open on the masses that carry it. The same at-the-limit row in nuclei.mjs cores (the book's chapter 15 table). yields4.mjs on the same inputs reproduced the published yields4.json byte for byte before the change.. **Runs:** `sandbox: nse4.mjs (6 conditions); nuclei.mjs explode's f scan at the limit; yields4.mjs on the bake folder's 40 G 1e-17 ladder stars; nuclei.mjs cores on the restored cache, spliced into nucleidata.js`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| what exploding cores return near our strength | the rock row and this world's iron in comparable amounts, the iron at element 137 | almost all equilibrium (the rest light ash from winds), the rock row ~1% ✓ |
+| where the equilibrium share ends | one nucleus, element 137 (mass 274) | a band: elements 132–139 at equilibrium, decayed to 116–122 (mass 253–290) ✓ |
+
+### S1.14 The energy of contraction (2026-11-21)
 
 **Replaced:** stars in complete equilibrium: every shell's light from its burning alone, no energy from contraction, so two runs (s 1.5152, G 1e-14 and 1e-11) stopped in the oitrogen stall. **By:** ε_grav = -du/dt + (P/ρ²)dρ/dt with u = (d/2)P/ρ (ideal ions, non-relativistic Fermi–Dirac electrons), implicit in each trial's ρ and P against a reference model at least 1% away in central density (evolve.mjs grav=1, behind a switch, so no quoted result moved); checked on ours first. Three simpler forms failed and are recorded in the code: a grid reference (its interpolation noise swamped the burning), a one-step baseline (the shooting went stiff) and a lagged source (noise). **Runs:** `sandbox: ours 1 and 2 M☉ on OPAL with and without; the two stalled analogues resumed from their checkpoints`, `evolve4-14 (one star past exhaustion)`, `evolve4-21 (the same star on into a red giant, by relaxation with the envelope's partial-ionization gas in the structure; cut at the runner's deadline with its energy books 0.76–0.97, the burning shell under-resolved: provisional)`.
 
@@ -211,7 +222,7 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 | undefined | undefined |
 | undefined | undefined |
 
-### S1.14 The liquid drop, checked (2026-11-22)
+### S1.15 The liquid drop, checked (2026-11-22)
 
 **Replaced:** the heavy end of 4D's burning (equilibrium's end, the stable line, how heavy a stable nucleus gets) read off the trusted liquid drops untested: 'element 103–137, this world's iron'; the abundance page placed its equilibrium share at element 137. **By:** fusion/tools/dropcheck.mjs: the drop built by nuclei.mjs bake's construction (through its own exports, reproducing the baked drops exactly) for ours and held to AME2020's measured masses; the trusted 4D drop held to the network's light nuclei (the adopted ladder model, mass 8–32) beside ours' drop against our ladder; the heavy end with the carried surface thickness ×0.7–1.3 and the three-nucleon range; and a second route, a drop fitted only to light N = Z nuclei, tested on ours and run on 4D's ladder. A first-generation equilibrium share placed on one nucleus was also wrong in itself: equilibrium makes about ten elements (the book's tools/nse.mjs, and a sandbox repeat). **Runs:** `sandbox: dropcheck.mjs on AME2020 (mass_1.mas20)`.
 

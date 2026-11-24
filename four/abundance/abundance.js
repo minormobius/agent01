@@ -105,19 +105,19 @@ function lists(S) {
 
 /* how a 4D element was made, at the current choice */
 function madeOf(z4, y) { const out = [], ash = y.ash[z4] ?? 0, tot = y.by[z4] ?? 0; if (!(tot > 0)) return "none made at this choice";
-  if (z4 === A.peak.Z && y.groups.peak > 0) out.push(`equilibrium's end in exploding cores (${pct(Math.min(1, y.groups.peak / tot))} of it)`);
-  const src = Object.entries(A.products).filter(([, p]) => p[z4]).map(([s]) => +s); if (src.length && tot - ash - (z4 === A.peak.Z ? y.groups.peak : 0) > 1e-6) out.push(`the rock row: ${src.map((s) => name4(s).split(" (")[0] + (A.rows.includes(s) ? "" : "*")).join(" or ")} fusing with itself in an exploding core`);
+  const eq = (A.peak.spread?.[z4] ?? 0) * y.groups.peak; if (eq > 1e-6) out.push(`equilibrium in exploding cores, decayed to the stable line (${pct(Math.min(1, eq / tot))} of it)`);
+  const src = Object.entries(A.products).filter(([, p]) => p[z4]).map(([s]) => +s); if (src.length && tot - ash - eq > 1e-6) out.push(`the rock row: ${src.map((s) => name4(s).split(" (")[0] + (A.rows.includes(s) ? "" : "*")).join(" or ")} fusing with itself in an exploding core`);
   if (ash > 1e-6) out.push(`ash returned unburnt (${pct(ash / tot)} of it)`); return out.join("; ") || "—"; }
 function detail() {
   const k = hover ?? pinned, y = choice(), S = shares(y), D = $("detail");
-  if (!k) { D.innerHTML = `<h4>Point at or tap an element</h4>On our table, a square's top half is the Sun and its bottom half 4D's counterpart. The two largest of the Sun's metals are <b class="d3">oxygen</b> and <b class="d3">carbon</b>. At our strength the first 4D stars make neither's counterpart (pxygen, darbon) in any amount. They make the row below it, and an element far down the table.`; return; }
+  if (!k) { D.innerHTML = `<h4>Point at or tap an element</h4>On our table, a square's top half is the Sun and its bottom half 4D's counterpart. The two largest of the Sun's metals are <b class="d3">oxygen</b> and <b class="d3">carbon</b>. At our strength the first 4D stars make neither's counterpart (pxygen, darbon) in any amount. Their metals are almost all a band of elements far down the table, around 116–122, where exploding cores end.`; return; }
   if (k.w === 3) { const z = k.z, z4 = fourOf.get(z), a = S.sun[z] ?? 0, c = z4 ? S.four[z4] ?? 0 : 0;
     D.innerHTML = `<h4>${cap(name3(z))}</h4><span class="d3">The Sun:</span> <b>${a > 0 ? pct(a) : "not given"}</b> of its metals${a > 0 ? "" : " (no value in Asplund et al.'s table 1, or not a metal)"}.<br>` +
       (z4 ? `<span class="d4">4D's counterpart</span>, ${name4(z4)}: <b>${c > 0 ? pct(c) : "none"}</b> of the first stars' metals.${c > 0 ? ` Made as ${madeOf(z4, y)}.` : ""} <a href="../table/#${z4}" style="color: var(--text)">On the table →</a>` : "No 4D counterpart: every element of ours has one, except where 4D's longer blocks put two places where ours has one.");
   } else { const z = k.z, c = S.four[z] ?? 0, o = ourOf(z), a = o ? S.sun[o] ?? 0 : 0;
     D.innerHTML = `<h4>${cap(name4(z))}</h4><span class="d4">The first 4D stars:</span> <b>${c > 0 ? pct(c) : "none"}</b> of their metals.${c > 0 ? ` Made as ${madeOf(z, y)}.` : ""}<br>` +
       (o ? `Our counterpart, ${name3(o)}: <span class="d3">${a > 0 ? pct(a) : "no value"}</span> of the Sun's metals.` : `<span class="warn">New:</span> no counterpart in our world (${N4.get(z)?.why ?? "4D's longer blocks"}).`) +
-      `${z === A.peak.Z ? `<br><br>This is where the page puts equilibrium's end: the liquid drop's most tightly bound nucleus, mass ${A.peak.A}, ${A.peak.perNucleon} MeV a nucleon. The four drops computed put it at elements ${A.peak.range[0]}–${A.peak.range[1]}.` : ""} <a href="../table/#${z}" style="color: var(--text)">On the table →</a>`; }
+      `${(A.peak.spread?.[z] ?? 0) > 0.005 ? `<br><br>Part of the band where an exploding core's equilibrium ends: made proton-rich around element ${A.peak.band.before[0]}–${A.peak.band.before[1]} and decayed here; ${pct(A.peak.spread[z])} of that band is this element.` : ""} <a href="../table/#${z}" style="color: var(--text)">On the table →</a>`; }
 }
 function mark() { const k = hover ?? pinned; for (const g of ["ours", "pt4", "tray"]) for (const b of $(g).children) { const z = +b.dataset.z, w = +b.dataset.w;
   b.classList.toggle("on", !!k && ((w === k.w && z === k.z) || (k.w === 3 && w === 4 && fourOf.get(k.z) === z) || (k.w === 4 && w === 3 && ourOf(k.z) === z))); } }
@@ -127,5 +127,7 @@ function draw() {
   try { history.replaceState(null, "", "#" + new URLSearchParams({ s: st.s, g: st.g, alpha: st.alpha, w: st.w, f: st.f, tg: st.tg, view: st.view }).toString()); } catch {}
 }
 $("prodnote").textContent = `an ash element burnt to the rock row becomes what the liquid-drop model gives for it fused with itself, after the nucleons it sheds: ${Object.entries(A.products).filter(([s]) => A.rows.includes(+s)).map(([s, p]) => `${s} → ${Object.keys(p).join("/")}`).join(", ")}; an element heavy computes no row for takes the nearest row's products, moved by twice the difference in Z (element 15 between two rows; below element 8, past them, marked * where they appear)`;
-$("peaknote").textContent = `element ${A.peak.Z} (mass ${A.peak.A}) for the Minnesota force at our strength, and between elements ${A.peak.range[0]} and ${A.peak.range[1]} across the four drops computed; through the table's names that is ${name4(A.peak.Z)}, whose counterpart is our ${ourOf(A.peak.Z) ? name3(ourOf(A.peak.Z)) : "nothing"}`;
+$("peaknote").textContent = `a band of nuclei of mass ${A.peak.massRange[0]}–${A.peak.massRange[1]}, most of it elements ${A.peak.band.before[0]}–${A.peak.band.before[1]}, about as many protons as neutrons (for the Minnesota force at our strength; nothing is free, neither nucleons nor helium-4)`;
+$("decaynote").textContent = `${A.peak.decayMeV}`;
+$("bandnote").textContent = `mostly as elements ${A.peak.band.after[0]}–${A.peak.band.after[1]} (on average ${A.peak.meanZ}; through the table's names ${name4(Math.round(A.peak.meanZ))}${ourOf(Math.round(A.peak.meanZ)) ? `, our ${name3(ourOf(Math.round(A.peak.meanZ)))}'s counterpart` : ", which has no counterpart in ours"}). Neither alpha decay nor fission is open there`;
 grids(); scale(); draw();

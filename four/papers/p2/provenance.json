@@ -411,6 +411,33 @@
    ]
   },
   {
+   "id": "equilibrium",
+   "date": "2026-11-24",
+   "title": "Where an exploding core's ash goes",
+   "replaced": "an exploding core's burn shares taken from nuclei.mjs explode's row nearest the core's paper mass (rows up to 1.1 M_Ch: cores that cannot stand above the limit, contracting hot to ignition at lower density), and the share burnt to equilibrium placed on the Minnesota drop's single most bound nucleus (element 137, mass 274); the iron near our strength came out 23% / 47% / 24% of p at g 1 / 1.25 / 1.5, not monotonic, and the rock row most of the rest",
+   "by": "every exploding core burnt as explode's core at the limit (its 0.9999 row): a 4D core reaches its ash's ignition temperature only within 4 × 10⁻⁴ of the Chandrasekhar mass, at ~7 × 10²⁷ kg/m⁴ (electron Fermi momentum ~50 m_e c, ours ~10), so it burns 97–100% to equilibrium at explode's f 30–100 (calibrated on ours); the rock row takes over only at f ~10⁴–10⁵ (scan, 2026-11-24). Equilibrium spread by fusion/tools/nse4.mjs: 4D nuclear statistical equilibrium on the trusted MN s 1.5152 b 1.4 drop (Y_e 0.5, ground states, helium-4 at its computed binding) at that density over f and a declared freeze-out 5–10 GK, then β-decay at fixed mass to the most bound charge (m_n − m_H ours, declared); no alpha decay, fission or proton emission open on the masses that carry it. The same at-the-limit row in nuclei.mjs cores (the book's chapter 15 table). yields4.mjs on the same inputs reproduced the published yields4.json byte for byte before the change.",
+   "runs": [
+    "sandbox: nse4.mjs (6 conditions); nuclei.mjs explode's f scan at the limit; yields4.mjs on the bake folder's 40 G 1e-17 ladder stars; nuclei.mjs cores on the restored cache, spliced into nucleidata.js"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "what exploding cores return near our strength",
+     "before": "the rock row and this world's iron in comparable amounts, the iron at element 137",
+     "after": "almost all equilibrium (the rest light ash from winds), the rock row ~1%",
+     "check": "yieldsEquilibriumMid",
+     "now": "98%"
+    },
+    {
+     "claim": "where the equilibrium share ends",
+     "before": "one nucleus, element 137 (mass 274)",
+     "after": "a band: elements 132–139 at equilibrium, decayed to 116–122 (mass 253–290)",
+     "check": "nseBandAfter",
+     "now": "116–122"
+    }
+   ]
+  },
+  {
    "id": "egrav",
    "date": "2026-11-21",
    "title": "The energy of contraction",

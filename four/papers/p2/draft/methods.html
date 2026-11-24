@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="1cd544d0cfcd45d3d07ee35b80660b5e15fde31c9a4dc70a7bb1107f393c3113" />
+<meta name="source-sha256" content="86893ee74003f05708bb480bd91c8567215badf0853f680a2c812ce50e8c2c1d" />
 <title>Paper 2 · How the stars are modelled</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -281,13 +281,30 @@ as a dead remnant, and the star returns its envelope plus a share
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>w</mi><annotation encoding="application/x-tex">w</annotation></semantics></math>
 = 3% and 30% of the core’s ash by winds. A core that reaches the
 Chandrasekhar mass explodes and returns everything, its ash burnt as
-<code>atom/tools/nuclei.mjs explode</code> finds: this world’s iron, the
-rock row (elements 13–23) or unburnt, by how hot each shell gets. That
-calculation’s one free number, how far the core expands before the
-burning reaches it
+<code>atom/tools/nuclei.mjs explode</code> finds: equilibrium, the rock
+row (elements 13–23) or unburnt, by how hot each shell gets, for a core
+at the limit itself (a 4D core reaches its ash’s ignition temperature
+only within a few parts in ten thousand of it, so every core that grows
+to the limit ignites there). That calculation’s one free number, how far
+the core expands before the burning reaches it
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
-= 30 and 100), is calibrated on our own exploding white dwarfs.
-<strong>Code:</strong> <code>fusion/tools/yields4.mjs</code>.</p>
+= 30 and 100), is calibrated on our own exploding white dwarfs; the rock
+row would take over only at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+a hundred to a thousand times larger. Equilibrium’s products: 4D nuclear
+statistical equilibrium (Saha in four dimensions, ground states,
+Y<sub>e</sub> = 0.5) on the Minnesota liquid drop at
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>s</mi><annotation encoding="application/x-tex">s</annotation></semantics></math>
+= 1.5152 with helium-4 at its computed binding, at the exploding core’s
+density over
+<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>f</mi><annotation encoding="application/x-tex">f</annotation></semantics></math>
+and a declared freeze-out of 5–10 billion K, then β-decay at fixed mass
+to the most bound charge, the neutron–hydrogen mass difference ours
+(0.782 MeV, declared). <strong>Checked:</strong> the same construction
+with our textbook drop puts mass 56’s stable end at charge 25 (iron is
+26; the drop has no pairing term). <strong>Code:</strong>
+<code>fusion/tools/yields4.mjs</code>,
+<code>fusion/tools/nse4.mjs</code>.</p>
 <h2 id="what-the-stars-give-back">9 What the stars give back</h2>
 <p><strong>The net yield</strong>
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>p</mi><annotation encoding="application/x-tex">p</annotation></semantics></math>:
@@ -325,16 +342,18 @@ cross-section of its own level from the book’s dipole rate, scaled to
 the subshell’s edge: in four dimensions it falls as the fourth power of
 the effective charge, ours as the second. That is why the first stars’
 light ash matters so little; the rock row’s heavier ions keep inner
-electrons that still absorb strongly in a star’s outer layers. The ions’
-free–free is the classical four-dimensional form; in a star whose
-composition already holds the ions (their free–free counted with
-hydrogen’s and helium’s), only their bound–free is added.
-<strong>Checked:</strong> every neutral’s first ionization equals the
-book’s periodic table; the scaled shapes match direct calculation; and
-the same construction for our world, with Kramers’s law in place of the
-exact shapes, supplies about half of what OPAL’s metals add in the Sun,
-the missing half being the spectral lines it leaves out (section 4).
-<strong>Code:</strong> <code>fusion/tools/ions3.mjs</code> (→
+electrons that still absorb strongly in a star’s outer layers. The ions
+stop at element 23, so the heavy equilibrium band the exploding stars
+return (elements around 116–122) is not covered. The ions’ free–free is
+the classical four-dimensional form; in a star whose composition already
+holds the ions (their free–free counted with hydrogen’s and helium’s),
+only their bound–free is added. <strong>Checked:</strong> every
+neutral’s first ionization equals the book’s periodic table; the scaled
+shapes match direct calculation; and the same construction for our
+world, with Kramers’s law in place of the exact shapes, supplies about
+half of what OPAL’s metals add in the Sun, the missing half being the
+spectral lines it leaves out (section 4). <strong>Code:</strong>
+<code>fusion/tools/ions3.mjs</code> (→
 <code>atom/js/iondata4.js</code>),
 <code>fusion/tools/photoshape.mjs</code>,
 <code>atom/js/metals.js</code>, <code>fusion/tools/metals4.mjs</code>.

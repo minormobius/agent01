@@ -8,8 +8,8 @@
        its share past helium; a dashed outline marks one whose life is carried on from a cut run. From s 1.75 up the stars
        burn hydrogen to helium and little further.
    (b) The net yield p (elements past helium returned per unit of mass locked away) on a log axis: the band over every
-       declared choice, the middle choice as a line, and under each strength the middle choice's make-up (rock row,
-       iron, the light ash the stars held). Writes fates.svg beside it.
+       declared choice, the middle choice as a line, and under each strength the middle choice's make-up (equilibrium,
+       the rock row, the light ash the stars held). Writes fates.svg beside it.
      node four/papers/p2/figures/fates.mjs */
 import { readFileSync, writeFileSync } from "node:fs";
 const Y = JSON.parse(readFileSync(new URL("../data/yields4.json", import.meta.url), "utf8"));
@@ -51,7 +51,7 @@ s += `<text class="lb" x="${(X(1.75) + R) / 2}" y="${Ym(0.42)}" text-anchor="mid
 const lx = X(1.575);
 s += `<text class="lb" x="${lx}" y="${Ym(0.35)}" text-anchor="middle" fill="#444">outlives 30 Gyr: mass locked away</text>`;
 s += `<text class="lb" x="${X(1.675)}" y="${Ym(Math.sqrt(1.25 * 1.6)) + 4}" text-anchor="middle" fill="#0b4f7a">dies: returns its envelope</text>`;
-s += `<text class="lb" x="${X(1.625)}" y="${Ym(3.3)}" text-anchor="middle" fill="#7a2e00" font-weight="600">explodes: returns the rock row and iron</text>`;
+s += `<text class="lb" x="${X(1.625)}" y="${Ym(3.3)}" text-anchor="middle" fill="#7a2e00" font-weight="600">explodes: returns its equilibrium band</text>`;
 // the stars
 for (const sv of S) for (const x of lad(sv)) { const c = x.choices.find((k) => k.g === 1.25 && k.w === 0.03 && k.f === 100), carried = x.lifeFlag !== "reached" && x.life < 30;
   s += `<circle cx="${X(sv).toFixed(1)}" cy="${Ym(x.m).toFixed(1)}" r="6" fill="${shade(x.ashAll)}" stroke="${x.life >= 30 ? "#777" : c.fate === "explodes" ? C.boomE : C.deadE}" stroke-width="2"${carried ? ' stroke-dasharray="2.5 2"' : ""}/>`; }
@@ -93,12 +93,12 @@ key((y) => `<line x1="${kx}" x2="${kx + 18}" y1="${y}" y2="${y}" stroke="${C.boo
 s += `<text x="${kx}" y="${ky + 6}" font-size="10" fill="#555"><tspan x="${kx}">α 2.35, g 1.25, winds 3%,</tspan><tspan x="${kx}" dy="12">stars dying within 30 Gyr</tspan></text>`;
 // the make-up strip
 const bw = 40;
-for (const [sv, y] of mid) { let x = X(sv) - bw / 2; const parts = [["rock", y.mix.rock ?? 0], ["iron", y.mix.iron ?? 0], ["light", light(y.mix)]], tot = parts.reduce((a, [, v]) => a + v, 0);
+for (const [sv, y] of mid) { let x = X(sv) - bw / 2; const parts = [["iron", y.mix.iron ?? 0], ["rock", y.mix.rock ?? 0], ["light", light(y.mix)]], tot = parts.reduce((a, [, v]) => a + v, 0);
   for (const [k, v] of parts) { const w = (bw * v) / tot; if (w > 0) s += `<rect x="${x.toFixed(1)}" y="${Tm}" width="${w.toFixed(1)}" height="${Hm}" fill="${C[k]}"/>`; x += w; } }
 s += `<text x="${L - 7}" y="${Tm + 12}" text-anchor="end" font-size="11" fill="#555">make-up</text>`;
 for (const sv of S) s += `<text x="${X(sv)}" y="${Tm + Hm + 16}" text-anchor="middle" fill="#555">${sv}</text>`;
 s += `<text x="${(L + R) / 2}" y="${Tm + Hm + 36}" text-anchor="middle">strength of the nucleon force, s (1.5152 nearest ours)</text>`;
-ky = Tm + 2; for (const [k, label] of [["rock", "rock row (13–23)"], ["iron", "iron"], ["light", "light ash the stars held"]]) { s += `<rect x="${kx}" y="${ky}" width="14" height="10" fill="${C[k]}"/><text x="${kx + 20}" y="${ky + 9}" font-size="11">${label}</text>`; ky += 15; }
+ky = Tm + 2; for (const [k, label] of [["iron", "equilibrium (elements ~116–122)"], ["rock", "rock row (13–23)"], ["light", "light ash the stars held"]]) { s += `<rect x="${kx}" y="${ky}" width="14" height="10" fill="${C[k]}"/><text x="${kx + 20}" y="${ky + 9}" font-size="11">${label}</text>`; ky += 15; }
 for (const sv of S) s += `<line x1="${X(sv)}" x2="${X(sv)}" y1="${Ba}" y2="${Ba + 4}" stroke="#333"/><text x="${X(sv)}" y="${Ba + 16}" text-anchor="middle" fill="#555">${sv}</text>`;
 s += `</svg>\n`;
 writeFileSync(new URL("fates.svg", import.meta.url), s);

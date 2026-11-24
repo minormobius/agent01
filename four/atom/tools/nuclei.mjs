@@ -532,14 +532,16 @@ function layers(d, c, { Q, A, mue = 2, Tign, cuts, f = 1 }) { const P = PLd[d], 
 } else if (cmd === "cores") {
   // the heavy cores, from the main sequence: a star's ash core is its stirred core (mainseqdata's qcc), grown by shell
   // burning afterwards by g = 1, 1.5 or 2 (declared). A core that reaches the Chandrasekhar mass lights its ash and
-  // explodes (runaway), burning as explode found (iron right at M_Ch, mostly the rock row a tenth above; cores past 1.1 taken
-  // as 1.1's, rough); a lighter core stays a dead star, its ash coming back only through winds, a share w = 3% or 30% of it
+  // explodes (runaway), burning as explode found at the limit itself (its 0.9999 row): a 4D core reaches its ash's
+  // ignition temperature only within 4 × 10⁻⁴ of the limit, so every core that grows to it ignites there. (Until
+  // 2026-11-24 the nearest row by the core's paper mass, up to 1.1: cores that cannot stand above the limit, contracting
+  // hot to ignition at lower density, which made "a tenth above it, mostly the rock row".) A lighter core stays a dead star, its ash coming back only through winds, a share w = 3% or 30% of it
   // (declared). Over the stars that finish within t_gal (10 billion years), weighted by our mass function or a top-heavy one:
   // what share of the heavy elements the gas gets back is this world's iron, the rock row, or unburnt hydrogen-and-helium
   // ash; which masses explode; and how soon the first explosion comes
   const MSQ = (await import("../js/mainseqdata.js")).MAINSEQ, ex = load("explode.json").rows, hb = load("hburn.json"), out = [];
   const ashZ = (Tc, rnp) => { const rs = hb.rows.filter((r) => r.rnp === rnp && !r.compact && r.s === 1.5152).sort((a, b) => a.T - b.T), r = rs.reduce((p, q) => (Math.abs(Math.log(q.T / Tc)) < Math.abs(Math.log(p.T / Tc)) ? q : p)); const [z] = Object.entries(r.mass).sort((a, b) => b[1] - a[1])[0] ?? ["10"]; return Math.max(9, Math.min(12, +z)); };
-  const burn = (Z, mc, f) => { const ms = [0.9999, 1.01, 1.05, 1.1], m = ms.reduce((p, q) => (Math.abs(q - Math.min(mc, 1.1)) < Math.abs(p - Math.min(mc, 1.1)) ? q : p)), r = ex.find((x) => x.Z === Z && x.m === m && x.f === f); return r ? { iron: (r.iron[0] + r.iron[1]) / 2, rock: (r.rock[0] + r.rock[1]) / 2, unburnt: (r.unburnt[0] + r.unburnt[1]) / 2 } : null; };
+  const burn = (Z, mc, f) => { const m = 0.9999, r = ex.find((x) => x.Z === Z && x.m === m && x.f === f); return r ? { iron: (r.iron[0] + r.iron[1]) / 2, rock: (r.rock[0] + r.rock[1]) / 2, unburnt: (r.unburnt[0] + r.unburnt[1]) / 2 } : null; };
   for (const run of MSQ.runs.filter((r) => (r.ff ?? 0) === 1 && r.rows.every((x) => x.qcc !== undefined))) {
     const rows = run.rows.slice().sort((a, b) => a.m - b.m), choices = [];
     for (const g of [1, 1.5, 2]) for (const w of [0.03, 0.3]) for (const alpha of [2.35, 1.9]) for (const f of [30, 100]) {

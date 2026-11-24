@@ -140,9 +140,16 @@ life after hydrogen, so its end is a set of stated choices. The star's **process
 touched; shell burning afterwards grows it by $g$ = 1, 1.25 and 1.5. A core that stays under the Chandrasekhar mass ends as a
 dead remnant, and the star returns its envelope plus a share $w$ = 3% and 30% of the core's ash by winds. A core that
 reaches the Chandrasekhar mass explodes and returns everything, its ash burnt as `atom/tools/nuclei.mjs explode` finds:
-this world's iron, the rock row (elements 13–23) or unburnt, by how hot each shell gets. That calculation's one free
-number, how far the core expands before the burning reaches it ($f$ = 30 and 100), is calibrated on our own exploding
-white dwarfs. **Code:** `fusion/tools/yields4.mjs`.
+equilibrium, the rock row (elements 13–23) or unburnt, by how hot each shell gets, for a core at the limit itself (a
+4D core reaches its ash's ignition temperature only within a few parts in ten thousand of it, so every core that
+grows to the limit ignites there). That calculation's one free number, how far the core expands before the burning
+reaches it ($f$ = 30 and 100), is calibrated on our own exploding white dwarfs; the rock row would take over only at $f$
+a hundred to a thousand times larger. Equilibrium's products: 4D nuclear statistical equilibrium (Saha in four
+dimensions, ground states, Y~e~ = 0.5) on the Minnesota liquid drop at $s$ = 1.5152 with helium-4 at its computed
+binding, at the exploding core's density over $f$ and a declared freeze-out of 5–10 billion K, then β-decay at fixed
+mass to the most bound charge, the neutron–hydrogen mass difference ours (0.782 MeV, declared). **Checked:** the same
+construction with our textbook drop puts mass 56's stable end at charge 25 (iron is 26; the drop has no pairing
+term). **Code:** `fusion/tools/yields4.mjs`, `fusion/tools/nse4.mjs`.
 
 ## 9 What the stars give back
 
@@ -165,7 +172,8 @@ four dimensions, $n_{q+1}n_e/n_q = 2(m_ekT/2\pi\hbar^2)^2e^{-I/kT}$, with ioniza
 (link 6's bridge). Absorption from each occupied subshell takes the exact hydrogen-like cross-section of its own level
 from the book's dipole rate, scaled to the subshell's edge: in four dimensions it falls as the fourth power of the
 effective charge, ours as the second. That is why the first stars' light ash matters so little; the rock row's heavier
-ions keep inner electrons that still absorb strongly in a star's outer layers. The ions' free–free is the classical
+ions keep inner electrons that still absorb strongly in a star's outer layers. The ions stop at element 23, so the
+heavy equilibrium band the exploding stars return (elements around 116–122) is not covered. The ions' free–free is the classical
 four-dimensional form; in a star whose composition already holds the ions (their free–free counted with hydrogen's
 and helium's), only their bound–free is added. **Checked:** every neutral's first ionization equals the book's periodic table; the scaled
 shapes match direct calculation; and the same construction for our world, with Kramers's law in place of the exact

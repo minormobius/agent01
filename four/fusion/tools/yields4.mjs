@@ -34,7 +34,12 @@ const integ = (rows, a, b) => { const out = {}; for (let i = 1; i < rows.length;
   for (const z of new Set([...Object.keys(A), ...Object.keys(B)])) { const x0 = (A[z] ?? 0) * (1 - t0) + (B[z] ?? 0) * t0, x1 = (A[z] ?? 0) * (1 - t1) + (B[z] ?? 0) * t1; out[z] = (out[z] ?? 0) + 0.5 * (x0 + x1) * (q1 - q0); } } return out; };
 const add = (a, b, k = 1) => { for (const [z, v] of Object.entries(b)) a[z] = (a[z] ?? 0) + k * v; return a; };
 const heavyOf = (o) => Object.entries(o).filter(([z]) => +z >= 3).reduce((t, [, v]) => t + v, 0);
-const EX = NUCLEI.explode.rows, exShares = (Z, mc, f) => { const zs = [...new Set(EX.map((r) => r.Z))], z = zs.reduce((p, q) => (Math.abs(q - Z) < Math.abs(p - Z) ? q : p)), ms = [...new Set(EX.map((r) => r.m))], mm = ms.reduce((p, q) => (Math.abs(q - Math.min(mc, 1.1)) < Math.abs(p - Math.min(mc, 1.1)) ? q : p)), r = EX.find((x) => x.Z === z && x.m === mm && x.f === f);
+// every exploding core burns as explode's core at the limit (its 0.9999 M_Ch row): a 4D core reaches its ash's ignition
+// temperature only within 4 × 10⁻⁴ of the limit, so a core that grows to it ignites there, however far past 1 the
+// declared growth would carry it on paper. The rows above the limit (1.01–1.1) are cores that cannot stand, contracting
+// hot to ignition at lower density; taking the nearest of them by the core's paper mass made iron 23% / 47% / 24% at
+// g 1 / 1.25 / 1.5 (2026-11-24)
+const EX = NUCLEI.explode.rows, MLIM = Math.min(...EX.map((r) => r.m)), exShares = (Z, mc, f) => { const zs = [...new Set(EX.map((r) => r.Z))], z = zs.reduce((p, q) => (Math.abs(q - Z) < Math.abs(p - Z) ? q : p)), mm = MLIM, r = EX.find((x) => x.Z === z && x.m === mm && x.f === f);
   const mid = (v) => (v[0] + v[1]) / 2, i = mid(r.iron), k = mid(r.rock), u = mid(r.unburnt), n = i + k + u; return { iron: i / n, rock: k / n, unburnt: u / n, ashZ: z }; };
 
 const stars = [];

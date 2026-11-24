@@ -358,6 +358,33 @@ for games, and this is a modelling programme with publications to come. The game
   A 388 (43 MeV/n), fission is exothermic only from Z ≈ 245, alpha decay from Z ≈ 860 (MT s 1.2292: 175, 480); ours as
   the check, 94 / 152 in A. Scratch scripts nse4.mjs, valley4.mjs, ceiling4.mjs. Correction notes are on the abundance
   page and the status page's finding 4; the rework is to come.
+  **Reworked (2026-11-24; PI: "yes do", stage `equilibrium` in provenance).** (1) **The amount, reversed from the
+  diagnosis above:** the explode model says a 4D core reaches its ash's ignition temperature (2.6–7.5 GK) only within
+  4 × 10⁻⁴ of the limit (massFor 0.99958 for every ash element), at ~7 × 10²⁷ kg/m⁴ (electron Fermi momentum ~51 m_e c;
+  ours' exploding white dwarfs ~10), so every core that grows to the limit ignites there and burns 97–100% to
+  equilibrium at f 30–100. What was wrong was the rows *above* the limit (1.01–1.1): cores that cannot stand, contracting
+  hot to ignition at lower density; nearest-row by paper mass made the rock row. Fixed in `yields4.mjs` (`exShares`: the
+  0.9999 row always) and `nuclei.mjs cores` (the book's chapter 15 table). f scan at the limit (scratch): equilibrium
+  97–100% at f 30–100, 66–97% at 10³, the rock row takes over at 10⁴–10⁵. The model fails ours' ignition by 3–4 orders
+  (lights carbon at 10⁵–10⁶ g/cm³ on the hot track; real 2–3 × 10⁹), which is why explode sets ours by hand; in 4D the
+  ignition at the limit doesn't depend on the scenario, only f carries over. (2) **The place:** `fusion/tools/nse4.mjs`
+  → `papers/p2/data/nse4.json` (minutes): 4D NSE on the trusted MN s 1.5152 b 1.4 drop at the ignition density ÷ f
+  30/100 and freeze-out 5/7/10 GK, Y_e 0.5; the share in A 253–290, elements 132–139 (80%), nucleons and helium-4
+  ~0; β-decay at fixed A to the most bound charge (m_n − m_H 0.782, ours, declared) → elements 116–122 (80%), mean
+  119, 1.5 MeV a nucleon; alpha, fission, proton emission none open on those masses. Ours' check: the textbook drop puts
+  A 56 stable at Z 25 (iron 26; no pairing term), held to one charge. `abund4.mjs` spreads the share over `postDecay`
+  (and writes the bands, mean, decay energy); the abundance page, its readout and element details say so; the
+  correction box is a short "Revised" note. (3) **Results:** p unchanged (explosions return everything either way);
+  the make-up flips: equilibrium 64–100% of p at s ≤ 1.55 over the choices (the low end: winds 30%, g 1, light ash the
+  rest), 95% from s 1.6 up at the middle choice, rock row ~1% (was 65–96%). The book's per-G table: equilibrium 77–98%,
+  rock 1%. **Consequences written in:** finding 3's second generation (computed with the rock row) no longer matches
+  what returns; the book's ions stop at element 23, so the heavy band's opacity, and so the second generation, is open
+  (status page, methods). Reproducibility: the old yields4.mjs on the bake folder's 40 G 10⁻¹⁷ stars (copied as
+  `-lp` names: `aged-bake2/` holds them without) reproduced the published yields4.json byte for byte first; the book's
+  `cores` section was spliced into nucleidata.js (a full `bake` from the runner's cache plus `restore` does not
+  reproduce the file: the helium-4 runs differ, so don't re-bake for this). build.mjs: the methods page's NQ regex
+  follows evolve.mjs's `nq=` form (it had broken the build); gates now on equilibrium being most of what returns, and
+  on no non-β decay being open; ledger checks `yieldsEquilibriumMid`, `nseBandAfter`.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

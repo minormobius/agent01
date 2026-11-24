@@ -103,12 +103,22 @@ s ≤ 1.55, {{yExB}} at 1.6–1.65 and {{yExC}} at 1.7. The net yield $p$ (figur
 mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = {{mAlphas}})
 from 0.25 to 2.5 M~Ch~ for the stars that die within {{mTgs}} Gyr, is {{yPA}} at s ≤ 1.55, {{yPB}} at 1.6–1.65,
 {{yPC}} at 1.7 and {{yPD}} at 1.8. Most of that band comes from $g$, which sets which masses explode. What comes
-back is heavy: the explosions' burnt ash, the rock row and this world's iron, with little of the light ash the stars
-held. Which of the two depends on how dense the exploding core is: one that only just reaches the Chandrasekhar mass
-burns mostly to iron, one a tenth heavier mostly to the rock row. Near our strength, s ≤ 1.55, the cores reach it
-both ways, and iron is {{yIronA}} of $p$ over the choices ({{yIronMidA}} at the middle choice: α = 2.35, $g$ = 1.25,
-$w$ = 3%, stars dying within 30 Gyr). From s = 1.6 up the rock row is {{yRockB}} of it at the middle choice. The light
-ash, which dead stars' envelopes and winds return, is only {{yLight}} of $p$ there, or {{yLight30}} with winds of 30%. A one-zone galaxy on the
+back is heavy: the exploding cores' burnt ash, with little of the light ash the stars held. A 4D core gets hot enough
+to light its ash only at the Chandrasekhar mass itself, within a few parts in ten thousand of it, where it is far
+denser than our exploding white dwarfs (its electrons' Fermi momentum about fifty times their mass, ours about ten),
+so every core that reaches the limit burns almost wholly to equilibrium. That is {{yIronA}} of $p$ at s ≤ 1.55 over
+the choices (the rest is light ash from dead stars' winds, most where winds take 30% of a core) and {{yIronB}} from
+s = 1.6 up at the middle choice (α = 2.35, $g$ = 1.25, $w$ = 3%, stars dying within 30 Gyr).
+The rock row (elements 13–23) is {{yRockMid}} of it there; it would take over only if a core expanded a hundred to a
+thousand times more before the burning reached it than ours do (the expansion is calibrated on ours and carried). The
+light ash, which dead stars' envelopes and winds return, is only {{yLight}} of $p$ at the middle choice, or
+{{yLight30}} with winds of 30%. This world's equilibrium does not end at one nucleus, as ours ends at nickel-56.
+Computed on the liquid drop at the exploding core's density as it cools (Y~e~ = 0.5, ground states), it makes
+nuclei of mass {{nseA}}, most of them elements {{nseBefore}} with about as many protons as neutrons. Each decays along
+its mass to the stable line, as our nickel-56 does to iron, releasing {{nseMeV}} MeV a nucleon and ending mostly as
+elements {{nseAfter}}; no alpha decay, fission or proton emission is open there. Where that band sits is the drop's
+least certain reach: held to our own masses and to the book's light 4D nuclei, it could be anywhere from about element
+100 to 250 (supplement S1, "The liquid drop, checked"). A one-zone galaxy on the
 same stars is in the data. Its gas's own share of metals mostly measures how little gas is left, so $p$ is the
 number to carry. The second generation built from that gas comes next.
 
@@ -121,8 +131,8 @@ Chandrasekhar mass, by exploding and returning everything. The hatched band is w
 its top to 1.5 at its bottom; the dashed orange line is $g$ = 1.25, by which each star's outline is coloured. From
 $s$ = 1.75 up the stars burn hydrogen to helium and little further. (b) The net yield $p$, the elements past helium
 returned per unit of mass locked away, over every declared choice (shaded) and at the middle choice (α = 2.35, $g$ =
-1.25, winds 3%, stars dying within 30 Gyr; the line), with the middle choice's make-up beneath: the rock row
-(elements 13–23), this world's iron, and the light ash the stars held.](../figures/fates.svg)
+1.25, winds 3%, stars dying within 30 Gyr; the line), with the middle choice's make-up beneath: the exploding cores'
+equilibrium (decayed to elements {{nseAfter}}), the rock row (elements 13–23), and the light ash the stars held.](../figures/fates.svg)
 
 **The opacity, measured and then computed.** Everything above carries the textbook opacity: electron scattering plus
 Kramers's law. Along Model S's interior that law is {{krLo}}–{{krHi}} times OPAL's tables [@iglesias1996], and it is

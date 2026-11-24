@@ -17,26 +17,26 @@ lives from a frozen zero-age core. Five things came out of it.
    is past helium by the end of its run, mostly {{ashAel}}. Our own main-sequence stars make only helium.
 3. **What metals do depends on which metals.** One to two per cent of the first stars' own ash (elements 6–12) moves a
    four-dimensional star's opacity by only {{m4HeldLo}} to {{m4HeldHi}}: absorption by a light ion falls much faster
-   with its charge than in our world. The rock row (elements 13–23), which the exploding stars return, is different:
+   with its charge than in our world. The rock row (elements 13–23) is different:
    {{m4RockCore}} at the centre and {{m4RockOut}} at {{m4OutQ}} of the mass, where heavy ions keep their inner electrons.
    The first second-generation star bears that out: the Sun analogue at $G$ = 10⁻¹⁷, $s$ = 1.5152, built with 2% of
    the rock row, comes out {{g2L}} fainter, {{g2R}} larger and {{g2T}} cooler at the surface than the same star built
    primordial, and over its first {{g2Gyr}} Gyr its centre burns {{g2B}} slower. With 2% of the stars' own ash instead,
-   nothing moves by more than {{g2Held}}.
+   nothing moves by more than {{g2Held}}. But the exploding stars return mostly elements around {{nseAfter}} (finding 4),
+   far past the ions the book computes (4–23), so what the first stars' metals do to the next generation is open.
 4. **What comes back is heavy, and less of it the further the strength is from ours.** Stars heavy enough to grow a
-   Chandrasekhar-mass core explode and return the rock row (elements 13–23) and this world's iron: in our world, a
-   planet's rock and its core. Near our strength the two come back in comparable amounts; from $s$ = 1.6 up, mostly the
-   rock row. Near our
-   strength the metals returned come to {{yPA}} of the mass the stars lock away; at $s$ = 1.8, {{yPD}}.
-   **Under correction (2026-11-22): the iron near our strength is overstated.** The explosion model takes a core's
-   density at ignition from a star model whose density runs to infinity as the core nears the Chandrasekhar mass, so a
-   core just over it counts as burning wholly to equilibrium. At the middle choice one star (1.25 M~Ch~, whose core
-   grows to 1.015) carries most of the iron, and the share is not monotonic in core growth. And this world's "iron" is
-   not one nucleus: equilibrium with equal protons and neutrons makes about ten elements at the drop's peak, all
-   proton-rich, which decay toward the stable line. And where that peak sits is itself uncertain: held to our own masses
-   and to the book's light 4D nuclei, the liquid drop puts it somewhere about element 100–250, not at a named element
-   (supplement S1, stage "The liquid drop, checked"). Both are being reworked; the rock row from $s$ = 1.6 up does not
-   hang on either.
+   Chandrasekhar-mass core explode. A 4D core gets hot enough to light its ash only at that mass itself, far denser than
+   our exploding white dwarfs, so it burns almost wholly to equilibrium. That is {{yIronA}} of what returns near our
+   strength over the choices (the rest is light ash from dead stars' winds, most where winds take 30% of a core) and
+   {{yIronB}} from $s$ = 1.6 up at the middle choice. Equilibrium here doesn't end at one nucleus, as
+   ours ends at nickel-56. It makes nuclei of mass {{nseA}}, most of them elements {{nseBefore}}, which decay along their
+   mass to the stable line and end mostly as elements {{nseAfter}}. Near our strength the metals returned come to
+   {{yPA}} of the mass the stars lock away; at $s$ = 1.8, {{yPD}}. Where the band sits is the least certain step: held
+   to our own masses and to the book's light 4D nuclei, the liquid drop could put it anywhere from about element 100 to
+   250 (supplement S1, stage "The liquid drop, checked"). (Revised 2026-11-24. This finding used to say the exploding
+   cores return the rock row and this world's iron in comparable amounts, the iron at one element, 137. Both came from
+   the explosion model letting cores stand above the Chandrasekhar mass, which they cannot, and from placing equilibrium
+   on the drop's single most bound nucleus.)
 5. **The one limit was missing physics, now added.** Two stars at $s$ = 1.5152 stopped when their core's oitrogen ran out
    and the stirred core collapsed faster than a solver in thermal balance could follow. With the energy of contraction in
    the solver, checked first on our Sun, both pass that point and live on ({{egMore14}} and {{egMore11}}), before stopping
@@ -61,8 +61,8 @@ Chandrasekhar mass, by exploding and returning everything. The hatched band is w
 its top to 1.5 at its bottom; the dashed orange line is $g$ = 1.25, by which each star's outline is coloured. From
 $s$ = 1.75 up the stars burn hydrogen to helium and little further. (b) The net yield $p$, the elements past helium
 returned per unit of mass locked away, over every declared choice (shaded) and at the middle choice (α = 2.35, $g$ =
-1.25, winds 3%, stars dying within 30 Gyr; the line), with the middle choice's make-up beneath: the rock row
-(elements 13–23), this world's iron, and the light ash the stars held.](../figures/fates.svg)
+1.25, winds 3%, stars dying within 30 Gyr; the line), with the middle choice's make-up beneath: the exploding cores'
+equilibrium (decayed to elements {{nseAfter}}), the rock row (elements 13–23), and the light ash the stars held.](../figures/fates.svg)
 
 ## What is established
 
@@ -109,10 +109,10 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
 - **What the stars give back** (computed on declared endings; [section 4](ageing.html)). On mass ladders at {{yNs}}
   strengths, the metals returned per unit of mass locked away (the net yield $p$) are {{yPA}} at $s$ ≤ 1.55,
   {{yPB}} at 1.6–1.65, {{yPC}} at 1.7 and {{yPD}} at 1.8. How the cores grow decides which masses explode and sets most
-  of the band. It is the exploding cores' burnt ash: the rock row (elements 13–23) and this world's iron. A core that
-  only just reaches the Chandrasekhar mass burns mostly to iron, one a tenth heavier mostly to the rock row, so near our
-  strength ($s$ ≤ 1.55) iron is {{yIronA}} of $p$ over the choices (overstated: see finding 4's correction); from 1.6 up the rock row is {{yRockB}} of it at the
-  middle choice. Only {{yLight}} is the light ash the stars held ({{yLight30}} with strong winds). {{yCarried}} of the {{yShort}} short-lived stars stopped or were cut short of exhaustion (at most
+  of the band. It is the exploding cores' burnt ash, almost all of it burnt to equilibrium at the Chandrasekhar mass:
+  {{yIronA}} of $p$ near our strength ($s$ ≤ 1.55) over the choices, {{yIronB}} from 1.6 up at the middle choice, the
+  rock row (elements 13–23) {{yRockMid}}. Equilibrium makes elements {{nseBefore}}, which decay to {{nseAfter}}
+  ({{nseMeV}} MeV a nucleon). Only {{yLight}} is the light ash the stars held ({{yLight30}} with strong winds). {{yCarried}} of the {{yShort}} short-lived stars stopped or were cut short of exhaustion (at most
   {{yXcMax}} of their central hydrogen left) and are carried on at their last rate.
 
 ## What it means
@@ -120,16 +120,16 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
 **A four-dimensional universe near our forces is not short of time, and not short of heavy elements.** Its Sun-like
 stars outlive ours several times over, and at the strengths nearest ours they turn a large share of themselves into
 elements 8–12 on the main sequence, which ours never do. Whether those elements reach the next generation depends on
-how the stars end. On the declared endings the heavy ones explode and return the rock row and this world's iron: in
-our world, the stuff of a planet's rock and its core. Near our strength the metals they give back come to {{yPA}} of the mass they lock away; at
+how the stars end. On the declared endings the heavy ones explode and return elements far down the table, around
+{{nseAfter}}, a band with no light rock-forming elements in it. Near our strength the metals they give back come to {{yPA}} of the mass they lock away; at
 $s$ = 1.8, where stars burn hydrogen to helium and little further, {{yPD}}.
 
 **Whether the second generation looks like the first depends on what comes back.** In our world a star's metals set
 its opacity, and so its size, colour and life. In four dimensions the first stars' own light ash barely touches it,
-but the rock row thickens the outer layers several times over. Where the rock row is most of what returns, as from
-$s$ = 1.6 up, the second generation's stars are fainter, larger and cooler than the first, and their
-centres burn more slowly. The ash's nuclei also act as catalysts, as carbon, nitrogen and oxygen do in our Sun,
-quickening the burning by a few per cent; in a rock-rich star the opacity wins.
+and the rock row thickens the outer layers several times over: a star built with it is fainter, larger and cooler,
+and burns more slowly. But what the exploding stars actually return is a band of very heavy elements, around
+{{nseAfter}}, and their opacity is not computed yet. Heavy ions keep many bound electrons, so it is likely to be large;
+how large decides what the second generation looks like.
 
 **The strongest gravity behaves differently.** At $G$ = 10⁻¹¹ the Sun analogue chosen at zero age burns far faster
 once aged than any other, and stalls early: the zero-age choice of analogue is not reliable there.
@@ -139,15 +139,14 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
 1. **Following cores past the end of the hydrogen** (the compute runner; one star, paused on the composition grid's resolution of the burning shell). The energy of contraction
    is now in the solver. The mass ladders are done: {{yReached}} of the {{yShort}} stars that die within 30 Gyr reach
    the end of their central hydrogen. What is left declared is how their cores grow afterwards, which sets which stars
-   explode and, near our strength, how much of what they return is iron. The first star past it, the one on the
+   explode and so how much of what they return is the heavy equilibrium band. The first star past it, the one on the
    explosion line, decides whether computing that for every ladder star is worth the runner time. This is the step that
    most changes what the paper can claim. Checking the same energy books across the finished main-sequence tracks found stretches off by several per cent
    where a convective core sits, and single models further off where one grows into fresh hydrogen; what that does to
    the ages is being measured.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
-   and first {{g2Gyr}} Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return. Near
-   our strength that mix holds this world's iron as well as the rock row, and the book's ions don't reach iron yet, so
-   its opacity comes first.
+   and first {{g2Gyr}} Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return. That
+   mix is mostly elements around {{nseAfter}}, and the book's ions stop at 23, so their opacity comes first.
 3. **Writing it up.** Sections 4 and 5 (abundances over time) from the data above, and the outline brought up to date.
 
 ## How it was built
