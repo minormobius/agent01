@@ -316,17 +316,22 @@ cosine stream held by a body force; `geom=slab`), Re 200, R = 5: bubble on the a
 1.79, and within 0.03 of it at most stations out to 4.7 D along the wire (0.06 at worst; the series run has
 truncation wiggles of that size and this one has none). Two codes, two discretisations, different outer boundaries.
 
-**The tube, R = 5, Reynolds number on the centreline speed** (62 000 tetrahedra, 150 flow times; all three steady,
-rate of change 1e-5 to 5e-5 at the end and the axis bubble fixed to four figures from t = 90):
+**The tube, R = 5, Reynolds number on the centreline speed** (62 000 tetrahedra; Re 25 to 100 run 80 flow times, the rest 150; all six steady,
+rate of change 1e-5 to 5e-5 at the end and the axis bubble fixed to three figures or better):
 
 | along the wire, D | 0 | 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 3.5 | 4 | 4.5 |
 |---|---|---|---|---|---|---|---|---|---|---|
+| bubble, tube, Re 25 | 0.02 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 |
+| bubble, tube, Re 50 | 0.34 | 0.33 | 0.32 | 0.29 | 0.24 | 0.17 | 0.09 | 0.00 | 0.00 | 0.00 |
+| bubble, tube, Re 100 | 0.78 | 0.78 | 0.74 | 0.69 | 0.62 | 0.54 | 0.43 | 0.29 | 0.14 | 0.00 |
 | bubble, tube, Re 150 | 1.21 | 1.14 | 1.05 | 0.96 | 0.87 | 0.77 | 0.65 | 0.50 | 0.35 | 0.29 |
 | bubble, tube, Re 200 | 1.71 | 1.40 | 1.23 | 1.11 | 1.02 | 0.91 | 0.79 | 0.65 | 0.50 | 0.49 |
 | bubble, tube, Re 250 | 1.97 | 1.55 | 1.34 | 1.21 | 1.11 | 1.01 | 0.89 | 0.75 | 0.62 | 0.62 |
 | bubble, mirror planes, Re 200 (this solver) | 1.78 | 1.49 | 1.32 | 1.21 | 1.13 | 1.05 | 0.96 | 0.87 | 0.77 | 0.66 |
 
-(The mirror-plane row is interpolated from stations 0.2 D apart.) The tube's wake is the same single bulge on the
+(The mirror-plane row is interpolated from stations 0.2 D apart.) A 0.00 means no reversed flow
+from 0.02 D behind the wire on; at Re 100 the station at 3.5 D failed to read and its entry is the mean of its
+neighbours 0.125 D either side. The tube's wake is the same single bulge on the
 axis, a little shorter there (1.71 against 1.78) and shortening faster toward the wall, where the parabola is
 slower than the cosine stream and the wall adds its own drag. The bubble does not close at the wall: it is still
 half a diameter long 0.5 D from it. No ripple at any of the three. On the axis the tube's bubble sits 0.07 to 0.09
@@ -355,6 +360,9 @@ with the first temperature shape:
 
 | along the wire, D | 0 | 1 | 2 | 3 | 4 |
 |---|---|---|---|---|---|
+| Re 25 | 4.28 | 4.24 | 4.09 | 3.79 | 3.36 |
+| Re 50 | 5.36 | 5.31 | 5.10 | 4.69 | 4.00 |
+| Re 100 | 6.83 | 6.79 | 6.51 | 5.96 | 5.01 |
 | Re 150 | 7.98 | 7.94 | 7.61 | 6.94 | 5.82 |
 | Re 200 | 9.05 | 8.92 | 8.61 | 7.82 | 6.52 |
 | Re 250 | 9.96 | 9.88 | 9.57 | 8.64 | 7.15 |
@@ -366,9 +374,10 @@ and the wire's cross-section is a ball, so the level is right; that is a plausib
 uniform-stream run of this solver against the sphere literature is the check still owed. The temperature
 undershoots by 0.02 of the excess somewhere in the wake (no upwinding). Because the stream slows along the wire, a
 wire in a tube reads less than the centreline speed: 4 D out, the coefficient is 0.72 of its value on the axis, at
-all three Reynolds numbers (0.73, 0.72, 0.72). On the axis, Nu − 2 goes as Re to the power 0.56 between 150 and 250
-(5.98, 7.05, 7.96): King's shape, with an exponent between the boundary layer's ½ and the wake's ⅔, as sphere
-correlations have. Three points over less than a factor of two in Re; not a fitted law.
+Reynolds numbers from 100 up (0.73, 0.73, 0.72, 0.72) and more at lower ones, where conduction counts for more
+(0.79 at Re 25, 0.75 at 50). On the axis, Nu − 2 runs 2.28, 3.36, 4.83, 5.98, 7.05, 7.96 from Re 25 to 250: a power
+of Re that is 0.54 over the whole decade and between 0.52 and 0.57 on each step, with no trend. King's shape, with an exponent
+between the boundary layer's ½ and the wake's ⅔, as sphere correlations have (they give 4.2 to 4.7 at Re 25).
 
 ## 11. The anemometer: the wire's energy balance (`anem4.py`)
 
@@ -389,22 +398,22 @@ Constant-temperature operation, resistance held at 1.5 of cold (mean θ = 0.5), 
 current squared needed; n = d ln P / d ln Re is the instrument's sensitivity (King's law for a long wire would give
 P = A + B Reⁿ′ and n somewhat under n′ ≈ 0.5):
 
-| Λ | P at Re 150 | 200 | 250 | n (150→200, 200→250) | share of the heat into the wall, Re 200 |
-|---|---|---|---|---|---|
-| 0 (no conduction along the wire) | 7.28 | 8.10 | 8.83 | 0.37, 0.39 | 0 |
-| 3 | 7.91 | 8.79 | 9.59 | 0.37, 0.39 | 0.05 |
-| 30 | 9.71 | 10.74 | 11.66 | 0.35, 0.37 | 0.19 |
-| 300 | 20.20 | 21.34 | 22.36 | 0.19, 0.21 | 0.57 |
-| 3000 | 121.3 | 122.5 | 123.5 | 0.033, 0.038 | 0.91 |
+| Λ | P at Re 25 | 50 | 100 | 150 | 200 | 250 | n, 25→50 … 200→250 | heat into the wall, Re 25 / 250 |
+|---|---|---|---|---|---|---|---|---|
+| 0 (no conduction along the wire) | 4.21 | 5.09 | 6.33 | 7.28 | 8.10 | 8.83 | 0.28 … 0.39 | 0 |
+| 30 | 5.86 | 6.98 | 8.53 | 9.71 | 10.74 | 11.66 | 0.25 … 0.37 | 0.27 / 0.18 |
+| 300 | 16.08 | 17.27 | 18.92 | 20.20 | 21.34 | 22.36 | 0.10 … 0.21 | 0.72 / 0.55 |
+| 3000 | 117.2 | 118.4 | 120.0 | 121.3 | 122.5 | 123.5 | 0.015 … 0.038 | 0.95 / 0.91 |
 
-Constant current (set to give 1.5 at Re 200), the reading R/R₀ at Re 150, 200, 250: Λ = 0: 1.592, 1.500, 1.439;
-Λ = 300: 1.546, 1.500, 1.465; Λ = 3000: 1.508, 1.500, 1.493. At constant current the wire runs away (resistance
+Constant current (set to give 1.5 at Re 150), the reading R/R₀ at Re 25, 50, 100, 150, 200, 250:
+Λ = 0: 2.40, 1.92, 1.62, 1.50, 1.43, 1.38; Λ = 300: 1.74, 1.65, 1.56, 1.50, 1.46, 1.43;
+Λ = 3000: 1.529, 1.520, 1.509, 1.500, 1.493, 1.486. At constant current the wire runs away (resistance
 heating feeding itself) at P about 2.4 to 2.8 times the values above.
 
 - **The instrument works as a law.** Resistance against flow rate is a smooth, monotonic curve, and the pipe's flow
   rate follows from the centreline speed exactly (mean speed 2/5 of it, through a 3-ball of radius R).
 - **In this tube a metal wire is nearly blind.** The wire is only 10 diameters long. With Λ = 3000, 91% of the heat
-  goes down the wire into the wall and the current needed changes by 1.8% between Re 150 and 250. This is the
+  goes down the wire into the wall or more, and the current needed changes by 5% over a tenfold change in flow rate. This is the
   ordinary hot-wire rule (ours are made 200 diameters long for this reason) and not a 4D effect: the length over which
   the wall cools the wire is √(Λ/πNu), about 11 diameters at Λ = 3000, against a half-length of 5.
 - **So the instrument wants a thin wire in a wide tube**, and that changes which of this study's results it uses. A
@@ -414,7 +423,7 @@ heating feeding itself) at P about 2.4 to 2.8 times the values above.
   tube computations of section 9 are then the check on that strip picture at the short-wire end, and the wake
   instabilities are what a thick wire or a fast stream would add.
 
-**Limits.** Three Reynolds numbers over less than a factor of two (25, 50 and 100 are running). The heat matrices
+**Limits.** Six Reynolds numbers over one decade, one tube radius. The heat matrices
 carry section 10's limits (not validated against the sphere literature, one mesh, Pr 0.7). The shapes all vanish at
 the wall, so a uniform heat source is represented to 2.5%: the heat balance closes to 1.7%, and the current needed
 moves by 3.5% between 4 and 8 shapes at Λ = 0 and by 0.04% at Λ = 30 and above. Properties constant: no radiation,
