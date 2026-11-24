@@ -21,7 +21,8 @@
 //
 // Only the 95 printable ASCII characters: anything else falls back to another font on a phone, at
 // another width. The index-buffer art underneath is untouched. `ascii=1` in the link; `glyph=` sets the
-// character height in CSS pixels (default about a 100th of the picture's height, 5–9 px).
+// character height in CSS pixels (default about a 100th of the picture's height, 5–9 px); `dens=` multiplies
+// how many characters there are (0.25–6, default 1), independently of their size.
 
 export const CLASS = { sky: 0, cloud: 1, water: 2, fall: 3, rock: 4, tree: 5, ground: 6, built: 7 };
 export const RAMPS = [
@@ -201,8 +202,9 @@ export class ASCII {
    * values for the current frame (or null: everything is ground). glyphCss: character height in CSS
    * pixels (null: chosen from the picture's size).
    */
-  constructor(src, parent, classes, glyphCss = null) {
+  constructor(src, parent, classes, glyphCss = null, dens = 1) {
     this.src = src; this.classes = classes; this.glyphCss = glyphCss;
+    this.dens = Math.min(6, Math.max(0.25, dens || 1));
     const cv = (this.cv = document.createElement('canvas'));
     Object.assign(cv.style, { position: 'absolute', pointerEvents: 'none', display: 'none' });
     parent.append(cv);
@@ -273,7 +275,9 @@ export class ASCII {
   /** The lattice for this screen: its step in source pixels, and the state textures sized to it. */
   layout(w, h, gw, gh) {
     const W = this.src.width, H = this.src.height, gl = this.gl;
-    this.cell = [(gw * 1.0) / (w / W), (gh * 0.8) / (h / H)];
+    // dens: how many characters, ×; the step shrinks by its square root (2 = twice as many, overlapping more)
+    const k = 1 / Math.sqrt(this.dens);
+    this.cell = [(gw * 1.0 * k) / (w / W), (gh * 0.8 * k) / (h / H)];
     this.nx = Math.ceil(W / this.cell[0]); this.ny = Math.ceil(H / this.cell[1]);
     this.spacing = Math.min(this.cell[0], this.cell[1] * 1.5);
     for (const t of this.state) { gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, this.nx, this.ny, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); }

@@ -912,7 +912,7 @@ untouched. A "crt" button; `crt=1` in the link. Both views and the city page. No
 running in ascii"; then "the whole graphics with ascii characters… your font size is too large… you don't
 need to stick to a grid, you could place these characters wherever"). `ascii.js`: a WebGL2 overlay like
 crt.js, exclusive with it. Nothing of the picture shows: every mark is a printable ASCII character on black.
-- **No grid.** ~30–65k characters, each placed, sized and turned on its own. Their homes are a jittered
+- **No grid.** ~30–65k characters (×`dens=`, 0.25–6: at 3 the sky is full but the characters weave into cloth and stop reading as type), each placed, sized and turned on its own. Their homes are a jittered
   lattice about a character apart, a hash of the point's index (`home(i, j)`), so nothing is stored and
   no row or column shows. Size: about a 100th of the picture's height (5–9 CSS px, never under 7 device
   px); `glyph=` in the link overrides it. Bold monospace, a mipmapped atlas (thin strokes vanished
