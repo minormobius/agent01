@@ -33,9 +33,9 @@ _Regenerated 2026-11-24 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-24, 100 members / 254 posts):
+**Neighborhood spark** (bisk 2026-11-24, 100 members / 266 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: nvidia, glm, perplexity
+- Distinctive words: nvidia, glm, gta
 - Top post: "" — @thebadcode.com
 <!-- BRIEF_END -->
 
