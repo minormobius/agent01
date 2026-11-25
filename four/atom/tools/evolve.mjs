@@ -205,7 +205,11 @@ const law = (f, lr, lT) => (f ? Math.exp(f.l0 + f.a * (lr - f.lr) + f.b * (lT - 
    the shooting matches its two integrations only to ~10⁻⁵, so a baseline of one short step leaves noise as large as the
    burning and makes the solve stiff (a trial's small departure became an energy term many times the burning). It is
    left out while the reference is under KHMIN (1%) of the thermal time GM²/RL back, where it is negligible anyway. */
-const GREF = +(process.env.GREF ?? 0.01), KHMIN = +(process.env.KHMIN ?? 0.01);
+// khmin=<fraction> on the command line sets KHMIN (the runner passes no environment): ours from zero age with grav=1 stalls
+// at 0.001 Gyr at the default 0.01 (the reference too near for its first short steps) and runs at 0.1, the answer
+// unchanged against 0.3 (L 0.7334 / 0.7336 L☉ at 0.3 Gyr). The energy-of-contraction stage's ours runs had KHMIN set in
+// the sandbox's environment; evolve4-26's first leg, without it, lost six of ours' seven tracks. Not in the file name.
+const GREF = +(process.env.GREF ?? 0.01); let KHMIN = +(process.env.KHMIN ?? 0.01); { const k = process.argv.slice(2).find((a) => a.startsWith("khmin=")); if (k) KHMIN = +k.slice(6); }
 function gravRef(W, gr, comp) { if (!gr) return null; const P = gr.prof, ms = P.map((x) => x.m), lP = P.map((x) => Math.log(x.P)), lT = P.map((x) => Math.log(x.T));
   return { ms, lP, lT, comp, dt: gr.dt }; }
 const epsGrav = (W, G, M, rho, m, P) => { const lP0 = interp(G.ms, G.lP, m), lT0 = interp(G.ms, G.lT, m), r0 = rhoOf(W.d, Math.exp(lP0), Math.exp(lT0), G.comp(m));

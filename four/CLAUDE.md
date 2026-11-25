@@ -1460,8 +1460,12 @@ for games, and this is a modelling programme with publications to come. The game
   on the main sequence ε_grav is a small difference of two large terms and the shooting matches only to ~10⁻⁵, so the
   solve went stiff (ours failed on its first step); (3) a lagged source from the last two models: pure noise
   (−71% of L). **What works:** the reference is the latest earlier model whose central ρ differs by GREF (1%), else the
-  oldest kept, and ε_grav is on only once that reference is KHMIN (env, default 0.01; **0.3 used for ours**, past the
-  zero-age CN transient, where 0.01 stalls at 1 Myr) of GM²/RL back. Steps are halved when the centre's ρ moves more
+  oldest kept, and ε_grav is on only once that reference is KHMIN (env, or `khmin=` on the command line, default 0.01;
+  **ours needs 0.1–0.3**, past the zero-age CN transient, where 0.01 stalls at 1 Myr; the final run uses `khmin=0.1`) of
+  GM²/RL back. **The runner passes no environment**, so the final run's first leg (evolve4-26) ran ours at 0.01 and lost six of
+  seven tracks at the start ("no solution past Xc 0.7066"; 3 M☉ ran to Xc 0.0037 and its -tv2 checkpoints of the others hold
+  failed states that will not resume). Fresh starts at 0.1 (tag v2k) pass: 0.6 and 0.8 M☉ to 20 Gyr, 1.6 M☉ to 0.86 Gyr,
+  2 M☉ to 0.51 Gyr in 400 s of sandbox; 1 M☉ at 0.1 and 0.3 agrees (L 0.7334 / 0.7336 L☉ at 0.3 Gyr). Steps are halved when the centre's ρ moves more
   than DRHO (5%). `LOOSE` overrides the 4D world's Newton tolerance (diagnostic). **Checks on ours (sandbox, OPAL Sun
   settings):** the Sun to 4.57 Gyr moves ≤ 0.1% (L −0.01%, ρc +0.1%), contraction a few × 10⁻⁴ of L; 2 M☉ to Xc 10⁻³
   moves ≤ 0.14% (life +0.05%), contraction rising to ~1% of L as the core runs out. **The stalls:** G 10⁻¹⁴ s 1.5152
