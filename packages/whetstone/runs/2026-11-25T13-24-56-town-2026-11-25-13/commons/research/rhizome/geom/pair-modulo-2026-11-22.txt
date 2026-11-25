@@ -1,0 +1,7 @@
+hextorus:324 tritorus:324 vorplane:324 vortorus:324
+hextorus vs tritorus: cells 324, hextorus more 35, fewer 9, net seeds 41, sign p=0.00011
+hextorus vs vorplane: cells 324, hextorus more 13, fewer 38, net seeds -40, sign p=0.00062
+hextorus vs vortorus: cells 324, hextorus more 22, fewer 26, net seeds -1, sign p=0.67
+tritorus vs vorplane: cells 324, tritorus more 10, fewer 51, net seeds -81, sign p=9.6e-8
+tritorus vs vortorus: cells 324, tritorus more 14, fewer 39, net seeds -42, sign p=0.00080
+vorplane vs vortorus: cells 324, vorplane more 34, fewer 9, net seeds 39, sign p=0.00017
