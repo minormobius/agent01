@@ -1,0 +1,15 @@
+{
+ "at": "2026-11-25T09:29:09.512Z",
+ "held": [
+  {
+   "name": "convergence",
+   "digest": "bd65bc7a1a9bab19",
+   "why": "needs two parts' signatures on digest bd65bc7a1a9bab19; has modulo"
+  },
+  {
+   "name": "two-thirds",
+   "digest": "bc208c405c07bc7c",
+   "why": "needs two parts' signatures on digest bc208c405c07bc7c; has modulo"
+  }
+ ]
+}
