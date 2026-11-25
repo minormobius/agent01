@@ -33,10 +33,10 @@ _Regenerated 2026-11-25 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-25, 100 members / 220 posts):
+**Neighborhood spark** (bisk 2026-11-25, 100 members / 208 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: gpt, lmao, llm
-- Top post: "i don't think you could get a majority of prisoners to vote on unconditional and immediate prison abolition. i am not ev" — @segyges.bsky.social
+- Distinctive words: rogan, forse, gpt
+- Top post: "so about that, we have a slight problem in that it appears the entire world economy -- not on paper, but in terms of dur" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
