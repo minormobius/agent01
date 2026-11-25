@@ -339,6 +339,31 @@ export function fly(wd, c, k, dt) {
   return hit;
 }
 
+/** The predicted flight path: the aircraft flown on, with the controls held as they are now, for `seconds` (the same
+ *  `fly`, so the prediction is exact while you hold the stick still). Each point is the whole state (where, which way
+ *  round, how high, and the ground under it: the path's shadow) every dt; the path stops where it would touch the ground or a roof (`impact`: its time). c is not
+ *  changed. */
+export function predict(wd, c, k = {}, { seconds = 10, dt = 0.1 } = {}) {
+  const q = { X: c.X, F: c.F, R: c.R, A: c.A, alt: c.alt, pitch: c.pitch, speed: c.speed }, pts = [{ t: 0, X: q.X, F: q.F, R: q.R, A: q.A, alt: q.alt, ground: surface(wd, q.X) }];
+  let impact = null;
+  for (let i = 1; i * dt <= seconds + 1e-9; i++) {
+    const t = i * dt, hit = fly(wd, q, k, dt);
+    pts.push({ t, X: q.X, F: q.F, R: q.R, A: q.A, alt: q.alt, ground: surface(wd, q.X), hit });
+    if (hit) { impact = t; break; }
+  }
+  return { pts, impact };
+}
+/** Where a predicted path comes closest to a beacon (straight 4D distance, at the samples: 6–20 m apart), and how the
+ *  beacon then lies from the aircraft in its own frame at that moment: what's left to correct. */
+export function closest(path, b) {
+  let best = null;
+  for (let i = 0; i < path.pts.length; i++) { const r = relative(path.pts[i], b), d = Math.hypot(r.ahead, r.right, r.ana, r.up); if (!best || d < best.d) best = { i, d, r }; }
+  if (!best) return null;
+  const p = path.pts[best.i];
+  // the miss: the part of the offset across the direction of flight (ahead at the closest sample is small but not 0)
+  return { t: p.t, i: best.i, dist: best.d, through: best.d < b.r, right: best.r.right, up: best.r.up, ana: best.r.ana, ahead: best.r.ahead };
+}
+
 // ------------------------------------------------------------------ Voxel Space on a curved world
 export const FOV = (70 * Math.PI) / 180, FOCAL = W / 2 / Math.tan(FOV / 2), FAR = 3200;
 /** Render one frame (px: Uint32 RGBA, W×H). Each column's ray runs in the plane of X and u = (F + sR)/|F + sR|; along

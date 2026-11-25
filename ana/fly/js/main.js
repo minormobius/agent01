@@ -5,7 +5,7 @@ import * as Y from './fly.js';
 const $ = (id) => document.getElementById(id);
 const view = $('view'), vctx = view.getContext('2d'), ov = $('ov'), octx = ov.getContext('2d'), mapc = $('map'), mctx = mapc.getContext('2d');
 const img = vctx.createImageData(Y.W, Y.H), px = new Uint32Array(img.data.buffer);
-const S = { seed: 1, wd: null, c: null, beacons: [], next: 0, t0: 0, ghosts: true, tint: false, map: true, paused: false, ghost: null, frame: 0, myaw: 0.6, mpitch: 0.5, best: null, done: false };
+const S = { seed: 1, wd: null, c: null, beacons: [], next: 0, t0: 0, ghosts: true, tint: false, map: true, path: true, k: {}, pred: null, paused: false, ghost: null, frame: 0, myaw: 0.6, mpitch: 0.5, best: null, done: false };
 
 function newWorld(seed) {
   $('loading').hidden = false;
@@ -63,10 +63,86 @@ function overlay(fr) {
     octx.fillStyle = '#e9e4da'; octx.font = '600 10px ui-monospace, Menlo, monospace'; octx.textAlign = 'right';
     octx.fillText(`${r.ana >= 0 ? 'ana' : 'kata'} ${Math.abs(Math.round(r.ana))} m`, gx + 7, gy + gh + 18);
   }
+  // the predicted path: where you'll be, controls held, every 0.1 s for 10 s. Gold where it stays in your slice; as it
+  // drifts ana it turns teal (kata: rose) and fades (gone by 120 m out of the slice); a dot each second; ✕ at impact
+  if (S.path && S.pred) {
+    const P = S.pred.pts, pt = (p) => { const r = Y.relative(c, p); return r.ahead < 4 ? null : { x: (Y.W / 2 + (r.right / r.ahead) * Y.FOCAL) * sx, y: (fr.horizon - (r.up / r.ahead) * Y.FOCAL) * sy, ana: r.ana, ahead: r.ahead }; };
+    const col = (ana) => { const a = Math.min(1, Math.abs(ana) / 60); if (a < 0.12) return 'rgb(255,210,122)'; const T = ana > 0 ? [56, 242, 224] : [255, 102, 184]; return `rgb(${Math.round(255 + (T[0] - 255) * a)},${Math.round(210 + (T[1] - 210) * a)},${Math.round(122 + (T[2] - 122) * a)})`; };
+    // its shadow on the ground first (on a planet this small the camera looks well below your own height, so the
+    // shadow is what's usually in view), then a post each second up to the path, then the path
+    let sh = null; octx.lineCap = 'round';
+    for (let i = 1; i < P.length; i++) {
+      const q = pt({ X: P[i].X, alt: P[i].ground, F: 0 }); if (!q) { sh = null; continue; }
+      if (sh) { octx.globalAlpha = Math.max(0.06, 0.75 - Math.abs(q.ana) / 160); octx.strokeStyle = col(q.ana); octx.lineWidth = Math.max(1, Math.min(4, 200 / q.ahead)); octx.setLineDash([2, 4]); octx.beginPath(); octx.moveTo(sh.x, sh.y); octx.lineTo(q.x, q.y); octx.stroke(); }
+      sh = q;
+      if (Math.abs(P[i].t - Math.round(P[i].t)) < 1e-6) { const up = pt(P[i]); if (up) { octx.setLineDash([]); octx.globalAlpha = 0.45; octx.lineWidth = 1; octx.beginPath(); octx.moveTo(q.x, q.y); octx.lineTo(up.x, up.y); octx.stroke(); } }
+    }
+    let prev = null;
+    for (let i = 1; i < P.length; i++) {
+      const q = pt(P[i]); if (!q) { prev = null; continue; }
+      if (prev) { octx.globalAlpha = Math.max(0.08, 1 - Math.abs(q.ana) / 120) * 0.95; octx.strokeStyle = col(q.ana); octx.lineWidth = Math.max(1.2, Math.min(5, 260 / q.ahead)); octx.setLineDash(Math.abs(q.ana) > 12 ? [5, 5] : []); octx.beginPath(); octx.moveTo(prev.x, prev.y); octx.lineTo(q.x, q.y); octx.stroke(); }
+      if (Math.abs(P[i].t - Math.round(P[i].t)) < 1e-6 && !P[i].hit) { octx.setLineDash([]); octx.globalAlpha = Math.max(0.15, 1 - Math.abs(q.ana) / 120); octx.fillStyle = col(q.ana); octx.beginPath(); octx.arc(q.x, q.y, Math.max(2, Math.min(4.5, 300 / q.ahead)), 0, 7); octx.fill(); if (Math.round(P[i].t) % 2 === 0) { octx.font = '600 10px ui-monospace, Menlo, monospace'; octx.textAlign = 'left'; octx.fillText(`${Math.round(P[i].t)}s${Math.abs(q.ana) > 12 ? ` ${q.ana > 0 ? 'ana' : 'kata'} ${Math.round(Math.abs(q.ana))}` : ''}`, q.x + 7, Math.max(12, q.y - 5)); } }
+      prev = q;
+    }
+    octx.setLineDash([]); octx.globalAlpha = 1;
+    const imp = S.pred.impact != null && pt(P[P.length - 1]);
+    if (imp) { octx.strokeStyle = '#ff4d4d'; octx.lineWidth = 3; const r = 8; octx.beginPath(); octx.moveTo(imp.x - r, imp.y - r); octx.lineTo(imp.x + r, imp.y + r); octx.moveTo(imp.x + r, imp.y - r); octx.lineTo(imp.x - r, imp.y + r); octx.stroke(); }
+    // the closest approach to the next beacon: a ring on the path there
+    const ca = S.close; if (ca) { const q = pt(P[ca.i]); if (q) { octx.strokeStyle = ca.through ? '#7dffa0' : '#ffd27a'; octx.lineWidth = 2; octx.beginPath(); octx.arc(q.x, q.y, 9, 0, 7); octx.stroke(); } }
+  }
+  if (S.path && S.pred) scope(w, h);
+  // the flight-path marker: where you are going this instant (along F, climbing at your pitch)
+  { const fx = w / 2, fy0 = (fr.horizon - Math.tan(c.pitch) * Y.FOCAL) * sy, fy = Math.max(112, fy0); octx.strokeStyle = '#ffffff'; octx.globalAlpha = 0.9;
+    if (fy0 < 112) { octx.fillStyle = '#ffffff'; octx.font = '600 10px ui-monospace, Menlo, monospace'; octx.textAlign = 'center'; octx.fillText('▲ heading (above the view)', fx, fy + 24); } octx.lineWidth = 1.8; octx.beginPath(); octx.arc(fx, fy, 6, 0, 7); octx.moveTo(fx - 18, fy); octx.lineTo(fx - 6, fy); octx.moveTo(fx + 6, fy); octx.lineTo(fx + 18, fy); octx.moveTo(fx, fy - 6); octx.lineTo(fx, fy - 13); octx.stroke(); octx.globalAlpha = 1; }
+  // the call-outs: terrain ahead, and what the path does at the next beacon
+  {
+    const lines = [];
+    if (S.pred && S.pred.impact != null) lines.push(['#ff6b6b', `terrain in ${S.pred.impact.toFixed(1)} s: pull up`]);
+    const ca = S.close, bb = S.beacons[S.next];
+    if (ca && bb) {
+      if (ca.through) lines.push(['#7dffa0', `on course: through beacon ${S.next + 1} in ${ca.t.toFixed(1)} s`]);
+      else if (ca.t > 0.2 && ca.t < 9.9 && Math.abs(ca.ahead) < 60 && ca.dist < 300) { const parts = []; if (Math.abs(ca.right) > 5) parts.push(`${Math.round(Math.abs(ca.right))} m ${ca.right > 0 ? 'right' : 'left'}`); if (Math.abs(ca.up) > 5) parts.push(`${Math.round(Math.abs(ca.up))} m ${ca.up > 0 ? 'up' : 'down'}`); if (Math.abs(ca.ana) > 5) parts.push(`${Math.round(Math.abs(ca.ana))} m ${ca.ana > 0 ? 'ana' : 'kata'}`); lines.push(['#ffd27a', `beacon ${S.next + 1} passes in ${ca.t.toFixed(1)} s: ${parts.join(' · ')} of you`]); }
+    }
+    octx.font = '600 11px ui-monospace, Menlo, monospace'; octx.textAlign = 'center';
+    lines.forEach(([cl, tx], i) => { const tw = octx.measureText(tx).width, y = h - 62 - i * 22; octx.fillStyle = 'rgba(7,8,12,0.6)'; octx.fillRect(w / 2 - tw / 2 - 8, y - 14, tw + 16, 20); octx.fillStyle = cl; octx.fillText(tx, w / 2, y); });
+  }
   // HUD: altitude above ground, speed, pitch
   const agl = Math.round(c.alt - Y.heightAt(S.wd, c.X));
   const hud = `${Math.round(c.speed)} m/s · ${agl} m up · ${Math.round((c.pitch * 180) / Math.PI)}°`; octx.font = '600 12px ui-monospace, Menlo, monospace'; const tw = octx.measureText(hud).width;
   octx.fillStyle = 'rgba(7,8,12,0.55)'; octx.fillRect(w / 2 - tw / 2 - 8, h - 34, tw + 16, 22); octx.fillStyle = '#e9e4da'; octx.textAlign = 'center'; octx.fillText(hud, w / 2, h - 19);
+}
+
+// ------------------------------------------------------------------ the path scope
+/** The predicted path in three strips against time (0–10 s): left/right and ana/kata of you now, and height above
+ *  the datum with the ground under the path. The next beacon sits in each at the moment the path comes closest to
+ *  it, drawn its own size: you go through only if the path meets it in all three. */
+function scope(w, h) {
+  const P = S.pred.pts, c = S.c, x0 = 10, wd = Math.min(190, w * 0.3), sh = 46, gap = 6, y0 = Math.max(110, h * 0.36), T = 10;
+  const ca = S.close, b = S.beacons[S.next], rb = b ? Y.relative(c, b) : null;
+  const rel = P.map((p) => Y.relative(c, p));
+  const strips = [
+    { name: 'right', lo: 'left', get: (i) => rel[i].right, beacon: rb && rb.right, col: '#e9e4da' },
+    { name: 'ana', lo: 'kata', get: (i) => rel[i].ana, beacon: rb && rb.ana, col: SKY_ANA },
+    { name: 'height', lo: '', get: (i) => P[i].alt, ground: (i) => P[i].ground, beacon: b && b.alt, col: '#ffd27a' },
+  ];
+  const X = (t) => x0 + 34 + (t / T) * (wd - 40);
+  octx.save(); octx.font = '600 9px ui-monospace, Menlo, monospace';
+  strips.forEach((st, k) => {
+    const top = y0 + k * (sh + gap), mid = top + sh / 2;
+    let vals = P.map((_, i) => st.get(i)); if (st.ground) vals = vals.concat(P.map((_, i) => st.ground(i)));
+    if (ca && st.beacon != null) vals.push(st.beacon + b.r, st.beacon - b.r);
+    let lo, hi; if (st.ground) { const a = Math.min(...vals), z = Math.max(...vals), sp = Math.max(40, z - a); lo = a - 0.3 * sp; hi = z + 0.1 * sp; } else { const m = Math.max(60, ...vals.map(Math.abs)) * 1.1; lo = -m; hi = m; }
+    const Yv = (v) => top + sh - ((v - lo) / (hi - lo)) * sh;
+    octx.fillStyle = 'rgba(7,8,12,0.6)'; octx.fillRect(x0, top, wd, sh);
+    octx.fillStyle = '#9a958c'; octx.textAlign = 'left'; octx.fillText(st.name, x0 + 4, top + 11); if (st.lo) octx.fillText(st.lo, x0 + 4, top + sh - 4);
+    if (!st.ground) { octx.strokeStyle = 'rgba(255,255,255,0.18)'; octx.lineWidth = 1; octx.beginPath(); octx.moveTo(X(0), mid); octx.lineTo(X(T), mid); octx.stroke(); }
+    else { octx.fillStyle = 'rgba(96,150,84,0.8)'; octx.beginPath(); octx.moveTo(X(0), top + sh); P.forEach((p, i) => octx.lineTo(X(p.t), Math.min(top + sh, Yv(st.ground(i))))); octx.lineTo(X(P[P.length - 1].t), top + sh); octx.closePath(); octx.fill(); }
+    if (ca && st.beacon != null) { const bx = X(ca.t), by = Yv(st.beacon), br = Math.max(2, (b.r / (hi - lo)) * sh); octx.strokeStyle = ca.through ? '#7dffa0' : '#ffd27a'; octx.lineWidth = 1.5; octx.beginPath(); octx.moveTo(bx, Math.max(top, by - br)); octx.lineTo(bx, Math.min(top + sh, by + br)); octx.stroke(); octx.beginPath(); octx.moveTo(bx - 3, Math.max(top, by - br)); octx.lineTo(bx + 3, Math.max(top, by - br)); octx.moveTo(bx - 3, Math.min(top + sh, by + br)); octx.lineTo(bx + 3, Math.min(top + sh, by + br)); octx.stroke(); }
+    octx.strokeStyle = st.col; octx.lineWidth = 1.8; octx.beginPath(); P.forEach((p, i) => { const y = Math.max(top, Math.min(top + sh, Yv(st.get(i)))); if (i) octx.lineTo(X(p.t), y); else octx.moveTo(X(p.t), y); }); octx.stroke();
+    if (S.pred.impact != null) { const xi = X(S.pred.impact); octx.strokeStyle = '#ff4d4d'; octx.lineWidth = 1.5; octx.beginPath(); octx.moveTo(xi, top); octx.lineTo(xi, top + sh); octx.stroke(); }
+  });
+  octx.fillStyle = '#9a958c'; octx.textAlign = 'center'; for (const t of [0, 5, 10]) octx.fillText(`${t}s`, X(t), y0 + 3 * (sh + gap) + 6);
+  octx.restore();
 }
 
 // ------------------------------------------------------------------ the map: the 3D floor round you
@@ -90,6 +166,7 @@ function drawMap() {
   mctx.strokeStyle = 'rgba(255,255,255,0.7)'; mctx.lineWidth = 1.5; mctx.beginPath(); let pen = false;
   for (const X of c.trail) { const d = Y.local(c, X); if (!inBox(d)) { pen = false; continue; } const q = pr(d); if (pen) mctx.lineTo(q[0], q[1]); else mctx.moveTo(q[0], q[1]); pen = true; }
   mctx.stroke();
+  if (S.path && S.pred) { mctx.strokeStyle = 'rgba(255,210,122,0.9)'; mctx.setLineDash([4, 3]); mctx.beginPath(); S.pred.pts.forEach((p, i) => { const q = pr(Y.local(c, p.X)); if (i) mctx.lineTo(q[0], q[1]); else mctx.moveTo(q[0], q[1]); }); mctx.stroke(); mctx.setLineDash([]); }
   S.beacons.forEach((b, i) => { if (i < S.next) return; const d = Y.local(c, b.X); if (!inBox(d)) return; const q = pr(d); mctx.fillStyle = i === S.next ? '#ffd27a' : 'rgba(255,210,122,0.45)'; mctx.beginPath(); mctx.arc(q[0], q[1], i === S.next ? 4 : 2.5, 0, 7); mctx.fill(); });
   const o = pr([0, 0, 0]);
   for (const [v, col] of [[[500, 0, 0], '#ffd27a'], [[0, 500, 0], '#e9e4da'], [[0, 0, 500], SKY_ANA]]) { const q = pr(v); mctx.strokeStyle = col; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(o[0], o[1]); mctx.lineTo(q[0], q[1]); mctx.stroke(); }
@@ -114,6 +191,7 @@ function info() {
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 1800); }
 $('ghostB').onclick = () => { S.ghosts = !S.ghosts; $('ghostB').classList.toggle('on', S.ghosts); };
 $('tintB').onclick = () => { S.tint = !S.tint; $('tintB').classList.toggle('on', S.tint); };
+$('pathB').onclick = () => { S.path = !S.path; $('pathB').classList.toggle('on', S.path); };
 $('mapB').onclick = () => { S.map = !S.map; $('mapB').classList.toggle('on', S.map); };
 $('pauseB').onclick = () => { S.paused = !S.paused; $('pauseB').classList.toggle('on', S.paused); $('pauseB').textContent = S.paused ? 'fly' : 'pause'; };
 $('newB').onclick = () => newCourse();
@@ -151,13 +229,14 @@ function tick(now) {
       if (keys.has('arrowleft')) k.yaw -= 1; if (keys.has('arrowright')) k.yaw += 1; if (keys.has('arrowup')) k.pitch += 1; if (keys.has('arrowdown')) k.pitch -= 1;
       if (keys.has('d')) k.ana += 1; if (keys.has('a')) k.ana -= 1; if (keys.has('e')) k.roll += 1; if (keys.has('q')) k.roll -= 1;
       if (keys.has('w')) k.throttle += 1; if (keys.has('s')) k.throttle -= 1;
-      if (Y.fly(S.wd, S.c, k, dt)) toast('pull up!');
+      S.k = k; if (Y.fly(S.wd, S.c, k, dt)) toast('pull up!');
       if (k.throttle) $('spd').value = S.c.speed;
       if (++S.frame % 6 === 0) { S.c.trail.push(S.c.X.slice()); if (S.c.trail.length > 400) S.c.trail.shift(); }
       const b = S.beacons[S.next];
       if (b && Y.inside(S.c, b)) { S.next++; if (S.next === S.beacons.length) { S.done = true; S.doneAt = now; const t = (now - S.t0) / 1000; if (!S.best || t < S.best) S.best = t; toast(`course flown: ${t.toFixed(1)} s`); } else toast(`beacon ${S.next} ✓`); info(); }
       if (S.frame % 30 === 0) info();
     }
+    if (S.path && (S.frame % 2 === 0 || !S.pred)) { S.pred = Y.predict(S.wd, S.c, S.k, { seconds: 10, dt: 0.1 }); const bb = S.beacons[S.next]; S.close = bb ? Y.closest(S.pred, bb) : null; }
     const fr = Y.render(S.wd, S.c, px, { tint: S.tint ? 1 : 0 });
     vctx.putImageData(img, 0, 0);
     // the ghosts, every other frame (each is a skyline pass of its own)

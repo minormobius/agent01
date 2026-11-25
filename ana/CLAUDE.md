@@ -149,7 +149,10 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
   `packages/morph` (vendored byte-identical in `vendor/morph/`, kept by `scripts/sync-dataviz.mjs`), its plan in 7
   layers 64 m apart across the third direction, for contrast; `render` (Voxel Space along great circles, camera `tilt` = 0.8 × the horizon's
   dip, facades with windows, day and night), `skyline(d)` (ghosts, same steps as the view), `fly` (X and F turn
-  together), beacons, `local` (log map). `js/main.js`: view, overlay, the heading-up map. See [`fly/README.md`](fly/README.md).
+  together), `predict` (the flight itself, controls held, 10 s; ground under each point; impact) and `closest` (miss in
+  your frame at the closest point), beacons, `local` (log map). `js/main.js`: view, overlay (the path in the view, its
+  shadow and posts, the flight-path marker, call-outs), the path scope (`scope`: right, ana, height against time), the
+  heading-up map. See [`fly/README.md`](fly/README.md).
 
 ## Checks
 
@@ -162,7 +165,7 @@ node ana/fold/test/fold.selftest.mjs                 # ~2 min: 82,944 hinge tree
 node ana/prism/test/optics.selftest.mjs             # <1 s: Snell on 2,000 random 4D rays, the critical angle, least deviation, dispersion, rotation invariance, retracing, every level solvable
 node ana/coin/test/coin.selftest.mjs               # <1 s: glued (f(p) = f(−p)), one-to-one via the inverse, smooth, the walk comes back mirrored, the half-turned picture, 0 bits
 node ana/chora/test/particles.selftest.mjs          # ~3 s: the identifier, the paper's 3D results and Figure 8, 5/8/16/24/120 in 4D, shaking to the 24-cell, the tiers; the eigen-solver, stiffness vs finite differences, silent modes, a mode swung in the sim, the 600-cell's 23 notes
-node ana/fly/test/fly.selftest.mjs                  # ~5 s: vendored morph identical, the tesseract map, grids = noise, the native city thick every way (sheets, bid-rent, ball vs disc), the layers, curved Voxel skyline vs a fine ray, ghosts, home after a great circle, orthonormal frame, never under ground, beacons
+node ana/fly/test/fly.selftest.mjs                  # ~5 s: vendored morph identical, the tesseract map, grids = noise, the native city thick every way (sheets, bid-rent, ball vs disc), the layers, curved Voxel skyline vs a fine ray, ghosts, home after a great circle, orthonormal frame, never under ground, beacons, the predicted path (exact, closed turns, impact, closest approach)
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 

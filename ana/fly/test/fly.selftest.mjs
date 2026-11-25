@@ -87,5 +87,30 @@ const t0 = Date.now(), wd = Y.buildWorld(1), tb = Date.now() - t0;
   const b = { X: c.X.map((x, i) => Math.cos(30 / (Y.R0 + c.alt)) * x + Math.sin(30 / (Y.R0 + c.alt)) * c.A[i]), alt: c.alt, r: 40 };
   ok(Y.inside(c, b) && Math.abs(Y.relative(c, b).ana - 30) < 0.01, 'a beacon 30 m ana of you is 30 m ana on the gauge, and you are inside it');
 }
+// the predicted flight path
+{
+  const open = { ...wd, h: new Float32Array(wd.h.length).fill(-1e9), cities: [] };   // no ground in the way
+  const fresh = () => { const c = Y.aircraft(wd); c.alt = 600; c.pitch = 0; c.speed = 60; return c; };
+  // it is the flight itself: predict, then fly for real with the same controls
+  const c = fresh(), k = { yaw: 0.4, ana: -0.3, pitch: 0.2, roll: 0.1 }, before = JSON.stringify([c.X, c.F, c.alt]), path = Y.predict(wd, c, k, { seconds: 6, dt: 0.1 });
+  const unchanged = JSON.stringify([c.X, c.F, c.alt]) === before; let dev = 0;
+  for (let i = 1; i < path.pts.length; i++) { Y.fly(wd, c, k, 0.1); dev = Math.max(dev, Math.hypot(...c.X.map((x, j) => (x - path.pts[i].X[j]) * Y.R0)), Math.abs(c.alt - path.pts[i].alt)); }
+  ok(unchanged && dev < 1e-9, `the predicted path is the flight: predict leaves the aircraft alone, and flying the same controls follows it to ${dev.toExponential(0)} m over 6 s`);
+  // a held turn closes: at 60 m/s and 0.9 rad/s, a circle of 2π/0.9 = 6.98 s, 133 m across
+  const c2 = fresh(), T = (2 * Math.PI) / 0.9, p2 = Y.predict(open, c2, { yaw: 1 }, { seconds: 7.2, dt: T / 70 });
+  const back = Math.hypot(...p2.pts[70].X.map((x, j) => (x - c2.X[j]) * (Y.R0 + 600))), across = Math.max(...p2.pts.map((p) => Math.hypot(...p.X.map((x, j) => (x - c2.X[j]) * (Y.R0 + 600)))));
+  ok(back < 1 && Math.abs(across - 133.3) < 2, `hold the stick over and the path is a closed circle: back within ${back.toFixed(2)} m after ${T.toFixed(2)} s, ${across.toFixed(1)} m across (v/ω = 66.7 m radius)`);
+  // a held ana turn leaves your slice: nothing right or left, all of it ana
+  const c3 = fresh(), p3 = Y.predict(open, c3, { ana: 1 }, { seconds: 3 }), r3 = Y.relative(c3, p3.pts[p3.pts.length - 1]);
+  ok(Math.abs(r3.right) < 1e-6 && r3.ana > 50, `hold the lever and the path bends out of your slice: after 3 s it is ${r3.ana.toFixed(0)} m ana, ${Math.abs(r3.right).toExponential(0)} m right`);
+  // a dive: impact predicted, and flying for real touches down then
+  const c4 = Y.aircraft(wd); c4.pitch = -0.7; c4.speed = 80; const p4 = Y.predict(wd, c4, {}, { seconds: 20 }); let tHit = null; for (let t = 0.1; t < 20.05; t += 0.1) if (Y.fly(wd, c4, {}, 0.1)) { tHit = t; break; }
+  ok(p4.impact != null && tHit != null && Math.abs(p4.impact - tHit) < 1e-9, `a dive: the path ends at the ground ${p4.impact?.toFixed(1)} s out, and flying it touches down at ${tHit?.toFixed(1)} s`);
+  // closest approach: a beacon on the path is flown through; one 30 m ana of the path is missed by 30 m ana
+  const c5 = fresh(), p5 = Y.predict(open, c5, { yaw: 0.2 }, { seconds: 10 }), at5 = p5.pts[50];
+  const on = Y.closest(p5, { X: at5.X, alt: at5.alt, r: 40 });
+  const offX = at5.X.map((x, i) => Math.cos(30 / (Y.R0 + at5.alt)) * x + Math.sin(30 / (Y.R0 + at5.alt)) * at5.A[i]), off = Y.closest(p5, { X: offX, alt: at5.alt, r: 20 });
+  ok(on.through && Math.abs(on.t - 5) < 1e-9 && on.dist < 1e-6 && !off.through && Math.abs(off.ana - 30) < 0.5 && Math.abs(off.t - 5) < 0.15, `closest approach: a beacon on the path at 5 s is flown through then; one 30 m ana of it is missed by ${off.ana.toFixed(1)} m ana (right ${off.right.toFixed(1)}, up ${off.up.toFixed(1)})`);
+}
 console.log(`${fails ? '✗' : '✓'} fly: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

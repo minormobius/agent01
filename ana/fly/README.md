@@ -52,10 +52,23 @@ the other night.
   (coarser ones jumped over towers and missed by 25 px).
 - **`fly`**: moving is a turn of X toward F by distance / radius; X and F turn together, R and A stay put, which carries
   your heading over the curve without twisting it. Turns in the tangent space; Gram–Schmidt each step.
+- **The predicted path** (`predict`, `closest`): the aircraft flown on with the controls held as they are, 10 s at
+  0.1 s, by the same `fly`, so the prediction is exact while you hold still; each point keeps its whole frame and the
+  ground under it, and the path stops where it would touch ground or roof (`impact`). `closest` finds where it passes
+  nearest a beacon and how the beacon then lies in the aircraft's own frame (right, up, ana): what's left to correct.
 - **Beacons** (`course`, `relative`, `inside`): balls of 40 m, 40–120 m up; `relative` is the straight 4D line in your
   ahead, right, ana, up. **`local`**: the log map at you, for the map.
 
 ## The page (`js/main.js`)
+
+**Reading the path.** In 4D the path leaves your slice the moment you touch the lever, and on a planet this small the
+camera looks well below your own height, so the path is shown four ways at once: in the view (gold while it stays in your
+slice, turning teal ana or rose kata and fading as it leaves; a dot each second, labelled with how far out of the slice
+it is), its **shadow** on the ground with a post up to the path each second, the **path scope** (three strips against
+time: left/right, ana/kata, height with the ground under the path; the next beacon in each at the moment of closest
+approach, drawn its own size: you go through only if the path meets it in all three), and a dashed line on the map.
+The flight-path marker shows where you are heading this instant (pinned to the top when it is above the view). Call-outs:
+*terrain in N s* and *through beacon k in N s*, or how it passes (so many m left, up, ana). The path button hides it all.
 
 The view (pixelated), the overlay (ghosts, beacon slices, the ana gauge, HUD), and the map: the ground round you laid
 flat from where you are (forward up the map, right and ana across), 3 km across, with peaks, cities, your track,
@@ -68,7 +81,9 @@ the ground is continuous across its faces; the grids hold the noise; 14% sea; tw
 city ~23–31% built on any plane through its core (the layered one 26% in its plan, 8% across it); streets are sheets;
 bid-rent heights and the BRUT⁴ cap; the ball against the flat disc; the layers; the curved renderer within 1 px of a ray marched every metre along its great
 circle; the ghost at 0 m is the view's skyline exactly; the tilt; flying straight comes home after one great circle;
-20,000 random steps keep X, F, R, A orthonormal and never under ground or roof; beacons where the HUD says.
+20,000 random steps keep X, F, R, A orthonormal and never under ground or roof; beacons where the HUD says; the
+predicted path is the flight to 0 m, a held turn closes in 2π/0.9 s and 133 m across, a held lever leaves the slice
+with nothing right or left, a dive's impact time matches flying it, closest approach on and 30 m ana off the path.
 
 ## Next
 
