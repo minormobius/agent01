@@ -36,6 +36,7 @@ import * as SH from "../../fusion/js/shell.js";
 import { SUN_X } from "../../fusion/js/net.js";
 import { kappa as kappaOPAL } from "../js/opal.js";
 import { makeEnvelope } from "../js/envelope.js";
+import { addIons4 } from "../js/metals.js";
 import * as SURF from "../js/surface.js";
 
 const DIR = path.join(process.env.TMPDIR || os.tmpdir(), "atom4-mainseq"); mkdirSync(DIR, { recursive: true });
@@ -132,7 +133,8 @@ function fourWorld(Grel, s, ff = 1, plasma = false, gen2 = null) {
   const sh = shell4(s, "ladder", { screen: plasma }), iP = sh.I["1-1"], A = sh.AS, Z = sh.ZS;
   const X0 = { "1-1": 0.75 * (gen2?.seeds ? 1 - gen2.Z : 1), "2-4": 0.25 * (gen2?.seeds ? 1 - gen2.Z : 1) };
   if (gen2?.seeds) { const top = sh.SPEC.at(-1); for (const [z, share] of Object.entries(gen2.mix)) { const k = [`${z}-${2 * z}`, `${z}-${2 * z + 1}`, `${z}-${2 * z - 1}`].find((x) => sh.SPEC.includes(x)) ?? top; X0[k] = (X0[k] ?? 0) + gen2.Z * share; } }
-  const init = sh.fromX(X0), kf = gen2?.kappa ? kappaFactor4(gen2) : null;
+  // kfPow: the metals' opacity factor raised to this power; 1 always, except while the zero-age solve continues in it
+  const init = sh.fromX(X0), kf = gen2?.kappa ? kappaFactor4(gen2) : null; let kfPow = 1;
   const parts = (y) => { let X = y[iP] * A[iP], He = 0, ions = 0, zz = 0; for (let i = 0; i < sh.NS; i++) { const x = y[i] * A[i]; zz += y[i] * Z[i] * Z[i]; if (i === iP) continue; if (Z[i] <= 2) He += x; else ions += y[i]; } return { X, He, ions, zz }; };
   const comp = (y) => { const p = parts(y); return { X: p.X, Y: p.He, Z: 14 * p.ions }; }; // rhoOf counts ions as X + Y/4 + Z/14
   // Tburn: shells cooler than this neither burn nor enter the structure's energy law. Ours' 2 MK sits far below the Sun's
@@ -144,8 +146,9 @@ function fourWorld(Grel, s, ff = 1, plasma = false, gen2 = null) {
   // ×300 by mid-mass, so the Jacobian went near-singular (P_c and T_c columns parallel) and Newton overshot: the mid-life
   // stall of evolve4-1/2. Meeting at 0.2 of the mass, the stalled G 1e-11 s 1.85 star runs on with no failed solve.
   return { name: `4D s ${s} G ${Grel} ff ${ff}`, d: 4, Tburn: 1e6, loose: +(process.env.LOOSE ?? 5e-4), fit: 0.2, G: G0 * Grel, pinned: true, Mch: fourNet(Grel, s, "ladder", ff).Mch, init: () => Float64Array.from(init), H: (y) => y[iP] * A[iP], comp,
-    kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1); },
-    kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T) * (kf ? kf(rho, T) : 1), // Y here carries Σ n Z² less hydrogen's
+    kappa: (rho, T, y) => { const p = parts(y); return kappaFF4({ X: p.X, Y: p.zz - p.X, Z: 0 }, ff, { plasma })(rho, T) * (kf ? kf(rho, T) ** kfPow : 1); },
+    ...(kf ? { setKfPow: (q) => { kfPow = q; } } : {}),
+    kcomp: (y) => { const p = parts(y); return { X: p.X, Y: p.zz - p.X, Z: 0 }; }, kappaC: (rho, T, c) => kappaFF4(c, ff, { plasma })(rho, T) * (kf ? kf(rho, T) ** kfPow : 1), // Y here carries Σ n Z² less hydrogen's
     eps: (rho, T, y) => sh.eps(rho, T, y), dHdt: (rho, T, y) => sh.dYdt(rho, T, y)[iP] * A[iP],
     // a stirred zone's burning, one model for the structure and the burn. Species that live longer than the zone's turnover
     // are mixed (the zone's mean abundance); faster ones sit in local equilibrium, shell by shell, on top of those. The
@@ -307,6 +310,12 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   function firstShellAny(s0) { const r = firstShell(s0); if (r.s.ok) return r; const f0 = W.fit;
     for (const fit of [0.3, 0.1, 0.5]) { if (fit === f0) continue; W.fit = fit; const t = firstShell(s0); W.fit = f0; if (!t.s.ok) continue;
       const back = solve(W, M, S, t.s.p, t.at, t.f), use = back.s.ok ? back : t; console.log(`${label}: the zero-age star solved meeting at ${fit} of the mass (not at ${f0 ?? 0.5})${back.s.ok ? `, then at ${f0 ?? 0.5} from there` : `; kept as solved at ${fit}`}`); return use; }
+    // a second-generation star much more opaque than its primordial first star (gen2=band at Z 0.1: ×9–16): continue in
+    // the metals' opacity, its factor raised to λ from 0 to 1, each solve from the last
+    if (W.setKfPow) { W.setKfPow(0); let cur = firstShell(s0), lam = 0, step = 0.1; if (!cur.s.ok) { W.setKfPow(1); return r; }
+      while (lam < 1) { const ln = Math.min(1, lam + step); W.setKfPow(ln); const t = solve(W, M, S, cur.s.p, cur.at, cur.f); if (!t.s.ok) { step /= 2; if (step < 1e-3) { W.setKfPow(1); return t; } continue; }
+        cur = t; lam = ln; step = Math.min(0.25, step * 1.5); }
+      console.log(`${label}: the zero-age star solved by continuation in the metals' opacity`); return cur; }
     return r; }
   let { s, f: grav } = C ? { s: s1, f: g1 } : firstShellAny(s0);
   if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
@@ -411,6 +420,14 @@ if (cmd === "ours") {
   // ash at this G and s (papers/p2/data/ash4.json, elements 4–23 by mass); rock: elements 13–23 evenly
   function gen2Of(kv, G, s) { const Zm = +(kv.Z2 ?? 0.02), parts = (kv.parts ?? "seeds,kappa").split(",");
     let mix; if (kv.gen2 === "rock") mix = Object.fromEntries(Array.from({ length: 11 }, (_, i) => [13 + i, 1 / 11]));
+    // band: the heavy equilibrium band exploding cores return (papers/p2/data/nse4.json postDecay, elements 113–125), its
+    // ions (atom/js/iondata4h.js) added to metals.js only for such a run. With seeds its mass sits in the network's inert
+    // top species (16-32, which no reaction destroys: nuclei of charge ~120 catalyse nothing), so hydrogen and helium
+    // drop by Z; that stand-in carries ~6.5× less free–free per mass (Z²/A 8 against the band's ~52), so seeds + kappa
+    // understates the metals' free–free while kappa alone overstates the hydrogen: the two bracket it
+    else if (kv.gen2 === "band") { const src = readFileSync(new URL("../js/iondata4h.js", import.meta.url), "utf8"), H = JSON.parse(src.slice(src.indexOf("export const IONS4H = ") + 22, src.lastIndexOf(";")));
+      addIons4(H); const have = new Set(H.map((e) => e.Z)), P = JSON.parse(readFileSync(new URL("../../papers/p2/data/nse4.json", import.meta.url), "utf8")).postDecay, b = Object.entries(P).filter(([z]) => have.has(+z)), t = b.reduce((q, [, v]) => q + v, 0);
+      mix = Object.fromEntries(b.map(([z, v]) => [z, v / t])); }
     else { const A4 = JSON.parse(readFileSync(new URL("../../papers/p2/data/ash4.json", import.meta.url), "utf8")).stars.filter((x) => x.G === G && x.s === s), a = A4.find((x) => !(G === 1e-17 && s === 1.5152) || Math.abs(x.m - 0.7812) < 0.01);
       if (!a) throw new Error(`gen2: no held ash for G ${G}, s ${s} in ash4.json`); const h = Object.entries(a.made).filter(([z]) => +z >= 4 && +z <= 23), t = h.reduce((q, [, v]) => q + v, 0); mix = Object.fromEntries(h.map(([z, v]) => [z, v / t])); }
     return { Z: Zm, mix, seeds: parts.includes("seeds"), kappa: parts.includes("kappa") }; }

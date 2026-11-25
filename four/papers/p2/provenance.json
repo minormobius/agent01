@@ -438,6 +438,33 @@
    ]
   },
   {
+   "id": "band",
+   "date": "2026-11-25",
+   "title": "What the heavy band does to the next generation",
+   "replaced": "the second generation's opacity computed only for the light ash and the rock row (the book's ions stop at element 23), while the exploding stars return mostly elements around 116–122 (stage equilibrium): what the first stars' metals do to the next generation was open",
+   "by": "every ion of elements 113–125 (99.9% of the band) from the book's atom (fusion/tools/ions3.mjs 4 113-125 → atom/js/iondata4h.js; local exchange, non-relativistic, all converged), the 4D hydrogen-like bound–free shapes extended to n = 8 (photoshape.mjs; the old keys unchanged), metals.js addIons4 so the pages never load them; metals4.mjs's band mix (nse4.json postDecay); evolve.mjs gen2=band (opacity, and with seeds the mass in the network's inert top species 16-32) and a zero-age continuation in the metals' opacity for stars much more opaque than their primordial first star. Relativity estimated by scaling every level by the 4D hydrogen-like Dirac–Coulomb ratio (screened charge, or pessimistically its mean with the bare charge): the band's opacity effect moves ≤2.6%. metals4.json and the held/rock cases reproduced or moved ≤2.3% first; gen2.json rebuilt from one current-code set.",
+   "runs": [
+    "sandbox: ions3.mjs 4 113-125 (13 elements, every ion); metals4.mjs on the eight G 1e-17 Sun analogues; evolve.mjs four 1e-17 1.5152 sun tmax=3: primordial, held and rock (s, sk, k) at Z 0.02, band (k, sk) at Z 0.02 and 0.1"
+   ],
+   "rule": null,
+   "moved": [
+    {
+     "claim": "what the first stars' metals do to the next generation's opacity",
+     "before": "open past element 23 (the rock row: ×1.5 at the centre, up to ×8.6 outside, at Z 0.01)",
+     "after": "the band raises it at every depth",
+     "check": "metalsBand1",
+     "now": "1.8–5.8"
+    },
+    {
+     "claim": "the second-generation Sun analogue near our strength",
+     "before": "with 2% of the rock row, 31% fainter (the first look)",
+     "after": "with the heavy band that actually returns, several to more than ten times fainter and much slower",
+     "check": "gen2BandFainter",
+     "now": "3.5–3.9/11.2–16.1"
+    }
+   ]
+  },
+  {
    "id": "egrav",
    "date": "2026-11-21",
    "title": "The energy of contraction",

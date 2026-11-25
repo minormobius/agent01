@@ -172,8 +172,14 @@ four dimensions, $n_{q+1}n_e/n_q = 2(m_ekT/2\pi\hbar^2)^2e^{-I/kT}$, with ioniza
 (link 6's bridge). Absorption from each occupied subshell takes the exact hydrogen-like cross-section of its own level
 from the book's dipole rate, scaled to the subshell's edge: in four dimensions it falls as the fourth power of the
 effective charge, ours as the second. That is why the first stars' light ash matters so little; the rock row's heavier
-ions keep inner electrons that still absorb strongly in a star's outer layers. The ions stop at element 23, so the
-heavy equilibrium band the exploding stars return (elements around 116–122) is not covered. The ions' free–free is the classical
+ions keep inner electrons that still absorb strongly in a star's outer layers. The heavy equilibrium band the exploding
+stars return (elements around 116–122) takes the same treatment: every ion of elements 113–125 from the same atom
+(`fusion/tools/ions3.mjs 4 113-125`), its outer shells n = 5–8 given hydrogen-like shapes like the rest. The atom is
+non-relativistic; scaling each level's binding by the hydrogen-like Dirac–Coulomb ratio in four dimensions (at the
+level's screened charge, or pessimistically at its mean with the bare nuclear charge) moves the band's opacity effect
+by a few per cent at most, since the levels that set a stellar interior's mean opacity are bound by keV, not by the
+hundreds of keV where relativity bites. In a second-generation star the band enters the opacity and, as an inert
+stand-in (the network's heaviest nucleus, which nothing burns), the composition; the two ways bracket its mass. The ions' free–free is the classical
 four-dimensional form; in a star whose composition already holds the ions (their free–free counted with hydrogen's
 and helium's), only their bound–free is added. **Checked:** every neutral's first ionization equals the book's periodic table; the scaled
 shapes match direct calculation; and the same construction for our world, with Kramers's law in place of the exact

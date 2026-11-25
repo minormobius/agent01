@@ -20,10 +20,14 @@ lives from a frozen zero-age core. Five things came out of it.
    with its charge than in our world. The rock row (elements 13–23) is different:
    ×1.03–6.5 at the centre and ×1.97–14 at 0.9 of the mass, where heavy ions keep their inner electrons.
    The first second-generation star bears that out: the Sun analogue at $G$ = 10⁻¹⁷, $s$ = 1.5152, built with 2% of
-   the rock row, comes out 29% fainter, 23% larger and 17% cooler at the surface than the same star built
-   primordial, and over its first 3 Gyr its centre burns 15% slower. With 2% of the stars' own ash instead,
-   nothing moves by more than 11%. But the exploding stars return mostly elements around 116–122 (finding 4),
-   far past the ions the book computes (4–23), so what the first stars' metals do to the next generation is open.
+   the rock row, comes out 31% fainter, 23% larger and 18% cooler at the surface than the same star built
+   primordial, and over its first 3 Gyr its centre burns 16% slower. With 2% of the stars' own ash instead,
+   nothing moves by more than 11%. But what the exploding stars actually return is the heavy equilibrium band,
+   elements around 116–122 (finding 4), and it does far more. Its ions keep many bound electrons even at the centre:
+   1% of it raises the opacity 1.8–5.8 times along the analogues, 2% 2.6–9.7 times. The same analogue built with
+   2% of the band comes out 3.5–3.9 times fainter and burns its hydrogen at 0.32–0.36 of the primordial pace; with 10%,
+   about what the gas holds after 3 Gyr near our strength (0.16–0.17), 11.2–16.1 times fainter at 0.08–0.13 of the pace.
+   **Near our strength the second generation is faint, cool and very long-lived.**
 4. **What comes back is heavy, and less of it the further the strength is from ours.** Stars heavy enough to grow a
    Chandrasekhar-mass core explode. A 4D core gets hot enough to light its ash only at that mass itself, far denser than
    our exploding white dwarfs, so it burns almost wholly to equilibrium. That is 64–100% of what returns near our
@@ -100,10 +104,15 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   helium and stop.
 - **The second generation, a first look** (computed; one analogue, zero age and the first 3 Gyr). The star built
   with the metals in its starting composition (as seed nuclei in the burning network) and in its opacity, each switched
-  on alone and then together: 2% of the rock row makes it 29% fainter and 23% larger, its stirred core
-  0.11 of the mass against 0.13; almost all of that is opacity.
+  on alone and then together: 2% of the rock row makes it 31% fainter and 23% larger, its stirred core
+  0.11 of the mass against 0.14; almost all of that is opacity. Built with the heavy equilibrium band that
+  actually returns, it comes out 3.5–3.9 times fainter at 2% and 11.2–16.1 at 10%, its hydrogen burning at
+  0.32–0.36 and 0.08–0.13 of the primordial pace (each a range over two ways of carrying the band's mass: in the
+  opacity alone, or also in the composition as an inert stand-in).
 - **What metals do to the opacity** (computed, without spectral lines). The book's own four-dimensional ions, elements
-  4–23, every first ionization equal to the periodic table's: the figures in point 3 above. (A first version of this
+  4–23, every first ionization equal to the periodic table's, and every ion of elements 113–125, the heavy band: the
+  figures in point 3 above. Those heavy ions are computed without relativity; shifting every level by the Dirac
+  equation's correction moves the band's effect by a few per cent at most. (A first version of this
   line said metals barely change a four-dimensional star at all; a slip in the code had dropped every ion's bound–free
   absorption, leaving only free–free. Corrected the same day.)
 - **What the stars give back** (computed on declared endings; [section 4](ageing.html)). On mass ladders at six
@@ -126,10 +135,12 @@ $s$ = 1.8, where stars burn hydrogen to helium and little further, 0.00038–0.0
 
 **Whether the second generation looks like the first depends on what comes back.** In our world a star's metals set
 its opacity, and so its size, colour and life. In four dimensions the first stars' own light ash barely touches it,
-and the rock row thickens the outer layers several times over: a star built with it is fainter, larger and cooler,
-and burns more slowly. But what the exploding stars actually return is a band of very heavy elements, around
-116–122, and their opacity is not computed yet. Heavy ions keep many bound electrons, so it is likely to be large;
-how large decides what the second generation looks like.
+and the rock row thickens the outer layers several times over. What the exploding stars actually return, a band of
+very heavy elements around 116–122, does more still, because its ions keep many bound electrons even at the
+centre. A second-generation Sun analogue near our strength, born from gas a few per cent to a tenth of which is that
+band, is several to more than ten times fainter than the first, much cooler at the surface, and burns its hydrogen
+several to ten times more slowly. The second generation is not a copy of the first: near our strength it is a
+generation of faint, long-lived stars.
 
 **The strongest gravity behaves differently.** At $G$ = 10⁻¹¹ the Sun analogue chosen at zero age burns far faster
 once aged than any other, and stalls early: the zero-age choice of analogue is not reliable there.
@@ -145,8 +156,8 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
    where a convective core sits, and single models further off where one grows into fresh hydrogen; what that does to
    the ages is being measured.
 2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
-   and first 3 Gyr; next, its whole life, the other strengths, and the gas mix the yields actually return. That
-   mix is mostly elements around 116–122, and the book's ions stop at 23, so their opacity comes first.
+   and first 3 Gyr, the heavy band included; next, its whole life, the other strengths, the gas's actual
+   metal share over time, and the band's spectral lines, which the opacity above leaves out.
 3. **Writing it up.** Sections 4 and 5 (abundances over time) from the data above, and the outline brought up to date.
 
 ## How it was built

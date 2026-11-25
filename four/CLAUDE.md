@@ -411,6 +411,31 @@ for games, and this is a modelling programme with publications to come. The game
   "G s m name" per line from the cached `-lp` tracks). Each later leg re-pushes the same commands under a new run name,
   dropping stars that finished; expect ~5–8 legs (~2 days). Then: regenerate ages4/gravity/egrav/yields4/abund4 and
   aged.js from the -tv2 tracks, rebuild paper 2 and the book.
+  **The heavy band's opacity and the second generation (2026-11-25; PI: "yes do get started on that"; provenance stage
+  `band`).** `fusion/tools/ions3.mjs 4 <lo>-<hi> out=<f.json>` computes every ion of a 4D element range (elements 113–125
+  hold 99.87% of nse4.json's band; ~4 min an element, all 13 converged; four slices in parallel) and `merge=<files>`
+  writes `atom/js/iondata4h.js` (300 kB), kept apart from iondata4.js: `metals.js addIons4(list)` adds them for node
+  tools only (surface.js, which the pages load, imports metals.js). The neutrals' first ionizations sit 0–2.4 eV from
+  the table's (different treatment; matters only where the ions are near neutral). **A silent gap fixed:**
+  photoshape.js had 4D shapes only to n = 4, and a subshell with no shape absorbs nothing in metals.js; the band's outer
+  shells are n = 5–8, so `photoshape.mjs` now writes 4D to n = 8 (l ≤ 3; every old key byte-identical). metals4.mjs
+  reproduced the published metals4.json byte for byte on the eight G 10⁻¹⁷ Sun analogues (sandbox folder of the cached
+  analogue tracks), then gained the `band` mix: ×1.80–5.78 at Z 0.01, ×2.56–9.69 at 0.02, at every depth (×3.4 at the
+  centre of the s 1.5152 analogue at Z 0.01, where the rock row gives ×1.5); roughly 1 + 75–150 Z (×8.5–16 at Z 0.1,
+  ×16–31 at 0.2). **Relativity:** the 4D hydrogen-like Dirac–Coulomb ratio (κ_d = ±(j + 1), n_r = n + ½ − |κ|; the bare
+  1s of element 120 is 10% deeper, ours would be 35%) scaled onto every level and ionization energy (scratch
+  relband.mjs): the band's effect moves ≤1.6% at the screened charge, ≤2.6% pessimistically. **The gas:** the one-zone
+  galaxies' gas Z at s ≤ 1.55 is 0.16–0.17 at 3 Gyr (0.4–0.7 later, little gas left). **The second generation**
+  (`evolve.mjs … gen2=band Z2=<Z> parts=kappa|seeds,kappa`; with seeds the band's mass sits in the network's top species
+  16-32, which no reaction destroys; its Z²/A is ~6.5× under the band's, so seeds+kappa understates free–free and kappa
+  alone overstates hydrogen: the two bracket). A zero-age continuation in the metals' opacity (the factor raised to λ,
+  0 → 1; `setKfPow` on the 4D world) solves stars far more opaque than the primordial first star (Z 0.1 failed
+  without). The s 1.5152 analogue to 3 Gyr, against primordial on the same code: Z 0.02 L ×0.26–0.28 (3.5–3.9× fainter),
+  Teff ×0.71–0.72, hydrogen burnt ×0.32–0.36; Z 0.1 L ×0.062–0.089 (11–16× fainter), Teff ×0.52–0.55, burnt ×0.08–0.13.
+  The held and rock cases rerun on the current code moved ≤2.3% from the published ones; `gen2.json` rebuilt from the
+  one set (gen2.mjs on a folder of the `-to3` runs without their `-tg2` tag). Paper: status findings 3 and the gen2,
+  opacity, meaning and next-steps entries, methods; tokens g2bF2/g2bB2/g2bF10/g2bB10, m4Band1/m4Band2, gasZ3; ledger
+  checks `metalsBand1`, `gen2BandFainter`. Still not in: the band's spectral lines (about half a metal's share in ours).
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

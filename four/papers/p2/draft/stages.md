@@ -15,14 +15,14 @@ artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was foun
 good within two days, and only the last of those rests on something that cannot move: a variational bound.
 
 Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
-states whether a decision rule was fixed before its results came in. 13 of the 15 stages had
+states whether a decision rule was fixed before its results came in. 14 of the 16 stages had
 none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
 
 **What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 43 entries, 20 are marked ✓: the value given is recomputed from the committed data each
+data. Of the 45 entries, 22 are marked ✓: the value given is recomputed from the committed data each
 time the paper is built, and the build stops if they disagree. 0 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
@@ -207,7 +207,18 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 | what exploding cores return near our strength | the rock row and this world's iron in comparable amounts, the iron at element 137 | almost all equilibrium (the rest light ash from winds), the rock row ~1% ✓ |
 | where the equilibrium share ends | one nucleus, element 137 (mass 274) | a band: elements 132–139 at equilibrium, decayed to 116–122 (mass 253–290) ✓ |
 
-### S1.14 The energy of contraction (2026-11-21)
+### S1.14 What the heavy band does to the next generation (2026-11-25)
+
+**Replaced:** the second generation's opacity computed only for the light ash and the rock row (the book's ions stop at element 23), while the exploding stars return mostly elements around 116–122 (stage equilibrium): what the first stars' metals do to the next generation was open. **By:** every ion of elements 113–125 (99.9% of the band) from the book's atom (fusion/tools/ions3.mjs 4 113-125 → atom/js/iondata4h.js; local exchange, non-relativistic, all converged), the 4D hydrogen-like bound–free shapes extended to n = 8 (photoshape.mjs; the old keys unchanged), metals.js addIons4 so the pages never load them; metals4.mjs's band mix (nse4.json postDecay); evolve.mjs gen2=band (opacity, and with seeds the mass in the network's inert top species 16-32) and a zero-age continuation in the metals' opacity for stars much more opaque than their primordial first star. Relativity estimated by scaling every level by the 4D hydrogen-like Dirac–Coulomb ratio (screened charge, or pessimistically its mean with the bare charge): the band's opacity effect moves ≤2.6%. metals4.json and the held/rock cases reproduced or moved ≤2.3% first; gen2.json rebuilt from one current-code set.. **Runs:** `sandbox: ions3.mjs 4 113-125 (13 elements, every ion); metals4.mjs on the eight G 1e-17 Sun analogues; evolve.mjs four 1e-17 1.5152 sun tmax=3: primordial, held and rock (s, sk, k) at Z 0.02, band (k, sk) at Z 0.02 and 0.1`.
+
+**Decision rule:** none was fixed in advance; the stage's results were read as they came.
+
+| what moved | before | after |
+|---|---|---|
+| what the first stars' metals do to the next generation's opacity | open past element 23 (the rock row: ×1.5 at the centre, up to ×8.6 outside, at Z 0.01) | the band raises it at every depth ✓ |
+| the second-generation Sun analogue near our strength | with 2% of the rock row, 31% fainter (the first look) | with the heavy band that actually returns, several to more than ten times fainter and much slower ✓ |
+
+### S1.15 The energy of contraction (2026-11-21)
 
 **Replaced:** stars in complete equilibrium: every shell's light from its burning alone, no energy from contraction, so two runs (s 1.5152, G 1e-14 and 1e-11) stopped in the oitrogen stall. **By:** ε_grav = -du/dt + (P/ρ²)dρ/dt with u = (d/2)P/ρ (ideal ions, non-relativistic Fermi–Dirac electrons), implicit in each trial's ρ and P against a reference model at least 1% away in central density (evolve.mjs grav=1, behind a switch, so no quoted result moved); checked on ours first. Three simpler forms failed and are recorded in the code: a grid reference (its interpolation noise swamped the burning), a one-step baseline (the shooting went stiff) and a lagged source (noise). **Runs:** `sandbox: ours 1 and 2 M☉ on OPAL with and without; the two stalled analogues resumed from their checkpoints`, `evolve4-14 (one star past exhaustion)`, `evolve4-21 (the same star on into a red giant, by relaxation with the envelope's partial-ionization gas in the structure; cut at the runner's deadline with its energy books 0.76–0.97, the burning shell under-resolved: provisional)`.
 
@@ -222,7 +233,7 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 | undefined | undefined |
 | undefined | undefined |
 
-### S1.15 The liquid drop, checked (2026-11-22)
+### S1.16 The liquid drop, checked (2026-11-22)
 
 **Replaced:** the heavy end of 4D's burning (equilibrium's end, the stable line, how heavy a stable nucleus gets) read off the trusted liquid drops untested: 'element 103–137, this world's iron'; the abundance page placed its equilibrium share at element 137. **By:** fusion/tools/dropcheck.mjs: the drop built by nuclei.mjs bake's construction (through its own exports, reproducing the baked drops exactly) for ours and held to AME2020's measured masses; the trusted 4D drop held to the network's light nuclei (the adopted ladder model, mass 8–32) beside ours' drop against our ladder; the heavy end with the carried surface thickness ×0.7–1.3 and the three-nucleon range; and a second route, a drop fitted only to light N = Z nuclei, tested on ours and run on 4D's ladder. A first-generation equilibrium share placed on one nucleus was also wrong in itself: equilibrium makes about ten elements (the book's tools/nse.mjs, and a sandbox repeat). **Runs:** `sandbox: dropcheck.mjs on AME2020 (mass_1.mas20)`.
 

@@ -224,7 +224,14 @@ function statusNumbers() {
   const G2 = J("gen2.json"), both = (mix) => { const c = G2.cases.find((x) => x.mix === mix && x.seeds && x.kappa); if (!c) throw new Error(`gen2: no ${mix} case with seeds and opacity`); return c; };
   const pc = (x) => `${Math.round(Math.abs(100 * (x - 1)))}%`, rk = both("rock"), hd = both("held"), hmax = Math.max(...["L", "R", "Teff", "Tc", "burnt"].map((k) => Math.abs(hd[k] - 1)));
   if (!(rk.L < 1 && rk.R > 1 && rk.Teff < 1 && rk.burnt < 1)) throw new Error("gen2: the rock-row star no longer comes out fainter, larger, cooler and slower: rewrite the status page");
-  return { g2Gyr: String(G2.runGyr), g2L: pc(rk.L), g2R: pc(rk.R), g2T: pc(rk.Teff), g2B: pc(rk.burnt), g2Held: `${Math.round(100 * hmax)}%`, g2Q: f(rk.qcc, 2), g2Q0: f(G2.qcc0, 2),
+  // the heavy equilibrium band (gen2=band): its two treatments (seeds + opacity, opacity alone) bracket the composition, so
+  // each number is the pair's range; "times fainter" and the hydrogen-burning pace at Z 0.02 and 0.1
+  const band = (Z) => { const c = G2.cases.filter((x) => x.mix === "band" && x.Z === Z && x.kappa); if (c.length < 2) throw new Error(`gen2: the band at Z ${Z} needs both treatments`); return c; };
+  const fainter = (c) => { const v = c.map((x) => 1 / x.L); return `${Math.min(...v).toFixed(1)}–${Math.max(...v).toFixed(1)}`; }, pace = (c) => { const v = c.map((x) => x.burnt); return `${Math.min(...v).toFixed(2)}–${Math.max(...v).toFixed(2)}`; };
+  const b2 = band(0.02), b10 = band(0.1); if (!b2.concat(b10).every((x) => x.L < 0.5 && x.burnt < 0.5)) throw new Error("gen2: the band star no longer comes out much fainter and slower: rewrite the status page");
+  const M4s = J("metals4.json").summary, r2 = (v) => v.map((x) => x.toFixed(1)).join("–"), Yg = J("yields4.json").galaxies.filter((x) => x.s <= 1.55 && x.alpha === 2.35 && x.g === 1.25 && x.w === 0.03 && x.f === 100 && x.tau === 1).map((x) => x.track.reduce((p, r) => (Math.abs(r.t - 3) < Math.abs(p.t - 3) ? r : p)).Z);
+  const bandT = { g2bF2: fainter(b2), g2bB2: pace(b2), g2bF10: fainter(b10), g2bB10: pace(b10), m4Band1: r2(M4s["band0.01"]), m4Band2: r2(M4s["band0.02"]), gasZ3: `${Math.min(...Yg).toFixed(2)}–${Math.max(...Yg).toFixed(2)}` };
+  return { ...bandT, g2Gyr: String(G2.runGyr), g2L: pc(rk.L), g2R: pc(rk.R), g2T: pc(rk.Teff), g2B: pc(rk.burnt), g2Held: `${Math.round(100 * hmax)}%`, g2Q: f(rk.qcc, 2), g2Q0: f(G2.qcc0, 2),
     m4HeldLo: sg(hl), m4HeldHi: sg(hh), m4RockCore: xr(at(qs[0])), m4RockOut: xr(at(qs.at(-1))), m4OutQ: f(qs.at(-1), 1), lpPPlo: f(Math.min(...span("ppScreen", 0)), 2), lpPPhi: f(Math.max(...span("ppScreen", 1)), 2),
     lpOpHi: f(Math.max(...span("factor", 1)), 2), lpDPlo: f(100 * Math.min(...span("dPgas", 0)), 1).replace("-", "−"), lpDPhi: f(100 * Math.max(...span("dPgas", 1)), 1).replace("-", "−") };
 }
@@ -280,6 +287,8 @@ const PCHECKS = {
   yields4P: () => yields4Numbers().yPA,
   // the share of p burnt to equilibrium at s 1.5152, middle choice (alpha 2.35, g 1.25, w 3%, f 100, stars dying within 30 Gyr)
   yieldsEquilibriumMid: () => { const y = J("yields4.json").yields.find((x) => x.s === 1.5152 && x.alpha === 2.35 && x.g === 1.25 && x.w === 0.03 && x.f === 100 && x.tg === 30); return `${Math.round(100 * (y.mix.iron ?? 0))}%`; },
+  metalsBand1: () => J("metals4.json").summary["band0.01"].map((x) => x.toFixed(1)).join("–"),
+  gen2BandFainter: () => { const c = J("gen2.json").cases.filter((x) => x.mix === "band" && x.kappa), f = (Z) => c.filter((x) => x.Z === Z).map((x) => 1 / x.L); return [0.02, 0.1].map((Z) => `${Math.min(...f(Z)).toFixed(1)}–${Math.max(...f(Z)).toFixed(1)}`).join("/"); },
   nseBandAfter: () => { const r = J("nse4.json").runs; return `${Math.min(...r.map((x) => x.afterDecay.band80[0]))}–${Math.max(...r.map((x) => x.afterDecay.band80[1]))}`; },
   egravOurs: () => { const o = J("egrav.json").ours; return `${o.sun.maxAbsPct.toPrecision(2)}/${o.m2.maxAbsPct.toPrecision(2)}`; },
   ages4Half: () => { const S = J("ages4.json").summary; return `${S.halfMin.toFixed(1)}–${S.halfMax.toFixed(0)}`; },
