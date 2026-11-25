@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#07080c" />
+<meta name="description" content="FLY — flying over a four-dimensional landscape. The ground is three-dimensional; you see the slice through you that holds forward, right and up, drawn the way Comanche drew terrain. Ghost skylines show what lies ana and kata of you, a map shows the 3D floor and your track, and beacons hang off in w to find." />
+<title>FLY — ana</title>
+<link rel="icon" href="data:," />
+<link rel="stylesheet" href="css/fly.css" />
+</head>
+<body class="is4">
+<div class="app">
+  <div class="stage" id="stage">
+    <canvas id="view" width="480" height="270" aria-label="Your view: the slice of the 4D world through you that holds forward, right and up"></canvas>
+    <canvas id="ov" aria-hidden="true"></canvas>
+    <canvas id="map" aria-label="The 3D floor round you: peaks, your track, beacons, and the plane you see"></canvas>
+    <div id="bar">
+      <a class="home" href="../">ana</a>
+      <b>FLY</b>
+      <button type="button" id="ghostB" class="on">ghosts</button>
+      <button type="button" id="tintB">ana tint</button>
+      <button type="button" id="mapB" class="on">map</button>
+      <button type="button" id="pauseB">pause</button>
+    </div>
+    <div id="cap"></div>
+    <div id="toast"></div>
+    <div id="twist" class="pad" aria-label="the stick: pitch and turn"><div id="twistKnob"></div><span>stick</span></div>
+    <div id="swing"><button id="rollL" aria-label="swing your wings toward kata">↺ swing</button><button id="rollR" aria-label="swing your wings toward ana">swing ↻</button></div>
+    <div id="ana" class="lever" aria-label="turn ana and kata"><div id="anaKnob"></div><b>ana</b><i>kata</i></div>
+    <div class="nogl" id="loading">raising the land…</div>
+  </div>
+  <div class="panel">
+    <section>
+      <h2 id="title">the course</h2>
+      <div id="facts" class="rows"></div>
+      <div class="knob"><label><span>throttle</span><b id="spdV"></b></label><div class="slider"><span>slow</span><input type="range" id="spd" min="40" max="400" step="5" value="120" /><span>fast</span></div></div>
+      <div class="btns"><button id="newB">new course</button><button id="worldB">new world</button><button id="homeB">level out</button></div>
+    </section>
+    <details open><summary>flying in four dimensions</summary>
+      <p>In four dimensions the ground is <b>three-dimensional</b>: a height over a 3D floor, with the sky above it in the fourth direction, up. You can turn in three ways on that floor: left and right, as here, and also <b>ana</b> and <b>kata</b>, toward the floor's third direction. Your eyes see the slice of the world through you that holds forward, right and up; ana is the one direction you can't see.</p>
+      <p>So FLY gives you three cues to it. <b>Ghosts</b>: the skyline of the land 150 m ana of you is drawn in teal, 150 m kata in rose: a hill you're about to turn into, before you can see it. <b>Light</b>: the sun shines partly from ana, so slopes that face ana are brighter (and <b>ana tint</b> colours the land by which way it climbs along your ana). And the <b>map</b>: the 3D floor round you, 4 km across, with the peaks, your track, the beacons, and the square of the plane you're looking along.</p>
+      <p>The <b>beacons</b> hang in 4D. One shows in your view only as the slice of it you're in: a full disc when you're level with it in ana, shrinking as you're off it, and a dashed ring (teal: it's ana of you; rose: kata) when you've missed its slice entirely. The bar on the right says how far ana or kata the next one is. Turn ana or kata to bring it into your slice, then fly through it.</p>
+    </details>
+    <details><summary>controls, and how it's drawn</summary>
+      <p><b>Keys</b>: arrows pitch and turn; <b>A</b>/<b>D</b> turn kata and ana; <b>Q</b>/<b>E</b> swing your wings (turn right toward ana, so the slice you see swings round your nose); <b>W</b>/<b>S</b> throttle. <b>Touch</b>: the stick bottom left, the lever bottom right turns ana and kata, the swing buttons beside it. Drag the map to turn it.</p>
+      <p>The view is <b>Voxel Space</b>, as in Comanche (1992) and the studio's colour cycle: each of 480 columns walks a ray out over the land in your slice, and every step that rises above what's drawn fills the column to it, from a 256-colour palette (8 materials × 32 shades), lit by the 4D normal, hazed with distance. The land is 3D value noise on a 128³ grid, 8 km a side, wrapping, so it never ends; <code>test/fly.selftest.mjs</code> checks it tiles, that the fast grid equals the noise, that the renderer's skyline matches a ray traced finely, that the flight frame stays square and you never fly under the ground, and the beacon geometry.</p>
+    </details>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -5864,6 +5864,22 @@
       ]
     },
     {
+      "n": "ana-fly",
+      "u": "https://ana.mino.mobi/fly/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-11-25",
+      "b": "2026-11-25",
+      "p": "ana",
+      "surface": "ana",
+      "d": "Fly over a four-dimensional landscape, in the vein of the studio's colour cycle. In 4D the ground is three-dimensional, a height over a 3D floor, and you turn ana and kata as well as left and right. You see the slice through you that holds forward, right and up, drawn in Voxel Space as Comanche drew its hills, from a 256-colour palette lit by a 4D sun that shines partly from ana. Ghost skylines show the land 150 m ana and kata of you; a map shows the 3D floor, your track and the plane you see; beacons hang off in w and show only as the slice of them you're in, so you turn ana until they fill and fly through. An endless wrapping world of lakes, forest and ridged mountains; a selftest holds the renderer to a finely marched ray.",
+      "tags": [
+        "webgl",
+        "math"
+      ]
+    },
+    {
       "n": "hyperball",
       "u": "https://hyperball.mino.mobi/",
       "c": "games",
