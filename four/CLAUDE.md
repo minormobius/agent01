@@ -447,6 +447,19 @@ for games, and this is a modelling programme with publications to come. The game
   1.78 Gyr), G 10⁻¹⁷ s 1.5152 1.0 (Xc 0.373), s 1.55 4.0 (Xc 0.202), s 1.65 1.25 (Xc 0.269), s 1.65 2.0 (Xc 0.365),
   s 1.8 4.0 (Xc 0.036). Books otherwise clean (spikes up to ~36% in single models, never a 10-model run). Ours' fix landed
   (khmin=, above); evolve4-26c runs the 28 still burning plus ours' seven fresh at khmin=0.1, tag v2k.
+  **The six stops, diagnosed (sandbox, 2026-11-25):** each sat at a stirred core's growth step (a composition shell mixed
+  in, ρ at fixed m jumping by mixing, not contraction), the steps halving to under a year and every solve failing its first
+  integration. Two causes, both fixed in evolve.mjs: (1) ε_grav's backward difference across that event is spurious;
+  `solveG` re-solves a failing step without the term (marked `gravOff` in the track); with ε_grav off entirely all six ran
+  on without one failed solve; (2) resume re-solved the checkpoint against its saved reference even where the run had
+  ε_grav off (under KHMIN), so no checkpoint of the six would resume (0 Newton steps); now refFor's KHMIN rule applies
+  there too. From their checkpoints, 20 min each: five run on cleanly (0–5 gravOff steps in 74–148 models, books within
+  1%); **G 10⁻¹⁷ s 1.65 2.0 M_Ch does not**: its core, which had shrunk 0.177 → 0.056 between 0.6 and 0.8 Gyr, regrows
+  into the composition gradient it left, 0.073 → 0.148 in zero time at 1.0613 Gyr, central H 0.357 → 0.529, Tc 22.2 →
+  17.0 MK (books 523% in the event). That is the Schwarzschild boundary with instant mixing running away, not ε_grav (the
+  term was already off there); production's track of the star (no ε_grav) regrew only to 0.079 and finished at 1.72 Gyr.
+  Held back for the PI: accept it as the model's physics, or stop a core advancing into its own μ-gradient (Ledoux),
+  which would touch every star whose core regrows.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

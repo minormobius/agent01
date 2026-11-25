@@ -214,6 +214,14 @@ function gravRef(W, gr, comp) { if (!gr) return null; const P = gr.prof, ms = P.
   return { ms, lP, lT, comp, dt: gr.dt }; }
 const epsGrav = (W, G, M, rho, m, P) => { const lP0 = interp(G.ms, G.lP, m), lT0 = interp(G.ms, G.lT, m), r0 = rhoOf(W.d, Math.exp(lP0), Math.exp(lT0), G.comp(m));
   return ((P / rho) * (((W.d + 2) / 2) * Math.log(rho / r0) - (W.d / 2) * (Math.log(P) - lP0))) / G.dt; };
+/* ε_grav's fallback: a step whose solve fails with the contraction term is re-solved without it. ε_grav is a backward
+   difference at fixed mass against an earlier model; when a stirred core grows into a composition shell, mixing (not
+   contraction) moves ρ at fixed m, and the difference across that event is spurious and large enough that the first
+   integration fails (evolve4-26b's six solver stops: the steps halved to under a year, every solve "integration" at 0
+   Newton steps; with the term off, all ran on without a failure). Off for that step only; on the main sequence the term
+   is ~10⁻⁴ of L, so the books lose nothing measurable. Each such step is marked gravOff in the track. */
+function solveG(W, M, S, guess, at0, f0, scale, gr) { const g2 = gr ? Object.assign(guess.slice(), guess) : null, r = solve(W, M, S, guess, at0, f0, scale, gr); if (r.s.ok || !gr) return r;
+  const r2 = solve(W, M, S, g2, at0, f0, scale, null); if (r2.s.ok) r2.s.gravOff = true; return r2.s.ok ? r2 : r; }
 function solve(W, M, S, guess, at0, f0 = null, scale = 1, gr = null) {
 
   // the EOS and opacity need only a few numbers from each shell: precomputed, then interpolated in q
@@ -290,7 +298,11 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     // a relax=1 checkpoint carries its model's profile, so the resume relaxes from it (shooting can't solve a giant)
     // with ε_grav, the checkpointed star is re-solved as it was saved: against its own reference (gref[0]), else a star
     // re-solved without it comes out a few per cent off (1.9% in ρc past exhaustion) and mistakes itself for a new model
-    const g0 = W.grav && C.gref?.length > 1 && C.t > C.gref[0].t ? { prof: C.gref[0].prof, dt: C.t - C.gref[0].t } : null, r = solve(W, M, S, Object.assign(C.p.slice(), W.relax && C.prof ? { prof: C.prof.map(([m, rr, P, T, L]) => ({ m, r: rr, P, T, L })) } : {}), C.at, fOf, 1, g0); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
+    // — unless the run itself had ε_grav off there: the reference under KHMIN of the thermal time back (refFor's rule), as
+    // after a stirred core's growth step, where re-solving against a reference a few years back failed every resume of
+    // evolve4-26b's six solver stops at 0 Newton steps
+    const lastRow = C.track?.at(-1), tKH0 = lastRow ? (W.G * M * M) / (lastRow.R * lastRow.L) : 0;
+    const g0 = W.grav && C.gref?.length > 1 && C.t > C.gref[0].t && C.t - C.gref[0].t >= KHMIN * tKH0 ? { prof: C.gref[0].prof, dt: C.t - C.gref[0].t } : null, r = solveG(W, M, S, Object.assign(C.p.slice(), W.relax && C.prof ? { prof: C.prof.map(([m, rr, P, T, L]) => ({ m, r: rr, P, T, L })) } : {}), C.at, fOf, 1, g0); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
     console.log(`${label}: resumed at ${(t / GYR).toFixed(4)} Gyr from ${src}`); return run(r.s, r.f, C); }
   return run(null, null, null);
   function run(s1, g1, C) {
@@ -323,7 +335,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     return r; }
   let { s, f: grav } = C ? { s: s1, f: g1 } : firstShellAny(s0);
   if (!s.ok) throw new Error(`zero-age star didn't solve with shell laws (${s.why})`);
-  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1, lgrav = null, booksOff = 0;
+  let smp = sample(W, M, S, s), dtLast = C ? C.dtLast : 1e3 * YR, eBal = null, balRef = 1, lgrav = null, booksOff = 0, gOff = false;
   // ε_grav's references: the accepted models, newest last ({ t, rhoc, prof }); a resumed run starts with its checkpoint's
   // A checkpoint keeps the reference it would use (gref), so a resumed run measures against a real baseline; one written
   // before that resumes with only itself, a one-step baseline, which is stiff (evolve4-15 stopped on it at once). gravAfter:
@@ -344,7 +356,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
   const track = C ? C.track : [], profiles = C ? C.profiles : [], keepProf = (s, smp) => profiles.push({ tGyr: t / GYR, R: s.R, L: s.L, rows: smp.rows.filter((_, j) => j % 10 === 0).map((r, i) => ({ q: r.q, r: +r.r.toPrecision(5), T: +r.T.toPrecision(5), rho: +r.rho.toPrecision(5), l: +r.l.toPrecision(5), H: +W.H(S[i * 10]).toPrecision(5), stir: smp.stir[i * 10], ...Object.fromEntries(Object.entries(W.extra(S[i * 10])).map(([k, v]) => [k, +v.toPrecision(4)])) })) });
   const keep = () => { const c = smp.rows[0], e = smp.rows.map((r, j) => W.eps(r.rho, r.T, S[j])), lpp = e.reduce((a, x, j) => a + WQ[j] * x.pp, 0), lcno = e.reduce((a, x, j) => a + WQ[j] * x.cno, 0);
     const lq = (f) => { for (let j = 1; j <= NQ; j++) if (smp.rows[j].l >= f) return QS[j]; return 1; };
-    const row = { t, tGyr: t / GYR, L: s.L, R: s.R, Teff: teff(W.d, s), Tc: s.Tc, rhoc: c.rho, Pc: s.Pc, Xc: W.H(S[0]), qcc: convectiveCore(W.d, s), ppShare: lpp / (lpp + lcno), Lnuc: (lpp + lcno) * M, q50: lq(0.5), q90: lq(0.9), eBal, ...(W.grav ? { Lgrav: lgrav } : {}),
+    const row = { t, tGyr: t / GYR, L: s.L, R: s.R, Teff: teff(W.d, s), Tc: s.Tc, rhoc: c.rho, Pc: s.Pc, Xc: W.H(S[0]), qcc: convectiveCore(W.d, s), ppShare: lpp / (lpp + lcno), Lnuc: (lpp + lcno) * M, q50: lq(0.5), q90: lq(0.9), eBal, ...(W.grav ? { Lgrav: lgrav } : {}), ...(gOff ? { gravOff: 1 } : {}),
       Hq: Array.from({ length: 21 }, (_, i) => +W.H(lerpState(S, i / 20)).toFixed(5)), centre: W.extra(S[0]) };
     track.push(row); console.log(`${label} ${row.tGyr.toFixed(3)} Gyr: ${W.d === 3 ? `L ${(s.L / LSUN).toFixed(4)} L☉, R ${(s.R / RSUN).toFixed(4)} R☉` : `L ${s.L.toExponential(4)} W, R ${s.R.toExponential(4)} m`}, Teff ${row.Teff.toFixed(0)} K, Tc ${(s.Tc / 1e6).toFixed(2)} MK, ρc ${W.d === 3 ? `${(c.rho / 1000).toFixed(1)} g/cm³` : `${c.rho.toExponential(3)} kg/m⁴`}, Xc ${row.Xc.toFixed(4)}, stirred core ${row.qcc.toFixed(3)}, pp ${(row.ppShare * 100).toFixed(1)}%, half the light inside q ${row.q50.toFixed(3)}${eBal ? `, burnt/radiated ${eBal.toFixed(4)}` : ""}${lgrav != null ? `, contraction ${(100 * lgrav / s.L).toFixed(2)}% of L` : ""}`); };
   // profiles at every 0.5 Gyr (ours) and as the centre's hydrogen falls past 90%, 80%, … 10%, 1% of its start (both)
@@ -364,7 +376,7 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
     if (process.env.DEBUG_DT) { let jm = -1, dm = Infinity; for (let j = 0; j <= NQ; j++) { const r = smp.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const d = W.dHdt(r.rho, r.T, S[j]); if (d < 0 && dX / -d < dm) { dm = dX / -d; jm = j; } } console.log(`    dt ${(dt / YR).toExponential(2)} yr; the tightest shell q ${QS[jm]?.toFixed(4)} T ${(smp.rows[jm]?.T / 1e6).toFixed(2)} MK, X ${W.H(S[jm]).toFixed(4)}, dX/dt ${(-dX / dm * YR).toExponential(2)} /yr`); }
     dt = Math.min(dt, tmax - t); let done = false, prevBal = null;
     for (let tries = 0; tries < 6 && !done; tries++) {
-      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solve(W, M, Sh, s.p, smp.rows, grav, 1, refFor(t + dt / 2)); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}, residual ${h.s.res?.toExponential(2)}, Newton ${h.s.it}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
+      const h1 = burnAll(W, S, smp, dt / 2), Sh = mix(h1.S, smp.stir), h = solveG(W, M, Sh, s.p, smp.rows, grav, 1, refFor(t + dt / 2)); if (!h.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    half-step solve failed (${h.s.why}, residual ${h.s.res?.toExponential(2)}, Newton ${h.s.it}), dt ${(dt / YR).toExponential(2)} yr`); dt /= 2; continue; }
       const smh = sample(W, M, Sh, h.s), b = burnAll(W, S, smh, dt, Sh), bal = W.grav && h.s.Lnuc > 0 ? (b.E * M) / (h.s.Lnuc * dt) : (b.E * M + (h.s.Lgrav ?? 0) * dt) / (h.s.L * dt); // what the shells burnt (and, with grav, the star's contraction released) over the step against what the half-way star radiated
       // the step's energy doesn't add up: shorter, unless halving it left the mismatch where it was. A step's own error
       // falls about fourfold a halving (second order); one that doesn't fall is structural (a stirred core's short-lived
@@ -374,11 +386,11 @@ function evolve(W, M, { dX = 0.01, tmax = 20 * GYR, Hstop = 1e-3, guess, label, 
       const structural = prevBal != null && Math.abs(bal - prevBal) < (W.baltol ?? BALTOL) / 3;
       if (Math.abs(bal - balRef) > (W.baltol ?? BALTOL) && !structural && tries < 5 && dt > 1e3 * YR) { if (process.env.DEBUG_DT) console.log(`    balance ${bal.toFixed(5)} against ${balRef.toFixed(5)} (burnt/L ${(b.E * M / (h.s.L * dt)).toFixed(5)}, Lgrav/L ${((h.s.Lgrav ?? 0) / h.s.L).toFixed(5)}, Lnuc/L ${((h.s.Lnuc ?? NaN) / h.s.L).toFixed(5)}): halving ${(dt / YR).toExponential(2)} yr`); prevBal = bal; dt /= 2; continue; }
       balRef = structural || Math.abs(bal - 1) > (W.baltol ?? BALTOL) ? bal : 1;
-      const Sn = mix(b.S, smh.stir), f = solve(W, M, Sn, h.s.p, smh.rows, h.f, 1, refFor(t + dt)); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why}, residual ${f.s.res?.toExponential(2)}, Newton ${f.s.it})`); dt /= 2; continue; }
+      const Sn = mix(b.S, smh.stir), f = solveG(W, M, Sn, h.s.p, smh.rows, h.f, 1, refFor(t + dt)); if (!f.s.ok) { if (process.env.DEBUG_SOLVE) console.log(`    full-step solve failed (${f.s.why}, residual ${f.s.res?.toExponential(2)}, Newton ${f.s.it})`); dt /= 2; continue; }
       // with grav, a step that moves the centre's density by more than DRHO (5%) is too long for the backward difference
       const dRho = W.grav ? Math.abs(Math.log(rhoOf(W.d, f.s.prof[0].P, f.s.prof[0].T, W.comp(Sn[0])) / smp.rows[0].rho)) : 0;
       if (W.grav && tries < 5 && dRho > DRHO) { if (process.env.DEBUG_SOLVE) console.log(`    centre ρ moved ${(100 * dRho).toFixed(1)}%: halving`); dt /= 2; continue; }
-      eBal = bal; grav = f.f; lgrav = h.s.Lgrav ?? null;
+      eBal = bal; grav = f.f; lgrav = h.s.Lgrav ?? null; gOff = !!(h.s.gravOff || f.s.gravOff);
       if (process.env.DEBUG_BAL) { const bands = [0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.5, 1.01], acc = bands.slice(1).map(() => [0, 0]);
         for (let j = 0; j <= NQ; j++) { const r = smh.rows[j]; if (!(r.T > (W.Tburn ?? 2e6))) continue; const k = bands.findIndex((x, i) => QS[j] >= x && QS[j] < bands[i + 1]), e = W.eps(r.rho, r.T, Sh[j]).eps, eb = W.burn(r.rho, r.T, S[j], dt).E / dt; acc[k][0] += WQ[j] * e; acc[k][1] += WQ[j] * eb; }
         console.log(`  balance by q band (burnt/structure): ${acc.map(([e, b], i) => `${bands[i]}–${bands[i + 1]}: ${(b / e).toFixed(4)} (${((e * M) / h.s.L * 100).toFixed(1)}%)`).join("; ")}`); }
