@@ -21,7 +21,7 @@ from scipy.optimize import brentq
 
 tau = float(sys.argv[1]) if len(sys.argv) > 1 else 0.5
 Lams = [float(v) for v in sys.argv[2].split(",")] if len(sys.argv) > 2 else [0.0, 3.0, 30.0, 300.0, 3000.0]
-tags = sys.argv[3:] or sorted((f.split("heat-")[1][:-5] for f in glob.glob("data/heat-*.json") if "slab" not in f), key=lambda t: float(t.split("-")[0]))
+tags = sys.argv[3:] or sorted((f.split("heat-")[1][:-5] for f in glob.glob("data/heat-*.json") if "slab" not in f and "uni" not in f), key=lambda t: float(t.split("-")[0]))
 
 def wire(d, Lam, J=None):
     H = np.array(d["H"]); J = J or len(H); H = H[:J, :J]; R = d["R"]; j = np.arange(J); kap = (j + 0.5) * np.pi / R

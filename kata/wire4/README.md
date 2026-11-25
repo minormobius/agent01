@@ -369,15 +369,43 @@ with the first temperature shape:
 | stream speed there | 1 | 0.96 | 0.84 | 0.64 | 0.36 |
 
 Between mirror planes with a uniformly hot wire: 9.13 on the axis, 7.08 where the stream is half speed, 2.71 on the
-plane where it is at rest. Sphere correlations at Re 200 and Pr 0.7 give 8.7 (Whitaker) to 9.5 (Ranz–Marshall),
-and the wire's cross-section is a ball, so the level is right; that is a plausibility check, not a validation. A
-uniform-stream run of this solver against the sphere literature is the check still owed. The temperature
+plane where it is at rest. The check against our world's literature is below. The temperature
 undershoots by 0.02 of the excess somewhere in the wake (no upwinding). Because the stream slows along the wire, a
 wire in a tube reads less than the centreline speed: 4 D out, the coefficient is 0.72 of its value on the axis, at
 Reynolds numbers from 100 up (0.73, 0.73, 0.72, 0.72) and more at lower ones, where conduction counts for more
 (0.79 at Re 25, 0.75 at 50). On the axis, Nu − 2 runs 2.28, 3.36, 4.83, 5.98, 7.05, 7.96 from Re 25 to 250: a power
 of Re that is 0.54 over the whole decade and between 0.52 and 0.57 on each step, with no trend. King's shape, with an exponent
 between the boundary layer's ½ and the wake's ⅔, as sphere correlations have (they give 4.2 to 4.7 at Re 25).
+
+**Checked against the sphere literature (`nu4.py`).** A uniformly hot wire in a uniform stream loses heat per length
+as a sphere does, and that is a number others have computed. Three steps:
+
+| Re | 25 | 50 | 100 | 150 | 200 | 250 |
+|---|---|---|---|---|---|---|
+| sphere, this study (`nu4.py`, axisymmetric, Pr 0.7) | 4.30 | 5.40 | 6.90 | 8.08 | 9.11 | 10.04 |
+| published direct simulations, as tabulated at Pr 0.7 | | 5.4 | 6.91, 6.92 | | 9.12, 9.17 | 9.95, 9.96 |
+| Feng & Michaelides' correlation, Pr 0.7 | 4.28 | 5.40 | 6.96 | 8.15 | 9.15 | 10.04 |
+| `heat4.py` on a uniform stream between mirror planes (`UNIFORM=1`) | | 5.40 | 6.92 | | | |
+| the tube, on its axis (table above) | 4.28 | 5.36 | 6.83 | 7.98 | 9.05 | 9.96 |
+
+1. *The sphere, computed here.* `nu4.py` solves the temperature on `wake4.py`'s axisymmetric flow. Meshes of 50 × 40,
+   70 × 60 and 100 × 80 agree to 0.02%. At Pr 0.72 the values are 5.44, 6.96, 9.20, 10.13.
+2. *Against published values.* The simulation rows are Table 2 of Mhaisekar's thesis (Cincinnati, 2004): its own
+   solution and the values it quotes from Balachandar & Ha (2001). We agree within 0.7% at Re 50 to 200 and 0.9% at
+   250, where the published flow is three-dimensional and ours is held axisymmetric. Read at second hand: the
+   primary papers were not open to us, and whether the quoted values are at Pr 0.7 or 0.72 is not certain (0.8% of
+   Nu rides on that). Whitaker's correlation runs 3 to 5% below all of these and Ranz–Marshall's 4 to 8% above.
+   No tabulated simulation value was found below Re 50 or at 150; there the correlation fitted to simulations is
+   the comparison.
+3. *The 3D code against the sphere.* `tube4.py` with a uniform stream between mirror planes 3.1 D apart is the same
+   sphere flow at every station, on the tetrahedral mesh `heat4.py` uses. Its heat loss averaged along the wire is
+   5.396 at Re 50 and 6.918 at Re 100 against 5.395 and 6.903: within 0.2%. Station by station it scatters by
+   ±1.4% (the stations are 0.08 D apart, about the mesh size on the wire), so single-station values
+   in the tables above carry about that, and integrals along the wire, which the anemometer uses, much less.
+
+So the heat-loss numbers stand to about 1%, and the tube's axis values sit 0.5 to 1.2% under the sphere's at the
+same centreline speed. Not covered: Re below 50 against tabulated simulations, Prandtl numbers other than 0.7, and
+a finer tetrahedral mesh.
 
 ## 11. The anemometer: the wire's energy balance (`anem4.py`)
 
@@ -424,7 +452,7 @@ heating feeding itself) at P about 2.4 to 2.8 times the values above.
   instabilities are what a thick wire or a fast stream would add.
 
 **Limits.** Six Reynolds numbers over one decade, one tube radius. The heat matrices
-carry section 10's limits (not validated against the sphere literature, one mesh, Pr 0.7). The shapes all vanish at
+carry section 10's limits (checked against the sphere literature to about 1%; one mesh, Pr 0.7). The shapes all vanish at
 the wall, so a uniform heat source is represented to 2.5%: the heat balance closes to 1.7%, and the current needed
 moves by 3.5% between 4 and 8 shapes at Λ = 0 and by 0.04% at Λ = 30 and above. Properties constant: no radiation,
 no change of k or α with temperature. Fully developed flow only.
@@ -445,6 +473,7 @@ cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run,
 ../../venv/bin/pip install gmsh && apt-get install -y libglu1-mesa   # tube4.py only
 ../../venv/bin/python tube4.py 200 5 150                 # the true tube, ~3 h -> data/tube-200-R5.*  (geom=slab: section 8's problem)
 ../../venv/bin/python heat4.py 200-R5 0.7 8               # heat from the wire on that flow, ~2 min -> data/heat-200-R5.json
+../../venv/bin/python nu4.py                              # a sphere's Nusselt number, the literature check, ~1 min -> data/nu-sphere.json
 ../../venv/bin/python anem4.py 0.5                        # the wire's energy balance on every data/heat-*.json, < 1 s
 RESUME=1 FRAMES=25 ../../venv/bin/python shear4.py 280 10 255 0.015 28 50 40 && ../../venv/bin/python export4.py pulse 280-R10 40   # one cycle for the page
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
@@ -459,8 +488,7 @@ not wake modes.
 - A nonlinear solver that carries the lopsided harmonics, to find the tilted ripple and where it starts to shed.
 - The tube at higher Reynolds numbers and other radii, a finer mesh, and a look at the junction. Lopsided flows need the
   full 4D problem or harmonics round the axis.
-- Heat: the uniform-stream check against the sphere literature, and temperature stepped with the flow for unsteady
-  wakes.
+- Heat: temperature stepped with the flow for unsteady wakes.
 - The instrument proper: a long thin wire (low wire Reynolds number) by strip theory on the sphere's Nu(Re), checked
   against a tube run; then a developing inlet profile.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
