@@ -457,6 +457,68 @@ the wall, so a uniform heat source is represented to 2.5%: the heat balance clos
 moves by 3.5% between 4 and 8 shapes at Λ = 0 and by 0.04% at Λ = 30 and above. Properties constant: no radiation,
 no change of k or α with temperature. Fully developed flow only.
 
+## 12. The instrument: a long thin wire, by strip theory (`strip4.py`)
+
+Section 11 ends on a wire hundreds of diameters long. Its own Reynolds number is then 1 to 10, below every
+instability here, and the stream changes along it over hundreds of diameters, so each station loses heat as a sphere
+does at its local speed: Q = π Nu(Re U(w)) θ, with section 11's balance otherwise unchanged, solved by finite
+differences. No flow is solved. In 4D this is well posed down to rest, because conduction from a wire to still fluid
+has the finite Nusselt number 2 (in our world a wire's has no steady limit and the strip picture needs an outer
+length). Nu(Re) is the sphere's, by section 10's method with the outer boundary 1000 diameters out: 2.07, 2.25, 2.58,
+3.32, 4.30 at Re 0.25, 1, 3, 10, 25. The boundary's distance matters only below Re 0.5 (at 0.01: 2.057 with it 12 D
+out, 2.003 at 1000 D); at Re 0.1 the value 2.032 is the low-speed expansion's 2 + Re Pr/2 = 2.035 less its next term.
+
+**Checked against the tube runs** (`strip4.py check`): the current squared needed at overheat 0.5, strip theory over
+section 11's tube computation, R = 5, Re 25 to 250:
+
+| Λ | 30 | 300 | 3000 |
+|---|---|---|---|
+| strip / tube run | 0.995 … 0.988 | 0.999 … 0.995 | 0.9999 … 0.9990 |
+
+So for a conducting wire the sphere-at-local-speed picture reproduces the full computation to about 1% even on a
+wire 10 diameters long at Re 250, where it has least right to; the shares of heat going to the stream agree to
+0.007. With no conduction along the wire (Λ = 0) the two differ by 12 to 28%: there the strip picture has nothing
+cooling the wire's last stretch but still fluid, while the tube computation has the cold wall beside it. That limit
+is not an instrument.
+
+**The instrument: a wire 200 diameters long (R = 100), Λ = 3000, resistance held at 1.5 of cold.**
+
+| Re of the wire | 0.25 | 0.5 | 1 | 2 | 3 | 5 | 7.5 | 10 | 15 | 25 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Re of the pipe (centreline speed, pipe diameter) | 50 | 100 | 200 | 400 | 600 | 1000 | 1500 | 2000 | 3000 | 5000 |
+| current squared P | 2.65 | 2.71 | 2.82 | 2.99 | 3.13 | 3.38 | 3.63 | 3.84 | 4.21 | 4.78 |
+| sensitivity n = d ln P / d ln Re | | 0.03 | 0.05 | 0.09 | 0.12 | 0.15 | 0.18 | 0.20 | 0.22 | 0.25 |
+| share of the heat to the stream | 0.81 | 0.81 | 0.82 | 0.82 | 0.82 | 0.83 | 0.83 | 0.84 | 0.84 | 0.85 |
+
+- **The wall is no longer the problem.** Four fifths of the heat goes to the stream (0.93 for a wire 500 D long, 0.94
+  for Λ = 300), against a tenth in section 11's tube.
+- **The 4D wire is a blunt instrument at low speed, for a 4D reason.** A sphere's Nusselt number starts at 2, not 0:
+  the wire sheds most of its heat by conduction whatever the stream does, and the stream only adds to it. From Re
+  0.25 to 10, a fortyfold change in flow, the current squared rises 45%. The sensitivity climbs with Reynolds number
+  (0.2 at 10, 0.25 at 25, and 0.37 to 0.39 by 150 to 250 in section 11's Λ = 0 row), so the instrument wants the
+  thickest wire the wall allows: the thin wire of section 11's argument trades wall loss for bluntness. Our world's
+  hot wire has neither trouble, since a cylinder's conduction floor is zero.
+- **Flow development matters, and the wire does not measure flow rate.** At one flow rate, the reading for the family
+  U = Ū (n + 3)/n (1 − (w/R)ⁿ) (n = 2 developed, n → ∞ plug), over the developed flow's reading:
+
+  | Re of the wire | n = 3 | 4 | 8 | 16 | plug |
+  |---|---|---|---|---|---|
+  | 1 | 0.992 | 0.986 | 0.976 | 0.970 | 0.963 |
+  | 3 | 0.984 | 0.974 | 0.955 | 0.942 | 0.927 |
+  | 10 | 0.976 | 0.960 | 0.928 | 0.907 | 0.881 |
+
+  Small changes in the reading, but the reading is blunt: a plug flow read with the developed flow's calibration
+  gives half the true flow rate (0.49 to 0.51), and the n = 4 profile gives 0.80 to 0.82. The wire across a diameter
+  reads close to the speed averaged along itself, which for the developed 4D parabola is 5/3 of the mean over the
+  section (in our pipe, 4/3). So a flow rate needs the profile, or a pipe long enough to be sure of it.
+- At constant current the wire runs away at about 2.7 times the P above.
+
+**Limits.** The family of profiles is a stand-in for developing flow, which has a flat core and a boundary layer; no
+entrance flow was computed. Strip theory is checked at R = 5 only, though it should only improve for a longer
+wire. Near the wall the stream is at rest and the cold wall is close, so conduction there exceeds Nu = 2; with a
+metal wire that stretch is already wall-cooled (the last 18 D). Whether laminar 4D pipe flow survives to a pipe
+Reynolds number of 2000 to 5000 is not known. Pr 0.7, constant properties, no radiation or buoyancy.
+
 ## Running it
 
 ```bash
@@ -476,6 +538,7 @@ cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run,
 ../../venv/bin/python nu4.py                              # a sphere's Nusselt number, the literature check, ~1 min -> data/nu-sphere.json
 ../../venv/bin/python anem4.py 0.5                        # the wire's energy balance on every data/heat-*.json, < 1 s
 RESUME=1 FRAMES=25 ../../venv/bin/python shear4.py 280 10 255 0.015 28 50 40 && ../../venv/bin/python export4.py pulse 280-R10 40   # one cycle for the page
+../../venv/bin/python strip4.py table && ../../venv/bin/python strip4.py check && ../../venv/bin/python strip4.py 100 3000   # the long thin wire, ~5 min
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 
@@ -489,8 +552,8 @@ not wake modes.
 - The tube at higher Reynolds numbers and other radii, a finer mesh, and a look at the junction. Lopsided flows need the
   full 4D problem or harmonics round the axis.
 - Heat: temperature stepped with the flow for unsteady wakes.
-- The instrument proper: a long thin wire (low wire Reynolds number) by strip theory on the sphere's Nu(Re), checked
-  against a tube run; then a developing inlet profile.
+- The instrument: a computed entrance flow in place of the profile family; the best wire thickness for a given pipe
+  (wall loss against bluntness); strip theory checked on a longer wire.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
   pattern. Floquet analysis with a spanwise wavevector of any direction in that plane.
 - Then the instrument: heat loss from the wire with the wake it actually has.
