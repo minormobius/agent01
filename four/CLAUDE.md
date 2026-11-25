@@ -402,7 +402,15 @@ for games, and this is a modelling programme with publications to come. The game
   evolve4-25d resumes. **evolve4-25d (collected 2026-11-24):** the 4.0 M_Ch star finished (Xc 10⁻³ at 0.0875 Gyr, production 0.0927:
   −5.6%), books at dX 0.01 never over 3% (worst 1.2%); 2.5 M_Ch to Xc 0.0083 (0.540 Gyr), clean but for the Xc 0.165
   transient. dX 0.005 against 0.01: ≤0.69% in time (4.0 M_Ch at Xc 0.1), its own one 2-model transient (15%) where the
-  core regrows. evolve4-25e runs the 2.5 M_Ch star's last stretch alone.
+  core regrows. evolve4-25e runs the 2.5 M_Ch star's last stretch alone. **evolve4-25e:** the 2.5 M_Ch star finished (Xc 10⁻³ at 0.5525 Gyr; production 0.5880: −6.0%). **Validation passed**
+  on both stars: books within the bar to the end, ages converged in the step (≤0.69%).
+  **evolve4-26, the final main-sequence rerun, launched 2026-11-25** (PI: grav correction on, all fixes applied, after
+  this check): 56 commands, 14 groups: ours' seven OPAL tracks (0.6–3 M☉, X0 0.7068, Z 0.0143, α 1.61, settle 10⁶) and
+  the 49 4D `-lp` ladder stars (exact masses from the cached tracks), all `grav=1 tag=v2` (files `-eg-tv2`, so nothing
+  old is resumed). The queue is written by `atom/tools/final-ladder.mjs four/atom/tools/ladder <run> <out>` (`ladder/stars.txt`:
+  "G s m name" per line from the cached `-lp` tracks). Each later leg re-pushes the same commands under a new run name,
+  dropping stars that finished; expect ~5–8 legs (~2 days). Then: regenerate ages4/gravity/egrav/yields4/abund4 and
+  aged.js from the -tv2 tracks, rebuild paper 2 and the book.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
