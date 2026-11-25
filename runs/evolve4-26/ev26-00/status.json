@@ -1,0 +1,33 @@
+{
+ "group": "ev26-00",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/evolve.mjs ours 0.6 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 tag=v2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1799
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs ours 0.8 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 tag=v2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 487
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs ours 1 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 tag=v2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 4703
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs ours 1.25 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 tag=v2",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2360
+  }
+ ]
+}

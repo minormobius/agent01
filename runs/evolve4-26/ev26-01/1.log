@@ -1,0 +1,38 @@
+$ node four/atom/tools/evolve.mjs ours 2 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 tag=v2
+2 M☉ network X0 0.7068 settling 100 yr: L 5.6057e+27 W, Tc 19.31 MK, central H 0.70680
+2 M☉ network X0 0.7068 settling 200 yr: L 5.6040e+27 W, Tc 19.31 MK, central H 0.70680
+2 M☉ network X0 0.7068 settling 400 yr: L 5.6008e+27 W, Tc 19.30 MK, central H 0.70680
+2 M☉ network X0 0.7068 settling 800 yr: L 5.5946e+27 W, Tc 19.27 MK, central H 0.70680
+2 M☉ network X0 0.7068 settling 1.60e+3 yr: L 5.5832e+27 W, Tc 19.24 MK, central H 0.70680
+2 M☉ network X0 0.7068 settling 3.20e+3 yr: L 5.5634e+27 W, Tc 19.17 MK, central H 0.70680
+2 M☉ network X0 0.7068 settling 6.40e+3 yr: L 5.5325e+27 W, Tc 19.07 MK, central H 0.70679
+2 M☉ network X0 0.7068 settling 1.28e+4 yr: L 5.4909e+27 W, Tc 18.93 MK, central H 0.70678
+2 M☉ network X0 0.7068 settling 2.56e+4 yr: L 5.4448e+27 W, Tc 18.77 MK, central H 0.70677
+2 M☉ network X0 0.7068 settling 5.12e+4 yr: L 5.4066e+27 W, Tc 18.65 MK, central H 0.70674
+2 M☉ network X0 0.7068 settling 1.02e+5 yr: L 5.3972e+27 W, Tc 18.62 MK, central H 0.70669
+2 M☉ network X0 0.7068 settling 2.05e+5 yr: L 5.4567e+27 W, Tc 18.81 MK, central H 0.70661
+2 M☉ network X0 0.7068 settling 4.10e+5 yr: L 5.6795e+27 W, Tc 19.54 MK, central H 0.70649
+2 M☉ network X0 0.7068 settling 8.19e+5 yr: L 6.2022e+27 W, Tc 20.98 MK, central H 0.70635
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.2022 L☉, R 1.5742 R☉, Teff 9230 K, Tc 20.98 MK, ρc 65.0 g/cm³, Xc 0.7064, stirred core 0.133, pp 79.6%, half the light inside q 0.055
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.6580 L☉, R 1.5482 R☉, Teff 9372 K, Tc 21.30 MK, ρc 69.3 g/cm³, Xc 0.7063, stirred core 0.112, pp 73.0%, half the light inside q 0.066, burnt/radiated 0.9686
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.6851 L☉, R 1.5470 R☉, Teff 9379 K, Tc 21.32 MK, ρc 69.5 g/cm³, Xc 0.7063, stirred core 0.110, pp 72.6%, half the light inside q 0.067, burnt/radiated 0.9982
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.7102 L☉, R 1.5459 R☉, Teff 9386 K, Tc 21.33 MK, ρc 69.7 g/cm³, Xc 0.7063, stirred core 0.109, pp 72.3%, half the light inside q 0.067, burnt/radiated 0.9983
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.7343 L☉, R 1.5448 R☉, Teff 9393 K, Tc 21.35 MK, ρc 69.9 g/cm³, Xc 0.7063, stirred core 0.108, pp 71.9%, half the light inside q 0.069, burnt/radiated 0.9982
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.7784 L☉, R 1.5429 R☉, Teff 9405 K, Tc 21.37 MK, ρc 70.3 g/cm³, Xc 0.7063, stirred core 0.106, pp 71.3%, half the light inside q 0.069, burnt/radiated 0.9970
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.8195 L☉, R 1.5411 R☉, Teff 9416 K, Tc 21.39 MK, ρc 70.7 g/cm³, Xc 0.7063, stirred core 0.104, pp 70.7%, half the light inside q 0.070, burnt/radiated 0.9971
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.8563 L☉, R 1.5396 R☉, Teff 9426 K, Tc 21.41 MK, ρc 71.0 g/cm³, Xc 0.7063, stirred core 0.102, pp 70.2%, half the light inside q 0.072, burnt/radiated 0.9974
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.8891 L☉, R 1.5383 R☉, Teff 9434 K, Tc 21.43 MK, ρc 71.3 g/cm³, Xc 0.7063, stirred core 0.101, pp 69.7%, half the light inside q 0.073, burnt/radiated 0.9977
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.9183 L☉, R 1.5371 R☉, Teff 9442 K, Tc 21.45 MK, ρc 71.6 g/cm³, Xc 0.7063, stirred core 0.099, pp 69.3%, half the light inside q 0.073, burnt/radiated 0.9980
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.9441 L☉, R 1.5361 R☉, Teff 9449 K, Tc 21.46 MK, ρc 71.8 g/cm³, Xc 0.7063, stirred core 0.097, pp 68.9%, half the light inside q 0.075, burnt/radiated 0.9985
+2 M☉ network X0 0.7068 0.000 Gyr: L 16.9837 L☉, R 1.5345 R☉, Teff 9459 K, Tc 21.48 MK, ρc 72.2 g/cm³, Xc 0.7063, stirred core 0.096, pp 68.3%, half the light inside q 0.076, burnt/radiated 0.9976
+2 M☉ network X0 0.7068 0.000 Gyr: L 17.0156 L☉, R 1.5332 R☉, Teff 9467 K, Tc 21.49 MK, ρc 72.5 g/cm³, Xc 0.7063, stirred core 0.094, pp 67.8%, half the light inside q 0.076, burnt/radiated 0.9978
+2 M☉ network X0 0.7068 0.000 Gyr: L 17.0536 L☉, R 1.5315 R☉, Teff 9478 K, Tc 21.52 MK, ρc 72.8 g/cm³, Xc 0.7063, stirred core 0.091, pp 67.1%, half the light inside q 0.080, burnt/radiated 0.9974
+2 M☉ network X0 0.7068 0.000 Gyr: L 17.0787 L☉, R 1.5297 R☉, Teff 9487 K, Tc 21.54 MK, ρc 73.1 g/cm³, Xc 0.7063, stirred core 0.089, pp 66.4%, half the light inside q 0.080, burnt/radiated 0.9985
+2 M☉ network X0 0.7068 0.000 Gyr: L 17.0782 L☉, R 1.5282 R☉, Teff 9492 K, Tc 21.55 MK, ρc 73.2 g/cm³, Xc 0.7063, stirred core 0.087, pp 65.7%, half the light inside q 0.080, burnt/radiated 0.9986
+2 M☉ network X0 0.7068 0.000 Gyr: L 17.0771 L☉, R 1.5281 R☉, Teff 9492 K, Tc 21.56 MK, ρc 73.2 g/cm³, Xc 0.7063, stirred core 0.087, pp 65.6%, half the light inside q 0.080, burnt/radiated 0.9999
+2 M☉ network X0 0.7068: stopped at 0.000 Gyr, Xc 0.7063 (the star didn't solve on a smaller step)
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-ours-2-X0.7068-Z0.0143-opal-a1.61-s1e6-eg-tv2.json (330 s, 17 models; no solution past Xc 0.7063)
+(node:2573) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
