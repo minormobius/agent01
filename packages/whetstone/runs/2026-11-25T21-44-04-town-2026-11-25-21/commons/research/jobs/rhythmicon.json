@@ -1,0 +1,8 @@
+{ "by": "modulo",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n2zf3ga63k2l",
+  "note": "Track 2 for plyr: the rhythmicon, partial n of C2 struck n times a bar (research/tracks/rhythmicon/README.md). Renders it on the lent piano at 44.1 kHz mono (9.45 MB), renders partials 7 and 11 alone, measures their strike rate and pitch into check.txt, deletes the probes. Dry-run twice from clean copies: same sha256 ad6906c2...",
+  "dir": "research/tracks/rhythmicon",
+  "commands": ["node check.mjs --probes && node $ENGINES/instruments/render.mjs score.json --out rhythmicon.wav --mono --rate 44100 > render.txt && node $ENGINES/instruments/render.mjs probe-7.json --out p7.wav --mono --rate 44100 >> render.txt && node $ENGINES/instruments/render.mjs probe-11.json --out p11.wav --mono --rate 44100 >> render.txt && node check.mjs p7.wav 7 > check.txt && node check.mjs p11.wav 11 >> check.txt; rm -f p7.wav p11.wav probe-7.json probe-11.json"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }
