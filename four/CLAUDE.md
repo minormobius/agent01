@@ -442,6 +442,11 @@ for games, and this is a modelling programme with publications to come. The game
   solution past Xc 0.7066": 0.6, 0.8, 1, 1.6, 2 M☉ within 0.004 Gyr; 3 M☉ at Xc 0.0037); only 1.25 M☉ finished (3.71 Gyr).
   Status code 0 there: evolve.mjs exits cleanly on a solver stop, so a finished leg's `.json` must be read, not its code.
   evolve4-26b runs the 46; ours held back for diagnosis.
+  **evolve4-26 leg 2 (evolve4-26b, collected 2026-11-25 12:30Z):** 15 more 4D stars finished (central H below 10⁻³), 21 of
+  49 now out. **Six 4D stars stopped on the solver**, held back for diagnosis: G 10⁻¹¹ s 1.5152 0.437 M_Ch (Xc 0.558,
+  1.78 Gyr), G 10⁻¹⁷ s 1.5152 1.0 (Xc 0.373), s 1.55 4.0 (Xc 0.202), s 1.65 1.25 (Xc 0.269), s 1.65 2.0 (Xc 0.365),
+  s 1.8 4.0 (Xc 0.036). Books otherwise clean (spikes up to ~36% in single models, never a 10-model run). Ours' fix landed
+  (khmin=, above); evolve4-26c runs the 28 still burning plus ours' seven fresh at khmin=0.1, tag v2k.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

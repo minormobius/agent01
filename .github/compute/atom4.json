@@ -1,111 +1,85 @@
 {
- "run": "evolve4-26b",
- "why": "Leg 2 of the final main-sequence rerun: the 46 4D ladder stars cut at leg 1 resume from their -tv2 checkpoints. Left out: the three that finished (s 1.5152 0.25 and 0.5 M_Ch at the 200 Gyr limit, the s 1.8 analogue at Xc 1e-3) and the seven OPAL tracks of ours (six stopped on the solver in leg 1, five at the start; being diagnosed).",
+ "run": "evolve4-26c",
+ "why": "The final main-sequence rerun, leg 3: the 28 4D stars still burning after evolve4-26b (each resumes its -tv2 checkpoint), and ours' seven OPAL tracks started fresh at khmin=0.1 under tag v2k (leg 1 ran them at the default KHMIN, where six stalled at zero age; commit 2fe72f982). Fifteen 4D stars finished in leg 2; six stopped on the solver and are held back for diagnosis.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev26b-00",
+   "name": "ev26c-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-11 1.5152 0.43739558 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.65 0.2315873526 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.8 0.2072430133 grav=1 tag=v2",
+    "node four/atom/tools/evolve.mjs ours 0.6 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k",
+    "node four/atom/tools/evolve.mjs ours 0.8 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k",
+    "node four/atom/tools/evolve.mjs ours 1 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k",
+    "node four/atom/tools/evolve.mjs ours 1.25 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k"
+   ]
+  },
+  {
+   "name": "ev26c-01",
+   "cmds": [
+    "node four/atom/tools/evolve.mjs ours 1.6 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k",
+    "node four/atom/tools/evolve.mjs ours 2 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k",
+    "node four/atom/tools/evolve.mjs ours 3 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k",
     "node four/atom/tools/evolve.mjs four 1e-14 1.5152 0.4869932197 grav=1 tag=v2"
    ]
   },
   {
-   "name": "ev26b-01",
+   "name": "ev26c-02",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-14 1.8 0.3931111021 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-14 1.85 0.3887476519 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 tag=v2"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 tag=v2",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.6 grav=1 tag=v2"
    ]
   },
   {
-   "name": "ev26b-02",
+   "name": "ev26c-03",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.6 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25 grav=1 tag=v2"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25 grav=1 tag=v2",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6 grav=1 tag=v2"
    ]
   },
   {
-   "name": "ev26b-03",
+   "name": "ev26c-04",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 2 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev26b-04",
-   "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.6 grav=1 tag=v2",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.6 grav=1 tag=v2"
+   ]
+  },
+  {
+   "name": "ev26c-05",
+   "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 2 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev26b-05",
-   "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 4 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 0.9024317665 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.6 grav=1 tag=v2"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.65 0.9024317665 grav=1 tag=v2"
    ]
   },
   {
-   "name": "ev26b-06",
+   "name": "ev26c-06",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 2 grav=1 tag=v2",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.6 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 2.5 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.65 4 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 0.8228804958 grav=1 tag=v2"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.7 1.25 grav=1 tag=v2"
    ]
   },
   {
-   "name": "ev26b-07",
+   "name": "ev26c-07",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 1.25 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 1.6 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.7 2 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2.5 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev26b-08",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 4 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 1.25 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 1.6 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 2 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev26b-09",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 2.5 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.8 4 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.85 0.8297150574 grav=1 tag=v2",
+    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2.5 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-20 1.5152 1.7543876 grav=1 tag=v2"
    ]
   },
   {
-   "name": "ev26b-10",
+   "name": "ev26c-08",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-20 1.6 2.514575962 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-20 1.65 2.53207971 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.7 2.409791215 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.75 2.093259196 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev26b-11",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-20 1.8 2.058290595 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-20 1.85 2.126340948 grav=1 tag=v2"
    ]
   }
