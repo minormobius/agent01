@@ -1,0 +1,850 @@
+{
+ "method": "Each parcel-year with an unreadable exemption code is matched by taxkey to the reference year (1984 for the letter era, 2005 for 2004); the code takes the modal holder if >=80% of matched parcel-years agree and >=5 matched, else \"unresolved\". \"null\" votes are parcels no longer exempt in the reference year.",
+ "crosswalk": {
+  "letters-1975-1983": {
+   "P6": {
+    "holder": "city-tax-deed",
+    "purity": 0.91,
+    "parcelYears": 10896,
+    "matched": 5760,
+    "votes": {
+     "gone-by-1984": 4914,
+     "city-tax-deed": 5243,
+     "null": 222,
+     "city": 170,
+     "housing-authority": 57,
+     "redevelopment": 286,
+     "county": 2,
+     "nonprofit": 2
+    }
+   },
+   "M2": {
+    "holder": "county",
+    "purity": 0.961,
+    "parcelYears": 4243,
+    "matched": 2068,
+    "votes": {
+     "gone-by-1984": 2161,
+     "county": 1988,
+     "city": 37,
+     "redevelopment": 43,
+     "null": 14
+    }
+   },
+   "P2": {
+    "holder": "redevelopment",
+    "purity": 0.988,
+    "parcelYears": 3866,
+    "matched": 1430,
+    "votes": {
+     "redevelopment": 1413,
+     "gone-by-1984": 2317,
+     "null": 119,
+     "housing-authority": 12,
+     "city": 3,
+     "city-tax-deed": 2
+    }
+   },
+   "A1": {
+    "holder": "religious",
+    "purity": 0.996,
+    "parcelYears": 2531,
+    "matched": 2116,
+    "votes": {
+     "gone-by-1984": 375,
+     "religious": 2107,
+     "null": 40,
+     "housing-authority": 8,
+     "education": 1
+    }
+   },
+   "P1": {
+    "holder": "city",
+    "purity": 0.924,
+    "parcelYears": 1950,
+    "matched": 1569,
+    "votes": {
+     "city": 1450,
+     "gone-by-1984": 343,
+     "null": 38,
+     "housing-authority": 64,
+     "city-tax-deed": 33,
+     "nonprofit": 4,
+     "county": 1,
+     "schools": 2,
+     "redevelopment": 15
+    }
+   },
+   "M4": {
+    "holder": "county",
+    "purity": 0.999,
+    "parcelYears": 1914,
+    "matched": 1394,
+    "votes": {
+     "county": 1393,
+     "gone-by-1984": 520,
+     "city": 1
+    }
+   },
+   "W": {
+    "holder": "schools",
+    "purity": 0.978,
+    "parcelYears": 1202,
+    "matched": 769,
+    "votes": {
+     "schools": 752,
+     "gone-by-1984": 423,
+     "nonprofit": 7,
+     "null": 10,
+     "county": 4,
+     "religious": 4,
+     "city": 2
+    }
+   },
+   "P3": {
+    "holder": "housing-authority",
+    "purity": 0.992,
+    "parcelYears": 1188,
+    "matched": 1015,
+    "votes": {
+     "housing-authority": 1007,
+     "null": 19,
+     "gone-by-1984": 154,
+     "redevelopment": 4,
+     "city-tax-deed": 4
+    }
+   },
+   "A2": {
+    "holder": "religious",
+    "purity": 1,
+    "parcelYears": 938,
+    "matched": 645,
+    "votes": {
+     "null": 194,
+     "religious": 645,
+     "gone-by-1984": 99
+    }
+   },
+   "L3": {
+    "holder": "state",
+    "purity": 0.937,
+    "parcelYears": 769,
+    "matched": 504,
+    "votes": {
+     "gone-by-1984": 257,
+     "state": 472,
+     "null": 8,
+     "county": 24,
+     "nonprofit": 7,
+     "federal": 1
+    }
+   },
+   "X1": {
+    "holder": "rail-utility",
+    "purity": 0.938,
+    "parcelYears": 768,
+    "matched": 681,
+    "votes": {
+     "rail-utility": 639,
+     "state": 42,
+     "gone-by-1984": 87
+    }
+   },
+   "Z": {
+    "holder": "streets",
+    "purity": 0.915,
+    "parcelYears": 687,
+    "matched": 399,
+    "votes": {
+     "gone-by-1984": 288,
+     "streets": 365,
+     "housing-authority": 24,
+     "redevelopment": 2,
+     "city-tax-deed": 8
+    }
+   },
+   "B1": {
+    "holder": "education",
+    "purity": 0.96,
+    "parcelYears": 645,
+    "matched": 446,
+    "votes": {
+     "gone-by-1984": 170,
+     "education": 428,
+     "state": 8,
+     "null": 29,
+     "nonprofit": 10
+    }
+   },
+   "M1": {
+    "holder": "county",
+    "purity": 1,
+    "parcelYears": 635,
+    "matched": 491,
+    "votes": {
+     "county": 491,
+     "gone-by-1984": 135,
+     "null": 9
+    }
+   },
+   "Y2": {
+    "holder": "rail-utility",
+    "purity": 1,
+    "parcelYears": 627,
+    "matched": 539,
+    "votes": {
+     "rail-utility": 539,
+     "gone-by-1984": 75,
+     "null": 13
+    }
+   },
+   "G1": {
+    "holder": "hospital",
+    "purity": 1,
+    "parcelYears": 511,
+    "matched": 252,
+    "votes": {
+     "null": 95,
+     "gone-by-1984": 164,
+     "hospital": 252
+    }
+   },
+   "G4": {
+    "holder": "nonprofit",
+    "purity": 0.979,
+    "parcelYears": 510,
+    "matched": 332,
+    "votes": {
+     "null": 31,
+     "gone-by-1984": 147,
+     "nonprofit": 325,
+     "hospital": 2,
+     "city": 1,
+     "city-tax-deed": 3,
+     "religious": 1
+    }
+   },
+   "X2": {
+    "holder": "rail-utility",
+    "purity": 1,
+    "parcelYears": 505,
+    "matched": 444,
+    "votes": {
+     "rail-utility": 444,
+     "gone-by-1984": 61
+    }
+   },
+   "P5": {
+    "holder": "city",
+    "purity": 0.992,
+    "parcelYears": 478,
+    "matched": 371,
+    "votes": {
+     "city": 368,
+     "gone-by-1984": 103,
+     "null": 4,
+     "city-tax-deed": 3
+    }
+   },
+   "A4": {
+    "holder": "religious",
+    "purity": 0.986,
+    "parcelYears": 409,
+    "matched": 285,
+    "votes": {
+     "religious": 281,
+     "null": 24,
+     "gone-by-1984": 100,
+     "education": 4
+    }
+   },
+   "R": {
+    "holder": "nonprofit",
+    "purity": 0.994,
+    "parcelYears": 386,
+    "matched": 348,
+    "votes": {
+     "nonprofit": 346,
+     "gone-by-1984": 37,
+     "null": 1,
+     "county": 2
+    }
+   },
+   "P4": {
+    "holder": "city",
+    "purity": 0.988,
+    "parcelYears": 316,
+    "matched": 250,
+    "votes": {
+     "city": 247,
+     "gone-by-1984": 64,
+     "null": 2,
+     "redevelopment": 1,
+     "hospital": 2
+    }
+   },
+   "M3": {
+    "holder": "county",
+    "purity": 1,
+    "parcelYears": 238,
+    "matched": 69,
+    "votes": {
+     "gone-by-1984": 169,
+     "county": 69
+    }
+   },
+   "H2": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 237,
+    "matched": 194,
+    "votes": {
+     "nonprofit": 194,
+     "null": 6,
+     "gone-by-1984": 37
+    }
+   },
+   "P7": {
+    "holder": "city",
+    "purity": 1,
+    "parcelYears": 230,
+    "matched": 112,
+    "votes": {
+     "gone-by-1984": 113,
+     "city": 112,
+     "null": 5
+    }
+   },
+   "L1": {
+    "holder": "state",
+    "purity": 1,
+    "parcelYears": 198,
+    "matched": 157,
+    "votes": {
+     "state": 157,
+     "gone-by-1984": 41
+    }
+   },
+   "Y3": {
+    "holder": "rail-utility",
+    "purity": 1,
+    "parcelYears": 159,
+    "matched": 125,
+    "votes": {
+     "rail-utility": 125,
+     "gone-by-1984": 34
+    }
+   },
+   "A3": {
+    "holder": "religious",
+    "purity": 1,
+    "parcelYears": 157,
+    "matched": 132,
+    "votes": {
+     "gone-by-1984": 19,
+     "religious": 132,
+     "null": 6
+    }
+   },
+   "V": {
+    "holder": "city",
+    "purity": 1,
+    "parcelYears": 150,
+    "matched": 138,
+    "votes": {
+     "city": 138,
+     "null": 4,
+     "gone-by-1984": 8
+    }
+   },
+   "D": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 150,
+    "matched": 128,
+    "votes": {
+     "nonprofit": 128,
+     "gone-by-1984": 22
+    }
+   },
+   "E1": {
+    "holder": "nonprofit",
+    "purity": 0.967,
+    "parcelYears": 146,
+    "matched": 121,
+    "votes": {
+     "nonprofit": 117,
+     "gone-by-1984": 23,
+     "religious": 4,
+     "null": 2
+    }
+   },
+   "A5": {
+    "holder": "religious",
+    "purity": 1,
+    "parcelYears": 132,
+    "matched": 90,
+    "votes": {
+     "null": 13,
+     "religious": 90,
+     "gone-by-1984": 29
+    }
+   },
+   "M5": {
+    "holder": "county",
+    "purity": 1,
+    "parcelYears": 98,
+    "matched": 72,
+    "votes": {
+     "county": 72,
+     "null": 15,
+     "gone-by-1984": 11
+    }
+   },
+   "G3": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 91,
+    "matched": 65,
+    "votes": {
+     "nonprofit": 65,
+     "gone-by-1984": 25,
+     "null": 1
+    }
+   },
+   "X3": {
+    "holder": "rail-utility",
+    "purity": 0.958,
+    "parcelYears": 89,
+    "matched": 72,
+    "votes": {
+     "rail-utility": 69,
+     "gone-by-1984": 17,
+     "nonprofit": 3
+    }
+   },
+   "K": {
+    "holder": "federal",
+    "purity": 0.942,
+    "parcelYears": 72,
+    "matched": 52,
+    "votes": {
+     "gone-by-1984": 19,
+     "federal": 49,
+     "nonprofit": 3,
+     "null": 1
+    }
+   },
+   "T": {
+    "holder": "city",
+    "purity": 1,
+    "parcelYears": 70,
+    "matched": 60,
+    "votes": {
+     "city": 60,
+     "gone-by-1984": 10
+    }
+   },
+   "B2": {
+    "holder": "education",
+    "purity": 1,
+    "parcelYears": 70,
+    "matched": 58,
+    "votes": {
+     "gone-by-1984": 7,
+     "null": 5,
+     "education": 58
+    }
+   },
+   "P8": {
+    "holder": "city",
+    "purity": 1,
+    "parcelYears": 60,
+    "matched": 56,
+    "votes": {
+     "city": 56,
+     "gone-by-1984": 4
+    }
+   },
+   "G2": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 59,
+    "matched": 54,
+    "votes": {
+     "nonprofit": 54,
+     "gone-by-1984": 5
+    }
+   },
+   "M6": {
+    "holder": "county",
+    "purity": 1,
+    "parcelYears": 53,
+    "matched": 35,
+    "votes": {
+     "gone-by-1984": 13,
+     "county": 35,
+     "null": 5
+    }
+   },
+   "Y1": {
+    "holder": "rail-utility",
+    "purity": 1,
+    "parcelYears": 45,
+    "matched": 34,
+    "votes": {
+     "rail-utility": 34,
+     "null": 6,
+     "gone-by-1984": 5
+    }
+   },
+   "E2": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 39,
+    "matched": 29,
+    "votes": {
+     "nonprofit": 29,
+     "null": 7,
+     "gone-by-1984": 3
+    }
+   },
+   "S": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 34,
+    "matched": 27,
+    "votes": {
+     "nonprofit": 27,
+     "gone-by-1984": 7
+    }
+   },
+   "L2": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 33,
+    "matched": 2,
+    "votes": {
+     "null": 20,
+     "city-tax-deed": 2,
+     "gone-by-1984": 11
+    }
+   },
+   "G5": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 29,
+    "matched": 29,
+    "votes": {
+     "nonprofit": 29
+    }
+   },
+   "P9": {
+    "holder": "city",
+    "purity": 1,
+    "parcelYears": 21,
+    "matched": 14,
+    "votes": {
+     "city": 14,
+     "gone-by-1984": 7
+    }
+   },
+   "Y4": {
+    "holder": "rail-utility",
+    "purity": 1,
+    "parcelYears": 10,
+    "matched": 6,
+    "votes": {
+     "gone-by-1984": 4,
+     "rail-utility": 6
+    }
+   },
+   "H1": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 6,
+    "matched": 6,
+    "votes": {
+     "nonprofit": 6
+    }
+   },
+   "G": {
+    "holder": "unresolved",
+    "purity": 0,
+    "parcelYears": 5,
+    "matched": 0,
+    "votes": {
+     "gone-by-1984": 5
+    }
+   },
+   "X": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 3,
+    "matched": 2,
+    "votes": {
+     "rail-utility": 2,
+     "gone-by-1984": 1
+    }
+   },
+   "Y": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 3,
+    "matched": 2,
+    "votes": {
+     "rail-utility": 2,
+     "gone-by-1984": 1
+    }
+   }
+  },
+  "renumbered-2004": {
+   "1": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 4,
+    "matched": 2,
+    "votes": {
+     "education": 2,
+     "gone-by-2005": 2
+    }
+   },
+   "7": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 1,
+    "matched": 1,
+    "votes": {
+     "county": 1
+    }
+   },
+   "10": {
+    "holder": "religious",
+    "purity": 0.86,
+    "parcelYears": 788,
+    "matched": 772,
+    "votes": {
+     "religious": 664,
+     "education": 11,
+     "city": 49,
+     "federal": 17,
+     "county": 22,
+     "gone-by-2005": 8,
+     "rail-utility": 6,
+     "null": 8,
+     "nonprofit": 3
+    }
+   },
+   "11": {
+    "holder": "unresolved",
+    "purity": 0.75,
+    "parcelYears": 5,
+    "matched": 4,
+    "votes": {
+     "religious": 3,
+     "gone-by-2005": 1,
+     "education": 1
+    }
+   },
+   "20": {
+    "holder": "unresolved",
+    "purity": 0.518,
+    "parcelYears": 549,
+    "matched": 541,
+    "votes": {
+     "county": 280,
+     "religious": 96,
+     "gone-by-2005": 2,
+     "nonprofit": 43,
+     "city": 116,
+     "null": 6,
+     "federal": 6
+    }
+   },
+   "24": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 1,
+    "matched": 1,
+    "votes": {
+     "religious": 1
+    }
+   },
+   "30": {
+    "holder": "city-tax-deed",
+    "purity": 0.924,
+    "parcelYears": 2642,
+    "matched": 2421,
+    "votes": {
+     "nonprofit": 103,
+     "city-tax-deed": 2237,
+     "religious": 31,
+     "null": 92,
+     "rail-utility": 8,
+     "gone-by-2005": 129,
+     "state": 29,
+     "city": 2,
+     "education": 1,
+     "redevelopment": 4,
+     "housing-authority": 2,
+     "county": 4
+    }
+   },
+   "40": {
+    "holder": "unresolved",
+    "purity": 0.386,
+    "parcelYears": 309,
+    "matched": 298,
+    "votes": {
+     "city": 20,
+     "rail-utility": 115,
+     "county": 13,
+     "state": 44,
+     "religious": 66,
+     "null": 7,
+     "nonprofit": 40,
+     "gone-by-2005": 4
+    }
+   },
+   "45": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 3,
+    "matched": 3,
+    "votes": {
+     "nonprofit": 3
+    }
+   },
+   "48": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 1,
+    "matched": 1,
+    "votes": {
+     "city": 1
+    }
+   },
+   "49": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 4,
+    "matched": 4,
+    "votes": {
+     "redevelopment": 4
+    }
+   },
+   "50": {
+    "holder": "unresolved",
+    "purity": 0.534,
+    "parcelYears": 351,
+    "matched": 341,
+    "votes": {
+     "rail-utility": 40,
+     "schools": 182,
+     "nonprofit": 72,
+     "gone-by-2005": 8,
+     "religious": 31,
+     "city": 15,
+     "null": 2,
+     "state": 1
+    }
+   },
+   "53": {
+    "holder": "city-tax-deed",
+    "purity": 1,
+    "parcelYears": 5,
+    "matched": 5,
+    "votes": {
+     "city-tax-deed": 5
+    }
+   },
+   "60": {
+    "holder": "unresolved",
+    "purity": 0.509,
+    "parcelYears": 235,
+    "matched": 230,
+    "votes": {
+     "rail-utility": 2,
+     "nonprofit": 94,
+     "state": 117,
+     "null": 2,
+     "city": 17,
+     "gone-by-2005": 3
+    }
+   },
+   "70": {
+    "holder": "unresolved",
+    "purity": 0.727,
+    "parcelYears": 12,
+    "matched": 11,
+    "votes": {
+     "nonprofit": 8,
+     "null": 1,
+     "city": 3
+    }
+   },
+   "71": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 1,
+    "matched": 1,
+    "votes": {
+     "nonprofit": 1
+    }
+   },
+   "80": {
+    "holder": "unresolved",
+    "purity": 0.695,
+    "parcelYears": 574,
+    "matched": 560,
+    "votes": {
+     "city": 389,
+     "nonprofit": 35,
+     "rail-utility": 130,
+     "null": 4,
+     "gone-by-2005": 10,
+     "redevelopment": 2,
+     "city-tax-deed": 3,
+     "religious": 1
+    }
+   },
+   "81": {
+    "holder": "nonprofit",
+    "purity": 1,
+    "parcelYears": 26,
+    "matched": 6,
+    "votes": {
+     "null": 18,
+     "nonprofit": 6,
+     "gone-by-2005": 2
+    }
+   },
+   "82": {
+    "holder": "unresolved",
+    "purity": 1,
+    "parcelYears": 1,
+    "matched": 1,
+    "votes": {
+     "nonprofit": 1
+    }
+   },
+   "90": {
+    "holder": "unresolved",
+    "purity": 0.504,
+    "parcelYears": 789,
+    "matched": 740,
+    "votes": {
+     "county": 110,
+     "rail-utility": 92,
+     "nonprofit": 60,
+     "null": 17,
+     "redevelopment": 373,
+     "education": 94,
+     "gone-by-2005": 32,
+     "housing-authority": 10,
+     "city": 1
+    }
+   }
+  }
+ }
+}

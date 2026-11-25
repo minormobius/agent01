@@ -1,0 +1,8845 @@
+{
+ "geography": "City of Milwaukee",
+ "unit": "nominal US dollars of assessed value (Wisconsin assesses at market value; the city revalues on its own cycle, so some year-on-year jumps are revaluations, not market moves)",
+ "holders": "Exemption codes grouped by holder: city, housing-authority (HACM), redevelopment (RACM), city-tax-deed (foreclosed by the city), schools (MPS), county, state, federal, religious, education, hospital, nonprofit, rail-utility, streets, unresolved.",
+ "quality": {
+  "units_1977_1980": "Class-1 NUMUNITS runs ~25% above adjacent years (230k vs ~180k); cause unknown. Units series is flagged, not corrected.",
+  "units_2019_2021": "Non-residential classes (2, 4, 9) carry hotel rooms / beds as units (class 4 jumps 2k -> 64k). Headline housing units use classes 1/5/7 only.",
+  "exempt_value_pre_1984": "Exempt parcels carry no exempt value before 1984. Public holdings are counted by parcel and lot area only.",
+  "exempt_value_2022": "The published 2022 file has exempt value for only a fraction of exempt parcels ($0.7B vs ~$5B either side). Not imputed.",
+  "convey_date_2009_on": "CONVEY_DATE is partly destroyed (\"00:00.0\", an Excel time-format export artefact) from ~2009, and absent from 2022. Sales counts are reliable only where fill is reported high.",
+  "exempt_codes_2004": "2004 uses an exemption numbering seen in no other year. Holders are assigned per parcel where 2003 and 2005 agree; ~225 parcels stay unresolved, and 2004 has no Housing Authority parcels at all (they carry no code that year). Treat 2004 holder counts as approximate.",
+  "exempt_lot_area": "Lot area on exempt parcels is blank before 1977 and from 2020, and corrupt for some parcels from 2022. Holder acreage is published only for years flagged fields.exemptLotAreaUsable.",
+  "units_1975_1976": "Residential-class units read 160k (1975) and 223k (1976), against ~235-245k from 1982 on. The early unit fields are incomplete; do not read a housing boom into 1975-1980.",
+  "geography": "MPROP is the City of Milwaukee only. QCEW and BEA tables are Milwaukee County, which also includes the inner suburbs (~40% of county population)."
+ },
+ "years": {
+  "1975": {
+   "parcels": 159206,
+   "byClass": {
+    "1": {
+     "n": 138898,
+     "land": 760189870,
+     "impr": 2266610690,
+     "total": 3026800560,
+     "units": 160411,
+     "bldgArea": 1108480
+    },
+    "2": {
+     "n": 10569,
+     "land": 300729380,
+     "impr": 798538410,
+     "total": 1099267790,
+     "units": 36947,
+     "bldgArea": 470867
+    },
+    "3": {
+     "n": 1240,
+     "land": 59878300,
+     "impr": 388919900,
+     "total": 448798200,
+     "units": 19,
+     "bldgArea": 1477
+    },
+    "4": {
+     "n": 2013,
+     "land": 131221240,
+     "impr": 360941740,
+     "total": 492162980,
+     "units": 5175,
+     "bldgArea": 199590
+    },
+    "9": {
+     "n": 6486,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 146,
+     "bldgArea": 17621
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 103,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "county": {
+     "n": 1173,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 204,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 323,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "city": {
+     "n": 197,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "state": {
+     "n": 108,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 921,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 68,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 95,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 134,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 117,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "education": {
+     "n": 81,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 4,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "unresolved": {
+     "n": 15,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 517,
+     "exemptValue": 0,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 160411,
+    "singleFamily": 77425,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 22450,
+    "newStructures": 948,
+    "newResUnits": 853
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "luGroup",
+     "commUnits",
+     "lotArea",
+     "ownerOcc",
+     "ownerName",
+     "conveyDate",
+     "conveyType",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 1252018790,
+    "impr": 3815010740,
+    "total": 5067029530
+   },
+   "publicHeld": {
+    "n": 3241,
+    "exemptValue": 0,
+    "lotArea": null
+   }
+  },
+  "1976": {
+   "parcels": 158741,
+   "byClass": {
+    "0": {
+     "n": 12,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 135485,
+     "land": 748620640,
+     "impr": 2215667500,
+     "total": 2964288140,
+     "units": 181932,
+     "bldgArea": 1226537
+    },
+    "2": {
+     "n": 8233,
+     "land": 185540860,
+     "impr": 377630720,
+     "total": 563171580,
+     "units": 7349,
+     "bldgArea": 388233
+    },
+    "3": {
+     "n": 1225,
+     "land": 56982500,
+     "impr": 374402100,
+     "total": 431384600,
+     "units": 9,
+     "bldgArea": 5105
+    },
+    "4": {
+     "n": 2212,
+     "land": 120699380,
+     "impr": 360251540,
+     "total": 480950920,
+     "units": 5812,
+     "bldgArea": 248961
+    },
+    "5": {
+     "n": 3377,
+     "land": 10837880,
+     "impr": 67992370,
+     "total": 78830250,
+     "units": 2976,
+     "bldgArea": 36207
+    },
+    "6": {
+     "n": 11,
+     "land": 214500,
+     "impr": 1277020,
+     "total": 1491520,
+     "units": 85,
+     "bldgArea": 408
+    },
+    "7": {
+     "n": 1885,
+     "land": 75774720,
+     "impr": 407222680,
+     "total": 482997400,
+     "units": 38501,
+     "bldgArea": 137903
+    },
+    "9": {
+     "n": 6301,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 363,
+     "bldgArea": 27878
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 112,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "county": {
+     "n": 1086,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 121,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 334,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "city": {
+     "n": 211,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "state": {
+     "n": 105,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 1031,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 68,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "education": {
+     "n": 84,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 100,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 140,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 113,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "unresolved": {
+     "n": 15,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 408,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 7,
+     "exemptValue": 0,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 223409,
+    "singleFamily": 85583,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 22780,
+    "newStructures": 571,
+    "newResUnits": 814
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "commUnits",
+     "lotArea",
+     "ownerOcc",
+     "ownerName",
+     "conveyDate",
+     "conveyType",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 1198670480,
+    "impr": 3804443930,
+    "total": 5003114410
+   },
+   "publicHeld": {
+    "n": 3082,
+    "exemptValue": 0,
+    "lotArea": null
+   }
+  },
+  "1977": {
+   "parcels": 159583,
+   "byClass": {
+    "0": {
+     "n": 437,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 135743,
+     "land": 751536760,
+     "impr": 2234435620,
+     "total": 2985972380,
+     "units": 234717,
+     "bldgArea": 131922573
+    },
+    "2": {
+     "n": 8116,
+     "land": 182172570,
+     "impr": 366362420,
+     "total": 548534990,
+     "units": 15241,
+     "bldgArea": 41164806
+    },
+    "3": {
+     "n": 1281,
+     "land": 55993500,
+     "impr": 376701400,
+     "total": 432694900,
+     "units": 10,
+     "bldgArea": 529230
+    },
+    "4": {
+     "n": 2200,
+     "land": 120337400,
+     "impr": 353239720,
+     "total": 473577120,
+     "units": 7596,
+     "bldgArea": 25396518
+    },
+    "5": {
+     "n": 3376,
+     "land": 10842040,
+     "impr": 67386670,
+     "total": 78228710,
+     "units": 2977,
+     "bldgArea": 3336531
+    },
+    "6": {
+     "n": 9,
+     "land": 132000,
+     "impr": 636370,
+     "total": 768370,
+     "units": 51,
+     "bldgArea": 42729
+    },
+    "7": {
+     "n": 1889,
+     "land": 75854180,
+     "impr": 406578920,
+     "total": 482433100,
+     "units": 41756,
+     "bldgArea": 30230704
+    },
+    "9": {
+     "n": 6532,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 656,
+     "bldgArea": 1124601
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 120,
+     "exemptValue": 0,
+     "lotArea": 18569015
+    },
+    "county": {
+     "n": 1092,
+     "exemptValue": 0,
+     "lotArea": 132656522
+    },
+    "schools": {
+     "n": 122,
+     "exemptValue": 0,
+     "lotArea": 13660100
+    },
+    "religious": {
+     "n": 331,
+     "exemptValue": 0,
+     "lotArea": 36261821
+    },
+    "city": {
+     "n": 217,
+     "exemptValue": 0,
+     "lotArea": 50319525
+    },
+    "state": {
+     "n": 104,
+     "exemptValue": 0,
+     "lotArea": 10557575
+    },
+    "city-tax-deed": {
+     "n": 1069,
+     "exemptValue": 0,
+     "lotArea": 33927553
+    },
+    "hospital": {
+     "n": 67,
+     "exemptValue": 0,
+     "lotArea": 3569438
+    },
+    "education": {
+     "n": 83,
+     "exemptValue": 0,
+     "lotArea": 12935523
+    },
+    "streets": {
+     "n": 103,
+     "exemptValue": 0,
+     "lotArea": 3535544
+    },
+    "nonprofit": {
+     "n": 139,
+     "exemptValue": 0,
+     "lotArea": 34889463
+    },
+    "housing-authority": {
+     "n": 115,
+     "exemptValue": 0,
+     "lotArea": 2375275
+    },
+    "unresolved": {
+     "n": 14,
+     "exemptValue": 0,
+     "lotArea": 441228
+    },
+    "redevelopment": {
+     "n": 487,
+     "exemptValue": 0,
+     "lotArea": 5721559
+    },
+    "federal": {
+     "n": 7,
+     "exemptValue": 0,
+     "lotArea": 297992
+    }
+   },
+   "housing": {
+    "resClassUnits": 279450,
+    "singleFamily": 86046,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 22870,
+    "newStructures": 146,
+    "newResUnits": 452
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "commUnits",
+     "ownerOcc",
+     "conveyFee",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 1196868450,
+    "impr": 3805341120,
+    "total": 5002209570
+   },
+   "publicHeld": {
+    "n": 3213,
+    "exemptValue": 0,
+    "lotArea": 249516101
+   }
+  },
+  "1978": {
+   "parcels": 158541,
+   "byClass": {
+    "0": {
+     "n": 33,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 132826,
+     "land": 1152501330,
+     "impr": 3074528020,
+     "total": 4227029350,
+     "units": 229809,
+     "bldgArea": 124668933
+    },
+    "2": {
+     "n": 7951,
+     "land": 223036320,
+     "impr": 481419680,
+     "total": 704456000,
+     "units": 16277,
+     "bldgArea": 48523594
+    },
+    "3": {
+     "n": 1214,
+     "land": 48549760,
+     "impr": 337950200,
+     "total": 386499960,
+     "units": 6,
+     "bldgArea": 848057
+    },
+    "4": {
+     "n": 2334,
+     "land": 151764520,
+     "impr": 463215970,
+     "total": 614980490,
+     "units": 9599,
+     "bldgArea": 29677403
+    },
+    "5": {
+     "n": 3835,
+     "land": 14994050,
+     "impr": 111447120,
+     "total": 126441170,
+     "units": 3398,
+     "bldgArea": 3821280
+    },
+    "6": {
+     "n": 2461,
+     "land": 35159990,
+     "impr": 172540070,
+     "total": 207700060,
+     "units": 10255,
+     "bldgArea": 8954643
+    },
+    "7": {
+     "n": 2003,
+     "land": 103872420,
+     "impr": 568697220,
+     "total": 672569640,
+     "units": 43361,
+     "bldgArea": 32696343
+    },
+    "9": {
+     "n": 5884,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 429,
+     "bldgArea": 1256482
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 228,
+     "exemptValue": 0,
+     "lotArea": 40196029
+    },
+    "county": {
+     "n": 592,
+     "exemptValue": 0,
+     "lotArea": 173769351
+    },
+    "schools": {
+     "n": 106,
+     "exemptValue": 0,
+     "lotArea": 29033909
+    },
+    "religious": {
+     "n": 456,
+     "exemptValue": 0,
+     "lotArea": 27621777
+    },
+    "city": {
+     "n": 317,
+     "exemptValue": 0,
+     "lotArea": 55978308
+    },
+    "state": {
+     "n": 118,
+     "exemptValue": 0,
+     "lotArea": 10248672
+    },
+    "city-tax-deed": {
+     "n": 1406,
+     "exemptValue": 0,
+     "lotArea": 6649780
+    },
+    "nonprofit": {
+     "n": 194,
+     "exemptValue": 0,
+     "lotArea": 38426646
+    },
+    "streets": {
+     "n": 78,
+     "exemptValue": 0,
+     "lotArea": 464540
+    },
+    "housing-authority": {
+     "n": 120,
+     "exemptValue": 0,
+     "lotArea": 9330742
+    },
+    "education": {
+     "n": 76,
+     "exemptValue": 0,
+     "lotArea": 11760052
+    },
+    "hospital": {
+     "n": 78,
+     "exemptValue": 0,
+     "lotArea": 4948060
+    },
+    "redevelopment": {
+     "n": 484,
+     "exemptValue": 0,
+     "lotArea": 3948342
+    },
+    "federal": {
+     "n": 8,
+     "exemptValue": 0,
+     "lotArea": 4355592
+    }
+   },
+   "housing": {
+    "resClassUnits": 276568,
+    "singleFamily": 86567,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 34010,
+    "newStructures": 446,
+    "newResUnits": 1833
+   },
+   "sales": {
+    "conveyDateFill": 0.518,
+    "conveyedPriorYear": 14311,
+    "impliedPriceFromTransferFee": 139653183,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "commUnits",
+     "ownerOcc",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 1729878390,
+    "impr": 5209798280,
+    "total": 6939676670
+   },
+   "publicHeld": {
+    "n": 3151,
+    "exemptValue": 0,
+    "lotArea": 293314696
+   }
+  },
+  "1979": {
+   "parcels": 159328,
+   "byClass": {
+    "0": {
+     "n": 3,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 133263,
+     "land": 1155072660,
+     "impr": 3079615240,
+     "total": 4234687900,
+     "units": 226342,
+     "bldgArea": 125021050
+    },
+    "2": {
+     "n": 7844,
+     "land": 181038620,
+     "impr": 446715840,
+     "total": 627754460,
+     "units": 16018,
+     "bldgArea": 49439858
+    },
+    "3": {
+     "n": 1202,
+     "land": 65952900,
+     "impr": 451362400,
+     "total": 517315300,
+     "units": 5,
+     "bldgArea": 873856
+    },
+    "4": {
+     "n": 2342,
+     "land": 131899410,
+     "impr": 446352610,
+     "total": 578252020,
+     "units": 9885,
+     "bldgArea": 31537142
+    },
+    "5": {
+     "n": 4142,
+     "land": 15983780,
+     "impr": 123512210,
+     "total": 139495990,
+     "units": 4121,
+     "bldgArea": 4626192
+    },
+    "6": {
+     "n": 2475,
+     "land": 29169730,
+     "impr": 157051990,
+     "total": 186221720,
+     "units": 10339,
+     "bldgArea": 9127388
+    },
+    "7": {
+     "n": 2003,
+     "land": 87157980,
+     "impr": 516028660,
+     "total": 603186640,
+     "units": 44493,
+     "bldgArea": 33655695
+    },
+    "9": {
+     "n": 6054,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 407,
+     "bldgArea": 1019317
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 233,
+     "exemptValue": 0,
+     "lotArea": 43811009
+    },
+    "county": {
+     "n": 595,
+     "exemptValue": 0,
+     "lotArea": 181613084
+    },
+    "religious": {
+     "n": 472,
+     "exemptValue": 0,
+     "lotArea": 28354693
+    },
+    "schools": {
+     "n": 106,
+     "exemptValue": 0,
+     "lotArea": 31747726
+    },
+    "city": {
+     "n": 329,
+     "exemptValue": 0,
+     "lotArea": 67185132
+    },
+    "state": {
+     "n": 116,
+     "exemptValue": 0,
+     "lotArea": 12287635
+    },
+    "city-tax-deed": {
+     "n": 1588,
+     "exemptValue": 0,
+     "lotArea": 7222476
+    },
+    "nonprofit": {
+     "n": 196,
+     "exemptValue": 0,
+     "lotArea": 38659663
+    },
+    "streets": {
+     "n": 76,
+     "exemptValue": 0,
+     "lotArea": 505168
+    },
+    "housing-authority": {
+     "n": 120,
+     "exemptValue": 0,
+     "lotArea": 9330742
+    },
+    "education": {
+     "n": 81,
+     "exemptValue": 0,
+     "lotArea": 12298312
+    },
+    "redevelopment": {
+     "n": 491,
+     "exemptValue": 0,
+     "lotArea": 4639139
+    },
+    "hospital": {
+     "n": 53,
+     "exemptValue": 0,
+     "lotArea": 4397919
+    },
+    "federal": {
+     "n": 9,
+     "exemptValue": 0,
+     "lotArea": 4373952
+    }
+   },
+   "housing": {
+    "resClassUnits": 274956,
+    "singleFamily": 86801,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 34050,
+    "newStructures": 709,
+    "newResUnits": 2179
+   },
+   "sales": {
+    "conveyDateFill": 0.562,
+    "conveyedPriorYear": 16176,
+    "impliedPriceFromTransferFee": 180816383,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "commUnits",
+     "ownerOcc",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 1666275080,
+    "impr": 5220638950,
+    "total": 6886914030
+   },
+   "publicHeld": {
+    "n": 3354,
+    "exemptValue": 0,
+    "lotArea": 318399886
+   }
+  },
+  "1980": {
+   "parcels": 159742,
+   "byClass": {
+    "1": {
+     "n": 133196,
+     "land": 1157131180,
+     "impr": 3100723020,
+     "total": 4257854200,
+     "units": 223980,
+     "bldgArea": 125144375
+    },
+    "2": {
+     "n": 7664,
+     "land": 169500950,
+     "impr": 437815750,
+     "total": 607316700,
+     "units": 13642,
+     "bldgArea": 48205861
+    },
+    "3": {
+     "n": 1194,
+     "land": 53586950,
+     "impr": 378473390,
+     "total": 432060340,
+     "units": 6,
+     "bldgArea": 892657
+    },
+    "4": {
+     "n": 2365,
+     "land": 142839290,
+     "impr": 484173620,
+     "total": 627012910,
+     "units": 10536,
+     "bldgArea": 37185517
+    },
+    "5": {
+     "n": 4685,
+     "land": 17832370,
+     "impr": 138911660,
+     "total": 156744030,
+     "units": 4619,
+     "bldgArea": 5179511
+    },
+    "6": {
+     "n": 2560,
+     "land": 30146040,
+     "impr": 158637010,
+     "total": 188783050,
+     "units": 10398,
+     "bldgArea": 9184103
+    },
+    "7": {
+     "n": 2044,
+     "land": 88907960,
+     "impr": 529100030,
+     "total": 618007990,
+     "units": 45441,
+     "bldgArea": 33861261
+    },
+    "9": {
+     "n": 6034,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 1064,
+     "bldgArea": 1772904
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 480,
+     "exemptValue": 0,
+     "lotArea": 86838649
+    },
+    "city-tax-deed": {
+     "n": 1772,
+     "exemptValue": 0,
+     "lotArea": 14891689
+    },
+    "county": {
+     "n": 924,
+     "exemptValue": 0,
+     "lotArea": 248325666
+    },
+    "religious": {
+     "n": 740,
+     "exemptValue": 0,
+     "lotArea": 32588387
+    },
+    "schools": {
+     "n": 187,
+     "exemptValue": 0,
+     "lotArea": 52078936
+    },
+    "city": {
+     "n": 637,
+     "exemptValue": 0,
+     "lotArea": 83276160
+    },
+    "state": {
+     "n": 132,
+     "exemptValue": 0,
+     "lotArea": 18637699
+    },
+    "nonprofit": {
+     "n": 290,
+     "exemptValue": 0,
+     "lotArea": 62928213
+    },
+    "streets": {
+     "n": 88,
+     "exemptValue": 0,
+     "lotArea": 600368
+    },
+    "housing-authority": {
+     "n": 130,
+     "exemptValue": 0,
+     "lotArea": 11370869
+    },
+    "federal": {
+     "n": 13,
+     "exemptValue": 0,
+     "lotArea": 14071060
+    },
+    "hospital": {
+     "n": 55,
+     "exemptValue": 0,
+     "lotArea": 5023600
+    },
+    "redevelopment": {
+     "n": 481,
+     "exemptValue": 0,
+     "lotArea": 7192482
+    },
+    "education": {
+     "n": 101,
+     "exemptValue": 0,
+     "lotArea": 15867820
+    }
+   },
+   "housing": {
+    "resClassUnits": 274040,
+    "singleFamily": 86898,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 34200,
+    "newStructures": 742,
+    "newResUnits": 1779
+   },
+   "sales": {
+    "conveyDateFill": 0.589,
+    "conveyedPriorYear": 14305,
+    "impliedPriceFromTransferFee": 179017600,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "commUnits",
+     "ownerOcc",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 1659944740,
+    "impr": 5227834480,
+    "total": 6887779220
+   },
+   "publicHeld": {
+    "n": 4276,
+    "exemptValue": 0,
+    "lotArea": 449844561
+   }
+  },
+  "1982": {
+   "parcels": 160582,
+   "byClass": {
+    "1": {
+     "n": 133123,
+     "land": 1684576790,
+     "impr": 4319516829,
+     "total": 6004093619,
+     "units": 177819,
+     "bldgArea": 125912011
+    },
+    "2": {
+     "n": 7613,
+     "land": 241446040,
+     "impr": 644692860,
+     "total": 886138900,
+     "units": 7892,
+     "bldgArea": 50062010
+    },
+    "3": {
+     "n": 1221,
+     "land": 57078000,
+     "impr": 390370800,
+     "total": 447448800,
+     "units": 44,
+     "bldgArea": 3563502
+    },
+    "4": {
+     "n": 2154,
+     "land": 206019660,
+     "impr": 642535130,
+     "total": 848554790,
+     "units": 9921,
+     "bldgArea": 41693038
+    },
+    "5": {
+     "n": 6332,
+     "land": 35268450,
+     "impr": 260061250,
+     "total": 295329700,
+     "units": 6260,
+     "bldgArea": 6560472
+    },
+    "7": {
+     "n": 4168,
+     "land": 192270680,
+     "impr": 869961880,
+     "total": 1062232560,
+     "units": 53035,
+     "bldgArea": 42224873
+    },
+    "9": {
+     "n": 5971,
+     "land": 12790,
+     "impr": 39310,
+     "total": 52100,
+     "units": 964,
+     "bldgArea": 2251590
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 465,
+     "exemptValue": 0,
+     "lotArea": 84434298
+    },
+    "county": {
+     "n": 868,
+     "exemptValue": 0,
+     "lotArea": 251272361
+    },
+    "religious": {
+     "n": 753,
+     "exemptValue": 0,
+     "lotArea": 32704321
+    },
+    "schools": {
+     "n": 180,
+     "exemptValue": 0,
+     "lotArea": 52050517
+    },
+    "nonprofit": {
+     "n": 293,
+     "exemptValue": 0,
+     "lotArea": 62677621
+    },
+    "city": {
+     "n": 676,
+     "exemptValue": 0,
+     "lotArea": 71940308
+    },
+    "state": {
+     "n": 141,
+     "exemptValue": 0,
+     "lotArea": 21272256
+    },
+    "city-tax-deed": {
+     "n": 1626,
+     "exemptValue": 0,
+     "lotArea": 14256620
+    },
+    "redevelopment": {
+     "n": 486,
+     "exemptValue": 0,
+     "lotArea": 13295297
+    },
+    "streets": {
+     "n": 80,
+     "exemptValue": 0,
+     "lotArea": 484900
+    },
+    "housing-authority": {
+     "n": 220,
+     "exemptValue": 0,
+     "lotArea": 10662692
+    },
+    "hospital": {
+     "n": 62,
+     "exemptValue": 0,
+     "lotArea": 5426223
+    },
+    "education": {
+     "n": 103,
+     "exemptValue": 0,
+     "lotArea": 15831835
+    },
+    "federal": {
+     "n": 12,
+     "exemptValue": 0,
+     "lotArea": 11882260
+    }
+   },
+   "housing": {
+    "resClassUnits": 237114,
+    "singleFamily": 87396,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 48400,
+    "newStructures": 177,
+    "newResUnits": 366
+   },
+   "sales": {
+    "conveyDateFill": 0.632,
+    "conveyedPriorYear": 10464,
+    "impliedPriceFromTransferFee": 177995547,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "commUnits",
+     "ownerOcc",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2416672410,
+    "impr": 7127178059,
+    "total": 9543850469
+   },
+   "publicHeld": {
+    "n": 4209,
+    "exemptValue": 0,
+    "lotArea": 446632311
+   }
+  },
+  "1983": {
+   "parcels": 160391,
+   "byClass": {
+    "1": {
+     "n": 132968,
+     "land": 1679839200,
+     "impr": 4318105569,
+     "total": 5997944769,
+     "units": 177532,
+     "bldgArea": 196732263
+    },
+    "2": {
+     "n": 7103,
+     "land": 152175000,
+     "impr": 358543440,
+     "total": 510718440,
+     "units": 7689,
+     "bldgArea": 34082311
+    },
+    "3": {
+     "n": 1193,
+     "land": 78887700,
+     "impr": 547307900,
+     "total": 626195600,
+     "units": 46,
+     "bldgArea": 3494980
+    },
+    "4": {
+     "n": 2622,
+     "land": 299171590,
+     "impr": 987576770,
+     "total": 1286748360,
+     "units": 10185,
+     "bldgArea": 57593937
+    },
+    "5": {
+     "n": 6464,
+     "land": 36193850,
+     "impr": 262702860,
+     "total": 298896710,
+     "units": 6393,
+     "bldgArea": 6810222
+    },
+    "7": {
+     "n": 4161,
+     "land": 192710650,
+     "impr": 867874820,
+     "total": 1060585470,
+     "units": 53397,
+     "bldgArea": 42878353
+    },
+    "9": {
+     "n": 5880,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 1003,
+     "bldgArea": 2540371
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 462,
+     "exemptValue": 0,
+     "lotArea": 83903226
+    },
+    "county": {
+     "n": 851,
+     "exemptValue": 0,
+     "lotArea": 253918001
+    },
+    "religious": {
+     "n": 758,
+     "exemptValue": 0,
+     "lotArea": 34172575
+    },
+    "schools": {
+     "n": 176,
+     "exemptValue": 0,
+     "lotArea": 51592335
+    },
+    "nonprofit": {
+     "n": 301,
+     "exemptValue": 0,
+     "lotArea": 63259506
+    },
+    "city": {
+     "n": 691,
+     "exemptValue": 0,
+     "lotArea": 76705708
+    },
+    "state": {
+     "n": 143,
+     "exemptValue": 0,
+     "lotArea": 21491826
+    },
+    "city-tax-deed": {
+     "n": 1483,
+     "exemptValue": 0,
+     "lotArea": 6096754
+    },
+    "redevelopment": {
+     "n": 512,
+     "exemptValue": 0,
+     "lotArea": 10872877
+    },
+    "streets": {
+     "n": 67,
+     "exemptValue": 0,
+     "lotArea": 430944
+    },
+    "housing-authority": {
+     "n": 253,
+     "exemptValue": 0,
+     "lotArea": 11965988
+    },
+    "hospital": {
+     "n": 60,
+     "exemptValue": 0,
+     "lotArea": 5366065
+    },
+    "education": {
+     "n": 106,
+     "exemptValue": 0,
+     "lotArea": 16436046
+    },
+    "federal": {
+     "n": 12,
+     "exemptValue": 0,
+     "lotArea": 11882260
+    }
+   },
+   "housing": {
+    "resClassUnits": 237322,
+    "singleFamily": 87845,
+    "singleFamilyOwnerOccupied": null,
+    "medianSingleFamilyAssessed": 48400,
+    "newStructures": 380,
+    "newResUnits": 678
+   },
+   "sales": {
+    "conveyDateFill": 0.656,
+    "conveyedPriorYear": 9496,
+    "impliedPriceFromTransferFee": 290394960,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "exmTotal",
+     "commUnits",
+     "ownerOcc",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "letters-1975-1983",
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2438977990,
+    "impr": 7342111359,
+    "total": 9781089349
+   },
+   "publicHeld": {
+    "n": 4121,
+    "exemptValue": 0,
+    "lotArea": 444525749
+   }
+  },
+  "1984": {
+   "parcels": 160212,
+   "byClass": {
+    "1": {
+     "n": 132519,
+     "land": 1678997630,
+     "impr": 4493878330,
+     "total": 6172875960,
+     "units": 177656,
+     "bldgArea": 195653137
+    },
+    "2": {
+     "n": 7039,
+     "land": 142850050,
+     "impr": 350041190,
+     "total": 492891240,
+     "units": 7749,
+     "bldgArea": 33692952
+    },
+    "3": {
+     "n": 1175,
+     "land": 83474600,
+     "impr": 571779400,
+     "total": 655254000,
+     "units": 45,
+     "bldgArea": 3577351
+    },
+    "4": {
+     "n": 2676,
+     "land": 316181530,
+     "impr": 1128741220,
+     "total": 1444922750,
+     "units": 11517,
+     "bldgArea": 61907491
+    },
+    "5": {
+     "n": 6607,
+     "land": 37155200,
+     "impr": 269904650,
+     "total": 307059850,
+     "units": 6532,
+     "bldgArea": 7353447
+    },
+    "7": {
+     "n": 4501,
+     "land": 196673360,
+     "impr": 904059970,
+     "total": 1100733330,
+     "units": 58259,
+     "bldgArea": 43487778
+    },
+    "8": {
+     "n": 1,
+     "land": 5020,
+     "impr": 172370,
+     "total": 177390,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "9": {
+     "n": 5694,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 958,
+     "bldgArea": 3460844
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 457,
+     "exemptValue": 149271830,
+     "lotArea": 83747133
+    },
+    "county": {
+     "n": 858,
+     "exemptValue": 462144955,
+     "lotArea": 328953018
+    },
+    "religious": {
+     "n": 772,
+     "exemptValue": 260167366,
+     "lotArea": 34879596
+    },
+    "schools": {
+     "n": 174,
+     "exemptValue": 587428100,
+     "lotArea": 51205092
+    },
+    "nonprofit": {
+     "n": 308,
+     "exemptValue": 181492950,
+     "lotArea": 66365686
+    },
+    "city": {
+     "n": 693,
+     "exemptValue": 343705478,
+     "lotArea": 74131860
+    },
+    "state": {
+     "n": 135,
+     "exemptValue": 31327360,
+     "lotArea": 21139963
+    },
+    "city-tax-deed": {
+     "n": 1296,
+     "exemptValue": 3489855,
+     "lotArea": 5392326
+    },
+    "redevelopment": {
+     "n": 491,
+     "exemptValue": 17600190,
+     "lotArea": 11495042
+    },
+    "housing-authority": {
+     "n": 271,
+     "exemptValue": 94695320,
+     "lotArea": 10873506
+    },
+    "streets": {
+     "n": 63,
+     "exemptValue": 2455980,
+     "lotArea": 380477
+    },
+    "hospital": {
+     "n": 59,
+     "exemptValue": 293868760,
+     "lotArea": 4585986
+    },
+    "federal": {
+     "n": 24,
+     "exemptValue": 66223800,
+     "lotArea": 11928303
+    },
+    "education": {
+     "n": 96,
+     "exemptValue": 326562470,
+     "lotArea": 16499385
+    }
+   },
+   "housing": {
+    "resClassUnits": 242447,
+    "singleFamily": 87421,
+    "singleFamilyOwnerOccupied": 79667,
+    "medianSingleFamilyAssessed": 49600,
+    "newStructures": 198,
+    "newResUnits": 334
+   },
+   "sales": {
+    "conveyDateFill": 0.673,
+    "conveyedPriorYear": 11648,
+    "impliedPriceFromTransferFee": 37417790333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2455337390,
+    "impr": 7718577130,
+    "total": 10173914520
+   },
+   "publicHeld": {
+    "n": 3942,
+    "exemptValue": 1606615058,
+    "lotArea": 515119110
+   }
+  },
+  "1985": {
+   "parcels": 160245,
+   "byClass": {
+    "1": {
+     "n": 132374,
+     "land": 1678796650,
+     "impr": 4483613539,
+     "total": 6162410189,
+     "units": 177288,
+     "bldgArea": 195642323
+    },
+    "2": {
+     "n": 7030,
+     "land": 144085390,
+     "impr": 367615440,
+     "total": 511700830,
+     "units": 7591,
+     "bldgArea": 32920966
+    },
+    "3": {
+     "n": 1151,
+     "land": 82392700,
+     "impr": 492876900,
+     "total": 575269600,
+     "units": 45,
+     "bldgArea": 3864177
+    },
+    "4": {
+     "n": 2684,
+     "land": 320560060,
+     "impr": 1204006130,
+     "total": 1524566190,
+     "units": 12743,
+     "bldgArea": 63236733
+    },
+    "5": {
+     "n": 6960,
+     "land": 39125760,
+     "impr": 281298170,
+     "total": 320423930,
+     "units": 6810,
+     "bldgArea": 7671452
+    },
+    "7": {
+     "n": 4468,
+     "land": 196365910,
+     "impr": 908022550,
+     "total": 1104388460,
+     "units": 58444,
+     "bldgArea": 45064901
+    },
+    "8": {
+     "n": 3,
+     "land": 10210,
+     "impr": 30490,
+     "total": 40700,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "9": {
+     "n": 5575,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 1411,
+     "bldgArea": 3659983
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 466,
+     "exemptValue": 158336700,
+     "lotArea": 84191026
+    },
+    "county": {
+     "n": 834,
+     "exemptValue": 469103215,
+     "lotArea": 328840427
+    },
+    "religious": {
+     "n": 817,
+     "exemptValue": 278016886,
+     "lotArea": 36486532
+    },
+    "nonprofit": {
+     "n": 349,
+     "exemptValue": 239083720,
+     "lotArea": 69750504
+    },
+    "schools": {
+     "n": 173,
+     "exemptValue": 584113900,
+     "lotArea": 51163727
+    },
+    "city": {
+     "n": 686,
+     "exemptValue": 355736988,
+     "lotArea": 74240134
+    },
+    "state": {
+     "n": 137,
+     "exemptValue": 37111420,
+     "lotArea": 23244065
+    },
+    "city-tax-deed": {
+     "n": 1181,
+     "exemptValue": 3480335,
+     "lotArea": 5004598
+    },
+    "redevelopment": {
+     "n": 508,
+     "exemptValue": 17688540,
+     "lotArea": 10573782
+    },
+    "housing-authority": {
+     "n": 277,
+     "exemptValue": 93221250,
+     "lotArea": 10284839
+    },
+    "streets": {
+     "n": 64,
+     "exemptValue": 2498930,
+     "lotArea": 369415
+    },
+    "hospital": {
+     "n": 69,
+     "exemptValue": 408195370,
+     "lotArea": 6215225
+    },
+    "federal": {
+     "n": 21,
+     "exemptValue": 65597620,
+     "lotArea": 12169946
+    },
+    "education": {
+     "n": 107,
+     "exemptValue": 343426070,
+     "lotArea": 16655580
+    }
+   },
+   "housing": {
+    "resClassUnits": 242542,
+    "singleFamily": 87386,
+    "singleFamilyOwnerOccupied": 79567,
+    "medianSingleFamilyAssessed": 49500,
+    "newStructures": 224,
+    "newResUnits": 415
+   },
+   "sales": {
+    "conveyDateFill": 0.688,
+    "conveyedPriorYear": 11598,
+    "impliedPriceFromTransferFee": 440712290,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2461336680,
+    "impr": 7737463219,
+    "total": 10198799899
+   },
+   "publicHeld": {
+    "n": 3817,
+    "exemptValue": 1626053268,
+    "lotArea": 515521518
+   }
+  },
+  "1986": {
+   "parcels": 159967,
+   "byClass": {
+    "1": {
+     "n": 132193,
+     "land": 1677245200,
+     "impr": 4476956340,
+     "total": 6154201540,
+     "units": 177124,
+     "bldgArea": 195669598
+    },
+    "2": {
+     "n": 7009,
+     "land": 151263590,
+     "impr": 379071200,
+     "total": 530334790,
+     "units": 7555,
+     "bldgArea": 33678508
+    },
+    "3": {
+     "n": 1135,
+     "land": 78994900,
+     "impr": 441359600,
+     "total": 520354500,
+     "units": 45,
+     "bldgArea": 3506325
+    },
+    "4": {
+     "n": 2729,
+     "land": 329386720,
+     "impr": 1257107310,
+     "total": 1586494030,
+     "units": 12821,
+     "bldgArea": 64298061
+    },
+    "5": {
+     "n": 6997,
+     "land": 39623260,
+     "impr": 280578520,
+     "total": 320201780,
+     "units": 6857,
+     "bldgArea": 7754956
+    },
+    "7": {
+     "n": 4461,
+     "land": 197007870,
+     "impr": 912881860,
+     "total": 1109889730,
+     "units": 57604,
+     "bldgArea": 46200915
+    },
+    "8": {
+     "n": 24,
+     "land": 750200,
+     "impr": 1013350,
+     "total": 1763550,
+     "units": 2,
+     "bldgArea": 930
+    },
+    "9": {
+     "n": 5419,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 1403,
+     "bldgArea": 3847023
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 470,
+     "exemptValue": 152749090,
+     "lotArea": 75545249
+    },
+    "county": {
+     "n": 835,
+     "exemptValue": 471202545,
+     "lotArea": 321563713
+    },
+    "religious": {
+     "n": 837,
+     "exemptValue": 278145656,
+     "lotArea": 36905334
+    },
+    "nonprofit": {
+     "n": 344,
+     "exemptValue": 236429780,
+     "lotArea": 69924592
+    },
+    "schools": {
+     "n": 171,
+     "exemptValue": 581705900,
+     "lotArea": 51102252
+    },
+    "city": {
+     "n": 673,
+     "exemptValue": 362774388,
+     "lotArea": 72887464
+    },
+    "state": {
+     "n": 132,
+     "exemptValue": 37024970,
+     "lotArea": 24733603
+    },
+    "city-tax-deed": {
+     "n": 1117,
+     "exemptValue": 3434055,
+     "lotArea": 5394045
+    },
+    "redevelopment": {
+     "n": 418,
+     "exemptValue": 20058950,
+     "lotArea": 13662458
+    },
+    "housing-authority": {
+     "n": 292,
+     "exemptValue": 95086320,
+     "lotArea": 10389353
+    },
+    "streets": {
+     "n": 54,
+     "exemptValue": 2480130,
+     "lotArea": 318726
+    },
+    "federal": {
+     "n": 20,
+     "exemptValue": 65651460,
+     "lotArea": 11966560
+    },
+    "hospital": {
+     "n": 72,
+     "exemptValue": 408750470,
+     "lotArea": 7008476
+    },
+    "education": {
+     "n": 113,
+     "exemptValue": 346036660,
+     "lotArea": 16750724
+    }
+   },
+   "housing": {
+    "resClassUnits": 241585,
+    "singleFamily": 87412,
+    "singleFamilyOwnerOccupied": 79042,
+    "medianSingleFamilyAssessed": 49400,
+    "newStructures": 94,
+    "newResUnits": 75
+   },
+   "sales": {
+    "conveyDateFill": 0.71,
+    "conveyedPriorYear": 12213,
+    "impliedPriceFromTransferFee": 437029027,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2474271740,
+    "impr": 7748968180,
+    "total": 10223239920
+   },
+   "publicHeld": {
+    "n": 3658,
+    "exemptValue": 1636938588,
+    "lotArea": 511699448
+   }
+  },
+  "1987": {
+   "parcels": 159826,
+   "byClass": {
+    "0": {
+     "n": 803,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 2178,
+     "bldgArea": 4311101
+    },
+    "1": {
+     "n": 131843,
+     "land": 1673371100,
+     "impr": 4470208820,
+     "total": 6143579920,
+     "units": 176589,
+     "bldgArea": 195517460
+    },
+    "2": {
+     "n": 6907,
+     "land": 145678130,
+     "impr": 374196840,
+     "total": 519874970,
+     "units": 7585,
+     "bldgArea": 33381518
+    },
+    "3": {
+     "n": 1115,
+     "land": 76679500,
+     "impr": 433309400,
+     "total": 509988900,
+     "units": 42,
+     "bldgArea": 5394296
+    },
+    "4": {
+     "n": 2660,
+     "land": 311967920,
+     "impr": 1178274360,
+     "total": 1490242280,
+     "units": 12212,
+     "bldgArea": 62541579
+    },
+    "5": {
+     "n": 6855,
+     "land": 38869360,
+     "impr": 273957520,
+     "total": 312826880,
+     "units": 6742,
+     "bldgArea": 7623115
+    },
+    "7": {
+     "n": 4427,
+     "land": 193326160,
+     "impr": 904097080,
+     "total": 1097423240,
+     "units": 56461,
+     "bldgArea": 45385945
+    },
+    "9": {
+     "n": 5207,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 1436,
+     "bldgArea": 4088390
+    },
+    "none": {
+     "n": 9,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 464,
+     "exemptValue": 151850790,
+     "lotArea": 76533305
+    },
+    "county": {
+     "n": 811,
+     "exemptValue": 467307925,
+     "lotArea": 324669736
+    },
+    "religious": {
+     "n": 823,
+     "exemptValue": 270550766,
+     "lotArea": 36172885
+    },
+    "nonprofit": {
+     "n": 337,
+     "exemptValue": 221994870,
+     "lotArea": 68673562
+    },
+    "schools": {
+     "n": 167,
+     "exemptValue": 563686100,
+     "lotArea": 49397947
+    },
+    "city": {
+     "n": 654,
+     "exemptValue": 352417658,
+     "lotArea": 62564267
+    },
+    "state": {
+     "n": 132,
+     "exemptValue": 37024970,
+     "lotArea": 24733603
+    },
+    "city-tax-deed": {
+     "n": 1036,
+     "exemptValue": 3206135,
+     "lotArea": 4638809
+    },
+    "redevelopment": {
+     "n": 368,
+     "exemptValue": 15847320,
+     "lotArea": 12130210
+    },
+    "housing-authority": {
+     "n": 289,
+     "exemptValue": 90100620,
+     "lotArea": 10331425
+    },
+    "streets": {
+     "n": 50,
+     "exemptValue": 2464330,
+     "lotArea": 312372
+    },
+    "federal": {
+     "n": 20,
+     "exemptValue": 65651460,
+     "lotArea": 11966560
+    },
+    "hospital": {
+     "n": 70,
+     "exemptValue": 407249470,
+     "lotArea": 6958928
+    },
+    "education": {
+     "n": 112,
+     "exemptValue": 343953860,
+     "lotArea": 16605931
+    }
+   },
+   "housing": {
+    "resClassUnits": 239792,
+    "singleFamily": 87288,
+    "singleFamilyOwnerOccupied": 78815,
+    "medianSingleFamilyAssessed": 49400,
+    "newStructures": 180,
+    "newResUnits": 128
+   },
+   "sales": {
+    "conveyDateFill": 0.73,
+    "conveyedPriorYear": 12909,
+    "impliedPriceFromTransferFee": 526365873,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2439892170,
+    "impr": 7634044020,
+    "total": 10073936190
+   },
+   "publicHeld": {
+    "n": 3477,
+    "exemptValue": 1595242188,
+    "lotArea": 500432557
+   }
+  },
+  "1988": {
+   "parcels": 159179,
+   "byClass": {
+    "0": {
+     "n": 1,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 131021,
+     "land": 1659828900,
+     "impr": 4367617200,
+     "total": 6027446100,
+     "units": 173199,
+     "bldgArea": 193344521
+    },
+    "2": {
+     "n": 7042,
+     "land": 161224670,
+     "impr": 402367120,
+     "total": 563591790,
+     "units": 7388,
+     "bldgArea": 33311224
+    },
+    "3": {
+     "n": 1076,
+     "land": 86018500,
+     "impr": 397045700,
+     "total": 483064200,
+     "units": 48,
+     "bldgArea": 4042093
+    },
+    "4": {
+     "n": 2653,
+     "land": 484086520,
+     "impr": 1719252760,
+     "total": 2203339280,
+     "units": 12878,
+     "bldgArea": 68386501
+    },
+    "5": {
+     "n": 6448,
+     "land": 42459000,
+     "impr": 288927560,
+     "total": 331386560,
+     "units": 6337,
+     "bldgArea": 7431216
+    },
+    "7": {
+     "n": 5261,
+     "land": 210610300,
+     "impr": 1092173110,
+     "total": 1302783410,
+     "units": 60850,
+     "bldgArea": 49171461
+    },
+    "8": {
+     "n": 8,
+     "land": 115600,
+     "impr": 2262630,
+     "total": 2378230,
+     "units": 1,
+     "bldgArea": 994
+    },
+    "9": {
+     "n": 5669,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 2517,
+     "bldgArea": 6303024
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 457,
+     "exemptValue": 158982310,
+     "lotArea": 74860274
+    },
+    "county": {
+     "n": 820,
+     "exemptValue": 496399955,
+     "lotArea": 327146011
+    },
+    "religious": {
+     "n": 857,
+     "exemptValue": 288113486,
+     "lotArea": 37344174
+    },
+    "nonprofit": {
+     "n": 381,
+     "exemptValue": 276738750,
+     "lotArea": 70886461
+    },
+    "schools": {
+     "n": 169,
+     "exemptValue": 580685540,
+     "lotArea": 50811973
+    },
+    "city": {
+     "n": 648,
+     "exemptValue": 396445488,
+     "lotArea": 70205416
+    },
+    "state": {
+     "n": 137,
+     "exemptValue": 36347790,
+     "lotArea": 25481064
+    },
+    "city-tax-deed": {
+     "n": 1320,
+     "exemptValue": 5489045,
+     "lotArea": 6634891
+    },
+    "redevelopment": {
+     "n": 417,
+     "exemptValue": 27031090,
+     "lotArea": 13134900
+    },
+    "housing-authority": {
+     "n": 346,
+     "exemptValue": 97324910,
+     "lotArea": 10637655
+    },
+    "streets": {
+     "n": 49,
+     "exemptValue": 2375340,
+     "lotArea": 294602
+    },
+    "federal": {
+     "n": 12,
+     "exemptValue": 64166300,
+     "lotArea": 11805794
+    },
+    "hospital": {
+     "n": 74,
+     "exemptValue": 415974690,
+     "lotArea": 5850108
+    },
+    "education": {
+     "n": 117,
+     "exemptValue": 355814580,
+     "lotArea": 17223908
+    }
+   },
+   "housing": {
+    "resClassUnits": 240386,
+    "singleFamily": 87388,
+    "singleFamilyOwnerOccupied": 78788,
+    "medianSingleFamilyAssessed": 47000,
+    "newStructures": 170,
+    "newResUnits": 358
+   },
+   "sales": {
+    "conveyDateFill": 0.75,
+    "conveyedPriorYear": 12071,
+    "impliedPriceFromTransferFee": 44219173333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2644343490,
+    "impr": 8269646080,
+    "total": 10913989570
+   },
+   "publicHeld": {
+    "n": 3869,
+    "exemptValue": 1703890118,
+    "lotArea": 515857704
+   }
+  },
+  "1989": {
+   "parcels": 158988,
+   "byClass": {
+    "0": {
+     "n": 8,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 130822,
+     "land": 1657073620,
+     "impr": 4380516850,
+     "total": 6037590470,
+     "units": 172421,
+     "bldgArea": 192538722
+    },
+    "2": {
+     "n": 7009,
+     "land": 158724280,
+     "impr": 395658140,
+     "total": 554382420,
+     "units": 7277,
+     "bldgArea": 32478997
+    },
+    "3": {
+     "n": 1077,
+     "land": 82805800,
+     "impr": 387688000,
+     "total": 470493800,
+     "units": 55,
+     "bldgArea": 4577932
+    },
+    "4": {
+     "n": 2641,
+     "land": 500571070,
+     "impr": 1823471130,
+     "total": 2324042200,
+     "units": 13565,
+     "bldgArea": 69962850
+    },
+    "5": {
+     "n": 6450,
+     "land": 42643450,
+     "impr": 295005650,
+     "total": 337649100,
+     "units": 6516,
+     "bldgArea": 7581564
+    },
+    "7": {
+     "n": 5235,
+     "land": 212753120,
+     "impr": 1089279910,
+     "total": 1302033030,
+     "units": 60939,
+     "bldgArea": 47938787
+    },
+    "8": {
+     "n": 28,
+     "land": 160160,
+     "impr": 367130,
+     "total": 527290,
+     "units": 3,
+     "bldgArea": 2358
+    },
+    "9": {
+     "n": 5718,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9636,
+     "bldgArea": 7093549
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 459,
+     "exemptValue": 156707370,
+     "lotArea": 75737594
+    },
+    "county": {
+     "n": 792,
+     "exemptValue": 492548515,
+     "lotArea": 330955055
+    },
+    "religious": {
+     "n": 862,
+     "exemptValue": 280863976,
+     "lotArea": 36155852
+    },
+    "nonprofit": {
+     "n": 389,
+     "exemptValue": 298017850,
+     "lotArea": 67711360
+    },
+    "schools": {
+     "n": 169,
+     "exemptValue": 599378340,
+     "lotArea": 50907895
+    },
+    "city": {
+     "n": 716,
+     "exemptValue": 417165248,
+     "lotArea": 64437484
+    },
+    "state": {
+     "n": 149,
+     "exemptValue": 39858910,
+     "lotArea": 26396699
+    },
+    "city-tax-deed": {
+     "n": 1366,
+     "exemptValue": 5557495,
+     "lotArea": 7703853
+    },
+    "housing-authority": {
+     "n": 323,
+     "exemptValue": 120291330,
+     "lotArea": 11212391
+    },
+    "streets": {
+     "n": 46,
+     "exemptValue": 2374110,
+     "lotArea": 290855
+    },
+    "federal": {
+     "n": 12,
+     "exemptValue": 67068200,
+     "lotArea": 17067961
+    },
+    "hospital": {
+     "n": 80,
+     "exemptValue": 373994880,
+     "lotArea": 6346418
+    },
+    "redevelopment": {
+     "n": 375,
+     "exemptValue": 17397310,
+     "lotArea": 7505276
+    },
+    "education": {
+     "n": 115,
+     "exemptValue": 318239930,
+     "lotArea": 16543621
+    }
+   },
+   "housing": {
+    "resClassUnits": 239876,
+    "singleFamily": 86942,
+    "singleFamilyOwnerOccupied": 78439,
+    "medianSingleFamilyAssessed": 47000,
+    "newStructures": 134,
+    "newResUnits": 277
+   },
+   "sales": {
+    "conveyDateFill": 0.766,
+    "conveyedPriorYear": 11775,
+    "impliedPriceFromTransferFee": 630579940,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2654731500,
+    "impr": 8371986810,
+    "total": 11026718310
+   },
+   "publicHeld": {
+    "n": 3902,
+    "exemptValue": 1759265348,
+    "lotArea": 516186614
+   }
+  },
+  "1990": {
+   "parcels": 158953,
+   "byClass": {
+    "0": {
+     "n": 110,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 130295,
+     "land": 1729959320,
+     "impr": 4622708170,
+     "total": 6352667490,
+     "units": 172106,
+     "bldgArea": 192725666
+    },
+    "2": {
+     "n": 7143,
+     "land": 156979500,
+     "impr": 414292060,
+     "total": 571271560,
+     "units": 7171,
+     "bldgArea": 32388228
+    },
+    "3": {
+     "n": 1082,
+     "land": 90305300,
+     "impr": 416494100,
+     "total": 506799400,
+     "units": 58,
+     "bldgArea": 4871011
+    },
+    "4": {
+     "n": 2581,
+     "land": 509744940,
+     "impr": 1893315450,
+     "total": 2403060390,
+     "units": 13597,
+     "bldgArea": 71246628
+    },
+    "5": {
+     "n": 6446,
+     "land": 42551550,
+     "impr": 318475550,
+     "total": 361027100,
+     "units": 6459,
+     "bldgArea": 7461612
+    },
+    "7": {
+     "n": 5259,
+     "land": 198109070,
+     "impr": 1166237220,
+     "total": 1364346290,
+     "units": 60927,
+     "bldgArea": 47654398
+    },
+    "9": {
+     "n": 6036,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9967,
+     "bldgArea": 8085273
+    },
+    "none": {
+     "n": 1,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 458,
+     "exemptValue": 158018830,
+     "lotArea": 75863105
+    },
+    "county": {
+     "n": 772,
+     "exemptValue": 492168925,
+     "lotArea": 329474548
+    },
+    "religious": {
+     "n": 871,
+     "exemptValue": 283461836,
+     "lotArea": 36526463
+    },
+    "schools": {
+     "n": 169,
+     "exemptValue": 601145370,
+     "lotArea": 50907895
+    },
+    "nonprofit": {
+     "n": 388,
+     "exemptValue": 282018340,
+     "lotArea": 70439079
+    },
+    "city": {
+     "n": 674,
+     "exemptValue": 412626538,
+     "lotArea": 69012412
+    },
+    "state": {
+     "n": 163,
+     "exemptValue": 40615190,
+     "lotArea": 27796756
+    },
+    "city-tax-deed": {
+     "n": 1675,
+     "exemptValue": 7182435,
+     "lotArea": 8864154
+    },
+    "housing-authority": {
+     "n": 360,
+     "exemptValue": 120834010,
+     "lotArea": 11497024
+    },
+    "streets": {
+     "n": 47,
+     "exemptValue": 2374190,
+     "lotArea": 292415
+    },
+    "federal": {
+     "n": 13,
+     "exemptValue": 67186400,
+     "lotArea": 17152903
+    },
+    "hospital": {
+     "n": 70,
+     "exemptValue": 486200480,
+     "lotArea": 6054766
+    },
+    "redevelopment": {
+     "n": 383,
+     "exemptValue": 20871590,
+     "lotArea": 8061084
+    },
+    "education": {
+     "n": 121,
+     "exemptValue": 320882670,
+     "lotArea": 16700891
+    }
+   },
+   "housing": {
+    "resClassUnits": 239492,
+    "singleFamily": 87305,
+    "singleFamilyOwnerOccupied": 78701,
+    "medianSingleFamilyAssessed": 49200,
+    "newStructures": 123,
+    "newResUnits": 215
+   },
+   "sales": {
+    "conveyDateFill": 0.787,
+    "conveyedPriorYear": 11847,
+    "impliedPriceFromTransferFee": 187460026000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2727649680,
+    "impr": 8831522550,
+    "total": 11559172230
+   },
+   "publicHeld": {
+    "n": 4209,
+    "exemptValue": 1762630458,
+    "lotArea": 522766776
+   }
+  },
+  "1991": {
+   "parcels": 158819,
+   "byClass": {
+    "1": {
+     "n": 129952,
+     "land": 1308105840,
+     "impr": 5044315980,
+     "total": 6352421820,
+     "units": 171571,
+     "bldgArea": 192456984
+    },
+    "2": {
+     "n": 7102,
+     "land": 153292760,
+     "impr": 413802990,
+     "total": 567095750,
+     "units": 7221,
+     "bldgArea": 32171161
+    },
+    "3": {
+     "n": 1080,
+     "land": 90564400,
+     "impr": 409621100,
+     "total": 500185500,
+     "units": 60,
+     "bldgArea": 5345134
+    },
+    "4": {
+     "n": 2566,
+     "land": 512255080,
+     "impr": 1946873070,
+     "total": 2459128150,
+     "units": 12906,
+     "bldgArea": 71830195
+    },
+    "5": {
+     "n": 6458,
+     "land": 43375850,
+     "impr": 321403150,
+     "total": 364779000,
+     "units": 6446,
+     "bldgArea": 7443507
+    },
+    "7": {
+     "n": 5360,
+     "land": 202496510,
+     "impr": 1184246900,
+     "total": 1386743410,
+     "units": 61525,
+     "bldgArea": 47848044
+    },
+    "8": {
+     "n": 21,
+     "land": 258450,
+     "impr": 689960,
+     "total": 948410,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "9": {
+     "n": 6278,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10045,
+     "bldgArea": 8740856
+    },
+    "none": {
+     "n": 2,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 458,
+     "exemptValue": 157599530,
+     "lotArea": 75737185
+    },
+    "county": {
+     "n": 753,
+     "exemptValue": 483141395,
+     "lotArea": 329746709
+    },
+    "religious": {
+     "n": 885,
+     "exemptValue": 283621696,
+     "lotArea": 36835055
+    },
+    "nonprofit": {
+     "n": 400,
+     "exemptValue": 312499500,
+     "lotArea": 72907107
+    },
+    "schools": {
+     "n": 173,
+     "exemptValue": 609336470,
+     "lotArea": 51531795
+    },
+    "city": {
+     "n": 693,
+     "exemptValue": 409804438,
+     "lotArea": 67015949
+    },
+    "state": {
+     "n": 195,
+     "exemptValue": 233133820,
+     "lotArea": 31770401
+    },
+    "city-tax-deed": {
+     "n": 1842,
+     "exemptValue": 6819915,
+     "lotArea": 9505491
+    },
+    "housing-authority": {
+     "n": 399,
+     "exemptValue": 125030060,
+     "lotArea": 11700835
+    },
+    "streets": {
+     "n": 47,
+     "exemptValue": 2374190,
+     "lotArea": 292415
+    },
+    "federal": {
+     "n": 15,
+     "exemptValue": 67520700,
+     "lotArea": 17487463
+    },
+    "hospital": {
+     "n": 69,
+     "exemptValue": 505965940,
+     "lotArea": 6175007
+    },
+    "education": {
+     "n": 97,
+     "exemptValue": 145873330,
+     "lotArea": 11767341
+    },
+    "redevelopment": {
+     "n": 395,
+     "exemptValue": 67170840,
+     "lotArea": 7620945
+    }
+   },
+   "housing": {
+    "resClassUnits": 239542,
+    "singleFamily": 87243,
+    "singleFamilyOwnerOccupied": 78493,
+    "medianSingleFamilyAssessed": 49200,
+    "newStructures": 119,
+    "newResUnits": 829
+   },
+   "sales": {
+    "conveyDateFill": 0.801,
+    "conveyedPriorYear": 11728,
+    "impliedPriceFromTransferFee": 2709617137,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2310348890,
+    "impr": 9320953150,
+    "total": 11631302040
+   },
+   "publicHeld": {
+    "n": 4465,
+    "exemptValue": 2001957638,
+    "lotArea": 526379588
+   }
+  },
+  "1992": {
+   "parcels": 158895,
+   "byClass": {
+    "0": {
+     "n": 231,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 12,
+     "bldgArea": 99066
+    },
+    "1": {
+     "n": 129484,
+     "land": 1301079440,
+     "impr": 5502426910,
+     "total": 6803506350,
+     "units": 170941,
+     "bldgArea": 192158853
+    },
+    "2": {
+     "n": 7029,
+     "land": 157625980,
+     "impr": 422670830,
+     "total": 580296810,
+     "units": 7132,
+     "bldgArea": 32296892
+    },
+    "3": {
+     "n": 1072,
+     "land": 97899800,
+     "impr": 439536900,
+     "total": 537436700,
+     "units": 66,
+     "bldgArea": 5326325
+    },
+    "4": {
+     "n": 2527,
+     "land": 517640210,
+     "impr": 1943987480,
+     "total": 2461627690,
+     "units": 13014,
+     "bldgArea": 74312108
+    },
+    "5": {
+     "n": 6481,
+     "land": 43858050,
+     "impr": 338615850,
+     "total": 382473900,
+     "units": 6445,
+     "bldgArea": 7434638
+    },
+    "7": {
+     "n": 5411,
+     "land": 204124690,
+     "impr": 1219808320,
+     "total": 1423933010,
+     "units": 62258,
+     "bldgArea": 48920864
+    },
+    "9": {
+     "n": 6660,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10537,
+     "bldgArea": 9686327
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 459,
+     "exemptValue": 160323390,
+     "lotArea": 75761125
+    },
+    "county": {
+     "n": 753,
+     "exemptValue": 513255035,
+     "lotArea": 332214608
+    },
+    "religious": {
+     "n": 883,
+     "exemptValue": 295533426,
+     "lotArea": 37242384
+    },
+    "nonprofit": {
+     "n": 415,
+     "exemptValue": 320750620,
+     "lotArea": 73177269
+    },
+    "schools": {
+     "n": 178,
+     "exemptValue": 613343570,
+     "lotArea": 51856644
+    },
+    "city": {
+     "n": 679,
+     "exemptValue": 401490818,
+     "lotArea": 66568460
+    },
+    "state": {
+     "n": 202,
+     "exemptValue": 226008300,
+     "lotArea": 31288418
+    },
+    "city-tax-deed": {
+     "n": 2161,
+     "exemptValue": 8541155,
+     "lotArea": 11626548
+    },
+    "housing-authority": {
+     "n": 429,
+     "exemptValue": 125315790,
+     "lotArea": 11823374
+    },
+    "streets": {
+     "n": 46,
+     "exemptValue": 2371650,
+     "lotArea": 288433
+    },
+    "federal": {
+     "n": 16,
+     "exemptValue": 72058000,
+     "lotArea": 17606717
+    },
+    "hospital": {
+     "n": 79,
+     "exemptValue": 574451070,
+     "lotArea": 6332169
+    },
+    "redevelopment": {
+     "n": 407,
+     "exemptValue": 83715500,
+     "lotArea": 7670649
+    },
+    "education": {
+     "n": 97,
+     "exemptValue": 150640500,
+     "lotArea": 11876944
+    }
+   },
+   "housing": {
+    "resClassUnits": 239644,
+    "singleFamily": 87217,
+    "singleFamilyOwnerOccupied": 78409,
+    "medianSingleFamilyAssessed": 53500,
+    "newStructures": 131,
+    "newResUnits": 243
+   },
+   "sales": {
+    "conveyDateFill": 0.814,
+    "conveyedPriorYear": 11555,
+    "impliedPriceFromTransferFee": 208230256333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2322228170,
+    "impr": 9867046290,
+    "total": 12189274460
+   },
+   "publicHeld": {
+    "n": 4825,
+    "exemptValue": 2043728168,
+    "lotArea": 530655418
+   }
+  },
+  "1993": {
+   "parcels": 158555,
+   "byClass": {
+    "0": {
+     "n": 2,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 129342,
+     "land": 1300394250,
+     "impr": 5513462410,
+     "total": 6813856660,
+     "units": 170558,
+     "bldgArea": 192152532
+    },
+    "2": {
+     "n": 6987,
+     "land": 157456550,
+     "impr": 426002520,
+     "total": 583459070,
+     "units": 7055,
+     "bldgArea": 32044633
+    },
+    "3": {
+     "n": 1055,
+     "land": 94332000,
+     "impr": 446640800,
+     "total": 540972800,
+     "units": 65,
+     "bldgArea": 5764305
+    },
+    "4": {
+     "n": 2485,
+     "land": 518612030,
+     "impr": 1938133440,
+     "total": 2456745470,
+     "units": 12714,
+     "bldgArea": 72624237
+    },
+    "5": {
+     "n": 6553,
+     "land": 44056160,
+     "impr": 343336240,
+     "total": 387392400,
+     "units": 6421,
+     "bldgArea": 7445601
+    },
+    "7": {
+     "n": 5380,
+     "land": 204116250,
+     "impr": 1218850620,
+     "total": 1422966870,
+     "units": 62197,
+     "bldgArea": 48837241
+    },
+    "8": {
+     "n": 11,
+     "land": 101600,
+     "impr": 1065000,
+     "total": 1166600,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "9": {
+     "n": 6740,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10558,
+     "bldgArea": 9644722
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 462,
+     "exemptValue": 159949900,
+     "lotArea": 75262426
+    },
+    "county": {
+     "n": 755,
+     "exemptValue": 518122645,
+     "lotArea": 330632534
+    },
+    "religious": {
+     "n": 892,
+     "exemptValue": 296216866,
+     "lotArea": 37450368
+    },
+    "nonprofit": {
+     "n": 449,
+     "exemptValue": 334915830,
+     "lotArea": 73496850
+    },
+    "schools": {
+     "n": 180,
+     "exemptValue": 612839990,
+     "lotArea": 52010754
+    },
+    "city": {
+     "n": 714,
+     "exemptValue": 401822758,
+     "lotArea": 65710793
+    },
+    "state": {
+     "n": 214,
+     "exemptValue": 225375110,
+     "lotArea": 31106993
+    },
+    "city-tax-deed": {
+     "n": 2082,
+     "exemptValue": 6474005,
+     "lotArea": 11331612
+    },
+    "housing-authority": {
+     "n": 418,
+     "exemptValue": 125867700,
+     "lotArea": 11797517
+    },
+    "education": {
+     "n": 109,
+     "exemptValue": 173680690,
+     "lotArea": 12440517
+    },
+    "streets": {
+     "n": 45,
+     "exemptValue": 2368850,
+     "lotArea": 286194
+    },
+    "federal": {
+     "n": 16,
+     "exemptValue": 72058000,
+     "lotArea": 17606717
+    },
+    "hospital": {
+     "n": 73,
+     "exemptValue": 584918260,
+     "lotArea": 6652209
+    },
+    "redevelopment": {
+     "n": 462,
+     "exemptValue": 84355770,
+     "lotArea": 7704790
+    }
+   },
+   "housing": {
+    "resClassUnits": 239176,
+    "singleFamily": 87204,
+    "singleFamilyOwnerOccupied": 78413,
+    "medianSingleFamilyAssessed": 53600,
+    "newStructures": 107,
+    "newResUnits": 213
+   },
+   "sales": {
+    "conveyDateFill": 0.827,
+    "conveyedPriorYear": 12777,
+    "impliedPriceFromTransferFee": 75923934333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2319068840,
+    "impr": 9887491030,
+    "total": 12206559870
+   },
+   "publicHeld": {
+    "n": 4841,
+    "exemptValue": 2046915978,
+    "lotArea": 527901710
+   }
+  },
+  "1994": {
+   "parcels": 158546,
+   "byClass": {
+    "0": {
+     "n": 240,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 7414
+    },
+    "1": {
+     "n": 128985,
+     "land": 1384258830,
+     "impr": 5958953380,
+     "total": 7343212210,
+     "units": 170156,
+     "bldgArea": 191914808
+    },
+    "2": {
+     "n": 6921,
+     "land": 159853500,
+     "impr": 437366930,
+     "total": 597220430,
+     "units": 7001,
+     "bldgArea": 31674711
+    },
+    "3": {
+     "n": 1060,
+     "land": 100441400,
+     "impr": 459387600,
+     "total": 559829000,
+     "units": 38,
+     "bldgArea": 5769443
+    },
+    "4": {
+     "n": 2474,
+     "land": 535551890,
+     "impr": 1958592520,
+     "total": 2494144410,
+     "units": 12550,
+     "bldgArea": 71409519
+    },
+    "5": {
+     "n": 6521,
+     "land": 44032850,
+     "impr": 353189650,
+     "total": 397222500,
+     "units": 6367,
+     "bldgArea": 7409440
+    },
+    "7": {
+     "n": 5352,
+     "land": 202678680,
+     "impr": 1270579360,
+     "total": 1473258040,
+     "units": 61901,
+     "bldgArea": 49394416
+    },
+    "8": {
+     "n": 30,
+     "land": 134260,
+     "impr": 756700,
+     "total": 890960,
+     "units": 36,
+     "bldgArea": 67165
+    },
+    "9": {
+     "n": 6963,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9990,
+     "bldgArea": 10096470
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 458,
+     "exemptValue": 160948550,
+     "lotArea": 75331261
+    },
+    "county": {
+     "n": 725,
+     "exemptValue": 517722445,
+     "lotArea": 330456271
+    },
+    "religious": {
+     "n": 891,
+     "exemptValue": 298872406,
+     "lotArea": 38766662
+    },
+    "nonprofit": {
+     "n": 463,
+     "exemptValue": 347023640,
+     "lotArea": 74803260
+    },
+    "schools": {
+     "n": 182,
+     "exemptValue": 632606190,
+     "lotArea": 53236239
+    },
+    "city": {
+     "n": 714,
+     "exemptValue": 373682268,
+     "lotArea": 63555588
+    },
+    "state": {
+     "n": 236,
+     "exemptValue": 225404540,
+     "lotArea": 30942988
+    },
+    "city-tax-deed": {
+     "n": 2331,
+     "exemptValue": 7919135,
+     "lotArea": 12789879
+    },
+    "housing-authority": {
+     "n": 430,
+     "exemptValue": 126758900,
+     "lotArea": 11837144
+    },
+    "education": {
+     "n": 106,
+     "exemptValue": 191797940,
+     "lotArea": 13092697
+    },
+    "redevelopment": {
+     "n": 443,
+     "exemptValue": 82628920,
+     "lotArea": 7307358
+    },
+    "streets": {
+     "n": 43,
+     "exemptValue": 2351450,
+     "lotArea": 275327
+    },
+    "federal": {
+     "n": 17,
+     "exemptValue": 71381900,
+     "lotArea": 17612923
+    },
+    "hospital": {
+     "n": 72,
+     "exemptValue": 413409860,
+     "lotArea": 7307633
+    }
+   },
+   "housing": {
+    "resClassUnits": 238424,
+    "singleFamily": 87128,
+    "singleFamilyOwnerOccupied": 78243,
+    "medianSingleFamilyAssessed": 58000,
+    "newStructures": 64,
+    "newResUnits": 96
+   },
+   "sales": {
+    "conveyDateFill": 0.837,
+    "conveyedPriorYear": 12829,
+    "impliedPriceFromTransferFee": 130690666333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2426951410,
+    "impr": 10438826140,
+    "total": 12865777550
+   },
+   "publicHeld": {
+    "n": 5078,
+    "exemptValue": 2038104298,
+    "lotArea": 527738390
+   }
+  },
+  "1995": {
+   "parcels": 158272,
+   "byClass": {
+    "0": {
+     "n": 163,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 128759,
+     "land": 1384337780,
+     "impr": 5981217080,
+     "total": 7365554860,
+     "units": 169544,
+     "bldgArea": 191713279
+    },
+    "2": {
+     "n": 6897,
+     "land": 158888660,
+     "impr": 441949860,
+     "total": 600838520,
+     "units": 6822,
+     "bldgArea": 31383900
+    },
+    "3": {
+     "n": 1036,
+     "land": 96742100,
+     "impr": 446932100,
+     "total": 543674200,
+     "units": 31,
+     "bldgArea": 5766220
+    },
+    "4": {
+     "n": 2478,
+     "land": 538350150,
+     "impr": 1936663970,
+     "total": 2475014120,
+     "units": 13043,
+     "bldgArea": 70654573
+    },
+    "5": {
+     "n": 6517,
+     "land": 44045250,
+     "impr": 355887650,
+     "total": 399932900,
+     "units": 6358,
+     "bldgArea": 7399600
+    },
+    "7": {
+     "n": 5328,
+     "land": 201777460,
+     "impr": 1263208260,
+     "total": 1464985720,
+     "units": 61162,
+     "bldgArea": 49066352
+    },
+    "9": {
+     "n": 7094,
+     "land": 380,
+     "impr": 0,
+     "total": 380,
+     "units": 9919,
+     "bldgArea": 10409490
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 459,
+     "exemptValue": 156792260,
+     "lotArea": 75479229
+    },
+    "county": {
+     "n": 739,
+     "exemptValue": 531336645,
+     "lotArea": 330318803
+    },
+    "religious": {
+     "n": 912,
+     "exemptValue": 300677246,
+     "lotArea": 39178552
+    },
+    "nonprofit": {
+     "n": 458,
+     "exemptValue": 343277420,
+     "lotArea": 73006868
+    },
+    "schools": {
+     "n": 181,
+     "exemptValue": 632605990,
+     "lotArea": 53230585
+    },
+    "city": {
+     "n": 702,
+     "exemptValue": 373249238,
+     "lotArea": 63626413
+    },
+    "state": {
+     "n": 194,
+     "exemptValue": 246796230,
+     "lotArea": 29616539
+    },
+    "city-tax-deed": {
+     "n": 2478,
+     "exemptValue": 8366955,
+     "lotArea": 12752664
+    },
+    "housing-authority": {
+     "n": 424,
+     "exemptValue": 126518960,
+     "lotArea": 11790366
+    },
+    "education": {
+     "n": 114,
+     "exemptValue": 201411950,
+     "lotArea": 13365482
+    },
+    "redevelopment": {
+     "n": 417,
+     "exemptValue": 82631520,
+     "lotArea": 7055853
+    },
+    "federal": {
+     "n": 24,
+     "exemptValue": 71922250,
+     "lotArea": 17767663
+    },
+    "streets": {
+     "n": 43,
+     "exemptValue": 2351450,
+     "lotArea": 275327
+    },
+    "hospital": {
+     "n": 72,
+     "exemptValue": 419402900,
+     "lotArea": 7493247
+    }
+   },
+   "housing": {
+    "resClassUnits": 237064,
+    "singleFamily": 87135,
+    "singleFamilyOwnerOccupied": 78132,
+    "medianSingleFamilyAssessed": 58300,
+    "newStructures": 83,
+    "newResUnits": 196
+   },
+   "sales": {
+    "conveyDateFill": 0.847,
+    "conveyedPriorYear": 13111,
+    "impliedPriceFromTransferFee": 84455759667,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2424141780,
+    "impr": 10425858920,
+    "total": 12850000700
+   },
+   "publicHeld": {
+    "n": 5159,
+    "exemptValue": 2073427788,
+    "lotArea": 526158886
+   }
+  },
+  "1996": {
+   "parcels": 158020,
+   "byClass": {
+    "0": {
+     "n": 82,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 128298,
+     "land": 1385696790,
+     "impr": 6589971830,
+     "total": 7975668620,
+     "units": 168778,
+     "bldgArea": 191231955
+    },
+    "2": {
+     "n": 6850,
+     "land": 169368200,
+     "impr": 468377210,
+     "total": 637745410,
+     "units": 6816,
+     "bldgArea": 30540090
+    },
+    "3": {
+     "n": 1022,
+     "land": 103410400,
+     "impr": 467497700,
+     "total": 570908100,
+     "units": 33,
+     "bldgArea": 5705216
+    },
+    "4": {
+     "n": 2480,
+     "land": 571127720,
+     "impr": 2015982600,
+     "total": 2587110320,
+     "units": 11767,
+     "bldgArea": 71829073
+    },
+    "5": {
+     "n": 6528,
+     "land": 44413050,
+     "impr": 382208950,
+     "total": 426622000,
+     "units": 6344,
+     "bldgArea": 7371984
+    },
+    "7": {
+     "n": 5283,
+     "land": 200314080,
+     "impr": 1316071190,
+     "total": 1516385270,
+     "units": 60312,
+     "bldgArea": 49126463
+    },
+    "9": {
+     "n": 7477,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10750,
+     "bldgArea": 11201123
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 456,
+     "exemptValue": 152699039,
+     "lotArea": 74423341
+    },
+    "county": {
+     "n": 733,
+     "exemptValue": 527652375,
+     "lotArea": 331284860
+    },
+    "religious": {
+     "n": 894,
+     "exemptValue": 304304456,
+     "lotArea": 38186416
+    },
+    "nonprofit": {
+     "n": 472,
+     "exemptValue": 368350190,
+     "lotArea": 72867445
+    },
+    "schools": {
+     "n": 181,
+     "exemptValue": 632768890,
+     "lotArea": 53266917
+    },
+    "city": {
+     "n": 699,
+     "exemptValue": 383527158,
+     "lotArea": 64099241
+    },
+    "state": {
+     "n": 197,
+     "exemptValue": 248006550,
+     "lotArea": 29651855
+    },
+    "city-tax-deed": {
+     "n": 2835,
+     "exemptValue": 12028135,
+     "lotArea": 14359154
+    },
+    "housing-authority": {
+     "n": 476,
+     "exemptValue": 127423160,
+     "lotArea": 11950795
+    },
+    "education": {
+     "n": 116,
+     "exemptValue": 203184690,
+     "lotArea": 13414074
+    },
+    "redevelopment": {
+     "n": 395,
+     "exemptValue": 79709430,
+     "lotArea": 6251472
+    },
+    "streets": {
+     "n": 41,
+     "exemptValue": 2340750,
+     "lotArea": 265762
+    },
+    "federal": {
+     "n": 18,
+     "exemptValue": 71744750,
+     "lotArea": 17722881
+    },
+    "hospital": {
+     "n": 64,
+     "exemptValue": 409764520,
+     "lotArea": 6469143
+    }
+   },
+   "housing": {
+    "resClassUnits": 235434,
+    "singleFamily": 87085,
+    "singleFamilyOwnerOccupied": 77835,
+    "medianSingleFamilyAssessed": 63300,
+    "newStructures": 112,
+    "newResUnits": 165
+   },
+   "sales": {
+    "conveyDateFill": 0.857,
+    "conveyedPriorYear": 12675,
+    "impliedPriceFromTransferFee": 75412306333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2474330240,
+    "impr": 11240109480,
+    "total": 13714439720
+   },
+   "publicHeld": {
+    "n": 5534,
+    "exemptValue": 2082860448,
+    "lotArea": 528587175
+   }
+  },
+  "1997": {
+   "parcels": 157880,
+   "byClass": {
+    "0": {
+     "n": 47,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 128225,
+     "land": 1449395000,
+     "impr": 6565296610,
+     "total": 8014691610,
+     "units": 168392,
+     "bldgArea": 191221147
+    },
+    "2": {
+     "n": 6791,
+     "land": 170378725,
+     "impr": 472640935,
+     "total": 643019660,
+     "units": 6586,
+     "bldgArea": 30031476
+    },
+    "3": {
+     "n": 988,
+     "land": 104253900,
+     "impr": 466752200,
+     "total": 571006100,
+     "units": 31,
+     "bldgArea": 5735063
+    },
+    "4": {
+     "n": 2465,
+     "land": 568429530,
+     "impr": 2031038204,
+     "total": 2599467734,
+     "units": 11258,
+     "bldgArea": 68216190
+    },
+    "5": {
+     "n": 6696,
+     "land": 44873520,
+     "impr": 398276480,
+     "total": 443150000,
+     "units": 6340,
+     "bldgArea": 7367553
+    },
+    "7": {
+     "n": 5247,
+     "land": 199747670,
+     "impr": 1309328850,
+     "total": 1509076520,
+     "units": 60110,
+     "bldgArea": 49079951
+    },
+    "9": {
+     "n": 7421,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10715,
+     "bldgArea": 10990013
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 456,
+     "exemptValue": 153972650,
+     "lotArea": 74518607
+    },
+    "county": {
+     "n": 736,
+     "exemptValue": 524518475,
+     "lotArea": 332654159
+    },
+    "religious": {
+     "n": 882,
+     "exemptValue": 298416616,
+     "lotArea": 36650782
+    },
+    "nonprofit": {
+     "n": 473,
+     "exemptValue": 377943040,
+     "lotArea": 73116162
+    },
+    "schools": {
+     "n": 203,
+     "exemptValue": 628096890,
+     "lotArea": 52884465
+    },
+    "city": {
+     "n": 692,
+     "exemptValue": 439283000,
+     "lotArea": 64904455
+    },
+    "state": {
+     "n": 200,
+     "exemptValue": 248087450,
+     "lotArea": 29677945
+    },
+    "city-tax-deed": {
+     "n": 2745,
+     "exemptValue": 10844715,
+     "lotArea": 13849742
+    },
+    "housing-authority": {
+     "n": 464,
+     "exemptValue": 127724170,
+     "lotArea": 11848459
+    },
+    "education": {
+     "n": 123,
+     "exemptValue": 202314030,
+     "lotArea": 13235232
+    },
+    "redevelopment": {
+     "n": 437,
+     "exemptValue": 79035620,
+     "lotArea": 6385426
+    },
+    "streets": {
+     "n": 42,
+     "exemptValue": 2342750,
+     "lotArea": 266357
+    },
+    "federal": {
+     "n": 20,
+     "exemptValue": 72722550,
+     "lotArea": 17855504
+    },
+    "hospital": {
+     "n": 60,
+     "exemptValue": 399538870,
+     "lotArea": 5851631
+    }
+   },
+   "housing": {
+    "resClassUnits": 234842,
+    "singleFamily": 87093,
+    "singleFamilyOwnerOccupied": 77787,
+    "medianSingleFamilyAssessed": 63700,
+    "newStructures": 136,
+    "newResUnits": 165
+   },
+   "sales": {
+    "conveyDateFill": 0.865,
+    "conveyedPriorYear": 12766,
+    "impliedPriceFromTransferFee": 82287174667,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2537078345,
+    "impr": 11243333279,
+    "total": 13780411624
+   },
+   "publicHeld": {
+    "n": 5497,
+    "exemptValue": 2130312870,
+    "lotArea": 530060155
+   }
+  },
+  "1998": {
+   "parcels": 157652,
+   "byClass": {
+    "0": {
+     "n": 22,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 128113,
+     "land": 1450846930,
+     "impr": 7180465970,
+     "total": 8631312900,
+     "units": 168106,
+     "bldgArea": 191261410
+    },
+    "2": {
+     "n": 6883,
+     "land": 214809407,
+     "impr": 545196833,
+     "total": 760006240,
+     "units": 6450,
+     "bldgArea": 33862551
+    },
+    "3": {
+     "n": 979,
+     "land": 122080700,
+     "impr": 503725400,
+     "total": 625806100,
+     "units": 33,
+     "bldgArea": 5804052
+    },
+    "4": {
+     "n": 2298,
+     "land": 574547083,
+     "impr": 2192914312,
+     "total": 2767461395,
+     "units": 10540,
+     "bldgArea": 65485436
+    },
+    "5": {
+     "n": 6766,
+     "land": 45351260,
+     "impr": 416533440,
+     "total": 461884700,
+     "units": 6334,
+     "bldgArea": 7441520
+    },
+    "7": {
+     "n": 5220,
+     "land": 199508874,
+     "impr": 1396466616,
+     "total": 1595975490,
+     "units": 59912,
+     "bldgArea": 48733423
+    },
+    "9": {
+     "n": 7371,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10715,
+     "bldgArea": 12020326
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 437,
+     "exemptValue": 141225932,
+     "lotArea": 70836514
+    },
+    "county": {
+     "n": 731,
+     "exemptValue": 541936585,
+     "lotArea": 333601001
+    },
+    "religious": {
+     "n": 899,
+     "exemptValue": 301775812,
+     "lotArea": 36456025
+    },
+    "nonprofit": {
+     "n": 492,
+     "exemptValue": 397768438,
+     "lotArea": 74024059
+    },
+    "education": {
+     "n": 135,
+     "exemptValue": 195990208,
+     "lotArea": 13341372
+    },
+    "schools": {
+     "n": 192,
+     "exemptValue": 627680090,
+     "lotArea": 52779150
+    },
+    "city": {
+     "n": 692,
+     "exemptValue": 442723260,
+     "lotArea": 66379163
+    },
+    "state": {
+     "n": 199,
+     "exemptValue": 248072950,
+     "lotArea": 29566867
+    },
+    "city-tax-deed": {
+     "n": 2714,
+     "exemptValue": 10036915,
+     "lotArea": 12975015
+    },
+    "housing-authority": {
+     "n": 451,
+     "exemptValue": 128615340,
+     "lotArea": 11775481
+    },
+    "redevelopment": {
+     "n": 448,
+     "exemptValue": 80602120,
+     "lotArea": 6467914
+    },
+    "federal": {
+     "n": 21,
+     "exemptValue": 72799750,
+     "lotArea": 17860577
+    },
+    "streets": {
+     "n": 42,
+     "exemptValue": 2342750,
+     "lotArea": 266357
+    },
+    "hospital": {
+     "n": 52,
+     "exemptValue": 227655549,
+     "lotArea": 3346183
+    }
+   },
+   "housing": {
+    "resClassUnits": 234352,
+    "singleFamily": 87157,
+    "singleFamilyOwnerOccupied": 77765,
+    "medianSingleFamilyAssessed": 68600,
+    "newStructures": 131,
+    "newResUnits": 115
+   },
+   "sales": {
+    "conveyDateFill": 0.876,
+    "conveyedPriorYear": 13264,
+    "impliedPriceFromTransferFee": 142634070000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2607144254,
+    "impr": 12235302571,
+    "total": 14842446825
+   },
+   "publicHeld": {
+    "n": 5448,
+    "exemptValue": 2152467010,
+    "lotArea": 531405168
+   }
+  },
+  "1999": {
+   "parcels": 157598,
+   "byClass": {
+    "1": {
+     "n": 128061,
+     "land": 1451473630,
+     "impr": 7226000560,
+     "total": 8677474190,
+     "units": 167950,
+     "bldgArea": 192030063
+    },
+    "2": {
+     "n": 6803,
+     "land": 198654707,
+     "impr": 556309950,
+     "total": 754964657,
+     "units": 6297,
+     "bldgArea": 33037959
+    },
+    "3": {
+     "n": 967,
+     "land": 125715100,
+     "impr": 507466500,
+     "total": 633181600,
+     "units": 34,
+     "bldgArea": 5938144
+    },
+    "4": {
+     "n": 2272,
+     "land": 589345004,
+     "impr": 2162444456,
+     "total": 2751789460,
+     "units": 10066,
+     "bldgArea": 62064746
+    },
+    "5": {
+     "n": 6954,
+     "land": 46354920,
+     "impr": 439829980,
+     "total": 486184900,
+     "units": 6327,
+     "bldgArea": 7428041
+    },
+    "7": {
+     "n": 5176,
+     "land": 199464914,
+     "impr": 1397990526,
+     "total": 1597455440,
+     "units": 59087,
+     "bldgArea": 48429123
+    },
+    "9": {
+     "n": 7365,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10801,
+     "bldgArea": 12272183
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 439,
+     "exemptValue": 143103936,
+     "lotArea": 69836540
+    },
+    "county": {
+     "n": 717,
+     "exemptValue": 582516020,
+     "lotArea": 326020423
+    },
+    "religious": {
+     "n": 895,
+     "exemptValue": 301096138,
+     "lotArea": 34740761
+    },
+    "nonprofit": {
+     "n": 509,
+     "exemptValue": 414488269,
+     "lotArea": 67370362
+    },
+    "education": {
+     "n": 146,
+     "exemptValue": 207984048,
+     "lotArea": 13426270
+    },
+    "schools": {
+     "n": 180,
+     "exemptValue": 621900030,
+     "lotArea": 50809491
+    },
+    "city-tax-deed": {
+     "n": 2680,
+     "exemptValue": 10997065,
+     "lotArea": 12327194
+    },
+    "city": {
+     "n": 683,
+     "exemptValue": 441048710,
+     "lotArea": 63300160
+    },
+    "state": {
+     "n": 192,
+     "exemptValue": 224231260,
+     "lotArea": 29248231
+    },
+    "housing-authority": {
+     "n": 474,
+     "exemptValue": 125820870,
+     "lotArea": 5591712
+    },
+    "redevelopment": {
+     "n": 468,
+     "exemptValue": 79283410,
+     "lotArea": 6237937
+    },
+    "federal": {
+     "n": 22,
+     "exemptValue": 72813450,
+     "lotArea": 17865020
+    },
+    "streets": {
+     "n": 42,
+     "exemptValue": 2342750,
+     "lotArea": 262808
+    },
+    "hospital": {
+     "n": 47,
+     "exemptValue": 229845970,
+     "lotArea": 3029772
+    }
+   },
+   "housing": {
+    "resClassUnits": 233364,
+    "singleFamily": 87225,
+    "singleFamilyOwnerOccupied": 77660,
+    "medianSingleFamilyAssessed": 69000,
+    "newStructures": 99,
+    "newResUnits": 124
+   },
+   "sales": {
+    "conveyDateFill": 0.88,
+    "conveyedPriorYear": 13965,
+    "impliedPriceFromTransferFee": 218959733000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 2611008275,
+    "impr": 12290041972,
+    "total": 14901050247
+   },
+   "publicHeld": {
+    "n": 5416,
+    "exemptValue": 2158610815,
+    "lotArea": 511400168
+   }
+  },
+  "2000": {
+   "parcels": 157363,
+   "byClass": {
+    "1": {
+     "n": 127673,
+     "land": 1461255050,
+     "impr": 8270367800,
+     "total": 9731622850,
+     "units": 167851,
+     "bldgArea": 191799752
+    },
+    "2": {
+     "n": 6798,
+     "land": 224026420,
+     "impr": 630468735,
+     "total": 854495155,
+     "units": 6023,
+     "bldgArea": 27542820
+    },
+    "3": {
+     "n": 941,
+     "land": 147682800,
+     "impr": 593788800,
+     "total": 741471600,
+     "units": 34,
+     "bldgArea": 43312023
+    },
+    "4": {
+     "n": 2264,
+     "land": 616733420,
+     "impr": 2412061363,
+     "total": 3028794783,
+     "units": 9678,
+     "bldgArea": 14988111
+    },
+    "5": {
+     "n": 7069,
+     "land": 46826200,
+     "impr": 514173939,
+     "total": 561000139,
+     "units": 6277,
+     "bldgArea": 7764964
+    },
+    "7": {
+     "n": 5147,
+     "land": 200841513,
+     "impr": 1528390337,
+     "total": 1729231850,
+     "units": 59202,
+     "bldgArea": 27621771
+    },
+    "9": {
+     "n": 7471,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10464,
+     "bldgArea": 7733
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 437,
+     "exemptValue": 140087330,
+     "lotArea": null
+    },
+    "county": {
+     "n": 712,
+     "exemptValue": 584886900,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 885,
+     "exemptValue": 301522080,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 535,
+     "exemptValue": 401885640,
+     "lotArea": null
+    },
+    "education": {
+     "n": 148,
+     "exemptValue": 187974380,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 180,
+     "exemptValue": 621489130,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 2738,
+     "exemptValue": 13235055,
+     "lotArea": null
+    },
+    "city": {
+     "n": 677,
+     "exemptValue": 435447600,
+     "lotArea": null
+    },
+    "state": {
+     "n": 196,
+     "exemptValue": 230276760,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 466,
+     "exemptValue": 120316170,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 483,
+     "exemptValue": 52549410,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 21,
+     "exemptValue": 72788750,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 42,
+     "exemptValue": 2342750,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 45,
+     "exemptValue": 217059720,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 233330,
+    "singleFamily": 87294,
+    "singleFamilyOwnerOccupied": 77983,
+    "medianSingleFamilyAssessed": 76600,
+    "newStructures": 113,
+    "newResUnits": 142
+   },
+   "sales": {
+    "conveyDateFill": 0.887,
+    "conveyedPriorYear": 13465,
+    "impliedPriceFromTransferFee": 119753421667,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 2697365403,
+    "impr": 13949250974,
+    "total": 16646616377
+   },
+   "publicHeld": {
+    "n": 5473,
+    "exemptValue": 2130989775,
+    "lotArea": null
+   }
+  },
+  "2001": {
+   "parcels": 157495,
+   "byClass": {
+    "0": {
+     "n": 6,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 1,
+     "bldgArea": 0
+    },
+    "1": {
+     "n": 127711,
+     "land": 1467413580,
+     "impr": 8301820600,
+     "total": 9769230180,
+     "units": 167092,
+     "bldgArea": 191809598
+    },
+    "2": {
+     "n": 6764,
+     "land": 220268380,
+     "impr": 642623275,
+     "total": 862891655,
+     "units": 5631,
+     "bldgArea": 27494792
+    },
+    "3": {
+     "n": 919,
+     "land": 137138900,
+     "impr": 569429000,
+     "total": 706567900,
+     "units": 915,
+     "bldgArea": 40383691
+    },
+    "4": {
+     "n": 2278,
+     "land": 632725920,
+     "impr": 2484765850,
+     "total": 3117491770,
+     "units": 686,
+     "bldgArea": 15040244
+    },
+    "5": {
+     "n": 7239,
+     "land": 48179000,
+     "impr": 540810839,
+     "total": 588989839,
+     "units": 7196,
+     "bldgArea": 7938707
+    },
+    "6": {
+     "n": 1,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 1,
+     "bldgArea": 0
+    },
+    "7": {
+     "n": 5134,
+     "land": 202151413,
+     "impr": 1536687737,
+     "total": 1738839150,
+     "units": 60915,
+     "bldgArea": 27489817
+    },
+    "9": {
+     "n": 7443,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 7837,
+     "bldgArea": 7733
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 425,
+     "exemptValue": 138789660,
+     "lotArea": null
+    },
+    "county": {
+     "n": 712,
+     "exemptValue": 597216750,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 877,
+     "exemptValue": 303903240,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 550,
+     "exemptValue": 405714100,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 2756,
+     "exemptValue": 14335125,
+     "lotArea": null
+    },
+    "education": {
+     "n": 154,
+     "exemptValue": 193987070,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 180,
+     "exemptValue": 626016930,
+     "lotArea": null
+    },
+    "city": {
+     "n": 668,
+     "exemptValue": 434832330,
+     "lotArea": null
+    },
+    "state": {
+     "n": 197,
+     "exemptValue": 245346530,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 455,
+     "exemptValue": 119312300,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 439,
+     "exemptValue": 49142140,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 21,
+     "exemptValue": 72842950,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 41,
+     "exemptValue": 2342670,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 45,
+     "exemptValue": 217059720,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 235203,
+    "singleFamily": 87362,
+    "singleFamilyOwnerOccupied": 78125,
+    "medianSingleFamilyAssessed": 76800,
+    "newStructures": 410,
+    "newResUnits": 223
+   },
+   "sales": {
+    "conveyDateFill": 0.893,
+    "conveyedPriorYear": 13111,
+    "impliedPriceFromTransferFee": 189304998667,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 2707877193,
+    "impr": 14076137301,
+    "total": 16784010494
+   },
+   "publicHeld": {
+    "n": 5428,
+    "exemptValue": 2159045055,
+    "lotArea": null
+   }
+  },
+  "2002": {
+   "parcels": 157468,
+   "byClass": {
+    "1": {
+     "n": 127570,
+     "land": 1686161000,
+     "impr": 9620427400,
+     "total": 11306588400,
+     "units": 166870,
+     "bldgArea": 191865497
+    },
+    "2": {
+     "n": 6729,
+     "land": 261500800,
+     "impr": 737046665,
+     "total": 998547465,
+     "units": 6318,
+     "bldgArea": 35395292
+    },
+    "3": {
+     "n": 888,
+     "land": 131147600,
+     "impr": 565208400,
+     "total": 696356000,
+     "units": 885,
+     "bldgArea": 38525166
+    },
+    "4": {
+     "n": 2284,
+     "land": 678628100,
+     "impr": 2611393885,
+     "total": 3290021985,
+     "units": 1307,
+     "bldgArea": 74433271
+    },
+    "5": {
+     "n": 7409,
+     "land": 56618300,
+     "impr": 666650955,
+     "total": 723269255,
+     "units": 7409,
+     "bldgArea": 8247142
+    },
+    "7": {
+     "n": 5129,
+     "land": 206895958,
+     "impr": 1701038092,
+     "total": 1907934050,
+     "units": 60774,
+     "bldgArea": 27608753
+    },
+    "9": {
+     "n": 7459,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 7994,
+     "bldgArea": 7733
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 429,
+     "exemptValue": 145411460,
+     "lotArea": null
+    },
+    "county": {
+     "n": 705,
+     "exemptValue": 590399350,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 885,
+     "exemptValue": 324903550,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 556,
+     "exemptValue": 411049750,
+     "lotArea": null
+    },
+    "education": {
+     "n": 154,
+     "exemptValue": 195269650,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 181,
+     "exemptValue": 626530940,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 2792,
+     "exemptValue": 15677745,
+     "lotArea": null
+    },
+    "city": {
+     "n": 662,
+     "exemptValue": 452781980,
+     "lotArea": null
+    },
+    "state": {
+     "n": 200,
+     "exemptValue": 246680130,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 450,
+     "exemptValue": 121538220,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 426,
+     "exemptValue": 54265480,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 22,
+     "exemptValue": 73589350,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 41,
+     "exemptValue": 2342670,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 42,
+     "exemptValue": 117948920,
+     "lotArea": null
+    },
+    "other": {
+     "n": 1,
+     "exemptValue": 0,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 235053,
+    "singleFamily": 87494,
+    "singleFamilyOwnerOccupied": 78135,
+    "medianSingleFamilyAssessed": 88400,
+    "newStructures": 333,
+    "newResUnits": 305
+   },
+   "sales": {
+    "conveyDateFill": 0.9,
+    "conveyedPriorYear": 13729,
+    "impliedPriceFromTransferFee": 129593439333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 3020951758,
+    "impr": 15901765397,
+    "total": 18922717155
+   },
+   "publicHeld": {
+    "n": 5438,
+    "exemptValue": 2181463195,
+    "lotArea": null
+   }
+  },
+  "2003": {
+   "parcels": 157678,
+   "byClass": {
+    "1": {
+     "n": 127290,
+     "land": 1685367100,
+     "impr": 10404204380,
+     "total": 12089571480,
+     "units": 166289,
+     "bldgArea": 191854103
+    },
+    "2": {
+     "n": 6819,
+     "land": 270589400,
+     "impr": 836176020,
+     "total": 1106765420,
+     "units": 6238,
+     "bldgArea": 38071954
+    },
+    "3": {
+     "n": 849,
+     "land": 142146800,
+     "impr": 587711400,
+     "total": 729858200,
+     "units": 846,
+     "bldgArea": 36508510
+    },
+    "4": {
+     "n": 2182,
+     "land": 686083100,
+     "impr": 2662705971,
+     "total": 3348789071,
+     "units": 1251,
+     "bldgArea": 74102067
+    },
+    "5": {
+     "n": 7808,
+     "land": 59957600,
+     "impr": 789104300,
+     "total": 849061900,
+     "units": 7807,
+     "bldgArea": 8860717
+    },
+    "7": {
+     "n": 5091,
+     "land": 208370800,
+     "impr": 1829879150,
+     "total": 2038249950,
+     "units": 59815,
+     "bldgArea": 27604583
+    },
+    "9": {
+     "n": 7639,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 8271,
+     "bldgArea": 7733
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 431,
+     "exemptValue": 139896590,
+     "lotArea": null
+    },
+    "county": {
+     "n": 692,
+     "exemptValue": 596210550,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 898,
+     "exemptValue": 324270950,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 589,
+     "exemptValue": 412576870,
+     "lotArea": null
+    },
+    "education": {
+     "n": 161,
+     "exemptValue": 211945450,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 188,
+     "exemptValue": 626741040,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 2977,
+     "exemptValue": 21156895,
+     "lotArea": null
+    },
+    "city": {
+     "n": 641,
+     "exemptValue": 451579480,
+     "lotArea": null
+    },
+    "state": {
+     "n": 192,
+     "exemptValue": 246585660,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 462,
+     "exemptValue": 118282320,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 399,
+     "exemptValue": 58590420,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 36,
+     "exemptValue": 87470,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 30,
+     "exemptValue": 73885450,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 39,
+     "exemptValue": 119100920,
+     "lotArea": null
+    },
+    "other": {
+     "n": 2,
+     "exemptValue": 200,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 233911,
+    "singleFamily": 87623,
+    "singleFamilyOwnerOccupied": 78364,
+    "medianSingleFamilyAssessed": 93700,
+    "newStructures": 449,
+    "newResUnits": 424
+   },
+   "sales": {
+    "conveyDateFill": 0.907,
+    "conveyedPriorYear": 14416,
+    "impliedPriceFromTransferFee": 182155902000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": true,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 3052514800,
+    "impr": 17109781221,
+    "total": 20162296021
+   },
+   "publicHeld": {
+    "n": 5581,
+    "exemptValue": 2193031815,
+    "lotArea": null
+   }
+  },
+  "2004": {
+   "parcels": 158034,
+   "byClass": {
+    "1": {
+     "n": 127539,
+     "land": 1751302000,
+     "impr": 11512553076,
+     "total": 13263855076,
+     "units": 166534,
+     "bldgArea": 192445872
+    },
+    "2": {
+     "n": 6795,
+     "land": 283811800,
+     "impr": 909778909,
+     "total": 1193590709,
+     "units": 6171,
+     "bldgArea": 38620704
+    },
+    "3": {
+     "n": 812,
+     "land": 140746200,
+     "impr": 592853300,
+     "total": 733599500,
+     "units": 809,
+     "bldgArea": 34133853
+    },
+    "4": {
+     "n": 2179,
+     "land": 705207900,
+     "impr": 2718427355,
+     "total": 3423635255,
+     "units": 1071,
+     "bldgArea": 74372219
+    },
+    "5": {
+     "n": 8381,
+     "land": 66991700,
+     "impr": 970815140,
+     "total": 1037806840,
+     "units": 8380,
+     "bldgArea": 9584134
+    },
+    "7": {
+     "n": 5082,
+     "land": 232130600,
+     "impr": 2054133500,
+     "total": 2286264100,
+     "units": 59653,
+     "bldgArea": 27980314
+    },
+    "9": {
+     "n": 7246,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 7849,
+     "bldgArea": 7733
+    }
+   },
+   "holders": {
+    "unresolved": {
+     "n": 225,
+     "exemptValue": 45277760,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 392,
+     "exemptValue": 133012980,
+     "lotArea": null
+    },
+    "county": {
+     "n": 422,
+     "exemptValue": 561856840,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 894,
+     "exemptValue": 455698900,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 472,
+     "exemptValue": 423737560,
+     "lotArea": null
+    },
+    "education": {
+     "n": 103,
+     "exemptValue": 403961920,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 181,
+     "exemptValue": 625599640,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 2484,
+     "exemptValue": 15683135,
+     "lotArea": null
+    },
+    "city": {
+     "n": 590,
+     "exemptValue": 445583360,
+     "lotArea": null
+    },
+    "state": {
+     "n": 190,
+     "exemptValue": 246558120,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 325,
+     "exemptValue": 56716550,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 23,
+     "exemptValue": 73662850,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 234567,
+    "singleFamily": 87853,
+    "singleFamilyOwnerOccupied": 78600,
+    "medianSingleFamilyAssessed": 103100,
+    "newStructures": 445,
+    "newResUnits": 409
+   },
+   "sales": {
+    "conveyDateFill": 1,
+    "conveyedPriorYear": 15036,
+    "impliedPriceFromTransferFee": 225620109000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": "renumbered-2004",
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 3180190200,
+    "impr": 18758561280,
+    "total": 21938751480
+   },
+   "publicHeld": {
+    "n": 4215,
+    "exemptValue": 2025660495,
+    "lotArea": null
+   }
+  },
+  "2005": {
+   "parcels": 158501,
+   "byClass": {
+    "1": {
+     "n": 127636,
+     "land": 1864059300,
+     "impr": 13063953495,
+     "total": 14928012795,
+     "units": 166515,
+     "bldgArea": 192908188
+    },
+    "2": {
+     "n": 6825,
+     "land": 299485700,
+     "impr": 1036539939,
+     "total": 1336025639,
+     "units": 6064,
+     "bldgArea": 40100663
+    },
+    "3": {
+     "n": 763,
+     "land": 135870200,
+     "impr": 586095900,
+     "total": 721966100,
+     "units": 760,
+     "bldgArea": 32446152
+    },
+    "4": {
+     "n": 2156,
+     "land": 718575600,
+     "impr": 2919436455,
+     "total": 3638012055,
+     "units": 875,
+     "bldgArea": 73305128
+    },
+    "5": {
+     "n": 8818,
+     "land": 72999100,
+     "impr": 1115806105,
+     "total": 1188805205,
+     "units": 8812,
+     "bldgArea": 10325119
+    },
+    "7": {
+     "n": 5087,
+     "land": 242334300,
+     "impr": 2331343200,
+     "total": 2573677500,
+     "units": 59488,
+     "bldgArea": 28199291
+    },
+    "9": {
+     "n": 7216,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 11461,
+     "bldgArea": 7733
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 781,
+     "exemptValue": 608348320,
+     "lotArea": 347624803
+    },
+    "rail-utility": {
+     "n": 432,
+     "exemptValue": 136229880,
+     "lotArea": 60598381
+    },
+    "religious": {
+     "n": 936,
+     "exemptValue": 471407000,
+     "lotArea": 35978174
+    },
+    "nonprofit": {
+     "n": 507,
+     "exemptValue": 442397570,
+     "lotArea": 73867392
+    },
+    "city-tax-deed": {
+     "n": 2447,
+     "exemptValue": 13780295,
+     "lotArea": 12082366
+    },
+    "education": {
+     "n": 165,
+     "exemptValue": 453004420,
+     "lotArea": 13063315
+    },
+    "schools": {
+     "n": 187,
+     "exemptValue": 626700740,
+     "lotArea": 45179155
+    },
+    "city": {
+     "n": 655,
+     "exemptValue": 452495990,
+     "lotArea": 58402546
+    },
+    "state": {
+     "n": 201,
+     "exemptValue": 252246420,
+     "lotArea": 33373015
+    },
+    "housing-authority": {
+     "n": 525,
+     "exemptValue": 118940550,
+     "lotArea": 9278731
+    },
+    "redevelopment": {
+     "n": 400,
+     "exemptValue": 60896690,
+     "lotArea": 10033609
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 367750,
+     "lotArea": 120127
+    },
+    "federal": {
+     "n": 23,
+     "exemptValue": 73662850,
+     "lotArea": 20869123
+    },
+    "hospital": {
+     "n": 50,
+     "exemptValue": 190662720,
+     "lotArea": 2165611
+    }
+   },
+   "housing": {
+    "resClassUnits": 234815,
+    "singleFamily": 88061,
+    "singleFamilyOwnerOccupied": 78840,
+    "medianSingleFamilyAssessed": 115300,
+    "newStructures": 787,
+    "newResUnits": 792
+   },
+   "sales": {
+    "conveyDateFill": 0.914,
+    "conveyedPriorYear": 15701,
+    "impliedPriceFromTransferFee": 191556068667,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 3333324200,
+    "impr": 21053175094,
+    "total": 24386499294
+   },
+   "publicHeld": {
+    "n": 5219,
+    "exemptValue": 2207071855,
+    "lotArea": 536843348
+   }
+  },
+  "2006": {
+   "parcels": 158973,
+   "byClass": {
+    "1": {
+     "n": 127615,
+     "land": 2069559000,
+     "impr": 14691159686,
+     "total": 16760718686,
+     "units": 166412,
+     "bldgArea": 193204597
+    },
+    "2": {
+     "n": 6916,
+     "land": 370079300,
+     "impr": 1235438421,
+     "total": 1605517721,
+     "units": 5899,
+     "bldgArea": 39925889
+    },
+    "3": {
+     "n": 749,
+     "land": 147669700,
+     "impr": 592595400,
+     "total": 740265100,
+     "units": 746,
+     "bldgArea": 29402021
+    },
+    "4": {
+     "n": 2097,
+     "land": 782907300,
+     "impr": 3106643555,
+     "total": 3889550855,
+     "units": 878,
+     "bldgArea": 71067636
+    },
+    "5": {
+     "n": 9365,
+     "land": 86731900,
+     "impr": 1364053019,
+     "total": 1450784919,
+     "units": 9358,
+     "bldgArea": 10976185
+    },
+    "7": {
+     "n": 5062,
+     "land": 251611900,
+     "impr": 2751602170,
+     "total": 3003214070,
+     "units": 59076,
+     "bldgArea": 28486560
+    },
+    "9": {
+     "n": 7169,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 11452,
+     "bldgArea": 7733
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 783,
+     "exemptValue": 610267720,
+     "lotArea": 347336973
+    },
+    "rail-utility": {
+     "n": 421,
+     "exemptValue": 134628920,
+     "lotArea": 58130944
+    },
+    "religious": {
+     "n": 913,
+     "exemptValue": 474719860,
+     "lotArea": 35444323
+    },
+    "nonprofit": {
+     "n": 506,
+     "exemptValue": 443147310,
+     "lotArea": 72073583
+    },
+    "city-tax-deed": {
+     "n": 2429,
+     "exemptValue": 15814905,
+     "lotArea": 11981098
+    },
+    "education": {
+     "n": 171,
+     "exemptValue": 489517620,
+     "lotArea": 12984269
+    },
+    "schools": {
+     "n": 187,
+     "exemptValue": 626700740,
+     "lotArea": 45179155
+    },
+    "state": {
+     "n": 206,
+     "exemptValue": 236742450,
+     "lotArea": 30777797
+    },
+    "city": {
+     "n": 654,
+     "exemptValue": 470654270,
+     "lotArea": 62161648
+    },
+    "housing-authority": {
+     "n": 535,
+     "exemptValue": 118508990,
+     "lotArea": 9214041
+    },
+    "redevelopment": {
+     "n": 372,
+     "exemptValue": 60968570,
+     "lotArea": 3903834
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 367750,
+     "lotArea": 120127
+    },
+    "federal": {
+     "n": 24,
+     "exemptValue": 73710150,
+     "lotArea": 20875546
+    },
+    "hospital": {
+     "n": 49,
+     "exemptValue": 190439120,
+     "lotArea": 2193579
+    }
+   },
+   "housing": {
+    "resClassUnits": 234846,
+    "singleFamily": 88193,
+    "singleFamilyOwnerOccupied": 78287,
+    "medianSingleFamilyAssessed": 128100,
+    "newStructures": 973,
+    "newResUnits": 968
+   },
+   "sales": {
+    "conveyDateFill": 0.922,
+    "conveyedPriorYear": 16476,
+    "impliedPriceFromTransferFee": 334371523000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "ownerAddr",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 3708559100,
+    "impr": 23741492251,
+    "total": 27450051351
+   },
+   "publicHeld": {
+    "n": 5190,
+    "exemptValue": 2213367795,
+    "lotArea": 531430092
+   }
+  },
+  "2007": {
+   "parcels": 160309,
+   "byClass": {
+    "1": {
+     "n": 127917,
+     "land": 2221941400,
+     "impr": 14618228400,
+     "total": 16840169800,
+     "units": 165753,
+     "bldgArea": 195364875
+    },
+    "2": {
+     "n": 6930,
+     "land": 383829100,
+     "impr": 1340519870,
+     "total": 1724348970,
+     "units": 6292,
+     "bldgArea": 42846183
+    },
+    "3": {
+     "n": 718,
+     "land": 144930200,
+     "impr": 581762000,
+     "total": 726692200,
+     "units": 5,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 2068,
+     "land": 795326500,
+     "impr": 3432742455,
+     "total": 4228068955,
+     "units": 1491,
+     "bldgArea": 81372881
+    },
+    "5": {
+     "n": 10577,
+     "land": 102144101,
+     "impr": 1810071324,
+     "total": 1912215425,
+     "units": 10365,
+     "bldgArea": 12460583
+    },
+    "7": {
+     "n": 5051,
+     "land": 254854100,
+     "impr": 2722383370,
+     "total": 2977237470,
+     "units": 60273,
+     "bldgArea": 23728206
+    },
+    "9": {
+     "n": 7048,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9424,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 791,
+     "exemptValue": 572852420,
+     "lotArea": 340864502
+    },
+    "rail-utility": {
+     "n": 401,
+     "exemptValue": 130468930,
+     "lotArea": 55804572
+    },
+    "religious": {
+     "n": 926,
+     "exemptValue": 528594290,
+     "lotArea": 34435078
+    },
+    "nonprofit": {
+     "n": 501,
+     "exemptValue": 450408210,
+     "lotArea": 72298606
+    },
+    "education": {
+     "n": 170,
+     "exemptValue": 490896540,
+     "lotArea": 12735790
+    },
+    "schools": {
+     "n": 187,
+     "exemptValue": 626700740,
+     "lotArea": 45107839
+    },
+    "city-tax-deed": {
+     "n": 2320,
+     "exemptValue": 14667995,
+     "lotArea": 10991052
+    },
+    "city": {
+     "n": 645,
+     "exemptValue": 466329370,
+     "lotArea": 61542071
+    },
+    "state": {
+     "n": 224,
+     "exemptValue": 275561250,
+     "lotArea": 40941337
+    },
+    "redevelopment": {
+     "n": 355,
+     "exemptValue": 66677130,
+     "lotArea": 3453289
+    },
+    "housing-authority": {
+     "n": 527,
+     "exemptValue": 117499160,
+     "lotArea": 8883245
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 367750,
+     "lotArea": 120127
+    },
+    "federal": {
+     "n": 24,
+     "exemptValue": 73830250,
+     "lotArea": 20873716
+    },
+    "hospital": {
+     "n": 49,
+     "exemptValue": 191539120,
+     "lotArea": 2193579
+    },
+    "other": {
+     "n": 1,
+     "exemptValue": 0,
+     "lotArea": 4800
+    }
+   },
+   "housing": {
+    "resClassUnits": 236391,
+    "singleFamily": 88715,
+    "singleFamilyOwnerOccupied": 77821,
+    "medianSingleFamilyAssessed": 128400,
+    "newStructures": 975,
+    "newResUnits": 829
+   },
+   "sales": {
+    "conveyDateFill": 0.001,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 3903025401,
+    "impr": 24505707419,
+    "total": 28408732820
+   },
+   "publicHeld": {
+    "n": 5073,
+    "exemptValue": 2214118315,
+    "lotArea": 532657051
+   }
+  },
+  "2008": {
+   "parcels": 160936,
+   "byClass": {
+    "1": {
+     "n": 128035,
+     "land": 2263622600,
+     "impr": 14862517598,
+     "total": 17126140198,
+     "units": 165789,
+     "bldgArea": 195730148
+    },
+    "2": {
+     "n": 6926,
+     "land": 405325700,
+     "impr": 1564299008,
+     "total": 1969624708,
+     "units": 6201,
+     "bldgArea": 44305875
+    },
+    "3": {
+     "n": 709,
+     "land": 159671400,
+     "impr": 613288500,
+     "total": 772959900,
+     "units": 5,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 2077,
+     "land": 823076200,
+     "impr": 3684788750,
+     "total": 4507864950,
+     "units": 1671,
+     "bldgArea": 79263354
+    },
+    "5": {
+     "n": 11158,
+     "land": 119577600,
+     "impr": 1927515025,
+     "total": 2047092625,
+     "units": 10913,
+     "bldgArea": 12974543
+    },
+    "7": {
+     "n": 5039,
+     "land": 267326200,
+     "impr": 2737837370,
+     "total": 3005163570,
+     "units": 60584,
+     "bldgArea": 23656988
+    },
+    "9": {
+     "n": 6992,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9230,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 797,
+     "exemptValue": 572720620,
+     "lotArea": 341340114
+    },
+    "rail-utility": {
+     "n": 392,
+     "exemptValue": 132237230,
+     "lotArea": 54313452
+    },
+    "religious": {
+     "n": 926,
+     "exemptValue": 525531990,
+     "lotArea": 33884432
+    },
+    "nonprofit": {
+     "n": 491,
+     "exemptValue": 439842420,
+     "lotArea": 62007639
+    },
+    "city-tax-deed": {
+     "n": 2213,
+     "exemptValue": 15318985,
+     "lotArea": 10887513
+    },
+    "education": {
+     "n": 181,
+     "exemptValue": 515104640,
+     "lotArea": 12763908
+    },
+    "schools": {
+     "n": 187,
+     "exemptValue": 625498040,
+     "lotArea": 45111363
+    },
+    "city": {
+     "n": 632,
+     "exemptValue": 516655140,
+     "lotArea": 66477292
+    },
+    "state": {
+     "n": 223,
+     "exemptValue": 271970350,
+     "lotArea": 38807350
+    },
+    "redevelopment": {
+     "n": 434,
+     "exemptValue": 65002640,
+     "lotArea": 3364417
+    },
+    "federal": {
+     "n": 23,
+     "exemptValue": 73663850,
+     "lotArea": 20869123
+    },
+    "housing-authority": {
+     "n": 517,
+     "exemptValue": 111734710,
+     "lotArea": 8479604
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 367750,
+     "lotArea": 120127
+    },
+    "hospital": {
+     "n": 50,
+     "exemptValue": 201560120,
+     "lotArea": 2806431
+    },
+    "other": {
+     "n": 1,
+     "exemptValue": 0,
+     "lotArea": 4800
+    }
+   },
+   "housing": {
+    "resClassUnits": 237286,
+    "singleFamily": 88891,
+    "singleFamilyOwnerOccupied": 77006,
+    "medianSingleFamilyAssessed": 128600,
+    "newStructures": 594,
+    "newResUnits": 549
+   },
+   "sales": {
+    "conveyDateFill": 0.001,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4038599700,
+    "impr": 25390246251,
+    "total": 29428845951
+   },
+   "publicHeld": {
+    "n": 5026,
+    "exemptValue": 2252564335,
+    "lotArea": 535336776
+   }
+  },
+  "2009": {
+   "parcels": 162156,
+   "byClass": {
+    "1": {
+     "n": 127945,
+     "land": 2269604500,
+     "impr": 13447851163,
+     "total": 15717455663,
+     "units": 164538,
+     "bldgArea": 195744917
+    },
+    "2": {
+     "n": 6931,
+     "land": 417707100,
+     "impr": 1570925119,
+     "total": 1988632219,
+     "units": 5938,
+     "bldgArea": 45242831
+    },
+    "3": {
+     "n": 698,
+     "land": 152222300,
+     "impr": 579785500,
+     "total": 732007800,
+     "units": 5,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 3018,
+     "land": 830221300,
+     "impr": 3681032249,
+     "total": 4511253549,
+     "units": 1794,
+     "bldgArea": 79887958
+    },
+    "5": {
+     "n": 11495,
+     "land": 123095500,
+     "impr": 1903273902,
+     "total": 2026369402,
+     "units": 11249,
+     "bldgArea": 13441275
+    },
+    "7": {
+     "n": 5034,
+     "land": 344275000,
+     "impr": 2641382470,
+     "total": 2985657470,
+     "units": 60446,
+     "bldgArea": 23656103
+    },
+    "9": {
+     "n": 7035,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9453,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 801,
+     "exemptValue": 573829020,
+     "lotArea": 341596841
+    },
+    "rail-utility": {
+     "n": 382,
+     "exemptValue": 127924200,
+     "lotArea": 53361627
+    },
+    "nonprofit": {
+     "n": 474,
+     "exemptValue": 499306390,
+     "lotArea": 61397168
+    },
+    "religious": {
+     "n": 924,
+     "exemptValue": 535749130,
+     "lotArea": 32281129
+    },
+    "schools": {
+     "n": 188,
+     "exemptValue": 625466640,
+     "lotArea": 45114371
+    },
+    "city-tax-deed": {
+     "n": 2234,
+     "exemptValue": 19182405,
+     "lotArea": 10932307
+    },
+    "city": {
+     "n": 619,
+     "exemptValue": 516435540,
+     "lotArea": 66346306
+    },
+    "state": {
+     "n": 225,
+     "exemptValue": 284289950,
+     "lotArea": 38819686
+    },
+    "education": {
+     "n": 180,
+     "exemptValue": 502137740,
+     "lotArea": 12722800
+    },
+    "redevelopment": {
+     "n": 476,
+     "exemptValue": 63238040,
+     "lotArea": 3518663
+    },
+    "federal": {
+     "n": 27,
+     "exemptValue": 73915150,
+     "lotArea": 20893021
+    },
+    "housing-authority": {
+     "n": 516,
+     "exemptValue": 111870510,
+     "lotArea": 8399086
+    },
+    "streets": {
+     "n": 38,
+     "exemptValue": 367150,
+     "lotArea": 115482
+    },
+    "hospital": {
+     "n": 50,
+     "exemptValue": 201560120,
+     "lotArea": 2806431
+    },
+    "other": {
+     "n": 3,
+     "exemptValue": 0,
+     "lotArea": 10071
+    }
+   },
+   "housing": {
+    "resClassUnits": 236233,
+    "singleFamily": 89838,
+    "singleFamilyOwnerOccupied": 76674,
+    "medianSingleFamilyAssessed": 118900,
+    "newStructures": 406,
+    "newResUnits": 363
+   },
+   "sales": {
+    "conveyDateFill": 0.001,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4137125700,
+    "impr": 23824250403,
+    "total": 27961376103
+   },
+   "publicHeld": {
+    "n": 5086,
+    "exemptValue": 2268227255,
+    "lotArea": 535620281
+   }
+  },
+  "2010": {
+   "parcels": 162405,
+   "byClass": {
+    "1": {
+     "n": 127760,
+     "land": 2270230200,
+     "impr": 12863820600,
+     "total": 15134050800,
+     "units": 167100,
+     "bldgArea": 195592790
+    },
+    "2": {
+     "n": 6877,
+     "land": 408616800,
+     "impr": 1466359217,
+     "total": 1874976017,
+     "units": 6893,
+     "bldgArea": 45060707
+    },
+    "3": {
+     "n": 685,
+     "land": 152891000,
+     "impr": 579388700,
+     "total": 732279700,
+     "units": 7,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 3107,
+     "land": 829512100,
+     "impr": 3631862250,
+     "total": 4461374350,
+     "units": 2168,
+     "bldgArea": 81000885
+    },
+    "5": {
+     "n": 11689,
+     "land": 127450200,
+     "impr": 1895125561,
+     "total": 2022575761,
+     "units": 11583,
+     "bldgArea": 13726705
+    },
+    "7": {
+     "n": 5028,
+     "land": 349034760,
+     "impr": 2516791332,
+     "total": 2865826092,
+     "units": 63662,
+     "bldgArea": 50645119
+    },
+    "9": {
+     "n": 7259,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10124,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 811,
+     "exemptValue": 527442620,
+     "lotArea": 544293524
+    },
+    "rail-utility": {
+     "n": 382,
+     "exemptValue": 125451100,
+     "lotArea": 103889396
+    },
+    "nonprofit": {
+     "n": 484,
+     "exemptValue": 502411710,
+     "lotArea": 117847572
+    },
+    "religious": {
+     "n": 924,
+     "exemptValue": 547706620,
+     "lotArea": 63360169
+    },
+    "schools": {
+     "n": 186,
+     "exemptValue": 624925140,
+     "lotArea": 89142614
+    },
+    "city-tax-deed": {
+     "n": 2418,
+     "exemptValue": 31760645,
+     "lotArea": 23432412
+    },
+    "city": {
+     "n": 613,
+     "exemptValue": 515625590,
+     "lotArea": 132288622
+    },
+    "state": {
+     "n": 222,
+     "exemptValue": 320509750,
+     "lotArea": 67430944
+    },
+    "education": {
+     "n": 197,
+     "exemptValue": 510526540,
+     "lotArea": 24579642
+    },
+    "redevelopment": {
+     "n": 504,
+     "exemptValue": 68080900,
+     "lotArea": 8510042
+    },
+    "federal": {
+     "n": 27,
+     "exemptValue": 73915150,
+     "lotArea": 41786042
+    },
+    "housing-authority": {
+     "n": 507,
+     "exemptValue": 112678510,
+     "lotArea": 16701148
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 365150,
+     "lotArea": 216372
+    },
+    "hospital": {
+     "n": 50,
+     "exemptValue": 205754320,
+     "lotArea": 5348669
+    },
+    "other": {
+     "n": 3,
+     "exemptValue": 0,
+     "lotArea": 10071
+    }
+   },
+   "housing": {
+    "resClassUnits": 242345,
+    "singleFamily": 87854,
+    "singleFamilyOwnerOccupied": 74064,
+    "medianSingleFamilyAssessed": 114800,
+    "newStructures": 252,
+    "newResUnits": 247
+   },
+   "sales": {
+    "conveyDateFill": 0.001,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4137735060,
+    "impr": 22953347660,
+    "total": 27091082720
+   },
+   "publicHeld": {
+    "n": 5288,
+    "exemptValue": 2274938305,
+    "lotArea": 923585348
+   }
+  },
+  "2011": {
+   "parcels": 162396,
+   "byClass": {
+    "1": {
+     "n": 127364,
+     "land": 2265334005,
+     "impr": 12848307145,
+     "total": 15113641150,
+     "units": 165923,
+     "bldgArea": 194958245
+    },
+    "2": {
+     "n": 6839,
+     "land": 412203200,
+     "impr": 1463733682,
+     "total": 1875936882,
+     "units": 6712,
+     "bldgArea": 44576347
+    },
+    "3": {
+     "n": 666,
+     "land": 148162100,
+     "impr": 563826300,
+     "total": 711988400,
+     "units": 6,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 3114,
+     "land": 820425100,
+     "impr": 3588781850,
+     "total": 4409206950,
+     "units": 2106,
+     "bldgArea": 80280642
+    },
+    "5": {
+     "n": 11688,
+     "land": 124806300,
+     "impr": 1831087800,
+     "total": 1955894100,
+     "units": 11570,
+     "bldgArea": 13719617
+    },
+    "7": {
+     "n": 5065,
+     "land": 355008900,
+     "impr": 2552616100,
+     "total": 2907625000,
+     "units": 63856,
+     "bldgArea": 53025857
+    },
+    "9": {
+     "n": 7660,
+     "land": 30000,
+     "impr": 26100,
+     "total": 56100,
+     "units": 10161,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 825,
+     "exemptValue": 528084020,
+     "lotArea": 544027094
+    },
+    "rail-utility": {
+     "n": 382,
+     "exemptValue": 127094900,
+     "lotArea": 100917012
+    },
+    "religious": {
+     "n": 921,
+     "exemptValue": 993509150,
+     "lotArea": 63396286
+    },
+    "nonprofit": {
+     "n": 499,
+     "exemptValue": 598507290,
+     "lotArea": 116679554
+    },
+    "schools": {
+     "n": 186,
+     "exemptValue": 623230940,
+     "lotArea": 88801240
+    },
+    "city-tax-deed": {
+     "n": 2752,
+     "exemptValue": 52765335,
+     "lotArea": 26988236
+    },
+    "city": {
+     "n": 615,
+     "exemptValue": 513346420,
+     "lotArea": 120057928
+    },
+    "state": {
+     "n": 224,
+     "exemptValue": 281835950,
+     "lotArea": 65728854
+    },
+    "education": {
+     "n": 184,
+     "exemptValue": 577364440,
+     "lotArea": 24327804
+    },
+    "redevelopment": {
+     "n": 503,
+     "exemptValue": 67909500,
+     "lotArea": 8367764
+    },
+    "federal": {
+     "n": 27,
+     "exemptValue": 73915150,
+     "lotArea": 41786042
+    },
+    "housing-authority": {
+     "n": 556,
+     "exemptValue": 91503720,
+     "lotArea": 11093392
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 365150,
+     "lotArea": 216372
+    },
+    "hospital": {
+     "n": 48,
+     "exemptValue": 1030039220,
+     "lotArea": 5479318
+    },
+    "other": {
+     "n": 3,
+     "exemptValue": 0,
+     "lotArea": 10071
+    }
+   },
+   "housing": {
+    "resClassUnits": 241349,
+    "singleFamily": 87972,
+    "singleFamilyOwnerOccupied": 73020,
+    "medianSingleFamilyAssessed": 115000,
+    "newStructures": 179,
+    "newResUnits": 173
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4125969605,
+    "impr": 22848378977,
+    "total": 26974348582
+   },
+   "publicHeld": {
+    "n": 5688,
+    "exemptValue": 2232591035,
+    "lotArea": 906850550
+   }
+  },
+  "2012": {
+   "parcels": 162367,
+   "byClass": {
+    "1": {
+     "n": 127128,
+     "land": 2255594200,
+     "impr": 10727144500,
+     "total": 12982738700,
+     "units": 164625,
+     "bldgArea": 194673298
+    },
+    "2": {
+     "n": 6833,
+     "land": 415031500,
+     "impr": 1442918432,
+     "total": 1857949932,
+     "units": 6847,
+     "bldgArea": 45112011
+    },
+    "3": {
+     "n": 651,
+     "land": 145958000,
+     "impr": 561165600,
+     "total": 707123600,
+     "units": 5,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 3082,
+     "land": 820719400,
+     "impr": 3550267750,
+     "total": 4370987150,
+     "units": 2146,
+     "bldgArea": 79690707
+    },
+    "5": {
+     "n": 11706,
+     "land": 125170902,
+     "impr": 1641872098,
+     "total": 1767043000,
+     "units": 11665,
+     "bldgArea": 13698921
+    },
+    "7": {
+     "n": 5068,
+     "land": 355626800,
+     "impr": 2406735260,
+     "total": 2762362060,
+     "units": 63311,
+     "bldgArea": 53731603
+    },
+    "9": {
+     "n": 7899,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10315,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 840,
+     "exemptValue": 529781120,
+     "lotArea": 350832927
+    },
+    "rail-utility": {
+     "n": 379,
+     "exemptValue": 125977900,
+     "lotArea": 57972695
+    },
+    "religious": {
+     "n": 927,
+     "exemptValue": 1024341850,
+     "lotArea": 37699010
+    },
+    "nonprofit": {
+     "n": 537,
+     "exemptValue": 587729930,
+     "lotArea": 72274176
+    },
+    "education": {
+     "n": 202,
+     "exemptValue": 582245240,
+     "lotArea": 15657258
+    },
+    "schools": {
+     "n": 186,
+     "exemptValue": 620346940,
+     "lotArea": 45531788
+    },
+    "city-tax-deed": {
+     "n": 2920,
+     "exemptValue": 61530515,
+     "lotArea": 31800361
+    },
+    "city": {
+     "n": 616,
+     "exemptValue": 511509390,
+     "lotArea": 70585691
+    },
+    "state": {
+     "n": 224,
+     "exemptValue": 281707550,
+     "lotArea": 44404536
+    },
+    "redevelopment": {
+     "n": 505,
+     "exemptValue": 67912880,
+     "lotArea": 14593463
+    },
+    "federal": {
+     "n": 27,
+     "exemptValue": 73915150,
+     "lotArea": 22731667
+    },
+    "housing-authority": {
+     "n": 542,
+     "exemptValue": 93019230,
+     "lotArea": 11399769
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 365150,
+     "lotArea": 512162
+    },
+    "hospital": {
+     "n": 48,
+     "exemptValue": 1025539220,
+     "lotArea": 4169741
+    },
+    "other": {
+     "n": 3,
+     "exemptValue": 0,
+     "lotArea": 10071
+    }
+   },
+   "housing": {
+    "resClassUnits": 239601,
+    "singleFamily": 88546,
+    "singleFamilyOwnerOccupied": 71952,
+    "medianSingleFamilyAssessed": 98800,
+    "newStructures": 109,
+    "newResUnits": 105
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4118100802,
+    "impr": 20330103640,
+    "total": 24448204442
+   },
+   "publicHeld": {
+    "n": 5860,
+    "exemptValue": 2239722775,
+    "lotArea": 591880202
+   }
+  },
+  "2013": {
+   "parcels": 162211,
+   "byClass": {
+    "1": {
+     "n": 126627,
+     "land": 2251804669,
+     "impr": 10287698400,
+     "total": 12539503069,
+     "units": 163868,
+     "bldgArea": 193996312
+    },
+    "2": {
+     "n": 6806,
+     "land": 420154131,
+     "impr": 1470324895,
+     "total": 1890479026,
+     "units": 6991,
+     "bldgArea": 45503488
+    },
+    "3": {
+     "n": 643,
+     "land": 149432600,
+     "impr": 563103300,
+     "total": 712535900,
+     "units": 5,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 3028,
+     "land": 806477400,
+     "impr": 3643626850,
+     "total": 4450104250,
+     "units": 2095,
+     "bldgArea": 78540958
+    },
+    "5": {
+     "n": 11586,
+     "land": 123822602,
+     "impr": 1601281298,
+     "total": 1725103900,
+     "units": 11548,
+     "bldgArea": 13554713
+    },
+    "7": {
+     "n": 5076,
+     "land": 358567800,
+     "impr": 2483725000,
+     "total": 2842292800,
+     "units": 63499,
+     "bldgArea": 54541846
+    },
+    "9": {
+     "n": 8445,
+     "land": 204600,
+     "impr": 1545400,
+     "total": 1750000,
+     "units": 10702,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 849,
+     "exemptValue": 526201870,
+     "lotArea": 350827408
+    },
+    "rail-utility": {
+     "n": 370,
+     "exemptValue": 127571900,
+     "lotArea": 56884758
+    },
+    "religious": {
+     "n": 926,
+     "exemptValue": 994650690,
+     "lotArea": 37664233
+    },
+    "nonprofit": {
+     "n": 551,
+     "exemptValue": 581837150,
+     "lotArea": 72957500
+    },
+    "education": {
+     "n": 210,
+     "exemptValue": 597402740,
+     "lotArea": 16067867
+    },
+    "schools": {
+     "n": 184,
+     "exemptValue": 603135840,
+     "lotArea": 45221654
+    },
+    "city-tax-deed": {
+     "n": 3457,
+     "exemptValue": 80976175,
+     "lotArea": 46917724
+    },
+    "city": {
+     "n": 613,
+     "exemptValue": 510273990,
+     "lotArea": 70595088
+    },
+    "state": {
+     "n": 233,
+     "exemptValue": 283140750,
+     "lotArea": 46243585
+    },
+    "redevelopment": {
+     "n": 491,
+     "exemptValue": 65798180,
+     "lotArea": 14365700
+    },
+    "federal": {
+     "n": 25,
+     "exemptValue": 73840550,
+     "lotArea": 22723358
+    },
+    "housing-authority": {
+     "n": 545,
+     "exemptValue": 93647490,
+     "lotArea": 11430732
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 365150,
+     "lotArea": 511841
+    },
+    "hospital": {
+     "n": 46,
+     "exemptValue": 960387220,
+     "lotArea": 3794682
+    },
+    "other": {
+     "n": 4,
+     "exemptValue": 2700,
+     "lotArea": 14402
+    }
+   },
+   "housing": {
+    "resClassUnits": 238915,
+    "singleFamily": 88357,
+    "singleFamilyOwnerOccupied": 70777,
+    "medianSingleFamilyAssessed": 95000,
+    "newStructures": 56,
+    "newResUnits": 91
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4110463802,
+    "impr": 20051305143,
+    "total": 24161768945
+   },
+   "publicHeld": {
+    "n": 6397,
+    "exemptValue": 2237014845,
+    "lotArea": 608325249
+   }
+  },
+  "2014": {
+   "parcels": 161038,
+   "byClass": {
+    "1": {
+     "n": 126258,
+     "land": 2248947600,
+     "impr": 10223746800,
+     "total": 12472694400,
+     "units": 163208,
+     "bldgArea": 193564882
+    },
+    "2": {
+     "n": 6835,
+     "land": 428198100,
+     "impr": 1515924295,
+     "total": 1944122395,
+     "units": 7083,
+     "bldgArea": 46714921
+    },
+    "3": {
+     "n": 630,
+     "land": 148360200,
+     "impr": 559540600,
+     "total": 707900800,
+     "units": 5,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 1939,
+     "land": 793882300,
+     "impr": 3562742000,
+     "total": 4356624300,
+     "units": 2229,
+     "bldgArea": 79650175
+    },
+    "5": {
+     "n": 11481,
+     "land": 123221502,
+     "impr": 1601681298,
+     "total": 1724902800,
+     "units": 11440,
+     "bldgArea": 13429485
+    },
+    "7": {
+     "n": 5067,
+     "land": 363435900,
+     "impr": 2506576810,
+     "total": 2870012710,
+     "units": 63665,
+     "bldgArea": 55046736
+    },
+    "9": {
+     "n": 8807,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 10656,
+     "bldgArea": 0
+    },
+    "none": {
+     "n": 21,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 861,
+     "exemptValue": 523932870,
+     "lotArea": 350496790
+    },
+    "rail-utility": {
+     "n": 363,
+     "exemptValue": 125681600,
+     "lotArea": 55880026
+    },
+    "religious": {
+     "n": 901,
+     "exemptValue": 986184240,
+     "lotArea": 38060965
+    },
+    "nonprofit": {
+     "n": 519,
+     "exemptValue": 536598060,
+     "lotArea": 72766434
+    },
+    "education": {
+     "n": 210,
+     "exemptValue": 576653140,
+     "lotArea": 12849554
+    },
+    "schools": {
+     "n": 182,
+     "exemptValue": 603053640,
+     "lotArea": 45239559
+    },
+    "city-tax-deed": {
+     "n": 3861,
+     "exemptValue": 84841415,
+     "lotArea": 43292165
+    },
+    "city": {
+     "n": 613,
+     "exemptValue": 510656690,
+     "lotArea": 70489610
+    },
+    "state": {
+     "n": 236,
+     "exemptValue": 283436250,
+     "lotArea": 46242529
+    },
+    "redevelopment": {
+     "n": 520,
+     "exemptValue": 56958350,
+     "lotArea": 14535326
+    },
+    "federal": {
+     "n": 21,
+     "exemptValue": 73589250,
+     "lotArea": 22665327
+    },
+    "housing-authority": {
+     "n": 538,
+     "exemptValue": 93142390,
+     "lotArea": 11402561
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 365150,
+     "lotArea": 511170
+    },
+    "hospital": {
+     "n": 41,
+     "exemptValue": 958297220,
+     "lotArea": 3248600
+    },
+    "other": {
+     "n": 2,
+     "exemptValue": 0,
+     "lotArea": 10050
+    }
+   },
+   "housing": {
+    "resClassUnits": 238313,
+    "singleFamily": 88247,
+    "singleFamilyOwnerOccupied": 70096,
+    "medianSingleFamilyAssessed": 95800,
+    "newStructures": 35,
+    "newResUnits": 44
+   },
+   "sales": {
+    "conveyDateFill": 0.948,
+    "conveyedPriorYear": 10999,
+    "impliedPriceFromTransferFee": 113219364000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4106045602,
+    "impr": 19970211803,
+    "total": 24076257405
+   },
+   "publicHeld": {
+    "n": 6832,
+    "exemptValue": 2229610855,
+    "lotArea": 604363867
+   }
+  },
+  "2015": {
+   "parcels": 161946,
+   "byClass": {
+    "1": {
+     "n": 126171,
+     "land": 2247346030,
+     "impr": 10242849470,
+     "total": 12490195500,
+     "units": 162788,
+     "bldgArea": 193328225
+    },
+    "2": {
+     "n": 6845,
+     "land": 420922905,
+     "impr": 1534028100,
+     "total": 1954951005,
+     "units": 6615,
+     "bldgArea": 47065129
+    },
+    "3": {
+     "n": 631,
+     "land": 151670500,
+     "impr": 575139700,
+     "total": 726810200,
+     "units": 4,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 1933,
+     "land": 808820300,
+     "impr": 3576262894,
+     "total": 4385083194,
+     "units": 2107,
+     "bldgArea": 79731455
+    },
+    "5": {
+     "n": 11491,
+     "land": 123173603,
+     "impr": 1641476297,
+     "total": 1764649900,
+     "units": 11393,
+     "bldgArea": 13412562
+    },
+    "7": {
+     "n": 5113,
+     "land": 376485600,
+     "impr": 2712806500,
+     "total": 3089292100,
+     "units": 65180,
+     "bldgArea": 56830873
+    },
+    "9": {
+     "n": 9762,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9717,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 869,
+     "exemptValue": 520748270,
+     "lotArea": 350685047
+    },
+    "city": {
+     "n": 1660,
+     "exemptValue": 594365590,
+     "lotArea": 70600498
+    },
+    "rail-utility": {
+     "n": 364,
+     "exemptValue": 124491100,
+     "lotArea": 56935143
+    },
+    "religious": {
+     "n": 874,
+     "exemptValue": 958226900,
+     "lotArea": 39459099
+    },
+    "nonprofit": {
+     "n": 495,
+     "exemptValue": 518315290,
+     "lotArea": 70566235
+    },
+    "education": {
+     "n": 202,
+     "exemptValue": 569750040,
+     "lotArea": 12934560
+    },
+    "schools": {
+     "n": 181,
+     "exemptValue": 603028740,
+     "lotArea": 45278889
+    },
+    "city-tax-deed": {
+     "n": 3847,
+     "exemptValue": 87799495,
+     "lotArea": 30538655
+    },
+    "state": {
+     "n": 237,
+     "exemptValue": 287866250,
+     "lotArea": 46346002
+    },
+    "redevelopment": {
+     "n": 505,
+     "exemptValue": 53434670,
+     "lotArea": 13913427
+    },
+    "federal": {
+     "n": 21,
+     "exemptValue": 73589250,
+     "lotArea": 22665237
+    },
+    "housing-authority": {
+     "n": 544,
+     "exemptValue": 94057590,
+     "lotArea": 11105880
+    },
+    "streets": {
+     "n": 39,
+     "exemptValue": 365150,
+     "lotArea": 512304
+    },
+    "hospital": {
+     "n": 40,
+     "exemptValue": 958171220,
+     "lotArea": 3238853
+    },
+    "other": {
+     "n": 2,
+     "exemptValue": 0,
+     "lotArea": 10050
+    }
+   },
+   "housing": {
+    "resClassUnits": 239361,
+    "singleFamily": 88393,
+    "singleFamilyOwnerOccupied": 69259,
+    "medianSingleFamilyAssessed": 95500,
+    "newStructures": 33,
+    "newResUnits": 30
+   },
+   "sales": {
+    "conveyDateFill": 0.944,
+    "conveyedPriorYear": 10830,
+    "impliedPriceFromTransferFee": 154593943333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4128418938,
+    "impr": 20282562961,
+    "total": 24410981899
+   },
+   "publicHeld": {
+    "n": 7864,
+    "exemptValue": 2314889855,
+    "lotArea": 591133635
+   }
+  },
+  "2016": {
+   "parcels": 161685,
+   "byClass": {
+    "1": {
+     "n": 125975,
+     "land": 2246347300,
+     "impr": 10409318568,
+     "total": 12655665868,
+     "units": 162427,
+     "bldgArea": 168049141
+    },
+    "2": {
+     "n": 6807,
+     "land": 425765600,
+     "impr": 1566190909,
+     "total": 1991956509,
+     "units": 6629,
+     "bldgArea": 0
+    },
+    "3": {
+     "n": 620,
+     "land": 154633200,
+     "impr": 574230300,
+     "total": 728863500,
+     "units": 5,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 1936,
+     "land": 1036577000,
+     "impr": 3644692200,
+     "total": 4681269200,
+     "units": 2221,
+     "bldgArea": 0
+    },
+    "5": {
+     "n": 11454,
+     "land": 122582602,
+     "impr": 1659615598,
+     "total": 1782198200,
+     "units": 11275,
+     "bldgArea": 0
+    },
+    "7": {
+     "n": 5124,
+     "land": 408311900,
+     "impr": 2883271560,
+     "total": 3291583460,
+     "units": 66333,
+     "bldgArea": 21047353
+    },
+    "9": {
+     "n": 9769,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9826,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "rail-utility": {
+     "n": 363,
+     "exemptValue": 121733680,
+     "lotArea": 57027500
+    },
+    "county": {
+     "n": 881,
+     "exemptValue": 521775070,
+     "lotArea": 350862459
+    },
+    "city": {
+     "n": 1655,
+     "exemptValue": 594307490,
+     "lotArea": 70543824
+    },
+    "religious": {
+     "n": 857,
+     "exemptValue": 943740360,
+     "lotArea": 39216808
+    },
+    "nonprofit": {
+     "n": 479,
+     "exemptValue": 523846790,
+     "lotArea": 70608560
+    },
+    "education": {
+     "n": 200,
+     "exemptValue": 570616240,
+     "lotArea": 13029104
+    },
+    "schools": {
+     "n": 180,
+     "exemptValue": 596655840,
+     "lotArea": 45170131
+    },
+    "city-tax-deed": {
+     "n": 3916,
+     "exemptValue": 94014625,
+     "lotArea": 28096184
+    },
+    "state": {
+     "n": 237,
+     "exemptValue": 249440250,
+     "lotArea": 46485232
+    },
+    "federal": {
+     "n": 21,
+     "exemptValue": 73589250,
+     "lotArea": 22663122
+    },
+    "redevelopment": {
+     "n": 501,
+     "exemptValue": 53247410,
+     "lotArea": 13801759
+    },
+    "housing-authority": {
+     "n": 522,
+     "exemptValue": 95283980,
+     "lotArea": 11214535
+    },
+    "streets": {
+     "n": 36,
+     "exemptValue": 357550,
+     "lotArea": 486806
+    },
+    "hospital": {
+     "n": 39,
+     "exemptValue": 957735420,
+     "lotArea": 4107970
+    },
+    "other": {
+     "n": 2,
+     "exemptValue": 0,
+     "lotArea": 10049
+    }
+   },
+   "housing": {
+    "resClassUnits": 240035,
+    "singleFamily": 88375,
+    "singleFamilyOwnerOccupied": 68554,
+    "medianSingleFamilyAssessed": 96700,
+    "newStructures": 24,
+    "newResUnits": 21
+   },
+   "sales": {
+    "conveyDateFill": 0.945,
+    "conveyedPriorYear": 11037,
+    "impliedPriceFromTransferFee": 178119818333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4394217602,
+    "impr": 20737319135,
+    "total": 25131536737
+   },
+   "publicHeld": {
+    "n": 7913,
+    "exemptValue": 2278313915,
+    "lotArea": 588837246
+   }
+  },
+  "2017": {
+   "parcels": 160535,
+   "byClass": {
+    "1": {
+     "n": 125678,
+     "land": 2245506500,
+     "impr": 10756363050,
+     "total": 13001869550,
+     "units": 162041,
+     "bldgArea": 192869095
+    },
+    "2": {
+     "n": 6797,
+     "land": 440902200,
+     "impr": 1595442533,
+     "total": 2036344733,
+     "units": 6325,
+     "bldgArea": 46175366
+    },
+    "3": {
+     "n": 619,
+     "land": 161952900,
+     "impr": 603122200,
+     "total": 765075100,
+     "units": 7,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 1907,
+     "land": 1032391100,
+     "impr": 3806868340,
+     "total": 4839259440,
+     "units": 2022,
+     "bldgArea": 82434773
+    },
+    "5": {
+     "n": 11450,
+     "land": 122458202,
+     "impr": 1728355898,
+     "total": 1850814100,
+     "units": 11273,
+     "bldgArea": 13315101
+    },
+    "7": {
+     "n": 5106,
+     "land": 437382900,
+     "impr": 3148505715,
+     "total": 3585888615,
+     "units": 68007,
+     "bldgArea": 61790862
+    },
+    "9": {
+     "n": 8912,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9865,
+     "bldgArea": 0
+    },
+    "none": {
+     "n": 66,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "schools": {
+     "n": 177,
+     "exemptValue": 588098340,
+     "lotArea": 44444067
+    },
+    "city-tax-deed": {
+     "n": 4147,
+     "exemptValue": 97555305,
+     "lotArea": 33585107
+    },
+    "city": {
+     "n": 608,
+     "exemptValue": 502563090,
+     "lotArea": 70523420
+    },
+    "redevelopment": {
+     "n": 492,
+     "exemptValue": 55203280,
+     "lotArea": 13248642
+    },
+    "housing-authority": {
+     "n": 532,
+     "exemptValue": 106108480,
+     "lotArea": 9825173
+    },
+    "county": {
+     "n": 886,
+     "exemptValue": 525354370,
+     "lotArea": 351104487
+    },
+    "nonprofit": {
+     "n": 453,
+     "exemptValue": 510545690,
+     "lotArea": 71251609
+    },
+    "rail-utility": {
+     "n": 359,
+     "exemptValue": 121453980,
+     "lotArea": 54875603
+    },
+    "religious": {
+     "n": 854,
+     "exemptValue": 912437760,
+     "lotArea": 39323989
+    },
+    "hospital": {
+     "n": 39,
+     "exemptValue": 957735420,
+     "lotArea": 3219160
+    },
+    "federal": {
+     "n": 22,
+     "exemptValue": 73754600,
+     "lotArea": 22679065
+    },
+    "education": {
+     "n": 196,
+     "exemptValue": 554840340,
+     "lotArea": 11492445
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 400650,
+     "lotArea": 491602
+    },
+    "state": {
+     "n": 237,
+     "exemptValue": 249440250,
+     "lotArea": 46479486
+    },
+    "other": {
+     "n": 1,
+     "exemptValue": 0,
+     "lotArea": 4800
+    }
+   },
+   "housing": {
+    "resClassUnits": 241321,
+    "singleFamily": 88324,
+    "singleFamilyOwnerOccupied": 68429,
+    "medianSingleFamilyAssessed": 100100,
+    "newStructures": 55,
+    "newResUnits": 50
+   },
+   "sales": {
+    "conveyDateFill": 0.951,
+    "conveyedPriorYear": 11504,
+    "impliedPriceFromTransferFee": 157876456667,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4440593802,
+    "impr": 21638657736,
+    "total": 26079251538
+   },
+   "publicHeld": {
+    "n": 7101,
+    "exemptValue": 2198077715,
+    "lotArea": 591889447
+   }
+  },
+  "2018": {
+   "parcels": 161405,
+   "byClass": {
+    "1": {
+     "n": 125608,
+     "land": 2471886800,
+     "impr": 11208808986,
+     "total": 13680695786,
+     "units": 162000,
+     "bldgArea": 192966765
+    },
+    "2": {
+     "n": 6823,
+     "land": 456996800,
+     "impr": 1689116520,
+     "total": 2146113320,
+     "units": 6335,
+     "bldgArea": 47293448
+    },
+    "3": {
+     "n": 602,
+     "land": 160534000,
+     "impr": 602988500,
+     "total": 763522500,
+     "units": 9,
+     "bldgArea": 0
+    },
+    "4": {
+     "n": 1910,
+     "land": 1058115000,
+     "impr": 4088006940,
+     "total": 5146121940,
+     "units": 2209,
+     "bldgArea": 83523074
+    },
+    "5": {
+     "n": 11459,
+     "land": 123070002,
+     "impr": 1843032612,
+     "total": 1966102614,
+     "units": 11267,
+     "bldgArea": 13293417
+    },
+    "7": {
+     "n": 5140,
+     "land": 457351680,
+     "impr": 3504988420,
+     "total": 3962340100,
+     "units": 69340,
+     "bldgArea": 64447215
+    },
+    "9": {
+     "n": 9863,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 9136,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "city": {
+     "n": 1657,
+     "exemptValue": 551556090,
+     "lotArea": 67207881
+    },
+    "rail-utility": {
+     "n": 359,
+     "exemptValue": 121397280,
+     "lotArea": 55105879
+    },
+    "county": {
+     "n": 888,
+     "exemptValue": 484089170,
+     "lotArea": 364050580
+    },
+    "religious": {
+     "n": 848,
+     "exemptValue": 776859760,
+     "lotArea": 39972673
+    },
+    "nonprofit": {
+     "n": 438,
+     "exemptValue": 558564930,
+     "lotArea": 57621965
+    },
+    "city-tax-deed": {
+     "n": 4064,
+     "exemptValue": 93792625,
+     "lotArea": 31720024
+    },
+    "schools": {
+     "n": 175,
+     "exemptValue": 582250640,
+     "lotArea": 44297527
+    },
+    "state": {
+     "n": 237,
+     "exemptValue": 281913350,
+     "lotArea": 39408570
+    },
+    "redevelopment": {
+     "n": 467,
+     "exemptValue": 55030330,
+     "lotArea": 13952145
+    },
+    "education": {
+     "n": 208,
+     "exemptValue": 525520240,
+     "lotArea": 13067099
+    },
+    "federal": {
+     "n": 20,
+     "exemptValue": 73545500,
+     "lotArea": 22660946
+    },
+    "housing-authority": {
+     "n": 605,
+     "exemptValue": 95122280,
+     "lotArea": 10972162
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 400650,
+     "lotArea": 491603
+    },
+    "hospital": {
+     "n": 41,
+     "exemptValue": 524081920,
+     "lotArea": 3639933
+    },
+    "other": {
+     "n": 1,
+     "exemptValue": 0,
+     "lotArea": 4800
+    }
+   },
+   "housing": {
+    "resClassUnits": 242607,
+    "singleFamily": 88343,
+    "singleFamilyOwnerOccupied": 68082,
+    "medianSingleFamilyAssessed": 105700,
+    "newStructures": 28,
+    "newResUnits": 22
+   },
+   "sales": {
+    "conveyDateFill": 0.946,
+    "conveyedPriorYear": 11797,
+    "impliedPriceFromTransferFee": 208864020000,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": true
+   },
+   "totals": {
+    "land": 4727954282,
+    "impr": 22936941978,
+    "total": 27664896260
+   },
+   "publicHeld": {
+    "n": 8113,
+    "exemptValue": 2217299985,
+    "lotArea": 594269835
+   }
+  },
+  "2019": {
+   "parcels": 161262,
+   "byClass": {
+    "1": {
+     "n": 125637,
+     "land": 2408006150,
+     "impr": 11644795240,
+     "total": 14052801390,
+     "units": 162137,
+     "bldgArea": 193113100
+    },
+    "2": {
+     "n": 6815,
+     "land": 461772940,
+     "impr": 1727139857,
+     "total": 2188912797,
+     "units": 37920,
+     "bldgArea": 44662628
+    },
+    "3": {
+     "n": 600,
+     "land": 162251100,
+     "impr": 628297100,
+     "total": 790548200,
+     "units": 465,
+     "bldgArea": 5463577
+    },
+    "4": {
+     "n": 1903,
+     "land": 1059053980,
+     "impr": 4264435708,
+     "total": 5323489688,
+     "units": 63775,
+     "bldgArea": 81465637
+    },
+    "5": {
+     "n": 11462,
+     "land": 123529502,
+     "impr": 1922288688,
+     "total": 2045818190,
+     "units": 11215,
+     "bldgArea": 13592959
+    },
+    "7": {
+     "n": 5156,
+     "land": 493383480,
+     "impr": 3909819519,
+     "total": 4403202999,
+     "units": 73232,
+     "bldgArea": 65728448
+    },
+    "9": {
+     "n": 9688,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 15358,
+     "bldgArea": 20266529
+    },
+    "none": {
+     "n": 1,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 893,
+     "exemptValue": 471759970,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 361,
+     "exemptValue": 121081880,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 864,
+     "exemptValue": 756378760,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 4034,
+     "exemptValue": 86937405,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 476,
+     "exemptValue": 484368290,
+     "lotArea": null
+    },
+    "city": {
+     "n": 581,
+     "exemptValue": 456328340,
+     "lotArea": null
+    },
+    "education": {
+     "n": 222,
+     "exemptValue": 555323740,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 175,
+     "exemptValue": 581940640,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 456,
+     "exemptValue": 53992650,
+     "lotArea": null
+    },
+    "state": {
+     "n": 239,
+     "exemptValue": 278410950,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 20,
+     "exemptValue": 73545500,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 612,
+     "exemptValue": 95328380,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 400650,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 42,
+     "exemptValue": 524081920,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 246584,
+    "singleFamily": 88470,
+    "singleFamilyOwnerOccupied": 65569,
+    "medianSingleFamilyAssessed": 108500,
+    "newStructures": 65,
+    "newResUnits": 1079
+   },
+   "sales": {
+    "conveyDateFill": 0.969,
+    "conveyedPriorYear": 12169,
+    "impliedPriceFromTransferFee": 3524682667,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 4707997152,
+    "impr": 24096776112,
+    "total": 28804773264
+   },
+   "publicHeld": {
+    "n": 7010,
+    "exemptValue": 2098243835,
+    "lotArea": null
+   }
+  },
+  "2020": {
+   "parcels": 160466,
+   "byClass": {
+    "1": {
+     "n": 125681,
+     "land": 2460966980,
+     "impr": 13407069843,
+     "total": 15868036823,
+     "units": 162028,
+     "bldgArea": 193222071
+    },
+    "2": {
+     "n": 6856,
+     "land": 465738890,
+     "impr": 1844638584,
+     "total": 2310377474,
+     "units": 38300,
+     "bldgArea": 46786369
+    },
+    "3": {
+     "n": 574,
+     "land": 158694600,
+     "impr": 618032300,
+     "total": 776726900,
+     "units": 447,
+     "bldgArea": 5337823
+    },
+    "4": {
+     "n": 1909,
+     "land": 1053464600,
+     "impr": 4483287140,
+     "total": 5536751740,
+     "units": 63646,
+     "bldgArea": 82879019
+    },
+    "5": {
+     "n": 11459,
+     "land": 123213002,
+     "impr": 2055357612,
+     "total": 2178570614,
+     "units": 11198,
+     "bldgArea": 13591707
+    },
+    "7": {
+     "n": 5162,
+     "land": 504672080,
+     "impr": 4222506770,
+     "total": 4727178850,
+     "units": 73720,
+     "bldgArea": 66596992
+    },
+    "9": {
+     "n": 8441,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 15830,
+     "bldgArea": 21540928
+    },
+    "none": {
+     "n": 384,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 2,
+     "bldgArea": 7738
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 894,
+     "exemptValue": 471691370,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 358,
+     "exemptValue": 150650180,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 854,
+     "exemptValue": 651116580,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 4165,
+     "exemptValue": 82976735,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 498,
+     "exemptValue": 474442710,
+     "lotArea": null
+    },
+    "city": {
+     "n": 581,
+     "exemptValue": 460926570,
+     "lotArea": null
+    },
+    "education": {
+     "n": 254,
+     "exemptValue": 725524420,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 172,
+     "exemptValue": 580338640,
+     "lotArea": null
+    },
+    "state": {
+     "n": 240,
+     "exemptValue": 274484950,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 441,
+     "exemptValue": 56231010,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 19,
+     "exemptValue": 23218500,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 604,
+     "exemptValue": 110334730,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 544950,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 42,
+     "exemptValue": 498271920,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 246946,
+    "singleFamily": 88542,
+    "singleFamilyOwnerOccupied": 66582,
+    "medianSingleFamilyAssessed": 122100,
+    "newStructures": 90,
+    "newResUnits": 775
+   },
+   "sales": {
+    "conveyDateFill": 0.974,
+    "conveyedPriorYear": 11684,
+    "impliedPriceFromTransferFee": 3247374333,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 4766750152,
+    "impr": 26630892249,
+    "total": 31397642401
+   },
+   "publicHeld": {
+    "n": 7116,
+    "exemptValue": 2060202505,
+    "lotArea": null
+   }
+  },
+  "2021": {
+   "parcels": 160368,
+   "byClass": {
+    "1": {
+     "n": 125638,
+     "land": 2459846200,
+     "impr": 13381430426,
+     "total": 15841276626,
+     "units": 162029,
+     "bldgArea": 193310450.01204002
+    },
+    "2": {
+     "n": 6867,
+     "land": 469376395,
+     "impr": 1952563821,
+     "total": 2421940216,
+     "units": 38088,
+     "bldgArea": 47069876.194000006
+    },
+    "3": {
+     "n": 580,
+     "land": 158983600,
+     "impr": 604249900,
+     "total": 763233500,
+     "units": 471,
+     "bldgArea": 5882152
+    },
+    "4": {
+     "n": 1897,
+     "land": 1043710400,
+     "impr": 4378688340,
+     "total": 5422398740,
+     "units": 78830,
+     "bldgArea": 82673549.8
+    },
+    "5": {
+     "n": 11452,
+     "land": 123115602,
+     "impr": 2040297913,
+     "total": 2163413515,
+     "units": 11189,
+     "bldgArea": 13582396
+    },
+    "7": {
+     "n": 5170,
+     "land": 505181180,
+     "impr": 4219490070,
+     "total": 4724671250,
+     "units": 73660,
+     "bldgArea": 67205328.22
+    },
+    "9": {
+     "n": 8381,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 23207,
+     "bldgArea": 22884759.4
+    },
+    "none": {
+     "n": 383,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "city-tax-deed": {
+     "n": 4335,
+     "exemptValue": 122186495,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 444,
+     "exemptValue": 57401100,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 359,
+     "exemptValue": 150609780,
+     "lotArea": null
+    },
+    "state": {
+     "n": 239,
+     "exemptValue": 280523650,
+     "lotArea": null
+    },
+    "county": {
+     "n": 871,
+     "exemptValue": 470063670,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 561,
+     "exemptValue": 669780610,
+     "lotArea": null
+    },
+    "city": {
+     "n": 581,
+     "exemptValue": 680235090,
+     "lotArea": null
+    },
+    "education": {
+     "n": 256,
+     "exemptValue": 779466320,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 176,
+     "exemptValue": 580363740,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 866,
+     "exemptValue": 587341680,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 19,
+     "exemptValue": 69595500,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 544950,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 42,
+     "exemptValue": 498271920,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 598,
+     "exemptValue": 110855840,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 246878,
+    "singleFamily": 88572,
+    "singleFamilyOwnerOccupied": 67049,
+    "medianSingleFamilyAssessed": 122200,
+    "newStructures": 59,
+    "newResUnits": 611
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "commUnits",
+     "ownerName",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 4760213377,
+    "impr": 26576720470,
+    "total": 31336933847
+   },
+   "publicHeld": {
+    "n": 7263,
+    "exemptValue": 2371225085,
+    "lotArea": null
+   }
+  },
+  "2022": {
+   "parcels": 160304,
+   "byClass": {
+    "1": {
+     "n": 125744,
+     "land": 2562528100,
+     "impr": 16224097686,
+     "total": 18786625786,
+     "units": 162094,
+     "bldgArea": 371833765.9081399
+    },
+    "2": {
+     "n": 6871,
+     "land": 478544130,
+     "impr": 2163930582,
+     "total": 2642474712,
+     "units": 5786,
+     "bldgArea": 47217706.6001
+    },
+    "3": {
+     "n": 570,
+     "land": 163342600,
+     "impr": 628932300,
+     "total": 792274900,
+     "units": 7,
+     "bldgArea": 5897084
+    },
+    "4": {
+     "n": 1881,
+     "land": 1071858960,
+     "impr": 4740745700,
+     "total": 5812604660,
+     "units": 826,
+     "bldgArea": 82924744
+    },
+    "5": {
+     "n": 11452,
+     "land": 123469301,
+     "impr": 2284186599,
+     "total": 2407655900,
+     "units": 11188,
+     "bldgArea": 13607492
+    },
+    "7": {
+     "n": 5189,
+     "land": 494732380,
+     "impr": 4654946170,
+     "total": 5149678550,
+     "units": 73035,
+     "bldgArea": 68014864
+    },
+    "9": {
+     "n": 8210,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 6709,
+     "bldgArea": 25306911.54
+    },
+    "none": {
+     "n": 387,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "city-tax-deed": {
+     "n": 4111,
+     "exemptValue": 12462910,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 439,
+     "exemptValue": 455920,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 176,
+     "exemptValue": 4607560,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 495,
+     "exemptValue": 20680400,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 596,
+     "exemptValue": 11002820,
+     "lotArea": null
+    },
+    "state": {
+     "n": 241,
+     "exemptValue": 2067500,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 880,
+     "exemptValue": 32502370,
+     "lotArea": null
+    },
+    "county": {
+     "n": 871,
+     "exemptValue": 14284356,
+     "lotArea": null
+    },
+    "education": {
+     "n": 287,
+     "exemptValue": 307354300,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 37,
+     "exemptValue": 0,
+     "lotArea": null
+    },
+    "city": {
+     "n": 574,
+     "exemptValue": 260920740,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 20,
+     "exemptValue": 440700,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 355,
+     "exemptValue": 2301060,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 43,
+     "exemptValue": 219000,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 246317,
+    "singleFamily": 88695,
+    "singleFamilyOwnerOccupied": 67075,
+    "medianSingleFamilyAssessed": 144800,
+    "newStructures": 64,
+    "newResUnits": 828
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "subacct",
+     "impr",
+     "luGroup",
+     "conveyDate",
+     "tract",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 4894475471,
+    "impr": 30696839037,
+    "total": 35591314508
+   },
+   "publicHeld": {
+    "n": 7028,
+    "exemptValue": 306242506,
+    "lotArea": null
+   }
+  },
+  "2023": {
+   "parcels": 160227,
+   "byClass": {
+    "1": {
+     "n": 125691,
+     "land": 2561818503,
+     "impr": 16314546600,
+     "total": 18876365103,
+     "units": 162004,
+     "bldgArea": 193835019.35204
+    },
+    "2": {
+     "n": 6854,
+     "land": 469305440,
+     "impr": 1989938007,
+     "total": 2459243447,
+     "units": 5776,
+     "bldgArea": 46949667.98000001
+    },
+    "3": {
+     "n": 548,
+     "land": 174415300,
+     "impr": 739535600,
+     "total": 913950900,
+     "units": 6,
+     "bldgArea": 6172306
+    },
+    "4": {
+     "n": 1871,
+     "land": 1058351960,
+     "impr": 4790829150,
+     "total": 5849181110,
+     "units": 1006,
+     "bldgArea": 83393674.22000001
+    },
+    "5": {
+     "n": 11454,
+     "land": 123755001,
+     "impr": 2290810899,
+     "total": 2414565900,
+     "units": 11192,
+     "bldgArea": 13598482
+    },
+    "7": {
+     "n": 5193,
+     "land": 507452380,
+     "impr": 4768494150,
+     "total": 5275946530,
+     "units": 73402,
+     "bldgArea": 69081128.22
+    },
+    "9": {
+     "n": 8227,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 6884,
+     "bldgArea": 24529523.4
+    },
+    "none": {
+     "n": 389,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "redevelopment": {
+     "n": 422,
+     "exemptValue": 57508860,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 3575,
+     "exemptValue": 117139625,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 172,
+     "exemptValue": 574489140,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 435,
+     "exemptValue": 679022550,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 599,
+     "exemptValue": 108228420,
+     "lotArea": null
+    },
+    "state": {
+     "n": 240,
+     "exemptValue": 276459850,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 828,
+     "exemptValue": 639735340,
+     "lotArea": null
+    },
+    "county": {
+     "n": 871,
+     "exemptValue": 479364996,
+     "lotArea": null
+    },
+    "education": {
+     "n": 259,
+     "exemptValue": 808904920,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 36,
+     "exemptValue": 531850,
+     "lotArea": null
+    },
+    "city": {
+     "n": 566,
+     "exemptValue": 673468190,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 20,
+     "exemptValue": 69731800,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 353,
+     "exemptValue": 114100780,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 42,
+     "exemptValue": 498490920,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 246598,
+    "singleFamily": 88759,
+    "singleFamilyOwnerOccupied": 69539,
+    "medianSingleFamilyAssessed": 145500,
+    "newStructures": 69,
+    "newResUnits": 903
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "subacct",
+     "impr",
+     "luGroup",
+     "conveyDate",
+     "tract",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 4895098584,
+    "impr": 30894154406,
+    "total": 35789252990
+   },
+   "publicHeld": {
+    "n": 6465,
+    "exemptValue": 2356390881,
+    "lotArea": null
+   }
+  },
+  "2024": {
+   "parcels": 160116,
+   "byClass": {
+    "1": {
+     "n": 125787,
+     "land": 2695281055,
+     "impr": 19782922524,
+     "total": 22478203579,
+     "units": 162090,
+     "bldgArea": 194102942.51204
+    },
+    "2": {
+     "n": 6812,
+     "land": 508196700,
+     "impr": 2296254387,
+     "total": 2804451087,
+     "units": 6054,
+     "bldgArea": 48608741.57999999
+    },
+    "3": {
+     "n": 524,
+     "land": 199126000,
+     "impr": 796365900,
+     "total": 995491900,
+     "units": 6,
+     "bldgArea": 6002453
+    },
+    "4": {
+     "n": 1882,
+     "land": 1067534761,
+     "impr": 5478070498,
+     "total": 6545605259,
+     "units": 983,
+     "bldgArea": 83589312.30000001
+    },
+    "5": {
+     "n": 11408,
+     "land": 136892801,
+     "impr": 2630821689,
+     "total": 2767714490,
+     "units": 11228,
+     "bldgArea": 13563951
+    },
+    "7": {
+     "n": 5204,
+     "land": 523860500,
+     "impr": 5819280044,
+     "total": 6343140544,
+     "units": 74808,
+     "bldgArea": 70993952.22000001
+    },
+    "9": {
+     "n": 8108,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 7071,
+     "bldgArea": 24784932.069999997
+    },
+    "none": {
+     "n": 391,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 868,
+     "exemptValue": 485181396,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 352,
+     "exemptValue": 114266180,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 3441,
+     "exemptValue": 112579895,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 830,
+     "exemptValue": 646877140,
+     "lotArea": null
+    },
+    "city": {
+     "n": 566,
+     "exemptValue": 680318440,
+     "lotArea": null
+    },
+    "state": {
+     "n": 239,
+     "exemptValue": 277023550,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 421,
+     "exemptValue": 671996820,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 170,
+     "exemptValue": 570139640,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 414,
+     "exemptValue": 63562680,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 19,
+     "exemptValue": 69595500,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 36,
+     "exemptValue": 531850,
+     "lotArea": null
+    },
+    "education": {
+     "n": 285,
+     "exemptValue": 817054820,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 599,
+     "exemptValue": 108231820,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 42,
+     "exemptValue": 498490920,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 248126,
+    "singleFamily": 88827,
+    "singleFamilyOwnerOccupied": 69773,
+    "medianSingleFamilyAssessed": 173300,
+    "newStructures": 69,
+    "newResUnits": 896
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "subacct",
+     "impr",
+     "luGroup",
+     "conveyDate",
+     "tract",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 5130891817,
+    "impr": 36803715042,
+    "total": 41934606859
+   },
+   "publicHeld": {
+    "n": 6316,
+    "exemptValue": 2366632921,
+    "lotArea": null
+   }
+  },
+  "2025": {
+   "parcels": 160000,
+   "byClass": {
+    "1": {
+     "n": 125694,
+     "land": 4061992822,
+     "impr": 21706477061,
+     "total": 25768469883,
+     "units": 162030,
+     "bldgArea": 194182907.51204
+    },
+    "2": {
+     "n": 6827,
+     "land": 554434768,
+     "impr": 2674714008,
+     "total": 3229148776,
+     "units": 5832,
+     "bldgArea": 48858332.949999996
+    },
+    "3": {
+     "n": 514,
+     "land": 223525400,
+     "impr": 912094700,
+     "total": 1135620100,
+     "units": 6,
+     "bldgArea": 6370897
+    },
+    "4": {
+     "n": 1884,
+     "land": 1085273661,
+     "impr": 6043338704,
+     "total": 7128612365,
+     "units": 983,
+     "bldgArea": 86596429.12
+    },
+    "5": {
+     "n": 11414,
+     "land": 137542801,
+     "impr": 2907204287,
+     "total": 3044747088,
+     "units": 11218,
+     "bldgArea": 13571915
+    },
+    "7": {
+     "n": 5210,
+     "land": 536546600,
+     "impr": 7147901452,
+     "total": 7684448052,
+     "units": 76209,
+     "bldgArea": 71913370.22000001
+    },
+    "9": {
+     "n": 8046,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 7873,
+     "bldgArea": 27077113.069999997
+    },
+    "none": {
+     "n": 411,
+     "land": 0,
+     "impr": 0,
+     "total": 0,
+     "units": 0,
+     "bldgArea": 0
+    }
+   },
+   "holders": {
+    "county": {
+     "n": 869,
+     "exemptValue": 487051296,
+     "lotArea": null
+    },
+    "rail-utility": {
+     "n": 352,
+     "exemptValue": 114312880,
+     "lotArea": null
+    },
+    "city-tax-deed": {
+     "n": 3418,
+     "exemptValue": 250393095,
+     "lotArea": null
+    },
+    "religious": {
+     "n": 823,
+     "exemptValue": 628182040,
+     "lotArea": null
+    },
+    "city": {
+     "n": 566,
+     "exemptValue": 1364855085,
+     "lotArea": null
+    },
+    "state": {
+     "n": 237,
+     "exemptValue": 285367650,
+     "lotArea": null
+    },
+    "nonprofit": {
+     "n": 441,
+     "exemptValue": 699926120,
+     "lotArea": null
+    },
+    "schools": {
+     "n": 170,
+     "exemptValue": 570139640,
+     "lotArea": null
+    },
+    "redevelopment": {
+     "n": 413,
+     "exemptValue": 65949945,
+     "lotArea": null
+    },
+    "federal": {
+     "n": 19,
+     "exemptValue": 69595500,
+     "lotArea": null
+    },
+    "streets": {
+     "n": 36,
+     "exemptValue": 531850,
+     "lotArea": null
+    },
+    "education": {
+     "n": 279,
+     "exemptValue": 813422320,
+     "lotArea": null
+    },
+    "housing-authority": {
+     "n": 595,
+     "exemptValue": 108218720,
+     "lotArea": null
+    },
+    "hospital": {
+     "n": 41,
+     "exemptValue": 498086920,
+     "lotArea": null
+    }
+   },
+   "housing": {
+    "resClassUnits": 249457,
+    "singleFamily": 88861,
+    "singleFamilyOwnerOccupied": 70007,
+    "medianSingleFamilyAssessed": 198400,
+    "newStructures": 89,
+    "newResUnits": 1711
+   },
+   "sales": {
+    "conveyDateFill": 0,
+    "conveyedPriorYear": 0,
+    "impliedPriceFromTransferFee": 0,
+    "note": "Wisconsin real estate transfer fee is $3 per $1,000 (0.3%); price = fee / 0.003."
+   },
+   "fields": {
+    "missing": [
+     "subacct",
+     "impr",
+     "luGroup",
+     "conveyDate",
+     "tract",
+     "taxDelq",
+     "x",
+     "y"
+    ],
+    "exemptCodesScaled": false,
+    "exemptCodesCrosswalked": null,
+    "exemptLotAreaUsable": false
+   },
+   "totals": {
+    "land": 6599316052,
+    "impr": 41391730212,
+    "total": 47991046264
+   },
+   "publicHeld": {
+    "n": 6287,
+    "exemptValue": 3201570931,
+    "lotArea": null
+   }
+  }
+ }
+}

@@ -1,0 +1,6 @@
+{
+ "$comment": "Hand-entered decennial census counts for the City of Milwaukee (place 55-53000), before the machine-readable estimate files begin in 2000. 1990 appears as the April-1990 base in the Census 1990s city estimates table su-99-01 as 628,300 (a revised base); the published 1990 count is 628,088. These four numbers are the only hand-typed figures in the harness. 2000-2024 come from popest files and are not repeated here.",
+ "source": "US Census Bureau, decennial census counts (1960-1990)",
+ "check": "https://www2.census.gov/programs-surveys/popest/tables/1990-2000/cities/totals/su-99-01.txt",
+ "counts": { "1960": 741324, "1970": 717099, "1980": 636212, "1990": 628088 }
+}

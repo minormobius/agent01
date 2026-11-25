@@ -24,3 +24,7 @@ packages/whetstone/runs/
 # The miniphim's house (miniphim.minomobi.com): agent-written pages that run JavaScript. Served
 # here they would be same-origin with mino.mobi and its sign-in; they live on minomobi.com only.
 miniphim/
+
+# The planner harness raw cache: multi-GB public CSVs, re-fetchable, never served.
+packages/planner/data/raw/
+packages/planner/data/work/

@@ -1,0 +1,960 @@
+{
+ "$comment": "Every external input to the planner harness. fetch.mjs downloads these into data/raw/ (gitignored, never served) and records hashes in data/sources.lock.json. Nothing in data/derived/ may come from anywhere not listed here.",
+ "sources": [
+  {
+   "id": "mprop",
+   "publisher": "City of Milwaukee, Assessor / ITMD",
+   "title": "Master Property File (MPROP), annual snapshots 1975-2025 (1981 not published)",
+   "page": "https://data.milwaukee.gov/dataset/historical-master-property-file",
+   "license": "City of Milwaukee open data terms",
+   "docs": [
+    "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/a01e9514-b752-4929-897e-78192ae7598d/download/mprop1995dec.pdf",
+    "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c88986d6-5624-4154-860a-13f901c90905/download/mprop_documentation.pdf",
+    "https://data.milwaukee.gov/dataset/562ab824-48a5-42cd-b714-87e205e489ba/resource/3d94613b-a1df-4ed1-86d9-d9205925e2ab/download/mprop_fall_2024.pdf"
+   ],
+   "files": [
+    {
+     "key": "mprop/1975.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/7486335a-a087-4dbb-9333-6022c72a3235/download/mprop_1975.csv",
+     "year": 1975
+    },
+    {
+     "key": "mprop/1976.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/84105211-658a-4c5b-b69f-052676a0bef9/download/mprop_1976.csv",
+     "year": 1976
+    },
+    {
+     "key": "mprop/1977.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/a06ce0ee-de74-43d6-8a16-27d9a4da7f81/download/mprop_1977.csv",
+     "year": 1977
+    },
+    {
+     "key": "mprop/1978.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/40c5093c-5eab-47ea-9bf4-e98ad495aa69/download/mprop_1978.csv",
+     "year": 1978
+    },
+    {
+     "key": "mprop/1979.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5e161a7f-a03b-49c5-a20b-1b30fb380578/download/mprop_1979.csv",
+     "year": 1979
+    },
+    {
+     "key": "mprop/1980.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/2c91a481-cd53-4346-a16a-0d8513902dec/download/mprop_1980.csv",
+     "year": 1980
+    },
+    {
+     "key": "mprop/1982.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f26b2796-c71d-4a98-8d7c-416ef22e2fc6/download/mprop_1982.csv",
+     "year": 1982
+    },
+    {
+     "key": "mprop/1983.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c855a267-ba82-4c8a-9f42-1756cab71aaf/download/mprop_1983.csv",
+     "year": 1983
+    },
+    {
+     "key": "mprop/1984.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/784d633a-a8a1-489e-bc61-124b885a2601/download/mprop_1984.csv",
+     "year": 1984
+    },
+    {
+     "key": "mprop/1985.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/9dc3c300-dd57-4a5f-a596-f5e82736fbbf/download/mprop_1985.csv",
+     "year": 1985
+    },
+    {
+     "key": "mprop/1986.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/a7fd1e0e-3d94-4d49-b159-d4633716650d/download/mprop_1986.csv",
+     "year": 1986
+    },
+    {
+     "key": "mprop/1987.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5e5b8581-170b-4575-8afb-d3830bdd07b8/download/mprop_1987.csv",
+     "year": 1987
+    },
+    {
+     "key": "mprop/1988.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/8520c518-b81a-476c-acff-69417b0d11f2/download/mprop_1988.csv",
+     "year": 1988
+    },
+    {
+     "key": "mprop/1989.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c330e92e-52a8-4d1b-ac86-c984326fcb3c/download/mprop_1989.csv",
+     "year": 1989
+    },
+    {
+     "key": "mprop/1990.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/93f33030-1cc5-488c-ac2d-39db73667a11/download/mprop_1990.csv",
+     "year": 1990
+    },
+    {
+     "key": "mprop/1991.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f79d8d45-4920-4e16-ab41-398e9a4440bc/download/mprop_1991.csv",
+     "year": 1991
+    },
+    {
+     "key": "mprop/1992.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/53fd70a7-0389-4120-82a6-35a5885dbe47/download/mprop_1992.csv",
+     "year": 1992
+    },
+    {
+     "key": "mprop/1993.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c1057be4-e297-4573-8302-58d658896d19/download/mprop_1993.csv",
+     "year": 1993
+    },
+    {
+     "key": "mprop/1994.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/d5f99be3-22bf-4ade-8f68-645537b40753/download/mprop_1994.csv",
+     "year": 1994
+    },
+    {
+     "key": "mprop/1995.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/bd5f561d-d5e6-42f4-b4d9-87f287867e7c/download/mprop_1995.csv",
+     "year": 1995
+    },
+    {
+     "key": "mprop/1996.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/330a68a3-ade8-491c-9995-6a95d9e0f77f/download/mprop_1996.csv",
+     "year": 1996
+    },
+    {
+     "key": "mprop/1997.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f10a6bb4-91fd-4f25-95b6-e03c6c25ce4c/download/mprop_1997.csv",
+     "year": 1997
+    },
+    {
+     "key": "mprop/1998.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/0e14091c-9b62-420e-b427-7907feda1408/download/mprop_1998.csv",
+     "year": 1998
+    },
+    {
+     "key": "mprop/1999.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/e3541d52-5afb-4711-a939-a29b764d38e9/download/mprop_1999.csv",
+     "year": 1999
+    },
+    {
+     "key": "mprop/2000.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/be184bef-0b57-4dc1-92d1-f408c92f6a02/download/mprop_2000.csv",
+     "year": 2000
+    },
+    {
+     "key": "mprop/2001.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/3b03cffc-37dd-4f3d-b2b1-7362700b9dd2/download/mprop_2001.csv",
+     "year": 2001
+    },
+    {
+     "key": "mprop/2002.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/674a0bf9-6e74-4023-9518-e8c843044065/download/mprop_2002.csv",
+     "year": 2002
+    },
+    {
+     "key": "mprop/2003.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c2d9497b-70af-446b-ba63-eb607c91ce7f/download/mprop_2003.csv",
+     "year": 2003
+    },
+    {
+     "key": "mprop/2004.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/ba1e3af7-9dde-41cd-9675-96be508a55b7/download/mprop_2004.csv",
+     "year": 2004
+    },
+    {
+     "key": "mprop/2005.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/6370d019-f21b-4957-aa86-d38f5e82e138/download/mprop_2005.csv",
+     "year": 2005
+    },
+    {
+     "key": "mprop/2006.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/647559e2-34b4-49cf-8aa0-f20d04de8e8c/download/mprop_2006.csv",
+     "year": 2006
+    },
+    {
+     "key": "mprop/2007.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/942d2e24-e3a6-4334-86ab-3dcb04f0b67c/download/mprop_2007.csv",
+     "year": 2007
+    },
+    {
+     "key": "mprop/2008.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f421cbb0-3696-4af7-9ef0-d7f5df127217/download/mprop_2008.csv",
+     "year": 2008
+    },
+    {
+     "key": "mprop/2009.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/8d24828c-1c8c-4e32-bbd9-8ed8e3aafe1b/download/mprop_2009.csv",
+     "year": 2009
+    },
+    {
+     "key": "mprop/2010.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/02968935-9e16-4068-8bc7-fb5b23f193ad/download/mprop_2010.csv",
+     "year": 2010
+    },
+    {
+     "key": "mprop/2011.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/7cc5b029-fd5b-4e0c-9b07-8bfa3d45260c/download/mprop_2011.csv",
+     "year": 2011
+    },
+    {
+     "key": "mprop/2012.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5211470e-9882-4df8-880a-f603c617e288/download/mprop_2012.csv",
+     "year": 2012
+    },
+    {
+     "key": "mprop/2013.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/d6d7c63f-226a-4e0d-845c-e61eea5c73ca/download/mprop_2013.csv",
+     "year": 2013
+    },
+    {
+     "key": "mprop/2014.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/2799b022-7653-48e3-9105-92c85c3cd12d/download/mprop_2014.csv",
+     "year": 2014
+    },
+    {
+     "key": "mprop/2015.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/fcd0b5eb-ee01-4c07-9af7-fef6ef243c00/download/mprop_2015.csv",
+     "year": 2015
+    },
+    {
+     "key": "mprop/2016.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5f67a8e0-7ce9-4b47-b72e-2a7fe0753f3f/download/mprop_2016.csv",
+     "year": 2016
+    },
+    {
+     "key": "mprop/2017.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/b0dfa9e3-27d6-42f5-8614-52ac0485f7d5/download/mprop_2017.csv",
+     "year": 2017
+    },
+    {
+     "key": "mprop/2018.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/61f12bd3-9348-4335-9f4d-b17b51282f90/download/mprop_2018.csv",
+     "year": 2018
+    },
+    {
+     "key": "mprop/2019.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/6dcc1771-9867-45b6-9692-ed2da0f80fc7/download/mprop_2019.csv",
+     "year": 2019
+    },
+    {
+     "key": "mprop/2020.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/324d7131-de71-4c9f-a1b8-ceea522104de/download/mprop_2020.csv",
+     "year": 2020
+    },
+    {
+     "key": "mprop/2021.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/d1b65182-fff9-4400-9476-0aff30a6e0ea/download/mprop_2021.csv",
+     "year": 2021
+    },
+    {
+     "key": "mprop/2022.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/a368cfd5-5504-4311-b394-df850da76367/download/parcel-tax-mprop-2022.csv",
+     "year": 2022
+    },
+    {
+     "key": "mprop/2023.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/ed2f0086-9106-4177-b29d-b88fc346f461/download/parcel-tax-mprop-2023.csv",
+     "year": 2023
+    },
+    {
+     "key": "mprop/2024.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/26700e70-5c86-461b-b75b-0e3ec73d9a57/download/parcel-tax-mprop-2024.csv",
+     "year": 2024
+    },
+    {
+     "key": "mprop/2025.csv",
+     "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/9e512b1d-2c64-448f-9e7a-5c2022d5948a/download/parcel-tax-mprop-2025.csv",
+     "year": 2025
+    }
+   ]
+  },
+  {
+   "id": "qcew-sic",
+   "publisher": "BLS Quarterly Census of Employment and Wages",
+   "title": "Milwaukee County (55079) annual averages, SIC basis, 1975-2000",
+   "page": "https://www.bls.gov/cew/downloadable-data-files.htm",
+   "license": "public domain (US federal)",
+   "files": [
+    {
+     "key": "qcew-sic/1975.csv",
+     "url": "https://data.bls.gov/cew/data/files/1975/sic/csv/sic_1975_annual_by_area.zip",
+     "year": 1975,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1976.csv",
+     "url": "https://data.bls.gov/cew/data/files/1976/sic/csv/sic_1976_annual_by_area.zip",
+     "year": 1976,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1977.csv",
+     "url": "https://data.bls.gov/cew/data/files/1977/sic/csv/sic_1977_annual_by_area.zip",
+     "year": 1977,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1978.csv",
+     "url": "https://data.bls.gov/cew/data/files/1978/sic/csv/sic_1978_annual_by_area.zip",
+     "year": 1978,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1979.csv",
+     "url": "https://data.bls.gov/cew/data/files/1979/sic/csv/sic_1979_annual_by_area.zip",
+     "year": 1979,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1980.csv",
+     "url": "https://data.bls.gov/cew/data/files/1980/sic/csv/sic_1980_annual_by_area.zip",
+     "year": 1980,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1981.csv",
+     "url": "https://data.bls.gov/cew/data/files/1981/sic/csv/sic_1981_annual_by_area.zip",
+     "year": 1981,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1982.csv",
+     "url": "https://data.bls.gov/cew/data/files/1982/sic/csv/sic_1982_annual_by_area.zip",
+     "year": 1982,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1983.csv",
+     "url": "https://data.bls.gov/cew/data/files/1983/sic/csv/sic_1983_annual_by_area.zip",
+     "year": 1983,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1984.csv",
+     "url": "https://data.bls.gov/cew/data/files/1984/sic/csv/sic_1984_annual_by_area.zip",
+     "year": 1984,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1985.csv",
+     "url": "https://data.bls.gov/cew/data/files/1985/sic/csv/sic_1985_annual_by_area.zip",
+     "year": 1985,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1986.csv",
+     "url": "https://data.bls.gov/cew/data/files/1986/sic/csv/sic_1986_annual_by_area.zip",
+     "year": 1986,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1987.csv",
+     "url": "https://data.bls.gov/cew/data/files/1987/sic/csv/sic_1987_annual_by_area.zip",
+     "year": 1987,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1988.csv",
+     "url": "https://data.bls.gov/cew/data/files/1988/sic/csv/sic_1988_annual_by_area.zip",
+     "year": 1988,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1989.csv",
+     "url": "https://data.bls.gov/cew/data/files/1989/sic/csv/sic_1989_annual_by_area.zip",
+     "year": 1989,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1990.csv",
+     "url": "https://data.bls.gov/cew/data/files/1990/sic/csv/sic_1990_annual_by_area.zip",
+     "year": 1990,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1991.csv",
+     "url": "https://data.bls.gov/cew/data/files/1991/sic/csv/sic_1991_annual_by_area.zip",
+     "year": 1991,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1992.csv",
+     "url": "https://data.bls.gov/cew/data/files/1992/sic/csv/sic_1992_annual_by_area.zip",
+     "year": 1992,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1993.csv",
+     "url": "https://data.bls.gov/cew/data/files/1993/sic/csv/sic_1993_annual_by_area.zip",
+     "year": 1993,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1994.csv",
+     "url": "https://data.bls.gov/cew/data/files/1994/sic/csv/sic_1994_annual_by_area.zip",
+     "year": 1994,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1995.csv",
+     "url": "https://data.bls.gov/cew/data/files/1995/sic/csv/sic_1995_annual_by_area.zip",
+     "year": 1995,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1996.csv",
+     "url": "https://data.bls.gov/cew/data/files/1996/sic/csv/sic_1996_annual_by_area.zip",
+     "year": 1996,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1997.csv",
+     "url": "https://data.bls.gov/cew/data/files/1997/sic/csv/sic_1997_annual_by_area.zip",
+     "year": 1997,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1998.csv",
+     "url": "https://data.bls.gov/cew/data/files/1998/sic/csv/sic_1998_annual_by_area.zip",
+     "year": 1998,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/1999.csv",
+     "url": "https://data.bls.gov/cew/data/files/1999/sic/csv/sic_1999_annual_by_area.zip",
+     "year": 1999,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew-sic/2000.csv",
+     "url": "https://data.bls.gov/cew/data/files/2000/sic/csv/sic_2000_annual_by_area.zip",
+     "year": 2000,
+     "extract": " 55079 "
+    }
+   ]
+  },
+  {
+   "id": "qcew",
+   "publisher": "BLS Quarterly Census of Employment and Wages",
+   "title": "Milwaukee County (55079) annual averages, NAICS basis, 1990-2024",
+   "page": "https://www.bls.gov/cew/downloadable-data-files.htm",
+   "license": "public domain (US federal)",
+   "files": [
+    {
+     "key": "qcew/1990.csv",
+     "url": "https://data.bls.gov/cew/data/files/1990/csv/1990_annual_by_area.zip",
+     "year": 1990,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1991.csv",
+     "url": "https://data.bls.gov/cew/data/files/1991/csv/1991_annual_by_area.zip",
+     "year": 1991,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1992.csv",
+     "url": "https://data.bls.gov/cew/data/files/1992/csv/1992_annual_by_area.zip",
+     "year": 1992,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1993.csv",
+     "url": "https://data.bls.gov/cew/data/files/1993/csv/1993_annual_by_area.zip",
+     "year": 1993,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1994.csv",
+     "url": "https://data.bls.gov/cew/data/files/1994/csv/1994_annual_by_area.zip",
+     "year": 1994,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1995.csv",
+     "url": "https://data.bls.gov/cew/data/files/1995/csv/1995_annual_by_area.zip",
+     "year": 1995,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1996.csv",
+     "url": "https://data.bls.gov/cew/data/files/1996/csv/1996_annual_by_area.zip",
+     "year": 1996,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1997.csv",
+     "url": "https://data.bls.gov/cew/data/files/1997/csv/1997_annual_by_area.zip",
+     "year": 1997,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1998.csv",
+     "url": "https://data.bls.gov/cew/data/files/1998/csv/1998_annual_by_area.zip",
+     "year": 1998,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/1999.csv",
+     "url": "https://data.bls.gov/cew/data/files/1999/csv/1999_annual_by_area.zip",
+     "year": 1999,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2000.csv",
+     "url": "https://data.bls.gov/cew/data/files/2000/csv/2000_annual_by_area.zip",
+     "year": 2000,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2001.csv",
+     "url": "https://data.bls.gov/cew/data/files/2001/csv/2001_annual_by_area.zip",
+     "year": 2001,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2002.csv",
+     "url": "https://data.bls.gov/cew/data/files/2002/csv/2002_annual_by_area.zip",
+     "year": 2002,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2003.csv",
+     "url": "https://data.bls.gov/cew/data/files/2003/csv/2003_annual_by_area.zip",
+     "year": 2003,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2004.csv",
+     "url": "https://data.bls.gov/cew/data/files/2004/csv/2004_annual_by_area.zip",
+     "year": 2004,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2005.csv",
+     "url": "https://data.bls.gov/cew/data/files/2005/csv/2005_annual_by_area.zip",
+     "year": 2005,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2006.csv",
+     "url": "https://data.bls.gov/cew/data/files/2006/csv/2006_annual_by_area.zip",
+     "year": 2006,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2007.csv",
+     "url": "https://data.bls.gov/cew/data/files/2007/csv/2007_annual_by_area.zip",
+     "year": 2007,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2008.csv",
+     "url": "https://data.bls.gov/cew/data/files/2008/csv/2008_annual_by_area.zip",
+     "year": 2008,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2009.csv",
+     "url": "https://data.bls.gov/cew/data/files/2009/csv/2009_annual_by_area.zip",
+     "year": 2009,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2010.csv",
+     "url": "https://data.bls.gov/cew/data/files/2010/csv/2010_annual_by_area.zip",
+     "year": 2010,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2011.csv",
+     "url": "https://data.bls.gov/cew/data/files/2011/csv/2011_annual_by_area.zip",
+     "year": 2011,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2012.csv",
+     "url": "https://data.bls.gov/cew/data/files/2012/csv/2012_annual_by_area.zip",
+     "year": 2012,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2013.csv",
+     "url": "https://data.bls.gov/cew/data/files/2013/csv/2013_annual_by_area.zip",
+     "year": 2013,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2014.csv",
+     "url": "https://data.bls.gov/cew/data/files/2014/csv/2014_annual_by_area.zip",
+     "year": 2014,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2015.csv",
+     "url": "https://data.bls.gov/cew/data/files/2015/csv/2015_annual_by_area.zip",
+     "year": 2015,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2016.csv",
+     "url": "https://data.bls.gov/cew/data/files/2016/csv/2016_annual_by_area.zip",
+     "year": 2016,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2017.csv",
+     "url": "https://data.bls.gov/cew/data/files/2017/csv/2017_annual_by_area.zip",
+     "year": 2017,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2018.csv",
+     "url": "https://data.bls.gov/cew/data/files/2018/csv/2018_annual_by_area.zip",
+     "year": 2018,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2019.csv",
+     "url": "https://data.bls.gov/cew/data/files/2019/csv/2019_annual_by_area.zip",
+     "year": 2019,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2020.csv",
+     "url": "https://data.bls.gov/cew/data/files/2020/csv/2020_annual_by_area.zip",
+     "year": 2020,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2021.csv",
+     "url": "https://data.bls.gov/cew/data/files/2021/csv/2021_annual_by_area.zip",
+     "year": 2021,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2022.csv",
+     "url": "https://data.bls.gov/cew/data/files/2022/csv/2022_annual_by_area.zip",
+     "year": 2022,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2023.csv",
+     "url": "https://data.bls.gov/cew/data/files/2023/csv/2023_annual_by_area.zip",
+     "year": 2023,
+     "extract": " 55079 "
+    },
+    {
+     "key": "qcew/2024.csv",
+     "url": "https://data.bls.gov/cew/data/files/2024/csv/2024_annual_by_area.zip",
+     "year": 2024,
+     "extract": " 55079 "
+    }
+   ]
+  },
+  {
+   "id": "bea-regional",
+   "publisher": "BEA Regional Economic Accounts",
+   "title": "County personal income, income/employment by industry, GDP by industry - Wisconsin files",
+   "page": "https://apps.bea.gov/regional/downloadzip.htm",
+   "license": "public domain (US federal)",
+   "files": [
+    {
+     "key": "bea/CAINC1.csv",
+     "url": "https://apps.bea.gov/regional/zip/CAINC1.zip",
+     "extract": "CAINC1_WI_"
+    },
+    {
+     "key": "bea/CAINC5N.csv",
+     "url": "https://apps.bea.gov/regional/zip/CAINC5N.zip",
+     "extract": "CAINC5N_WI_"
+    },
+    {
+     "key": "bea/CAINC5S.csv",
+     "url": "https://apps.bea.gov/regional/zip/CAINC5S.zip",
+     "extract": "CAINC5S_WI_"
+    },
+    {
+     "key": "bea/CAINC30.csv",
+     "url": "https://apps.bea.gov/regional/zip/CAINC30.zip",
+     "extract": "CAINC30_WI_"
+    },
+    {
+     "key": "bea/CAGDP2.csv",
+     "url": "https://apps.bea.gov/regional/zip/CAGDP2.zip",
+     "extract": "CAGDP2_WI_"
+    },
+    {
+     "key": "bea/CAEMP25N.csv",
+     "url": "https://apps.bea.gov/regional/zip/CAEMP25N.zip",
+     "extract": "CAEMP25N_WI_"
+    }
+   ]
+  },
+  {
+   "id": "bea-io",
+   "publisher": "BEA Industry Economic Accounts",
+   "title": "National input-output Make/Use tables, 1997-2023 summary and sector, 2017 detail",
+   "page": "https://www.bea.gov/industry/input-output-accounts-data",
+   "license": "public domain (US federal)",
+   "files": [
+    {
+     "key": "bea-io/AllTablesIO.zip",
+     "url": "https://apps.bea.gov/industry/iTables%20Static%20Files/AllTablesIO.zip",
+     "keepZip": true
+    }
+   ]
+  },
+  {
+   "id": "popest",
+   "publisher": "US Census Bureau Population Estimates Program",
+   "title": "Subcounty (incorporated place) population estimates",
+   "page": "https://www2.census.gov/programs-surveys/popest/datasets/",
+   "license": "public domain (US federal)",
+   "files": [
+    {
+     "key": "popest/sub-est00int.csv",
+     "url": "https://www2.census.gov/programs-surveys/popest/datasets/2000-2010/intercensal/cities/sub-est00int.csv"
+    },
+    {
+     "key": "popest/SUB-EST2020_ALL.csv",
+     "url": "https://www2.census.gov/programs-surveys/popest/datasets/2010-2020/cities/SUB-EST2020_ALL.csv"
+    },
+    {
+     "key": "popest/sub-est2024.csv",
+     "url": "https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv"
+    }
+   ]
+  },
+  {
+   "id": "lodes",
+   "publisher": "US Census Bureau LEHD Origin-Destination Employment Statistics (LODES 8)",
+   "title": "Wisconsin jobs by census block: workplace (WAC) and residence (RAC), all jobs, 2002-2023, plus the block-to-place crosswalk",
+   "page": "https://lehd.ces.census.gov/data/",
+   "license": "public domain (US federal)",
+   "files": [
+    {
+     "key": "lodes/wi_xwalk.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wi_xwalk.csv.gz"
+    },
+    {
+     "key": "lodes/wac/2002.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2002.csv.gz",
+     "year": 2002
+    },
+    {
+     "key": "lodes/rac/2002.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2002.csv.gz",
+     "year": 2002
+    },
+    {
+     "key": "lodes/wac/2003.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2003.csv.gz",
+     "year": 2003
+    },
+    {
+     "key": "lodes/rac/2003.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2003.csv.gz",
+     "year": 2003
+    },
+    {
+     "key": "lodes/wac/2004.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2004.csv.gz",
+     "year": 2004
+    },
+    {
+     "key": "lodes/rac/2004.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2004.csv.gz",
+     "year": 2004
+    },
+    {
+     "key": "lodes/wac/2005.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2005.csv.gz",
+     "year": 2005
+    },
+    {
+     "key": "lodes/rac/2005.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2005.csv.gz",
+     "year": 2005
+    },
+    {
+     "key": "lodes/wac/2006.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2006.csv.gz",
+     "year": 2006
+    },
+    {
+     "key": "lodes/rac/2006.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2006.csv.gz",
+     "year": 2006
+    },
+    {
+     "key": "lodes/wac/2007.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2007.csv.gz",
+     "year": 2007
+    },
+    {
+     "key": "lodes/rac/2007.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2007.csv.gz",
+     "year": 2007
+    },
+    {
+     "key": "lodes/wac/2008.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2008.csv.gz",
+     "year": 2008
+    },
+    {
+     "key": "lodes/rac/2008.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2008.csv.gz",
+     "year": 2008
+    },
+    {
+     "key": "lodes/wac/2009.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2009.csv.gz",
+     "year": 2009
+    },
+    {
+     "key": "lodes/rac/2009.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2009.csv.gz",
+     "year": 2009
+    },
+    {
+     "key": "lodes/wac/2010.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2010.csv.gz",
+     "year": 2010
+    },
+    {
+     "key": "lodes/rac/2010.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2010.csv.gz",
+     "year": 2010
+    },
+    {
+     "key": "lodes/wac/2011.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2011.csv.gz",
+     "year": 2011
+    },
+    {
+     "key": "lodes/rac/2011.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2011.csv.gz",
+     "year": 2011
+    },
+    {
+     "key": "lodes/wac/2012.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2012.csv.gz",
+     "year": 2012
+    },
+    {
+     "key": "lodes/rac/2012.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2012.csv.gz",
+     "year": 2012
+    },
+    {
+     "key": "lodes/wac/2013.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2013.csv.gz",
+     "year": 2013
+    },
+    {
+     "key": "lodes/rac/2013.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2013.csv.gz",
+     "year": 2013
+    },
+    {
+     "key": "lodes/wac/2014.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2014.csv.gz",
+     "year": 2014
+    },
+    {
+     "key": "lodes/rac/2014.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2014.csv.gz",
+     "year": 2014
+    },
+    {
+     "key": "lodes/wac/2015.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2015.csv.gz",
+     "year": 2015
+    },
+    {
+     "key": "lodes/rac/2015.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2015.csv.gz",
+     "year": 2015
+    },
+    {
+     "key": "lodes/wac/2016.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2016.csv.gz",
+     "year": 2016
+    },
+    {
+     "key": "lodes/rac/2016.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2016.csv.gz",
+     "year": 2016
+    },
+    {
+     "key": "lodes/wac/2017.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2017.csv.gz",
+     "year": 2017
+    },
+    {
+     "key": "lodes/rac/2017.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2017.csv.gz",
+     "year": 2017
+    },
+    {
+     "key": "lodes/wac/2018.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2018.csv.gz",
+     "year": 2018
+    },
+    {
+     "key": "lodes/rac/2018.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2018.csv.gz",
+     "year": 2018
+    },
+    {
+     "key": "lodes/wac/2019.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2019.csv.gz",
+     "year": 2019
+    },
+    {
+     "key": "lodes/rac/2019.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2019.csv.gz",
+     "year": 2019
+    },
+    {
+     "key": "lodes/wac/2020.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2020.csv.gz",
+     "year": 2020
+    },
+    {
+     "key": "lodes/rac/2020.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2020.csv.gz",
+     "year": 2020
+    },
+    {
+     "key": "lodes/wac/2021.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2021.csv.gz",
+     "year": 2021
+    },
+    {
+     "key": "lodes/rac/2021.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2021.csv.gz",
+     "year": 2021
+    },
+    {
+     "key": "lodes/wac/2022.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2022.csv.gz",
+     "year": 2022
+    },
+    {
+     "key": "lodes/rac/2022.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2022.csv.gz",
+     "year": 2022
+    },
+    {
+     "key": "lodes/wac/2023.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2023.csv.gz",
+     "year": 2023
+    },
+    {
+     "key": "lodes/rac/2023.csv.gz",
+     "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2023.csv.gz",
+     "year": 2023
+    }
+   ]
+  }
+ ]
+}

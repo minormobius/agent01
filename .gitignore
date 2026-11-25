@@ -82,3 +82,7 @@ bsky/lib/vendor/
 # built by packages/cad/engine/build.sh; the target dir is not.
 packages/cad/engine/target/
 .attract-tmp/
+
+# planner harness: raw public datasets (~6 GB), re-fetched by packages/planner/fetch.mjs
+packages/planner/data/raw/
+packages/planner/data/work/

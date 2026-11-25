@@ -1,0 +1,1065 @@
+{
+ "bea-io/AllTablesIO.zip": {
+  "sha256": "ab316fa88157f8a96270334b1a6afa664fcf39a6c94f9c8e4ad061d930e81918",
+  "bytes": 16335444,
+  "url": "https://apps.bea.gov/industry/iTables%20Static%20Files/AllTablesIO.zip",
+  "fetched": "2026-11-25"
+ },
+ "bea/CAEMP25N.csv": {
+  "sha256": "3b92cffa94be921bb399e038628df4a5637fba7705a096a609edfa39a7a962e5",
+  "bytes": 473090,
+  "url": "https://apps.bea.gov/regional/zip/CAEMP25N.zip",
+  "member": "CAEMP25N_WI_2001_2022.csv",
+  "fetched": "2026-11-25"
+ },
+ "bea/CAGDP2.csv": {
+  "sha256": "b2f0549e80738bc1c37ed85daf10d22a09c343dc75251b46c1b2e661b0e4d84d",
+  "bytes": 618167,
+  "url": "https://apps.bea.gov/regional/zip/CAGDP2.zip",
+  "member": "CAGDP2_WI_2001_2024.csv",
+  "fetched": "2026-11-25"
+ },
+ "bea/CAINC1.csv": {
+  "sha256": "86d2053bf3e92e1136dc47ff69fb990c1b0a95f3ada4a2ce714d7d11c3776c8f",
+  "bytes": 101392,
+  "url": "https://apps.bea.gov/regional/zip/CAINC1.zip",
+  "member": "CAINC1_WI_1969_2024.csv",
+  "fetched": "2026-11-25"
+ },
+ "bea/CAINC5N.csv": {
+  "sha256": "eb4e6da0dfefa9f79a4c923e3a2852aae4ca9bd57f478bc625675c17c2109a67",
+  "bytes": 2187479,
+  "url": "https://apps.bea.gov/regional/zip/CAINC5N.zip",
+  "member": "CAINC5N_WI_2001_2024.csv",
+  "fetched": "2026-11-25"
+ },
+ "bea/CAINC5S.csv": {
+  "sha256": "68edec27e5b3aaa618cbe9197d02fa07f6e3b913778fee825d5fc20433dda5cf",
+  "bytes": 2101722,
+  "url": "https://apps.bea.gov/regional/zip/CAINC5S.zip",
+  "member": "CAINC5S_WI_1969_2000.csv",
+  "fetched": "2026-11-25"
+ },
+ "bea/CAINC30.csv": {
+  "sha256": "216871d52663a8c6d6453768ff8756c82902178ccfa38d51193c8713dcaa22b7",
+  "bytes": 732821,
+  "url": "https://apps.bea.gov/regional/zip/CAINC30.zip",
+  "member": "CAINC30_WI_1969_2024.csv",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2002.csv.gz": {
+  "sha256": "fb2df5f6f9ff2f148f459113327273e47b58ec63b651e1dcf5a70eca4b01d6b2",
+  "bytes": 2203147,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2002.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2003.csv.gz": {
+  "sha256": "95de420466847752244070e7fae4a365bfc1295da1e11649a04157513df6bebb",
+  "bytes": 2203054,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2003.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2004.csv.gz": {
+  "sha256": "69762f755962e5def3b76aa6147c8f82d3242b1ab3cc3c3e3a5528c350db53aa",
+  "bytes": 2219560,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2004.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2005.csv.gz": {
+  "sha256": "ce49fc119f84bb0e85951873342eb6a7fdea6ecd5c506629823314560bdbaad6",
+  "bytes": 2231674,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2005.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2006.csv.gz": {
+  "sha256": "a81e82b9228e750794a9d051ace1cccf9efebc4139633d05032b5a1c2cf730d3",
+  "bytes": 2242531,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2006.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2007.csv.gz": {
+  "sha256": "c2cfc0c8764be29402163ff8972e6c97c02fe8d880006ea89595f544e6b718d5",
+  "bytes": 2256723,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2007.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2008.csv.gz": {
+  "sha256": "2b22cc1e0e4ad7f376ed1dea0e8feb0726ac20bec85fc623d36837f98b91ed74",
+  "bytes": 2215349,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2008.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2009.csv.gz": {
+  "sha256": "2852cff7918e3edc86a412788a604462b525065083abeee92c56e17453eff0b7",
+  "bytes": 3208003,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2009.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2010.csv.gz": {
+  "sha256": "c90afb58fdfa3c1529fa039459c983118110887de2436678acfec2982badbd9d",
+  "bytes": 3212725,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2010.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2011.csv.gz": {
+  "sha256": "a7124d69ae3ab2bc3fd3c9171e35d0ba12080ce2b971983e27933e247b7d6ec9",
+  "bytes": 3149455,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2011.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2012.csv.gz": {
+  "sha256": "38ed6e581a461822ad2a980389d20d3495f9a78df3437aae36909d8370b51889",
+  "bytes": 3164917,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2012.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2013.csv.gz": {
+  "sha256": "be6d8cccae2c03c1dec21918a45077fbfb20d040cda0480b5226cf44bcf22aac",
+  "bytes": 3162940,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2013.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2014.csv.gz": {
+  "sha256": "5827b606c764e8bfc263e6fd154c667f45b1bef7c76c3678a0d07c0f44aa334a",
+  "bytes": 3185202,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2014.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2015.csv.gz": {
+  "sha256": "9ae419628416c8c4f5f6fbda067c6aacd6b60c2c1fb94b2c691d411d32ee3d44",
+  "bytes": 3278122,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2015.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2016.csv.gz": {
+  "sha256": "caf8c810ca69d86226cc7419068fbd9d440c8982f08361ff159247bb4b5f1022",
+  "bytes": 3303033,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2016.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2017.csv.gz": {
+  "sha256": "ca7a2347fd882727b4b7a58f861df5bfd3a99080389d9844d2cfa483b433fda1",
+  "bytes": 3314624,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2017.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2018.csv.gz": {
+  "sha256": "9c49f8806d2354fc4b7da791748b70725801bfef7fe9dc6330c72920fbe60781",
+  "bytes": 3322574,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2018.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2019.csv.gz": {
+  "sha256": "c720835264695b4542cf05162d5d11ae8f4f6528ac363728ce87d3397dbb8e7d",
+  "bytes": 3325004,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2019.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2020.csv.gz": {
+  "sha256": "8b51ebe94b8bcde46c75e08c9b6c6b6aef33b9dfb4ebd64345e0002f10e7b4fe",
+  "bytes": 3312508,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2020.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2021.csv.gz": {
+  "sha256": "559122583cdc2621bbe67d75f9f71d029ab9a8175f78a299f043afa91b241ce3",
+  "bytes": 3321828,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2021.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2022.csv.gz": {
+  "sha256": "b955f2d653869aa9256eb49f74edceac6ae2ccd7e7116b689798f490f3d9018c",
+  "bytes": 3343925,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2022.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/rac/2023.csv.gz": {
+  "sha256": "5f437db1a9a0ef7c00a7e39c19da8d35e3a3dca267ca33f2bfc36428650936c2",
+  "bytes": 3370236,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/rac/wi_rac_S000_JT00_2023.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2002.csv.gz": {
+  "sha256": "9c6087f75af7ed8eafdf49087980773e7742d27ab9587a7064db3db21b6b71ea",
+  "bytes": 670321,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2002.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2003.csv.gz": {
+  "sha256": "99cb14e45929c97d145ce1356d3be3a90f88c8da51e362196f0de84617180a81",
+  "bytes": 653531,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2003.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2004.csv.gz": {
+  "sha256": "06dc70c9914f4177cb5429194e211d29a7324876bb893222d2c57291229c8cf7",
+  "bytes": 632138,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2004.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2005.csv.gz": {
+  "sha256": "a5d72a128ff26048da5e8fbb93924c70e9df89d3cdfb34fd5309a4df0e5eefbb",
+  "bytes": 628884,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2005.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2006.csv.gz": {
+  "sha256": "a06a1985d297623373d9697667bb45d37ce09be08f8f7f9f280debb4592b043e",
+  "bytes": 626785,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2006.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2007.csv.gz": {
+  "sha256": "0d89eb1c8971fc1ab39022eae799f43edc267016f3e9109938a4738d6aada172",
+  "bytes": 626922,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2007.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2008.csv.gz": {
+  "sha256": "89b5c9869a037abe7587edb7990cabe52739a3f6fa886bb81e4d40686a37c48d",
+  "bytes": 622313,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2008.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2009.csv.gz": {
+  "sha256": "479b73379214d61990a17ee8c8b0c8a5e31b72e32f760f5965b8c0a7810d3f6f",
+  "bytes": 950470,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2009.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2010.csv.gz": {
+  "sha256": "2e198a5ced4f174155465c142ba63c0543a057bcb1babf486d8643c355712484",
+  "bytes": 945173,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2010.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2011.csv.gz": {
+  "sha256": "4e5ff95113f98afede72c6192d5876d02a571fcd86bb2b78faf825ef4284cf19",
+  "bytes": 863088,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2011.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2012.csv.gz": {
+  "sha256": "62fbc37ee36e2c838feee46c2431f0e3fe89f3099ddf49902abe25d5f992e80f",
+  "bytes": 1183563,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2012.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2013.csv.gz": {
+  "sha256": "0474b5f2bc10cd81d3859afcb133d690f0b634db3dc3526c0c74739c57e3088b",
+  "bytes": 1182822,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2013.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2014.csv.gz": {
+  "sha256": "d46786558838e690ebdb6d301b4718d35c6afa532e8ac31eabefb08c2274030f",
+  "bytes": 1194944,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2014.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2015.csv.gz": {
+  "sha256": "6d3fbfa7b934cf9ce3eb3a381dae21afb770f562c351db360e267aa24188ad8f",
+  "bytes": 1194275,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2015.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2016.csv.gz": {
+  "sha256": "72daecdee48eefb9bfcc1171e174c11a4cca421c1f97d91b0809a05763b1dcc9",
+  "bytes": 1231091,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2016.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2017.csv.gz": {
+  "sha256": "b9b57c6752c2b7045711e220fc31b4cb7b153a1118e142cf9606d124ba60c422",
+  "bytes": 1248081,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2017.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2018.csv.gz": {
+  "sha256": "20a6a566901f7778e736e42c3a1642f586173e0dd28905601ae9ba7ee3c73e7d",
+  "bytes": 1265900,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2018.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2019.csv.gz": {
+  "sha256": "a164522fee8e44592812e5dfc89fa55b1d8535857e281fc4a72e366b1b69e65e",
+  "bytes": 1274163,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2019.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2020.csv.gz": {
+  "sha256": "844e3089302f1613d956867db17798a263a2ff0e6dc38a36e177742949120ef9",
+  "bytes": 1193186,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2020.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2021.csv.gz": {
+  "sha256": "6f82d328f3a6ea5b7d94a9459ebe4de4d40fc0ecc75397465b429e365cb0116e",
+  "bytes": 1222261,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2021.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2022.csv.gz": {
+  "sha256": "d7e36662499b18a145a6305eecc85e04eca5f5a45d34733cf1ed48c65bdd46f7",
+  "bytes": 1255130,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2022.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wac/2023.csv.gz": {
+  "sha256": "7209bb7d10fd0dc51f80a10e6cc15b03717ad94b52b462326ade4afa16477a76",
+  "bytes": 1278617,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wac/wi_wac_S000_JT00_2023.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "lodes/wi_xwalk.csv.gz": {
+  "sha256": "7ffda009a152c94e66b6c22b025ee20db94515a7bfc2a5a4a076dc332a1b97b6",
+  "bytes": 3573696,
+  "url": "https://lehd.ces.census.gov/data/lodes/LODES8/wi/wi_xwalk.csv.gz",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1975.csv": {
+  "sha256": "7ddb52158f13ca89f985ec1430b476962601115a50b125253e6a4682e5b0df21",
+  "bytes": 30072487,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/7486335a-a087-4dbb-9333-6022c72a3235/download/mprop_1975.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1976.csv": {
+  "sha256": "35855d22595ca8cc1d23ba4f0097f2f4bdba70cacf1c8a88fb8c50d24a1497fb",
+  "bytes": 31686964,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/84105211-658a-4c5b-b69f-052676a0bef9/download/mprop_1976.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1977.csv": {
+  "sha256": "2ba573c769876a8a021fcb4cd953971d8b403414c0d672f990a275c0ed947dbd",
+  "bytes": 69185994,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/a06ce0ee-de74-43d6-8a16-27d9a4da7f81/download/mprop_1977.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1978.csv": {
+  "sha256": "6cbb1844caa83d824eac9ac478cf185de520e1c48b0c5a857300d5847b0181aa",
+  "bytes": 43181512,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/40c5093c-5eab-47ea-9bf4-e98ad495aa69/download/mprop_1978.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1979.csv": {
+  "sha256": "0c004457ef6d4afcf2e4593ac70d9699f1d145cab79c3c3fc8f2265fea009b49",
+  "bytes": 43578521,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5e161a7f-a03b-49c5-a20b-1b30fb380578/download/mprop_1979.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1980.csv": {
+  "sha256": "aa5d1c4a06e023d7842940034a99e794866ade4912be74fa554510cc3b18012e",
+  "bytes": 45234214,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/2c91a481-cd53-4346-a16a-0d8513902dec/download/mprop_1980.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1982.csv": {
+  "sha256": "7fcad6ec42cc2414916c666338fd4316c3d78e77e8db207cff287674f1cc58f5",
+  "bytes": 43256602,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f26b2796-c71d-4a98-8d7c-416ef22e2fc6/download/mprop_1982.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1983.csv": {
+  "sha256": "1183bedd5b45d5c8636b044ca1b533cd33e9c3a36d184a606e39be2a66b44ae5",
+  "bytes": 43404554,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c855a267-ba82-4c8a-9f42-1756cab71aaf/download/mprop_1983.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1984.csv": {
+  "sha256": "9c1b4fc62f35315e5231d45e445dd10ad4704405dd5154d76b40c0cf43459ac8",
+  "bytes": 46686021,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/784d633a-a8a1-489e-bc61-124b885a2601/download/mprop_1984.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1985.csv": {
+  "sha256": "6016e8791a290ad35ccbac135bdde2337300e05d6fd74eddd3eb0951c12380e8",
+  "bytes": 48906095,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/9dc3c300-dd57-4a5f-a596-f5e82736fbbf/download/mprop_1985.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1986.csv": {
+  "sha256": "b64255344b8477345f29f7d2691a5b645b0a487079319a4600e0ef88122c72dd",
+  "bytes": 48808188,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/a7fd1e0e-3d94-4d49-b159-d4633716650d/download/mprop_1986.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1987.csv": {
+  "sha256": "0cc70ad1507c480716b3e1d35843b99b25c400fbb85ce93e03b3602d879ed0b1",
+  "bytes": 48765007,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5e5b8581-170b-4575-8afb-d3830bdd07b8/download/mprop_1987.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1988.csv": {
+  "sha256": "860a6f49b0dfa07f6cea6a6ed65f5afb759f196335d5dcfb901bdd988fb3cb9b",
+  "bytes": 46303319,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/8520c518-b81a-476c-acff-69417b0d11f2/download/mprop_1988.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1989.csv": {
+  "sha256": "a7c30fe95b8c1db54ac7e643be79722ea3c8bebfd1dc6fb64121907a30391ee6",
+  "bytes": 48548595,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c330e92e-52a8-4d1b-ac86-c984326fcb3c/download/mprop_1989.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1990.csv": {
+  "sha256": "b4dd6bb0b18280ba5626fcc839fb950c156b4f6e4b6b8079702956ba195900d6",
+  "bytes": 46264249,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/93f33030-1cc5-488c-ac2d-39db73667a11/download/mprop_1990.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1991.csv": {
+  "sha256": "ae850be7053c46536d5aa51ce773807705d60d9f79febdc52797bf0a57a49001",
+  "bytes": 48507119,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f79d8d45-4920-4e16-ab41-398e9a4440bc/download/mprop_1991.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1992.csv": {
+  "sha256": "e248fdc3ee435c6fcb3536c39edbaa1e2b75941233a3e57fca50fe11b5730aec",
+  "bytes": 46189372,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/53fd70a7-0389-4120-82a6-35a5885dbe47/download/mprop_1992.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1993.csv": {
+  "sha256": "a89de72aff595c695061ee134fdec6e26e2b736d8509920962ae810ccf127ad6",
+  "bytes": 46127518,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c1057be4-e297-4573-8302-58d658896d19/download/mprop_1993.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1994.csv": {
+  "sha256": "cb9c4ada57ad9ec985e6b29a52e3d1a85f8282a8a23efd45aef2286113ddd59a",
+  "bytes": 45814744,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/d5f99be3-22bf-4ade-8f68-645537b40753/download/mprop_1994.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1995.csv": {
+  "sha256": "fc5f256ddeac323012f3bb9369a9edfe3625376f6521145373813bcec68be929",
+  "bytes": 47016293,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/bd5f561d-d5e6-42f4-b4d9-87f287867e7c/download/mprop_1995.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1996.csv": {
+  "sha256": "ba4c3ee14928003afc416779f809e384601ddaccb645daf9753d965b78ec72e1",
+  "bytes": 46962640,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/330a68a3-ade8-491c-9995-6a95d9e0f77f/download/mprop_1996.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1997.csv": {
+  "sha256": "8469ef97dbc7775d80e32d37a66bfc54bef80941e11e8bd30e89dfb2bfa32c16",
+  "bytes": 47390950,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f10a6bb4-91fd-4f25-95b6-e03c6c25ce4c/download/mprop_1997.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1998.csv": {
+  "sha256": "0a4bc8422fe4d044da4e22c9a08ffc074bd3b1e390e3f6ff36ca62b3febbbb8a",
+  "bytes": 47407076,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/0e14091c-9b62-420e-b427-7907feda1408/download/mprop_1998.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/1999.csv": {
+  "sha256": "3e14ea228e70c064ebd7bfb207a7eeca98e8bcf13881748d05a54f69a9d78e8f",
+  "bytes": 47364052,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/e3541d52-5afb-4711-a939-a29b764d38e9/download/mprop_1999.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2000.csv": {
+  "sha256": "0c5f4f480921d78b1850662794e6d08736afba2f749d1deee3400d3d957e906d",
+  "bytes": 81733711,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/be184bef-0b57-4dc1-92d1-f408c92f6a02/download/mprop_2000.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2001.csv": {
+  "sha256": "ba9cff0dfaf1281fbc9f144e9180f61ff4a99feebc22e9a1f2eb0b2d9ce99216",
+  "bytes": 47228215,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/3b03cffc-37dd-4f3d-b2b1-7362700b9dd2/download/mprop_2001.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2002.csv": {
+  "sha256": "a843fb96b1e770ae3de6802db5ff8e6bb1c39871f272654ba8dac5aba0064ac7",
+  "bytes": 47091989,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/674a0bf9-6e74-4023-9518-e8c843044065/download/mprop_2002.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2003.csv": {
+  "sha256": "be1cb72ef3f846ad7040ad9a15dccb375a03dd70493c65b709242c4000ea2553",
+  "bytes": 47993012,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/c2d9497b-70af-446b-ba63-eb607c91ce7f/download/mprop_2003.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2004.csv": {
+  "sha256": "6bb6a9ca5cd03b0010d0d86d413c3625aa99d44055539d3af12f516090fb5b1e",
+  "bytes": 47211996,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/ba1e3af7-9dde-41cd-9675-96be508a55b7/download/mprop_2004.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2005.csv": {
+  "sha256": "7bd91a9a4a97162df263489a839525be52aa717510a62ee264d43de4b316d112",
+  "bytes": 48417502,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/6370d019-f21b-4957-aa86-d38f5e82e138/download/mprop_2005.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2006.csv": {
+  "sha256": "4f025a515b4945ae0362f35468d9df2175d98767e17e16f40d9513d9fc10c713",
+  "bytes": 44933137,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/647559e2-34b4-49cf-8aa0-f20d04de8e8c/download/mprop_2006.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2007.csv": {
+  "sha256": "fd828d30ab1ba13de283ec0ba24f9817a18334aaa5a92391cc22c981ee2da2cf",
+  "bytes": 47302555,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/942d2e24-e3a6-4334-86ab-3dcb04f0b67c/download/mprop_2007.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2008.csv": {
+  "sha256": "4057ab06ce8aee52c7a5da068297be9e87e1f0c4daae6a223eac6912241719b5",
+  "bytes": 47531853,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/f421cbb0-3696-4af7-9ef0-d7f5df127217/download/mprop_2008.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2009.csv": {
+  "sha256": "2bc0a230e4329b7105cc749b803abd8b6d747ebacbfb1bea3dfdc0f464800cd7",
+  "bytes": 47766139,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/8d24828c-1c8c-4e32-bbd9-8ed8e3aafe1b/download/mprop_2009.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2010.csv": {
+  "sha256": "7601ac5a90eb0da5c9a45f8462267774b3f67fe4366c45b216310c10b4110757",
+  "bytes": 47515823,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/02968935-9e16-4068-8bc7-fb5b23f193ad/download/mprop_2010.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2011.csv": {
+  "sha256": "aa7993927b6f78fca92e37a88def40ae783d89721355c7a30b74f449b7b85a99",
+  "bytes": 47503417,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/7cc5b029-fd5b-4e0c-9b07-8bfa3d45260c/download/mprop_2011.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2012.csv": {
+  "sha256": "44a3d1e4d53974543eece3d97dda933f2160f44dad96c639154efddf529d7a5f",
+  "bytes": 47643273,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5211470e-9882-4df8-880a-f603c617e288/download/mprop_2012.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2013.csv": {
+  "sha256": "0b0c0a2ab310780803a7b27a9cf12d8c59bee7b0291e90f11c4d14f7a2f73b53",
+  "bytes": 47577735,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/d6d7c63f-226a-4e0d-845c-e61eea5c73ca/download/mprop_2013.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2014.csv": {
+  "sha256": "6bb4256807e96b37471dd03bcb08962a4856239539d539eeefde40d1e26bdc21",
+  "bytes": 52981669,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/2799b022-7653-48e3-9105-92c85c3cd12d/download/mprop_2014.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2015.csv": {
+  "sha256": "0e15857b4f00fa77e190d09da88c57cb26de8b9378fd4fa2783d2b79e396a905",
+  "bytes": 53675742,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/fcd0b5eb-ee01-4c07-9af7-fef6ef243c00/download/mprop_2015.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2016.csv": {
+  "sha256": "fde5adc8ecdfb838fbabebd7fe07c86bf861dd09a9a7924089e6bcc92cc135cf",
+  "bytes": 52947253,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/5f67a8e0-7ce9-4b47-b72e-2a7fe0753f3f/download/mprop_2016.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2017.csv": {
+  "sha256": "83bb2c1943f6444dc9e773c545568b27983003a480fe1d9c2481305ba0629995",
+  "bytes": 50182013,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/b0dfa9e3-27d6-42f5-8614-52ac0485f7d5/download/mprop_2017.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2018.csv": {
+  "sha256": "a8804c0f27934d6f257a5d945b623210aa10c0b58ca5f693dfc4e1d19735b067",
+  "bytes": 56823562,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/61f12bd3-9348-4335-9f4d-b17b51282f90/download/mprop_2018.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2019.csv": {
+  "sha256": "ae72c4d80ad6332866421e6044e89c5557d68c486b621d6cc995676e033a2f57",
+  "bytes": 55290818,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/6dcc1771-9867-45b6-9692-ed2da0f80fc7/download/mprop_2019.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2020.csv": {
+  "sha256": "48414032a81df7e7acb584ac46f00b265e84b2f400362f496c93eaf4a783d067",
+  "bytes": 53777509,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/324d7131-de71-4c9f-a1b8-ceea522104de/download/mprop_2020.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2021.csv": {
+  "sha256": "5acb4671a3bfa05fc4a55f9bb225f4df95ac2893c1b09f8d72676a3f73c4f0b6",
+  "bytes": 66693634,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/d1b65182-fff9-4400-9476-0aff30a6e0ea/download/mprop_2021.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2022.csv": {
+  "sha256": "f9cf6eeadc54347d30e2c90493aea165eb336b9b4e9de8bd57dd727523be7291",
+  "bytes": 176021852,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/a368cfd5-5504-4311-b394-df850da76367/download/parcel-tax-mprop-2022.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2023.csv": {
+  "sha256": "26938edd94ca35608805c2e957bea7eae2f22463fa51a1008f7dc4802d66be81",
+  "bytes": 197672112,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/ed2f0086-9106-4177-b29d-b88fc346f461/download/parcel-tax-mprop-2023.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2024.csv": {
+  "sha256": "db765746025e716ef51b75de642fc217f6e449df1f6745e931f883305d9314a7",
+  "bytes": 179881195,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/26700e70-5c86-461b-b75b-0e3ec73d9a57/download/parcel-tax-mprop-2024.csv",
+  "fetched": "2026-11-25"
+ },
+ "mprop/2025.csv": {
+  "sha256": "55598bbb017834d4df138e9bca2e13e9a941de9928a77718f5fb108e8fb6a18a",
+  "bytes": 159950581,
+  "url": "https://data.milwaukee.gov/dataset/79e9d55a-c1ed-457c-ab63-cb8e36235ba8/resource/9e512b1d-2c64-448f-9e7a-5c2022d5948a/download/parcel-tax-mprop-2025.csv",
+  "fetched": "2026-11-25"
+ },
+ "popest/sub-est00int.csv": {
+  "sha256": "401fe5599b9dbbba53baefad5b2e9736b87026e1756d40db72d747107e3fda6c",
+  "bytes": 9015719,
+  "url": "https://www2.census.gov/programs-surveys/popest/datasets/2000-2010/intercensal/cities/sub-est00int.csv",
+  "fetched": "2026-11-25"
+ },
+ "popest/SUB-EST2020_ALL.csv": {
+  "sha256": "2b05bd6b45934a2a7d628b27957a32deb2cdd6e2eacdb28ba1c9090dfe24d0bb",
+  "bytes": 10185581,
+  "url": "https://www2.census.gov/programs-surveys/popest/datasets/2010-2020/cities/SUB-EST2020_ALL.csv",
+  "fetched": "2026-11-25"
+ },
+ "popest/sub-est2024.csv": {
+  "sha256": "af9cd4835c93552a2161fc88bf4d7aa31e81b4f16f7457980b95295cf91e49e9",
+  "bytes": 7087080,
+  "url": "https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1975.csv": {
+  "sha256": "11b85542074d48218355bb022b27223b71737dc8609f5ade9f36cb064a6d817d",
+  "bytes": 24119,
+  "url": "https://data.bls.gov/cew/data/files/1975/sic/csv/sic_1975_annual_by_area.zip",
+  "member": "sic.1975.annual.by_area/sic.1975.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1976.csv": {
+  "sha256": "542cf94615a0c58a8735344a95687b9cac68e899c17b7eaa15018a90bea0fa09",
+  "bytes": 24063,
+  "url": "https://data.bls.gov/cew/data/files/1976/sic/csv/sic_1976_annual_by_area.zip",
+  "member": "sic.1976.annual.by_area/sic.1976.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1977.csv": {
+  "sha256": "09b553cf1dd84a4af755fdf3ca59e6dbf9885385220855a0279cd522ac738948",
+  "bytes": 24503,
+  "url": "https://data.bls.gov/cew/data/files/1977/sic/csv/sic_1977_annual_by_area.zip",
+  "member": "sic.1977.annual.by_area/sic.1977.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1978.csv": {
+  "sha256": "fb33f4b604c1ed15af86b037ba534ecc50141e8c3cbcb4cd8bb46f2cff03f40c",
+  "bytes": 24353,
+  "url": "https://data.bls.gov/cew/data/files/1978/sic/csv/sic_1978_annual_by_area.zip",
+  "member": "sic.1978.annual.by_area/sic.1978.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1979.csv": {
+  "sha256": "fb30f61cbb15c099918dc423fe6b08857e2e94ff57362b4b5f3a0a266ad69893",
+  "bytes": 24788,
+  "url": "https://data.bls.gov/cew/data/files/1979/sic/csv/sic_1979_annual_by_area.zip",
+  "member": "sic.1979.annual.by_area/sic.1979.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1980.csv": {
+  "sha256": "b7e1511f2c6cd9f574b822346138ab5617ca92e4e1e42276c4f9049b6e836913",
+  "bytes": 25211,
+  "url": "https://data.bls.gov/cew/data/files/1980/sic/csv/sic_1980_annual_by_area.zip",
+  "member": "sic.1980.annual.by_area/sic.1980.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1981.csv": {
+  "sha256": "390f548953a8450ff890b96b5faca8264f489b0566874687f443ccb9f316f041",
+  "bytes": 25519,
+  "url": "https://data.bls.gov/cew/data/files/1981/sic/csv/sic_1981_annual_by_area.zip",
+  "member": "sic.1981.annual.by_area/sic.1981.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1982.csv": {
+  "sha256": "c1192663f7e5c425188139eda63a64bc11a2a83d4aef990cd85f121e90977f3f",
+  "bytes": 25728,
+  "url": "https://data.bls.gov/cew/data/files/1982/sic/csv/sic_1982_annual_by_area.zip",
+  "member": "sic.1982.annual.by_area/sic.1982.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1983.csv": {
+  "sha256": "09f738c4871a7713aac089a58de4b20c612c9f24b1ee319dc8a173c12bfb0d63",
+  "bytes": 25719,
+  "url": "https://data.bls.gov/cew/data/files/1983/sic/csv/sic_1983_annual_by_area.zip",
+  "member": "sic.1983.annual.by_area/sic.1983.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1984.csv": {
+  "sha256": "370085d1556660c3bd65f50c92016d0a94e02d00277134f60ab83fd5f1de0045",
+  "bytes": 255527,
+  "url": "https://data.bls.gov/cew/data/files/1984/sic/csv/sic_1984_annual_by_area.zip",
+  "member": "sic.1984.annual.by_area/sic.1984.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1985.csv": {
+  "sha256": "c0528f46e6fa5bbeabe95d077452c2e999537539de5a9d5873160178e40fae8e",
+  "bytes": 256181,
+  "url": "https://data.bls.gov/cew/data/files/1985/sic/csv/sic_1985_annual_by_area.zip",
+  "member": "sic.1985.annual.by_area/sic.1985.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1986.csv": {
+  "sha256": "3fce272393ff10a56d5537ade26df7df23ff3afc57a4739f2b0790b9ea16d040",
+  "bytes": 256156,
+  "url": "https://data.bls.gov/cew/data/files/1986/sic/csv/sic_1986_annual_by_area.zip",
+  "member": "sic.1986.annual.by_area/sic.1986.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1987.csv": {
+  "sha256": "75a6e5abd660edc87e7aaef46519f3e4694e829ea95fd1bf7c36c01369afe949",
+  "bytes": 261067,
+  "url": "https://data.bls.gov/cew/data/files/1987/sic/csv/sic_1987_annual_by_area.zip",
+  "member": "sic.1987.annual.by_area/sic.1987.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1988.csv": {
+  "sha256": "878c12f38f67114f64aa1aaa66beab43aa1bc167b52f05335262e6a1648d04d7",
+  "bytes": 278399,
+  "url": "https://data.bls.gov/cew/data/files/1988/sic/csv/sic_1988_annual_by_area.zip",
+  "member": "sic.1988.annual.by_area/sic.1988.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1989.csv": {
+  "sha256": "f76d1aea152bded4e006c4887edddb6f4ad6febb47554b79307c4a3ea882bc6f",
+  "bytes": 275751,
+  "url": "https://data.bls.gov/cew/data/files/1989/sic/csv/sic_1989_annual_by_area.zip",
+  "member": "sic.1989.annual.by_area/sic.1989.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1990.csv": {
+  "sha256": "bd3f7d59e7de7288669c495e0b0e3054b5a61b2173066a59b0d71a1349a4bbef",
+  "bytes": 276325,
+  "url": "https://data.bls.gov/cew/data/files/1990/sic/csv/sic_1990_annual_by_area.zip",
+  "member": "sic.1990.annual.by_area/sic.1990.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1991.csv": {
+  "sha256": "8b5fc558d4d2eabc265770d98552050db6b6be43492d9fdb23cbfc76bfca97cf",
+  "bytes": 278143,
+  "url": "https://data.bls.gov/cew/data/files/1991/sic/csv/sic_1991_annual_by_area.zip",
+  "member": "sic.1991.annual.by_area/sic.1991.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1992.csv": {
+  "sha256": "7b461804a9a8c8b7fe21eebdd14af9f9e315a0684f83e976a08f6655f84921e5",
+  "bytes": 276735,
+  "url": "https://data.bls.gov/cew/data/files/1992/sic/csv/sic_1992_annual_by_area.zip",
+  "member": "sic.1992.annual.by_area/sic.1992.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1993.csv": {
+  "sha256": "a860ec24caf200a06e59797aca19726700766245f20965f302c94157e79534bc",
+  "bytes": 278663,
+  "url": "https://data.bls.gov/cew/data/files/1993/sic/csv/sic_1993_annual_by_area.zip",
+  "member": "sic.1993.annual.by_area/sic.1993.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1994.csv": {
+  "sha256": "31d1b563781c2dff3f5f022ad7b75f944d22930728c0774648818868cf832b74",
+  "bytes": 285884,
+  "url": "https://data.bls.gov/cew/data/files/1994/sic/csv/sic_1994_annual_by_area.zip",
+  "member": "sic.1994.annual.by_area/sic.1994.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1995.csv": {
+  "sha256": "ed9ed169080df01017af909277af3b077e979fbd47a6f5d8654170c8c434e507",
+  "bytes": 288305,
+  "url": "https://data.bls.gov/cew/data/files/1995/sic/csv/sic_1995_annual_by_area.zip",
+  "member": "sic.1995.annual.by_area/sic.1995.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1996.csv": {
+  "sha256": "11e993b6b6dd8f4e87c3a5549a31b38d214a4e569476a3e9c7e50e02f883b979",
+  "bytes": 289663,
+  "url": "https://data.bls.gov/cew/data/files/1996/sic/csv/sic_1996_annual_by_area.zip",
+  "member": "sic.1996.annual.by_area/sic.1996.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1997.csv": {
+  "sha256": "695e91ddcb7eb1eae93fe4ef6ba30847b9e1c5b0caea189e4798ad69f42da1b2",
+  "bytes": 288362,
+  "url": "https://data.bls.gov/cew/data/files/1997/sic/csv/sic_1997_annual_by_area.zip",
+  "member": "sic.1997.annual.by_area/sic.1997.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1998.csv": {
+  "sha256": "ea324befb2c1a95a9dc505247e9d0fecf4e8a78f7c100cfeda0e6ab4b328aedd",
+  "bytes": 285983,
+  "url": "https://data.bls.gov/cew/data/files/1998/sic/csv/sic_1998_annual_by_area.zip",
+  "member": "sic.1998.annual.by_area/sic.1998.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/1999.csv": {
+  "sha256": "272587c1583ab8e03c0f38676571eeaf1bfc1c3406b782650c7cc0f89accf3d4",
+  "bytes": 284603,
+  "url": "https://data.bls.gov/cew/data/files/1999/sic/csv/sic_1999_annual_by_area.zip",
+  "member": "sic.1999.annual.by_area/sic.1999.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew-sic/2000.csv": {
+  "sha256": "2d39193e37c8344298a6008a880e2c7541a1b9eff9c4de10c33aec9dfe1e1fc2",
+  "bytes": 284114,
+  "url": "https://data.bls.gov/cew/data/files/2000/sic/csv/sic_2000_annual_by_area.zip",
+  "member": "sic.2000.annual.by_area/sic.2000.annual 55079 (Milwaukee County, Wisconsin).csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1990.csv": {
+  "sha256": "3a5bda1da2c9b20272957681f6115b5bb248f06ca89cb7a4f6cdff43753fbbbe",
+  "bytes": 324818,
+  "url": "https://data.bls.gov/cew/data/files/1990/csv/1990_annual_by_area.zip",
+  "member": "1990.annual.by_area/1990.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1991.csv": {
+  "sha256": "85f86a36219438defd6ce24fda7a67a02c87a34e01da94a6128ac75583811258",
+  "bytes": 355669,
+  "url": "https://data.bls.gov/cew/data/files/1991/csv/1991_annual_by_area.zip",
+  "member": "1991.annual.by_area/1991.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1992.csv": {
+  "sha256": "f696bb470026a25b9ff410f85da79ca0261386e2bbcd2889f3000608729c5441",
+  "bytes": 356929,
+  "url": "https://data.bls.gov/cew/data/files/1992/csv/1992_annual_by_area.zip",
+  "member": "1992.annual.by_area/1992.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1993.csv": {
+  "sha256": "494fe71d274f16e4e8cc5856422bb307db6ea2c34f736251806d36d28e9974b7",
+  "bytes": 357850,
+  "url": "https://data.bls.gov/cew/data/files/1993/csv/1993_annual_by_area.zip",
+  "member": "1993.annual.by_area/1993.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1994.csv": {
+  "sha256": "1b61dc49984d098e920b6a12e7aa4180862760bf5e300e72369db3df1880a1a6",
+  "bytes": 360439,
+  "url": "https://data.bls.gov/cew/data/files/1994/csv/1994_annual_by_area.zip",
+  "member": "1994.annual.by_area/1994.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1995.csv": {
+  "sha256": "3e087401ad8dc461b69457d5137e8d363fd2a28e014d3fdfb0bf381a039b382c",
+  "bytes": 361407,
+  "url": "https://data.bls.gov/cew/data/files/1995/csv/1995_annual_by_area.zip",
+  "member": "1995.annual.by_area/1995.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1996.csv": {
+  "sha256": "d7a448738a203caa48a1730489866f794e1c7a56507f01471d3384ae60b1eedc",
+  "bytes": 362999,
+  "url": "https://data.bls.gov/cew/data/files/1996/csv/1996_annual_by_area.zip",
+  "member": "1996.annual.by_area/1996.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1997.csv": {
+  "sha256": "3dbc8f4311068b22384aa05bf0bff9d0803dd8a0e6d0378093e0af0cd51aa251",
+  "bytes": 365042,
+  "url": "https://data.bls.gov/cew/data/files/1997/csv/1997_annual_by_area.zip",
+  "member": "1997.annual.by_area/1997.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1998.csv": {
+  "sha256": "3c723a933a8132b9fcae82cbfc6e9c86f3e8982dd628c0bae74eaae4b6a4419d",
+  "bytes": 366827,
+  "url": "https://data.bls.gov/cew/data/files/1998/csv/1998_annual_by_area.zip",
+  "member": "1998.annual.by_area/1998.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/1999.csv": {
+  "sha256": "55f7f505f92a75395e8e27ce18c661e5e5cafaa0b50b9a258df7076a3e011128",
+  "bytes": 368841,
+  "url": "https://data.bls.gov/cew/data/files/1999/csv/1999_annual_by_area.zip",
+  "member": "1999.annual.by_area/1999.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2000.csv": {
+  "sha256": "894486a71d929c661e9e6460aa8b98f63dca5022ace53d6ad42087f1b3e0c462",
+  "bytes": 368746,
+  "url": "https://data.bls.gov/cew/data/files/2000/csv/2000_annual_by_area.zip",
+  "member": "2000.annual.by_area/2000.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2001.csv": {
+  "sha256": "aa963e73372c4ed2e11b48c54e15b19b985c8c431d933be537ad5131a781b258",
+  "bytes": 606402,
+  "url": "https://data.bls.gov/cew/data/files/2001/csv/2001_annual_by_area.zip",
+  "member": "2001.annual.by_area/2001.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2002.csv": {
+  "sha256": "a212b7467a79c7b9643260b1b2f20f89ea25a3cb581e6b3c3764ccfa924a37d2",
+  "bytes": 660831,
+  "url": "https://data.bls.gov/cew/data/files/2002/csv/2002_annual_by_area.zip",
+  "member": "2002.annual.by_area/2002.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2003.csv": {
+  "sha256": "afa0c5741ee58f789403c94c190f73aba559db076fdb8035fdc6a4279568f25a",
+  "bytes": 654610,
+  "url": "https://data.bls.gov/cew/data/files/2003/csv/2003_annual_by_area.zip",
+  "member": "2003.annual.by_area/2003.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2004.csv": {
+  "sha256": "485fbd388a4b3f9f9b8a0809a7644b9a3e6c64c2ef93cf30e5e71c8bf81689de",
+  "bytes": 662744,
+  "url": "https://data.bls.gov/cew/data/files/2004/csv/2004_annual_by_area.zip",
+  "member": "2004.annual.by_area/2004.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2005.csv": {
+  "sha256": "5956de9bed772681f7596878d6a1e9a9ba723214bc009bf805a1bc14e1d392b5",
+  "bytes": 654092,
+  "url": "https://data.bls.gov/cew/data/files/2005/csv/2005_annual_by_area.zip",
+  "member": "2005.annual.by_area/2005.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2006.csv": {
+  "sha256": "8c9da7eedb6baaeae1d4d61a7f0b781f425c14e5b0df3e700e8b3d62e63fc886",
+  "bytes": 653126,
+  "url": "https://data.bls.gov/cew/data/files/2006/csv/2006_annual_by_area.zip",
+  "member": "2006.annual.by_area/2006.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2007.csv": {
+  "sha256": "4cb6fb85978cc0495872eb67187a6de557fa0ec6713b56969e116e79f2a3cee7",
+  "bytes": 645883,
+  "url": "https://data.bls.gov/cew/data/files/2007/csv/2007_annual_by_area.zip",
+  "member": "2007.annual.by_area/2007.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2008.csv": {
+  "sha256": "26b972057e807bad953bdeaa3600e609b9e9427d3a0b4d12bdc4d2865b39b943",
+  "bytes": 648305,
+  "url": "https://data.bls.gov/cew/data/files/2008/csv/2008_annual_by_area.zip",
+  "member": "2008.annual.by_area/2008.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2009.csv": {
+  "sha256": "96a762035c6f90ddf05c87dc1e39154949f0182cfbf03f383738e3087e2390db",
+  "bytes": 641334,
+  "url": "https://data.bls.gov/cew/data/files/2009/csv/2009_annual_by_area.zip",
+  "member": "2009.annual.by_area/2009.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2010.csv": {
+  "sha256": "a37bf84d38347f64f287b24ccf35e48eefef8185fa1b5a0cea868da09df5fb07",
+  "bytes": 637595,
+  "url": "https://data.bls.gov/cew/data/files/2010/csv/2010_annual_by_area.zip",
+  "member": "2010.annual.by_area/2010.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2011.csv": {
+  "sha256": "d3489487b8319d9307d614b40065e833897a885cc69704be01d4b0d83a88afdd",
+  "bytes": 629519,
+  "url": "https://data.bls.gov/cew/data/files/2011/csv/2011_annual_by_area.zip",
+  "member": "2011.annual.by_area/2011.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2012.csv": {
+  "sha256": "4222d7cabba4afb1a1da8e5b53478df7ee838eae66f2bfcdd1626bdb91462a30",
+  "bytes": 628424,
+  "url": "https://data.bls.gov/cew/data/files/2012/csv/2012_annual_by_area.zip",
+  "member": "2012.annual.by_area/2012.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2013.csv": {
+  "sha256": "02333b495824ceceb8f7bbaec8f55806712507236a857a19c6dc5d0291e196d8",
+  "bytes": 626614,
+  "url": "https://data.bls.gov/cew/data/files/2013/csv/2013_annual_by_area.zip",
+  "member": "2013.annual.by_area/2013.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2014.csv": {
+  "sha256": "5d4434d72c553aa6f44879ed34ea152f591480db45e494648477be8dc9d9fb05",
+  "bytes": 624364,
+  "url": "https://data.bls.gov/cew/data/files/2014/csv/2014_annual_by_area.zip",
+  "member": "2014.annual.by_area/2014.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2015.csv": {
+  "sha256": "812e76e8c74470d93117d82f9c21ecfecc2008fc3c2a4ff007265766d0568abc",
+  "bytes": 627811,
+  "url": "https://data.bls.gov/cew/data/files/2015/csv/2015_annual_by_area.zip",
+  "member": "2015.annual.by_area/2015.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2016.csv": {
+  "sha256": "7eceb3ed66078ee263a945b31722c197185b1109f34dae6b4a830e042e7017ea",
+  "bytes": 653811,
+  "url": "https://data.bls.gov/cew/data/files/2016/csv/2016_annual_by_area.zip",
+  "member": "2016.annual.by_area/2016.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2017.csv": {
+  "sha256": "fce512ee430fcb8ea8f86add112e3679f29239fd3aaed81e6b0ab3cc54eece9e",
+  "bytes": 649032,
+  "url": "https://data.bls.gov/cew/data/files/2017/csv/2017_annual_by_area.zip",
+  "member": "2017.annual.by_area/2017.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2018.csv": {
+  "sha256": "f08a5fef081fab82a33df58b0657ac51c348cf854f9e9e20b7a340ab724ab9a0",
+  "bytes": 650179,
+  "url": "https://data.bls.gov/cew/data/files/2018/csv/2018_annual_by_area.zip",
+  "member": "2018.annual.by_area/2018.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2019.csv": {
+  "sha256": "0403031fb47f96a866bc6ec88e5d531f93b641355f1f7b43f7e92ea503ad87b0",
+  "bytes": 643724,
+  "url": "https://data.bls.gov/cew/data/files/2019/csv/2019_annual_by_area.zip",
+  "member": "2019.annual.by_area/2019.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2020.csv": {
+  "sha256": "2c94104f2f01f964831231e9413368995c295882b19bf1fd54d10a2555564969",
+  "bytes": 644015,
+  "url": "https://data.bls.gov/cew/data/files/2020/csv/2020_annual_by_area.zip",
+  "member": "2020.annual.by_area/2020.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2021.csv": {
+  "sha256": "0bce0f9bd5f05ca41371a9e8d371322d5eceac03faff88cf21014e32ab4515fe",
+  "bytes": 640848,
+  "url": "https://data.bls.gov/cew/data/files/2021/csv/2021_annual_by_area.zip",
+  "member": "2021.annual.by_area/2021.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2022.csv": {
+  "sha256": "e8c63a9e8a572ceba6e0ccf3d78897c9d007e3675debd6d03b7ad162442b2dd0",
+  "bytes": 632213,
+  "url": "https://data.bls.gov/cew/data/files/2022/csv/2022_annual_by_area.zip",
+  "member": "2022.annual.by_area/2022.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2023.csv": {
+  "sha256": "0a8968d95768050231bb50249056a9c7b80afdbd5b81afd7c6b7b4b7cfac5f17",
+  "bytes": 639494,
+  "url": "https://data.bls.gov/cew/data/files/2023/csv/2023_annual_by_area.zip",
+  "member": "2023.annual.by_area/2023.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ },
+ "qcew/2024.csv": {
+  "sha256": "70d5a737cd9376fb8a7bec9e165ee95f7b4c8421fda2f4a4070d0135fdc5df7b",
+  "bytes": 638167,
+  "url": "https://data.bls.gov/cew/data/files/2024/csv/2024_annual_by_area.zip",
+  "member": "2024.annual.by_area/2024.annual 55079 Milwaukee County, Wisconsin.csv",
+  "fetched": "2026-11-25"
+ }
+}
