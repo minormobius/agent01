@@ -20,19 +20,35 @@ const t0 = Date.now(), wd = Y.buildWorld(1), tb = Date.now() - t0;
   // continuity across cells: two points 1 cm apart either side of a cell boundary have nearly the same ground
   let jump = 0; for (let k = 0; k < 2000; k++) { const P = unit(), ax = [0, 1, 2, 3].sort((a, b) => Math.abs(P[b]) - Math.abs(P[a])); const Q = P.slice(); Q[ax[1]] = Math.sign(P[ax[1]] || 1) * Math.abs(P[ax[0]]); const l = Math.hypot(...Q), B = Q.map((x) => x / l), d = 0.01 / Y.R0; const B2 = B.map((x, i) => x + (i === ax[1] ? d : 0)), l2 = Math.hypot(...B2); jump = Math.max(jump, Math.abs(Y.ground(wd, B, false).land - Y.ground(wd, B2.map((x) => x / l2), false).land)); }
   ok(jump < 0.5, `the ground is continuous across the eight cells' faces (1 cm across a face moves it at most ${jump.toFixed(3)} m)`);
-  let ge = 0; for (let k = 0; k < 3000; k++) { const c = Math.floor(rnd() * 8), i = Math.floor(rnd() * Y.M), j = Math.floor(rnd() * Y.M), kk = Math.floor(rnd() * Y.M), P = Y.nodeDir(c, i, j, kk), inCity = wd.cities.some((t) => dot(P, t.C) > Math.cos(500 / Y.R0)); if (inCity) continue; ge = Math.max(ge, Math.abs(wd.h[c * Y.M ** 3 + (kk * Y.M + j) * Y.M + i] - Y.rawHeight(P, 1))); }
+  let ge = 0; for (let k = 0; k < 3000; k++) { const c = Math.floor(rnd() * 8), i = Math.floor(rnd() * Y.M), j = Math.floor(rnd() * Y.M), kk = Math.floor(rnd() * Y.M), P = Y.nodeDir(c, i, j, kk), inCity = wd.cities.some((t) => dot(P, t.C) > Math.cos(560 / Y.R0)); if (inCity) continue; ge = Math.max(ge, Math.abs(wd.h[c * Y.M ** 3 + (kk * Y.M + j) * Y.M + i] - Y.rawHeight(P, 1))); }
   const water = wd.h.filter((e) => e < wd.sea).length / wd.h.length;
   ok(ge < 1e-3 && Math.abs(water - 0.14) < 0.01, `the grids hold the 4D noise at every node checked (to ${ge.toExponential(0)} m; built in ${tb} ms), sea where 14% of them lie (${(water * 100).toFixed(1)}%)`);
 }
 // the cities
 {
-  const n = wd.cities.map((t) => t.count), far = wd.cities.length < 2 || dot(wd.cities[0].C, wd.cities[1].C) < Math.cos(1.4);
-  // in each plan's own layer (the plane of its streets through the centre), how much is built on
-  let found = 0, triedP = 0, flat = 0; for (const t of wd.cities) { for (let k = 0; k < 400; k++) { const u = (rnd() - 0.5) * 400, v = (rnd() - 0.5) * 400, q = t.C.map((x, i) => x + (u * t.e[0][i] + v * t.e[1][i]) / Y.R0), l = Math.hypot(...q), P = q.map((x) => x / l); triedP++; if (Y.buildingAt(wd, P)) found++; flat = Math.max(flat, Math.abs(Y.ground(wd, P, false).land - t.base)); } }
-  ok(wd.cities.length === 2 && n.every((x) => x > 300) && far && found > triedP * 0.15 && flat < 1e-3, `two cities from morph (${n.join(' and ')} buildings), far apart; in each plan's own layer, within 200 m of its centre, ${Math.round((100 * found) / triedP)}% of the ground is built on, and the land under a city is level (to ${flat.toExponential(0)} m)`);
-  const t = wd.cities[0], P = (u, v, w) => { const q = t.C.map((x, i) => x + (u * t.e[0][i] + v * t.e[1][i] + w * t.e[2][i]) / Y.R0), l = Math.hypot(...q); return q.map((x) => x / l); };
+  const nat = wd.cities.find((t) => t.kind === 'native'), mor = wd.cities.find((t) => t.kind === 'morph'), far = wd.cities.length < 2 || dot(wd.cities[0].C, wd.cities[1].C) < Math.cos(1.4);
+  const at = (t, u, v, w) => { const q = t.C.map((x, i) => x + (u * t.e[0][i] + v * t.e[1][i] + w * t.e[2][i]) / Y.R0), l = Math.hypot(...q); return q.map((x) => x / l); };
+  let flat = 0; for (const t of wd.cities) for (let k = 0; k < 300; k++) { const d = [g(), g(), g()], l = Math.hypot(...d), r = 320 * Math.cbrt(rnd()); flat = Math.max(flat, Math.abs(Y.ground(wd, at(t, ...d.map((x) => (x / l) * r)), false).land - t.base)); }
+  ok(nat && mor && nat.count > 2000 && mor.count > 300 && far && flat < 1e-3, `two cities, far apart: a native 4D one (${nat.count} plots) and a studio plan laid in layers (${mor.count} buildings); the land within 320 m of each is level (to ${flat.toExponential(0)} m)`);
+  // a 2D plane through the centre, at random orientation in the 3D ground: how much of it is built on
+  const share = (t, A, B, R = 300, n = 1500) => { let f = 0; for (let k = 0; k < n; k++) { const a = (rnd() - 0.5) * R, b = (rnd() - 0.5) * R; if (Y.buildingAt(wd, at(t, a * A[0] + b * B[0], a * A[1] + b * B[1], a * A[2] + b * B[2]))) f++; } return f / n; };
+  const plane = () => { const a = [g(), g(), g()], la = Math.hypot(...a), A = a.map((x) => x / la); let b = [g(), g(), g()]; const d = b[0] * A[0] + b[1] * A[1] + b[2] * A[2]; b = b.map((x, i) => x - d * A[i]); const lb = Math.hypot(...b); return [A, b.map((x) => x / lb)]; };
+  const ns = [share(nat, [1, 0, 0], [0, 1, 0]), share(nat, [1, 0, 0], [0, 0, 1]), share(nat, [0, 1, 0], [0, 0, 1]), ...[0, 1, 2].map(() => share(nat, ...plane()))];
+  const mPlan = share(mor, [1, 0, 0], [0, 1, 0]), mAcross = share(mor, [1, 0, 0], [0, 0, 1]);
+  ok(Math.min(...ns) > 0.15 && Math.max(...ns) < 1.6 * Math.min(...ns) && mPlan > 0.15, `thick in every direction: the native city's built share on six planes through its core (three axis planes, three random) is ${ns.map((x) => Math.round(100 * x) + '%').join(', ')}; the layered city's is ${Math.round(100 * mPlan)}% in its plan's plane and ${Math.round(100 * mAcross)}% across it`);
+  // streets are sheets: in the core district, a whole plane at mid-street is empty, a plane mid-block is built on
+  const D0 = nat.D[0], st = Y.CITY4.street, sheetAt = (x0) => { let built = 0, n = 0; for (let k = 0; k < 1500; k++) { const q = [x0, (rnd() - 0.5) * 120, (rnd() - 0.5) * 120]; const p = [0, 1, 2].map((j) => D0.s[j] + D0.R[0][j] * q[0] + D0.R[1][j] * q[1] + D0.R[2][j] * q[2]); if (Math.hypot(...p) < Y.CITY4.plaza + 2) continue; n++; if (Y.buildingAt(wd, at(nat, ...p))) built++; } return built / n; };
+  const inStreet = sheetAt(D0.pitch + st / 2), inBlock = sheetAt(D0.pitch + st + 4);
+  ok(inStreet === 0 && inBlock > 0.3, `streets are sheets (codimension one): a 120 m square of plane down the middle of a street is empty (${inStreet}), a parallel one inside the blocks ${Math.round(100 * inBlock)}% built`);
+  // bid-rent: towers in the middle, low and sparse at the edge
+  const band = (r0, r1) => { let n = 0, h = 0, tried = 0; for (let k = 0; k < 40000 && n < 400; k++) { const d = [g(), g(), g()], l = Math.hypot(...d), r = r0 + rnd() * (r1 - r0), p = d.map((x) => (x / l) * r), b = Y.buildingAt(wd, at(nat, ...p)); tried++; if (b) { n++; h += b.top - b.base; } } return { h: h / n, fill: n / tried }; };
+  const inner = band(30, 110), mid = band(140, 210), outer = band(240, 310), st4 = nat.stats;
+  ok(inner.h > mid.h && mid.h > outer.h && inner.fill > outer.fill && st4.maxH <= Y.CITY4.maxStoreys * Y.CITY4.storey + 1e-9, `bid-rent: mean height ${inner.h.toFixed(0)} m within 110 m of the core, ${mid.h.toFixed(0)} m at 140–210, ${outer.h.toFixed(0)} m past 240; built share ${Math.round(100 * inner.fill)}% → ${Math.round(100 * outer.fill)}%; tallest ${st4.maxH.toFixed(1)} m (BRUT⁴'s cap, ${Y.CITY4.maxStoreys} storeys of ${Y.CITY4.storey} m)`);
+  ok(st4.mean < 0.8 * Y.CITY4.radius && st4.mean < 0.5 * st4.flatMean, `the planner's prize: ${st4.plots} plots in a ball ${Y.CITY4.radius} m round, mean ${st4.mean.toFixed(0)} m to the core; the same plots laid flat fill a disc ${st4.flatR.toFixed(0)} m round, mean ${st4.flatMean.toFixed(0)} m (a ball grows as N^⅓, a disc as N^½)`);
+  // the layered city: its layers
+  const t = mor, P = (u, v, w) => at(t, u, v, w);
   let sameAcross = 0, tried = 0; for (let k = 0; k < 2000 && tried < 200; k++) { const u = (rnd() - 0.5) * 400, v = (rnd() - 0.5) * 400, b0 = Y.buildingAt(wd, P(u, v, 0)); if (!b0) continue; tried++; if (Y.buildingAt(wd, P(u, v, 64 * 2 + 1)) && !Y.buildingAt(wd, P(u, v, 32))) sameAcross++; }
-  ok(tried > 50 && sameAcross > tried * 0.3, `layers: where a building stands in the plan's own layer, ${sameAcross} of ${tried} also stand two layers (128 m) across, with the avenue between them (32 m across) open`);
+  ok(tried > 50 && sameAcross > tried * 0.3, `the layered city: where a building stands in the plan's own layer, ${sameAcross} of ${tried} also stand two layers (128 m) across, with the avenue between them (32 m across) open`);
 }
 // the renderer, curved
 {

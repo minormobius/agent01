@@ -91,7 +91,7 @@ export function buildWorld(seed = 1, { cities = 2 } = {}) {
     if (town.some((q) => dot4(q.C, P) > Math.cos(1.4))) continue;
     town.push({ C: P, base: e });
   }
-  const R_IN = 330, R_OUT = 480;
+  const R_IN = 390, R_OUT = 540;
   const cOut = Math.cos(R_OUT / R0);
   for (let n = 0; n < 8 * NC; n++) for (const t of town) {
     const cs = dir[n * 4] * t.C[0] + dir[n * 4 + 1] * t.C[1] + dir[n * 4 + 2] * t.C[2] + dir[n * 4 + 3] * t.C[3]; if (cs < cOut) continue;
@@ -129,7 +129,7 @@ export function buildWorld(seed = 1, { cities = 2 } = {}) {
     if (top) peaks.push({ P: [dir[n * 4], dir[n * 4 + 1], dir[n * 4 + 2], dir[n * 4 + 3]], e });
   }
   const wd = { seed, h, grad, mat, sea, peaks, cities: [] };
-  town.forEach((t, k) => wd.cities.push(buildCity(t.C, t.base, seed * 31 + k * 7 + 1)));
+  town.forEach((t, k) => wd.cities.push(k === 0 ? buildCity4(t.C, t.base, seed * 31 + k * 7 + 1) : buildCity(t.C, t.base, seed * 31 + k * 7 + 1)));
   return wd;
 }
 function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
@@ -149,7 +149,8 @@ function buildCity(C, base, seed) {
   for (const b of now) {
     const F = b.footprint; if (!F || F.length < 3) continue;
     const id = blds.length; let area = 0; for (let i = 0; i < F.length; i++) { const p = F[i], q = F[(i + 1) % F.length]; area += p[0] * q[1] - q[0] * p[1]; } area = Math.abs(area) / 2;
-    blds.push({ h: b.height, style: STYLE[b.style] ?? 13, dep: Math.max(5, Math.min(22, Math.sqrt(area) / 2)) });
+    let cx = 0, cy = 0; for (const p of F) { cx += p[0] / F.length; cy += p[1] / F.length; }
+    blds.push({ h: b.height, style: STYLE[b.style] ?? 13, dep: Math.max(5, Math.min(22, Math.sqrt(area) / 2)), cx, cy });
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of F) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
     for (let gy = Math.max(0, Math.floor((y0 + half) / CITY.cell)); gy <= Math.min(N - 1, Math.floor((y1 + half) / CITY.cell)); gy++)
       for (let gx = Math.max(0, Math.floor((x0 + half) / CITY.cell)); gx <= Math.min(N - 1, Math.floor((x1 + half) / CITY.cell)); gx++) {
@@ -158,22 +159,110 @@ function buildCity(C, base, seed) {
         if (inside) raster[gy * N + gx] = id;
       }
   }
-  return { C, e, base, seed, raster, N, blds, count: blds.length - 1 };
+  const t = { kind: 'morph', name: 'morph', C, e, base, seed, raster, N, blds, count: blds.length - 1 };
+  t.stats = cityStats(t);
+  return t;
 }
-/** Is there a building at this ground point (unit 4-vector)? Returns { top (m above datum), style, base } or null. */
+/** Is there a building at this ground point (unit 4-vector)? Returns { top (m above datum), style, base, u, v, w,
+ *  storey, ribbon } or null; u, v, w are the building's own axes (for the facade's bays). */
 export function buildingAt(wd, P) {
   for (const t of wd.cities) {
     const cc = dot4(P, t.C); if (cc < 0.94) continue;                         // within ~0.35 rad (~450 m)
     const u = (dot4(P, t.e[0]) / cc) * R0, v = (dot4(P, t.e[1]) / cc) * R0, w = (dot4(P, t.e[2]) / cc) * R0;   // gnomonic, at the city
+    if (t.kind === 'native') { const b = plotAt(t, u, v, w); if (b) return b; continue; }
     const half = CITY.size / 2; if (Math.abs(u) >= half || Math.abs(v) >= half) continue;
     const id = t.raster[Math.floor((v + half) / CITY.cell) * t.N + Math.floor((u + half) / CITY.cell)]; if (!id) continue;
     const k = Math.round(w / CITY.layer); if (Math.abs(k) > (CITY.layers - 1) / 2) continue;
     const b = t.blds[id]; if (Math.abs(w - k * CITY.layer) > b.dep) continue;
     const keep = hash4(id, k, 3, 5, t.seed); if (k !== 0 && keep > 0.78) continue;
     const scale = k === 0 ? 1 : 0.6 + 0.8 * hash4(id, k, 7, 1, t.seed);
-    return { top: t.base + b.h * scale, style: b.style, base: t.base, u, v, w };
+    return { top: t.base + b.h * scale, style: b.style, base: t.base, u, v, w, storey: 3.2, ribbon: false };
   }
   return null;
+}
+
+// ------------------------------------------------------------------ the native city
+/** A city laid out by a four-dimensional planner. The ground is 3D, so a street is a SHEET (codimension one: it must
+ *  divide the ground, as a line divides a plane), a block a cube fronting on six sheets, split into eight octant plots,
+ *  each of which fronts on three of them. Land value falls with distance from the core in 3D (bid-rent: towers in the
+ *  middle, villas at the edge, plots left empty more often further out) and the whole city is a ball: N plots fill a
+ *  ball of radius ∝ N^⅓ where a flat city's disc grows as N^½, which is the planner's prize (`cityStats`).
+ *  Districts: Voronoi cells round CITY4.districts seeds, each with its own turned grid and block size; the bisector
+ *  between two districts is a sheet too, so it is a street. Storeys 3.6 m and a cap on height, both from BRUT⁴
+ *  (kata/brut4: a column under a 3D floor carries 8× the load per bay that it would under a 2D one, so 4D towers stop
+ *  short of 3D ones). */
+export const CITY4 = { radius: 320, plaza: 22, street: 10, districts: 6, storey: 3.6, maxStoreys: 26 };
+function buildCity4(C, base, seed) {
+  const e = tangentFrame(C), rnd = mulberry(seed * 131 + 7), D = [];
+  for (let k = 0; k < CITY4.districts; k++) {
+    // a random rotation from a random unit quaternion
+    let q = [gauss(rnd), gauss(rnd), gauss(rnd), gauss(rnd)]; const l = Math.hypot(...q); q = q.map((x) => x / l);
+    const [a, b, c, d] = q;
+    const Rm = [[a * a + b * b - c * c - d * d, 2 * (b * c - a * d), 2 * (b * d + a * c)], [2 * (b * c + a * d), a * a - b * b + c * c - d * d, 2 * (c * d - a * b)], [2 * (b * d - a * c), 2 * (c * d + a * b), a * a - b * b - c * c + d * d]];
+    let s = [0, 0, 0];
+    if (k) { const dir = [gauss(rnd), gauss(rnd), gauss(rnd)], dl = Math.hypot(...dir), r = 140 + rnd() * 120; s = dir.map((x) => (x / dl) * r); }
+    D.push({ s, R: Rm, pitch: k === 0 ? 40 : 48 + Math.floor(rnd() * 4) * 8 });
+  }
+  const t = { kind: 'native', name: 'native', C, e, base, seed, D };
+  t.stats = cityStats(t);
+  t.count = t.stats.plots;
+  return t;
+}
+/** The plot at local point (u, v, w) of a native city, or null on a street, a plaza, or an empty plot. */
+function plotAt(t, u, v, w) {
+  const r = Math.sqrt(u * u + v * v + w * w); if (r > CITY4.radius || r < CITY4.plaza) return null;
+  // nearest two district seeds; the bisector between them is a street
+  let i1 = 0, d1 = Infinity, i2 = 0, d2 = Infinity;
+  for (let k = 0; k < t.D.length; k++) { const s = t.D[k].s, d = (u - s[0]) ** 2 + (v - s[1]) ** 2 + (w - s[2]) ** 2; if (d < d1) { d2 = d1; i2 = i1; d1 = d; i1 = k; } else if (d < d2) { d2 = d; i2 = k; } }
+  const A = t.D[i1], B = t.D[i2], sep = Math.hypot(A.s[0] - B.s[0], A.s[1] - B.s[1], A.s[2] - B.s[2]);
+  if ((d2 - d1) / (2 * sep) < CITY4.street / 2) return null;
+  const x = u - A.s[0], y = v - A.s[1], z = w - A.s[2], R = A.R, P = A.pitch, st = CITY4.street;
+  const q0 = R[0][0] * x + R[0][1] * y + R[0][2] * z, q1 = R[1][0] * x + R[1][1] * y + R[1][2] * z, q2 = R[2][0] * x + R[2][1] * y + R[2][2] * z;
+  const c0 = Math.floor(q0 / P), c1 = Math.floor(q1 / P), c2 = Math.floor(q2 / P), f0 = q0 - c0 * P - st, f1 = q1 - c1 * P - st, f2 = q2 - c2 * P - st;
+  if (f0 < 0 || f1 < 0 || f2 < 0) return null;                                 // on one of the block's three street sheets
+  const half = (P - st) / 2, o0 = f0 >= half ? 1 : 0, o1 = f1 >= half ? 1 : 0, o2 = f2 >= half ? 1 : 0;
+  // the plot's centre decides its fate (so every point of a plot agrees)
+  const g0 = (c0 * P + st + (o0 + 0.5) * half), g1 = (c1 * P + st + (o1 + 0.5) * half), g2 = (c2 * P + st + (o2 + 0.5) * half);
+  const pu = A.s[0] + R[0][0] * g0 + R[1][0] * g1 + R[2][0] * g2, pv = A.s[1] + R[0][1] * g0 + R[1][1] * g1 + R[2][1] * g2, pw = A.s[2] + R[0][2] * g0 + R[1][2] * g1 + R[2][2] * g2;
+  const lot = lotOf(t, i1, c0 * 2 + o0, c1 * 2 + o1, c2 * 2 + o2, Math.hypot(pu, pv, pw)); if (!lot) return null;
+  // setback from the plot's edges: the building's footprint is a smaller cube
+  // (in the core the octants close up on each other, so a block is one stepped mass, BRUT⁴'s tiers)
+  const l0 = f0 - o0 * half, l1 = f1 - o1 * half, l2 = f2 - o2 * half, sb = lot.setback, si = lot.joined ? 0 : sb;
+  const out = (l, o) => (o ? l < si || l > half - sb : l < sb || l > half - si);
+  if (out(l0, o0) || out(l1, o1) || out(l2, o2)) return null;
+  return { top: t.base + lot.h, style: lot.style, base: t.base, u: q0, v: q1, w: q2, storey: CITY4.storey, ribbon: lot.ribbon };
+}
+/** A plot's building from its distance to the core: bid-rent height, style, setback; null if left empty. */
+function lotOf(t, k, a, b, c, r) {
+  const x = r / CITY4.radius, h1 = hash4(a, b, c, k, t.seed), h2 = hash4(a, b, c, k, t.seed + 1);
+  if (r > CITY4.radius - 8 || h1 > 0.98 - 0.55 * x * x) return null;            // emptier further out
+  const storeys = Math.max(1, Math.min(CITY4.maxStoreys, Math.round((2 + 30 * Math.exp(-r / 95)) * (0.65 + 0.7 * h2))));
+  const style = r < 80 ? STYLE.glass : r < 150 ? STYLE.modern : r < 215 ? STYLE.haussmann : r < 265 ? STYLE.georgian : h2 < 0.5 ? STYLE.villa : STYLE.village;
+  return { h: storeys * CITY4.storey, storeys, style, setback: 0.5 + 4 * x * x, joined: r < 130, ribbon: r < 150 };
+}
+/** The planner's numbers: plots built, mean distance from a plot to the core, and the same plots laid out flat (each
+ *  plot's square, at the same share built, filling a disc round the core: mean distance ⅔ of the disc's radius). */
+export function cityStats(t) {
+  if (t.kind !== 'native') {
+    let n = 0, sum = 0; for (let i = 1; i < t.blds.length; i++) { const b = t.blds[i]; n++; sum += Math.hypot(b.cx, b.cy); }
+    return { plots: n, mean: sum / n };
+  }
+  let n = 0, sum = 0, area = 0, maxH = 0;
+  t.D.forEach((A, k) => {
+    const P = A.pitch, st = CITY4.street, half = (P - st) / 2, span = Math.ceil((CITY4.radius + 300) / P);
+    for (let c0 = -span; c0 <= span; c0++) for (let c1 = -span; c1 <= span; c1++) for (let c2 = -span; c2 <= span; c2++) for (let o = 0; o < 8; o++) {
+      const o0 = o & 1, o1 = (o >> 1) & 1, o2 = o >> 2, g = [c0 * P + st + (o0 + 0.5) * half, c1 * P + st + (o1 + 0.5) * half, c2 * P + st + (o2 + 0.5) * half];
+      const p = [0, 1, 2].map((j) => A.s[j] + A.R[0][j] * g[0] + A.R[1][j] * g[1] + A.R[2][j] * g[2]);
+      const r = Math.hypot(...p); if (r > CITY4.radius || r < CITY4.plaza) continue;
+      // in this district? (and not on its border street)
+      let d1 = Infinity, i1 = -1; for (let j = 0; j < t.D.length; j++) { const s = t.D[j].s, d = (p[0] - s[0]) ** 2 + (p[1] - s[1]) ** 2 + (p[2] - s[2]) ** 2; if (d < d1) { d1 = d; i1 = j; } }
+      if (i1 !== k) continue;
+      const lot = lotOf(t, k, c0 * 2 + o0, c1 * 2 + o1, c2 * 2 + o2, r); if (!lot) continue;
+      n++; sum += r; area += half * half; maxH = Math.max(maxH, lot.h);
+    }
+  });
+  const flatR = Math.sqrt(area / Math.PI);
+  return { plots: n, mean: sum / n, flatMean: (2 / 3) * flatR, flatR, ballR: CITY4.radius, maxH };
 }
 
 // ------------------------------------------------------------------ the ground
@@ -287,9 +376,9 @@ export function render(wd, c, px, { sun = [0.5, 0.3, 0.5, 0.64], tint = 0 } = {}
         const mixc = (cc) => (255 << 24) | (Math.round(((cc >> 16) & 255) * (1 - f) + hb * f) << 16) | (Math.round(((cc >> 8) & 255) * (1 - f) + hg * f) << 8) | Math.round((cc & 255) * (1 - f) + hr * f);
         if (gr.b && dist < 1400) {
           // a facade: each row's height on the building says its storey; windows in bays along the wall
-          const wall = mixc(col), glass = mixc(PALETTE[WINDOW * 16 + Math.min(15, Math.round(lit * 6 + 3))]), bay = (Math.floor(gr.b.u / 2.4) + Math.floor(gr.b.v / 2.4) + Math.floor(gr.b.w / 2.4)) & 1;
+          const wall = mixc(col), glass = mixc(PALETTE[WINDOW * 16 + Math.min(15, Math.round(lit * 6 + 3))]), bay = gr.b.ribbon ? 1 : (Math.floor(gr.b.u / 2.4) + Math.floor(gr.b.v / 2.4) + Math.floor(gr.b.w / 2.4)) & 1;
           for (let yy = y0; yy < yb; yy++) {
-            const hrow = rc + ((horizon - yy) * zf) / FOCAL - (R0 + gr.b.base), st = (hrow / 3.2) % 1;
+            const hrow = rc + ((horizon - yy) * zf) / FOCAL - (R0 + gr.b.base), st = (hrow / gr.b.storey) % 1;
             px[yy * W + x] = hrow > 0.5 && hrow < gr.b.top - gr.b.base - 0.6 && st > 0.3 && st < 0.78 && bay ? glass : wall;
           }
         } else { const out = mixc(col); for (let yy = y0; yy < yb; yy++) px[yy * W + x] = out; }

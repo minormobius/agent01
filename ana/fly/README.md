@@ -27,12 +27,23 @@ the other night.
   tangent 4-vector solved from the grid neighbours (3 × 3, Cramer, no allocations). Built in ~2.3 s.
 - **`surface`**: just the height (land, sea, roofs): what the march needs at every step. **`ground`**: height,
   gradient, material (jittered), building: only for pixels that get drawn.
-- **Cities**: `packages/morph` (the studio's city series: streets, plots, seven centuries of buildings), vendored byte
-  for byte in `vendor/morph/` (geom, morph, rand; `scripts/sync-dataviz.mjs` keeps them so). Two cities on low dry
-  ground, ≥ 1.4 rad apart, the land under each levelled. A plan is flat and the ground is 3D, so a city is the plan
-  laid in **7 layers across the third direction e3, 64 m apart**: in layer k, building b stands with depth ±(√area/2,
-  5–22 m) if a hash keeps it (all in the plan's own layer), its height scaled 0.6–1.4. `buildingAt`: gnomonic
-  coordinates at the city's centre, a 2 m raster of building ids, then the layer test.
+- **The native city** (`buildCity4`, `plotAt`, `lotOf`, `CITY4`): what a four-dimensional planner would build. The
+  ground is 3D, so a **street is a sheet** (it must divide the ground, as a line divides a plane; a 1D road in 3D
+  ground would divide nothing). A block is a cube fronting on six sheets, split into eight octant plots, each fronting
+  on three. The planner minimises distance to the core, so the city is a **ball**: N plots fill radius ∝ N^⅓, where a
+  flat city's disc grows as N^½ (`cityStats`: here ~5,100 plots, mean 206 m to the core; the same plots laid flat
+  would fill a disc 808 m round, mean 539 m). Bid-rent: storeys fall off with distance (towers within ~100 m, villas
+  past 265 m), plots stand empty more often further out, and in the core a block's octants close up into one stepped
+  mass. Districts are Voronoi cells round six seeds, each its own turned grid and block size (40 m in the core, 48–72
+  m outside); the bisector between two is a sheet, so a street. Storeys are 3.6 m and height is capped at 26 storeys,
+  both from BRUT⁴ (`kata/brut4`, `kata.mino.mobi/brut4/`): under a 3D floor a column carries eight times the load per
+  bay that it does under a 2D one, so 4D towers stop short of ours. Ribbon windows in the core, bays outside.
+- **The layered city** (`buildCity`), for contrast: `packages/morph` (the studio's city series: streets, plots, seven
+  centuries of buildings), vendored byte for byte in `vendor/morph/` (geom, morph, rand; `scripts/sync-dataviz.mjs`
+  keeps them so). A plan is flat and the ground is 3D, so the plan is laid in **7 layers across the third direction
+  e3, 64 m apart**: in layer k, building b stands with depth ±(√area/2, 5–22 m) if a hash keeps it, its height scaled
+  0.6–1.4. Look along its plan and it is a city; turn 90° into w and it is a row of slabs. `buildingAt` takes gnomonic
+  coordinates at each city's centre and asks the city's own rule. The land within 390 m of each city is levelled.
 - **`render`**: per column, ray angle φ along the great circle of X and u = (F + sR)/|F + sR|: the ground point X cos φ +
   u sin φ at radius r = R0 + h is forward r sin φ / |F + sR|, up r cos φ − (R0 + alt). Palette 16 materials × 16 shades
   (8 natural, 7 building styles, window glass); lit by the 4D normal against the sun; **facades** per row: the row's
@@ -53,8 +64,9 @@ beacons and the square of your view plane. ~2.3 s to build, ~28 fps in a headles
 ## Checks
 
 `node ana/fly/test/fly.selftest.mjs` (~5 s): the vendored morph is byte-identical; the tesseract map round-trips and
-the ground is continuous across its faces; the grids hold the noise; 14% sea; two cities, far apart, ~24% built in a
-plan's own layer, level ground; the layers; the curved renderer within 1 px of a ray marched every metre along its great
+the ground is continuous across its faces; the grids hold the noise; 14% sea; two cities, far apart, on level ground; the native
+city ~23–31% built on any plane through its core (the layered one 26% in its plan, 8% across it); streets are sheets;
+bid-rent heights and the BRUT⁴ cap; the ball against the flat disc; the layers; the curved renderer within 1 px of a ray marched every metre along its great
 circle; the ghost at 0 m is the view's skyline exactly; the tilt; flying straight comes home after one great circle;
 20,000 random steps keep X, F, R, A orthonormal and never under ground or roof; beacons where the HUD says.
 

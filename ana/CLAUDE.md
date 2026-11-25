@@ -142,9 +142,12 @@ One static site: no build, no worker script, no bindings (worker `ana`, assets o
 - **FLY at `/fly/`**: flight over a 4D planet, after the studio's colour cycle: the ground is a 3-sphere 8,192 m round
   (R0 ≈ 1304 m), up is X. `js/fly.js` (no DOM): 4D value noise on the sphere (`rawHeight`, lattice `table`s resolved
   once per seed) on eight 56³ grids, one per tesseract cell (`locate`/`nodeDir`), gradients as tangent 4-vectors;
-  `surface` (height only, for the march) and `ground` (everything, for drawn pixels); two cities from `packages/morph`
-  (vendored byte-identical in `vendor/morph/`, kept by `scripts/sync-dataviz.mjs`) laid in 7 layers 64 m apart across
-  the third direction (`buildingAt`); `render` (Voxel Space along great circles, camera `tilt` = 0.8 × the horizon's
+  `surface` (height only, for the march) and `ground` (everything, for drawn pixels); two cities, dispatched by `kind` in
+  `buildingAt`: the **native** one first (`buildCity4`/`plotAt`/`lotOf`, `CITY4`: streets are sheets, blocks cubes of
+  eight octant plots, a ball of town round its core with bid-rent heights, Voronoi districts with turned grids, BRUT⁴'s
+  3.6 m storey and 26-storey cap; `cityStats` against the same plots laid flat), and a **layered** one from
+  `packages/morph` (vendored byte-identical in `vendor/morph/`, kept by `scripts/sync-dataviz.mjs`), its plan in 7
+  layers 64 m apart across the third direction, for contrast; `render` (Voxel Space along great circles, camera `tilt` = 0.8 × the horizon's
   dip, facades with windows, day and night), `skyline(d)` (ghosts, same steps as the view), `fly` (X and F turn
   together), beacons, `local` (log map). `js/main.js`: view, overlay, the heading-up map. See [`fly/README.md`](fly/README.md).
 
@@ -159,7 +162,7 @@ node ana/fold/test/fold.selftest.mjs                 # ~2 min: 82,944 hinge tree
 node ana/prism/test/optics.selftest.mjs             # <1 s: Snell on 2,000 random 4D rays, the critical angle, least deviation, dispersion, rotation invariance, retracing, every level solvable
 node ana/coin/test/coin.selftest.mjs               # <1 s: glued (f(p) = f(−p)), one-to-one via the inverse, smooth, the walk comes back mirrored, the half-turned picture, 0 bits
 node ana/chora/test/particles.selftest.mjs          # ~3 s: the identifier, the paper's 3D results and Figure 8, 5/8/16/24/120 in 4D, shaking to the 24-cell, the tiers; the eigen-solver, stiffness vs finite differences, silent modes, a mode swung in the sim, the 600-cell's 23 notes
-node ana/fly/test/fly.selftest.mjs                  # ~5 s: vendored morph identical, the tesseract map, grids = noise, cities and layers, curved Voxel skyline vs a fine ray, ghosts, home after a great circle, orthonormal frame, never under ground, beacons
+node ana/fly/test/fly.selftest.mjs                  # ~5 s: vendored morph identical, the tesseract map, grids = noise, the native city thick every way (sheets, bid-rent, ball vs disc), the layers, curved Voxel skyline vs a fine ray, ghosts, home after a great circle, orthonormal frame, never under ground, beacons
 node ana/moonlet/test/moonlet.selftest.mjs           # ~10 s: normal force vs Newton, energy over a hill, crest launches, the friction circle, pedalling vs the force balance, Tsiolkovsky, orbits vs Kepler, the forecast, landings, SAS, the slalom ridden, linking numbers
 ```
 

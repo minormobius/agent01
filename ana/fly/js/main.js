@@ -84,7 +84,7 @@ function drawMap() {
   for (const [a, b] of [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]) { const P = [a, b].map((k) => pr([(k & 1 ? 1 : -1) * HALF, (k & 2 ? 1 : -1) * HALF, (k & 4 ? 1 : -1) * HALF])); mctx.beginPath(); mctx.moveTo(P[0][0], P[0][1]); mctx.lineTo(P[1][0], P[1][1]); mctx.stroke(); }
   for (const pk of S.wd.peaks) { if (c.X[0] * pk.P[0] + c.X[1] * pk.P[1] + c.X[2] * pk.P[2] + c.X[3] * pk.P[3] < 0.6) continue; const d = Y.local(c, pk.P); if (!inBox(d)) continue; const q = pr(d), t = Math.min(1, (pk.e - S.wd.sea - 120) / 120); mctx.fillStyle = `rgba(${200 + 55 * t},${190 + 50 * t},${180 + 60 * t},${0.35 + 0.5 * t})`; mctx.beginPath(); mctx.arc(q[0], q[1], 1 + 2 * t, 0, 7); mctx.fill(); }
   // the cities: their plan's square in its plane, and the layers across it
-  for (const t of S.wd.cities) { const d = Y.local(c, t.C); if (Math.hypot(...d) > HALF * 1.6) continue; const q = pr(d); mctx.fillStyle = 'rgba(255,140,90,0.85)'; mctx.fillRect(q[0] - 4, q[1] - 4, 8, 8); mctx.fillStyle = '#ff9a6a'; mctx.font = '9px ui-monospace, Menlo, monospace'; mctx.fillText('city', q[0] + 6, q[1] + 3); }
+  for (const t of S.wd.cities) { const d = Y.local(c, t.C); if (Math.hypot(...d) > HALF * 1.6) continue; const q = pr(d); mctx.fillStyle = 'rgba(255,140,90,0.85)'; mctx.fillRect(q[0] - 4, q[1] - 4, 8, 8); mctx.fillStyle = '#ff9a6a'; mctx.font = '9px ui-monospace, Menlo, monospace'; mctx.fillText(t.kind === 'native' ? '4D city' : 'layered city', q[0] + 6, q[1] + 3); }
   const sq = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => pr([a * 1200, b * 1200, 0]));
   mctx.fillStyle = 'rgba(255,210,122,0.12)'; mctx.strokeStyle = 'rgba(255,210,122,0.5)'; mctx.beginPath(); sq.forEach((q, i) => (i ? mctx.lineTo(q[0], q[1]) : mctx.moveTo(q[0], q[1]))); mctx.closePath(); mctx.fill(); mctx.stroke();
   mctx.strokeStyle = 'rgba(255,255,255,0.7)'; mctx.lineWidth = 1.5; mctx.beginPath(); let pen = false;
@@ -103,6 +103,11 @@ function info() {
   const n = S.beacons.length, t = ((S.doneAt || performance.now()) - S.t0) / 1000;
   row('beacon', S.done ? `all ${n}` : `${S.next + 1} of ${n}`); row('time', `${t.toFixed(1)} s`); if (S.best) row('best', `${S.best.toFixed(1)} s`);
   row('world', `seed ${S.seed}: a 3-sphere 8.2 km round (radius ${Math.round(Y.R0)} m), ${S.wd.cities.length} cities`);
+  for (const t of S.wd.cities) {
+    const st = t.stats;
+    if (t.kind === 'native') row('4D city', `${st.plots} plots in a ball ${st.ballR} m round its core; mean ${Math.round(st.mean)} m to the core. The same plots laid flat would need a disc ${Math.round(st.flatR)} m round: mean ${Math.round(st.flatMean)} m`);
+    else row('layered city', `a studio plan, ${st.plots} buildings, mean ${Math.round(st.mean)} m to the centre in its own layer, copied 64 m apart across w`);
+  }
   $('title').textContent = S.done ? 'course flown' : 'the course';
   $('cap').textContent = S.done ? `All ${n} beacons in ${t.toFixed(1)} s. New course, or just fly.` : 'Fly through the beacons. A beacon shows only as the slice of it you are in: turn ana or kata (the lever, or A and D) until it fills, then fly through.';
 }
