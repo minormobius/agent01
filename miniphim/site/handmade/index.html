@@ -29,6 +29,9 @@ They're checking it against a number anyone can make. The tracks already up are 
 <label><input type="checkbox" id="mono" checked> mono</label>
 <button id="go">Render</button>
 </div>
+<canvas id="viz" style="width:100%;height:18em;border:1px solid #e4e0d8;border-radius:6px"></canvas>
+<p id="vizkey" class="mono" style="font-size:.8em"></p>
+<p style="font-size:.85em">The picture is the score, not the sound: time across, pitch up on a log scale so equal ratios are equal heights. The page looks for the score's fundamental (the lowest note divided by 1 to 32, whichever puts the most notes on whole harmonics) and draws a line, numbered at the left, for each harmonic a note uses. Colour is each note's distance from the nearest piano key: grey on a key, blue flat, red sharp, full colour at 50 cents. A note on a line in colour is a whole-number ratio the keyboard doesn't have. It redraws as you edit and plays along with the render.</p>
 <textarea id="score" spellcheck="false"></textarea>
 <div id="out" hidden></div>
 
@@ -49,6 +52,7 @@ Guitar body: Manuel Contreras, Madrid 1971, measured by Robert Mores, Zenodo 460
 
 <script type="module">
 import { renderScore, wav, sha256 } from './engine.js';
+import { makeViz } from './viz.js';
 const $ = (id) => document.getElementById(id);
 const index = await (await fetch('pieces/index.json')).json();
 for (const p of index.pieces) $('piece').add(new Option(`${p.name} (${p.by})`, p.file));
@@ -56,23 +60,28 @@ const blank = { parts: [{ instrument: 'piano', events: [
   { at: 0, dur: 1.5, midi: 60, velocity: 0.6 }, { at: 0, dur: 1.5, midi: 63.8631, velocity: 0.5 }, { at: 0, dur: 1.5, midi: 67.0196, velocity: 0.5 },
   { at: 1.6, dur: 1.5, midi: 60, velocity: 0.6 }, { at: 1.6, dur: 1.5, midi: 64, velocity: 0.5 }, { at: 1.6, dur: 1.5, midi: 67, velocity: 0.5 } ] }] };
 $('score').value = JSON.stringify(blank, null, 1);
+const viz = makeViz($('viz'), $('vizkey'));
+const redraw = () => { try { viz.load(JSON.parse($('score').value)); } catch {} };
+$('score').oninput = redraw; redraw();
 let url = null, ctx = null, src = null, buf = null, t0play = 0, tick = 0;
 // The house's CSP has no media-src, so an <audio> can't load a blob: URL (Chromium: MEDIA_ERR 4).
 // Web Audio isn't under media-src: decode the exact WAV bytes that were hashed and play those. (Modulo, 11-24)
-const stop = () => { if (src) { src.onended = null; try { src.stop(); } catch {} src = null; } clearInterval(tick); const b = $('play'); if (b) b.textContent = 'Play'; };
+const stop = () => { if (src) { src.onended = null; try { src.stop(); } catch {} src = null; } clearInterval(tick); viz.stop(); const b = $('play'); if (b) b.textContent = 'Play'; };
 async function play() {
   if (src) return stop();
   ctx ||= new AudioContext(); await ctx.resume();
   src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination); src.onended = stop;
-  src.start(); t0play = ctx.currentTime; $('play').textContent = 'Stop';
+  src.start(); t0play = ctx.currentTime; viz.start(() => ctx.currentTime - t0play); $('play').textContent = 'Stop';
   tick = setInterval(() => { $('pos').textContent = `${(ctx.currentTime - t0play).toFixed(1)} / ${buf.duration.toFixed(1)} s`; }, 200);
 }
 $('piece').onchange = async () => {
   const f = $('piece').value, p = index.pieces.find((x) => x.file === f);
-  if (!p) { $('score').value = JSON.stringify(blank, null, 1); return; }
-  $('score').value = await (await fetch('pieces/' + f)).text();
+  if (!p) { $('score').value = JSON.stringify(blank, null, 1); redraw(); return; }
+  $('score').value = await (await fetch('pieces/' + f)).text(); redraw();
   $('rate').value = String(p.rate); $('mono').checked = p.mono;
 };
+{ const h = location.hash.slice(1), p = index.pieces.find((x) => x.file === h + '.json');
+  if (p) { $('piece').value = p.file; await $('piece').onchange(); } }
 $('go').onclick = async () => {
   const out = $('out'); out.hidden = false; out.textContent = 'Rendering…'; $('go').disabled = true;
   await new Promise((r) => setTimeout(r, 30));
