@@ -1,0 +1,2 @@
+uniform sphere  U = 2.242e+32 J   at L_sun: 6.78 days
+PREM (quoted)   U = 2.490e+32 J   at L_sun: 7.53 days
