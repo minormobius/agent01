@@ -1,0 +1,423 @@
+{
+ "$schema": "com.minomobi.cad.assembly#v1",
+ "name": "ratchet",
+ "_": "Ratchet wheel (20 teeth) and pawl, as separate bodies on two pins of one frame. `turn` spins the wheel; `lift` swings the pawl up off the teeth. Bores clear their pins by 0.2 mm radial; the moving parts ride 0.2 mm above the frame. The wheel-to-pawl coupling (the pawl falling into each gap) is not a mate the engine has; it is checked by posing both inputs. Morphyx, 10-23, replacing the fused 10-06 part.",
+ "inputs": {
+  "turn": {
+   "min": -18,
+   "max": 18,
+   "steps": 13,
+   "unit": "deg",
+   "description": "wheel rotation, one tooth pitch is 18°"
+  },
+  "lift": {
+   "min": 0,
+   "max": 20,
+   "steps": 5,
+   "unit": "deg",
+   "description": "pawl swing off the wheel about its pin"
+  }
+ },
+ "parts": {
+  "frame": {
+   "units": "mm",
+   "params": {
+    "w": 40,
+    "h": 46,
+    "t": 2,
+    "axle": 1.3,
+    "pivot": 0.8,
+    "up": 4.7
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "plate_s",
+     "plane": {
+      "base": "XY",
+      "offset": -2.2
+     },
+     "loops": [
+      {
+       "name": "plate",
+       "rect": {
+        "c": [
+         -3,
+         2
+        ],
+        "w": "w",
+        "h": "h"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "plate",
+     "profile": "plate_s",
+     "depth": "t"
+    },
+    {
+     "op": "sketch",
+     "id": "pins_s",
+     "plane": {
+      "base": "XY",
+      "offset": -1.7000000000000002
+     },
+     "loops": [
+      {
+       "name": "axle",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "axle"
+       }
+      },
+      {
+       "name": "pivot",
+       "circle": {
+        "c": [
+         -9,
+         19
+        ],
+        "r": "pivot"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "pins",
+     "profile": "pins_s",
+     "depth": "up",
+     "mode": "add"
+    }
+   ]
+  },
+  "wheel": {
+   "units": "mm",
+   "params": {
+    "t": 3,
+    "bore": 1.5
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "wheel_s",
+     "loops": [
+      {
+       "name": "teeth",
+       "polygon": [
+        [
+         12.2,
+         0
+        ],
+        [
+         14.377,
+         4.277
+        ],
+        [
+         11.603,
+         3.77
+        ],
+        [
+         12.352,
+         8.511
+        ],
+        [
+         9.87,
+         7.171
+        ],
+        [
+         9.117,
+         11.911
+        ],
+        [
+         7.171,
+         9.87
+        ],
+        [
+         4.99,
+         14.146
+        ],
+        [
+         3.77,
+         11.603
+        ],
+        [
+         0.375,
+         14.995
+        ],
+        [
+         0,
+         12.2
+        ],
+        [
+         -4.277,
+         14.377
+        ],
+        [
+         -3.77,
+         11.603
+        ],
+        [
+         -8.511,
+         12.352
+        ],
+        [
+         -7.171,
+         9.87
+        ],
+        [
+         -11.911,
+         9.117
+        ],
+        [
+         -9.87,
+         7.171
+        ],
+        [
+         -14.146,
+         4.99
+        ],
+        [
+         -11.603,
+         3.77
+        ],
+        [
+         -14.995,
+         0.375
+        ],
+        [
+         -12.2,
+         0
+        ],
+        [
+         -14.377,
+         -4.277
+        ],
+        [
+         -11.603,
+         -3.77
+        ],
+        [
+         -12.352,
+         -8.511
+        ],
+        [
+         -9.87,
+         -7.171
+        ],
+        [
+         -9.117,
+         -11.911
+        ],
+        [
+         -7.171,
+         -9.87
+        ],
+        [
+         -4.99,
+         -14.146
+        ],
+        [
+         -3.77,
+         -11.603
+        ],
+        [
+         -0.375,
+         -14.995
+        ],
+        [
+         0,
+         -12.2
+        ],
+        [
+         4.277,
+         -14.377
+        ],
+        [
+         3.77,
+         -11.603
+        ],
+        [
+         8.511,
+         -12.352
+        ],
+        [
+         7.171,
+         -9.87
+        ],
+        [
+         11.911,
+         -9.117
+        ],
+        [
+         9.87,
+         -7.171
+        ],
+        [
+         14.146,
+         -4.99
+        ],
+        [
+         11.603,
+         -3.77
+        ],
+        [
+         14.995,
+         -0.375
+        ]
+       ]
+      },
+      {
+       "name": "bore",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "bore"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "wheel",
+     "profile": "wheel_s",
+     "depth": "t"
+    }
+   ]
+  },
+  "pawl": {
+   "units": "mm",
+   "params": {
+    "t": 3,
+    "hole": 1
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "pawl_s",
+     "loops": [
+      {
+       "name": "pawl",
+       "polygon": [
+        [
+         -2.5,
+         -1.5
+        ],
+        [
+         0,
+         -2.8
+        ],
+        [
+         7.6,
+         -3.4
+        ],
+        [
+         8.7,
+         -6.3
+        ],
+        [
+         8.9,
+         -3.6
+        ],
+        [
+         10.6,
+         -3
+        ],
+        [
+         9,
+         -0.4
+        ],
+        [
+         0,
+         2.8
+        ],
+        [
+         -2.5,
+         1.5
+        ]
+       ]
+      },
+      {
+       "name": "pivot",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "hole"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "pawl",
+     "profile": "pawl_s",
+     "depth": "t"
+    }
+   ]
+  }
+ },
+ "components": [
+  {
+   "id": "frame",
+   "part": "frame",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "wheel",
+   "part": "wheel",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "pawl",
+   "part": "pawl",
+   "at": [
+    -9,
+    19,
+    0
+   ]
+  }
+ ],
+ "mates": [
+  {
+   "kind": "revolute",
+   "a": "frame",
+   "b": "wheel",
+   "input": "turn"
+  },
+  {
+   "kind": "revolute",
+   "a": "frame",
+   "b": "pawl",
+   "input": "lift"
+  }
+ ],
+ "fits": [
+  {
+   "a": "frame",
+   "b": "wheel",
+   "min": 0.15
+  },
+  {
+   "a": "frame",
+   "b": "pawl",
+   "min": 0.15
+  }
+ ]
+}
