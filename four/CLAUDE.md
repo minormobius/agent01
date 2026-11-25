@@ -460,6 +460,21 @@ for games, and this is a modelling programme with publications to come. The game
   term was already off there); production's track of the star (no ε_grav) regrew only to 0.079 and finished at 1.72 Gyr.
   Held back for the PI: accept it as the model's physics, or stop a core advancing into its own μ-gradient (Ledoux),
   which would touch every star whose core regrows.
+  **Ledoux (PI 2026-11-25: "go for the refactor, I assume that's more physical but still a bit of a cheat"):** `ledoux=<ΔX>`
+  in evolve.mjs, applied at the mixing: walked out from the centre, the stirred core takes a layer only while its
+  hydrogen is within ΔX of the core's mixed mean; past the first that isn't, the rest of the Schwarzschild run stays
+  unmixed (the structure keeps it at ∇ad: heat carried, composition held — the efficient-transport limit of a
+  semiconvective layer, with no semiconvective mixing; that is the "cheat"). Files `-ld<ΔX>`; track rows carry `qmix`
+  (the mixed core) beside `qcc` (the Schwarzschild one). **Ledoux in the structure itself failed first** (∇ = ∇rad up to
+  ∇ad + ∇μ, ∇μ from the composition grid): a layer that flickered out of the core for one step burnt on its own, and the
+  step's tiny gradient held it out for good — a ratchet that took ours' 1.6 M☉ core 0.09 → 0.002 by 0.41 Gyr and burnt
+  its centre twice as fast (MESA's reason for convective premixing). ΔX is that flicker's allowance. **Checks (sandbox,
+  ΔX 0.02):** the runaway star from its checkpoint holds its mixed core at 0.078 and burns on (Xc 0.357 → 0.288 by
+  1.18 Gyr, books 0.3%); G 10⁻¹⁷ s 1.65 2.0 from zero age matches Schwarzschild to 0.1% in L over 0.35 Gyr (its core
+  only recedes there); s 1.65 1.25 at ~9.9 Gyr matches (Xc 0.223 / 0.222); ours 1.6 M☉, whose core grows, burns faster:
+  Xc at 0.86 Gyr 0.4229 against Schwarzschild's 0.4519 (−6%). **ΔX sensitivity** (ours 1.6 M☉, Xc at 0.86 Gyr): 0.01 →
+  0.4221, 0.02 → 0.4229, 0.05 → 0.4330. The final run becomes evolve4-27: all 56 tracks, ledoux=0.02, tag v3
+  (final-ladder.mjs); evolve4-26 (Schwarzschild) is kept as the boundary criterion's comparison set.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
