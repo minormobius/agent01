@@ -475,6 +475,11 @@ for games, and this is a modelling programme with publications to come. The game
   Xc at 0.86 Gyr 0.4229 against Schwarzschild's 0.4519 (−6%). **ΔX sensitivity** (ours 1.6 M☉, Xc at 0.86 Gyr): 0.01 →
   0.4221, 0.02 → 0.4229, 0.05 → 0.4330. The final run becomes evolve4-27: all 56 tracks, ledoux=0.02, tag v3
   (final-ladder.mjs); evolve4-26 (Schwarzschild) is kept as the boundary criterion's comparison set.
+  **evolve4-26 leg 3 (evolve4-26c, collected 2026-11-25 18:30Z, on the pre-fallback code):** ours' seven v2k tracks all
+  ended (0.6 and 0.8 M☉ at the 20 Gyr limit; 1 M☉ 9.685 Gyr, 1.25 3.708, 1.6 1.724, 2 0.903, 3 0.294 Gyr); 4D: 9 still
+  burning, 8 more solver stops (G 10⁻¹⁴ s 1.5152 0.487; G 10⁻¹⁷ s 1.5152 2.0, 2.5; s 1.55 1.6, 2.0, 2.5; s 1.65 2.5;
+  s 1.7 1.25), 33 finished. evolve4-27 launches the Ledoux final run (14 groups) with the Schwarzschild set's 22 unfinished
+  4D tracks continued in the six spare slots (ev27s-*: the stops resume on the fallback; s 1.65 2.0 left out).
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
