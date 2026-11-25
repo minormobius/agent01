@@ -1,0 +1,121 @@
+$ node four/atom/tools/evolve.mjs ours 0.6 X0=0.7068 Z=0.0143 kap=opal alpha=1.61 settle=1e6 grav=1 khmin=0.1 tag=v2k
+0.6 M☉ network X0 0.7068 settling 100 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 200 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 400 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 800 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 1.60e+3 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 3.20e+3 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 6.40e+3 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 1.28e+4 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 2.56e+4 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 5.12e+4 yr: L 2.7947e+25 W, Tc 10.00 MK, central H 0.70680
+0.6 M☉ network X0 0.7068 settling 1.02e+5 yr: L 2.7946e+25 W, Tc 10.00 MK, central H 0.70679
+0.6 M☉ network X0 0.7068 settling 2.05e+5 yr: L 2.7945e+25 W, Tc 10.00 MK, central H 0.70679
+0.6 M☉ network X0 0.7068 settling 4.10e+5 yr: L 2.7940e+25 W, Tc 10.00 MK, central H 0.70677
+0.6 M☉ network X0 0.7068 settling 8.19e+5 yr: L 2.7920e+25 W, Tc 10.01 MK, central H 0.70674
+0.6 M☉ network X0 0.7068 0.000 Gyr: L 0.0729 L☉, R 0.5336 R☉, Teff 4106 K, Tc 10.01 MK, ρc 98.3 g/cm³, Xc 0.7067, stirred core 0.000, pp 99.9%, half the light inside q 0.081
+0.6 M☉ network X0 0.7068 0.000 Gyr: L 0.0729 L☉, R 0.5336 R☉, Teff 4106 K, Tc 10.01 MK, ρc 98.1 g/cm³, Xc 0.7067, stirred core 0.000, pp 99.9%, half the light inside q 0.081, burnt/radiated 1.0003
+0.6 M☉ network X0 0.7068 0.001 Gyr: L 0.0728 L☉, R 0.5337 R☉, Teff 4104 K, Tc 10.02 MK, ρc 97.7 g/cm³, Xc 0.7067, stirred core 0.004, pp 99.9%, half the light inside q 0.081, burnt/radiated 1.0006
+0.6 M☉ network X0 0.7068 0.003 Gyr: L 0.0725 L☉, R 0.5339 R☉, Teff 4100 K, Tc 10.02 MK, ρc 96.5 g/cm³, Xc 0.7067, stirred core 0.013, pp 99.9%, half the light inside q 0.078, burnt/radiated 1.0007
+0.6 M☉ network X0 0.7068 0.006 Gyr: L 0.0719 L☉, R 0.5344 R☉, Teff 4089 K, Tc 10.01 MK, ρc 94.1 g/cm³, Xc 0.7066, stirred core 0.027, pp 99.9%, half the light inside q 0.075, burnt/radiated 1.0003
+0.6 M☉ network X0 0.7068 0.013 Gyr: L 0.0709 L☉, R 0.5357 R☉, Teff 4070 K, Tc 9.95 MK, ρc 90.2 g/cm³, Xc 0.7065, stirred core 0.044, pp 100.0%, half the light inside q 0.067, burnt/radiated 0.9996
+0.6 M☉ network X0 0.7068 0.019 Gyr: L 0.0702 L☉, R 0.5368 R☉, Teff 4056 K, Tc 9.89 MK, ρc 87.5 g/cm³, Xc 0.7064, stirred core 0.053, pp 100.0%, half the light inside q 0.061, burnt/radiated 1.0031
+0.6 M☉ network X0 0.7068 0.032 Gyr: L 0.0693 L☉, R 0.5385 R☉, Teff 4036 K, Tc 9.80 MK, ρc 84.0 g/cm³, Xc 0.7062, stirred core 0.062, pp 100.0%, half the light inside q 0.055, burnt/radiated 1.0055
+0.6 M☉ network X0 0.7068 0.045 Gyr: L 0.0688 L☉, R 0.5397 R☉, Teff 4024 K, Tc 9.75 MK, ρc 81.9 g/cm³, Xc 0.7060, stirred core 0.066, pp 100.0%, half the light inside q 0.052, burnt/radiated 1.0062
+0.6 M☉ network X0 0.7068 0.072 Gyr: L 0.0680 L☉, R 0.5396 R☉, Teff 4012 K, Tc 9.72 MK, ρc 79.9 g/cm³, Xc 0.7058, stirred core 0.074, pp 100.0%, half the light inside q 0.047, burnt/radiated 1.0086
+0.6 M☉ network X0 0.7068 0.124 Gyr: L 0.0677 L☉, R 0.5417 R☉, Teff 4000 K, Tc 9.64 MK, ρc 77.9 g/cm³, Xc 0.7052, stirred core 0.066, pp 100.0%, half the light inside q 0.048, burnt/radiated 1.0104, contraction -3.11% of L
+0.6 M☉ network X0 0.7068 0.229 Gyr: L 0.0676 L☉, R 0.5436 R☉, Teff 3991 K, Tc 9.57 MK, ρc 76.8 g/cm³, Xc 0.7042, stirred core 0.050, pp 100.0%, half the light inside q 0.057, burnt/radiated 1.0094, contraction -1.86% of L
+0.6 M☉ network X0 0.7068 0.334 Gyr: L 0.0677 L☉, R 0.5452 R☉, Teff 3987 K, Tc 9.51 MK, ρc 76.3 g/cm³, Xc 0.7031, stirred core 0.033, pp 100.0%, half the light inside q 0.061, burnt/radiated 1.0078, contraction -0.90% of L
+0.6 M☉ network X0 0.7068 0.439 Gyr: L 0.0678 L☉, R 0.5463 R☉, Teff 3984 K, Tc 9.47 MK, ρc 76.0 g/cm³, Xc 0.7019, stirred core 0.021, pp 100.0%, half the light inside q 0.063, burnt/radiated 1.0064, contraction -0.76% of L
+0.6 M☉ network X0 0.7068 0.648 Gyr: L 0.0680 L☉, R 0.5478 R☉, Teff 3982 K, Tc 9.41 MK, ρc 75.9 g/cm³, Xc 0.6995, stirred core 0.010, pp 100.0%, half the light inside q 0.066, burnt/radiated 1.0092, contraction -0.49% of L
+0.6 M☉ network X0 0.7068 1.068 Gyr: L 0.0683 L☉, R 0.5496 R☉, Teff 3981 K, Tc 9.36 MK, ρc 76.0 g/cm³, Xc 0.6944, stirred core 0.002, pp 100.0%, half the light inside q 0.069, burnt/radiated 1.0091, contraction -0.35% of L
+0.6 M☉ network X0 0.7068 1.478 Gyr: L 0.0687 L☉, R 0.5509 R☉, Teff 3981 K, Tc 9.34 MK, ρc 76.3 g/cm³, Xc 0.6892, stirred core 0.000, pp 100.0%, half the light inside q 0.070, burnt/radiated 1.0039, contraction -0.26% of L
+0.6 M☉ network X0 0.7068 2.270 Gyr: L 0.0693 L☉, R 0.5528 R☉, Teff 3984 K, Tc 9.33 MK, ρc 77.0 g/cm³, Xc 0.6792, stirred core 0.000, pp 100.0%, half the light inside q 0.073, burnt/radiated 1.0014, contraction -0.24% of L
+0.6 M☉ network X0 0.7068 3.065 Gyr: L 0.0700 L☉, R 0.5544 R☉, Teff 3987 K, Tc 9.34 MK, ρc 77.9 g/cm³, Xc 0.6693, stirred core 0.000, pp 100.0%, half the light inside q 0.075, burnt/radiated 0.9978, contraction -0.08% of L
+0.6 M☉ network X0 0.7068 3.470 Gyr: L 0.0703 L☉, R 0.5550 R☉, Teff 3989 K, Tc 9.35 MK, ρc 78.4 g/cm³, Xc 0.6643, stirred core 0.000, pp 100.0%, half the light inside q 0.075, burnt/radiated 0.9970, contraction -0.05% of L
+0.6 M☉ network X0 0.7068 3.875 Gyr: L 0.0706 L☉, R 0.5557 R☉, Teff 3992 K, Tc 9.35 MK, ρc 79.0 g/cm³, Xc 0.6594, stirred core 0.000, pp 100.0%, half the light inside q 0.076, burnt/radiated 0.9972, contraction -0.05% of L
+0.6 M☉ network X0 0.7068 4.077 Gyr: L 0.0708 L☉, R 0.5560 R☉, Teff 3993 K, Tc 9.36 MK, ρc 79.3 g/cm³, Xc 0.6569, stirred core 0.000, pp 100.0%, half the light inside q 0.076, burnt/radiated 0.9978, contraction -0.04% of L
+0.6 M☉ network X0 0.7068 4.280 Gyr: L 0.0710 L☉, R 0.5563 R☉, Teff 3994 K, Tc 9.36 MK, ρc 79.5 g/cm³, Xc 0.6544, stirred core 0.000, pp 100.0%, half the light inside q 0.076, burnt/radiated 0.9982, contraction -0.04% of L
+0.6 M☉ network X0 0.7068 4.482 Gyr: L 0.0711 L☉, R 0.5566 R☉, Teff 3995 K, Tc 9.37 MK, ρc 79.8 g/cm³, Xc 0.6519, stirred core 0.000, pp 100.0%, half the light inside q 0.076, burnt/radiated 0.9982, contraction -0.04% of L
+0.6 M☉ network X0 0.7068 4.685 Gyr: L 0.0713 L☉, R 0.5569 R☉, Teff 3996 K, Tc 9.38 MK, ρc 80.1 g/cm³, Xc 0.6494, stirred core 0.000, pp 100.0%, half the light inside q 0.076, burnt/radiated 0.9982, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 4.888 Gyr: L 0.0714 L☉, R 0.5572 R☉, Teff 3998 K, Tc 9.38 MK, ρc 80.4 g/cm³, Xc 0.6470, stirred core 0.000, pp 100.0%, half the light inside q 0.076, burnt/radiated 0.9981, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 5.090 Gyr: L 0.0716 L☉, R 0.5575 R☉, Teff 3999 K, Tc 9.39 MK, ρc 80.7 g/cm³, Xc 0.6445, stirred core 0.000, pp 100.0%, half the light inside q 0.076, burnt/radiated 0.9981, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 5.293 Gyr: L 0.0718 L☉, R 0.5578 R☉, Teff 4000 K, Tc 9.39 MK, ρc 81.0 g/cm³, Xc 0.6420, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9982, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 5.495 Gyr: L 0.0719 L☉, R 0.5581 R☉, Teff 4001 K, Tc 9.40 MK, ρc 81.3 g/cm³, Xc 0.6396, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9980, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 5.698 Gyr: L 0.0721 L☉, R 0.5584 R☉, Teff 4002 K, Tc 9.40 MK, ρc 81.6 g/cm³, Xc 0.6371, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9981, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 5.900 Gyr: L 0.0722 L☉, R 0.5586 R☉, Teff 4004 K, Tc 9.41 MK, ρc 81.8 g/cm³, Xc 0.6346, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9981, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 6.103 Gyr: L 0.0724 L☉, R 0.5589 R☉, Teff 4005 K, Tc 9.42 MK, ρc 82.1 g/cm³, Xc 0.6322, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9977, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 6.305 Gyr: L 0.0726 L☉, R 0.5592 R☉, Teff 4006 K, Tc 9.42 MK, ρc 82.4 g/cm³, Xc 0.6297, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9978, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 6.508 Gyr: L 0.0727 L☉, R 0.5595 R☉, Teff 4007 K, Tc 9.43 MK, ρc 82.8 g/cm³, Xc 0.6273, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9980, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 6.710 Gyr: L 0.0729 L☉, R 0.5598 R☉, Teff 4008 K, Tc 9.44 MK, ρc 83.1 g/cm³, Xc 0.6248, stirred core 0.000, pp 100.0%, half the light inside q 0.078, burnt/radiated 0.9980, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 6.913 Gyr: L 0.0730 L☉, R 0.5600 R☉, Teff 4010 K, Tc 9.44 MK, ρc 83.4 g/cm³, Xc 0.6224, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9979, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 7.115 Gyr: L 0.0732 L☉, R 0.5603 R☉, Teff 4011 K, Tc 9.45 MK, ρc 83.7 g/cm³, Xc 0.6199, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9978, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 7.318 Gyr: L 0.0734 L☉, R 0.5606 R☉, Teff 4012 K, Tc 9.46 MK, ρc 84.0 g/cm³, Xc 0.6175, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9978, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 7.520 Gyr: L 0.0735 L☉, R 0.5609 R☉, Teff 4013 K, Tc 9.46 MK, ρc 84.3 g/cm³, Xc 0.6150, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9979, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 7.723 Gyr: L 0.0737 L☉, R 0.5611 R☉, Teff 4015 K, Tc 9.47 MK, ρc 84.6 g/cm³, Xc 0.6126, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9979, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 7.925 Gyr: L 0.0738 L☉, R 0.5614 R☉, Teff 4016 K, Tc 9.48 MK, ρc 84.9 g/cm³, Xc 0.6102, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9978, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 8.128 Gyr: L 0.0740 L☉, R 0.5617 R☉, Teff 4017 K, Tc 9.48 MK, ρc 85.3 g/cm³, Xc 0.6077, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9979, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 8.330 Gyr: L 0.0742 L☉, R 0.5619 R☉, Teff 4018 K, Tc 9.49 MK, ρc 85.6 g/cm³, Xc 0.6053, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9978, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 8.533 Gyr: L 0.0743 L☉, R 0.5622 R☉, Teff 4020 K, Tc 9.50 MK, ρc 85.9 g/cm³, Xc 0.6028, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9977, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 8.735 Gyr: L 0.0745 L☉, R 0.5625 R☉, Teff 4021 K, Tc 9.51 MK, ρc 86.2 g/cm³, Xc 0.6004, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9977, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 8.938 Gyr: L 0.0747 L☉, R 0.5628 R☉, Teff 4022 K, Tc 9.51 MK, ρc 86.6 g/cm³, Xc 0.5980, stirred core 0.000, pp 100.0%, half the light inside q 0.080, burnt/radiated 0.9978, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 9.140 Gyr: L 0.0748 L☉, R 0.5630 R☉, Teff 4023 K, Tc 9.52 MK, ρc 86.9 g/cm³, Xc 0.5955, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9977, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 9.343 Gyr: L 0.0750 L☉, R 0.5633 R☉, Teff 4025 K, Tc 9.53 MK, ρc 87.2 g/cm³, Xc 0.5931, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9978, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 9.545 Gyr: L 0.0752 L☉, R 0.5636 R☉, Teff 4026 K, Tc 9.53 MK, ρc 87.6 g/cm³, Xc 0.5907, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9977, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 9.748 Gyr: L 0.0753 L☉, R 0.5639 R☉, Teff 4027 K, Tc 9.54 MK, ρc 87.9 g/cm³, Xc 0.5882, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9977, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 9.950 Gyr: L 0.0755 L☉, R 0.5641 R☉, Teff 4028 K, Tc 9.55 MK, ρc 88.3 g/cm³, Xc 0.5858, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9976, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 10.153 Gyr: L 0.0757 L☉, R 0.5644 R☉, Teff 4030 K, Tc 9.56 MK, ρc 88.6 g/cm³, Xc 0.5834, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9972, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 10.355 Gyr: L 0.0758 L☉, R 0.5647 R☉, Teff 4031 K, Tc 9.57 MK, ρc 89.0 g/cm³, Xc 0.5810, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9973, contraction -0.03% of L
+0.6 M☉ network X0 0.7068 10.558 Gyr: L 0.0760 L☉, R 0.5650 R☉, Teff 4032 K, Tc 9.57 MK, ρc 89.3 g/cm³, Xc 0.5785, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 10.760 Gyr: L 0.0762 L☉, R 0.5652 R☉, Teff 4033 K, Tc 9.58 MK, ρc 89.7 g/cm³, Xc 0.5761, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 10.963 Gyr: L 0.0763 L☉, R 0.5655 R☉, Teff 4035 K, Tc 9.59 MK, ρc 90.0 g/cm³, Xc 0.5737, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 11.165 Gyr: L 0.0765 L☉, R 0.5658 R☉, Teff 4036 K, Tc 9.60 MK, ρc 90.4 g/cm³, Xc 0.5713, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 11.368 Gyr: L 0.0767 L☉, R 0.5661 R☉, Teff 4037 K, Tc 9.60 MK, ρc 90.7 g/cm³, Xc 0.5689, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 11.570 Gyr: L 0.0769 L☉, R 0.5663 R☉, Teff 4038 K, Tc 9.61 MK, ρc 91.1 g/cm³, Xc 0.5664, stirred core 0.000, pp 100.0%, half the light inside q 0.081, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 11.773 Gyr: L 0.0770 L☉, R 0.5666 R☉, Teff 4040 K, Tc 9.62 MK, ρc 91.5 g/cm³, Xc 0.5640, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9977, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 11.975 Gyr: L 0.0772 L☉, R 0.5669 R☉, Teff 4041 K, Tc 9.63 MK, ρc 91.8 g/cm³, Xc 0.5616, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9977, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 12.178 Gyr: L 0.0774 L☉, R 0.5672 R☉, Teff 4042 K, Tc 9.64 MK, ρc 92.2 g/cm³, Xc 0.5592, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 12.380 Gyr: L 0.0776 L☉, R 0.5674 R☉, Teff 4044 K, Tc 9.64 MK, ρc 92.6 g/cm³, Xc 0.5568, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 12.583 Gyr: L 0.0777 L☉, R 0.5677 R☉, Teff 4045 K, Tc 9.65 MK, ρc 93.0 g/cm³, Xc 0.5544, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9974, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 12.785 Gyr: L 0.0779 L☉, R 0.5680 R☉, Teff 4046 K, Tc 9.66 MK, ρc 93.3 g/cm³, Xc 0.5520, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 12.988 Gyr: L 0.0781 L☉, R 0.5683 R☉, Teff 4047 K, Tc 9.67 MK, ρc 93.7 g/cm³, Xc 0.5496, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 13.190 Gyr: L 0.0783 L☉, R 0.5686 R☉, Teff 4049 K, Tc 9.68 MK, ρc 94.1 g/cm³, Xc 0.5471, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9974, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 13.393 Gyr: L 0.0784 L☉, R 0.5688 R☉, Teff 4050 K, Tc 9.69 MK, ρc 94.5 g/cm³, Xc 0.5447, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 13.595 Gyr: L 0.0786 L☉, R 0.5691 R☉, Teff 4051 K, Tc 9.69 MK, ρc 94.9 g/cm³, Xc 0.5423, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 13.798 Gyr: L 0.0788 L☉, R 0.5694 R☉, Teff 4053 K, Tc 9.70 MK, ρc 95.3 g/cm³, Xc 0.5399, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 14.000 Gyr: L 0.0790 L☉, R 0.5697 R☉, Teff 4054 K, Tc 9.71 MK, ρc 95.7 g/cm³, Xc 0.5375, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 14.203 Gyr: L 0.0792 L☉, R 0.5700 R☉, Teff 4055 K, Tc 9.72 MK, ρc 96.1 g/cm³, Xc 0.5351, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 14.406 Gyr: L 0.0793 L☉, R 0.5703 R☉, Teff 4057 K, Tc 9.73 MK, ρc 96.5 g/cm³, Xc 0.5327, stirred core 0.000, pp 100.0%, half the light inside q 0.083, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 14.608 Gyr: L 0.0795 L☉, R 0.5706 R☉, Teff 4058 K, Tc 9.74 MK, ρc 96.9 g/cm³, Xc 0.5303, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9975, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 14.811 Gyr: L 0.0797 L☉, R 0.5708 R☉, Teff 4059 K, Tc 9.75 MK, ρc 97.3 g/cm³, Xc 0.5279, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9974, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 15.013 Gyr: L 0.0799 L☉, R 0.5711 R☉, Teff 4061 K, Tc 9.75 MK, ρc 97.7 g/cm³, Xc 0.5255, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9974, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 15.216 Gyr: L 0.0801 L☉, R 0.5714 R☉, Teff 4062 K, Tc 9.76 MK, ρc 98.1 g/cm³, Xc 0.5231, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9974, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 15.418 Gyr: L 0.0803 L☉, R 0.5717 R☉, Teff 4063 K, Tc 9.77 MK, ρc 98.5 g/cm³, Xc 0.5207, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9974, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 15.621 Gyr: L 0.0805 L☉, R 0.5720 R☉, Teff 4065 K, Tc 9.78 MK, ρc 99.0 g/cm³, Xc 0.5184, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9973, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 15.823 Gyr: L 0.0806 L☉, R 0.5723 R☉, Teff 4066 K, Tc 9.79 MK, ρc 99.4 g/cm³, Xc 0.5160, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 16.026 Gyr: L 0.0808 L☉, R 0.5726 R☉, Teff 4067 K, Tc 9.80 MK, ρc 99.8 g/cm³, Xc 0.5136, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9971, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 16.228 Gyr: L 0.0810 L☉, R 0.5729 R☉, Teff 4069 K, Tc 9.81 MK, ρc 100.2 g/cm³, Xc 0.5112, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9973, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 16.431 Gyr: L 0.0812 L☉, R 0.5732 R☉, Teff 4070 K, Tc 9.82 MK, ρc 100.7 g/cm³, Xc 0.5088, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9971, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 16.633 Gyr: L 0.0814 L☉, R 0.5735 R☉, Teff 4071 K, Tc 9.82 MK, ρc 101.1 g/cm³, Xc 0.5064, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9973, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 16.836 Gyr: L 0.0816 L☉, R 0.5738 R☉, Teff 4073 K, Tc 9.83 MK, ρc 101.6 g/cm³, Xc 0.5040, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 17.038 Gyr: L 0.0818 L☉, R 0.5741 R☉, Teff 4074 K, Tc 9.84 MK, ρc 102.0 g/cm³, Xc 0.5016, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9974, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 17.241 Gyr: L 0.0820 L☉, R 0.5744 R☉, Teff 4075 K, Tc 9.85 MK, ρc 102.4 g/cm³, Xc 0.4993, stirred core 0.000, pp 100.0%, half the light inside q 0.084, burnt/radiated 0.9973, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 17.443 Gyr: L 0.0822 L☉, R 0.5747 R☉, Teff 4077 K, Tc 9.86 MK, ρc 102.9 g/cm³, Xc 0.4969, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 17.646 Gyr: L 0.0824 L☉, R 0.5750 R☉, Teff 4078 K, Tc 9.87 MK, ρc 103.4 g/cm³, Xc 0.4945, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 17.848 Gyr: L 0.0826 L☉, R 0.5753 R☉, Teff 4079 K, Tc 9.88 MK, ρc 103.8 g/cm³, Xc 0.4921, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9973, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 18.051 Gyr: L 0.0828 L☉, R 0.5756 R☉, Teff 4081 K, Tc 9.89 MK, ρc 104.3 g/cm³, Xc 0.4898, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9973, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 18.253 Gyr: L 0.0830 L☉, R 0.5759 R☉, Teff 4082 K, Tc 9.90 MK, ρc 104.7 g/cm³, Xc 0.4874, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9971, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 18.456 Gyr: L 0.0832 L☉, R 0.5762 R☉, Teff 4083 K, Tc 9.91 MK, ρc 105.2 g/cm³, Xc 0.4850, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 18.658 Gyr: L 0.0834 L☉, R 0.5765 R☉, Teff 4085 K, Tc 9.92 MK, ρc 105.7 g/cm³, Xc 0.4826, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 18.861 Gyr: L 0.0836 L☉, R 0.5768 R☉, Teff 4086 K, Tc 9.93 MK, ρc 106.2 g/cm³, Xc 0.4803, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 19.063 Gyr: L 0.0838 L☉, R 0.5771 R☉, Teff 4087 K, Tc 9.94 MK, ρc 106.6 g/cm³, Xc 0.4779, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9971, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 19.266 Gyr: L 0.0840 L☉, R 0.5775 R☉, Teff 4089 K, Tc 9.95 MK, ρc 107.1 g/cm³, Xc 0.4755, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9972, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 19.468 Gyr: L 0.0842 L☉, R 0.5778 R☉, Teff 4090 K, Tc 9.96 MK, ρc 107.6 g/cm³, Xc 0.4732, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9971, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 19.671 Gyr: L 0.0844 L☉, R 0.5781 R☉, Teff 4092 K, Tc 9.97 MK, ρc 108.1 g/cm³, Xc 0.4708, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9971, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 19.835 Gyr: L 0.0845 L☉, R 0.5783 R☉, Teff 4093 K, Tc 9.97 MK, ρc 108.5 g/cm³, Xc 0.4689, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9976, contraction -0.02% of L
+0.6 M☉ network X0 0.7068 20.000 Gyr: L 0.0847 L☉, R 0.5786 R☉, Teff 4094 K, Tc 9.98 MK, ρc 109.0 g/cm³, Xc 0.4670, stirred core 0.000, pp 100.0%, half the light inside q 0.086, burnt/radiated 0.9977, contraction -0.02% of L
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-ours-0.6-X0.7068-Z0.0143-opal-a1.61-s1e6-eg-tv2k.json (295 s, 101 models; tmax)
+(node:2362) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

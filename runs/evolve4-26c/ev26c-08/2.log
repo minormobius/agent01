@@ -1,0 +1,21 @@
+$ node four/atom/tools/evolve.mjs four 1e-20 1.85 2.126340948 grav=1 tag=v2
+4D G 1e-20 s 1.85 2.126 M_Ch: resumed at 69.4097 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-20-1.85-2.126-lp-eg-tv2.ckpt.json
+4D G 1e-20 s 1.85 2.126 M_Ch 69.433 Gyr: L 2.0910e+48 W, R 1.7107e+10 m, Teff 14760 K, Tc 11.74 MK, ρc 4.944e+14 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 99.9%, half the light inside q 0.183, burnt/radiated 0.9975, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.457 Gyr: L 2.0964e+48 W, R 1.7128e+10 m, Teff 14756 K, Tc 11.76 MK, ρc 4.963e+14 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 99.9%, half the light inside q 0.183, burnt/radiated 0.9978, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.481 Gyr: L 2.1013e+48 W, R 1.7146e+10 m, Teff 14754 K, Tc 11.77 MK, ρc 4.984e+14 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 99.9%, half the light inside q 0.183, burnt/radiated 0.9977, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.504 Gyr: L 2.1059e+48 W, R 1.7162e+10 m, Teff 14752 K, Tc 11.78 MK, ρc 5.006e+14 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 99.9%, half the light inside q 0.183, burnt/radiated 0.9973, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.528 Gyr: L 2.1110e+48 W, R 1.7180e+10 m, Teff 14750 K, Tc 11.79 MK, ρc 5.028e+14 kg/m⁴, Xc 0.0012, stirred core 0.000, pp 99.9%, half the light inside q 0.185, burnt/radiated 0.9975, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.551 Gyr: L 2.1162e+48 W, R 1.7200e+10 m, Teff 14747 K, Tc 11.80 MK, ρc 5.051e+14 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 99.8%, half the light inside q 0.185, burnt/radiated 0.9976, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.575 Gyr: L 2.1214e+48 W, R 1.7218e+10 m, Teff 14745 K, Tc 11.82 MK, ρc 5.073e+14 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 99.8%, half the light inside q 0.185, burnt/radiated 0.9977, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.599 Gyr: L 2.1259e+48 W, R 1.7235e+10 m, Teff 14743 K, Tc 11.83 MK, ρc 5.096e+14 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 99.8%, half the light inside q 0.185, burnt/radiated 0.9975, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.622 Gyr: L 2.1307e+48 W, R 1.7251e+10 m, Teff 14741 K, Tc 11.84 MK, ρc 5.118e+14 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 99.8%, half the light inside q 0.185, burnt/radiated 0.9976, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.646 Gyr: L 2.1355e+48 W, R 1.7269e+10 m, Teff 14739 K, Tc 11.86 MK, ρc 5.139e+14 kg/m⁴, Xc 0.0011, stirred core 0.000, pp 99.8%, half the light inside q 0.185, burnt/radiated 0.9976, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.669 Gyr: L 2.1404e+48 W, R 1.7286e+10 m, Teff 14736 K, Tc 11.87 MK, ρc 5.162e+14 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 99.8%, half the light inside q 0.187, burnt/radiated 0.9977, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.693 Gyr: L 2.1455e+48 W, R 1.7306e+10 m, Teff 14733 K, Tc 11.89 MK, ρc 5.185e+14 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 99.8%, half the light inside q 0.187, burnt/radiated 0.9977, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.717 Gyr: L 2.1506e+48 W, R 1.7324e+10 m, Teff 14731 K, Tc 11.90 MK, ρc 5.207e+14 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 99.8%, half the light inside q 0.187, burnt/radiated 0.9977, contraction 0.00% of L
+4D G 1e-20 s 1.85 2.126 M_Ch 69.740 Gyr: L 2.1559e+48 W, R 1.7344e+10 m, Teff 14728 K, Tc 11.92 MK, ρc 5.229e+14 kg/m⁴, Xc 0.0010, stirred core 0.000, pp 99.8%, half the light inside q 0.187, burnt/radiated 0.9977, contraction 0.00% of L
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-20-1.85-2.126-lp-eg-tv2.json (126 s, 719 models; central hydrogen below 0.001)
+(node:2646) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
