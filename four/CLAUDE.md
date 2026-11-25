@@ -436,6 +436,12 @@ for games, and this is a modelling programme with publications to come. The game
   one set (gen2.mjs on a folder of the `-to3` runs without their `-tg2` tag). Paper: status findings 3 and the gen2,
   opacity, meaning and next-steps entries, methods; tokens g2bF2/g2bB2/g2bF10/g2bB10, m4Band1/m4Band2, gasZ3; ledger
   checks `metalsBand1`, `gen2BandFainter`. Still not in: the band's spectral lines (about half a metal's share in ours).
+  **evolve4-26 leg 1 (collected 2026-11-25):** 46 of the 49 4D stars cut at 330 min (Xc 0.01–0.58), books clean (single
+  core-regrowth spikes up to 36%, none near the 10-model bar); s 1.5152 0.25 and 0.5 M_Ch ran to the 200 Gyr limit (they
+  outlive it, as before), the s 1.8 analogue finished (61.8 Gyr). **Ours: six of seven stopped on the solver** ("no
+  solution past Xc 0.7066": 0.6, 0.8, 1, 1.6, 2 M☉ within 0.004 Gyr; 3 M☉ at Xc 0.0037); only 1.25 M☉ finished (3.71 Gyr).
+  Status code 0 there: evolve.mjs exits cleanly on a solver stop, so a finished leg's `.json` must be read, not its code.
+  evolve4-26b runs the 46; ours held back for diagnosis.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
