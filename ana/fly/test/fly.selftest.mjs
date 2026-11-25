@@ -1,62 +1,75 @@
-// FLY's selftest: the land tiles and the fast grid is the noise; the renderer's skyline is the land's; the flight frame
-// stays square and never goes under the ground; beacons are where the HUD says.
+// FLY's selftest: the planet (a 3-sphere), its grids, its cities, the curved renderer, flight round it, beacons.
 import * as Y from '../js/fly.js';
+import { readFileSync } from 'node:fs';
 let passes = 0, fails = 0;
 const ok = (c, msg) => { if (c) { passes++; console.log(`  ✓ ${msg}`); } else { fails++; console.log(`  ✗ ${msg}`); } };
 let seed = 11; const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+const g = () => { let u = 0; for (let k = 0; k < 6; k++) u += rnd(); return u - 3; };
+const unit = () => { const v = [g(), g(), g(), g()], l = Math.hypot(...v); return v.map((x) => x / l); };
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
 const t0 = Date.now(), wd = Y.buildWorld(1), tb = Date.now() - t0;
-// the land
+// the vendored city engine is packages/morph's, byte for byte
 {
-  let te = 0; for (let k = 0; k < 300; k++) { const x = rnd() * Y.L, y = rnd() * Y.L, z = rnd() * Y.L; te = Math.max(te, Math.abs(Y.rawHeight(x, y, z) - Y.rawHeight(x + Y.L, y - 2 * Y.L, z + Y.L))); }
-  let ge = 0; for (let t = 0; t < 3000; t++) { const i = Math.floor(rnd() * Y.G), j = Math.floor(rnd() * Y.G), k = Math.floor(rnd() * Y.G); ge = Math.max(ge, Math.abs(wd.h[(k * Y.G + j) * Y.G + i] - Y.rawHeight(i * Y.CELL, j * Y.CELL, k * Y.CELL, 1))); }
-  ok(te < 1e-9 && ge < 1e-3, `the land wraps every ${Y.L} m in all three floor directions (to ${te.toExponential(0)} m), and the fast grid (built in ${tb} ms) is the noise at every node checked (to ${ge.toExponential(0)} m)`);
-  let ce = 0; for (let t = 0; t < 500; t++) { const p = [rnd() * Y.L, rnd() * Y.L, rnd() * Y.L], q = p.map((x) => x + 0.01); ce = Math.max(ce, Math.abs(Math.max(Y.heightAt(wd, ...p), 0) - Y.heightAt(wd, ...q))); }
+  const same = ['geom.js', 'morph.js', 'rand.js'].every((f) => readFileSync(new URL(`../vendor/morph/${f}`, import.meta.url), 'utf8') === readFileSync(new URL(`../../../packages/morph/${f}`, import.meta.url), 'utf8'));
+  ok(same, 'vendor/morph is packages/morph byte for byte (geom, morph, rand; kept so by scripts/sync-dataviz.mjs)');
+}
+// the tesseract map
+{
+  let rt = 0; for (let k = 0; k < 2000; k++) { const P = unit(), { c, g: q } = Y.locate(P), Q = Y.nodeDir(c, ...q); rt = Math.max(rt, Math.hypot(...P.map((x, i) => x - Q[i]))); }
+  ok(rt < 1e-12, `the tesseract map: every point of the sphere lands in one cell's grid, and the grid point takes it back (to ${rt.toExponential(0)})`);
+  // continuity across cells: two points 1 cm apart either side of a cell boundary have nearly the same ground
+  let jump = 0; for (let k = 0; k < 2000; k++) { const P = unit(), ax = [0, 1, 2, 3].sort((a, b) => Math.abs(P[b]) - Math.abs(P[a])); const Q = P.slice(); Q[ax[1]] = Math.sign(P[ax[1]] || 1) * Math.abs(P[ax[0]]); const l = Math.hypot(...Q), B = Q.map((x) => x / l), d = 0.01 / Y.R0; const B2 = B.map((x, i) => x + (i === ax[1] ? d : 0)), l2 = Math.hypot(...B2); jump = Math.max(jump, Math.abs(Y.ground(wd, B, false).land - Y.ground(wd, B2.map((x) => x / l2), false).land)); }
+  ok(jump < 0.5, `the ground is continuous across the eight cells' faces (1 cm across a face moves it at most ${jump.toFixed(3)} m)`);
+  let ge = 0; for (let k = 0; k < 3000; k++) { const c = Math.floor(rnd() * 8), i = Math.floor(rnd() * Y.M), j = Math.floor(rnd() * Y.M), kk = Math.floor(rnd() * Y.M), P = Y.nodeDir(c, i, j, kk), inCity = wd.cities.some((t) => dot(P, t.C) > Math.cos(500 / Y.R0)); if (inCity) continue; ge = Math.max(ge, Math.abs(wd.h[c * Y.M ** 3 + (kk * Y.M + j) * Y.M + i] - Y.rawHeight(P, 1))); }
   const water = wd.h.filter((e) => e < wd.sea).length / wd.h.length;
-  ok(ce < 1 && Math.abs(water - 0.14) < 0.01, `the ground is continuous between nodes (1 cm moves it at most ${ce.toFixed(2)} m), and the sea sits where 14% of the land is under it (${(water * 100).toFixed(1)}%)`);
-  // the shading's slope against the slope of the noise itself (the land the grid samples), at random points: the grid
-  // is 64 m, so slopes vary inside a cell that it can't see; on average it should still follow them
-  let gs = 0, gm = 0; const NT = 300; for (let t = 0; t < NT; t++) { const p = [rnd() * Y.L, rnd() * Y.L, rnd() * Y.L], g = Y.ground(wd, ...p), h = 2, num = [0, 1, 2].map((a) => { const u = p.slice(), v = p.slice(); u[a] += h; v[a] -= h; return (Y.rawHeight(...u, 1) - Y.rawHeight(...v, 1)) / (2 * h); }); gs += Math.hypot(num[0] - g.gx, num[1] - g.gy, num[2] - g.gz); gm += Math.hypot(...num); }
-  ok(gs / gm < 0.6, `the shading's slope follows the true slope of the land on average (mean difference ${((100 * gs) / gm).toFixed(0)}% of the mean slope; the 64 m grid can't see what varies inside a cell)`);
+  ok(ge < 1e-3 && Math.abs(water - 0.14) < 0.01, `the grids hold the 4D noise at every node checked (to ${ge.toExponential(0)} m; built in ${tb} ms), sea where 14% of them lie (${(water * 100).toFixed(1)}%)`);
 }
-// the renderer
+// the cities
 {
-  const c = Y.aircraft(wd), px = new Uint32Array(Y.W * Y.H), fr = Y.render(wd, c, px);
-  // brute force: for a column, march finely and take the highest point's screen row
-  let worst = 0;
-  for (const x of [0, 60, 150, 240, 333, 420, 479]) {
-    const s = (x - Y.W / 2) / Y.FOCAL; let top = Y.H;
-    for (let z = 2; z < Y.FAR; z += 1) { const e = Y.heightAt(wd, c.p[0] + (c.F[0] + c.R[0] * s) * z, c.p[1] + (c.F[1] + c.R[1] * s) * z, c.p[2] + (c.F[2] + c.R[2] * s) * z); top = Math.min(top, fr.horizon - ((e - c.alt) * Y.FOCAL) / z); }
-    worst = Math.max(worst, Math.abs(Math.max(0, Math.ceil(top)) - fr.top[x]));
+  const n = wd.cities.map((t) => t.count), far = wd.cities.length < 2 || dot(wd.cities[0].C, wd.cities[1].C) < Math.cos(1.4);
+  // in each plan's own layer (the plane of its streets through the centre), how much is built on
+  let found = 0, triedP = 0, flat = 0; for (const t of wd.cities) { for (let k = 0; k < 400; k++) { const u = (rnd() - 0.5) * 400, v = (rnd() - 0.5) * 400, q = t.C.map((x, i) => x + (u * t.e[0][i] + v * t.e[1][i]) / Y.R0), l = Math.hypot(...q), P = q.map((x) => x / l); triedP++; if (Y.buildingAt(wd, P)) found++; flat = Math.max(flat, Math.abs(Y.ground(wd, P, false).land - t.base)); } }
+  ok(wd.cities.length === 2 && n.every((x) => x > 300) && far && found > triedP * 0.15 && flat < 1e-3, `two cities from morph (${n.join(' and ')} buildings), far apart; in each plan's own layer, within 200 m of its centre, ${Math.round((100 * found) / triedP)}% of the ground is built on, and the land under a city is level (to ${flat.toExponential(0)} m)`);
+  const t = wd.cities[0], P = (u, v, w) => { const q = t.C.map((x, i) => x + (u * t.e[0][i] + v * t.e[1][i] + w * t.e[2][i]) / Y.R0), l = Math.hypot(...q); return q.map((x) => x / l); };
+  let sameAcross = 0, tried = 0; for (let k = 0; k < 2000 && tried < 200; k++) { const u = (rnd() - 0.5) * 400, v = (rnd() - 0.5) * 400, b0 = Y.buildingAt(wd, P(u, v, 0)); if (!b0) continue; tried++; if (Y.buildingAt(wd, P(u, v, 64 * 2 + 1)) && !Y.buildingAt(wd, P(u, v, 32))) sameAcross++; }
+  ok(tried > 50 && sameAcross > tried * 0.3, `layers: where a building stands in the plan's own layer, ${sameAcross} of ${tried} also stand two layers (128 m) across, with the avenue between them (32 m across) open`);
+}
+// the renderer, curved
+{
+  const c = Y.aircraft(wd), px = new Uint32Array(Y.W * Y.H), fr = Y.render(wd, c, px), rc = Y.R0 + c.alt;
+  let worst = 0, drawn = 0;
+  for (const x of [0, 80, 160, 240, 320, 400, 479]) {
+    const s = (x - Y.W / 2) / Y.FOCAL, k = Math.hypot(1, s), U = [0, 1, 2, 3].map((i) => (c.F[i] + c.R[i] * s) / k); let top = Y.H;
+    for (let d = 2; d < Y.FAR && d / Y.R0 < Math.PI / 2; d += 1) { const ph = d / Y.R0, P = c.X.map((x0, i) => x0 * Math.cos(ph) + U[i] * Math.sin(ph)), r = Y.R0 + Y.heightAt(wd, P); top = Math.min(top, fr.horizon - ((r * Math.cos(ph) - rc) * Y.FOCAL) / ((r * Math.sin(ph)) / k)); }
+    worst = Math.max(worst, Math.abs(Math.max(0, Math.ceil(top)) - fr.top[x])); if (fr.top[x] < Y.H) drawn++;
   }
-  ok(worst <= 3, `Voxel Space draws the land's true skyline: in 7 columns its top row is within ${worst} px of a ray marched every metre`);
+  ok(worst <= 3 && drawn === 7, `Voxel Space on the curved planet: in 7 columns the land's top row is within ${worst} px of a ray marched every metre along its great circle`);
   const g0 = Y.skyline(wd, c, 0, 1).out; let gd = 0; for (let x = 0; x < Y.W; x += 7) gd = Math.max(gd, Math.abs(Math.max(0, Math.ceil(g0[x])) - fr.top[x]));
-  ok(gd <= 4, `the ghost skyline at 0 m ana is the view's own skyline (within ${gd} px), so at ±150 m it is the land beside you`);
+  ok(gd <= 4, `the ghost skyline at 0 m ana is the view's own (within ${gd} px)`);
+  // the horizon really is below level: the camera tilt is the dip, which grows with height
+  const lo = { ...c, alt: wd.sea + 20 }, hi = { ...c, alt: wd.sea + 800 };
+  ok(Y.tilt(hi) > Y.tilt(lo) && Math.abs(Y.tilt(hi) - 0.8 * Math.acos(Y.R0 / (Y.R0 + hi.alt))) < 1e-12, `the camera looks down by 0.8 of the horizon's dip: ${((Y.tilt(lo) * 180) / Math.PI).toFixed(1)}° at ${Math.round(lo.alt)} m, ${((Y.tilt(hi) * 180) / Math.PI).toFixed(1)}° at ${Math.round(hi.alt)} m`);
 }
-// flying
+// flying round the planet
 {
-  const c = Y.aircraft(wd); let sq = 0, under = 0, hits = 0;
+  const c = Y.aircraft(wd), X0 = c.X.slice(); c.alt = 900; let d = 0; const step = 1 / 20;
+  while (d < Y.L * ((Y.R0 + 900) / Y.R0) - 1e-6) { const v = Math.min(c.speed * step, Y.L * ((Y.R0 + 900) / Y.R0) - d); const sp = c.speed; c.speed = v / step; const k = {}; Y.fly({ ...wd, h: new Float32Array(wd.h.length).fill(-1e9), cities: [] }, c, k, step); c.speed = sp; d += v; c.alt = 900; }
+  ok(Math.hypot(...c.X.map((x, i) => x - X0[i])) < 1e-6, `fly straight and level and you are home after one great circle: 8.19 km of ground passed under you (${((Y.L * (Y.R0 + 900)) / Y.R0 / 1000).toFixed(1)} km flown, at 900 m up)`);
+  const c2 = Y.aircraft(wd); let sq = 0, under = 0;
   for (let k = 0; k < 20000; k++) {
-    const kk = { yaw: rnd() * 2 - 1, pitch: rnd() * 2 - 1.1, ana: rnd() * 2 - 1, roll: rnd() * 2 - 1, throttle: rnd() * 2 - 1 };
-    if (Y.fly(wd, c, kk, 1 / 30)) hits++;
-    const d = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    sq = Math.max(sq, Math.abs(d(c.F, c.F) - 1), Math.abs(d(c.R, c.R) - 1), Math.abs(d(c.A, c.A) - 1), Math.abs(d(c.F, c.R)), Math.abs(d(c.F, c.A)), Math.abs(d(c.R, c.A)));
-    if (c.alt < Y.heightAt(wd, ...c.p) + 11.99) under++;
+    Y.fly(wd, c2, { yaw: rnd() * 2 - 1, pitch: rnd() * 2 - 1.1, ana: rnd() * 2 - 1, roll: rnd() * 2 - 1, throttle: rnd() * 2 - 1 }, 1 / 30);
+    const v = [c2.X, c2.F, c2.R, c2.A]; for (let a = 0; a < 4; a++) for (let b = a; b < 4; b++) sq = Math.max(sq, Math.abs(dot(v[a], v[b]) - (a === b ? 1 : 0)));
+    if (c2.alt < Y.heightAt(wd, c2.X) + 9.99) under++;
   }
-  ok(sq < 1e-12 && under === 0, `20,000 steps of random flying: the frame (forward, right, ana) stays orthonormal to ${sq.toExponential(0)}, and never once below the ground (touched it ${hits} times, pushed back up each time)`);
-  // turning ana then kata by the same amount comes back; yaw, ana and roll are three independent turns
-  const c2 = Y.aircraft(wd), F0 = c2.F.slice(); Y.turn(c2, 'F', 'A', 0.7); const moved = Math.hypot(...c2.F.map((x, i) => x - F0[i])); Y.turn(c2, 'F', 'A', -0.7);
-  ok(moved > 0.5 && Math.hypot(...c2.F.map((x, i) => x - F0[i])) < 1e-12, 'turning ana and back again returns your heading exactly');
+  ok(sq < 1e-12 && under === 0, `20,000 steps of random flying: X, F, R, A stay orthonormal (to ${sq.toExponential(0)}) and never once under the ground or a roof`);
 }
 // beacons
 {
-  const c = Y.aircraft(wd), bs = Y.course(wd, c.p, 8, 5); let e = 0, ab = 0;
-  for (const b of bs) {
-    const r = Y.relative(c, b), back = [0, 1, 2].map((i) => c.p[i] + c.F[i] * r.ahead + c.R[i] * r.right + c.A[i] * r.ana), d = back.map((x, i) => { let v = x - b.p[i]; v -= Math.round(v / Y.L) * Y.L; return v; });
-    e = Math.max(e, Math.hypot(...d)); ab = Math.max(ab, b.alt - Y.heightAt(wd, ...b.p));
-  }
-  ok(e < 1e-6 && bs.every((b) => b.alt - Y.heightAt(wd, ...b.p) >= 150), `each beacon is exactly where the HUD's ahead, right and ana put it (to ${e.toExponential(0)} m, the short way round the wrapping floor), and at least 150 m above the ground`);
-  const b = { p: c.p.map((x, i) => x + c.A[i] * 40), alt: c.alt, r: 70 };
-  ok(Y.inside(c, b) && Math.abs(Y.relative(c, b).ana - 40) < 1e-9 && !Y.inside(c, { ...b, p: c.p.map((x, i) => x + c.A[i] * 80) }), 'a beacon 40 m ana of you is 40 m ana on the gauge and you are inside it; 80 m ana you have missed it');
+  const c = Y.aircraft(wd), bs = Y.course(wd, c.X, 8, 5); let e = 0;
+  for (const b of bs) { const r = Y.relative(c, b), back = [0, 1, 2, 3].map((i) => (Y.R0 + c.alt) * c.X[i] + c.F[i] * r.ahead + c.R[i] * r.right + c.A[i] * r.ana + c.X[i] * r.up); e = Math.max(e, Math.hypot(...back.map((x, i) => x - (Y.R0 + b.alt) * b.X[i]))); }
+  ok(e < 1e-6 && bs.every((b) => b.alt - Y.heightAt(wd, b.X) >= 40), `beacons are where ahead, right, ana and up put them (to ${e.toExponential(0)} m), each at least 40 m above the ground`);
+  const b = { X: c.X.map((x, i) => Math.cos(30 / (Y.R0 + c.alt)) * x + Math.sin(30 / (Y.R0 + c.alt)) * c.A[i]), alt: c.alt, r: 40 };
+  ok(Y.inside(c, b) && Math.abs(Y.relative(c, b).ana - 30) < 0.01, 'a beacon 30 m ana of you is 30 m ana on the gauge, and you are inside it');
 }
 console.log(`${fails ? '✗' : '✓'} fly: ${passes} passed, ${fails} failed`);
 process.exit(fails ? 1 : 0);

@@ -5873,7 +5873,7 @@
       "b": "2026-11-25",
       "p": "ana",
       "surface": "ana",
-      "d": "Fly over a four-dimensional landscape, in the vein of the studio's colour cycle. In 4D the ground is three-dimensional, a height over a 3D floor, and you turn ana and kata as well as left and right. You see the slice through you that holds forward, right and up, drawn in Voxel Space as Comanche drew its hills, from a 256-colour palette lit by a 4D sun that shines partly from ana. Ghost skylines show the land 150 m ana and kata of you; a map shows the 3D floor, your track and the plane you see; beacons hang off in w and show only as the slice of them you're in, so you turn ana until they fill and fly through. An endless wrapping world of lakes, forest and ridged mountains; a selftest holds the renderer to a finely marched ray.",
+      "d": "Fly round a four-dimensional planet, in the vein of the studio's colour cycle. Its ground is a 3-sphere 8 km round: fly straight any way and you are home in 8 km. You see the slice through you that holds forward, right and up, a small curved planet drawn in Voxel Space as Comanche drew its hills, lit by a 4D sun with a night side; you turn ana and kata as well as left and right. Two cities from the studio's city series (packages/morph: streets, plots and seven centuries of buildings) stand on it, each laid in layers across the ground's third direction: fly along a layer and you are in the studio's city, turn ana and you cut across them. Ghost skylines show the land 150 m ana and kata of you; a map lays the ground round you flat; beacons hang off in w and show only as the slice of them you are in. A selftest holds the curved renderer to a finely marched ray.",
       "tags": [
         "webgl",
         "math"

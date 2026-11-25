@@ -1,239 +1,339 @@
-// FLY: flying over a four-dimensional landscape. No DOM.
+// FLY: flying over a four-dimensional planet. No DOM.
 //
-// In 4D the ground is three-dimensional: a height h(x, y, z) over a 3D floor, and the sky is above it in the fourth
-// direction, up. You fly over that floor. Your eyes see the 3D slice through you that holds your forward F, your right R
-// and up; the floor's third direction across, your ana A (F, R, A orthonormal in the floor), is the one you can't see.
-// Inside your slice the ground is an ordinary heightmap, h along the plane of F and R, and Voxel Space draws a
-// heightmap the way Comanche did in 1992 and the studio's colour cycle does: for each screen column a ray walks out over
-// it, and every step that rises above what is already drawn fills the column up to it.
+// In 4D the ground is three-dimensional. Here it is the surface of a 4-ball, the 3-sphere S³, of radius R0: every point
+// of the ground is a unit 4-vector X (times R0 + its height), and up is X itself. A great circle is L = 8,192 m round,
+// so fly straight and you are home in 8 km. You fly over it; your eyes see the 3D slice through you that holds forward
+// F, right R and up X. That slice passes through the planet's centre, so in it the ground is an ordinary 2-sphere planet
+// with hills, and Voxel Space draws it exactly: each screen column follows the great circle its ray runs along,
+// curvature and all. The fourth direction, your ana A (F, R, A, X orthonormal), is the one you can't see.
 //
-// The world is a torus, L across in each floor direction, so it never ends: a 3D grid of heights (G³ nodes) from
-// tileable value noise, read back by trilinear interpolation. Each node also carries its material and the height's
-// gradient, so shading can use the full 4D normal (−∇h, 1): a sun with some of its light coming from ana lights the
-// slopes that face ana, which you can't otherwise see.
+// The land is 4D value noise sampled on the sphere (no seams anywhere), kept on eight cubic grids, one for each cell of
+// a tesseract (the 4D cube map): a point belongs to the cell of its largest coordinate, and its other three
+// coordinates divided by that one place it in the cell's grid. Each node also keeps its material and the height's
+// gradient, a 4D vector tangent to the sphere, for lighting by the 4D normal against a sun.
+//
+// Cities: packages/morph's (the studio's city series), plans of streets, plots and buildings. A plan is flat; the
+// planet's ground is 3D. So each city is the plan laid in layers across the ground's third direction, with avenues
+// between them: a building is its footprint times a depth along that direction, kept or left out and its height varied
+// layer by layer.
+import { generate, standing, PRESENT } from '../vendor/morph/morph.js';
 
-export const L = 8192, G = 128, CELL = L / G;                  // metres; the floor wraps every L (sea level is the world's: wd.sea)
-export const W = 480, H = 270;                                  // the frame (drawn pixelated)
+export const L = 8192, R0 = L / (2 * Math.PI), M = 56;        // circumference, radius (~1304 m), grid nodes a side per cell
+export const W = 480, H = 270;
 
-// ------------------------------------------------------------------ noise and the land
-const hash3 = (x, y, z, s) => { let h = (x * 374761393 + y * 668265263 + z * 1274126177 + s * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+// ------------------------------------------------------------------ 4D noise
+const hash4 = (x, y, z, w, s) => { let h = (x * 374761393 + y * 668265263 + z * 1274126177 + w * 1911520717 + s * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h = Math.imul(h ^ (h >>> 15), 2246822519); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 const fade = (t) => t * t * (3 - 2 * t);
-/** Tileable 3D value noise: lattice period p, so it repeats every p lattice steps in each direction. Each (p, seed)
- *  lattice is hashed once and kept. */
-const LAT = new Map();
-const lattice = (p, s) => { const key = p * 100003 + s; let a = LAT.get(key); if (!a) { a = new Float32Array(p * p * p); for (let k = 0; k < p; k++) for (let j = 0; j < p; j++) for (let i = 0; i < p; i++) a[(k * p + j) * p + i] = hash3(i, j, k, s); LAT.set(key, a); } return a; };
-function vnoise(x, y, z, p, s) {
-  const a = lattice(p, s), xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), u = fade(x - xi), v = fade(y - yi), w = fade(z - zi);
-  const m = (k) => ((k % p) + p) % p, X0 = m(xi), X1 = m(xi + 1), Y0 = m(yi) * p, Y1 = m(yi + 1) * p, Z0 = m(zi) * p * p, Z1 = m(zi + 1) * p * p;
-  const l = (q, r, t) => q + (r - q) * t;
-  return l(l(l(a[Z0 + Y0 + X0], a[Z0 + Y0 + X1], u), l(a[Z0 + Y1 + X0], a[Z0 + Y1 + X1], u), v), l(l(a[Z1 + Y0 + X0], a[Z1 + Y0 + X1], u), l(a[Z1 + Y1 + X0], a[Z1 + Y1 + X1], u), v), w);
+// The noise is only ever sampled on the unit sphere times a frequency f, offset by 100: every lattice corner lies in
+// [100 − f − 1, 100 + f + 2]⁴, so each (f, seed) lattice is hashed once into a table and read back.
+const TABLES = new Map();
+function table(f, s) {
+  const key = `${f}|${s}`; let t = TABLES.get(key); if (t) return t;
+  const lo = Math.floor(100 - f) - 1, n = Math.ceil(100 + f) + 2 - lo + 1, a = new Float32Array(n ** 4);
+  for (let w = 0; w < n; w++) for (let z = 0; z < n; z++) for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) a[((w * n + z) * n + y) * n + x] = hash4(lo + x, lo + y, lo + z, lo + w, s);
+  t = { a, lo, n }; TABLES.set(key, t); return t;
 }
-/** The land's height at a floor point (metres), straight from the noise: rolling ground, lakes in the hollows, and
- *  ridged mountains where a slow mask says. Every octave's period divides L, so it tiles. */
-export function rawHeight(x, y, z, seed = 1) {
-  const q = (f) => [x * f / L, y * f / L, z * f / L];
-  let base = 0, amp = 1, tot = 0; for (const f of [3, 6, 12, 24]) { base += amp * vnoise(...q(f), f, seed + f); tot += amp; amp *= 0.5; } base /= tot;
-  let ridge = 0; amp = 1; tot = 0; for (const f of [8, 16, 32, 64]) { ridge += amp * (1 - Math.abs(2 * vnoise(...q(f), f, seed + 100 + f) - 1)) ** 2; tot += amp; amp *= 0.5; } ridge /= tot;
-  const mask = fade(Math.min(1, Math.max(0, (vnoise(...q(2), 2, seed + 7) - 0.42) / 0.3)));
-  return 60 + base * 620 + mask * ridge * 760;
+function vnoise4(x, y, z, w, tb) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), wi = Math.floor(w), u = fade(x - xi), v = fade(y - yi), q = fade(z - zi), r = fade(w - wi);
+  const { a, lo, n } = tb, X = xi - lo, Yy = yi - lo, Z = zi - lo, Ww = wi - lo, n2 = n * n, n3 = n2 * n;
+  const b0 = ((Ww * n + Z) * n + Yy) * n + X;
+  const l = (p, q2, t) => p + (q2 - p) * t;
+  const cube = (o) => l(l(l(a[o], a[o + 1], u), l(a[o + n], a[o + n + 1], u), v), l(l(a[o + n2], a[o + n2 + 1], u), l(a[o + n2 + n], a[o + n2 + n + 1], u), v), q);
+  return l(cube(b0), cube(b0 + n3), r);
 }
-const BASE = [3, 6, 12, 24], RIDGE = [8, 16, 32, 64];
-/** The same heights on the grid, fast: on grid nodes every octave's lattice cell and blend weight depend on one axis
- *  at a time, so they're tabulated per axis and the triple loop is plain array reads. Equals rawHeight at every node
- *  (the selftest checks). */
-function gridHeights(seed) {
-  const N = G, out = new Float32Array(N * N * N);
-  const octave = (f, s, k3) => {
-    const a = lattice(f, s), i0 = new Int32Array(N), i1 = new Int32Array(N), t = new Float32Array(N);
-    for (let i = 0; i < N; i++) { const x = (i * f) / N, xi = Math.floor(x); i0[i] = ((xi % f) + f) % f; i1[i] = (i0[i] + 1) % f; t[i] = fade(x - xi); }
-    return { a, f, i0, i1, t, k3 };
-  };
-  const B = BASE.map((f) => octave(f, seed + f)), Rg = RIDGE.map((f) => octave(f, seed + 100 + f)), Mk = octave(2, seed + 7);
-  const val = (o, i, j, k) => {
-    const { a, f, i0, i1, t } = o, u = t[i], v = t[j], w = t[k], X0 = i0[i], X1 = i1[i], Y0 = i0[j] * f, Y1 = i1[j] * f, Z0 = i0[k] * f * f, Z1 = i1[k] * f * f;
-    const l = (q, r, s2) => q + (r - q) * s2;
-    return l(l(l(a[Z0 + Y0 + X0], a[Z0 + Y0 + X1], u), l(a[Z0 + Y1 + X0], a[Z0 + Y1 + X1], u), v), l(l(a[Z1 + Y0 + X0], a[Z1 + Y0 + X1], u), l(a[Z1 + Y1 + X0], a[Z1 + Y1 + X1], u), v), w);
-  };
-  const bt = BASE.reduce((s2, _, q) => s2 + 0.5 ** q, 0), rt = RIDGE.reduce((s2, _, q) => s2 + 0.5 ** q, 0);
-  for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    let base = 0, ridge = 0, amp = 1;
-    for (let q = 0; q < 4; q++) { base += amp * val(B[q], i, j, k); ridge += amp * (1 - Math.abs(2 * val(Rg[q], i, j, k) - 1)) ** 2; amp *= 0.5; }
-    const mask = fade(Math.min(1, Math.max(0, (val(Mk, i, j, k) - 0.42) / 0.3)));
-    out[(k * N + j) * N + i] = 60 + (base / bt) * 620 + mask * (ridge / rt) * 760;
-  }
-  return out;
+/** The land's height (m above the datum R0) at a unit 4-vector: rolling ground, ridged mountains under a slow mask. */
+const OCT = { base: [1.6, 3.2, 6.4, 12.8], ridge: [4, 8, 16], mask: 1.2 };
+const SEEDED = new Map();
+/** Each seed's lattice tables, resolved once (a lookup per noise call by string key cost more than the noise). */
+function tablesFor(seed) {
+  let t = SEEDED.get(seed); if (t) return t;
+  t = { base: OCT.base.map((f) => [f, table(f, seed + Math.round(f * 10))]), ridge: OCT.ridge.map((f) => [f, table(f, seed + 300 + f)]), mask: [OCT.mask, table(OCT.mask, seed + 7)] };
+  SEEDED.set(seed, t); return t;
+}
+export function rawHeight(P, seed = 1) {
+  const T = tablesFor(seed), at = ([f, tb]) => vnoise4(P[0] * f + 100, P[1] * f + 100, P[2] * f + 100, P[3] * f + 100, tb);
+  let base = 0, amp = 1, tot = 0; for (const o of T.base) { base += amp * at(o); tot += amp; amp *= 0.5; } base /= tot;
+  let ridge = 0; amp = 1; tot = 0; for (const o of T.ridge) { ridge += amp * (1 - Math.abs(2 * at(o) - 1)) ** 2; tot += amp; amp *= 0.5; } ridge /= tot;
+  const mask = fade(Math.min(1, Math.max(0, (at(T.mask) - 0.42) / 0.3)));
+  return base * 170 + mask * ridge * 210;
 }
 
-/** The world: heights on the G³ grid (built once, ~a second), their gradients, and each node's material. */
+// ------------------------------------------------------------------ the tesseract map: 8 cells × M³ nodes
+/** Node (cell, i, j, k) → its unit 4-vector. Cell c: dominant axis c >> 1, sign + if c is even. */
+export function nodeDir(c, i, j, k) {
+  const ax = c >> 1, sg = c & 1 ? -1 : 1, t = [i, j, k].map((n) => -1 + (2 * n) / (M - 1)), P = [0, 0, 0, 0];
+  let o = 0; for (let a = 0; a < 4; a++) P[a] = a === ax ? sg : t[o++];
+  const l = Math.hypot(...P); return P.map((x) => x / l);
+}
+/** A unit 4-vector → its cell and grid coordinates (continuous, 0…M−1). */
+export function locate(P) {
+  let ax = 0; for (let a = 1; a < 4; a++) if (Math.abs(P[a]) > Math.abs(P[ax])) ax = a;
+  const d = P[ax], c = ax * 2 + (d < 0 ? 1 : 0), g = []; for (let a = 0; a < 4; a++) if (a !== ax) g.push(((P[a] / Math.abs(d) + 1) / 2) * (M - 1));
+  return { c, g };
+}
 export const MAT = { deep: 0, water: 1, sand: 2, grass: 3, forest: 4, scrub: 5, rock: 6, snow: 7 };
-export function buildWorld(seed = 1) {
-  const N = G, h = gridHeights(seed);
-  const at = (i, j, k) => h[((((k % N) + N) % N) * N + (((j % N) + N) % N)) * N + (((i % N) + N) % N)];
-  // sea level: the height below which 14% of the land lies, so every world has its lakes
-  const sorted = Float32Array.from(h).sort(), SEA = sorted[Math.floor(sorted.length * 0.14)];
-  const gx = new Float32Array(N * N * N), gy = new Float32Array(N * N * N), gz = new Float32Array(N * N * N), mat = new Uint8Array(N * N * N);
-  for (let k = 0; k < N; k++) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const n = (k * N + j) * N + i, a = (at(i + 1, j, k) - at(i - 1, j, k)) / (2 * CELL), b = (at(i, j + 1, k) - at(i, j - 1, k)) / (2 * CELL), c = (at(i, j, k + 1) - at(i, j, k - 1)) / (2 * CELL);
-    gx[n] = a; gy[n] = b; gz[n] = c;
-    const e = h[n], s = Math.hypot(a, b, c), r = hash3(i, j, k, seed + 9);
-    const up = e - SEA; mat[n] = up < -35 ? MAT.deep : up < 0 ? MAT.water : up < 14 ? MAT.sand : s > 0.8 ? MAT.rock : up > 640 + r * 120 ? MAT.snow : up > 430 ? (s > 0.5 ? MAT.rock : MAT.scrub) : up > 260 && r < 0.5 ? MAT.scrub : r < 0.55 ? MAT.forest : MAT.grass;
-  }
-  // the peaks, for the map: nodes higher than all 26 neighbours and above the treeline
-  const peaks = [];
-  for (let k = 0; k < N; k += 1) for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-    const e = h[(k * N + j) * N + i]; if (e < SEA + 450) continue;
-    let top = true; for (let dk = -1; dk <= 1 && top; dk++) for (let dj = -1; dj <= 1 && top; dj++) for (let di = -1; di <= 1 && top; di++) if ((di || dj || dk) && at(i + di, j + dj, k + dk) >= e) top = false;
-    if (top) peaks.push([i * CELL, j * CELL, k * CELL, e]);
-  }
-  return { seed, h, gx, gy, gz, mat, peaks, sea: SEA };
-}
-const wrap = (v) => ((v % L) + L) % L;
-/** The ground under a floor point: land height and gradient (trilinear between grid nodes, wrapping), the nearest
- *  node (for its material), and the surface: water is flat at sea level. */
-export function ground(wd, x, y, z) {
-  const fx = wrap(x) / CELL, fy = wrap(y) / CELL, fz = wrap(z) / CELL, i = Math.floor(fx), j = Math.floor(fy), k = Math.floor(fz);
-  const u = fx - i, v = fy - j, w = fz - k, N = G, i1 = (i + 1) % N, j1 = (j + 1) % N, k1 = (k + 1) % N;
-  const n000 = (k * N + j) * N + i, n100 = (k * N + j) * N + i1, n010 = (k * N + j1) * N + i, n110 = (k * N + j1) * N + i1, n001 = (k1 * N + j) * N + i, n101 = (k1 * N + j) * N + i1, n011 = (k1 * N + j1) * N + i, n111 = (k1 * N + j1) * N + i1;
-  const a = (1 - u) * (1 - v) * (1 - w), b = u * (1 - v) * (1 - w), c = (1 - u) * v * (1 - w), d = u * v * (1 - w), e = (1 - u) * (1 - v) * w, f = u * (1 - v) * w, g = (1 - u) * v * w, hh = u * v * w;
-  const tri = (A) => a * A[n000] + b * A[n100] + c * A[n010] + d * A[n110] + e * A[n001] + f * A[n101] + g * A[n011] + hh * A[n111];
-  // the material from a nearby node, the choice jittered by a hash of where the point is, so that edges between
-  // materials wander instead of following the grid's squares
-  const jt = 0.25 + 0.5 * hash3(Math.floor(x / 11), Math.floor(y / 11), Math.floor(z / 11), 5);
-  const land = tri(wd.h), n = (((k + (w > jt ? 1 : 0)) % N) * N + ((j + (v > jt ? 1 : 0)) % N)) * N + ((i + (u > jt ? 1 : 0)) % N);
-  return { e: Math.max(land, wd.sea), land, n, gx: tri(wd.gx), gy: tri(wd.gy), gz: tri(wd.gz) };
-}
-export const heightAt = (wd, x, y, z) => { const fx = wrap(x) / CELL, fy = wrap(y) / CELL, fz = wrap(z) / CELL, i = Math.floor(fx), j = Math.floor(fy), k = Math.floor(fz), u = fx - i, v = fy - j, w = fz - k, N = G, i1 = (i + 1) % N, j1 = (j + 1) % N, k1 = (k + 1) % N, h = wd.h, c = (a, b, cc) => h[(cc * N + b) * N + a];
-  return Math.max(wd.sea, (1 - w) * ((1 - v) * ((1 - u) * c(i, j, k) + u * c(i1, j, k)) + v * ((1 - u) * c(i, j1, k) + u * c(i1, j1, k))) + w * ((1 - v) * ((1 - u) * c(i, j, k1) + u * c(i1, j, k1)) + v * ((1 - u) * c(i, j1, k1) + u * c(i1, j1, k1)))); };
+const STYLE = { village: 8, medieval: 9, georgian: 10, haussmann: 11, villa: 12, modern: 13, glass: 14 };
+const dot4 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+const norm4 = (a) => { const l = Math.hypot(...a); return a.map((x) => x / l); };
 
-// ------------------------------------------------------------------ the palette: 8 materials × 32 shades
-const MATCOL = [[0.07, 0.2, 0.36], [0.16, 0.38, 0.55], [0.82, 0.74, 0.52], [0.36, 0.56, 0.26], [0.16, 0.36, 0.2], [0.5, 0.5, 0.32], [0.5, 0.46, 0.44], [0.94, 0.95, 0.98]];
-/** 256 colours: material m, shade s (0 dark … 31 bright) → index m·32 + s. */
-export const PALETTE = (() => { const p = new Uint32Array(256); for (let m = 0; m < 8; m++) for (let s = 0; s < 32; s++) { const l = 0.18 + (1.05 * s) / 31, c = MATCOL[m].map((x) => Math.min(255, Math.round(255 * Math.min(1, x * l)))); p[m * 32 + s] = (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]; } return p; })();
+/** The world: the grids (height, gradient, material), sea level, peaks, and the cities. */
+export function buildWorld(seed = 1, { cities = 2 } = {}) {
+  const NC = M * M * M, h = new Float32Array(8 * NC), dir = new Float32Array(8 * NC * 4);
+  for (let c = 0; c < 8; c++) for (let k = 0; k < M; k++) for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
+    const n = c * NC + (k * M + j) * M + i, P = nodeDir(c, i, j, k); dir.set(P, n * 4); h[n] = rawHeight(P, seed);
+  }
+  const sorted = Float32Array.from(h).sort(), sea = sorted[Math.floor(sorted.length * 0.14)];
+  // the cities: on low dry ground, far apart; the land under each is levelled to a plateau
+  const town = [], rnd = mulberry(seed * 977 + 3);
+  for (let t = 0; t < 4000 && town.length < cities; t++) {
+    const P = norm4([gauss(rnd), gauss(rnd), gauss(rnd), gauss(rnd)]), e = rawHeight(P, seed);
+    if (e < sea + 6 || e > sea + 60) continue;
+    if (town.some((q) => dot4(q.C, P) > Math.cos(1.4))) continue;
+    town.push({ C: P, base: e });
+  }
+  const R_IN = 330, R_OUT = 480;
+  const cOut = Math.cos(R_OUT / R0);
+  for (let n = 0; n < 8 * NC; n++) for (const t of town) {
+    const cs = dir[n * 4] * t.C[0] + dir[n * 4 + 1] * t.C[1] + dir[n * 4 + 2] * t.C[2] + dir[n * 4 + 3] * t.C[3]; if (cs < cOut) continue;
+    const d = Math.acos(Math.min(1, cs)) * R0;
+    if (d < R_OUT) { const s = fade(Math.min(1, Math.max(0, (d - R_IN) / (R_OUT - R_IN)))); h[n] = t.base + (h[n] - t.base) * s; }
+  }
+  // gradients: at each node, the tangent 4-vector g with g·t = the height's change along each grid axis t
+  const grad = new Float32Array(8 * NC * 4), mat = new Uint8Array(8 * NC), node = (c, i, j, k) => c * NC + (k * M + j) * M + i;
+  // (written without temporary arrays: this runs for every node)
+  const T = [new Float64Array(4), new Float64Array(4), new Float64Array(4)], dh = new Float64Array(3), Gm = [new Float64Array(4), new Float64Array(4), new Float64Array(4)];
+  for (let c = 0; c < 8; c++) for (let k = 0; k < M; k++) for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
+    const n = node(c, i, j, k);
+    for (let ax = 0; ax < 3; ax++) {
+      const di = ax === 0 ? 1 : 0, dj = ax === 1 ? 1 : 0, dk = ax === 2 ? 1 : 0;
+      const a = node(c, Math.min(M - 1, i + di), Math.min(M - 1, j + dj), Math.min(M - 1, k + dk)), b = node(c, Math.max(0, i - di), Math.max(0, j - dj), Math.max(0, k - dk));
+      for (let q = 0; q < 4; q++) T[ax][q] = (dir[a * 4 + q] - dir[b * 4 + q]) * R0;
+      dh[ax] = h[a] - h[b];
+    }
+    // g = Σ x_m T_m with (T_l · T_m) x = dh: a 3 × 3 solve by Cramer's rule
+    for (let l = 0; l < 3; l++) for (let m2 = 0; m2 < 3; m2++) Gm[l][m2] = T[l][0] * T[m2][0] + T[l][1] * T[m2][1] + T[l][2] * T[m2][2] + T[l][3] * T[m2][3];
+    const det3 = (a, b, cc) => a[0] * (b[1] * cc[2] - b[2] * cc[1]) - a[1] * (b[0] * cc[2] - b[2] * cc[0]) + a[2] * (b[0] * cc[1] - b[1] * cc[0]);
+    const D = det3(Gm[0], Gm[1], Gm[2]);
+    const x0 = det3([dh[0], Gm[0][1], Gm[0][2]], [dh[1], Gm[1][1], Gm[1][2]], [dh[2], Gm[2][1], Gm[2][2]]) / D;
+    const x1 = det3([Gm[0][0], dh[0], Gm[0][2]], [Gm[1][0], dh[1], Gm[1][2]], [Gm[2][0], dh[2], Gm[2][2]]) / D;
+    const x2 = det3([Gm[0][0], Gm[0][1], dh[0]], [Gm[1][0], Gm[1][1], dh[1]], [Gm[2][0], Gm[2][1], dh[2]]) / D;
+    let s2 = 0; for (let q = 0; q < 4; q++) { const v = x0 * T[0][q] + x1 * T[1][q] + x2 * T[2][q]; grad[n * 4 + q] = v; s2 += v * v; }
+    const e = h[n] - sea, s = Math.sqrt(s2), r = hash4(c, i, j, k, seed + 9);
+    mat[n] = e < -25 ? MAT.deep : e < 0 ? MAT.water : e < 6 ? MAT.sand : s > 0.95 ? MAT.rock : e > 190 + r * 40 ? MAT.snow : e > 130 ? (s > 0.6 ? MAT.rock : MAT.scrub) : e > 85 && r < 0.5 ? MAT.scrub : r < 0.55 ? MAT.forest : MAT.grass;
+  }
+  // peaks for the map: nodes higher than their 26 grid neighbours (inside a cell)
+  const peaks = [];
+  for (let c = 0; c < 8; c++) for (let k = 1; k < M - 1; k++) for (let j = 1; j < M - 1; j++) for (let i = 1; i < M - 1; i++) {
+    const n = node(c, i, j, k), e = h[n]; if (e < sea + 120) continue;
+    let top = true; for (let dk = -1; dk <= 1 && top; dk++) for (let dj = -1; dj <= 1 && top; dj++) for (let di = -1; di <= 1 && top; di++) if ((di || dj || dk) && h[node(c, i + di, j + dj, k + dk)] >= e) top = false;
+    if (top) peaks.push({ P: [dir[n * 4], dir[n * 4 + 1], dir[n * 4 + 2], dir[n * 4 + 3]], e });
+  }
+  const wd = { seed, h, grad, mat, sea, peaks, cities: [] };
+  town.forEach((t, k) => wd.cities.push(buildCity(t.C, t.base, seed * 31 + k * 7 + 1)));
+  return wd;
+}
+function mulberry(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const gauss = (r) => { let u = 0; for (let k = 0; k < 6; k++) u += r(); return u - 3; };
+
+// ------------------------------------------------------------------ cities
+export const CITY = { size: 600, cell: 2, layer: 64, layers: 7 };
+/** A city at C: morph's plan (its buildings standing in 2025) in the tangent space at C, rasterised to 2 m cells of
+ *  building ids; then layered across the third direction e3, one plan-copy every 64 m: in layer k building b stands
+ *  with depth ±dep (from its footprint) if a hash says so, its height scaled by another. */
+function buildCity(C, base, seed) {
+  // a tangent frame at C
+  const e = []; for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = ax.map((x, i) => x - dot4(ax, C) * C[i]); for (const b of e) v = v.map((x, i) => x - dot4(v, b) * b[i]); if (Math.hypot(...v) > 0.3 && e.length < 3) e.push(norm4(v)); }
+  const plan = generate({ seed, size: CITY.size }), now = standing(plan, PRESENT).buildings;
+  const N = CITY.size / CITY.cell, raster = new Uint16Array(N * N), half = CITY.size / 2;
+  const blds = [{}];
+  for (const b of now) {
+    const F = b.footprint; if (!F || F.length < 3) continue;
+    const id = blds.length; let area = 0; for (let i = 0; i < F.length; i++) { const p = F[i], q = F[(i + 1) % F.length]; area += p[0] * q[1] - q[0] * p[1]; } area = Math.abs(area) / 2;
+    blds.push({ h: b.height, style: STYLE[b.style] ?? 13, dep: Math.max(5, Math.min(22, Math.sqrt(area) / 2)) });
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const p of F) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    for (let gy = Math.max(0, Math.floor((y0 + half) / CITY.cell)); gy <= Math.min(N - 1, Math.floor((y1 + half) / CITY.cell)); gy++)
+      for (let gx = Math.max(0, Math.floor((x0 + half) / CITY.cell)); gx <= Math.min(N - 1, Math.floor((x1 + half) / CITY.cell)); gx++) {
+        const px = gx * CITY.cell - half + 1, py = gy * CITY.cell - half + 1; let inside = false;
+        for (let i = 0, j = F.length - 1; i < F.length; j = i++) if ((F[i][1] > py) !== (F[j][1] > py) && px < ((F[j][0] - F[i][0]) * (py - F[i][1])) / (F[j][1] - F[i][1]) + F[i][0]) inside = !inside;
+        if (inside) raster[gy * N + gx] = id;
+      }
+  }
+  return { C, e, base, seed, raster, N, blds, count: blds.length - 1 };
+}
+/** Is there a building at this ground point (unit 4-vector)? Returns { top (m above datum), style, base } or null. */
+export function buildingAt(wd, P) {
+  for (const t of wd.cities) {
+    const cc = dot4(P, t.C); if (cc < 0.94) continue;                         // within ~0.35 rad (~450 m)
+    const u = (dot4(P, t.e[0]) / cc) * R0, v = (dot4(P, t.e[1]) / cc) * R0, w = (dot4(P, t.e[2]) / cc) * R0;   // gnomonic, at the city
+    const half = CITY.size / 2; if (Math.abs(u) >= half || Math.abs(v) >= half) continue;
+    const id = t.raster[Math.floor((v + half) / CITY.cell) * t.N + Math.floor((u + half) / CITY.cell)]; if (!id) continue;
+    const k = Math.round(w / CITY.layer); if (Math.abs(k) > (CITY.layers - 1) / 2) continue;
+    const b = t.blds[id]; if (Math.abs(w - k * CITY.layer) > b.dep) continue;
+    const keep = hash4(id, k, 3, 5, t.seed); if (k !== 0 && keep > 0.78) continue;
+    const scale = k === 0 ? 1 : 0.6 + 0.8 * hash4(id, k, 7, 1, t.seed);
+    return { top: t.base + b.h * scale, style: b.style, base: t.base, u, v, w };
+  }
+  return null;
+}
+
+// ------------------------------------------------------------------ the ground
+/** The ground at a unit 4-vector: land height (m above the datum), surface (water flat at sea level, roofs over
+ *  land), gradient (tangent 4-vector, trilinear), material (a nearby node, jittered), and any building. */
+export function ground(wd, P, withCity = true) {
+  const { c, g } = locate(P), i = Math.min(M - 2, Math.floor(g[0])), j = Math.min(M - 2, Math.floor(g[1])), k = Math.min(M - 2, Math.floor(g[2]));
+  const u = g[0] - i, v = g[1] - j, w = g[2] - k, NC = M * M * M, o = c * NC;
+  const n0 = o + (k * M + j) * M + i, sI = 1, sJ = M, sK = M * M;
+  const wt = [(1 - u) * (1 - v) * (1 - w), u * (1 - v) * (1 - w), (1 - u) * v * (1 - w), u * v * (1 - w), (1 - u) * (1 - v) * w, u * (1 - v) * w, (1 - u) * v * w, u * v * w];
+  const ns = [n0, n0 + sI, n0 + sJ, n0 + sI + sJ, n0 + sK, n0 + sI + sK, n0 + sJ + sK, n0 + sI + sJ + sK];
+  let land = 0, gx = 0, gy = 0, gz = 0, gw = 0;
+  for (let q = 0; q < 8; q++) { const n = ns[q], a = wt[q]; land += a * wd.h[n]; gx += a * wd.grad[n * 4]; gy += a * wd.grad[n * 4 + 1]; gz += a * wd.grad[n * 4 + 2]; gw += a * wd.grad[n * 4 + 3]; }
+  const jt = 0.25 + 0.5 * hash4(Math.floor(P[0] * 120), Math.floor(P[1] * 120), Math.floor(P[2] * 120), Math.floor(P[3] * 120), 5);
+  const n = o + ((k + (w > jt ? 1 : 0)) * M + (j + (v > jt ? 1 : 0))) * M + (i + (u > jt ? 1 : 0));
+  const b = withCity && wd.cities.length ? buildingAt(wd, P) : null;
+  return { e: b ? Math.max(land, b.top) : Math.max(land, wd.sea), land, n, g: [gx, gy, gz, gw], b };
+}
+export const heightAt = (wd, P) => ground(wd, P).e;
+/** Just the surface height at P (no gradient, no material): what the ray march needs at every step. */
+export function surface(wd, P) {
+  let ax = 0, m = Math.abs(P[0]); for (let a = 1; a < 4; a++) { const v = Math.abs(P[a]); if (v > m) { m = v; ax = a; } }
+  const d = P[ax], c = ax * 2 + (d < 0 ? 1 : 0), sc = ((M - 1) / 2) / m;
+  const g0 = (P[ax === 0 ? 1 : 0] * sc) + (M - 1) / 2, g1 = (P[ax <= 1 ? 2 : 1] * sc) + (M - 1) / 2, g2 = (P[ax <= 2 ? 3 : 2] * sc) + (M - 1) / 2;
+  const i = Math.min(M - 2, g0 | 0), j = Math.min(M - 2, g1 | 0), k = Math.min(M - 2, g2 | 0), u = g0 - i, v = g1 - j, w = g2 - k, h = wd.h, n0 = c * M * M * M + (k * M + j) * M + i, sJ = M, sK = M * M;
+  const land = (1 - w) * ((1 - v) * ((1 - u) * h[n0] + u * h[n0 + 1]) + v * ((1 - u) * h[n0 + sJ] + u * h[n0 + sJ + 1])) + w * ((1 - v) * ((1 - u) * h[n0 + sK] + u * h[n0 + sK + 1]) + v * ((1 - u) * h[n0 + sK + sJ] + u * h[n0 + sK + sJ + 1]));
+  let e = land > wd.sea ? land : wd.sea;
+  if (wd.cities.length) { const b = buildingAt(wd, P); if (b && b.top > e) e = b.top; }
+  return e;
+}
+
+// ------------------------------------------------------------------ the palette: 16 materials × 16 shades
+const MATCOL = [[0.07, 0.2, 0.36], [0.16, 0.38, 0.55], [0.82, 0.74, 0.52], [0.36, 0.56, 0.26], [0.16, 0.36, 0.2], [0.5, 0.5, 0.32], [0.5, 0.46, 0.44], [0.94, 0.95, 0.98],
+  [0.78, 0.72, 0.6], [0.8, 0.7, 0.55], [0.62, 0.34, 0.26], [0.86, 0.8, 0.66], [0.9, 0.86, 0.78], [0.62, 0.62, 0.62], [0.44, 0.58, 0.68], [0.12, 0.14, 0.18]];
+export const WINDOW = 15;
+export const PALETTE = (() => { const p = new Uint32Array(256); for (let m = 0; m < 16; m++) for (let s = 0; s < 16; s++) { const l = 0.16 + (1.05 * s) / 15, c = MATCOL[m].map((x) => Math.min(255, Math.round(255 * Math.min(1, x * l)))); p[m * 16 + s] = (255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]; } return p; })();
 
 // ------------------------------------------------------------------ the aircraft
-/** The flight state: floor position p (3), altitude, the heading frame (F, R, A: orthonormal in the floor), pitch
- *  (radians, nose up +), speed (m/s). */
-export function aircraft(wd, at = startPoint(wd)) {
-  return { p: at.slice(), alt: Math.max(heightAt(wd, ...at) + 250, wd.sea + 600), F: [1, 0, 0], R: [0, 1, 0], A: [0, 0, 1], pitch: -0.05, speed: 120, trail: [] };
+/** State: X (unit 4-vector: where you are, and up), F, R, A (tangent, orthonormal), alt (m above the datum), pitch,
+ *  speed, trail. */
+export function aircraft(wd, X = startPoint(wd)) {
+  const fr = tangentFrame(X);
+  return { X, F: fr[0], R: fr[1], A: fr[2], alt: Math.max(heightAt(wd, X) + 80, wd.sea + 110), pitch: 0, speed: 60, trail: [] };
 }
-/** A good place to start: the grid node over water or lowland whose next 2 km ahead (along x) stays lowest. */
+function tangentFrame(X) { const e = []; for (const ax of [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) { let v = ax.map((x, i) => x - dot4(ax, X) * X[i]); for (const b of e) v = v.map((x, i) => x - dot4(v, b) * b[i]); if (Math.hypot(...v) > 0.3 && e.length < 3) e.push(norm4(v)); } return e; }
+/** Somewhere to start: near the first city if there is one (heading toward it), else open water or lowland. */
 export function startPoint(wd) {
-  let best = null;
-  for (let t = 0; t < 400; t++) {
-    const p = [((t * 7919) % G) * CELL, ((t * 104729) % G) * CELL, ((t * 1299709) % G) * CELL];
-    let m = 0; for (let d = 0; d < 2000; d += 100) m = Math.max(m, heightAt(wd, p[0] + d, p[1], p[2]));
-    if (!best || m < best.m) best = { p, m };
-  }
-  return best.p;
+  if (wd.cities.length) { const C = wd.cities[0].C, fr = tangentFrame(C), a = 900 / R0; return norm4(C.map((x, i) => Math.cos(a) * x - Math.sin(a) * fr[0][i])); }
+  return [1, 0, 0, 0];
 }
-const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-/** Turn the heading frame by th in the plane of two of its directions (a toward b), then re-orthonormalise. */
-export function turn(c, a, b, th) {
-  const A = c[a], B = c[b], co = Math.cos(th), si = Math.sin(th);
-  c[a] = A.map((x, k) => co * x + si * B[k]); c[b] = B.map((x, k) => co * x - si * A[k]);
-  // Gram-Schmidt F, R, A
-  const n = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
-  c.F = n(c.F); c.R = n(c.R.map((x, k) => x - dot3(c.R, c.F) * c.F[k])); const t = c.A.map((x, k) => x - dot3(c.A, c.F) * c.F[k] - dot3(c.A, c.R) * c.R[k]); c.A = n(t);
+/** Re-orthonormalise X, F, R, A (Gram–Schmidt in that order). */
+function square(c) {
+  c.X = norm4(c.X); const pr = (v, bs) => { let o = v; for (const b of bs) o = o.map((x, i) => x - dot4(o, b) * b[i]); return norm4(o); };
+  c.F = pr(c.F, [c.X]); c.R = pr(c.R, [c.X, c.F]); c.A = pr(c.A, [c.X, c.F, c.R]);
 }
-/** One step of flight (dt seconds) under controls { pitch, yaw, ana, roll, throttle } each −1…1: yaw turns F toward R,
- *  ana turns F toward A, roll turns R toward A (swinging what you see round your forward), pitch raises the nose. The
- *  ground is a floor you can't go under: within 12 m of it the aircraft is pushed up and the nose levelled. */
+/** Turn by th in the plane of two of F, R, A (a toward b). */
+export function turn(c, a, b, th) { const A = c[a], B = c[b], co = Math.cos(th), si = Math.sin(th); c[a] = A.map((x, k) => co * x + si * B[k]); c[b] = B.map((x, k) => co * x - si * A[k]); square(c); }
+/** One step (dt s) under controls { pitch, yaw, ana, roll, throttle } (each −1…1). Moving along the ground is a turn of
+ *  X toward F by the distance over the radius you fly at: X and F turn together in their plane, R and A stay put (they
+ *  are perpendicular to it), which carries your heading over the curved ground without twisting it. */
 export function fly(wd, c, k, dt) {
   const rate = 0.9;
   if (k.yaw) turn(c, 'F', 'R', k.yaw * rate * dt);
   if (k.ana) turn(c, 'F', 'A', k.ana * rate * dt);
   if (k.roll) turn(c, 'R', 'A', k.roll * rate * dt);
   c.pitch = Math.max(-1.2, Math.min(1.2, c.pitch + (k.pitch || 0) * 0.8 * dt));
-  c.speed = Math.max(40, Math.min(400, c.speed + (k.throttle || 0) * 80 * dt));
-  const hv = Math.cos(c.pitch) * c.speed * dt;
-  c.p = c.p.map((x, i) => wrap(x + c.F[i] * hv)); c.alt += Math.sin(c.pitch) * c.speed * dt;
-  const g = heightAt(wd, ...c.p); let hit = false;
-  if (c.alt < g + 12) { c.alt = g + 12; if (c.pitch < 0.15) c.pitch = 0.15; hit = true; }
-  if (c.alt > 4000) { c.alt = 4000; c.pitch = Math.min(c.pitch, 0); }
+  c.speed = Math.max(20, Math.min(200, c.speed + (k.throttle || 0) * 40 * dt));
+  const th = (Math.cos(c.pitch) * c.speed * dt) / (R0 + c.alt), co = Math.cos(th), si = Math.sin(th), X = c.X, F = c.F;
+  c.X = X.map((x, i) => co * x + si * F[i]); c.F = F.map((x, i) => co * x - si * X[i]); square(c);
+  c.alt += Math.sin(c.pitch) * c.speed * dt;
+  const g = heightAt(wd, c.X); let hit = false;
+  if (c.alt < g + 10) { c.alt = g + 10; if (c.pitch < 0.15) c.pitch = 0.15; hit = true; }
+  if (c.alt > 1500) { c.alt = 1500; c.pitch = Math.min(c.pitch, 0); }
   return hit;
 }
 
-// ------------------------------------------------------------------ Voxel Space
-export const FOV = (70 * Math.PI) / 180, FOCAL = W / 2 / Math.tan(FOV / 2), FAR = 4200;
-/** Render one frame into px (Uint32 RGBA, W×H): sky, then each column's ray over the heightmap in your slice (the
- *  plane of F and R through you). sun: a 4D direction [floor x, y, z, up]. Returns the frame's horizon row and, per
- *  column, the topmost row the land reached. opts.tint: colour the land by which way it slopes along your ana. */
-export function render(wd, c, px, { sun = [0.35, 0.2, 0.45, 0.8], tint = 0, haze = [0.62, 0.72, 0.86] } = {}) {
-  const horizon = H / 2 + Math.tan(c.pitch) * FOCAL, sl = Math.hypot(...sun), S = sun.map((x) => x / sl);
-  // the sky: a gradient by angle above the horizon, the sun where it would be
+// ------------------------------------------------------------------ Voxel Space on a curved world
+export const FOV = (70 * Math.PI) / 180, FOCAL = W / 2 / Math.tan(FOV / 2), FAR = 3200;
+/** Render one frame (px: Uint32 RGBA, W×H). Each column's ray runs in the plane of X and u = (F + sR)/|F + sR|; along
+ *  it the ground point at angle φ is X cos φ + u sin φ at radius R0 + h: forward t = r sin φ, up r cos φ − (R0 + alt),
+ *  so the planet's curve is exact. sun: a 4D direction. Returns the horizon row and each column's top row. */
+/** The camera looks down below your flight path by most of the dip of the planet's horizon (acos R0/(R0 + alt)): on a
+ *  planet this small the horizon at a few hundred metres is 30° below level, and looking straight out you'd see sky. */
+export const tilt = (c) => 0.8 * Math.acos(Math.min(1, R0 / (R0 + Math.max(0, c.alt))));
+export function horizonRow(c) { return H / 2 + Math.tan(c.pitch - tilt(c)) * FOCAL; }
+export function render(wd, c, px, { sun = [0.5, 0.3, 0.5, 0.64], tint = 0 } = {}) {
+  const horizon = horizonRow(c), S = norm4(sun), rc = R0 + c.alt;
+  const day = Math.max(0, Math.min(1, dot4(c.X, S) * 2.5 + 0.5)), haze = [0.62 * day + 0.04, 0.72 * day + 0.05, 0.86 * day + 0.12];
   for (let y = 0; y < H; y++) {
-    const t = Math.max(0, Math.min(1, (horizon - y) / (H * 0.9))), r = Math.round(255 * (haze[0] * (1 - t) + 0.22 * t)), g = Math.round(255 * (haze[1] * (1 - t) + 0.38 * t)), b = Math.round(255 * (haze[2] * (1 - t) + 0.7 * t));
-    const col = (255 << 24) | (b << 16) | (g << 8) | r; px.fill(col, y * W, y * W + W);
+    const t = Math.max(0, Math.min(1, (horizon - y) / (H * 0.9))), r = Math.round(255 * (haze[0] * (1 - t) + 0.22 * day * t + 0.02 * t)), g = Math.round(255 * (haze[1] * (1 - t) + 0.38 * day * t + 0.03 * t)), b = Math.round(255 * (haze[2] * (1 - t) + 0.7 * day * t + 0.08 * t));
+    px.fill((255 << 24) | (b << 16) | (g << 8) | r, y * W, y * W + W);
   }
-  const top = new Int32Array(W), ybuf = new Float32Array(W).fill(H), cp = Math.cos(c.pitch);
-  const hr = Math.round(haze[0] * 255), hg = Math.round(haze[1] * 255), hb = Math.round(haze[2] * 255);
+  const top = new Int32Array(W), hr = haze[0] * 255, hg = haze[1] * 255, hb = haze[2] * 255;
   for (let x = 0; x < W; x++) {
-    const s = (x - W / 2) / FOCAL; let yb = H, z = 2, dz = 1;
-    while (z < FAR && yb > 0) {
-      const qx = c.p[0] + (c.F[0] + c.R[0] * s) * z, qy = c.p[1] + (c.F[1] + c.R[1] * s) * z, qz = c.p[2] + (c.F[2] + c.R[2] * s) * z;
-      const g = ground(wd, qx, qy, qz), y = horizon - ((g.e - c.alt) * FOCAL) / z;
+    const s = (x - W / 2) / FOCAL, k = Math.hypot(1, s), U = [0, 1, 2, 3].map((i) => (c.F[i] + c.R[i] * s) / k);
+    let yb = H, dist = 2, dd = 1;
+    while (dist < FAR && yb > 0) {
+      const ph = dist / R0; if (ph > Math.PI / 2) break;
+      const co = Math.cos(ph), si = Math.sin(ph), P = [c.X[0] * co + U[0] * si, c.X[1] * co + U[1] * si, c.X[2] * co + U[2] * si, c.X[3] * co + U[3] * si];
+      const e0 = surface(wd, P), r = R0 + e0, zf = (r * si) / k, y = horizon - ((r * co - rc) * FOCAL) / zf;
       if (y < yb) {
-        // the colour: material, lit by the 4D normal (−∇h, 1) against the sun; water flat and dimmer
-        const n = g.n, water = g.land < wd.sea;
-        let m = water ? (g.land < wd.sea - 35 ? 0 : 1) : wd.mat[n];
-        const gx = water ? 0 : g.gx, gy = water ? 0 : g.gy, gz = water ? 0 : g.gz, nl = Math.hypot(gx, gy, gz, 1);
-        let lit = (-gx * S[0] - gy * S[1] - gz * S[2] + S[3]) / nl; lit = Math.max(0.08, lit);
-        // a little grain, as a painting has: a hash of where the sample fell, ±2 shades (more on forest and scrub)
-        const grain = (hash3(Math.floor(qx / 6), Math.floor(qy / 6), Math.floor(qz / 6), 77) - 0.5) * (m === 4 || m === 5 ? 6 : 3);
-        let shade = Math.max(0, Math.min(31, Math.round(lit * 26 + (water ? 2 : 4) + (z < 1500 ? grain : 0))));
-        let col = PALETTE[m * 32 + shade];
-        if (tint && !water) {          // which way the land climbs along your ana: teal if ana, rose if kata
-          const sa = gx * c.A[0] + gy * c.A[1] + gz * c.A[2], t = Math.max(-1, Math.min(1, sa * 2.2)) * tint;
-          const r0 = col & 255, g0 = (col >> 8) & 255, b0 = (col >> 16) & 255, T = t > 0 ? [56, 242, 224] : [255, 102, 184], a = Math.abs(t) * 0.6;
-          col = (255 << 24) | (Math.round(b0 + (T[2] - b0) * a) << 16) | (Math.round(g0 + (T[1] - g0) * a) << 8) | Math.round(r0 + (T[0] - r0) * a);
-        }
-        // haze with distance
-        const f = Math.min(1, (z / FAR) ** 1.6), r = Math.round((col & 255) * (1 - f) + hr * f), gg = Math.round(((col >> 8) & 255) * (1 - f) + hg * f), b = Math.round(((col >> 16) & 255) * (1 - f) + hb * f);
-        const out = (255 << 24) | (b << 16) | (gg << 8) | r;
-        for (let yy = Math.max(0, Math.ceil(y)); yy < yb; yy++) px[yy * W + x] = out;
-        yb = Math.max(0, Math.ceil(y));
+        const gr = ground(wd, P);
+        const water = !gr.b && gr.land < wd.sea, G = water ? [0, 0, 0, 0] : gr.g;
+        let m = gr.b ? gr.b.style : water ? (gr.land < wd.sea - 30 ? 0 : 1) : wd.mat[gr.n];
+        // the 4D normal: up (P) less the gradient; lit against the sun; buildings lit as if level-topped
+        const nl = Math.hypot(G[0], G[1], G[2], G[3], 1), lit = Math.max(0.12, (dot4(P, S) - dot4(G, S)) / nl);
+        let shade = Math.max(0, Math.min(15, Math.round(lit * 13 + (dist < 900 ? (hash4(Math.floor(P[0] * 400), Math.floor(P[1] * 400), Math.floor(P[2] * 400), Math.floor(P[3] * 400), 77) - 0.5) * 2 : 0))));
+        let col = PALETTE[m * 16 + shade];
+        if (tint && !water && !gr.b) { const sa = dot4(G, c.A), tt = Math.max(-1, Math.min(1, sa * 2.2)) * tint, T = tt > 0 ? [56, 242, 224] : [255, 102, 184], a = Math.abs(tt) * 0.6; col = (255 << 24) | (Math.round(((col >> 16) & 255) + (T[2] - ((col >> 16) & 255)) * a) << 16) | (Math.round(((col >> 8) & 255) + (T[1] - ((col >> 8) & 255)) * a) << 8) | Math.round((col & 255) + (T[0] - (col & 255)) * a); }
+        const f = Math.min(1, (dist / FAR) ** 1.6), y0 = Math.max(0, Math.ceil(y));
+        const mixc = (cc) => (255 << 24) | (Math.round(((cc >> 16) & 255) * (1 - f) + hb * f) << 16) | (Math.round(((cc >> 8) & 255) * (1 - f) + hg * f) << 8) | Math.round((cc & 255) * (1 - f) + hr * f);
+        if (gr.b && dist < 1400) {
+          // a facade: each row's height on the building says its storey; windows in bays along the wall
+          const wall = mixc(col), glass = mixc(PALETTE[WINDOW * 16 + Math.min(15, Math.round(lit * 6 + 3))]), bay = (Math.floor(gr.b.u / 2.4) + Math.floor(gr.b.v / 2.4) + Math.floor(gr.b.w / 2.4)) & 1;
+          for (let yy = y0; yy < yb; yy++) {
+            const hrow = rc + ((horizon - yy) * zf) / FOCAL - (R0 + gr.b.base), st = (hrow / 3.2) % 1;
+            px[yy * W + x] = hrow > 0.5 && hrow < gr.b.top - gr.b.base - 0.6 && st > 0.3 && st < 0.78 && bay ? glass : wall;
+          }
+        } else { const out = mixc(col); for (let yy = y0; yy < yb; yy++) px[yy * W + x] = out; }
+        yb = y0;
       }
-      z += dz; dz *= 1.012; if (dz > 40) dz = 40;
+      dist += dd; dd *= 1.012; if (dd > 30) dd = 30;
     }
-    top[x] = yb; ybuf[x] = yb;
+    top[x] = yb;
   }
-  void cp;
-  return { horizon, top };
+  return { horizon, top, day };
 }
-/** The skyline of the land a distance d along your ana (or kata, d < 0): per column, the highest screen row the ground
- *  there reaches (H if none). The ghost of what lies beside you in the direction you can't see. */
+/** The skyline of the ground a distance d along your ana: the same columns from X turned toward A by d / R0. */
 export function skyline(wd, c, d, step = 2) {
-  const horizon = H / 2 + Math.tan(c.pitch) * FOCAL, out = new Float32Array(W).fill(H);
+  const horizon = horizonRow(c), out = new Float32Array(W).fill(H), rc = R0 + c.alt, a = d / R0;
+  const X = c.X.map((x, i) => Math.cos(a) * x + Math.sin(a) * c.A[i]);
   for (let x = 0; x < W; x += step) {
-    const s = (x - W / 2) / FOCAL; let yb = H, z = 2, dz = 1.5;
-    const ox = c.p[0] + c.A[0] * d, oy = c.p[1] + c.A[1] * d, oz = c.p[2] + c.A[2] * d;
-    while (z < FAR) {
-      const e = heightAt(wd, ox + (c.F[0] + c.R[0] * s) * z, oy + (c.F[1] + c.R[1] * s) * z, oz + (c.F[2] + c.R[2] * s) * z), y = horizon - ((e - c.alt) * FOCAL) / z;
-      if (y < yb) yb = y; z += dz; dz *= 1.015; if (dz > 60) dz = 60;
-    }
-    for (let k = 0; k < step && x + k < W; k++) out[x + k] = yb;
+    const s = (x - W / 2) / FOCAL, k = Math.hypot(1, s), U = [0, 1, 2, 3].map((i) => (c.F[i] + c.R[i] * s) / k);
+    // the same steps as the view (coarser ones jump over a tower)
+    let yb = H, dist = 2, dd = 1;
+    while (dist < FAR) { const ph = dist / R0; if (ph > Math.PI / 2) break; const co = Math.cos(ph), si = Math.sin(ph), P = [X[0] * co + U[0] * si, X[1] * co + U[1] * si, X[2] * co + U[2] * si, X[3] * co + U[3] * si], r = R0 + surface(wd, P), y = horizon - ((r * co - rc) * FOCAL) / ((r * si) / k); if (y < yb) yb = y; dist += dd; dd *= 1.012; if (dd > 30) dd = 30; }
+    for (let q = 0; q < step && x + q < W; q++) out[x + q] = yb;
   }
   return { horizon, out };
 }
 
-// ------------------------------------------------------------------ beacons: balls in 4D to fly through
-/** Beacons along a course: points in the 4D world (floor 3 + altitude), each a ball of radius r, hung 150–450 m above
- *  the ground, each 1.2–2.2 km from the last in a random floor direction. */
+// ------------------------------------------------------------------ beacons
+/** A course of beacons: balls (radius 40 m) 40–120 m above the ground, each 600–1000 m of ground from the last. */
 export function course(wd, from, n = 8, seed = 3) {
-  let s = seed; const rnd = () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
-  const out = []; let p = from.slice();
+  const rnd = mulberry(seed), out = []; let X = from.slice();
   for (let k = 0; k < n; k++) {
-    const g = () => { let u = 0; for (let q = 0; q < 6; q++) u += rnd(); return u - 3; }, d = [g(), g(), g()], l = Math.hypot(...d), dist = 1200 + rnd() * 1000;
-    p = p.map((x, i) => wrap(x + (d[i] / l) * dist));
-    out.push({ p: p.slice(), alt: heightAt(wd, ...p) + 150 + rnd() * 300, r: 70 });
+    const fr = tangentFrame(X), d = norm4(fr[0].map((x, i) => gauss(rnd) * x + gauss(rnd) * fr[1][i] + gauss(rnd) * fr[2][i])), a = (600 + rnd() * 400) / R0;
+    X = norm4(X.map((x, i) => Math.cos(a) * x + Math.sin(a) * d[i]));
+    out.push({ X: X.slice(), alt: heightAt(wd, X) + 40 + rnd() * 80, r: 40 });
   }
   return out;
 }
-/** Where a beacon is from the aircraft, in its own terms: ahead (along F), right (R), ana (A), up; the shortest way
- *  round the wrapping floor. */
+/** A beacon from the aircraft: the straight 4D line between them, in your ahead, right, ana and up. */
 export function relative(c, b) {
-  const d = b.p.map((x, i) => { let v = x - c.p[i]; v -= Math.round(v / L) * L; return v; });
-  return { ahead: dot3(d, c.F), right: dot3(d, c.R), ana: dot3(d, c.A), up: b.alt - c.alt };
+  const d = [0, 1, 2, 3].map((i) => (R0 + b.alt) * b.X[i] - (R0 + c.alt) * c.X[i]);
+  return { ahead: dot4(d, c.F), right: dot4(d, c.R), ana: dot4(d, c.A), up: dot4(d, c.X) };
 }
-/** Has the aircraft passed through the beacon's ball? */
 export const inside = (c, b) => { const r = relative(c, b); return Math.hypot(r.ahead, r.right, r.ana, r.up) < b.r; };
+/** A point on the ground in the aircraft's tangent terms (for the map): the log map at you, along F, R, A. */
+export function local(c, P) {
+  const cs = Math.max(-1, Math.min(1, dot4(c.X, P))), th = Math.acos(cs), t = P.map((x, i) => x - cs * c.X[i]), l = Math.hypot(...t) || 1;
+  return [dot4(t, c.F), dot4(t, c.R), dot4(t, c.A)].map((x) => (x / l) * th * R0);
+}

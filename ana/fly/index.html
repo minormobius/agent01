@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#07080c" />
-<meta name="description" content="FLY — flying over a four-dimensional landscape. The ground is three-dimensional; you see the slice through you that holds forward, right and up, drawn the way Comanche drew terrain. Ghost skylines show what lies ana and kata of you, a map shows the 3D floor and your track, and beacons hang off in w to find." />
+<meta name="description" content="FLY — flying over a four-dimensional planet. Its ground is a 3-sphere 8 km round, with lakes, hills and two of the studio's cities laid in layers; you see the slice through you that holds forward, right and up, drawn the way Comanche drew terrain. Ghost skylines show what lies ana and kata of you, a map shows the ground round you, and beacons hang off in w to find." />
 <title>FLY — ana</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="css/fly.css" />
@@ -14,7 +14,7 @@
   <div class="stage" id="stage">
     <canvas id="view" width="480" height="270" aria-label="Your view: the slice of the 4D world through you that holds forward, right and up"></canvas>
     <canvas id="ov" aria-hidden="true"></canvas>
-    <canvas id="map" aria-label="The 3D floor round you: peaks, your track, beacons, and the plane you see"></canvas>
+    <canvas id="map" aria-label="The ground round you, laid flat: peaks, cities, your track, beacons, and the plane you see"></canvas>
     <div id="bar">
       <a class="home" href="../">ana</a>
       <b>FLY</b>
@@ -38,13 +38,14 @@
       <div class="btns"><button id="newB">new course</button><button id="worldB">new world</button><button id="homeB">level out</button></div>
     </section>
     <details open><summary>flying in four dimensions</summary>
-      <p>In four dimensions the ground is <b>three-dimensional</b>: a height over a 3D floor, with the sky above it in the fourth direction, up. You can turn in three ways on that floor: left and right, as here, and also <b>ana</b> and <b>kata</b>, toward the floor's third direction. Your eyes see the slice of the world through you that holds forward, right and up; ana is the one direction you can't see.</p>
-      <p>So FLY gives you three cues to it. <b>Ghosts</b>: the skyline of the land 150 m ana of you is drawn in teal, 150 m kata in rose: a hill you're about to turn into, before you can see it. <b>Light</b>: the sun shines partly from ana, so slopes that face ana are brighter (and <b>ana tint</b> colours the land by which way it climbs along your ana). And the <b>map</b>: the 3D floor round you, 4 km across, with the peaks, your track, the beacons, and the square of the plane you're looking along.</p>
+      <p>In four dimensions the ground is <b>three-dimensional</b>. Here it is the surface of a 4D ball, a <b>3-sphere</b>, 8.2 km round: fly straight and you are home in 8 km, whichever way you set off. Up is straight out from the centre. You can turn in three ways on that floor: left and right, as here, and also <b>ana</b> and <b>kata</b>, toward the floor's third direction. Your eyes see the slice of the world through you that holds forward, right and up; ana is the one direction you can't see.</p>
+      <p>On a planet 1.3 km in radius the horizon at a hundred metres is already well below level, so the camera looks down by most of that dip; the sun lights one side, and the other is night. Two <b>cities</b> stand on it, from the studio's city series (<code>packages/morph</code>: streets, plots, and buildings rebuilt through seven centuries). A city plan is flat and this ground is 3D, so each is the plan laid in seven layers across the ground's third direction, 64 m apart: fly along a layer and you are in the studio's city; turn ana and you cut across the layers, with avenues between.</p>
+      <p>FLY gives you three cues to ana. <b>Ghosts</b>: the skyline of the land 150 m ana of you is drawn in teal, 150 m kata in rose: a hill you're about to turn into, before you can see it. <b>Light</b>: the sun shines partly from ana, so slopes that face ana are brighter (and <b>ana tint</b> colours the land by which way it climbs along your ana). And the <b>map</b>: the ground round you laid flat from where you are (forward up the map, your right and ana across it), 3 km across, with the peaks, the cities, your track, the beacons, and the square of the plane you're looking along.</p>
       <p>The <b>beacons</b> hang in 4D. One shows in your view only as the slice of it you're in: a full disc when you're level with it in ana, shrinking as you're off it, and a dashed ring (teal: it's ana of you; rose: kata) when you've missed its slice entirely. The bar on the right says how far ana or kata the next one is. Turn ana or kata to bring it into your slice, then fly through it.</p>
     </details>
     <details><summary>controls, and how it's drawn</summary>
       <p><b>Keys</b>: arrows pitch and turn; <b>A</b>/<b>D</b> turn kata and ana; <b>Q</b>/<b>E</b> swing your wings (turn right toward ana, so the slice you see swings round your nose); <b>W</b>/<b>S</b> throttle. <b>Touch</b>: the stick bottom left, the lever bottom right turns ana and kata, the swing buttons beside it. Drag the map to turn it.</p>
-      <p>The view is <b>Voxel Space</b>, as in Comanche (1992) and the studio's colour cycle: each of 480 columns walks a ray out over the land in your slice, and every step that rises above what's drawn fills the column to it, from a 256-colour palette (8 materials × 32 shades), lit by the 4D normal, hazed with distance. The land is 3D value noise on a 128³ grid, 8 km a side, wrapping, so it never ends; <code>test/fly.selftest.mjs</code> checks it tiles, that the fast grid equals the noise, that the renderer's skyline matches a ray traced finely, that the flight frame stays square and you never fly under the ground, and the beacon geometry.</p>
+      <p>The view is <b>Voxel Space</b>, as in Comanche (1992) and the studio's colour cycle: each of 480 columns walks a ray out over the land in your slice, and every step that rises above what's drawn fills the column to it, from a 256-colour palette (8 materials × 32 shades), lit by the 4D normal, hazed with distance. Each column's ray follows the great circle it runs along, so the curve of the planet is exact. The land is 4D value noise sampled on the sphere (no seams), kept on eight 56³ grids, one per cell of a tesseract (the 4D cube map). <code>test/fly.selftest.mjs</code> checks the grids against the noise, the curved renderer's skyline against a finely marched ray, that flying straight comes home after 8.2 km, that the frame stays square and you never fly under the ground, the beacons, and the cities.</p>
     </details>
   </div>
 </div>

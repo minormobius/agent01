@@ -42,6 +42,10 @@ const EXTRA = [
   ["packages/morph/mobility.js", "polis/morph/mobility.js"],
   ["packages/morph/motion.js", "polis/morph/motion.js"],
   // …and by studio's colour-cycle flight, which flies through one (studio.mino.mobi/cycle/, cityworld.js)
+  // ana's FLY lays morph's cities on its 4D planet (plans only: no ground, no traffic)
+  ["packages/morph/geom.js", "ana/fly/vendor/morph/geom.js"],
+  ["packages/morph/morph.js", "ana/fly/vendor/morph/morph.js"],
+  ["packages/morph/rand.js", "ana/fly/vendor/morph/rand.js"],
   ["packages/morph/geom.js", "studio/cycle/vendor/morph/geom.js"],
   ["packages/morph/morph.js", "studio/cycle/vendor/morph/morph.js"],
   ["packages/morph/ground.js", "studio/cycle/vendor/morph/ground.js"],

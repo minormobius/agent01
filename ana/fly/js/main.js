@@ -12,7 +12,7 @@ function newWorld(seed) {
   setTimeout(() => { S.seed = seed; S.wd = Y.buildWorld(seed); newCourse(); $('loading').hidden = true; }, 30);
 }
 function newCourse() {
-  S.c = Y.aircraft(S.wd); S.beacons = Y.course(S.wd, S.c.p, 8, Math.floor(Math.random() * 1e6)); S.next = 0; S.t0 = performance.now(); S.done = false; S.c.trail = [];
+  S.c = Y.aircraft(S.wd); S.beacons = Y.course(S.wd, S.c.X, 8, Math.floor(Math.random() * 1e6)); S.next = 0; S.t0 = performance.now(); S.done = false; S.c.trail = [];
   $('spd').value = S.c.speed; info();
 }
 
@@ -64,7 +64,7 @@ function overlay(fr) {
     octx.fillText(`${r.ana >= 0 ? 'ana' : 'kata'} ${Math.abs(Math.round(r.ana))} m`, gx + 7, gy + gh + 18);
   }
   // HUD: altitude above ground, speed, pitch
-  const agl = Math.round(c.alt - Y.heightAt(S.wd, ...c.p));
+  const agl = Math.round(c.alt - Y.heightAt(S.wd, c.X));
   const hud = `${Math.round(c.speed)} m/s · ${agl} m up · ${Math.round((c.pitch * 180) / Math.PI)}°`; octx.font = '600 12px ui-monospace, Menlo, monospace'; const tw = octx.measureText(hud).width;
   octx.fillStyle = 'rgba(7,8,12,0.55)'; octx.fillRect(w / 2 - tw / 2 - 8, h - 34, tw + 16, 22); octx.fillStyle = '#e9e4da'; octx.textAlign = 'center'; octx.fillText(hud, w / 2, h - 19);
 }
@@ -75,28 +75,26 @@ function drawMap() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2), w = mapc.clientWidth, h = mapc.clientHeight;
   if (mapc.width !== Math.round(w * dpr)) { mapc.width = Math.round(w * dpr); mapc.height = Math.round(h * dpr); }
   mctx.setTransform(dpr, 0, 0, dpr, 0, 0); mctx.clearRect(0, 0, w, h);
-  const c = S.c, HALF = 2000, sc = (w * 0.42) / HALF, cy = Math.cos(S.myaw), sy = Math.sin(S.myaw), cp = Math.cos(S.mpitch), sp = Math.sin(S.mpitch);
-  const rel = (q) => q.map((x, i) => { let v = x - c.p[i]; v -= Math.round(v / Y.L) * Y.L; return v; });
-  const pr = (d) => { const x1 = cy * d[0] + sy * d[2], z1 = -sy * d[0] + cy * d[2], y2 = cp * d[1] - sp * z1, z2 = sp * d[1] + cp * z1; return [w / 2 + x1 * sc, h / 2 - y2 * sc, z2]; };
-  // the box
+  // the ground round you as it would be laid flat from where you are (the log map at you, along your forward, right
+  // and ana): 1.6 km either way, a third of the way round the planet
+  const c = S.c, HALF = 1600, sc = (w * 0.42) / HALF, cy = Math.cos(S.myaw), sy = Math.sin(S.myaw), cp = Math.cos(S.mpitch), sp = Math.sin(S.mpitch);
+  const pr = (d) => { const x1 = cy * d[1] + sy * d[2], z1 = -sy * d[1] + cy * d[2], y2 = cp * d[0] - sp * z1, z2 = sp * d[0] + cp * z1; return [w / 2 + x1 * sc, h / 2 - y2 * sc, z2]; };
+  const inBox = (d) => Math.abs(d[0]) < HALF && Math.abs(d[1]) < HALF && Math.abs(d[2]) < HALF;
   mctx.strokeStyle = 'rgba(255,255,255,0.12)'; mctx.lineWidth = 1;
   for (const [a, b] of [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]) { const P = [a, b].map((k) => pr([(k & 1 ? 1 : -1) * HALF, (k & 2 ? 1 : -1) * HALF, (k & 4 ? 1 : -1) * HALF])); mctx.beginPath(); mctx.moveTo(P[0][0], P[0][1]); mctx.lineTo(P[1][0], P[1][1]); mctx.stroke(); }
-  // peaks inside the box: dots, brighter and bigger the higher
-  for (const pk of S.wd.peaks) { const d = rel(pk); if (Math.abs(d[0]) > HALF || Math.abs(d[1]) > HALF || Math.abs(d[2]) > HALF) continue; const q = pr(d), t = Math.min(1, (pk[3] - S.wd.sea - 450) / 500); mctx.fillStyle = `rgba(${200 + 55 * t},${190 + 50 * t},${180 + 60 * t},${0.35 + 0.5 * t})`; mctx.beginPath(); mctx.arc(q[0], q[1], 1 + 2 * t, 0, 7); mctx.fill(); }
-  // the plane you see: the square spanned by forward and right
-  const sq = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => pr(c.F.map((x, i) => x * a * 1400 + c.R[i] * b * 1400)));
+  for (const pk of S.wd.peaks) { if (c.X[0] * pk.P[0] + c.X[1] * pk.P[1] + c.X[2] * pk.P[2] + c.X[3] * pk.P[3] < 0.6) continue; const d = Y.local(c, pk.P); if (!inBox(d)) continue; const q = pr(d), t = Math.min(1, (pk.e - S.wd.sea - 120) / 120); mctx.fillStyle = `rgba(${200 + 55 * t},${190 + 50 * t},${180 + 60 * t},${0.35 + 0.5 * t})`; mctx.beginPath(); mctx.arc(q[0], q[1], 1 + 2 * t, 0, 7); mctx.fill(); }
+  // the cities: their plan's square in its plane, and the layers across it
+  for (const t of S.wd.cities) { const d = Y.local(c, t.C); if (Math.hypot(...d) > HALF * 1.6) continue; const q = pr(d); mctx.fillStyle = 'rgba(255,140,90,0.85)'; mctx.fillRect(q[0] - 4, q[1] - 4, 8, 8); mctx.fillStyle = '#ff9a6a'; mctx.font = '9px ui-monospace, Menlo, monospace'; mctx.fillText('city', q[0] + 6, q[1] + 3); }
+  const sq = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) => pr([a * 1200, b * 1200, 0]));
   mctx.fillStyle = 'rgba(255,210,122,0.12)'; mctx.strokeStyle = 'rgba(255,210,122,0.5)'; mctx.beginPath(); sq.forEach((q, i) => (i ? mctx.lineTo(q[0], q[1]) : mctx.moveTo(q[0], q[1]))); mctx.closePath(); mctx.fill(); mctx.stroke();
-  // your track
-  mctx.strokeStyle = 'rgba(255,255,255,0.7)'; mctx.lineWidth = 1.5; mctx.beginPath(); let pen = false, prev = null;
-  for (const tp of c.trail) { const d = rel(tp); if (prev && Math.hypot(d[0] - prev[0], d[1] - prev[1], d[2] - prev[2]) > 500) pen = false; prev = d; const q = pr(d); if (pen) mctx.lineTo(q[0], q[1]); else mctx.moveTo(q[0], q[1]); pen = true; }
+  mctx.strokeStyle = 'rgba(255,255,255,0.7)'; mctx.lineWidth = 1.5; mctx.beginPath(); let pen = false;
+  for (const X of c.trail) { const d = Y.local(c, X); if (!inBox(d)) { pen = false; continue; } const q = pr(d); if (pen) mctx.lineTo(q[0], q[1]); else mctx.moveTo(q[0], q[1]); pen = true; }
   mctx.stroke();
-  // beacons
-  S.beacons.forEach((b, i) => { if (i < S.next) return; const d = rel(b.p); if (Math.max(...d.map(Math.abs)) > HALF) return; const q = pr(d); mctx.fillStyle = i === S.next ? '#ffd27a' : 'rgba(255,210,122,0.45)'; mctx.beginPath(); mctx.arc(q[0], q[1], i === S.next ? 4 : 2.5, 0, 7); mctx.fill(); });
-  // you: forward (gold), right (white), ana (teal)
+  S.beacons.forEach((b, i) => { if (i < S.next) return; const d = Y.local(c, b.X); if (!inBox(d)) return; const q = pr(d); mctx.fillStyle = i === S.next ? '#ffd27a' : 'rgba(255,210,122,0.45)'; mctx.beginPath(); mctx.arc(q[0], q[1], i === S.next ? 4 : 2.5, 0, 7); mctx.fill(); });
   const o = pr([0, 0, 0]);
-  for (const [v, col] of [[c.F, '#ffd27a'], [c.R, '#e9e4da'], [c.A, SKY_ANA]]) { const q = pr(v.map((x) => x * 600)); mctx.strokeStyle = col; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(o[0], o[1]); mctx.lineTo(q[0], q[1]); mctx.stroke(); }
+  for (const [v, col] of [[[500, 0, 0], '#ffd27a'], [[0, 500, 0], '#e9e4da'], [[0, 0, 500], SKY_ANA]]) { const q = pr(v); mctx.strokeStyle = col; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(o[0], o[1]); mctx.lineTo(q[0], q[1]); mctx.stroke(); }
   mctx.fillStyle = '#fff'; mctx.beginPath(); mctx.arc(o[0], o[1], 3, 0, 7); mctx.fill();
-  mctx.fillStyle = '#9a958c'; mctx.font = '9px ui-monospace, Menlo, monospace'; mctx.textAlign = 'left'; mctx.fillText('the floor, 4 km', 6, h - 6);
+  mctx.fillStyle = '#9a958c'; mctx.font = '9px ui-monospace, Menlo, monospace'; mctx.textAlign = 'left'; mctx.fillText('the ground round you, laid flat', 6, h - 6);
 }
 
 // ------------------------------------------------------------------ the panel
@@ -104,7 +102,7 @@ function info() {
   const el = $('facts'); el.textContent = ''; const row = (k, v) => { const a = document.createElement('i'), b = document.createElement('span'); a.textContent = k; b.textContent = v; el.append(a, b); };
   const n = S.beacons.length, t = ((S.doneAt || performance.now()) - S.t0) / 1000;
   row('beacon', S.done ? `all ${n}` : `${S.next + 1} of ${n}`); row('time', `${t.toFixed(1)} s`); if (S.best) row('best', `${S.best.toFixed(1)} s`);
-  row('world', `seed ${S.seed}, 8 km a side, wrapping`);
+  row('world', `seed ${S.seed}: a 3-sphere 8.2 km round (radius ${Math.round(Y.R0)} m), ${S.wd.cities.length} cities`);
   $('title').textContent = S.done ? 'course flown' : 'the course';
   $('cap').textContent = S.done ? `All ${n} beacons in ${t.toFixed(1)} s. New course, or just fly.` : 'Fly through the beacons. A beacon shows only as the slice of it you are in: turn ana or kata (the lever, or A and D) until it fills, then fly through.';
 }
@@ -150,7 +148,7 @@ function tick(now) {
       if (keys.has('w')) k.throttle += 1; if (keys.has('s')) k.throttle -= 1;
       if (Y.fly(S.wd, S.c, k, dt)) toast('pull up!');
       if (k.throttle) $('spd').value = S.c.speed;
-      if (++S.frame % 6 === 0) { S.c.trail.push(S.c.p.slice()); if (S.c.trail.length > 400) S.c.trail.shift(); }
+      if (++S.frame % 6 === 0) { S.c.trail.push(S.c.X.slice()); if (S.c.trail.length > 400) S.c.trail.shift(); }
       const b = S.beacons[S.next];
       if (b && Y.inside(S.c, b)) { S.next++; if (S.next === S.beacons.length) { S.done = true; S.doneAt = now; const t = (now - S.t0) / 1000; if (!S.best || t < S.best) S.best = t; toast(`course flown: ${t.toFixed(1)} s`); } else toast(`beacon ${S.next} ✓`); info(); }
       if (S.frame % 30 === 0) info();
@@ -160,7 +158,7 @@ function tick(now) {
     // the ghosts, every other frame (each is a skyline pass of its own)
     if (S.ghosts && (S.frame % 2 === 0 || !S.ghost)) S.ghost = { ana: Y.skyline(S.wd, S.c, 150, 4).out, kata: Y.skyline(S.wd, S.c, -150, 4).out };
     overlay(fr); if (S.frame % 3 === 0) drawMap();
-    if (!S.paused && S.frame % 2 === 0) S.myaw += 0.002;
+
   }
   requestAnimationFrame(tick);
 }
