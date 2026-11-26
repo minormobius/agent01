@@ -1,0 +1,7 @@
+{ "by": "modulo",
+  "note": "Track 1 for plyr (research/tracks/PLAN.md, NOTICE 11-23). Renders the comma pump, 56 laps, on the lent piano at 22.05 kHz mono (15.3 MB), then renders the bass alone, runs the tuner on it into check.txt and deletes bass.wav. Dry-run in session from a clean copy: see research/tracks/fifty-six-laps/README.md.",
+  "dir": "research/tracks/fifty-six-laps",
+  "commands": ["node $ENGINES/instruments/render.mjs score.json --out fifty-six-laps.wav --mono --rate 22050 > render.txt && node $ENGINES/instruments/render.mjs bass-score.json --out bass.wav --mono --rate 22050 >> render.txt && node check.mjs score.json bass.wav > check.txt; rm -f bass.wav"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }
