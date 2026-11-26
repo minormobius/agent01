@@ -45,6 +45,21 @@ p { line-height: 1.6; color: #c9c3b8; max-width: 760px; } p b { color: var(--tex
     <div class="rows" id="r4"></div>
     <p>In a pipe the stream is fastest on the axis and slower toward the wall, so the wire does not see one speed along its length. This is a first model of that: the wire is the band on the left, the stream's axis runs through the middle of the picture, and the stream falls away above and below it (to rest, 15.7 diameters out; the picture shows the middle 14). There is no wall in it yet. The ripple of the pictures above never appears. The bubble gathers into one bulge on the axis, and in a wide enough stream, past a Reynolds number between 250 and 280, the bulge will not hold still: its tip on the axis draws out into a narrow point and sinks back, once every 30 to 40 flow times. Nothing breaks off and goes downstream; the bubble stays in one piece. The curve under the picture is the bubble's length on the axis through one cycle, as computed; the picture loops it. At 280 the cycle repeats exactly. At 320 it does not, so that one is 45 flow times of the run and jumps where it starts again.</p>
     <p>What is not settled: this run is coarse along the wire, so the size of the swing is rough; it keeps the flow symmetric round the stream's axis; and the same wire in a true tube with a wall has so far been computed only in a narrower tube, where the flow stays steady.</p></section>
+  <section id="instS"><h2>The instrument <em>a hot wire across a 4D pipe: set the flow, read the current</em></h2>
+    <div id="ibar" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px 18px;font:600 12px var(--mono);color:var(--dim);margin-bottom:10px">
+      <label>flow (wire's Reynolds number) <span class="v" id="iReV"></span><br><input type="range" id="iRe" min="0" max="1" step="0.002" value="0.6" style="width:100%" /></label>
+      <label>wire length, in its diameters <span class="v" id="iLV"></span><br><input type="range" id="iL" min="0" max="1" step="0.002" value="0.65" style="width:100%" /></label>
+      <label>how well the wire conducts heat <span class="v" id="iLamV"></span><br><input type="range" id="iLam" min="0" max="1" step="0.002" value="0.92" style="width:100%" /></label>
+      <label>how hot it is held (resistance over cold) <span class="v" id="iTauV"></span><br><input type="range" id="iTau" min="0.1" max="1" step="0.01" value="0.5" style="width:100%" /></label>
+      <label>the flow's profile <span class="v" id="iNV" style="min-width:9em;display:inline-block"></span><br><input type="range" id="iN" min="0" max="1" step="0.005" value="0" style="width:100%" /></label>
+    </div>
+    <canvas id="c6" aria-label="the speed of the stream and the temperature of the wire, along the wire from wall to wall"></canvas>
+    <div class="rows" id="r6"></div>
+    <canvas id="c7" style="margin-top:10px" aria-label="the calibration curve: current squared against flow"></canvas>
+    <div class="rows" id="r7"></div>
+    <p>A hot-wire anemometer is a thin wire stretched across a pipe and heated by a current. The stream cools it, a cooler wire has less resistance, and a circuit raises the current until the resistance is back where it was: the current is the reading. This one is computed for a 4D pipe. The top picture is the wire from wall to wall, coloured by how hot each stretch runs, with the stream's speed above it. The curve underneath is the calibration: the current (squared) needed at each flow, drawn from zero so that a flat curve looks flat, with a dot where you are.</p>
+    <p>Three things to try. <b>Shorten the wire</b>: the cold wall at each end takes the heat, the middle is all that is left warm, and the curve goes flat, so the instrument stops telling one flow from another. <b>Slow the flow</b>: the curve flattens there too, and that one is four-dimensional. Each stretch of this wire loses heat the way a ball does, and a ball loses heat to still fluid at a steady rate that the stream only adds to. A wire in our world has no such floor. <b>Flatten the profile</b> at the same flow rate: the reading drops, because the wire feels the speed along itself and not the flow through the pipe. Read with the wrong profile, the flow rate can be out by half.</p>
+    <p>Each stretch of the wire is taken to lose heat as a ball does at the local speed, which matches the full tube computation to about 1% for a metal wire. The flattened profiles are stand-ins, not a computed entrance flow.</p></section>
   <section><h2>Up the Reynolds ladder <em>how fast each kind of disturbance grows on the uniform wake</em></h2>
     <div class="rows" id="rungs"></div><canvas id="c3" aria-label="growth rate against wavenumber along the wire, one line per azimuthal wavenumber"></canvas>
     <div class="rows" id="r3"></div>
@@ -52,5 +67,6 @@ p { line-height: 1.6; color: #c9c3b8; max-width: 760px; } p b { color: var(--tex
   <p>How this was computed, what was checked and what was not: <a href="README.md" style="color:var(--ice)">the notes</a>.</p>
 </main>
 <script type="module" src="js/main.js"></script>
+<script type="module" src="js/instrument.js"></script>
 </body>
 </html>

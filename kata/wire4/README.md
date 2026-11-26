@@ -513,6 +513,10 @@ is not an instrument.
   section (in our pipe, 4/3). So a flow rate needs the profile, or a pipe long enough to be sure of it.
 - At constant current the wire runs away at about 2.7 times the P above.
 
+The page's **instrument** section is this calculation live (`js/anem.js`, the same equations in JavaScript, held to
+the numbers above by `test/anem.selftest.mjs`): sliders for the flow, the wire's length and conduction, the overheat
+and the profile.
+
 **Limits.** The family of profiles is a stand-in for developing flow, which has a flat core and a boundary layer; no
 entrance flow was computed. Strip theory is checked at R = 5 only, though it should only improve for a longer
 wire. Near the wall the stream is at rest and the cold wall is close, so conduction there exceeds Nu = 2; with a
