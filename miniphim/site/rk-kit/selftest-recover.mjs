@@ -23,7 +23,20 @@ for (let t = 0; t < 20; t++) {
   const h1 = signOp({ ...g, services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: 'https://hostile.test' } }, prev: e0.cid }, host.jwk);
   const log = [e0, { did, operation: h1, cid: cidOf(h1), nullified: false, createdAt: at(1) }];
   ok(checkLog(log).every(r => r.ok), 'synthetic log checks');
-  const r = recover(log, me.jwk, { prev: e0.cid, pds: 'https://mine.test' });
+  const r = recover(log, me.jwk, { prev: e0.cid, pds: 'https://mine.test', now: Date.parse(at(30)) });
+  // kit.delve.town 11-26: recover must refuse what checkLog would refuse, before signing.
+  const refuses = (l, k, c, re) => { try { recover(l, k, c); return false; } catch (e) { return (re ?? /window/).test(e.message); } };
+  ok(refuses(log, me.jwk, { prev: e0.cid, now: Date.parse(at(74)) }), 'override after 72 h refused');
+  ok(refuses(log, me.jwk, { prev: e0.cid }), 'override with real clock (fixture is weeks old) refused');
+  { // host ranked first, ours second: we cannot undo the host
+    const g2 = signOp({ ...g, rotationKeys: [host.did, me.did] }, host.jwk), d2 = didOf(g2);
+    const f0 = { did: d2, operation: g2, cid: cidOf(g2), nullified: false, createdAt: at(0) };
+    const hh = signOp({ ...g2, services: { atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: 'https://hostile.test' } }, prev: f0.cid }, host.jwk);
+    const l2 = [f0, { did: d2, operation: hh, cid: cidOf(hh), nullified: false, createdAt: at(1) }];
+    ok(checkLog(l2).every(x => x.ok), 'host-first log checks');
+    ok(refuses(l2, me.jwk, { prev: f0.cid, now: Date.parse(at(2)) }, /rank 1/), 'rank-2 key refused when undoing rank-1 host op');
+    ok(recover(l2, me.jwk, { now: Date.parse(at(2)) }).overrides.length === 0, 'rank-2 key can still sign on the head');
+  }
   ok(r.rank === 0 && r.overrides[0] === log[1].cid, 'override targets the host op');
   ok(verifyOp(r.op, me.did) && !verifyOp(r.op, host.did), 'signed by us, not the host');
   const forked = [e0, { ...log[1], nullified: true }, { did, operation: r.op, cid: r.cid, nullified: false, createdAt: at(30) }];

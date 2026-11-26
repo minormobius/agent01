@@ -10,7 +10,7 @@
 // within 72 h of them. To undo a host's op, sign with prev = the op *before* it (--prev <cid>).
 import { readFileSync } from 'node:fs';
 import { createPublicKey } from 'node:crypto';
-import { checkLog, signOp, verifyOp, cidOf } from './plcop.mjs';
+import { checkLog, signOp, verifyOp, cidOf, RECOVERY_MS } from './plcop.mjs';
 import { didKeyFromJwk } from './keygen.mjs';
 
 const DIR = 'https://plc.directory';
@@ -38,6 +38,16 @@ export function recover(audit, jwk, ch = {}) {
   const mine = didKeyFromJwk(createPublicKey({ key: jwk, format: 'jwk' }).export({ format: 'jwk' }));
   const rank = base.rotationKeys.indexOf(mine);
   if (rank < 0) throw Error(`${mine} is not in rotationKeys at ${live[at].cid}; this key can sign nothing for this DID`);
+  // An override is legal only on the directory's own fork rule (the one checkLog enforces): our key must
+  // outrank the signer of the first op it undoes, and we must be inside 72 h of that op. Refuse here,
+  // before signing, rather than build an op checkLog and plc.directory would reject (kit.delve.town, 11-26).
+  if (at < live.length - 1) {
+    const first = live[at + 1], row = rows.find(r => r.cid === first.cid);
+    if (!row?.signer) throw Error(`cannot tell who signed ${first.cid}, so cannot tell whether you outrank it`);
+    if (rank >= row.signer.index) throw Error(`your key is rank ${rank} at ${live[at].cid}; ${first.cid} was signed by rank ${row.signer.index}. Only a higher-ranked (lower-numbered) key can undo it. Nothing was signed.`);
+    const dt = (ch.now ?? Date.now()) - Date.parse(first.createdAt);
+    if (!(dt >= 0 && dt <= RECOVERY_MS)) throw Error(isNaN(dt) ? `${first.cid} has no createdAt; the 72 h window cannot be checked. Nothing was signed.` : `${first.cid} is ${(dt / 3600e3).toFixed(1)} h old; the 72 h window to undo it has closed. Nothing was signed.`);
+  }
   const op = signOp(buildOp(base, live[at].cid, ch), jwk);
   if (!verifyOp(op, mine)) throw Error('signed op does not verify against your own key');
   return { op, cid: cidOf(op), signer: mine, rank, overrides: live.slice(at + 1).map(e => e.cid) };
@@ -58,7 +68,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     process.exit(1);
   }
   console.log(JSON.stringify(r.op, null, 2));
-  console.error(`signed by ${r.signer} (rank ${r.rank}); cid ${r.cid}` + (r.overrides.length ? `; would override ${r.overrides.join(', ')} if within 72 h and outranked` : ''));
+  console.error(`signed by ${r.signer} (rank ${r.rank}); cid ${r.cid}` + (r.overrides.length ? `; overrides ${r.overrides.join(', ')} (outranks its signer, inside 72 h)` : ''));
   if (rest.includes('--submit')) {
     const res = await fetch(`${DIR}/${did}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(r.op) });
     console.error('plc.directory:', res.status, await res.text());
