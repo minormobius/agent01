@@ -496,6 +496,12 @@ for games, and this is a modelling programme with publications to come. The game
   Newton stalls at 1.3 × 10⁻³; loose=2e-3 gives one model; relax=1 reaches 2.562 Gyr but the books fall to 0.48.
   The other s 1.5152 tracks are at the same point (G 10⁻¹⁴ Xc 0.375, G 10⁻¹⁷ 1.0 M_Ch 0.377, G 10⁻²⁰ 0.380). An open
   solver frontier, reported to the PI. evolve4-27c: 22 v3 + 9 Schwarzschild tracks.
+  **evolve4-27 leg 3 (evolve4-27c, collected 2026-11-26 12:26Z):** 46 of 56 ended. s 1.5152, the analogue family, is the
+  only one that stops: G 10⁻¹⁴ 0.487 M_Ch at Xc 0.3729 (39.33 Gyr, the switch-off); G 10⁻¹⁷ 1.25 M_Ch at Xc 0.2432
+  (11.30 Gyr) and 1.6 M_Ch at Xc 0.0689 (3.89 Gyr), each where its stirred core switched off a second time (1.25: core
+  regrown 0.023 → 0.049, then 0.000 by 11.29 Gyr; 1.6: 0.026 → 0.000 at Xc 0.11); neither checkpoint re-solves (Newton
+  stalls at 7 × 10⁻² and 0.19). G 10⁻¹⁷ 1.0, 2.0 and 2.5 M_Ch passed their switch-offs and burn on; G 10⁻²⁰ 1.754 reached
+  the 200 Gyr limit at Xc 0.284. The Schwarzschild set: 62 of 63 ended. evolve4-27d: 10 v3 + 1 Schwarzschild.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

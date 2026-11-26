@@ -1,82 +1,37 @@
 {
- "run": "evolve4-27c",
- "why": "The Ledoux final run, leg 3: its 22 unfinished v3 tracks resume (leg 2: 19 more finished, 34 of 56; one solver stop, G 1e-11 s 1.5152 0.437 at Xc 0.378 where the s 1.5152 analogue core switches off, as in production). Spare slots: the Schwarzschild comparison set, 9 unfinished.",
+ "run": "evolve4-27d",
+ "why": "The Ledoux final run, leg 4: its 10 unfinished v3 tracks resume (leg 3: 12 more ended, 46 of 56; G 1e-14 s 1.5152 0.487 stopped at the analogue core switch-off, Xc 0.373; G 1e-17 s 1.5152 1.25 and 1.6 stopped where their cores switched off again, Xc 0.243 and 0.069; G 1e-20 s 1.5152 1.754 reached the 200 Gyr limit at Xc 0.284). Spare slot: the last unfinished Schwarzschild track.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev27c-00",
+   "name": "ev27d-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-14 1.5152 0.4869932197 grav=1 ledoux=0.02 tag=v3",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.6 grav=1 ledoux=0.02 tag=v3"
-   ]
-  },
-  {
-   "name": "ev27c-01",
-   "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2 grav=1 ledoux=0.02 tag=v3",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6 grav=1 ledoux=0.02 tag=v3"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25 grav=1 ledoux=0.02 tag=v3"
    ]
   },
   {
-   "name": "ev27c-02",
+   "name": "ev27d-01",
    "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6 grav=1 ledoux=0.02 tag=v3",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 2 grav=1 ledoux=0.02 tag=v3",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 4 grav=1 ledoux=0.02 tag=v3",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25 grav=1 ledoux=0.02 tag=v3"
    ]
   },
   {
-   "name": "ev27c-03",
+   "name": "ev27d-02",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.6 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2 grav=1 ledoux=0.02 tag=v3",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5 grav=1 ledoux=0.02 tag=v3",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 4 grav=1 ledoux=0.02 tag=v3"
    ]
   },
   {
-   "name": "ev27c-04",
+   "name": "ev27ds-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 4 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.7 2.5 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.5152 1.7543876 grav=1 ledoux=0.02 tag=v3"
-   ]
-  },
-  {
-   "name": "ev27c-05",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-20 1.6 2.514575962 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.65 2.53207971 grav=1 ledoux=0.02 tag=v3"
-   ]
-  },
-  {
-   "name": "ev27cs-00",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.6 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev27cs-01",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 4 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev27cs-02",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.65 4 grav=1 tag=v2"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 tag=v2"
    ]
   }
  ]
