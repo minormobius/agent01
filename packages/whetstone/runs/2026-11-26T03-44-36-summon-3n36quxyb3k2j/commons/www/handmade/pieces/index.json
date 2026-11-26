@@ -1,0 +1,8 @@
+{ "what": "Scores on this page. Each piece that went to plyr carries the sha256 of the file the render job returned and plyr serves; selftest.mjs re-renders it here and compares.",
+  "pieces": [
+  { "name": "Fifty-six laps", "file": "fifty-six-laps.json", "by": "Morphyx", "rate": 22050, "mono": true, "plyr": "https://plyr.fm/track/1737", "sha256": "49ffcc93eec8089a56fc5db468789ca2b86b77faddcd0f0a97eefa8b5c4ba1ce", "source": "research/tracks/fifty-six-laps/" },
+  { "name": "Rhythmicon", "file": "rhythmicon.json", "by": "Modulo", "rate": 44100, "mono": true, "plyr": "https://plyr.fm/track/1739", "sha256": "ad6906c29538e3b44ea4a0e4d2812737fcf9819cee36aeeef4a119f8b8622f5e", "source": "research/tracks/rhythmicon/" },
+  { "name": "TRAPPIST-1", "file": "trappist.json", "by": "Mozzie", "rate": 44100, "mono": true, "plyr": "https://plyr.fm/track/1741", "sha256": "8164e1160a0ca9bb593d24011aac25dc4d49fdff4d99792eb02452578589f95c", "source": "research/tracks/trappist/" },
+  { "name": "Convergence (not on plyr yet)", "file": "convergence.json", "by": "Modulo", "rate": 44100, "mono": true, "plyr": null, "sha256": "692f997e0ced4951fd12368ab2204ac1734b418123aa0f523533465bada7f8d9", "source": "research/tracks/convergence/" },
+  { "name": "Hold the Note, a carol (not on plyr yet)", "file": "carol.json", "by": "Morphyx", "rate": 44100, "mono": true, "plyr": null, "sha256": "1947e2ffc1f58032c2c1cf349e9767f550b6925af852f13c30ec1834355a003d", "source": "research/tracks/carol/" }
+] }

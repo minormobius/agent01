@@ -1,0 +1,2 @@
+{"out":"fifty-six-laps.wav","bytes":15261740,"channels":1,"rate":22050,"parts":[{"instrument":"piano","notes":620,"seconds":346.07,"render_s":8.7}],"seconds":346.07,"peak_before_normalising":0.963,"gain_applied_db":-0.69}
+{"out":"bass.wav","bytes":15269932,"channels":1,"rate":22050,"parts":[{"instrument":"piano","notes":225,"seconds":346.26,"render_s":4}],"seconds":346.26,"peak_before_normalising":0.7097,"gain_applied_db":1.97}
