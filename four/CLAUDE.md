@@ -480,6 +480,14 @@ for games, and this is a modelling programme with publications to come. The game
   burning, 8 more solver stops (G 10⁻¹⁴ s 1.5152 0.487; G 10⁻¹⁷ s 1.5152 2.0, 2.5; s 1.55 1.6, 2.0, 2.5; s 1.65 2.5;
   s 1.7 1.25), 33 finished. evolve4-27 launches the Ledoux final run (14 groups) with the Schwarzschild set's 22 unfinished
   4D tracks continued in the six spare slots (ev27s-*: the stops resume on the fallback; s 1.65 2.0 left out).
+  **evolve4-27 leg 1 (Ledoux, collected 2026-11-26 00:27Z):** clean — no solver stop, no balmax stop, books worst ≤ 3.1%
+  across all 56. Finished: ours' seven (lives against Schwarzschild: 1 M☉ 9.685 / 9.685 Gyr, 1.25 3.519 / 3.708 (−5.1%),
+  1.6 1.629 / 1.724 (−5.5%), 2 0.900 / 0.903, 3 0.294 / 0.294; 0.6 and 0.8 to the 20 Gyr limit in both — only the stars
+  whose cores grow move) and eight 4D (s 1.65 0.23 at G 10⁻¹¹ 34.28 Gyr; G 10⁻¹⁷ s 1.7 1.25 6.024, 1.6 1.846; s 1.8 0.82
+  61.77, 4.0 0.046; G 10⁻²⁰ s 1.7 2.41 29.72 Gyr; s 1.5152 0.25 and 0.5 to the 200 Gyr limit). The Schwarzschild set's
+  resumed stops ran on (books excursions up to 3039% where cores regrow — what Ledoux removes); G 10⁻¹⁴ s 1.5152 0.487's
+  checkpoint (Xc 0.3725, the s 1.5152 stall) does not re-solve even on the fallback (Newton stalls at 3.6 × 10⁻³) and is
+  left out. evolve4-27b: the 41 unfinished v3 tracks, plus 15 Schwarzschild ones.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
