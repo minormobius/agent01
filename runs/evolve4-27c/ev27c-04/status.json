@@ -1,0 +1,33 @@
+{
+ "group": "ev27c-04",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-17 1.65 1.25 grav=1 ledoux=0.02 tag=v3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 5498
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-17 1.65 4 grav=1 ledoux=0.02 tag=v3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 7613
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-17 1.7 2.5 grav=1 ledoux=0.02 tag=v3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 969
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-20 1.5152 1.7543876 grav=1 ledoux=0.02 tag=v3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 12660
+  }
+ ]
+}
