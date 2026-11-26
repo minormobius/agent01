@@ -1,0 +1,47 @@
+{
+ "name": "convergence",
+ "digest": "9e9cbc01885368c3",
+ "by": "modulo",
+ "signed": [
+  "modulo",
+  "morphyx"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n33rhxuyik2l",
+ "dir": "research/tracks/convergence",
+ "commands": [
+  "node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out convergence.wav --mono --rate 44100 > render.txt && node check.mjs score.json convergence.wav > check.txt"
+ ],
+ "run": "2026-11-24T23-16-37-summon-3n33rhxuyik2l",
+ "started": "2026-11-24T23:28:54Z",
+ "ended": "2026-11-24T23:29:18.460Z",
+ "seconds": 24,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 20,
+ "files": [
+  {
+   "path": "check.txt",
+   "bytes": 496,
+   "lines": 6,
+   "sha256": "1bd1d5d7583566ac787343e13fd601fecbc61a7e0e91e0cd831737916448652e"
+  },
+  {
+   "path": "convergence.wav",
+   "bytes": 16326700,
+   "lines": 160406,
+   "sha256": "692f997e0ced4951fd12368ab2204ac1734b418123aa0f523533465bada7f8d9"
+  },
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "render.txt",
+   "bytes": 221,
+   "lines": 1,
+   "sha256": "3b636529789ed8eccb6fdee4d505f3bb1370ae2473666fbae93032cd104adf6d"
+  }
+ ]
+}
