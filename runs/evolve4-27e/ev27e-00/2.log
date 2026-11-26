@@ -1,0 +1,10 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5 grav=1 ledoux=0.02 tag=v3
+file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:316
+    const g0 = W.grav && C.gref?.length > 1 && C.t > C.gref[0].t && C.t - C.gref[0].t >= KHMIN * tKH0 ? { prof: C.gref[0].prof, dt: C.t - C.gref[0].t } : null, r = solveG(W, M, S, Object.assign(C.p.slice(), W.relax && C.prof ? { prof: C.prof.map(([m, rr, P, T, L]) => ({ m, r: rr, P, T, L })) } : {}), C.at, fOf, 1, g0); if (!r.s.ok) throw new Error(`resume: the checkpointed star didn't solve (${r.s.why}, residual ${r.s.res?.toExponential(2)} after ${r.s.it} Newton steps)`);
+                                                                                                                                                                                                                                                                                                                                                    ^
+
+Error: resume: the checkpointed star didn't solve (stalled, residual 1.78e-1 after 1 Newton steps)
+    at evolve (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:316:341)
+    at file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:486:13
+
+Node.js v22.23.5
