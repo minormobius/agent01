@@ -1,0 +1,14 @@
+$ node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 grav=1 ledoux=0.02 tag=v3
+4D G 1e-17 s 1.5152 2.500 M_Ch: resumed at 0.5175 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-2.500-lp-eg-ld0.02-tv3.ckpt.json
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.518 Gyr: L 3.9206e+46 W, R 3.1968e+8 m, Teff 72570 K, Tc 66.32 MK, ρc 1.545e+17 kg/m⁴, Xc 0.0706, stirred core 0.000, pp 1.3%, half the light inside q 0.251, burnt/radiated 1.0103, contraction -0.01% of L
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.518 Gyr: L 3.9292e+46 W, R 3.1992e+8 m, Teff 72569 K, Tc 66.35 MK, ρc 1.550e+17 kg/m⁴, Xc 0.0704, stirred core 0.000, pp 1.3%, half the light inside q 0.251, burnt/radiated 1.0092, contraction -0.01% of L
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.518 Gyr: L 3.9456e+46 W, R 3.2050e+8 m, Teff 72551 K, Tc 66.36 MK, ρc 1.568e+17 kg/m⁴, Xc 0.0700, stirred core 0.000, pp 1.3%, half the light inside q 0.248, burnt/radiated 1.0086, contraction -0.01% of L
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.518 Gyr: L 3.9743e+46 W, R 3.2147e+8 m, Teff 72524 K, Tc 66.48 MK, ρc 1.597e+17 kg/m⁴, Xc 0.0691, stirred core 0.000, pp 1.3%, half the light inside q 0.246, burnt/radiated 1.0072, contraction -0.02% of L
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.519 Gyr: L 4.0083e+46 W, R 3.2269e+8 m, Teff 72483 K, Tc 66.50 MK, ρc 1.639e+17 kg/m⁴, Xc 0.0682, stirred core 0.000, pp 1.3%, half the light inside q 0.244, burnt/radiated 1.0085, contraction -0.02% of L
+4D G 1e-17 s 1.5152 2.500 M_Ch 0.519 Gyr: L 4.0285e+46 W, R 3.2326e+8 m, Teff 72478 K, Tc 66.53 MK, ρc 1.651e+17 kg/m⁴, Xc 0.0678, stirred core 0.000, pp 1.3%, half the light inside q 0.244, burnt/radiated 1.0115, contraction -0.02% of L
+4D G 1e-17 s 1.5152 2.500 M_Ch: stopped at 0.519 Gyr, Xc 0.0678 (the star didn't solve on a smaller step)
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-17-1.5152-2.500-lp-eg-ld0.02-tv3.json (893 s, 994 models; no solution past Xc 0.0678)
+(node:2362) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)

@@ -1,0 +1,19 @@
+{
+ "group": "ev27d-02",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5 grav=1 ledoux=0.02 tag=v3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 2097
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-17 1.6 4 grav=1 ledoux=0.02 tag=v3",
+   "code": 0,
+   "signal": null,
+   "cut": false,
+   "seconds": 1194
+  }
+ ]
+}
