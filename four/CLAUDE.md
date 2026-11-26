@@ -488,6 +488,14 @@ for games, and this is a modelling programme with publications to come. The game
   resumed stops ran on (books excursions up to 3039% where cores regrow — what Ledoux removes); G 10⁻¹⁴ s 1.5152 0.487's
   checkpoint (Xc 0.3725, the s 1.5152 stall) does not re-solve even on the fallback (Newton stalls at 3.6 × 10⁻³) and is
   left out. evolve4-27b: the 41 unfinished v3 tracks, plus 15 Schwarzschild ones.
+  **evolve4-27 leg 2 (evolve4-27b, collected 2026-11-26 06:26Z):** 19 more v3 tracks finished (34 of 56), books clean
+  (worst 22% in one model of s 1.5152 1.0 M_Ch, never a run). **One stop: G 10⁻¹¹ s 1.5152 0.437 M_Ch at Xc 0.3777,
+  2.158 Gyr** — the s 1.5152 analogue's core switching off (stirred core 0.107 → 0.000 in ~0.05 Gyr, centre cooling
+  23.8 → 18.1 MK and densifying 40%, the light moving out to q 0.21), where production stopped too (Xc 0.3766). Not
+  Ledoux's doing (the mixed and Schwarzschild cores agree to the end) nor ε_grav's (no gravOff). From its checkpoint:
+  Newton stalls at 1.3 × 10⁻³; loose=2e-3 gives one model; relax=1 reaches 2.562 Gyr but the books fall to 0.48.
+  The other s 1.5152 tracks are at the same point (G 10⁻¹⁴ Xc 0.375, G 10⁻¹⁷ 1.0 M_Ch 0.377, G 10⁻²⁰ 0.380). An open
+  solver frontier, reported to the PI. evolve4-27c: 22 v3 + 9 Schwarzschild tracks.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
