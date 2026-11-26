@@ -502,6 +502,10 @@ for games, and this is a modelling programme with publications to come. The game
   regrown 0.023 → 0.049, then 0.000 by 11.29 Gyr; 1.6: 0.026 → 0.000 at Xc 0.11); neither checkpoint re-solves (Newton
   stalls at 7 × 10⁻² and 0.19). G 10⁻¹⁷ 1.0, 2.0 and 2.5 M_Ch passed their switch-offs and burn on; G 10⁻²⁰ 1.754 reached
   the 200 Gyr limit at Xc 0.284. The Schwarzschild set: 62 of 63 ended. evolve4-27d: 10 v3 + 1 Schwarzschild.
+  **evolve4-27 leg 4 (evolve4-27d, collected 2026-11-26 18:26Z):** 53 of 56 ended. Two more s 1.5152 stops, both at a
+  late core switch-off near Xc 0.068 like 1.6 M_Ch's: G 10⁻¹⁷ 2.0 M_Ch (1.392 Gyr) and 2.5 M_Ch (0.519 Gyr). Six s 1.5152
+  stops in all; every other family ran to central exhaustion. evolve4-27e: the last 3 v3 (G 10⁻¹⁷ s 1.5152 1.0, s 1.55
+  1.6 and 2.5) + the last Schwarzschild track.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

@@ -1,35 +1,18 @@
 {
- "run": "evolve4-27d",
- "why": "The Ledoux final run, leg 4: its 10 unfinished v3 tracks resume (leg 3: 12 more ended, 46 of 56; G 1e-14 s 1.5152 0.487 stopped at the analogue core switch-off, Xc 0.373; G 1e-17 s 1.5152 1.25 and 1.6 stopped where their cores switched off again, Xc 0.243 and 0.069; G 1e-20 s 1.5152 1.754 reached the 200 Gyr limit at Xc 0.284). Spare slot: the last unfinished Schwarzschild track.",
+ "run": "evolve4-27e",
+ "why": "The Ledoux final run, leg 5: its last 3 unfinished v3 tracks (G 1e-17 s 1.5152 1.0, s 1.55 1.6 and 2.5 M_Ch) resume (leg 4: 7 more ended, 53 of 56; G 1e-17 s 1.5152 2.0 and 2.5 stopped at Xc 0.068 where their cores switched off, as 1.6 did). Spare slot: the last unfinished Schwarzschild track.",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev27d-00",
+   "name": "ev27e-00",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.5152 2.5 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.25 grav=1 ledoux=0.02 tag=v3"
-   ]
-  },
-  {
-   "name": "ev27d-01",
-   "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 1.6 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 1.25 grav=1 ledoux=0.02 tag=v3"
+    "node four/atom/tools/evolve.mjs four 1e-17 1.55 2.5 grav=1 ledoux=0.02 tag=v3"
    ]
   },
   {
-   "name": "ev27d-02",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 2.5 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.6 4 grav=1 ledoux=0.02 tag=v3"
-   ]
-  },
-  {
-   "name": "ev27ds-00",
+   "name": "ev27es-00",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 1.25 grav=1 tag=v2"
    ]
