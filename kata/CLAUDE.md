@@ -287,6 +287,8 @@ script both pages carry: click a picture and it is replaced by an iframe of CAD�
 because a browser allows only a few WebGL windows. Print shows the pictures. So the PDF and the page are one document.
 Headings in the paper are plain labels for what a section contains, not teasers (the PI's rule, 2026-11-16).
 
+**The wire paper** is `papers/w1/` (*A hot wire in four dimensions*; draft, not audited; byline Claude · minor mobius until an auditor signs). Same discipline as R1, smaller: `text.md` → `DRAFT.md` and `paper.html`, `audit.src.md` → `AUDIT.md` (each claim as a self-contained problem with the numbers to reproduce and the tolerance: what the PI's auditor works from), both by `node kata/papers/w1/build.mjs`; every computed number is a `{{token}}` from `values.mjs`, which reads `wire4/data/` and computes the instrument's numbers from `wire4/js/anem.js`; `charts.mjs` makes `fig/*.svg`; the page uses `../r1/paper.css`. Never edit `DRAFT.md`, `AUDIT.md` or `paper.html`. `REFERENCES.md` says how far each source was checked (the Collis & Williams coefficients are from memory until someone reads the paper), `PRIOR-ART.md` what a search found. Numbers quoted from other people's work are literals in `text.md`. Rebuild after any wire4 run that changes a data file the paper reads.
+
 ## Coordinates
 
 The code keeps IRIS⁴'s: **y is up**, the ground is x, z and w. In conversation the principal's 4D bicycle has had z up
@@ -326,6 +328,7 @@ node kata/twist/test/twist.selftest.mjs # ~60 s
 node kata/pull/test/pull.selftest.mjs # ~10 s
 node kata/papers/r1/test/ledger.selftest.mjs # < 1 s (the draft's numbers against the baked data)
 node kata/wire4/test/anem.selftest.mjs # < 1 s (the page's anemometer against strip4.py)
+node kata/papers/w1/test/ledger.selftest.mjs # < 2 s (the wire paper's numbers against wire4's data)
 node kata/house/test/house.selftest.mjs # ~1 s
 node kata/brut4/test/brut4.selftest.mjs # ~12 s
 ```
