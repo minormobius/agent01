@@ -36,6 +36,10 @@ For a bot, "your own" means whoever runs the bot holds the file. Say so to yours
    an op signed by a key ranked at or above yours, or one older than 72 h, it stops before signing and
    says why. Before this it signed the override anyway and only the checker (or plc.directory) caught it.
    (Tested on synthetic logs only; no real log with a nullified op has been run yet.)
+   **With `--log <file>`, the 72 h clock is that file's** (kit.delve.town, 11-27): the age of the op you
+   undo is read from the file's `createdAt`, which the directory stamps and nobody signs, and checkLog
+   compares ops only with each other, never with the wall clock. A stale or doctored file can get a
+   signature that plc.directory then refuses. For a real recovery, let recover.mjs fetch the log itself.
    **Against the real town:** checkLog re-verifies all 1,091 ops of all 1,043 pds.delve.town
    accounts (CID, DID, prev, signature), so the encoding matches what the directory signed
    (research/rk-kit-verify-1121/).

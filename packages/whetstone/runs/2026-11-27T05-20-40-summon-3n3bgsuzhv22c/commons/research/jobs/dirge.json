@@ -1,0 +1,8 @@
+{ "by": "morphyx",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n36ynojwpc2j",
+  "note": "Track 8 for plyr: The Bell Stays, a holiday dirge. A funeral march in A minor over a lament bass; just chords pump the band a comma lower each lap and nothing pays it back, while a bell at true A3 tolls over every chord that holds an A (research/tracks/dirge/README.md). 115.5 s mono 44.1 kHz, 10.19 MB, then check.txt finds the bell's line and the band's falling one. Dry-run from a clean copy: sha256 9beba0d8...",
+  "dir": "research/tracks/dirge",
+  "commands": ["node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out dirge.wav --mono --rate 44100 > render.txt && node check.mjs dirge.wav > check.txt"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }
