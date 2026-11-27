@@ -10,7 +10,7 @@ We take the hot-wire anemometer, a heated wire across a pipe whose cooling measu
 
 A hot-wire anemometer is a fine wire stretched across a flow and heated by a current. The stream cools it, its resistance falls, and the current needed to hold the resistance is the reading. King's law, that the heat loss goes as a constant plus the square root of the speed, has described it since 1914 [K].
 
-We ask what this instrument is in four spatial dimensions. Nothing here can be tested in a laboratory. The interest is in which familiar facts about wakes and hot wires belong to the number of dimensions and which to the shape of the body, and the answers turn out to be clean enough to state.
+We ask what this instrument is in four spatial dimensions. Fluids have been taken there before: turbulence in a periodic box [SNTG] [GW] [BHC], a turbulent channel given a formal fourth coordinate, in which four-dimensional disturbances grow [N], thermal convection [PTS], and slow flow past a hypersphere [B2] [D]. We found no flow past a body at finite Reynolds number in four dimensions, no wake, and nothing on heat transfer from a body or on anemometry; `PRIOR-ART.md` lists what was searched. Nothing here can be tested in a laboratory. The interest is in which familiar facts about wakes and hot wires belong to the number of dimensions and which to the shape of the body, and the answers turn out to be clean enough to state.
 
 Lengths are in wire diameters and the Reynolds number Re is on the wire's diameter and the speed of the stream it sits in, unless said otherwise. The fluid is incompressible with constant properties and Prandtl number 0.7.
 
@@ -25,7 +25,7 @@ A pipe in four dimensions has one direction along it and a cross-section that is
 | Darcy friction factor | 8m(m + 2)/Re | 64/Re | 120/Re |
 | Nusselt number, constant wall flux | 2(m + 4)(m + 6)/(5m + 12) | 48/11 | 14/3 |
 
-The profile is Brenner's [B1]. The friction factor and Nusselt number follow by the textbook route; we did not find them published and do not claim they are new. The one fact used later is that the mean speed of the 4D pipe is 2/5 of its centreline speed, where ours is 1/2.
+Poiseuille flow in n dimensions is Brenner's [B1], which we could not read; the friction factor and Nusselt number follow by the textbook route, and we did not find them published and do not claim they are new. The one fact used later is that the mean speed of the 4D pipe is 2/5 of its centreline speed, where ours is 1/2.
 
 ## 3. A body is the ball it is across the stream
 
@@ -36,7 +36,7 @@ Take a body that is long in k directions and round in the other 4 − k, in a st
 | wire | 1 direction | a sphere |
 | ribbon | 2 directions | a circular cylinder, that is, our hot wire |
 
-So everything known about a sphere in a stream is a statement about a 4D wire, per length of wire, and everything known about our hot wire is a statement about a 4D ribbon, per area of ribbon. The two differ most at low speed. A sphere in still fluid loses heat steadily, with Nusselt number 2, and has a slow-flow solution (Stokes'). A cylinder has neither: its conduction problem has no steady answer in an unbounded fluid, which is Stokes' paradox in thermal dress. This difference is the whole of section 7.
+So everything known about a sphere in a stream is a statement about a 4D wire, per length of wire, and everything known about our hot wire is a statement about a 4D ribbon, per area of ribbon. The two differ most at low speed. A sphere in still fluid loses heat steadily, with Nusselt number 2, and has a slow-flow solution (Stokes'). A cylinder has neither: its conduction problem has no steady answer in an unbounded fluid, which is Stokes' paradox in thermal dress. (The paradox is usually stated for two dimensions; that it belongs to any body the flow can pass round in just two directions is our restatement, and elementary.) This difference is the whole of section 7.
 
 What the reduction does not tell us is whether the flow stays the same all along the body. For the ribbon that is the question of how a cylinder's wake varies along its span, which has a literature. For the wire it is a new question, because a sphere has no span.
 
@@ -44,7 +44,7 @@ What the reduction does not tell us is whether the flow stays the same all along
 
 The base flow is the steady flow past a sphere, symmetric round the stream's axis, the same at every place w along the wire. We ask whether it is stable to small disturbances of the form exp(imφ + iβw + σt): m counts lobes round the stream's axis, β is the wavenumber along the wire, and σ the growth rate. With β = 0 this is the classical sphere problem. With β > 0 the disturbance has a fourth velocity component, along the wire, and the sphere's equations gain three terms: β² in each diffusion operator, a pressure force iβp on the new component, and that component's share iβb of the divergence.
 
-Method: Taylor–Hood finite elements in the half-plane (x, r), Newton's method for the base flow, shift-and-invert Arnoldi for the eigenvalues. With β = 0 the code returns the sphere's known results: drag coefficient 1.089 at Re 100 and 0.771 at 200 (Fornberg: 1.085 and 0.768 [F]); a bubble 1.44 diameters long at 200 (1.44); the first instability, a steady one-lobed mode, at Re ≈ 212 (210 [NA], 212 [TO]).
+Method: Taylor–Hood finite elements in the half-plane (x, r), Newton's method for the base flow, shift-and-invert Arnoldi for the eigenvalues. With β = 0 the code returns the sphere's known results: drag coefficient 1.089 at Re 100 and 0.771 at 200 (Fornberg: 1.085 and 0.768 [F]); a bubble 1.44 diameters long at 200 (1.44); the first instability, a steady one-lobed mode, at Re ≈ 212 (210 [NA]; 212.4 to 213.1 in later work, as collected in [SF]).
 
 [[fig:1]]
 
@@ -57,6 +57,8 @@ Method: Taylor–Hood finite elements in the half-plane (x, r), Newton's method 
 It crosses zero at Re = 190.9. A coarser mesh (50 × 40) gives −0.0021 at 190 and +0.0202 at 200, the finer one −0.0020 and +0.0204, and a domain twice the size −0.0023 and +0.0200. The one-lobed mode, which is the sphere's, is also helped by the extra direction: its threshold falls from 212 to about 207, at a wavelength of 4 diameters.
 
 So a wire in four dimensions loses its uniform wake at Re ≈ 191, to a mode that needs the fourth dimension to exist. A steady three-dimensional instability of a recirculation bubble, arriving before the wake's own oscillation, is known in our world behind a step [BGH], and that is the natural reading; we did not identify the mechanism.
+
+One coincidence should be named. A circular cylinder's wake in our world becomes unstable along its span at Re ≈ 189 [SF]. That is a different problem with nearly the same number: there the base flow is the periodic vortex street and the new mode is carried by it, at a wavelength usually given as about four diameters; here the base flow is steady and symmetric round the stream, nothing oscillates before or after, and the wavelength is 2.5. We know of no reason for the two thresholds to agree and take it for chance. An auditor should still rule out the dull explanation, that our β terms have turned the sphere's problem into something like the cylinder's; the check is section 8's first item.
 
 **What replaces it.** Stepping the full equations forward, within the family of flows that keep the symmetry round the stream's axis, the ripple grows at the predicted rate and saturates as a steady row of cells: at Re 200 the bubble is 1.57 diameters long at its fattest and 1.31 at its thinnest, at 220 1.72 and 1.33. Nothing is shed. A linearised calculation about the rippled state finds it unstable to a steady one-lobed tilt from about Re 209 and finds no oscillation up to 300, but that calculation sees only the fastest mode, and we do not know where a 4D wire begins to shed.
 
@@ -88,7 +90,7 @@ Our sphere values are converged to 0.02% over three meshes and agree with the pu
 
 Λ is the wire's thermal conductivity over the fluid's, times π/6; P is the current squared, made dimensionless; Q is the loss to the stream. The wire's resistance is its cold value times 1 + the mean of θ. Two material numbers are free: Λ, a few thousand for a metal in a gas, and the temperature coefficient of resistance, which only sets the scale of P.
 
-**A short wire is blind.** In the tube of section 5 the wire is 10 diameters long. With Λ = 3000, 94% of its heat goes down the wire into the wall, and the current squared needed to hold its resistance at 1.5 of cold rises 5%, from 117.2 to 123.5, over a tenfold change in flow. This is the ordinary rule for hot wires, which are made some two hundred diameters long for this reason [Br], and not a matter of dimension.
+**A short wire is blind.** In the tube of section 5 the wire is 10 diameters long. With Λ = 3000, 94% of its heat goes down the wire into the wall, and the current squared needed to hold its resistance at 1.5 of cold rises 5%, from 117.2 to 123.5, over a tenfold change in flow. This is the ordinary rule for hot wires, which are made some two hundred diameters long for this reason (the rule is Ligrani and Bradshaw's, as quoted in [MEB]), and not a matter of dimension.
 
 **A long wire is a row of spheres.** A wire hundreds of diameters long has a Reynolds number of 1 to 10 in the same pipe, far below section 4's instability, in a stream that changes slowly along it. Each station then loses heat as a sphere does at the local speed. Against the full tube computations this picture gives the same current to within 0.988 at Λ = 30, 0.995 at 300 and 0.9990 at 3000, even on the short wire. In four dimensions it needs no outer length, because the sphere's conduction problem is well posed down to rest.
 
@@ -118,7 +120,8 @@ At constant current the wire runs away, its resistance heating feeding itself, a
 - The tube computations are on one mesh at one tube radius, and the pulsing bulge is under-resolved.
 - The published sphere values were read at second hand, and whether they are for Prandtl number 0.7 or 0.72 is uncertain; 0.8% of the Nusselt number rides on that.
 - The cylinder correlation in section 7 is quoted, not recomputed, and the ribbon in a pipe is not computed at all.
-- Whether laminar 4D pipe flow survives to the pipe Reynolds numbers at which a wire of useful sensitivity would work (some thousands) is not known.
+- Whether laminar 4D pipe flow survives to the pipe Reynolds numbers at which a wire of useful sensitivity would work (some thousands) is not known. Our own pipe's laminar flow is linearly stable and gives way near 2000 only because it is disturbed [ABH]; nobody has asked the question in four dimensions.
+- Novelty rests on a search of the open web, arXiv and three indexes. It did not reach the paywalled literature, anything before 1980, or textbooks' exercises. Brenner's 1981 paper on n-dimensional pipe flow [B1] was not read beyond its title.
 
 ## Reproducing this
 
@@ -126,14 +129,22 @@ The codes are in `kata/wire4/` of the repository behind kata.mino.mobi, with a R
 
 ## References
 
+- [ABH] M. Avila, D. Barkley & B. Hof, Transition to turbulence in pipe flow, *Annu. Rev. Fluid Mech.* 55 (2023).
 - [B1] H. Brenner, Poiseuille flow through n-dimensional hypercircular and hyperelliptic cylinders, *Z. angew. Math. Phys.* 32 (1981).
+- [B2] H. Brenner, The translational and rotational motions of an n-dimensional hypersphere through a viscous fluid at small Reynolds numbers, *J. Fluid Mech.* 111 (1981).
 - [BGH] D. Barkley, M. G. M. Gomes & R. D. Henderson, Three-dimensional instability in flow over a backward-facing step, *J. Fluid Mech.* 473 (2002).
-- [Br] H. H. Bruun, *Hot-Wire Anemometry* (Oxford, 1995).
+- [BHC] A. Berera, R. D. J. G. Ho & D. Clark, Homogeneous isotropic turbulence in four spatial dimensions, *Phys. Fluids* 32 (2020).
 - [CW] D. C. Collis & M. J. Williams, Two-dimensional convection from heated wires at low Reynolds numbers, *J. Fluid Mech.* 6 (1959).
+- [D] A. M. J. Davis, The small Reynolds number expansion of the n-dimensional drag coefficient, *Z. angew. Math. Phys.* 34 (1983).
 - [F] B. Fornberg, Steady viscous flow past a sphere at high Reynolds numbers, *J. Fluid Mech.* 190 (1988).
+- [GW] T. Gotoh, Y. Watanabe, Y. Shiga, T. Nakano & E. Suzuki, Statistical properties of four-dimensional turbulence, *Phys. Rev. E* 75 (2007).
 - [K] L. V. King, On the convection of heat from small cylinders in a stream of fluid, *Phil. Trans. R. Soc. A* 214 (1914).
 - [M] A. Mhaisekar, MS thesis, University of Cincinnati (2004), Table 2, quoting S. Balachandar & M. Y. Ha, *Phys. Fluids* 13 (2001).
+- [MEB] M. A. Miller, B. Estejab & S. C. C. Bailey, Evaluation of hot-wire spatial filtering corrections for wall turbulence and correction for end-conduction effects, *Exp. Fluids* 55 (2014).
+- [N] N. Nikitin, Four-dimensional turbulence in a plane channel, *J. Fluid Mech.* 680 (2011).
 - [NA] R. Natarajan & A. Acrivos, The instability of the steady flow past spheres and disks, *J. Fluid Mech.* 254 (1993).
-- [TO] A. G. Tomboulides & S. A. Orszag, Numerical investigation of transitional and weak turbulent flow past a sphere, *J. Fluid Mech.* 416 (2000).
+- [PTS] A. Pandey, Tiwari & K. R. Sreenivasan, Thermal convection in one, two, three and four dimensions, *J. Fluid Mech.* 1042 (2026).
+- [SF] R. A. Schuh Frantz et al., *J. Fluid Mech.* 1018, A30 (2025).
+- [SNTG] E. Suzuki, T. Nakano, N. Takahashi & T. Gotoh, Energy transfer and intermittency in four-dimensional turbulence, *Phys. Fluids* 17 (2005).
 
 How far each source was checked is in `REFERENCES.md`.

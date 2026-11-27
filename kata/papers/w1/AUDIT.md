@@ -35,8 +35,10 @@ boundary 12 D upstream and to the side, 25 D downstream (so the drag at Re 1 and
 **Agreement:** C_D within 1% at Re ≥ 50; lengths within 0.02.
 
 Also the classical stability results at β = 0 (see A2 for the notation): the m = 1 steady mode crosses zero at
-Re ≈ 212 (we get 212; Natarajan & Acrivos 210, Tomboulides & Orszag 212); the m = 1 oscillating mode near 277.5
-with angular frequency ≈ 0.70 (we get ≈ 280, 0.70).
+Re ≈ 212 (we get 212; Natarajan & Acrivos 210; Meliga et al. 212.6, Citro et al. 212.4, both as quoted by Schuh
+Frantz et al. 2025); the m = 1 oscillating mode on the axisymmetric base flow near Re 280 with angular frequency
+≈ 0.70 (we get ≈ 280, 0.70; Meliga et al. 280.7 as quoted; the 271.8 of Citro et al. is on the bifurcated base flow
+and is not the same calculation).
 
 ## A2. The headline: linear stability with a wavenumber along a fourth direction
 
@@ -82,6 +84,11 @@ with β free is Re ≈ 207 at β ≈ 1.5 (coarse mesh).
 ±0.001; the β of fastest growth at Re 200 between 2.25 and 2.75; the mode steady (Im σ = 0).
 **It would overturn the paper** if the m = 0 mode at β = 2.5 were stable at Re 200, or if the threshold moved above
 the sphere's 212.
+
+**A coincidence to rule out.** A circular cylinder's wake goes unstable along its span (mode A) at Re ≈ 189, next
+to our 191. The problems differ (periodic two-dimensional base flow there, steady axisymmetric here; wavelength
+near 4 D there, 2.5 D here; our mode is steady), and we take the closeness for chance, but an independent
+implementation of the β terms is what settles it.
 
 A caution about values near −0.13 to −0.17 that do not change with m: on our truncated domain those are
 free-stream modes of the box, not wake modes (the m = 0, β = 0 entry above is one). They should not be compared.

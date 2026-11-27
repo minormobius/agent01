@@ -15,7 +15,7 @@ const FIG = {
   3: { imgs: [["calibration", ""]], cap: "The reading (current squared at constant wire temperature) over its value at Re 0.25, for a metal wire (Λ = 3000) 10 and 200 diameters long across a 4D pipe, with the sphere's and the cylinder's heat loss alone for comparison. The short wire is flat because the wall takes its heat; the long wire is shallow because of the conduction floor." },
 };
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*(.+?)\*(?=[\s).,;:]|$)/g, "$1<i>$2</i>").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([A-Za-z]{1,3}\d?)\]/g, '<a class="cite" href="#ref-$1">[$1]</a>').replace(/\bfigure (\d)\b/g, '<a href="#fig$1">figure $1</a>');
+const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*(.+?)\*(?=[\s).,;:]|$)/g, "$1<i>$2</i>").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([A-Za-z]{1,4}\d?)\]/g, '<a class="cite" href="#ref-$1">[$1]</a>').replace(/\bfigure (\d)\b/g, '<a href="#fig$1">figure $1</a>');
 function build() { const filled = fill(fs.readFileSync(path.join(here, "text.md"), "utf8")), md = filled.out, out = [], L = md.split("\n"); let i = 0, title = "", inRefs = false;
   const figure = (n) => { const f = FIG[n]; return `<figure class="fig wide" id="fig${n}"><div class="${f.imgs.length > 1 ? "row2" : "row1"}">${f.imgs.map(([s, l]) => `<div><img class="chart" src="fig/${s}.svg" alt="${esc(l || f.cap)}">${l ? `<span>${esc(l)}</span>` : ""}</div>`).join("")}</div><figcaption><b>Figure ${n}.</b> ${esc(f.cap)}</figcaption></figure>`; };
   while (i < L.length) { const l = L[i];
