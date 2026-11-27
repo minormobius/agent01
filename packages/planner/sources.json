@@ -955,6 +955,225 @@
      "year": 2023
     }
    ]
+  },
+  {
+   "id": "qcew-us",
+   "publisher": "BLS Quarterly Census of Employment and Wages",
+   "title": "United States (US000) annual averages, NAICS basis, 1990-2024 — the national denominators for location quotients and productivity",
+   "page": "https://www.bls.gov/cew/downloadable-data-files.htm",
+   "license": "public domain (US federal)",
+   "files": [
+    {
+     "key": "qcew-us/1990.csv",
+     "url": "https://data.bls.gov/cew/data/files/1990/csv/1990_annual_by_area.zip",
+     "year": 1990,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1991.csv",
+     "url": "https://data.bls.gov/cew/data/files/1991/csv/1991_annual_by_area.zip",
+     "year": 1991,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1992.csv",
+     "url": "https://data.bls.gov/cew/data/files/1992/csv/1992_annual_by_area.zip",
+     "year": 1992,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1993.csv",
+     "url": "https://data.bls.gov/cew/data/files/1993/csv/1993_annual_by_area.zip",
+     "year": 1993,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1994.csv",
+     "url": "https://data.bls.gov/cew/data/files/1994/csv/1994_annual_by_area.zip",
+     "year": 1994,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1995.csv",
+     "url": "https://data.bls.gov/cew/data/files/1995/csv/1995_annual_by_area.zip",
+     "year": 1995,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1996.csv",
+     "url": "https://data.bls.gov/cew/data/files/1996/csv/1996_annual_by_area.zip",
+     "year": 1996,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1997.csv",
+     "url": "https://data.bls.gov/cew/data/files/1997/csv/1997_annual_by_area.zip",
+     "year": 1997,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1998.csv",
+     "url": "https://data.bls.gov/cew/data/files/1998/csv/1998_annual_by_area.zip",
+     "year": 1998,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/1999.csv",
+     "url": "https://data.bls.gov/cew/data/files/1999/csv/1999_annual_by_area.zip",
+     "year": 1999,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2000.csv",
+     "url": "https://data.bls.gov/cew/data/files/2000/csv/2000_annual_by_area.zip",
+     "year": 2000,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2001.csv",
+     "url": "https://data.bls.gov/cew/data/files/2001/csv/2001_annual_by_area.zip",
+     "year": 2001,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2002.csv",
+     "url": "https://data.bls.gov/cew/data/files/2002/csv/2002_annual_by_area.zip",
+     "year": 2002,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2003.csv",
+     "url": "https://data.bls.gov/cew/data/files/2003/csv/2003_annual_by_area.zip",
+     "year": 2003,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2004.csv",
+     "url": "https://data.bls.gov/cew/data/files/2004/csv/2004_annual_by_area.zip",
+     "year": 2004,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2005.csv",
+     "url": "https://data.bls.gov/cew/data/files/2005/csv/2005_annual_by_area.zip",
+     "year": 2005,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2006.csv",
+     "url": "https://data.bls.gov/cew/data/files/2006/csv/2006_annual_by_area.zip",
+     "year": 2006,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2007.csv",
+     "url": "https://data.bls.gov/cew/data/files/2007/csv/2007_annual_by_area.zip",
+     "year": 2007,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2008.csv",
+     "url": "https://data.bls.gov/cew/data/files/2008/csv/2008_annual_by_area.zip",
+     "year": 2008,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2009.csv",
+     "url": "https://data.bls.gov/cew/data/files/2009/csv/2009_annual_by_area.zip",
+     "year": 2009,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2010.csv",
+     "url": "https://data.bls.gov/cew/data/files/2010/csv/2010_annual_by_area.zip",
+     "year": 2010,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2011.csv",
+     "url": "https://data.bls.gov/cew/data/files/2011/csv/2011_annual_by_area.zip",
+     "year": 2011,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2012.csv",
+     "url": "https://data.bls.gov/cew/data/files/2012/csv/2012_annual_by_area.zip",
+     "year": 2012,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2013.csv",
+     "url": "https://data.bls.gov/cew/data/files/2013/csv/2013_annual_by_area.zip",
+     "year": 2013,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2014.csv",
+     "url": "https://data.bls.gov/cew/data/files/2014/csv/2014_annual_by_area.zip",
+     "year": 2014,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2015.csv",
+     "url": "https://data.bls.gov/cew/data/files/2015/csv/2015_annual_by_area.zip",
+     "year": 2015,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2016.csv",
+     "url": "https://data.bls.gov/cew/data/files/2016/csv/2016_annual_by_area.zip",
+     "year": 2016,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2017.csv",
+     "url": "https://data.bls.gov/cew/data/files/2017/csv/2017_annual_by_area.zip",
+     "year": 2017,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2018.csv",
+     "url": "https://data.bls.gov/cew/data/files/2018/csv/2018_annual_by_area.zip",
+     "year": 2018,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2019.csv",
+     "url": "https://data.bls.gov/cew/data/files/2019/csv/2019_annual_by_area.zip",
+     "year": 2019,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2020.csv",
+     "url": "https://data.bls.gov/cew/data/files/2020/csv/2020_annual_by_area.zip",
+     "year": 2020,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2021.csv",
+     "url": "https://data.bls.gov/cew/data/files/2021/csv/2021_annual_by_area.zip",
+     "year": 2021,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2022.csv",
+     "url": "https://data.bls.gov/cew/data/files/2022/csv/2022_annual_by_area.zip",
+     "year": 2022,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2023.csv",
+     "url": "https://data.bls.gov/cew/data/files/2023/csv/2023_annual_by_area.zip",
+     "year": 2023,
+     "extract": " US000 "
+    },
+    {
+     "key": "qcew-us/2024.csv",
+     "url": "https://data.bls.gov/cew/data/files/2024/csv/2024_annual_by_area.zip",
+     "year": 2024,
+     "extract": " US000 "
+    }
+   ]
   }
  ]
 }

@@ -3,13 +3,15 @@
 The question: if one planner (an AI, specifically) held every parcel and enterprise in a
 mid-sized American city, could it run that city's economy better than what actually
 happened? This only has an answer if the planner is judged against a **replay of the
-real city**. So the harness is built in this order, and only the first stage exists yet:
+real city**. So the harness is built in this order. Stage 1 is done; stage 2 is partly built:
 
 1. **Data.** A reproducible, validated record of Milwaukee 1975–2025: every parcel, every
    year; county jobs and wages by industry; output, income and population; how industries
-   buy from each other. ← *this package, today*
+   buy from each other. ← *done*
 2. **Simulator.** A city-as-ledger model calibrated on that record, which must reproduce
    the real 2000–2024 under the real history before it is trusted with anything else.
+   ← *the county production model and its backtest exist (`sim/`); the city, housing and
+   public-finance layers do not yet*
 3. **Planner.** It takes over from a chosen year, publishes every decision to a ledger, and
    is scored against both the real Milwaukee and a do-nothing baseline.
 4. **Adversary.** Agents that misreport to the planner. The planner can't be paid off, but
@@ -90,7 +92,69 @@ Each of these is flagged in `mprop-annual.json → quality`. None of them is sil
 - County manufacturing fell from 155k jobs (1975) to 48k (2023), while total county
   employment barely moved (453k → 467k). The economy changed what it made, not how many it employed.
 
+## The simulator, stage 2a: Milwaukee's production economy
+
+[`sim/model.mjs`](sim/model.mjs) models Milwaukee County as 21 sectors linked by an
+input-output table with a household loop:
+
+```
+x = A_r·x + θ·(μ∘p)·(ω·x + T) + d        output by sector, $M current
+E = x / π                                jobs
+```
+
+- **A_r** is the national domestic recipe (BEA Make/Use → industry-by-industry), regionalised
+  with Flegg's location quotient (FLQ, δ = 0.3), using county vs national employment. The
+  county's own GDP by industry (BEA) fixes its output, so the county's books reconcile to BEA's
+  county GDP exactly.
+- **The household loop**: wages per unit of output ω (QCEW, scaled to residents' earnings),
+  plus non-wage income T (transfers, dividends, interest, rent; BEA). It is spent in national
+  consumption proportions p, at θ = 0.8, the one hand-set number. A share μ of that spending stays local.
+- **d** is everything the city does not decide for itself: exports, investment, government
+  purchases. It is **not observed**. It is the residual that makes each year's books balance.
+
+That last point is why "reproduce history" has two meanings here, and only one is a test.
+Replaying with the observed residual reproduces every year exactly (`planner.selftest.mjs`
+checks all 22 years to 1e-9). That shows the books balance, and nothing more. The real
+test is the **rolling-origin backtest** ([`sim/backtest.mjs`](sim/backtest.mjs)). From each origin
+2007–2022, it knows only data up to that year plus the national economy's actual path, projects
+county jobs 1–5 years ahead, and is scored against what happened:
+
+| model | h1 | h3 | h5 | all horizons: total jobs | by-sector (WAPE) | city jobs |
+|---|---|---|---|---|---|---|
+| persistence (nothing changes) | 1.47% | 3.43% | 4.03% | 3.01% | 5.65% | 3.68% |
+| shift-share (grow with the nation) | 1.30% | 3.98% | 6.69% | 3.79% | 4.86% | 4.82% |
+| **shift-trend** (+ trailing local differential) | 0.82% | 2.39% | **3.94%** | **2.28%** | **4.24%** | **3.48%** |
+| io (input-output, no drift) | 1.17% | 3.47% | 6.27% | 3.42% | 4.72% | 4.60% |
+| io-drift (+ trailing differential in d) | 0.84% | **2.28%** | 4.25% | 2.31% | 4.34% | 3.55% |
+
+**The verdict, plainly: the input-output model ties the best cheap baseline. It does not beat it.**
+Every contender over-predicts (bias +0.6% at h1 to +4% at h5). Milwaukee kept losing ground
+to the nation faster than its own recent past implied. The result barely moves with δ ∈ [0.2, 0.4]
+or θ ∈ [0.7, 0.9] (`node sim/backtest.mjs --delta=0.2`).
+
+So the I-O model has not earned its keep as a **forecaster**. Its use is **counterfactual**.
+Shift-trend cannot say what happens when the planner moves money from one sector to another,
+and the I-O model can. [`sim/multipliers.mjs`](sim/multipliers.mjs) publishes what the model believes
+about that. Type II job multipliers come out at 1.2 (food service, retail) to 2.2 (finance,
+real estate), with manufacturing at 1.8–2.0, inside the range regional studies report. The
+gate requires 1–3 for every sector with ≥1,000 county jobs. Agriculture and mining (~50 jobs
+each) are not gated: one job's worth of output there is noise.
+
+Its approximations, each recorded in `data/derived/sim/backtest.json → notes`:
+- The industry-technology assumption.
+- Imports removed row-wise by the national import share.
+- Suppressed county cells filled in national proportions.
+- The city's share of government jobs taken from public administration alone, since LODES has no public/private split.
+
 ## Not done yet (honest list)
+
+- **Stage 2b, the city layer:** population and resident workers from jobs (LODES residence
+  vs workplace), housing demand against the MPROP stock, assessed value and the tax base,
+  and the city's tax-deed inventory as a state variable. Until then the model is a county
+  economy, and city jobs are only a fixed share of it.
+- **A forecaster that beats shift-trend.** Candidates: estimating the drift shrinkage by nested
+  validation (it is fixed at 0.5 a priori, so it cannot overfit), and letting regional
+  coefficients evolve rather than freezing them at the origin.
 
 - **ACS** (tract income, rent, tenure, commuting) needs a Census API key, and the
   sandbox proxy can only inject header credentials, while Census takes the key as a query parameter.

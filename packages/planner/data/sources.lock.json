@@ -817,6 +817,251 @@
   "member": "sic.2000.annual.by_area/sic.2000.annual 55079 (Milwaukee County, Wisconsin).csv",
   "fetched": "2026-11-25"
  },
+ "qcew-us/1990.csv": {
+  "sha256": "ee9fafec7cf68f4dce596ea9031032e962b6af6cb6708c84852398d899219c50",
+  "bytes": 1020330,
+  "url": "https://data.bls.gov/cew/data/files/1990/csv/1990_annual_by_area.zip",
+  "member": "1990.annual.by_area/1990.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1991.csv": {
+  "sha256": "c6cf4f45b82682e8f9290cb3945629450569354d065ff2c035f6bc1fbfde4b1c",
+  "bytes": 1132082,
+  "url": "https://data.bls.gov/cew/data/files/1991/csv/1991_annual_by_area.zip",
+  "member": "1991.annual.by_area/1991.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1992.csv": {
+  "sha256": "833d0489e2b456248b55a128b2ae5fe7b86bc284f152c6880ed59fd45f5c51f5",
+  "bytes": 1134714,
+  "url": "https://data.bls.gov/cew/data/files/1992/csv/1992_annual_by_area.zip",
+  "member": "1992.annual.by_area/1992.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1993.csv": {
+  "sha256": "bd4591a7979af7fccf025d69b8369317d8a3461477f074e3e2e7e2a9d10b4fe0",
+  "bytes": 1135163,
+  "url": "https://data.bls.gov/cew/data/files/1993/csv/1993_annual_by_area.zip",
+  "member": "1993.annual.by_area/1993.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1994.csv": {
+  "sha256": "452b6ccf7dc7322897522b94c7fd46a2eeeed7e69ff980dfebacc3933f681ba8",
+  "bytes": 1140400,
+  "url": "https://data.bls.gov/cew/data/files/1994/csv/1994_annual_by_area.zip",
+  "member": "1994.annual.by_area/1994.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1995.csv": {
+  "sha256": "e0622af23a0dc54eff26860f7831a5f46815fe89205333893e688edbb72b6322",
+  "bytes": 1142285,
+  "url": "https://data.bls.gov/cew/data/files/1995/csv/1995_annual_by_area.zip",
+  "member": "1995.annual.by_area/1995.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1996.csv": {
+  "sha256": "985d8a05b6a60fed6144cd78ceffaae2597593f0d3b24f3f174a31f9c0a83768",
+  "bytes": 1147882,
+  "url": "https://data.bls.gov/cew/data/files/1996/csv/1996_annual_by_area.zip",
+  "member": "1996.annual.by_area/1996.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1997.csv": {
+  "sha256": "33129473a53af0ef891f769a3858b560c6390d36016626bba72a1a9fb7e2a137",
+  "bytes": 1148607,
+  "url": "https://data.bls.gov/cew/data/files/1997/csv/1997_annual_by_area.zip",
+  "member": "1997.annual.by_area/1997.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1998.csv": {
+  "sha256": "9cfe2fb9590af123c9a05d83c92fbb97cfe8adfb35515736235651f7de3c7ab6",
+  "bytes": 1151444,
+  "url": "https://data.bls.gov/cew/data/files/1998/csv/1998_annual_by_area.zip",
+  "member": "1998.annual.by_area/1998.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/1999.csv": {
+  "sha256": "c77c4e527e388f433ea5fa83f07893804a7f6ffd76895b1b87a46941bbef92a0",
+  "bytes": 1159527,
+  "url": "https://data.bls.gov/cew/data/files/1999/csv/1999_annual_by_area.zip",
+  "member": "1999.annual.by_area/1999.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2000.csv": {
+  "sha256": "77302fd6b73a078a76fcb93cf59d54ae70f303885f75c126f6eb184c5f00ea88",
+  "bytes": 1163694,
+  "url": "https://data.bls.gov/cew/data/files/2000/csv/2000_annual_by_area.zip",
+  "member": "2000.annual.by_area/2000.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2001.csv": {
+  "sha256": "8c84151bb39b1fa522664bee75979a9901efaa117d423b5cabdc3659fd946ddd",
+  "bytes": 1382463,
+  "url": "https://data.bls.gov/cew/data/files/2001/csv/2001_annual_by_area.zip",
+  "member": "2001.annual.by_area/2001.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2002.csv": {
+  "sha256": "02b78f7318a5aa2000fb3e4d25c45e1fcdc1ad659eae4de4cc180c9ff728aee6",
+  "bytes": 1531620,
+  "url": "https://data.bls.gov/cew/data/files/2002/csv/2002_annual_by_area.zip",
+  "member": "2002.annual.by_area/2002.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2003.csv": {
+  "sha256": "adef469882c7793e8cf1a2a9dc1f1731a64ffea881abbe4ef6c3496f62e52f4e",
+  "bytes": 1541368,
+  "url": "https://data.bls.gov/cew/data/files/2003/csv/2003_annual_by_area.zip",
+  "member": "2003.annual.by_area/2003.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2004.csv": {
+  "sha256": "90270b35e4b500bd833625d54f59af8683dc2f8d4790888abe0caf29ccf623be",
+  "bytes": 1533402,
+  "url": "https://data.bls.gov/cew/data/files/2004/csv/2004_annual_by_area.zip",
+  "member": "2004.annual.by_area/2004.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2005.csv": {
+  "sha256": "a52201b56ae194d052f4414259cfbaf5d7925dc48271814bf281d3e855da0146",
+  "bytes": 1526861,
+  "url": "https://data.bls.gov/cew/data/files/2005/csv/2005_annual_by_area.zip",
+  "member": "2005.annual.by_area/2005.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2006.csv": {
+  "sha256": "541f3f94f36e4c655b2d6c4e16cc8efb28ca70310fbebb3656de718e2165395e",
+  "bytes": 1536095,
+  "url": "https://data.bls.gov/cew/data/files/2006/csv/2006_annual_by_area.zip",
+  "member": "2006.annual.by_area/2006.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2007.csv": {
+  "sha256": "4eb0f664a8d201f10f87ee5711fa5c38806d5b20a7d1a93d32bfaacbbe5b6c82",
+  "bytes": 1529172,
+  "url": "https://data.bls.gov/cew/data/files/2007/csv/2007_annual_by_area.zip",
+  "member": "2007.annual.by_area/2007.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2008.csv": {
+  "sha256": "dcd9010f467012700fa89e94dabdee444ddb1a26141f321e6c909f2360d2dcd6",
+  "bytes": 1534164,
+  "url": "https://data.bls.gov/cew/data/files/2008/csv/2008_annual_by_area.zip",
+  "member": "2008.annual.by_area/2008.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2009.csv": {
+  "sha256": "3b1004357436fd8ca66d99889c253bec4c2aaa4aae84bebed4fd1b22941585dc",
+  "bytes": 1553656,
+  "url": "https://data.bls.gov/cew/data/files/2009/csv/2009_annual_by_area.zip",
+  "member": "2009.annual.by_area/2009.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2010.csv": {
+  "sha256": "1a2f9f70d5ba34a8d5ddfeab4984807f0b5ea7fd560536ffb4ec1cfecd232406",
+  "bytes": 1538030,
+  "url": "https://data.bls.gov/cew/data/files/2010/csv/2010_annual_by_area.zip",
+  "member": "2010.annual.by_area/2010.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2011.csv": {
+  "sha256": "97a7e796bb36ae32e201f0cbb46dcde8e0dbb1007b835eb03c0e33b3c93ee944",
+  "bytes": 1475938,
+  "url": "https://data.bls.gov/cew/data/files/2011/csv/2011_annual_by_area.zip",
+  "member": "2011.annual.by_area/2011.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2012.csv": {
+  "sha256": "a8736a6540b366cfb0db72e3433c3bed989f87c2b13b68f4edc5e43ae02d7ead",
+  "bytes": 1470179,
+  "url": "https://data.bls.gov/cew/data/files/2012/csv/2012_annual_by_area.zip",
+  "member": "2012.annual.by_area/2012.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2013.csv": {
+  "sha256": "a69e31c95a0c88d5579373da9fa640ad91045b5afdbd862feefe18eea207ca15",
+  "bytes": 1474706,
+  "url": "https://data.bls.gov/cew/data/files/2013/csv/2013_annual_by_area.zip",
+  "member": "2013.annual.by_area/2013.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2014.csv": {
+  "sha256": "4571dfacac494542abe8530e26bdacc1b3a8e0e0e911c77e357d40aac22d459d",
+  "bytes": 1476193,
+  "url": "https://data.bls.gov/cew/data/files/2014/csv/2014_annual_by_area.zip",
+  "member": "2014.annual.by_area/2014.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2015.csv": {
+  "sha256": "82bd33b007228efc52c08211fd4a9fb00dde9768bea0b7b3817afb5bd8c09313",
+  "bytes": 1474797,
+  "url": "https://data.bls.gov/cew/data/files/2015/csv/2015_annual_by_area.zip",
+  "member": "2015.annual.by_area/2015.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2016.csv": {
+  "sha256": "e554c804652c15129c2412cb74d517d84b86d32b4313f2c1ca1b62f7ca3523d2",
+  "bytes": 1534250,
+  "url": "https://data.bls.gov/cew/data/files/2016/csv/2016_annual_by_area.zip",
+  "member": "2016.annual.by_area/2016.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2017.csv": {
+  "sha256": "04701ad4a8ccb0d05fc3aa9a97d4572800d079b1321372568b11e89d6c9cb394",
+  "bytes": 1520180,
+  "url": "https://data.bls.gov/cew/data/files/2017/csv/2017_annual_by_area.zip",
+  "member": "2017.annual.by_area/2017.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2018.csv": {
+  "sha256": "2bfe7e68e58ca67fa3e670ef696b52158fe71a4945c989b03c2f6f87c51bf714",
+  "bytes": 1525847,
+  "url": "https://data.bls.gov/cew/data/files/2018/csv/2018_annual_by_area.zip",
+  "member": "2018.annual.by_area/2018.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2019.csv": {
+  "sha256": "3ac9c47d4219c4b085a42eefe968144351454a46181ee6125076fde0304e87c6",
+  "bytes": 1526188,
+  "url": "https://data.bls.gov/cew/data/files/2019/csv/2019_annual_by_area.zip",
+  "member": "2019.annual.by_area/2019.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2020.csv": {
+  "sha256": "f3fec90ea887a87ca2b4c10482c7cafa94e5d31bbb71f3815839b58ca25a1d5f",
+  "bytes": 1534581,
+  "url": "https://data.bls.gov/cew/data/files/2020/csv/2020_annual_by_area.zip",
+  "member": "2020.annual.by_area/2020.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2021.csv": {
+  "sha256": "d10891945ef9c2ce97f76da92212d2f60325a119a9a9dd2726b3cb846d824d47",
+  "bytes": 1523433,
+  "url": "https://data.bls.gov/cew/data/files/2021/csv/2021_annual_by_area.zip",
+  "member": "2021.annual.by_area/2021.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2022.csv": {
+  "sha256": "aea98051d7921a71a698e176b01b956d23f06430289d62a20a2ab4c922a24591",
+  "bytes": 1514970,
+  "url": "https://data.bls.gov/cew/data/files/2022/csv/2022_annual_by_area.zip",
+  "member": "2022.annual.by_area/2022.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2023.csv": {
+  "sha256": "25298e7da727dbcd7ffbea353db6486d3d3501530588358fd8d796429ee8f27a",
+  "bytes": 1552184,
+  "url": "https://data.bls.gov/cew/data/files/2023/csv/2023_annual_by_area.zip",
+  "member": "2023.annual.by_area/2023.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
+ "qcew-us/2024.csv": {
+  "sha256": "6a01f56bced576ffd3b477b8b4100f3e71ca4e080f5bcd43e69269b8f750c2b8",
+  "bytes": 1548998,
+  "url": "https://data.bls.gov/cew/data/files/2024/csv/2024_annual_by_area.zip",
+  "member": "2024.annual.by_area/2024.annual US000 U.S. TOTAL.csv",
+  "fetched": "2026-11-27"
+ },
  "qcew/1990.csv": {
   "sha256": "3a5bda1da2c9b20272957681f6115b5bb248f06ca89cb7a4f6cdff43753fbbbe",
   "bytes": 324818,
