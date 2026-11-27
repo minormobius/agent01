@@ -513,6 +513,16 @@ for games, and this is a modelling programme with publications to come. The game
   0.01 Gyr), where Schwarzschild's core regrew to 0.04. At the last rate (ΔXc 0.012 in 0.0064 Gyr) the remaining 0.054
   would take ~0.03 Gyr: life ≈ 0.62–0.63 Gyr, 0.597 a lower bound. evolve4-27f: the last burning track, G 10⁻¹⁷ s 1.5152
   1.0 M_Ch (Xc 0.028 at 42.7 Gyr).
+  **evolve4-27 complete (evolve4-27f, collected 2026-11-27 06:26Z).** The last track, G 10⁻¹⁷ s 1.5152 1.0 M_Ch, stopped
+  at Xc 0.0241, 42.83 Gyr. Of 56: 46 to central exhaustion or the age limit, nine stops (seven s 1.5152 at core
+  switch-offs or their late radiative burnout: G 10⁻¹¹ 0.437 Xc 0.378, G 10⁻¹⁴ 0.487 Xc 0.373, G 10⁻¹⁷ 1.0 Xc 0.024, 1.25
+  Xc 0.243, 1.6/2.0/2.5 Xc 0.068–0.069; and s 1.55 2.5 Xc 0.054) — lower bounds. **PI decision (2026-11-27): side by side.**
+  Ledoux (v3) is the main column, Schwarzschild (v2/v2k) beside it, labelled the no-overshoot limits of semiconvective
+  mixing (none / instant); the stops flagged as lower bounds; overshoot would lengthen the regrowing stars further.
+  Ledoux vs Schwarzschild: within ~2% for most; −5% for ours 1.25/1.6 M☉; −22 to −36% where a core shrinks to ~0 and
+  regrows (G 10⁻¹⁷ s 1.7 1.25/1.6/2.0, s 1.8 4.0, s 1.65 0.90; G 10⁻²⁰ s 1.7 2.41; −10% G 10⁻¹¹ s 1.65). Against
+  production (no ε_grav, older code) the Ledoux lives run 6–10% shorter where cores don't regrow. Next: the regeneration
+  (ages4, gravity, egrav, yields4, abund4, aged.js, paper 2, book) from the v3 tracks with the Schwarzschild column.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
