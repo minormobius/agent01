@@ -292,10 +292,9 @@
     {
      "claim": "the 4D Sun analogue's life",
      "before": "as long as ours, by the convention",
-     "after": "28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), burns far faster and stops 0.5% short of half at 2.56 Gyr (evolve4-7), where G 10⁻¹⁴ s 1.5152 also stops: the core's helium gone and its oitrogen nearly so, the stirred core collapsing faster than a thermal-balance solver follows, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰)",
-     "check": "ages4Half",
-     "now": "10.6–177",
-     "unit": "Gyr (the convention: 4.6)"
+     "after": "28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), burns far faster and stops 0.5% short of half at 2.56 Gyr (evolve4-7), where G 10⁻¹⁴ s 1.5152 also stops: the core's helium gone and its oitrogen nearly so, the stirred core collapsing faster than a thermal-balance solver follows, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) (as evolve4-1 to -7 had it; the final run's lives are in stage 'final')",
+     "unit": "Gyr (the convention: 4.6)",
+     "then": "10.6–177"
     }
    ],
    "held": [
@@ -511,6 +510,44 @@
    "held": [
     "the drops' stable line in ours: within three charges of the measured one to mass 240",
     "what holds whatever the drop: equilibrium keeps equal protons and neutrons, so its nuclei sit proton-rich of the stable line and decay toward it; nuclei far heavier than ours stay stable (fission and alpha decay open only far past ours on every drop)"
+   ]
+  },
+  {
+   "id": "final",
+   "date": "2026-11-27",
+   "title": "The final main sequence: Ledoux's edge, contraction on",
+   "replaced": "lives from runs in complete equilibrium (no energy of contraction), an older quadrature for the pinned gravity, stirred cores burnt shell by shell, and the stirred core's edge by Schwarzschild's criterion alone",
+   "by": "every 4D star and ours' OPAL set rerun from zero age with all of it in (evolve.mjs grav=1, the stirred-core zone model, ledoux=0.02: the core takes a layer only within 0.02 in hydrogen of its mixed mean; ε_grav re-solved off for a step it fails; resumes under KHMIN), and each star rerun again on Schwarzschild beside it (bracket4.mjs): the two are the no-overshoot limits of semiconvective mixing",
+   "runs": [
+    "evolve4-26 to -26c (Schwarzschild, tag v2)",
+    "evolve4-27 to -27f (Ledoux, tag v3)",
+    "evolve4-28 (the 12 analogues the list had left out, both)"
+   ],
+   "rule": "the PI's (2026-11-25, 2026-11-27): Ledoux the main column, Schwarzschild beside it; a run that stops before central hydrogen 10⁻³ gives a lower bound, marked",
+   "moved": [
+    {
+     "claim": "the 4D Sun analogue's life",
+     "before": "10.6–177 Gyr (complete equilibrium, Schwarzschild, the old gravity quadrature)",
+     "after": "the range below; the s 1.5152 analogues stop where their stirred core switches off (lower bounds)",
+     "check": "ages4Half",
+     "now": "9.3–148",
+     "unit": "Gyr"
+    },
+    {
+     "claim": "how many stars' lives the boundary criterion moves by more than 2%",
+     "before": "not asked (Schwarzschild only)",
+     "after": "those whose unstable region runs past the mixed core into hydrogen-richer layers; Ledoux always the shorter",
+     "check": "bracketMoved",
+     "now": "14/37",
+     "unit": "stars moved / compared"
+    }
+   ],
+   "held": [
+    {
+     "claim": "ours' lives where the core doesn't grow",
+     "value": "0.6, 0.8, 1, 2 and 3 M☉ within 1% between the criteria",
+     "where": "bracket4.json"
+    }
    ]
   }
  ]

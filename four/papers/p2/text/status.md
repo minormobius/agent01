@@ -41,10 +41,12 @@ lives from a frozen zero-age core. Five things came out of it.
    cores return the rock row and this world's iron in comparable amounts, the iron at one element, 137. Both came from
    the explosion model letting cores stand above the Chandrasekhar mass, which they cannot, and from placing equilibrium
    on the drop's single most bound nucleus.)
-5. **The one limit was missing physics, now added.** Two stars at $s$ = 1.5152 stopped when their core's oitrogen ran out
-   and the stirred core collapsed faster than a solver in thermal balance could follow. With the energy of contraction in
-   the solver, checked first on our Sun, both pass that point and live on ({{egMore14}} and {{egMore11}}), before stopping
-   again where their centres reheat.
+5. **Where a stirred core's edge is drawn matters for some stars, and the two choices bracket their lives.** Every star
+   is aged twice, its stirred core's edge set by Ledoux's criterion and by Schwarzschild's: slow (semiconvective) mixing at
+   its two limits, none and instant, with no overshoot in either. {{bClose}} of {{bN}} agree to within 2%. Where a core
+   regrows into the gradient it left behind, Ledoux's lives are up to {{bBigHi}} shorter. The ages quoted are Ledoux's,
+   with Schwarzschild's beside them. Near our strength ($s$ = 1.5152) the runs stop where the stirred core switches off as
+   its oitrogen runs out, so those ages are lower bounds.
 
 What is still declared rather than computed is the stars' lives after hydrogen: how their cores grow, and which end
 as dead remnants and which explode. That decides what goes back into the gas for the next generation, and it is the
@@ -52,8 +54,8 @@ largest open question.
 
 ![**The four-dimensional Sun analogues, aged.** For each strength of the nucleon force (horizontal) and each strength
 of gravity (a line per $G$, in multiples of ours), the time the star's centre takes to burn half its hydrogen. Each
-point is shaded by how much of the star is past helium when its run ends. The dashed rings mark the two runs that stop
-in the oitrogen stall; the lower one stops just short of half its hydrogen. The dashed line is the 4.6 Gyr every
+point is shaded by how much of the star is past helium when its run ends. The dashed rings mark the runs that stop
+where their stirred core switches off; the lower one stops just short of half its hydrogen. The dashed line is the 4.6 Gyr every
 analogue was given before the stars were aged.](../figures/ages.svg)
 
 ![**What the first stars give back, at $G$ = 10⁻¹⁷ × ours.** (a) Each aged star of the mass ladders
@@ -88,13 +90,17 @@ Each line says how it stands: **computed** (the book's own calculation, checked 
   changes the pressure by {{lpDPlo}} to {{lpDPhi}} %. Both bites are in the aged stars; they barely move the lives.
 - **Stars that age** (computed; [section 4](ageing.html)). {{a4n}} of {{a4grid}} analogues halve their central hydrogen
   in {{a4min}}–{{a4max}} Gyr. The slowest are at $s$ = 1.5152: {{a4s15}} Gyr from $G$ = 10⁻¹⁴ to 10⁻²⁰.
-- **The oitrogen stall** (computed; section 4). At $G$ = {{a4stGs}}, $s$ = 1.5152, the centre stops at hydrogen
-  {{a4cH}}, pxygen {{a4cPx}} and oitrogen {{a4cOx}} by mass, without the energy a contracting core releases.
-- **The energy of contraction** (computed; section 4). In the solver behind a switch, so no result above moved. It moves
-  our Sun by at most {{egSun}}% and a 2 M☉ star to the end of its hydrogen by at most {{egM2}}%. With it both stalled
-  analogues pass the stall: the stirred core switches off and the centre cools and contracts, then reheats, and they
-  stop again at {{egStop14}} and {{egStop11}} Gyr where a stirred core begins to re-form.
-- **Past the end of the hydrogen** (provisional; one star, paused). The 1.25 M~Ch~ star on the explosion line, carried
+- **Where the stirred core switches off** (computed; section 4). At $G$ = {{a4stGs}}, $s$ = 1.5152, the centre holds
+  hydrogen {{a4cH}}, pxygen {{a4cPx}} and oitrogen {{a4cOx}} by mass when the stirred core switches off, and no star past
+  that point re-solves; {{a4ladN}} stars of the $s$ = 1.5152 mass ladder stop the same way. Their ages are lower bounds.
+- **The energy of contraction** (computed; section 4). In every final run. It moves our Sun by at most {{egSun}}% and a
+  2 M☉ star to the end of its hydrogen by at most {{egM2}}%. With it, a new quadrature for the pinned gravity and the
+  stirred core burnt as one zone, the four-dimensional lives come out {{bProdLo}}–{{bProdHi}} shorter than the earlier
+  runs' where the core's edge does not matter.
+- **The edge of a stirred core** (computed; section 4). Ledoux against Schwarzschild over {{bN}} stars aged both ways:
+  {{bClose}} within 2%, {{bMidN}} shorter by {{bMidLo}}–{{bMidHi}} and {{bBigN}} by {{bBigLo}}–{{bBigHi}} under Ledoux;
+  ours {{bOursMove}}.
+- **Past the end of the hydrogen** (provisional; one star, paused, on the earlier runs' track). The 1.25 M~Ch~ star on the explosion line, carried
   {{egPmyr}} Myr past it into a red giant: its hydrogen-free core grows from {{egPH0}} to {{egPH1}} M~Ch~ and the star
   swells ×{{egPR}}, its surface cooling to {{egPT1}} K. Whether the core reaches the 1 M~Ch~ it needs to explode is not
   settled yet, and the last stretch's energy books are off (the shells burn {{egPbk0}}–{{egPbk1}} of what the structure
@@ -152,13 +158,15 @@ once aged than any other, and stalls early: the zero-age choice of analogue is n
    the end of their central hydrogen. What is left declared is how their cores grow afterwards, which sets which stars
    explode and so how much of what they return is the heavy equilibrium band. The first star past it, the one on the
    explosion line, decides whether computing that for every ladder star is worth the runner time. This is the step that
-   most changes what the paper can claim. Checking the same energy books across the finished main-sequence tracks found stretches off by several per cent
-   where a convective core sits, and single models further off where one grows into fresh hydrogen; what that does to
-   the ages is being measured.
-2. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
+   most changes what the paper can claim. Its final-run track (Ledoux's edge) stops earlier, at its second core
+   switch-off, so it would start from the earlier runs' track.
+2. **Getting past the stirred core's switch-off** (the sandbox first). Near our strength every run stops there, so the
+   ages of the stars nearest ours are lower bounds. Relaxation follows the star further but with its energy books off by
+   half; a solver that holds them through the switch-off would turn those bounds into lives.
+3. **Second-generation stars, whole lives** (the compute runner). The first look above covers one analogue's zero age
    and first {{g2Gyr}} Gyr, the heavy band included; next, its whole life, the other strengths, the gas's actual
    metal share over time, and the band's spectral lines, which the opacity above leaves out.
-3. **Writing it up.** Sections 4 and 5 (abundances over time) from the data above, and the outline brought up to date.
+4. **Writing it up.** Sections 4 and 5 (abundances over time) from the data above, and the outline brought up to date.
 
 ## How it was built
 

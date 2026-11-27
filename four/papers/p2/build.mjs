@@ -83,7 +83,7 @@ export function numbers() {
   // window C: the lifetimes (data/lifetimes.json from fusion/tools/lifetimes4.mjs) and the energy law (fusion/eps4.json)
   Object.assign(t, lifeNumbers(t, SN, nameOf));
   // stars that age: our Sun by atom/tools/evolve.mjs against standard solar models (data/evolvecheck.json, fusion/tools/suncheck.mjs)
-  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), ash4Numbers(), yields4Numbers(), egravNumbers(), statusNumbers(), methodNumbers());
+  Object.assign(t, ageNumbers(), opacityNumbers(), ages4Numbers(), bracketNumbers(), ash4Numbers(), yields4Numbers(), egravNumbers(), statusNumbers(), methodNumbers());
   for (const k of Object.keys(t)) if (typeof t[k] === "string") t[k] = t[k].replace(/(\d)-(\d)/g, "$1–$2").replace(/^-/, "−");
   // the provenance ledger, checked against the data (the supplement's S1); after the dash pass, which would turn its
   // nuclide names (5-11), dates and run names into ranges
@@ -251,19 +251,47 @@ function methodNumbers() {
 }
 function ages4Numbers() {
   const A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);
-  // an analogue not yet halved must be one still running (a cut run), and the text then says where it got to
+  const word = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"], who = (k) => { const [g, s] = k.split("/"); return `G = ${Gs(+g)} at s = ${s}`; };
+  // an analogue not yet halved is either still running (cut) or stopped where its stirred core switched off (with its record)
   const unhalved = A.stars.filter((x) => !x.half && S.notHalved.includes(`${x.G}/${x.s}`));
-  // an unhalved analogue is either still running (cut) or stopped in the stall the text describes (with its record)
-  if (unhalved.some((x) => x.state !== "cut" && !x.stall)) throw new Error(`ages4: an analogue stopped before halving, not in the described stall: ${S.notHalved}`);
-  const st = A.stars.find((x) => x.stall && x.half), word = ["no", "one", "two", "three", "four", "five", "six"], who = (k) => { const [g, s] = k.split("/"); return `G = ${Gs(+g)} at s = ${s}`; };
-  if (!st) throw new Error("ages4: the text describes a stalled analogue and there is none: rewrite it");
-  const rest = (S.notAged.length ? ` The other ${word[S.notAged.length] ?? S.notAged.length} (${S.notAged.map(who).join("; ")}) never started on the earlier solver and are being aged now.` : "")
-    + unhalved.filter((x) => x.stall).map((x) => ` The ${S.analogues === S.inGravity ? "last" : "other"}, at G = ${Gs(x.G)}, s = ${x.s}, burns far faster than the rest and stops ${f(100 * x.stall.short, 1)}% short of half, at ${f(x.lastGyr, 1)} Gyr, in the stall described below.`).join("")
-    + unhalved.filter((x) => !x.stall).map((x) => ` One is still burning: at G = ${Gs(x.G)}, s = ${x.s}, the centre is down to ${f(x.lastXc, 2)} of its hydrogen after ${f(x.lastGyr, 1)} Gyr, from ${f(0.75, 2)}, faster than any other, and the run goes on.`).join("");
+  if (unhalved.some((x) => x.state !== "cut" && !x.stall)) throw new Error(`ages4: an analogue stopped before halving, not at the described switch-off: ${S.notHalved}`);
   const stalls = A.stars.filter((x) => x.stall), rng = (k, n = 2) => { const v = stalls.map((x) => x.stall.centre[k] ?? 0), lo = Math.min(...v), hi = Math.max(...v); return f(lo, n) === f(hi, n) ? f(lo, n) : `${f(lo, n)}–${f(hi, n)}`; };
-  if (stalls.some((x) => x.s !== st.s || (x.stall.centre["2"] ?? 0) > 1e-3)) throw new Error("ages4: a stall the text doesn't describe (another s, or helium left at the centre)");
-  return { a4grid: String(S.inGravity), a4rest: rest, a4nStall: word[stalls.length], a4stGs: stalls.map((x) => Gs(x.G)).sort().join(" and "), a4cH: rng("1"), a4cPx: rng("10"), a4cOx: rng("9"), a4stG: Gs(st.G), a4stS: String(st.s), a4stHalf: f(st.half, 1), a4stEnd: f(st.lastGyr, 1), a4stQ0: f(st.stall.qccPeak, 2), a4stQ1: f(st.stall.qccEnd, 2), a4stDt: f(st.stall.overGyr, 0), a4stRho: pct(st.stall.rhoUp - 1), a4stTc: pct(1 - st.stall.TcDown), a4stL: pct(st.stall.LUp - 1),
+  if (!stalls.length) throw new Error("ages4: the text describes analogues stopped at the switch-off and there are none: rewrite it");
+  if (stalls.some((x) => x.s !== 1.5152 || (x.stall.centre["2"] ?? 0) > 1e-3)) throw new Error("ages4: a stopped analogue the text doesn't describe (another s, or helium left at the centre)");
+  // the one whose last Gyr shows the switch-off (the largest fall of its stirred core)
+  const st = stalls.reduce((p, x) => (x.stall.qccPeak - x.stall.qccEnd > p.stall.qccPeak - p.stall.qccEnd ? x : p));
+  if (!(st.stall.qccPeak > 0.05 && st.stall.qccEnd < 0.01)) throw new Error("ages4: no stopped analogue shows its stirred core switching off");
+  const rest = (S.notAged.length ? ` ${word[S.notAged.length] ?? S.notAged.length} more (${S.notAged.map(who).join("; ")}) are still being aged.`.replace(/^ ./, (c) => c.toUpperCase()) : "")
+    + unhalved.filter((x) => x.stall).map((x) => ` The ${S.analogues === S.inGravity ? "last" : "other"}, at G = ${Gs(x.G)}, s = ${x.s}, burns far faster than the rest and stops ${f(100 * x.stall.short, 1)}% short of half, at ${f(x.lastGyr, 1)} Gyr, where its stirred core switches off (below).`).join("")
+    + unhalved.filter((x) => !x.stall).map((x) => ` One is still burning: at G = ${Gs(x.G)}, s = ${x.s}, the centre is down to ${f(x.lastXc, 2)} of its hydrogen after ${f(x.lastGyr, 1)} Gyr, and the run goes on.`).join("");
+  // the G 1e-17 s 1.5152 mass ladder's stops (ladder stars, not analogues: kept as `stop`)
+  const lad = A.stars.filter((x) => x.G === 1e-17 && x.s === 1.5152 && x.stop), lx = lad.map((x) => x.lastXc);
+  if (!lad.length) throw new Error("ages4: the text says the s 1.5152 ladder stops at core switch-offs and none does");
+  if (lad.some((x) => !(x.stop.qccPeak > x.stop.qccEnd && x.stop.qccEnd < 0.005))) throw new Error("ages4: a ladder stop where no stirred core switched off: rewrite the text");
+  return { a4grid: String(S.inGravity), a4rest: rest, a4nStall: word[stalls.length], a4stGs: stalls.map((x) => Gs(x.G)).sort().join(" and "), a4cH: rng("1"), a4cPx: rng("10"), a4cOx: rng("9"),
+    a4stG: Gs(st.G), a4stEnd: f(st.lastGyr, 1), a4stQ0: f(st.stall.qccPeak, 2), a4stQ1: f(st.stall.qccEnd, 3), a4stDt: f(st.stall.overGyr, 2), a4stRho: pct(st.stall.rhoUp - 1), a4stTc: pct(1 - st.stall.TcDown), a4stL: pct(st.stall.LUp - 1),
+    a4ladN: word[lad.length] ?? String(lad.length), a4ladXc: `${f(Math.min(...lx), 2)}–${f(Math.max(...lx), 2)}`,
     a4n: String(S.halved), a4min: f(S.halfMin, 1), a4max: f(S.halfMax, 0), a4rlo: f(S.halfMin / A.convention, 1), a4rhi: f(S.halfMax / A.convention, 0), a4s15: s15.map((x) => f(x.half, 0)).join(", ") };
+}
+/* the edge of a stirred core (data/bracket4.json, fusion/tools/bracket4.mjs): every star on Ledoux beside Schwarzschild
+   and the earlier production runs; the text's claims are gated here */
+function bracketNumbers() {
+  const B = J("bracket4.json"), both = B.stars.filter((x) => x.vsSchwarzschild != null), close = both.filter((x) => Math.abs(x.vsSchwarzschild) <= 0.02), held = both.filter((x) => Math.abs(x.vsSchwarzschild) > 0.02);
+  const pc = (x) => `${Math.round(Math.abs(100 * x))}%`, sig = (x) => String(Number(x.toPrecision(2)));
+  if (held.some((x) => x.vsSchwarzschild > 0)) throw new Error("bracket4: a star lives longer on Ledoux than on Schwarzschild: the text says Ledoux is the shorter side");
+  if (close.length < both.length / 2) throw new Error("bracket4: most stars no longer agree to 2% between the criteria: rewrite the text");
+  const big = held.filter((x) => x.vsSchwarzschild < -0.1), midd = held.filter((x) => x.vsSchwarzschild >= -0.1), hv = (a) => a.map((x) => x.vsSchwarzschild), pv = close.filter((x) => x.vsProduction != null).map((x) => x.vsProduction);
+  if (!pv.length || pv.some((x) => x > 0)) throw new Error("bracket4: a star now lives longer than in production: the text says shorter");
+  const name = (x) => `G = ${Gs(x.G)}, s = ${x.s}, ${x.m} M~Ch~`;
+  const mv = B.ours.filter((x) => x.vsSchwarzschild != null && Math.abs(x.vsSchwarzschild) > 0.01), still = B.ours.filter((x) => x.vsSchwarzschild != null && Math.abs(x.vsSchwarzschild) <= 0.01);
+  if (mv.some((x) => x.vsSchwarzschild > 0)) throw new Error("bracket4: one of ours lives longer on Ledoux");
+  const r = B.stars.find((x) => x.G === 1e-17 && x.s === 1.65 && x.m === 2);
+  if (!r || r.ledoux?.bound || r.schwarzschild?.bound !== "stop") throw new Error("bracket4: the text says G 1e-17 s 1.65 2.0 stops under Schwarzschild and finishes under Ledoux");
+  const sc = (dX) => { const v = B.scan?.runs.find((x) => x.dX === dX); if (!v) throw new Error(`bracket4: no tolerance-scan run at ΔX ${dX}`); return f(v.Xc, 3); };
+  return { bN: String(both.length), bClose: String(close.length), bMidN: String(midd.length), bMidLo: pc(Math.max(...hv(midd))), bMidHi: pc(Math.min(...hv(midd))), bBigN: String(big.length), bBigList: big.map(name).join("; "),
+    bBigLo: pc(Math.max(...hv(big))), bBigHi: pc(Math.min(...hv(big))), bRegrowMax: sig(Math.max(...both.map((x) => x.regrow))), bProdLo: pc(Math.max(...pv)), bProdHi: pc(Math.min(...pv)),
+    bOursMove: `${mv.map((x) => `${pc(x.vsSchwarzschild)} shorter at ${x.m} M☉`).join(" and ")}, ${still.map((x) => x.m).join(", ").replace(/, ([^,]*)$/, " and $1")} M☉ within 1%, and ${B.ours.filter((x) => x.ledoux?.bound === "limit").map((x) => x.m).join(" and ")} M☉ outliving the 20 Gyr limit either way`, b165: sig(r.ledoux.life),
+    bScan01: sc(0.01), bScan02: sc(0.02), bScan05: sc(0.05), bScanSw: sc(null) };
 }
 function ageNumbers() {
   const E = J("evolvecheck.json"), b = E.burning, P = E.present, R = E.refs, C = E.clock, H = E.history, c3 = E.machinery.steps, by = (d) => c3.find((x) => x.dX === d);
@@ -291,6 +319,7 @@ const PCHECKS = {
   gen2BandFainter: () => { const c = J("gen2.json").cases.filter((x) => x.mix === "band" && x.kappa), f = (Z) => c.filter((x) => x.Z === Z).map((x) => 1 / x.L); return [0.02, 0.1].map((Z) => `${Math.min(...f(Z)).toFixed(1)}–${Math.max(...f(Z)).toFixed(1)}`).join("/"); },
   nseBandAfter: () => { const r = J("nse4.json").runs; return `${Math.min(...r.map((x) => x.afterDecay.band80[0]))}–${Math.max(...r.map((x) => x.afterDecay.band80[1]))}`; },
   egravOurs: () => { const o = J("egrav.json").ours; return `${o.sun.maxAbsPct.toPrecision(2)}/${o.m2.maxAbsPct.toPrecision(2)}`; },
+  bracketMoved: () => { const b = J("bracket4.json").stars.filter((x) => x.vsSchwarzschild != null); return `${b.filter((x) => Math.abs(x.vsSchwarzschild) > 0.02).length}/${b.length}`; },
   ages4Half: () => { const S = J("ages4.json").summary; return `${S.halfMin.toFixed(1)}–${S.halfMax.toFixed(0)}`; },
   opalSunRho: () => J("mistcheck.json").sets.opal.sun457.rhoc,
   opalHalfR: () => { const M = J("mistcheck.json").sets, v = ["1", "1.25", "1.6", "2", "3"].map((m) => M.opal.stars[m].ratio.halfR); return `${Math.min(...v).toFixed(2)}–${Math.max(...v).toFixed(2)}`; },

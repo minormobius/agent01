@@ -6,17 +6,21 @@
    A life is the age at central hydrogen 10⁻³; a run that ended before it gives a lower bound (`bound`: "stop", the solver
    stopped; "limit", the run's age limit; "cut", still running), its age and central hydrogen kept. `regrow` (Ledoux only):
    the most the Schwarzschild-unstable core (qcc) ran past the mixed one (qmix), as a mass fraction — where a core that had
-   shrunk wants to regrow into the gradient it left, and Ledoux holds it.
-   Each dir holds evolve-four-*-lp(.ckpt).json under the production names (the final runs' -eg-ld0.02-tv3 / -eg-tv2
+   shrunk wants to regrow into the gradient it left, and Ledoux holds it. `coreMin` / `coreAfter`: the Schwarzschild-unstable
+   core's smallest extent in mid-life (central H 0.6 → 0.05) and its largest after that.
+   Ours' OPAL tracks (evolve-ours-<m>-…-s1e6(.ckpt).json, staged the same way) are compared too, Ledoux against
+   Schwarzschild (production has no ε_grav ours set). Each dir holds evolve-four-*-lp(.ckpt).json under the production names (the final runs' -eg-ld0.02-tv3 / -eg-tv2
    suffixes stripped); of a run's finished file and checkpoint the further is taken, as ages4.mjs.
-     node four/fusion/tools/bracket4.mjs ledoux=<dir> schwarzschild=<dir> production=<dir>   → papers/p2/data/bracket4.json */
+   scan=<file,…> (optional): ours' 1.6 M☉ run at several Ledoux tolerances ΔX (files -ld<ΔX>, none for Schwarzschild),
+   each's central hydrogen at 0.86 Gyr: how much the tolerance matters (sandbox runs of 2026-11-25).
+     node four/fusion/tools/bracket4.mjs ledoux=<dir> schwarzschild=<dir> production=<dir> [scan=<files>]   → papers/p2/data/bracket4.json */
 import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
 const kv = Object.fromEntries(process.argv.slice(2).map((a) => a.split("=")));
 for (const k of ["ledoux", "schwarzschild", "production"]) if (!kv[k]) throw new Error(`bracket4: ${k}=<dir> needed`);
 const at = (T, x) => { for (let i = 1; i < T.length; i++) if (T[i].Xc <= x && T[i - 1].Xc > x) { const a = T[i - 1], b = T[i]; return a.tGyr + ((b.tGyr - a.tGyr) * (a.Xc - x)) / (a.Xc - b.Xc); } return null; };
 function load(dir) {
   const recs = new Map(); if (!existsSync(dir)) return recs;
-  for (const f of readdirSync(dir).filter((x) => /^evolve-four-.*-lp(\.ckpt)?\.json$/.test(x))) { const key = f.replace(".ckpt", ""), j = JSON.parse(readFileSync(`${dir}/${f}`, "utf8")), end = j.track?.at(-1)?.tGyr ?? -1, o = recs.get(key);
+  for (const f of readdirSync(dir).filter((x) => /^evolve-four-.*-lp(\.ckpt)?\.json$/.test(x) || /^evolve-ours-[\d.]+-X0\.7068-Z0\.0143-opal-a1\.61-s1e6(\.ckpt)?\.json$/.test(x))) { const key = f.replace(".ckpt", ""), j = JSON.parse(readFileSync(`${dir}/${f}`, "utf8")), end = j.track?.at(-1)?.tGyr ?? -1, o = recs.get(key);
     if (!o || end > o.end + 1e-9 || (Math.abs(end - o.end) <= 1e-9 && !f.includes("ckpt"))) recs.set(key, { f, end, j }); }
   return recs;
 }
@@ -32,13 +36,23 @@ for (const [key, rec] of L) {
   const [, G, s, m] = key.match(/^evolve-four-([^-]+e-\d+)-([\d.]+)-([\d.]+)-lp\.json$/) ?? []; if (!G) continue;
   const a = life(rec), b = life(Sw.get(key)), c = life(P.get(key)), T = rec.j.track;
   const regrow = Math.max(0, ...T.map((r) => (r.qmix != null ? r.qcc - r.qmix : 0)));
+  // the stirred core's smallest extent in mid-life (central hydrogen 0.6 → 0.05), and its largest after that minimum
+  const mid = T.filter((r) => r.Xc <= 0.6 && r.Xc >= 0.05), kmin = mid.reduce((k, r, i) => (r.qcc < mid[k].qcc ? i : k), 0), coreMin = mid.length ? mid[kmin].qcc : null, coreAfter = mid.length ? Math.max(...mid.slice(kmin).map((r) => r.qcc)) : null;
   const vs = (x, y) => (x && y && !x.bound && !y.bound ? +(x.life / y.life - 1).toFixed(4) : null);
-  stars.push({ G: +G, s: +s, m: +m, ledoux: a, schwarzschild: b, production: c, vsSchwarzschild: vs(a, b), vsProduction: vs(a, c), regrow: +regrow.toFixed(3) });
+  stars.push({ G: +G, s: +s, m: +m, ledoux: a, schwarzschild: b, production: c, vsSchwarzschild: vs(a, b), vsProduction: vs(a, c), regrow: +regrow.toFixed(3), coreMin: coreMin == null ? null : +coreMin.toFixed(3), coreAfter: coreAfter == null ? null : +coreAfter.toFixed(3) });
 }
 stars.sort((x, y) => y.G - x.G || x.s - y.s || x.m - y.m);
+const ours = []; for (const [key, rec] of L) { const m = key.match(/^evolve-ours-([\d.]+)-/)?.[1]; if (!m) continue; const a = life(rec), b = life(Sw.get(key));
+  if (a?.bound === "stop" && a.life >= 19.99) a.bound = "limit"; if (b?.bound === "stop" && b.life >= 19.99) b.bound = "limit"; // ours' runs end at tmax 20 Gyr
+  ours.push({ m: +m, ledoux: a, schwarzschild: b, vsSchwarzschild: a && b && !a.bound && !b.bound ? +(a.life / b.life - 1).toFixed(4) : null }); }
+ours.sort((x, y) => x.m - y.m);
 const both = stars.filter((x) => x.vsSchwarzschild != null), close = both.filter((x) => Math.abs(x.vsSchwarzschild) <= 0.02), held = both.filter((x) => x.vsSchwarzschild < -0.1);
 const summary = { stars: stars.length, compared: both.length, within2pct: close.length, heldBack: held.map((x) => ({ G: x.G, s: x.s, m: x.m, vs: x.vsSchwarzschild, regrow: x.regrow })),
   range: both.length ? [Math.min(...both.map((x) => x.vsSchwarzschild)), Math.max(...both.map((x) => x.vsSchwarzschild))] : null,
   bounds: stars.filter((x) => x.ledoux?.bound).map((x) => ({ G: x.G, s: x.s, m: x.m, bound: x.ledoux.bound, life: x.ledoux.life, Xc: x.ledoux.Xc })) };
-writeFileSync(new URL("../../papers/p2/data/bracket4.json", import.meta.url), JSON.stringify({ about: "generated by fusion/tools/bracket4.mjs: each 4D star's main-sequence life (Gyr, to central H 10⁻³; else a lower bound) on Ledoux at the mixing (the final run), Schwarzschild, and production", summary, stars }, null, 1) + "\n");
+const scan = kv.scan ? kv.scan.split(",").map((f) => { const T = JSON.parse(readFileSync(f, "utf8")).track, x = f.match(/-ld([\d.]+)/)?.[1], k = T.findIndex((r) => r.tGyr >= 0.86);
+  if (k < 1) throw new Error(`bracket4: ${f} does not reach 0.86 Gyr`); const a = T[k - 1], b = T[k], u = (0.86 - a.tGyr) / (b.tGyr - a.tGyr);
+  return { dX: x ? +x : null, Xc: +(a.Xc + u * (b.Xc - a.Xc)).toFixed(4) }; }).sort((a, b) => (a.dX ?? 9) - (b.dX ?? 9)) : null;
+writeFileSync(new URL("../../papers/p2/data/bracket4.json", import.meta.url), JSON.stringify({ about: "generated by fusion/tools/bracket4.mjs: each 4D star's main-sequence life (Gyr, to central H 10⁻³; else a lower bound) on Ledoux at the mixing (the final run), Schwarzschild, and production", summary, stars, ours, ...(scan ? { scan: { m: 1.6, tGyr: 0.86, runs: scan } } : {}) }, null, 1) + "\n");
+console.log(`ours: ${ours.map((x) => `${x.m} M☉ ${x.ledoux?.life}${x.ledoux?.bound ? "+" : ""}/${x.schwarzschild?.life}`).join(", ")}`);
 console.log(`${stars.length} stars; ${both.length} compared, ${close.length} within 2% of Schwarzschild, ${held.length} held back by > 10% (${held.map((x) => `G ${x.G} s ${x.s} ${x.m}: ${(100 * x.vsSchwarzschild).toFixed(0)}%`).join("; ")}); ${summary.bounds.length} lower bounds`);
