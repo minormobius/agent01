@@ -58,6 +58,7 @@ export const V = {
 { const rc = (R, Lam, Re) => RIB.cal.find((r) => r.R === R && r.Lam === Lam && r.Re === Re), wn = (R, a, b) => Math.log(W(R, 3000, b).P / W(R, 3000, a).P) / Math.log(b / a), ck = (Lam) => RIB.check.filter((r) => r.Lam === Lam).map((r) => r.strip / r.tube), cyc = (Re) => CY.find((r) => r.Re === Re);
   for (const R of [100, 250]) { for (const Re of [0.5, 1, 10, 40]) { const k = `${R}_${String(Re).replace(".", "p")}`, r = rc(R, 4500, Re), prevRe = { 0.5: 0.25, 1: 0.5, 10: 5, 40: 20 }[Re]; V["ribN" + k] = f2(r.n); V["wireN" + k] = f2(wn(R, prevRe, Re)); V["ribX" + k] = f1(r.n / wn(R, prevRe, Re)); V["ribP" + k] = f2(r.P); V["ribS" + k] = pc(r.stream); }
     V["ribP" + R + "_0p25"] = f2(rc(R, 4500, 0.25).P); V["ribRim" + R] = pc(1 - rc(R, 4500, 0.25).stream); V["ribRise" + R] = f1(rc(R, 4500, 40).P / rc(R, 4500, 0.25).P); V["wireRise" + R] = f1(W(R, 3000, 40).P / W(R, 3000, 0.25).P); V["ribAxis" + R] = f3(rc(R, 4500, 0.25).nu_axis); }
+  V.rimNu = f2(J("ribbon-grid.json").Nu[0][0]);
   V.ribPoorLo = f2(rc(250, 450, 0.5).n); V.ribPoorHi = f2(rc(250, 450, 40).n); V.ribPoorS = pc(rc(250, 450, 1).stream);
   V.ribCk30 = f2(Math.min(...ck(30))); V.ribCk300 = f3(Math.min(...ck(300))); V.ribCk3000 = f4(Math.min(...ck(3000)));
   for (const Re of [10, 20, 40]) { const c = RIB.check.find((r) => r.Re === Re && r.Lam === 30); V["ribT" + Re] = f2(c.nu_axis_tube); V["ribStr" + Re] = f2(c.nu_axis_strip); }

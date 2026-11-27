@@ -1,6 +1,6 @@
 # A hot wire in four dimensions
 
-*Draft 3, 2026-11-27. Draft 2 was revised after an independent audit (REVIEW.md), whose own implementations reproduced section 4's growth rates, the sphere's drag and heat loss, the wire instrument and the pipe relations, and did not rerun the saturated ripple, the tube or the pulse. Draft 3 adds the computed ribbon (the end of section 7), which has not been audited.*
+*Draft 3, 2026-11-27. Draft 2 was revised after an independent audit (REVIEW.md), whose own implementations reproduced section 4's growth rates, the sphere's drag and heat loss, the wire instrument and the pipe relations, and did not rerun the saturated ripple, the tube or the pulse. Draft 3 adds the computed ribbon (section 8) and section 9, which have not been audited.*
 
 ## Abstract
 
@@ -36,7 +36,7 @@ Take a body that is long in k directions and round in the other 4 − k, in a st
 | wire | 1 direction | a sphere |
 | ribbon | 2 directions | a circular cylinder, that is, our hot wire |
 
-So everything known about a sphere in a stream is a statement about a 4D wire, per length of wire, and everything known about our hot wire is a statement about a 4D ribbon, per area of ribbon. The two differ most at low speed. A sphere in still fluid loses heat steadily, with Nusselt number 2, and has a slow-flow solution (Stokes'). A cylinder has neither: its conduction problem has no steady answer in an unbounded fluid, which is Stokes' paradox in thermal dress. (The paradox is usually stated for two dimensions; that it belongs to any body the flow can pass round in just two directions is our restatement, and elementary.) This difference is the whole of section 7.
+So everything known about a sphere in a stream is a statement about a 4D wire, per length of wire, and everything known about our hot wire is a statement about a 4D ribbon, per area of ribbon. The two differ most at low speed. A sphere in still fluid loses heat steadily, with Nusselt number 2, and has a slow-flow solution (Stokes'). A cylinder has neither: its conduction problem has no steady answer in an unbounded fluid, which is Stokes' paradox in thermal dress. (The paradox is usually stated for two dimensions; that it belongs to any body the flow can pass round in just two directions is our restatement, and elementary.) This difference is the whole of sections 7 and 8.
 
 What the reduction does not tell us is whether the flow stays the same all along the body. For the ribbon that is the question of how a cylinder's wake varies along its span, which has a literature. For the wire it is a new question, because a sphere has no span.
 
@@ -82,7 +82,7 @@ A uniformly hot wire in a uniform stream loses heat, per length, as a sphere doe
 
 Our sphere values are converged to 0.02% over three meshes and agree with the published ones to 0.7% at Re 50 to 200 and 0.9% at 250. The published values were read at second hand, from a thesis's comparison table [M]. The three-dimensional code used for the tube, run on a uniform stream, returns 5.396 and 6.918 at Re 50 and 100: within 0.2% of the sphere. In the tube, for the symmetric states of section 5, the wire's heat loss on the pipe's axis is within 1.2% of a sphere's at the centreline speed, and four diameters out, where the stream has fallen to 0.36 of that speed, it is 0.72 of its value on the axis.
 
-## 7. The instrument
+## 7. The instrument: a hot wire
 
 **The balance.** Per length of wire, Joule heating is balanced by conduction along the wire to the cold wall and by loss to the stream. With θ the fractional rise of the wire's local resistance,
 
@@ -107,6 +107,16 @@ For a wire 200 diameters long with Λ = 3000, held at 1.5 of its cold resistance
 
 **The conduction floor.** The cause is section 3's difference. A sphere's Nusselt number is 2.07 at Re 0.25, 2.25 at 1 and 3.32 at 10: it starts from 2 and the stream adds to it. Its sensitivity, the percentage change in heat loss per 1% of flow, is 0.09 at Re 1 and 0.25 at 10. For a cylinder in our world, computed the same way (steady plane flow, the outer boundary 200 diameters off), the Nusselt number is 0.550, 0.802, 1.839 and 3.239 at Re 0.25, 1, 10 and 40, and the sensitivity 0.31 at Re 1 and 0.40 at 10. (The measured law of Collis and Williams [CW], as usually quoted, Nu = 0.24 + 0.56 Re^0.45, is within 1.8% of our values from Re 0.25 to 40.) The 4D wire is blunt exactly where a hot wire is used, and it sharpens only as its Reynolds number rises toward the instabilities of section 4. So in four dimensions the wire wants to be thick, for sensitivity, and long and thin, against the wall, and cannot be both.
 
+**The wire weighs the stream along its length, and not evenly.** The wire lies along a diameter, and the developed profile's average along a diameter is 5/3 of the mean speed through the 4D pipe (4/3 in ours): that geometry is why the reading depends on the profile more than ours does. But the wire does not take that average. For a small change δh in the local loss coefficient h(w) = π Nu(Re U(w)), at fixed mean temperature,
+
+δP = ∫ θ² δh dw / ∫ θ (1 + θ) dw,
+
+a result of the audit (the operator is self-adjoint), which we confirmed against the solver to six figures. So each station is weighted by the square of the wire's temperature there times the slope of the sphere's heat-loss law at the local speed: the cold ends count for almost nothing, and the response is not linear in speed. Two profiles with the same average along the wire, the developed parabola and a uniform stream at 2/3, differ in the reading by 2.2% at Re 3 and 3.2% at Re 10. For profiles U ∝ 1 − (r/R)ⁿ carrying one flow rate, a plug flow (n → ∞) lowers the current squared to 0.927 of the developed flow's value, and read with the developed flow's calibration it would be taken for 0.50 of the true flow rate; n = 4 would be taken for 0.81. These profiles are stand-ins; we did not compute an entrance flow.
+
+At constant current the wire runs away, its resistance heating feeding itself, at about 2.8 times the P of the table.
+
+## 8. The ribbon
+
 **The ribbon, in principle.** An endless ribbon in an unbounded 4D stream is, per area, exactly our hot wire: King's law, no conduction floor, the sensitivities just quoted. In n dimensions an endless body long in n − 3 directions has a sphere's floor and one long in n − 2 has none. That equivalence is exact, but the absence of a floor needs the fluid to be unbounded: a cylinder inside a concentric cold boundary 200 diameters across has a Nusselt number of 2/ln 200 = 0.38 at rest. A pipe is not unbounded, so the ribbon has to be computed with the wall in.
 
 **The ribbon, computed.** Let the ribbon span a disc of the pipe, meeting the wall along a circle; it then has a rim and no free edges. At a distance s from the pipe's axis it sits in a plane where the wall is at ±H, H = √(R² − s²), and the undisturbed stream is plane Poiseuille flow of that half-height with centre speed 1 − s²/R². So each station of a ribbon is a cylinder on the centreline of a channel with cold walls, and the wall is in the picture from the start. We solved that two-dimensional problem station by station and put the result into the sheet's energy balance, Λ (1/s)(sθ′)′ + P (1 + θ) − π Nu(s) θ = 0 with θ = 0 at the rim, heating taken uniform over the sheet. For one metal a ribbon's Λ is 1.5 times a wire's.
@@ -126,32 +136,36 @@ For the metal of the wire above (Λ = 4500 for the ribbon), resistance held at 1
 
 The ribbon is the sharper instrument at low speed: 2.9 times the wire's sensitivity at Re 0.5 in the narrower pipe and 5.4 times in the wider, falling to 1.1 and 1.3 times at Re 40. From Re 0.25 to 40 its reading rises by a factor of 2.6 and 3.9 in the two pipes, the wire's by 2.0 and 2.1. But it does not reach the bare cylinder's 0.31, and the reason is the mirror image of the wire's trouble. The ribbon's weak heat loss at low speed, which is what makes it sensitive, also makes it lose to conduction along itself: at Re 0.25 in the 200-wide pipe 69% of its heat goes into the rim, where the wire of the same length loses a fifth to the wall. So the wire is held back by the fluid's conduction and the ribbon by the metal's, and the ribbon wants a pipe several hundred thicknesses across or a poorer conductor (a tenth the conductivity, in the 500-wide pipe: n from 0.19 to 0.37, with 89% of the heat to the stream).
 
-The wall's floor, which the annulus example warns of, turns out not to matter at these widths: on the pipe's axis the ribbon's Nusselt number at Re 0.25 is 0.554 and 0.555 in the two pipes against 0.550 for the unbounded cylinder. The stream closes the conduction problem before the wall does, except in the last few thicknesses before the rim.
+The wall's floor, which the annulus example warns of, turns out not to matter at these widths: on the pipe's axis the ribbon's Nusselt number at Re 0.25 is 0.554 and 0.555 in the two pipes against 0.550 for the unbounded cylinder. The stream closes the conduction problem before the wall does, except near the rim, where the channel narrows and the fluid conducts straight to the wall: the local Nusselt number climbs back to 2.15 where the channel's half-height equals the ribbon's thickness, whatever the speed (figure 4). That stretch is cold in any case.
 
 What this leaves out: how a current is fed through a disc, and so what resistance is measured (we took the heating uniform); a ribbon narrower than the pipe, with free edges; the vortex street, which the symmetry we impose excludes and which begins near Re 47 for a free cylinder; and variation along the sheet, which the station picture ignores.
 
-**The wire weighs the stream along its length, and not evenly.** The wire lies along a diameter, and the developed profile's average along a diameter is 5/3 of the mean speed through the 4D pipe (4/3 in ours): that geometry is why the reading depends on the profile more than ours does. But the wire does not take that average. For a small change δh in the local loss coefficient h(w) = π Nu(Re U(w)), at fixed mean temperature,
+[[fig:4]]
 
-δP = ∫ θ² δh dw / ∫ θ (1 + θ) dw,
+## 9. What four dimensions changes, and what it does not
 
-a result of the audit (the operator is self-adjoint), which we confirmed against the solver to six figures. So each station is weighted by the square of the wire's temperature there times the slope of the sphere's heat-loss law at the local speed: the cold ends count for almost nothing, and the response is not linear in speed. Two profiles with the same average along the wire, the developed parabola and a uniform stream at 2/3, differ in the reading by 2.2% at Re 3 and 3.2% at Re 10. For profiles U ∝ 1 − (r/R)ⁿ carrying one flow rate, a plug flow (n → ∞) lowers the current squared to 0.927 of the developed flow's value, and read with the developed flow's calibration it would be taken for 0.50 of the true flow rate; n = 4 would be taken for 0.81. These profiles are stand-ins; we did not compute an entrance flow.
+Three things in this note depend on the number of dimensions, and each comes from the same fact: a body in a stream is the ball it is across the stream.
 
-At constant current the wire runs away, its resistance heating feeding itself, at about 2.8 times the P of the table.
+- *The wake.* A wire's wake is a sphere's with room to vary along the wire, and it uses the room: a steady ripple at Re ≈ 191, before the sphere's own instabilities. Our world has no counterpart, because here the body with a sphere's wake has no length.
+- *The heat loss.* A wire's is a sphere's, with a floor of 2 that the stream adds to; a ribbon's is a cylinder's, with none. Hot-wire anemometry in our world works because our wire is the second kind of body. In four dimensions the wire is the first kind.
+- *The geometry of the pipe.* The mean speed is 2/5 of the centreline speed and a diameter averages 5/3 of the mean, so a probe along a diameter is further from reading the flow rate than ours is.
 
-## 8. What is not established
+Three things do not depend on it. Conduction to the supports limits the short wire here exactly as it does ours, by the same length √(Λ/πNu). The remedy, a long thin probe, is the same. And the trade that follows is the same in kind: whatever makes a probe lose little heat to a slow stream makes it lose more through its own metal, so the wire of four dimensions is blunt but well insulated from the wall, and the ribbon sharp but leaky at the rim. For the same metal the ribbon wins at low speed by a factor of 2.2 to 3.8 at Re 1, depending on the pipe; that is the practical content of the codimension rule, and it is smaller than the rule alone suggests.
+
+## 10. What is not established
 
 - The threshold of section 4 has now been reproduced by a separate implementation, but one of the same numerical family (the same kind of element, the same libraries, the same outer boundary). A different discretisation and a larger domain would test what that does not. The audit checked the mode at β = 2.5 and m = 0; that no other mode goes first is our search alone.
-- Sections 5 and 6's tube states are computed within imposed symmetries and their stability to anything outside those symmetries is untested.
+- Sections 5, 6 and 8's tube states are computed within imposed symmetries and their stability to anything outside those symmetries is untested.
 - We do not know where a 4D wire's wake begins to oscillate, nor what its state is above Re 209.
 - The tube computations are on one mesh at one tube radius, and the pulsing bulge is under-resolved.
 - The published sphere values were read at second hand, and whether they are for Prandtl number 0.7 or 0.72 is uncertain; 0.8% of the Nusselt number rides on that.
-- The ribbon of section 7 was computed after the audit and has not been audited. Its station picture is checked only on a ribbon ten thicknesses across, to 4%; the heating is assumed uniform; free edges and the vortex street are left out. The cylinder is now our own computation; Collis and Williams's law [CW] is still quoted at second hand, for comparison only.
+- The ribbon of section 8 was computed after the audit and has not been audited. Its station picture is checked only on a ribbon ten thicknesses across, to 4%; the heating is assumed uniform; free edges and the vortex street are left out. The cylinder is now our own computation; Collis and Williams's law [CW] is still quoted at second hand, for comparison only.
 - Whether laminar 4D pipe flow survives to the pipe Reynolds numbers at which a wire of useful sensitivity would work (some thousands) is not known. Our own pipe's laminar flow is linearly stable and gives way near 2000 only because it is disturbed [ABH]; nobody has asked the question in four dimensions.
 - Novelty rests on a search of the open web, arXiv and three indexes. It did not reach the paywalled literature, anything before 1980, or textbooks' exercises, and it missed Kawamura's two papers, which the audit found in university bulletins. Others may exist. Brenner's 1981 paper on n-dimensional pipe flow [B1] was not read beyond its title.
 
 ## Reproducing this
 
-The codes are in `kata/wire4/` of the repository behind kata.mino.mobi, with a README that records each computation and its limits. `AUDIT.md` beside this paper states each numbered claim as a self-contained problem with the values to reproduce and the tolerance we would call agreement. The instrument model runs live at kata.mino.mobi/wire4/.
+The codes are in `kata/wire4/` of the repository behind kata.mino.mobi, with a README that records each computation and its limits. `AUDIT.md` beside this paper states each numbered claim as a self-contained problem with the values to reproduce and the tolerance we would call agreement. The instrument model, wire and ribbon, runs live at kata.mino.mobi/wire4/.
 
 ## References
 

@@ -58,9 +58,10 @@ perturbations outside the imposed symmetries.
 
 ## After the audit: draft 3 (2026-11-27)
 
-The PI asked for the ribbon to be computed, not argued. Draft 3 adds, at the end of section 7 and as items A9 and
-A10 of the audit sheet: the cylinder computed by this study's own solver (replacing the quoted Collis & Williams law
+The PI asked for the ribbon to be computed, not argued. Draft 3 adds, as section 8 and items A9 and A10 of the audit sheet: the cylinder computed by this study's own solver (replacing the quoted Collis & Williams law
 in the figures and the sensitivity comparison); the ribbon spanning the pipe, station by station as a cylinder in a
 channel with cold walls; its check in the true tube at R = 5; and its calibration against the wire's. Finding F03's
 caution is kept and sharpened by the result: the ribbon is the more sensitive probe at low speed, by a factor of 2 to
-5 and not the ideal cylinder's, because it loses heat to its rim. **None of draft 3's additions has been audited.**
+5 and not the ideal cylinder's, because it loses heat to its rim. Section 9 is a summary added at the same time. The live page's instrument now has the ribbon too (a grid of the
+station problem, `wire4/data/ribbon-grid.json`, interpolated in the browser; within 1% of the station-by-station
+numbers). **None of draft 3's additions has been audited.**

@@ -15,6 +15,8 @@ cylinder's conduction has no steady answer in an unbounded fluid, and the wall i
     python ribbon4.py cal R [Lam=3000] [overheat=0.5]     the calibration from that file
     python ribbon4.py check [Lam,...]         strip against the 3D tube runs (data/heat-ribbon-*.json), R = 5
     python ribbon4.py table                   everything the paper reads -> data/ribbon-cal.json
+    python ribbon4.py grid                    the station problem on a grid of (H, local Re) -> data/ribbon-grid.json,
+                                              which the page interpolates (js/anem.js; ~20 min)
 Re is on the ribbon's thickness and the pipe's centreline speed.
 """
 import sys, json, os
@@ -136,3 +138,8 @@ if __name__ == "__main__":
             for Lam in (30.0, 300.0, 3000.0):
                 g = galerkin(d, Lam); b = balance(5.0, Lam, np.append(s, 5.0), np.append(nu, nu[-1])); out["check"].append(dict(Re=float(k), Lam=Lam, strip=b["P"], tube=g["P"], nu_axis_tube=g["nu_axis"], nu_axis_strip=float(nu[0]), stream_strip=b["stream"], stream_tube=g["stream"]))
         json.dump(out, open("data/ribbon-cal.json", "w")); print("wrote data/ribbon-cal.json:", len(out["cal"]), "calibration rows,", len(out["check"]), "check rows")
+    elif mode == "grid":
+        Hs = [1.0, 1.5, 2.25, 4.0, 9.0, 20.0, 50.0, 125.0, 250.0, 500.0]; Rl = [0.001, 0.01, 0.05, 0.25, 1.0, 4.0, 10.0, 20.0, 40.0]; G = []
+        for H in Hs:
+            G.append([local_nu(H, 1.0, r)[0] for r in Rl]); print(f"H {H:6g}  " + " ".join(f"{v:.4f}" for v in G[-1]), flush=True)
+        json.dump(dict(Pr=0.7, H=Hs, Re=Rl, Nu=G, note="Nu of a cylinder on the centreline of a plane channel of half-height H (cold no-slip walls), centre speed 1, viscosity 1/Re"), open("data/ribbon-grid.json", "w"))

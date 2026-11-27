@@ -598,8 +598,14 @@ columns:
   the heat to the stream).
 - **The wall sets the ribbon's floor, and it is low.** On the pipe's axis the ribbon's Nusselt number at Re 0.25 is
   0.554 in the 200-wide pipe and 0.555 in the 500-wide one, against 0.550 for the unbounded cylinder: at these
-  widths and speeds the stream closes the conduction problem and the wall adds under 1%. The floor matters only in the last few
-  thicknesses before the rim.
+  widths and speeds the stream closes the conduction problem and the wall adds under 1%. The floor matters only within about
+  a thickness of the rim.
+
+The page's instrument has a wire/ribbon switch: the station problem on a grid of channel half-height and local
+Reynolds number (`ribbon4.py grid` → `data/ribbon-grid.json`, copied into `js/anem.js`), interpolated in the browser,
+within 1% of the station-by-station numbers above. At very low local Reynolds number in a wide channel the grid's
+values are set by the computational inlet (48 thicknesses upstream) and not by the wall; that affects only the cold
+stretch by the rim.
 
 **Limits.** The cylinder flows are steady and symmetric, which is right below Re 47 in an unbounded stream and is
 imposed in the tube (the mirror plane is the ribbon's own). Heating is taken uniform over the sheet: how a current
