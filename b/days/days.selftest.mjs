@@ -269,7 +269,7 @@ ok(bm.ids[0] === 2, 'BM25: the post with the word twice ranks first');
   ok(L.some((l) => l.kind === 'col' && l.i === 2) && L.some((l) => l.kind === 'diag' && l.i === 0) && L.length === 2, 'lines: a column and a diagonal');
 
   // the shipped background: aggregate counts only, and only for terms 5+ authors used
-  const head = readFileSync(here + 'bingo-bg.tsv', 'utf8').split('\n', 1)[0];
+  const head = readFileSync(here + 'bingo-bg.txt', 'utf8').split('\n', 1)[0];
   ok(/posts=\d{5,}/.test(head) && /minAuthors=([5-9]|\d\d)\//.test(head), 'the background states its sample size and its author floor (≥ 5)');
 }
 

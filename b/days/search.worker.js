@@ -76,7 +76,7 @@ async function bingo(m) {
   if (!bingoBase) {
     const t0 = performance.now();
     step('reading what Bluesky usually says…');
-    const bgP = fetch(new URL('./bingo-bg.tsv', import.meta.url)).then((r) => { if (!r.ok) throw new Error('background ' + r.status); return r.text(); });
+    const bgP = fetch(new URL('./bingo-bg.txt', import.meta.url)).then((r) => { if (!r.ok) throw new Error('background ' + r.status); return r.text(); });
     if (!model) { step('loading the meaning model…'); await modelP; }
     const bg = parseBackground(await bgP);
     step('finding what they say more than anyone…');

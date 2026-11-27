@@ -962,7 +962,7 @@ clipboard rule: `image/png` + `text/html`, and **no `text/plain`**.
 | file | what it is |
 |---|---|
 | `days/bingo.js` | pure: terms, log-odds sayings, SIF content vectors, spherical k-means, topic naming, the deal, lines |
-| `days/bingo-bg.tsv` | the background: document frequencies from ~390k English firehose posts (1.4 MB, 0.5 MB gzipped, fetched only when a card is opened) |
+| `days/bingo-bg.txt` | the background: document frequencies from ~390k English firehose posts (1.4 MB, 0.5 MB gzipped, fetched only when a card is opened). `.txt` on purpose: Cloudflare compresses text/plain, and served the `.tsv` it started as at full size |
 | `days/build-bingo-bg.mjs` | rebuilds it from Jetstream (node, network, by hand) |
 
 **SAYS: weighted log-odds against the firehose.** A term is scored with

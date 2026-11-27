@@ -1,4 +1,4 @@
-// build-bingo-bg.mjs — rebuild bingo-bg.tsv, the "what Bluesky usually says"
+// build-bingo-bg.mjs — rebuild bingo-bg.txt, the "what Bluesky usually says"
 // background the bingo card's SAYS squares are measured against.
 // node only, needs network, run by hand:
 //
@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs';
 import { terms } from './bingo.js';
 
-const OUT = new URL('./bingo-bg.tsv', import.meta.url);
+const OUT = new URL('./bingo-bg.txt', import.meta.url);
 const SLICES = [[22, 270000], [10, 150000]];        // [hours back, posts]
 const MIN_AUTHORS_UNI = 5, MIN_AUTHORS_BI = 8, CAP = 5;
 
