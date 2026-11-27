@@ -50,7 +50,9 @@ lives from a frozen zero-age core. Five things came out of it.
 
 What is still declared rather than computed is the stars' lives after hydrogen: how their cores grow, and which end
 as dead remnants and which explode. That decides what goes back into the gas for the next generation, and it is the
-largest open question.
+largest open question. Also open, by choice: which four-dimensional star answers to our Sun. The "Sun analogues" here are a declared
+first-generation stand-in (section 3.2.3); our Sun is a later-generation star, and the true counterpart is chosen
+downstream of planetary-system formation and the molecular work.
 
 ![**The four-dimensional Sun analogues, aged.** For each strength of the nucleon force (horizontal) and each strength
 of gravity (a line per $G$, in multiples of ours), the time the star's centre takes to burn half its hydrogen. Each

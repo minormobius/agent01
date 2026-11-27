@@ -528,6 +528,17 @@ for games, and this is a modelling programme with publications to come. The game
   s 1.5152/1.55/1.6/1.75; G 10⁻²⁰ s 1.55), which ages4, ash4 and metals4 read. They are appended to stars.txt (61 lines)
   and run as evolve4-28 on both criteria (v3 Ledoux and v2 Schwarzschild, 24 commands). The regeneration stages each set
   under production names (`-eg-ld0.02-tv3` / `-eg-tv2` stripped, in a scratch dir) so the tools' `-lp` filters read it.
+  **The Sun analogue is a declared stand-in (PI, 2026-11-27: "the true sun analogue is going to come downstream of solar
+  system formation … any old things work with the understanding that we choose the analog, and that choice sits
+  downstream of the molecular work").** Our Sun is a later-generation star; the 4D "analogues" are primordial, picked by
+  the zero-age clock. Keep them as the fixed comparison point, say so (paper 2 §3.2.3, status page), and don't re-choose
+  them by aged life or build a second-generation analogue for this purpose. **The book still tells the zero-age story**
+  (found at the regeneration): the stars chapter's "a star that lives as long as our Sun" table uses mainseq.mjs's
+  textbook life (a tenth of the mass burnt at 17 MeV/n, over L), and the nuclei chapter's "What stars give back" and heavy
+  cores (and the landing's "What stars give back" / "Rock" cards, "from about three Chandrasekhar masses they explode")
+  come from zero-age stirred cores with declared growth and lives; /star/'s core clock is the zero-age convention. To
+  move to the aged results where runs exist (the 29 analogues, the G 10⁻¹⁷ ladders) and mark the rest as zero-age
+  estimates, in the regeneration.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

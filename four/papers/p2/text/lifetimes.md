@@ -126,6 +126,13 @@ the four-dimensional star whose zero-age core takes the same {{oTh}} Gyr, found 
 $\ln M$ between the two stars around it. This assumes that four-dimensional cores evolve by the same factor as ours;
 it is declared, not computed. The 4.6-Gyr star is kept beside it in the data.
 
+The analogue is a chosen stand-in, not our Sun's counterpart. Our Sun is not a first-generation star: it formed from
+gas earlier stars had enriched, and its metals help set its light and its life. These analogues are primordial. The
+four-dimensional star that answers to our Sun would be one born later, from enriched gas, round which a planetary
+system like ours forms; which star that is sits downstream of the planetary systems and of the molecules that would
+make a world like ours, and is left open. Here "Sun analogue" means only the declared first-generation star above, a
+fixed point to compare strengths and gravities by.
+
 ### 3.2.4 What a centre burns to
 
 The analogue's centre, at its own $T$ and $\rho$, is run through the network until its hydrogen is gone. It is classed
