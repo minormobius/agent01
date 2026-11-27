@@ -506,6 +506,13 @@ for games, and this is a modelling programme with publications to come. The game
   late core switch-off near Xc 0.068 like 1.6 M_Ch's: G 10⁻¹⁷ 2.0 M_Ch (1.392 Gyr) and 2.5 M_Ch (0.519 Gyr). Six s 1.5152
   stops in all; every other family ran to central exhaustion. evolve4-27e: the last 3 v3 (G 10⁻¹⁷ s 1.5152 1.0, s 1.55
   1.6 and 2.5) + the last Schwarzschild track.
+  **evolve4-27 leg 5 (evolve4-27e, collected 2026-11-27 00:26Z):** s 1.55 1.6 M_Ch finished (4.472 Gyr); the Schwarzschild
+  set is complete (s 1.5152 1.25 M_Ch 14.33 Gyr). **G 10⁻¹⁷ s 1.55 2.5 M_Ch is stuck at Xc 0.0541, 0.597 Gyr:** cut by the
+  leg's clock there, its checkpoint does not re-solve (Newton stalls at 0.18), so leg 5 gave it nothing. Same picture as
+  s 1.5152 1.6/2.0/2.5's stops at Xc 0.068: no stirred core (the Ledoux centre burning out radiatively, ρc up 60% in
+  0.01 Gyr), where Schwarzschild's core regrew to 0.04. At the last rate (ΔXc 0.012 in 0.0064 Gyr) the remaining 0.054
+  would take ~0.03 Gyr: life ≈ 0.62–0.63 Gyr, 0.597 a lower bound. evolve4-27f: the last burning track, G 10⁻¹⁷ s 1.5152
+  1.0 M_Ch (Xc 0.028 at 42.7 Gyr).
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
