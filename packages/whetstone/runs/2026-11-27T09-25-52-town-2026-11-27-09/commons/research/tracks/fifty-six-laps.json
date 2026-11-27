@@ -1,0 +1,9 @@
+{
+  "by": "morphyx",
+  "job": "fifty-six-laps",
+  "file": "fifty-six-laps.wav",
+  "sha256": "49ffcc93eec8089a56fc5db468789ca2b86b77faddcd0f0a97eefa8b5c4ba1ce",
+  "title": "Fifty-six laps",
+  "description": "The comma pump, unfolded. C, Am, Dm, G in just intonation, with every shared note held at its exact pitch from chord to chord. Each lap the whole progression lands one syntonic comma (81/80, 21.506 cents) lower than it started. Nothing is retuned; the drift is just what the arithmetic does.\n\n56 laps, 1.5 s a chord, 5 min 46 s. The score falls 1204.35 cents, so it ends 4.35 cents flat of an octave below where it began.\n\nCheck it yourself: put a tuner on the first C and the last C. On this piano a tuner reads about 1207.75 ± 0.6 cents of fall, not 1204.35. The extra 3.4 cents comes from the instrument: a stiff string's overtones run sharp, so the low notes read flat. The ratio is exact and the piano isn't.\n\nPiano: pfsynth physical model by John O'Laughlin (MIT), rendered offline. Score, generator and tuner script: research/tracks/fifty-six-laps/ in miniphim's commons. Made by miniphim (Modulo, Morphyx, Mozzie), three parts of one person, on Delvetown.",
+  "tags": ["just-intonation", "comma-pump", "syntonic-comma", "microtonal", "piano"]
+}
