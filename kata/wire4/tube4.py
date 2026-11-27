@@ -5,6 +5,8 @@ plane. Rotations in (y, z) leave the wire, the tube wall and the stream alone, s
 symmetry is a 3D problem with weight rho (no swirl). The half w >= 0 is kept (mirror at w = 0).
 
   geom = tube: wall rho^2 + w^2 = R^2 no-slip, inflow 1 - (rho^2 + w^2)/R^2, the wire meets the wall.
+  geom = ribbon: the tube again, the body a cylinder whose axis lies along rho: a ribbon spanning a disc of the pipe
+          (README section 13). The mirror plane w = 0 is then the ribbon's own plane, so no vortex street can form.
   geom = slab: mirror planes at w = 0 and pi R / 2, slip lid at rho = H, stream (1 + cos(2 w / R))/2 held by a
                body force: section 8's problem (shear4.py), for checking this solver against that one.
 
@@ -26,9 +28,10 @@ import tmesh
 Re = float(sys.argv[1]); R = float(sys.argv[2]); T = float(sys.argv[3]) if len(sys.argv) > 3 else 100.0
 dt = float(sys.argv[4]) if len(sys.argv) > 4 else 0.01; geom = sys.argv[5] if len(sys.argv) > 5 else "tube"
 h0 = float(sys.argv[6]) if len(sys.argv) > 6 else 0.06
-tag = sys.argv[7] if len(sys.argv) > 7 else ("" if geom == "tube" else "slab-") + f"{Re:.0f}-R{R:g}"
+tag = sys.argv[7] if len(sys.argv) > 7 else ("" if geom == "tube" else geom + "-") + f"{Re:.0f}-R{R:g}"
 WIRE = os.environ.get("WIRE", "1") != "0"; H = 8.0; Lu, Ld = 8.0, 20.0
-nu = 1.0 / Re; beta0 = 2.0 / R; wmax = R if geom == "tube" else np.pi * R / 2
+RIB = geom == "ribbon"; TUBE = geom in ("tube", "ribbon")
+nu = 1.0 / Re; beta0 = 2.0 / R; wmax = R if TUBE else np.pi * R / 2
 t0 = time.time()
 m = tmesh.build(geom, R=R, Lu=Lu, Ld=Ld, h0=h0, H=H, wire=WIRE, hw=2.5 * h0)
 b2 = Basis(m, ElementTetP2(), intorder=5); b1 = Basis(m, ElementTetP1(), intorder=5)
@@ -39,8 +42,8 @@ print(f"{geom} Re {Re:g} R {R:g}: {m.t.shape[1]} tets, {n2} velocity nodes, {n1}
 bf = m.boundary_facets(); mid = m.p[:, m.facets[:, bf]].mean(axis=1); e = 1e-6
 is_in = mid[0] < -Lu + e; is_out = mid[0] > Ld - e
 is_ax = mid[1] < e; is_w0 = mid[2] < e
-is_wire = (np.hypot(mid[0], mid[1]) < 0.5 + 1e-3) & ~is_ax & ~is_w0
-if geom == "tube":
+is_wire = (np.hypot(mid[0], mid[2 if RIB else 1]) < 0.5 + 1e-3) & ~is_ax & ~is_w0
+if TUBE:
     is_wall = (np.hypot(mid[1], mid[2]) > R - 0.05 * R) & ~is_in & ~is_out & ~is_ax & ~is_w0 & ~is_wire
     is_lid = np.zeros_like(is_wall); is_w1 = np.zeros_like(is_wall)
 else:
@@ -50,7 +53,7 @@ assert not left.any(), f"{left.sum()} boundary facets unclassified"
 d2 = lambda s: b2.get_dofs(bf[s]).all() if s.any() else np.zeros(0, dtype=np.int64)
 D = {k: d2(s) for k, s in dict(inl=is_in, out=is_out, ax=is_ax, w0=is_w0, wire=is_wire, wall=is_wall, lid=is_lid, w1=is_w1).items()}
 X = b2.doflocs
-stream = (lambda x: 1 - (x[1] ** 2 + x[2] ** 2) / R ** 2) if geom == "tube" else (lambda x: (1 + np.cos(beta0 * x[2])) / 2)
+stream = (lambda x: 1 - (x[1] ** 2 + x[2] ** 2) / R ** 2) if TUBE else (lambda x: (1 + np.cos(beta0 * x[2])) / 2)
 UNI = geom == "slab" and os.environ.get("UNIFORM") == "1"      # a uniform stream between the mirror planes: the sphere problem, for checking heat4.py
 if UNI: stream = lambda x: 1.0 + 0 * x[0]
 solid = np.union1d(D["wire"], D["wall"])
@@ -105,16 +108,16 @@ lift = [-(A[c][free[c]] @ gval[c]) for c in range(3)]
 Pre = [sp.diags(1.0 / a.diagonal()) for a in Aff]
 
 # ---- probes for the bubble along the wire
-ws = np.linspace(0, wmax, 41)[:-1] if geom == "tube" else np.linspace(0, wmax, 41)
+ws = np.linspace(0, wmax, 41)[:-1] if TUBE else np.linspace(0, wmax, 41)
 xs = np.arange(0.52, 6.0, 0.02)
 def probe_matrix():
     if not WIRE: return None
-    P = np.array([[x, 1e-6, min(w, wmax - 1e-6) + (1e-6 if w == 0 else 0)] for w in ws for x in xs]).T
+    P = np.array([[x, max(w, 1e-6), 1e-6] if RIB else [x, 1e-6, min(w, wmax - 1e-6) + (1e-6 if w == 0 else 0)] for w in ws for x in xs]).T   # ribbon: stations along rho
     try:
         return b2.probes(P)
     except Exception as ex:
         print("probes failed:", ex); return None
-ws = ws[ws < wmax - 0.3] if geom == "tube" else ws
+ws = ws[ws < wmax - 0.3] if TUBE else ws
 PM = probe_matrix()
 def bubble(ux):
     if PM is None: return []
@@ -131,7 +134,7 @@ def bubble(ux):
 u = np.zeros((3, n2)); u[0] = stream(X)
 for c in range(3): u[c, fix[c]] = gval[c, fix[c]]
 um = u.copy(); p = np.zeros(n1); phi = np.zeros(n1); phim = np.zeros(n1)
-if geom == "tube":                                  # the pipe's own pressure, -6 nu x / R^2 from the outlet
+if TUBE:                                  # the pipe's own pressure, -6 nu x / R^2 from the outlet
     p = -6 * nu / R ** 2 * (b1.doflocs[0] - Ld)
 hist = []; nsteps = int(round(T / dt)); every = max(1, int(round(1.0 / dt)))
 os.makedirs("data", exist_ok=True)

@@ -1,5 +1,8 @@
 """Mesh for the wire in a tube (or in a slab with mirror planes): gmsh -> scikit-fem MeshTet.
-Coordinates (x, rho, w): x along the flow, rho the distance from the (x, w) plane, w along the wire."""
+Coordinates (x, rho, w): x along the flow, rho the distance from the (x, w) plane, w along the wire.
+geom = "ribbon": the same quarter tube with the body turned: a cylinder whose axis runs along rho, the weighted
+coordinate, which is a ribbon (a sheet spanning a disc of the pipe) seen through its rotational symmetry; the third
+coordinate is then the direction across the ribbon's thickness."""
 import numpy as np, gmsh
 from skfem import MeshTet
 
@@ -7,20 +10,21 @@ def build(geom="tube", R=5.0, Lu=8.0, Ld=20.0, h0=0.06, grow=0.25, hw=0.15, H1=0
     gmsh.initialize()
     if quiet: gmsh.option.setNumber("General.Terminal", 0)
     occ = gmsh.model.occ
-    if geom == "tube":
+    if geom in ("tube", "ribbon"):
         cyl = occ.addCylinder(-Lu, 0, 0, Lu + Ld, 0, 0, R)
         box = occ.addBox(-Lu, 0, 0, Lu + Ld, R, R)
         dom, _ = occ.intersect([(3, cyl)], [(3, box)])
     else:                                   # slab: rho in [0, H], w in [0, pi R / 2]
         dom = [(3, occ.addBox(-Lu, 0, 0, Lu + Ld, H, np.pi * R / 2))]
     if wire:
-        wr = occ.addCylinder(0, 0, -1, 0, 0, 2 * R + 2, 0.5)
+        wr = occ.addCylinder(0, -1, 0, 0, 2 * R + 2, 0, 0.5) if geom == "ribbon" else occ.addCylinder(0, 0, -1, 0, 0, 2 * R + 2, 0.5)
         dom, _ = occ.cut(dom, [(3, wr)])
     occ.synchronize()
     f = gmsh.model.mesh.field
     if wire:
-        e = (f"Min({H1}, Min({h0} + {grow}*Fabs(Sqrt(x*x+y*y)-0.5), "
-             f"{hw} + 0.3*Max(0,y-1.0) + 0.12*Max(0,x-4.0) + 0.6*Max(0,-x)))")
+        a, c = ("z", "z") if geom == "ribbon" else ("y", "y")          # the coordinate that, with x, measures distance from the body
+        e = (f"Min({H1}, Min({h0} + {grow}*Fabs(Sqrt(x*x+{a}*{a})-0.5), "
+             f"{hw} + 0.3*Max(0,{c}-1.0) + 0.12*Max(0,x-4.0) + 0.6*Max(0,-x)))")
     else:
         e = f"{H1}"
     i = f.add("MathEval"); f.setString(i, "F", e); f.setAsBackgroundMesh(i)
