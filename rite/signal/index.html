@@ -356,7 +356,7 @@ async function handleSubmit({ force = false } = {}) {
     }
 
     setProgress('Pulling repo (this is the big download)…', 0);
-    const profile = await pullProfile(handle, setProgress, { includeReposts: true });
+    const profile = await pullProfile(handle, setProgress, { includeReposts: true, posts: false });
     const reposts = profile.reposts || [];
     if (!reposts.length) {
       showStage('input');

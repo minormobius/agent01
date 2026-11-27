@@ -1,8 +1,19 @@
 // rite/lib/atproto — shared browser-side helpers for ATProto.
 //
-// Used by rite/redact/ and rite/ask/ (and any future no-build static site
-// that lives under rite/). Pure ES module; no build step. Imports the
-// vendored Rust→WASM CAR parser from ./wasm/.
+// Used by every rite tool that reads a repo: redact, ask, atlas, lexicon, list,
+// web and signal. Pure ES module; no build step.
+//
+// THE REPO IS SIEVED, NOT PARSED. Until 2026-11-27 this buffered the whole
+// CAR, handed it to the Rust→WASM parser (./wasm/, still here because b's
+// deploy stages it for lathe and coin), got back NDJSON for EVERY record and
+// split it into lines: on a 90 MB repo that is the download three times over
+// plus ~500k records as one string, which kills a phone tab. Now the download
+// streams through car.js's sieve (a byte-identical copy of
+// packages/atproto/car.js; scripts/sync-dataviz.mjs keeps it honest): only
+// the collections asked for are decoded at all, and each post is reduced to
+// what these tools read. Media is discarded at the door: an images or video
+// embed keeps its $type (isProse needs it) and loses its alt text, blob refs
+// and aspect ratios.
 //
 // Repo-wide packages/ would be the canonical home but the Cloudflare ASSETS
 // binding for rite serves only rite/, so cross-project imports break in the
@@ -11,25 +22,17 @@
 // Exports:
 //   resolveHandle(rawHandle) -> { did, handle }
 //   resolvePds(did)          -> serviceEndpoint
-//   fetchCarBytes(pds, did, onProgress) -> Uint8Array
-//   parseCar(carBytes, did)  -> NDJSON string (loads WASM lazily)
-//   pullProfile(handleInput, onProgress) -> { did, handle, posts: [] }
+//   pullProfile(handleInput, onProgress, { includeReposts, includeLikes, posts = true, signal })
+//                            -> { did, handle, posts: [{ uri, rkey, record }], reposts?, likes? }
+//   slimPost(record)         -> the post as these tools see it (exported for tests)
 //   isProse(post), buildThreadChains(posts), composeThread(chain, idx, opts)
 //   analyzeProfile(posts, opts) -> threads[] (sorted desc by length)
 
-import init, { parseCarToNdjson } from './wasm/pds_car_parser.js';
+import { sieveRepo } from './car.js';
 
 const PUBLIC_API = 'https://api.bsky.app';
 const PLC_DIR    = 'https://plc.directory';
 
-let wasmReady = false;
-async function ensureWasm() {
-  if (wasmReady) return;
-  // Resolve relative to this module's URL so callers can sit in any depth.
-  const wasmUrl = new URL('./wasm/pds_car_parser_bg.wasm', import.meta.url);
-  await init(wasmUrl);
-  wasmReady = true;
-}
 
 // ---- identity ------------------------------------------------------------
 
@@ -69,49 +72,54 @@ export async function resolvePds(did) {
   throw new Error(`No PDS endpoint in DID document for ${did}`);
 }
 
-// ---- CAR fetch + parse ---------------------------------------------------
+// ---- the repo, sieved ---------------------------------------------------
 
-export async function fetchCarBytes(pds, did, onProgress, opts = {}) {
-  const url = `${pds.replace(/\/$/, '')}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
-  const res = await fetch(url, opts.signal ? { signal: opts.signal } : undefined);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`getRepo failed (${res.status}) ${body}`.trim());
+const POST = 'app.bsky.feed.post', REPOST = 'app.bsky.feed.repost', LIKE = 'app.bsky.feed.like';
+const str = (x) => (typeof x === 'string' ? x : undefined);
+
+/**
+ * A post as these tools read it, and nothing else:
+ *   text, createdAt                    every tool
+ *   reply.parent.uri / root.uri        buildThreadChains
+ *   embed.$type                        isProse (any embed but a pure quote ends prose)
+ *   embed.record.uri                   quote chains (also inside recordWithMedia)
+ *   embed.external.{uri,title,description}   web's link graph
+ *   facets: index + feature $type/uri/tag/did   isProse, web's anchors
+ * Images, video, alt text, blob refs, aspect ratios, labels, langs: dropped.
+ */
+export function slimPost(r) {
+  const out = { text: str(r.text) ?? '', createdAt: str(r.createdAt) ?? '' };
+  const par = r.reply?.parent?.uri, root = r.reply?.root?.uri;
+  if (str(par)) out.reply = { parent: { uri: par }, root: { uri: str(root) ?? par } };
+  const e = r.embed;
+  if (e && typeof e === 'object' && str(e.$type)) {
+    const t = e.$type, se = { $type: t };
+    if (t === 'app.bsky.embed.record' && str(e.record?.uri)) se.record = { uri: e.record.uri };
+    else if (t === 'app.bsky.embed.recordWithMedia' && str(e.record?.record?.uri)) se.record = { record: { uri: e.record.record.uri } };
+    else if (t === 'app.bsky.embed.external' && e.external) se.external = { uri: str(e.external.uri) ?? '', title: str(e.external.title) ?? '', description: str(e.external.description) ?? '' };
+    out.embed = se;
   }
-  const total = parseInt(res.headers.get('content-length') || '0');
-  const reader = res.body.getReader();
-  const chunks = [];
-  let received = 0;
-  while (true) {
-    if (opts.signal?.aborted) {
-      try { reader.cancel(); } catch {}
-      throw new DOMException('aborted', 'AbortError');
-    }
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    if (onProgress) onProgress(received, total);
+  if (Array.isArray(r.facets) && r.facets.length) {
+    out.facets = r.facets.map((f) => ({
+      index: { byteStart: f?.index?.byteStart ?? 0, byteEnd: f?.index?.byteEnd ?? 0 },
+      features: (Array.isArray(f?.features) ? f.features : []).map((x) => {
+        const o = { $type: str(x?.$type) ?? '' };
+        if (str(x?.uri)) o.uri = x.uri;
+        if (str(x?.tag)) o.tag = x.tag;
+        if (str(x?.did)) o.did = x.did;
+        return o;
+      }),
+    }));
   }
-  const out = new Uint8Array(received);
-  let offset = 0;
-  for (const c of chunks) { out.set(c, offset); offset += c.length; }
   return out;
 }
-
-export async function parseCar(carBytes, did) {
-  await ensureWasm();
-  return parseCarToNdjson(carBytes, did);
-}
+const slimSubject = (r) => (str(r.subject?.uri) ? { subject_uri: r.subject.uri, subject_cid: str(r.subject.cid) ?? null, createdAt: str(r.createdAt) ?? '' } : null);
 
 // One-shot: handle -> { did, handle, posts }. Posts are app.bsky.feed.post
-// records only, with shape { uri, rkey, record }.
+// records only, with shape { uri, rkey, record }, in rkey (time) order.
 export async function pullProfile(handleInput, onProgress, opts = {}) {
   const progress = onProgress || (() => {});
   const checkAbort = () => { if (opts.signal?.aborted) throw new DOMException('aborted', 'AbortError'); };
-  progress('Loading parser…');
-  await ensureWasm();
-  checkAbort();
   progress('Resolving handle…');
   const { did, handle } = await resolveHandle(handleInput);
   checkAbort();
@@ -121,66 +129,29 @@ export async function pullProfile(handleInput, onProgress, opts = {}) {
   const pdsHost = (() => { try { return new URL(pds).hostname; } catch { return pds; } })();
   checkAbort();
 
-  progress(`Downloading repo from ${pdsHost}…`, 0);
-  const carBytes = await fetchCarBytes(pds, did, (received, total) => {
-    const label = total
-      ? `Downloading repo: ${fmtBytes(received)} / ${fmtBytes(total)}`
-      : `Downloading repo: ${fmtBytes(received)}`;
-    progress(label, total ? received / total : null);
-  }, opts);
-
-  progress(`Parsing ${fmtBytes(carBytes.length)} CAR…`, 1);
-  // Yield once so the spinner repaints before the WASM call blocks the thread.
-  await new Promise(r => setTimeout(r, 0));
-  checkAbort();
-  const ndjson = await parseCar(carBytes, did);
-
-  const posts = [];
-  // Optional sibling collections — extracted in the same scan so we don't
-  // pay for a second pass over the (potentially 100 MB+) NDJSON.
-  const reposts = opts.includeReposts ? [] : null;
-  const likes = opts.includeLikes ? [] : null;
-  let lineNum = 0;
-  for (const line of ndjson.split('\n')) {
-    if (!line) continue;
-    lineNum++;
-    // Fast pre-filter: only JSON-parse lines we already know we want.
-    const isPost = line.includes('"app.bsky.feed.post"');
-    const isRepost = reposts && line.includes('"app.bsky.feed.repost"');
-    const isLike = likes && line.includes('"app.bsky.feed.like"');
-    if (!isPost && !isRepost && !isLike) continue;
-    try {
-      const rec = JSON.parse(line);
-      if (rec.collection === 'app.bsky.feed.post') {
-        if (!rec.value || typeof rec.value.text !== 'string') continue;
-        posts.push({ uri: rec.uri, rkey: rec.rkey, record: rec.value });
-      } else if (reposts && rec.collection === 'app.bsky.feed.repost') {
-        const s = rec.value?.subject;
-        if (!s?.uri) continue;
-        reposts.push({
-          uri: rec.uri,
-          rkey: rec.rkey,
-          subject_uri: s.uri,
-          subject_cid: s.cid || null,
-          createdAt: rec.value.createdAt || '',
-        });
-      } else if (likes && rec.collection === 'app.bsky.feed.like') {
-        const s = rec.value?.subject;
-        if (!s?.uri) continue;
-        likes.push({
-          uri: rec.uri,
-          rkey: rec.rkey,
-          subject_uri: s.uri,
-          subject_cid: s.cid || null,
-          createdAt: rec.value.createdAt || '',
-        });
-      }
-    } catch {}
-  }
-  progress(`Parsed ${posts.length.toLocaleString()} posts${reposts ? ` · ${reposts.length.toLocaleString()} reposts` : ''}${likes ? ` · ${likes.length.toLocaleString()} likes` : ''} (of ${lineNum.toLocaleString()} records).`, 1);
+  // posts: false is for a caller that wants only reposts or likes (signal):
+  // then not one post block is decoded
+  const want = opts.posts === false ? {} : { [POST]: slimPost };
+  if (opts.includeReposts) want[REPOST] = slimSubject;
+  if (opts.includeLikes) want[LIKE] = slimSubject;
+  progress(`Reading repo from ${pdsHost}…`, 0);
+  let lastPaint = 0;
+  const got = await sieveRepo(pds, did, want, {
+    signal: opts.signal,
+    onProgress: ({ bytes, total }) => {
+      const now = Date.now();
+      if (now - lastPaint < 100) return;            // a big repo arrives in thousands of chunks
+      lastPaint = now;
+      progress(total ? `Reading repo: ${fmtBytes(bytes)} / ${fmtBytes(total)}` : `Reading repo: ${fmtBytes(bytes)}`, total ? bytes / total : null);
+    },
+  });
+  const uri = (col, rkey) => `at://${did}/${col}/${rkey}`;
+  const posts = (got.records[POST] || []).map(({ rkey, value }) => ({ uri: uri(POST, rkey), rkey, record: value }));
   const out = { did, handle, posts };
-  if (reposts) out.reposts = reposts;
-  if (likes) out.likes = likes;
+  if (opts.includeReposts) out.reposts = got.records[REPOST].map(({ rkey, value }) => ({ uri: uri(REPOST, rkey), rkey, ...value }));
+  if (opts.includeLikes) out.likes = got.records[LIKE].map(({ rkey, value }) => ({ uri: uri(LIKE, rkey), rkey, ...value }));
+  const records = Object.values(got.collections).reduce((a, n) => a + n, 0);
+  progress(`Read ${posts.length.toLocaleString()} posts${out.reposts ? ` · ${out.reposts.length.toLocaleString()} reposts` : ''}${out.likes ? ` · ${out.likes.length.toLocaleString()} likes` : ''} (of ${records.toLocaleString()} records, ${fmtBytes(got.bytes)}).`, 1);
   return out;
 }
 

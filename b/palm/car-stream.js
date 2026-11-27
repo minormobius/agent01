@@ -1,31 +1,21 @@
-// palm/car-stream.js — pull the posts out of a repo without ever holding the repo.
+// car.js — read an ATProto repository out of a CAR stream, without holding it.
 //
-// WHY THIS EXISTS. `b/` already had two CAR paths (coin/lexicon.js and lathe's
-// `archive` source) and both do the same thing: buffer the entire download,
-// concatenate it, hand it to the Rust/WASM parser, get back NDJSON for EVERY
-// record in the repo, and `.split('\n')` that. For a small account it is fine.
-// For a 90 MB / 50k-post repo it is roughly:
+// THE CANONICAL COPY. This is shared library code, so it lives in packages/ and
+// everything on a server imports it from here. b/palm/car-stream.js is a
+// byte-identical copy that exists only because a STATIC SITE cannot import
+// across directories — the same arrangement packages/dataviz/ has with the
+// sites that use it. Edit this file; copy it outward; never the reverse.
 //
-//     chunk array (90 MB) + contiguous copy (90 MB) + wasm linear memory (90 MB)
-//   + NDJSON of all ~500k records as one JS string (UTF-16, so ~2x its bytes)
-//   + the array of 500k strings that split() allocates
+// It was written for palm (six stylometric lines off a whole repo, in a browser
+// tab) and moved here when the lab factory needed it on a runner — the portrait
+// digest and the dossier corpus both start with "read every post they ever
+// made", which is one unauthenticated getRepo rather than five hundred
+// paginated AppView calls. Nothing about it is palm-specific.
 //
-// ...which is where the tab dies. This module reads the CAR as it arrives, keeps
-// only `app.bsky.feed.post` records, and drops every other block on the floor.
-// Peak memory is one network chunk plus the posts themselves.
+// No dependencies. Runs unchanged in node, in a browser, and in a Worker —
+// though a Worker's 30 seconds of CPU is not enough for a large repository,
+// which is why the factory does this on a runner.
 //
-// WHY NO MST WALK. Prefix compression inside an MST node is node-LOCAL — see
-// os/crates/car-parser/src/mst.rs, where `last_key` is reset at the top of every
-// node. So each node decodes on its own and block order does not matter: collect
-// key -> CID from whatever nodes stream past, collect CID -> record from the
-// record blocks, and join at the end. No roots, no recursion, no block index.
-//
-// Runs unchanged in node and the browser. No dependencies.
-//
-// THE CANONICAL COPY IS packages/atproto/car.js. This one exists because a
-// static site cannot import across directories — same arrangement as
-// packages/dataviz/ and the sites that use it. Fix the canonical one and copy
-// it here; a fix made only here is a fix the servers do not get.
 
 const TD = new TextDecoder('utf-8', { fatal: false });
 
@@ -368,4 +358,146 @@ export async function streamRepo(pds, did, { onProgress, signal } = {}) {
     reader.push(value);
   }
   return reader.finish();
+}
+
+// ── the sieve: any collections, each reduced its own way ────────────────────
+// createReader above is palm's: posts only, shrunk to palm's fields. The sieve
+// is the general form for every other caller (rite's seven tools, days, orbit):
+// name the collections you want and how to reduce each record, and every other
+// block (likes you did not ask for, follows, MST plumbing, profile, lists) is
+// skipped on a byte-level sniff, never decoded. Nothing is kept but the
+// reductions, and the reducer is where media is discarded: an images embed
+// decodes to alt text, blob CIDs, MIME types and aspect ratios, none of which a
+// text tool reads, so a reducer keeps `$type` and drops the rest.
+
+/** The bytes a record of `nsid` must contain: its $type as a DAG-CBOR text
+ *  string, length header included. The header is the anchor: a LIKE's
+ *  subject.uri contains "app.bsky.feed.post" too, but behind a '/', never
+ *  behind 0x72. */
+export function collectionMark(nsid) {
+  const bytes = Array.from(nsid, (c) => c.charCodeAt(0));
+  const head = bytes.length < 24 ? [0x60 + bytes.length] : bytes.length < 256 ? [0x78, bytes.length] : null;
+  if (!head) throw new Error('collection name too long: ' + nsid);
+  return [...head, ...bytes];
+}
+
+/**
+ * Incremental sieve. `want` maps a collection NSID to a reducer
+ * (record -> kept value, or null to drop it).
+ *
+ *   const s = createSieve({ want: { 'app.bsky.feed.post': slim } });
+ *   for await (const chunk of stream) s.push(chunk);
+ *   const { records, collections, bytes, blocks, decoded } = s.finish();
+ *   // records['app.bsky.feed.post'] = [{ rkey, value }, ...] in rkey order
+ */
+export function createSieve({ want, onProgress } = {}) {
+  const kinds = Object.entries(want || {}).map(([nsid, reduce]) => ({ nsid, reduce: reduce || ((r) => r), mark: collectionMark(nsid), prefix: nsid + '/' }));
+  if (!kinds.length) throw new Error('createSieve: nothing wanted');
+  let carry = new Uint8Array(0), headerRead = false;
+  let bytes = 0, blocks = 0, decoded = 0;
+  const found = new Map();             // cidHex -> { nsid, value }
+  const rkeys = new Map();             // cidHex -> rkey | rkey[] (identical records share a CID)
+  const collections = new Map();
+
+  function readMstNode(node) {
+    const entries = node && node.e;
+    if (!Array.isArray(entries)) return;
+    let last = '';
+    for (const e of entries) {
+      if (!e || typeof e !== 'object' || !(e.k instanceof Uint8Array)) continue;
+      const p = typeof e.p === 'number' ? e.p : 0;
+      const key = (p > 0 && p <= last.length ? last.slice(0, p) : '') + TD.decode(e.k);
+      last = key;
+      const slash = key.indexOf('/');
+      const col = slash < 0 ? key : key.slice(0, slash);
+      collections.set(col, (collections.get(col) || 0) + 1);
+      if (!e.v || !e.v.$link) continue;
+      for (const k of kinds) {
+        if (!key.startsWith(k.prefix)) continue;
+        const rk = key.slice(k.prefix.length), had = rkeys.get(e.v.$link);
+        rkeys.set(e.v.$link, had === undefined ? rk : [].concat(had, rk));
+        break;
+      }
+    }
+  }
+
+  function consume(b) {
+    let pos = 0;
+    if (!headerRead) {
+      const h = uvarint(b, pos);
+      if (!h) return pos;
+      if (h[1] + h[0] > b.length) return pos;
+      pos = h[1] + h[0];
+      headerRead = true;
+    }
+    for (;;) {
+      const r = uvarint(b, pos);
+      if (!r) return pos;
+      const [len, dataStart] = r, end = dataStart + len;
+      if (end > b.length) return pos;
+      const cl = cidLength(b, dataStart);
+      if (cl <= 0 || dataStart + cl > end) { pos = end; blocks++; continue; }
+      const bodyStart = dataStart + cl;
+      if (b[bodyStart] === MST_A2 && b[bodyStart + 1] === MST_61 && b[bodyStart + 2] === MST_65) {
+        try { readMstNode(decode(b, bodyStart)[0]); decoded++; } catch { /* a bad node costs its keys */ }
+      } else {
+        for (const k of kinds) {
+          if (!hasMark(b, bodyStart, end, k.mark)) continue;
+          try {
+            const rec = decode(b, bodyStart)[0];
+            decoded++;
+            if (rec && rec['$type'] === k.nsid) {
+              const value = k.reduce(rec);
+              if (value != null) found.set(hex(b.subarray(dataStart, bodyStart)), { nsid: k.nsid, value });
+            }
+          } catch { /* skip */ }
+          break;
+        }
+      }
+      pos = end;
+      blocks++;
+    }
+  }
+
+  return {
+    push(chunk) {
+      bytes += chunk.length;
+      let b;
+      if (carry.length === 0) b = chunk;
+      else { b = new Uint8Array(carry.length + chunk.length); b.set(carry, 0); b.set(chunk, carry.length); }
+      const used = consume(b);
+      carry = used >= b.length ? new Uint8Array(0) : b.slice(used);
+      if (onProgress) onProgress({ bytes, blocks, found: found.size });
+    },
+    bytesRead() { return bytes; },
+    finish() {
+      const records = Object.fromEntries(kinds.map((k) => [k.nsid, []]));
+      for (const [cid, { nsid, value }] of found) {
+        const rk = rkeys.get(cid);
+        if (Array.isArray(rk)) for (const one of rk) records[nsid].push({ rkey: one, value });
+        else records[nsid].push({ rkey: rk ?? null, value });
+      }
+      // rkey order is the MST's order, which for TIDs is time order
+      for (const list of Object.values(records)) list.sort((a, x) => (a.rkey < x.rkey ? -1 : a.rkey > x.rkey ? 1 : 0));
+      found.clear(); rkeys.clear(); carry = new Uint8Array(0);
+      return { records, collections: Object.fromEntries([...collections].sort((a, x) => x[1] - a[1])), bytes, blocks, decoded };
+    },
+  };
+}
+
+/** Stream a repo off its PDS through a sieve. Holds one chunk plus what is kept. */
+export async function sieveRepo(pds, did, want, { onProgress, signal } = {}) {
+  const url = `${String(pds).replace(/\/$/, '')}/xrpc/com.atproto.sync.getRepo?did=${encodeURIComponent(did)}`;
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`getRepo failed (${res.status})`);
+  const total = parseInt(res.headers.get('content-length') || '0', 10) || null;
+  const s = createSieve({ want, onProgress: onProgress ? (p) => onProgress({ ...p, total }) : undefined });
+  const body = res.body.getReader();
+  for (;;) {
+    if (signal?.aborted) { try { body.cancel(); } catch { /* gone */ } throw new DOMException('aborted', 'AbortError'); }
+    const { done, value } = await body.read();
+    if (done) break;
+    s.push(value);
+  }
+  return s.finish();
 }

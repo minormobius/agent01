@@ -22,6 +22,7 @@ surface lives in that surface's own `CLAUDE.md`.
 | **changing the Cloudflare account itself** — delete a worker, move a host off a custom domain | [`.github/cf-ops/plan.json`](.github/cf-ops/plan.json) run by `scripts/cf-ops.mjs` — the agent writes a dry run, the operator flips `apply`. [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §7 |
 | the shape of the repo on disk | [`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md) |
 | OAuth per-site status | [`docs/OAUTH.md`](docs/OAUTH.md) |
+| **reading a whole repo (CAR)** — the sieve to use, and every reader in the repo with what to fix | [`docs/CAR-READERS.md`](docs/CAR-READERS.md) — `packages/atproto/car.js` `createSieve`; never buffer-and-parse-everything in a browser |
 | splitting a surface, or moving a site between surfaces | [`docs/surface-mitosis.md`](docs/surface-mitosis.md) — `scripts/surface-mitosis.mjs` detects, `scripts/rehome.mjs` moves |
 | the closed-loop programme — and why this repo's parts don't depend on each other | [`docs/CLOSED-LOOP.md`](docs/CLOSED-LOOP.md) — the design record; the **why** |
 | how a loop is actually wired: chain-reaction Actions, the ticket graph, the contagion firewall | [`docs/LOOPS.md`](docs/LOOPS.md) — built and **disabled**; the **how** |

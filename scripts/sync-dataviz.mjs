@@ -52,6 +52,11 @@ const EXTRA = [
   ["tjs/brut/period.js", "polis/morph/brut/period.js"],
   ["tjs/brut/rand.js", "polis/morph/brut/rand.js"],
   ["packages/oauth-client/auth.js", "lab/_kit/auth.js"],
+  // the streaming CAR reader/sieve: palm, orbit and days import b's copy, every
+  // rite tool that reads a repo imports rite's (2026-11-27, replacing the
+  // buffer-everything WASM path there). The b copy had already drifted once.
+  ["packages/atproto/car.js", "b/palm/car-stream.js"],
+  ["packages/atproto/car.js", "rite/lib/atproto/car.js"],
   // handle typeahead on every handle field, through the cad gateway
   ["packages/oauth-client/typeahead.js", "packages/cad/vendor/typeahead.js"],
   ["packages/oauth-client/typeahead.js", "parts/site/vendor/typeahead.js"],

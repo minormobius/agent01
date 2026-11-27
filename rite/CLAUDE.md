@@ -15,7 +15,7 @@ Sentence editing drill plus a dozen surfaces over Bluesky prose and English itse
 | Dir | `rite/` |
 | Endpoint | `rite.mino.mobi` |
 | Type | fullstack |
-| Owning branch | `claude/rite-deploy-font-jblfj2` |
+| Owning branch | `claude/focused-knuth-f0oawl` (since 2026-11-27) |
 | Deploy | `.github/workflows/deploy-rite.yml` |
 | Uses | `atpolls-db` |
 | Provides | — |
@@ -28,7 +28,7 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 **Stack**: Cloudflare Worker (assets binding) + D1 + Workers AI
 **Deploy**: `.github/workflows/deploy-rite.yml` — runs migrations, then `wrangler deploy`
 
-Single Worker that hosts twelve surfaces, most over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
+Single Worker that hosts twelve surfaces, most over the same shared `rite/lib/atproto/` pipeline (CAR streamed through a sieve → thread chains → reading-level scoring; see *Reading a repo* below):
 
 - **`/`** — sentence editing drill. User is shown a verbose sentence; rewrites it; gets scored on fidelity (BGE embedding cosine vs. reference rewrites), brevity (vs. median reference word count), clarity (Flesch delta), and speed.
 - **`/fodder/`** — Tinder-style swipe deck for crowdsourcing new corpus entries. Cron mines Project Gutenberg every 6h, asks Llama 3.1 8B for three rewrites, queues candidates as `pending`. Yes-votes promote a candidate to `approved` once it hits 5 yes & ≥70% ratio.
@@ -51,6 +51,50 @@ Single Worker that hosts twelve surfaces, most over the same shared `rite/lib/at
   **`/pumpkin/live/` — the pumpkins as vtubers.** `pumpkin/rig.js` carves *every* mood onto one pumpkin's body (`faceFor`), resamples every cut to 64 points (leftmost start, fixed winding) and matches cuts by part and left-to-right order (`eye0`, `brow1`, `mouth3` …); a part one mood lacks grows from a point on that face's nearest cut of its kind, so a stitched mouth's dashes run together into a grin. `pose()` is pure: the mood morph, then the talking mouth (lips part about each piece's middle, the jaw drops, corners hold, `round` narrows it; negative `open` presses the lips), blinks, brow lift, a head turn. `Puppet` renders once with `render(…, { rig: true })` (data-slot / data-rig hooks, no CSS flicker) and each frame rewrites the cut paths and the body's transform: breathing, sway, a sprung lean that re-targets every few seconds (the seat shift), a bob while talking, hops with a landing squash, a head cock on "?". The candle flares with the voice and takes the mood's colour (`PALETTES`). `pumpkin/voice.js`: `track(text)` reads text letter by letter into a mouth script (vowels open, o/u round, e/i spread, m/b/p press shut; "!" hops, "?" tilts), `babble()` makes gibberish lines; `Player` plays a track and, with sound on, speaks it as formant-filtered blips; `Mic` follows a microphone (loudness over a tracked noise floor opens, a dark spectrum rounds); `Speaker` uses speechSynthesis and paces the mouth from its word-boundary events. The page: a cast of 1–3 who chatter in turns and look at whoever talks, mood chips + roll-through-moods, mic / chatter / quiet, a say box, night / green-screen / transparent, `H` (or double-tap) hides the controls for capture; `?s=a,b,c&bg=green&bare=1` sets it all from the URL. Nothing heard by the mic leaves the browser. **Run `pumpkin/rig.selftest.mjs`** — it builds 120 rigs and checks every slot, the morph, the pose extremes, and that talking moves only the mouth and blinking only the eyes.
 
 - **`/font/`** — **Roll**, a typeface generator (Rust → WASM in Web Workers, no server). A seed rolls a genome (one of eight archetypes, blended and jittered, weight/width free); each letter is a Metafont-style skeleton swept by a superellipse pen, unioned and refitted to quadratic splines, spaced by Tracy's method and kerned by measurement into GPOS class kerning. ~400 characters: Latin + Latin-1 + Extended-A, Greek, Cyrillic, figures, punctuation, maths. Page: roll by archetype, an 8-child breeder, lineage, live tuning of every gene (`roll_subset` while dragging), specimen tabs; `?s=&g=` permalinks carry the full genome. Output is CC0. Full notes: `rite/font/README.md`, design space: `rite/font/GENOME.md`. **Run `cargo test --release` in `rite/font/` before touching the engine** — the deploy runs it and fails on red.
+
+## Reading a repo — the sieve, not the parser
+
+Every tool that reads a repo (redact, ask, atlas, lexicon, list, web, signal)
+goes through `pullProfile` in `lib/atproto/index.js`. **Until 2026-11-27 it
+buffered the whole CAR, ran the Rust→WASM parser over it, got NDJSON for every
+record in the repo and split it into lines.** On a 95 MB repo that peaked at
+**1.77 GB** in a Chromium tab, which is a dead phone.
+
+Now the download streams through `lib/atproto/car.js`'s sieve. That file is a
+byte-identical copy of `packages/atproto/car.js`; `scripts/sync-dataviz.mjs`
+keeps it honest, and the selftest checks it too. The sieve:
+- decodes only post blocks (and reposts for signal, which asks for no posts
+  at all);
+- reduces each post with `slimPost` to what the tools read: text, createdAt,
+  reply and quote targets, embed `$type`, link-card uri/title/description,
+  and facet ranges and features.
+
+**Media is discarded at the door.** An images or video embed keeps only its
+`$type`, because `isProse` needs it; alt text, blob refs and aspect ratios
+go.
+
+Measured on that repo:
+- **296 MB peak renderer**, against 1.77 GB;
+- atlas in 7.5 s, against 12.3 s, download included;
+- in node, 1.6 s / +114 MB against 8.3 s / +1.4 GB.
+
+**The output is identical** to the old path: 52,507 posts and 5,302
+reposts, field for field on everything the tools read, the same 692 threads
+from `analyzeProfile`, and the same 1,873 links in web.
+
+`lib/atproto/atproto.selftest.mjs` gates it:
+- the like trap;
+- 7-byte chunking;
+- two identical records sharing a CID;
+- prefix-compressed keys;
+- a reposts-only read decoding nothing else;
+- the slim post leaving `isProse`, the thread chains and the composed
+  threads unchanged.
+
+**`lib/atproto/wasm/` stays for now**, but nothing in rite loads it.
+`deploy-b.yml` copies it into b for lathe and coin, the next two readers to
+move. The whole-site inventory is in
+[`docs/CAR-READERS.md`](../docs/CAR-READERS.md).
 
 ## Architecture
 
@@ -111,7 +155,7 @@ Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-pro
 
 ## Deploy workflow (`deploy-rite.yml`)
 
-Triggers on push to `claude/rite-deploy-font-jblfj2` that touches `rite/**`. (Ownership moved here from `claude/syllable-word-generator-yhw8wj` on 2026-09-25 with `take-ownership.mjs`; the trees were identical.) The workflow first runs the font engine's `cargo test` and builds its wasm into `font/pkg/` — **a red font test blocks the whole rite deploy.** (`main` does not deploy — see the repo-wide `CLAUDE.md`.) Steps:
+Triggers on push to `claude/focused-knuth-f0oawl` that touches `rite/**`. (Ownership moved here from `claude/rite-deploy-font-jblfj2` on 2026-11-27, and to that branch from `claude/syllable-word-generator-yhw8wj` on 2026-09-25, both with `take-ownership.mjs`; both times the trees were identical.) The workflow first runs the font engine's `cargo test` and builds its wasm into `font/pkg/` — **a red font test blocks the whole rite deploy.** (`main` does not deploy — see the repo-wide `CLAUDE.md`.) Steps:
 
 1. Apply `poll/apps/api/migrations/0014_fodder.sql` to `atpolls-db` (idempotent — failure is treated as already-applied and continues).
 2. `npx wrangler deploy` from `rite/` — uploads worker + assets, provisions `rite.mino.mobi`.
@@ -268,7 +312,7 @@ Idempotent: candidate IDs (`f-2833-abc1234`) live in a different namespace from 
 
 ## Deploying
 
-Pushes to `claude/rite-deploy-font-jblfj2` that touch this surface's paths trigger [`.github/workflows/deploy-rite.yml`](../.github/workflows/deploy-rite.yml).
+Pushes to `claude/focused-knuth-f0oawl` that touch this surface's paths trigger [`.github/workflows/deploy-rite.yml`](../.github/workflows/deploy-rite.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
