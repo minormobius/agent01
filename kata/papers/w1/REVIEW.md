@@ -55,3 +55,12 @@ independent domain study."
 
 A different discretisation and domain for A2; a search of the other branches; stability of the tube states to
 perturbations outside the imposed symmetries.
+
+## After the audit: draft 3 (2026-11-27)
+
+The PI asked for the ribbon to be computed, not argued. Draft 3 adds, at the end of section 7 and as items A9 and
+A10 of the audit sheet: the cylinder computed by this study's own solver (replacing the quoted Collis & Williams law
+in the figures and the sensitivity comparison); the ribbon spanning the pipe, station by station as a cylinder in a
+channel with cold walls; its check in the true tube at R = 5; and its calibration against the wire's. Finding F03's
+caution is kept and sharpened by the result: the ribbon is the more sensitive probe at low speed, by a factor of 2 to
+5 and not the ideal cylinder's, because it loses heat to its rim. **None of draft 3's additions has been audited.**

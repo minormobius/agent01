@@ -60,7 +60,7 @@ class Cyl:
 
 if __name__ == "__main__":
     a = sys.argv[1:]; Pr = float(a[0]) if a else 0.7; Rout = float(a[1]) if len(a) > 1 else 200.0; Nr = int(a[2]) if len(a) > 2 else 120; Nt = int(a[3]) if len(a) > 3 else 60
-    Res = [float(v) for v in a[4].split(",")] if len(a) > 4 else [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 40]
+    Res = [float(v) for v in a[4].split(",")] if len(a) > 4 else [0.1, 0.15, 0.25, 0.4, 0.6, 1, 1.5, 2.5, 4, 6, 10, 15, 25, 40]
     W = Cyl(Nr=Nr, Nt=Nt, Rout=Rout); g = None; rows = []
     for Re in Res:
         g = W.base(Re, g); rows.append(dict(Re=Re, cd=W.drag(*g, Re), bubble=W.bubble(g[0]), Nu=W.nusselt(g[0], g[1], Re, Pr)))

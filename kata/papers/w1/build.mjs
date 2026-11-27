@@ -11,8 +11,8 @@ import { fill } from "./values.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url)), CHECK = process.argv.includes("--check");
 const FIG = {
   1: { imgs: [["growth-beta", "(a) Growth rate against the wavenumber along the wire at Re 200"], ["growth-re", "(b) Growth rate of the fastest mode against Reynolds number"]], cap: "The instability along the wire. (a) At Re 200 the symmetric mode (m = 0) is unstable in a band round β = 2.5; the one-lobed mode is stable throughout. The two open points at β = 0 and 0.5 are the least stable symmetric modes the solver returned there: at β = 0 it is a mode of the truncated domain and not of the wake, and neither is joined to the branch. (b) The symmetric mode crosses zero at 191 and the one-lobed mode at 207; a sphere's first instability is at 212." },
-  2: { imgs: [["nusselt", ""]], cap: "Heat loss against flow. The sphere's Nusselt number, which is the 4D wire's per length, computed here; published sphere simulations; the wire in the tube, on the pipe's axis; and a cylinder's measured law, which is the 4D ribbon's per area. The sphere's starts from 2 and the cylinder's from nothing." },
-  3: { imgs: [["calibration", ""]], cap: "The reading (current squared at constant wire temperature) over its value at Re 0.25, for a metal wire (Λ = 3000) 10 and 200 diameters long across a 4D pipe, with the sphere's and the cylinder's heat loss alone for comparison. The short wire is flat because the wall takes its heat; the long wire is shallow because of the conduction floor." },
+  2: { imgs: [["nusselt", ""]], cap: "Heat loss against flow. The sphere's Nusselt number, which is the 4D wire's per length, computed here; published sphere simulations; the wire in the tube, on the pipe's axis; and a cylinder's, computed the same way, which is the 4D ribbon's per area. The sphere's starts from 2 and the cylinder's from nothing." },
+  3: { imgs: [["calibration", ""]], cap: "The reading (current squared at constant wire temperature) over its value at Re 0.25, for a metal wire 10 and 200 diameters long across a 4D pipe and a ribbon of the same metal spanning pipes 200 and 500 thicknesses across, with the sphere's and the cylinder's heat loss alone for comparison. The short wire is flat because the wall takes its heat; the long wire is shallow because of the sphere's conduction floor; the ribbon falls short of the cylinder because of conduction to its rim." },
 };
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[\s(])\*(.+?)\*(?=[\s).,;:]|$)/g, "$1<i>$2</i>").replace(/`(.+?)`/g, "<code>$1</code>").replace(/\[([A-Za-z]{1,4}\d?)\]/g, '<a class="cite" href="#ref-$1">[$1]</a>').replace(/\bfigure (\d)\b/g, '<a href="#fig$1">figure $1</a>');
@@ -34,7 +34,7 @@ function build() { const filled = fill(fs.readFileSync(path.join(here, "text.md"
 <meta property="og:title" content="${esc(title)}"><meta property="og:url" content="https://kata.mino.mobi/papers/w1/paper">
 <link rel="stylesheet" href="../r1/paper.css"></head><body>
 <div class="toolbar"><span class="brand"><a href="../../">kata</a></span><span>paper 3 · a hot wire in four dimensions</span><span class="grow" style="flex:1"></span><a href="../../wire4/">the instrument, live</a><a href="AUDIT.md">audit sheet</a><a href="REVIEW.md">the audit</a><a href="REFERENCES.md">references checked</a><a href="text.md">source</a></div>
-<article class="sheet"><div class="p-venue">kata.mino.mobi · paper 3 · draft 2, audited in part</div><div class="p-body single">
+<article class="sheet"><div class="p-venue">kata.mino.mobi · paper 3 · draft 3, audited in part</div><div class="p-body single">
 ${out.join("\n")}
 </div></article></body></html>`;
   return { md, html, missing: filled.missing, blocks: out.length }; }

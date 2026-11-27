@@ -14,6 +14,7 @@ cylinder's conduction has no steady answer in an unbounded fluid, and the wall i
     python ribbon4.py strip R Re[,Re...]      local Nusselt numbers at stations -> data/ribbon-strip-R<R>.json
     python ribbon4.py cal R [Lam=3000] [overheat=0.5]     the calibration from that file
     python ribbon4.py check [Lam,...]         strip against the 3D tube runs (data/heat-ribbon-*.json), R = 5
+    python ribbon4.py table                   everything the paper reads -> data/ribbon-cal.json
 Re is on the ribbon's thickness and the pipe's centreline speed.
 """
 import sys, json, os
@@ -120,3 +121,18 @@ if __name__ == "__main__":
             for Lam in Lams:
                 g = galerkin(d, Lam); b = balance(5.0, Lam, np.append(s, 5.0), np.append(nu, nu[-1]))
                 print(f"   Lam {Lam:6g}   P strip {b['P']:9.4f} / 3D {g['P']:9.4f} = {b['P'] / g['P']:.4f}    to the stream {b['stream']:.3f} / {g['stream']:.3f}")
+    elif mode == "table":
+        out = dict(overheat=0.5, cal=[], check=[])
+        for R in (100.0, 250.0):
+            J = json.load(open(f"data/ribbon-strip-R{R:g}.json"))
+            for Lam in (4500.0, 450.0):
+                prev = None
+                for k in sorted(J["rows"], key=float):
+                    r = J["rows"][k]; s = np.array(r["s"]); nu = np.array(r["Nu"]); o = np.argsort(s); s, nu = s[o], nu[o]; b = balance(R, Lam, np.append(s, R), np.append(nu, nu[-1])); Re = float(k)
+                    out["cal"].append(dict(R=R, Lam=Lam, Re=Re, P=b["P"], stream=b["stream"], nu_axis=float(nu[0]), n=None if prev is None else float(np.log(b["P"] / prev[1]) / np.log(Re / prev[0])))); prev = (Re, b["P"])
+        J = json.load(open("data/ribbon-strip-R5.json"))
+        for k in sorted(J["rows"], key=float):
+            d = json.load(open(f"data/heat-ribbon-{float(k):.0f}-R5.json")); r = J["rows"][k]; s = np.array(r["s"]); nu = np.array(r["Nu"])
+            for Lam in (30.0, 300.0, 3000.0):
+                g = galerkin(d, Lam); b = balance(5.0, Lam, np.append(s, 5.0), np.append(nu, nu[-1])); out["check"].append(dict(Re=float(k), Lam=Lam, strip=b["P"], tube=g["P"], nu_axis_tube=g["nu_axis"], nu_axis_strip=float(nu[0]), stream_strip=b["stream"], stream_tube=g["stream"]))
+        json.dump(out, open("data/ribbon-cal.json", "w")); print("wrote data/ribbon-cal.json:", len(out["cal"]), "calibration rows,", len(out["check"]), "check rows")

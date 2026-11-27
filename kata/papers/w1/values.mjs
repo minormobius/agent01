@@ -20,8 +20,12 @@ const outNu = (Re) => { const d = heat(`${Re}-R5`), st = d.stations, i = st.find
 const uni = (Re) => heat(`uni-${Re}`).H[0][0] / Math.PI / (2 * Math.PI), AN = J("anem.json").rows, an = (Lam, Re) => AN.find((r) => r.Lam === Lam && r.Re === Re);
 const tube = (Re) => { const d = J(`tube-${Re}-R5.json`); return d.hist.at(-1).bub[0]; }, shear = (t) => J(`shear-${t}.json`).bub[0], PU = J("pulse-280-R10.json");
 const W = (R, Lam, Re, n = 2) => wire({ R, Lam, Re, n }).at(0.5), sens = (R, Lam, Re) => Math.log(W(R, Lam, Re * 1.1).P / W(R, Lam, Re / 1.1).P) / Math.log(1.21), sphSens = (Re) => Math.log(nu(Re * 1.1) / nu(Re / 1.1)) / Math.log(1.21);
-/* a cylinder in our world, for the ribbon: Collis & Williams' correlation, quoted (see REFERENCES.md) */
-export const cyl = (Re) => 0.24 + 0.56 * Math.pow(Re, 0.45), cylSens = (Re) => (0.56 * 0.45 * Math.pow(Re, 0.45)) / cyl(Re);
+/* a cylinder in our world, which is the 4D ribbon: computed (wire4/cyl4.py -> nu-cyl.json), interpolated in log-log, Re 0.1 to 40.
+   cw is Collis & Williams' measured law as usually quoted, for comparison only (see REFERENCES.md) */
+const CY = J("nu-cyl.json").rows, lcr = CY.map((r) => Math.log(r.Re)), lcn = CY.map((r) => Math.log(r.Nu));
+export const cyl = (Re) => { const x = Math.log(Re); let i = 1; while (i < CY.length - 1 && lcr[i] < x) i++; return Math.exp(lcn[i - 1] + ((x - lcr[i - 1]) / (lcr[i] - lcr[i - 1])) * (lcn[i] - lcn[i - 1])); };
+export const cylSens = (Re) => Math.log(cyl(Re * 1.1) / cyl(Re / 1.1)) / Math.log(1.21), cw = (Re) => 0.24 + 0.56 * Math.pow(Re, 0.45);
+export const RIB = J("ribbon-cal.json");
 const strip = (Lam) => { const r = AN.filter((q) => q.Lam === Lam).map((q) => wire({ R: q.R, Lam, Re: q.Re }).at(0.5).P / q.P); return [Math.min(...r), Math.max(...r)]; };
 export const V = {
   reC: f0(reC), reCfine: f1(reC), reC1: f0(reC1), g188: sg(best(fine[0])), g190: sg(best(fine[1])), g192: sg(best(fine[2])), g194: sg(best(fine[3])),
@@ -38,7 +42,7 @@ export const V = {
   s1: f2(sens(100, 3000, 1)), s3: f2(sens(100, 3000, 3)), s10: f2(sens(100, 3000, 10)), s25: f2(sens(100, 3000, 25)), stream1: pc(W(100, 3000, 1).stream), stream10: pc(W(100, 3000, 10).stream), stream500: pc(W(250, 3000, 3).stream),
   rise: (100 * (W(100, 3000, 10).P / W(100, 3000, 0.25).P - 1)).toFixed(0) + "%", runaway: f1(wire({ R: 100, Lam: 3000, Re: 10 }).runaway() / W(100, 3000, 10).P),
   plug: f2(misread({ R: 100, Lam: 3000, Re: 3, n: Infinity, tau: 0.5 })), n4: f2(misread({ R: 100, Lam: 3000, Re: 3, n: 4, tau: 0.5 })), plugP: f3(W(100, 3000, 3, Infinity).P / W(100, 3000, 3).P),
-  sphS1: f2(sphSens(1)), sphS10: f2(sphSens(10)), cylS1: f2(cylSens(1)), cylS10: f2(cylSens(10)), cyl1: f2(cyl(1)), cyl10: f2(cyl(10)),
+  sphS1: f2(sphSens(1)), sphS10: f2(sphSens(10)), cylS1: f2(cylSens(1)), cylS10: f2(cylSens(10)),
 };
 /* the audit sheet's extra targets */
 { const L = J("ladder-200.json").rows, lg = (m, b) => L.find((r) => r.m === m && r.beta === b).growth, T = J("nu-table.json").rows, tn = (Re) => T.reduce((a, b) => (Math.abs(Math.log(b[0] / Re)) < Math.abs(Math.log(a[0] / Re)) ? b : a));
@@ -50,5 +54,14 @@ export const V = {
   for (const Re of [25, 50, 100, 150, 200, 250]) V["aTube" + Re] = f2(tube(Re)); for (const [Lam, Re] of [[30, 100], [300, 100], [3000, 25], [3000, 250], [0, 100]]) V[`aAn${Lam}_${Re}`] = f3(an(Lam, Re).P); }
 /* audit finding F04: two profiles with the same line average (the developed parabola and a uniform 2/3) read differently */
 { const same = (Re) => 1 - wire({ R: 100, Lam: 3000, Re, U: () => 2 / 3 }).at(0.5).P / W(100, 3000, Re).P; V.same3 = (100 * same(3)).toFixed(1) + "%"; V.same10 = (100 * same(10)).toFixed(1) + "%"; V.annulus = (2 / Math.log(200)).toFixed(2); }
+/* the ribbon (wire4/ribbon4.py table -> ribbon-cal.json), against the wire in the same pipe and of the same metal (Lam 3000 for the wire is 4500 for the ribbon) */
+{ const rc = (R, Lam, Re) => RIB.cal.find((r) => r.R === R && r.Lam === Lam && r.Re === Re), wn = (R, a, b) => Math.log(W(R, 3000, b).P / W(R, 3000, a).P) / Math.log(b / a), ck = (Lam) => RIB.check.filter((r) => r.Lam === Lam).map((r) => r.strip / r.tube), cyc = (Re) => CY.find((r) => r.Re === Re);
+  for (const R of [100, 250]) { for (const Re of [0.5, 1, 10, 40]) { const k = `${R}_${String(Re).replace(".", "p")}`, r = rc(R, 4500, Re), prevRe = { 0.5: 0.25, 1: 0.5, 10: 5, 40: 20 }[Re]; V["ribN" + k] = f2(r.n); V["wireN" + k] = f2(wn(R, prevRe, Re)); V["ribX" + k] = f1(r.n / wn(R, prevRe, Re)); V["ribP" + k] = f2(r.P); V["ribS" + k] = pc(r.stream); }
+    V["ribP" + R + "_0p25"] = f2(rc(R, 4500, 0.25).P); V["ribRim" + R] = pc(1 - rc(R, 4500, 0.25).stream); V["ribRise" + R] = f1(rc(R, 4500, 40).P / rc(R, 4500, 0.25).P); V["wireRise" + R] = f1(W(R, 3000, 40).P / W(R, 3000, 0.25).P); V["ribAxis" + R] = f3(rc(R, 4500, 0.25).nu_axis); }
+  V.ribPoorLo = f2(rc(250, 450, 0.5).n); V.ribPoorHi = f2(rc(250, 450, 40).n); V.ribPoorS = pc(rc(250, 450, 1).stream);
+  V.ribCk30 = f2(Math.min(...ck(30))); V.ribCk300 = f3(Math.min(...ck(300))); V.ribCk3000 = f4(Math.min(...ck(3000)));
+  for (const Re of [10, 20, 40]) { const c = RIB.check.find((r) => r.Re === Re && r.Lam === 30); V["ribT" + Re] = f2(c.nu_axis_tube); V["ribStr" + Re] = f2(c.nu_axis_strip); }
+  V.cylCd20 = f3(cyc(1).cd * 0 + CY.find((r) => r.Re === 25).cd * 0 + J("nu-cyl.json").rows.find((r) => r.Re === 40).cd); V.cylNu025 = f3(cyl(0.25)); V.cylNu1 = f3(cyl(1)); V.cylNu10 = f3(cyl(10)); V.cylNu40 = f3(cyl(40));
+  V.cwErr = (100 * Math.max(...[0.25, 0.5, 1, 2, 5, 10, 20, 40].map((Re) => Math.abs(cw(Re) / cyl(Re) - 1)))).toFixed(1) + "%"; V.cylS02 = f2(cylSens(0.2)); V.sphS02 = f2(sphSens(0.2)); V.cylS30 = f2(cylSens(30)); V.sphS30 = f2(sphSens(30)); V.cylCd40 = V.cylCd20; delete V.cylCd20; V.cylBub40 = f2(J("nu-cyl.json").rows.find((r) => r.Re === 40).bubble); }
 export function fill(text, vals = V) { const missing = []; return { out: text.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vals ? vals[k] : (missing.push(k), m))), missing }; }
 if (process.argv[1] && process.argv[1].endsWith("values.mjs")) console.log(V);

@@ -198,6 +198,46 @@ factor 8m(m + 2)/Re on the diameter and mean speed; Nusselt number for developed
 2(m + 4)(m + 6)/(5m + 12) (48/11 for m = 2). And the line average of the profile along a diameter is 2/3 of the
 centreline speed for every m, so it is (m + 2)/3 of the mean: 4/3 in our pipe, 5/3 in the 4D one.
 
+## A9. The cylinder (added after the audit of 2026-11-27; not audited)
+
+**Problem.** Steady plane flow past a circular cylinder of diameter 1 in a uniform stream, symmetric about the
+stream's axis; and its heat loss as in A4, with Nu = (heat per length) / (π k ΔT). Outer boundary 200 D away.
+
+| Re | 0.25 | 1 | 10 | 40 |
+|---|---|---|---|---|
+| Nu (ours, Pr 0.7) | {{cylNu025}} | {{cylNu1}} | {{cylNu10}} | {{cylNu40}} |
+
+At Re 40: C_D {{cylCd40}}, recirculation length {{cylBub40}}. Collis & Williams's measured law as usually quoted
+(0.24 + 0.56 Re^0.45) is within {{cwErr}} of ours from Re 0.25 to 40. **Agreement:** Nu within 1% for Re ≥ 1; the
+low-Re values depend on the outer boundary (an 800 D domain lowers Nu by 0.8% at Re 0.1).
+
+## A10. The ribbon (added after the audit; not audited)
+
+**The station problem.** A cylinder of diameter 1 on the centreline of a plane channel of half-height H, no-slip
+cold walls, inflow U₀ (1 − y²/H²), T = 1 on the cylinder and 0 on the walls and at inflow; steady, symmetric about
+the centreline; viscosity 1/Re, with Re on the thickness and the pipe's centreline speed. For a ribbon spanning a
+pipe of radius R, the station at distance s from the axis has H = √(R² − s²) and U₀ = 1 − s²/R². Examples (ours):
+H = 5, U₀ = 1, Re 10: Nu = 1.887; H = 3, U₀ = 0.64, Re 10: 1.675; H = 100, U₀ = 1, Re 1: 0.806; H = 1, U₀ = 0.04,
+Re 10: 2.153.
+
+**The balance.** Λ (1/s)(sθ′)′ + P (1 + θ) − π Nu(s) θ = 0, θ′(0) = 0, θ(R) = 0; find P for which the area mean of
+θ is 0.5. Stations where H < 1 are left out and the last Nu is held to the rim. With Λ = 4500:
+
+| Re | 0.25 | 0.5 | 1 | 10 | 40 |
+|---|---|---|---|---|---|
+| P, R = 100 | {{ribP100_0p25}} | {{ribP100_0p5}} | {{ribP100_1}} | {{ribP100_10}} | {{ribP100_40}} |
+| P, R = 250 | {{ribP250_0p25}} | {{ribP250_0p5}} | {{ribP250_1}} | {{ribP250_10}} | {{ribP250_40}} |
+
+Our station tables are `kata/wire4/data/ribbon-strip-R100.json` and `-R250.json`. **Agreement:** P within 1% given
+our tables; within 3% from your own station solves.
+
+**The check in the tube.** A6's tube with the body turned: a cylinder of diameter 1 whose axis lies along the
+radial direction of the pipe's cross-section that carries the rotational symmetry (the ribbon's sheet), R = 5,
+mirror-symmetric about the ribbon's own plane. Nusselt number per area on the pipe's axis, sheet temperature
+∝ J₀(2.405 s/R): {{ribT10}}, {{ribT20}}, {{ribT40}} at Re 10, 20, 40 (the station problem gives {{ribStr10}},
+{{ribStr20}}, {{ribStr40}}). The balance on the tube's heat matrix against the station picture: the latter's P is
+{{ribCk30}} of the former at worst for Λ = 30, {{ribCk300}} for 300, {{ribCk3000}} for 3000.
+
 ---
 
 ## Running our codes instead
@@ -211,6 +251,8 @@ python nl4.py 200 2.5 500                                    # A3
 python nu4.py                                                # A4
 python strip4.py table && python strip4.py 100 3000          # A5   (or: node test/anem.selftest.mjs)
 python tube4.py 200 5 150 && python heat4.py 200-R5 0.7 8 && python anem4.py   # A6
+python cyl4.py                                               # A9
+python ribbon4.py strip 100 0.25,0.5,1,10,40 && python ribbon4.py cal 100 4500    # A10
 ```
 
 Running our code checks that the paper reports what the code gives. It does not check the code. For A2 an

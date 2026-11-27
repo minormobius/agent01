@@ -527,6 +527,87 @@ wire. Near the wall the stream is at rest and the cold wall is close, so conduct
 metal wire that stretch is already wall-cooled (the last 18 D). Whether laminar 4D pipe flow survives to a pipe
 Reynolds number of 2000 to 5000 is not known. Pr 0.7, constant properties, no radiation or buoyancy.
 
+## 13. The ribbon: the body that is our hot wire, computed in the pipe (`cyl4.py`, `ribbon4.py`, `tube4.py … ribbon`)
+
+A ribbon is long in two of 4D's directions and round in the other two. In an unbounded stream it is, per area, a
+circular cylinder in our world (section 2): King's law and no conduction floor. Section 12 found the wire blunt
+because a sphere has a floor, so the ribbon is the obvious thing to try. But the cylinder's lack of a floor is a fact
+about unbounded fluid, and a pipe is not unbounded, so the ribbon has to be computed with the wall in.
+
+**The cylinder itself (`cyl4.py`).** Steady plane flow past a cylinder, symmetric about the stream's axis, on
+`wake4.py`'s mesh with the radial weight removed, outer boundary 200 D away. C_D 2.005 at Re 20 and 1.500 at 40,
+bubbles 0.906 and 2.242 D; an 800 D domain moves C_D by 0.2% at Re 20 and 5% at Re 0.1, and a finer mesh by
+nothing in four figures. Nusselt number at Pr 0.7: 0.450, 0.550, 0.802, 1.402, 1.839, 2.433, 3.239 at Re 0.1,
+0.25, 1, 5, 10, 20, 40. Collis & Williams' measured law 0.24 + 0.56 Re^0.45, which the paper had quoted from
+memory, gives 0.44, 0.54, 0.80, 1.40, 1.82, 2.40, 3.19: within 0.3% from Re 0.25 to 2.5 and 1.7% at 40. Its
+sensitivity d ln Nu / d ln Re is 0.23 at Re 0.2, 0.30 at 0.8, 0.39 at 8, 0.41 at 30; a sphere's is 0.03, 0.08,
+0.24, 0.32.
+
+**The ribbon in the pipe.** The ribbon spans a disc of the pipe, s = √(z² + w²) ≤ R, and meets the wall along a
+circle; it has a rim and no free edges. At a station s it sits in the plane (x, y), where the wall is at
+y = ±√(R² − s²) and the undisturbed stream is (1 − s²/R²)(1 − y²/H²): plane Poiseuille flow of half-height
+H = √(R² − s²). So the ribbon's strip picture is a cylinder on the centreline of a channel with cold walls
+(`ribbon4.py`, gmsh meshes, one two-dimensional solve per station), and the wall is in it from the start. Near the
+rim the channel closes on the ribbon and the fluid conducts straight to the wall: Nu 0.64, 0.86, 1.15, 2.15 where
+the channel's half-height is 9, 4, 2.25 and 1 thicknesses, whatever the speed.
+
+**Checked in the true tube.** `tube4.py … ribbon` is section 9's solver with the body turned: the cylinder's axis
+along the weighted coordinate. R = 5, where the ribbon blocks 15% of the pipe. `heat4.py` then takes shapes
+J₀(j_k s/R) and gives heat per area of sheet. Runs at Re 10, 20 and 40 (62 000 tetrahedra;
+all steady, bubble on the axis 0.04, 0.52, 1.48 D):
+
+| Re | Nu on the axis, tube / strip | P strip ÷ P tube, Λ = 30 | 300 | 3000 |
+|---|---|---|---|---|
+| 10 | 1.968 / 1.887 | 0.962 | 0.994 | 0.9992 |
+| 20 | 2.514 / 2.470 | 0.970 | 0.995 | 0.9993 |
+| 40 | 3.268 / 3.265 | 0.973 | 0.995 | 0.9993 |
+
+The strip picture is 3 to 4% low for a poor conductor and within 0.1% for a metal, where at this length conduction
+decides everything (under 1% of the heat reaches the stream). Away from the axis it is rougher: at s = 4 the tube
+gives 1.68, 2.00, 2.52 and the strip 1.38, 1.75, 2.25, the tube value being for a temperature that falls toward the
+rim and the strip's for an isothermal slice. So the check supports the method at the 4% level on a ribbon ten
+thicknesses across, which is the hardest case for it; it should improve with width, and that is not shown.
+
+**The energy balance** is section 11's on a sheet: Λ (1/s)(sθ′)′ + P(1 + θ) − π Nu(s) θ = 0, θ = 0 at the rim,
+Λ = (k_ribbon/k_fluid)·π/4, heating taken uniform per area. For the same metal a ribbon's Λ is 1.5 times a wire's.
+
+**The calibration.** Same metal as section 12's wire (Λ 3000 for the wire, 4500 for the ribbon), resistance held at
+1.5 of cold, Reynolds number on the thickness and the centreline speed. n is d ln P / d ln Re between neighbouring
+columns:
+
+| Re | 0.25 | 0.5 | 1 | 2 | 5 | 10 | 20 | 40 |
+|---|---|---|---|---|---|---|---|---|
+| ribbon, pipe 200 thicknesses across: P | 1.73 | 1.84 | 2.00 | 2.21 | 2.62 | 3.07 | 3.68 | 4.48 |
+| n | | 0.09 | 0.12 | 0.15 | 0.19 | 0.23 | 0.26 | 0.28 |
+| share of the heat to the stream | 0.31 | 0.33 | 0.37 | 0.41 | 0.47 | 0.52 | 0.56 | 0.61 |
+| wire, same pipe: n | | 0.03 | 0.05 | 0.09 | 0.13 | 0.19 | 0.23 | 0.27 |
+| ribbon, pipe 500 across: P | 0.80 | 0.90 | 1.04 | 1.23 | 1.58 | 1.96 | 2.47 | 3.14 |
+| n | | 0.18 | 0.21 | 0.24 | 0.28 | 0.31 | 0.33 | 0.35 |
+| share to the stream | 0.65 | 0.67 | 0.69 | 0.71 | 0.74 | 0.77 | 0.79 | 0.81 |
+| wire, same pipe: n | | 0.03 | 0.06 | 0.09 | 0.14 | 0.19 | 0.23 | 0.27 |
+| a cylinder alone, unbounded: n | | 0.26 | 0.29 | 0.33 | 0.36 | 0.39 | 0.41 | 0.41 |
+
+- **The ribbon is the sharper instrument at low speed, by less than the ideal comparison says.** In the 200-wide
+  pipe it is 2.9 times as sensitive as the wire at Re 0.5, 2.2 times at 1 and 1.2 times at 10; in the 500-wide pipe
+  5.3, 3.8 and 1.6 times. From Re 0.25 to 40 its reading rises by a factor of 2.6 and 3.9 in the two pipes, the
+  wire's by 2.0 and 2.1.
+- **What it gives back is the rim.** The ribbon's own advantage, a weak heat loss at rest, is also its weakness
+  against conduction in the sheet: its cold length √(Λ/πNu) is about 40 thicknesses at Re 1, where the wire's is
+  20 diameters. In the 200-wide pipe two thirds of its heat goes into the rim at low speed. The wire needed to be
+  long; the ribbon needs to be wider still, or a poorer conductor (Λ 450, 500-wide pipe: n 0.19 to 0.37 with 0.9 of
+  the heat to the stream).
+- **The wall sets the ribbon's floor, and it is low.** On the pipe's axis the ribbon's Nusselt number at Re 0.25 is
+  0.554 in the 200-wide pipe and 0.555 in the 500-wide one, against 0.550 for the unbounded cylinder: at these
+  widths and speeds the stream closes the conduction problem and the wall adds under 1%. The floor matters only in the last few
+  thicknesses before the rim.
+
+**Limits.** The cylinder flows are steady and symmetric, which is right below Re 47 in an unbounded stream and is
+imposed in the tube (the mirror plane is the ribbon's own). Heating is taken uniform over the sheet: how a current
+is fed through a disc, and what resistance one then measures, is not modelled. The strip picture ignores variation
+along the sheet; its check is at R = 5 only, where it is rough. The stations nearest the rim (channel narrower than
+the ribbon is thick) are left out and the last value held. A ribbon narrower than the pipe, with free edges, was not
+computed. Pr 0.7; one mesh for the tube runs.
+
 ## Running it
 
 ```bash
@@ -547,6 +628,8 @@ cd kata/wire4 && ../../venv/bin/python nl4.py 210 2.5 500   # the nonlinear run,
 ../../venv/bin/python anem4.py 0.5                        # the wire's energy balance on every data/heat-*.json, < 1 s
 RESUME=1 FRAMES=25 ../../venv/bin/python shear4.py 280 10 255 0.015 28 50 40 && ../../venv/bin/python export4.py pulse 280-R10 40   # one cycle for the page
 ../../venv/bin/python strip4.py table && ../../venv/bin/python strip4.py check && ../../venv/bin/python strip4.py 100 3000   # the long thin wire, ~5 min
+../../venv/bin/python cyl4.py && ../../venv/bin/python ribbon4.py strip 100 0.25,1,10,40 && ../../venv/bin/python ribbon4.py cal 100 4500   # the ribbon, ~15 min
+../../venv/bin/python tube4.py 10 5 60 0.01 ribbon && ../../venv/bin/python heat4.py ribbon-10-R5 0.7 6 && ../../venv/bin/python ribbon4.py check   # its check in the tube, ~1 h
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 
@@ -562,6 +645,8 @@ not wake modes.
 - Heat: temperature stepped with the flow for unsteady wakes.
 - The instrument: a computed entrance flow in place of the profile family; the best wire thickness for a given pipe
   (wall loss against bluntness); strip theory checked on a longer wire.
+- The ribbon: how a current is fed through a disc; a ribbon with free edges; its strip picture checked on a wider
+  ribbon; the vortex street.
 - The ribbon: its Kármán street has a plane of span directions and none preferred, so its break-up must choose a
   pattern. Floquet analysis with a spanwise wavevector of any direction in that plane.
 - Then the instrument: heat loss from the wire with the wake it actually has.
