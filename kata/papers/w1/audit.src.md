@@ -85,13 +85,19 @@ with β free is Re ≈ {{reC1}} at β ≈ 1.5 (coarse mesh).
 **It would overturn the paper** if the m = 0 mode at β = 2.5 were stable at Re 200, or if the threshold moved above
 the sphere's 212.
 
-**A coincidence to rule out.** A circular cylinder's wake goes unstable along its span (mode A) at Re ≈ 189, next
-to our 191. The problems differ (periodic two-dimensional base flow there, steady axisymmetric here; wavelength
-near 4 D there, 2.5 D here; our mode is steady), and we take the closeness for chance, but an independent
+**A coincidence to rule out.** A circular cylinder's wake goes unstable along its span (mode A) at Re = 188.5 ± 1.0
+(Barkley & Henderson 1996), next to our 191. The problems differ (periodic two-dimensional base flow there, steady axisymmetric here; wavelength
+3.96 D there, 2.5 D here; our mode is steady), and we take the closeness for chance, but an independent
 implementation of the β terms is what settles it.
 
 A caution about values near −0.13 to −0.17 that do not change with m: on our truncated domain those are
 free-stream modes of the box, not wake modes (the m = 0, β = 0 entry above is one). They should not be compared.
+
+**Audited 2026-11-27.** A separate implementation (own base flow, complex forms with iβ, a differently
+triangulated mesh; the same element family, libraries and outer boundary) returned −0.00664661, −0.00190022,
++0.00274962, +0.00730579 and +0.02043928 at Re 188, 190, 192, 194 and 200: within 0.0001 of the table, all real, a
+crossing at 190.817. Not covered by that audit: other m, oscillating branches, the β range, another discretisation,
+another domain.
 
 **A cheap independent route** that needs no eigen-solver: time-step the 4D equations for one Fourier mode in w
 (wavenumber 2.5) on the axisymmetric base flow at Re 200 from a small disturbance, and measure the exponential
@@ -144,6 +150,12 @@ Further targets: R = 250, Λ = 3000, Re 3: P = {{aP500}}. The smallest P at whic
 solution (thermal runaway at constant current), R = 100, Λ = 3000, Re 10: {{aRun}}. Profiles carrying the same flow
 rate, U(w) = 0.4 (n + 3)/n · (1 − (w/R)ⁿ) (n = 2 is the developed flow; the plug is U = 0.4): at R = 100, Λ = 3000,
 Re 3, P = {{aN4P}} for n = 4 and {{aPlugP}} for the plug.
+
+Two profiles with the same average along the wire, U = 1 − (w/R)² and U = 2/3, give readings that differ by {{same3}}
+at Re 3 and {{same10}} at Re 10 (R = 100, Λ = 3000): the wire does not take a line average. The sensitivity to the
+local loss h = π Nu is δP = ∫θ² δh dw / ∫θ(1 + θ) dw (the audit's result; checked here to six figures).
+
+**Audited 2026-11-27** by adaptive collocation on our Nu table: P agrees to 0.002%, the runaway at 10.7438.
 
 **Agreement:** P within 0.5%, given our Nu table (`kata/wire4/data/nu-table.json`); within 1% with your own.
 

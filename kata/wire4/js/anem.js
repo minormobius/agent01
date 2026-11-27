@@ -8,9 +8,10 @@ const LR = NU.map((r) => Math.log(r[0]));
 export function nu(Re) { if (Re <= NU[0][0]) return 2 + ((NU[0][1] - 2) * Math.max(Re, 0)) / NU[0][0]; const x = Math.log(Re); let i = 1; while (i < NU.length - 1 && LR[i] < x) i++; const t = Math.min(1, (x - LR[i - 1]) / (LR[i] - LR[i - 1])); return NU[i - 1][1] + t * (NU[i][1] - NU[i - 1][1]); }
 /* speed along the wire over the developed flow's centreline speed; every n carries the same flow rate (n = 2 developed, Infinity plug) */
 export const profile = (x, n = 2) => (n === Infinity ? 0.4 : ((0.4 * (n + 3)) / n) * (1 - Math.pow(x, n)));
-export function wire({ R, Lam, Re, n = 2, N = 400 }) {
+/* U, if given, replaces the profile: speed over the developed flow's centreline speed, as a function of w/R */
+export function wire({ R, Lam, Re, n = 2, N = 400, U = null }) {
   const dw = R / N, h = new Float64Array(N + 1), a = Lam / (dw * dw), th = new Float64Array(N + 1), c = new Float64Array(N), d = new Float64Array(N);
-  for (let i = 0; i <= N; i++) h[i] = Math.PI * nu(Re * profile(i / N, n));
+  for (let i = 0; i <= N; i++) h[i] = Math.PI * nu(Re * (U ? U(i / N) : profile(i / N, n)));
   /* tridiagonal solve; null once P is past the runaway (a pivot turns negative) */
   function solve(P) { let b = 2 * a + h[0] - P; if (b <= 0) return null; c[0] = (-2 * a) / b; d[0] = P / b;
     for (let i = 1; i < N; i++) { b = 2 * a + h[i] - P + a * c[i - 1]; if (b <= 0) return null; c[i] = -a / b; d[i] = (P + a * d[i - 1]) / b; }

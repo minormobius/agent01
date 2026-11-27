@@ -508,9 +508,13 @@ is not an instrument.
   | 10 | 0.976 | 0.960 | 0.928 | 0.907 | 0.881 |
 
   Small changes in the reading, but the reading is blunt: a plug flow read with the developed flow's calibration
-  gives half the true flow rate (0.49 to 0.51), and the n = 4 profile gives 0.80 to 0.82. The wire across a diameter
-  reads close to the speed averaged along itself, which for the developed 4D parabola is 5/3 of the mean over the
-  section (in our pipe, 4/3). So a flow rate needs the profile, or a pipe long enough to be sure of it.
+  gives half the true flow rate (0.49 to 0.51), and the n = 4 profile gives 0.80 to 0.82. The wire lies along a
+  diameter, where the developed 4D parabola averages 5/3 of the mean over the section (in our pipe, 4/3); that
+  geometry is why the profile matters. But the wire does not take that average (the audit of 2026-11-27, finding
+  F04): for a small change δh in the local loss h = π Nu, δP = ∫θ² δh dw / ∫θ(1 + θ) dw, so a station is weighted by
+  the square of the wire's temperature there and by the slope of Nu at the local speed. Two profiles with the same
+  line average, the parabola and a uniform 2/3, read 2.2% apart at Re 3 and 3.2% at Re 10. So a flow rate needs
+  the profile, or a pipe long enough to be sure of it.
 - At constant current the wire runs away at about 2.7 times the P above.
 
 The page's **instrument** section is this calculation live (`js/anem.js`, the same equations in JavaScript, held to

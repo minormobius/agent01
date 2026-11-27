@@ -48,5 +48,7 @@ export const V = {
   V.aP500 = f4(W(250, 3000, 3).P); V.aPshort = f2(W(5, 3000, 100).P); V.aPshortTube = f2(an(3000, 100).P); V.aRun = f3(wire({ R: 100, Lam: 3000, Re: 10 }).runaway()); V.aPlugP = f4(W(100, 3000, 3, Infinity).P); V.aN4P = f4(W(100, 3000, 3, 4).P);
   V.aCd1 = f2(ns(1).cd); V.aCd10 = f3(ns(10).cd); V.aCd50 = f3(ns(50).cd); V.aCd250 = f3(ns(250).cd);
   for (const Re of [25, 50, 100, 150, 200, 250]) V["aTube" + Re] = f2(tube(Re)); for (const [Lam, Re] of [[30, 100], [300, 100], [3000, 25], [3000, 250], [0, 100]]) V[`aAn${Lam}_${Re}`] = f3(an(Lam, Re).P); }
+/* audit finding F04: two profiles with the same line average (the developed parabola and a uniform 2/3) read differently */
+{ const same = (Re) => 1 - wire({ R: 100, Lam: 3000, Re, U: () => 2 / 3 }).at(0.5).P / W(100, 3000, Re).P; V.same3 = (100 * same(3)).toFixed(1) + "%"; V.same10 = (100 * same(10)).toFixed(1) + "%"; V.annulus = (2 / Math.log(200)).toFixed(2); }
 export function fill(text, vals = V) { const missing = []; return { out: text.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vals ? vals[k] : (missing.push(k), m))), missing }; }
 if (process.argv[1] && process.argv[1].endsWith("values.mjs")) console.log(V);
