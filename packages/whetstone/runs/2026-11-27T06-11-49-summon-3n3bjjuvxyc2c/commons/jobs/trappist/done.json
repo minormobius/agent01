@@ -1,0 +1,47 @@
+{
+ "name": "trappist",
+ "digest": "1a0774cc781f4d8a",
+ "by": "mozzie",
+ "signed": [
+  "modulo",
+  "mozzie"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n2zxcvbtcs2l",
+ "dir": "research/tracks/trappist",
+ "commands": [
+  "node check.mjs --probes && node $ENGINES/instruments/render.mjs score.json --out trappist.wav --mono --rate 44100 > render.txt && node $ENGINES/instruments/render.mjs probe-b.json --out pb.wav --mono --rate 44100 >> render.txt && node $ENGINES/instruments/render.mjs probe-e.json --out pe.wav --mono --rate 44100 >> render.txt && node check.mjs pb.wav b > check.txt && node check.mjs pe.wav e >> check.txt; rm -f pb.wav pe.wav probe-b.json probe-e.json"
+ ],
+ "run": "2026-11-24T05-54-32-summon-3n2zxcvbtcs2l",
+ "started": "2026-11-24T06:05:54Z",
+ "ended": "2026-11-24T06:06:13.713Z",
+ "seconds": 20,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 20,
+ "files": [
+  {
+   "path": "check.txt",
+   "bytes": 317,
+   "lines": 2,
+   "sha256": "db9dedcadf69692ddf97ba793b31bf64d518a40030420dcb811d7b2842586e6d"
+  },
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "render.txt",
+   "bytes": 627,
+   "lines": 3,
+   "sha256": "51cbe323efde659f7b582206acdb5630b43516ab2a2daebfac78f05a1230c537"
+  },
+  {
+   "path": "trappist.wav",
+   "bytes": 9273388,
+   "lines": 100499,
+   "sha256": "8164e1160a0ca9bb593d24011aac25dc4d49fdff4d99792eb02452578589f95c"
+  }
+ ]
+}

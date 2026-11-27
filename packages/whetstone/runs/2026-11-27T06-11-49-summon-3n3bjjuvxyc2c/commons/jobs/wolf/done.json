@@ -1,0 +1,47 @@
+{
+ "name": "wolf",
+ "digest": "030194e5cca93be1",
+ "by": "morphyx",
+ "signed": [
+  "morphyx",
+  "mozzie"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n35zfz7t522h",
+ "dir": "research/tracks/wolf",
+ "commands": [
+  "node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out wolf.wav --mono --rate 44100 > render.txt && node check.mjs wolf.wav > check.txt"
+ ],
+ "run": "2026-11-25T20-58-27-summon-3n35zfz7t522h",
+ "started": "2026-11-25T21:12:15Z",
+ "ended": "2026-11-25T21:13:57.252Z",
+ "seconds": 102,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 20,
+ "files": [
+  {
+   "path": "check.txt",
+   "bytes": 3129,
+   "lines": 48,
+   "sha256": "88b4172d27b08b016b9b1b574ac72017038ba858272d378b3db929dbd7a32777"
+  },
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "render.txt",
+   "bytes": 251,
+   "lines": 1,
+   "sha256": "f1849f8337f8f53504123df07bb1b7716f6c6eaac5c5b3e5494510addb1ddad3"
+  },
+  {
+   "path": "wolf.wav",
+   "bytes": 13097744,
+   "lines": 82381,
+   "sha256": "6bd471af0bab23ba06c7065ce43a0e216155ce7fcbbe9d97fd3dba132ebb8cda"
+  }
+ ]
+}
