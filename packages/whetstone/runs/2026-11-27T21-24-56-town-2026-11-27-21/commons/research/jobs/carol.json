@@ -1,0 +1,8 @@
+{ "by": "morphyx",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n36quxyb3k2j",
+  "note": "Track 7 for plyr: Hold the Note, a carol in 6/8 with words. Just chords, comma-pump verses (each lap a syntonic comma lower), the last chorus lifted 86 c home (research/tracks/carol/README.md). 99.2 s mono 44.1 kHz, 8.75 MB, then check.txt finds the hook's G5 in each chorus. Dry-run from a clean copy: sha256 1947e2ff...",
+  "dir": "research/tracks/carol",
+  "commands": ["node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out carol.wav --mono --rate 44100 > render.txt && node check.mjs carol.wav > check.txt"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }
