@@ -523,6 +523,11 @@ for games, and this is a modelling programme with publications to come. The game
   regrows (G 10⁻¹⁷ s 1.7 1.25/1.6/2.0, s 1.8 4.0, s 1.65 0.90; G 10⁻²⁰ s 1.7 2.41; −10% G 10⁻¹¹ s 1.65). Against
   production (no ε_grav, older code) the Ledoux lives run 6–10% shorter where cores don't regrow. Next: the regeneration
   (ages4, gravity, egrav, yields4, abund4, aged.js, paper 2, book) from the v3 tracks with the Schwarzschild column.
+  **A gap found at the regeneration (2026-11-27):** `ladder/stars.txt` held only the 49 stars with cached ladder tracks, so the
+  final run left out 12 of gravity.json's 29 Sun analogues (G 10⁻¹¹ s 1.55/1.6/1.85; G 10⁻¹⁴ s 1.55/1.6/1.65/1.75; G 10⁻¹⁷
+  s 1.5152/1.55/1.6/1.75; G 10⁻²⁰ s 1.55), which ages4, ash4 and metals4 read. They are appended to stars.txt (61 lines)
+  and run as evolve4-28 on both criteria (v3 Ledoux and v2 Schwarzschild, 24 commands). The regeneration stages each set
+  under production names (`-eg-ld0.02-tv3` / `-eg-tv2` stripped, in a scratch dir) so the tools' `-lp` filters read it.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
