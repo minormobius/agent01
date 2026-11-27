@@ -1,0 +1,11 @@
+$ node four/atom/tools/evolve.mjs four 1e-11 1.6 0.2827259057 grav=1 ledoux=0.02 tag=v3
+file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:332
+  if (!C && !s0?.ok) throw new Error(`zero-age star didn't solve (${s0?.why ?? "no first star"})`);
+                           ^
+
+Error: zero-age star didn't solve (no first star)
+    at run (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:332:28)
+    at evolve (file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:318:10)
+    at file:///home/runner/work/agent01/agent01/four/atom/tools/evolve.mjs:486:13
+
+Node.js v22.23.5

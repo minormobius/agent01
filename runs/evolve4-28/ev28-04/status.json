@@ -1,0 +1,33 @@
+{
+ "group": "ev28-04",
+ "status": [
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-14 1.6 0.4623049801 grav=1 tag=v2",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-14 1.65 0.4078252203 grav=1 tag=v2",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-14 1.75 0.3872175024 grav=1 tag=v2",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  },
+  {
+   "cmd": "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.7811811944 grav=1 tag=v2",
+   "code": null,
+   "signal": "SIGTERM",
+   "cut": true,
+   "seconds": 19800
+  }
+ ]
+}
