@@ -170,8 +170,14 @@ function fourWorld(Grel, s, ff = 1, plasma = false, gen2 = null) {
     // the first star: from the zero-age sequence's own star at this mass where mainseq.mjs net has one (its centre, size
     // and light as Newton's guess; a ladder star far from the analogue can defeat firstStar's search), else firstStar
     first: (M) => { const o = { ...fourNet(Grel, s, "ladder", ff), fit: 0.2 };
-      const nf = path.join(DIR, `net-${Grel}-${s}-ladder-ff${ff}.json`), row = existsSync(nf) ? JSON.parse(readFileSync(nf, "utf8")).rows.find((r) => Math.abs(r.M / M - 1) < 0.01) : null;
-      if (row) { const a = star({ ...o, M }, [Math.log(row.Pc), Math.log(row.Tc), Math.log(row.R), Math.log(row.L)]); if (a.ok) { const t = toPinned({ ...o, M }, a); if (t.ok) return t; } }
+      // the zero-age guess: the network sequence's star at this mass, else its nearest within 30% (G 1e-11 s 1.6 / 1.85's
+      // analogues, 0.283 / 0.202 M_Ch, sit between rows 0.25–0.32 and just past 0.20; firstStar alone failed on both)
+      const nf = path.join(DIR, `net-${Grel}-${s}-ladder-ff${ff}.json`), rows = existsSync(nf) ? JSON.parse(readFileSync(nf, "utf8")).rows.filter((r) => r.Pc && r.L) : [];
+      const row = rows.find((r) => Math.abs(r.M / M - 1) < 0.01) ?? rows.filter((r) => Math.abs(Math.log(r.M / M)) < Math.log(1.3)).sort((a, b) => Math.abs(Math.log(a.M / M)) - Math.abs(Math.log(b.M / M)))[0] ?? null;
+      if (row) { const g0 = [Math.log(row.Pc), Math.log(row.Tc), Math.log(row.R), Math.log(row.L)], a = star({ ...o, M }, g0); if (a.ok) { const t = toPinned({ ...o, M }, a); if (t.ok) return t; }
+        // else walk the mass from the row's star to M (Newtonian g), each solve guessing from the last, then pin gravity
+        let p = star({ ...o, M: row.M }, g0); for (let k = 1; p.ok && k <= 8; k++) { const mk = row.M * (M / row.M) ** (k / 8), q = star({ ...o, M: mk }, p.p); if (!q.ok) { p = q; break; } p = q; }
+        if (p.ok) { const t = toPinned({ ...o, M }, p); if (t.ok) return t; } }
       const a = firstStar(o, M); if (!a) return null; return toPinned({ ...o, M }, a); },
     extra: (y) => Object.fromEntries(sh.SPEC.map((k, i) => [k, y[i] * A[i]]).filter(([, v]) => v > 1e-3)) };
 }

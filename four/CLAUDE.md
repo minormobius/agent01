@@ -539,6 +539,12 @@ for games, and this is a modelling programme with publications to come. The game
   come from zero-age stirred cores with declared growth and lives; /star/'s core clock is the zero-age convention. To
   move to the aged results where runs exist (the 29 analogues, the G 10⁻¹⁷ ladders) and mark the rest as zero-age
   estimates, in the regeneration.
+  **evolve4-28 leg 1 (collected 2026-11-27 23:26Z):** 3 of 24 ended (Ledoux: G 10⁻¹⁴ s 1.6 17.00 Gyr, s 1.65 29.22, s 1.75
+  54.87), 17 burning; **G 10⁻¹¹ s 1.6 and 1.85 failed at zero age on both criteria** ("no first star": `W.first` took a
+  cached network star only within 1% of the mass, and their 0.283 / 0.202 M_Ch sit between rows, where `firstStar` alone
+  fails). Now it takes the nearest row within 30% and, if that doesn't solve at M, walks the mass from the row's star in 8
+  log steps (Newtonian g), then pins gravity; both start (sandbox: s 1.85 to 16.5 Gyr, s 1.6 to 3.5 Gyr in 5 / 4 min).
+  Stars with a row within 1% start as before. evolve4-28b: 21 commands.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
