@@ -947,6 +947,80 @@ embeddings agree to cosine ≥ 0.9997 after int8. `days.selftest.mjs` gates
 both, plus every keyword rule. Meaning lights the top 250 by cosine, counted
 per day; a query of nothing but unknown words says so rather than ranking noise.
 
+### Bingo — a card drawn from the whole history
+
+Added 2026-11-27. The **bingo** button by the search box deals a 5×5 card for
+the account. Half the squares are things they **say** far more than Bluesky
+does; half are **topics** they keep coming back to. The centre is the free
+space (their surest saying). Squares are daubed when posts from **today / this
+week / this month** hit them, and complete lines read BINGO. Tap a square for
+its posts: a saying runs as a real keyword search, a topic lists its cluster
+with the post nearest the centre first. `?bingo=<seed>` reproduces a card, and
+**new card** re-deals in ~0.3 s. The PNG copies with alt text using o's
+clipboard rule: `image/png` + `text/html`, and **no `text/plain`**.
+
+| file | what it is |
+|---|---|
+| `days/bingo.js` | pure: terms, log-odds sayings, SIF content vectors, spherical k-means, topic naming, the deal, lines |
+| `days/bingo-bg.tsv` | the background: document frequencies from ~390k English firehose posts (1.4 MB, 0.5 MB gzipped, fetched only when a card is opened) |
+| `days/build-bingo-bg.mjs` | rebuilds it from Jetstream (node, network, by hand) |
+
+**SAYS: weighted log-odds against the firehose.** A term is scored with
+Monroe, Colaresi & Quinn's informative-Dirichlet log-odds z, then ranked by
+z × log(ratio). z alone ranks by certainty, which crowns merely frequent
+words; the ratio rewards the signature. A term must be a habit, not a burst:
+its post and day floors scale with history size (`floors()`), so 50k posts
+need 12 distinct days and dril's 727 need 3. Bigrams never cross punctuation,
+and a bigram with a function word in it is glue ("yes i"), not a phrase. A
+phrase absorbs its own words when most of their uses are inside it. A term too
+rare to be in the background has only a floor for a ratio, so its square says
+**rare elsewhere**, not ×833.
+
+**The background is aggregate and thresholded.** It keeps a term only if 5
+different authors (8 for a phrase) used it in the sample. Exact duplicate
+texts are dropped and each author counts at most 5 times per term, so a bot
+cannot make a word "ordinary". Nothing one person said ships. The selftest
+checks that the header states the author floor.
+
+**ON: topics need their own vectors, and that was the lesson.** Clustering
+Model2Vec's own sentence vectors gave clusters of *register*, not subject:
+"maybe", "yes", "ooh". On a 20-word post the plain mean is mostly chatter.
+Fixed in two steps, both from SIF (Arora, Liang & Ma 2017):
+- each word is weighted a/(a+p(w)), with p taken from the same background, so
+  "the" weighs 0.003 and "earthsea" 1;
+- the top **uncentred** singular direction is projected out. It must be
+  uncentred: centring first removes the top *principal* component, which on an
+  account with three subjects is the axis separating two of them. The selftest
+  plants exactly that case and failed until this was right.
+
+Spherical k-means (k-means++, K up to 64 and ~40 posts per cluster at least)
+fits on a 6k sample over the leading 96 dimensions. Model2Vec's dimensions come
+out of a PCA, so they are ordered by variance. Centroids are then recomputed at
+full width from the members. Clusters seen on too few days are dropped.
+
+**A centroid is not a word, so a topic is named twice.** The *label* is a word
+the cluster's own posts use: concentrated there (lift ≥ 2 over the account),
+rare on Bluesky (SIF weight ≥ 0.12, so "into" can't win), and nearest the
+centroid in the model's token space. The *example* is the medoid, the real
+post nearest the centroid, which leads the list when the square is tapped. A
+topic may not take a name that is (part of) any saying, so a "gotta" cluster
+is how they talk, not what about. It also may not take a name that means a
+better-visited topic's name (word cosine ≥ 0.45: "divine" after "god").
+
+**Measured** (node; Chromium is similar):
+- 52k posts: sayings 1.2 s, content vectors 1.4 s, topics 2.1 s. That is ~5 s
+  for the first card in the browser while the meaning index loads alongside.
+- A re-deal: 0.3 s.
+- jay.bsky.team (40k records): 1.4 s.
+- dril (727 records): 0.35 s.
+
+A thin history pads with **blank** squares and says so. Blanks are never
+daubed; only the centre is free.
+
+Known soft spot: a big reply-chatter cluster can still be named for its
+rarest chat word ("thx", "uhhh" on a developer's card). That is arguably a fair
+bingo square, but it is the place to look first if the topics read wrong.
+
 ## Deploying
 
 Pushes to `claude/focused-knuth-f0oawl` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).

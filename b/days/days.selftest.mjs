@@ -6,6 +6,7 @@ import { yearGrids, levels, summary, cumulative, handleHistory, neighbours, coun
 import { tidTime, tidAt, plausible, createIndexer } from './repoindex.js';
 import { loadModel, tokenize, embed, embedAll, scoreAll, topK, normalize, preTokenize } from './embed.js';
 import { buildIndex, search, parse, words, expandPrefix } from './search.js';
+import * as BG from './bingo.js';
 import { readFileSync } from 'node:fs';
 
 let fails = 0, passes = 0;
@@ -190,6 +191,87 @@ ok(QP.terms.join() === 'alpha' && QP.phrases[0].join() === 'beta,gamma' && QP.no
 ok(expandPrefix(K, 'bre').join() === 'bread,breadboard,breakfast', 'prefix expansion, most frequent first');
 const bm = search(K, 'sour ');
 ok(bm.ids[0] === 2, 'BM25: the post with the word twice ranks first');
+
+// ── bingo ────────────────────────────────────────────────────────────────────
+{
+  const T = BG.terms('Bread. Anyway sour dough, https://example.com/x @someone.bsky.social is great');
+  ok(T.has('sour dough') && !T.has('bread anyway'), 'bingo terms: bigrams never cross a sentence end');
+  ok(![...T].some((t) => /example|someone|bsky/.test(t)), 'bingo terms: links and mentions are not words they say');
+  ok(BG.logOdds(50, 1000, 10, 100000, 1000, 60 / 101000) > 3 && BG.logOdds(10, 1000, 1000, 100000, 1000, 1010 / 101000) < 1, 'log-odds: over-represented is high, ordinary is not');
+
+  // a planted account: "sourdough" daily for a year, "lol" like everyone, one week of "barbecue"
+  const bg = BG.parseBackground('#bingo-bg\tposts=100000\tfloor=5\n' + [['the', 40000], ['lol', 3000], ['bread', 300], ['sour dough', 20], ['barbecue', 100], ['yes', 6000], ['ok', 4000]].map((r) => r.join('\t')).join('\n'));
+  ok(bg.n === 100000 && bg.df.get('sour dough') === 20 && bg.floor === 5, 'background parses');
+  const day = 86400e3, t0 = Date.parse('2025-01-01');
+  const posts = [];
+  for (let d = 0; d < 300; d++) {
+    posts.push({ t: t0 + d * day, text: d % 2 ? 'the sourdough is rising lol' : 'the sour dough starter again, yes it is' });
+    posts.push({ t: t0 + d * day + 1000, text: 'the weather lol ok yes' });
+  }
+  for (let k = 0; k < 40; k++) posts.push({ t: t0 + 400 * day + k * 3600e3, text: 'barbecue barbecue all week' });
+  posts.sort((a, b) => a.t - b.t);
+  const df = BG.accountDf(posts, (t) => new Date(t).toISOString().slice(0, 10));
+  ok(df.get('sourdough').days === 150, 'account df counts distinct days, in order');
+  const S = BG.sayings(df, posts.length, bg).map((x) => x.term);
+  ok(S.includes('sourdough') && S.includes('sour dough'), 'sayings: a daily habit is found (as a word and as a phrase)');
+  ok(!S.includes('barbecue'), 'sayings: a one-week burst is not a habit');
+  ok(!S.includes('lol') && !S.includes('the'), 'sayings: what everyone says is not theirs');
+  ok(!S.some((t) => t === 'yes it' || t === 'it is'), 'sayings: glue bigrams are not phrases');
+  ok(!S.includes('sour') && !S.includes('dough'), 'sayings: a phrase absorbs its own words');
+  ok(BG.floors(2000).days < BG.floors(50000).days, 'floors scale with the size of the history');
+
+  // spherical k-means finds planted directions
+  const dim = 8, n = 300, X = new Float32Array(n * dim), R = BG.rng(5);
+  for (let i = 0; i < n; i++) { const c = i % 3; for (let k = 0; k < dim; k++) X[i * dim + k] = (k === c ? 1 : 0) + (R() - 0.5) * 0.3; let nn = 0; for (let k = 0; k < dim; k++) nn += X[i * dim + k] ** 2; nn = Math.sqrt(nn); for (let k = 0; k < dim; k++) X[i * dim + k] /= nn; }
+  const km = BG.kmeans(X, n, dim, 3, { seed: 2 });
+  const pure = [0, 1, 2].every((c) => new Set([...km.assign].filter((_, i) => i % 3 === c)).size === 1) && new Set(km.assign).size === 3;
+  ok(pure, 'k-means recovers three planted clusters exactly');
+  // common-component removal takes out a direction every row shares
+  const Y = new Float32Array(n * dim);
+  for (let i = 0; i < n; i++) for (let k = 0; k < dim; k++) Y[i * dim + k] = X[i * dim + k] + (k === 7 ? 3 : 0);
+  const cc = BG.commonComponents(Y, n, dim, 1, 1); cc.apply(Y, n);
+  const mean7 = [...Array(n)].reduce((s, _, i) => s + Y[i * dim + 7], 0) / n;
+  ok(Math.abs(mean7) < 0.05, 'SIF: the shared direction is removed');
+
+  // topics on real vectors: three subjects under the same chatter, named from their own words
+  const bg2 = BG.parseBackground('#bingo-bg\tposts=100000\tfloor=5\n' + [['the', 40000], ['really', 9000], ['today', 8000], ['lol', 3000], ['think', 7000], ['just', 12000]].map((r) => r.join('\t')).join('\n'));
+  const themes = [['bread', 'yeast', 'oven', 'flour', 'dough', 'loaf', 'crust'], ['rocket', 'orbit', 'launch', 'satellite', 'booster', 'mission', 'payload'], ['kitten', 'purring', 'whiskers', 'litter', 'catnip', 'paws', 'meow']];
+  const tp = [];
+  const R2 = BG.rng(9);
+  for (let i = 0; i < 1200; i++) {
+    const th = themes[i % 3], pick = () => th[Math.floor(R2() * th.length)];
+    tp.push({ t: t0 + i * day / 4, text: `lol i just really think the ${pick()} and the ${pick()} today, ${pick()} ${pick()}`, th: i % 3 });
+  }
+  const emb = BG.contentEmbedder(model, bg2);
+  ok(emb.word('the').w < 0.01 && emb.word('catnip').w > 0.9, 'SIF weights: "the" nearly nothing, a rare word nearly one');
+  const cix = BG.contentIndex(emb, tp);
+  const tdf = BG.accountDf(tp, (t) => new Date(t).toISOString().slice(0, 10));
+  const on = BG.onTopics(emb, cix, tp, (t) => new Date(t).toISOString().slice(0, 10), tdf, bg2, { K: 6, seed: 3, minDays: 2 });
+  const purity = on.map((o) => { const c = [0, 0, 0]; for (const i of o.ids) c[tp[i].th]++; return Math.max(...c) / o.ids.length; });
+  ok(on.length >= 3 && purity.every((p) => p > 0.9), `topics: every cluster is one subject (purity ${purity.map((p) => p.toFixed(2)).join(',')})`);
+  ok(on.every((o) => themes.flat().includes(o.term)), `topics are named with a subject word, never the chatter (${on.map((o) => o.term).join(',')})`);
+  ok(new Set(on.map((o) => themes.findIndex((th) => th.includes(o.term)))).size === 3, 'all three subjects are found');
+  ok(on.every((o) => o.ids[0] === o.medoid), 'the example is the post nearest the centre');
+
+  // the deal
+  const says = 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron'.split(' ').map((w, k) => ({ kind: 'says', term: w, score: 100 - k }));
+  const ons = 'sea sky stone tree fire wind rain snow moon star leaf root'.split(' ').map((w) => ({ kind: 'on', term: w, alts: [], ids: [], centroid: [] }));
+  const c1 = BG.deal(says, ons, { seed: 1 }), c1b = BG.deal(says, ons, { seed: 1 }), c2 = BG.deal(says, ons, { seed: 2 });
+  ok(c1.length === 25 && c1[12].centre && c1[12].term === 'alpha', 'the card: 25 squares, the surest saying in the free centre');
+  ok(c1.map((c) => c.term).join() === c1b.map((c) => c.term).join() && c1.map((c) => c.term).join() !== c2.map((c) => c.term).join(), 'the card: the same seed deals the same card, another seed another');
+  ok(new Set(c1.map((c) => c.term)).size === 25, 'the card: no square twice');
+  ok(c1.filter((c) => c.kind === 'on').length === 12, 'the card: half topics, half sayings');
+  const clash = BG.deal([{ kind: 'says', term: 'bskybc' }, ...says], [{ kind: 'on', term: 'bsky', alts: ['book'], ids: [] }], { seed: 1 });
+  ok(clash.some((c) => c.term === 'book') && !clash.some((c) => c.term === 'bsky'), 'a topic never wears a name inside a saying; it takes its next name');
+  const thin = BG.deal(says.slice(0, 4), ons.slice(0, 2), { seed: 1 });
+  ok(thin.length === 25 && thin.filter((c) => c.kind === 'free').length === 19, 'a thin history pads with honest blanks');
+  const L = BG.lines(Array.from({ length: 25 }, (_, i) => i % 5 === 2 || i === 0 || i === 6 || i === 18 || i === 24));
+  ok(L.some((l) => l.kind === 'col' && l.i === 2) && L.some((l) => l.kind === 'diag' && l.i === 0) && L.length === 2, 'lines: a column and a diagonal');
+
+  // the shipped background: aggregate counts only, and only for terms 5+ authors used
+  const head = readFileSync(here + 'bingo-bg.tsv', 'utf8').split('\n', 1)[0];
+  ok(/posts=\d{5,}/.test(head) && /minAuthors=([5-9]|\d\d)\//.test(head), 'the background states its sample size and its author floor (≥ 5)');
+}
 
 console.log(fails ? `✗ ${fails} failed, ${passes} passed` : `✓ days selftest: ${passes} passed`);
 process.exit(fails ? 1 : 0);

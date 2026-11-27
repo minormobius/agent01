@@ -156,6 +156,27 @@ h4 { font: 600 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercas
 .faces a { display: flex; align-items: center; gap: .35rem; font: .72rem var(--mono); color: var(--text); text-decoration: none; }
 .faces img { width: 24px; height: 24px; border-radius: 50%; background: var(--rule-2); }
 .more { font: .7rem var(--mono); color: var(--muted); margin-top: .4rem; }
+/* bingo */
+.bingo { margin: .4rem 0 1.4rem; }
+.bhead { display: flex; justify-content: space-between; align-items: center; gap: .5rem; flex-wrap: wrap; margin-bottom: .6rem; }
+.bhead h4 { margin: 0; font: 600 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.bctl { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+.bgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; max-width: 640px; margin: 0 auto; }
+.bgrid .col { text-align: center; font: 800 clamp(1.3rem, 5vw, 2.2rem) var(--serif); color: var(--sky); line-height: 1; padding-bottom: 2px; }
+.sq { position: relative; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
+  padding: 4px; background: var(--paper); color: var(--text); border: 1.5px solid var(--rule); border-radius: 6px; cursor: pointer; overflow: hidden;
+  font: 600 clamp(.58rem, 2.3vw, .9rem) var(--mono); line-height: 1.15; text-align: center; word-break: break-word; hyphens: auto; }
+.sq .s { font: 400 clamp(.48rem, 1.7vw, .62rem) var(--mono); color: var(--muted); }
+.sq.on { border-style: dashed; font-style: italic; }
+.sq.centre { border-color: var(--sky); }
+.sq:hover, .sq[aria-pressed="true"] { border-color: var(--sky); }
+.sq[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--sky); }
+.sq.daub::after { content: ''; position: absolute; inset: 14%; border-radius: 50%; background: rgba(230, 57, 70, .30); pointer-events: none; }
+.sq.line { background: rgba(255, 214, 10, .22); }
+.bnote { font: .68rem var(--mono); color: var(--muted); margin: .6rem auto 0; max-width: 640px; line-height: 1.6; }
+.bnote b { color: var(--text); }
+@media (max-width: 600px) { .sq .wide { display: none; } }
+.bingo .banner { font: 800 1.1rem var(--serif); color: var(--warn); letter-spacing: .04em; }
 footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-height: 1.7; }
 </style>
 </head>
@@ -183,9 +204,11 @@ footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-h
       <div class="seg" role="group" aria-label="search by">
         <button type="button" data-sm="words" aria-pressed="true">words</button><button type="button" data-sm="meaning" aria-pressed="false">meaning</button>
       </div>
+      <button type="button" id="bingogo" class="ghost small" title="a bingo card of what they say and what they keep coming back to">bingo</button>
     </div>
     <div class="sstat" id="sstat"></div>
   </div>
+  <section class="bingo hidden" id="bingo" aria-live="polite"></section>
   <div class="chips" id="chips" role="group" aria-label="what to count"></div>
   <div id="years"></div>
   <div class="legend" id="legend"></div>

@@ -3,6 +3,7 @@
 // opens a day.
 import { indexRepo, dayRecords, localDay } from './repoindex.js';
 import { extractMedia } from '../thread/thread.js';
+import { lines as bingoLines, hashSeed } from './bingo.js';
 import { METRICS, countFor, yearGrids, levels, summary, cumulative, handleHistory, neighbours, daysBetween, addDays } from './calendar.js';
 
 const $ = (id) => document.getElementById(id);
@@ -15,9 +16,9 @@ let S = null;            // { profile, did, pds, ix, hist, cum, from, to }
 let metric = 'all', selected = null, abort = null, dayAbort = null;
 // The search. While a query is active the grid, the tiles and the legend show
 // the SEARCH's days instead of the chosen metric: a topic lit up across years.
-const Q = { mode: 'words', q: '', active: false, ids: [], scores: [], terms: [], days: new Map(), hit: new Set(), sort: 'best', shown: 0, seq: 0 };
+const Q = { mode: 'words', topic: null, q: '', active: false, ids: [], scores: [], terms: [], days: new Map(), hit: new Set(), sort: 'best', shown: 0, seq: 0 };
 const view = () => (Q.active
-  ? { days: Q.days, metric: '__search', label: Q.mode === 'meaning' ? 'close matches' : 'matches' }
+  ? { days: Q.days, metric: '__search', label: Q.topic ? 'posts on it' : Q.mode === 'meaning' ? 'close matches' : 'matches' }
   : { days: S.ix.days, metric, label: METRICS[metric].label });
 
 const say = (m, err = false) => { $('status').textContent = m; $('status').className = err ? 'status err' : 'status'; };
@@ -47,7 +48,7 @@ async function cachePut(key, v) {
 const tz = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
 
 // ── run ──────────────────────────────────────────────────────────────────────
-async function run(raw, wantDay = null, wantQuery = null) {
+async function run(raw, wantDay = null, wantQuery = null, wantBingo = null) {
   const actor = String(raw || '').trim().replace(/^@/, '').replace(/^https?:\/\/bsky\.app\/profile\//, '').split(/[/?#\s]/)[0];
   if (!actor) return;
   if (abort) abort.abort();
@@ -91,7 +92,9 @@ async function run(raw, wantDay = null, wantQuery = null) {
     $('out').classList.remove('hidden');
     renderAll();
     startSearch();
+    G.cells = null; G.open = false; $('bingo').classList.add('hidden');
     if (wantQuery) { $('sq').value = wantQuery.q; setMode(wantQuery.mode, false); runQuery(); }
+    if (wantBingo) openBingo(/^\d+$/.test(wantBingo) ? +wantBingo >>> 0 : undefined);
     if (wantDay && wantDay >= from && wantDay <= to) openDay(wantDay);
   } catch (e) {
     if (e?.name === 'AbortError') { say('stopped'); return; }
@@ -121,7 +124,7 @@ function renderTiles() {
   if (Q.active) {
     const first = [...Q.days.keys()].sort()[0];
     $('tiles').innerHTML = [
-      t(num(Q.ids.length), Q.mode === 'meaning' ? 'closest posts' : 'posts match'),
+      t(num(Q.ids.length), Q.topic ? `posts on ${esc(Q.topic)}` : Q.mode === 'meaning' ? 'closest posts' : 'posts match'),
       t(num(s.active), 'days', `of ${num(daysBetween(from, to) + 1)}`),
       t(first ? `<a href="#" data-go="${first}">${first}</a>` : '—', 'first said'),
       t(s.busiest ? num(s.busiest.n) : '—', 'peak day', s.busiest ? `<a href="#" data-go="${s.busiest.day}">${s.busiest.day}</a>` : ''),
@@ -448,10 +451,14 @@ function startSearch() {
     else if (m.type === 'semantic-ready') { semReady = true; semState = `meaning ready (${(m.ms / 1000).toFixed(1)}s)`; searchStatus(); }
     else if (m.type === 'semantic-error') { semState = `meaning unavailable (${m.message})`; searchStatus(); }
     else if (m.type === 'result' && m.id === Q.seq) showResults(m);
+    else if (m.type === 'bingo-progress' && m.id === G.seq) bingoStatus(m.stage);
+    else if (m.type === 'bingo' && m.id === G.seq) showBingo(m);
+    else if (m.type === 'bingo-error' && m.id === G.seq) bingoStatus(`couldn't draw a card: ${m.message}`, true);
   };
-  worker.postMessage({ type: 'init', texts: S.ix.posts.map((p) => p.text || '') });
+  worker.postMessage({ type: 'init', texts: S.ix.posts.map((p) => p.text || ''), times: S.ix.posts.map((p) => p.t) });
 }
 function searchStatus(extra = '') {
+  if (!extra && Q.active && Q.topic) extra = Q.statusText;    // a late "meaning ready" must not overwrite what is on screen
   const m = Q.mode === 'meaning';
   $('sstat').textContent = extra || (m ? (semReady ? 'finds posts by what they mean, not the words in them' : semState)
     : 'words · "a phrase" · -exclude · the word you are typing matches as a prefix') + (m || !semState ? '' : ` · ${semState}`);
@@ -466,6 +473,7 @@ function setMode(mode, rerun = true) {
 let qTimer = null;
 function runQuery() {
   const q = $('sq').value;
+  if (G.cells && G.pick >= 0 && G.cells[G.pick].kind !== 'says') { G.pick = -1; renderBingo(); }
   const u = new URL(location.href);
   if (q.trim()) { u.searchParams.set('q', q); u.searchParams.set('sm', Q.mode); } else { u.searchParams.delete('q'); u.searchParams.delete('sm'); }
   history.replaceState(null, '', u);
@@ -475,7 +483,8 @@ function runQuery() {
   worker?.postMessage({ type: 'query', id: Q.seq, mode: Q.mode, q, k: 250 });
 }
 function clearSearch() {
-  Q.active = false; Q.ids = []; Q.days = new Map(); Q.hit = new Set(); Q.terms = [];
+  Q.active = false; Q.topic = null; Q.ids = []; Q.days = new Map(); Q.hit = new Set(); Q.terms = [];
+  G.pick = -1; if (G.cells) renderBingo();
   $('results').classList.add('hidden'); $('results').innerHTML = '';
   $('sclear').classList.add('hidden');
   searchStatus();
@@ -484,13 +493,14 @@ function clearSearch() {
 }
 function showResults(m) {
   const { ix } = S;
-  Q.active = true; Q.ids = Array.from(m.ids); Q.scores = Array.from(m.scores); Q.terms = m.terms || [];
+  Q.active = true; Q.topic = m.topic || null; Q.ids = Array.from(m.ids); Q.scores = Array.from(m.scores || []); Q.terms = m.terms || [];
   Q.hit = new Set(Q.ids);
   Q.days = new Map();
   for (const i of Q.ids) { const d = localDay(ix.posts[i].t); Q.days.set(d, { hit: (Q.days.get(d)?.hit || 0) + 1 }); }
   Q.marks = markRegex(Q.terms);
   $('sclear').classList.remove('hidden');
   if (m.empty) searchStatus('none of those words are in the model, so there is no meaning to search for');
+  else if (Q.topic) searchStatus(Q.statusText = `the topic “${Q.topic}”: ${num(Q.ids.length)} posts, the one nearest its centre first`);
   else searchStatus(Q.mode === 'meaning' ? `the ${num(Q.ids.length)} posts closest in meaning, best first` : `${num(Q.ids.length)} posts`);
   renderAll();
   renderResults();
@@ -507,7 +517,7 @@ function renderResults() {
   const box = $('results');
   box.classList.remove('hidden');
   const sorts = ['best', 'newest', 'oldest'].map((k) => `<button class="chip" data-sort="${k}" aria-pressed="${Q.sort === k}">${k === 'best' ? 'best match' : k}</button>`).join('');
-  box.innerHTML = `<div class="rhead"><h4>${num(Q.ids.length)} ${Q.mode === 'meaning' ? 'closest posts' : 'posts'} on ${num(Q.days.size)} days</h4><div class="chips">${sorts}</div></div>
+  box.innerHTML = `<div class="rhead"><h4>${num(Q.ids.length)} ${Q.topic ? `posts on “${esc(Q.topic)}”` : Q.mode === 'meaning' ? 'closest posts' : 'posts'} on ${num(Q.days.size)} days</h4><div class="chips">${sorts}</div></div>
     <div class="feed" id="rlist"></div><button class="ghost small hidden" id="rmore"></button>`;
   Q.shown = 0;
   moreResults();
@@ -548,6 +558,179 @@ $('results').addEventListener('click', (e) => {
 });
 document.addEventListener('click', (e) => { const a = e.target.closest('[data-day]'); if (a) { e.preventDefault(); openDay(a.dataset.day, { focus: a.closest('article')?.dataset.uri || null }); } });
 
+// ── bingo ────────────────────────────────────────────────────────────────────
+// The card is computed in the search worker (bingo.js); this only draws it,
+// daubs it from a window of recent posts, and turns a square into its posts.
+const G = { seq: 0, seed: 0, cells: null, pick: -1, win: 30, open: false };
+// a year daubs nearly everything on an active account (12 lines on the test one), so the longest window is a month
+const WINDOWS = [[1, 'today'], [7, 'this week'], [30, 'this month'], [0, 'off']];
+// a term too rare to make the background (under 5 authors in the sample) has
+// only a floor for a ratio: "rare elsewhere" says that, ×833 would pretend
+const ratioText = (c, wide = '') => (!c.known ? 'rare elsewhere' : '×' + (c.ratio >= 100 ? num(Math.round(c.ratio)) : c.ratio.toFixed(c.ratio < 10 ? 1 : 0)) + (wide || ' bluesky'));
+function bingoStatus(text, err = false) {
+  if (!G.cells) $('bingo').innerHTML = `<p class="bnote${err ? ' err' : ''}">${esc(text)}</p>`;
+  else { const n = $('bingo').querySelector('.bnote .live'); if (n) n.textContent = text; }
+}
+function openBingo(seed = G.seed || hashSeed(S.did)) {
+  G.open = true; G.seed = seed; G.seq++;
+  $('bingo').classList.remove('hidden');
+  if (!G.cells) bingoStatus('drawing a card from the whole history…');
+  worker?.postMessage({ type: 'bingo', id: G.seq, seed });
+  const u = new URL(location.href); u.searchParams.set('bingo', String(seed)); history.replaceState(null, '', u);
+}
+function closeBingo() {
+  G.open = false; G.cells = null; G.pick = -1;
+  $('bingo').classList.add('hidden'); $('bingo').innerHTML = '';
+  const u = new URL(location.href); u.searchParams.delete('bingo'); history.replaceState(null, '', u);
+  if (Q.topic) { $('sq').value = ''; clearSearch(); }
+}
+function showBingo(m) {
+  G.cells = m.cells.map((c) => ({ ...c, ids: Array.from(c.ids) }));
+  G.ms = m.ms; G.pick = -1;
+  renderBingo();
+}
+function daubs() {
+  const now = Date.now(), since = now - G.win * 86400e3, posts = S.ix.posts;
+  // the centre is the free space; a blank from a short history is NOT, or a thin card would win for free
+  return G.cells.map((c, i) => c.centre || i === 12 || (G.win > 0 && c.ids.some((k) => posts[k].t >= since)));
+}
+function renderBingo() {
+  if (!G.cells) return;
+  const marked = daubs();
+  const ln = G.win > 0 ? bingoLines(marked) : [];
+  const inLine = new Set();
+  for (const l of ln) for (let k = 0; k < 5; k++) inLine.add(l.kind === 'row' ? l.i * 5 + k : l.kind === 'col' ? k * 5 + l.i : l.i === 0 ? k * 6 : (k + 1) * 4);
+  // on a phone the captions shrink to their number; the words ride in a span CSS hides
+  const sub = (c) => c.centre ? 'free<span class="wide"> · their surest</span>' : c.kind === 'says' ? ratioText(c, '<span class="wide"> bluesky</span>') : c.kind === 'on' ? `topic<span class="wide"> · ${num(c.posts)}</span>` : '';
+  const cells = G.cells.map((c, i) => `<button type="button" class="sq ${c.kind}${c.centre ? ' centre' : ''}${marked[i] && G.win > 0 ? ' daub' : ''}${inLine.has(i) ? ' line' : ''}" data-sq="${i}" aria-pressed="${G.pick === i}"
+      title="${esc(c.kind === 'on' ? `a topic: ${num(c.posts)} posts on ${num(c.days)} days${c.alts?.length ? ' · also ' + c.alts.join(', ') : ''}` : c.kind === 'says' ? `in ${num(c.posts)} posts on ${num(c.days)} days, ${c.known ? c.ratio.toFixed(1) + '× as often as Bluesky at large' : 'and almost nowhere else on Bluesky'}` : '')}">
+      <span class="t">${esc(c.term)}</span><span class="s">${sub(c)}</span></button>`).join('');
+  const n = marked.filter(Boolean).length - 1;
+  const win = WINDOWS.find(([d]) => d === G.win)[1];
+  const blanks = G.cells.filter((c) => c.kind === 'free').length - 1;
+  const head = (blanks > 0 ? `not enough history for a full card: ${blanks} blank square${blanks > 1 ? 's' : ''} · ` : '') + (ln.length ? `<span class="banner">BINGO</span> · ${ln.length} line${ln.length > 1 ? 's' : ''} ${win}` : G.win > 0 ? `${n} of 24 squares came up ${win}` : 'daubing off');
+  $('bingo').innerHTML = `<div class="bhead"><h4>@${esc(S.profile.handle)} bingo</h4>
+      <div class="bctl"><div class="seg" role="group" aria-label="daub what came up">${WINDOWS.map(([d, l]) => `<button type="button" data-win="${d}" aria-pressed="${G.win === d}">${l}</button>`).join('')}</div>
+      <button type="button" class="ghost small" id="breroll">new card</button><button type="button" class="ghost small" id="bcopy">copy image + alt</button><button type="button" class="ghost small" id="bsave">save image</button><button type="button" class="ghost small" id="bclose" aria-label="close the card">×</button></div></div>
+    <div class="bgrid">${[...'BINGO'].map((l) => `<div class="col">${l}</div>`).join('')}${cells}</div>
+    <p class="bnote"><span class="live">${head}</span>. <b>Solid</b> squares are words and phrases they use far more often than Bluesky does
+      (measured against 390k English posts sampled from the firehose). <b>Dashed</b> squares are topics they keep coming back to: their posts clustered by meaning,
+      each named by the word nearest its centre. Tap a square for its posts.</p>`;
+  drawBingoCard(marked, inLine);
+}
+
+// the shareable card: canvas, text only (no avatar, so nothing taints it)
+let bingoPng = null, bingoAlt = '';
+function drawBingoCard(marked, inLine) {
+  const W = 1080, H = 1350, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light';
+  const ink = dark ? '#e6e6e6' : '#1a1a1a', paper = dark ? '#121211' : '#faf9f6', cell = dark ? '#1c1c1a' : '#ffffff', sky = dark ? '#6ec1e4' : '#1a82c4', muted = dark ? '#8a8a8a' : '#777';
+  x.fillStyle = paper; x.fillRect(0, 0, W, H);
+  x.fillStyle = ink; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  x.font = '600 34px ui-monospace, Menlo, monospace';
+  x.fillText('@' + S.profile.handle, W / 2, 92);
+  const G0 = 70, gap = 14, size = (W - 2 * G0 - 4 * gap) / 5, top = 250;
+  x.font = '800 96px Georgia, serif'; x.fillStyle = sky;
+  [...'BINGO'].forEach((l, k) => x.fillText(l, G0 + k * (size + gap) + size / 2, top - 30));
+  G.cells.forEach((cl, i) => {
+    const r = Math.floor(i / 5), k = i % 5, X0 = G0 + k * (size + gap), Y0 = top + r * (size + gap);
+    x.fillStyle = inLine.has(i) ? (dark ? '#3a3418' : '#fff6cc') : cell;
+    x.beginPath(); x.roundRect(X0, Y0, size, size, 12); x.fill();
+    x.lineWidth = cl.centre ? 4 : 2.5; x.strokeStyle = cl.centre ? sky : dark ? '#3a3a38' : '#d0cec8';
+    x.setLineDash(cl.kind === 'on' ? [10, 7] : []); x.stroke(); x.setLineDash([]);
+    if (marked[i] && G.win > 0) { x.fillStyle = 'rgba(230,57,70,.30)'; x.beginPath(); x.arc(X0 + size / 2, Y0 + size / 2, size * 0.36, 0, 7); x.fill(); }
+    // fit the term: biggest font that wraps into ≤ 3 lines inside the square
+    const txt = cl.term, maxW = size - 22;
+    // shrink until every WORD fits whole and the block clears the caption;
+    // only at the smallest size may a word be broken by letters
+    let fs = 40, lines;
+    for (; fs >= 18; fs -= 2) {
+      x.font = `${cl.kind === 'on' ? 'italic ' : ''}700 ${fs}px ui-monospace, Menlo, monospace`;
+      lines = wrap(x, txt, maxW, false);
+      if (lines.every((l) => x.measureText(l).width <= maxW) && lines.length * fs * 1.15 <= size - 70) break;
+    }
+    if (fs < 18) { fs = 18; x.font = `${cl.kind === 'on' ? 'italic ' : ''}700 18px ui-monospace, Menlo, monospace`; lines = wrap(x, txt, maxW, true); }
+    x.fillStyle = ink;
+    const lh = fs * 1.15, y0 = Y0 + size / 2 - ((lines.length - 1) * lh) / 2 + fs * 0.35 - 8;
+    lines.forEach((l, j) => x.fillText(l, X0 + size / 2, y0 + j * lh));
+    x.font = '400 17px ui-monospace, Menlo, monospace'; x.fillStyle = muted;
+    x.fillText(cl.centre || i === 12 ? 'FREE' : cl.kind === 'on' ? 'topic' : cl.kind === 'says' ? ratioText(cl) : '', X0 + size / 2, Y0 + size - 16);
+  });
+  x.textAlign = 'left'; x.font = '400 22px ui-monospace, Menlo, monospace'; x.fillStyle = muted;
+  const yb = top + 5 * size + 4 * gap + 56;
+  x.fillText('solid: says it far more than bluesky does', G0, yb);
+  x.fillText('dashed: a topic they keep coming back to', G0, yb + 34);
+  if (G.win > 0) x.fillText(`marked: came up ${WINDOWS.find(([d]) => d === G.win)[1]}`, G0, yb + 68);
+  x.textAlign = 'right'; x.font = '700 26px ui-monospace, Menlo, monospace'; x.fillStyle = sky;
+  x.fillText('b.mino.mobi/days', W - G0, H - 40);
+  const rows = [0, 1, 2, 3, 4].map((r) => G.cells.slice(r * 5, r * 5 + 5).map((cl, k) => cl.term + (cl.kind === 'on' ? ' (topic)' : '') + (marked[r * 5 + k] && G.win > 0 && !cl.centre ? ' ✓' : '')).join(', '));
+  bingoAlt = `Bingo card for @${S.profile.handle}, drawn from their whole Bluesky history at b.mino.mobi/days. Free centre: ${G.cells[12].term}. `
+    + rows.map((r, k) => `Row ${k + 1}: ${r}.`).join(' ')
+    + (G.win > 0 ? ` ✓ = came up ${WINDOWS.find(([d]) => d === G.win)[1]}.` : '');
+  bingoPng = new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('blank'))), 'image/png'));
+  bingoPng.catch(() => {});
+}
+function wrap(x, text, maxW, breakWords) {
+  const out = [];
+  let line = '';
+  for (const w of text.split(' ')) {
+    const t = line ? line + ' ' + w : w;
+    if (x.measureText(t).width <= maxW || !line) line = t; else { out.push(line); line = w; }
+  }
+  if (line) out.push(line);
+  if (!breakWords) return out;
+  // a single word wider than the square is broken by characters
+  return out.flatMap((l) => {
+    if (x.measureText(l).width <= maxW) return [l];
+    const parts = []; let p = '';
+    for (const ch of l) { if (x.measureText(p + ch).width > maxW && p) { parts.push(p); p = ch; } else p += ch; }
+    if (p) parts.push(p);
+    return parts;
+  });
+}
+function bflash(btn, text) { const was = btn.textContent; btn.textContent = text; setTimeout(() => { btn.textContent = was; }, 1600); }
+
+$('bingogo').addEventListener('click', () => { if (G.open) closeBingo(); else openBingo(); });
+$('bingo').addEventListener('click', async (e) => {
+  const w = e.target.closest('[data-win]'); if (w) { G.win = +w.dataset.win; renderBingo(); return; }
+  if (e.target.closest('#bclose')) { closeBingo(); return; }
+  if (e.target.closest('#breroll')) { openBingo((G.seed + 0x9e3779b9) >>> 0); return; }
+  if (e.target.closest('#bsave')) {
+    try { const a = document.createElement('a'); a.href = URL.createObjectURL(await bingoPng); a.download = `bingo-${S.profile.handle}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+    catch { bflash(e.target, 'save failed'); }
+    return;
+  }
+  if (e.target.closest('#bcopy')) {
+    // o's rule: image/png + text/html <img alt>, and NO text/plain, so the
+    // mainline composer sees a plain image paste and bsky.mino.mobi fills the alt
+    const btn = e.target.closest('#bcopy');
+    if (!window.ClipboardItem || !navigator.clipboard?.write) { bflash(btn, 'not supported: save image'); return; }
+    const a = bingoAlt.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = bingoPng.then((b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(new Blob([`<img src="${r.result}" alt="${a}">`], { type: 'text/html' })); r.onerror = () => rej(r.error); r.readAsDataURL(b); }));
+    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': bingoPng, 'text/html': html })]); bflash(btn, 'copied: paste into a post'); }
+    catch { try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': bingoPng })]); bflash(btn, 'image copied (no alt here)'); } catch { bflash(btn, 'copy failed: save image'); } }
+    return;
+  }
+  const sq = e.target.closest('[data-sq]');
+  if (!sq) return;
+  const i = +sq.dataset.sq, c = G.cells[i];
+  if (G.pick === i) { G.pick = -1; $('sq').value = ''; runQuery(); renderBingo(); return; }
+  G.pick = i;
+  if (c.kind === 'says') {
+    // a saying is a real search: the box says what was asked
+    $('sq').value = c.term.includes(' ') ? `"${c.term}"` : c.term + ' ';
+    setMode('words', false); runQuery();
+  } else if (c.kind === 'on') {
+    $('sq').value = '';
+    const u = new URL(location.href); u.searchParams.delete('q'); u.searchParams.delete('sm'); history.replaceState(null, '', u);
+    showResults({ ids: c.ids, scores: [], terms: [c.term, ...(c.alts || [])], topic: c.term });
+  }
+  renderBingo();
+  $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
 // ── events ───────────────────────────────────────────────────────────────────
 $('f').addEventListener('submit', (e) => { e.preventDefault(); selected = null; $('day').classList.add('hidden'); run($('h').value); });
 $('stop').addEventListener('click', () => { if (abort) abort.abort(); });
@@ -571,4 +754,4 @@ document.addEventListener('keydown', (e) => {
 
 const qs = new URLSearchParams(location.search);
 if (METRICS[qs.get('m')]) metric = qs.get('m');
-if (qs.get('u')) { $('h').value = qs.get('u'); run(qs.get('u'), qs.get('d'), qs.get('q') ? { q: qs.get('q'), mode: qs.get('sm') || 'words' } : null); }
+if (qs.get('u')) { $('h').value = qs.get('u'); run(qs.get('u'), qs.get('d'), qs.get('q') ? { q: qs.get('q'), mode: qs.get('sm') || 'words' } : null, qs.get('bingo')); }
