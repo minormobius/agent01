@@ -33,10 +33,10 @@ _Regenerated 2026-11-27 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-26, 100 members / 205 posts):
+**Neighborhood spark** (bisk 2026-11-27, 100 members / 210 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: factorization, llm, bluesky
-- Top post: "so about that, we have a slight problem in that it appears the entire world economy -- not on paper, but in terms of dur" — @segyges.bsky.social
+- Distinctive words: idk, bluesky, lorax
+- Top post: "concept for a more egalitarian corporation: - AI swarm C-suite (customized open weights) with on-prem inference - Every " — @hikikomorphism.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
