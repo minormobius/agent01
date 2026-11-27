@@ -7,6 +7,7 @@ import { tidTime, tidAt, plausible, createIndexer } from './repoindex.js';
 import { loadModel, tokenize, embed, embedAll, scoreAll, topK, normalize, preTokenize } from './embed.js';
 import { buildIndex, search, parse, words, expandPrefix } from './search.js';
 import * as BG from './bingo.js';
+import * as EN from './engage.js';
 import { readFileSync } from 'node:fs';
 
 let fails = 0, passes = 0;
@@ -271,6 +272,29 @@ ok(bm.ids[0] === 2, 'BM25: the post with the word twice ranks first');
   // the shipped background: aggregate counts only, and only for terms 5+ authors used
   const head = readFileSync(here + 'bingo-bg.txt', 'utf8').split('\n', 1)[0];
   ok(/posts=\d{5,}/.test(head) && /minAuthors=([5-9]|\d\d)\//.test(head), 'the background states its sample size and its author floor (≥ 5)');
+}
+
+// ── top posts ────────────────────────────────────────────────────────────────
+{
+  const E = EN.emptyCounts(6);
+  EN.put(E, 0, { likeCount: 5, repostCount: 1, replyCount: 0, quoteCount: 0 });
+  EN.put(E, 1, { likeCount: 2, repostCount: 0, replyCount: 3, quoteCount: -1 });
+  EN.put(E, 2, { likeCount: 6, repostCount: 0, replyCount: 0, quoteCount: 0 });
+  EN.put(E, 3, { likeCount: 1, repostCount: 0, replyCount: 0, quoteCount: 2 });
+  EN.miss(E, 4);
+  ok(E.quote[1] === 0 && EN.value(E, 1) === 5, 'a quoteCount of -1 (the AppView sends them) is 0, not 4,294,967,295');
+  ok(E.done === 5 && EN.batches(E).flat().join() === '5', 'only unfetched posts are fetched again');
+  ok(EN.ranked(E).join() === '2,0,1,3', 'ranked by every interaction; a tie goes to the newer post');
+  ok(EN.ranked(E, 'quote')[0] === 3 && EN.ranked(E, 'reply')[0] === 1, 'ranked by one kind');
+  ok(!EN.ranked(E).includes(4) && !EN.ranked(E).includes(5), 'a post the AppView would not return is not ranked as a real zero');
+  ok(EN.ranked(E, 'all', [1, 3, 4]).join() === '1,3', 'ranking within a search result');
+  const posts = [0, 0, 1, 1, 2, 2].map((d) => ({ t: Date.parse('2025-03-0' + (d + 1)) }));
+  const ds = EN.daySums(E, posts, (t) => new Date(t).toISOString().slice(0, 10));
+  ok(ds.get('2025-03-01').hit === 11 && ds.get('2025-03-02').hit === 9 && !ds.has('2025-03-03'), 'interactions land on the day the post was made');
+  const big = EN.emptyCounts(60);
+  ok(EN.batches(big).length === 3 && EN.batches(big)[0][0] === 59, 'batches of 25, newest first');
+  const back = EN.unpack(structuredClone(EN.pack(E)));
+  ok(back.like[2] === 6 && back.seen[4] === 2 && back.done === 5, 'counts survive the cache round trip');
 }
 
 console.log(fails ? `✗ ${fails} failed, ${passes} passed` : `✓ days selftest: ${passes} passed`);

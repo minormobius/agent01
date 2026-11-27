@@ -176,6 +176,8 @@ h4 { font: 600 .7rem var(--mono); letter-spacing: .1em; text-transform: uppercas
 .bnote { font: .68rem var(--mono); color: var(--muted); margin: .6rem auto 0; max-width: 640px; line-height: 1.6; }
 .bnote b { color: var(--text); }
 @media (max-width: 600px) { .sq .wide { display: none; } }
+.rhead .cnt { font-weight: 400; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.srow button[aria-pressed="true"] { background: var(--sky); color: #fff; border-color: var(--sky); }
 .bingo .banner { font: 800 1.1rem var(--serif); color: var(--warn); letter-spacing: .04em; }
 footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-height: 1.7; }
 </style>
@@ -204,6 +206,7 @@ footer { margin-top: 3rem; font: .68rem var(--mono); color: var(--muted); line-h
       <div class="seg" role="group" aria-label="search by">
         <button type="button" data-sm="words" aria-pressed="true">words</button><button type="button" data-sm="meaning" aria-pressed="false">meaning</button>
       </div>
+      <button type="button" id="topgo" class="ghost small" aria-pressed="false" title="every post, by likes, reposts, replies and quotes">top posts</button>
       <button type="button" id="bingogo" class="ghost small" title="a bingo card of what they say and what they keep coming back to">bingo</button>
     </div>
     <div class="sstat" id="sstat"></div>

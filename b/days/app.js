@@ -4,6 +4,7 @@
 import { indexRepo, dayRecords, localDay } from './repoindex.js';
 import { extractMedia } from '../thread/thread.js';
 import { lines as bingoLines, hashSeed } from './bingo.js';
+import { emptyCounts, put, miss, value, ranked, daySums, batches, pack, unpack } from './engage.js';
 import { METRICS, countFor, yearGrids, levels, summary, cumulative, handleHistory, neighbours, daysBetween, addDays } from './calendar.js';
 
 const $ = (id) => document.getElementById(id);
@@ -16,9 +17,9 @@ let S = null;            // { profile, did, pds, ix, hist, cum, from, to }
 let metric = 'all', selected = null, abort = null, dayAbort = null;
 // The search. While a query is active the grid, the tiles and the legend show
 // the SEARCH's days instead of the chosen metric: a topic lit up across years.
-const Q = { mode: 'words', topic: null, q: '', active: false, ids: [], scores: [], terms: [], days: new Map(), hit: new Set(), sort: 'best', shown: 0, seq: 0 };
+const Q = { mode: 'words', topic: null, top: null, q: '', active: false, ids: [], scores: [], terms: [], days: new Map(), hit: new Set(), sort: 'best', shown: 0, seq: 0 };
 const view = () => (Q.active
-  ? { days: Q.days, metric: '__search', label: Q.topic ? 'posts on it' : Q.mode === 'meaning' ? 'close matches' : 'matches' }
+  ? { days: Q.days, metric: '__search', label: Q.top ? 'interactions' : Q.topic ? 'posts on it' : Q.mode === 'meaning' ? 'close matches' : 'matches' }
   : { days: S.ix.days, metric, label: METRICS[metric].label });
 
 const say = (m, err = false) => { $('status').textContent = m; $('status').className = err ? 'status err' : 'status'; };
@@ -93,7 +94,9 @@ async function run(raw, wantDay = null, wantQuery = null, wantBingo = null) {
     renderAll();
     startSearch();
     G.cells = null; G.open = false; $('bingo').classList.add('hidden');
+    if (eAbort) eAbort.abort(); E = null; Q.top = null;
     if (wantQuery) { $('sq').value = wantQuery.q; setMode(wantQuery.mode, false); runQuery(); }
+    if (qs.get('top') && KIND_LABEL[qs.get('top')]) showTop(qs.get('top'));
     if (wantBingo) openBingo(/^\d+$/.test(wantBingo) ? +wantBingo >>> 0 : undefined);
     if (wantDay && wantDay >= from && wantDay <= to) openDay(wantDay);
   } catch (e) {
@@ -121,6 +124,16 @@ function renderTiles() {
   const V = view();
   const s = summary(V.days, from, to, V.metric, to);
   const t = (v, l, sub = '') => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>`;
+  if (Q.top) {
+    const best = Q.ids[0], tot = [...Q.days.values()].reduce((a, r) => a + r.hit, 0);
+    $('tiles').innerHTML = [
+      t(num(tot), Q.top === 'all' ? 'interactions received' : KIND_LABEL[Q.top] + ' received', E.done < E.n ? `counted ${num(E.done)} of ${num(E.n)} posts` : `on ${num(E.n)} posts`),
+      t(num(s.active), 'days', 'that drew any'),
+      t(best !== undefined ? num(value(E, best, Q.top)) : '—', 'best post', best !== undefined ? `<a href="#" data-go="${localDay(S.ix.posts[best].t)}">${localDay(S.ix.posts[best].t)}</a>` : ''),
+      t(s.busiest ? num(s.busiest.n) : '—', 'best day', s.busiest ? `<a href="#" data-go="${s.busiest.day}">${s.busiest.day}</a>` : ''),
+    ].join('');
+    return;
+  }
   if (Q.active) {
     const first = [...Q.days.keys()].sort()[0];
     $('tiles').innerHTML = [
@@ -156,7 +169,7 @@ function renderYears() {
   // the newest year opens scrolled to today, like GitHub's
   const first = $('years').querySelector('.scroll');
   if (first) first.scrollLeft = first.scrollWidth;
-  $('legend').innerHTML = `less ${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--l${i})"></i>`).join('')} more · ${Q.active ? 'the days it came up' : 'busiest days darkest'} · click a day`;
+  $('legend').innerHTML = `less ${[0, 1, 2, 3, 4].map((i) => `<i style="background:var(--l${i})"></i>`).join('')} more · ${Q.top ? 'what that day\'s posts drew' : Q.active ? 'the days it came up' : 'busiest days darkest'} · click a day`;
 }
 
 // ── a day ────────────────────────────────────────────────────────────────────
@@ -299,7 +312,7 @@ function cardHtml({ uri, author, t, text, reply, media = [], counts = null, pend
       <div class="thread hidden"></div>
       ${text ? `<div class="txt">${markUp(esc(text), marks)}</div>` : (text === null ? '<div class="note">(this post could not be read)</div>' : '')}
       ${mediaHtml(media, uri)}
-      ${counts ? `<div class="counts"><span title="replies">💬 ${num(counts.reply)}</span><span title="reposts">↻ ${num(counts.repost)}</span><span title="likes">♡ ${num(counts.like)}</span></div>` : ''}
+      ${counts ? `<div class="counts"><span title="replies">💬 ${num(counts.reply)}</span><span title="reposts">↻ ${num(counts.repost)}</span><span title="likes">♡ ${num(counts.like)}</span>${counts.quote ? `<span title="quotes">❝ ${num(counts.quote)}</span>` : ''}</div>` : ''}
     </div></article>`;
 }
 
@@ -332,7 +345,7 @@ function mediaHtml(media, uri = '') {
 const fromView = (v, override = {}) => ({
   uri: v.uri, t: Date.parse(v.record?.createdAt || v.indexedAt) || 0, text: v.record?.text || '',
   author: { ...v.author, ...override }, reply: !!v.record?.reply, media: extractMedia(v.embed),
-  counts: { reply: v.replyCount || 0, repost: v.repostCount || 0, like: v.likeCount || 0 },
+  counts: { reply: Math.max(0, v.replyCount || 0), repost: Math.max(0, v.repostCount || 0), like: Math.max(0, v.likeCount || 0), quote: Math.max(0, v.quoteCount || 0) },
 });
 
 async function getPosts(uris, signal) {
@@ -458,7 +471,8 @@ function startSearch() {
   worker.postMessage({ type: 'init', texts: S.ix.posts.map((p) => p.text || ''), times: S.ix.posts.map((p) => p.t) });
 }
 function searchStatus(extra = '') {
-  if (!extra && Q.active && Q.topic) extra = Q.statusText;    // a late "meaning ready" must not overwrite what is on screen
+  if (!extra && Q.active && Q.topic) extra = Q.statusText;
+  if (!extra && Q.top) extra = TOP_STATUS;    // a late "meaning ready" must not overwrite what is on screen
   const m = Q.mode === 'meaning';
   $('sstat').textContent = extra || (m ? (semReady ? 'finds posts by what they mean, not the words in them' : semState)
     : 'words · "a phrase" · -exclude · the word you are typing matches as a prefix') + (m || !semState ? '' : ` · ${semState}`);
@@ -475,7 +489,7 @@ function runQuery() {
   const q = $('sq').value;
   if (G.cells && G.pick >= 0 && G.cells[G.pick].kind !== 'says') { G.pick = -1; renderBingo(); }
   const u = new URL(location.href);
-  if (q.trim()) { u.searchParams.set('q', q); u.searchParams.set('sm', Q.mode); } else { u.searchParams.delete('q'); u.searchParams.delete('sm'); }
+  if (q.trim()) { u.searchParams.set('q', q); u.searchParams.set('sm', Q.mode); u.searchParams.delete('top'); } else { u.searchParams.delete('q'); u.searchParams.delete('sm'); }
   history.replaceState(null, '', u);
   if (!q.trim()) { clearSearch(); return; }
   if (Q.mode === 'meaning' && !semReady) searchStatus(`${semState} · your search runs the moment it is ready`);
@@ -483,7 +497,7 @@ function runQuery() {
   worker?.postMessage({ type: 'query', id: Q.seq, mode: Q.mode, q, k: 250 });
 }
 function clearSearch() {
-  Q.active = false; Q.topic = null; Q.ids = []; Q.days = new Map(); Q.hit = new Set(); Q.terms = [];
+  Q.active = false; Q.topic = null; Q.top = null; $('topgo').setAttribute('aria-pressed', 'false'); Q.ids = []; Q.days = new Map(); Q.hit = new Set(); Q.terms = [];
   G.pick = -1; if (G.cells) renderBingo();
   $('results').classList.add('hidden'); $('results').innerHTML = '';
   $('sclear').classList.add('hidden');
@@ -493,6 +507,7 @@ function clearSearch() {
 }
 function showResults(m) {
   const { ix } = S;
+  if (Q.top) { Q.top = null; $('topgo').setAttribute('aria-pressed', 'false'); }
   Q.active = true; Q.topic = m.topic || null; Q.ids = Array.from(m.ids); Q.scores = Array.from(m.scores || []); Q.terms = m.terms || [];
   Q.hit = new Set(Q.ids);
   Q.days = new Map();
@@ -509,6 +524,8 @@ function showResults(m) {
 function orderedHits() {
   const { ix } = S;
   const ids = Q.ids.slice();
+  if (Q.top) return Q.ids;
+  if (Q.sort === 'top' && E) { const seen = ranked(E, 'all', ids), set = new Set(seen); return seen.concat(ids.filter((i) => !set.has(i))); }
   if (Q.sort === 'newest') ids.sort((a, b) => ix.posts[b].t - ix.posts[a].t);
   else if (Q.sort === 'oldest') ids.sort((a, b) => ix.posts[a].t - ix.posts[b].t);
   return ids;
@@ -516,8 +533,12 @@ function orderedHits() {
 function renderResults() {
   const box = $('results');
   box.classList.remove('hidden');
-  const sorts = ['best', 'newest', 'oldest'].map((k) => `<button class="chip" data-sort="${k}" aria-pressed="${Q.sort === k}">${k === 'best' ? 'best match' : k}</button>`).join('');
-  box.innerHTML = `<div class="rhead"><h4>${num(Q.ids.length)} ${Q.topic ? `posts on “${esc(Q.topic)}”` : Q.mode === 'meaning' ? 'closest posts' : 'posts'} on ${num(Q.days.size)} days</h4><div class="chips">${sorts}</div></div>
+  const sorts = Q.top
+    ? Object.entries(KIND_LABEL).map(([k, l]) => `<button class="chip" data-kind="${k}" aria-pressed="${Q.top === k}">${l}</button>`).join('')
+    : ['best', 'top', 'newest', 'oldest'].map((k) => `<button class="chip" data-sort="${k}" aria-pressed="${Q.sort === k}">${k === 'best' ? 'best match' : k === 'top' ? 'most interactions' : k}</button>`).join('');
+  const title = Q.top ? `${num(Q.ids.length)} posts by ${Q.top === 'all' ? 'interactions' : KIND_LABEL[Q.top]}<span class="cnt" id="ecount">${E.done < E.n ? ` · counting ${num(E.done)} of ${num(E.n)}` : ''}</span>`
+    : `${num(Q.ids.length)} ${Q.topic ? `posts on “${esc(Q.topic)}”` : Q.mode === 'meaning' ? 'closest posts' : 'posts'} on ${num(Q.days.size)} days`;
+  box.innerHTML = `<div class="rhead"><h4>${title}</h4><div class="chips">${sorts}</div></div>
     <div class="feed" id="rlist"></div><button class="ghost small hidden" id="rmore"></button>`;
   Q.shown = 0;
   moreResults();
@@ -528,7 +549,8 @@ function moreResults() {
   const ids = orderedHits().slice(Q.shown, Q.shown + PAGE);
   Q.shown += ids.length;
   const me = (t) => ({ did, handle: S.hist.at(t) || profile.handle, displayName: profile.displayName || profile.handle, avatar: profile.avatar });
-  const html = ids.map((i) => { const p = ix.posts[i]; return cardHtml({ uri: `at://${did}/${P}/${p.rkey}`, author: me(p.t), t: p.t, text: p.text, reply: p.reply, pending: true, date: true, marks: Q.marks }); }).join('');
+  const cnt = (i) => (E && E.seen[i] === 1 ? { like: E.like[i], repost: E.repost[i], reply: E.reply[i], quote: E.quote[i] } : null);
+  const html = ids.map((i) => { const p = ix.posts[i]; return cardHtml({ uri: `at://${did}/${P}/${p.rkey}`, author: me(p.t), t: p.t, text: p.text, reply: p.reply, pending: true, date: true, marks: Q.marks, counts: cnt(i) }); }).join('');
   $('rlist').insertAdjacentHTML('beforeend', html || '<p class="note">nothing found</p>');
   const more = Q.ids.length - Q.shown;
   $('rmore').classList.toggle('hidden', more <= 0);
@@ -552,11 +574,81 @@ $('sq').addEventListener('keydown', (e) => { if (e.key === 'Escape') { $('sq').v
 $('sclear').addEventListener('click', () => { $('sq').value = ''; runQuery(); $('sq').focus(); });
 for (const b of document.querySelectorAll('[data-sm]')) b.addEventListener('click', () => setMode(b.dataset.sm));
 $('results').addEventListener('click', (e) => {
-  const s = e.target.closest('[data-sort]'); if (s) { Q.sort = s.dataset.sort; renderResults(); return; }
+  const s = e.target.closest('[data-sort]'); if (s) { Q.sort = s.dataset.sort; if (Q.sort === 'top' && !E) countEngagement(); renderResults(); return; }
+  const kd = e.target.closest('[data-kind]'); if (kd) { showTop(kd.dataset.kind); return; }
   if (e.target.closest('#rmore')) { moreResults(); return; }
   const b = e.target.closest('.replyto'); if (b) { e.preventDefault(); showThread(b.closest('.card')); return; }
 });
 document.addEventListener('click', (e) => { const a = e.target.closest('[data-day]'); if (a) { e.preventDefault(); openDay(a.dataset.day, { focus: a.closest('article')?.dataset.uri || null }); } });
+
+// ── top posts: everything they posted, by what other people did with it ───────
+// The repo has no counts (likes etc. are other people's records), so they come
+// from getPosts, 25 posts a call, newest first, ~30 s for 52k posts. Cached per
+// account for 6 h. engage.js holds the arithmetic; this fetches and draws.
+const TOP_STATUS = 'every post, by what other people did with it: each like, repost, reply and quote counts 1 · the calendar shows what each day\'s posts drew';
+const KIND_LABEL = { all: 'all', like: 'likes', repost: 'reposts', reply: 'replies', quote: 'quotes' };
+let E = null, eAbort = null, eTick = 0;
+async function countEngagement() {
+  if (E && (E.done === E.n || eAbort)) return;
+  const { ix, did } = S, key = `${did}|eng2`;
+  const hit = await cacheGet(key);
+  if (hit && hit.n === ix.posts.length) { E = unpack(hit); topProgress(true); return; }
+  E = emptyCounts(ix.posts.length);
+  eAbort = new AbortController();
+  const signal = eAbort.signal, todo = batches(E);
+  let k = 0;
+  const one = async (b) => {
+    const url = `${API}/app.bsky.feed.getPosts?${b.map((i) => 'uris=' + encodeURIComponent(`at://${did}/${P}/${ix.posts[i].rkey}`)).join('&')}`;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const r = await fetch(url, { signal });
+      if (r.status === 429 || r.status >= 500) { await new Promise((res) => setTimeout(res, 1000 * (+r.headers.get('retry-after') || 2 ** attempt))); continue; }
+      if (!r.ok) break;
+      const views = new Map(((await r.json()).posts || []).map((v) => [v.uri, v]));
+      for (const i of b) { const v = views.get(`at://${did}/${P}/${ix.posts[i].rkey}`); if (v) put(E, i, v); else miss(E, i); }
+      return;
+    }
+    for (const i of b) miss(E, i);
+  };
+  try {
+    await Promise.all(Array.from({ length: 10 }, async () => { while (k < todo.length) { await one(todo[k++]); if (S?.did !== did) return; topProgress(); } }));
+  } catch (e) { if (e?.name !== 'AbortError') throw e; return; }
+  finally { eAbort = null; }
+  if (S?.did !== did) return;
+  cachePut(key, pack(E));
+  topProgress(true);
+}
+// redraw while counting, at most every 1.5 s, and the list only while the
+// reader is still on its first page (re-sorting under someone's thumb is rude)
+function topProgress(final = false) {
+  const now = performance.now();
+  if (!final && now - eTick < 1500) { const c = $('ecount'); if (c) c.textContent = ` · counting ${num(E.done)} of ${num(E.n)}`; return; }
+  eTick = now;
+  if (Q.top) { refreshTop(Q.shown <= PAGE); }
+  else if (Q.active && Q.sort === 'top' && final) renderResults();
+}
+function refreshTop(redrawList = true) {
+  Q.ids = ranked(E, Q.top);
+  Q.days = daySums(E, S.ix.posts, localDay, Q.top);
+  Q.hit = new Set(Q.ids.slice(0, 250));
+  renderTiles(); renderYears();
+  if (redrawList) renderResults(); else { const c = $('ecount'); if (c) c.textContent = E.done < E.n ? ` · counting ${num(E.done)} of ${num(E.n)}` : ''; }
+}
+function showTop(kind = 'all') {
+  Q.top = kind; Q.topic = null; Q.active = true; Q.terms = []; Q.marks = null; Q.sort = 'best';
+  $('topgo').setAttribute('aria-pressed', 'true');
+  $('sq').value = '';
+  const u = new URL(location.href); u.searchParams.delete('q'); u.searchParams.delete('sm'); u.searchParams.set('top', kind); history.replaceState(null, '', u);
+  if (!E) E = emptyCounts(S.ix.posts.length);
+  searchStatus(TOP_STATUS);
+  $('chips').classList.add('hidden');
+  refreshTop(true);
+  countEngagement();
+}
+function hideTop() {
+  const u = new URL(location.href); u.searchParams.delete('top'); history.replaceState(null, '', u);
+  clearSearch();
+}
+$('topgo').addEventListener('click', () => (Q.top ? hideTop() : showTop()));
 
 // ── bingo ────────────────────────────────────────────────────────────────────
 // The card is computed in the search worker (bingo.js); this only draws it,

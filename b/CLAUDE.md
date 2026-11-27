@@ -947,6 +947,37 @@ embeddings agree to cosine ≥ 0.9997 after int8. `days.selftest.mjs` gates
 both, plus every keyword rule. Meaning lights the top 250 by cosine, counted
 per day; a query of nothing but unknown words says so rather than ranking noise.
 
+### Top posts — the whole history by what other people did with it
+
+Added 2026-11-27. **top posts**, next to the search box, lists every post by
+the interactions it drew: likes, reposts, replies and quotes, **each counting
+1** (o's rule). Chips switch to a single kind. The calendar re-lights by what
+each day's posts drew. Search results gain a **most interactions** sort.
+`?top=all|like|repost|reply|quote` deep-links.
+
+**The repo has no counts.** A post record holds only its own text, and every
+like, repost, reply or quote is someone else's record. So the counts come from
+the AppView via `getPosts`, 25 posts a call, newest first, 10 calls in
+flight, retrying 429s and 5xx with backoff. Measured on 52k posts:
+- ~75 calls/s from node, about **30 s** for 2,100 calls;
+- **~80 s** from the sandbox's proxied Chromium (the proxy, as o found);
+- then **cached per account for 6 h** (`<did>|eng2` in IndexedDB), so a
+  revisit is ready ~1 s after the repo.
+
+The list re-ranks live while counting, but only while the reader is on its
+first page; re-sorting under someone's thumb is rude. Posts the AppView will
+not return (deleted, taken down) are left out of the ranking, never counted
+as real zeros.
+
+**The AppView sometimes reports `quoteCount: -1`.** In the `Uint32Array`s
+`engage.js` keeps, that wrapped to 4,294,967,295 and made one post the best of
+all time. Counts are clamped at 0 on the way in, and the selftest plants a -1.
+The cache key was bumped to `eng2` so no poisoned local cache survives.
+
+| file | what it is |
+|---|---|
+| `days/engage.js` | pure: the count arrays, ranking, per-day sums, batches, the cache form |
+
 ### Bingo — a card drawn from the whole history
 
 Added 2026-11-27. The **bingo** button by the search box deals a 5×5 card for
