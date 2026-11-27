@@ -3,7 +3,7 @@ name: Deploy Rite
 on:
   push:
     branches:
-      - 'claude/rite-deploy-font-jblfj2'
+      - 'claude/focused-knuth-f0oawl'
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'

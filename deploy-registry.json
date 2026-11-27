@@ -757,7 +757,7 @@
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/rite-deploy-font-jblfj2",
+      "branch": "claude/focused-knuth-f0oawl",
       "uses": [
         "atpolls-db"
       ],
@@ -770,7 +770,7 @@
         "poll/apps/api/migrations/0017_signal.sql"
       ],
       "cohesion": "integrated",
-      "status": "OWNERSHIP (2026-09-25): taken by claude/rite-deploy-font-jblfj2 from claude/syllable-word-generator-yhw8wj with scripts/take-ownership.mjs (no work of the old owner lost). "
+      "status": "OWNERSHIP (2026-11-27): taken by claude/focused-knuth-f0oawl from claude/rite-deploy-font-jblfj2 with scripts/take-ownership.mjs (no work of the old owner lost). OWNERSHIP (2026-09-25): taken by claude/rite-deploy-font-jblfj2 from claude/syllable-word-generator-yhw8wj with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "pod",
