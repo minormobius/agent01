@@ -24,6 +24,7 @@ const TIERS = {
   A: { name: 'Tier A', blurb: 'Essential next reading. These widen the core in every direction.' },
   B: { name: 'Tier B', blurb: 'Supporting. Specific mechanisms, recent surveys, and adjacent traditions.' },
   C: { name: 'Tier C', blurb: 'Background. Critical and genealogical context for the attention economy.' },
+  N: { name: 'New, not yet ranked', blurb: 'Current work, 2018–2026, added from the survey on the field page. Listed in order of how closely each bears on the thesis; not yet placed in the ranking.' },
 };
 const BRANCHES = {
   agents: 'Multi-agent architecture, modularity, contracts, context',
@@ -67,10 +68,10 @@ function entry(w) {
   const search = [w.title, ...(w.authors || []), w.year, w.branch, w.relevance].join(' ').toLowerCase();
   return `<li class="work" id="${esc(w.id)}" value="${w.rank}" data-tier="${esc(w.tier)}" data-branch="${esc(w.branch)}" data-full="${hasRead(w) ? 1 : 0}" data-search="${esc(search)}">
 <article aria-labelledby="${esc(w.id)}-t">
-<h3 id="${esc(w.id)}-t"><span class="rank" aria-hidden="true">${w.rank}.</span> <cite>${esc(w.title)}</cite></h3>
+<h3 id="${esc(w.id)}-t"><span class="rank" aria-hidden="true">${w.tier === 'N' ? 'New' : w.rank + '.'}</span> <cite>${esc(w.title)}</cite></h3>
 <p class="byline">${esc(authorList(w.authors || []))} <span class="year">(${esc(w.year)})</span></p>
 <p class="why"><span class="visually-hidden">Why it is here: </span>${esc(w.relevance)}.</p>
-<p class="meta"><span class="tag">${cap(esc(w.branch))}</span> <span class="tag">Tier ${esc(w.tier)}</span> <span class="tag">Rank ${w.rank}</span></p>
+<p class="meta"><span class="tag">${cap(esc(w.branch))}</span> ${w.tier === 'N' ? '<span class="tag">New, unranked</span>' : `<span class="tag">Tier ${esc(w.tier)}</span> <span class="tag">Rank ${w.rank}</span>`}</p>
 ${links ? `<ul class="links" aria-label="Where to read it">${links}</ul>` : `<p class="nolink">No link yet.</p>`}
 <p class="status${flag}">${status}${note}</p>
 <p class="mine no-print" hidden><label><input type="checkbox" class="read-box" data-id="${esc(w.id)}"> I’ve read this</label></p>
@@ -92,6 +93,7 @@ ${list.map(entry).join('\n')}
 
 const counts = {
   total: works.length,
+  ranked: works.filter((w) => w.tier !== 'N').length,
   full: works.filter(hasFull).length,
   copy: works.filter((w) => !hasFull(w) && hasRead(w)).length,
   linked: works.filter((w) => (w.links || []).length).length,
@@ -170,13 +172,13 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
 
 <main id="main">
 <h1>Sources</h1>
-<p class="lede">${counts.total} works for a curriculum on judgment in the agentic age. They are ranked by how much each matters to <a href="/">the research programme</a>, not by fame or by how strong the evidence is.</p>
+<p class="lede">${counts.total} works for a curriculum on judgment in the agentic age. ${counts.ranked} are ranked by how much each matters to <a href="/">the research programme</a>, not by fame or by how strong the evidence is. The other ${counts.total - counts.ranked} are current work, newly added and not yet ranked.</p>
 
 <p>${counts.full} of the ${counts.total} have a free, legal full text linked. ${counts.copy ? `${counts.copy} more can be read in an unofficial online copy. ` : ''}${counts.linked - counts.full - counts.copy > 0 ? `Another ${counts.linked - counts.full - counts.copy} link to the publisher or a library record. ` : ''}${counts.verified} have had their authors, title and year checked against the source${checked ? `, and every link was checked on ${checked}` : ''}. Anything still unverified is marked on its entry.</p>
 
 <h2 id="how">How to read an entry</h2>
 <ul class="legend">
-  <li><span class="tag">Tier S</span> to <span class="tag">Tier C</span>: S is the core, C is background.</li>
+  <li><span class="tag">Tier S</span> to <span class="tag">Tier C</span>: S is the core, C is background. <span class="tag">New, unranked</span>: current work not yet placed.</li>
   <li><span class="links" style="display:inline"><a class="k-full" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Free full text</span></a></span> means you can read the whole work for free, legally.</li>
   <li><span class="links" style="display:inline"><a class="k-copy" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Online copy</span></a></span> is an unofficial copy someone else hosts. It is not the publisher’s, and it may disappear.</li>
   <li><span class="links" style="display:inline"><a class="k-pub" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Publisher</span></a></span> is the official page. It may be paywalled.</li>
@@ -197,7 +199,7 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
     </div>
     <div class="field">
       <label for="tier">Tier</label>
-      <select id="tier" name="tier"><option value="">All tiers</option>${Object.keys(TIERS).map((t) => `<option value="${t}">Tier ${t}</option>`).join('')}</select>
+      <select id="tier" name="tier"><option value="">All tiers</option>${Object.keys(TIERS).map((t) => `<option value="${t}">${t === 'N' ? 'New, unranked' : 'Tier ' + t}</option>`).join('')}</select>
     </div>
   </div>
   <div class="checks">

@@ -1863,6 +1863,831 @@
       ],
       "status": "corrected",
       "note": "Philosophical Studies 183(1), Jan 2026; online 14 Nov 2025. Authors' first names added."
+    },
+    {
+      "id": "work-101",
+      "rank": 83,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Madeleine Grunde-McLaughlin",
+        "Hussein Mozannar",
+        "Maya Murad",
+        "Jingya Chen",
+        "Saleema Amershi",
+        "Adam Fourney"
+      ],
+      "title": "Overseeing Agents Without Constant Oversight: Challenges and Opportunities",
+      "year": "2026",
+      "relevance": "Better agent traces raise speed and confidence, not accuracy",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2602.16844",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-102",
+      "rank": 84,
+      "tier": "N",
+      "branch": "judgment",
+      "authors": [
+        "Shreya Shankar",
+        "J.D. Zamfirescu-Pereira",
+        "Björn Hartmann",
+        "Aditya Parameswaran",
+        "Ian Arawjo"
+      ],
+      "title": "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences",
+      "year": "2024",
+      "relevance": "Criteria drift: evaluators form criteria by grading outputs",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2404.12272",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-103",
+      "rank": 85,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Daniela Fernandes",
+        "Steeven Villa",
+        "Salla Nicholls",
+        "Otso Haavisto",
+        "Daniel Buschek",
+        "Albrecht Schmidt",
+        "Thomas Kosch",
+        "Chenxinran Shen",
+        "Robin Welsch"
+      ],
+      "title": "AI makes you smarter but none the wiser: The disconnect between performance and metacognition",
+      "year": "2026",
+      "relevance": "AI raises performance while degrading self-calibration",
+      "links": [
+        {
+          "url": "https://doi.org/10.1016/j.chb.2025.108779",
+          "kind": "publisher",
+          "label": "DOI (Computers in Human Behavior)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-104",
+      "rank": 86,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Hussein Mozannar",
+        "Jimin J. Lee",
+        "Dennis Wei",
+        "Prasanna Sattigeri",
+        "Subhro Das",
+        "David Sontag"
+      ],
+      "title": "Effective Human-AI Teams via Learned Natural Language Rules and Onboarding",
+      "year": "2023",
+      "relevance": "Onboarding that teaches calibrated reliance",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2311.01007",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-105",
+      "rank": 87,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Hussein Mozannar",
+        "Arvind Satyanarayan",
+        "David Sontag"
+      ],
+      "title": "Teaching Humans When To Defer to a Classifier via Exemplars",
+      "year": "2022",
+      "relevance": "Teaching people when to defer, by exemplars",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2111.11297",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-106",
+      "rank": 88,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Shipi Dhanorkar",
+        "Samir Passi",
+        "Mihaela Vorvoreanu"
+      ],
+      "title": "Human oversight of agentic systems in practice: Examining the oversight work, challenges, and heuristics of developers using software agents",
+      "year": "2026",
+      "relevance": "Oversight of software agents as an untrained practice",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2606.05391",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-107",
+      "rank": 89,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Anthropic"
+      ],
+      "title": "Measuring AI agent autonomy in practice",
+      "year": "2026",
+      "relevance": "How delegation and interruption change with experience",
+      "links": [
+        {
+          "url": "https://www.anthropic.com/research/measuring-agent-autonomy",
+          "kind": "full",
+          "label": "Anthropic research"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-108",
+      "rank": 90,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Andrej Karpathy"
+      ],
+      "title": "Software Is Changing (Again)",
+      "year": "2025",
+      "relevance": "The autonomy slider; keep verification fast",
+      "links": [
+        {
+          "url": "https://www.youtube.com/watch?v=LCEmiRjPEtQ",
+          "kind": "full",
+          "label": "Talk (YouTube)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-109",
+      "rank": 91,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Simon Willison"
+      ],
+      "title": "Vibe engineering",
+      "year": "2025",
+      "relevance": "Agent leverage belongs to already-trained judgment",
+      "links": [
+        {
+          "url": "https://simonwillison.net/2025/Oct/7/vibe-engineering/",
+          "kind": "full",
+          "label": "simonwillison.net"
+        },
+        {
+          "url": "https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering",
+          "kind": "full",
+          "label": "simonwillison.net (2026 follow-up)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-110",
+      "rank": 92,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Lev Tankelevitch",
+        "Viktor Kewenig",
+        "Auste Simkute",
+        "Ava Elizabeth Scott",
+        "Advait Sarkar",
+        "Abigail Sellen",
+        "Sean Rintel"
+      ],
+      "title": "The Metacognitive Demands and Opportunities of Generative AI",
+      "year": "2024",
+      "relevance": "Generative AI use as a metacognitive task",
+      "links": [
+        {
+          "url": "https://doi.org/10.1145/3613904.3642902",
+          "kind": "publisher",
+          "label": "DOI (CHI 2024)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-111",
+      "rank": 93,
+      "tier": "N",
+      "branch": "automation",
+      "authors": [
+        "Auste Simkute",
+        "Lev Tankelevitch",
+        "Viktor Kewenig",
+        "Ava Elizabeth Scott",
+        "Abigail Sellen",
+        "Sean Rintel"
+      ],
+      "title": "Ironies of Generative AI: Understanding and Mitigating Productivity Loss in Human-AI Interaction",
+      "year": "2024",
+      "relevance": "Bainbridge’s ironies, updated for generative AI",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2402.11364",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-112",
+      "rank": 94,
+      "tier": "N",
+      "branch": "cognition",
+      "authors": [
+        "Hao-Ping Lee",
+        "Advait Sarkar",
+        "Lev Tankelevitch",
+        "Ian Drosos",
+        "Sean Rintel",
+        "Richard Banks",
+        "Nicholas Wilson"
+      ],
+      "title": "The Impact of Generative AI on Critical Thinking: Self-Reported Reductions in Cognitive Effort and Confidence Effects From a Survey of Knowledge Workers",
+      "year": "2025",
+      "relevance": "Trust in AI trades against critical thinking",
+      "links": [
+        {
+          "url": "https://doi.org/10.1145/3706598.3713778",
+          "kind": "publisher",
+          "label": "DOI (CHI 2025)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-113",
+      "rank": 95,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Matt Beane"
+      ],
+      "title": "The Skill Code: How to Save Human Ability in an Age of Intelligent Machines",
+      "year": "2024",
+      "relevance": "Skill needs challenge, complexity and connection",
+      "links": [
+        {
+          "url": "https://ide.mit.edu/publication/the-skill-code-how-to-save-human-ability-in-an-age-of-intelligent-machines/",
+          "kind": "publisher",
+          "label": "Book page (MIT IDE)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-114",
+      "rank": 96,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Matt Beane"
+      ],
+      "title": "Shadow Learning: Building Robotic Surgical Skill When Approved Means Fail",
+      "year": "2019",
+      "relevance": "Apprentices cut out of the work learn in the shadows",
+      "links": [
+        {
+          "url": "https://doi.org/10.1177/0001839217751692",
+          "kind": "publisher",
+          "label": "DOI (Administrative Science Quarterly)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-115",
+      "rank": 97,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Judy Hanwen Shen",
+        "Alex Tamkin"
+      ],
+      "title": "How AI Impacts Skill Formation",
+      "year": "2026",
+      "relevance": "AI assistance and skill formation, by interaction pattern",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2601.20245",
+          "kind": "full",
+          "label": "arXiv"
+        },
+        {
+          "url": "https://www.anthropic.com/research/AI-assistance-coding-skills",
+          "kind": "full",
+          "label": "Anthropic companion post"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-116",
+      "rank": 98,
+      "tier": "N",
+      "branch": "automation",
+      "authors": [
+        "Krzysztof Budzyń",
+        "Marcin Romańczyk",
+        "Yuichi Mori",
+        "et al."
+      ],
+      "title": "Endoscopist deskilling risk after exposure to artificial intelligence in colonoscopy: a multicentre, observational study",
+      "year": "2025",
+      "relevance": "Expert skill decay after routine AI assistance (contested)",
+      "links": [
+        {
+          "url": "https://doi.org/10.1016/S2468-1253(25)00133-5",
+          "kind": "publisher",
+          "label": "DOI (Lancet Gastroenterology & Hepatology)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-117",
+      "rank": 99,
+      "tier": "N",
+      "branch": "learning",
+      "authors": [
+        "Hamsa Bastani",
+        "Osbert Bastani",
+        "Alp Sungu",
+        "et al."
+      ],
+      "title": "Generative AI without guardrails can harm learning: Evidence from high school mathematics",
+      "year": "2025",
+      "relevance": "The same tool deskills or teaches, depending on design",
+      "links": [
+        {
+          "url": "https://doi.org/10.1073/pnas.2422633122",
+          "kind": "publisher",
+          "label": "DOI (PNAS)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-118",
+      "rank": 100,
+      "tier": "N",
+      "branch": "economics",
+      "authors": [
+        "Luis Garicano",
+        "Luis Rayo"
+      ],
+      "title": "Training in the Age of AI: A Theory of Apprenticeship Viability",
+      "year": "2025",
+      "relevance": "When apprenticeship stays viable once AI does junior work",
+      "links": [
+        {
+          "url": "https://ideas.repec.org/p/cpr/ceprdp/20634.html",
+          "kind": "publisher",
+          "label": "CEPR discussion paper (RePEc)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-119",
+      "rank": 101,
+      "tier": "N",
+      "branch": "economics",
+      "authors": [
+        "Enrique Ide"
+      ],
+      "title": "Automation, AI, and the Intergenerational Transmission of Knowledge",
+      "year": "2025",
+      "relevance": "AI and the transmission of knowledge between generations",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2507.16078",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-120",
+      "rank": 102,
+      "tier": "N",
+      "branch": "economics",
+      "authors": [
+        "Erik Brynjolfsson",
+        "Bharat Chandar",
+        "Ruyu Chen"
+      ],
+      "title": "Canaries in the Coal Mine? Six Facts about the Recent Employment Effects of Artificial Intelligence",
+      "year": "2025",
+      "relevance": "The bottom rung of the training ladder, in payroll data",
+      "links": [
+        {
+          "url": "https://digitaleconomy.stanford.edu/publication/canaries-in-the-coal-mine/",
+          "kind": "full",
+          "label": "Stanford Digital Economy Lab"
+        }
+      ],
+      "status": "verified",
+      "note": "Dated 2025 (rev. 2026). Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-121",
+      "rank": 103,
+      "tier": "N",
+      "branch": "automation",
+      "authors": [
+        "Joel Becker",
+        "Nate Rush",
+        "Beth Barnes",
+        "David Rein"
+      ],
+      "title": "Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity",
+      "year": "2025",
+      "relevance": "Developers slower with AI while believing they were faster",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2507.09089",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-122",
+      "rank": 104,
+      "tier": "N",
+      "branch": "organization",
+      "authors": [
+        "Fabrizio Dell’Acqua",
+        "Edward McFowland III",
+        "Ethan Mollick",
+        "Hila Lifshitz-Assaf",
+        "Katherine C. Kellogg",
+        "Saran Rajendran",
+        "Lisa Krayer",
+        "François Candelon",
+        "Karim R. Lakhani"
+      ],
+      "title": "Navigating the Jagged Technological Frontier: Field Experimental Evidence of the Effects of Artificial Intelligence on Knowledge Worker Productivity and Quality",
+      "year": "2023",
+      "relevance": "The jagged frontier: invisible edges of AI competence",
+      "links": [
+        {
+          "url": "https://doi.org/10.1287/orsc.2025.21838",
+          "kind": "publisher",
+          "label": "DOI (Organization Science)"
+        }
+      ],
+      "status": "verified",
+      "note": "Dated 2023 (pub. 2026). Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-123",
+      "rank": 105,
+      "tier": "N",
+      "branch": "automation",
+      "authors": [
+        "Fabrizio Dell’Acqua"
+      ],
+      "title": "Falling Asleep at the Wheel: Human/AI Collaboration in a Field Experiment on HR Recruiters",
+      "year": "2022",
+      "relevance": "A better AI made supervisors stop looking",
+      "links": [
+        {
+          "url": "https://d3.harvard.edu/?p=30560",
+          "kind": "publisher",
+          "label": "Working paper (Harvard D^3)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-124",
+      "rank": 106,
+      "tier": "N",
+      "branch": "economics",
+      "authors": [
+        "Nicholas Otis",
+        "Rowan Clarke",
+        "Solène Delecourt",
+        "David Holtz",
+        "Rembrand Koning"
+      ],
+      "title": "The Uneven Impact of Generative Artificial Intelligence on Entrepreneurial Performance: Evidence from a Field Experiment in Kenya",
+      "year": "2026",
+      "relevance": "Returns to AI advice bounded by the judgment filtering it",
+      "links": [
+        {
+          "url": "https://doi.org/10.1287/mnsc.2024.06909",
+          "kind": "publisher",
+          "label": "DOI (Management Science)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-125",
+      "rank": 107,
+      "tier": "N",
+      "branch": "automation",
+      "authors": [
+        "Nikhil Agarwal",
+        "Alex Moehring",
+        "Pranav Rajpurkar",
+        "Tobias Salz"
+      ],
+      "title": "Combining Human Expertise with Artificial Intelligence: Experimental Evidence from Radiology",
+      "year": "2023",
+      "relevance": "Experts underweight good AI: miscalibration both ways",
+      "links": [
+        {
+          "url": "https://www.nber.org/papers/w31422",
+          "kind": "publisher",
+          "label": "NBER working paper"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-126",
+      "rank": 108,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Samuel R. Bowman",
+        "et al."
+      ],
+      "title": "Measuring Progress on Scalable Oversight for Large Language Models",
+      "year": "2022",
+      "relevance": "Sandwiching: can weaker supervisors oversee beyond themselves?",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2211.03540",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-127",
+      "rank": 109,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Julian Michael",
+        "Salsabila Mahdi",
+        "David Rein",
+        "Jackson Petty",
+        "Julien Dirani",
+        "Vishakh Padmakumar",
+        "Samuel R. Bowman"
+      ],
+      "title": "Debate Helps Supervise Unreliable Experts",
+      "year": "2023",
+      "relevance": "Debate as feedback a supervisor can use",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2311.08702",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-128",
+      "rank": 110,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Akbir Khan",
+        "John Hughes",
+        "Ethan Perez",
+        "et al."
+      ],
+      "title": "Debating with More Persuasive LLMs Leads to More Truthful Answers",
+      "year": "2024",
+      "relevance": "Debate lifts non-expert judges to 88% accuracy",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2402.06782",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-129",
+      "rank": 111,
+      "tier": "N",
+      "branch": "agents",
+      "authors": [
+        "Collin Burns",
+        "Jan Leike",
+        "Ilya Sutskever",
+        "et al."
+      ],
+      "title": "Weak-to-Strong Generalization: Eliciting Strong Capabilities With Weak Supervision",
+      "year": "2023",
+      "relevance": "Strong models can exceed their weak supervisors",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2312.09390",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-130",
+      "rank": 112,
+      "tier": "N",
+      "branch": "economics",
+      "authors": [
+        "Ajay Agrawal",
+        "Joshua Gans",
+        "Avi Goldfarb"
+      ],
+      "title": "Exploring the Impact of Artificial Intelligence: Prediction versus Judgment",
+      "year": "2019",
+      "relevance": "Judgment as the complement to cheap prediction",
+      "links": [
+        {
+          "url": "https://doi.org/10.1016/j.infoecopol.2019.05.001",
+          "kind": "publisher",
+          "label": "DOI (Information Economics and Policy)"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-131",
+      "rank": 113,
+      "tier": "N",
+      "branch": "economics",
+      "authors": [
+        "Ajay Agrawal",
+        "Joshua Gans",
+        "Avi Goldfarb"
+      ],
+      "title": "Human Judgment and AI Pricing",
+      "year": "2018",
+      "relevance": "Judgment learned from experience, priced",
+      "links": [
+        {
+          "url": "https://www.nber.org/papers/w24284",
+          "kind": "publisher",
+          "label": "NBER working paper"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-132",
+      "rank": 114,
+      "tier": "N",
+      "branch": "economics",
+      "authors": [
+        "David Autor",
+        "Neil Thompson"
+      ],
+      "title": "Expertise",
+      "year": "2025",
+      "relevance": "Automation that removes the tasks that built expertise",
+      "links": [
+        {
+          "url": "https://www.nber.org/papers/w33941",
+          "kind": "publisher",
+          "label": "NBER working paper"
+        }
+      ],
+      "status": "verified",
+      "note": "Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
+    },
+    {
+      "id": "work-133",
+      "rank": 115,
+      "tier": "N",
+      "branch": "automation",
+      "authors": [
+        "David D. Woods"
+      ],
+      "title": "When AI Agents Misbehave and Fail to Coordinate: Architecting for Joint Activity",
+      "year": "2025",
+      "relevance": "Architecting for joint activity, not autonomy",
+      "links": [
+        {
+          "url": "https://www.sintef.no/contentassets/28e9bc4b44614e32a017665faf205dad/d.-woods_wen-ai-agents-misbehave_presentation-norway_marman-seminar-10-12.2025.pdf",
+          "kind": "full",
+          "label": "Seminar slides (SINTEF)"
+        }
+      ],
+      "status": "unverified",
+      "note": "Link confirmed by search only; the host refused automated fetches. Added from the survey of current work; see judge.mino.mobi/field/.",
+      "added": "2026-11-28"
     }
   ]
 }
