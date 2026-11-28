@@ -1,0 +1,514 @@
+{
+  "clusters": [
+    {
+      "name": "Supervising agents in practice",
+      "blurb": "The newest empirical work: how people actually oversee agents that work out of sight, and whether better traces make that oversight any better.",
+      "entries": [
+        {
+          "who": "Madeleine Grunde-McLaughlin, Hussein Mozannar, Saleema Amershi et al.",
+          "affiliation": "Microsoft Research AI Frontiers / University of Washington",
+          "works": [
+            {
+              "title": "Overseeing Agents Without Constant Oversight: Challenges and Opportunities",
+              "year": "2026",
+              "venue": "arXiv 2602.16844",
+              "url": "https://arxiv.org/abs/2602.16844",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Across three user studies on a computer-use agent, a better trace interface cut the time spent finding errors and raised confidence, but final accuracy did not improve, and correctness criteria were subjective and shifted. Supervisors grow more confident without growing more correct."
+        },
+        {
+          "who": "Shipi Dhanorkar, Samir Passi, Mihaela Vorvoreanu",
+          "affiliation": "Microsoft (Aether / Responsible AI)",
+          "works": [
+            {
+              "title": "Human oversight of agentic systems in practice: Examining the oversight work, challenges, and heuristics of developers using software agents",
+              "year": "2026",
+              "venue": "arXiv 2606.05391",
+              "url": "https://arxiv.org/abs/2606.05391",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Interviews with 17 experienced developers found four forms of oversight work (a priori control, co-planning, real-time monitoring, post hoc review) and home-made heuristics for them, which treats oversight as a practice people learn but no one trains."
+        },
+        {
+          "who": "Anthropic Societal Impacts",
+          "affiliation": "Anthropic",
+          "works": [
+            {
+              "title": "Measuring AI agent autonomy in practice",
+              "year": "2026",
+              "venue": "Anthropic research report",
+              "url": "https://www.anthropic.com/research/measuring-agent-autonomy",
+              "checked": "200"
+            }
+          ],
+          "bearing": "complicates",
+          "why": "Claude Code users move from about 20% to over 40% full auto-approve as they gain experience, yet they also interrupt more. Supervision does change with exposure, but the data show trust and interruption rates, not whether the supervisors were right."
+        },
+        {
+          "who": "Andrej Karpathy",
+          "affiliation": "independent (Eureka Labs); formerly OpenAI, Tesla",
+          "works": [
+            {
+              "title": "Software Is Changing (Again)",
+              "year": "2025",
+              "venue": "Y Combinator AI Startup School talk",
+              "url": "https://www.youtube.com/watch?v=LCEmiRjPEtQ",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "The autonomy slider and the instruction to keep the generation-verification loop fast and the AI on a tight leash are a practitioner's version of the thesis: you should delegate only as far as you can verify quickly."
+        },
+        {
+          "who": "Simon Willison",
+          "affiliation": "independent practitioner (Datasette; Django co-creator)",
+          "works": [
+            {
+              "title": "Vibe engineering",
+              "year": "2025",
+              "venue": "simonwillison.net",
+              "url": "https://simonwillison.net/2025/Oct/7/vibe-engineering/",
+              "checked": "200"
+            },
+            {
+              "title": "Vibe coding and agentic engineering",
+              "year": "2026",
+              "venue": "simonwillison.net",
+              "url": "https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Argues that productive agent use is senior-engineer work (tests, review, specs, judging output), so the leverage belongs to people whose judgment was already trained without agents. That leaves open how the next cohort gets that judgment."
+        }
+      ]
+    },
+    {
+      "name": "Metacognition and calibration with generative AI",
+      "blurb": "Users of generative AI misjudge both the output and their own performance; the work sits between HCI and cognitive psychology.",
+      "entries": [
+        {
+          "who": "Lev Tankelevitch, Viktor Kewenig, Auste Simkute, Ava Elizabeth Scott, Advait Sarkar, Abigail Sellen, Sean Rintel",
+          "affiliation": "Microsoft Research Cambridge",
+          "works": [
+            {
+              "title": "The Metacognitive Demands and Opportunities of Generative AI",
+              "year": "2024",
+              "venue": "CHI 2024",
+              "url": "https://doi.org/10.1145/3613904.3642902",
+              "checked": "crossref"
+            },
+            {
+              "title": "Ironies of Generative AI: Understanding and Mitigating Productivity Loss in Human-AI Interaction (Simkute et al.)",
+              "year": "2024",
+              "venue": "International Journal of Human-Computer Interaction",
+              "url": "https://arxiv.org/abs/2402.11364",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Recasts generative-AI use as a metacognitive task: monitoring, evaluating and calibrating your confidence in output. It updates Bainbridge's ironies of automation, where users shift from producing work to evaluating it and lose the practice that made them good evaluators."
+        },
+        {
+          "who": "Hao-Ping (Hank) Lee, Advait Sarkar, Lev Tankelevitch, Ian Drosos, Sean Rintel, Richard Banks, Nicholas Wilson",
+          "affiliation": "Microsoft Research / Carnegie Mellon",
+          "works": [
+            {
+              "title": "The Impact of Generative AI on Critical Thinking: Self-Reported Reductions in Cognitive Effort and Confidence Effects From a Survey of Knowledge Workers",
+              "year": "2025",
+              "venue": "CHI 2025",
+              "url": "https://doi.org/10.1145/3706598.3713778",
+              "checked": "crossref"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "In a survey of 319 knowledge workers, higher confidence in the AI went with less critical thinking and higher self-confidence went with more. Critical effort shifts toward verification and stewardship, which is the supervisor role the thesis describes."
+        },
+        {
+          "who": "Daniela Fernandes, Steeven Villa, Salla Nicholls, Otso Haavisto, Daniel Buschek, Albrecht Schmidt, Thomas Kosch, Chenxinran Shen, Robin Welsch",
+          "affiliation": "Aalto University / LMU Munich / HU Berlin",
+          "works": [
+            {
+              "title": "AI makes you smarter but none the wiser: The disconnect between performance and metacognition",
+              "year": "2026",
+              "venue": "Computers in Human Behavior (arXiv 2409.16708)",
+              "url": "https://doi.org/10.1016/j.chb.2025.108779",
+              "checked": "crossref"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "AI help raised LSAT scores but participants overestimated their own performance, and neither higher AI literacy nor a monetary incentive fixed the overestimation. This is direct evidence that working through AI degrades calibration even while it improves output."
+        },
+        {
+          "who": "Shreya Shankar, J.D. Zamfirescu-Pereira, Björn Hartmann, Aditya Parameswaran, Ian Arawjo",
+          "affiliation": "UC Berkeley / Université de Montréal",
+          "works": [
+            {
+              "title": "Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences",
+              "year": "2024",
+              "venue": "UIST 2024",
+              "url": "https://arxiv.org/abs/2404.12272",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Documents criteria drift: evaluators need criteria to grade outputs, but they form those criteria by grading outputs. The paper makes the feedback-forms-judgment mechanism concrete and argues it should be designed for."
+        },
+        {
+          "who": "Hussein Mozannar, David Sontag et al.",
+          "affiliation": "MIT (now Microsoft Research)",
+          "works": [
+            {
+              "title": "Effective Human-AI Teams via Learned Natural Language Rules and Onboarding",
+              "year": "2023",
+              "venue": "NeurIPS 2023",
+              "url": "https://arxiv.org/abs/2311.01007",
+              "checked": "200"
+            },
+            {
+              "title": "Teaching Humans When To Defer to a Classifier via Exemplars",
+              "year": "2022",
+              "venue": "AAAI 2022",
+              "url": "https://arxiv.org/abs/2111.11297",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Shows that calibrated reliance can be taught: onboarding with exemplars and learned rules about where the AI fails improves when people defer and when they override. This is the closest existing prototype of a system that produces training for its supervisor."
+        }
+      ]
+    },
+    {
+      "name": "Deskilling and the broken apprenticeship",
+      "blurb": "Evidence that AI assistance erodes the skill that supervision depends on, and theory of why the training ladder may collapse.",
+      "entries": [
+        {
+          "who": "Matt Beane",
+          "affiliation": "UC Santa Barbara (Technology Management); MIT Initiative on the Digital Economy",
+          "works": [
+            {
+              "title": "The Skill Code: How to Save Human Ability in an Age of Intelligent Machines",
+              "year": "2024",
+              "venue": "HarperCollins",
+              "url": "https://ide.mit.edu/publication/the-skill-code-how-to-save-human-ability-in-an-age-of-intelligent-machines/",
+              "checked": "200"
+            },
+            {
+              "title": "Shadow Learning: Building Robotic Surgical Skill When Approved Means Fail",
+              "year": "2019",
+              "venue": "Administrative Science Quarterly",
+              "url": "https://doi.org/10.1177/0001839217751692",
+              "checked": "crossref"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Robotic surgery removed novices from the work, and they learned only through unsanctioned shadow learning. The finding is that skill needs challenge, complexity and connection, the same feedback that delegation strips out."
+        },
+        {
+          "who": "Judy Hanwen Shen, Alex Tamkin",
+          "affiliation": "Anthropic (Anthropic Fellows Program)",
+          "works": [
+            {
+              "title": "How AI Impacts Skill Formation",
+              "year": "2026",
+              "venue": "arXiv 2601.20245",
+              "url": "https://arxiv.org/abs/2601.20245",
+              "checked": "200"
+            },
+            {
+              "title": "AI assistance and coding skills (companion post)",
+              "year": "2026",
+              "venue": "Anthropic research",
+              "url": "https://www.anthropic.com/research/AI-assistance-coding-skills",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "In an RCT (n≈51) on an unfamiliar Python library, AI users scored about 50% on a later quiz against about 65% without AI, with no significant time saving. Three of the six interaction patterns that kept users cognitively engaged preserved learning, so how a tool is used determines whether it deskills."
+        },
+        {
+          "who": "Krzysztof Budzyń, Marcin Romańczyk, Yuichi Mori et al.",
+          "affiliation": "multicentre (Poland, Norway, Japan, UK)",
+          "works": [
+            {
+              "title": "Endoscopist deskilling risk after exposure to artificial intelligence in colonoscopy: a multicentre, observational study",
+              "year": "2025",
+              "venue": "Lancet Gastroenterology & Hepatology",
+              "url": "https://doi.org/10.1016/S2468-1253(25)00133-5",
+              "checked": "crossref"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "After routine use of AI polyp detection, experienced endoscopists' adenoma detection without AI fell from 28.4% to 22.4%, an early field sign of skill decay among experts. The study is observational and the finding is contested."
+        },
+        {
+          "who": "Hamsa Bastani, Osbert Bastani, Alp Sungu et al.",
+          "affiliation": "Wharton / Penn",
+          "works": [
+            {
+              "title": "Generative AI without guardrails can harm learning: Evidence from high school mathematics",
+              "year": "2025",
+              "venue": "PNAS",
+              "url": "https://doi.org/10.1073/pnas.2422633122",
+              "checked": "crossref"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "In a field experiment with about 1,000 students, GPT-4 access raised practice scores but lowered exam scores once access was removed, and a tutor version with guardrails mostly removed the harm. The tool's design decides whether practice builds skill."
+        },
+        {
+          "who": "Luis Garicano, Luis Rayo; Enrique Ide",
+          "affiliation": "LSE / Kellogg Northwestern; IESE",
+          "works": [
+            {
+              "title": "Training in the Age of AI: A Theory of Apprenticeship Viability",
+              "year": "2025",
+              "venue": "CEPR Discussion Paper 20634",
+              "url": "https://ideas.repec.org/p/cpr/ceprdp/20634.html",
+              "checked": "200"
+            },
+            {
+              "title": "Automation, AI, and the Intergenerational Transmission of Knowledge (Ide)",
+              "year": "2025",
+              "venue": "arXiv 2507.16078",
+              "url": "https://arxiv.org/abs/2507.16078",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Juniors pay for training with menial work; once AI does that work, apprenticeships stay viable only if the expertise leverage ratio exceeds a threshold (e). The model explains why delegation can destroy the pipeline that produces future supervisors."
+        },
+        {
+          "who": "Erik Brynjolfsson, Bharat Chandar, Ruyu Chen",
+          "affiliation": "Stanford Digital Economy Lab",
+          "works": [
+            {
+              "title": "Canaries in the Coal Mine? Six Facts about the Recent Employment Effects of Artificial Intelligence",
+              "year": "2025 (rev. 2026)",
+              "venue": "Stanford Digital Economy Lab working paper",
+              "url": "https://digitaleconomy.stanford.edu/publication/canaries-in-the-coal-mine/",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Early-career workers in AI-exposed occupations are 16–19% below trend, mostly through reduced hiring, while experienced workers are not, which is the bottom rung of the training ladder disappearing in payroll data. The evidence is descriptive, not causal."
+        }
+      ]
+    },
+    {
+      "name": "Productivity, overreliance and self-misjudgment in field and lab experiments",
+      "blurb": "Randomised evidence that the people being helped cannot tell where the AI's competence ends, and that a better AI can make the human worse.",
+      "entries": [
+        {
+          "who": "METR (Joel Becker, Nate Rush, Beth Barnes, David Rein)",
+          "affiliation": "METR",
+          "works": [
+            {
+              "title": "Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity",
+              "year": "2025",
+              "venue": "arXiv 2507.09089",
+              "url": "https://arxiv.org/abs/2507.09089",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Sixteen experienced developers on their own repositories were 19% slower with AI while believing beforehand they would be 24% faster and afterwards that they had been 20% faster. This is a clean measurement of a miscalibrated supervisor who receives no corrective feedback."
+        },
+        {
+          "who": "Fabrizio Dell'Acqua, Edward McFowland III, Ethan Mollick, Hila Lifshitz-Assaf, Karim Lakhani et al.",
+          "affiliation": "Harvard Business School / Wharton / BCG",
+          "works": [
+            {
+              "title": "Navigating the Jagged Technological Frontier: Field Experimental Evidence of the Effects of Artificial Intelligence on Knowledge Worker Productivity and Quality",
+              "year": "2023 (pub. 2026)",
+              "venue": "Organization Science (SSRN 4573321)",
+              "url": "https://doi.org/10.1287/orsc.2025.21838",
+              "checked": "crossref"
+            },
+            {
+              "title": "Falling Asleep at the Wheel: Human/AI Collaboration in a Field Experiment on HR Recruiters (Dell'Acqua)",
+              "year": "2022",
+              "venue": "working paper",
+              "url": "https://d3.harvard.edu/?p=30560",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "BCG consultants given GPT-4 got much better on tasks inside the frontier and 19 points worse on a task outside it. Separately, recruiters given a better AI deliberated less and did worse than those given a weaker one. Supervisors cannot see where the frontier is, and good AI stops them looking."
+        },
+        {
+          "who": "Nicholas Otis, Rowan Clarke, Solène Delecourt, David Holtz, Rembrand Koning",
+          "affiliation": "UC Berkeley / Harvard Business School",
+          "works": [
+            {
+              "title": "The Uneven Impact of Generative Artificial Intelligence on Entrepreneurial Performance: Evidence from a Field Experiment in Kenya",
+              "year": "2026",
+              "venue": "Management Science",
+              "url": "https://doi.org/10.1287/mnsc.2024.06909",
+              "checked": "crossref"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "With the same GPT-4 mentor, high-performing entrepreneurs gained about 15% and low performers lost about 10%, and the gap came from which advice each group chose to act on. Returns to AI were bounded by the judgment of whoever filtered it."
+        },
+        {
+          "who": "Nikhil Agarwal, Alex Moehring, Pranav Rajpurkar, Tobias Salz",
+          "affiliation": "MIT / Harvard",
+          "works": [
+            {
+              "title": "Combining Human Expertise with Artificial Intelligence: Experimental Evidence from Radiology",
+              "year": "2023",
+              "venue": "NBER Working Paper 31422",
+              "url": "https://www.nber.org/papers/w31422",
+              "checked": "200"
+            }
+          ],
+          "bearing": "complicates",
+          "why": "Radiologists did not over-rely on AI; they underweighted it relative to their own signal (automation neglect) and on average did not improve. Miscalibration can run in the conservative direction too, so the fix is calibration, not simply more scepticism."
+        }
+      ]
+    },
+    {
+      "name": "Scalable oversight in AI safety",
+      "blurb": "The same problem framed from the model side: how a weaker supervisor gets reliable signal about a stronger system's work.",
+      "entries": [
+        {
+          "who": "Samuel Bowman et al.; Julian Michael et al.",
+          "affiliation": "Anthropic / NYU",
+          "works": [
+            {
+              "title": "Measuring Progress on Scalable Oversight for Large Language Models",
+              "year": "2022",
+              "venue": "arXiv 2211.03540",
+              "url": "https://arxiv.org/abs/2211.03540",
+              "checked": "200"
+            },
+            {
+              "title": "Debate Helps Supervise Unreliable Experts",
+              "year": "2023",
+              "venue": "arXiv 2311.08702",
+              "url": "https://arxiv.org/abs/2311.08702",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "The sandwiching paradigm measures whether non-experts assisted by a model can supervise beyond their own competence, and human debate studies find they can when the protocol forces adversarial evidence, which is structured feedback that the supervised system is made to produce."
+        },
+        {
+          "who": "Akbir Khan, John Hughes, Ethan Perez et al.",
+          "affiliation": "UCL / Anthropic / FAR",
+          "works": [
+            {
+              "title": "Debating with More Persuasive LLMs Leads to More Truthful Answers",
+              "year": "2024",
+              "venue": "ICML 2024",
+              "url": "https://arxiv.org/abs/2402.06782",
+              "checked": "200"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "Non-expert human judges reached 88% accuracy with debate (model judges 76%), against much lower baselines. A process in which the workers argue against each other can produce the feedback a weak supervisor needs."
+        },
+        {
+          "who": "Collin Burns, Jan Leike, Ilya Sutskever et al.",
+          "affiliation": "OpenAI Superalignment",
+          "works": [
+            {
+              "title": "Weak-to-Strong Generalization: Eliciting Strong Capabilities With Weak Supervision",
+              "year": "2023",
+              "venue": "arXiv 2312.09390 (ICML 2024)",
+              "url": "https://arxiv.org/abs/2312.09390",
+              "checked": "200"
+            }
+          ],
+          "bearing": "complicates",
+          "why": "Strong models trained on a weak supervisor's labels can outperform the supervisor, so in the model case oversight does not have to be as capable as the system it oversees. That is the main counterweight to the thesis's claim that delegation is capped by the supervisor's calibration."
+        }
+      ]
+    },
+    {
+      "name": "Judgment economics and joint cognitive systems",
+      "blurb": "Theory of why judgment becomes the scarce input, and the human-factors tradition that saw the ironies first.",
+      "entries": [
+        {
+          "who": "Ajay Agrawal, Joshua Gans, Avi Goldfarb",
+          "affiliation": "University of Toronto (Rotman)",
+          "works": [
+            {
+              "title": "Exploring the Impact of Artificial Intelligence: Prediction versus Judgment",
+              "year": "2019",
+              "venue": "Information Economics and Policy (NBER w24626)",
+              "url": "https://doi.org/10.1016/j.infoecopol.2019.05.001",
+              "checked": "crossref"
+            },
+            {
+              "title": "Human Judgment and AI Pricing",
+              "year": "2018",
+              "venue": "NBER Working Paper 24284 / AEA P&P",
+              "url": "https://www.nber.org/papers/w24284",
+              "checked": "200"
+            }
+          ],
+          "bearing": "complicates",
+          "why": "Judgment is the complement to cheap prediction, and in the pricing paper it is learned from experience, but better prediction moves the returns to different kinds of judgment in opposite directions. Not all judgment gains value, and the models do not ask where calibrated judgment comes from."
+        },
+        {
+          "who": "David Autor, Neil Thompson",
+          "affiliation": "MIT",
+          "works": [
+            {
+              "title": "Expertise",
+              "year": "2025",
+              "venue": "NBER Working Paper 33941",
+              "url": "https://www.nber.org/papers/w33941",
+              "checked": "200"
+            }
+          ],
+          "bearing": "complicates",
+          "why": "Whether automation helps or hurts a worker depends on whether it removes the inexpert or the expert tasks of the job. Delegation can raise the value of remaining expertise while removing the tasks that used to build it."
+        },
+        {
+          "who": "David D. Woods",
+          "affiliation": "Ohio State University (Cognitive Systems Engineering)",
+          "works": [
+            {
+              "title": "When AI Agents Misbehave and Fail to Coordinate: Architecting for Joint Activity",
+              "year": "2025",
+              "venue": "seminar slides, SINTEF MARMAN seminar",
+              "url": "https://www.sintef.no/contentassets/28e9bc4b44614e32a017665faf205dad/d.-woods_wen-ai-agents-misbehave_presentation-norway_marman-seminar-10-12.2025.pdf",
+              "checked": "search"
+            }
+          ],
+          "bearing": "agrees",
+          "why": "From the joint-cognitive-systems tradition: as more authority is delegated to more capable agents, they will misbehave in ways that look strong and wrong, so the system must be designed for joint activity and directable observability rather than for autonomy alone."
+        }
+      ]
+    }
+  ],
+  "closest": [
+    {
+      "who": "Grunde-McLaughlin, Mozannar, Amershi et al. (Overseeing Agents Without Constant Oversight, 2026)",
+      "why": "It tests the thesis's exact situation, a person verifying an agent's summarised trace after the fact, and finds that a better summary raises confidence and speed but not accuracy, with criteria that shift as the person works. Feedback produced by the supervised system did not train the supervisor."
+    },
+    {
+      "who": "Shankar et al. (Who Validates the Validators?, 2024)",
+      "why": "Criteria drift is the mechanism the thesis needs: evaluation criteria form only through grading outputs, so an evaluator who stops seeing outputs stops forming criteria. EvalGen is a working design that turns grading into criterion formation."
+    },
+    {
+      "who": "Mozannar et al. (onboarding and teaching when to defer, 2022–2023) together with Fernandes et al. (2026)",
+      "why": "Fernandes shows that AI use leaves people miscalibrated about their own performance, even with incentives; Mozannar shows that calibrated reliance can be trained with exemplars of where the AI fails. Together they are the clearest evidence that the gap exists and that a system can be built to close it."
+    }
+  ],
+  "against": [
+    "Weak-to-strong generalization (Burns et al. 2023) and the debate results (Khan et al. 2024; Michael et al. 2023): oversight can exceed the overseer's own competence when the protocol is right, so the ceiling may be the protocol, not the supervisor's trained calibration.",
+    "Agarwal et al. (radiology, 2023): experts underweighted good AI rather than over-trusting it, and adding contextual information did not help. More feedback and more judgment do not automatically yield better joint decisions.",
+    "Anthropic's agent-autonomy data (2026): experienced users delegate more and also interrupt more, which suggests oversight skill may build up from ordinary use without designed feedback. The data measure trust, not correctness, so this is weak evidence either way.",
+    "Dell'Acqua's recruiter study cuts both ways: by one reading, recruiters with the 85%-accurate AI intervened enough to pull accuracy down to about 74%, so their judgment subtracted value. When the AI is good enough, deferring may beat calibrated supervision on average, and calibration matters only for the tail of cases the AI gets wrong.",
+    "The deskilling evidence is fragile in places: Budzyń et al. is observational and contested (later prospective studies reportedly find no decline, which I could not verify), and Shen & Tamkin's per-pattern cells have about four participants each."
+  ]
+}

@@ -163,6 +163,7 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
       <li><a href="/sources/" aria-current="page">Sources</a></li>
       <li><a href="/thesis/">Thesis</a></li>
       <li><a href="/testbed/">Testbed</a></li>
+      <li><a href="/field/">Field</a></li>
     </ul>
   </nav>
 </header>

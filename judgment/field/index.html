@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The field — judgment</title>
+<meta name="description" content="Who else is working on keeping judgment over delegated work: agent oversight, metacognition with AI, deskilling and apprenticeship, field experiments, scalable oversight, and the economics of judgment. 2023–2026.">
+<link rel="stylesheet" href="/judge.css">
+<style>
+.draft { font-family: var(--sans); font-size: 0.95rem; background: var(--warn-bg); color: var(--warn); padding: 0.5rem 0.75rem; border-radius: 4px; display: inline-block; margin: 0 0 1rem; }
+ul.people { list-style: none; padding: 0; margin: 0; }
+li.person { border-top: 1px solid var(--rule); padding: 1rem 0; }
+li.person h3 { margin: 0; font-size: 1.15rem; }
+.aff { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); margin: 0.1rem 0 0.5rem; }
+.bear { font-family: var(--sans); font-size: 0.85rem; font-weight: 700; padding: 0.1rem 0.45rem; border-radius: 3px; margin-right: 0.3rem; white-space: nowrap; }
+.b-agrees { color: var(--full); background: var(--full-bg); }
+.b-complicates { color: var(--warn); background: var(--warn-bg); }
+.b-contradicts { color: var(--link); background: var(--tag-bg); }
+ul.works { padding-left: 1.2rem; margin: 0.25rem 0 0; font-size: 1rem; }
+ul.works li { margin-bottom: 0.3rem; }
+.flag { font-family: var(--sans); font-size: 0.8rem; color: var(--warn); }
+.key { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.1rem; margin: 1rem 0; }
+.key h3 { margin-top: 0; }
+.key > :last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="home" href="/">judgment</a>
+  <nav aria-label="Site">
+    <ul>
+      <li><a href="/">About</a></li>
+      <li><a href="/sources/">Sources</a></li>
+      <li><a href="/thesis/">Thesis</a></li>
+      <li><a href="/testbed/">Testbed</a></li>
+      <li><a href="/field/" aria-current="page">Field</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+<h1>The field: who else is working on this</h1>
+<p class="draft">Compiled 28 November 2026. Every link was fetched, or its DOI confirmed through Crossref, except one, which is marked.</p>
+
+<p class="lede">The <a href="/sources/">sources</a> are mostly the deep background. This page is the live conversation: people who, between 2023 and 2026, have studied what happens to human judgment when the work is delegated to AI.</p>
+
+<p>Nobody has framed it quite the way the <a href="/thesis/">thesis</a> does, as a single loop in which delegation removes the feedback that calibration needs. But the pieces are being measured from six directions, and most of what has been found fits. Each entry says whether it <span class="bear b-agrees">agrees</span>, <span class="bear b-complicates">complicates</span> or <span class="bear b-contradicts">cuts against</span> the thesis.</p>
+
+<h2 id="closest">The three closest</h2>
+<div class="key">
+<h3>Grunde-McLaughlin, Mozannar, Amershi et al., <cite>Overseeing Agents Without Constant Oversight</cite> (Microsoft Research, 2026)</h3>
+<p>This is the thesis’s exact situation: a person checking an agent’s work afterwards, from a summarised trace. A better trace interface made supervisors faster and more confident but <em>not more accurate</em>, and their idea of “correct” shifted as they went. That is <a href="/thesis/#p1">P1</a> measured directly. Feedback produced by the supervised system did not train the supervisor. <a href="https://arxiv.org/abs/2602.16844">arXiv 2602.16844</a></p>
+</div>
+<div class="key">
+<h3>Shankar et al., <cite>Who Validates the Validators?</cite> (UIST 2024)</h3>
+<p>This paper names the mechanism: <strong>criteria drift</strong>. You need criteria to grade outputs, but you only form criteria by grading outputs. An evaluator who stops seeing outputs stops forming criteria. That is <a href="/thesis/#p2">P2</a> and <a href="/thesis/#p4">P4</a> in one finding, and their tool, EvalGen, is a working design that turns grading into criterion formation. <a href="https://arxiv.org/abs/2404.12272">arXiv 2404.12272</a></p>
+</div>
+<div class="key">
+<h3>Fernandes et al. (2026), read together with Mozannar et al. (2022–23)</h3>
+<p>Fernandes: AI help raised people’s test scores, but they overestimated how well they had done, and neither AI literacy nor money fixed it. Mozannar: calibrated reliance <em>can</em> be taught, by onboarding people with examples of where the AI fails. Together they show the gap exists and can be closed by design. This is the developmental half of the programme, already prototyped. <a href="https://doi.org/10.1016/j.chb.2025.108779">Fernandes</a> · <a href="https://arxiv.org/abs/2311.01007">Mozannar</a></p>
+</div>
+
+<h2 id="against">What counts against the thesis</h2>
+<ul>
+  <li><strong>The protocol may matter more than the person.</strong> In AI safety, weak-to-strong generalization (Burns et al., 2023) and debate (Michael et al., 2023; Khan et al., 2024) show oversight can exceed the overseer’s own competence when the process makes the workers produce adversarial evidence. If so, the limit on delegation is the protocol, not the supervisor’s calibration.</li>
+  <li><strong>Miscalibration runs both ways.</strong> Radiologists given good AI <em>underweighted</em> it and did no better (Agarwal et al., 2023). The fix is calibration, not more scepticism.</li>
+  <li><strong>Sometimes deferring wins.</strong> Recruiters given a better AI did worse by one reading, because their interventions pulled accuracy down (Dell’Acqua, 2022). When the AI is good enough, calibration may only matter for the tail of cases it gets wrong.</li>
+  <li><strong>Maybe ordinary use is enough.</strong> Experienced Claude Code users both delegate and interrupt more (Anthropic, 2026). Oversight skill may build without designed feedback, though the data measure trust, not correctness.</li>
+  <li><strong>Some deskilling evidence is fragile.</strong> The colonoscopy study is observational and contested. The Anthropic skill-formation RCT has about four people per interaction pattern.</li>
+</ul>
+
+<h2 id="changes">What this changes in the thesis</h2>
+<ol>
+  <li><strong>Widen the claim to include protocols.</strong> The strongest counter-evidence doesn’t refute the thesis; it relocates part of it. Debate is a <em>system that produces independent evidence for its supervisor</em>, which is exactly what the thesis asks for. Revised: leverage scales when the work produces feedback that is independent of it, whether that feedback trains the supervisor (developmental) or stands in for the supervisor’s calibration (protocol). Which of the two dominates is an empirical question, and <a href="/testbed/#e2">E2</a> on the testbed can start to answer it.</li>
+  <li><strong>Calibration means both directions.</strong> The <a href="/thesis/#measure">measures</a> already count over- and under-supervision. The radiology and recruiter studies say both are common, so neither can be the default fix.</li>
+  <li><strong>The apprenticeship gap has an economics.</strong> Garicano and Rayo model when apprenticeships stay viable once AI does the junior work. Brynjolfsson et al. see the bottom rung thinning in payroll data. The “ascend faster than apprenticeship” claim in the abstract now has a formal model and early evidence behind it.</li>
+  <li><strong>Design decides.</strong> Bastani et al. (guardrailed tutor) and Shen &amp; Tamkin (engaged interaction patterns) both find that the <em>same</em> tool deskills or doesn’t depending on how it is used. That supports treating cultivation as a design problem, not a matter of character.</li>
+</ol>
+<section aria-labelledby="c1">
+<h2 id="c1">Supervising agents in practice</h2>
+<p class="muted">The newest empirical work: how people actually oversee agents that work out of sight, and whether better traces make that oversight any better.</p>
+<ul class="people">
+<li class="person">
+<h3>Madeleine Grunde-McLaughlin, Hussein Mozannar, Saleema Amershi et al.</h3>
+<p class="aff">Microsoft Research AI Frontiers / University of Washington</p>
+<p><span class="bear b-agrees">Agrees</span> Across three user studies on a computer-use agent, a better trace interface cut the time spent finding errors and raised confidence, but final accuracy did not improve, and correctness criteria were subjective and shifted. Supervisors grow more confident without growing more correct.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2602.16844"><cite>Overseeing Agents Without Constant Oversight: Challenges and Opportunities</cite></a> <span class="muted">arXiv 2602.16844, 2026</span></li></ul>
+</li>
+<li class="person">
+<h3>Shipi Dhanorkar, Samir Passi, Mihaela Vorvoreanu</h3>
+<p class="aff">Microsoft (Aether / Responsible AI)</p>
+<p><span class="bear b-agrees">Agrees</span> Interviews with 17 experienced developers found four forms of oversight work (a priori control, co-planning, real-time monitoring, post hoc review) and home-made heuristics for them, which treats oversight as a practice people learn but no one trains.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2606.05391"><cite>Human oversight of agentic systems in practice: Examining the oversight work, challenges, and heuristics of developers using software agents</cite></a> <span class="muted">arXiv 2606.05391, 2026</span></li></ul>
+</li>
+<li class="person">
+<h3>Anthropic Societal Impacts</h3>
+<p class="aff">Anthropic</p>
+<p><span class="bear b-complicates">Complicates</span> Claude Code users move from about 20% to over 40% full auto-approve as they gain experience, yet they also interrupt more. Supervision does change with exposure, but the data show trust and interruption rates, not whether the supervisors were right.</p>
+<ul class="works"><li><a href="https://www.anthropic.com/research/measuring-agent-autonomy"><cite>Measuring AI agent autonomy in practice</cite></a> <span class="muted">Anthropic research report, 2026</span></li></ul>
+</li>
+<li class="person">
+<h3>Andrej Karpathy</h3>
+<p class="aff">independent (Eureka Labs); formerly OpenAI, Tesla</p>
+<p><span class="bear b-agrees">Agrees</span> The autonomy slider and the instruction to keep the generation-verification loop fast and the AI on a tight leash are a practitioner's version of the thesis: you should delegate only as far as you can verify quickly.</p>
+<ul class="works"><li><a href="https://www.youtube.com/watch?v=LCEmiRjPEtQ"><cite>Software Is Changing (Again)</cite></a> <span class="muted">Y Combinator AI Startup School talk, 2025</span></li></ul>
+</li>
+<li class="person">
+<h3>Simon Willison</h3>
+<p class="aff">independent practitioner (Datasette; Django co-creator)</p>
+<p><span class="bear b-agrees">Agrees</span> Argues that productive agent use is senior-engineer work (tests, review, specs, judging output), so the leverage belongs to people whose judgment was already trained without agents. That leaves open how the next cohort gets that judgment.</p>
+<ul class="works"><li><a href="https://simonwillison.net/2025/Oct/7/vibe-engineering/"><cite>Vibe engineering</cite></a> <span class="muted">simonwillison.net, 2025</span></li><li><a href="https://simonwillison.net/2026/May/6/vibe-coding-and-agentic-engineering"><cite>Vibe coding and agentic engineering</cite></a> <span class="muted">simonwillison.net, 2026</span></li></ul>
+</li>
+</ul>
+</section>
+<section aria-labelledby="c2">
+<h2 id="c2">Metacognition and calibration with generative AI</h2>
+<p class="muted">Users of generative AI misjudge both the output and their own performance; the work sits between HCI and cognitive psychology.</p>
+<ul class="people">
+<li class="person">
+<h3>Lev Tankelevitch, Viktor Kewenig, Auste Simkute, Ava Elizabeth Scott, Advait Sarkar, Abigail Sellen, Sean Rintel</h3>
+<p class="aff">Microsoft Research Cambridge</p>
+<p><span class="bear b-agrees">Agrees</span> Recasts generative-AI use as a metacognitive task: monitoring, evaluating and calibrating your confidence in output. It updates Bainbridge's ironies of automation, where users shift from producing work to evaluating it and lose the practice that made them good evaluators.</p>
+<ul class="works"><li><a href="https://doi.org/10.1145/3613904.3642902"><cite>The Metacognitive Demands and Opportunities of Generative AI</cite></a> <span class="muted">CHI 2024, 2024</span></li><li><a href="https://arxiv.org/abs/2402.11364"><cite>Ironies of Generative AI: Understanding and Mitigating Productivity Loss in Human-AI Interaction (Simkute et al.)</cite></a> <span class="muted">International Journal of Human-Computer Interaction, 2024</span></li></ul>
+</li>
+<li class="person">
+<h3>Hao-Ping (Hank) Lee, Advait Sarkar, Lev Tankelevitch, Ian Drosos, Sean Rintel, Richard Banks, Nicholas Wilson</h3>
+<p class="aff">Microsoft Research / Carnegie Mellon</p>
+<p><span class="bear b-agrees">Agrees</span> In a survey of 319 knowledge workers, higher confidence in the AI went with less critical thinking and higher self-confidence went with more. Critical effort shifts toward verification and stewardship, which is the supervisor role the thesis describes.</p>
+<ul class="works"><li><a href="https://doi.org/10.1145/3706598.3713778"><cite>The Impact of Generative AI on Critical Thinking: Self-Reported Reductions in Cognitive Effort and Confidence Effects From a Survey of Knowledge Workers</cite></a> <span class="muted">CHI 2025, 2025</span></li></ul>
+</li>
+<li class="person">
+<h3>Daniela Fernandes, Steeven Villa, Salla Nicholls, Otso Haavisto, Daniel Buschek, Albrecht Schmidt, Thomas Kosch, Chenxinran Shen, Robin Welsch</h3>
+<p class="aff">Aalto University / LMU Munich / HU Berlin</p>
+<p><span class="bear b-agrees">Agrees</span> AI help raised LSAT scores but participants overestimated their own performance, and neither higher AI literacy nor a monetary incentive fixed the overestimation. This is direct evidence that working through AI degrades calibration even while it improves output.</p>
+<ul class="works"><li><a href="https://doi.org/10.1016/j.chb.2025.108779"><cite>AI makes you smarter but none the wiser: The disconnect between performance and metacognition</cite></a> <span class="muted">Computers in Human Behavior (arXiv 2409.16708), 2026</span></li></ul>
+</li>
+<li class="person">
+<h3>Shreya Shankar, J.D. Zamfirescu-Pereira, Björn Hartmann, Aditya Parameswaran, Ian Arawjo</h3>
+<p class="aff">UC Berkeley / Université de Montréal</p>
+<p><span class="bear b-agrees">Agrees</span> Documents criteria drift: evaluators need criteria to grade outputs, but they form those criteria by grading outputs. The paper makes the feedback-forms-judgment mechanism concrete and argues it should be designed for.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2404.12272"><cite>Who Validates the Validators? Aligning LLM-Assisted Evaluation of LLM Outputs with Human Preferences</cite></a> <span class="muted">UIST 2024, 2024</span></li></ul>
+</li>
+<li class="person">
+<h3>Hussein Mozannar, David Sontag et al.</h3>
+<p class="aff">MIT (now Microsoft Research)</p>
+<p><span class="bear b-agrees">Agrees</span> Shows that calibrated reliance can be taught: onboarding with exemplars and learned rules about where the AI fails improves when people defer and when they override. This is the closest existing prototype of a system that produces training for its supervisor.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2311.01007"><cite>Effective Human-AI Teams via Learned Natural Language Rules and Onboarding</cite></a> <span class="muted">NeurIPS 2023, 2023</span></li><li><a href="https://arxiv.org/abs/2111.11297"><cite>Teaching Humans When To Defer to a Classifier via Exemplars</cite></a> <span class="muted">AAAI 2022, 2022</span></li></ul>
+</li>
+</ul>
+</section>
+<section aria-labelledby="c3">
+<h2 id="c3">Deskilling and the broken apprenticeship</h2>
+<p class="muted">Evidence that AI assistance erodes the skill that supervision depends on, and theory of why the training ladder may collapse.</p>
+<ul class="people">
+<li class="person">
+<h3>Matt Beane</h3>
+<p class="aff">UC Santa Barbara (Technology Management); MIT Initiative on the Digital Economy</p>
+<p><span class="bear b-agrees">Agrees</span> Robotic surgery removed novices from the work, and they learned only through unsanctioned shadow learning. The finding is that skill needs challenge, complexity and connection, the same feedback that delegation strips out.</p>
+<ul class="works"><li><a href="https://ide.mit.edu/publication/the-skill-code-how-to-save-human-ability-in-an-age-of-intelligent-machines/"><cite>The Skill Code: How to Save Human Ability in an Age of Intelligent Machines</cite></a> <span class="muted">HarperCollins, 2024</span></li><li><a href="https://doi.org/10.1177/0001839217751692"><cite>Shadow Learning: Building Robotic Surgical Skill When Approved Means Fail</cite></a> <span class="muted">Administrative Science Quarterly, 2019</span></li></ul>
+</li>
+<li class="person">
+<h3>Judy Hanwen Shen, Alex Tamkin</h3>
+<p class="aff">Anthropic (Anthropic Fellows Program)</p>
+<p><span class="bear b-agrees">Agrees</span> In an RCT (n≈51) on an unfamiliar Python library, AI users scored about 50% on a later quiz against about 65% without AI, with no significant time saving. Three of the six interaction patterns that kept users cognitively engaged preserved learning, so how a tool is used determines whether it deskills.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2601.20245"><cite>How AI Impacts Skill Formation</cite></a> <span class="muted">arXiv 2601.20245, 2026</span></li><li><a href="https://www.anthropic.com/research/AI-assistance-coding-skills"><cite>AI assistance and coding skills (companion post)</cite></a> <span class="muted">Anthropic research, 2026</span></li></ul>
+</li>
+<li class="person">
+<h3>Krzysztof Budzyń, Marcin Romańczyk, Yuichi Mori et al.</h3>
+<p class="aff">multicentre (Poland, Norway, Japan, UK)</p>
+<p><span class="bear b-agrees">Agrees</span> After routine use of AI polyp detection, experienced endoscopists' adenoma detection without AI fell from 28.4% to 22.4%, an early field sign of skill decay among experts. The study is observational and the finding is contested.</p>
+<ul class="works"><li><a href="https://doi.org/10.1016/S2468-1253(25)00133-5"><cite>Endoscopist deskilling risk after exposure to artificial intelligence in colonoscopy: a multicentre, observational study</cite></a> <span class="muted">Lancet Gastroenterology &amp; Hepatology, 2025</span></li></ul>
+</li>
+<li class="person">
+<h3>Hamsa Bastani, Osbert Bastani, Alp Sungu et al.</h3>
+<p class="aff">Wharton / Penn</p>
+<p><span class="bear b-agrees">Agrees</span> In a field experiment with about 1,000 students, GPT-4 access raised practice scores but lowered exam scores once access was removed, and a tutor version with guardrails mostly removed the harm. The tool's design decides whether practice builds skill.</p>
+<ul class="works"><li><a href="https://doi.org/10.1073/pnas.2422633122"><cite>Generative AI without guardrails can harm learning: Evidence from high school mathematics</cite></a> <span class="muted">PNAS, 2025</span></li></ul>
+</li>
+<li class="person">
+<h3>Luis Garicano, Luis Rayo; Enrique Ide</h3>
+<p class="aff">LSE / Kellogg Northwestern; IESE</p>
+<p><span class="bear b-agrees">Agrees</span> Juniors pay for training with menial work; once AI does that work, apprenticeships stay viable only if the expertise leverage ratio exceeds a threshold (e). The model explains why delegation can destroy the pipeline that produces future supervisors.</p>
+<ul class="works"><li><a href="https://ideas.repec.org/p/cpr/ceprdp/20634.html"><cite>Training in the Age of AI: A Theory of Apprenticeship Viability</cite></a> <span class="muted">CEPR Discussion Paper 20634, 2025</span></li><li><a href="https://arxiv.org/abs/2507.16078"><cite>Automation, AI, and the Intergenerational Transmission of Knowledge (Ide)</cite></a> <span class="muted">arXiv 2507.16078, 2025</span></li></ul>
+</li>
+<li class="person">
+<h3>Erik Brynjolfsson, Bharat Chandar, Ruyu Chen</h3>
+<p class="aff">Stanford Digital Economy Lab</p>
+<p><span class="bear b-agrees">Agrees</span> Early-career workers in AI-exposed occupations are 16–19% below trend, mostly through reduced hiring, while experienced workers are not, which is the bottom rung of the training ladder disappearing in payroll data. The evidence is descriptive, not causal.</p>
+<ul class="works"><li><a href="https://digitaleconomy.stanford.edu/publication/canaries-in-the-coal-mine/"><cite>Canaries in the Coal Mine? Six Facts about the Recent Employment Effects of Artificial Intelligence</cite></a> <span class="muted">Stanford Digital Economy Lab working paper, 2025 (rev. 2026)</span></li></ul>
+</li>
+</ul>
+</section>
+<section aria-labelledby="c4">
+<h2 id="c4">Productivity, overreliance and self-misjudgment in field and lab experiments</h2>
+<p class="muted">Randomised evidence that the people being helped cannot tell where the AI's competence ends, and that a better AI can make the human worse.</p>
+<ul class="people">
+<li class="person">
+<h3>METR (Joel Becker, Nate Rush, Beth Barnes, David Rein)</h3>
+<p class="aff">METR</p>
+<p><span class="bear b-agrees">Agrees</span> Sixteen experienced developers on their own repositories were 19% slower with AI while believing beforehand they would be 24% faster and afterwards that they had been 20% faster. This is a clean measurement of a miscalibrated supervisor who receives no corrective feedback.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2507.09089"><cite>Measuring the Impact of Early-2025 AI on Experienced Open-Source Developer Productivity</cite></a> <span class="muted">arXiv 2507.09089, 2025</span></li></ul>
+</li>
+<li class="person">
+<h3>Fabrizio Dell'Acqua, Edward McFowland III, Ethan Mollick, Hila Lifshitz-Assaf, Karim Lakhani et al.</h3>
+<p class="aff">Harvard Business School / Wharton / BCG</p>
+<p><span class="bear b-agrees">Agrees</span> BCG consultants given GPT-4 got much better on tasks inside the frontier and 19 points worse on a task outside it. Separately, recruiters given a better AI deliberated less and did worse than those given a weaker one. Supervisors cannot see where the frontier is, and good AI stops them looking.</p>
+<ul class="works"><li><a href="https://doi.org/10.1287/orsc.2025.21838"><cite>Navigating the Jagged Technological Frontier: Field Experimental Evidence of the Effects of Artificial Intelligence on Knowledge Worker Productivity and Quality</cite></a> <span class="muted">Organization Science (SSRN 4573321), 2023 (pub. 2026)</span></li><li><a href="https://d3.harvard.edu/?p=30560"><cite>Falling Asleep at the Wheel: Human/AI Collaboration in a Field Experiment on HR Recruiters (Dell'Acqua)</cite></a> <span class="muted">working paper, 2022</span></li></ul>
+</li>
+<li class="person">
+<h3>Nicholas Otis, Rowan Clarke, Solène Delecourt, David Holtz, Rembrand Koning</h3>
+<p class="aff">UC Berkeley / Harvard Business School</p>
+<p><span class="bear b-agrees">Agrees</span> With the same GPT-4 mentor, high-performing entrepreneurs gained about 15% and low performers lost about 10%, and the gap came from which advice each group chose to act on. Returns to AI were bounded by the judgment of whoever filtered it.</p>
+<ul class="works"><li><a href="https://doi.org/10.1287/mnsc.2024.06909"><cite>The Uneven Impact of Generative Artificial Intelligence on Entrepreneurial Performance: Evidence from a Field Experiment in Kenya</cite></a> <span class="muted">Management Science, 2026</span></li></ul>
+</li>
+<li class="person">
+<h3>Nikhil Agarwal, Alex Moehring, Pranav Rajpurkar, Tobias Salz</h3>
+<p class="aff">MIT / Harvard</p>
+<p><span class="bear b-complicates">Complicates</span> Radiologists did not over-rely on AI; they underweighted it relative to their own signal (automation neglect) and on average did not improve. Miscalibration can run in the conservative direction too, so the fix is calibration, not simply more scepticism.</p>
+<ul class="works"><li><a href="https://www.nber.org/papers/w31422"><cite>Combining Human Expertise with Artificial Intelligence: Experimental Evidence from Radiology</cite></a> <span class="muted">NBER Working Paper 31422, 2023</span></li></ul>
+</li>
+</ul>
+</section>
+<section aria-labelledby="c5">
+<h2 id="c5">Scalable oversight in AI safety</h2>
+<p class="muted">The same problem framed from the model side: how a weaker supervisor gets reliable signal about a stronger system's work.</p>
+<ul class="people">
+<li class="person">
+<h3>Samuel Bowman et al.; Julian Michael et al.</h3>
+<p class="aff">Anthropic / NYU</p>
+<p><span class="bear b-agrees">Agrees</span> The sandwiching paradigm measures whether non-experts assisted by a model can supervise beyond their own competence, and human debate studies find they can when the protocol forces adversarial evidence, which is structured feedback that the supervised system is made to produce.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2211.03540"><cite>Measuring Progress on Scalable Oversight for Large Language Models</cite></a> <span class="muted">arXiv 2211.03540, 2022</span></li><li><a href="https://arxiv.org/abs/2311.08702"><cite>Debate Helps Supervise Unreliable Experts</cite></a> <span class="muted">arXiv 2311.08702, 2023</span></li></ul>
+</li>
+<li class="person">
+<h3>Akbir Khan, John Hughes, Ethan Perez et al.</h3>
+<p class="aff">UCL / Anthropic / FAR</p>
+<p><span class="bear b-agrees">Agrees</span> Non-expert human judges reached 88% accuracy with debate (model judges 76%), against much lower baselines. A process in which the workers argue against each other can produce the feedback a weak supervisor needs.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2402.06782"><cite>Debating with More Persuasive LLMs Leads to More Truthful Answers</cite></a> <span class="muted">ICML 2024, 2024</span></li></ul>
+</li>
+<li class="person">
+<h3>Collin Burns, Jan Leike, Ilya Sutskever et al.</h3>
+<p class="aff">OpenAI Superalignment</p>
+<p><span class="bear b-complicates">Complicates</span> Strong models trained on a weak supervisor's labels can outperform the supervisor, so in the model case oversight does not have to be as capable as the system it oversees. That is the main counterweight to the thesis's claim that delegation is capped by the supervisor's calibration.</p>
+<ul class="works"><li><a href="https://arxiv.org/abs/2312.09390"><cite>Weak-to-Strong Generalization: Eliciting Strong Capabilities With Weak Supervision</cite></a> <span class="muted">arXiv 2312.09390 (ICML 2024), 2023</span></li></ul>
+</li>
+</ul>
+</section>
+<section aria-labelledby="c6">
+<h2 id="c6">Judgment economics and joint cognitive systems</h2>
+<p class="muted">Theory of why judgment becomes the scarce input, and the human-factors tradition that saw the ironies first.</p>
+<ul class="people">
+<li class="person">
+<h3>Ajay Agrawal, Joshua Gans, Avi Goldfarb</h3>
+<p class="aff">University of Toronto (Rotman)</p>
+<p><span class="bear b-complicates">Complicates</span> Judgment is the complement to cheap prediction, and in the pricing paper it is learned from experience, but better prediction moves the returns to different kinds of judgment in opposite directions. Not all judgment gains value, and the models do not ask where calibrated judgment comes from.</p>
+<ul class="works"><li><a href="https://doi.org/10.1016/j.infoecopol.2019.05.001"><cite>Exploring the Impact of Artificial Intelligence: Prediction versus Judgment</cite></a> <span class="muted">Information Economics and Policy (NBER w24626), 2019</span></li><li><a href="https://www.nber.org/papers/w24284"><cite>Human Judgment and AI Pricing</cite></a> <span class="muted">NBER Working Paper 24284 / AEA P&amp;P, 2018</span></li></ul>
+</li>
+<li class="person">
+<h3>David Autor, Neil Thompson</h3>
+<p class="aff">MIT</p>
+<p><span class="bear b-complicates">Complicates</span> Whether automation helps or hurts a worker depends on whether it removes the inexpert or the expert tasks of the job. Delegation can raise the value of remaining expertise while removing the tasks that used to build it.</p>
+<ul class="works"><li><a href="https://www.nber.org/papers/w33941"><cite>Expertise</cite></a> <span class="muted">NBER Working Paper 33941, 2025</span></li></ul>
+</li>
+<li class="person">
+<h3>David D. Woods</h3>
+<p class="aff">Ohio State University (Cognitive Systems Engineering)</p>
+<p><span class="bear b-agrees">Agrees</span> From the joint-cognitive-systems tradition: as more authority is delegated to more capable agents, they will misbehave in ways that look strong and wrong, so the system must be designed for joint activity and directable observability rather than for autonomy alone.</p>
+<ul class="works"><li><a href="https://www.sintef.no/contentassets/28e9bc4b44614e32a017665faf205dad/d.-woods_wen-ai-agents-misbehave_presentation-norway_marman-seminar-10-12.2025.pdf"><cite>When AI Agents Misbehave and Fail to Coordinate: Architecting for Joint Activity</cite></a> <span class="muted">seminar slides, SINTEF MARMAN seminar, 2025</span> <span class="flag">link not directly checked</span></li></ul>
+</li>
+</ul>
+</section>
+</main>
+
+<footer class="site-footer">
+  <p>The data behind this page is <a href="related.json">related.json</a>. Figures quoted are from the papers' own abstracts or pages.</p>
+  <p>judge.mino.mobi is part of <a href="https://mino.mobi">mino.mobi</a>.</p>
+</footer>
+</body>
+</html>
