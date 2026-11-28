@@ -562,6 +562,19 @@ for games, and this is a modelling programme with publications to come. The game
   **evolve4-28 leg 4 (evolve4-28d, collected 2026-11-28 17:26Z): every Ledoux track has ended** (12 of 12; stops: the two
   s 1.55 balmax ones, G 10⁻¹⁷ s 1.5152 at its switch-off, and G 10⁻²⁰ s 1.55 on the solver late, Xc 0.0365 at 80.92 Gyr,
   Schwarzschild likewise at Xc 0.047). 8 Schwarzschild tracks still burning; evolve4-28e finishes them for the bracket.
+  **The regeneration from the final (Ledoux) tracks (2026-11-28).** Staged in scratch (`-eg-ld0.02-tv3` stripped; ours too),
+  with an analogues-only folder for metals4 (it has no analogue filter; its earlier runs had a folder of analogues):
+  ages4 (analogues halve in 9.1–148 Gyr, was 10.6–177), ash4 (past helium at s ≤ 1.55 7–28%, was 9–30%), yields4 (p at
+  s ≤ 1.55 0.041–0.17, was 0.049–0.25: the s 1.5152 ladder's stops give lower-bound cores; lightest star exploding at g
+  1.25: 1.6 M_Ch at s ≤ 1.55, 2 at 1.6–1.65 and 1.8, 2.5 at 1.7), metals4 (factors move < 1%), abund4, bracket4 (with
+  `stuck=1e-17/1.55/2.5`: a cut run whose checkpoint no longer re-solves counts as a stop), figures, star/aged.js
+  (starcut aged, ~35 min). build.mjs: the late s 1.55 stops (two balmax, one solver) are named as lower bounds
+  (`a4late*`, gated: only near the end, Xc < 0.15); provenance moves ash4Heavy and yields4P into stage 'final'. **The
+  book:** the stars chapter keeps its textbook-life table and adds the aged lives (`AG_text`, from ages4/yields4/bracket4);
+  the nuclei chapter adds the aged explosions and yields at G 10⁻¹⁷ (`NU_aged_text`) under the zero-age table; the
+  landing's three bullets (give back, main sequence, rock: "explode from about 1.6–2.5 M_Ch, the zero-age estimate said
+  about three"); /star/'s core clock labelled the zero-age estimate. bracket4 is rerun once evolve4-28e's Schwarzschild
+  tracks land (its counts and the 'final' stage's bracketMoved will move).
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own

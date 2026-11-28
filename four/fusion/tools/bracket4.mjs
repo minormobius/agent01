@@ -11,6 +11,8 @@
    Ours' OPAL tracks (evolve-ours-<m>-…-s1e6(.ckpt).json, staged the same way) are compared too, Ledoux against
    Schwarzschild (production has no ε_grav ours set). Each dir holds evolve-four-*-lp(.ckpt).json under the production names (the final runs' -eg-ld0.02-tv3 / -eg-tv2
    suffixes stripped); of a run's finished file and checkpoint the further is taken, as ages4.mjs.
+   stuck=<G/s/m,…> (optional): runs cut by the clock whose checkpoint no longer re-solves, so they ended there: a "stop"
+   (G 1e-17 s 1.55 2.5 M_Ch, Xc 0.054).
    scan=<file,…> (optional): ours' 1.6 M☉ run at several Ledoux tolerances ΔX (files -ld<ΔX>, none for Schwarzschild),
    each's central hydrogen at 0.86 Gyr: how much the tolerance matters (sandbox runs of 2026-11-25).
      node four/fusion/tools/bracket4.mjs ledoux=<dir> schwarzschild=<dir> production=<dir> [scan=<files>]   → papers/p2/data/bracket4.json */
@@ -24,17 +26,19 @@ function load(dir) {
     if (!o || end > o.end + 1e-9 || (Math.abs(end - o.end) <= 1e-9 && !f.includes("ckpt"))) recs.set(key, { f, end, j }); }
   return recs;
 }
-function life(rec) {
+const STUCK = (kv.stuck ?? "").split(",").filter(Boolean).map((k) => k.split("/").map(Number));
+function life(rec, key) {
   if (!rec?.j.track?.length) return null; const T = rec.j.track, last = T.at(-1), X0 = T[0].Xc, ex = at(T, 1e-3), half = at(T, X0 / 2);
   const out = { half: half && +half.toPrecision(4) };
   if (ex) return { ...out, life: +ex.toPrecision(4) };
-  const bound = rec.f.includes("ckpt") ? "cut" : /no solution|didn't solve/.test(rec.j.stopped ?? "") ? "stop" : last.tGyr >= 199.99 ? "limit" : "stop";
+  const [, G, S_, M] = key?.match(/^evolve-four-([^-]+e-\d+)-([\d.]+)-([\d.]+)-lp/) ?? [], stuck = G && STUCK.some(([g, s, m]) => g === +G && s === +S_ && Math.abs(m / +M - 1) < 1e-3);
+  const bound = rec.f.includes("ckpt") && !stuck ? "cut" : /no solution|didn't solve/.test(rec.j.stopped ?? "") ? "stop" : last.tGyr >= 199.99 ? "limit" : "stop";
   return { ...out, life: +last.tGyr.toPrecision(4), bound, Xc: +last.Xc.toFixed(4) };
 }
 const L = load(kv.ledoux), Sw = load(kv.schwarzschild), P = load(kv.production), stars = [];
 for (const [key, rec] of L) {
   const [, G, s, m] = key.match(/^evolve-four-([^-]+e-\d+)-([\d.]+)-([\d.]+)-lp\.json$/) ?? []; if (!G) continue;
-  const a = life(rec), b = life(Sw.get(key)), c = life(P.get(key)), T = rec.j.track;
+  const a = life(rec, key), b = life(Sw.get(key), key), c = life(P.get(key), key), T = rec.j.track;
   const regrow = Math.max(0, ...T.map((r) => (r.qmix != null ? r.qcc - r.qmix : 0)));
   // the stirred core's smallest extent in mid-life (central hydrogen 0.6 → 0.05), and its largest after that minimum
   const mid = T.filter((r) => r.Xc <= 0.6 && r.Xc >= 0.05), kmin = mid.reduce((k, r, i) => (r.qcc < mid[k].qcc ? i : k), 0), coreMin = mid.length ? mid[kmin].qcc : null, coreAfter = mid.length ? Math.max(...mid.slice(kmin).map((r) => r.qcc)) : null;

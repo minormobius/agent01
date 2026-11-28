@@ -125,7 +125,7 @@ function readout() {
   const rows = [["mass", massTxt], ["radius", four ? `${sci(st.R / 1e3)} km` : `${(st.R / RSUN).toFixed(2)} R☉`], ["luminosity", `${sci(st.L)} W${four ? "" : ` (${(st.L / LSUN).toPrecision(2)} L☉)`}`],
     ["surface", `<i class="sw" style="background:rgb(${st.colour.join(",")})"></i>${st.Teff.toLocaleString("en")} K`], ["centre", `${(st.Tc / 1e6).toFixed(1)} million K${st.rhoc ? `, ${sci(st.rhoc)} kg/m${four ? "⁴" : "³"}` : ""}`],
     ...(tr ? [["age", `${ageTxt(st.t)} <span class="dim">of a main sequence that ends at ${ageTxt(tr.tEnd)}${tr.ref ? ` (MIST: ${ageTxt(tr.ref.tmsGyr)})` : ""}</span>`], ["centre's hydrogen", `${(100 * st.Xc).toFixed(1)}% by mass <span class="dim">(born with ${(100 * tr.X0).toFixed(1)}%)</span>`]]
-      : [["core clock", st.thGyr == null ? (four ? "<span class=dim>never halves (not by 10²² s)</span>" : "<span class=dim>—</span>") : `half its core's hydrogen in ${sci(st.thGyr)} billion years`]]),
+      : [["core clock (zero age)", st.thGyr == null ? (four ? "<span class=dim>never halves (not by 10²² s)</span>" : "<span class=dim>—</span>") : `half its core's hydrogen in ${sci(st.thGyr)} billion years`]]),
     ["convective core", st.layers.cc > 0.02 ? `${(100 * st.qcc).toFixed(0)}% of the mass, out to ${st.layers.cc.toFixed(2)} R` : "none"], ["outer stirring", outer]];
   $("readout").innerHTML = rows.map(([a, b]) => `<div><span>${a}</span><b>${b}</b></div>`).join("");
   const sunIdx = nearestSun(); $("sunmark").textContent = four ? (q.sunM ? `Sun-like star here: ${q.sunM} M_Ch${q.sunKind ? `, its centre burns ${q.sunKind}` : ""}` : "no Sun-like star in the masses computed") : "our Sun: 1 M☉";

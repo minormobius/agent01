@@ -5,7 +5,7 @@
      to provenance.json, never here. -->
 
 The model in this paper was not written down once and run. It was built in stages, from
-2026-11-11 to 2026-11-22. Each stage replaced a guess, a convention or a cruder method with something computed,
+2026-11-11 to 2026-11-27. Each stage replaced a guess, a convention or a cruder method with something computed,
 then ran the cascade again. The main text gives only the final method. This supplement records the route, for two
 reasons.
 
@@ -15,14 +15,14 @@ artefact of a cruder step. Some did not survive. A cycle on ceryllium-8 was foun
 good within two days, and only the last of those rests on something that cannot move: a variational bound.
 
 Second, a sequence of improvements can look like tuning until the answer looks right. Against that, each stage below
-states whether a decision rule was fixed before its results came in. 14 of the 16 stages had
+states whether a decision rule was fixed before its results came in. 14 of the 17 stages had
 none: their results were read as they came. That is said plainly rather than reconstructed after the fact.
 
 **What enters this record.** A stage enters when it changed a stated result, when it was a check that could have
 failed, or when it introduced or replaced a convention. Bugs found and fixed on the way are not stages; they are in the
 code's history. Each stage lists what it replaced and by what, the runs behind it, what moved (with the earlier value
 and where it was recorded), and what held. The earlier values are historical: by their nature they are no longer in the
-data. Of the 45 entries, 22 are marked ✓: the value given is recomputed from the committed data each
+data. Of the 50 entries, 23 are marked ✓: the value given is recomputed from the committed data each
 time the paper is built, and the build stops if they disagree. 0 marked ⧗ waits on a run in progress.
 
 ### S1.1 Proton + proton computed (2026-11-11)
@@ -149,7 +149,7 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 | what moved | before | after |
 |---|---|---|
 | the clock factor (fixed zero-age centre over aged centre), on ours | 2.41 (assumed) | 1.99 (computed, from the settled zero-age centre) ✓ |
-| the 4D Sun analogue's life | as long as ours, by the convention | 28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), burns far faster and stops 0.5% short of half at 2.56 Gyr (evolve4-7), where G 10⁻¹⁴ s 1.5152 also stops: the core's helium gone and its oitrogen nearly so, the stirred core collapsing faster than a thermal-balance solver follows, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) ✓ |
+| the 4D Sun analogue's life | as long as ours, by the convention | 28 of the 29 analogues in gravity.json (G 10⁻¹¹–10⁻²⁰) halve their central hydrogen in the range below; the 29th, G 10⁻¹¹ s 1.5152 (started only by evolve.mjs firstShell, evolve4-6), burns far faster and stops 0.5% short of half at 2.56 Gyr (evolve4-7), where G 10⁻¹⁴ s 1.5152 also stops: the core's helium gone and its oitrogen nearly so, the stirred core collapsing faster than a thermal-balance solver follows, with screening under the pinned 1/r and the lens vacuum's opacity cutoff; s 1.5152 slowest (43, 125, 177 Gyr at G 10⁻¹⁴, 10⁻¹⁷, 10⁻²⁰) (as evolve4-1 to -7 had it; the final run's lives are in stage 'final') |
 
 | what held | |
 |---|---|
@@ -164,7 +164,7 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 
 | what moved | before | after |
 |---|---|---|
-| elements past helium in an aged analogue at s ≤ 1.55, as a share of its mass | none (primordial, by convention) | what the stars hold when their runs end, mostly oitrogen, pxygen, gluorine; 2–20% at s 1.6–1.65, at most 0.14% from s 1.75 up; not yet what they return to the gas ✓ |
+| elements past helium in an aged analogue at s ≤ 1.55, as a share of its mass | none (primordial, by convention) | what the stars hold when their runs end, mostly oitrogen, pxygen, gluorine; 2–20% at s 1.6–1.65, at most 0.14% from s 1.75 up; not yet what they return to the gas |
 
 ### S1.11 Opacity, measured and computed (2026-11-16)
 
@@ -190,7 +190,7 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 
 | what moved | before | after |
 |---|---|---|
-| the net yield p at s ≤ 1.55, over every declared choice | none computed on aged stars (zero-age giveback: declared lifetimes) | mostly the rock row from exploding cores; much smaller from s 1.7 up. evolve4-11 to -13 carried all 12 cut stars to the end (28 of 29 short-lived stars reached Xc 10⁻³; s 1.65 4 M_Ch stops at Xc 0.0033), and the last stretch mattered: ash grew by up to a quarter (s 1.55, 2.5 M_Ch: 33% to 41% of the star) and turned heavier (elements 12–15 leading), which raised p's band at s ≤ 1.55 from 0.042–0.17 (evolve4-10; 0.048–0.23 after evolve4-11) and, at s 1.55, iron's share of p from 1% to 19%. An exploding core's ash is now burnt element by element on explode's rows, weighted by mass (it had taken the leading element's row for all of it, so the split jumped when the lead flipped). The last star in (s 1.5152, 1.25 M_Ch) grew a core just over the Chandrasekhar mass at g 1.25, so it explodes at the middle choice too, and a core only just at the limit burns mostly to iron: at s 1.5152 the middle choice returns iron and the rock row about equally (p 0.095 → 0.15), and over the choices iron is 15–63% of p at s ≤ 1.55. From s 1.6 up the rock row stays most of it ✓ |
+| the net yield p at s ≤ 1.55, over every declared choice | none computed on aged stars (zero-age giveback: declared lifetimes) | mostly the rock row from exploding cores; much smaller from s 1.7 up. evolve4-11 to -13 carried all 12 cut stars to the end (28 of 29 short-lived stars reached Xc 10⁻³; s 1.65 4 M_Ch stops at Xc 0.0033), and the last stretch mattered: ash grew by up to a quarter (s 1.55, 2.5 M_Ch: 33% to 41% of the star) and turned heavier (elements 12–15 leading), which raised p's band at s ≤ 1.55 from 0.042–0.17 (evolve4-10; 0.048–0.23 after evolve4-11) and, at s 1.55, iron's share of p from 1% to 19%. An exploding core's ash is now burnt element by element on explode's rows, weighted by mass (it had taken the leading element's row for all of it, so the split jumped when the lead flipped). The last star in (s 1.5152, 1.25 M_Ch) grew a core just over the Chandrasekhar mass at g 1.25, so it explodes at the middle choice too, and a core only just at the limit burns mostly to iron: at s 1.5152 the middle choice returns iron and the rock row about equally (p 0.095 → 0.15), and over the choices iron is 15–63% of p at s ≤ 1.55. From s 1.6 up the rock row stays most of it |
 
 | what held | |
 |---|---|
@@ -247,4 +247,21 @@ time the paper is built, and the build stops if they disagree. 0 marked ⧗ wait
 |---|---|
 | undefined | undefined |
 | undefined | undefined |
+
+### S1.17 The final main sequence: Ledoux's edge, contraction on (2026-11-27)
+
+**Replaced:** lives from runs in complete equilibrium (no energy of contraction), an older quadrature for the pinned gravity, stirred cores burnt shell by shell, and the stirred core's edge by Schwarzschild's criterion alone. **By:** every 4D star and ours' OPAL set rerun from zero age with all of it in (evolve.mjs grav=1, the stirred-core zone model, ledoux=0.02: the core takes a layer only within 0.02 in hydrogen of its mixed mean; ε_grav re-solved off for a step it fails; resumes under KHMIN), and each star rerun again on Schwarzschild beside it (bracket4.mjs): the two are the no-overshoot limits of semiconvective mixing. **Runs:** `evolve4-26 to -26c (Schwarzschild, tag v2)`, `evolve4-27 to -27f (Ledoux, tag v3)`, `evolve4-28 (the 12 analogues the list had left out, both)`.
+
+**Decision rule, fixed before the results:** the PI's (2026-11-25, 2026-11-27): Ledoux the main column, Schwarzschild beside it; a run that stops before central hydrogen 10⁻³ gives a lower bound, marked.
+
+| what moved | before | after |
+|---|---|---|
+| the 4D Sun analogue's life | 10.6–177 Gyr (complete equilibrium, Schwarzschild, the old gravity quadrature) | the range below; the s 1.5152 analogues stop where their stirred core switches off (lower bounds) ✓ |
+| how many stars' lives the boundary criterion moves by more than 2% | not asked (Schwarzschild only) | those whose unstable region runs past the mixed core into hydrogen-richer layers; Ledoux always the shorter ✓ |
+| elements past helium in an aged analogue at s ≤ 1.55, as a share of its mass | 9–30% | from the final run's tracks (the s 1.5152 ladder stars stop at core switch-offs, so their processed cores are lower bounds) ✓ |
+| the net yield p at s ≤ 1.55, over every declared choice | 0.049–0.25 | from the final run's tracks (the s 1.5152 ladder stars stop at core switch-offs, so their processed cores are lower bounds) ✓ |
+
+| what held | |
+|---|---|
+| ours' lives where the core doesn't grow | 0.6, 0.8, 1, 2 and 3 M☉ within 1% between the criteria |
 

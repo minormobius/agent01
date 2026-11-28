@@ -58,8 +58,10 @@ shrank from {{a4stQ0}} to {{a4stQ1}} of the mass, while the centre grew {{a4stRh
 light rose {{a4stL}}, and the run stops at {{a4stEnd}} Gyr. No star past that point re-solves: a looser tolerance gains
 one model, and relaxation, which follows the star further, does so with the shells burning half the power the structure
 assumes. The mass ladder at G = 10^−17^ meets the same frontier: {{a4ladN}} of its s = 1.5152 stars stop where a stirred
-core switches off, the heavier ones a second time late in life (with {{a4ladXc}} of their central hydrogen left). Every
-age for those stars is a lower bound, and is marked so. An earlier test, adding the energy of contraction at the stall to
+core switches off, the heavier ones a second time late in life (with {{a4ladXc}} of their central hydrogen left). {{a4lateN}} more analogues, at s = {{a4lateS}} and G = {{a4lateWho}}, stop near the end, with {{a4lateXc}} of their
+central hydrogen left and long after halving: {{a4lateNb}} where the centre's density jumps and the shells' burning
+parts from the power the structure assumes, by more than the bar the energy books are held to, the other on the
+solver. Every age for those stars is a lower bound, and is marked so. An earlier test, adding the energy of contraction at the stall to
 runs aged without it, carried the analogues at G = 10^−14^ and 10^−11^ {{egMore14}} and {{egMore11}} past the switch-off
 before they stopped again; aged with it from the start, they stop at the switch-off itself. Whether the centre then
 flares or the method has met its edge is open.
@@ -113,7 +115,8 @@ $w$ = {{mWs}} of the core's ash by winds. One that reaches it explodes, returns 
 this world's iron or the rock row (elements 13–23), by how far the core expands before the burning reaches it. The
 mass ladders at G = 10^−17^ hold {{yN}} stars at {{yNs}} strengths. Of the {{yShort}} that die within 30 Gyr,
 {{yReached}} reached central hydrogen 10⁻³; the other {{yCarried}} stopped or were cut with at most {{yXcMax}} of it left,
-and their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes (figure 3a) is {{yExA}} M~Ch~ at
+and their lives are carried on at their last rate (most of them at s = 1.5152, where a stirred core switched off, so
+their processed cores are lower bounds too). At $g$ = 1.25 the lightest star that explodes (figure 3a) is {{yExA}} M~Ch~ at
 s ≤ 1.55, {{yExB}} at 1.6–1.65 and {{yExC}} at 1.7. The net yield $p$ (figure 3b), the elements past helium returned per unit of
 mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = {{mAlphas}})
 from 0.25 to 2.5 M~Ch~ for the stars that die within {{mTgs}} Gyr, is {{yPA}} at s ≤ 1.55, {{yPB}} at 1.6–1.65,

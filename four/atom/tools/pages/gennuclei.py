@@ -376,6 +376,28 @@ def NU_smrow(g):
     ratio="—"
   return f"<tr><td>10<sup>{int(round(__import__('math').log10(g)))}</sup></td><td>{core}</td><td>{back}</td><td>{ratio}</td></tr>"
 NU_CO=NU.get('cores') or []
+# the aged mass ladders at G 1e-17 (paper 2 section 4, papers/p2/data/yields4.json): which stars explode at g 1.25 and the net yield
+try: NU_Y4=json.load(open(ATOM+'../papers/p2/data/yields4.json'))
+except Exception: NU_Y4=None
+def NU_aged_text():
+  if not NU_Y4: return ''
+  st=NU_Y4['stars']; ss=sorted(set(x['s'] for x in st))
+  def first(s):
+    ex=[x['m'] for x in st if x['s']==s and any(c['g']==1.25 and c['fate']=='explodes' for c in x['choices'])]
+    return min(ex) if ex else None
+  rows=[(s,first(s)) for s in ss if any(x['s']==s for x in st)]
+  ex=', '.join(f"{m:g} at s = {s:g}" for s,m in rows if m)
+  never=[f"{s:g}" for s,m in rows if not m]
+  P=lambda f: [y['p'] for y in NU_Y4['yields'] if f(y['s'])]
+  a,b=P(lambda s: s<=1.55),P(lambda s: 1.6<=s<=1.65)
+  mid=[y for y in NU_Y4['yields'] if y['alpha']==2.35 and y['g']==1.25 and y['w']==0.03 and y['f']==30 and y['tg']==30]
+  ir=[y['mix'].get('iron',0) for y in mid if y['s']>=1.6]
+  return (f'<p><span class="tag computed">computed</span> <b>Aged, at G 10<sup>−17</sup>.</b> The table above is the zero-age estimate: a star\'s stirred core at birth, grown by a declared factor. '
+    f'The stars aged to the end of their hydrogen (<a href="../papers/p2/draft/ageing">paper 2, section 4</a>) give it from what each core actually processed. With the core grown by 1.25 after its hydrogen, the lightest star that explodes is {ex} M_Ch'
+    f'{" (none at s = " + ", ".join(never) + ")" if never else ""}, well below the three Chandrasekhar masses the zero-age estimate gave. '
+    f'The net yield, elements past helium returned per unit of mass locked away, is {min(a):.2g}–{max(a):.2g} near our strength (s ≤ 1.55) and {min(b):.2g}–{max(b):.2g} at s = 1.6–1.65 over every declared choice, '
+    f'{round(100*min(ir))}–{round(100*max(ir))}% of it this world\'s equilibrium band at the middle choice from s = 1.6 up. Near our strength several of these stars stop where their stirred core switches off, so their processed cores there are lower bounds.</p>')
+
 def NU_corow(g):
   rs=[r for r in NU_CO if abs(r['Grel']/g-1)<1e-6]
   if not rs: return ''
@@ -560,6 +582,7 @@ nuclei=f'''<section id="declared">
   <p><span class="tag computed">computed</span> <b>Equilibrium here is a band, not one nucleus.</b> On the trusted drop at the exploding core's density and as it cools, it makes nuclei of mass {NU_NSE['massRange'][0]}–{NU_NSE['massRange'][1]}, most of them elements {NU_NSE_B[0]}–{NU_NSE_B[1]}, with about as many protons as neutrons; nothing is left free. Like our nickel-56 those are proton-rich, and each decays along its mass to 4D's stable line, about {NU_NSE_MEV:.1f} MeV a nucleon, ending mostly as elements {NU_NSE_A[0]}–{NU_NSE_A[1]}. No alpha decay, fission or proton emission is open there. Where the band sits rests on the drop's reach, the least certain step (the check above: anywhere from about element 100 to 250). </p>
   <p><span class="tag computed">computed</span> <b>Which stars get there, at each G.</b> The main sequence (<a href="stars.html#mainseq">chapter 16</a>) gives each star's stirred core, the part a zone burns through and leaves as ash: {min(NU_COQ)*100 if NU_COQ else 0:.0f}–{max(NU_COQ)*100 if NU_COQ else 0:.0f}% of the star from the Chandrasekhar mass up (ours, checked: 19% at 2.5 solar masses, 30% at ten). <span class="tag choice">choice</span> Shell burning grows the core by half again or doubles it afterwards; a core that reaches the Chandrasekhar mass explodes as above; a lighter one stays a dead star, its ash coming back only through winds (3% or 30% of it); our mass function or a top-heavy one; ten billion years. What the gas then gets back:</p>
   <table class="sys"><tr><th>G</th><th>stars explode from (× M_Ch)</th><th>the first after (years)</th><th>this world's iron</th><th>rock row / unburnt ash</th></tr>{"".join(NU_corow(g) for g in (1e-8,1e-11,1e-14,1e-17,1e-20,1e-23))}</table>
+  {NU_aged_text()}
   <p><b>Where heavy cores explode, they dominate what comes back</b>: this world's equilibrium band, with the hydrogen-and-helium ash a minority, since the lighter stars keep their ash locked in dead stars. The first explosions come within years at strong gravity and after a billion or two at 10<sup>−20</sup>, never within ten billion below about 10<sup>−22</sup>. <span class="tag follows">follows</span> So the gas a planet forms from gets very heavy elements, far down the table, with pxygen, gluorine and oeon from the winds, and almost none of the rock row: what this world's rock would be made of is open. If the core doesn't grow past its stirred size, no star up to five times the Chandrasekhar mass explodes, and only the heavier ones up to light's limit (about seven to nine) could: those aren't solved yet. <span class="tag open">open</span> How much a 4D core grows after the main sequence and how much its winds carry off, which set the shares above; whether the spreading ours need holds in 4D, where the flame carries ten times the energy; cores of one and a half times the mass and more, which light less squeezed and may flash rather than explode; and the chemistry of elements past 78.</p>
 </section><h3>How far a table can go</h3>
   <p><span class="tag computed">computed</span> A heavy nucleus pulls its innermost electron so hard that, relativistically, the electron's level sinks into the sea of negative energies: past that charge, an atom can't be neutral. Dirac's equation in four dimensions has our radial form with the spin–orbit number moved by the extra direction, and its non-relativistic limit is 4D hydrogen (<a href="hydrogen.html">chapter 6</a>). Round a point nucleus the innermost level fails at Zα = 3/2, element 205 (ours: Zα = 1, element 137). With a nucleus of its real size, solved: <b>ours dives near element {NU_DZ["3"]:.0f}</b> (the literature: 170–173), <b>4D's near element {NU_DZ["4"]:.0f}</b>. So a 4D table could run to about {NU_DZ["4"]:.0f}, and the 78 solved here are not its end: 4D's nuclei, held by the crowd, hold together far past that, and it's the electrons that stop the table.</p>

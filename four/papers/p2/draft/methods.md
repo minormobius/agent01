@@ -71,7 +71,7 @@ $$ \frac{dr}{dm} = \frac{1}{S_d r^{d-1}\rho}, \quad \frac{dP}{dm} = -\frac{g}{S_
 \frac{dT}{dm} = \nabla\,\frac{T}{P}\frac{dP}{dm}, \quad \frac{dL}{dm} = \varepsilon , $$
 
 with $\nabla$ the radiative gradient or, where radiation cannot carry the flux, the adiabatic one, $2/(d+2)$
-(Schwarzschild's criterion; no overshoot). They are solved by **shooting**: integrated from the centre and from the
+(Schwarzschild's criterion for the temperature gradient; no overshoot; what a stirred core mixes is Ledoux's, below). They are solved by **shooting**: integrated from the centre and from the
 surface (Runge–Kutta with step doubling) to meet at a fitting mass, with Newton's method on the central pressure and
 temperature, the radius and the luminosity, and a line search. In four dimensions the solutions meet at 0.2 of
 the mass (ours at 0.5): in a cool four-dimensional core a change in the central temperature grows several
@@ -125,12 +125,14 @@ and temperature, refitted until the luminosity settles. Every star is first **se
 dimensions), so its burning's intermediate nuclei come into balance before the clock starts. Runs checkpoint
 themselves and resume. **Checked:** our Sun (section 4): its light against the standard model to its present age, its
 central hydrogen's exhaustion against the textbook's. **The energy a contracting core releases**
-($\varepsilon_\mathrm{grav}$) is small on the main sequence and left out of the runs whose results are quoted; it is
-added, behind a switch, where a core changes fast (section 4.2.5). It moves our Sun by at most 0.099%, and with it
-the two runs that stopped in the oitrogen stall pass it. Also left out, as in many first models of ours:
+($\varepsilon_\mathrm{grav}$) is in every run quoted (section 4.2.5); it moves our Sun by at most 0.099%, and a step it
+fails is re-solved without it. **A stirred core's edge** is Ledoux's: the core mixes in a layer only while its hydrogen
+is within 0.02 of the core's own, so a core cannot regrow into the gradient it left; every star is also run on
+Schwarzschild's criterion, and the two bracket semiconvective mixing (section 4.2.6, `fusion/tools/bracket4.mjs`).
+Also left out, as in many first models of ours:
 overshoot past the convective edge, element diffusion, rotation and mass loss on the main sequence. **Code:**
 `atom/tools/evolve.mjs`; collected by `fusion/tools/ages4.mjs` (each run's finished file or checkpoint, whichever got
-further). **Detail:** sections 4.2.1–4.2.3.
+further). **Detail:** sections 4.2.1–4.2.6.
 
 ## 8 What a star holds, and how it ends
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="source-sha256" content="955026a2ed6ccd709bd841c4174995fee1e0a70072ad73ef8b24eda413b46b61" />
+<meta name="source-sha256" content="0aa8960a94a58a5d8d6794cb95cb9cbe7fed3234f42279c2de7316195c300edf" />
 <title>Paper 2 · How the stars are modelled</title>
 <link rel="icon" href="data:," />
 <link rel="stylesheet" href="../../p1/paper.css" />
@@ -142,7 +142,8 @@ in four dimensions):</p>
 the radiative gradient or, where radiation cannot carry the flux, the
 adiabatic one,
 <math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>2</mn><mi>/</mi><mrow><mo stretchy="true" form="prefix">(</mo><mi>d</mi><mo>+</mo><mn>2</mn><mo stretchy="true" form="postfix">)</mo></mrow></mrow><annotation encoding="application/x-tex">2/(d+2)</annotation></semantics></math>
-(Schwarzschild’s criterion; no overshoot). They are solved by
+(Schwarzschild’s criterion for the temperature gradient; no overshoot;
+what a stirred core mixes is Ledoux’s, below). They are solved by
 <strong>shooting</strong>: integrated from the centre and from the
 surface (Runge–Kutta with step doubling) to meet at a fitting mass, with
 Newton’s method on the central pressure and temperature, the radius and
@@ -256,16 +257,19 @@ the standard model to its present age, its central hydrogen’s exhaustion
 against the textbook’s. <strong>The energy a contracting core
 releases</strong>
 (<math display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>ε</mi><mrow><mi mathvariant="normal">g</mi><mi mathvariant="normal">r</mi><mi mathvariant="normal">a</mi><mi mathvariant="normal">v</mi></mrow></msub><annotation encoding="application/x-tex">\varepsilon_\mathrm{grav}</annotation></semantics></math>)
-is small on the main sequence and left out of the runs whose results are
-quoted; it is added, behind a switch, where a core changes fast (section
-4.2.5). It moves our Sun by at most 0.099%, and with it the two runs
-that stopped in the oitrogen stall pass it. Also left out, as in many
-first models of ours: overshoot past the convective edge, element
-diffusion, rotation and mass loss on the main sequence.
-<strong>Code:</strong> <code>atom/tools/evolve.mjs</code>; collected by
+is in every run quoted (section 4.2.5); it moves our Sun by at most
+0.099%, and a step it fails is re-solved without it. <strong>A stirred
+core’s edge</strong> is Ledoux’s: the core mixes in a layer only while
+its hydrogen is within 0.02 of the core’s own, so a core cannot regrow
+into the gradient it left; every star is also run on Schwarzschild’s
+criterion, and the two bracket semiconvective mixing (section 4.2.6,
+<code>fusion/tools/bracket4.mjs</code>). Also left out, as in many first
+models of ours: overshoot past the convective edge, element diffusion,
+rotation and mass loss on the main sequence. <strong>Code:</strong>
+<code>atom/tools/evolve.mjs</code>; collected by
 <code>fusion/tools/ages4.mjs</code> (each run’s finished file or
 checkpoint, whichever got further). <strong>Detail:</strong> sections
-4.2.1–4.2.3.</p>
+4.2.1–4.2.6.</p>
 <h2 id="what-a-star-holds-and-how-it-ends">8 What a star holds, and how
 it ends</h2>
 <p><strong>Held</strong> (computed): each run’s last kept profile summed

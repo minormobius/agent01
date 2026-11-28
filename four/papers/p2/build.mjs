@@ -250,14 +250,18 @@ function methodNumbers() {
     mGs: list(arr(y4, "g")), mWs: list(arr(y4, "w").map(pc)), mFs: list(arr(y4, "fx")), mAlphas: list(arr(y4, "alpha")), mTaus: list(JSON.parse(grab(y4, /for \(const tau of (\[[^\]]+\])/, "the tau choices"))), mTgs: list(arr(y4, "tg")) };
 }
 function ages4Numbers() {
-  const A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);
+  const GRS = J("gravity.json").runs.filter((r) => r.sun), A = J("ages4.json"), S = A.summary, s15 = A.stars.filter((x) => x.s === 1.5152 && x.half && (x.G !== 1e-17 || Math.abs(x.m - 0.7812) < 0.01)).sort((a, b) => b.G - a.G);
   const word = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight"], who = (k) => { const [g, s] = k.split("/"); return `G = ${Gs(+g)} at s = ${s}`; };
   // an analogue not yet halved is either still running (cut) or stopped where its stirred core switched off (with its record)
   const unhalved = A.stars.filter((x) => !x.half && S.notHalved.includes(`${x.G}/${x.s}`));
   if (unhalved.some((x) => x.state !== "cut" && !x.stall)) throw new Error(`ages4: an analogue stopped before halving, not at the described switch-off: ${S.notHalved}`);
-  const stalls = A.stars.filter((x) => x.stall), rng = (k, n = 2) => { const v = stalls.map((x) => x.stall.centre[k] ?? 0), lo = Math.min(...v), hi = Math.max(...v); return f(lo, n) === f(hi, n) ? f(lo, n) : `${f(lo, n)}–${f(hi, n)}`; };
+  // late stops: analogues at other strengths that halved long before and stop near the end (the solver, or the energy books
+  // after a jump in the central density); the text names them and gives their lives as lower bounds
+    const late = A.stars.filter((x) => x.s !== 1.5152 && x.half && !x.exhaust && x.state !== "cut" && x.state !== "tmax" && GRS.some((r) => r.G === x.G && r.s === x.s && Math.abs(x.m / r.sun.m - 1) < 0.01));
+  if (late.some((x) => !(x.lastXc < 0.15))) throw new Error("ages4: an analogue stops mid-life away from s 1.5152: the text says the others stop only near the end");
+  const stalls = A.stars.filter((x) => x.stall && x.s === 1.5152), rng = (k, n = 2) => { const v = stalls.map((x) => x.stall.centre[k] ?? 0), lo = Math.min(...v), hi = Math.max(...v); return f(lo, n) === f(hi, n) ? f(lo, n) : `${f(lo, n)}–${f(hi, n)}`; };
   if (!stalls.length) throw new Error("ages4: the text describes analogues stopped at the switch-off and there are none: rewrite it");
-  if (stalls.some((x) => x.s !== 1.5152 || (x.stall.centre["2"] ?? 0) > 1e-3)) throw new Error("ages4: a stopped analogue the text doesn't describe (another s, or helium left at the centre)");
+  if (stalls.some((x) => (x.stall.centre["2"] ?? 0) > 1e-3)) throw new Error("ages4: a stopped analogue the text doesn't describe (another s, or helium left at the centre)");
   // the one whose last Gyr shows the switch-off (the largest fall of its stirred core)
   const st = stalls.reduce((p, x) => (x.stall.qccPeak - x.stall.qccEnd > p.stall.qccPeak - p.stall.qccEnd ? x : p));
   if (!(st.stall.qccPeak > 0.05 && st.stall.qccEnd < 0.01)) throw new Error("ages4: no stopped analogue shows its stirred core switching off");
@@ -268,8 +272,10 @@ function ages4Numbers() {
   const lad = A.stars.filter((x) => x.G === 1e-17 && x.s === 1.5152 && x.stop), lx = lad.map((x) => x.lastXc);
   if (!lad.length) throw new Error("ages4: the text says the s 1.5152 ladder stops at core switch-offs and none does");
   if (lad.some((x) => !(x.stop.qccPeak > x.stop.qccEnd && x.stop.qccEnd < 0.005))) throw new Error("ages4: a ladder stop where no stirred core switched off: rewrite the text");
-  return { a4grid: String(S.inGravity), a4rest: rest, a4nStall: word[stalls.length], a4stGs: stalls.map((x) => Gs(x.G)).sort().join(" and "), a4cH: rng("1"), a4cPx: rng("10"), a4cOx: rng("9"),
+  return { a4grid: String(S.inGravity), a4rest: rest, a4nStall: word[stalls.length], a4stGs: stalls.map((x) => Gs(x.G)).sort().join(", ").replace(/, ([^,]*)$/, " and $1"), a4cH: rng("1"), a4cPx: rng("10"), a4cOx: rng("9"),
     a4stG: Gs(st.G), a4stEnd: f(st.lastGyr, 1), a4stQ0: f(st.stall.qccPeak, 2), a4stQ1: f(st.stall.qccEnd, 3), a4stDt: f(st.stall.overGyr, 2), a4stRho: pct(st.stall.rhoUp - 1), a4stTc: pct(1 - st.stall.TcDown), a4stL: pct(st.stall.LUp - 1),
+    a4lateN: (word[late.length] ?? String(late.length)).replace(/^./, (c) => c.toUpperCase()), a4lateWho: late.map((x) => Gs(x.G)).join(", ").replace(/, ([^,]*)$/, " and $1"), a4lateS: [...new Set(late.map((x) => x.s))].join(", "),
+    a4lateXc: `${f(Math.min(...late.map((x) => x.lastXc)), 2)}–${f(Math.max(...late.map((x) => x.lastXc)), 2)}`, a4lateNb: word[late.filter((x) => !/no solution/.test(x.state)).length],
     a4ladN: word[lad.length] ?? String(lad.length), a4ladXc: `${f(Math.min(...lx), 2)}–${f(Math.max(...lx), 2)}`,
     a4n: String(S.halved), a4min: f(S.halfMin, 1), a4max: f(S.halfMax, 0), a4rlo: f(S.halfMin / A.convention, 1), a4rhi: f(S.halfMax / A.convention, 0), a4s15: s15.map((x) => f(x.half, 0)).join(", ") };
 }

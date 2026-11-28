@@ -43,37 +43,54 @@ difference that accounts for would need a reference model without it, which thes
 temperature and density of the settled zero-age star (0.1 Gyr, 13.7 MK), fresh gas would take 9.6 Gyr,
 a factor of 1.99. Section 3 took 2.41, from a zero-age Sun built under a simpler burning law. The
 factor depends on what counts as zero age. The run's very first star, before its helium-3 and carbon-12 have come
-into balance, sits at 14.7 MK and would take 5.8 Gyr, a factor of only 1.20. Ageing the
-four-dimensional analogues themselves removes the convention, and they have now been aged on this machinery, with
-the charge law's plasma (screening under the pinned $1/r$ and the lens vacuum's cutoff on light). Of the 29
-Sun analogues section 3 found, 28 burn half their central hydrogen, in
-10.6–177 Gyr: 2.3–39 times the 4.6 Gyr section 3 gave them. The last, at G = 10^−11^, s = 1.5152, burns far faster than the rest and stops 0.5% short of half, at 2.6 Gyr, in the stall described below. From G = 10⁻¹⁴ to 10⁻²⁰ the
-slowest sit at the strength nearest ours, s = 1.5152: 43, 125, 177 Gyr.
+into balance, sits at 14.7 MK and would take 5.8 Gyr, a factor of only 1.20. Ageing the four-dimensional analogues themselves removes the convention. They are aged on this machinery with the
+charge law's plasma (screening under the pinned $1/r$ and the lens vacuum's cutoff on light), the energy of contraction
+in the structure (4.2.5) and the edge of each stirred core set by Ledoux's criterion (4.2.6). Of the 29 Sun
+analogues section 3 found, 28 burn half their central hydrogen, in 9.1–148 Gyr: 2.0–32
+times the 4.6 Gyr section 3 gave them. The last, at G = 10^−11^, s = 1.5152, burns far faster than the rest and stops 0.8% short of half, at 2.2 Gyr, where its stirred core switches off (below). From G = 10⁻¹⁴ to 10⁻²⁰ the slowest sit at the strength nearest ours,
+s = 1.5152: 37, 105, 148 Gyr.
 
-At that strength two runs stop at the same point in the core's chemistry, at G = 10^−11^ and 10^−14^. The centre has
-burnt all its helium and holds, by mass, hydrogen 0.37–0.38, pxygen 0.59 and oitrogen 0.03–0.04: the proton
-captures that turn oitrogen into pxygen-20, the burning that stirred the core, are running out of oitrogen. At
-G = 10^−14^ half the hydrogen is gone at 43.1 Gyr and the solver finds no star past 43.3. Over its
-last 1 Gyr the stirred core shrank from 0.14 to 0.05 of the mass, while the centre grew 26%
-denser and 3% cooler and the light rose 17%. The solver keeps every shell in thermal balance, with no
-energy drawn from contraction, so it cannot follow a core changing that fast; where it fails does not depend on where
-the shooting meets. Following these stars further needs that energy in the structure.
+**Where the stirred core switches off.** At that strength three analogues stop at the same point in the core's
+chemistry, at G = 10^−11^, 10^−14^ and 10^−17^. The centre has burnt all its helium and holds, by mass, hydrogen 0.37–0.38, pxygen
+0.57–0.63 and oitrogen 0.00–0.05: the proton captures that turn oitrogen into pxygen-20, the burning that stirred the
+core, are running out of oitrogen, and the stirred core switches off. At G = 10^−11^, over its last 0.36 Gyr, it
+shrank from 0.11 to 0.002 of the mass, while the centre grew 72% denser and 16% cooler and the
+light rose 30%, and the run stops at 2.2 Gyr. No star past that point re-solves: a looser tolerance gains
+one model, and relaxation, which follows the star further, does so with the shells burning half the power the structure
+assumes. The mass ladder at G = 10^−17^ meets the same frontier: five of its s = 1.5152 stars stop where a stirred
+core switches off, the heavier ones a second time late in life (with 0.02–0.24 of their central hydrogen left). Three more analogues, at s = 1.55 and G = 10^−11^, 10^−14^ and 10^−20^, stop near the end, with 0.04–0.11 of their
+central hydrogen left and long after halving: two where the centre's density jumps and the shells' burning
+parts from the power the structure assumes, by more than the bar the energy books are held to, the other on the
+solver. Every age for those stars is a lower bound, and is marked so. An earlier test, adding the energy of contraction at the stall to
+runs aged without it, carried the analogues at G = 10^−14^ and 10^−11^ 1.5 Gyr and 150 Myr past the switch-off
+before they stopped again; aged with it from the start, they stop at the switch-off itself. Whether the centre then
+flares or the method has met its edge is open.
 
-**The energy of contraction.** With it added (4.2.5) and checked on our own stars first, the stall is passed. Our Sun to
-4.57 Gyr moves by at most 0.099% in light, radius, central temperature or central density, and a 2 M☉ star to the end
-of its central hydrogen by at most 0.14% (its life by 0.05%). Contraction supplies a few parts in 10⁴ of the
-Sun's light (0.03%) and rises to 1.3% of the 2 M☉ star's as its core runs dry. Resumed from their checkpoints at
-the stall (43.27 and 2.557 Gyr), the analogue at G = 10^−14^ lives 1.5 Gyr more and the one at
-G = 10^−11^ 150 Myr. In both the stirred core switches off. The centre cools, from 21.8 to 16.6 MK and from 23.4 to 17.3 MK,
-and grows 31–39% denser, then slowly reheats, while its hydrogen barely burns and the light comes from layers further
-out. Contraction's share of the light stays within 0.4% and 2.2% respectively: a small term, but without it no
-star exists there.
-Both stop again where the centre reheats and a stirred core begins to re-form, at 44.77 and 2.707 Gyr, and a
-looser solver tolerance stops at the same place. Whether that is a real flare of the centre's hydrogen or the edge of
-the method is open. The ages above end at the stall and stand.
+**The energy of contraction**, checked on our own stars first, barely moves them: our Sun to 4.57 Gyr by at most
+0.099% in light, radius, central temperature or central density, a 2 M☉ star to the end of its central hydrogen by
+at most 0.14% (its life by 0.05%). Contraction supplies a few parts in 10⁴ of the Sun's light (0.03%)
+and rises to 1.3% of the 2 M☉ star's as its core runs dry. Against the earlier runs, which had no such term, an
+older quadrature for the pinned gravity and stirred cores burnt shell by shell, the four-dimensional lives come out
+6%–11% shorter wherever the edge of the core does not matter; most of that is the gravity.
 
-**Past the end of the hydrogen (provisional).** With the same energy in the structure, the ladder star that sits on the
-explosion line (s = 1.5152, 1.25 M~Ch~) has been carried 220 Myr past the end of its central hydrogen. Its
+**The edge of a stirred core.** A stirred core that shrinks leaves behind it a gradient of composition, hydrogen
+rising outward through the layers it once mixed. If later the core wants to grow again, Schwarzschild's criterion mixes
+those layers in as soon as they turn unstable, fresh hydrogen with them; Ledoux's holds them while their gradient of
+mean particle mass outweighs the excess of the radiative over the adiabatic gradient. Every star here is aged both ways.
+The two are the limits, without overshoot, of semiconvective mixing, none and instant, so a star mixing such layers at
+any finite rate lies between them. Of the 40 four-dimensional stars aged to their end both ways, 26 agree to
+within 2%. Every other one is shorter under Ledoux: 7 by 2%–9%, and 7 by
+10%–36% (G = 10^−11^, s = 1.65, 0.2316 M~Ch~; G = 10^−17^, s = 1.65, 0.9024 M~Ch~; G = 10^−17^, s = 1.7, 1.25 M~Ch~; G = 10^−17^, s = 1.7, 1.6 M~Ch~; G = 10^−17^, s = 1.7, 2 M~Ch~; G = 10^−17^, s = 1.8, 4 M~Ch~; G = 10^−20^, s = 1.7, 2.41 M~Ch~). In each, at some point in its life the unstable region runs past the mixed core
+into hydrogen-richer layers that Ledoux holds back. What that costs a star is not simply how far it runs: up to
+0.084 of the mass, in stars that agree as well as in those that do not. Our own stars move the same way and less: 5% shorter at 1.25 M☉ and 6% shorter at 1.6 M☉, 1, 2 and 3 M☉ within 1%, and 0.6 and 0.8 M☉ outliving the 20 Gyr limit either way. Under Schwarzschild one star, at G = 10^−17^, s = 1.65 and 2.0 M~Ch~, mixes its regrowing core into
+fresh hydrogen in a single step and its run stops; under Ledoux it lives 1.5 Gyr. The ages quoted are Ledoux's, the
+side that carries every star cleanly, with Schwarzschild's beside them in `data/bracket4.json`. Neither side has
+overshoot, which in our own stars above about 1.2 M☉ mixes past the convective edge and lengthens their lives; it would
+lengthen the regrowing stars' further still.
+
+**Past the end of the hydrogen (provisional).** On the earlier runs' track, with the energy of contraction added, the ladder
+star that sits on the explosion line (s = 1.5152, 1.25 M~Ch~) has been carried 220 Myr past the end of its central hydrogen (in the final run it stops earlier, at its second
+core switch-off, above). Its
 hydrogen-free core grows from 0.026 to 0.29 M~Ch~, faster as it goes. The star swells ×410 in radius and
 ×26 in light, and its surface cools from 46,100 to 2,400 K, while its centre heats from 71 to 210
 MK and grows ×130 denser: a red giant. Shooting cannot follow an envelope swelling that far, so past the subgiant
@@ -85,9 +102,9 @@ burn between 0.76 and 0.97 of the nuclear power the structure assumes. Whether t
 Chandrasekhar mass, which decides whether the star explodes and so tests the declared core growth above, is still
 open: the run is paused until the composition grid resolves the shell.
 
-**What the aged stars hold.** Summed over each analogue's last kept profile, the elements past helium are 9–30% of
-its mass at s ≤ 1.55, mostly element 8, oitrogen, pxygen and gluorine; 2–20% at s = 1.6–1.65, coron, element 6, darbon, element 8 and oitrogen; 0.3–4% at s = 1.7, element 6;
-and at most 0.1% from s = 1.75 up, where the stars burn hydrogen to helium and no further. Where the climb runs,
+**What the aged stars hold.** Summed over each analogue's last kept profile, the elements past helium are 7–28% of
+its mass at s ≤ 1.55, mostly element 8, oitrogen, pxygen and gluorine; 0.3–20% at s = 1.6–1.65, element 6, darbon, element 8 and oitrogen; 0.2–0.5% at s = 1.7, none above 1%;
+and at most 0.04% from s = 1.75 up, where the stars burn hydrogen to helium and no further. Where the climb runs,
 the stars of weaker gravity (heavier, with hotter cores) mostly make more. This is what the stars hold when their runs
 end, not what they return to the gas.
 
@@ -97,22 +114,23 @@ hydrogen, so the ending is declared and carried as a band. Burning in a shell ro
 $w$ = 3% and 30% of the core's ash by winds. One that reaches it explodes, returns everything and burns the core's ash to
 this world's iron or the rock row (elements 13–23), by how far the core expands before the burning reaches it. The
 mass ladders at G = 10^−17^ hold 38 stars at six strengths. Of the 29 that die within 30 Gyr,
-28 reached central hydrogen 10⁻³; the other 1 stopped or were cut with at most 0.00 of it left,
-and their lives are carried on at their last rate. At $g$ = 1.25 the lightest star that explodes (figure 3a) is 1.25 M~Ch~ at
+24 reached central hydrogen 10⁻³; the other 5 stopped or were cut with at most 0.24 of it left,
+and their lives are carried on at their last rate (most of them at s = 1.5152, where a stirred core switched off, so
+their processed cores are lower bounds too). At $g$ = 1.25 the lightest star that explodes (figure 3a) is 1.6 M~Ch~ at
 s ≤ 1.55, 2 at 1.6–1.65 and 2.5 at 1.7. The net yield $p$ (figure 3b), the elements past helium returned per unit of
 mass locked away in remnants and in stars still burning, taken over a mass function $m^{-\alpha}$ (α = 2.35 and 1.9)
-from 0.25 to 2.5 M~Ch~ for the stars that die within 10 and 30 Gyr, is 0.049–0.25 at s ≤ 1.55, 0.011–0.088 at 1.6–1.65,
-0.00062–0.027 at 1.7 and 0.00038–0.0015 at 1.8. Most of that band comes from $g$, which sets which masses explode. What comes
+from 0.25 to 2.5 M~Ch~ for the stars that die within 10 and 30 Gyr, is 0.041–0.17 at s ≤ 1.55, 0.011–0.093 at 1.6–1.65,
+0.00022–0.013 at 1.7 and 0.00011–0.0008 at 1.8. Most of that band comes from $g$, which sets which masses explode. What comes
 back is heavy: the exploding cores' burnt ash, with little of the light ash the stars held. A 4D core gets hot enough
 to light its ash only at the Chandrasekhar mass itself, within a few parts in ten thousand of it, where it is far
 denser than our exploding white dwarfs (its electrons' Fermi momentum about fifty times their mass, ours about ten),
-so every core that reaches the limit burns almost wholly to equilibrium. That is 64–100% of $p$ at s ≤ 1.55 over
+so every core that reaches the limit burns almost wholly to equilibrium. That is 68–100% of $p$ at s ≤ 1.55 over
 the choices (the rest is light ash from dead stars' winds, most where winds take 30% of a core) and 95% from
 s = 1.6 up at the middle choice (α = 2.35, $g$ = 1.25, $w$ = 3%, stars dying within 30 Gyr).
 The rock row (elements 13–23) is 1% of it there; it would take over only if a core expanded a hundred to a
 thousand times more before the burning reached it than ours do (the expansion is calibrated on ours and carried). The
-light ash, which dead stars' envelopes and winds return, is only 0–4% of $p$ at the middle choice, or
-1–29% with winds of 30%. This world's equilibrium does not end at one nucleus, as ours ends at nickel-56.
+light ash, which dead stars' envelopes and winds return, is only 1–4% of $p$ at the middle choice, or
+9–30% with winds of 30%. This world's equilibrium does not end at one nucleus, as ours ends at nickel-56.
 Computed on the liquid drop at the exploding core's density as it cools (Y~e~ = 0.5, ground states), it makes
 nuclei of mass 253–290, most of them elements 132–139 with about as many protons as neutrons. Each decays along
 its mass to the stable line, as our nickel-56 does to iron, releasing 1.5 MeV a nucleon and ending mostly as
@@ -227,3 +245,19 @@ latest earlier model whose central density differs from now by at least 1%, take
 composition grid's interpolation error would swamp the term), and the term is switched on only once that reference lies
 a set fraction of the thermal time $GM^2/RL$ back. Steps are halved if the centre's density moves more than 5%. A run's
 checkpoint keeps its reference, and a resumed star is re-solved against it.
+
+
+### 4.2.6 The edge of a stirred core
+
+The structure marks a layer stirred where its temperature gradient reaches the adiabatic one (Schwarzschild's
+criterion), and each stirred run of the composition grid is mixed to one composition. Ledoux's criterion is applied at
+the mixing: walking out from the centre, the stirred core takes a layer only while its hydrogen is within ΔX of the
+core's mixed mean, and the first layer past that, with the rest of the unstable run beyond it, stays unmixed. The
+structure keeps those layers at the adiabatic gradient, so they carry heat as convection would but hold their
+composition: the efficient-transport limit of a semiconvective layer. Ledoux's criterion in the structure itself, the
+temperature gradient left radiative up to the adiabatic gradient plus the gradient of mean particle mass, was tried first
+and fails at this grid's resolution. A layer that drops out of the core for one step burns on its own, the step's tiny
+gradient then holds it out for good, and the core ratchets away: our 1.6 M☉ star's went from 0.09 of its mass to 0.002
+in 0.4 Gyr. ΔX is that flicker's allowance. On our 1.6 M☉ star, whose core grows, the central hydrogen at 0.86 Gyr is
+0.422, 0.425 and 0.434 at ΔX = 0.01, 0.02 and 0.05, against 0.452 under Schwarzschild; the runs
+use 0.02.

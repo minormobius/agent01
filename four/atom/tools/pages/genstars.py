@@ -41,6 +41,23 @@ def MS_band(g,key,target,out):
   v=[MS_at(r['rows'],key,target) for r in (MS_run(g,1,0.5),MS_run(g,1,2)) if r]
   v=[x[out] for x in v if x]
   return (min(v),max(v)) if len(v)==2 else None
+# the aged stars (paper 2 section 4: papers/p2/data/ages4.json, yields4.json, bracket4.json), beside the textbook lives
+AG4=json.load(open(ATOM+'../papers/p2/data/ages4.json'))
+YL4=json.load(open(ATOM+'../papers/p2/data/yields4.json'))
+try: BR4=json.load(open(ATOM+'../papers/p2/data/bracket4.json'))
+except Exception: BR4=None
+def AG_text():
+  S=AG4['summary']
+  short=min(x['life'] for x in YL4['stars']); long_=[x for x in YL4['stars'] if x['life']>200]
+  lm=max(x['m'] for x in long_) if long_ else None
+  br=''
+  if BR4:
+    b=[x for x in BR4['stars'] if x.get('vsSchwarzschild') is not None]; big=min(x['vsSchwarzschild'] for x in b)
+    br=f" Where a stirred core shrinks and then regrows, how fast the layers it left get mixed back in is not settled: Ledoux's criterion, used here, mixes none; Schwarzschild's mixes them at once, and gives lives up to {round(-100*big)}% longer. "
+  return (f'<p><span class="tag computed">computed</span> <b>Aged, the lives come out longer than the estimate above.</b> The lifetimes in the table are the textbook estimate, a tenth of the star burnt. '
+    f'Aged instead, hydrogen burnt shell by shell and the star re-solved as it goes (<a href="../papers/p2/draft/ageing">paper 2, section 4</a>), the {S["inGravity"]} first-generation stars whose young cores burn at our Sun\'s pace halve their central hydrogen in {S["halfMin"]:.1f}–{S["halfMax"]:.0f} Gyr, '
+    f'{S["halfMin"]/AG4["convention"]:.0f}–{S["halfMax"]/AG4["convention"]:.0f} times the 4.6 Gyr they were once given. At G 10<sup>−17</sup> the aged mass ladders live from {short:.2f} Gyr at the heavy end to beyond 200 Gyr{f" below about {lm:.1f} M_Ch" if lm else ""}.{br}'
+    f'Near our nuclear strength the runs stop where the stirred core switches off, so the lives there are lower bounds. These stars are a declared stand-in for our Sun, not its counterpart: our Sun is a later-generation star, and which 4D star answers to it is left open.</p>')
 def MS_row(g):
   r=MS_run(g)
   if not r: return ''
@@ -277,6 +294,7 @@ stars=f'''<section id="hold">
   <canvas class="chart tall" id="cMainLife"></canvas><p class="read" id="kMainLife"></p>
   <p class="read">4D from 0.13 to 5 times the Chandrasekhar mass at three strengths of gravity, proton + proton at 1 fm (4 fm moves these stars by under a percent above half the mass, more at the faint end){(lambda d: f"; free–free dims a star of 0.4 M_Ch at G 10<sup>−20</sup> {d[0]:.0f}-fold against scattering alone, from {d[1]:,.0f} K to {d[2]:,.0f} K at the surface" if d else "")(MS_dim(1e-20,0.4))}; a lifetime is a tenth of the star burnt at 17 MeV a nucleon (ours: a tenth, to helium). The faintest stars solved, a few tenths of the Chandrasekhar mass, have cores of only 2–3 million K, near where hydrogen stops burning at all. Each star, and where an airless black planet would sit at 288 K, at each G (× ours):</p>
   <table class="sys"><tr><th>G</th><th>a star that lives as long as our Sun</th><th>a star the colour of sunlight (5,800 K)</th></tr>{"".join(MS_row(g) for g in (1e-8,1e-11,1e-14,1e-17,1e-20,1e-23,1e-26))}</table>
+  {AG_text()}
   <p><b>A 4D star brightens as about the fifth power of its mass</b> (ours, the third and a half), and at a given share of the Chandrasekhar mass it burns its fuel as G<sup>2/3</sup>: weaker gravity makes bigger, cooler, longer-lived stars. <span class="tag follows">follows</span> <b>So a long life and the colour of sunlight are different stars in 4D</b> unless G is very weak. Where G is within a few powers of ten of the Earth-like estimate, a star that lasts as long as our Sun is blue-hot, tens of thousands of kelvin, and a star the colour of sunlight is a faint one that outlasts the universe many times. Its planets' years run from under an hour at 10<sup>−8</sup> of our gravity to a lifetime at 10<sup>−20</sup>. And a star that long-lived exists up to at least 10<sup>−8</sup> (four tenths of the Chandrasekhar mass, 20,000 K): the stars set no ceiling on G within what's solved, only the floor below about 10<sup>−22</sup>, where nothing finishes in time to make anything heavier than helium (<a href="nuclei.html#giveback">chapter 15</a>). And at a given colour, a star's life hardly depends on G at the cool end (the lifetime curves for the two weakest gravities nearly lie on one another): what weaker gravity changes is how massive, and how bright, a star of that colour is. And the core temperature falls with G too, which is what decides what the core makes (<a href="nuclei.html#together">chapter 15</a>): G reaches all the way to the water. <span class="tag open">open</span> The coolest surfaces: below about 5,000 K 4D's iydrogen, holding its electron by only 6 eV, takes it back, and the gas stops being the ionized one these opacities assume, so the faintest stars' colours are rough. Also how stars of each mass are made, and the planet's own G, from its rock.</p>
 </section>
 <section id="plasma">
