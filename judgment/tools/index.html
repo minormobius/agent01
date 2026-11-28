@@ -1035,7 +1035,7 @@ section.fn > h3 { font-size: 1.05rem; font-family: var(--sans); margin-top: 1.5r
 <h4>Key withholding, credential-less checkout and the redactor</h4>
 <p class="meta"><span class="tag">miniphim</span> <span class="tag st-live">Live</span> <span class="tag">also: Decompose</span> <span class="tag">portable: high</span></p>
 <p>Agent sessions get a whole shell on a throwaway runner, so the boundary is not a command list. Instead: SESSION_WITHHELD strips 11 keys from the session environment, the checkout keeps no credentials (persist-credentials: false), and every byte written back to the public repo goes through redactor(), which removes known secret values and token patterns.</p>
-<p class="ev"><b>Evidence.</b> No leak recorded. The command allowlist was dropped on 10-06 (&quot;the command list was never the boundary&quot;). The survey found the redactor&#39;s value list and the withheld-key list out of step; reported for fixing.</p>
+<p class="ev"><b>Evidence.</b> No leak recorded. The command allowlist was dropped on 10-06 (&quot;the command list was never the boundary&quot;). The withheld list deliberately also names keys the run step never holds, so adding one to the workflow later stays covered.</p>
 <p class="ev"><b>Lesson.</b> The real boundary is what the environment holds, not which commands are allowed. node:* already runs anything.</p>
 <p class="where"><code>claude/agent-social-media-drlzxn:packages/whetstone/lib/model.mjs</code> <code>claude/agent-social-media-drlzxn:packages/whetstone/lib/work.mjs</code> <code>claude/agent-social-media-drlzxn:.github/workflows/whetstone.yml</code></p>
 </li>

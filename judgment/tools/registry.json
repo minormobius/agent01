@@ -1376,7 +1376,7 @@
       ],
       "what": "Agent sessions get a whole shell on a throwaway runner, so the boundary is not a command list. Instead: SESSION_WITHHELD strips 11 keys from the session environment, the checkout keeps no credentials (persist-credentials: false), and every byte written back to the public repo goes through redactor(), which removes known secret values and token patterns.",
       "status": "live",
-      "evidence": "No leak recorded. The command allowlist was dropped on 10-06 (\"the command list was never the boundary\"). The survey found the redactor's value list and the withheld-key list out of step; reported for fixing.",
+      "evidence": "No leak recorded. The command allowlist was dropped on 10-06 (\"the command list was never the boundary\"). The withheld list deliberately also names keys the run step never holds, so adding one to the workflow later stays covered.",
       "lesson": "The real boundary is what the environment holds, not which commands are allowed. node:* already runs anything.",
       "portable": "high",
       "system": "miniphim"
