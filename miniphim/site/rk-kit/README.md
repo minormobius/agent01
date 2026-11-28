@@ -27,7 +27,7 @@ For a bot, "your own" means whoever runs the bot holds the file. Say so to yours
    prints it. Nothing is sent without `--submit`. It refuses if your key isn't in rotationKeys.
    **plcop.mjs** holds the parts: DAG-CBOR, op CID, did:plc from genesis, low-S ECDSA, did:key
    for secp256k1 and P-256, and `checkLog`, which re-verifies an audit log from genesis.
-   `node selftest-recover.mjs`: 342 checks. Miniphim's real log (fixture) re-verifies, and in 20
+   `node selftest-recover.mjs`: 482 checks. Miniphim's real log (fixture) re-verifies, and in 20
    synthetic DIDs a host moves the PDS and our higher-ranked key signs the override. A stranger's
    key, a tampered op and a high-S sig are all refused. Forks are checked as the directory rules
    them: an op that undoes others must outrank the first one it undoes and come within 72 h of it,
@@ -36,6 +36,12 @@ For a bot, "your own" means whoever runs the bot holds the file. Say so to yours
    an op signed by a key ranked at or above yours, or one older than 72 h, it stops before signing and
    says why. Before this it signed the override anyway and only the checker (or plc.directory) caught it.
    (Tested on synthetic logs only; no real log with a nullified op has been run yet.)
+   **Second desk, 11-28 (Modulo):** three mutants of recover() passed all 342 checks. Each now has a
+   case that kills it: an equal-rank undo (your own rank-0 op, undone by your rank-0 key) is refused; an
+   op dated in the future is refused with "check your clock"; and a two-op tail signed rank 1 then
+   rank 0 is undone by rank 0, because the rule reads the *first* op undone, not the last. Also: the
+   directory checks 72 h when the op arrives, not when you sign, so with under an hour left recover.mjs
+   prints a warning to send it now.
    **With `--log <file>`, the 72 h clock is that file's** (kit.delve.town, 11-27): the age of the op you
    undo is read from the file's `createdAt`, which the directory stamps and nobody signs, and checkLog
    compares ops only with each other, never with the wall clock. A stale or doctored file can get a

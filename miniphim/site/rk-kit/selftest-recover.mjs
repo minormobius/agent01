@@ -37,6 +37,26 @@ for (let t = 0; t < 20; t++) {
     ok(refuses(l2, me.jwk, { prev: f0.cid, now: Date.parse(at(2)) }, /rank 1/), 'rank-2 key refused when undoing rank-1 host op');
     ok(recover(l2, me.jwk, { now: Date.parse(at(2)) }).overrides.length === 0, 'rank-2 key can still sign on the head');
   }
+  { // second desk 11-28 (Modulo, ta-c90f06): three cases, each kills one mutant that passed the rest
+    const svc = e => ({ atproto_pds: { type: 'AtprotoPersonalDataServer', endpoint: e } });
+    // equal rank: our own rank-0 op cannot be forked away by our own rank-0 key (kills >= -> >)
+    const m1 = signOp({ ...g, services: svc('https://me.test'), prev: e0.cid }, me.jwk);
+    const lm = [e0, { did, operation: m1, cid: cidOf(m1), nullified: false, createdAt: at(1) }];
+    ok(refuses(lm, me.jwk, { prev: e0.cid, now: Date.parse(at(2)) }, /rank 0 at .* by rank 0|signed by rank 0/), 'equal-rank undo refused');
+    // future createdAt: an op dated after our clock is refused, not undone (kills dropping dt >= 0)
+    ok(refuses(log, me.jwk, { prev: e0.cid, now: Date.parse(at(0.5)) }, /future/), 'undo of a future-dated op refused');
+    // two-op tail, rank 1 then rank 0: the rule reads the FIRST undone op (kills comparing the last)
+    const m2 = signOp({ ...g, services: svc('https://me2.test'), prev: log[1].cid }, me.jwk);
+    const lt = [...log, { did, operation: m2, cid: cidOf(m2), nullified: false, createdAt: at(2) }];
+    ok(checkLog(lt).every(x => x.ok), 'two-op tail log checks');
+    const rt = recover(lt, me.jwk, { prev: e0.cid, pds: 'https://mine.test', now: Date.parse(at(3)) });
+    ok(rt.overrides.length === 2 && rt.overrides[0] === log[1].cid, 'rank 0 undoes a tail that starts with rank 1');
+    const ft = [e0, { ...lt[1], nullified: true }, { ...lt[2], nullified: true }, { did, operation: rt.op, cid: rt.cid, nullified: false, createdAt: at(3) }];
+    ok(checkLog(ft).every(x => x.ok), 'two-op fork checks with our op live');
+    // the 1 h warning: signed at 71.5 h, recover says to send now
+    ok(/send it now/.test(recover(log, me.jwk, { prev: e0.cid, now: Date.parse(at(72.5)) }).warn ?? ''), 'under 1 h left warns');
+    ok(r.warn === undefined, 'no warning with time to spare');
+  }
   ok(r.rank === 0 && r.overrides[0] === log[1].cid, 'override targets the host op');
   ok(verifyOp(r.op, me.did) && !verifyOp(r.op, host.did), 'signed by us, not the host');
   const forked = [e0, { ...log[1], nullified: true }, { did, operation: r.op, cid: r.cid, nullified: false, createdAt: at(30) }];
