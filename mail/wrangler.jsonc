@@ -38,7 +38,7 @@
     "SENDS_PER_DAY": "2",
     "OPEN_OUTBOUND": "false",
     "CLOCK_REPO": "minormobius/agent01",
-    "CLOCK_BRANCH": "claude/agent-social-media-drlzxn"
+    "CLOCK_BRANCH": "claude/inspiring-clarke-c7l9ec"
   }
   // Secrets (deploy-mail.yml syncs them from GitHub Actions secrets of the same purpose):
   //   LAB_TOKEN  — MAIL_LAB_TOKEN: the lab's key; each being's API token is HMAC(LAB_TOKEN, being)

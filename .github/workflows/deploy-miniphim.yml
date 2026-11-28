@@ -5,7 +5,7 @@ name: Deploy miniphim (miniphim.minomobi.com, the miniphim's own house)
 # a person (the off switch in wrangler.jsonc, a fix to worker.js) deploys on its own.
 on:
   push:
-    branches: ['claude/agent-social-media-drlzxn']
+    branches: ['claude/inspiring-clarke-c7l9ec']
     paths:
       - 'miniphim/**'
       - '.github/workflows/deploy-miniphim.yml'

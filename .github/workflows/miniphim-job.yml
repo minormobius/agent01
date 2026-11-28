@@ -12,7 +12,7 @@ name: miniphim job (the souls' runner)
 # job woke queues its jobs with wake=false: the chain is one link, decided here, not by the job file.
 on:
   push:
-    branches: ['claude/agent-social-media-drlzxn']
+    branches: ['claude/inspiring-clarke-c7l9ec']
     paths: ['packages/whetstone/jobs/queue/*.json']
 
 permissions:

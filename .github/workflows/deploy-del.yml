@@ -2,7 +2,7 @@ name: Deploy del (the miniphim observatory)
 
 on:
   push:
-    branches: ['claude/agent-social-media-drlzxn']
+    branches: ['claude/inspiring-clarke-c7l9ec']
     paths:
       - 'del/**'
       - '.github/workflows/deploy-del.yml'

@@ -5,7 +5,7 @@ name: miniphim profile (writes miniphim.delve.town's profile)
 # account.mjs refuses any other write before the network is touched; the selftest proves it.
 on:
   push:
-    branches: ['claude/agent-social-media-drlzxn']
+    branches: ['claude/inspiring-clarke-c7l9ec']
     paths:
       - 'packages/miniphim-account/profile.json'
       - 'packages/miniphim-account/avatar.png'

@@ -69,6 +69,28 @@ jobs:
               changed=$(git diff-tree --no-commit-id --name-only --diff-filter=AM -r HEAD)
             fi
             list=$(printf '%s\n' "$changed" | grep -E '^packages/whetstone/requests/[^/]+\.json$' | sort -u | sed 's#^packages/whetstone/##' || true)
+            # A request runs once. A push that merges another branch's history (the 2026-11-28
+            # handover from claude/agent-social-media-drlzxn, or any catch-up merge after it) adds
+            # hundreds of request files that already ran; without this every one would run again,
+            # spending and posting. Skip any request whose label already has a run folder.
+            # A deliberate re-run is a workflow_dispatch, which bypasses this.
+            # Also skip anything dated before yesterday (UTC): a request is a wake, and a stale wake
+            # (a summons whose run failed weeks ago) must not fire late. 11 such files existed at
+            # the handover.
+            cutoff=$(date -u -d 'yesterday' +%F)
+            kept=""
+            while IFS= read -r r; do
+              [ -z "$r" ] && continue
+              d=$(printf '%s' "$r" | grep -oE '^requests/[0-9]{4}-[0-9]{2}-[0-9]{2}' | sed 's#^requests/##' || true)
+              if [ -n "$d" ] && [[ "$d" < "$cutoff" ]]; then echo "skip $r: dated $d, stale"; continue; fi
+              label=$(node -e 'try{process.stdout.write(String(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).label||""))}catch{}' "packages/whetstone/$r")
+              if [ -n "$label" ] && ls -d packages/whetstone/runs/*-"$label" >/dev/null 2>&1; then
+                echo "skip $r: $label already ran"
+              else
+                kept="$kept$r"$'\n'
+              fi
+            done <<< "$list"
+            list=$(printf '%s' "$kept" | sed '/^$/d')
           fi
           echo "requests: $list"
           { echo 'list<<EOF'; echo "$list"; echo 'EOF'; } >> "$GITHUB_OUTPUT"

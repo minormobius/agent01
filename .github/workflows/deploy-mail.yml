@@ -9,7 +9,7 @@ name: Deploy mail (the miniphim's own email)
 
 on:
   push:
-    branches: ['claude/agent-social-media-drlzxn']
+    branches: ['claude/inspiring-clarke-c7l9ec']
     paths:
       - 'mail/**'
       - '.github/workflows/deploy-mail.yml'
