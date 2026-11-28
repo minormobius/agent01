@@ -1,39 +1,24 @@
 {
- "run": "evolve4-28d",
- "why": "The 12 Sun analogues, leg 4: 13 of 24 resume (11 ended; Ledoux G 1e-14 s 1.55 stopped on the energy books at Xc 0.097 after a 5 percent density jump, kept as a lower bound like G 1e-11 s 1.55).",
+ "run": "evolve4-28e",
+ "why": "The 12 Sun analogues, leg 5: the 8 Schwarzschild tracks still burning, for the side-by-side column (every Ledoux track has ended; G 1e-20 s 1.55 stopped late on both criteria, Xc 0.037 and 0.047).",
  "minutes": 330,
  "groups": [
   {
-   "name": "ev28d-00",
+   "name": "ev28e-00",
    "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-11 1.85 0.2021360801 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-17 1.55 0.974202789 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-20 1.55 2.279535952 grav=1 ledoux=0.02 tag=v3",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.55 0.3454988376 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev28d-01",
-   "cmds": [
+    "node four/atom/tools/evolve.mjs four 1e-11 1.55 0.3454988376 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-11 1.6 0.2827259057 grav=1 tag=v2",
-    "node four/atom/tools/evolve.mjs four 1e-11 1.85 0.2021360801 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-14 1.55 0.4964746464 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-14 1.6 0.4623049801 grav=1 tag=v2"
    ]
   },
   {
-   "name": "ev28d-02",
+   "name": "ev28e-01",
    "cmds": [
     "node four/atom/tools/evolve.mjs four 1e-14 1.65 0.4078252203 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.5152 0.7811811944 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.55 0.974202789 grav=1 tag=v2",
     "node four/atom/tools/evolve.mjs four 1e-17 1.6 0.92445044 grav=1 tag=v2"
-   ]
-  },
-  {
-   "name": "ev28d-03",
-   "cmds": [
-    "node four/atom/tools/evolve.mjs four 1e-20 1.55 2.279535952 grav=1 tag=v2"
    ]
   }
  ]

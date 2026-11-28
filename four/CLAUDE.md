@@ -559,6 +559,9 @@ for games, and this is a modelling programme with publications to come. The game
   balmax=0.3 (sandbox, 7 min) they keep decaying, slowly (1.13 → 1.11 over nine models, ~45 s a model). Both s 1.55 stops
   are late (Xc ≈ 0.1) and on Ledoux only; both halved long before. Kept as lower bounds (≥ 32.37 Gyr), open with the
   other. evolve4-28d: 13 commands.
+  **evolve4-28 leg 4 (evolve4-28d, collected 2026-11-28 17:26Z): every Ledoux track has ended** (12 of 12; stops: the two
+  s 1.55 balmax ones, G 10⁻¹⁷ s 1.5152 at its switch-off, and G 10⁻²⁰ s 1.55 on the solver late, Xc 0.0365 at 80.92 Gyr,
+  Schwarzschild likewise at Xc 0.047). 8 Schwarzschild tracks still burning; evolve4-28e finishes them for the bracket.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
