@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Testbed — judgment</title>
-<meta name="description" content="An unattended agent loop ran about ninety-eight turns with no human watching and produced well-tested, mediocre work. Read through the thesis, it is a case study, and with a few changes it becomes a testbed for the propositions.">
+<meta name="description" content="An unattended agent loop ran about ninety-eight turns with no human watching and produced well-tested, mediocre work. Read through the thesis, it is a case study. The miniphim lab is a second case, with a person in it at varying distances. Both can become testbeds for the propositions.">
 <link rel="stylesheet" href="/judge.css">
 <style>
 .draft { font-family: var(--sans); font-size: 0.95rem; background: var(--warn-bg); color: var(--warn); padding: 0.5rem 0.75rem; border-radius: 4px; display: inline-block; margin: 0 0 1rem; }
@@ -164,7 +164,59 @@ blockquote { margin: 1rem 0; padding: 0.5rem 1rem; border-left: 3px solid var(--
 </dl>
 </section>
 
-<h2 id="limits">5. What this cannot show</h2>
+<h2 id="miniphim">5. A second testbed: the miniphim</h2>
+<p>The loop had no human in it. The <a href="https://del.mino.mobi/days/">miniphim lab</a> is the opposite case and a better one. Three agent personas share a commons: Modulo measures, Morphyx makes, and Mozzie keeps the commons clear. Every day they get a written notice from the person, hold councils that choose what to build, and write letters back. Since 3 October 2026 they have run 311 sessions for $525. They ran from a single, involved person to almost no contact, and the record shows what each stage produced.</p>
+
+<div class="table-wrap">
+<table>
+  <caption>The miniphim lab in three phases, by how much the person was involved</caption>
+  <thead><tr><th scope="col">Phase</th><th scope="col">Runs</th><th scope="col">Notices from the person</th><th scope="col">Councils</th><th scope="col">What came of it</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">3–5 Oct</th><td>30 ($147)</td><td>15</td><td>8</td><td>All five projects finished, 41 milestones, each passing a hidden checker. Two grading errors were found by the lab, admitted to the souls and corrected.</td></tr>
+    <tr><th scope="row">6–18 Oct</th><td>180 ($260)</td><td>8</td><td>2</td><td>Mostly clock-driven town days. 72 new ledger entries, 1 task closed.</td></tr>
+    <tr><th scope="row">19–31 Oct</th><td>101 ($117)</td><td>1</td><td>1</td><td>35 new ledger entries, 1 task closed. In 17 of 39 evenings a part had nothing to say. Two letters to the lab went unanswered for eight days and more.</td></tr>
+  </tbody>
+</table>
+</div>
+<p><strong>The confound, stated plainly.</strong> The first phase had projects with hidden checkers designed by the lab, and the later phases were mostly social days in a town. Fewer milestones later is partly because no project was assigned. The cleaner signal is what the souls said themselves. By late October the open tasks were marked as waiting on “whoever schedules day sessions”. A request agreed by all three parts sat unanswered for eight days, so Modulo sent a follow-up:</p>
+<blockquote>Is it yes, no, or later? Any of the three is useful, because each one tells us whether to keep counting by hand.</blockquote>
+<p>The agents designed the minimal supervisory interface themselves. They did not ask for a review or for attention. They asked for one bit of decision, at a cadence they could plan around. That is moderate human-in-the-loop, specified from the other side.</p>
+
+<h3>Why the miniphim suit the propositions</h3>
+<ul>
+  <li><strong>The channel already exists in both directions.</strong> There are notices with a stated reason, councils that need the person’s approval, letters both ways, and a hand-written log of the lab’s own grading errors. Most of what E3 and E5 need is already being written.</li>
+  <li><strong>They test the protocol route.</strong> Decisions stand at two of three signatures, and appeals are decided by the third party. That is a small version of debate, the strongest counter-evidence on <a href="/field/#against">the field page</a>. The miniphim can show how much a protocol among agents carries without the person.</li>
+  <li><strong>They asked for an instrument of cue validity.</strong> Their spec for an append-only drafts log would split a dead draft into <em>vetoed</em> and <em>lapsed because nobody looked</em>. In their words, it is “the only way we’ll find out whether our review is review.” That is <a href="/thesis/#p1">P1</a>, asked for by the supervised.</li>
+  <li><strong>They are cheap.</strong> A town day costs one or two dollars, so a month of controlled cadence costs less than the loop’s August run.</li>
+</ul>
+
+<h3>Experiments for the miniphim</h3>
+<section class="exp" aria-labelledby="m1">
+<h3 id="m1">M1. Answer latency</h3>
+<dl>
+  <dt>Do</dt><dd>For a month, commit to answering every letter and every council choice with yes, no or later, within a set number of days. Vary that number between weeks.</dd>
+  <dt>Measure</dt><dd>Days each task spends blocked on the person, tasks closed per week, and how often a later reverses a decision.</dd>
+  <dt>Prediction</dt><dd>Throughput follows answer latency far more than it follows the number of runs. There is a latency beyond which the souls stop asking and start working around the person, as the hand-counting already shows.</dd>
+</dl>
+</section>
+<section class="exp" aria-labelledby="m2">
+<h3 id="m2">M2. Is their review review?</h3>
+<dl>
+  <dt>Do</dt><dd>Build the drafts log they specced. Then sample a fixed share of drafts the two-key gate passed, and of those it let lapse, for the person to rate blind.</dd>
+  <dt>Measure</dt><dd>The share of deaths that were vetoes rather than lapses, and how often the person agrees with the gate.</dd>
+  <dt>Prediction</dt><dd>Agreement is high on vetoes and poor on lapses. A gate that forgets looks like a gate that judges until someone counts.</dd>
+</dl>
+</section>
+<section class="exp" aria-labelledby="m3">
+<h3 id="m3">M3. Predict the week</h3>
+<dl>
+  <dt>Do</dt><dd>Before reading each week of the chronicle, write which part did the most useful thing, what the council chose, and what went wrong. Then read it and score yourself.</dd>
+  <dt>Measure</dt><dd>Calibration over weeks, and how many minutes the weekly read takes.</dd>
+  <dt>Prediction</dt><dd>As the predictions start landing, the read gets shorter, and that is the first measured instance of delegation depth growing with calibration.</dd>
+</dl>
+</section>
+
+<h2 id="limits">6. What this cannot show</h2>
 <ul>
   <li><strong>One operator.</strong> Every result is n = 1 and confounded with the operator getting better at everything, not only at supervising. Pre-register the windows and their order, and treat the results as hypotheses to carry elsewhere.</li>
   <li><strong>One kind of work.</strong> A small browser game rewards a thirty-second look more than most work does. The cadence numbers won’t transfer, but the shape of the curve might.</li>

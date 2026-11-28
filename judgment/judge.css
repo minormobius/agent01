@@ -102,3 +102,9 @@ p { margin: 0 0 1rem; }
   a[href^="http"]::after { content: " <" attr(href) ">"; font-size: 0.8em; word-break: break-all; }
   body { font-size: 11pt; }
 }
+
+table { border-collapse: collapse; width: 100%; font-size: 1rem; margin: 1rem 0 1.5rem; }
+caption { text-align: left; font-family: var(--sans); font-size: 0.9rem; color: var(--muted); margin-bottom: 0.4rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.5rem; border-bottom: 1px solid var(--rule); }
+thead th { font-family: var(--sans); font-size: 0.9rem; }
+.table-wrap { overflow-x: auto; }
