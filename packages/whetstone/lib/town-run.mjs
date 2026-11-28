@@ -4,6 +4,7 @@
 // town/held.json). The texts the town sent are never written to the commons.
 import { fetchTown, decide, publish, draftHash, CAPS, urlsIn } from '../../miniphim-account/town.mjs';
 import { execFile } from 'node:child_process';
+import { sessionEnv } from './model.mjs';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -90,7 +91,7 @@ const CAD_RENDER = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'ca
 export async function renderCad(tree, view) {
   const dir = mkdtempSync(join(tmpdir(), 'cad-img-'));
   writeFileSync(join(dir, 'tree.json'), tree);
-  await new Promise((ok, no) => execFile(process.execPath, [CAD_RENDER, join(dir, 'tree.json'), '--out', dir, '--views', view, '--canvas'], { timeout: 180_000 }, (e, so, se) => (e ? no(new Error(`cad render: ${String(se || e.message).slice(0, 300)}`)) : ok())));
+  await new Promise((ok, no) => execFile(process.execPath, [CAD_RENDER, join(dir, 'tree.json'), '--out', dir, '--views', view, '--canvas'], { timeout: 180_000, env: sessionEnv() }, (e, so, se) => (e ? no(new Error(`cad render: ${String(se || e.message).slice(0, 300)}`)) : ok())));
   const png = readFileSync(join(dir, `${view}.png`));
   return { png: new Uint8Array(png), width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 }

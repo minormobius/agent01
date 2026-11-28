@@ -12,6 +12,7 @@
 // cookies; the person's off switch. Mutant scores and vv are their own rules, not checked here.
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { sessionEnv } from './model.mjs';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -43,7 +44,7 @@ export function planApi(commons, { runTests = true } = {}) {
     if (runTests) {
       const dir = mkdtempSync(join(tmpdir(), 'house-'));
       for (const [f, v] of Object.entries(commons)) if (f.startsWith('house/')) { const p = join(dir, f); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, v); }
-      const r = spawnSync(process.execPath, [join(dir, `house/api/${name}.test.mjs`)], { cwd: dir, encoding: 'utf8', timeout: 60_000 });
+      const r = spawnSync(process.execPath, [join(dir, `house/api/${name}.test.mjs`)], { cwd: dir, encoding: 'utf8', timeout: 60_000, env: sessionEnv() });
       rmSync(dir, { recursive: true, force: true });
       if (r.status !== 0) { held.push({ name, why: `test failed (exit ${r.status}): ${String(r.stderr || r.stdout || r.error?.message || '').trim().split('\n').slice(-3).join(' / ').slice(0, 300)}` }); continue; }
     }
@@ -91,7 +92,7 @@ export async function planBots(commons, { runTests = true, renderPng = null } = 
     if (runTests) {
       const dir = mkdtempSync(join(tmpdir(), 'bots-'));
       for (const [f, v] of Object.entries(commons)) if (f.startsWith('house/')) { const p = join(dir, f); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, v); }
-      const r = spawnSync(process.execPath, [join(dir, `house/bots/${name}.test.mjs`)], { cwd: dir, encoding: 'utf8', timeout: 60_000 });
+      const r = spawnSync(process.execPath, [join(dir, `house/bots/${name}.test.mjs`)], { cwd: dir, encoding: 'utf8', timeout: 60_000, env: sessionEnv() });
       rmSync(dir, { recursive: true, force: true });
       if (r.status !== 0) { held.push({ name, why: `test failed (exit ${r.status}): ${String(r.stderr || r.stdout || r.error?.message || '').trim().split('\n').slice(-3).join(' / ').slice(0, 300)}` }); continue; }
     }
@@ -133,7 +134,7 @@ export function planFeeds(commons, { runTests = true } = {}) {
     if (runTests) {
       const dir = mkdtempSync(join(tmpdir(), 'feeds-'));
       for (const [f, v] of Object.entries(commons)) if (f.startsWith('house/')) { const p = join(dir, f); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, v); }
-      const r = spawnSync(process.execPath, [join(dir, `house/feeds/${name}.test.mjs`)], { cwd: dir, encoding: 'utf8', timeout: 60_000 });
+      const r = spawnSync(process.execPath, [join(dir, `house/feeds/${name}.test.mjs`)], { cwd: dir, encoding: 'utf8', timeout: 60_000, env: sessionEnv() });
       rmSync(dir, { recursive: true, force: true });
       if (r.status !== 0) { held.push({ name, why: `test failed (exit ${r.status}): ${String(r.stderr || r.stdout || r.error?.message || '').trim().split('\n').slice(-3).join(' / ').slice(0, 300)}` }); continue; }
     }

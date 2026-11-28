@@ -967,5 +967,48 @@ await t('the corner: www/ publishes through the factory gate, a refusal keeps th
   assert.ok(!existsSync(join(root, 'bots', 'lib', 'h.mjs')), 'and the helper does not ship');
 });
 
+// ---- sealed keys (2026-11-28): a session must not read a key from any ancestor's environment --
+await t('keys arrive on fd 3, land in memory, and no starting environment carries them', async () => {
+  const { spawnSync: run2 } = await import('node:child_process');
+  const probe = `import('${join(HERE, 'lib/keys.mjs').replace(/\\/g, '/')}').then(({ exposedKeys }) => {
+    process.stdout.write(JSON.stringify({ got: process.env.FAKE_SEALED_KEY || null, exposed: exposedKeys(['FAKE_SEALED_KEY']).map((f) => f.key) }));
+  });`;
+  // Sealed: the key comes over fd 3 only.
+  const sealed = run2(process.execPath, ['-e', probe], {
+    encoding: 'utf8', env: { ...process.env, WHETSTONE_KEYS_FD: '3', FAKE_SEALED_KEY: '' },
+    stdio: ['ignore', 'pipe', 'pipe', 'pipe'], input: undefined,
+  });
+  void sealed; // spawnSync can't feed fd 3; use the async form below.
+  const { spawn: sp } = await import('node:child_process');
+  const viaPipe = await new Promise((ok) => {
+    const env = { ...process.env, WHETSTONE_KEYS_FD: '3' }; delete env.FAKE_SEALED_KEY;
+    const p = sp(process.execPath, ['-e', probe], { env, stdio: ['ignore', 'pipe', 'inherit', 'pipe'] });
+    let out = ''; p.stdout.on('data', (d) => { out += d; });
+    p.stdio[3].end(JSON.stringify({ FAKE_SEALED_KEY: 'sealed-canary-value-1234' }));
+    p.on('exit', () => ok(JSON.parse(out)));
+  });
+  assert.equal(viaPipe.got, 'sealed-canary-value-1234', 'the key is in memory');
+  assert.deepEqual(viaPipe.exposed, [], 'and in no starting environment');
+  // Unsealed: the same key in the environment is found, which is what assertSealed refuses on CI.
+  const leaky = run2(process.execPath, ['-e', probe], { encoding: 'utf8', env: { ...process.env, FAKE_SEALED_KEY: 'leaky-canary-value-1234' } });
+  assert.deepEqual(JSON.parse(leaky.stdout).exposed, ['FAKE_SEALED_KEY'], 'an exposed key is detected');
+});
+
+await t('sessionEnv withholds every key, and assertSealed refuses an exposed one when strict', async () => {
+  const { sessionEnv, SESSION_WITHHELD } = await import('./lib/model.mjs');
+  const { assertSealed } = await import('./lib/keys.mjs');
+  const saved = process.env.MINIPHIM_APP_PASSWORD;
+  process.env.MINIPHIM_APP_PASSWORD = 'in-memory-only-123456';
+  const env = sessionEnv({ WHETSTONE_SOUL: 'modulo' });
+  for (const k of SESSION_WITHHELD) assert.ok(!(k in env), `${k} withheld`);
+  assert.equal(env.WHETSTONE_SOUL, 'modulo');
+  if (saved === undefined) delete process.env.MINIPHIM_APP_PASSWORD; else process.env.MINIPHIM_APP_PASSWORD = saved;
+  // Setting process.env changes memory, not /proc environ: this process was not started with it.
+  const quiet = () => {};
+  assert.equal(assertSealed(['MINIPHIM_APP_PASSWORD_NOT_SET_ANYWHERE'], { strict: true, log: quiet }).found.length, 0);
+  const startedWith = Object.keys(process.env).find((k) => process.env[k] && process.env[k].length > 0 && k === 'PATH');
+  assert.throws(() => assertSealed([startedWith], { strict: true, log: quiet }), /refusing to start sessions/);
+});
+
 console.log(`whetstone selftest: ${n} passed`);
 void mean;

@@ -177,11 +177,17 @@ export function fakeModel(fn, { rate = () => [] } = {}) {
 //  - Kill the whole process GROUP, on exit and on timeout, so nothing a session started outlives it.
 // A timeout resolves with what was written so far and `timedOut`, so the caller decides whether a
 // stopped session is an error (a text trial) or a result (a work session that ran out of time).
+// The environment any process the souls can drive is started with: the lab's, minus every withheld
+// key. Use it for every child that runs a session or the souls' own code (house tests included).
+export function sessionEnv(extra) {
+  const base = { ...process.env };
+  for (const k of SESSION_WITHHELD) delete base[k];
+  return extra ? { ...base, ...extra } : base;
+}
+
 export function run(bin, args, stdin, cwd, timeoutMs, env) {
   return new Promise((resolve, reject) => {
-    const base = { ...process.env };
-    for (const k of SESSION_WITHHELD) delete base[k];
-    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true, env: env ? { ...base, ...env } : base });
+    const p = spawn(bin, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: true, env: sessionEnv(env) });
     let out = '', err = '', settled = false;
     const killGroup = () => { try { process.kill(-p.pid, 'SIGKILL'); } catch { try { p.kill('SIGKILL'); } catch { /* gone */ } } };
     const finish = (v) => { if (settled) return; settled = true; clearTimeout(t); killGroup(); resolve(v); };

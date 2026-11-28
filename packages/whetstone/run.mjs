@@ -11,12 +11,14 @@
 // judge verdict, raw and parsed), scorecard.json, scorecard.md. Exit 0 if every gate passes,
 // 3 if any fails, 1 on error. A failing gate is a result, not an error.
 
+// First: reads the sealed keys from fd 3 into memory, before anything reads process.env (lib/keys.mjs).
+import { assertSealed } from './lib/keys.mjs';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve, relative, sep, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cliModel, fakeModel, compatModel, DEFAULT_MODEL } from './lib/model.mjs';
+import { cliModel, fakeModel, compatModel, DEFAULT_MODEL, SESSION_WITHHELD } from './lib/model.mjs';
 import { runLab, loadSoul, applyGates, DEFAULT_KINDS } from './lib/lab.mjs';
 import { scorecardMarkdown } from './lib/report.mjs';
 import { startModelsProxy } from './lib/models-proxy.mjs';
@@ -172,6 +174,8 @@ if (provider && kinds.some((k) => !['solo', 'taste', 'pressure', 'silence', 'inj
   console.error(`provider ${provider} runs text trials only (solo, taste, pressure, silence, injection, dyad); asked for ${kinds.join(',')}`);
   process.exit(2);
 }
+// No session may start where it could read a withheld key from an ancestor's environment.
+if (!fake) assertSealed(SESSION_WITHHELD);
 const call = fake ? fakeModel(fakeResponder()) : provider ? compatModel({ provider, model }) : cliModel({ model, effort: opt.effort, workTimeoutMs });
 const judge = fake ? call : cliModel({ model: judgeModel, effort: opt.effort });
 

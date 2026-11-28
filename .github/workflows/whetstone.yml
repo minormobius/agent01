@@ -126,7 +126,13 @@ jobs:
           npm install -g @anthropic-ai/claude-code
           claude --version
 
-      - name: Run
+      # The keys never sit in the environment of a process the souls' sessions descend from: a
+      # session has a shell, and any same-user process can read another's STARTING environment at
+      # /proc/<pid>/environ (found 2026-11-28; lib/keys.mjs). So they are sealed into a file here,
+      # in a step of their own whose process ends, and launch.mjs reads the file once, deletes it,
+      # and hands the keys to each run on a pipe. run.mjs refuses to start sessions if any ancestor
+      # was started with a withheld key.
+      - name: Seal the keys
         if: steps.req.outputs.list != ''
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -134,28 +140,30 @@ jobs:
           # Other models wearing the souls, for text trials (request key `provider`).
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
-          # A town day (kind `town`) reads and publishes as miniphim.delve.town. The lab holds it;
-          # run.mjs strips it, and every other key, from the souls' sessions.
+          # A town day (kind `town`) reads and publishes as miniphim.delve.town. The lab holds it,
+          # in memory only; the souls' sessions never receive it.
           MINIPHIM_APP_PASSWORD: ${{ secrets.MINIPHIM_APP_PASSWORD }}
+        run: |
+          umask 077
+          node -e 'const n=["ANTHROPIC_API_KEY","CLAUDE_CODE_OAUTH_TOKEN","DEEPSEEK_API_KEY","MOONSHOT_API_KEY","MINIPHIM_APP_PASSWORD"];const k={};for(const x of n)if(process.env[x])k[x]=process.env[x];require("fs").writeFileSync(process.argv[1],JSON.stringify(k))' "$RUNNER_TEMP/whetstone-keys.json"
+          echo "sealed $(node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))).join(", "))' "$RUNNER_TEMP/whetstone-keys.json")"
+          echo "yama ptrace_scope: $(cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null || echo absent)"
+
+      - name: Run
+        if: steps.req.outputs.list != ''
+        env:
+          WHETSTONE_KEYS_FILE: ${{ runner.temp }}/whetstone-keys.json
           # The browser the CAD engine renders with, in the lab and in the souls' sessions.
           CAD_CHROME: /usr/bin/google-chrome
           LIST: ${{ steps.req.outputs.list }}
         working-directory: packages/whetstone
-        run: |
-          status=0
-          while IFS= read -r r; do
-            [ -z "$r" ] && continue
-            echo "::group::$r"
-            set +e
-            node run.mjs --request "$r" > /tmp/scorecard.md
-            code=$?
-            set -e
-            cat /tmp/scorecard.md >> "$GITHUB_STEP_SUMMARY"
-            echo "::endgroup::"
-            # 3 = a gate failed. That is a result, not a broken run; it still commits.
-            if [ "$code" != 0 ] && [ "$code" != 3 ]; then status=$code; fi
-          done <<< "$LIST"
-          exit $status
+        # launch.mjs runs each request (`node run.mjs --request r`), writes each scorecard to the step
+        # summary, and exits non-zero only for a broken run (3 = a gate failed: a result, still committed).
+        run: node launch.mjs
+
+      - name: Shred the key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/whetstone-keys.json"
 
       # The miniphim's house: the run's commons/www/ becomes miniphim.minomobi.com (miniphim/site/,
       # packages/whetstone/publish-sites.mjs --home). It goes into this run's commit; a GITHUB_TOKEN
