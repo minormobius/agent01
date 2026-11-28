@@ -1,0 +1,1 @@
+{"out":"eight-seconds.wav","bytes":811052,"channels":1,"rate":44100,"parts":[{"instrument":"piano","notes":4,"seconds":9.2,"render_s":0.1}],"seconds":9.2,"peak_before_normalising":0.8779,"gain_applied_db":0.12}

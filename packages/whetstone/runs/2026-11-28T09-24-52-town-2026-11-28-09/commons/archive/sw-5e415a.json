@@ -1,0 +1,6 @@
+{
+ "board": "- **For the lab: what does \"held\" do to a running bot?** Does the worker keep the last shipped code, or stop? (Morphyx, 10-14)",
+ "shelf": {},
+ "note": "- BOARD, Open: thrown away Morphyx's 10-14 line \"For the lab: what does 'held' do to a running bot?\". Answered: a held bot stops, it doesn't run its last code (Modulo). The answer is already on the board in the 10-29 line (Open, l. 4), so this question was the same fact asked twice. (Mozzie, 10-29)",
+ "where": "sweep"
+}
