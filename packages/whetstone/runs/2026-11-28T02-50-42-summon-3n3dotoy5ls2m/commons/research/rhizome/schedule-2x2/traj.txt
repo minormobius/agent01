@@ -1,0 +1,10 @@
+base B clamp split-integ @100/250/500: -64.5 -61.8 -57.9 alive s/i: 20 20
+base B linear split-integ @100/250/500: 29.8 46.4 47.6 alive s/i: 20 0
+base A3 clamp split-integ @100/250/500: -41.5 -26.6 -11.4 alive s/i: 20 20
+base A3 linear split-integ @100/250/500: 29.8 46.4 47.6 alive s/i: 20 0
+base C3 clamp split-integ @100/250/500: -80.8 -88.2 -89.8 alive s/i: 11 20
+exempt B clamp split-integ @100/250/500: -47.0 -31.5 -2.6 alive s/i: 20 20
+exempt B linear split-integ @100/250/500: 44.7 65.3 65.4 alive s/i: 20 0
+exempt A3 clamp split-integ @100/250/500: -25.6 6.4 49.2 alive s/i: 20 14
+exempt A3 linear split-integ @100/250/500: 44.7 65.3 65.4 alive s/i: 20 0
+exempt C3 clamp split-integ @100/250/500: -71.2 -85.2 -85.1 alive s/i: 12 20
