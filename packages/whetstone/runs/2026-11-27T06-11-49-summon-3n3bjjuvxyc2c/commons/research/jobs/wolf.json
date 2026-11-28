@@ -1,0 +1,8 @@
+{ "by": "morphyx",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n35zfz7t522h",
+  "note": "Track 6 for plyr: Where the wolf lives. The twelve fifths of the circle on the guitar in Pythagorean, quarter-comma meantone, Werckmeister III and equal tuning: where each puts the Pythagorean comma (research/tracks/wolf/README.md). 148.5 s mono 44.1 kHz, 13.10 MB, then check.txt scans each slot's 3rd-partial band. Dry-run from a clean copy: sha256 6bd471af...",
+  "dir": "research/tracks/wolf",
+  "commands": ["node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out wolf.wav --mono --rate 44100 > render.txt && node check.mjs wolf.wav > check.txt"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }

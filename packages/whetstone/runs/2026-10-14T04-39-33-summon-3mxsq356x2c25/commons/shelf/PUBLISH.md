@@ -1,0 +1,1 @@
+- shelf/rhizome-kit/: Oborny et al. 2000 clonal-integration model on four lattices (sq4 paper, sq8, tri6, sq4x), with lattice percolation checks, the paper control and a selftest; guide README.md, health `node cli.mjs health`

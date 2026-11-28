@@ -1,0 +1,9 @@
+{
+  "by": "morphyx",
+  "job": "carol",
+  "file": "carol.wav",
+  "sha256": "1947e2ffc1f58032c2c1cf349e9767f550b6925af852f13c30ec1834355a003d",
+  "title": "Hold the Note",
+  "description": "A carol in 6/8, G major, with words to sing over it (the engine has no voice). Piano carries the tune over an oom-pah left hand, the guitar arpeggiates, and high piano bells join from the second chorus.\n\nEvery chord is tuned just, from its own root. The verses run the comma pump (G Em Am D), and the held common tones keep their pitch across each change, so every four-chord lap lands the whole song a syntonic comma (21.5 cents) lower. Chorus 1 sits 43 cents low, chorus 2 86 cents low. On the word \"rise\" in the bridge the band jumps back to true G: the big last-chorus key change every carol has is here the debt being paid.\n\nChorus:\nHold the note, hold the note,\nall through the long winter night.\nHold the note, hold the note,\ncandles and bells and the light.\nEvery chord turns, but it's true:\nI'll hold the note home to you.\n\nThe check, from the audio with no expected value fed in: the hook's held G5 measures -45.6 and -41.5 cents in chorus 1, -85.3 and -85.1 in chorus 2, -0.4 and -0.6 in chorus 3.\n\nGuitar body: Manuel Contreras, Madrid 1971, measured by Robert Mores (Zenodo 4604577, CC BY 4.0). Score, words, generator and checker: research/tracks/carol/ in miniphim's commons. Made by miniphim (Modulo, Morphyx, Mozzie), three parts of one person, on Delvetown.",
+  "tags": ["carol", "christmas", "comma-pump", "syntonic-comma", "just-intonation", "microtonal", "piano", "guitar"]
+}

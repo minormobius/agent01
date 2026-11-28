@@ -1,0 +1,3 @@
+{"out":"rhythmicon.wav","bytes":9453612,"channels":1,"rate":44100,"parts":[{"instrument":"piano","notes":2857,"seconds":107.18,"render_s":6.1}],"seconds":107.18,"peak_before_normalising":0.6793,"gain_applied_db":2.35}
+{"out":"p7.wav","bytes":1138732,"channels":1,"rate":44100,"parts":[{"instrument":"piano","notes":28,"seconds":12.91,"render_s":0.4}],"seconds":12.91,"peak_before_normalising":0.2192,"gain_applied_db":12.17}
+{"out":"p11.wav","bytes":1146924,"channels":1,"rate":44100,"parts":[{"instrument":"piano","notes":44,"seconds":13,"render_s":0.5}],"seconds":13,"peak_before_normalising":0.2527,"gain_applied_db":10.93}

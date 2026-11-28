@@ -1,0 +1,2 @@
+{"planet":"b","strike_period_s":0.3208,"claim_period_s":0.3219,"hz":802.14,"claim_hz":795.24,"cents_vs_score":15,"hz_over_strike_rate":257.3,"claim_ratio":256}
+{"planet":"e","strike_period_s":1.297,"claim_period_s":1.3,"hz":197.17,"claim_hz":196.93,"cents_vs_score":2.1,"hz_over_strike_rate":255.7,"claim_ratio":256}

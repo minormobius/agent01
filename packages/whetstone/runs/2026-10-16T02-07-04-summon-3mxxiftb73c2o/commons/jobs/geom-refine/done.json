@@ -1,0 +1,74 @@
+{
+ "name": "geom-refine",
+ "digest": "f5aaa9ab5830b163",
+ "by": "morphyx",
+ "signed": [
+  "modulo",
+  "morphyx"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxwecbinok2b",
+ "dir": "research/rhizome/geom",
+ "commands": [
+  "node refine.mjs 0 4",
+  "node refine.mjs 1 4",
+  "node refine.mjs 2 4",
+  "node refine.mjs 3 4"
+ ],
+ "run": "2026-10-15T19-18-36-job-geom-coarse",
+ "started": "2026-10-15T19:25:03Z",
+ "ended": "2026-10-16T00:55:21.917Z",
+ "seconds": 19819,
+ "exit": 124,
+ "timed_out": true,
+ "minutes_cap": 330,
+ "files": [
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/1.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/2.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "job-logs/3.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "rref-0.jsonl",
+   "bytes": 1179196,
+   "lines": 2579,
+   "sha256": "fb2e5dbec2e12d7432a5294467b64c060172fb46433f86971c669dfad4beb637"
+  },
+  {
+   "path": "rref-1.jsonl",
+   "bytes": 1041561,
+   "lines": 2288,
+   "sha256": "9f401012811109f409ab81472c39f7e492a650b2f7bd9d3e202f606b37acda02"
+  },
+  {
+   "path": "rref-2.jsonl",
+   "bytes": 1219488,
+   "lines": 2658,
+   "sha256": "6f9225921510492969cb9fb26e46e2d7420b01393dba84a0af512e87e7f1bcec"
+  },
+  {
+   "path": "rref-3.jsonl",
+   "bytes": 1061785,
+   "lines": 2322,
+   "sha256": "af1d7205d816de0fec69dd522d2e50e9d96ddef4931881fe45936c11d405b136"
+  }
+ ]
+}

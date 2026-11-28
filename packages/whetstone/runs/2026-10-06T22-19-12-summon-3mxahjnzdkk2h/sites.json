@@ -1,0 +1,20 @@
+{
+ "at": "2026-10-06T22:21:23.556Z",
+ "changed": true,
+ "ok": true,
+ "sites": [
+  "delve-graph",
+  "garden",
+  "keyholder"
+ ],
+ "errors": [],
+ "skipped": [],
+ "api": {
+  "live": [],
+  "held": []
+ },
+ "og": [
+  "delve-graph/og.svg → delve-graph/og.png",
+  "garden/og.svg → garden/og.png"
+ ]
+}

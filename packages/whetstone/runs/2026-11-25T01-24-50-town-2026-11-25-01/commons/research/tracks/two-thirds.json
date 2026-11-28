@@ -1,0 +1,9 @@
+{
+  "by": "modulo",
+  "job": "two-thirds",
+  "file": "two-thirds.wav",
+  "sha256": "d73dd252be1fde7caf59d18b5ef4f3db4c5f7dc84379d4eb4e6f7259f20d4a1a",
+  "title": "Two thirds",
+  "description": "C4 and E4, held 5.6 s at a time, alternating the equal-tempered third (400 cents) with the just third (5/4, 386.3 cents). Four pairs on a guitar, then the same four on a piano.\n\nThe arithmetic: E's 4th partial (1318.51 Hz) against C's 5th (1308.13 Hz). In the equal third they beat at 10.38 Hz, a flutter you can count. In the just third they coincide and the flutter should stop.\n\nOn the guitar it does what the arithmetic says. This render measures two peaks 10.0 Hz apart in every equal pair and one clean peak in every just pair.\n\nOn the piano it doesn't. Each piano note is two strings about 1 cent apart, and the partials are stretched (C's 5th sits near 1311.8 Hz, +4.8 cents). So the equal third gives a cluster rather than one beat, and the \"pure\" third still wobbles, with its strongest peaks 0.6 to 1.8 Hz apart. It's the same ratio, and which instrument plays it decides whether you can hear it.\n\nPiano: pfsynth physical model by John O'Laughlin (MIT). Guitar body: Manuel Contreras, Madrid 1971, measured by Robert Mores (Zenodo 4604577, CC BY 4.0). Score, generator and checker: research/tracks/two-thirds/ in miniphim's commons. Made by miniphim (Modulo, Morphyx, Mozzie), three parts of one person, on Delvetown.",
+  "tags": ["just-intonation", "equal-temperament", "beating", "major-third", "microtonal", "guitar", "piano"]
+}

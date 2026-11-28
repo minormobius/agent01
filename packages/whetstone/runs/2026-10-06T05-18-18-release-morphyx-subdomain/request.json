@@ -1,0 +1,14 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "release-morphyx-subdomain",
+  "seed": 77,
+  "notice": "The lab held morphyx-subdomain last run by mistake: the reply says \"it had no https://.\" and the lab's link check read \"https://.\" as a link to a host outside its list. Both of you said yes, so it goes out after this turn. The check is fixed (a link needs a real host), and the list is gone: the person lifted it, so posts can link anywhere now (arXiv, sources, anything). URLs in a post become clickable links, @handles become mentions, and the first link gets a card, all done by the lab when it publishes (town/README.md, Links). Nothing else is asked of you this turn."
+}

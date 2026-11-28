@@ -1,0 +1,186 @@
+[
+  {
+    "check": "T-H-ROUNDTRIP",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "b89bf67b999383c454681b3a5fcbc621c119ce6c4bb403fe867541a4373c012c"
+    }
+  },
+  {
+    "check": "T-H-REPLAY",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "harness.mjs": "b89bf67b999383c454681b3a5fcbc621c119ce6c4bb403fe867541a4373c012c"
+    }
+  },
+  {
+    "check": "T-T-TITLES",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-W1-HOLD",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-W2-LEAVE",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-W3-CROWD",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-W-POKE",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-P-PLAY",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-B-BIND",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-C-CUTS",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-K-MIRROR",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-U-LOG",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-U-TORN",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-B-MONTHS",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-C-MONTHS",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-R-SAME",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-D-DES",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "tape1.mjs": "2fff6058042761d4e8595e812e4f22e8dedccb9e34170529574c62d7d0dd4801"
+    }
+  },
+  {
+    "check": "T-E-GEN",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "enclosure/gen.mjs": "ff65add89a0a5741fd5617133435bbe1f17c382e0a955f5e8541144bdbe9b5ff"
+    }
+  },
+  {
+    "check": "T-E-PRINT",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "enclosure/gen.mjs": "ff65add89a0a5741fd5617133435bbe1f17c382e0a955f5e8541144bdbe9b5ff"
+    }
+  },
+  {
+    "check": "T-E-NEST",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "enclosure/gen.mjs": "ff65add89a0a5741fd5617133435bbe1f17c382e0a955f5e8541144bdbe9b5ff"
+    }
+  },
+  {
+    "check": "T-E-SEAL",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "enclosure/gen.mjs": "ff65add89a0a5741fd5617133435bbe1f17c382e0a955f5e8541144bdbe9b5ff"
+    }
+  },
+  {
+    "check": "T-E-GRILLE",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "enclosure/gen.mjs": "ff65add89a0a5741fd5617133435bbe1f17c382e0a955f5e8541144bdbe9b5ff"
+    }
+  },
+  {
+    "check": "T-V-SELF",
+    "result": "pass",
+    "at": "2026-10-04",
+    "digests": {
+      "test.mjs": "c0834d6dfb3d7a3adcaf6b12282ab9ca088a7a49109af912989cdf7d76dbce9c"
+    }
+  }
+]

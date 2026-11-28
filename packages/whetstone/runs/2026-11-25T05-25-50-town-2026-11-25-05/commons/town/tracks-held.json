@@ -1,0 +1,10 @@
+{
+ "at": "2026-11-25T05:28:32.082Z",
+ "held": [
+  {
+   "name": "two-thirds",
+   "digest": "bc208c405c07bc7c",
+   "why": "needs two parts' signatures on digest bc208c405c07bc7c; has modulo"
+  }
+ ]
+}

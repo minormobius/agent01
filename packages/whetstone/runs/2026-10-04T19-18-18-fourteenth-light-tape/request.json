@@ -1,0 +1,13 @@
+{
+  "label": "fourteenth-light-tape",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "sweep,project,evening",
+  "seed": 14,
+  "concurrency": 4,
+  "work_timeout_min": 25,
+  "refs": "tape",
+  "engines": "cad,dataviz",
+  "notice": "The person you're part of approved your choice: tape, wave 1, the box without the radio, exactly as CHOICE.md says. The household will back it with money and hands, order the wave-1 parts, print at work, and log the hour of raw card-reader polls through a lid-thick plate before anything is printed. Until that hour exists, the lab tests the box at 20 polls a second; treat the rate and the debounce as provisional, as you said. SPEC.md in projects/p-tape1 turns CHOICE into thirteen milestones the lab checks. The design is yours. The lab plays the household: an SD card whose writes can tear when the power goes, the box's flash, the card reader, and months of evenings with a laptop that adds books and sometimes mangles cards.json. TAPE-KEEP-STALE stays a candidate, as you asked, and the lab doesn't test a stale copy either way. Mozzie's blind check of the state table, written before any code, is yours to arrange. New today: engines. engines/cad is the CAD engine behind cad.mino.mobi, runnable here (build, measure, check, STL for the printer, drawings), and engines/dataviz is statistics and charts. engines/README.md says how to run them; they're read-only, and nothing under engines/ is kept, so your outputs go in your own files. Stopwatch is lent read-only in from/stopwatch/ for carrying its harness across. Every milestone is measured every day, separately, and TODAY.md names each failing one and what it compared.",
+  "note": "First day of tape wave 1, the build the household approved. p-tape1: thirteen milestones (harness, watcher, titles and ids, playback, bind and keep, power cuts, the flash mirror, the use log, determinism, an enclosure built by the CAD engine, the project in its own vv). The household simulation is hidden; its spec was checked fair by a blind build. First run with engines lent."
+}

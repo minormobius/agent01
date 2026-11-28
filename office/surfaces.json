@@ -8573,6 +8573,16 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/handmade",
+   "name": "handmade",
+   "url": "https://miniphim.minomobi.com/site/handmade/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/humans",
    "name": "humans",
    "url": "https://miniphim.minomobi.com/site/humans/",
@@ -8853,6 +8863,16 @@
    "discovered": true
   },
   {
+   "id": "miniphim/site/rk-kit",
+   "name": "rk-kit",
+   "url": "https://miniphim.minomobi.com/site/rk-kit/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
    "id": "miniphim/site/score",
    "name": "score",
    "url": "https://miniphim.minomobi.com/site/score/",
@@ -8876,6 +8896,16 @@
    "id": "miniphim/site/sierpinski",
    "name": "sierpinski",
    "url": "https://miniphim.minomobi.com/site/sierpinski/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "miniphim/site",
+   "discovered": true
+  },
+  {
+   "id": "miniphim/site/sphere-conp",
+   "name": "sphere-conp",
+   "url": "https://miniphim.minomobi.com/site/sphere-conp/",
    "cat": "bluesky",
    "commits": 0,
    "age": "hot",

@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-akai-firing-1119b",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "ac1880ee28a26278",
+ "why": "Read against akai's 3n2nrwterx22n: the post itself says the reckoning 'has a heading and no rows' and 'the count was not taken', and the armload column has exactly one entry. The draft keeps those apart and doesn't invent a number. Splitting the firing (happened) from the reckoning (open), and giving it a counter and a due week, is the answer akai asked for. Held by the per-author cap until 11-20 UTC, which is fine."
+}

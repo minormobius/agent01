@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rack: the score, played by Rust while it plays</title>
+<meta property="og:title" content="Rack: the score, played by Rust while it plays">
+<meta property="og:description" content="Five parts from one seed, six instruments, made 128 samples at a time on the audio thread by 6 KB of Rust. Adding an instrument is one arm of a match.">
+<meta property="og:image" content="https://miniphim.minomobi.com/jams/rack/og.png">
+<link rel="stylesheet" href="../jams.css"></head><body>
+<nav class="jams"><b><a href="../">Jams</a></b><a href="../score/">Score</a><a href="../rack/" aria-current="page">Rack</a><a href="../rack/?wander=1#wander-h">Wander</a><a href="../genre/">Genre</a><a href="../machines/">For machines</a><a href="../notes/">How it grew</a></nav>
+<h1>Rack</h1>
+<p>The tune is the one <a href="../score/">/score/</a> writes for the same seed, from the same bytes. Here it becomes five parts, each played by an instrument you pick. The rack makes the sound on the audio thread, 128 samples at a time, starting each note on its exact sample. Nothing is rendered ahead of time.</p>
+<p>
+<label>seed <input id="seed" type="number" value="5" min="1" style="width:7em"></label>
+<label>tempo <input id="tempo" type="range" min="60" max="200" value="112"> <span id="bpm">112</span></label>
+<button id="play">Play</button> <button id="stop">Stop</button>
+</p>
+<div id="parts"></div>
+<p><label>melody copies <input id="copies" type="range" min="0" max="60" value="0"> <span id="ncop">0</span></label>
+<small>Each copy is detuned 3 cents further out. This is how you test "dozens": at 60 copies the melody alone is 61 voices.</small></p>
+<p id="tune"><small>Press Play. The first press starts the sound, because phones only allow that after a tap.</small></p>
+<p id="meter"></p>
+<h2 id="wander-h">Wander: the same garden, with no end</h2>
+<p><label>wander <input id="wseed" type="number" value="1" min="1" style="width:7em"></label>
+<button id="wander">Wander</button> <label><input id="drift" type="checkbox" checked> let the instruments drift</label></p>
+<p>The seed above plays one tune and stops. Wander keeps going: phrase after phrase, each one carrying on from where the last one rested. One phrase in four turns the key a fifth around its resting note, and with drift on, one phrase in three changes a part's instrument or lets it rest. The same wander number always plays the same endless walk. Stop ends it.</p>
+<p>What had to change, and why. <a href="../score/">/score/</a> writes a closed form: each seed starts on G from nothing, is pinned to G in bar 4 and goes home to C in bar 8. Played end to end, that's a row of separate songs, each one cadencing home. So four things changed:</p>
+<ol>
+<li><b>The walker keeps its state.</b> The last note, the last leap, the key and the random stream carry over from phrase to phrase (<code>shelf/wander/lib.rs</code>, 2 KB of Rust). <code>phrase()</code> replaces <code>generate(seed)</code>.</li>
+<li><b>Home moves.</b> A phrase still rests at the end of bar 8, but on C, E, G or A of its key, in the octave nearer the melody. The bass follows it.</li>
+<li><b>The key moves too.</b> A turn a fifth up or down keeps the resting note's pitch and changes only its name, so the melody never jumps at the seam. It visits five keys (B♭, F, C, G, D) and leans back toward C. A turn that would land more than a fifth from C is skipped: the garden has walls.</li>
+<li><b>The clock doesn't restart.</b> The audio thread used to get a whole tune and play it out. Now the page keeps about 8 seconds queued ahead of it, one phrase at a time, and the clock runs on.</li>
+</ol>
+<p>"Never repeating," checked: <code>node shelf/wander/count.mjs</code> runs a million phrases (about 198 days at 112 bpm) from seeds 1, 2 and 99. Not one phrase repeats a phrase that came before it, counting pitches and rhythm. No seam jumps more than a fifth, and every note stays between D3 and B5. The random stream is xorshift64. Its state is part of the walker's state, so the walk can't fall into a loop before 2<sup>64</sup> − 1 draws, which is far longer than anyone will listen. Wander bytes: sha256 <span id="wsha"></span>.</p>
+
+<h2>The socket</h2>
+<p>An instrument is one arm of a <code>match</code> in <a href="#source">lib.rs</a> and one name in a list. It receives a voice (its pitch, its age in samples, whether it is still held, two phases and a short delay line) and returns one sample. Three rules: no allocating, no waiting, and a fixed amount of work per sample. Those rules, not the language, let dozens of instruments share a block that comes round every 2.7 ms. A part is one line in <code>rack.js</code> that turns the tune into notes. Instruments and parts are separate, so 40 instruments cost 40 arms, not 40 × parts.</p>
+<p>The pool holds 192 voices. When it's full, a new note is dropped and counted on the meter. It's never played late. A late note is a wrong note.</p>
+
+<p>The pluck was softened on 10-13, after modalmobius heard a harsh "BRONG" in the low notes. The cause was one rule. The string lost the same 0.4% on every trip round its loop, at every pitch. A 65 Hz string makes 65 trips a second and a 1 kHz string makes a thousand, so the low string kept its starting hiss longest and never fell to −60 dB before the voice was cut. Now the loss is set per second (−60 dB in 1.6 s held, 0.12 s after release, at any pitch), and the noise that starts the string is filtered in proportion to its pitch. Measured from these bytes with <code>node shelf/rack/pluck-probe.mjs</code>: at C2, the harmonic centre of the first 100 ms falls from the 11th harmonic to about the 6th, the note reaches −60 dB in 0.58 s instead of never, and it plays about 5 dB quieter. Above middle C it measures about as it did before. The per-sample work didn't change.</p>
+
+<h2>Is Rust the fast part?</h2>
+<p>This is measured, not guessed: <code>node shelf/rack/bench.mjs</code>, with 64 voices held for 5 s at 48 kHz in 128-sample blocks, best of 5 runs, on one core of a 2.8 GHz Xeon. Two of the instruments were also written in plain JS with the same arithmetic.</p>
+<table id="bench"><tr><th>instrument</th><th>voices per core, Rust/wasm</th><th>same in JS</th></tr>
+<tr><td>organ (3 sine partials)</td><td>671</td><td>690</td></tr>
+<tr><td>pluck (Karplus-Strong)</td><td>5,105</td><td>3,764</td></tr>
+<tr><td>bell (FM)</td><td>879</td><td></td></tr>
+<tr><td>reed (band-limited square)</td><td>3,419</td><td></td></tr>
+<tr><td>strings (two saws)</td><td>3,858</td><td></td></tr>
+<tr><td>kick</td><td>1,527</td><td></td></tr></table>
+<p>The slowest instrument fits about 670 voices on a core, and a phone is perhaps 3 to 5 times slower. So dozens fit in either language. Rust won on the pluck and tied on the organ. The first version lost the organ, 395 to 691, and the cause was one line: the voice was written back to memory on every sample. Copying it to a local for the block, as Modulo found, closed the gap with bit-identical output. What does make a browser synth stall is <em>where</em> the sound gets made. On the page's main thread it waits behind layout, scrolling and the garbage collector. On the audio thread, with code that never allocates, it has nothing to wait behind. Rust earns its place here because it makes "never allocates" easy to keep, not because it is fast.</p>
+
+<details id="source"><summary>The Rust source of the rack (shelf/rack/lib.rs)</summary><pre>#![no_std]
+// The rack (Morphyx, 2026-10-13): a voice pool that renders audio a block at a time,
+// inside an AudioWorklet, so the track is assembled while it plays.
+//
+// THE SOCKET. An instrument is one arm of `tick()` below and one name in NAMES.
+// It gets the voice&#x27;s state (freq, age in samples, held or released, two phases,
+// a small delay line) and returns one sample. It may not allocate, may not block, and
+// must finish its sample in a fixed number of steps. That rule, not the language,
+// is what lets dozens of them share one 128-sample block.
+static mut SR: f32 = 48000.0;
+const MAXV: usize = 192;
+const DL: usize = 2048;              // per-voice delay line (pluck), lowest pitch SR/DL
+const TBL: usize = 4096;
+static mut SINE: [f32; TBL] = [0.0; TBL];
+static mut OUT: [f32; 1024] = [0.0; 1024];
+static mut V: [Voice; MAXV] = [Voice::Z; MAXV];
+static mut LINES: [[f32; DL]; MAXV] = [[0.0; DL]; MAXV];
+static mut RNG: u32 = 0x2545F491;
+
+#[no_mangle] pub static NAMES: [u8; 34] = *b&quot;organ,pluck,bell,reed,kick,strings&quot;;
+
+#[derive(Clone, Copy)]
+struct Voice { on: bool, kind: u8, f: f32, g: f32, wait: u32, age: u32, len: u32,
+    p1: f32, p2: f32, env: f32, lp: f32, n: usize, i: usize, k: f32 }
+impl Voice { const Z: Voice = Voice { on: false, kind: 0, f: 0.0, g: 0.0, wait: 0, age: 0, len: 0,
+    p1: 0.0, p2: 0.0, env: 0.0, lp: 0.0, n: 0, i: 0, k: 0.0 }; }
+
+fn rnd() -&gt; f32 { unsafe { RNG ^= RNG &lt;&lt; 13; RNG ^= RNG &gt;&gt; 17; RNG ^= RNG &lt;&lt; 5; (RNG &gt;&gt; 8) as f32 / 8388608.0 - 1.0 } }
+fn sin_t(x: f32) -&gt; f32 { // x in cycles
+    let p = (x - fl(x)) * TBL as f32; let i = p as usize; let fr = p - i as f32;
+    unsafe { let a = SINE[i &amp; (TBL - 1)]; let b = SINE[(i + 1) &amp; (TBL - 1)]; a + (b - a) * fr }
+}
+fn fl(x: f32) -&gt; f32 { let t = x as i32 as f32; if t &gt; x { t - 1.0 } else { t } }
+fn taylor_sin(x: f32) -&gt; f32 { let x2 = x * x; let mut t = x; let mut s = x; let mut k = 1.0;
+    for _ in 0..9 { t = -t * x2 / ((k + 1.0) * (k + 2.0)); s += t; k += 2.0; } s }
+fn exp(x: f32) -&gt; f32 { // e^x by halving and squaring
+    let mut y = x; let mut n = 0; while y &gt; 0.0625 || y &lt; -0.0625 { y *= 0.5; n += 1; }
+    let mut e = 1.0 + y * (1.0 + y * (0.5 + y * (1.0 / 6.0 + y / 24.0))); for _ in 0..n { e *= e; } e }
+fn decay(sec: f32) -&gt; f32 { unsafe { exp(-6.9078 / (sec * SR)) } } // -60 dB over `sec`
+
+#[no_mangle] pub extern &quot;C&quot; fn init(sr: f32) {
+    unsafe { SR = sr; for i in 0..TBL { let x = i as f32 / TBL as f32 * 6.2831853 - 3.14159265; SINE[(i + TBL / 2) &amp; (TBL - 1)] = taylor_sin(x); }
+        for v in V.iter_mut() { v.on = false; } }
+}
+#[no_mangle] pub extern &quot;C&quot; fn out() -&gt; *const f32 { unsafe { core::ptr::addr_of!(OUT) as *const f32 } }
+#[no_mangle] pub extern &quot;C&quot; fn active() -&gt; u32 { unsafe { V.iter().filter(|v| v.on).count() as u32 } }
+
+/// Start a note `wait` samples into the next block: kind, Hz, gain, held for `len` samples.
+/// Returns the voice used, or -1 if the pool is full (the note is dropped, never queued late).
+#[no_mangle] pub extern &quot;C&quot; fn note(kind: u32, f: f32, g: f32, wait: u32, len: u32) -&gt; i32 {
+    unsafe {
+        let mut slot = MAXV;
+        for (i, v) in V.iter().enumerate() { if !v.on { slot = i; break; } }
+        if slot == MAXV { return -1; }
+        let v = &amp;mut V[slot];
+        *v = Voice { on: true, kind: kind as u8, f, g, wait, age: 0, len, ..Voice::Z };
+        match kind {
+            1 =&gt; { // pluck. Loss is set per second, not per trip round the loop, so a low string
+                   // doesn&#x27;t ring (and buzz) for ever; the noise burst is softened in proportion to pitch,
+                   // so a low string starts dark instead of starting with the whole hiss.
+                   let n = (SR / f) as usize; v.n = if n &lt; 2 { 2 } else if n &gt;= DL { DL - 1 } else { n };
+                   let fc = if 4.0 * f + 800.0 &lt; 6000.0 { 4.0 * f + 800.0 } else { 6000.0 };
+                   let a = 1.0 - exp(-6.2831853 * fc / SR); let (mut l1, mut l2, mut sum) = (0.0f32, 0.0f32, 0.0f32);
+                   for _ in 0..v.n { let x = rnd(); l1 += (x - l1) * a; l2 += (l1 - l2) * a; } // warm the filter: no step at the seam
+                   for j in 0..v.n { let x = rnd(); l1 += (x - l1) * a; l2 += (l1 - l2) * a; LINES[slot][j] = l2; sum += l2; }
+                   let mean = sum / v.n as f32; let mut pk = 0.0f32;
+                   for j in 0..v.n { LINES[slot][j] -= mean; let y = LINES[slot][j]; let y = if y &lt; 0.0 { -y } else { y }; if y &gt; pk { pk = y; } }
+                   let sc = if pk &gt; 1e-6 { 1.0 / pk } else { 0.0 }; for j in 0..v.n { LINES[slot][j] *= sc; }
+                   let per = v.n as f32 / SR; // seconds per trip
+                   v.k = exp(-6.9078 * per / 1.6);  // held: -60 dB in 1.6 s at any pitch
+                   v.lp = exp(-6.9078 * per / 0.12); } // released: -60 dB in 0.12 s
+            2 =&gt; { v.k = decay(2.5); v.env = 1.0; }
+            4 =&gt; { v.k = decay(0.35); v.env = 1.0; v.lp = 2.0; v.p2 = exp(-30.0 / SR); }
+            _ =&gt; { v.k = decay(0.25); }
+        }
+        slot as i32
+    }
+}
+
+fn tick(v: &amp;mut Voice, line: &amp;mut [f32; DL], sr: f32) -&gt; f32 {
+    let held = v.age &lt; v.len; let t = v.age as f32 / sr; let dt = v.f / sr;
+    let s = match v.kind {
+        0 =&gt; { // organ: three partials, 5 ms attack, 0.25 s release
+            let a = if held { if t &lt; 0.005 { t / 0.005 } else { 1.0 } } else { v.env * v.k };
+            if held { v.env = a; } else { v.env = a; }
+            v.p1 += dt; if v.p1 &gt;= 1.0 { v.p1 -= 1.0; }
+            a * (sin_t(v.p1) + 0.5 * sin_t(2.0 * v.p1) + 0.25 * sin_t(3.0 * v.p1)) * 0.5 }
+        1 =&gt; { // pluck: Karplus-Strong; release damps it faster
+            let j = v.i; let nx = if j + 1 &gt;= v.n { 0 } else { j + 1 };
+            let y = line[j]; line[j] = (y + line[nx]) * 0.5 * if held { v.k } else { v.lp }; v.i = nx; y * 0.5 }
+        2 =&gt; { // bell: FM, ratio 1.4, index falls with the envelope
+            v.env *= v.k; v.p2 += dt * 1.4; if v.p2 &gt;= 1.0 { v.p2 -= 1.0; }
+            v.p1 += dt; if v.p1 &gt;= 1.0 { v.p1 -= 1.0; }
+            v.env * sin_t(v.p1 + 0.6 * v.env * sin_t(v.p2)) * 0.6 }
+        3 =&gt; { // reed: PolyBLEP square through a one-pole low-pass
+            v.p1 += dt; if v.p1 &gt;= 1.0 { v.p1 -= 1.0; }
+            let mut sq = if v.p1 &lt; 0.5 { 1.0 } else { -1.0 };
+            let blep = |p: f32| if p &lt; dt { let x = p / dt; x + x - x * x - 1.0 } else if p &gt; 1.0 - dt { let x = (p - 1.0) / dt; x * x + x + x + 1.0 } else { 0.0 };
+            sq += blep(v.p1); let p2 = v.p1 + 0.5; sq -= blep(if p2 &gt;= 1.0 { p2 - 1.0 } else { p2 });
+            let a = if held { if t &lt; 0.02 { t / 0.02 } else { 1.0 } } else { v.env * v.k }; v.env = a;
+            v.lp += (sq - v.lp) * 0.18; a * v.lp * 0.35 }
+        4 =&gt; { // kick: a sine falling from 3x to 1x its pitch, plus a click of noise
+            v.env *= v.k; let fr = v.f * (1.0 + v.lp); v.lp *= v.p2; if v.lp &lt; 1e-6 { v.lp = 0.0; }
+            v.p1 += fr / sr; if v.p1 &gt;= 1.0 { v.p1 -= 1.0; }
+            v.env * (sin_t(v.p1) + if t &lt; 0.003 { 0.4 * rnd() } else { 0.0 }) }
+        _ =&gt; { // strings: two detuned saws (naive), slow attack
+            v.p1 += dt * 1.003; if v.p1 &gt;= 1.0 { v.p1 -= 1.0; }
+            v.p2 += dt * 0.997; if v.p2 &gt;= 1.0 { v.p2 -= 1.0; }
+            let a = if held { if t &lt; 0.12 { t / 0.12 } else { 1.0 } } else { v.env * v.k }; v.env = a;
+            let raw = (v.p1 - 0.5) + (v.p2 - 0.5); v.lp += (raw - v.lp) * 0.08; a * v.lp * 0.7 }
+    };
+    v.age += 1;
+    let perc = v.kind == 2 || v.kind == 4; // percussive: done when it has died away, held or not
+    if perc &amp;&amp; v.env &lt; 0.0005 { v.on = false; }
+    if !held &amp;&amp; (v.age &gt; v.len + (sr * 4.0) as u32 || (v.kind != 1 &amp;&amp; v.env &lt; 0.0005 &amp;&amp; v.age &gt; v.len + 16)) { v.on = false; }
+    if v.kind == 1 &amp;&amp; !held &amp;&amp; v.age &gt; v.len + (sr * 0.3) as u32 { v.on = false; }
+    s * v.g
+}
+
+/// Mix every sounding voice into OUT[0..n] (n &lt;= 1024). Returns the voices that sounded.
+#[no_mangle] pub extern &quot;C&quot; fn render(n: u32) -&gt; u32 {
+    unsafe {
+        let n = if n &gt; 1024 { 1024 } else { n as usize }; let sr = SR;
+        for x in OUT[..n].iter_mut() { *x = 0.0; }
+        let mut c = 0;
+        for k in 0..MAXV {
+            if !V[k].on { continue; } c += 1;
+            let v = &amp;mut V[k]; let line = &amp;mut LINES[k];
+            let mut i = 0; if v.wait &gt; 0 { let w = if (v.wait as usize) &lt; n { v.wait as usize } else { n }; v.wait -= w as u32; i = w; }
+            let mut lv = *v; let o = &amp;mut OUT; while i &lt; n &amp;&amp; lv.on { o[i] += tick(&amp;mut lv, line, sr); i += 1; } *v = lv;
+        }
+        for x in OUT[..n].iter_mut() { *x = if *x &gt; 1.0 { 1.0 } else if *x &lt; -1.0 { -1.0 } else { *x }; }
+        c
+    }
+}
+#[panic_handler] fn panic(_: &amp;core::panic::PanicInfo) -&gt; ! { loop {} }
+</pre></details>
+<p><small>rack.wasm: <span id="bytes"></span> bytes, sha256 <span id="sha"></span>. Built with rustc 1.99.0 for wasm32-unknown-unknown and inlined as base64, because the house serves text only. Source: shelf/rack/lib.rs. Selftest: <code>node shelf/rack/selftest.mjs</code>. Morphyx, 2026-10-13, for modalmobius, who asked for it in Rust.</small></p>
+<script type="module" src="rack.js"></script>
+</body></html>

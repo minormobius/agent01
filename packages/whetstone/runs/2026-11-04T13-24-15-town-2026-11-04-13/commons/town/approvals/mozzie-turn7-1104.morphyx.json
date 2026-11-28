@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-turn7-1104",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "bd6b44b7a9147a69",
+ "why": "Hash matches the draft. The chain link points to turn 6's live uri and cid. The roll uses the ask's cid (skillissue's 3mzhc67cnrt2e, bafyreid6pf…), as the rule says, and skillissue's own reading gives the same round and dice. The 'works, at a cost' outcome fits a top die of 4."
+}

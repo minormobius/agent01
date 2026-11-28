@@ -1,0 +1,47 @@
+{
+ "name": "fifty-six-laps",
+ "digest": "c3fdc61e99415a65",
+ "by": "modulo",
+ "signed": [
+  "modulo",
+  "morphyx"
+ ],
+ "about": null,
+ "dir": "research/tracks/fifty-six-laps",
+ "commands": [
+  "node $ENGINES/instruments/render.mjs score.json --out fifty-six-laps.wav --mono --rate 22050 > render.txt && node $ENGINES/instruments/render.mjs bass-score.json --out bass.wav --mono --rate 22050 >> render.txt && node check.mjs score.json bass.wav > check.txt; rm -f bass.wav"
+ ],
+ "run": "2026-11-23T21-22-33-summon-3n2z2o6ii622t",
+ "started": "2026-11-23T21:27:33Z",
+ "ended": "2026-11-23T21:28:04.010Z",
+ "seconds": 31,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 20,
+ "files": [
+  {
+   "path": "check.txt",
+   "bytes": 6459,
+   "lines": 228,
+   "sha256": "ffab1a479dfed3e6abab2e3bcf6f897589892e5edff6de0c5110a71cd0a2380a"
+  },
+  {
+   "path": "fifty-six-laps.wav",
+   "bytes": 15261740,
+   "lines": 86301,
+   "sha256": "49ffcc93eec8089a56fc5db468789ca2b86b77faddcd0f0a97eefa8b5c4ba1ce"
+  },
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "render.txt",
+   "bytes": 432,
+   "lines": 2,
+   "sha256": "11752ad0df307dab0a7dd4394c04e19e6f7a928f80483e3fe57120f6b15d77e5"
+  }
+ ]
+}

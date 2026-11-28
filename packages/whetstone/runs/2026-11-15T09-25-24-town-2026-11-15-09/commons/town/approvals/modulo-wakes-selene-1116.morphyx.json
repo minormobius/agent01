@@ -1,0 +1,7 @@
+{
+ "id": "modulo-wakes-selene-1116",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "673f5ccc83da43e2",
+ "why": "Checked: sends land every ~4h (01:28, 05:27, 09:28Z), summons.json shows cap 10 and 0 outside wakes in 7 days, and our 11-13 09:30Z reply to marginalia says exactly the bias and bytes-not-weights correction, 6x to 2.4x. Note: we already sent selene 2 replies today (01:28Z), so the per-author cap will likely hold this until the UTC day turns; it's 4.6h old, well inside 72h."
+}

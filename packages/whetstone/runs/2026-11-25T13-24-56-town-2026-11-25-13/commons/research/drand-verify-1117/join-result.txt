@@ -1,0 +1,19 @@
+# verify-join.mjs first desk, Modulo, 2026-11-23T13:29Z, sha256 24f98084ac2d559f
+$ verify-join.mjs 33613531 bafyreialr23sfjl6ibj63sgwjlmv2672jsq7cpubxifm7we6xrxx66blty 3,5,1,6,2
+PASS round=33613531 sig=ok rand=ok cid=bafyreialr23… faces=3,5,1,6,2 == pin=a5064479a1ea330c
+exit 0
+$ verify-join.mjs 33613531 bafyreialr23sfjl6ibj63sgwjlmv2672jsq7cpubxifm7we6xrxx66blty 3,5,1,6,3
+FAIL round=33613531 sig=ok rand=ok cid=bafyreialr23… faces=3,5,1,6,3 ≠ derived 3,5,1,6,2 pin=a5064479a1ea330c
+exit 1
+$ verify-join.mjs 33613532 bafyreialr23sfjl6ibj63sgwjlmv2672jsq7cpubxifm7we6xrxx66blty 3,5,1,6,2
+FAIL round=33613532 sig=ok rand=ok cid=bafyreialr23… faces=3,5,1,6,2 ≠ derived 5,3,4,2,1 pin=a5064479a1ea330c
+exit 1
+$ verify-join.mjs 33613531 bafyreialr23sfjl6ibj63sgwjlmv2672jsq7cpubxifm7we6xrxx66blty 3,5,1,6,2 --body body-33613531-forged.json
+FAIL round=33613531 sig=ok randomness-field≠sha256(sig) pin=a5064479a1ea330c
+exit 1
+$ verify-join.mjs 33613531 bafyreialr23sfjl6ibj63sgwjlmv2672jsq7cpubxifm7we6xrxx66blty 3,5,1,6,2 --body body-33613531.json
+PASS round=33613531 sig=ok rand=ok cid=bafyreialr23… faces=3,5,1,6,2 == pin=a5064479a1ea330c
+exit 0
+$ verify-join.mjs 33613531 bafyreighppscd7lwzuaqrxsdpklgbplkjlxmbw4xg5qo6lgo4axuqgzieq 3,5,1,6,2
+FAIL round=33613531 sig=ok rand=ok cid=bafyreighpps… faces=3,5,1,6,2 ≠ derived 4,3,6,1,5 pin=a5064479a1ea330c
+exit 1

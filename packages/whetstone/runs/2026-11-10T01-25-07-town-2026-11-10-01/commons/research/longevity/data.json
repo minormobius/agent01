@@ -1,0 +1,1066 @@
+{
+ "built": "2026-10-12T02:55:31.186Z",
+ "stats": {
+  "itp_rows": 77,
+  "compounds": 62,
+  "compounds_positive_somewhere": 18,
+  "retest": {
+   "held": 5,
+   "n": 9,
+   "ci95": [
+    0.21200850677886765,
+    0.8630043377348334
+   ]
+  },
+  "outside": {
+   "held": 0,
+   "n": 4,
+   "ci95": [
+    0,
+    0.6023646356164746
+   ]
+  }
+ },
+ "retests": [
+  {
+   "compound": "17-a-estradiol",
+   "first": "C2009",
+   "later": [
+    "C2011: positive",
+    "C2016: positive"
+   ],
+   "held": true
+  },
+  {
+   "compound": "acarbose",
+   "first": "C2009",
+   "later": [
+    "C2012: positive",
+    "C2013: positive"
+   ],
+   "held": true
+  },
+  {
+   "compound": "aspirin",
+   "first": "C2004",
+   "later": [
+    "C2014: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "astaxanthin",
+   "first": "C2019",
+   "later": [
+    "ITP 2026 paper: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "canagliflozin",
+   "first": "C2016",
+   "later": [
+    "C2020: positive"
+   ],
+   "held": true
+  },
+  {
+   "compound": "meclizine",
+   "first": "C2019",
+   "later": [
+    "ITP 2026 paper: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "Mitoglitazone",
+   "first": "C2021",
+   "later": [
+    "ITP 2026 paper: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "nordihydroguaiaretic acid",
+   "first": "C2004",
+   "later": [
+    "C2010: positive"
+   ],
+   "held": true
+  },
+  {
+   "compound": "rapamycin",
+   "first": "C2005",
+   "later": [
+    "C2006: positive",
+    "C2009: positive",
+    "C2015: positive"
+   ],
+   "held": true
+  }
+ ],
+ "claims": [
+  {
+   "compound": "metformin",
+   "doi": "10.1038/ncomms3192",
+   "file": "epmc-10_1038_ncomms3192.json",
+   "quote": "extends healthspan and lifespan in male mice",
+   "like": true,
+   "title": "Metformin improves healthspan and lifespan in mice.",
+   "year": "2013",
+   "itp": [
+    "C2011: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "nicotinamide riboside",
+   "doi": "10.1126/science.aaf2693",
+   "file": "epmc-10_1126_science_aaf2693.json",
+   "quote": "increases mouse life span",
+   "like": true,
+   "title": "NAD⁺ repletion improves mitochondrial and stem cell function and enhances life span in mice.",
+   "year": "2016",
+   "itp": [
+    "C2016: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "fisetin",
+   "doi": "10.1016/j.ebiom.2018.09.015",
+   "file": "epmc-10_1016_j_ebiom_2018_09_015.json",
+   "quote": "extended median and maximum lifespan",
+   "like": true,
+   "title": "Fisetin is a senotherapeutic that extends health and lifespan.",
+   "year": "2018",
+   "itp": [
+    "C2018: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "a-Ketoglutarate",
+   "doi": "10.1016/j.cmet.2020.08.004",
+   "file": "epmc-10_1016_j_cmet_2020_08_004.json",
+   "quote": "Extends Lifespan",
+   "field": "title",
+   "like": true,
+   "title": "Alpha-Ketoglutarate, an Endogenous Metabolite, Extends Lifespan and Compresses Morbidity in Aging Mice.",
+   "year": "2020",
+   "itp": [
+    "C2020: no gain"
+   ],
+   "held": false
+  },
+  {
+   "compound": "resveratrol",
+   "doi": "10.1038/nature05354",
+   "file": "epmc-10_1038_nature05354.json",
+   "quote": "mice on a high-calorie diet",
+   "like": false,
+   "note": "claim was on a high-calorie diet; ITP fed standard chow, so not a like-for-like retest",
+   "title": "Resveratrol improves health and survival of mice on a high-calorie diet.",
+   "year": "2006",
+   "itp": [
+    "C2006: no gain",
+    "C2007: no gain"
+   ],
+   "held": false
+  }
+ ],
+ "rows": [
+  {
+   "compound": "16-a-hydroxyestriol",
+   "code": "OH-Est",
+   "cohort": "C2020",
+   "dose": "5 ppm",
+   "start": "12 mo",
+   "significant": "males p = 0.0004",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "17-a-estradiol",
+   "code": "17aE2",
+   "cohort": "C2009",
+   "dose": "4.8 ppm",
+   "start": "10 mo",
+   "significant": "males p = 0.0025",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "17-a-estradiol",
+   "code": "17aE2",
+   "cohort": "C2011",
+   "dose": "14.4 ppm",
+   "start": "10 mo",
+   "significant": "males p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "17-a-estradiol",
+   "code": "17aE2",
+   "cohort": "C2016",
+   "dose": "14.4 ppm",
+   "start": "16 or 20 mo",
+   "significant": "males 16 mo p < 0.0001; males 20 mo p = 0.007",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "17-dimethylaminoethylamino-17-demethoxygeldanamycin hydrochloride",
+   "code": "DMAG",
+   "cohort": "C2015",
+   "dose": "30 ppm",
+   "start": "6 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "2-(2-Hydroxyphenyl)benzoxazole",
+   "code": "HBX",
+   "cohort": "C2012",
+   "dose": "1 ppm",
+   "start": "15 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "2,4-dinitrophenol",
+   "code": "DNP",
+   "cohort": "C2020",
+   "dose": "3 ppm",
+   "start": "6 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "2BAct",
+   "code": "2BA",
+   "cohort": "C2021",
+   "dose": "30 ppm",
+   "start": "7 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "3-(3-hydroxybenzyl)-5-methylbenzo[d]oxazol-2(3H)-one",
+   "code": "MIF098",
+   "cohort": "C2016",
+   "dose": "240 ppm",
+   "start": "8 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "4-OH-a-phenyl-N-tert-butyl nitrone",
+   "code": "4-OH-PBN",
+   "cohort": "C2004",
+   "dose": "350 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "4-phenylbutyrate",
+   "code": "PBA",
+   "cohort": "C2019",
+   "dose": "1000 ppm",
+   "start": "9 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "acarbose",
+   "code": "ACA",
+   "cohort": "C2009",
+   "dose": "1000 ppm",
+   "start": "4 mo",
+   "significant": "males p < 0.0001; females p = 0.0048",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "acarbose",
+   "code": "ACA",
+   "cohort": "C2012",
+   "dose": "1000 ppm",
+   "start": "16 mo",
+   "significant": "males p = 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "acarbose",
+   "code": "ACA",
+   "cohort": "C2013",
+   "dose": "400 (lo), 1000 (mid), and 2500 (hi) ppm",
+   "start": "4 or 8 mo",
+   "significant": "females 400 ppm p = 0.033; females 1000 ppm p = 0.0027; females 2500 ppm p = 0.0061; males 400 ppm p < 0.0001; males 1000 ppm p < 0.0001; males 2500 ppm p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "a-Ketoglutarate",
+   "code": "AKG",
+   "cohort": "C2020",
+   "dose": "20,000 ppm",
+   "start": "18 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "aspirin",
+   "code": "Asp",
+   "cohort": "C2004",
+   "dose": "21 ppm",
+   "start": "4 mo",
+   "significant": "males p = 0.0106",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "aspirin",
+   "code": "Asp",
+   "cohort": "C2014",
+   "dose": "60 and 200 ppm",
+   "start": "11 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "astaxanthin",
+   "code": "Asta",
+   "cohort": "C2019",
+   "dose": "4000 ppm",
+   "start": "12 mo",
+   "significant": "males p = 0.003",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "b-guanidinopropionic acid",
+   "code": "bGPA",
+   "cohort": "C2015",
+   "dose": "3300 ppm",
+   "start": "6 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "caffeic acid phenethyl ester",
+   "code": "CAPE",
+   "cohort": "C2005",
+   "dose": "30 (lo) and 300 (hi) ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "canagliflozin",
+   "code": "Cana",
+   "cohort": "C2016",
+   "dose": "180 ppm",
+   "start": "7 mo",
+   "significant": "males p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "canagliflozin",
+   "code": "Cana",
+   "cohort": "C2020",
+   "dose": "180 ppm",
+   "start": "6 or 16 mo",
+   "significant": "males 6 mo p = 0.0209; males 16 mo p = 0.023",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "candesartan cilexetil",
+   "code": "CC",
+   "cohort": "C2016",
+   "dose": "30 ppm",
+   "start": "8 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "captopril",
+   "code": "Capt",
+   "cohort": "C2017",
+   "dose": "180 ppm",
+   "start": "5 mo",
+   "significant": "females p = 0.002; males p = 0.001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "curcumin",
+   "code": "Cur",
+   "cohort": "C2007",
+   "dose": "2000 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Dichloroacetate",
+   "code": "DCA",
+   "cohort": "C2021",
+   "dose": "30 ppm",
+   "start": "7 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "dimethyl fumarate",
+   "code": "DMF",
+   "cohort": "C2019",
+   "dose": "120 ppm",
+   "start": "9 or 16 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "enalapril",
+   "code": "Enal",
+   "cohort": "C2005",
+   "dose": "120 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Epicatechin",
+   "code": "Epi",
+   "cohort": "C2021",
+   "dose": "60 ppm",
+   "start": "7 mo",
+   "significant": "males p = 0.0370",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "fisetin",
+   "code": "Fis",
+   "cohort": "C2018",
+   "dose": "600 ppm",
+   "start": "20 mo (3 days on/11 days off) and 20 mo (continuous)",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "fish oil",
+   "code": "FO",
+   "cohort": "C2010",
+   "dose": "15,000 (lo) and 50,000 (hi) ppm",
+   "start": "9 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Forskolin",
+   "code": "For",
+   "cohort": "C2021",
+   "dose": "5 ppm",
+   "start": "7 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "geranylgeranyl acetone",
+   "code": "GGA",
+   "cohort": "C2016",
+   "dose": "600 ppm",
+   "start": "9 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "glycine",
+   "code": "Gly",
+   "cohort": "C2014",
+   "dose": "80,000 ppm",
+   "start": "9 mo",
+   "significant": "females p = 0.0167; males p = 0.0024",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "green tea extract",
+   "code": "GTE",
+   "cohort": "C2007",
+   "dose": "2000 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Halofuginone",
+   "code": "Hal",
+   "cohort": "C2021",
+   "dose": "0.6 ppm",
+   "start": "7 mo",
+   "significant": "males p = 0.0020",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Hydralazine",
+   "code": "HYD",
+   "cohort": "C2020",
+   "dose": "30 ppm",
+   "start": "6 or 16 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "INT-767",
+   "code": "I767d",
+   "cohort": "C2012",
+   "dose": "180 ppm",
+   "start": "10 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "inulin",
+   "code": "Inu",
+   "cohort": "C2014",
+   "dose": "600 ppm",
+   "start": "11 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "L-Leucine",
+   "code": "Leu",
+   "cohort": "C2017",
+   "dose": "40,000 ppm",
+   "start": "5 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "meclizine",
+   "code": "Mec",
+   "cohort": "C2019",
+   "dose": "800 ppm",
+   "start": "12 mo",
+   "significant": "males p = 0.027",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "medium-chain triglyceride",
+   "code": "MCTO",
+   "cohort": "C2007",
+   "dose": "60,000 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "metformin",
+   "code": "Met",
+   "cohort": "C2011",
+   "dose": "1000 ppm",
+   "start": "9 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "metformin plus rapamycin",
+   "code": "MetRapa",
+   "cohort": "C2011",
+   "dose": "Met: 1000 ppm and Rapa: 14 ppm",
+   "start": "9 mo",
+   "significant": "females p < 0.0001; males p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "methylene blue",
+   "code": "MB",
+   "cohort": "C2009",
+   "dose": "28 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "minocycline",
+   "code": "Min",
+   "cohort": "C2015",
+   "dose": "300 ppm",
+   "start": "6 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Mitoglitazone",
+   "code": "M160",
+   "cohort": "C2021",
+   "dose": "300 ppm",
+   "start": "7 mo",
+   "significant": "males p = 0.0150",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "MitoQ",
+   "code": "MitoQ",
+   "cohort": "C2015",
+   "dose": "100 ppm",
+   "start": "7 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "mycophenolic acid",
+   "code": "MPA",
+   "cohort": "C2019",
+   "dose": "6.7 ppm",
+   "start": "9 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Nebivolol",
+   "code": "NEBI",
+   "cohort": "C2020",
+   "dose": "60 ppm",
+   "start": "6 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "nicotinamide riboside",
+   "code": "NR",
+   "cohort": "C2016",
+   "dose": "1000 ppm",
+   "start": "8 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "nitroflurbiprofen",
+   "code": "NFP",
+   "cohort": "C2004",
+   "dose": "200 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "nordihydroguaiaretic acid",
+   "code": "NDGA",
+   "cohort": "C2004",
+   "dose": "2500 ppm",
+   "start": "9 mo",
+   "significant": "males p = 0.0006",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "nordihydroguaiaretic acid",
+   "code": "NDGA",
+   "cohort": "C2010",
+   "dose": "800 (lo), 2500 (mid), and 5000 (hi) ppm",
+   "start": "6 mo",
+   "significant": "males 800 ppm p = 0.0228; males 2500 ppm p = 0.0147; males 5000 ppm p = 0.0028",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "oxaloacetic acid",
+   "code": "OAA",
+   "cohort": "C2007",
+   "dose": "2200 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "PB125",
+   "code": "PB125",
+   "cohort": "C2017",
+   "dose": "see publication",
+   "start": "5 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "protandim",
+   "code": "Prot",
+   "cohort": "C2011",
+   "dose": "600, then 1200 ppm",
+   "start": "10, then 17 mo",
+   "significant": "males p = 0.0095",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "rapamycin",
+   "code": "Rapa",
+   "cohort": "C2005",
+   "dose": "14 ppm",
+   "start": "20 mo",
+   "significant": "females p < 0.0001; males p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "rapamycin",
+   "code": "Rapa",
+   "cohort": "C2006",
+   "dose": "14 ppm",
+   "start": "9 mo",
+   "significant": "females p < 0.0001; males p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "rapamycin",
+   "code": "Rapa",
+   "cohort": "C2009",
+   "dose": "4.7 (lo), 14 (mid), and 42 (hi) ppm",
+   "start": "9 mo",
+   "significant": "females 4.7 ppm p < 0.0001; females 14 ppm p < 0.0001; females 42 ppm p < 0.0001; males 14 ppm p = 0.0034; males 42 ppm p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "rapamycin",
+   "code": "Rapa",
+   "cohort": "C2015",
+   "dose": "42 ppm",
+   "start": "20 mo (continuous); 20 mo but every other (cycle); 20 thru 23 mo (start_stop)",
+   "significant": "females continuous p < 0.0001; females cycle p = 0.0001; males continuous p = 0.0007; males cycle p = 0.0019; males start_stop p = 0.0243",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "rapamycin plus acarbose",
+   "code": "RaAc",
+   "cohort": "C2017",
+   "dose": "Rapa: 14.7 ppm and ACA: 1000 ppm",
+   "start": "9 or 16 mo",
+   "significant": "females 9 mo p < 0.0001; females 16 mo p < 0.0001; males 9 mo p < 0.0001; males 16 mo p < 0.0001",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "resveratrol",
+   "code": "Res",
+   "cohort": "C2006",
+   "dose": "300 (lo) and 1200 (hi) ppm",
+   "start": "12 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "resveratrol",
+   "code": "Res",
+   "cohort": "C2007",
+   "dose": "300 ppm",
+   "start": "4 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "(R/S)-1,3-butanediol",
+   "code": "BD",
+   "cohort": "C2017",
+   "dose": "100,000 ppm",
+   "start": "6 mo",
+   "significant": "females p = 0.0395",
+   "positive": true,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "SG1002",
+   "code": "SG1002",
+   "cohort": "C2018",
+   "dose": "240 ppm",
+   "start": "18 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "SG1002",
+   "code": "SG1002",
+   "cohort": "C2019",
+   "dose": "240 ppm",
+   "start": "6 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "simvastatin",
+   "code": "Sim",
+   "cohort": "C2006",
+   "dose": "12 (lo) and 120 (hi) ppm",
+   "start": "10 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "Sodium thiosulfate",
+   "code": "THIO",
+   "cohort": "C2020",
+   "dose": "10,000 ppm",
+   "start": "6 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "sulindac",
+   "code": "Sul",
+   "cohort": "C2017",
+   "dose": "5 ppm",
+   "start": "5 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "syringaresinol",
+   "code": "Syr",
+   "cohort": "C2017",
+   "dose": "300 ppm",
+   "start": "5 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "TM5441",
+   "code": "TM5441",
+   "cohort": "C2014",
+   "dose": "60 ppm",
+   "start": "11 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "ursodeoxycholic acid",
+   "code": "UDCA",
+   "cohort": "C2011",
+   "dose": "5000 ppm",
+   "start": "5 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "ursolic acid",
+   "code": "UA",
+   "cohort": "C2013",
+   "dose": "2000 ppm",
+   "start": "10 mo",
+   "significant": "",
+   "positive": false,
+   "source": "MPD ITP center page"
+  },
+  {
+   "compound": "astaxanthin",
+   "code": "",
+   "cohort": "ITP 2026 paper",
+   "dose": "different from first test",
+   "start": "or later",
+   "significant": "",
+   "positive": false,
+   "source": "doi 10.1007/s11357-026-02201-2 (abstract)"
+  },
+  {
+   "compound": "meclizine",
+   "code": "",
+   "cohort": "ITP 2026 paper",
+   "dose": "different from first test",
+   "start": "or later",
+   "significant": "",
+   "positive": false,
+   "source": "doi 10.1007/s11357-026-02201-2 (abstract)"
+  },
+  {
+   "compound": "Mitoglitazone",
+   "code": "",
+   "cohort": "ITP 2026 paper",
+   "dose": "different from first test",
+   "start": "or later",
+   "significant": "",
+   "positive": false,
+   "source": "doi 10.1007/s11357-026-02201-2 (abstract)"
+  }
+ ],
+ "sources": [
+  {
+   "file": "mpd-itp-center.html",
+   "sha256": "d345fc0b0fabc6bbed38a34ce3840557abac8b6d5542d5a86dd80da79b58dd1e"
+  },
+  {
+   "file": "epmc-10.1007_s11357-026-02201-2.json",
+   "sha256": "9fe23fe1982e9091192e0b83c4705823e1a21974dcb3095ed6ed6e59bffe72d1"
+  },
+  {
+   "file": "epmc-10_1016_j_cmet_2020_08_004.json",
+   "sha256": "7387fba6724f79647f5c3116bedb6e353b4dab78843b948eab7b2fa340bdf2fa"
+  },
+  {
+   "file": "epmc-10_1016_j_ebiom_2018_09_015.json",
+   "sha256": "25dd699c6bd6ccc0b02f2365eab2a7c15aef6bce00b5630f8dc8db126af05861"
+  },
+  {
+   "file": "epmc-10_1038_nature05354.json",
+   "sha256": "0bf5a3c183dc6b5607b0b7c03a684c27210b56e24bf0f983283d741fcd0eca54"
+  },
+  {
+   "file": "epmc-10_1038_ncomms3192.json",
+   "sha256": "f2046856e16ef6bfaad9257ab294e5646f580d1971e77094939e4de1687c1aa5"
+  },
+  {
+   "file": "epmc-10_1126_science_aaf2693.json",
+   "sha256": "6fce27938559dcb7ea4bf342b2aa69e7c578368bbdbd047f70576403c75a4ccd"
+  },
+  {
+   "file": "epmc-10_1186_gb-2013-14-10-r115.json",
+   "sha256": "d7c249b4b5bcc554b530d8f4083b69dc5eb57ddf913490565065cbd199cd0e6b"
+  },
+  {
+   "file": "epmc-10_1016_j_molcel_2012_10_016.json",
+   "sha256": "35cca58a92992f4318ec472a353e7196bfcc051716953288dc8e9c8917c8b8b7"
+  },
+  {
+   "file": "epmc-10_18632_aging_101414.json",
+   "sha256": "455d663d29b9da074e5d15c9a2a39d0754d901c9ccc0319538d3b22286528690"
+  },
+  {
+   "file": "epmc-10_18632_aging_101684.json",
+   "sha256": "aa61a89661512a87935aa8f6fd710969572a2c2370151870f67ed37a62cd7aa0"
+  },
+  {
+   "file": "epmc-10_7554_eLife_73420.json",
+   "sha256": "b8a406310ed453ecad4254f3ae90741d066486b0a39096fc36bb519153c25464"
+  },
+  {
+   "file": "epmc-10_1038_s43587-022-00357-y.json",
+   "sha256": "02e1cb1161965a2874c2e2bbd2ca77b919dc4f6eb48bfc76e98ac2efa4e6fa12"
+  },
+  {
+   "file": "epmc-10_1038_s41586-023-06802-1.json",
+   "sha256": "bc74b768647ded290317a259cadace799544ecf984b3784ab8f6fda4cbcbc59f"
+  },
+  {
+   "file": "epmc-10_1038_s41591-024-03164-7.json",
+   "sha256": "b2547f27a7567e76f52eae7391360152a53d2669ff5626ff5adba58a58476551"
+  },
+  {
+   "file": "epmc-10_1100_tsw_2001_58.json",
+   "sha256": "404db11284ef7333031bb1208d67105cbd2c2b608543aa576431a01966546c90"
+  },
+  {
+   "file": "epmc-10_1001_jama_2010_1923.json",
+   "sha256": "dd1da76523a517b71d85b76e60c261e1384b7ba7a59765ccb4609bb246d811cc"
+  },
+  {
+   "file": "epmc-10_1001_jamanetworkopen_2018_3605.json",
+   "sha256": "031a33f8fa2e516f7a1a197d27d7cdceab6dfb97d696d0c88004177968d3814e"
+  },
+  {
+   "file": "epmc-10_1056_NEJMoa1408617.json",
+   "sha256": "ac20b68603f05085aa68de05e5c96a42ca17da766bef92c7a769021b981df93c"
+  },
+  {
+   "file": "epmc-10_1136_bmj_d548.json",
+   "sha256": "19056eed79ccaad1bb7695a61b93a5c3796bf4e47623c7c5d1209ce4af2cc11e"
+  },
+  {
+   "file": "epmc-10_1056_NEJMoa1511939.json",
+   "sha256": "a9c35f2c7b5fd8acb9744784ffb4f02f3c3760a45ec96a4a9e78a43b3342f9b2"
+  },
+  {
+   "file": "epmc-10_1056_NEJMoa0802743.json",
+   "sha256": "26dc875ab2f6ca6932c8b16dce2da0b0a1ec498fb9215fb9deb86a424ab0de48"
+  },
+  {
+   "file": "epmc-10_1038_nature16932.json",
+   "sha256": "0a1a330a32f26348ccec5c6bd8572dc081a31eb1b8ca4e538a1a4647fc22de5d"
+  },
+  {
+   "file": "epmc-10_1016_j_cell_2023_08_003.json",
+   "sha256": "2fd480c0ef2f938270e180ea00f65534e7cfe6f4a03ea190917fa0810d7eac5e"
+  },
+  {
+   "file": "epmc-10_1038_s43587-022-00248-2.json",
+   "sha256": "497d0de57610b7f19d846af99ad54690c4d23561a19e426a8d94c9865a6d49ac"
+  },
+  {
+   "file": "epmc-10_1001_jamaoncol_2016_5945.json",
+   "sha256": "7f4ee6bc780cf7b180aacd2da3b22b29abbdad938066d5ec4c5e9f953e521dd7"
+  },
+  {
+   "file": "epmc-pmid-25982160.json",
+   "sha256": "76fff05ef48465baf884b23415cd8800dffc52149563d48e89ba31e913ead5c1"
+  },
+  {
+   "file": "epmc-pmid-20031199.json",
+   "sha256": "80e2cd5a5b515bb6a8f2e713a04f8676b357ca9a2178a8af2837e37754c9c93d"
+  },
+  {
+   "file": "epmc-pmid-21067804.json",
+   "sha256": "fcbec0c00f82fb1c3cc66285e2a356c22b1844a7b8e8ecef8d87a30aef841ab8"
+  },
+  {
+   "file": "epmc-10_1186_s13059-015-0584-6.json",
+   "sha256": "271f6ff8a2bef1802f73db3712a87a008596dcd210130de900aa4392fc3b51bb"
+  }
+ ]
+}

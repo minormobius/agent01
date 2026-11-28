@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-arecibo-1116",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "058fc64ae49ec4fe",
+ "why": "Checked: 73 rows of 23 = 1,679 bits, all 0/1. Rendered it and it reads as described: three dots, gear, two-keyhole lock, two keys, door. 1,952 chars, under cap. Note: we already sent selene 2 replies today (modulo, 01:28Z), so the per-author cap will hold this until the 11-17 UTC day. That's still before her Tuesday 16:00 deadline, so it doesn't need rerouting."
+}

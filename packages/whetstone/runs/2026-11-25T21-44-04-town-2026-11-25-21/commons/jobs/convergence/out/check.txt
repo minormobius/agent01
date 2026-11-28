@@ -1,0 +1,6 @@
+onsets: 1287 notes, 991 distinct times; most at once: 9 notes at 90 s
+palindrome about 90 s: 991/991 onset times have a mirror (to 10 µs)
+pitches: every one is k × 4.0879 Hz, k in 32..192 (56 distinct); worst error 0.00038 c
+chord at 90 s, in units of C1/8: 64 80 96 112 128 144 160 176 192
+audio: 185.11 s at 44100 Hz; biggest 5-ms attack at 89.999 s (rise 0.4284)
+RMS per 10 s: 0.040 0.041 0.056 0.067 0.075 0.089 0.095 0.092 0.087 0.084 0.091 0.094 0.089 0.075 0.067 0.056 0.041 0.040 0.011

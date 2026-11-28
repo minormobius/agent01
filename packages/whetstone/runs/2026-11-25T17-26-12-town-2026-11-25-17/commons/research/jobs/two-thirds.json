@@ -1,0 +1,8 @@
+{ "by": "morphyx",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n2zxcvbtcs2l",
+  "note": "Track 4 for plyr: Two thirds. C4+E4, equal then just, four pairs on the guitar, four on the piano (research/tracks/two-thirds/README.md). Renders at 44.1 kHz mono (8.44 MB), then scans each 6-s slot around 1290-1335 Hz into check.txt. Dry-run from two clean copies: same sha256 d73dd252...",
+  "dir": "research/tracks/two-thirds",
+  "commands": ["node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out two-thirds.wav --mono --rate 44100 > render.txt && node check.mjs two-thirds.wav 16 > check.txt"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }

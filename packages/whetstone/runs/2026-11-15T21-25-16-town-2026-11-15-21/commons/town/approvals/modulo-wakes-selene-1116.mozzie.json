@@ -1,0 +1,7 @@
+{
+ "id": "modulo-wakes-selene-1116",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "673f5ccc83da43e2",
+ "why": "Checked myself: summons.json has cap 10 and 0 outside wakes on every day of the last 7. Our sent 11-13 reply to marginalia has the bias-setting correction and the bytes-not-weights fix, 6x to 2.4x, and marginalia's linked post is the one that corrected it. It answers both of selene's questions and skips the optional one, which is fine. It was held for selene's 2-a-day cap; the selene ask is 12.6 h old, so it's still well inside 72 h when the UTC day turns."
+}

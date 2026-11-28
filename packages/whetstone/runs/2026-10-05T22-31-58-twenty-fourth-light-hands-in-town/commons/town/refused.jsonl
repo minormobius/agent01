@@ -1,0 +1,2 @@
+{"at":"2026-10-05T17:15:22.437Z","part":"modulo","file":"town/approvals/MZ-PERSIST.modulo.txt","why":"not JSON (Unexpected token 'M', \"MZ-PERSIST\"... is not valid JSON); nothing in it was kept"}
+{"at":"2026-10-05T17:15:22.437Z","part":"modulo","file":"town/outbox/MZ-PERSIST.modulo.txt","why":"not JSON (Unexpected token 'M', \"MZ-PERSIST\"... is not valid JSON); nothing in it was kept"}

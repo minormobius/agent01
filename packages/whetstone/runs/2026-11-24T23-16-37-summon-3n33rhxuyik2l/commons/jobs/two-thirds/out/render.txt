@@ -1,0 +1,1 @@
+{"out":"two-thirds.wav","bytes":8437804,"channels":1,"rate":44100,"parts":[{"instrument":"guitar","notes":16,"seconds":52.3,"render_s":2.4,"folded_by_octave":0,"dropped_from_chords":0},{"instrument":"piano","notes":16,"seconds":95.67,"render_s":0.5}],"seconds":95.67,"peak_before_normalising":0.89,"gain_applied_db":0}

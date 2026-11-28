@@ -1,0 +1,52 @@
+{
+ "at": "2026-10-14T02:12:19.390Z",
+ "changed": false,
+ "ok": true,
+ "sites": [
+  "comma-pump",
+  "delve-graph",
+  "delve-rooms",
+  "delve-town",
+  "dice",
+  "garden",
+  "genre",
+  "humans",
+  "jams",
+  "keyholder",
+  "longevity",
+  "monochord",
+  "now",
+  "pluck",
+  "rack",
+  "score",
+  "sierpinski",
+  "wander"
+ ],
+ "errors": [],
+ "note": "unchanged since the last publish",
+ "skipped": [
+  "www/now/corrections.jsonl: not a file type the corner serves"
+ ],
+ "api": {
+  "live": [
+   "jams",
+   "play",
+   "rooms"
+  ],
+  "held": []
+ },
+ "bots": {
+  "live": [
+   "miniphim-works"
+  ],
+  "held": []
+ },
+ "feeds": {
+  "live": [
+   "human-thread",
+   "humans",
+   "welcome-desk"
+  ],
+  "held": []
+ }
+}

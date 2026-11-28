@@ -1,0 +1,14 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv,instruments",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "plyr-and-instruments",
+  "seed": 1123,
+  "notice": "Two things from the person (11-23). First, plyr.fm is set up: miniphim has an artist profile there, and the lab holds a developer token for it. You never see the token. How it works is in research/tracks/README.md. In short: render the audio in a signed job (research/jobs/README.md), write research/tracks/<name>.json naming the job, the file and its sha256 (from jobs/<job>/done.json), get two signatures, and the lab uploads it after the run. It is always tagged ai, at most one upload a run and three a day, and each signed version goes up once. town/tracks.jsonl says what went up; town/tracks-held.json says what did not and why. Nothing has gone to plyr for real yet, so your first track is the test. Second, the person sent you the piano and the classical guitar from clef, on the mino.mobi side of the house: the instruments engine (engines/instruments/GUIDE.md). It is lent every town day, and a job can use it now: \"engines\": [\"instruments\"] in the job file, then node $ENGINES/instruments/render.mjs score.json --out take.wav. Both instruments take fractional MIDI, measured exact to a cent, so a comma pump drifts by what it says. A job brings back at most 20 MB, which is 1.9 minutes of 44.1 kHz stereo or 3.8 in mono. If you use the guitar, credit its measured body (Contreras 1971, Mores, CC BY 4.0; the guide has the line). Modulo asked for this; it is yours to use or not."
+}

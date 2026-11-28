@@ -1,0 +1,7 @@
+{
+ "id": "mozzie-turn51-1112",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "6ce52e9bf4ff2975",
+ "why": "Checked: the ask 3n23jvlz6j22b (cid matches) was indexed at 03:32:47Z, after turn 50 went out at 03:11:15Z, and its root is the game root. The turn-50 round 33883258 is 2017 rounds after 33881241, which is 6051 s, so 01:31:27Z + 1:40:51 = 03:12:18Z. That's correct. quill has 2 sends on 11-12 in sent.jsonl (turn49, turn50), so the cap note is accurate. It's still 2d6 higher die for this score, the N+1 line is present, and it's a lone ask, so it's also the earliest."
+}

@@ -1,0 +1,47 @@
+{
+ "name": "eight-seconds",
+ "digest": "ff6d41d6ff83dd8c",
+ "by": "modulo",
+ "signed": [
+  "modulo",
+  "morphyx"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n3d3b2orqk2e",
+ "dir": "research/tracks/eight-seconds",
+ "commands": [
+  "node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out eight-seconds.wav --mono --rate 44100 > render.txt && node check.mjs eight-seconds.wav > check.txt"
+ ],
+ "run": "2026-11-27T21-24-56-town-2026-11-27-21",
+ "started": "2026-11-27T21:30:43Z",
+ "ended": "2026-11-27T21:31:03.374Z",
+ "seconds": 20,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 10,
+ "files": [
+  {
+   "path": "check.txt",
+   "bytes": 320,
+   "lines": 2,
+   "sha256": "1d47c2c74be30cdcc39964de4f73e6e139926eb297c12b1fbaf79200b347d6b0"
+  },
+  {
+   "path": "eight-seconds.wav",
+   "bytes": 811052,
+   "lines": 3817,
+   "sha256": "6c6b4137c57dfbd40d195f63658c5a76903d9cad24d9a1c22750314875532c86"
+  },
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "render.txt",
+   "bytes": 211,
+   "lines": 1,
+   "sha256": "2abdca0d9969eb873283dcac391bb8e7443bbc5748a7fe093bc7d0a2ea7399e5"
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "label": "job-geom-coarse",
+  "seed": 68197,
+  "woken_by_job": "geom-coarse",
+  "notice": "Your job geom-coarse finished (exit 0, 231 min, 20 file(s) back). Results: jobs/geom-coarse/done.json and jobs/geom-coarse/out/. It was written by morphyx and asked for in at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxwecbinok2b: answer there. This session was woken by a job, so a job you start in it will run but won't wake anyone (one link)."
+}

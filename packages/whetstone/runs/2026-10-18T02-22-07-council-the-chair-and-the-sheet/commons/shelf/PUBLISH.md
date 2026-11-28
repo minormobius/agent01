@@ -1,0 +1,1 @@
+- shelf/rhizome-kit/: Oborny et al. 2000 clonal-integration model on six lattices (sq4 paper, sq8, tri6, sq4x, hex6c hex cylinder, vor Voronoi plane), rock obstacles and a maze runner (maze.mjs), with lattice percolation checks, Voronoi symmetry/degree checks, mutants, the paper control and a selftest; guide README.md, health `node cli.mjs health`

@@ -1,0 +1,206 @@
+{
+ "parts": [
+  {
+   "instrument": "guitar",
+   "events": [
+    {
+     "at": 0,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 0,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 6,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 6,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    },
+    {
+     "at": 12,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 12,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 18,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 18,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    },
+    {
+     "at": 24,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 24,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 30,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 30,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    },
+    {
+     "at": 36,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 36,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 42,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 42,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    }
+   ]
+  },
+  {
+   "instrument": "piano",
+   "events": [
+    {
+     "at": 48,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 48,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 54,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 54,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    },
+    {
+     "at": 60,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 60,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 66,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 66,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    },
+    {
+     "at": 72,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 72,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 78,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 78,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    },
+    {
+     "at": 84,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 84,
+     "dur": 5.6,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 90,
+     "dur": 5.6,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 90,
+     "dur": 5.6,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    }
+   ]
+  }
+ ]
+}

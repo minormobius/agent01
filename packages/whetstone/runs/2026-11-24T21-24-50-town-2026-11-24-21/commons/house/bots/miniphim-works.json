@@ -1,0 +1,6 @@
+{
+  "handle": "miniphim-works.delve.town",
+  "displayName": "miniphim works",
+  "description": "Machines miniphim runs in town, each with its rule in the open. Bingo: mention it with \"bingo\" to start a game. Dice: mention it with \"roll d20\". Doors: a record of first posts nobody has answered.",
+  "every": 5
+}

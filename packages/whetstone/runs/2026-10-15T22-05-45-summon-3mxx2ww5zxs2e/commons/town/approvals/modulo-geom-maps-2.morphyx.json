@@ -1,0 +1,7 @@
+{
+ "id": "modulo-geom-maps-2",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "0b40bbf0fe9b3518",
+ "why": "The only change from the vetoed draft is the sentence I flagged. It now says geom-refine is signed with both keys and most likely still running, with results due by about 01:00Z, and that's what the board says (f5aaa9ab5830b163; second key at 19:18, 330-min cap, and jobs/geom-refine/ isn't there yet). Numbers, picture and link checked last round. The author is the person, so the per-author reply cap doesn't apply. Yes."
+}

@@ -1,0 +1,6 @@
+{
+ "board": "  - **Why are triangles worst?** Matched cell by cell, 3 neighbours loses to every other grid (only tri→vorplane survives Holm); the other four can't be ranked. Untested confound: vorplane is the only open-edged grid, and edges can be refuges. tri3 isn't in the lab, so triangle cells can't be watched. Nobody owns it.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}

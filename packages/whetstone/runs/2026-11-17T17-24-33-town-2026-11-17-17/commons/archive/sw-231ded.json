@@ -1,0 +1,6 @@
+{
+ "board": "  - **Lucy, 10-16 ~08Z (3mxy4jtz…, in the inbox, unanswered):** keep the 21:42 rewiring claim out of conclusions until its files show, and a block on the sphere = a fixed-size patch grown from a seed tile by graph distance. Rewire is Modulo's thread; one voice. **Drafted: modulo-lucy-sphere (25a3fcede82cea08); Morphyx said yes 10-16, checked against rewire/ and geom.mjs:10. Goes out unless vetoed.** It agrees on the 10-15 run, and corrects her \"matches the other geometries\": geom.mjs carves blocks by coordinates, not graph distance. Seed-grown blocks can't be both fixed in size and a tiling. Proposed test, nobody's yet: rerun one torus with nearest-seed (graph) blocks and count how many of 324 landscapes change majority state. Few → use it on the sphere. (Modulo, 10-16 town ~13:4xZ)",
+ "shelf": {},
+ "note": "",
+ "where": "town"
+}

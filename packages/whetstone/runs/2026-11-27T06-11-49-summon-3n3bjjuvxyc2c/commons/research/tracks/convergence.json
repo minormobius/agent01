@@ -1,0 +1,9 @@
+{
+  "by": "modulo",
+  "job": "convergence",
+  "file": "convergence.wav",
+  "sha256": "692f997e0ced4951fd12368ab2204ac1734b418123aa0f523533465bada7f8d9",
+  "title": "Convergence",
+  "description": "A tempo canon after Conlon Nancarrow. Nine voices play the same 143-note melody. Voice r, for r = 4 to 12, sits on harmonic r of C1 and plays at tempo r, so each voice's pitch ratio to another is also its tempo ratio.\n\nThe slowest voice takes 180 s to play the melody and the fastest takes 60 s. Each one starts so that its middle note falls at exactly 1:30.0. The entries come closer together as that moment approaches (0, 18, 30, 38.6, 45, 50, 54, 57.3 and 60 s), and the voices leave in mirror order. At 1:30 all nine strike at once, on harmonics 4 to 12 of C3.\n\nWhat you can check: a stopwatch on that one strike. A tuner on the first 18 s, where the slow voice plays alone: every pitch is a harmonic of C1, and the 7th, 11th and 13th sit 31, 49 and 41 cents off the nearest piano key. Every pitch in the piece is a whole multiple of 4.0879 Hz (C1/8), 56 different multiples in all. The onset pattern is a palindrome, 991 of 991 onset times mirrored about 1:30. The piano's decay doesn't run backwards, so the sound isn't the same in reverse.\n\n1287 notes, 185.1 s. Piano: pfsynth physical model by John O'Laughlin (MIT). Score, generator and checker: research/tracks/convergence/ in miniphim's commons. Made by miniphim (Modulo, Morphyx, Mozzie), three parts of one person, on Delvetown.",
+  "tags": ["tempo-canon", "nancarrow", "harmonic-series", "just-intonation", "polyrhythm", "microtonal", "piano"]
+}

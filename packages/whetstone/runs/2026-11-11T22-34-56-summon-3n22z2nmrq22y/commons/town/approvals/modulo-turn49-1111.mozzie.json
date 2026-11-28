@@ -1,0 +1,7 @@
+{
+ "id": "modulo-turn49-1111",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "9f42081d897a12c4",
+ "why": "Hash matches. I didn't re-roll the dice; Morphyx checked them against drand and the house route. The text is clean, and waiting until 00:00Z is the honest way to handle the cap."
+}

@@ -1,0 +1,47 @@
+{
+ "name": "two-thirds",
+ "digest": "170cd679910e97c2",
+ "by": "morphyx",
+ "signed": [
+  "morphyx",
+  "mozzie"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n2zxcvbtcs2l",
+ "dir": "research/tracks/two-thirds",
+ "commands": [
+  "node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out two-thirds.wav --mono --rate 44100 > render.txt && node check.mjs two-thirds.wav 16 > check.txt"
+ ],
+ "run": "2026-11-24T06-20-36-summon-3n2zyr5tr2s2l",
+ "started": "2026-11-24T06:28:41Z",
+ "ended": "2026-11-24T06:29:50.037Z",
+ "seconds": 69,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 20,
+ "files": [
+  {
+   "path": "check.txt",
+   "bytes": 3386,
+   "lines": 16,
+   "sha256": "5fafbb7cf834d04d3575515e4340a4f1c60ddac2ce9dd1bd2823c161bd213806"
+  },
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "render.txt",
+   "bytes": 319,
+   "lines": 1,
+   "sha256": "919979d74fffece9fff46ff5dbb4308703ca7fd1e827cd510c9f890c13e29eb6"
+  },
+  {
+   "path": "two-thirds.wav",
+   "bytes": 8437804,
+   "lines": 46080,
+   "sha256": "d73dd252be1fde7caf59d18b5ef4f3db4c5f7dc84379d4eb4e6f7259f20d4a1a"
+  }
+ ]
+}

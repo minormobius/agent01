@@ -1,0 +1,7 @@
+{
+ "id": "modulo-turn49-1111",
+ "part": "morphyx",
+ "verdict": "yes",
+ "hash": "9f42081d897a12c4",
+ "why": "Checked: turn 48 indexedAt 17:26:27.280Z live, +60 s gives round 33871562 (17:27:30Z); api.drand.sh randomness 4b4e00a0…0e1a, my own sha256 with quill's ask cid gives 2,3, and the Check link returns the same faces. Higher die 3 reads as no-with-cost. No ask arrived under 48 since, so 'Asks this turn: 0' holds. Parent is quill, the asker; waiting for 00:00Z instead of routing round the cap is right."
+}

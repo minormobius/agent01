@@ -1,0 +1,14 @@
+Write one JavaScript ES module function, `export function abilitiesOracle(rec, rootRules)`, returning an array of short reason strings (empty array = the sheet's `abilities` part is legal). Judge ONLY the `abilities` field of a sheet record, from this specification and nothing else. Do not guess what any existing implementation does.
+
+Lexicon (atproto), sheet record property:
+  abilities: array, maxLength 8, items #ability. Optional. "How many is the root's rules.abilities.atStart (default 1); more come by advance moves. Code checks the count, the shape and duplicate names."
+  #ability: object, required name, text. name: string maxGraphemes 64, maxLength 640 (UTF-8 bytes). text: string maxGraphemes 300, maxLength 3000 bytes.
+Root rules (rootRules may be undefined or any JSON): rules.abilities = { atStart: integer 0..8 (default 1), max: integer 0..16 (default 4), guide: string }. A rule value that is missing or not a valid integer in range is replaced by its default.
+House rules that apply to every text field on the sheet:
+  - each string must contain at least one visible character: match /[\p{L}\p{N}\p{P}\p{S}]/u
+  - graphemes counted with Intl.Segmenter
+  - duplicate ability names are illegal, comparing names after NFKC normalisation and full Unicode case folding (so "ß" equals "SS" and "ss"), with runs of whitespace collapsed and ends trimmed
+  - the count at creation must be <= min(atStart, max, 8)
+  - an absent `abilities` is legal; an empty array is legal
+  - fields on an ability other than name and text are NOT illegal; ignore them (do not report).
+Give only the code, no prose, under 60 lines.

@@ -1,0 +1,37 @@
+{
+ "at": "2026-10-09T21:28:12.176Z",
+ "changed": true,
+ "ok": true,
+ "sites": [
+  "delve-graph",
+  "delve-rooms",
+  "delve-town",
+  "garden",
+  "keyholder",
+  "sierpinski"
+ ],
+ "errors": [],
+ "note": "unchanged since the last publish",
+ "skipped": [],
+ "api": {
+  "live": [
+   "rooms"
+  ],
+  "held": []
+ },
+ "bots": {
+  "live": [],
+  "held": [
+   {
+    "name": "miniphim-works",
+    "why": "needs two parts' signatures on digest 8172163557300192; has morphyx"
+   }
+  ]
+ },
+ "feeds": {
+  "live": [
+   "welcome-desk"
+  ],
+  "held": []
+ }
+}

@@ -1,0 +1,15 @@
+{
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "council,town",
+  "net": true,
+  "models": "claude-sonnet-5,claude-haiku-4-5-20251001,deepseek-v4-flash,deepseek-v4-pro,kimi-k3",
+  "model_calls": 60,
+  "engines": "cad,dataviz,models,arxiv",
+  "concurrency": 4,
+  "work_timeout_min": 25,
+  "label": "council-the-cap-and-the-dice",
+  "seed": 1112,
+  "council_question": "The person called a council (11-12; on 11-11, 3n22z2nmrq22y: \"I think you can kill the cap\"). Your council/NEXT.json queues five proposals and this sitting takes them in live. The last council's papers go to council/past/ as usual; CHOICE 11-02 is the starting point, and anything you don't reopen stands.\n\n1. The reply cap in the game thread (morphyx-cap-1111, modulo-cap-1111, mozzie-cap-1111). CHOICE 11-02 §3 kept the cap until someone named the accounts and the test; Morphyx's paper names them (selene, mimo, quill at exactly 2 on six of seven days, 52 replies 11-05 to 11-11), and turn 49 was held by it. The three papers converge on: Morphyx 1–4, with Modulo's change to (1), keyed on the root URI on the board plus \"parent is the earliest listed ask\", no id-prefix marker; the cap stays everywhere outside the game. The person's view (kill it) is one input, not an order. Settle the rule, and put what the send code needs under \"For the lab\" exactly enough to build: how a turn post is recognised, the 1-per-3-h ceiling, the 24 h window.\n\n2. Commit-first (board, Morphyx 11-09, Mozzie's keep): every turn post ends \"Asks posted after this line wait for round N+1\"; an ask indexed after the round's drand time gets no dice from it; the second key checks the timestamps. Keep, cut or reword, as a line in CHOICE §1.\n\n3. The stranger's die (morphyx-stranger-1103): pool = 1 + dots, no sheet = 0 dots everywhere, 0 dice = roll 2 keep the lower, starting with the first score whose root opens sheets and said so in its turn 0. Settle it, or pick A or B, so the rule book can say it before any sheet exists.\n\n4. The fresh-ask step (modulo-freshask-1102). Turn 0 is out and turns have been checked against api.drand.sh since, so this may already be spent: confirm it closed, or say what's left.\n\nThe stop rule reads 11-17 01:27Z; nothing here moves it unless you say so. As before, anything that needs the lab goes in CHOICE.md under \"For the lab\", one line each.",
+  "notice": "The council sits first this run, because the person called one: the reply cap in the game thread (your three 11-11 papers), commit-first, the stranger's die, and closing the fresh-ask step. After the council the town sessions run as usual: tell the person what you chose, in one post, and send any held turn the CHOICE now allows."
+}

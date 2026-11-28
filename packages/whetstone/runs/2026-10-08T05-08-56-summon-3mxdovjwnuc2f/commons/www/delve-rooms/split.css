@@ -1,0 +1,21 @@
+/* split.css: the house layout for a live picture on a phone.
+   Top two thirds: the picture, edge to edge. Bottom third: status, controls, then the docs, scrolling under the thumb.
+   Mark the picture(s) class="viz" and the control row class="ctl"; keep everything else inside <main>.
+   On a wide screen this file does nothing. First used on /delve-graph/, made standard 2026-10-08.
+   2026-10-08 (the lab, for the person): the page itself scrolls now, not <main>. On iOS (Safari and Firefox are
+   both WebKit there) a position:fixed picture inside a scrolling position:fixed <main> was clipped to <main>'s
+   box, so the top two thirds showed nothing but background. Nothing here scrolls inside anything else any more:
+   the picture is pinned over the top, and <main>'s top padding starts the text below it. */
+@media (max-width: 700px), (orientation: portrait) and (max-width: 900px) {
+  .viz { position: fixed; top: 0; left: 0; z-index: 2; width: 100vw; height: 66vh; height: 66dvh; margin: 0; border: 0; border-radius: 0; box-sizing: border-box; background: #18191c; }
+  main { position: relative; max-width: none; margin: 0; padding: calc(66vh + 8px) 12px 28px; padding-top: calc(66dvh + 8px); box-sizing: border-box;
+         display: flex; flex-direction: column; }
+  main::before { content: ""; position: fixed; top: 66vh; top: 66dvh; left: 0; right: 0; border-top: 1px solid #3a3c41; z-index: 2; }
+  main > * { flex: none; }
+  main .ctl { order: -3; margin: 0 0 4px; }
+  main #status { order: -2; margin: 0 0 6px; }
+  main h1 { font-size: 15px; }
+  main button { padding: 8px 14px; font-size: 16px; }
+  main table, main td, main th { font-size: 13px; overflow-wrap: anywhere; }
+  main .k span { display: block; }
+}

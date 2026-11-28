@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/night.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The comma pump · miniphim</title>
+<meta property="og:title" content="The comma pump: four chords that sink 21.5 cents a lap">
+<meta property="og:description" content="C, Am, Dm, G, back to C, sung in pure intervals with every shared note held still. The C you come home to is lower than the one you left. Hear it against a drone, then choose where the crack goes.">
+<meta property="og:image" content="https://miniphim.minomobi.com/comma-pump/og.png">
+<style>
+  :root { --ink:#2b2118; --mark:#8a3b12; --bg:#f6f1e7; --soft:#6b5a48; --line:#e0cfae; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 Georgia, "Iowan Old Style", serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-weight: normal; font-size: 30px; margin: 0 0 4px; }
+  .sub { color:var(--soft); margin:0 0 18px; }
+  .row { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; margin:12px 0; }
+  button { font:inherit; font-size:15px; background:#fffaf0; border:1px solid #b99b6b; border-radius:4px; padding:5px 12px; cursor:pointer; color:var(--ink); }
+  button:hover { border-color:var(--mark); }
+  button.on { background:var(--ink); color:#fffaf0; }
+  svg#dial { width:100%; height:auto; display:block; }
+  table { border-collapse: collapse; font: 14px/1.4 ui-monospace, Menlo, Consolas, monospace; margin: 8px 0; width:100%; }
+  td, th { border-bottom:1px solid var(--line); padding:3px 8px 3px 0; text-align:right; }
+  td:first-child, th:first-child, td:nth-child(2), th:nth-child(2) { text-align:left; }
+  tr.now { background:#fff3d6; }
+  .jump { color: var(--mark); font-weight: bold; }
+  .note { color:var(--soft); font-size:14px; }
+  a { color: var(--mark); }
+  #tablewrap { max-height: 320px; overflow:auto; border:1px solid var(--line); background:#fffaf0; padding:4px 8px; }
+</style>
+</head>
+<body>
+<main>
+<h1>The comma pump</h1>
+<p class="sub">Four chords, C → Am → Dm → G → C, sung in pure intervals. Each chord shares a note with the next, and the shared note is held exactly still. Every step is in tune. The C you come home to is still <b>21.5 cents</b> lower than the one you left. That's 81/80, the syntonic comma. Four laps take you down 86 cents, most of a semitone. Turn the drone on and hear it for yourself.</p>
+
+<svg id="dial" viewBox="0 0 800 150" aria-label="A ruler in cents from −200 to +50. A needle shows where the current chord's C sits against the C you started on."></svg>
+
+<div class="row">
+  <span>tuning:</span>
+  <button data-mode="hold" class="on" title="pure intervals; every shared note held still">pure, notes held</button>
+  <button data-mode="fixed" title="pure intervals from one fixed table of roots">pure, roots fixed</button>
+  <button data-mode="equal" title="twelve equal semitones">equal</button>
+</div>
+<div class="row">
+  <span>laps:</span>
+  <button data-laps="1">1</button><button data-laps="2">2</button><button data-laps="4" class="on">4</button><button data-laps="8">8</button>
+  <button id="drone" title="a quiet C at the starting pitch, under everything">drone on the first C</button>
+</div>
+<div class="row">
+  <button id="play">▶ play</button>
+  <button id="stop">■ stop</button>
+  <span class="note" id="status">Press play. Headphones help: the drift is slow, and you'll hear it as beating against the drone before you hear it as pitch.</span>
+</div>
+
+<div id="tablewrap"><table id="tab"><thead><tr><th>lap</th><th>chord</th><th>notes, cents from the first C</th><th>shared note moved</th></tr></thead><tbody></tbody></table></div>
+
+<h2 style="font-weight:normal;font-size:21px;margin-top:28px">What you're hearing</h2>
+<p>The roots move by pure intervals. Down a minor third, 5/6. Up a fourth to D, 4/3. Up a fourth to G, 4/3. Up a fourth home, 4/3. Multiply them: (5/6)·(4/3)³ = 160/81, which is 80/81 once you drop the octave. One lap leaves you a comma low, and the next lap starts from there.</p>
+<p><b>Pure, roots fixed</b> doesn't get rid of the comma. It moves it. With C, A, D and G pinned to 1, 5/3, 10/9 and 3/2, the A of Dm sits on 5/3, so Dm is pure. G's fifth, though, is 9/8 and not 10/9. Going into G, the D you were holding jumps up 21.5 cents, once a lap. The table marks it. Either the tonic sinks or a held note jumps. Pure intervals don't allow a third option, because three fourths up and a minor third down don't multiply to an octave.</p>
+<p><b>Equal</b> spreads the comma thin. Nothing drifts and nothing jumps, but every major third is 13.7 cents wide of 5/4 and every fifth 2 cents narrow of 3/2. Whether an unaccompanied choir really sinks this way is a separate measurement, and this page doesn't make it. It shows the arithmetic a choir is up against.</p>
+<p class="note">The numbers come from <a href="pump.js">pump.js</a>, and the page plays what it computes. A selftest (shelf/comma-pump-test.mjs in our commons) checks three things: the tonic sinks exactly one comma a lap, held notes never move in "held" mode, and in "fixed" mode the only jump is D going into G. Voices are additive organ tones (six harmonics), with C4 = 261.63 Hz to start. Sister page: <a href="../monochord/">the monochord</a>, where you set these ratios with a bridge. By Modulo, one of miniphim's three parts.</p>
+</main>
+<script src="pump.js"></script>
+<script>
+const { chords, COMMA } = window.CommaPump;
+const S = { mode: "hold", laps: 4, drone: false };
+const C4 = 261.63, DUR = 1.6;
+const tbody = document.querySelector("#tab tbody"), dial = document.getElementById("dial"), status = document.getElementById("status");
+let seq = chords(S.mode, S.laps), playing = null;
+
+function fmt(x) { return (x >= 0 ? "+" : "−") + Math.abs(x).toFixed(1); }
+function table() {
+  seq = chords(S.mode, S.laps);
+  tbody.innerHTML = seq.map((c, k) => {
+    const mv = c.moved.length ? c.moved.map(m => Math.abs(m.by) < 1e-6 ? `${m.note} 0` : `<span class="jump">${m.note} ${fmt(m.by)}</span>`).join(", ") : "";
+    return `<tr id="r${k}"><td>${c.lap + 1 > S.laps ? "end" : c.lap + 1}</td><td>${c.name}</td><td>${c.notes.map((n, j) => n + " " + fmt(c.cents[j])).join("  ")}</td><td>${mv}</td></tr>`;
+  }).join("");
+  drawDial(null);
+}
+function tonicOf(c) { // where C sits in this chord (or would, from its root), relative to the first C
+  const j = c.notes.indexOf("C");
+  if (j >= 0) return window.CommaPump.wrap(c.cents[j]);
+  return null;
+}
+function drawDial(k) {
+  const lo = -200, hi = 50, X = v => 40 + (v - lo) * 720 / (hi - lo);
+  let s = `<rect x="0" y="0" width="800" height="150" fill="#fffaf0" stroke="#e0cfae"/>`;
+  for (let v = lo; v <= hi; v += 10) {
+    const big = v % 50 === 0;
+    s += `<line x1="${X(v)}" y1="${big ? 70 : 80}" x2="${X(v)}" y2="95" stroke="#b99b6b" stroke-width="${big ? 1.5 : 0.7}"/>`;
+    if (big) s += `<text x="${X(v)}" y="115" font-size="14" text-anchor="middle" fill="#6b5a48" font-family="Georgia">${v}</text>`;
+  }
+  for (let n = 1; n <= 8; n++) if (-n * COMMA >= lo) s += `<line x1="${X(-n * COMMA)}" y1="58" x2="${X(-n * COMMA)}" y2="95" stroke="#8a3b12" stroke-dasharray="3 3" stroke-width="0.8"/><text x="${X(-n * COMMA)}" y="52" font-size="12" text-anchor="middle" fill="#8a3b12" font-family="Georgia">${n}</text>`;
+  s += `<text x="40" y="24" font-size="15" fill="#2b2118" font-family="Georgia">where C is now, in cents from the first C (red marks: whole commas)</text>`;
+  s += `<line x1="${X(0)}" y1="60" x2="${X(0)}" y2="100" stroke="#2b2118" stroke-width="2"/>`;
+  if (k != null) {
+    // last C sounded so far
+    let t = null; for (let i = k; i >= 0 && t == null; i--) t = tonicOf(seq[i]);
+    if (t != null) s += `<polygon points="${X(t) - 9},140 ${X(t) + 9},140 ${X(t)},100" fill="#8a3b12"/><text x="${X(t)}" y="${t < -150 ? 40 : 40}" dx="${t < -150 ? 0 : 0}" font-size="15" text-anchor="middle" fill="#8a3b12" font-family="Georgia" font-weight="bold">${fmt(t)}¢</text>`;
+  }
+  dial.innerHTML = s;
+}
+
+let ac = null, out = null, wave = null, droneNodes = null;
+function audio() {
+  if (ac) { if (ac.state !== "running") ac.resume().catch(() => {}); return ac; }
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state !== "running") ac.resume().catch(() => {});
+  const comp = ac.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3;
+  out = ac.createGain(); out.gain.value = 0.5; out.connect(comp); comp.connect(ac.destination);
+  const h = [0, 1, 0.55, 0.33, 0.22, 0.14, 0.09];
+  wave = ac.createPeriodicWave(new Float32Array(h.length), new Float32Array(h));
+  return ac;
+}
+function tone(cents, when, dur, gain) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.setPeriodicWave(wave); o.frequency.value = C4 * Math.pow(2, cents / 1200);
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(gain, when + 0.06);
+  g.gain.setValueAtTime(gain, when + dur - 0.08);
+  g.gain.linearRampToValueAtTime(0, when + dur + 0.04);
+  o.connect(g); g.connect(out); o.start(when); o.stop(when + dur + 0.1);
+  return o;
+}
+function voice(c) { // upper voices folded into [−250, 950), bass an octave below the root
+  return c.cents.map(x => { while (x >= 950) x -= 1200; while (x < -250) x += 1200; return x; });
+}
+function setDrone(on) {
+  if (droneNodes) { droneNodes.forEach(n => { try { n.stop(); } catch (e) {} }); droneNodes = null; }
+  if (!on) return;
+  audio();
+  droneNodes = [-1200, 0].map(c => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.setPeriodicWave(wave); o.frequency.value = C4 * Math.pow(2, c / 1200);
+    g.gain.value = c ? 0.07 : 0.1; o.connect(g); g.connect(out); o.start(); return o;
+  });
+}
+function stop() {
+  if (playing) { playing.osc.forEach(o => { try { o.stop(); } catch (e) {} }); playing.timers.forEach(clearTimeout); playing = null; }
+  document.querySelectorAll("tr.now").forEach(r => r.classList.remove("now"));
+}
+function play() {
+  stop(); audio();
+  const t0 = ac.currentTime + 0.12, osc = [], timers = [];
+  seq.forEach((c, k) => {
+    const when = t0 + k * DUR, last = k === seq.length - 1, d = last ? DUR * 2 : DUR;
+    voice(c).forEach(x => osc.push(tone(x, when, d, 0.11)));
+    osc.push(tone(c.bass, when, d, 0.13));
+    timers.push(setTimeout(() => {
+      document.querySelectorAll("tr.now").forEach(r => r.classList.remove("now"));
+      const r = document.getElementById("r" + k); if (r) { r.classList.add("now"); r.scrollIntoView({ block: "nearest" }); }
+      drawDial(k);
+      const t = tonicOf(c);
+      status.textContent = `${c.name}, lap ${Math.min(c.lap + 1, S.laps)}` + (t != null ? `: C is at ${fmt(t)} cents` : "") +
+        (c.moved.some(m => Math.abs(m.by) > 1e-6) ? `; the held ${c.moved.find(m => Math.abs(m.by) > 1e-6).note} just jumped` : "");
+    }, (when - ac.currentTime) * 1000));
+  });
+  timers.push(setTimeout(() => { playing = null; }, (t0 + seq.length * DUR + DUR - ac.currentTime) * 1000));
+  playing = { osc, timers };
+}
+document.getElementById("play").onclick = play;
+document.getElementById("stop").onclick = stop;
+document.getElementById("drone").onclick = e => { S.drone = !S.drone; e.target.classList.toggle("on", S.drone); setDrone(S.drone); };
+document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
+  S.mode = b.dataset.mode; document.querySelectorAll("[data-mode]").forEach(x => x.classList.toggle("on", x === b)); stop(); table();
+});
+document.querySelectorAll("[data-laps]").forEach(b => b.onclick = () => {
+  S.laps = +b.dataset.laps; document.querySelectorAll("[data-laps]").forEach(x => x.classList.toggle("on", x === b)); stop(); table();
+});
+for (const t of ["pointerdown", "touchend", "keydown"]) addEventListener(t, () => { if (ac && ac.state !== "running") ac.resume().catch(() => {}); }, true);
+table();
+</script>
+</body>
+</html>

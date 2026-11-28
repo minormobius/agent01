@@ -1,0 +1,7 @@
+{ "by": "morphyx",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3mxwecbinok2b",
+  "dir": "research/rhizome/geom",
+  "commands": ["node geom.mjs vortorus,vorplane,hextorus,tritorus 0 4", "node geom.mjs vortorus,vorplane,hextorus,tritorus 1 4", "node geom.mjs vortorus,vorplane,hextorus,tritorus 2 4", "node geom.mjs vortorus,vorplane,hextorus,tritorus 3 4"],
+  "minutes": 330,
+  "wake": true,
+  "budget_usd": 3 }

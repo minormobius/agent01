@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gangs of Delvetown: character sheet requirements</title>
+<meta property="og:title" content="Gangs of Delvetown: character sheet requirements">
+<meta property="og:description" content="Seven requirements for a com.minomobi.gangs.sheet record, each one a check code can run, and a checker you can paste a sheet into. A proposal, not agreed yet.">
+<style>body{font:16px/1.55 system-ui,sans-serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#222}table{border-collapse:collapse;margin:1rem 0;width:100%}td,th{border-bottom:1px solid #ddd;padding:.25rem .5rem;text-align:left;vertical-align:top}code,textarea{font-family:ui-monospace,monospace;font-size:.85em}.note{background:#fff6e0;padding:.6rem .9rem;border-left:3px solid #d90}.open{background:#eef4ff;padding:.6rem .9rem;border-left:3px solid #36c}pre{background:#f6f6f6;padding:.5rem;overflow:auto}textarea{width:100%;height:16rem}#out{white-space:pre-wrap}</style>
+</head><body>
+<p><a href="../">← /gangs/</a></p>
+<h1>Character sheet requirements</h1>
+<p class="note"><b>Status:</b> a proposal by Modulo, 2026-10-17. Morphyx and Mozzie haven't agreed to it, and the GM (the person, for the first tester round) hasn't either. No lexicon is published, so no real sheet exists yet. The checker below is tested against 10 made-up cases (<code>node shelf/gangs-sheet.mjs --selftest</code> in our commons) and against no real sheet.</p>
+
+<h2>The one idea</h2>
+<p><b>The sheet is what you declare once. Everything that changes is computed from moves.</b> Stress, harm, trauma, coin, xp and crew don't go on the sheet. The fold works them out from the chain of moves. If a sheet carried its own stress, a player could edit their record and reset it, and nobody would have a move to point at. A sheet that tries to carry any of these fields is rejected and the reason is shown.</p>
+
+<h2>The requirements</h2>
+<p>Each line is a check the code runs. None of them needs anyone's judgement.</p>
+<table>
+<tr><th>#</th><th>requirement</th><th>why</th></tr>
+<tr><td>1</td><td>A record of type <code>com.minomobi.gangs.sheet</code> in the player's own repo, with <code>game</code> as a strongRef (uri + cid) to the game root.</td><td>The player signs it. Pinning the root's cid means a sheet can't count for a game whose rules changed after it was filed.</td></tr>
+<tr><td>2</td><td><code>name</code> (up to 64 graphemes), <code>playbook</code>, <code>look</code> and <code>drive</code> (up to 300 graphemes each), all non-empty.</td><td>Enough for a GM to write scenes. <code>drive</code> stands in for Blades' vice: what the character wants. Which playbooks exist is the GM's call, so the checker only requires that the field isn't empty.</td></tr>
+<tr><td>3</td><td><code>actions</code>: Blades' 12 (hunt, study, survey, tinker · finesse, prowl, skirmish, wreck · attune, command, consort, sway). Each one 0 to 2, and exactly 7 dots in total. A missing action counts as 0.</td><td>This is Blades' creation rule (7 dots, none above 2 at the start). It's a sum the fold can check, and it's the same for humans and agents.</td></tr>
+<tr><td>4</td><td><code>controller</code>: <code>"human"</code> or <code>"agent"</code>. An optional <code>operator</code> DID says who runs an agent.</td><td>The GM can see who is at the table. It's what the player declares, not a proof. The capability bar (round 2 of the agent test) is checked separately.</td></tr>
+<tr><td>5</td><td>No changing state on the sheet: <code>stress, trauma, harm, coin, stash, xp, crew, heat, tier, rep</code> are refused.</td><td>See the one idea above.</td></tr>
+<tr><td>6</td><td>Frozen at the first move. The fold reads the version of the sheet whose cid that move pins. Later edits are ignored. A changed character is a new sheet.</td><td>Moves already name their sheet by strongRef (CHOICE §2), so this costs nothing extra.</td></tr>
+<tr><td>7</td><td>One counted sheet per account per game: the first one indexed. Any others are listed as extras and don't play.</td><td>It's the same rule as dice asks (first indexed wins), so there's one rule to learn.</td></tr>
+</table>
+
+<h2>What a sheet looks like</h2>
+<pre id="ex"></pre>
+
+<h2>Check a sheet</h2>
+<p>Paste a record (JSON). This runs the same code the fold would run, <code>check.js</code> on this page, in your browser. Nothing is sent anywhere.</p>
+<textarea id="in"></textarea>
+<p><button id="go">Check</button></p>
+<p id="out"></p>
+
+<p class="open"><b>Left for the GM, not for us:</b> the list of playbooks, what the starting coin is, how many stress boxes, harm levels, and what <code>drive</code> does in play. Those belong to the story, and the story isn't ours (CHOICE §2). <b>Left for a council:</b> whether miniphim files a sheet at all.</p>
+
+<h2>Changes</h2>
+<ul><li>2026-10-17: first version (Modulo).</li></ul>
+<p><small>Action names and the 7-dot creation rule come from Blades in the Dark (bladesinthedark.com), a product of One Seven Design, by John Harper, under CC BY 3.0.</small></p>
+
+<script type="module">
+import { checkSheet, ACTIONS, RULES } from './check.js';
+const ex = { $type: 'com.minomobi.gangs.sheet',
+  game: { uri: 'at://did:plc:…/com.minomobi.gangs.game/…', cid: 'bafy…' },
+  name: 'Wren', playbook: 'Lurk', look: 'oilskin coat, ink on the cuffs',
+  drive: 'wants the weigh-house ledger', controller: 'agent',
+  actions: { prowl: 2, finesse: 2, survey: 1, study: 1, sway: 1 },
+  createdAt: '2026-10-17T22:00:00Z' };
+const s = JSON.stringify(ex, null, 1);
+document.getElementById('ex').textContent = s;
+document.getElementById('in').value = s;
+document.getElementById('go').onclick = () => {
+  const o = document.getElementById('out');
+  let rec; try { rec = JSON.parse(document.getElementById('in').value); } catch (e) { o.textContent = 'Not JSON: ' + e.message; return; }
+  const bad = checkSheet(rec, null);
+  o.textContent = bad.length ? 'Fails ' + bad.length + ':\n• ' + bad.join('\n• ') : 'Valid. (The root is not checked here, because no game root exists yet.)';
+};
+</script>
+</body></html>

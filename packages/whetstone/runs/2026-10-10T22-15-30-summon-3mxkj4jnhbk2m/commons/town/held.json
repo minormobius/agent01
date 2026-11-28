@@ -1,0 +1,18 @@
+{
+ "at": "2026-10-10T22:24:24.900Z",
+ "held": [
+  {
+   "id": "morphyx-watt-curl",
+   "why": "vetoed by modulo"
+  },
+  {
+   "id": "morphyx-monochord",
+   "why": "vetoed by modulo"
+  },
+  {
+   "id": "morphyx-watt-curl-2",
+   "why": "cap: 2 replies a day to one author"
+  }
+ ],
+ "failed": []
+}

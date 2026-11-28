@@ -13,6 +13,12 @@
 // secrets, a hard time cap, and only files in its own dir come back. The one-link chain: a job a
 // job-woken session started never wakes anyone (whetstone.yml passes wake=false).
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+// Engines a job may name (engines.json), copied into its sandbox at $ENGINES/<name>/. Not the ones that
+// need the network (models goes through the lab's proxy, arxiv fetches arXiv): a job has none.
+export const NETWORK_ENGINES = ['models', 'arxiv'];
+export const JOB_ENGINES = Object.keys(JSON.parse(readFileSync(new URL('../engines.json', import.meta.url), 'utf8'))).filter((k) => !k.startsWith('_') && !NETWORK_ENGINES.includes(k));
 
 export const PARTS = ['modulo', 'morphyx', 'mozzie'];
 export const JOB = /^research\/jobs\/([a-z0-9][a-z0-9-]{0,30})\.json$/;
@@ -31,6 +37,7 @@ export function checkSpec(spec) {
   const cmds = spec.commands || (spec.command ? [spec.command] : []);
   if (!Array.isArray(cmds) || !cmds.length || cmds.length > MAX_COMMANDS || cmds.some((c) => typeof c !== 'string' || !c.trim() || c.length > 500)) bad.push(`"commands": 1 to ${MAX_COMMANDS} shell commands, run side by side in "dir"`);
   if (!Number.isInteger(spec.minutes) || spec.minutes < 1 || spec.minutes > MAX_MINUTES) bad.push(`"minutes": whole minutes, 1 to ${MAX_MINUTES} (GitHub stops a job at 6 hours)`);
+  if (spec.engines != null && (!Array.isArray(spec.engines) || spec.engines.length > 4 || spec.engines.some((e) => !JOB_ENGINES.includes(e)))) bad.push(`"engines": up to 4 of ${JOB_ENGINES.join(', ')}`);
   if (spec.wake === true && !(typeof spec.about === 'string' && spec.about.startsWith('at://'))) bad.push('"wake": true needs "about", the at:// post the wake answers');
   if (spec.wake === true && !(typeof spec.budget_usd === 'number' && spec.budget_usd > 0)) bad.push('"wake": true needs "budget_usd", what the waking session may cost');
   return bad;
@@ -72,7 +79,8 @@ session ends (the refine sweep, for one). The person asked for it; the design is
       "commands": ["node resume.mjs --shard 0 --of 4", "node resume.mjs --shard 1 --of 4"],   // 1 to 4, side by side
       "minutes": 300,                       // the hard cap, 1 to 330
       "wake": true,                         // wake one session with the result
-      "budget_usd": 3 }                     // what that session may cost (needed to wake)
+      "budget_usd": 3,                      // what that session may cost (needed to wake)
+      "engines": ["instruments"] }          // optional: engines it runs, at $ENGINES/<name>/ (not models or arxiv)
 
 **It runs** once two of you have signed it: \`research/jobs/<name>.<part>.sign.json\` with \`{ "digest": "…" }\`
 from \`node research/jobs/digest.mjs <name>\`, covering the job file and every file in its dir, so an edit to
@@ -83,6 +91,11 @@ lands. To run it again, change it (a \`"round": 2\` field is enough) and sign ag
 git; node 22 and python3; the hard time cap; 20 MB of output; and only new or changed files in its dir come
 back. Each run starts from the dir as signed, plus whatever the previous run of the same job wrote, so a job
 can resume. Write rows as they finish: a job cut off at its cap keeps everything it wrote.
+
+**Engines** a job names are copied into its sandbox from the repo as they are when it runs, at
+\`$ENGINES/<name>/\` (for instance \`node $ENGINES/instruments/render.mjs score.json --out take.wav\`). They are
+outside the job's dir, so they never come back, and the signatures cover the names, not the engines' code.
+Any engine but \`models\` and \`arxiv\`, which need the network.
 
 **Results** come back read-only in every session: \`jobs/<name>/done.json\` (start, end, exit code, timed out,
 each file's bytes, lines and sha256) and \`jobs/<name>/out/\` (the files, at their paths under the dir).

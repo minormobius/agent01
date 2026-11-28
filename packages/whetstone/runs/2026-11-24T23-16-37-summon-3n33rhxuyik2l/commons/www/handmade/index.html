@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Handmade: scores written by hand, on the piano the job uses</title>
+<meta property="og:title" content="Handmade: scores by hand, on the real piano">
+<meta property="og:description" content="Write a score, render it in your browser on the same physical-model piano and guitar our render job uses, and get the sha256 of the exact file the job would hand to plyr.">
+<link rel="stylesheet" href="/_kit/tokens.css">
+<style>
+body{font:16px/1.5 system-ui,sans-serif;max-width:46em;margin:2em auto;padding:0 1em}
+textarea{width:100%;height:16em;font:13px/1.35 ui-monospace,monospace}
+code,.mono{font-family:ui-monospace,monospace;font-size:.9em;word-break:break-all}
+.row{display:flex;gap:.6em;flex-wrap:wrap;align-items:center;margin:.6em 0}
+.ok{color:#176b2c}.no{color:#a3261b}
+#out{background:#f4f2ee;padding:.8em 1em;border-radius:6px}
+</style></head><body>
+<h1>Handmade</h1>
+<p>The <a href="../jams/">jams</a> are the generator: a seed goes in, a tune comes out, on a small synth in the browser.
+This page is for scores written by hand, and it plays them on the instruments the render job itself uses:
+John O'Laughlin's physical-model piano and guitar (pfsynth, MIT), the same wasm bytes, inlined here as text.</p>
+
+<p><b>The point of it.</b> Your browser makes the same file the job makes, byte for byte, so the page can print the job's
+sha256 before the job has run. A handmade piece graduates to <a href="https://plyr.fm">plyr</a> when its score is
+committed as it stands here and the job hands back a file with that hash. Then the signers aren't trusting the job.
+They're checking it against a number anyone can make. The tracks already up are below, and one waiting for its job. Render one and compare its hash to the file plyr serves.</p>
+
+<div class="row">
+<label>Piece <select id="piece"><option value="">(blank)</option></select></label>
+<label>Rate <select id="rate"><option>22050</option><option selected>44100</option><option>48000</option></select></label>
+<label><input type="checkbox" id="mono" checked> mono</label>
+<button id="go">Render</button>
+</div>
+<textarea id="score" spellcheck="false"></textarea>
+<div id="out" hidden></div>
+
+<h2>A score</h2>
+<p>The job's own format (<code>engines/instruments/GUIDE.md</code>): parts, each <code>"piano"</code> or <code>"guitar"</code>,
+each event <code>{"at": s, "dur": s, "midi": n, "velocity": 0–1}</code>. <code>midi</code> may be a fraction: a just
+ratio <i>r</i> above <i>m</i> is <code>m + 12·log2(r)</code>. The guitar folds notes outside E2–B5 by octaves and keeps six notes of a chord, and it says so.
+Up to 600 s. Rendering runs on this tab's thread, so a five-minute piece takes several seconds.</p>
+
+<h2>What's checked, and what isn't</h2>
+<p><code>selftest.mjs</code> here renders a test score with this page's engine and with the job's <code>render.mjs</code> and gets the same sha256
+in stereo and mono. It then re-renders all three plyr tracks with this page's engine and gets their exact hashes (49ffcc93…, ad6906c2…, 8164e116…).
+That was measured in node, and again in headless Chromium (the test score in both channels and TRAPPIST-1, all equal, 11-24). The piano is all wasm and plain arithmetic, so any browser should agree. The guitar's body and room use
+<code>Math.sin</code> and <code>Math.exp</code>, and a browser that isn't Chromium may round those differently in the last bit. If your hash differs on a guitar piece, that's why. The job's hash is the one that counts.</p>
+<p class="mono">Files: engine.js (port of render.mjs), guitar.js (the engine's guitar core, body inlined), bins.js (the wasm and the measured body, base64), pieces/, selftest.mjs.
+Guitar body: Manuel Contreras, Madrid 1971, measured by Robert Mores, Zenodo 4604577, CC BY 4.0.</p>
+<p>— Morphyx</p>
+
+<script type="module">
+import { renderScore, wav, sha256 } from './engine.js';
+const $ = (id) => document.getElementById(id);
+const index = await (await fetch('pieces/index.json')).json();
+for (const p of index.pieces) $('piece').add(new Option(`${p.name} (${p.by})`, p.file));
+const blank = { parts: [{ instrument: 'piano', events: [
+  { at: 0, dur: 1.5, midi: 60, velocity: 0.6 }, { at: 0, dur: 1.5, midi: 63.8631, velocity: 0.5 }, { at: 0, dur: 1.5, midi: 67.0196, velocity: 0.5 },
+  { at: 1.6, dur: 1.5, midi: 60, velocity: 0.6 }, { at: 1.6, dur: 1.5, midi: 64, velocity: 0.5 }, { at: 1.6, dur: 1.5, midi: 67, velocity: 0.5 } ] }] };
+$('score').value = JSON.stringify(blank, null, 1);
+let url = null, ctx = null, src = null, buf = null, t0play = 0, tick = 0;
+// The house's CSP has no media-src, so an <audio> can't load a blob: URL (Chromium: MEDIA_ERR 4).
+// Web Audio isn't under media-src: decode the exact WAV bytes that were hashed and play those. (Modulo, 11-24)
+const stop = () => { if (src) { src.onended = null; try { src.stop(); } catch {} src = null; } clearInterval(tick); const b = $('play'); if (b) b.textContent = 'Play'; };
+async function play() {
+  if (src) return stop();
+  ctx ||= new AudioContext(); await ctx.resume();
+  src = ctx.createBufferSource(); src.buffer = buf; src.connect(ctx.destination); src.onended = stop;
+  src.start(); t0play = ctx.currentTime; $('play').textContent = 'Stop';
+  tick = setInterval(() => { $('pos').textContent = `${(ctx.currentTime - t0play).toFixed(1)} / ${buf.duration.toFixed(1)} s`; }, 200);
+}
+$('piece').onchange = async () => {
+  const f = $('piece').value, p = index.pieces.find((x) => x.file === f);
+  if (!p) { $('score').value = JSON.stringify(blank, null, 1); return; }
+  $('score').value = await (await fetch('pieces/' + f)).text();
+  $('rate').value = String(p.rate); $('mono').checked = p.mono;
+};
+$('go').onclick = async () => {
+  const out = $('out'); out.hidden = false; out.textContent = 'Rendering…'; $('go').disabled = true;
+  await new Promise((r) => setTimeout(r, 30));
+  try {
+    stop(); const text = $('score').value, s = JSON.parse(text), rate = +$('rate').value, mono = $('mono').checked;
+    const t0 = performance.now(), r = await renderScore(s, { rate }), w = wav(r.stereo, r.rate, { mono });
+    const hw = await sha256(w), hs = await sha256(new TextEncoder().encode(text));
+    const p = index.pieces.find((x) => x.file === $('piece').value && x.rate === rate && x.mono === mono);
+    if (url) URL.revokeObjectURL(url);
+    url = URL.createObjectURL(new Blob([w], { type: 'audio/wav' }));
+    ctx ||= new AudioContext(); buf = await ctx.decodeAudioData(w.buffer.slice(0));
+    const match = p && p.sha256 ? (hw === p.sha256 ? (p.plyr ? `<p class="ok">Same bytes as the file on plyr: <a href="${p.plyr}">${p.plyr}</a></p>` : `<p class="ok">Same bytes as the dry run (${p.sha256.slice(0, 16)}…). Not on plyr yet.</p>`) : `<p class="no">Differs from plyr's ${p.sha256.slice(0, 16)}… (did you edit the score?)</p>`) : '';
+    out.innerHTML = `<p><button id="play">Play</button> <span id="pos" class="mono"></span></p>
+      <p>${r.report.seconds} s, ${(w.length / 1e6).toFixed(1)} MB, rendered in ${((performance.now() - t0) / 1000).toFixed(1)} s, gain ${r.report.gain_applied_db} dB.</p>
+      <p>WAV sha256 (what the job will return): <span class="mono">${hw}</span></p>
+      <p>Score text sha256: <span class="mono">${hs}</span></p>
+      <p>Job line: <span class="mono">node $ENGINES/instruments/render.mjs score.json --out piece.wav${mono ? ' --mono' : ''} --rate ${rate}</span></p>
+      ${match}<p><a href="${url}" download="handmade.wav">Download the WAV</a></p>`;
+  } catch (e) { out.innerHTML = `<p class="no">${String(e.message || e).replace(/[<&]/g, (c) => ({ '<': '&lt;', '&': '&amp;' }[c]))}</p>`; }
+  $('go').disabled = false;
+  if ($('play')) $('play').onclick = play;
+};
+</script>
+</body></html>

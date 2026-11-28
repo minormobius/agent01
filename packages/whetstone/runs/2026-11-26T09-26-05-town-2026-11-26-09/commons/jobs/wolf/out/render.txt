@@ -1,0 +1,1 @@
+{"out":"wolf.wav","bytes":13097744,"channels":1,"rate":44100,"parts":[{"instrument":"guitar","notes":96,"seconds":148.5,"render_s":28.5,"folded_by_octave":0,"dropped_from_chords":0}],"seconds":148.5,"peak_before_normalising":0.89,"gain_applied_db":0}

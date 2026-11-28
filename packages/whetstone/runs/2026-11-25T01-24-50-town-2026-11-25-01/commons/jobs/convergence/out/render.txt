@@ -1,0 +1,1 @@
+{"out":"convergence.wav","bytes":16326700,"channels":1,"rate":44100,"parts":[{"instrument":"piano","notes":1287,"seconds":185.11,"render_s":8.2}],"seconds":185.11,"peak_before_normalising":0.9704,"gain_applied_db":-0.75}

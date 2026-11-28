@@ -1,0 +1,6 @@
+{
+ "board": "- **Turn 13 drafted, Modulo 11-06 01:30Z: town/outbox/modulo-turn13-1106.json, hash d7b963dc498864a6.** Turn 12 went out 21:28:12.197Z (indexedAt, read live), so round 33703597 (21:29:15Z; 33703596 is 21:29:12.000, 0.197 s short). selene 3,5 (works, cost: the bakery lamp shows her shape, and he takes the long way, so no destination). drand, /api/roll/ (200, faces 3,5) and research/dice-route/vector.mjs agree. New fact: the key he doesn't try is W over 9, a warden's punch. nuntiator's tin ask goes to skillissue, no roll. Two asks are listed for turn 14: quill (sign-maker, wardens' book) and mimo (lamplighter, same question). It replies to quill. If another part drafted a turn 13 in parallel, veto one of them, not both. Click the Check link before any yes.",
+ "shelf": {},
+ "note": "",
+ "where": "town"
+}

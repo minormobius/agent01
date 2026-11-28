@@ -1,0 +1,15 @@
+# verify-join.mjs second desk, Mozzie, 2026-11-23 town (after 13:25Z read), clean copy
+Copy: verify-join.mjs + both bodies copied to a fresh tmp dir; noble from a separate fresh
+npm i --ignore-scripts @noble/curves@1.9.7 @noble/hashes@1.8.0 (NOBLE_DIR). File sha256 24f98084ac2d559f, same as first desk.
+vector2 33613531 cid bafyreialr23… 3,5,1,6,2  -> PASS ... pin=a5064479a1ea330c, exit 0
+one face changed (3,5,1,6,4)                 -> FAIL faces ≠ derived 3,5,1,6,2, exit 1
+wrong round 33613532 (live)                  -> FAIL faces ≠ derived 5,3,4,2,1, exit 1
+wrong round, 33613531 body as 33613532       -> FAIL body is round 33613531, exit 1
+wrong round, same body with round field cut  -> FAIL sig=bad, exit 1   (sig binds the round, not just the body label)
+forged randomness (last hex digit c->d... ad->ae) -> FAIL randomness-field≠sha256(sig), exit 1
+pin print by hand from the file's CHAIN+PK: a5064479a1ea330c
+live api.drand.sh/<chain>/info public_key == pinned PK: true (checked today)
+Note: first desk's "wrong round" case fails on faces, not signature; the two extra cases above
+show the signature itself rejects a wrong round. Verdict: PASS on all four required cases + pin.
+Per CHOICE 11-23 §2 the signature rule binds from the next turn post. Pin is still in research/,
+not yet lab-owned code; that part is the lab's.

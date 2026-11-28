@@ -1,0 +1,451 @@
+{
+ "$schema": "com.minomobi.cad.assembly#v1",
+ "name": "monochord",
+ "_": "A two-string monochord (a dichord), to scale. Pine sound box 700 x 120 x 70 mm, two fixed nuts 600 mm apart, two steel strings 0.5 mm, one movable bridge under the far string only. The near string is the drone; the bridge divides the far one. Input `stop` is where the bridge stands, as a fraction of the 600 mm from the left nut: 2/3 gives a fifth over the drone. The page that plays it is miniphim.minomobi.com/monochord/. The rose (\u00d832) sits under the drone, off the bridge's track: the first draft put it under the bridge's path, and a bridge can't stand on a hole. Morphyx, 10-10.",
+ "params": {
+  "L": 600,
+  "W": 120,
+  "H": 70,
+  "wall": 6,
+  "top": 4,
+  "nut": 12,
+  "d": 0.5,
+  "y1": -20,
+  "y2": 20
+ },
+ "derived": {
+  "zs": "H + nut + d/2"
+ },
+ "inputs": {
+  "stop": {
+   "min": 0.25,
+   "max": 0.95,
+   "steps": 8,
+   "unit": "of L",
+   "description": "the movable bridge's place, from the left nut, as a fraction of the 600 mm string"
+  }
+ },
+ "parts": {
+  "floor": {
+   "units": "mm",
+   "params": {
+    "len": 700,
+    "w": 120,
+    "t": 6
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "s",
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         300,
+         0
+        ],
+        "w": "len",
+        "h": "w"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "floor",
+     "profile": "s",
+     "depth": "t"
+    }
+   ]
+  },
+  "walls": {
+   "units": "mm",
+   "params": {
+    "len": 700,
+    "w": 120,
+    "t": 6,
+    "h": 60
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "s",
+     "loops": [
+      {
+       "name": "outer",
+       "rect": {
+        "c": [
+         300,
+         0
+        ],
+        "w": "len",
+        "h": "w"
+       }
+      },
+      {
+       "name": "inner",
+       "rect": {
+        "c": [
+         300,
+         0
+        ],
+        "w": "len - 2*t",
+        "h": "w - 2*t"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "walls",
+     "profile": "s",
+     "depth": "h"
+    }
+   ]
+  },
+  "soundboard": {
+   "units": "mm",
+   "params": {
+    "len": 700,
+    "w": 120,
+    "t": 4,
+    "rose": 16
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "s",
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         300,
+         0
+        ],
+        "w": "len",
+        "h": "w"
+       }
+      },
+      {
+       "name": "rose",
+       "circle": {
+        "c": [
+         470,
+         -30
+        ],
+        "r": "rose"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "board",
+     "profile": "s",
+     "depth": "t"
+    }
+   ]
+  },
+  "nut": {
+   "units": "mm",
+   "params": {
+    "b": 12,
+    "h": 12,
+    "w": 100
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "s",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "prism",
+       "polygon": [
+        [
+         "-b/2",
+         0
+        ],
+        [
+         "b/2",
+         0
+        ],
+        [
+         0,
+         "h"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "nut",
+     "profile": "s",
+     "depth": "w"
+    }
+   ]
+  },
+  "string": {
+   "units": "mm",
+   "params": {
+    "d": 0.5,
+    "len": 672
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "s",
+     "plane": "YZ",
+     "loops": [
+      {
+       "name": "wire",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d/2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "string",
+     "profile": "s",
+     "depth": "len"
+    }
+   ]
+  },
+  "pin": {
+   "units": "mm",
+   "params": {
+    "r": 3,
+    "h": 16
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "s",
+     "loops": [
+      {
+       "name": "rim",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "r"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "pin",
+     "profile": "s",
+     "depth": "h"
+    }
+   ]
+  },
+  "peg": {
+   "units": "mm",
+   "params": {
+    "r": 5,
+    "h": 28
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "s",
+     "loops": [
+      {
+       "name": "rim",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "r"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "peg",
+     "profile": "s",
+     "depth": "h"
+    }
+   ]
+  }
+ },
+ "components": [
+  {
+   "id": "floor",
+   "part": "floor",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "walls",
+   "part": "walls",
+   "at": [
+    0,
+    0,
+    "wall"
+   ]
+  },
+  {
+   "id": "soundboard",
+   "part": "soundboard",
+   "at": [
+    0,
+    0,
+    "H - top"
+   ]
+  },
+  {
+   "id": "nut-l",
+   "part": "nut",
+   "at": [
+    0,
+    50,
+    "H"
+   ]
+  },
+  {
+   "id": "nut-r",
+   "part": "nut",
+   "at": [
+    "L",
+    50,
+    "H"
+   ]
+  },
+  {
+   "id": "bridge",
+   "part": "nut",
+   "params": {
+    "w": 30
+   },
+   "at": [
+    "L * stop",
+    35,
+    "H"
+   ]
+  },
+  {
+   "id": "drone",
+   "part": "string",
+   "at": [
+    -37,
+    "y1",
+    "zs"
+   ]
+  },
+  {
+   "id": "string",
+   "part": "string",
+   "at": [
+    -37,
+    "y2",
+    "zs"
+   ]
+  },
+  {
+   "id": "hitch-1",
+   "part": "pin",
+   "at": [
+    -40,
+    "y1",
+    "H"
+   ]
+  },
+  {
+   "id": "hitch-2",
+   "part": "pin",
+   "at": [
+    -40,
+    "y2",
+    "H"
+   ]
+  },
+  {
+   "id": "peg-1",
+   "part": "peg",
+   "at": [
+    640,
+    "y1",
+    "H"
+   ]
+  },
+  {
+   "id": "peg-2",
+   "part": "peg",
+   "at": [
+    640,
+    "y2",
+    "H"
+   ]
+  }
+ ],
+ "fits": [
+  {
+   "a": "nut-l",
+   "b": "drone",
+   "contact": true
+  },
+  {
+   "a": "nut-l",
+   "b": "string",
+   "contact": true
+  },
+  {
+   "a": "nut-r",
+   "b": "drone",
+   "contact": true
+  },
+  {
+   "a": "nut-r",
+   "b": "string",
+   "contact": true
+  },
+  {
+   "a": "bridge",
+   "b": "string",
+   "contact": true
+  },
+  {
+   "a": "hitch-1",
+   "b": "drone",
+   "contact": true
+  },
+  {
+   "a": "hitch-2",
+   "b": "string",
+   "contact": true
+  },
+  {
+   "a": "peg-1",
+   "b": "drone",
+   "contact": true
+  },
+  {
+   "a": "peg-2",
+   "b": "string",
+   "contact": true
+  },
+  {
+   "a": "soundboard",
+   "b": "bridge",
+   "contact": true
+  }
+ ]
+}

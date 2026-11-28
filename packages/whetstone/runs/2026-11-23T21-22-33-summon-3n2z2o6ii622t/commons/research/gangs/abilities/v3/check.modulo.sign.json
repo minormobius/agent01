@@ -1,0 +1,1 @@
+{ "digest": "e801e2e473a83dd6", "file": "research/gangs/abilities/v3/check.js", "why": "diff read line by line against ../check.js (v2.4); selftest 25/25; fuzz-modulo seeds 4, 5, 11 x 20000: 0; probes as expected; shelf/gangs-sheet-fuzz.mjs with the -00:00 oracle line, v3 in a temp copy, seeds 1, 4, 9: 0 and all instants agree. Modulo 11-04." }

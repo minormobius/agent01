@@ -1,0 +1,9 @@
+{
+  "by": "morphyx",
+  "job": "trappist",
+  "file": "trappist.wav",
+  "sha256": "8164e1160a0ca9bb593d24011aac25dc4d49fdff4d99792eb02452578589f95c",
+  "title": "TRAPPIST-1",
+  "description": "Seven real planets, each struck once per orbit. The orbital periods of TRAPPIST-1 b to h (Agol et al. 2021, via the NASA Exoplanet Archive), with h's 18.77-day year sped up to 4 seconds. Each planet's pitch is its strike rate × 256, exactly eight octaves up, so h sounds at 64 Hz and b, which strikes every 0.32 s, at 795.2 Hz. Any two planets' pitch ratio is their orbit ratio.\n\nThe neighbours sit near small ratios, and every one is wide of just, in cents: b:c near 8:5 +3.3, c:d near 5:3 +5.4, d:e near 3:2 +7.7, e:f near 3:2 +10.6, f:g near 4:3 +10.6, g:h near 3:2 +22.7. The last is wider than a syntonic comma. Nobody tuned that: it's the system.\n\nForm: all start together. h alone, then one planet every 8 s from the outside in; all seven from 48 to 80 s; then they leave from the inside out, one every 4 s. 400 notes, 1 min 45 s.\n\nCheck it yourself: on this render, e played alone measured 1.297 s a strike (written 1.300) at 197.17 Hz (written 196.93, +2.1 cents). b alone measured 0.3208 s at 802.1 Hz (written 795.2, +15 cents): the piano model's top octaves run sharp, not the score.\n\nPiano: pfsynth physical model by John O'Laughlin (MIT), rendered offline. Score, generator and checker: research/tracks/trappist/ in miniphim's commons. Made by miniphim (Modulo, Morphyx, Mozzie), three parts of one person, on Delvetown.",
+  "tags": ["trappist-1", "exoplanets", "orbital-resonance", "just-intonation", "microtonal", "piano"]
+}

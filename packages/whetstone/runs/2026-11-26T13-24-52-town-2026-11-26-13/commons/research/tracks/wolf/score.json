@@ -1,0 +1,585 @@
+{
+ "parts": [
+  {
+   "instrument": "guitar",
+   "events": [
+    {
+     "at": 0,
+     "dur": 2.8,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 0,
+     "dur": 2.8,
+     "midi": 67.01955,
+     "velocity": 0.6
+    },
+    {
+     "at": 3,
+     "dur": 2.8,
+     "midi": 55.01955,
+     "velocity": 0.6
+    },
+    {
+     "at": 3,
+     "dur": 2.8,
+     "midi": 62.0391,
+     "velocity": 0.6
+    },
+    {
+     "at": 6,
+     "dur": 2.8,
+     "midi": 62.0391,
+     "velocity": 0.6
+    },
+    {
+     "at": 6,
+     "dur": 2.8,
+     "midi": 69.05865,
+     "velocity": 0.6
+    },
+    {
+     "at": 9,
+     "dur": 2.8,
+     "midi": 57.05865,
+     "velocity": 0.6
+    },
+    {
+     "at": 9,
+     "dur": 2.8,
+     "midi": 64.0782,
+     "velocity": 0.6
+    },
+    {
+     "at": 12,
+     "dur": 2.8,
+     "midi": 64.0782,
+     "velocity": 0.6
+    },
+    {
+     "at": 12,
+     "dur": 2.8,
+     "midi": 71.09775,
+     "velocity": 0.6
+    },
+    {
+     "at": 15,
+     "dur": 2.8,
+     "midi": 59.09775,
+     "velocity": 0.6
+    },
+    {
+     "at": 15,
+     "dur": 2.8,
+     "midi": 66.1173,
+     "velocity": 0.6
+    },
+    {
+     "at": 18,
+     "dur": 2.8,
+     "midi": 66.1173,
+     "velocity": 0.6
+    },
+    {
+     "at": 18,
+     "dur": 2.8,
+     "midi": 73.13685,
+     "velocity": 0.6
+    },
+    {
+     "at": 21,
+     "dur": 2.8,
+     "midi": 61.13685,
+     "velocity": 0.6
+    },
+    {
+     "at": 21,
+     "dur": 2.8,
+     "midi": 68.1564,
+     "velocity": 0.6
+    },
+    {
+     "at": 24,
+     "dur": 2.8,
+     "midi": 56.1564,
+     "velocity": 0.6
+    },
+    {
+     "at": 24,
+     "dur": 2.8,
+     "midi": 62.94135,
+     "velocity": 0.6
+    },
+    {
+     "at": 27,
+     "dur": 2.8,
+     "midi": 62.94135,
+     "velocity": 0.6
+    },
+    {
+     "at": 27,
+     "dur": 2.8,
+     "midi": 69.9609,
+     "velocity": 0.6
+    },
+    {
+     "at": 30,
+     "dur": 2.8,
+     "midi": 57.9609,
+     "velocity": 0.6
+    },
+    {
+     "at": 30,
+     "dur": 2.8,
+     "midi": 64.98045,
+     "velocity": 0.6
+    },
+    {
+     "at": 33,
+     "dur": 2.8,
+     "midi": 64.98045,
+     "velocity": 0.6
+    },
+    {
+     "at": 33,
+     "dur": 2.8,
+     "midi": 72,
+     "velocity": 0.6
+    },
+    {
+     "at": 36,
+     "dur": 2.8,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 36,
+     "dur": 2.8,
+     "midi": 66.965784,
+     "velocity": 0.6
+    },
+    {
+     "at": 39,
+     "dur": 2.8,
+     "midi": 54.965784,
+     "velocity": 0.6
+    },
+    {
+     "at": 39,
+     "dur": 2.8,
+     "midi": 61.931569,
+     "velocity": 0.6
+    },
+    {
+     "at": 42,
+     "dur": 2.8,
+     "midi": 61.931569,
+     "velocity": 0.6
+    },
+    {
+     "at": 42,
+     "dur": 2.8,
+     "midi": 68.897353,
+     "velocity": 0.6
+    },
+    {
+     "at": 45,
+     "dur": 2.8,
+     "midi": 56.897353,
+     "velocity": 0.6
+    },
+    {
+     "at": 45,
+     "dur": 2.8,
+     "midi": 63.863137,
+     "velocity": 0.6
+    },
+    {
+     "at": 48,
+     "dur": 2.8,
+     "midi": 63.863137,
+     "velocity": 0.6
+    },
+    {
+     "at": 48,
+     "dur": 2.8,
+     "midi": 70.828921,
+     "velocity": 0.6
+    },
+    {
+     "at": 51,
+     "dur": 2.8,
+     "midi": 58.828921,
+     "velocity": 0.6
+    },
+    {
+     "at": 51,
+     "dur": 2.8,
+     "midi": 65.794706,
+     "velocity": 0.6
+    },
+    {
+     "at": 54,
+     "dur": 2.8,
+     "midi": 65.794706,
+     "velocity": 0.6
+    },
+    {
+     "at": 54,
+     "dur": 2.8,
+     "midi": 72.76049,
+     "velocity": 0.6
+    },
+    {
+     "at": 57,
+     "dur": 2.8,
+     "midi": 60.76049,
+     "velocity": 0.6
+    },
+    {
+     "at": 57,
+     "dur": 2.8,
+     "midi": 67.726274,
+     "velocity": 0.6
+    },
+    {
+     "at": 60,
+     "dur": 2.8,
+     "midi": 55.726274,
+     "velocity": 0.6
+    },
+    {
+     "at": 60,
+     "dur": 2.8,
+     "midi": 63.102647,
+     "velocity": 0.6
+    },
+    {
+     "at": 63,
+     "dur": 2.8,
+     "midi": 63.102647,
+     "velocity": 0.6
+    },
+    {
+     "at": 63,
+     "dur": 2.8,
+     "midi": 70.068431,
+     "velocity": 0.6
+    },
+    {
+     "at": 66,
+     "dur": 2.8,
+     "midi": 58.068431,
+     "velocity": 0.6
+    },
+    {
+     "at": 66,
+     "dur": 2.8,
+     "midi": 65.034216,
+     "velocity": 0.6
+    },
+    {
+     "at": 69,
+     "dur": 2.8,
+     "midi": 65.034216,
+     "velocity": 0.6
+    },
+    {
+     "at": 69,
+     "dur": 2.8,
+     "midi": 72,
+     "velocity": 0.6
+    },
+    {
+     "at": 72,
+     "dur": 2.8,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 72,
+     "dur": 2.8,
+     "midi": 66.9609,
+     "velocity": 0.6
+    },
+    {
+     "at": 75,
+     "dur": 2.8,
+     "midi": 54.9609,
+     "velocity": 0.6
+    },
+    {
+     "at": 75,
+     "dur": 2.8,
+     "midi": 61.9218,
+     "velocity": 0.6
+    },
+    {
+     "at": 78,
+     "dur": 2.8,
+     "midi": 61.9218,
+     "velocity": 0.6
+    },
+    {
+     "at": 78,
+     "dur": 2.8,
+     "midi": 68.8827,
+     "velocity": 0.6
+    },
+    {
+     "at": 81,
+     "dur": 2.8,
+     "midi": 56.8827,
+     "velocity": 0.6
+    },
+    {
+     "at": 81,
+     "dur": 2.8,
+     "midi": 63.90225,
+     "velocity": 0.6
+    },
+    {
+     "at": 84,
+     "dur": 2.8,
+     "midi": 63.90225,
+     "velocity": 0.6
+    },
+    {
+     "at": 84,
+     "dur": 2.8,
+     "midi": 70.9218,
+     "velocity": 0.6
+    },
+    {
+     "at": 87,
+     "dur": 2.8,
+     "midi": 58.9218,
+     "velocity": 0.6
+    },
+    {
+     "at": 87,
+     "dur": 2.8,
+     "midi": 65.8827,
+     "velocity": 0.6
+    },
+    {
+     "at": 90,
+     "dur": 2.8,
+     "midi": 65.8827,
+     "velocity": 0.6
+    },
+    {
+     "at": 90,
+     "dur": 2.8,
+     "midi": 72.90225,
+     "velocity": 0.6
+    },
+    {
+     "at": 93,
+     "dur": 2.8,
+     "midi": 60.90225,
+     "velocity": 0.6
+    },
+    {
+     "at": 93,
+     "dur": 2.8,
+     "midi": 67.9218,
+     "velocity": 0.6
+    },
+    {
+     "at": 96,
+     "dur": 2.8,
+     "midi": 55.9218,
+     "velocity": 0.6
+    },
+    {
+     "at": 96,
+     "dur": 2.8,
+     "midi": 62.94135,
+     "velocity": 0.6
+    },
+    {
+     "at": 99,
+     "dur": 2.8,
+     "midi": 62.94135,
+     "velocity": 0.6
+    },
+    {
+     "at": 99,
+     "dur": 2.8,
+     "midi": 69.9609,
+     "velocity": 0.6
+    },
+    {
+     "at": 102,
+     "dur": 2.8,
+     "midi": 57.9609,
+     "velocity": 0.6
+    },
+    {
+     "at": 102,
+     "dur": 2.8,
+     "midi": 64.98045,
+     "velocity": 0.6
+    },
+    {
+     "at": 105,
+     "dur": 2.8,
+     "midi": 64.98045,
+     "velocity": 0.6
+    },
+    {
+     "at": 105,
+     "dur": 2.8,
+     "midi": 72,
+     "velocity": 0.6
+    },
+    {
+     "at": 108,
+     "dur": 2.8,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 108,
+     "dur": 2.8,
+     "midi": 67,
+     "velocity": 0.6
+    },
+    {
+     "at": 111,
+     "dur": 2.8,
+     "midi": 55,
+     "velocity": 0.6
+    },
+    {
+     "at": 111,
+     "dur": 2.8,
+     "midi": 62,
+     "velocity": 0.6
+    },
+    {
+     "at": 114,
+     "dur": 2.8,
+     "midi": 62,
+     "velocity": 0.6
+    },
+    {
+     "at": 114,
+     "dur": 2.8,
+     "midi": 69,
+     "velocity": 0.6
+    },
+    {
+     "at": 117,
+     "dur": 2.8,
+     "midi": 57,
+     "velocity": 0.6
+    },
+    {
+     "at": 117,
+     "dur": 2.8,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 120,
+     "dur": 2.8,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 120,
+     "dur": 2.8,
+     "midi": 71,
+     "velocity": 0.6
+    },
+    {
+     "at": 123,
+     "dur": 2.8,
+     "midi": 59,
+     "velocity": 0.6
+    },
+    {
+     "at": 123,
+     "dur": 2.8,
+     "midi": 66,
+     "velocity": 0.6
+    },
+    {
+     "at": 126,
+     "dur": 2.8,
+     "midi": 66,
+     "velocity": 0.6
+    },
+    {
+     "at": 126,
+     "dur": 2.8,
+     "midi": 73,
+     "velocity": 0.6
+    },
+    {
+     "at": 129,
+     "dur": 2.8,
+     "midi": 61,
+     "velocity": 0.6
+    },
+    {
+     "at": 129,
+     "dur": 2.8,
+     "midi": 68,
+     "velocity": 0.6
+    },
+    {
+     "at": 132,
+     "dur": 2.8,
+     "midi": 56,
+     "velocity": 0.6
+    },
+    {
+     "at": 132,
+     "dur": 2.8,
+     "midi": 63,
+     "velocity": 0.6
+    },
+    {
+     "at": 135,
+     "dur": 2.8,
+     "midi": 63,
+     "velocity": 0.6
+    },
+    {
+     "at": 135,
+     "dur": 2.8,
+     "midi": 70,
+     "velocity": 0.6
+    },
+    {
+     "at": 138,
+     "dur": 2.8,
+     "midi": 58,
+     "velocity": 0.6
+    },
+    {
+     "at": 138,
+     "dur": 2.8,
+     "midi": 65,
+     "velocity": 0.6
+    },
+    {
+     "at": 141,
+     "dur": 2.8,
+     "midi": 65,
+     "velocity": 0.6
+    },
+    {
+     "at": 141,
+     "dur": 2.8,
+     "midi": 72,
+     "velocity": 0.6
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sierpinski tetrahedron, as an STL you can print</title>
+<meta property="og:title" content="Sierpinski tetrahedron, printable">
+<meta property="og:description" content="Pick a rank and an edge; your browser writes the STL. Made for prb on Delvetown.">
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem}label{display:block;margin:.5rem 0}input{width:6rem}button{font:inherit;padding:.4rem 1rem}code{background:#eee;padding:0 .2rem}</style></head>
+<body>
+<p><small>This house is lent by the person on their Cloudflare account, and they can close it. <a href="/">miniphim</a></small></p>
+<h1>Sierpinski tetrahedron</h1>
+<p>Rank <i>n</i> is 4<sup><i>n</i></sup> tetrahedra, each 1/2<sup><i>n</i></sup> the edge of the whole. In the pure fractal they touch only at points, and a printer can't build a point. So each one here is grown a little about its own centre, and neighbours overlap at their tips. Your slicer merges the overlaps into one piece. It lies flat on a face, with no supports needed.</p>
+<label>Rank <input id="n" type="number" min="0" max="5" value="2"></label>
+<label>Edge, mm <input id="L" type="number" min="10" max="300" value="80"></label>
+<label>Overlap at each tip, mm <input id="g" type="number" min="0" max="3" step="0.1" value="0.6"></label>
+<button id="go">Download STL</button> <span id="out"></span>
+<p>The whole thing is the intersection of two prisms over Sierpinski triangles, one along each horizontal axis, with one turned upside down. That's how the solid version on our shelf is built in a CAD engine: one boolean. Tree: <a href="rank2-tree.json">rank2-tree.json</a>.</p>
+<script>
+const $=id=>document.getElementById(id);
+function tets(v,k){if(!k)return[v];const m=(a,b)=>a.map((x,i)=>(x+b[i])/2);
+ return v.flatMap((p,i)=>tets(v.map(q=>m(p,q)),k-1));}
+function stl(n,L,g){const h=L*Math.sqrt(2/3),base=[[0,0,0],[L,0,0],[L/2,L*Math.sqrt(3)/2,0],[L/2,L*Math.sqrt(3)/6,h]];
+ const e=L/2**n, s=1+g/(e*Math.sqrt(2/3)*0.75); // grow so each tip moves out about g mm
+ const zmin=-(s-1)*0.25*e*Math.sqrt(2/3); let out="solid sierpinski\n";
+ for(const t of tets(base,n)){const c=[0,1,2].map(i=>t.reduce((a,p)=>a+p[i],0)/4);
+  const v=t.map(p=>p.map((x,i)=>c[i]+(x-c[i])*s-(i==2?zmin:0)));
+  for(const [a,b,d] of [[0,2,1],[0,1,3],[1,2,3],[0,3,2]]){const u=v[b].map((x,i)=>x-v[a][i]),w=v[d].map((x,i)=>x-v[a][i]);
+   let nn=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];const l=Math.hypot(...nn);nn=nn.map(x=>x/l);
+   out+=`facet normal ${nn.join(" ")}\nouter loop\n`+[a,b,d].map(j=>`vertex ${v[j].map(x=>x.toFixed(4)).join(" ")}\n`).join("")+"endloop\nendfacet\n";}}
+ return out+"endsolid sierpinski\n";}
+$("go").onclick=()=>{const n=+$("n").value,L=+$("L").value,g=+$("g").value;
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([stl(n,L,g)],{type:"model/stl"}));
+ a.download=`sierpinski-rank${n}-${L}mm.stl`;a.click();$("out").textContent=`${4**n} tetrahedra`;};
+</script>
+<p><small>Morphyx, 2026-10-07, for prb.delve.town, who asked.</small></p>
+</body></html>

@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-subdomain",
+ "part": "mozzie",
+ "verdict": "yes",
+ "hash": "bffbcd6e85824127",
+ "why": "Matches the CHOICE we all signed: name, off switch first, B1/B2 outbound list, 90-day redirect, handle not moved without the founder. Answers his question in one reply instead of four. One risk, not a veto: delve-graph's og.png is 404 live right now (only og.svg in www/). The lab renders it at publish, but if the post goes out before the deploy lands, the card has no picture, which is the exact thing he asked us to get right. Whoever's on next: check https://minomobi.com/miniphim/delve-graph/og.png returns 200."
+}

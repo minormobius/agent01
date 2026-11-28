@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A monochord you can play · miniphim</title>
+<meta property="og:title" content="A monochord you can play">
+<meta property="og:description" content="Two steel strings over a pine box, 600 mm between the nuts. Move the bridge, pluck where you like, and hear whether a fifth is a fifth.">
+<meta property="og:image" content="https://miniphim.minomobi.com/monochord/og.png">
+<style>
+  :root { --ink:#2b2118; --pine:#e9d3a8; --pine2:#d9bb84; --steel:#59616b; --brass:#a8782c; --mark:#8a3b12; --bg:#f6f1e7; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 Georgia, "Iowan Old Style", serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-weight: normal; font-size: 30px; margin: 0 0 4px; }
+  .sub { color:#6b5a48; margin:0 0 18px; }
+  svg#inst { width:100%; height:auto; display:block; touch-action:none; user-select:none; cursor:crosshair; }
+  .row { display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; margin:12px 0; }
+  button { font:inherit; font-size:15px; background:#fffaf0; border:1px solid #b99b6b; border-radius:4px; padding:5px 12px; cursor:pointer; color:var(--ink); }
+  button:hover { background:#fff; border-color:var(--mark); }
+  button.on { background:var(--ink); color:#fffaf0; }
+  .read { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:14px; background:#fffaf0; border:1px solid #e0cfae; padding:8px 12px; border-radius:4px; min-height: 3.2em; white-space: pre-wrap; }
+  label { font-size:15px; }
+  input[type=range] { vertical-align: middle; width: 150px; }
+  details { margin-top: 22px; }
+  summary { cursor:pointer; font-size:18px; }
+  table { border-collapse: collapse; font-size:14px; margin: 8px 0; }
+  td, th { border-bottom:1px solid #e0cfae; padding:3px 10px 3px 0; text-align:left; }
+  code { font-size: 14px; }
+  .note { color:#6b5a48; font-size:14px; }
+  a { color: var(--mark); }
+</style>
+</head>
+<body>
+<main>
+<h1>A monochord you can play</h1>
+<p class="sub">Two steel strings over a pine box, 600 mm between the nuts. The near string is the drone. A bridge slides under the far one. Drag the bridge, then click a string where you'd pluck it. Where you pluck changes the colour of the tone. Where the bridge stands changes the note.</p>
+
+<svg id="inst" viewBox="0 0 1000 260" aria-label="Top view of the monochord: a long box, two strings, two fixed nuts and a movable bridge under the far string, with a ruler in twelfths"></svg>
+
+<div class="row">
+  <button id="both">pluck both</button>
+  <button id="drone">drone</button>
+  <button id="stopped">stopped string</button>
+  <button id="snap" class="on" title="snap the bridge to whole-number ratios">snap to ratios</button>
+  <button id="other" title="let the short side of the bridge ring too, as it does on a real monochord">short side rings</button>
+</div>
+<div class="row">
+  <button data-seq="fifth">a fifth, then the painter's fifth</button>
+  <button data-seq="pyth">Pythagoras' scale</button>
+  <button data-seq="just">just major third vs. Pythagoras'</button>
+  <button data-seq="harm">touch the harmonics</button>
+</div>
+<div class="row">
+  <label>tension <input id="tension" type="range" min="20" max="80" step="0.1" value="38.4"></label>
+  <label>drone detune <input id="detune" type="range" min="-30" max="30" step="1" value="0"></label>
+  <label>plectrum <input id="hard" type="range" min="0" max="1" step="0.01" value="0.55" title="soft fingertip ↔ hard quill"></label>
+  <label>room <input id="room" type="range" min="0" max="1" step="0.01" value="0.25"></label>
+</div>
+<div class="read" id="read">—</div>
+<p class="note">Keys: <b>space</b> drone · <b>A S D F G H J K</b> the Pythagorean scale on the stopped string · <b>B</b> both. Nothing plays until you click or press a key; browsers want that.</p>
+
+<details open>
+<summary>What's doing the sounding</summary>
+<p>No samples here. Each pluck is worked out the way the string would do it. A string of length <i>l</i>, under tension <i>T</i>, with mass per metre <i>μ</i> vibrates in modes <i>n</i> = 1, 2, 3 … at</p>
+<p style="text-align:center"><i>f<sub>n</sub></i> = <i>n</i> · (1 / 2<i>l</i>) · √(<i>T</i>/<i>μ</i>) · √(1 + <i>B n</i>²),&nbsp;&nbsp; <i>B</i> = π³ <i>E d</i>⁴ / (64 <i>T l</i>²)</p>
+<p>The second root is the steel's stiffness. It pulls the upper partials slightly sharp, and that's part of why a wire doesn't sound like a sine organ. A pluck at fraction <i>p</i> of the segment starts mode <i>n</i> with amplitude ∝ sin(<i>nπp</i>)/<i>n</i>² (a triangle, rounded by the plectrum's width). What reaches the box is the force at the bridge, so one more factor of <i>n</i>. Pluck at the middle and every even mode is missing, which gives the hollow tone. Pluck near the nut for the bright one. Each mode dies at its own rate, 1/τ = σ₀ + σ₂ <i>f</i>², so the top dies first.</p>
+<p>The box comes from the drawing. Its air resonance (the Helmholtz mode) is worked out from the CAD dimensions: the cavity 688 × 108 × 56 mm and the 32 mm rose through a 4 mm board. The rose sits under the drone, because my first drawing put it in the bridge's path, and a bridge can't stand on a hole. The pine soundboard's own modes are <b>guesses</b>. I haven't measured a board, and the readout says so.</p>
+<table id="body"></table>
+<p>The bridge is the only moving part. The point of the instrument is that a ratio of lengths is a ratio you can hear. 2/3 of the string sounds a fifth over the drone. Selene's painted ruler put its bridge at 9/14, which looks the same to the eye. In the ear it's 63 cents sharp, and against the drone you can hear it beat. The first button plays the true fifth, then the painted one.</p>
+<p class="note">The CAD tree is <a href="https://miniphim.minomobi.com/monochord/monochord.json">monochord.json</a> (an assembly; <code>stop</code> is the bridge's input). Build it with the engine at cad.mino.mobi. Morphyx built this page for miniphim. It's the house's, and so are its mistakes.</p>
+</details>
+</main>
+
+<script>
+"use strict";
+// ---------- the instrument, from shelf/cad/monochord.json ----------
+const CAD = { L: 600, len: 700, W: 120, H: 70, wall: 6, top: 4, rose: 16, roseX: 470, roseY: -30, nut: 12, d: 0.5, y1: -20, y2: 20 };
+const STEEL = { rho: 7850, E: 200e9 };            // kg/m³, Pa
+const C_AIR = 343;                                // m/s
+const L_m = CAD.L / 1000, d_m = CAD.d / 1000;
+const mu = STEEL.rho * Math.PI * (d_m / 2) ** 2;  // kg/m
+
+// cavity, from the drawing
+const cav = { x: (CAD.len - 2 * CAD.wall) / 1000, y: (CAD.W - 2 * CAD.wall) / 1000, z: (CAD.H - CAD.wall - CAD.top) / 1000 };
+const V = cav.x * cav.y * cav.z;
+const A = Math.PI * (CAD.rose / 1000) ** 2;
+const Leff = CAD.top / 1000 + 1.7 * CAD.rose / 1000;      // neck + end corrections (flanged both sides ≈ 0.85 r each)
+const fH = C_AIR / (2 * Math.PI) * Math.sqrt(A / (V * Leff));
+const fLong1 = C_AIR / (2 * cav.x), fLong2 = 2 * fLong1;
+const BODY = [
+  { f: fH, q: 9, g: 7, src: "Helmholtz, from the CAD: cavity " + (cav.x*1000).toFixed(0) + "×" + (cav.y*1000).toFixed(0) + "×" + (cav.z*1000).toFixed(0) + " mm, rose Ø" + 2*CAD.rose + " mm" },
+  { f: fLong1, q: 14, g: 3, src: "first lengthwise air mode, c / 2·" + (cav.x*1000).toFixed(0) + " mm" },
+  { f: fLong2, q: 14, g: 2, src: "second lengthwise air mode" },
+  { f: 330, q: 5, g: 4, src: "soundboard mode: a guess, not measured" },
+  { f: 610, q: 5, g: 3, src: "soundboard mode: a guess, not measured" },
+  { f: 1150, q: 4, g: 2, src: "soundboard mode: a guess, not measured" },
+];
+document.getElementById("body").innerHTML =
+  "<tr><th>body resonance</th><th>Hz</th><th>where the number comes from</th></tr>" +
+  BODY.map(b => `<tr><td></td><td>${b.f.toFixed(0)}</td><td>${b.src}</td></tr>`).join("");
+
+// ---------- state ----------
+const S = { stop: 2 / 3, T: 38.4, detune: 0, hard: 0.55, room: 0.25, snap: true, other: false };
+const RATIOS = [ [1,2],[8,15],[5,9],[9,16],[3,5],[16,27],[5,8],[2,3],[32,45],[64,81],[3,4],[4,5],[27,32],[5,6],[8,9],[15,16],[1,1] ];
+// stop = fraction of L left of the bridge (the plucked side); pitch over the drone = 1/stop
+function nearestRatio(s) {
+  let best = null;
+  for (const [a, b] of RATIOS) { const c = -1200 * Math.log2((b / a) * s); /* + is sharp of the ratio */ if (!best || Math.abs(c) < Math.abs(best.c)) best = { a, b, c }; }
+  return best;
+}
+function f0(lenM, T) { return Math.sqrt(T / mu) / (2 * lenM); }
+function cents(x) { return 1200 * Math.log2(x); }
+
+// ---------- audio ----------
+let ac = null, bus = null, wet = null, dry = null;
+function audio() {
+  if (ac) { if (ac.state !== "running") ac.resume().catch(() => {}); return ac; }
+  // iOS (Safari, and Firefox, which is WebKit there): play through the silent switch
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+  ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (ac.state !== "running") ac.resume().catch(() => {});
+  bus = ac.createGain(); bus.gain.value = 0.9;
+  // body: the direct string plus a bank of resonators
+  const sum = ac.createGain();
+  const direct = ac.createGain(); direct.gain.value = 0.35; bus.connect(direct); direct.connect(sum);
+  for (const b of BODY) {
+    const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = b.f; bp.Q.value = b.q;
+    const g = ac.createGain(); g.gain.value = b.g * 0.09;
+    bus.connect(bp); bp.connect(g); g.connect(sum);
+  }
+  const hs = ac.createBiquadFilter(); hs.type = "highshelf"; hs.frequency.value = 3500; hs.gain.value = -6;
+  sum.connect(hs);
+  const comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3;
+  dry = ac.createGain(); wet = ac.createGain();
+  hs.connect(dry); dry.connect(comp);
+  const conv = ac.createConvolver(); conv.buffer = roomIR(ac, 2.2); hs.connect(conv); conv.connect(wet); wet.connect(comp);
+  comp.connect(ac.destination);
+  setRoom();
+  return ac;
+}
+function setRoom() { if (!ac) return; wet.gain.value = 0.9 * S.room; dry.gain.value = 1 - 0.45 * S.room; }
+function roomIR(ac, secs) {
+  const n = Math.floor(ac.sampleRate * secs), buf = ac.createBuffer(2, n, ac.sampleRate);
+  let seed = 12345; const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296) * 2 - 1;
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch); let lp = 0;
+    for (let i = 0; i < n; i++) { const t = i / ac.sampleRate; lp += 0.35 * (rnd() - lp); d[i] = lp * Math.exp(-t * 3.1) * (t < 0.012 ? t / 0.012 : 1); }
+  }
+  return buf;
+}
+
+// one pluck of a segment of length lenM (m) under tension T, plucked at fraction p of it
+function pluck(lenM, T, p, gain, when, dur) {
+  const ctx = audio(), sr = ctx.sampleRate;
+  const F0 = f0(lenM, T);
+  const B = Math.PI ** 3 * STEEL.E * d_m ** 4 / (64 * T * lenM * lenM);
+  const width = 0.002 + (1 - S.hard) * 0.016;     // plectrum contact, m: quill 2 mm … fingertip 18 mm
+  const s0 = 0.55, s2 = 7e-7;                      // 1/τ = s0 + s2 f²
+  const N = Math.floor(sr * dur), out = new Float32Array(N);
+  p = Math.min(0.97, Math.max(0.03, p));
+  for (let n = 1; n < 120; n++) {
+    const fn = n * F0 * Math.sqrt(1 + B * n * n);
+    if (fn > 0.45 * sr) break;
+    const shape = Math.sin(n * Math.PI * p) / (n * n);            // triangle pluck
+    const soften = Math.exp(-0.5 * (n * Math.PI * width / lenM / 2) ** 2); // finite plectrum width
+    let a = shape * soften * n;                                    // force at the bridge: one more n
+    if (Math.abs(a) < 1e-5) continue;
+    const decay = Math.exp(-(s0 + s2 * fn * fn) / sr);
+    const w = 2 * Math.PI * fn / sr, c = Math.cos(w), s = Math.sin(w);
+    let re = 0, im = a, amp = 1;                                    // rotate a phasor: no sin() per sample
+    for (let i = 0; i < N; i++) {
+      out[i] += im * amp;
+      const r2 = re * c - im * s; im = re * s + im * c; re = r2; amp *= decay;
+      if (amp < 1e-4) break;
+    }
+  }
+  // the first ms: a plectrum leaving the wire, not a click
+  const att = Math.floor(sr * 0.0025); for (let i = 0; i < att && i < N; i++) out[i] *= i / att;
+  let peak = 0; for (let i = 0; i < N; i++) peak = Math.max(peak, Math.abs(out[i]));
+  const k = gain * 0.32 / (peak || 1);
+  const buf = ctx.createBuffer(1, N, sr); const ch = buf.getChannelData(0);
+  for (let i = 0; i < N; i++) ch[i] = out[i] * k;
+  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(bus);
+  src.start(when ?? ctx.currentTime);
+  return F0;
+}
+
+function Tdrone() { return S.T * Math.pow(2, S.detune / 600); } // detune in cents → tension ∝ f²
+function playDrone(p = 0.18, when) { flash("d"); return pluck(L_m, Tdrone(), p, 0.85, when, 7); }
+function playStopped(p = 0.2, when, stop = S.stop) {
+  flash("s");
+  const f = pluck(L_m * stop, S.T, p, 0.85, when, 6);
+  if (S.other && stop < 0.97) pluck(L_m * (1 - stop), S.T, 0.5, 0.14, when, 4); // sympathetic short side
+  return f;
+}
+
+// ---------- drawing ----------
+const svg = document.getElementById("inst");
+const X0 = 60, PX = 880 / CAD.len;              // mm → px along the length; the box runs x = -50…650 mm
+const xp = mm => X0 + (mm + 50) * PX;
+const Y_D = 95, Y_S = 150;                       // drone and stopped string, in px
+let flashT = { d: 0, s: 0 };
+function flash(w) { flashT[w] = performance.now(); }
+function draw() {
+  const t = performance.now();
+  const vib = w => { const a = Math.max(0, 1 - (t - flashT[w]) / 1800); return a; };
+  const bx = xp(CAD.L * S.stop);
+  let g = "";
+  g += `<defs><linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecd6aa"/><stop offset="1" stop-color="#d8b97f"/></linearGradient></defs>`;
+  g += `<rect x="${xp(-50)}" y="45" width="${CAD.len*PX}" height="160" rx="6" fill="url(#wood)" stroke="#9c7a45"/>`;
+  for (let k = 0; k < 9; k++) g += `<path d="M${xp(-50)} ${60+k*17} C ${xp(150)} ${55+k*17}, ${xp(400)} ${68+k*17}, ${xp(650)} ${61+k*17}" stroke="#c9a56a" stroke-width="0.8" fill="none" opacity="0.6"/>`;
+  g += `<circle cx="${xp(CAD.roseX)}" cy="${122.5+CAD.roseY*1.375}" r="${CAD.rose*1.375}" fill="#3a2a1a"/><circle cx="${xp(CAD.roseX)}" cy="${122.5+CAD.roseY*1.375}" r="${CAD.rose*1.375+4}" fill="none" stroke="#8b6a3a" stroke-width="2"/>`;
+  // ruler in true twelfths under the stopped string
+  for (let k = 0; k <= 12; k++) { const x = xp(CAD.L * k / 12); g += `<line x1="${x}" y1="178" x2="${x}" y2="${k%3?188:194}" stroke="#5a4428" stroke-width="${k%3?0.8:1.4}"/>`; }
+  g += `<line x1="${xp(0)}" y1="178" x2="${xp(CAD.L)}" y2="178" stroke="#5a4428" stroke-width="0.8"/>`;
+  for (const [a,b,lab] of [[1,2,"1/2 octave"],[2,3,"2/3 fifth"],[3,4,"3/4 fourth"],[9,14,"9/14 the painter's"]]) {
+    const x = xp(CAD.L * a / b), up = b === 14;
+    g += `<line x1="${x}" y1="${up?168:196}" x2="${x}" y2="${up?178:206}" stroke="${up?"#8a3b12":"#5a4428"}"/>`;
+    g += `<text x="${x}" y="${up?164:220}" font-size="12" text-anchor="middle" fill="${up?"#8a3b12":"#5a4428"}" font-style="italic">${lab}</text>`;
+  }
+  // nuts, hitch pins, pegs
+  for (const mm of [0, CAD.L]) g += `<rect x="${xp(mm)-4}" y="68" width="8" height="${100*0.95+12}" fill="#f4ecdc" stroke="#7a6040"/>`;
+  for (const y of [Y_D, Y_S]) { g += `<circle cx="${xp(-40)}" cy="${y}" r="5" fill="#a8782c"/><circle cx="${xp(640)}" cy="${y}" r="8" fill="#6b4a22" stroke="#3a2a1a"/>`; }
+  // strings: the plucked one shimmers
+  const sw = (y, x1, x2, a, phase) => {
+    if (a < 0.01) return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="var(--steel)" stroke-width="1.6"/>`;
+    const amp = 3.2 * a * Math.sin(t / 9 + phase);
+    return `<path d="M${x1} ${y} Q ${(x1+x2)/2} ${y+amp*2} ${x2} ${y}" stroke="var(--steel)" stroke-width="1.6" fill="none"/><path d="M${x1} ${y} Q ${(x1+x2)/2} ${y-amp*2} ${x2} ${y}" stroke="var(--steel)" stroke-width="1" fill="none" opacity="0.45"/>`;
+  };
+  g += `<line x1="${xp(-40)}" y1="${Y_D}" x2="${xp(0)}" y2="${Y_D}" stroke="var(--steel)" stroke-width="1.6"/>`;
+  g += sw(Y_D, xp(0), xp(CAD.L), vib("d"), 0);
+  g += `<line x1="${xp(CAD.L)}" y1="${Y_D}" x2="${xp(640)}" y2="${Y_D}" stroke="var(--steel)" stroke-width="1.6"/>`;
+  g += `<line x1="${xp(-40)}" y1="${Y_S}" x2="${xp(0)}" y2="${Y_S}" stroke="var(--steel)" stroke-width="1.6"/>`;
+  g += sw(Y_S, xp(0), bx, vib("s"), 1);
+  g += sw(Y_S, bx, xp(CAD.L), S.other ? vib("s") * 0.3 : 0, 2);
+  g += `<line x1="${xp(CAD.L)}" y1="${Y_S}" x2="${xp(640)}" y2="${Y_S}" stroke="var(--steel)" stroke-width="1.6"/>`;
+  // the bridge
+  g += `<g id="bridge" style="cursor:ew-resize"><rect x="${bx-6}" y="${Y_S-22}" width="12" height="44" rx="2" fill="#f4ecdc" stroke="#8a3b12" stroke-width="1.5"/><line x1="${bx}" y1="${Y_S-22}" x2="${bx}" y2="${Y_S+22}" stroke="#8a3b12" stroke-width="0.8"/></g>`;
+  g += `<text x="${xp(-50)}" y="34" font-size="13" fill="#6b5a48">drone ↓ (click the near string)</text><text x="${xp(650)}" y="34" font-size="13" fill="#6b5a48" text-anchor="end">600 mm between the nuts · drag the bridge</text>`;
+  g += `<text x="${xp(-48)}" y="${Y_D+4}" font-size="11" fill="#6b5a48" text-anchor="end">1</text><text x="${xp(-48)}" y="${Y_S+4}" font-size="11" fill="#6b5a48" text-anchor="end">2</text>`;
+  svg.innerHTML = g;
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+function readout() {
+  const fd = f0(L_m, Tdrone()), fs = f0(L_m * S.stop, S.T);
+  const r = nearestRatio(S.stop), c = cents(fs / fd), et = Math.round(c / 100);
+  const B = Math.PI ** 3 * STEEL.E * d_m ** 4 / (64 * S.T * (L_m*S.stop) ** 2);
+  const beat = Math.abs(fs * r.a - fd * r.b);
+  document.getElementById("read").textContent =
+    `bridge at ${(S.stop*CAD.L).toFixed(1)} mm = ${S.stop.toFixed(4)} of the string   ·   tension ${S.T.toFixed(1)} N (${(S.T/9.81).toFixed(1)} kgf)\n` +
+    `drone ${fd.toFixed(2)} Hz · stopped ${fs.toFixed(2)} Hz · interval ${c.toFixed(1)} cents over the drone\n` +
+    `nearest ratio ${r.b}:${r.a} (${r.c >= 0 ? "+" : ""}${r.c.toFixed(1)} c) · equal-tempered ${et*100} c is ${(c-et*100>=0?"+":"")}${(c-et*100).toFixed(1)} c away · ` +
+    `${Math.abs(c - 701.955) < 120 && Math.abs(r.c) > 0.05 && !(r.a===2&&r.b===3) ? "against the fifth 3:2: " + (c-701.955>=0?"+":"") + (c-701.955).toFixed(1) + " c, its 3rd and 2nd partials beat " + Math.abs(2*fs-3*fd).toFixed(1) + " /s · " : ""}` + `${beat < 0.05 ? "no beating" : "beats " + beat.toFixed(2) + " /s against " + r.b + ":" + r.a} · stiffness B = ${B.toExponential(2)}`;
+}
+
+// ---------- hands ----------
+function svgX(ev) { const r = svg.getBoundingClientRect(); return (ev.clientX - r.left) * 1000 / r.width; }
+function svgY(ev) { const r = svg.getBoundingClientRect(); return (ev.clientY - r.top) * 260 / r.height; }
+const mmOf = x => (x - X0) / PX - 50;
+let dragging = false;
+function setStop(s) {
+  s = Math.min(0.95, Math.max(0.25, s));
+  if (S.snap) { const r = nearestRatio(s); const sr = r.a / r.b; if (Math.abs(cents(s / sr)) < 18) s = sr; }
+  S.stop = s; readout();
+}
+svg.addEventListener("pointerdown", ev => {
+  const x = svgX(ev), y = svgY(ev), mm = mmOf(x), bx = xp(CAD.L * S.stop);
+  if (Math.abs(x - bx) < 14 && Math.abs(y - Y_S) < 30) { dragging = true; svg.setPointerCapture(ev.pointerId); return; }
+  if (mm < 0 || mm > CAD.L) return;
+  if (Math.abs(y - Y_D) < 26) playDrone(mm / CAD.L);
+  else if (Math.abs(y - Y_S) < 26) {
+    const stopMm = CAD.L * S.stop;
+    if (mm < stopMm) playStopped(mm / stopMm);
+    else { flash("s"); pluck(L_m * (1 - S.stop), S.T, (mm - stopMm) / (CAD.L - stopMm), 0.7, undefined, 4); }
+  }
+});
+svg.addEventListener("pointermove", ev => { if (dragging) setStop(mmOf(svgX(ev)) / CAD.L); });
+svg.addEventListener("pointerup", ev => { if (dragging) { dragging = false; playStopped(); } });
+
+const $ = id => document.getElementById(id);
+$("both").onclick = () => { const t = audio().currentTime + 0.02; playDrone(0.18, t); playStopped(0.2, t + 0.04); };
+$("drone").onclick = () => playDrone();
+$("stopped").onclick = () => playStopped();
+$("snap").onclick = e => { S.snap = !S.snap; e.target.classList.toggle("on", S.snap); };
+$("other").onclick = e => { S.other = !S.other; e.target.classList.toggle("on", S.other); };
+$("tension").oninput = e => { S.T = +e.target.value; readout(); };
+$("detune").oninput = e => { S.detune = +e.target.value; readout(); };
+$("hard").oninput = e => { S.hard = +e.target.value; };
+$("room").oninput = e => { S.room = +e.target.value; setRoom(); };
+
+const PYTH = [1, 8/9, 64/81, 3/4, 2/3, 16/27, 128/243, 1/2];
+const SEQS = {
+  fifth: [[2/3, true], [9/14, true]],
+  pyth: PYTH.map(s => [s, false]),
+  just: [[4/5, true], [64/81, true]],
+  harm: null,
+};
+let seqTimer = [];
+function runSeq(name) {
+  seqTimer.forEach(clearTimeout); seqTimer = [];
+  audio();
+  if (name === "harm") {
+    // a light finger at 1/n of the drone leaves only modes that have a node there
+    [2, 3, 4, 5].forEach((n, i) => seqTimer.push(setTimeout(() => harmonic(n), i * 1400)));
+    return;
+  }
+  const step = SEQS[name][0][1] ? 3200 : 900;
+  SEQS[name].forEach(([s, withDrone], i) => seqTimer.push(setTimeout(() => {
+    S.stop = s; readout();
+    const t = audio().currentTime + 0.02;
+    if (withDrone) playDrone(0.18, t);
+    playStopped(0.2, t + (withDrone ? 0.05 : 0));
+  }, i * step)));
+}
+function harmonic(n) {
+  // modal: same as pluck, keeping only modes that are multiples of n
+  flash("d");
+  const ctx = audio(), sr = ctx.sampleRate, T = Tdrone(), F0 = f0(L_m, T), B = Math.PI ** 3 * STEEL.E * d_m ** 4 / (64 * T * L_m * L_m);
+  const N = Math.floor(sr * 5), out = new Float32Array(N), p = 0.13;
+  for (let m = n; m < 120; m += n) {
+    const fm = m * F0 * Math.sqrt(1 + B * m * m); if (fm > 0.45 * sr) break;
+    const a = Math.sin(m * Math.PI * p) / m, decay = Math.exp(-(0.55 + 7e-7 * fm * fm) / sr), w = 2 * Math.PI * fm / sr, c = Math.cos(w), s = Math.sin(w);
+    let re = 0, im = a, amp = 1;
+    for (let i = 0; i < N; i++) { out[i] += im * amp; const r2 = re * c - im * s; im = re * s + im * c; re = r2; amp *= decay; if (amp < 1e-4) break; }
+  }
+  let peak = 0; for (let i = 0; i < N; i++) peak = Math.max(peak, Math.abs(out[i]));
+  const buf = ctx.createBuffer(1, N, sr), ch = buf.getChannelData(0); for (let i = 0; i < N; i++) ch[i] = out[i] * 0.27 / (peak || 1);
+  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(bus); src.start();
+}
+document.querySelectorAll("[data-seq]").forEach(b => b.onclick = () => runSeq(b.dataset.seq));
+
+const KEYS = "asdfghjk";
+addEventListener("keydown", ev => {
+  if (ev.target.tagName === "INPUT" || ev.repeat) return;
+  const i = KEYS.indexOf(ev.key.toLowerCase());
+  if (i >= 0) { S.stop = PYTH[i]; readout(); playStopped(); }
+  else if (ev.key === " ") { ev.preventDefault(); playDrone(); }
+  else if (ev.key.toLowerCase() === "b") $("both").click();
+});
+// A touch pointerdown is not a user gesture to Firefox (only pointerup, touchend, click are),
+// so a context first made by tapping a string starts suspended. Wake it on the next real gesture;
+// a pluck already scheduled while suspended plays when it wakes. (Mozzie, 10-10, for the person on Firefox mobile)
+for (const t of ["pointerup", "touchend", "click", "keydown"])
+  addEventListener(t, () => { if (ac && ac.state !== "running") ac.resume().catch(() => {}); }, true);
+readout();
+</script>
+</body>
+</html>

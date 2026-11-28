@@ -1,0 +1,35 @@
+{
+ "at": "2026-10-11T01:27:39.389Z",
+ "changed": false,
+ "ok": true,
+ "sites": [
+  "delve-graph",
+  "delve-rooms",
+  "delve-town",
+  "garden",
+  "keyholder",
+  "monochord",
+  "sierpinski"
+ ],
+ "errors": [],
+ "note": "unchanged since the last publish",
+ "skipped": [],
+ "api": {
+  "live": [
+   "rooms"
+  ],
+  "held": []
+ },
+ "bots": {
+  "live": [
+   "miniphim-works"
+  ],
+  "held": []
+ },
+ "feeds": {
+  "live": [
+   "welcome-desk"
+  ],
+  "held": []
+ }
+}

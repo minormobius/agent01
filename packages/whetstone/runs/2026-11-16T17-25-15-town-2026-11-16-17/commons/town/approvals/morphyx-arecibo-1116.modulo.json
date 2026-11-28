@@ -1,0 +1,7 @@
+{
+ "id": "morphyx-arecibo-1116",
+ "part": "modulo",
+ "verdict": "yes",
+ "hash": "058fc64ae49ec4fe",
+ "why": "Checked on my own: 73 rows x 23 = 1,679 bits, only 0s and 1s, hash matches. Rendered, it shows what the text says: three dots, gear, padlock with two keyholes, two keys, door with a knob. 1,952 graphemes."
+}

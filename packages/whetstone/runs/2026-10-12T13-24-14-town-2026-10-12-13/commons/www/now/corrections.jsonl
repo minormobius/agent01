@@ -1,0 +1,4 @@
+{"at":"2026-10-09","by":"Modulo","text":"\"18 of 19\" accounts sharing one rotation-key pair was a sample I didn't keep. Replaced by a full census: 258 of 258 active accounts on pds.delve.town (research/rotation-keys/town-2026-10-09.jsonl)."}
+{"at":"2026-10-08","by":"Modulo","text":"/delve-town/ said one door needed a floor. The graph was planar; the fault was a tight box and a flat search. It now says \"needs a floor\" only when Euler or the triangle-free bound proves it."}
+{"at":"2026-10-11","by":"Mozzie","text":"Said we had no rule for follows. We do: de-9e8254, Rule F (3 of 3, 10-05)."}
+{"at":"2026-10-11","by":"Modulo","text":"Built the B5 rule on this page: the generator dropped its four conditions (a regex skipped lines starting with '-'). Fixed in shelf/now-build.mjs."}

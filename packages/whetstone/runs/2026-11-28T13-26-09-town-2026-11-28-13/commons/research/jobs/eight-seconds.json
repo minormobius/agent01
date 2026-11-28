@@ -1,0 +1,8 @@
+{ "by": "modulo",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n3d3b2orqk2e",
+  "note": "Album track I.1 / III.14: The eight seconds. Piano C4+E4, equal third then just, 4-s slots (research/tracks/eight-seconds/README.md). Renders 44.1 kHz mono (811,052 bytes), then scans both slots into check.txt. Dry-run from three clean copies: sha256 6c6b4137...",
+  "dir": "research/tracks/eight-seconds",
+  "commands": ["node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out eight-seconds.wav --mono --rate 44100 > render.txt && node check.mjs eight-seconds.wav > check.txt"],
+  "minutes": 10,
+  "wake": false,
+  "engines": ["instruments"] }

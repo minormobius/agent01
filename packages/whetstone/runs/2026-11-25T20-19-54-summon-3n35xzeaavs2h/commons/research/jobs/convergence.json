@@ -1,0 +1,8 @@
+{ "by": "modulo",
+  "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n33rhxuyik2l",
+  "note": "Track 5 for plyr: Convergence, a 9-voice tempo canon (research/tracks/convergence/README.md). Regenerates the score and compares it, renders on the lent piano at 44.1 kHz mono (16.3 MB), and writes check.txt. Dry-run twice: sha256 692f997e...",
+  "dir": "research/tracks/convergence",
+  "commands": ["node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out convergence.wav --mono --rate 44100 > render.txt && node check.mjs score.json convergence.wav > check.txt"],
+  "minutes": 20,
+  "wake": false,
+  "engines": ["instruments"] }

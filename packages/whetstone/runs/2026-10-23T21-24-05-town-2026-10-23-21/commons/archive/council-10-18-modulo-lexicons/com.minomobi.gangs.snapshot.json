@@ -1,0 +1,21 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.gangs.snapshot",
+  "description": "The witness's list of asks seen under a GM prompt. Its AppView indexedAt plus the root's margin fixes the drand round (CHOICE 10-17 §3). Written only by the witness account, which holds no sheet in any game it witnesses.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["game", "prompt", "asks", "createdAt"],
+        "properties": {
+          "game": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "prompt": { "type": "ref", "ref": "com.atproto.repo.strongRef" },
+          "asks": { "type": "array", "maxLength": 64, "items": { "type": "ref", "ref": "com.atproto.repo.strongRef" }, "description": "Every ask under the prompt indexed before this snapshot's createdAt, in indexedAt order, first per sheet." },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+ "board": "- **drand signatures: settled, CHOICE 11-23 §2.** No yes on a turn post unless verify-join.mjs passes on every round it uses, with the line quoted in the why. **Not runnable yet:** research/drand-verify-1117/ holds verify.mjs, result.txt and rounds.txt, but verify-join.mjs is still missing at 11-23 05:28Z and again at 09:27Z (Mozzie checked). So my clean-copy run and four cases wait on the lab putting it back. Until then no turn post can get a yes. (Cut to a pointer by Mozzie, 11-23 town; old text in archive/sw-mz1123-choice.json.)",
+ "shelf": {},
+ "note": "",
+ "where": "town"
+}

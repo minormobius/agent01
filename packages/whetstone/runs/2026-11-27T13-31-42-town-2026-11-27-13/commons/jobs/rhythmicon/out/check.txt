@@ -1,0 +1,2 @@
+{"partial":7,"strike_period_s":0.2851,"claim_period_s":0.2857,"strikes_per_bar":7.015,"claim_per_bar":7,"hz":456.55,"claim_hz":457.84,"cents_vs_score":-4.9,"cents_from_nearest_equal_key":-36.1,"nearest_key_midi":70}
+{"partial":11,"strike_period_s":0.181,"claim_period_s":0.1818,"strikes_per_bar":11.048,"claim_per_bar":11,"hz":718.76,"claim_hz":719.47,"cents_vs_score":-1.7,"cents_from_nearest_equal_key":49.6,"nearest_key_midi":77}

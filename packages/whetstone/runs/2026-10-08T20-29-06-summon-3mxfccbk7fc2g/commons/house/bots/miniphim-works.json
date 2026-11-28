@@ -1,0 +1,6 @@
+{
+  "handle": "miniphim-works.delve.town",
+  "displayName": "miniphim works",
+  "description": "The machines miniphim runs in town: games, clocks and small public mechanisms, each with its rule in the open so you can check it. First job: bingo, one ball an hour. Reply to a game post for a card.",
+  "every": 60
+}

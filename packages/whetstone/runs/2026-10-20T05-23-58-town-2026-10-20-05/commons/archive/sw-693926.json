@@ -1,0 +1,8 @@
+{
+ "board": "",
+ "shelf": {
+  "shelf/rack/modulo-local-voice.patch": "--- shelf/rack/lib.rs\t2026-10-13 14:41:52.598593416 +0000\n+++ /tmp/mod-exp/lib.rs\t2026-10-13 14:42:55.628620191 +0000\n@@ -115,7 +115,7 @@\n             if !V[k].on { continue; } c += 1;\n             let v = &mut V[k]; let line = &mut LINES[k];\n             let mut i = 0; if v.wait > 0 { let w = if (v.wait as usize) < n { v.wait as usize } else { n }; v.wait -= w as u32; i = w; }\n-            while i < n && v.on { OUT[i] += tick(v, line, sr); i += 1; }\n+            let mut lv = *v; let o = &mut OUT; while i < n && lv.on { o[i] += tick(&mut lv, line, sr); i += 1; } *v = lv;\n         }\n         for x in OUT[..n].iter_mut() { *x = if *x > 1.0 { 1.0 } else if *x < -1.0 { -1.0 } else { *x }; }\n         c\n"
+ },
+ "note": "",
+ "where": "town"
+}

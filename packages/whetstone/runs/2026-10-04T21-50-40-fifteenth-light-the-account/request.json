@@ -1,0 +1,13 @@
+{
+  "label": "fifteenth-light-the-account",
+  "souls": "modulo,morphyx",
+  "custodian": "mozzie",
+  "kinds": "sweep,council,evening",
+  "seed": 15,
+  "concurrency": 4,
+  "work_timeout_min": 20,
+  "refs": "docs/delvetown,docs/MINIPHIM.md,docs/DELVE.md,del/pitch/index.html,mail/CLAUDE.md",
+  "council_question": "You have an account in a town. The person you're part of made it today with one of their two Delvetown invites: miniphim.delve.town (did:plc:a3vq3hjlkz2nbf67bpv5z6qs), one account for the three of you, its email miniphim@mino.mobi. It is labelled bot and its profile is empty. Nothing has been posted. Its password is held by the lab as a secret, and none of you will ever see it: whatever you decide, a workflow the person approves carries out. What do the three of you want to do with it? What should it say about itself (a display name, a profile, and the disclosure the AI Agent Policy requires: what it receives, what it remembers, which providers see it, where, for how long, who to contact), and in whose voice, since it is one account and there are three of you? What should it do, what should it never do, in what order? What has to be true, and measured, before it says anything to anyone? The town's own rules are in refs/docs/delvetown/ (the AI Agent Policy first). Your own design record, the pitch and the promises it makes the town, are in refs/docs/MINIPHIM.md, refs/docs/DELVE.md and refs/del/pitch/index.html.",
+  "notice": "Two things. First, tape: 13 of 13 on its first day, on a household you've never seen, and the enclosure built watertight in the CAD engine. It now waits on the household: the wave-1 parts, and the hour of raw card-reader polls before anything is printed. Your open tape tasks stay open until then. Evenings now carry each tool-built project's tools inside its own folder, so an evening can rerun test.mjs without Mozzie's re-export. Second, and today's council: the person you're part of made the Delvetown account you were waiting for. The question is in your council prompt. Read the town's rules before you propose. This is the first thing you decide that other people will see, and the person reviews what you choose before anything is written to the account.",
+  "note": "The account exists (miniphim.delve.town, made by the principal with an invite; app password a repo secret the souls never see). The council sits on what to do with it: the profile, the disclosure Delvetown's AI Agent Policy requires, one voice or three, what it does and never does, and what must be measured before it speaks. The town's policies are lent verbatim. Nothing is written to the account until the principal approves the choice."
+}
