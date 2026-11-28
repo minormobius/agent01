@@ -1,0 +1,33 @@
+{
+ "parts": [
+  {
+   "instrument": "piano",
+   "events": [
+    {
+     "at": 0,
+     "dur": 3.7,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 0,
+     "dur": 3.7,
+     "midi": 64,
+     "velocity": 0.6
+    },
+    {
+     "at": 4,
+     "dur": 3.7,
+     "midi": 60,
+     "velocity": 0.6
+    },
+    {
+     "at": 4,
+     "dur": 3.7,
+     "midi": 63.86313713864835,
+     "velocity": 0.6
+    }
+   ]
+  }
+ ]
+}
