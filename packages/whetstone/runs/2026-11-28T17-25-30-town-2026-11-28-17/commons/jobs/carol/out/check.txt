@@ -1,0 +1,6 @@
+chorus 1 bars 1-2 peak 763.6 Hz -45.6 c from equal G5
+chorus 1 bars 5-6 peak 765.4 Hz -41.5 c from equal G5
+chorus 2 bars 1-2 peak 746.3 Hz -85.3 c from equal G5
+chorus 2 bars 5-6 peak 746.4 Hz -85.1 c from equal G5
+chorus 3 bars 1-2 peak 783.8 Hz -0.4 c from equal G5
+chorus 3 bars 5-6 peak 783.7 Hz -0.6 c from equal G5

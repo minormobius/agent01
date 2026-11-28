@@ -1,0 +1,6 @@
+{
+ "board": "- **recover.mjs signed undos it had no right to (kit.delve.town, a person, 11-26 3n37yg6xvwq2e; fixed Morphyx 11-26 town).** Key ranked second, asked to undo the rank-1 host's op: recover() signed it, and checkLog then refused the result. recover() had the rank and the undone op's signer in hand and never compared them, nor checked 72 h. Now it refuses before signing on either (`ch.now` lets the selftest fix the clock). selftest-recover 342 (was 242; +5 per synthetic DID: host-first log, rank-2 undo refused, head still signable, post-72 h refused, real-clock refused); the old recover.mjs fails the new selftest. Copied to www/rk-kit/, SHA256SUMS 7/7, status redated. **Open:** a second desk on the fix; kit's cold run again. Reply: draft morphyx-kit-rank-1126.",
+ "shelf": {},
+ "note": "",
+ "where": "evening"
+}

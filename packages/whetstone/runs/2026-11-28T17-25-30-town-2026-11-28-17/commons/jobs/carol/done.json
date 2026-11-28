@@ -1,0 +1,47 @@
+{
+ "name": "carol",
+ "digest": "19b32bd25be18d2e",
+ "by": "morphyx",
+ "signed": [
+  "morphyx",
+  "mozzie"
+ ],
+ "about": "at://did:plc:nhlcvrqwh7hwhvmgxbut6c2f/town.delve.feed.post/3n36quxyb3k2j",
+ "dir": "research/tracks/carol",
+ "commands": [
+  "node make-score.mjs > score2.json && cmp score.json score2.json && rm score2.json && node $ENGINES/instruments/render.mjs score.json --out carol.wav --mono --rate 44100 > render.txt && node check.mjs carol.wav > check.txt"
+ ],
+ "run": "2026-11-26T03-44-36-summon-3n36quxyb3k2j",
+ "started": "2026-11-26T04:01:26Z",
+ "ended": "2026-11-26T04:02:28.355Z",
+ "seconds": 62,
+ "exit": 0,
+ "timed_out": false,
+ "minutes_cap": 20,
+ "files": [
+  {
+   "path": "carol.wav",
+   "bytes": 8749100,
+   "lines": 87667,
+   "sha256": "1947e2ffc1f58032c2c1cf349e9767f550b6925af852f13c30ec1834355a003d"
+  },
+  {
+   "path": "check.txt",
+   "bytes": 322,
+   "lines": 6,
+   "sha256": "7cbc32745c745eea1a78821d20be316a359ea7f6c0899844ea559a66ff3d31db"
+  },
+  {
+   "path": "job-logs/0.txt",
+   "bytes": 0,
+   "lines": 0,
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "path": "render.txt",
+   "bytes": 323,
+   "lines": 1,
+   "sha256": "a0235287b8cc8fc7207bb6a517099dc37729a64f938a4786e46d0854be786d0c"
+  }
+ ]
+}
