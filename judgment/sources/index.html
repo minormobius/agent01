@@ -37,6 +37,7 @@ li.work cite { font-style: italic; }
 .links a:hover { text-decoration: underline; }
 .links .kind { font-weight: 700; }
 .k-full, .k-full:visited { color: var(--full); background: var(--full-bg); }
+.k-copy, .k-copy:visited { color: var(--warn); background: var(--warn-bg); }
 .k-pub, .k-pub:visited { color: var(--pub); background: var(--pub-bg); }
 .k-cat, .k-cat:visited { color: var(--cat); background: var(--cat-bg); }
 .status, .nolink { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); margin: 0; }
@@ -56,6 +57,7 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
     <ul>
       <li><a href="/">About</a></li>
       <li><a href="/sources/" aria-current="page">Sources</a></li>
+      <li><a href="/thesis/">Thesis</a></li>
     </ul>
   </nav>
 </header>
@@ -64,12 +66,13 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
 <h1>Sources</h1>
 <p class="lede">82 works for a curriculum on judgment in the agentic age. They are ranked by how much each matters to <a href="/">the research programme</a>, not by fame or by how strong the evidence is.</p>
 
-<p>34 of the 82 have a free, legal full text linked. Another 48 link to the publisher or a library record. 82 have had their authors, title and year checked against the source, and every link was checked on 28 November 2026. Anything still unverified is marked on its entry.</p>
+<p>34 of the 82 have a free, legal full text linked. 1 more can be read in an unofficial online copy. Another 47 link to the publisher or a library record. 82 have had their authors, title and year checked against the source, and every link was checked on 28 November 2026. Anything still unverified is marked on its entry.</p>
 
 <h2 id="how">How to read an entry</h2>
 <ul class="legend">
   <li><span class="tag">Tier S</span> to <span class="tag">Tier C</span>: S is the core, C is background.</li>
   <li><span class="links" style="display:inline"><a class="k-full" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Free full text</span></a></span> means you can read the whole work for free, legally.</li>
+  <li><span class="links" style="display:inline"><a class="k-copy" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Online copy</span></a></span> is an unofficial copy someone else hosts. It is not the publisher’s, and it may disappear.</li>
   <li><span class="links" style="display:inline"><a class="k-pub" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Publisher</span></a></span> is the official page. It may be paywalled.</li>
   <li><span class="links" style="display:inline"><a class="k-cat" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Library record</span></a></span> is for books still in copyright. Use it to find a library copy or an edition.</li>
 </ul>
@@ -92,7 +95,7 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
     </div>
   </div>
   <div class="checks">
-    <label><input type="checkbox" id="fullonly" name="fullonly"> Only works with free full text</label>
+    <label><input type="checkbox" id="fullonly" name="fullonly"> Only works I can read free online</label>
     <label><input type="checkbox" id="unread" name="unread"> Hide the ones I’ve read</label>
   </div>
   <fieldset>
@@ -110,14 +113,14 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
 <h2 id="g-tier-S">Tier S <span class="count">19 works</span></h2>
 <p class="muted">The core. If you read nothing else, read these.</p>
 <ol class="works">
-<li class="work" id="work-001" value="1" data-tier="S" data-branch="automation" data-full="0" data-search="ironies of automation lisanne bainbridge 1983 automation automation erodes supervisory expertise">
+<li class="work" id="work-001" value="1" data-tier="S" data-branch="automation" data-full="1" data-search="ironies of automation lisanne bainbridge 1983 automation automation erodes supervisory expertise">
 <article aria-labelledby="work-001-t">
 <h3 id="work-001-t"><span class="rank" aria-hidden="true">1.</span> <cite>Ironies of Automation</cite></h3>
 <p class="byline">Lisanne Bainbridge <span class="year">(1983)</span></p>
 <p class="why"><span class="visually-hidden">Why it is here: </span>Automation erodes supervisory expertise.</p>
 <p class="meta"><span class="tag">Automation</span> <span class="tag">Tier S</span> <span class="tag">Rank 1</span></p>
-<ul class="links" aria-label="Where to read it"><li><a class="k-pub" href="https://doi.org/10.1016/0005-1098(83)90046-8"><span class="kind">Publisher</span> DOI (Automatica 19(6))<span class="visually-hidden"> for Ironies of Automation</span></a></li></ul>
-<p class="status">Details checked against the source. Automatica 19(6):775-779. gwern.net copy is a third-party mirror of an in-copyright article; DOI given as fallback. No authorised free copy found; copies circulate online but are not linked here.</p>
+<ul class="links" aria-label="Where to read it"><li><a class="k-copy" href="https://gwern.net/doc/sociology/technology/1983-bainbridge.pdf"><span class="kind">Online copy</span> PDF (gwern.net)<span class="visually-hidden"> for Ironies of Automation</span></a></li><li><a class="k-pub" href="https://doi.org/10.1016/0005-1098(83)90046-8"><span class="kind">Publisher</span> DOI (Automatica 19(6))<span class="visually-hidden"> for Ironies of Automation</span></a></li></ul>
+<p class="status">Details checked against the source. Automatica 19(6):775–779.</p>
 <p class="mine no-print" hidden><label><input type="checkbox" class="read-box" data-id="work-001"> I’ve read this</label></p>
 </article>
 </li>

@@ -26,6 +26,7 @@ meaningful agency over it, and cultivating the judgment that responsibility dema
 | Path | What | Source |
 |---|---|---|
 | `/` | hub: thesis, abstract, the eleven branches | `index.html` (hand-written) |
+| `/thesis/` | working scratchpad for the thesis: propositions, falsifiers, measures | `thesis/index.html` (hand-written; links into `/sources/#work-NNN`) |
 | `/sources/` | the annotated bibliography, filterable | **generated** from `sources/library.json` |
 | `/sources/library.csv`, `.bib` | the same list as a spreadsheet and as BibTeX | **generated** |
 | `/sources/library.json` | the source of truth, also public | hand-edited |
@@ -43,6 +44,8 @@ Link kinds are a promise to the reader:
 
 - `full` is a **legal** free full text: author or institution copies, open access, public
   domain (Wikisource, Gutenberg, New Advent, Econlib, psychclassics).
+- `copy` is an unofficial online copy of an in-copyright work, such as the gwern.net mirror of
+  Bainbridge. It is labelled "Online copy", never "Free full text". Use it only where no legal copy exists.
 - `publisher` is a DOI or the publisher's page.
 - `catalog` is an Open Library record, used for in-copyright books.
 

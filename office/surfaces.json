@@ -9091,6 +9091,16 @@
    "age": "hot",
    "parent": "judgment",
    "discovered": true
+  },
+  {
+   "id": "judgment/thesis",
+   "name": "thesis",
+   "url": "https://judge.mino.mobi/thesis/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "judgment",
+   "discovered": true
   }
  ]
 }

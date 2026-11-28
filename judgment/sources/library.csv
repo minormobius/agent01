@@ -1,5 +1,5 @@
-rank,tier,branch,authors,title,year,relevance,free_full_text,other_links,verification,note
-1,S,automation,Lisanne Bainbridge,Ironies of Automation,1983,Automation erodes supervisory expertise,,https://doi.org/10.1016/0005-1098(83)90046-8,verified,Automatica 19(6):775-779. gwern.net copy is a third-party mirror of an in-copyright article; DOI given as fallback. No authorised free copy found; copies circulate online but are not linked here.
+rank,tier,branch,authors,title,year,relevance,free_online,other_links,verification,note
+1,S,automation,Lisanne Bainbridge,Ironies of Automation,1983,Automation erodes supervisory expertise,https://gwern.net/doc/sociology/technology/1983-bainbridge.pdf,https://doi.org/10.1016/0005-1098(83)90046-8,verified,Automatica 19(6):775–779.
 2,S,judgment,David Hume,Of the Standard of Taste,1757,Cultivation and calibration of taste,https://en.wikisource.org/wiki/Four_Dissertations/Of_the_Standard_of_Taste,,verified,Published in Four Dissertations (1757).
 3,S,cybernetics,W. Ross Ashby,An Introduction to Cybernetics,1956,Requisite variety and regulation,http://pespmc1.vub.ac.be/books/IntroCyb.pdf,https://openlibrary.org/works/OL169933W,verified,Principia Cybernetica hosts it with the Ashby estate's permission.
 4,S,cognition,Edwin Hutchins,Cognition in the Wild,1995,Distributed cognition,,https://openlibrary.org/works/OL3487683W,verified,

@@ -33,13 +33,18 @@
       "relevance": "Automation erodes supervisory expertise",
       "links": [
         {
+          "url": "https://gwern.net/doc/sociology/technology/1983-bainbridge.pdf",
+          "kind": "copy",
+          "label": "PDF (gwern.net)"
+        },
+        {
           "url": "https://doi.org/10.1016/0005-1098(83)90046-8",
           "kind": "publisher",
           "label": "DOI (Automatica 19(6))"
         }
       ],
       "status": "verified",
-      "note": "Automatica 19(6):775-779. gwern.net copy is a third-party mirror of an in-copyright article; DOI given as fallback. No authorised free copy found; copies circulate online but are not linked here."
+      "note": "Automatica 19(6):775–779."
     },
     {
       "id": "work-002",

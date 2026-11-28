@@ -40,6 +40,7 @@ const BRANCHES = {
 };
 const KIND = {
   full: { word: 'Free full text', cls: 'k-full' },
+  copy: { word: 'Online copy', cls: 'k-copy' },
   publisher: { word: 'Publisher', cls: 'k-pub' },
   catalog: { word: 'Library record', cls: 'k-cat' },
 };
@@ -52,6 +53,7 @@ const STATUS = {
 
 const authorList = (a) => (a.length <= 2 ? a.join(' and ') : a.slice(0, -1).join(', ') + ', and ' + a.at(-1));
 const hasFull = (w) => (w.links || []).some((l) => l.kind === 'full');
+const hasRead = (w) => (w.links || []).some((l) => l.kind === 'full' || l.kind === 'copy');
 
 function entry(w) {
   const links = (w.links || []).map((l) => {
@@ -63,7 +65,7 @@ function entry(w) {
   const note = w.note ? ` ${esc(w.note)}` : '';
   const flag = w.status === 'not_found' || w.status === 'unverified' ? ' flag' : '';
   const search = [w.title, ...(w.authors || []), w.year, w.branch, w.relevance].join(' ').toLowerCase();
-  return `<li class="work" id="${esc(w.id)}" value="${w.rank}" data-tier="${esc(w.tier)}" data-branch="${esc(w.branch)}" data-full="${hasFull(w) ? 1 : 0}" data-search="${esc(search)}">
+  return `<li class="work" id="${esc(w.id)}" value="${w.rank}" data-tier="${esc(w.tier)}" data-branch="${esc(w.branch)}" data-full="${hasRead(w) ? 1 : 0}" data-search="${esc(search)}">
 <article aria-labelledby="${esc(w.id)}-t">
 <h3 id="${esc(w.id)}-t"><span class="rank" aria-hidden="true">${w.rank}.</span> <cite>${esc(w.title)}</cite></h3>
 <p class="byline">${esc(authorList(w.authors || []))} <span class="year">(${esc(w.year)})</span></p>
@@ -91,6 +93,7 @@ ${list.map(entry).join('\n')}
 const counts = {
   total: works.length,
   full: works.filter(hasFull).length,
+  copy: works.filter((w) => !hasFull(w) && hasRead(w)).length,
   linked: works.filter((w) => (w.links || []).length).length,
   verified: works.filter((w) => w.status === 'verified' || w.status === 'corrected').length,
 };
@@ -138,6 +141,7 @@ li.work cite { font-style: italic; }
 .links a:hover { text-decoration: underline; }
 .links .kind { font-weight: 700; }
 .k-full, .k-full:visited { color: var(--full); background: var(--full-bg); }
+.k-copy, .k-copy:visited { color: var(--warn); background: var(--warn-bg); }
 .k-pub, .k-pub:visited { color: var(--pub); background: var(--pub-bg); }
 .k-cat, .k-cat:visited { color: var(--cat); background: var(--cat-bg); }
 .status, .nolink { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); margin: 0; }
@@ -157,6 +161,7 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
     <ul>
       <li><a href="/">About</a></li>
       <li><a href="/sources/" aria-current="page">Sources</a></li>
+      <li><a href="/thesis/">Thesis</a></li>
     </ul>
   </nav>
 </header>
@@ -165,12 +170,13 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
 <h1>Sources</h1>
 <p class="lede">${counts.total} works for a curriculum on judgment in the agentic age. They are ranked by how much each matters to <a href="/">the research programme</a>, not by fame or by how strong the evidence is.</p>
 
-<p>${counts.full} of the ${counts.total} have a free, legal full text linked. ${counts.linked - counts.full > 0 ? `Another ${counts.linked - counts.full} link to the publisher or a library record. ` : ''}${counts.verified} have had their authors, title and year checked against the source${checked ? `, and every link was checked on ${checked}` : ''}. Anything still unverified is marked on its entry.</p>
+<p>${counts.full} of the ${counts.total} have a free, legal full text linked. ${counts.copy ? `${counts.copy} more can be read in an unofficial online copy. ` : ''}${counts.linked - counts.full - counts.copy > 0 ? `Another ${counts.linked - counts.full - counts.copy} link to the publisher or a library record. ` : ''}${counts.verified} have had their authors, title and year checked against the source${checked ? `, and every link was checked on ${checked}` : ''}. Anything still unverified is marked on its entry.</p>
 
 <h2 id="how">How to read an entry</h2>
 <ul class="legend">
   <li><span class="tag">Tier S</span> to <span class="tag">Tier C</span>: S is the core, C is background.</li>
   <li><span class="links" style="display:inline"><a class="k-full" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Free full text</span></a></span> means you can read the whole work for free, legally.</li>
+  <li><span class="links" style="display:inline"><a class="k-copy" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Online copy</span></a></span> is an unofficial copy someone else hosts. It is not the publisher’s, and it may disappear.</li>
   <li><span class="links" style="display:inline"><a class="k-pub" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Publisher</span></a></span> is the official page. It may be paywalled.</li>
   <li><span class="links" style="display:inline"><a class="k-cat" href="#how" tabindex="-1" aria-hidden="true"><span class="kind">Library record</span></a></span> is for books still in copyright. Use it to find a library copy or an edition.</li>
 </ul>
@@ -193,7 +199,7 @@ li.work.is-read h3 cite { text-decoration: line-through; text-decoration-color: 
     </div>
   </div>
   <div class="checks">
-    <label><input type="checkbox" id="fullonly" name="fullonly"> Only works with free full text</label>
+    <label><input type="checkbox" id="fullonly" name="fullonly"> Only works I can read free online</label>
     <label><input type="checkbox" id="unread" name="unread"> Hide the ones I’ve read</label>
   </div>
   <fieldset>
@@ -313,10 +319,10 @@ ${tierSections}
 
 // ---- CSV
 const csvCell = (v) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-const csv = [['rank', 'tier', 'branch', 'authors', 'title', 'year', 'relevance', 'free_full_text', 'other_links', 'verification', 'note'].join(',')]
+const csv = [['rank', 'tier', 'branch', 'authors', 'title', 'year', 'relevance', 'free_online', 'other_links', 'verification', 'note'].join(',')]
   .concat(works.map((w) => [w.rank, w.tier, w.branch, (w.authors || []).join('; '), w.title, w.year, w.relevance,
-    (w.links || []).filter((l) => l.kind === 'full').map((l) => l.url).join(' '),
-    (w.links || []).filter((l) => l.kind !== 'full').map((l) => l.url).join(' '),
+    (w.links || []).filter((l) => l.kind === 'full' || l.kind === 'copy').map((l) => l.url).join(' '),
+    (w.links || []).filter((l) => l.kind !== 'full' && l.kind !== 'copy').map((l) => l.url).join(' '),
     w.status || 'unverified', w.note || ''].map(csvCell).join(','))).join('\n') + '\n';
 
 // ---- BibTeX

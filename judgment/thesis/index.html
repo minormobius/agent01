@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thesis (working) — judgment</title>
+<meta name="description" content="A working scratchpad for the thesis behind the judgment curriculum: the delegation–calibration trap, five propositions with what would falsify each, and how to measure leverage.">
+<link rel="stylesheet" href="/judge.css">
+<style>
+.draft { font-family: var(--sans); font-size: 0.95rem; background: var(--warn-bg); color: var(--warn); padding: 0.5rem 0.75rem; border-radius: 4px; display: inline-block; margin: 0 0 1rem; }
+.thesis { font-size: 1.3rem; line-height: 1.45; border-left: 4px solid var(--accent); padding: 0.25rem 0 0.25rem 1rem; margin: 1.5rem 0; }
+.prop { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.1rem; margin: 1.25rem 0; }
+.prop h3 { margin-top: 0; }
+.prop dl { margin: 0.75rem 0 0; font-size: 1rem; }
+.prop dt { font-family: var(--sans); font-weight: 600; font-size: 0.9rem; margin-top: 0.6rem; }
+.prop dd { margin: 0.15rem 0 0; }
+table { border-collapse: collapse; width: 100%; font-size: 1rem; margin: 1rem 0 1.5rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.5rem 0.5rem; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--sans); font-size: 0.9rem; }
+.table-wrap { overflow-x: auto; }
+ol.loop { padding-left: 1.4rem; }
+ol.loop li { margin-bottom: 0.4rem; }
+.cand li { margin-bottom: 0.5rem; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="home" href="/">judgment</a>
+  <nav aria-label="Site">
+    <ul>
+      <li><a href="/">About</a></li>
+      <li><a href="/sources/">Sources</a></li>
+      <li><a href="/thesis/" aria-current="page">Thesis</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+<h1>Thesis: working it out</h1>
+<p class="draft">Scratchpad. Started 28 November 2026. Everything here is provisional and meant to be argued with.</p>
+
+<p class="lede">The <a href="/sources/">reading list</a> was assembled by feel. This page asks what it is circling, states that as sharply as possible, and says what would prove it wrong.</p>
+
+<nav aria-labelledby="toc-h" class="callout">
+  <h2 id="toc-h" style="margin-top:0;font-size:1.1rem">On this page</h2>
+  <ol>
+    <li><a href="#question">The question underneath</a></li>
+    <li><a href="#trap">The trap</a></li>
+    <li><a href="#thesis">The thesis, sharpened</a></li>
+    <li><a href="#props">Five propositions</a></li>
+    <li><a href="#prudence">Prudence as a spec for a supervisor</a></li>
+    <li><a href="#measure">How to measure leverage</a></li>
+    <li><a href="#experiment">A first experiment</a></li>
+    <li><a href="#list">What this does to the list</a></li>
+    <li><a href="#open">Open questions</a></li>
+  </ol>
+</nav>
+
+<h2 id="question">1. The question underneath</h2>
+<p>Read the list for what it keeps returning to and one question comes up again and again:</p>
+<p class="thesis">How do you keep judgment over work you no longer watch?</p>
+<p>Automation, cybernetics and organization theory ask it about systems. Learning and cognition ask how a person comes to see what matters. Formation asks it about the one doing the judging. In these traditions attention is a faculty that has to be trained and guarded, not merely spent.</p>
+
+<h2 id="trap">2. The trap</h2>
+<p>The abstract says people now take on program-level responsibility faster than apprenticeship can grow the judgment it needs. Here is a more specific version of that claim. It is a loop:</p>
+<ol class="loop">
+  <li>Judgment at a level of abstraction is learned by acting at that level and getting feedback on the result (<a href="/sources/#work-010">Kahneman &amp; Klein</a>, <a href="/sources/#work-008">Hogarth</a>).</li>
+  <li>Working turn by turn, the feedback is immediate and legible. Every step is seen, so mistakes are caught at once. This is a <em>kind</em> learning environment.</li>
+  <li>Delegating a larger chunk makes the feedback late, sparse, and mediated. Most of it reaches you as a summary written by the thing you are supervising. This is a <em>wicked</em> environment.</li>
+  <li>In a wicked environment calibration doesn’t improve, so trust can’t be earned. Uncalibrated, the safe move is to pull back to the level where feedback is live.</li>
+  <li>So the delegation that would train higher-level judgment is the delegation you can’t yet risk.</li>
+</ol>
+<p>That is <a href="/sources/#work-001">Bainbridge’s irony</a> turned inward. She showed that automation erodes the operator’s skill while still asking the operator to take over in a crisis. Here the risk is that the supervisor never builds the skill in the first place. Being stuck at one-to-one, turn-by-turn collaboration is not a failure of nerve. It is the predictable equilibrium of this loop.</p>
+
+<h2 id="thesis">3. The thesis, sharpened</h2>
+<p>The current one-line thesis (“sustainable leverage depends on organizational architecture and cultivation of judgment”) is true, but it can’t be proved wrong. Here is a candidate that can:</p>
+<p class="thesis">How far you can delegate is limited by how well calibrated you are at that level. Calibration is limited by feedback, and delegation removes feedback. Leverage scales only when the system that does the work also produces the feedback that trains the person judging it.</p>
+<p>On this reading, the tactical half of the programme (architecture, verification, memory) and the developmental half (cultivating judgment) are not two topics. They are one design problem: build the work so that it teaches its supervisor.</p>
+
+<h2 id="props">4. Five propositions</h2>
+<p>Each says what it claims, which sources bear on it, and what would count against it.</p>
+
+<section class="prop" aria-labelledby="p1">
+<h3 id="p1">P1. Cue validity falls with altitude</h3>
+<p>The higher you supervise, the more what you see is a summary, and the work being judged writes the summary. Its errors are correlated with the work’s errors, which is exactly when you need it to be independent.</p>
+<dl>
+  <dt>Sources</dt><dd><a href="/sources/#work-001">Bainbridge</a>, <a href="/sources/#work-023">Endsley</a>, <a href="/sources/#work-004">Hutchins</a>, <a href="/sources/#work-018">Anthropic on correlated multi-agent failures</a>, <a href="/sources/#work-010">Kahneman &amp; Klein</a>.</dd>
+  <dt>Counts against it</dt><dd>Agent-written summaries predict the outcomes of inspection about as well as watching the work directly does.</dd>
+  <dt>Design consequence</dt><dd>Spend verification on <em>independence</em> (a different model, a test, the world) more than on volume.</dd>
+</dl>
+</section>
+
+<section class="prop" aria-labelledby="p2">
+<h3 id="p2">P2. Judgment at a level comes only from scored predictions at that level</h3>
+<p>Watching outcomes is not enough. You have to commit to an expectation <em>before</em> the work comes back, and then score it. A surprise you never predicted against teaches nothing. “Productively surprised”, in the abstract, means a prediction error you can learn from.</p>
+<dl>
+  <dt>Sources</dt><dd><a href="/sources/#work-008">Hogarth</a>, <a href="/sources/#work-030">Klein</a>, <a href="/sources/#work-056">Dreyfus &amp; Dreyfus</a>, <a href="/sources/#work-006">Schön</a>, <a href="/sources/#work-057">Argyris</a>, <a href="/sources/#work-066">Friston</a> and <a href="/sources/#work-068">Clark</a> on prediction error.</dd>
+  <dt>Counts against it</dt><dd>People who delegate a lot gain calibration at higher levels at the same rate whether or not they write predictions down.</dd>
+  <dt>Design consequence</dt><dd>Delegation should start with a written expectation and end with a scored comparison. That makes every delegation a training trial.</dd>
+</dl>
+</section>
+
+<section class="prop" aria-labelledby="p3">
+<h3 id="p3">P3. Architecture decides where failure becomes visible</h3>
+<p>A supervisor can’t match the variety of the work (<a href="/sources/#work-003">Ashby</a>). The only way out is to make the work nearly decomposable (<a href="/sources/#work-005">Simon</a>) and to hide everything except the interfaces (<a href="/sources/#work-019">Parnas</a>). Judgment then works at the interfaces. Good architecture makes consequential failure loud <em>at a boundary you look at</em>.</p>
+<dl>
+  <dt>Sources</dt><dd><a href="/sources/#work-003">Ashby</a>, <a href="/sources/#work-005">Simon</a>, <a href="/sources/#work-019">Parnas</a>, <a href="/sources/#work-040">Liskov &amp; Wing</a>, <a href="/sources/#work-045">Jackson</a>, <a href="/sources/#work-031">Galbraith</a>, <a href="/sources/#work-046">Beer</a>, <a href="/sources/#work-017">Kim et al.</a>, <a href="/sources/#work-038">context</a> and <a href="/sources/#work-039">harness</a> engineering.</dd>
+  <dt>Counts against it</dt><dd>Consequential errors in delegated work are found just as often by inspecting internals at random as by checking contracts at interfaces.</dd>
+  <dt>Design consequence</dt><dd>Before delegating, say what the interface is and how a violation of it would show itself.</dd>
+</dl>
+</section>
+
+<section class="prop" aria-labelledby="p4">
+<h3 id="p4">P4. Taste is learned relevance, and it has a known curriculum</h3>
+<p>Taste is the capacity to notice which few signals carry consequence (<a href="/sources/#work-011">relevance realization</a>). <a href="/sources/#work-002">Hume</a> gave the curriculum in 1757: a good judge needs delicacy, <em>practice</em>, <em>comparison</em> across many works, and freedom from prejudice. It is cultivated within a community of judges whose verdicts discipline your own (<a href="/sources/#work-009">Polanyi</a>, <a href="/sources/#work-020">Collins</a>).</p>
+<dl>
+  <dt>Sources</dt><dd><a href="/sources/#work-002">Hume</a>, <a href="/sources/#work-011">Vervaeke et al.</a>, <a href="/sources/#work-013">Polanyi</a>, <a href="/sources/#work-014">Newman’s illative sense</a>, <a href="/sources/#work-026">Hamming</a>, <a href="/sources/#work-029">Karpik</a>, <a href="/sources/#work-078">Lamont</a>.</dd>
+  <dt>Counts against it</dt><dd>Practice and comparison across many cases do not improve someone’s agreement with expert judges on which developments mattered.</dd>
+  <dt>Design consequence</dt><dd>Agents can supply the <em>comparison</em> cheaply: several attempts at one task, judged side by side, with the reasons written down.</dd>
+</dl>
+</section>
+
+<section class="prop" aria-labelledby="p5">
+<h3 id="p5">P5. The judge is an instrument and drifts</h3>
+<p>Attention gets captured. The urge to watch every turn may be prudence. It may also be appetite: the turn-by-turn loop is engaging, reassuring, and feels like work. The formation traditions are the only part of the list with a method for telling these apart (<a href="/sources/#work-069">Evagrius on the thoughts</a>, <a href="/sources/#work-037">Ignatius on discernment</a>). <a href="/sources/#work-015">Weil</a> treats attention itself as something to be trained.</p>
+<dl>
+  <dt>Sources</dt><dd><a href="/sources/#work-015">Weil</a>, <a href="/sources/#work-069">Evagrius</a>, <a href="/sources/#work-037">Ignatius</a>, <a href="/sources/#work-012">Aquinas</a>, <a href="/sources/#work-016">Aristotle</a>, <a href="/sources/#work-036">Hadot</a>, <a href="/sources/#work-049">James</a>, <a href="/sources/#work-033">Nietzsche</a>.</dd>
+  <dt>Counts against it</dt><dd>How often someone intervenes in delegated work does not depend on their state (fatigue, anxiety, boredom), only on what the work actually needs.</dd>
+  <dt>Design consequence</dt><dd>Log the <em>reason</em> for each intervention, then review which reasons predicted real problems.</dd>
+</dl>
+</section>
+
+<h2 id="prudence">5. Prudence as a spec for a supervisor</h2>
+<p><a href="/sources/#work-012">Aquinas</a> (<i>Summa</i> II-II, q. 49) breaks prudence into eight parts. Read as a job description for someone directing agents, the list holds up surprisingly well:</p>
+<div class="table-wrap">
+<table>
+  <caption class="visually-hidden">The parts of prudence and their supervisory analogues</caption>
+  <thead><tr><th scope="col">Part</th><th scope="col">Aquinas</th><th scope="col">For a supervisor of agents</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Memoria</th><td>memory of how things went</td><td>organizational memory: what was tried, what broke, and why</td></tr>
+    <tr><th scope="row">Intellectus</th><td>understanding of first principles and the present case</td><td>knowing what the work is <em>for</em>, so you can see when it drifts</td></tr>
+    <tr><th scope="row">Docilitas</th><td>teachability; taking counsel</td><td>actually reading what came back; letting the agent change your mind</td></tr>
+    <tr><th scope="row">Solertia</th><td>shrewdness; quick, apt conjecture</td><td>a fast, correct guess about where the problem is</td></tr>
+    <tr><th scope="row">Ratio</th><td>reasoning from one thing to another</td><td>tracing a symptom back to its cause instead of patching it</td></tr>
+    <tr><th scope="row">Providentia</th><td>foresight; ordering means to a future end</td><td>the written prediction before delegating (P2)</td></tr>
+    <tr><th scope="row">Circumspectio</th><td>attention to circumstances</td><td>context: what this case has that the general rule doesn’t</td></tr>
+    <tr><th scope="row">Cautio</th><td>guarding against evils that look like goods</td><td>independent verification; distrust of the plausible summary (P1)</td></tr>
+  </tbody>
+</table>
+</div>
+<p>This may be the strongest form of the claim that some principles hold across kinds of mind. The parts describe <em>functions</em>, not human faculties. An agent harness can carry some of them, such as memoria, cautio and part of circumspectio. Others, such as intellectus about purpose and providentia about one’s own ends, stay with the principal.</p>
+
+<h2 id="measure">6. How to measure leverage</h2>
+<p>The abstract promises measurement. Here is a first operational definition. Supervision can fail in two ways:</p>
+<ul>
+  <li><strong>Over-supervision</strong>: interventions that turned out to be unnecessary. Each one is attention spent for nothing.</li>
+  <li><strong>Under-supervision</strong>: consequential errors found late, or found by someone else. Each one is agency lost.</li>
+</ul>
+<p class="thesis">Sustainable leverage is the amount of work you can delegate between interventions while keeping late-found consequential errors below a level you can live with.</p>
+<p>That gives three numbers to track over time, ideally broken down by level of abstraction:</p>
+<ol>
+  <li><strong>Delegation depth</strong>: how much work gets done between your interventions.</li>
+  <li><strong>Calibration</strong>: how well your written predictions matched what came back (a Brier score, or simply a tally of hits and surprises).</li>
+  <li><strong>Miss rate</strong>: consequential errors found after you had accepted the work.</li>
+</ol>
+<p>If the thesis is right, depth can only rise sustainably after calibration at that level has risen. If depth rises without calibration, the miss rate should follow.</p>
+
+<h2 id="experiment">7. A first experiment</h2>
+<p>A prediction ledger, kept for a month:</p>
+<ol>
+  <li>Before handing off any chunk of work, write two lines: what you expect back, and what would surprise you.</li>
+  <li>When it returns, mark it: as predicted / surprised and fine / surprised and wrong.</li>
+  <li>For every intervention, write one word for <em>why</em>: evidence, hunch, anxiety, boredom, habit.</li>
+  <li>Each week, raise the size of the chunk only at levels where the predictions are mostly landing.</li>
+</ol>
+<p>It is cheap. It turns P2 and P5 into data. If it works, it is the start of the developmental half of the programme: agents that speed up responsibility <em>and</em> calibration together.</p>
+
+<h2 id="list">8. What this does to the list</h2>
+<h3>A conflation to untangle</h3>
+<p>“Attention economics” on the list means two different things. One is how a <em>producer</em> allocates scarce attention: Simon, Ocasio, Galbraith. The other is how platforms harvest the attention of <em>audiences</em>: Goldhaber, Smythe, Debord, Beller, the 2026 market models. The thesis needs the first. The second is useful as a warning about what captures attention (P5), but it is a different subject. It probably belongs in a short side branch rather than spread across tiers.</p>
+
+<h3>Gaps</h3>
+<p>These are candidates, not yet verified or added to the sources:</p>
+<ul class="cand">
+  <li><strong>Apprenticeship.</strong> The abstract’s central claim is about apprenticeship, yet nothing on the list is about apprenticeship. Lave &amp; Wenger, <i>Situated Learning</i> (legitimate peripheral participation); Collins, Brown &amp; Newman on cognitive apprenticeship.</li>
+  <li><strong>Trust in automation.</strong> Parasuraman &amp; Riley, “Humans and Automation: Use, Misuse, Disuse, Abuse” (1997); Lee &amp; See, “Trust in Automation” (2004); Klein, Woods et al., “Ten Challenges for Making Automation a Team Player” (2004).</li>
+  <li><strong>Delegation as a craft.</strong> Andy Grove, <i>High Output Management</i>. His “task-relevant maturity” is P2 stated as management practice, and his monitoring-as-sampling is P1’s answer.</li>
+  <li><strong>Expertise you don’t have.</strong> Collins &amp; Evans, <i>Rethinking Expertise</i>. “Interactional expertise” is exactly the supervisor’s position: able to judge a practice without performing it.</li>
+  <li><strong>Calibration itself.</strong> Tetlock, <i>Expert Political Judgment</i> and <i>Superforecasting</i>, the only large empirical literature on training calibrated judgment. Ericsson on deliberate practice.</li>
+  <li><strong>How organizations miss.</strong> Vaughan, <i>The Challenger Launch Decision</i> (normalization of deviance); Perrow, <i>Normal Accidents</i>. These are the under-supervision failure, studied in depth.</li>
+</ul>
+
+<h3>Candidates to demote</h3>
+<p>Jung’s <i>Psychological Types</i> and McGilchrist do not yet bear on any proposition. Neither do the audience-labour critiques, except as a footnote to P5. They could move to tier C or to the side branch.</p>
+
+<h2 id="open">9. Open questions</h2>
+<ul>
+  <li>Is calibration specific to a level of abstraction, or does good calibration at one level transfer upward?</li>
+  <li>Can an agent be trained to produce <em>independent</em> cues about another agent’s work, or does independence require a different substrate: a test, the world, a person?</li>
+  <li>Which parts of prudence can be carried by the harness, and which, if moved out of the person, would erode it (Bainbridge again)?</li>
+  <li>Is “taste” one capacity or two: recognising relevance, and wanting the right things?</li>
+  <li>The list ranks Lem and Nietzsche high, and both are about the danger of knowing more than you can act on. Is the curriculum itself an instance of the problem: reading about judgment instead of practising it? The ledger in §7 is the answer to that.</li>
+</ul>
+</main>
+
+<footer class="site-footer">
+  <p>A working draft. The sources it cites are on the <a href="/sources/">sources page</a>.</p>
+  <p>judge.mino.mobi is part of <a href="https://mino.mobi">mino.mobi</a>.</p>
+</footer>
+</body>
+</html>
