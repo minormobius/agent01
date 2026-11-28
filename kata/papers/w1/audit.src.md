@@ -99,6 +99,13 @@ triangulated mesh; the same element family, libraries and outer boundary) return
 crossing at 190.817. Not covered by that audit: other m, oscillating branches, the β range, another discretisation,
 another domain.
 
+**Ours, after the audit (2026-11-28; not audited).** `alt4.py`: cubic/quadratic elements on an unstructured
+triangular mesh in a rectangle (25 D upstream and to the side, 50 D downstream), {{p3nodes}} nodes a component:
+{{p3g188}}, {{p3g190}}, {{p3g192}}, {{p3g194}}, {{p3g200}} at Re 188 to 200, crossing {{p3cross}}; {{p3fnodes}} nodes:
+crossing {{p3fcross}}. `first4.py` at Re 188 (m 0 to 3, 18 wavenumbers 0 to 8, shifts at frequencies 0, 0.35, 0.7,
+1.2, 2.0): least stable {{firstBest}} (m = 0, β = {{firstBeta}}), then {{firstM1}} (m = 1, steady, β = {{firstM1beta}}).
+Both are our code on the same library. Still wanted from an auditor: any method that shares neither.
+
 **A cheap independent route** that needs no eigen-solver: time-step the 4D equations for one Fourier mode in w
 (wavenumber 2.5) on the axisymmetric base flow at Re 200 from a small disturbance, and measure the exponential
 growth of its energy. Ours doubles every 17 time units (energy growth rate 2σ = 0.040).
@@ -176,7 +183,8 @@ radial weight. Re on the centreline speed.
 | recirculation length behind the wire on the pipe's axis | {{aTube25}} | {{aTube50}} | {{aTube100}} | {{aTube150}} | {{aTube200}} | {{aTube250}} |
 | Nusselt number per length at the axis, wire temperature ∝ cos(πw/2R) | {{ax25}} | {{ax50}} | {{ax100}} | {{ax150}} | {{ax200}} | {{ax250}} |
 
-All six are steady. Ours: 62 000 P2/P1 tetrahedra, 0.06 D on the wire, one mesh. **Agreement:** steady; lengths
+All six are steady. Ours: 62 000 P2/P1 tetrahedra, 0.06 D on the wire; Re 100 repeated on
+{{meshTf}} 000 (0.045 D): length {{meshBubF}} against {{meshBubC}}, Nusselt number {{meshNuF}} against {{meshNuC}}. **Agreement:** steady; lengths
 within 0.05; Nusselt numbers within 2%.
 
 The energy balance on that flow (the same equation as A5 with the stream's loss taken from the computed
@@ -236,7 +244,8 @@ radial direction of the pipe's cross-section that carries the rotational symmetr
 mirror-symmetric about the ribbon's own plane. Nusselt number per area on the pipe's axis, sheet temperature
 ∝ J₀(2.405 s/R): {{ribT10}}, {{ribT20}}, {{ribT40}} at Re 10, 20, 40 (the station problem gives {{ribStr10}},
 {{ribStr20}}, {{ribStr40}}). The balance on the tube's heat matrix against the station picture: the latter's P is
-{{ribCk30}} of the former at worst for Λ = 30, {{ribCk300}} for 300, {{ribCk3000}} for 3000.
+{{ribCk30}} of the former at worst for Λ = 30, {{ribCk300}} for 300, {{ribCk3000}} for 3000. At R = 7.5, Re 10:
+{{wideT}} in the tube and {{wideStr}} by stations on the axis; ratios {{wideCk30}}, {{wideCk300}}, {{wideCk3000}}.
 
 ---
 

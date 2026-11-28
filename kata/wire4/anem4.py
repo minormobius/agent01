@@ -13,15 +13,15 @@ rising with temperature: at constant current the wire runs away when P reaches t
 Two free material numbers, Lam and alpha (alpha only sets the scale of P and theta); in a metal Lam and rho0 are tied
 (Wiedemann-Franz), which again only rescales the current.
 
-python anem4.py [overheat=0.5] [Lam,Lam,...] [tags...]   prints the tables; writes data/anem.json
+python anem4.py [overheat=0.5] [Lam,Lam,...] [tags...]   prints the tables; writes data/anem.json (OUT=file for a subset)
 """
-import sys, json, glob
+import sys, os, json, glob
 import numpy as np
 from scipy.optimize import brentq
 
 tau = float(sys.argv[1]) if len(sys.argv) > 1 else 0.5
 Lams = [float(v) for v in sys.argv[2].split(",")] if len(sys.argv) > 2 else [0.0, 3.0, 30.0, 300.0, 3000.0]
-tags = sys.argv[3:] or sorted((f.split("heat-")[1][:-5] for f in glob.glob("data/heat-*.json") if "slab" not in f and "uni" not in f), key=lambda t: float(t.split("-")[0]))
+tags = sys.argv[3:] or sorted((f.split("heat-")[1][:-5] for f in glob.glob("data/heat-*.json") if not any(x in f for x in ("slab", "uni", "ribbon", "fine"))), key=lambda t: float(t.split("-")[0]))
 
 def wire(d, Lam, J=None):
     H = np.array(d["H"]); J = J or len(H); H = H[:J, :J]; R = d["R"]; j = np.arange(J); kap = (j + 0.5) * np.pi / R
@@ -44,9 +44,9 @@ for Lam in Lams:
     for t in tags:
         d = json.load(open(f"data/heat-{t}.json")); solve, at, Pmax = wire(d, Lam); r = at(tau)
         J = len(d["H"]); r4 = wire(d, Lam, J // 2)[1](tau)["P"] if J >= 4 else np.nan
-        n = np.log(r["P"] / prev[1]) / np.log(d["Re"] / prev[0]) if prev else np.nan
+        n = np.log(r["P"] / prev[1]) / np.log(d["Re"] / prev[0]) if prev and d["Re"] != prev[0] else np.nan
         print(f"   Re {d['Re']:5g}  P {r['P']:8.4f}  (half the shapes: {r4:8.4f})  on the axis {r["axis"]:.3f}  to the stream {r['stream']:.3f}  ends {r['ends']:.3f}  sum {r['balance']:.4f}  runaway at P {Pmax:.3f}  n {n:.3f}")
-        out["rows"].append(dict(tag=t, Re=d["Re"], R=d["R"], Lam=Lam, n=None if prev is None else float(n), runaway=Pmax, **r)); prev = (d["Re"], r["P"])
+        out["rows"].append(dict(tag=t, Re=d["Re"], R=d["R"], Lam=Lam, n=float(n) if np.isfinite(n) else None, runaway=Pmax, **r)); prev = (d["Re"], r["P"])
 print("constant current: P set to give that overheat at the middle Reynolds number; the reading is the resistance")
 for Lam in Lams:
     ds = [json.load(open(f"data/heat-{t}.json")) for t in tags]; mid = ds[len(ds) // 2]; P = wire(mid, Lam)[1](tau)["P"]
@@ -54,4 +54,4 @@ for Lam in Lams:
     for d in ds:
         solve, at, Pmax = wire(d, Lam); line.append(f"Re {d['Re']:g}: " + (f"{1 + solve(P)[1]:.4f}" if P < Pmax else "runs away"))
     print(f" Lam {Lam:g}  P {P:.4f}   R/R0  " + "   ".join(line))
-json.dump(out, open("data/anem.json", "w"))
+json.dump(out, open(os.environ.get("OUT", "data/anem.json"), "w"))

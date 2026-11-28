@@ -37,7 +37,7 @@ function build() { const filled = fill(fs.readFileSync(path.join(here, "text.md"
 <meta property="og:title" content="${esc(title)}"><meta property="og:url" content="https://kata.mino.mobi/papers/w1/paper">
 <link rel="stylesheet" href="../r1/paper.css"></head><body>
 <div class="toolbar"><span class="brand"><a href="../../">kata</a></span><span>paper 3 · a hot wire in four dimensions</span><span class="grow" style="flex:1"></span><a href="../../wire4/">the instrument, live</a><a href="AUDIT.md">audit sheet</a><a href="REVIEW.md">the audit</a><a href="REFERENCES.md">references checked</a><a href="text.md">source</a></div>
-<article class="sheet"><div class="p-venue">kata.mino.mobi · paper 3 · draft 3, audited in part</div><div class="p-body single">
+<article class="sheet"><div class="p-venue">kata.mino.mobi · paper 3 · draft 4, audited in part</div><div class="p-body single">
 ${out.join("\n")}
 </div></article></body></html>`;
   return { md, html, missing: filled.missing, blocks: out.length }; }

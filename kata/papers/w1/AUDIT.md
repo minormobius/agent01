@@ -99,6 +99,13 @@ triangulated mesh; the same element family, libraries and outer boundary) return
 crossing at 190.817. Not covered by that audit: other m, oscillating branches, the β range, another discretisation,
 another domain.
 
+**Ours, after the audit (2026-11-28; not audited).** `alt4.py`: cubic/quadratic elements on an unstructured
+triangular mesh in a rectangle (25 D upstream and to the side, 50 D downstream), 20422 nodes a component:
+−0.0072, −0.0025, +0.0022, +0.0067, +0.0199 at Re 188 to 200, crossing 191.1; 29536 nodes:
+crossing 191.0. `first4.py` at Re 188 (m 0 to 3, 18 wavenumbers 0 to 8, shifts at frequencies 0, 0.35, 0.7,
+1.2, 2.0): least stable −0.0069 (m = 0, β = 2.5), then −0.0540 (m = 1, steady, β = 1.75).
+Both are our code on the same library. Still wanted from an auditor: any method that shares neither.
+
 **A cheap independent route** that needs no eigen-solver: time-step the 4D equations for one Fourier mode in w
 (wavenumber 2.5) on the axisymmetric base flow at Re 200 from a small disturbance, and measure the exponential
 growth of its energy. Ours doubles every 17 time units (energy growth rate 2σ = 0.040).
@@ -176,7 +183,8 @@ radial weight. Re on the centreline speed.
 | recirculation length behind the wire on the pipe's axis | 0.02 | 0.34 | 0.78 | 1.21 | 1.71 | 1.97 |
 | Nusselt number per length at the axis, wire temperature ∝ cos(πw/2R) | 4.28 | 5.36 | 6.83 | 7.98 | 9.05 | 9.96 |
 
-All six are steady. Ours: 62 000 P2/P1 tetrahedra, 0.06 D on the wire, one mesh. **Agreement:** steady; lengths
+All six are steady. Ours: 62 000 P2/P1 tetrahedra, 0.06 D on the wire; Re 100 repeated on
+114 000 (0.045 D): length 0.792 against 0.785, Nusselt number 6.829 against 6.830. **Agreement:** steady; lengths
 within 0.05; Nusselt numbers within 2%.
 
 The energy balance on that flow (the same equation as A5 with the stream's loss taken from the computed
@@ -236,7 +244,8 @@ radial direction of the pipe's cross-section that carries the rotational symmetr
 mirror-symmetric about the ribbon's own plane. Nusselt number per area on the pipe's axis, sheet temperature
 ∝ J₀(2.405 s/R): 1.97, 2.51, 3.27 at Re 10, 20, 40 (the station problem gives 1.89,
 2.47, 3.27). The balance on the tube's heat matrix against the station picture: the latter's P is
-0.96 of the former at worst for Λ = 30, 0.994 for 300, 0.9992 for 3000.
+0.96 of the former at worst for Λ = 30, 0.994 for 300, 0.9992 for 3000. At R = 7.5, Re 10:
+1.90 in the tube and 1.86 by stations on the axis; ratios 0.966, 0.993, 0.9990.
 
 ---
 

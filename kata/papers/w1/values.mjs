@@ -64,5 +64,17 @@ export const V = {
   for (const Re of [10, 20, 40]) { const c = RIB.check.find((r) => r.Re === Re && r.Lam === 30); V["ribT" + Re] = f2(c.nu_axis_tube); V["ribStr" + Re] = f2(c.nu_axis_strip); }
   V.cylCd20 = f3(cyc(1).cd * 0 + CY.find((r) => r.Re === 25).cd * 0 + J("nu-cyl.json").rows.find((r) => r.Re === 40).cd); V.cylNu025 = f3(cyl(0.25)); V.cylNu1 = f3(cyl(1)); V.cylNu10 = f3(cyl(10)); V.cylNu40 = f3(cyl(40));
   V.cwErr = (100 * Math.max(...[0.25, 0.5, 1, 2, 5, 10, 20, 40].map((Re) => Math.abs(cw(Re) / cyl(Re) - 1)))).toFixed(1) + "%"; V.cylS02 = f2(cylSens(0.2)); V.sphS02 = f2(sphSens(0.2)); V.cylS30 = f2(cylSens(30)); V.sphS30 = f2(sphSens(30)); V.cylCd40 = V.cylCd20; delete V.cylCd20; V.cylBub40 = f2(J("nu-cyl.json").rows.find((r) => r.Re === 40).bubble); }
+/* closing open items (2026-11-28): another element and domain for the threshold (alt4.py), a search just below it (first4.py), the tube on a finer mesh, a wider ribbon */
+{ const A = J("alt.json"), ar = (elem, h0, Re) => A.find((r) => r.elem === elem && r.h0 === h0 && r.Re === Re), cross = (elem, h0, a, b) => { const x = ar(elem, h0, a).growth, y = ar(elem, h0, b).growth; return a + ((b - a) * -x) / (y - x); };
+  for (const Re of [188, 190, 192, 194, 200]) V["p3g" + Re] = sg(ar("P3", 0.05, Re).growth);
+  V.p3nodes = String(ar("P3", 0.05, 190).n2); V.p3fnodes = String(ar("P3", 0.035, 190).n2); V.p3fg190 = sg(ar("P3", 0.035, 190).growth); V.p3fg192 = sg(ar("P3", 0.035, 192).growth);
+  V.p3cross = f1(cross("P3", 0.05, 190, 192)); V.p3fcross = f1(cross("P3", 0.035, 190, 192)); V.miniCross = f1(cross("MINI", 0.025, 192, 200)); V.miniG192 = sg(ar("MINI", 0.025, 192).growth); V.miniG200 = sg(ar("MINI", 0.025, 200).growth);
+  V.p3m1 = sg(ar("P3", 0.05, 212).m1_beta0); V.p3cd200 = f3(ar("P3", 0.05, 200).cd);
+  const F = J("first-188.json"), top = (m, osc) => Math.max(...F.rows.filter((r) => r.m === m && (!osc || Math.abs(r.freq) > 1e-6)).map((r) => r.growth)), at = (m) => F.rows.filter((r) => r.m === m).reduce((a, b) => (b.growth > a.growth ? b : a));
+  V.firstN = String(F.rows.length); V.firstBest = sg(top(0)); V.firstBeta = String(at(0).beta); V.firstM1 = sg(top(1)); V.firstM1beta = String(at(1).beta); V.firstOsc = sg(Math.max(top(0, 1), top(1, 1), top(2, 1), top(3, 1)));
+  const tc = J("tube-100-R5.json"), tf = J("tube-100-R5-fine.json"), nuA = (t) => heat(t).Q[0][0] / Math.PI, M = J("anem-mesh.json").rows, pr = Math.max(...[0, 30, 300, 3000].map((L) => { const q = M.filter((r) => r.Lam === L); return Math.abs(q[1].P / q[0].P - 1); }));
+  V.meshTc = String(Math.round(tc.ntets / 1000)); V.meshTf = String(Math.round(tf.ntets / 1000)); V.meshBubC = f3(tc.bub[0]); V.meshBubF = f3(tf.bub[0]); V.meshNuC = f3(nuA("100-R5")); V.meshNuF = f3(nuA("100-R5-fine")); V.meshP = (100 * pr).toFixed(2) + "%";
+  const w = (Lam) => RIB.wider.find((r) => r.Lam === Lam), n = (Lam) => RIB.check.find((r) => r.Lam === Lam && r.Re === 10);
+  V.wideCk30 = f3(w(30).strip / w(30).tube); V.wideCk300 = f3(w(300).strip / w(300).tube); V.wideCk3000 = f4(w(3000).strip / w(3000).tube); V.narrowCk30 = f3(n(30).strip / n(30).tube); V.wideT = f2(w(30).nu_axis_tube); V.wideStr = f2(w(30).nu_axis_strip); }
 export function fill(text, vals = V) { const missing = []; return { out: text.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vals ? vals[k] : (missing.push(k), m))), missing }; }
 if (process.argv[1] && process.argv[1].endsWith("values.mjs")) console.log(V);

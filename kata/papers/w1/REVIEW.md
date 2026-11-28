@@ -67,3 +67,22 @@ station problem, `wire4/data/ribbon-grid.json`, interpolated in the browser; wit
 numbers). Three pictures of computed fields were added to the figures (`sims.py`: the rippled wake in figure 1, the wire in
 the tube as figure 2, one station of the ribbon in figure 5); they are drawn from the saved runs and change no number.
 **None of draft 3's additions has been audited.**
+
+## Draft 4 (2026-11-28): four of our own open items, by our own computation
+
+The PI asked which of section 10's open items could be closed. Four were worked; none is closed in the sense of an
+independent result, and **none of this has been audited**.
+
+- *Another discretisation and domain for A2* (the auditor's first suggestion). `wire4/alt4.py`: P3/P2 on an
+  unstructured mesh in a rectangle. Crossing at 191.1 and 191.0 on two meshes (ours before: 190.9; the audit: 190.8);
+  a low-order MINI element, one mesh, 192.6. Same code base and finite-element library as before.
+- *A search of the other branches* (the auditor's second). `wire4/first4.py` at Re 188: nothing but the m = 0,
+  β = 2.5 mode within 0.05 of neutral. Ours alone.
+- *The tube on one mesh.* Re 100 repeated with 1.8 times the tetrahedra: 1% in the recirculation length, 0.02% in
+  the axis Nusselt number, 0.05% in the energy balance. The other Reynolds numbers were not repeated.
+- *The ribbon's station picture checked on one narrow ribbon.* A second, 1.5 times wider, at Re 10: the worst ratio
+  moves from 0.962 to 0.966. The gap closes slowly, and the calibration's ribbons (200 and 500 thicknesses) remain far
+  outside what a tube run has checked.
+
+Not attempted: stability of the tube states outside their symmetries (the auditor's third), where the wire begins to
+shed, free ribbon edges, laminar 4D pipe flow at high Reynolds number, and the sources not read at first hand.

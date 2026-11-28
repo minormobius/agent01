@@ -72,6 +72,21 @@ the wire. A sphere cannot have it: it needs the extra direction. Growth rates at
 20 769 nodes a component): −0.0067, −0.0020, +0.0027, +0.0072 at Re 188, 190, 192, 194. The coarse mesh (50 × 40) and
 a domain twice the size give the same to three decimals (`data/thresholds.txt`).
 
+**Checked on another discretisation (`alt4.py`, 2026-11-28).** The same problem on cubic/quadratic elements, an
+unstructured gmsh triangular mesh and a rectangular domain (25 D upstream and to the side, 50 D downstream), where
+`wake4.py` is quadratic/linear on a structured mesh in a half-disc. Growth at β = 2.5: −0.0072, −0.0025, +0.0022,
++0.0067, +0.0199 at Re 188, 190, 192, 194, 200 with 20 422 nodes a component (crossing 191.1); −0.0023, +0.0023 at
+190, 192 with 29 536 (crossing 191.0). The sphere's m = 1 mode at Re 212 on the same mesh: −0.0022. The MINI element
+(linear plus a bubble; 14 623 nodes, one mesh) crosses at 192.6. Rows in `data/alt.json`. Our code and scikit-fem
+throughout: a different discretisation, not an independent implementation. The audit of 2026-11-27 was the latter,
+on the first discretisation, and got 190.8.
+
+**A search just below the threshold (`first4.py`, 2026-11-28).** At Re 188: m = 0 to 3, 18 wavenumbers from 0 to 8,
+the eigenvalues nearest five points up the frequency axis (0, 0.35, 0.7, 1.2, 2.0), 50 × 40 mesh, 2.5 h. The least
+stable is m = 0 at β = 2.5, −0.0069. Next the steady m = 1 mode, −0.054 at β = 1.75. Everything oscillating is at
+−0.115 or below, and those rows (frequency 0.80, the same for every m) are the truncated domain's free-stream modes.
+`data/first-188.json`.
+
 **What this is not.** A linear result on one code. The β terms were not checked against an independent
 implementation (the m terms are, through the sphere thresholds, and β enters the equations the same way). It says
 where the steady extruded wake stops being stable, not what replaces it or what a hot wire would then read. The
@@ -336,8 +351,10 @@ axis, a little shorter there (1.71 against 1.78) and shortening faster toward th
 slower than the cosine stream and the wall adds its own drag. The bubble does not close at the wall: it is still
 half a diameter long 0.5 D from it. No ripple at any of the three. On the axis the tube's bubble sits 0.07 to 0.09
 below section 8's mirror-plane values (1.28, 1.79, 2.06) at each Reynolds number, and the bulge sharpens with
-Reynolds number the same way: flat at 150, peaked at 250. One mesh, one tube radius so far; the junction is not
-examined beyond that.
+Reynolds number the same way: flat at 150, peaked at 250. One tube radius so far; the junction is not
+examined beyond that. **Mesh check (2026-11-28):** Re 100 again with h0 0.045 (114 349 tetrahedra against 62 147; tag
+`100-R5-fine`): bubble on the axis 0.792 against 0.785, axis Nusselt number 6.829 against 6.830, and section 11's P
+within 0.05% at Λ from 0 to 3000 (`data/anem-mesh.json`). The other five Reynolds numbers are on the one mesh.
 
 ## 10. Heat leaving the wire (`heat4.py`)
 
@@ -610,9 +627,11 @@ stretch by the rim.
 **Limits.** The cylinder flows are steady and symmetric, which is right below Re 47 in an unbounded stream and is
 imposed in the tube (the mirror plane is the ribbon's own). Heating is taken uniform over the sheet: how a current
 is fed through a disc, and what resistance one then measures, is not modelled. The strip picture ignores variation
-along the sheet; its check is at R = 5 only, where it is rough. The stations nearest the rim (channel narrower than
+along the sheet; its check is at R = 5 and, at Re 10, at R = 7.5 (2026-11-28: strip/tube P 0.966, 0.993, 0.9990 at Λ = 30, 300,
+3000, against 0.962, 0.994, 0.9992 at R = 5; axis Nu 1.896 in the tube, 1.859 by stations), where it is rough: widening
+the ribbon by half closes a tenth of the gap for a poor conductor, because the error sits in the outer stations. The stations nearest the rim (channel narrower than
 the ribbon is thick) are left out and the last value held. A ribbon narrower than the pipe, with free edges, was not
-computed. Pr 0.7; one mesh for the tube runs.
+computed. Pr 0.7; one mesh for the ribbon's tube runs.
 
 ## Running it
 
@@ -636,6 +655,10 @@ RESUME=1 FRAMES=25 ../../venv/bin/python shear4.py 280 10 255 0.015 28 50 40 && 
 ../../venv/bin/python strip4.py table && ../../venv/bin/python strip4.py check && ../../venv/bin/python strip4.py 100 3000   # the long thin wire, ~5 min
 ../../venv/bin/python cyl4.py && ../../venv/bin/python ribbon4.py strip 100 0.25,1,10,40 && ../../venv/bin/python ribbon4.py cal 100 4500   # the ribbon, ~15 min
 ../../venv/bin/python tube4.py 10 5 60 0.01 ribbon && ../../venv/bin/python heat4.py ribbon-10-R5 0.7 6 && ../../venv/bin/python ribbon4.py check   # its check in the tube, ~1 h
+../../venv/bin/python alt4.py P3 0.05 25 50 25 188,190,192,194,200 2.5    # the threshold on another element, mesh and domain, ~5 min -> data/alt.json
+../../venv/bin/python first4.py 188                       # every mode just below the threshold, ~2.5 h -> data/first-188.json
+OUT=data/anem-mesh.json ../../venv/bin/python anem4.py 0.5 0,30,300,3000 100-R5 100-R5-fine   # the tube's mesh check
+../../venv/bin/python ribbon4.py check 30,300,3000 7.5    # the wider ribbon (after tube4.py 10 7.5 60 0.01 ribbon and heat4.py)
 ../../venv/bin/python export4.py nl 210 && ../../venv/bin/python export4.py mode 200   # what the page reads
 ```
 
@@ -644,7 +667,7 @@ not wake modes.
 
 ## Next
 
-- An independent check of the β > 0 result (a second discretisation, or a time-stepped 4D run near Re 191).
+- A check of the β > 0 result that shares no code or library with this one (the audit shared the element family; `alt4.py` shares the library), ideally not finite elements.
 - A nonlinear solver that carries the lopsided harmonics, to find the tilted ripple and where it starts to shed.
 - The tube at higher Reynolds numbers and other radii, a finer mesh, and a look at the junction. Lopsided flows need the
   full 4D problem or harmonics round the axis.

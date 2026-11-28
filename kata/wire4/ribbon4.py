@@ -113,15 +113,15 @@ if __name__ == "__main__":
             s2 = np.append(s, R); nu2 = np.append(nu, nu[-1]); b = balance(R, Lam, s2, nu2, tau); Re = float(k); n = np.log(b["P"] / prev[1]) / np.log(Re / prev[0]) if prev else np.nan
             print(f"  {Re:5g}  {b['P']:8.4f}  {n:6.3f}     {b['stream']:.3f}         {nu[0]:.4f}"); prev = (Re, b["P"])
     elif mode == "check":
-        Lams = [float(v) for v in a[1].split(",")] if len(a) > 1 else [30.0, 300.0, 3000.0]; J = json.load(open("data/ribbon-strip-R5.json"))
-        print("strip (cylinder between the pipe's walls, station by station) against the 3D tube run, R = 5, overheat 0.5")
+        Lams = [float(v) for v in a[1].split(",")] if len(a) > 1 else [30.0, 300.0, 3000.0]; R = float(a[2]) if len(a) > 2 else 5.0; J = json.load(open(f"data/ribbon-strip-R{R:g}.json"))
+        print(f"strip (cylinder between the pipe's walls, station by station) against the 3D tube run, R = {R:g}, overheat 0.5")
         for k in sorted(J["rows"], key=float):
-            f = f"data/heat-ribbon-{float(k):.0f}-R5.json"
+            f = f"data/heat-ribbon-{float(k):.0f}-R{R:g}.json"
             if not os.path.exists(f): continue
-            d = json.load(open(f)); r = J["rows"][k]; s = np.array(r["s"]); nu = np.array(r["Nu"]); st = np.array(d["stations"]); q3 = np.array(d["Q"])[0] / np.pi / j0(jn_zeros(0, 1)[0] * st / 5)
-            print(f" Re {k}: Nu per local excess, 3D first shape / strip, at s = 0, 1, 2, 3, 4:  " + "  ".join(f"{np.interp(x, st, q3):.3f}/{np.interp(x, s, nu):.3f}" for x in (0, 1, 2, 3, 4)))
+            d = json.load(open(f)); r = J["rows"][k]; s = np.array(r["s"]); nu = np.array(r["Nu"]); st = np.array(d["stations"]); q3 = np.array(d["Q"])[0] / np.pi / j0(jn_zeros(0, 1)[0] * st / R); xs = [R * i / 5 for i in range(5)]
+            print(f" Re {k}: Nu per local excess, 3D first shape / strip, at s = " + ", ".join(f"{x:g}" for x in xs) + ":  " + "  ".join(f"{np.interp(x, st, q3):.3f}/{np.interp(x, s, nu):.3f}" for x in xs))
             for Lam in Lams:
-                g = galerkin(d, Lam); b = balance(5.0, Lam, np.append(s, 5.0), np.append(nu, nu[-1]))
+                g = galerkin(d, Lam); b = balance(R, Lam, np.append(s, R), np.append(nu, nu[-1]))
                 print(f"   Lam {Lam:6g}   P strip {b['P']:9.4f} / 3D {g['P']:9.4f} = {b['P'] / g['P']:.4f}    to the stream {b['stream']:.3f} / {g['stream']:.3f}")
     elif mode == "table":
         out = dict(overheat=0.5, cal=[], check=[])
@@ -132,11 +132,15 @@ if __name__ == "__main__":
                 for k in sorted(J["rows"], key=float):
                     r = J["rows"][k]; s = np.array(r["s"]); nu = np.array(r["Nu"]); o = np.argsort(s); s, nu = s[o], nu[o]; b = balance(R, Lam, np.append(s, R), np.append(nu, nu[-1])); Re = float(k)
                     out["cal"].append(dict(R=R, Lam=Lam, Re=Re, P=b["P"], stream=b["stream"], nu_axis=float(nu[0]), n=None if prev is None else float(np.log(b["P"] / prev[1]) / np.log(Re / prev[0])))); prev = (Re, b["P"])
-        J = json.load(open("data/ribbon-strip-R5.json"))
-        for k in sorted(J["rows"], key=float):
-            d = json.load(open(f"data/heat-ribbon-{float(k):.0f}-R5.json")); r = J["rows"][k]; s = np.array(r["s"]); nu = np.array(r["Nu"])
-            for Lam in (30.0, 300.0, 3000.0):
-                g = galerkin(d, Lam); b = balance(5.0, Lam, np.append(s, 5.0), np.append(nu, nu[-1])); out["check"].append(dict(Re=float(k), Lam=Lam, strip=b["P"], tube=g["P"], nu_axis_tube=g["nu_axis"], nu_axis_strip=float(nu[0]), stream_strip=b["stream"], stream_tube=g["stream"]))
+        out["wider"] = []
+        for R, key in ((5.0, "check"), (7.5, "wider")):
+            J = json.load(open(f"data/ribbon-strip-R{R:g}.json"))
+            for k in sorted(J["rows"], key=float):
+                f = f"data/heat-ribbon-{float(k):.0f}-R{R:g}.json"
+                if not os.path.exists(f): continue
+                d = json.load(open(f)); r = J["rows"][k]; s = np.array(r["s"]); nu = np.array(r["Nu"])
+                for Lam in (30.0, 300.0, 3000.0):
+                    g = galerkin(d, Lam); b = balance(R, Lam, np.append(s, R), np.append(nu, nu[-1])); out[key].append(dict(R=R, Re=float(k), Lam=Lam, strip=b["P"], tube=g["P"], nu_axis_tube=g["nu_axis"], nu_axis_strip=float(nu[0]), stream_strip=b["stream"], stream_tube=g["stream"]))
         json.dump(out, open("data/ribbon-cal.json", "w")); print("wrote data/ribbon-cal.json:", len(out["cal"]), "calibration rows,", len(out["check"]), "check rows")
     elif mode == "grid":
         Hs = [1.0, 1.5, 2.25, 4.0, 9.0, 20.0, 50.0, 125.0, 250.0, 500.0]; Rl = [0.001, 0.01, 0.05, 0.25, 1.0, 4.0, 10.0, 20.0, 40.0]; G = []
