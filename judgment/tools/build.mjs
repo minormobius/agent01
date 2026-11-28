@@ -23,7 +23,7 @@ const count = (arr, f, pred = () => true) => arr.filter((t) => t.function === f 
 const matrix = FN.map((f) => `<tr><th scope="row"><a href="#f-${f.id}">${esc(f.name)}</a></th>` +
   `<td>${count(built, f.id, (t) => t.status === 'live') || '<span class="zero">0</span>'}</td>` +
   `<td>${count(built, f.id, (t) => t.status !== 'live') || '<span class="zero">0</span>'}</td>` +
-  `<td>${count(lit, f.id) || '<span class="zero">0</span>'}</td></tr>`).join('\n');
+  `<td>${count(lit, f.id)}</td></tr>`).join('\n');
 
 function builtCard(t) {
   return `<li class="tool" id="t-${esc(t.id)}" data-fn="${esc(t.function)}" data-sys="${esc(t.system)}" data-status="${esc(t.status)}">

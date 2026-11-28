@@ -9121,6 +9121,16 @@
    "age": "hot",
    "parent": "judgment",
    "discovered": true
+  },
+  {
+   "id": "judgment/tools",
+   "name": "tools",
+   "url": "https://judge.mino.mobi/tools/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "judgment",
+   "discovered": true
   }
  ]
 }
