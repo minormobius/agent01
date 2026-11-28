@@ -545,6 +545,14 @@ for games, and this is a modelling programme with publications to come. The game
   fails). Now it takes the nearest row within 30% and, if that doesn't solve at M, walks the mass from the row's star in 8
   log steps (Newtonian g), then pins gravity; both start (sandbox: s 1.85 to 16.5 Gyr, s 1.6 to 3.5 Gyr in 5 / 4 min).
   Stars with a row within 1% start as before. evolve4-28b: 21 commands.
+  **evolve4-28 leg 2 (evolve4-28b, collected 2026-11-28 05:26Z):** 9 of 24 ended. The restarted pair runs (Ledoux G 10⁻¹¹ s 1.6
+  finished, 16.99 Gyr; s 1.85 at Xc 0.003). G 10⁻¹⁷ s 1.5152's analogue stops at its core switch-off (Xc 0.3705, 114.0 Gyr),
+  as the family does. **New: Ledoux G 10⁻¹¹ s 1.55 stopped on the balmax bar** at Xc 0.106, 15.88 Gyr: one model's
+  Schwarzschild core flickers 0.126 → 0.063 → 0.121 (mixed core 0.061 throughout), that step is re-solved without ε_grav,
+  and from it the structure sits on a second branch (ρc +14%, L −15%) whose shells burn 1.71× the structure's power, every
+  model after. Replayed from leg 1's checkpoint (atom4-data 006883d78, 15.876 Gyr) it recurs exactly: every step size
+  lands on ρc 6.50 × 10¹⁷ (DRHO halving five times, then accepted). Not diagnosed further; kept as a stop (it had halved;
+  life ≥ 15.88 Gyr, ~18 by its last rate), open. evolve4-28c: 15 commands.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
