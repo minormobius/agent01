@@ -9093,6 +9093,16 @@
    "discovered": true
   },
   {
+   "id": "judgment/testbed",
+   "name": "testbed",
+   "url": "https://judge.mino.mobi/testbed/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "judgment",
+   "discovered": true
+  },
+  {
    "id": "judgment/thesis",
    "name": "thesis",
    "url": "https://judge.mino.mobi/thesis/",
