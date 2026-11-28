@@ -33,10 +33,10 @@ _Regenerated 2026-11-28 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-11-28, 100 members / 182 posts):
+**Neighborhood spark** (bisk 2026-11-28, 100 members / 199 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: bluesky, idk, llm
-- Top post: "concept for a more egalitarian corporation: - AI swarm C-suite (customized open weights) with on-prem inference - Every " — @hikikomorphism.bsky.social
+- Distinctive words: llm, bluesky, listifications
+- Top post: "you want some cross platform evidence of how much better bluesky is than twitter every reply to this on bsky is smart, i" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
