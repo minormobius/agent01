@@ -1,0 +1,20 @@
+$ node four/atom/tools/evolve.mjs four 1e-20 1.55 2.279535952 grav=1 ledoux=0.02 tag=v3
+4D G 1e-20 s 1.55 2.280 M_Ch: resumed at 80.0203 Gyr from /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-20-1.55-2.280-lp-eg-ld0.02-tv3.ckpt.json
+4D G 1e-20 s 1.55 2.280 M_Ch 80.121 Gyr: L 1.3827e+48 W, R 3.5789e+9 m, Teff 34739 K, Tc 40.90 MK, ρc 3.743e+16 kg/m⁴, Xc 0.0448, stirred core 0.000, pp 4.8%, half the light inside q 0.207, burnt/radiated 0.9999, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.322 Gyr: L 1.4004e+48 W, R 3.5974e+9 m, Teff 34719 K, Tc 40.98 MK, ρc 3.904e+16 kg/m⁴, Xc 0.0427, stirred core 0.000, pp 4.8%, half the light inside q 0.207, burnt/radiated 0.9973, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.522 Gyr: L 1.4205e+48 W, R 3.6168e+9 m, Teff 34706 K, Tc 41.07 MK, ρc 4.073e+16 kg/m⁴, Xc 0.0406, stirred core 0.000, pp 4.7%, half the light inside q 0.207, burnt/radiated 0.9992, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.714 Gyr: L 1.4405e+48 W, R 3.6353e+9 m, Teff 34697 K, Tc 41.23 MK, ρc 4.228e+16 kg/m⁴, Xc 0.0386, stirred core 0.000, pp 4.7%, half the light inside q 0.209, burnt/radiated 1.0013, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.726 Gyr: L 1.4453e+48 W, R 3.6370e+9 m, Teff 34711 K, Tc 41.17 MK, ρc 4.247e+16 kg/m⁴, Xc 0.0385, stirred core 0.000, pp 4.6%, half the light inside q 0.209, burnt/radiated 1.0108, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.748 Gyr: L 1.4484e+48 W, R 3.6389e+9 m, Teff 34714 K, Tc 41.20 MK, ρc 4.260e+16 kg/m⁴, Xc 0.0383, stirred core 0.000, pp 4.6%, half the light inside q 0.209, burnt/radiated 1.0100, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.794 Gyr: L 1.4523e+48 W, R 3.6425e+9 m, Teff 34712 K, Tc 41.29 MK, ρc 4.284e+16 kg/m⁴, Xc 0.0378, stirred core 0.000, pp 4.6%, half the light inside q 0.209, burnt/radiated 1.0084, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.885 Gyr: L 1.4618e+48 W, R 3.6526e+9 m, Teff 34700 K, Tc 41.32 MK, ρc 4.390e+16 kg/m⁴, Xc 0.0368, stirred core 0.000, pp 4.6%, half the light inside q 0.209, burnt/radiated 1.0073, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.896 Gyr: L 1.4647e+48 W, R 3.6542e+9 m, Teff 34705 K, Tc 41.30 MK, ρc 4.400e+16 kg/m⁴, Xc 0.0367, stirred core 0.000, pp 4.6%, half the light inside q 0.212, burnt/radiated 1.0128, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.919 Gyr: L 1.4670e+48 W, R 3.6560e+9 m, Teff 34705 K, Tc 41.34 MK, ρc 4.413e+16 kg/m⁴, Xc 0.0365, stirred core 0.000, pp 4.6%, half the light inside q 0.212, burnt/radiated 1.0121, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.922 Gyr: L 1.4678e+48 W, R 3.6564e+9 m, Teff 34707 K, Tc 41.34 MK, ρc 4.416e+16 kg/m⁴, Xc 0.0365, stirred core 0.000, pp 4.6%, half the light inside q 0.212, burnt/radiated 1.0134, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch 80.923 Gyr: L 1.4682e+48 W, R 3.6566e+9 m, Teff 34708 K, Tc 41.33 MK, ρc 4.417e+16 kg/m⁴, Xc 0.0365, stirred core 0.000, pp 4.6%, half the light inside q 0.212, burnt/radiated 1.0136, contraction -0.01% of L
+4D G 1e-20 s 1.55 2.280 M_Ch: stopped at 80.923 Gyr, Xc 0.0365 (the star didn't solve on a smaller step)
+wrote /home/runner/work/agent01/agent01/data/tmp/atom4-mainseq/evolve-four-1e-20-1.55-2.280-lp-eg-ld0.02-tv3.json (2145 s, 975 models; no solution past Xc 0.0365)
+(node:2352) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/agent01/agent01/four/atom/js/mainseq.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /home/runner/work/agent01/agent01/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
