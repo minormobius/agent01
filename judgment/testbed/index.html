@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Testbed — judgment</title>
+<meta name="description" content="An unattended agent loop ran about ninety-eight turns with no human watching and produced well-tested, mediocre work. Read through the thesis, it is a case study, and with a few changes it becomes a testbed for the propositions.">
+<link rel="stylesheet" href="/judge.css">
+<style>
+.draft { font-family: var(--sans); font-size: 0.95rem; background: var(--warn-bg); color: var(--warn); padding: 0.5rem 0.75rem; border-radius: 4px; display: inline-block; margin: 0 0 1rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: 0.6rem; margin: 1.25rem 0; padding: 0; list-style: none; }
+.stats li { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 0.7rem 0.8rem; }
+.stats b { display: block; font-family: var(--sans); font-size: 1.6rem; line-height: 1.1; }
+.stats span { font-size: 0.95rem; color: var(--muted); }
+.finding { border-left: 4px solid var(--accent); padding: 0.1rem 0 0.1rem 1rem; margin: 1.5rem 0; }
+.finding h3 { margin-top: 0; }
+.finding .maps { font-family: var(--sans); font-size: 0.9rem; color: var(--muted); margin: 0; }
+.exp { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 1rem 1.1rem; margin: 1.25rem 0; }
+.exp h3 { margin-top: 0; }
+.exp dl { margin: 0.5rem 0 0; font-size: 1rem; }
+.exp dt { font-family: var(--sans); font-weight: 600; font-size: 0.9rem; margin-top: 0.6rem; }
+.exp dd { margin: 0.15rem 0 0; }
+blockquote { margin: 1rem 0; padding: 0.5rem 1rem; border-left: 3px solid var(--rule); color: var(--text); font-style: italic; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <a class="home" href="/">judgment</a>
+  <nav aria-label="Site">
+    <ul>
+      <li><a href="/">About</a></li>
+      <li><a href="/sources/">Sources</a></li>
+      <li><a href="/thesis/">Thesis</a></li>
+      <li><a href="/testbed/" aria-current="page">Testbed</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main id="main">
+<h1>The loop: a case and a testbed</h1>
+<p class="draft">Working draft, 28 November 2026. The loop is switched off. Nothing on this page turns it on.</p>
+
+<p class="lede">In August 2026 an unattended agent loop ran about ninety-eight turns on a single project, with no human watching. The machinery worked. The result was mediocre. Read through <a href="/thesis/">the thesis</a>, this was not a failed experiment. It was the trap, reproduced at the scale of a system, with a ledger recording everything.</p>
+
+<h2 id="what">1. What was tried</h2>
+<p>The <a href="https://loop.mino.mobi">loop</a> is a budget-governed set of agents working from a shared ticket graph. A planner proposes work, a reviewer promotes or rejects it, and a fleet of workers does it. Every result passes machine gates before it lands. Its tree published to <a href="https://plant.minomobi.com">plant.minomobi.com</a>. The goal was a small factory-building game, and the question it was built to answer was <em>where unattended work stops paying</em>.</p>
+<p>The operator’s only channel into the run was a written vision file, read verbatim by every planning turn. For this run it said:</p>
+<blockquote>There is no human in the loop for this run. Decide.</blockquote>
+<ul class="stats" aria-label="The August 2026 run in numbers">
+  <li><b>~98</b><span>work orders, 4–7 August 2026</span></li>
+  <li><b>63</b><span>turns passed every gate (of 89 recorded)</span></li>
+  <li><b>0</b><span>turns scored by the quality judge</span></li>
+  <li><b>13</b><span>questions to the operator still open, none answered during the run</span></li>
+  <li><b>72</b><span>rejections whose reasons were thrown away</span></li>
+  <li><b>990</b><span>ledger entries: 199 findings, 177 decisions, 18 dead ends</span></li>
+</ul>
+
+<h2 id="shows">2. What it shows</h2>
+
+<section class="finding" aria-labelledby="f1">
+<h3 id="f1">Supervision was all or nothing</h3>
+<p>Day-to-day work in this repo is one-to-one and turn by turn. The loop went to the opposite extreme: no human at all for the whole run. Nothing was tried in between, such as a look every ten turns or one review per window. That is what the trap predicts. If nobody is calibrated at the intermediate levels, there is no middle setting anyone can trust, so supervision swings between total control and abdication.</p>
+<p class="maps">Bears on: <a href="/thesis/#trap">the trap</a>. A new hypothesis: <strong>without calibration at intermediate levels, supervision is bimodal.</strong></p>
+</section>
+
+<section class="finding" aria-labelledby="f2">
+<h3 id="f2">Green gates, nothing visible</h3>
+<p>Turns 36 to 50 produced seven backend modules and not one line of the page a visitor sees. Eight of the twelve modules in the loop’s tree were not imported by the page at all. Every one of those turns passed its gates. The gates measured what was checkable, so the queue filled with checkable work. In the vision file’s own words, it was “a very well-tested pile of correct functions.”</p>
+<p class="maps">Bears on: <a href="/thesis/#p1">P1, cue validity</a>. The signals the supervisor would have read were produced inside the system they described. Goodhart, with a commit log.</p>
+</section>
+
+<section class="finding" aria-labelledby="f3">
+<h3 id="f3">The judge never judged</h3>
+<p>The loop had a slot for a quality judge with three signals: probes, a rubric, and an adversary. Only the probes were ever built, and the judge was never calibrated against a person. So all 89 recorded turns carry the same note: “judge uncalibrated — probes only, score withheld.” The loop ran its whole course without an instrument for the one thing that mattered.</p>
+<p class="maps">Bears on: <a href="/thesis/#measure">measurement</a>. The run was meant to produce the curve of quality against turn count. It could not, because quality was never measured.</p>
+</section>
+
+<section class="finding" aria-labelledby="f4">
+<h3 id="f4">One look beat ninety-eight turns</h3>
+<p>The most consequential signal of the whole project came from outside it, in one sentence from the operator after looking at the page:</p>
+<blockquote>I notice this isn’t the foam game with object placement, but an explainer for how it might be achieved.</blockquote>
+<p>A thirty-second look caught what the gates could not see. An explainer is the natural attractor for a loop like this, because explaining is legible, gateable and safe. That is a fact about taste. The loop could check correctness. It could not see what was missing.</p>
+<p class="maps">Bears on: <a href="/thesis/#p1">P1</a> (independent cues are worth more than volume) and <a href="/thesis/#p4">P4</a> (taste as noticing what matters).</p>
+</section>
+
+<section class="finding" aria-labelledby="f5">
+<h3 id="f5">Reasons were thrown away</h3>
+<p>Until partway through the run, the reviewer’s reason for rejecting a proposal was discarded and only the tag was kept. Seventy-two proposals died with no recorded cause, so later planners kept proposing the same things. Most of those rejections were right; two were not. Without the reason, nothing could learn from them.</p>
+<p class="maps">Bears on: <a href="/thesis/#p2">P2</a>. A judgment with no recorded reason cannot be scored, so it can’t be calibrated. The same holds for a person’s interventions.</p>
+</section>
+
+<section class="finding" aria-labelledby="f6">
+<h3 id="f6">The judgment was there, but it only flowed one way</h3>
+<p>The vision file is a serious piece of judgment written in advance. It defines a bar for “playable” (within thirty seconds a stranger does something that can fail). It tells the loop to prefer the easier-to-reverse option. It requires every question to the operator to say what to do, what to watch for, and what each answer would change. That is <em>providentia</em>, foresight, in <a href="/thesis/#prudence">Aquinas’s</a> sense. But nothing came back to the person who wrote it, so it could never be checked against what happened.</p>
+<p class="maps">Bears on: <a href="/thesis/#thesis">the thesis</a>. Leverage needs the work to produce feedback that trains the supervisor. Here the supervisor’s judgment went in and nothing came back out.</p>
+</section>
+
+<h2 id="reframe">3. The reframe: measure the supervisor, not just the agents</h2>
+<p>The loop was built to draw a curve of <em>agent output quality against turn count</em>. The thesis says that curve is only half the picture. The other half is the supervisor’s curve: <strong>how much work can be delegated between looks while late-found failures stay acceptable</strong>, and whether the supervisor’s predictions about the work improve.</p>
+<p>The loop is unusually well suited to that, because most of what an experiment needs already exists. It has a ticket ledger that records every decision, a governor that meters every turn, a protocol for asking the operator questions, per-turn verdict files, and a judge slot with three signal lanes. It needs a person in it again, at a chosen distance, and a few things written down before each window.</p>
+
+<h2 id="experiments">4. Experiments</h2>
+<p>Each one is small enough to run within a single window of the loop. The predictions are written now, before any data exists, so they can be wrong.</p>
+
+<section class="exp" aria-labelledby="e1">
+<h3 id="e1">E1. Supervision cadence and detection latency</h3>
+<dl>
+  <dt>Tests</dt><dd>The trap, and the shape of the leverage curve.</dd>
+  <dt>Do</dt><dd>Run comparable windows in which the operator takes a thirty-second look every <i>k</i> turns, for <i>k</i> of 1, 5, 20, and never. Use a fixed protocol: open the page, try to do something that can fail, write one line.</dd>
+  <dt>Measure</dt><dd>Turns from the start of a drift (work that doesn’t move the visible goal) until it is caught, and the operator’s minutes spent.</dd>
+  <dt>Prediction</dt><dd>Detection latency grows with <i>k</i>, but not in a straight line. There is a knee, a cadence beyond which drift episodes run much longer. The last run sets a baseline of at least fifteen turns at “never”.</dd>
+</dl>
+</section>
+
+<section class="exp" aria-labelledby="e2">
+<h3 id="e2">E2. How much is a summary worth?</h3>
+<dl>
+  <dt>Tests</dt><dd><a href="/thesis/#p1">P1, cue validity falls with altitude.</a></dd>
+  <dt>Do</dt><dd>At each look, <em>before</em> opening the page, read only the loop’s own summary and gate results and predict: did the thing a visitor sees get better? Then look. Separately, have an independent judge make the same call: a different model driving a real browser.</dd>
+  <dt>Measure</dt><dd>How often the summary’s answer agrees with the look, and how often the independent judge’s does.</dd>
+  <dt>Prediction</dt><dd>Agreement from the self-summary is poor exactly when drift is under way. The independent judge does better, and its errors are less correlated with the loop’s.</dd>
+</dl>
+</section>
+
+<section class="exp" aria-labelledby="e3">
+<h3 id="e3">E3. The window ledger</h3>
+<dl>
+  <dt>Tests</dt><dd><a href="/thesis/#p2">P2, judgment at a level comes from scored predictions at that level.</a></dd>
+  <dt>Do</dt><dd>Before each window, write three things: what it will produce, the rating you expect to give it, and what would surprise you. After the window, score each one.</dd>
+  <dt>Measure</dt><dd>Calibration across windows: hits, surprises, and how far the rating was off.</dd>
+  <dt>Prediction</dt><dd>Early windows are poorly calibrated. Calibration improves only at the level where predictions are being written and scored, and the operator becomes willing to set <i>k</i> higher only after it does.</dd>
+</dl>
+</section>
+
+<section class="exp" aria-labelledby="e4">
+<h3 id="e4">E4. Loud interfaces</h3>
+<dl>
+  <dt>Tests</dt><dd><a href="/thesis/#p3">P3, architecture decides where failure becomes visible.</a></dd>
+  <dt>Do</dt><dd>Add one gate at the boundary a person cares about: a window fails if the page a visitor sees did not change, or if a scripted stranger can no longer reach a refusal they caused within the bound. Run with and without it.</dd>
+  <dt>Measure</dt><dd>The length of drift episodes, and how much work gets thrown away.</dd>
+  <dt>Prediction</dt><dd>Drift episodes shorten sharply. The new failure is gaming the gate, such as cosmetic page edits. That failure is itself a finding about which interfaces can be gamed.</dd>
+</dl>
+</section>
+
+<section class="exp" aria-labelledby="e5">
+<h3 id="e5">E5. Why did I intervene?</h3>
+<dl>
+  <dt>Tests</dt><dd><a href="/thesis/#p5">P5, the judge drifts.</a></dd>
+  <dt>Do</dt><dd>Tag every intervention with one word: evidence, hunch, anxiety, boredom, habit. Later, record whether it caught something real.</dd>
+  <dt>Measure</dt><dd>The hit rate for each reason.</dd>
+  <dt>Prediction</dt><dd>Interventions tagged evidence or hunch catch real problems far more often than those tagged anxiety, boredom or habit, and the second group is larger than expected.</dd>
+</dl>
+</section>
+
+<section class="exp" aria-labelledby="e6">
+<h3 id="e6">E6. Comparison as taste training</h3>
+<dl>
+  <dt>Tests</dt><dd><a href="/thesis/#p4">P4, taste is learned relevance, by practice and comparison.</a></dd>
+  <dt>Do</dt><dd>Have the loop build three variants of the same level. Pick one blind and write why. Later, put the same variants to strangers. The repo already has a blinded-vote setup from the builder bake-off.</dd>
+  <dt>Measure</dt><dd>Whether the operator’s picks agree with the strangers’ more often over time.</dd>
+  <dt>Prediction</dt><dd>They do, but only when the reasons are written down and compared afterwards.</dd>
+</dl>
+</section>
+
+<h2 id="limits">5. What this cannot show</h2>
+<ul>
+  <li><strong>One operator.</strong> Every result is n = 1 and confounded with the operator getting better at everything, not only at supervising. Pre-register the windows and their order, and treat the results as hypotheses to carry elsewhere.</li>
+  <li><strong>One kind of work.</strong> A small browser game rewards a thirty-second look more than most work does. The cadence numbers won’t transfer, but the shape of the curve might.</li>
+  <li><strong>Cost.</strong> Each window spends real model budget. The loop’s own design record says the real limit is the operator’s capacity, not the bill: an unbounded hour produces an operator who can’t use their own tools for the rest of the week. These experiments need fewer turns than the last run, and more of the operator’s attention.</li>
+</ul>
+
+<p class="callout">The loop stays off. Turning it on is one reviewable change to its config, and the decision belongs to the operator. What this page proposes is a different way to run it: a person in the loop at a distance they choose and record, with the predictions written down before each window rather than after.</p>
+</main>
+
+<footer class="site-footer">
+  <p>Sources for the numbers: the loop’s ledger, run log and vision file in the repository, and <a href="https://loop.mino.mobi">loop.mino.mobi</a>.</p>
+  <p>judge.mino.mobi is part of <a href="https://mino.mobi">mino.mobi</a>.</p>
+</footer>
+</body>
+</html>

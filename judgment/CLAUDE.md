@@ -27,6 +27,7 @@ meaningful agency over it, and cultivating the judgment that responsibility dema
 |---|---|---|
 | `/` | hub: thesis, abstract, the eleven branches | `index.html` (hand-written) |
 | `/thesis/` | working scratchpad for the thesis: propositions, falsifiers, measures | `thesis/index.html` (hand-written; links into `/sources/#work-NNN`) |
+| `/testbed/` | the August 2026 agent loop as a case study, and six experiments to run on it | `testbed/index.html` (hand-written; figures from `.github/loop/`) |
 | `/sources/` | the annotated bibliography, filterable | **generated** from `sources/library.json` |
 | `/sources/library.csv`, `.bib` | the same list as a spreadsheet and as BibTeX | **generated** |
 | `/sources/library.json` | the source of truth, also public | hand-edited |
