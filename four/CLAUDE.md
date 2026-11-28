@@ -553,6 +553,12 @@ for games, and this is a modelling programme with publications to come. The game
   model after. Replayed from leg 1's checkpoint (atom4-data 006883d78, 15.876 Gyr) it recurs exactly: every step size
   lands on ρc 6.50 × 10¹⁷ (DRHO halving five times, then accepted). Not diagnosed further; kept as a stop (it had halved;
   life ≥ 15.88 Gyr, ~18 by its last rate), open. evolve4-28c: 15 commands.
+  **evolve4-28 leg 3 (evolve4-28c, collected 2026-11-28 11:26Z):** 11 of 24 ended. **Ledoux G 10⁻¹⁴ s 1.55 also stopped on
+  the balmax bar,** at Xc 0.0965, 32.37 Gyr: at 32.32 Gyr the centre's density jumps 4.8% (the Schwarzschild core 0.180 →
+  0.177, the mixed core 0.109 throughout) and the books go to 1.21, decaying (1.15 after ten models). Resumed with
+  balmax=0.3 (sandbox, 7 min) they keep decaying, slowly (1.13 → 1.11 over nine models, ~45 s a model). Both s 1.55 stops
+  are late (Xc ≈ 0.1) and on Ledoux only; both halved long before. Kept as lower bounds (≥ 32.37 Gyr), open with the
+  other. evolve4-28d: 13 commands.
   **The liquid drop, checked (PI, 2026-11-22: "liquid drop first, let's get somewhere defensible there"):**
   `fusion/tools/dropcheck.mjs <mass_1.mas20>` → `papers/p2/data/dropcheck.json` (AME2020 from
   www-nds.iaea.org/amdc/ame2020/mass_1.mas20.txt; measured values only). It builds drops with nuclei.mjs bake's own
