@@ -96,12 +96,30 @@ export const LECTURE = [
     { say: 'High order costs degree, and a bound on the degree caps the count.' },
     { say: 'Over the whole numbers there was no way to do this. The November claim says it found one.' },
   ],
-  [ // 16 The 2026 claim and its Lean archive
+  [ // 16 An upper bound on primes is enough
+    { say: 'The next three slides take apart the shape of the twenty twenty six argument.', text: 'The next three slides take apart the shape of the 2026 argument.' },
+    { say: 'A zero off the line makes the error in counting primes swing up and down, like a wave that keeps growing.', drive: ['kc', 0.9, 0.8] },
+    { say: 'Lower the ceiling below the zero, and the wave breaks through it.', drive: ['kc', 0.8, 0.65] },
+    { say: 'So a bound from above is enough to rule the zero out. The argument only ever proves an upper bound, just as Stepanov did.' },
+  ],
+  [ // 17 Behrend's set
+    { say: 'The second piece is a set with no three numbers evenly spaced.' },
+    { say: 'Write each number in a base where adding never carries, and keep the ones whose digits lie on a sphere.', drive: ['kr', 2, 18] },
+    { say: 'The middle of two points on a sphere lies inside it, so no three of them can be evenly spaced.' },
+    { say: 'At this size it keeps only thirty numbers. The proof uses a set like it to keep its choices sparse, not to make them many.', text: 'At this size it keeps only 30 numbers. The proof uses a set like it to keep its choices sparse, not to make them many.' },
+  ],
+  [ // 18 The product formula
+    { say: 'The third piece is the product formula.' },
+    { say: 'Measure a fraction by its size, and by how often each prime divides it. The logs always add up to zero.', drive: ['kq', 12, 1024] },
+    { say: 'So a number that many primes divide must be large. The proof builds a determinant that the primes divide a great deal, and bounds its size from above.' },
+    { say: 'The two estimates meet, a huge term cancels on both sides, and what is left forces the weighted count of primes to be small.' },
+  ],
+  [ // 19 The 2026 claim and its Lean archive
     { say: 'On November twentieth, a mathematician announced a proof of the Riemann hypothesis, found with Claude.', text: 'On 20 November 2026, a mathematician announced a proof of the Riemann hypothesis, found with Claude.' },
     { say: 'The proof is a Lean project of seventeen million lines. Its statement is the right one, and a text search finds no shortcuts.', text: 'The proof is a Lean project of 17 million lines. Its statement is the right one, and a text search finds no shortcuts.' },
-    { say: 'But nobody has yet reported building it. Until then, it is unverified.' },
+    { say: 'A forty three page explanation followed a week later. It shows the shape of the argument, but it is not a check of it. Until someone builds the proof, it is unverified.', text: 'A 43-page explanation followed a week later. It shows the shape of the argument, but it is not a check of it. Until someone builds the proof, it is unverified.' },
   ],
-  [ // 17 Recall quiz
+  [ // 20 Recall quiz
     { say: "That's the lecture. Try the five questions from memory, and tap ask if anything was unclear." },
   ],
 ];

@@ -132,6 +132,33 @@ ok(R.sieve(1e6).length === 78498, 'π(10⁶) = 78498');
   ok(R.offLineCrossover(0.52) / Math.LN10 > 100, 'β = 0.52 crosses beyond 10^100, as slide 12 says');
 }
 
+// ---- the 2026 argument's three pieces ---------------------------------------------------------
+{
+  // the wave: matches −2 Re(x^ρ/ρ) computed with complex arithmetic
+  for (const [L, b, g] of [[3, 0.7, 14.134725], [10.5, 0.55, 21.02], [1.2, 0.9, 30]]) {
+    const xr = R.cexp([b * L, g * L]), q = R.cdiv(xr, [b, g]);
+    near(R.offLineWave(L, b, g), -2 * q[0], 1e-9 * Math.max(1, Math.abs(q[0])), `offLineWave at L=${L}`);
+  }
+  ok(R.ceilingBreach(0.7, 0.6, 14.134725) !== null, 'a zero at β=0.7 breaks a ceiling x^0.6');
+  ok(R.ceilingBreach(0.7, 0.69, 14.134725, 400) !== null, 'and even x^0.69, eventually');
+  ok(R.ceilingBreach(0.7, 0.7, 14.134725) === null && R.ceilingBreach(0.7, 0.8, 14.134725) === null, 'but never a ceiling at or above x^β');
+  // Behrend: every sphere is free of 3-term progressions; counts add up; a non-sphere set is not
+  for (const [d, n] of [[3, 3], [4, 3], [5, 3], [4, 4], [5, 4]]) {
+    const sp = R.behrendSpheres(d, n);
+    ok([...sp.values()].reduce((x, y) => x + y, 0) === d ** n, `Behrend d=${d} n=${n}: sphere counts add up to dⁿ`);
+    for (const [r2, c] of sp) {
+      const S = R.behrendSet(d, n, r2);
+      ok(S.length === c && S.every((x) => x >= 0 && x < R.behrendRange(d, n)), `Behrend d=${d} n=${n} r²=${r2}: ${c} numbers in range`);
+      ok(R.has3AP(S) === null, `Behrend d=${d} n=${n} r²=${r2}: no three in arithmetic progression`);
+    }
+  }
+  ok(R.has3AP([1, 4, 5, 9, 13]) !== null && R.has3AP([1, 2, 4, 8, 13]) === null, 'has3AP finds and rejects correctly');
+  // product formula: the places of a nonzero rational sum to zero
+  let seed = 11; const rnd = (k) => 1 + ((seed = (seed * 48271) % 2147483647) % k);
+  for (let i = 0; i < 300; i++) { const a = rnd(100000), b = rnd(100000); near(R.placesOf(a, b).reduce((x, y) => x + y.v, 0), 0, 1e-9, `product formula for ${a}/${b}`); }
+  ok(R.placesOf(1024, 1).find((p) => p.place === 2).v < 0 && R.placesOf(1024, 1)[0].v > 0, '2¹⁰ is 2-adically small and really large');
+}
+
 // ---- zero-free region -----------------------------------------------------------
 ok(R.classicalEdge(10) > 0.9 && R.classicalEdge(1e6) < 1 && R.classicalEdge(1e6) > R.classicalEdge(10), 'classical edge shape');
 

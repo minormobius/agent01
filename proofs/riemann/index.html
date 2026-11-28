@@ -248,6 +248,20 @@ pre { background: var(--bg); border: 1px solid var(--rule); border-radius: 5px; 
         <pre id="stmtLean">…</pre>
         <p>That matters because the commonest way a formal "proof" goes wrong is by proving a different statement. This one, at least, says the right thing.</p>
         <p>A Lean proof is only as good as its axioms and the kernel that checked it. A text search finds no new <code>axiom</code>, no <code>sorry</code>, no <code>native_decide</code> and no kernel bypasses. There is some metaprogramming (custom tactics, and one command that copies declarations), and those still hand their terms to the kernel. Nobody can read 17 million lines, though, so a search like this only sorts the archive into "worth building" and "not worth building". It is worth building.</p>
+        <h2>The shape of the argument, from the 43-page exposition</h2>
+        <p>On 27 November a <a href="https://github.com/sdyy1990/riemann-hypothesis/blob/5edf43ce39c068fec64e0cc122e9cbdcec343b24/GRH_Proof_EN.pdf">43-page natural-language exposition</a> appeared. A third party (Ye Yu) wrote it with Gemini from a streamlined Lean version (<code>lsernau/grh-lean</code>), and its title page credits the proof to Levent Alpöge and Claude. The authors have not endorsed it. It describes what was done; it doesn't check it. Its argument has four layers:</p>
+        <p><b>1. From the line to a half-plane (§1).</b> By the functional equation, zeros come in pairs s and 1 − s̄. So "no zeros with real part above ½" already puts every zero on the line. This is standard.</p>
+        <p><b>2. An upper bound on primes is enough (§2).</b> A zero at β + iγ off the line makes the prime count swing up <i>and</i> down by about x^β. So proving only that a weighted prime count stays <i>below</i> its expected value plus y^(β−1) rules the zero out, by a lemma of Landau's. To make every zero count with the right sign, the argument twists by a quadratic character χ_d, choosing the prime d with a known zero-density estimate. This mirrors Stepanov's method over finite fields, which also only proves an upper bound. You can check it by hand.</p>
+        <p><b>3. A squeeze, by the product formula (§3–4).</b> For any nonzero number, its ordinary size and its divisibility by every prime balance exactly: log|q| + Σ log|q|_p = 0. The argument builds a nonzero determinant from a lattice of automorphic forms on unitary groups. Theorem A bounds its size from above. Theorems B and C bound how much the primes can divide it, and those divisibility gains, prime by prime, add up to the weighted prime sum. A huge main term appears on both sides and cancels. What's left says the prime sum is small, which is layer 2's upper bound. The bookkeeping can be followed line by line, provided A, B and C are taken as given.</p>
+        <p><b>4. The three theorems (§5–7).</b> This is where the depth is, and the exposition only sketches it. The ingredients:</p>
+        <ul>
+          <li>"multiplicity over the integers", realised as p-adic divisibility of Taylor coefficients of theta functions on CM elliptic curves (after Katz), carried up chains of theta lifts</li>
+          <li>a trace-formula comparison and a large sieve, for Theorem B</li>
+          <li>Galois representations, Taylor–Wiles primes and Kisin modules, which control the denominators</li>
+          <li>a Behrend set with no three terms in progression, which keeps the choices sparse</li>
+        </ul>
+        <p>Each of these gets a paragraph that would be a paper on its own. The Lean is the actual proof.</p>
+        <p>The <a href="./learn/#16">deck</a> has a slide for layer 2, one for Behrend's set and one for layer 3's product formula.</p>
         <h2>Steps still needed to verify it</h2>
         <p>Build it with the pinned toolchain and Mathlib, run <code>#print axioms riemannHypothesis</code>, which should list only <code>propext</code>, <code>Classical.choice</code> and <code>Quot.sound</code>, and replay the result with an independent checker. That is days of machine time, not years of refereeing, which is new in the history of this problem. Then comes the human part: understanding why it is true.</p>
         <h2>Reaction on Bluesky</h2>
@@ -457,6 +471,7 @@ const HIST = [
   { y: 2024, k: 'theory', t: 'Guth–Maynard', d: 'The first substantial improvement since Ingham in 1940 on how many zeros can sit off the line. Large values of Dirichlet polynomials.' },
   { y: 2026.7, k: 'claim', t: 'Quasi-RH, with Lean', d: 'The openai/math release (family 003) claims every Dirichlet L-function has no zeros in Re s > 7/8, with a Lean proof. It would be the first zero-free half-plane. It is the orange band in the picture. See the proofs index.' },
   { y: 2026.88, k: 'claim', t: 'RH and GRH, with Claude', d: 'A mathematician announces a proof of RH and GRH found with Claude, published only as a Lean project of about 17 million lines. Unrefereed and not yet independently built. See the 2026 tab.' },
+  { y: 2026.905, k: 'claim', t: 'A 43-page exposition', d: 'A natural-language account of the claimed proof, written by a third party with Gemini from a streamlined Lean version and crediting Levent Alpöge and Claude. It lays out the architecture: a one-sided prime bound, a product-formula squeeze on a determinant of automorphic forms, and three deep theorems that it only sketches. It is unendorsed and is not a verification. See the 2026 tab.' },
 ];
 let hpick = null;
 function drawTime() {

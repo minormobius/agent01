@@ -4514,7 +4514,7 @@
       "b": "2026-11-21",
       "p": "proofs",
       "surface": "proofs",
-      "d": "What the Riemann hypothesis says and why the primes care: the critical strip, Hardy's Z function and the first 649 zeros computed in your browser, and the prime staircase rebuilt from zeros alone. A timeline of 167 years of partial results, computations and claimed proofs, ending with the November 2026 announcement of a proof found with Claude and formalized in Lean, plus a static audit of that 17-million-line archive and what still has to be checked.",
+      "d": "What the Riemann hypothesis says and why the primes care: the critical strip, Hardy's Z function and the first 649 zeros computed in your browser, and the prime staircase rebuilt from zeros alone. A timeline of 167 years of partial results, computations and claimed proofs, ending with the November 2026 announcement of a proof found with Claude and formalized in Lean. It includes a static audit of that 17-million-line archive, a plain-language map of the argument from the 43-page exposition that followed, and what still has to be checked.",
       "tags": [
         "svg",
         "math",
@@ -4531,7 +4531,7 @@
       "b": "2026-11-21",
       "p": "proofs",
       "surface": "proofs",
-      "d": "The Riemann hypothesis as a phone-shaped deck: 17 slides, each a live widget with lecture notes you pull up over it. Predict before each reveal, then count primes, map ζ's zero curves, hunt the first zero by hand, rebuild the primes from zeros, watch zeros repel like random-matrix eigenvalues, check Hasse's bound on a thousand elliptic curves, and finish with a recall quiz.",
+      "d": "The Riemann hypothesis as a phone-shaped deck: 20 slides, each a live widget with lecture notes you pull up over it, and an autopilot lecturer in studio's synthetic voice. Predict before each reveal, then count primes, map ζ's zero curves, hunt the first zero by hand, rebuild the primes from zeros, watch zeros repel, and check Hasse's bound on a thousand elliptic curves. Three slides take apart the shape of the claimed 2026 proof: why an upper bound on primes is enough, Behrend's sets with no three evenly spaced, and the product formula. Ends with a recall quiz.",
       "tags": [
         "svg",
         "canvas",

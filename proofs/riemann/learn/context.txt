@@ -163,7 +163,44 @@ The trick needs "vanishing to order m", which means derivatives. Over 𝔽_q you
 ## Theta lifts as a substitute (the 2026 claim)
 The November 2026 note says it found a substitute: chains of theta lifts between automorphic forms, each lift buying one order of multiplicity, about √X lifts for primes up to X. That is its claim, not something this deck can check.
 
-### Slide 16: The 2026 claim and its Lean archive  (chapter: 2026)
+### Slide 16: An upper bound on primes is enough  (chapter: the 2026 argument)
+Caption: A zero off the line at real part β makes the prime count swing above and below its expected value by about x^β. So a ceiling alone catches it: the floor is never needed.
+Prediction asked: A zero off the line pushes the error in counting primes… Options: only up / only down / up and down. Answer: up and down. Up and down. The zero and its mirror image add a wave, cos(γ log x), whose swings grow like x^β. That is why the 2026 argument only has to prove an upper bound.
+Task: Lower the ceiling below β and read where the wave breaks through.
+Notes:
+## One zero off the line, as a wave
+A zero at β + iγ and its mirror β − iγ add −2 Re(x^ρ/ρ) to ψ(x) − x: a wave of frequency γ in log x, with amplitude 2x^β/|ρ|. The chart divides it by a ceiling x^θ. If θ ≥ β the scaled wave stays small for ever; if θ < β its swings grow without limit, and its upward swings pass any ceiling. The hypothetical zero here sits at height 14.13, the height of the first real zero.
+## The one-sided criterion in the 2026 exposition
+The 43-page exposition of the claimed proof (§2) proves exactly this in general: if a weighted count of primes stays below y^(β−1) for good, there are no zeros to the right of β. Its tool is a theorem of Landau's, which needs one extra fact: no zero may contribute with the wrong sign. The exposition gets that by twisting with a quadratic character χ_d, and choosing the prime d (by a known zero-density estimate for such twists) so that the twisted L-functions have no zeros in the region that matters.
+## The same move as Stepanov's
+Over finite fields, Stepanov's method proves only an upper bound on the number of points, and a symmetry argument does the rest. The 2026 argument has the same shape: everything after §2 is spent proving a single upper bound.
+
+### Slide 17: Behrend's set: no three numbers evenly spaced  (chapter: the 2026 argument)
+Caption: Write numbers in a base where adding two never carries, and keep those whose digits lie on one sphere. No three of them are evenly spaced, because the midpoint of two points on a sphere lies inside it.
+Prediction asked: Between 0 and 6,560, how many numbers does this trick keep, with no three evenly spaced? Options: about 30 / about 300 / about 3,000. Answer: about 30. About 30: the fullest sphere for four digits below 5. Simpler choices do better at this size. Behrend's idea only wins as the range grows, and the 2026 argument uses it to keep a set sparse, not to make it big.
+Task: Set r² to the fullest sphere.
+Notes:
+## No three evenly spaced: the midpoint of a sphere chord lies inside it
+Take digits below d and write them in base 2d − 1, so that adding two such numbers never carries. Then a + c = 2b holds digit by digit. If a, b and c all come from vectors on one sphere |v|² = r², the vector of b is the midpoint of those of a and c. A midpoint of two different points on a sphere lies strictly inside it, so a = b = c. The chart shows how many vectors lie on each sphere; the page checks every chosen set by brute force.
+## Behrend's bound, 1946
+Choosing the dimension well as N grows gives a progression-free subset of {1, …, N} of size N·exp(−c√log N), far larger than earlier constructions. At phone scale it loses to simple greedy choices; it wins only asymptotically.
+## Where the 2026 exposition uses it
+§3.1 builds a set of places Φ_b from a Behrend-type sphere (in a weighted form, αe₁ + α′e₃ = (α + α′)e₂), so that no three of them sit in a forbidden pattern. That "sparsity" is what lets a later step (§5.1, and the Kisin-module bound in §7.3) control each collision one at a time. The author's note flagged it as the trick he expected to be unnecessary.
+
+### Slide 18: The product formula: no number is small everywhere  (chapter: the 2026 argument)
+Caption: Measure a fraction by its ordinary size and by how often each prime divides it. Taken as logarithms, the sizes always add to zero. A nonzero number that many primes divide has to be large.
+Prediction asked: A whole number is not zero, and 2²⁰ divides it. How small can it be? Options: 1 / about a million (2²⁰) / no limit. Answer: about a million (2²⁰). At least 2²⁰ = 1,048,576. Being divisible by 2²⁰ makes it tiny 2-adically, and the product formula makes it pay in ordinary size. The 2026 argument makes the same trade with a determinant.
+Task: Make the fraction smaller than 1/100 and see which bars pay for it.
+Notes:
+## The formula
+log |q| + Σ_p log |q|_p = 0, |q|_p = p^(−v_p(q))
+for every nonzero rational q. The first bar is the ordinary size (∞); every other bar is a prime, negative when the prime divides the numerator. The heights always add to zero.
+## The squeeze in the 2026 exposition
+§3–4 of the exposition run this argument on a much bigger object: the Gram determinant of a lattice of automorphic forms (it is nonzero, and lives in a number field, where the same formula holds). Theorem A bounds its ordinary size from above. Theorems B and C bound how divisible it is by primes, and the divisibility at each prime p not split in ℚ(√−d) comes with a gain γ_p, so Σ γ_p log p is a weighted sum over primes. The product formula sets the two against each other. A huge main term appears on both sides and cancels exactly, and what is left says the weighted prime sum is small: the upper bound of the slide before last.
+## Multiplicity, over the integers
+Stepanov's method needed a polynomial vanishing to high order, which over the whole numbers seemed to mean "differentiating a number". The exposition's substitute is p-adic divisibility of the Taylor coefficients of theta functions on CM elliptic curves (after Katz), carried up chains of theta lifts. Divisibility plays the part of multiplicity, and the product formula plays the part of the degree bound.
+
+### Slide 19: The 2026 claim and its Lean archive  (chapter: 2026)
 Caption: On 20 November 2026 a mathematician announced a proof of RH and GRH found with Claude, published only as a Lean project. Here is what a static read of it shows.
 Task: Pull the sheet up and read what would settle it.
 Notes:
@@ -174,8 +211,10 @@ The headline theorem is riemannHypothesis : RiemannHypothesis, and RiemannHypoth
 ## Steps still needed: build, #print axioms, independent replay
 Build it with the pinned Lean and Mathlib, run #print axioms, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time. It has not been reported, and this site did not do it. Until then: unverified.
 Then comes the part no kernel does: understanding why it's true.
+## A 43-page exposition (27 November)
+A natural-language exposition now exists, written with Gemini by a third party (Ye Yu) from a streamlined Lean version (lsernau/grh-lean). Its authors have not endorsed it. Its first half can be checked by hand: the reduction to "no zeros right of ½", the one-sided criterion (three slides back), and the squeeze that closes the argument (the product formula slide). Its second half compresses the deep machinery into paragraph sketches: CM theta functions, the trace formula, Galois representations, Taylor–Wiles. It explains what was done; it does not verify it.
 
-### Slide 17: Recall quiz: five questions  (chapter: recall)
+### Slide 20: Recall quiz: five questions  (chapter: recall)
 Caption: Retrieval is where learning sticks. Answer without scrolling back; each answer links to its slide.
 Task: Answer all five.
 Notes:
@@ -251,6 +290,18 @@ and RiemannHypothesis is Mathlib's own definition, not one made up inside the pr
 …
 That matters because the commonest way a formal "proof" goes wrong is by proving a different statement. This one, at least, says the right thing.
 A Lean proof is only as good as its axioms and the kernel that checked it. A text search finds no new axiom, no sorry, no native_decide and no kernel bypasses. There is some metaprogramming (custom tactics, and one command that copies declarations), and those still hand their terms to the kernel. Nobody can read 17 million lines, though, so a search like this only sorts the archive into "worth building" and "not worth building". It is worth building.
+## The shape of the argument, from the 43-page exposition
+On 27 November a 43-page natural-language exposition appeared. A third party (Ye Yu) wrote it with Gemini from a streamlined Lean version (lsernau/grh-lean), and its title page credits the proof to Levent Alpöge and Claude. The authors have not endorsed it. It describes what was done; it doesn't check it. Its argument has four layers:
+1. From the line to a half-plane (§1). By the functional equation, zeros come in pairs s and 1 − s̄. So "no zeros with real part above ½" already puts every zero on the line. This is standard.
+2. An upper bound on primes is enough (§2). A zero at β + iγ off the line makes the prime count swing up and down by about x^β. So proving only that a weighted prime count stays below its expected value plus y^(β−1) rules the zero out, by a lemma of Landau's. To make every zero count with the right sign, the argument twists by a quadratic character χ_d, choosing the prime d with a known zero-density estimate. This mirrors Stepanov's method over finite fields, which also only proves an upper bound. You can check it by hand.
+3. A squeeze, by the product formula (§3–4). For any nonzero number, its ordinary size and its divisibility by every prime balance exactly: log|q| + Σ log|q|_p = 0. The argument builds a nonzero determinant from a lattice of automorphic forms on unitary groups. Theorem A bounds its size from above. Theorems B and C bound how much the primes can divide it, and those divisibility gains, prime by prime, add up to the weighted prime sum. A huge main term appears on both sides and cancels. What's left says the prime sum is small, which is layer 2's upper bound. The bookkeeping can be followed line by line, provided A, B and C are taken as given.
+4. The three theorems (§5–7). This is where the depth is, and the exposition only sketches it. The ingredients:
+"multiplicity over the integers", realised as p-adic divisibility of Taylor coefficients of theta functions on CM elliptic curves (after Katz), carried up chains of theta lifts
+a trace-formula comparison and a large sieve, for Theorem B
+Galois representations, Taylor–Wiles primes and Kisin modules, which control the denominators
+a Behrend set with no three terms in progression, which keeps the choices sparse
+Each of these gets a paragraph that would be a paper on its own. The Lean is the actual proof.
+The deck has a slide for layer 2, one for Behrend's set and one for layer 3's product formula.
 ## Steps still needed to verify it
 Build it with the pinned toolchain and Mathlib, run #print axioms riemannHypothesis, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time, not years of refereeing, which is new in the history of this problem. Then comes the human part: understanding why it is true.
 ## Reaction on Bluesky
@@ -295,6 +346,7 @@ Riemann 1859; Edwards, Riemann's Zeta Function (1974); Titchmarsh, The Theory of
 - 2024 [theory] Guth–Maynard: The first substantial improvement since Ingham in 1940 on how many zeros can sit off the line. Large values of Dirichlet polynomials.
 - 2026 [claim] Quasi-RH, with Lean: The openai/math release (family 003) claims every Dirichlet L-function has no zeros in Re s > 7/8, with a Lean proof. It would be the first zero-free half-plane. It is the orange band in the picture. See the proofs index.
 - 2026 [claim] RH and GRH, with Claude: A mathematician announces a proof of RH and GRH found with Claude, published only as a Lean project of about 17 million lines. Unrefereed and not yet independently built. See the 2026 tab.
+- 2026 [claim] A 43-page exposition: A natural-language account of the claimed proof, written by a third party with Gemini from a streamlined Lean version and crediting Levent Alpöge and Claude. It lays out the architecture: a one-sided prime bound, a product-formula squeeze on a determinant of automorphic forms, and three deep theorems that it only sketches. It is unendorsed and is not a verification. See the 2026 tab.
 
 ## Static audit of the November 2026 Lean archive (read as text; not built)
 Source: alpo.ge/lean.tar.gz.part01 … part14, audited 2026-11-21. Toolchain leanprover/lean4:v4.33.1, Mathlib 0df444a360eaa60ab8c11dca51a86af692955474.

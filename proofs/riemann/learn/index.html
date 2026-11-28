@@ -91,7 +91,8 @@ body { display: flex; align-items: center; justify-content: center; }
 .bars i.cur { background: var(--accent); }
 .hdr { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.15rem 0.8rem 0.35rem; flex: 0 0 auto; }
 .hdr a { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
-.hdr .ch { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--accent); margin-left: auto; }
+.hdr button { white-space: nowrap; flex: 0 0 auto; }
+.hdr .ch { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; color: var(--accent); margin-left: auto; }
 
 .stage { position: relative; flex: 1 1 auto; min-height: 0; padding-bottom: var(--peek); transition: filter 0.25s; }
 .stage.dim { filter: saturate(0.4) opacity(0.5); }
@@ -163,7 +164,7 @@ button.b.on { border-color: var(--accent); color: var(--accent); background: var
 <body>
 <div class="aside">
   <div class="k">riemann · learn</div>
-  <p>Seventeen slides. Each is a live widget; the notes sit over it. Pull the sheet up for the lecture, tap <b>next</b> or use ← → keys.</p>
+  <p>Twenty slides. Each is a live widget; the notes sit over it. Pull the sheet up for the lecture, tap <b>next</b> or use ← → keys.</p>
   <ol id="toc"></ol>
   <p><a href="../">← the reference page</a></p>
 </div>
@@ -693,16 +694,99 @@ const SLIDES = [
   },
 },
 {
+  ch: 'the 2026 argument', t: 'An upper bound on primes is enough',
+  cap: 'A zero off the line at real part β makes the prime count swing above and below its expected value by about x^β. So a ceiling alone catches it: the floor is never needed.',
+  pred: { q: 'A zero off the line pushes the error in counting primes…', opts: ['only up', 'only down', 'up and down'], a: 2, why: 'Up and down. The zero and its mirror image add a wave, cos(γ log x), whose swings grow like x^β. That is why the 2026 argument only has to prove an upper bound.' },
+  do: 'Lower the ceiling below β and read where the wave breaks through.',
+  notes: `<h3>One zero off the line, as a wave</h3><p>A zero at β + iγ and its mirror β − iγ add −2 Re(x^ρ/ρ) to ψ(x) − x: a wave of frequency γ in log x, with amplitude 2x^β/|ρ|. The chart divides it by a ceiling x^θ. If θ ≥ β the scaled wave stays small for ever; if θ &lt; β its swings grow without limit, and its upward swings pass any ceiling. The hypothetical zero here sits at height 14.13, the height of the first real zero.</p><h3>The one-sided criterion in the 2026 exposition</h3><p>The 43-page exposition of the claimed proof (§2) proves exactly this in general: if a weighted count of primes stays below y^(β−1) for good, there are no zeros to the right of β. Its tool is a theorem of Landau's, which needs one extra fact: no zero may contribute with the wrong sign. The exposition gets that by twisting with a quadratic character χ_d, and choosing the prime d (by a known zero-density estimate for such twists) so that the twisted L-functions have no zeros in the region that matters.</p><h3>The same move as Stepanov's</h3><p>Over finite fields, Stepanov's method proves only an upper bound on the number of points, and a symmetry argument does the rest. The 2026 argument has the same shape: everything after §2 is spent proving a single upper bound.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kb', 'zero β', 0.55, 0.95, 0.01, 0.75)}${knob('kc', 'ceiling θ', 0.5, 1, 0.01, 0.9)}</div><div class="read"><div><b id="r1"></b><span>where the wave first passes the ceiling</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const G = 14.134725;
+    const draw = () => {
+      const b = +$('kb').value, th = +$('kc').value; $('kbo').textContent = b.toFixed(2); $('kco').textContent = th.toFixed(2);
+      const br = R.ceilingBreach(b, th, G, 400);
+      const Lmax = br == null ? 40 : Math.min(80, Math.max(20, br * 1.25)), n = 1600, Y = 2.5;
+      const pts = []; for (let i = 0; i <= n; i++) { const L = 0.5 + (Lmax - 0.5) * i / n, v = R.offLineWave(L, b, G) / Math.exp(th * L); pts.push([L, Math.max(-Y, Math.min(Y, v)), v.toExponential(2)]); }
+      const f = frame($('p'), { x: [0.5, Lmax], y: [-Y, Y] });
+      let g = axes(f, [0.25, 0.5, 0.75, 1].map((u) => { const L = 0.5 + (Lmax - 0.5) * u; return [L, pow10(Math.round(L / Math.LN10))]; }), [[-1, '−1'], [0, '0'], [1, '1']], 'x', 'wave / x^θ');
+      g += `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(1)}" y2="${f.Y(1)}" stroke="${css('--claim')}" stroke-width="2"/><text x="${f.W - f.pad.r}" y="${f.Y(1) - 4}" font-size="9" text-anchor="end" style="fill:${css('--claim')}">ceiling x^θ</text>`;
+      g += `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="${css('--rule')}"/>`;
+      g += `<path d="${path(pts, f.X, f.Y)}" fill="none" stroke="${css('--accent')}" stroke-width="1.2"/>`;
+      if (br != null && br <= Lmax) g += `<circle cx="${f.X(br)}" cy="${f.Y(1)}" r="5" fill="none" stroke="${css('--fg')}" stroke-width="1.5"/>`;
+      $('p').innerHTML = g;
+      cursor($('p'), f, [{ name: 'wave / x^θ', color: css('--accent'), pts }], { xfmt: (L) => `x ≈ 10^${(L / Math.LN10).toFixed(2)}` });
+      $('r1').textContent = br == null ? (th >= b ? 'never: the ceiling is at or above β' : 'not before 10^170') : `x ≈ ${pow10(Math.round(br / Math.LN10))}`;
+      if (th < b && br != null) ctx.done();
+    };
+    $('kb').oninput = draw; $('kc').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'the 2026 argument', t: 'Behrend\'s set: no three numbers evenly spaced',
+  cap: 'Write numbers in a base where adding two never carries, and keep those whose digits lie on one sphere. No three of them are evenly spaced, because the midpoint of two points on a sphere lies inside it.',
+  pred: { q: 'Between 0 and 6,560, how many numbers does this trick keep, with no three evenly spaced?', opts: ['about 30', 'about 300', 'about 3,000'], a: 0, why: 'About 30: the fullest sphere for four digits below 5. Simpler choices do better at this size. Behrend\'s idea only wins as the range grows, and the 2026 argument uses it to keep a set sparse, not to make it big.' },
+  do: 'Set r² to the fullest sphere.',
+  notes: `<h3>No three evenly spaced: the midpoint of a sphere chord lies inside it</h3><p>Take digits below d and write them in base 2d − 1, so that adding two such numbers never carries. Then a + c = 2b holds digit by digit. If a, b and c all come from vectors on one sphere |v|² = r², the vector of b is the midpoint of those of a and c. A midpoint of two different points on a sphere lies strictly inside it, so a = b = c. The chart shows how many vectors lie on each sphere; the page checks every chosen set by brute force.</p><h3>Behrend's bound, 1946</h3><p>Choosing the dimension well as N grows gives a progression-free subset of {1, …, N} of size N·exp(−c√log N), far larger than earlier constructions. At phone scale it loses to simple greedy choices; it wins only asymptotically.</p><h3>Where the 2026 exposition uses it</h3><p>§3.1 builds a set of places Φ_b from a Behrend-type sphere (in a weighted form, αe₁ + α′e₃ = (α + α′)e₂), so that no three of them sit in a forbidden pattern. That "sparsity" is what lets a later step (§5.1, and the Kisin-module bound in §7.3) control each collision one at a time. The author's note flagged it as the trick he expected to be unnecessary.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kdg', 'digits <', 3, 6, 1, 5)}${knob('kdim', 'dims', 2, 4, 1, 4)}${knob('kr', 'r²', 0, 100, 1, 2)}</div><div class="read"><div><b id="r1"></b><span id="r1l">numbers kept</span></div><div><b id="r2"></b><span>three evenly spaced?</span></div></div><div class="ctl" id="mem" style="font-family:var(--mono);font-size:0.62rem;color:var(--muted);min-height:1.6rem"></div><div class="plot"><svg id="p"></svg></div>`);
+    const draw = () => {
+      const d = +$('kdg').value, n = +$('kdim').value, maxR = n * (d - 1) ** 2;
+      $('kr').max = maxR; if (+$('kr').value > maxR) $('kr').value = maxR;
+      const r2 = +$('kr').value; $('kdgo').textContent = d; $('kdimo').textContent = n; $('kro').textContent = r2;
+      const sp = R.behrendSpheres(d, n), N = R.behrendRange(d, n);
+      const bars = []; let best = 0; for (let r = 0; r <= maxR; r++) { const c = sp.get(r) || 0; bars.push([r, c, `${c} numbers on the sphere r² = ${r}`]); best = Math.max(best, c); }
+      const set = R.behrendSet(d, n, r2), ap = R.has3AP(set);
+      const f = frame($('p'), { x: [-0.5, maxR + 0.5], y: [0, best * 1.1 + 1] });
+      let g = axes(f, [[0, 0], [Math.round(maxR / 2), Math.round(maxR / 2)], [maxR, maxR]], [[0, 0], [best, best]], 'r²', 'numbers');
+      const bw = Math.max(1, (f.X(1) - f.X(0)) * 0.8);
+      for (const [r, c] of bars) g += `<rect x="${f.X(r) - bw / 2}" y="${f.Y(c)}" width="${bw}" height="${f.Y(0) - f.Y(c)}" fill="${r === r2 ? css('--accent') : css('--accent-faint')}"/>`;
+      $('p').innerHTML = g;
+      cursor($('p'), f, [{ name: 'kept', color: css('--accent'), pts: bars }], { xfmt: (r) => `r² = ${r}` });
+      $('r1').textContent = set.length; $('r1l').textContent = `numbers kept, of ${N.toLocaleString('en-US')}`;
+      $('r2').textContent = ap ? `yes: ${ap.join(', ')}` : 'none (checked)';
+      $('mem').textContent = set.length ? set.slice(0, 12).join(', ') + (set.length > 12 ? ', …' : '') : 'no vector has this r²';
+      if (set.length === best && best > 0) ctx.done();
+    };
+    for (const id of ['kdg', 'kdim', 'kr']) $(id).oninput = draw;
+    draw(); return { resize: draw };
+  },
+},
+{
+  ch: 'the 2026 argument', t: 'The product formula: no number is small everywhere',
+  cap: 'Measure a fraction by its ordinary size and by how often each prime divides it. Taken as logarithms, the sizes always add to zero. A nonzero number that many primes divide has to be large.',
+  pred: { q: 'A whole number is not zero, and 2²⁰ divides it. How small can it be?', opts: ['1', 'about a million (2²⁰)', 'no limit'], a: 1, why: 'At least 2²⁰ = 1,048,576. Being divisible by 2²⁰ makes it tiny 2-adically, and the product formula makes it pay in ordinary size. The 2026 argument makes the same trade with a determinant.' },
+  do: 'Make the fraction smaller than 1/100 and see which bars pay for it.',
+  notes: `<h3>The formula</h3><p class="eq">log |q| + Σ<sub>p</sub> log |q|<sub>p</sub> = 0,&nbsp;&nbsp; |q|<sub>p</sub> = p<sup>−v<sub>p</sub>(q)</sup></p><p>for every nonzero rational q. The first bar is the ordinary size (∞); every other bar is a prime, negative when the prime divides the numerator. The heights always add to zero.</p><h3>The squeeze in the 2026 exposition</h3><p>§3–4 of the exposition run this argument on a much bigger object: the Gram determinant of a lattice of automorphic forms (it is nonzero, and lives in a number field, where the same formula holds). Theorem A bounds its ordinary size from above. Theorems B and C bound how divisible it is by primes, and the divisibility at each prime p not split in ℚ(√−d) comes with a gain γ_p, so Σ γ_p log p is a weighted sum over primes. The product formula sets the two against each other. A huge main term appears on both sides and cancels exactly, and what is left says the weighted prime sum is small: the upper bound of the slide before last.</p><h3>Multiplicity, over the integers</h3><p>Stepanov's method needed a polynomial vanishing to high order, which over the whole numbers seemed to mean "differentiating a number". The exposition's substitute is p-adic divisibility of the Taylor coefficients of theta functions on CM elliptic curves (after Katz), carried up chains of theta lifts. Divisibility plays the part of multiplicity, and the product formula plays the part of the degree bound.</p>`,
+  mount(el, ctx) {
+    el.innerHTML = W(`<div class="ctl">${knob('kq', 'numerator', 1, 2048, 1, 12)}${knob('kq2', 'denominator', 1, 2048, 1, 35)}</div><div class="read"><div><b id="r1"></b><span>the fraction</span></div><div><b id="r2"></b><span>sum of all bars</span></div></div><div class="plot"><svg id="p"></svg></div>`);
+    const draw = () => {
+      const a = +$('kq').value, b = +$('kq2').value; $('kqo').textContent = a; $('kq2o').textContent = b;
+      const pl = R.placesOf(a, b), m = Math.max(1, ...pl.map((x) => Math.abs(x.v))) * 1.15;
+      const f = frame($('p'), { x: [-0.5, pl.length - 0.5], y: [-m, m] });
+      let g = axes(f, pl.map((x, i) => [i, x.place === '∞' ? '∞' : x.place]), [[-Math.round(m / 1.15), -Math.round(m / 1.15)], [0, 0], [Math.round(m / 1.15), Math.round(m / 1.15)]], 'place', 'log size');
+      g += `<line x1="${f.pad.l}" x2="${f.W - f.pad.r}" y1="${f.Y(0)}" y2="${f.Y(0)}" stroke="${css('--rule')}"/>`;
+      const bw = Math.min(40, (f.X(1) - f.X(0)) * 0.7);
+      pl.forEach((x, i) => { const y0 = f.Y(0), y1 = f.Y(x.v); g += `<rect x="${f.X(i) - bw / 2}" y="${Math.min(y0, y1)}" width="${bw}" height="${Math.abs(y1 - y0)}" fill="${x.place === '∞' ? css('--claim') : css('--accent')}" opacity="0.85"/>`; });
+      $('p').innerHTML = g;
+      cursor($('p'), f, [{ name: 'log size', color: css('--fg'), pts: pl.map((x, i) => [i, x.v, x.place === '∞' ? `log |q| = ${x.v.toFixed(3)}` : `log |q|_${x.place} = ${x.v.toFixed(3)} (v = ${Math.round(-x.v / Math.log(x.place))})`]) }], { head: (q) => (pl[q[0]].place === '∞' ? 'ordinary size' : `the prime ${pl[q[0]].place}`) });
+      $('r1').textContent = `${a}/${b} ≈ ${(a / b).toPrecision(3)}`;
+      $('r2').textContent = Math.abs(pl.reduce((s, x) => s + x.v, 0)).toFixed(9);
+      if (a / b < 0.01) ctx.done();
+    };
+    $('kq').oninput = draw; $('kq2').oninput = draw; draw(); return { resize: draw };
+  },
+},
+{
   ch: '2026', t: 'The 2026 claim and its Lean archive',
   cap: 'On 20 November 2026 a mathematician announced a proof of RH and GRH found with Claude, published only as a Lean project. Here is what a static read of it shows.',
   do: 'Pull the sheet up and read what would settle it.',
-  notes: `<h3>The announcement: a note and a Lean project</h3><p>A four-page note (alpo.ge/remark.pdf) and a Lean project in fourteen parts. No paper: the author says a full write-up ran past 250,000 pages, and that "Claude far outpaced me near the finish line".</p><h3>Static audit: correct statement, no axioms or sorry</h3><p>The headline theorem is <code>riemannHypothesis : RiemannHypothesis</code>, and <code>RiemannHypothesis</code> is Mathlib's own definition. So the statement is right, which is the commonest place formal "proofs" go wrong. There is no new <code>axiom</code>, no <code>sorry</code>, and no <code>native_decide</code>.</p><h3>Steps still needed: build, #print axioms, independent replay</h3><p>Build it with the pinned Lean and Mathlib, run <code>#print axioms</code>, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time. It has not been reported, and this site did not do it. Until then: <b>unverified</b>.</p><p>Then comes the part no kernel does: understanding why it's true.</p>`,
+  notes: `<h3>The announcement: a note and a Lean project</h3><p>A four-page note (alpo.ge/remark.pdf) and a Lean project in fourteen parts. No paper: the author says a full write-up ran past 250,000 pages, and that "Claude far outpaced me near the finish line".</p><h3>Static audit: correct statement, no axioms or sorry</h3><p>The headline theorem is <code>riemannHypothesis : RiemannHypothesis</code>, and <code>RiemannHypothesis</code> is Mathlib's own definition. So the statement is right, which is the commonest place formal "proofs" go wrong. There is no new <code>axiom</code>, no <code>sorry</code>, and no <code>native_decide</code>.</p><h3>Steps still needed: build, #print axioms, independent replay</h3><p>Build it with the pinned Lean and Mathlib, run <code>#print axioms</code>, which should list only propext, Classical.choice and Quot.sound, and replay the result with an independent checker. That is days of machine time. It has not been reported, and this site did not do it. Until then: <b>unverified</b>.</p><p>Then comes the part no kernel does: understanding why it's true.</p><h3>A 43-page exposition (27 November)</h3><p>A natural-language exposition now exists, written with Gemini by a third party (Ye Yu) from a streamlined Lean version (lsernau/grh-lean). Its authors have not endorsed it. Its first half can be checked by hand: the reduction to "no zeros right of ½", the one-sided criterion (three slides back), and the squeeze that closes the argument (the product formula slide). Its second half compresses the deep machinery into paragraph sketches: CM theta functions, the trace formula, Galois representations, Taylor–Wiles. It explains what was done; it does not verify it.</p>`,
   mount(el, ctx) {
     el.innerHTML = W(`<div class="tiles" id="tl"><div class="tile"><div class="v">…</div><div class="l">loading the audit</div></div></div><ul class="chk" id="ck"></ul>`);
     fetch('../audit.json').then((r) => r.json()).then((A) => {
       const z = (k) => A.patterns.find((p) => p.pattern === k)?.files === 0;
       $('tl').innerHTML = `<div class="tile"><div class="v">${(A.lines / 1e6).toFixed(1)}M</div><div class="l">lines of Lean</div></div><div class="tile"><div class="v">${A.files.toLocaleString('en-US')}</div><div class="l">files</div></div>`;
-      $('ck').innerHTML = `<li class="y">Proves Mathlib's <code>RiemannHypothesis</code></li><li class="${z('axiom') ? 'y' : 'n'}">no new axioms</li><li class="${z('sorry') ? 'y' : 'n'}">no sorry</li><li class="${z('native_decide') ? 'y' : 'n'}">no native_decide</li><li class="n">built and kernel-checked</li><li class="n">#print axioms</li><li class="n">independent replay</li><li class="n">human-readable proof</li>`;
+      $('ck').innerHTML = `<li class="y">Proves Mathlib's <code>RiemannHypothesis</code></li><li class="${z('axiom') ? 'y' : 'n'}">no new axioms</li><li class="${z('sorry') ? 'y' : 'n'}">no sorry</li><li class="${z('native_decide') ? 'y' : 'n'}">no native_decide</li><li class="n">built and kernel-checked</li><li class="n">#print axioms</li><li class="n">independent replay</li><li class="n">human-readable proof: a 43-page model-written exposition, unendorsed</li>`;
     }).catch(() => { $('tl').innerHTML = '<div class="tile">audit.json did not load</div>'; });
     return { onFull: () => ctx.done() };
   },
@@ -718,7 +802,7 @@ const SLIDES = [
       { q: 'RH is equivalent to an error in counting primes of about…', o: ['x / log x', '√x · log x', 'log x'], a: 1, s: 2 },
       { q: 'For y² = x³ + ax + b mod p, the count is always within … of p + 1.', o: ['√p', '2√p', 'p / 2'], a: 1, s: 13 },
       { q: 'Gaps between consecutive zeros look like…', o: ['random (Poisson)', 'random-matrix eigenvalues', 'all equal'], a: 1, s: 9 },
-      { q: 'What has been checked about the November 2026 Lean proof?', o: ['It was built and verified', 'Its statement is Mathlib\'s RH and it has no sorry or axioms, but nobody has reported a build', 'Nothing'], a: 1, s: 15 },
+      { q: 'What has been checked about the November 2026 Lean proof?', o: ['It was built and verified', 'Its statement is Mathlib\'s RH and it has no sorry or axioms, but nobody has reported a build', 'Nothing'], a: 1, s: 18 },
     ];
     const ans = S.quiz || (S.quiz = {});
     const render = () => {

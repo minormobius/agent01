@@ -414,7 +414,7 @@ page quotes `faces` and `main` verbatim, and `FACES` is the Lean list.
 ## `/riemann/`: the Riemann hypothesis, and the November 2026 claim
 
 ```bash
-node proofs/riemann/riemann.selftest.mjs           # ~2 s, 3137 checks
+node proofs/riemann/riemann.selftest.mjs           # ~2 s, 3756 checks
 node proofs/riemann/riemann.selftest.mjs --write   # rewrites zeros.js
 node proofs/riemann/audit.mjs --src <lean dir> --write   # rewrites audit.json
 ```
@@ -464,7 +464,7 @@ relative and is cross-linked.
 
 ### `/riemann/learn/`: the deck
 
-A phone-shaped deck of 17 slides. Each slide is a live widget (`mount(el, ctx)`
+A phone-shaped deck of 20 slides. Each slide is a live widget (`mount(el, ctx)`
 in the `SLIDES` array) with a notes sheet over it. The sheet peeks with a
 title, a caption, an optional **predict** card (commit to an answer, then the
 reveal) and a **do** task (`ctx.done()` ticks it). Drag or tap the handle to
@@ -494,13 +494,24 @@ a slide. Progress, predictions and quiz answers stay in localStorage
   fudge constant; the de la Vallée Poussin saving depends on an unspecified c.
 - The last content slide reads `../audit.json`, so the deck and the reference
   page always agree about the 2026 claim.
+- **Slides 16–18 explain the 2026 argument's shape, not its truth.** They are
+  drawn from the 43-page exposition (Ye Yu with Gemini, from
+  `lsernau/grh-lean`; unendorsed by its credited authors). Slide 16 shows
+  that one zero off the line is a wave that swings both ways, so a one-sided
+  bound suffices (`offLineWave`, `ceilingBreach`). Slide 17 is Behrend's set
+  with no three terms in progression (`behrendSpheres`, `behrendSet`,
+  `has3AP`; every sphere is brute-force checked in the selftest). Slide 18 is
+  the product formula (`placesOf`). The reference page's 2026 tab carries the
+  four-layer map. **The site explains what was done; it does not try to
+  verify it** (owner, 2026-11-28). Keep "unverified" everywhere until someone
+  else reports a build.
 
 **The format has laws: [`riemann/learn/LAWS.md`](riemann/learn/LAWS.md).** Read
 them before adding a slide or starting another deck. The machine-checkable ones
 are enforced by:
 
 ```bash
-node proofs/riemann/learn/browser.selftest.mjs   # ~28 s, 258 checks, real Chromium at 390 px
+node proofs/riemann/learn/browser.selftest.mjs   # ~33 s, 300 checks, real Chromium at 390 px
 ```
 
 It walks every slide. For every chart it sweeps the pointer diagonally,
@@ -594,7 +605,7 @@ node proofs/riemann/learn/build-context.mjs        # rewrite context.txt
     `riemann.selftest.mjs` fails if it drifts from studio's, so when studio
     retunes the voice, copy the three files again and rerun
     `build-narration.mjs`, because line lengths change.
-  - The lecture is 57 lines, about 6½ minutes of speech.
+  - The lecture is 69 lines, about 8 minutes of speech.
   - Pause and restart work by a token: every await in `lectureLoop` checks it.
   - Synthetic events from `act()` are untrusted, which is how a real touch
     is told apart from autopilot's own (`e.isTrusted`).

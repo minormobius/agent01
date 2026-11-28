@@ -240,3 +240,61 @@ export function offLineCrossover(beta) {
   for (let i = 0; i < 200 && hi - lo > 1e-12 * hi; i++) { const m = (lo + hi) / 2; if (g(m) > 0) hi = m; else lo = m; }
   return (lo + hi) / 2;
 }
+
+// ---- the 2026 argument's shape, in three small pieces ---------------------------------------
+// (1) An upper bound is enough. A pair of zeros β ± iγ adds −2 Re(x^ρ/ρ) to ψ(x) − x: a wave of
+// size ~ x^β that swings both up and down. Divide by a ceiling x^θ: for θ < β the wave eventually
+// rises above 1; for θ ≥ β (and γ large enough that 2/|ρ| < 1) it never does.
+export const offLineWave = (lnx, beta, gamma) =>
+  -2 * Math.exp(beta * lnx) * (beta * Math.cos(gamma * lnx) + gamma * Math.sin(gamma * lnx)) / (beta * beta + gamma * gamma);
+/** First ln x in (0, Lmax] where the wave exceeds the ceiling x^θ, sampled finely; null if it never does there. */
+export function ceilingBreach(beta, theta, gamma, Lmax = 200, step = 0.002) {
+  for (let L = step; L <= Lmax; L += step) if (offLineWave(L, beta, gamma) > Math.exp(theta * L)) return L;
+  return null;
+}
+
+// (2) Behrend's set: no three terms in arithmetic progression. Vectors with digits in [0, d) that lie on
+// one sphere Σ vᵢ² = r², read as numbers in base 2d − 1 (so adding two never carries). If a + c = 2b
+// digitwise, the midpoint of two points of a sphere lies strictly inside it unless they are equal.
+export function behrendSpheres(d, n) {
+  const counts = new Map(), v = new Array(n).fill(0);
+  for (let idx = 0; idx < d ** n; idx++) {
+    let r2 = 0, t = idx; for (let i = 0; i < n; i++) { v[i] = t % d; t = (t / d) | 0; r2 += v[i] * v[i]; }
+    counts.set(r2, (counts.get(r2) || 0) + 1);
+  }
+  return counts;                                     // r² → how many vectors
+}
+export function behrendSet(d, n, r2) {
+  const out = [], B = 2 * d - 1;
+  for (let idx = 0; idx < d ** n; idx++) {
+    let s = 0, t = idx, x = 0, p = 1;
+    for (let i = 0; i < n; i++) { const di = t % d; t = (t / d) | 0; s += di * di; x += di * p; p *= B; }
+    if (s === r2) out.push(x);
+  }
+  return out.sort((a, b) => a - b);
+}
+export const behrendRange = (d, n) => (2 * d - 1) ** n;
+/** Does a set of integers contain a, b, c with a + c = 2b, a < b < c? (brute force) */
+export function has3AP(arr) {
+  const s = new Set(arr), a = [...s].sort((x, y) => x - y);
+  for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) if (s.has(2 * a[j] - a[i])) return [a[i], a[j], 2 * a[j] - a[i]];
+  return null;
+}
+
+// (3) The product formula. For a nonzero rational q: log|q| + Σ_p log|q|_p = 0, where log|q|_p = −v_p(q) log p.
+export function factor(n) {
+  const f = new Map(); n = Math.abs(n);
+  for (let p = 2; p * p <= n; p++) while (n % p === 0) { f.set(p, (f.get(p) || 0) + 1); n /= p; }
+  if (n > 1) f.set(n, (f.get(n) || 0) + 1);
+  return f;
+}
+/** The places of num/den: [{ place: '∞' | p, v: log-size }], summing to 0. */
+export function placesOf(num, den) {
+  const fn = factor(num), fd = factor(den), primes = [...new Set([...fn.keys(), ...fd.keys()])].sort((a, b) => a - b);
+  const out = [{ place: '∞', v: Math.log(Math.abs(num / den)) }];
+  for (const p of primes) {
+    const vp = (fn.get(p) || 0) - (fd.get(p) || 0);
+    if (vp) out.push({ place: p, v: -vp * Math.log(p) });
+  }
+  return out;
+}
