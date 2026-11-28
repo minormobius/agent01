@@ -1,0 +1,1 @@
+{"out":"carol.wav","bytes":8749100,"channels":1,"rate":44100,"parts":[{"instrument":"piano","notes":776,"seconds":99.2,"render_s":5.7},{"instrument":"guitar","notes":438,"seconds":99.19,"render_s":16.4,"folded_by_octave":14,"dropped_from_chords":0}],"seconds":99.2,"peak_before_normalising":1.4444,"gain_applied_db":-4.21}
