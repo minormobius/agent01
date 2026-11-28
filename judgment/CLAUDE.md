@@ -27,7 +27,7 @@ meaningful agency over it, and cultivating the judgment that responsibility dema
 |---|---|---|
 | `/` | hub: thesis, abstract, the eleven branches | `index.html` (hand-written) |
 | `/thesis/` | working scratchpad for the thesis: propositions, falsifiers, measures | `thesis/index.html` (hand-written; links into `/sources/#work-NNN`) |
-| `/testbed/` | the August 2026 agent loop and the miniphim lab as case studies, and experiments to run on each | `testbed/index.html` (hand-written; figures from `.github/loop/` and `packages/whetstone/chronicle.json`) |
+| `/testbed/` | the August 2026 agent loop and the miniphim lab as case studies, and experiments to run on each | `testbed/index.html` (hand-written; figures from `.github/loop/` and `packages/whetstone/chronicle.json` and `runs/*/commons/` on the lab's branch, `claude/agent-social-media-drlzxn`; main's copy stops in October) |
 | `/field/` | who else works on this (2023–26), in six clusters, with what agrees and what cuts against | `field/index.html`, seeded from `field/related.json`, then hand-edited |
 | `/sources/` | the annotated bibliography, filterable | **generated** from `sources/library.json` |
 | `/sources/library.csv`, `.bib` | the same list as a spreadsheet and as BibTeX | **generated** |
