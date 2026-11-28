@@ -64,4 +64,6 @@ channel with cold walls; its check in the true tube at R = 5; and its calibratio
 caution is kept and sharpened by the result: the ribbon is the more sensitive probe at low speed, by a factor of 2 to
 5 and not the ideal cylinder's, because it loses heat to its rim. Section 9 is a summary added at the same time. The live page's instrument now has the ribbon too (a grid of the
 station problem, `wire4/data/ribbon-grid.json`, interpolated in the browser; within 1% of the station-by-station
-numbers). **None of draft 3's additions has been audited.**
+numbers). Three pictures of computed fields were added to the figures (`sims.py`: the rippled wake in figure 1, the wire in
+the tube as figure 2, one station of the ribbon in figure 5); they are drawn from the saved runs and change no number.
+**None of draft 3's additions has been audited.**
