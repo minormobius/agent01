@@ -937,6 +937,21 @@
       ]
     },
     {
+      "surface": "judgment",
+      "dir": "judgment",
+      "endpoint": "judge.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/inspiring-clarke-c7l9ec",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "judgment/**",
+        ".github/workflows/deploy-judgment.yml"
+      ],
+      "note": "The judgment curriculum: a research programme on the economics and cultivation of judgment in the agentic age. Thin assets Worker (worker `judgment`, plain route judge.mino.mobi/*) \u2014 no D1, no secrets. Hub page plus /sources/, an annotated, filterable bibliography baked statically from sources/library.json (full description: judgment/CLAUDE.md). Dir is judgment/, NOT judge/ (that is the older Bluesky posting-profile tool at mino.mobi/judge/).",
+      "status": "ROUTE SURFACE (2026-11-28): new, bound by a plain route; owned by claude/inspiring-clarke-c7l9ec."
+    },
+    {
       "surface": "ns",
       "dir": "ns",
       "endpoint": "ns.mino.mobi",

@@ -3704,6 +3704,15 @@
    "parent": "four"
   },
   {
+   "id": "judgment",
+   "name": "judgment",
+   "url": "https://judge.mino.mobi",
+   "cat": "data",
+   "commits": 3,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "poll/evaluation.html",
    "name": "evaluation",
    "url": "https://poll.mino.mobi/evaluation.html",
@@ -9071,6 +9080,16 @@
    "commits": 0,
    "age": "warm",
    "parent": "atom4",
+   "discovered": true
+  },
+  {
+   "id": "judgment/sources",
+   "name": "sources",
+   "url": "https://judge.mino.mobi/sources/",
+   "cat": "data",
+   "commits": 0,
+   "age": "hot",
+   "parent": "judgment",
    "discovered": true
   }
  ]

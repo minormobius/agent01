@@ -1,0 +1,104 @@
+/* judge.mino.mobi — shared styles.
+   Accessibility is the brief: every colour pair below clears WCAG AA (most clear AAA),
+   text sizes are in rem so browser zoom and user font settings work, nothing depends on
+   colour alone, focus is always visible, and motion is off when the reader asks. */
+
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --text: #1b1a17;
+  --muted: #55524b;       /* 7.4:1 on --bg */
+  --rule: #d9d5cc;
+  --link: #8a2b06;        /* 7.9:1 on --bg */
+  --link-visited: #5d3a7a;
+  --accent: #8a2b06;
+  --focus: #1f5fbf;
+  --tag-bg: #efece5;
+  --full: #1d6b34;        /* free full text */
+  --full-bg: #e7f3ea;
+  --pub: #4a4a8a;
+  --pub-bg: #ecebf6;
+  --cat: #5e5446;
+  --cat-bg: #f1ede5;
+  --warn: #8a5a00;
+  --warn-bg: #fbf1dc;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141311;
+    --surface: #1c1b18;
+    --text: #ebe8e1;
+    --muted: #b3ada2;
+    --rule: #3a3731;
+    --link: #f0a07a;
+    --link-visited: #c9a8e8;
+    --accent: #f0a07a;
+    --focus: #7fb0ff;
+    --tag-bg: #2a2824;
+    --full: #8fd6a2;
+    --full-bg: #1c3324;
+    --pub: #b9b8f0;
+    --pub-bg: #26264a;
+    --cat: #d6cbb8;
+    --cat-bg: #2e2a24;
+    --warn: #f0c46a;
+    --warn-bg: #3a2e14;
+  }
+}
+@media (prefers-contrast: more) {
+  :root { --muted: var(--text); --rule: var(--text); }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+main, .site-header, .site-footer { max-width: 46rem; margin: 0 auto; padding: 0 1rem; }
+
+a { color: var(--link); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:visited { color: var(--link-visited); }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
+
+.skip { position: absolute; left: 0.5rem; top: -4rem; background: var(--surface); color: var(--text);
+  padding: 0.6rem 0.9rem; border: 2px solid var(--focus); z-index: 10; }
+.skip:focus { top: 0.5rem; }
+
+.site-header { padding-top: 1.5rem; padding-bottom: 0.5rem; display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap; }
+.site-header .home { font-family: var(--sans); font-weight: 600; letter-spacing: 0.02em; text-decoration: none; color: var(--text); }
+.site-header nav ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 1rem; font-family: var(--sans); font-size: 0.95rem; }
+.site-header nav a[aria-current="page"] { font-weight: 600; text-decoration: none; color: var(--text); border-bottom: 2px solid var(--accent); }
+
+h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); line-height: 1.15; margin: 1.5rem 0 0.75rem; font-weight: 600; }
+h2 { font-size: 1.45rem; line-height: 1.25; margin: 2.5rem 0 0.75rem; font-weight: 600; }
+h3 { font-size: 1.15rem; line-height: 1.3; margin: 1.5rem 0 0.5rem; }
+p { margin: 0 0 1rem; }
+.lede { font-size: 1.25rem; line-height: 1.5; }
+.muted { color: var(--muted); }
+.small { font-size: 0.95rem; }
+
+.callout { border-left: 4px solid var(--accent); background: var(--surface); padding: 0.9rem 1.1rem; margin: 1.5rem 0; }
+.callout > :last-child { margin-bottom: 0; }
+
+.site-footer { padding-top: 2rem; padding-bottom: 3rem; margin-top: 3rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.95rem; }
+
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }
+
+@media print {
+  :root { --bg: #fff; --surface: #fff; --text: #000; --muted: #333; --link: #000; --link-visited: #000; }
+  .skip, .site-header nav, .no-print { display: none !important; }
+  a[href^="http"]::after { content: " <" attr(href) ">"; font-size: 0.8em; word-break: break-all; }
+  body { font-size: 11pt; }
+}

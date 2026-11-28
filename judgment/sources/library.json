@@ -1,0 +1,1863 @@
+{
+  "title": "The Economics and Cultivation of Judgment in the Agentic Age",
+  "thesis": "As execution scales faster than understanding, sustainable leverage depends on organizational architecture and cultivation of judgment.",
+  "abstract": "The agentic economy is decoupling productive capacity from the human capacity to understand and direct production. Individuals can ascend the value chain and assume program-level responsibilities far faster than traditional apprenticeships cultivate the judgment those responsibilities demand. As agents and human collaborators generate increasingly complex work, the scarce resource becomes not execution but the attention required to maintain orientation, recognize consequential developments, ask the right questions, and intervene effectively. This research program investigates sustainable leverage: the ability to scale productive activity without losing meaningful agency over it. It treats taste not merely as aesthetic preference, but as a potentially cultivable capacity to recognize relevance, evaluate unfamiliar possibilities, select consequential interventions, and be productively surprised. The inquiry draws on attention economics, organizational theory, cybernetics, distributed cognition, psychology, neuroscience, philosophy, and theological traditions of discernment and formation. It seeks to distinguish principles of coordination that generalize across cognitive substrates from those peculiar to embodied human minds. On the tactical side, it examines agent architectures, context management, independent verification, and organizational memory as means of reducing supervisory burden without concealing consequential errors. On the developmental side, it asks whether the same agentic systems that accelerate responsibility can also accelerate the acquisition of calibrated judgment through deliberately structured experience and feedback. The aim is both theoretical and practical: to develop a framework for understanding, measuring, and improving the joint scaling of human judgment and machine-enabled production. The central propositions are working hypotheses, not established empirical conclusions.",
+  "schema_version": "2.0",
+  "ranking_note": "Subjective relevance to the research program; integrated ranking of prior tiers, not citation impact or evidentiary strength.",
+  "verification_note": "Drafted in conversation, then each work checked: authors, title and year against the source, and every link fetched to confirm it resolves to this work. status and note on each entry record the result.",
+  "checked_on": "2026-11-28",
+  "branches": [
+    "agents",
+    "attention",
+    "automation",
+    "cognition",
+    "cybernetics",
+    "economics",
+    "formation",
+    "judgment",
+    "learning",
+    "organization",
+    "scene"
+  ],
+  "works": [
+    {
+      "id": "work-001",
+      "rank": 1,
+      "tier": "S",
+      "branch": "automation",
+      "authors": [
+        "Lisanne Bainbridge"
+      ],
+      "title": "Ironies of Automation",
+      "year": "1983",
+      "relevance": "Automation erodes supervisory expertise",
+      "links": [
+        {
+          "url": "https://doi.org/10.1016/0005-1098(83)90046-8",
+          "kind": "publisher",
+          "label": "DOI (Automatica 19(6))"
+        }
+      ],
+      "status": "verified",
+      "note": "Automatica 19(6):775-779. gwern.net copy is a third-party mirror of an in-copyright article; DOI given as fallback. No authorised free copy found; copies circulate online but are not linked here."
+    },
+    {
+      "id": "work-002",
+      "rank": 2,
+      "tier": "S",
+      "branch": "judgment",
+      "authors": [
+        "David Hume"
+      ],
+      "title": "Of the Standard of Taste",
+      "year": "1757",
+      "relevance": "Cultivation and calibration of taste",
+      "links": [
+        {
+          "url": "https://en.wikisource.org/wiki/Four_Dissertations/Of_the_Standard_of_Taste",
+          "kind": "full",
+          "label": "Wikisource (Four Dissertations)"
+        }
+      ],
+      "status": "verified",
+      "note": "Published in Four Dissertations (1757)."
+    },
+    {
+      "id": "work-003",
+      "rank": 3,
+      "tier": "S",
+      "branch": "cybernetics",
+      "authors": [
+        "W. Ross Ashby"
+      ],
+      "title": "An Introduction to Cybernetics",
+      "year": "1956",
+      "relevance": "Requisite variety and regulation",
+      "links": [
+        {
+          "url": "http://pespmc1.vub.ac.be/books/IntroCyb.pdf",
+          "kind": "full",
+          "label": "PDF (Principia Cybernetica)"
+        },
+        {
+          "url": "https://openlibrary.org/works/OL169933W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Principia Cybernetica hosts it with the Ashby estate's permission."
+    },
+    {
+      "id": "work-004",
+      "rank": 4,
+      "tier": "S",
+      "branch": "cognition",
+      "authors": [
+        "Edwin Hutchins"
+      ],
+      "title": "Cognition in the Wild",
+      "year": "1995",
+      "relevance": "Distributed cognition",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL3487683W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": ""
+    },
+    {
+      "id": "work-005",
+      "rank": 5,
+      "tier": "S",
+      "branch": "cybernetics",
+      "authors": [
+        "Herbert A. Simon"
+      ],
+      "title": "The Architecture of Complexity",
+      "year": "1962",
+      "relevance": "Near-decomposability",
+      "links": [
+        {
+          "url": "https://faculty.sites.iastate.edu/tesfatsi/archive/tesfatsi/ArchitectureOfComplexity.HSimon1962.pdf",
+          "kind": "full",
+          "label": "PDF (Iowa State course archive)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Full name Herbert A. Simon. Proceedings of the American Philosophical Society 106(6):467-482 (JSTOR 985254)."
+    },
+    {
+      "id": "work-006",
+      "rank": 6,
+      "tier": "S",
+      "branch": "judgment",
+      "authors": [
+        "Donald A. Schön"
+      ],
+      "title": "The Reflective Practitioner: How Professionals Think in Action",
+      "year": "1983",
+      "relevance": "Problem setting and reflection in action",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL3466056W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Added middle initial and subtitle."
+    },
+    {
+      "id": "work-007",
+      "rank": 7,
+      "tier": "S",
+      "branch": "cognition",
+      "authors": [
+        "Stanisław Lem"
+      ],
+      "title": "Summa Technologiae",
+      "year": "1964",
+      "relevance": "Information overload in civilization",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL109505W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Polish original 1964; first full English translation by Joanna Zylinska, University of Minnesota Press, 2013."
+    },
+    {
+      "id": "work-008",
+      "rank": 8,
+      "tier": "S",
+      "branch": "learning",
+      "authors": [
+        "Robin M. Hogarth"
+      ],
+      "title": "Educating Intuition",
+      "year": "2001",
+      "relevance": "Kind and wicked learning environments",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL4753117W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Added middle initial. University of Chicago Press."
+    },
+    {
+      "id": "work-009",
+      "rank": 9,
+      "tier": "S",
+      "branch": "judgment",
+      "authors": [
+        "Michael Polanyi"
+      ],
+      "title": "The Republic of Science: Its Political and Economic Theory",
+      "year": "1962",
+      "relevance": "Distributed scientific judgment",
+      "links": [
+        {
+          "url": "https://doi.org/10.1007/BF01101453",
+          "kind": "publisher",
+          "label": "DOI (Minerva 1(1))"
+        }
+      ],
+      "status": "verified",
+      "note": "Minerva 1(1):54-73."
+    },
+    {
+      "id": "work-010",
+      "rank": 10,
+      "tier": "S",
+      "branch": "learning",
+      "authors": [
+        "Daniel Kahneman",
+        "Gary Klein"
+      ],
+      "title": "Conditions for Intuitive Expertise: A Failure to Disagree",
+      "year": "2009",
+      "relevance": "Conditions for calibrated intuition",
+      "links": [
+        {
+          "url": "https://pubmed.ncbi.nlm.nih.gov/19739881/",
+          "kind": "publisher",
+          "label": "PubMed"
+        },
+        {
+          "url": "https://doi.org/10.1037/a0016755",
+          "kind": "publisher",
+          "label": "DOI (American Psychologist 64(6))"
+        }
+      ],
+      "status": "verified",
+      "note": "PubMed page answered 203 to curl; record confirmed via NCBI E-utilities."
+    },
+    {
+      "id": "work-011",
+      "rank": 11,
+      "tier": "S",
+      "branch": "cognition",
+      "authors": [
+        "John Vervaeke",
+        "Timothy P. Lillicrap",
+        "Blake A. Richards"
+      ],
+      "title": "Relevance Realization and the Emerging Framework in Cognitive Science",
+      "year": "2012",
+      "relevance": "Selection of relevance under combinatorial explosion",
+      "links": [
+        {
+          "url": "https://doi.org/10.1093/logcom/exp067",
+          "kind": "publisher",
+          "label": "DOI (Journal of Logic and Computation)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Journal of Logic and Computation 22(1):79-99 (2012); published online 26 Oct 2009, so it is sometimes cited as 2009."
+    },
+    {
+      "id": "work-012",
+      "rank": 12,
+      "tier": "S",
+      "branch": "formation",
+      "authors": [
+        "Thomas Aquinas"
+      ],
+      "title": "Summa Theologiae, II-II, Questions 47–56 (on prudence)",
+      "year": "1265–1274",
+      "relevance": "Prudence and its constituent faculties",
+      "links": [
+        {
+          "url": "https://www.newadvent.org/summa/3047.htm",
+          "kind": "full",
+          "label": "New Advent, Q. 47 (through 3056.htm for Q. 56)"
+        }
+      ],
+      "status": "verified",
+      "note": "Questions 47-56 are the treatise on prudence; Q. 47 at 3047.htm, Q. 56 at 3056.htm (both checked). The Secunda Secundae is usually dated c. 1271-1272."
+    },
+    {
+      "id": "work-013",
+      "rank": 13,
+      "tier": "S",
+      "branch": "judgment",
+      "authors": [
+        "Michael Polanyi"
+      ],
+      "title": "The Tacit Dimension",
+      "year": "1966",
+      "relevance": "Subsidiary and focal awareness",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL117061W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": ""
+    },
+    {
+      "id": "work-014",
+      "rank": 14,
+      "tier": "S",
+      "branch": "formation",
+      "authors": [
+        "John Henry Newman"
+      ],
+      "title": "An Essay in Aid of a Grammar of Assent",
+      "year": "1870",
+      "relevance": "Illative sense",
+      "links": [
+        {
+          "url": "https://www.newmanreader.org/works/grammar/",
+          "kind": "full",
+          "label": "Newman Reader"
+        }
+      ],
+      "status": "verified",
+      "note": ""
+    },
+    {
+      "id": "work-015",
+      "rank": 15,
+      "tier": "S",
+      "branch": "formation",
+      "authors": [
+        "Simone Weil"
+      ],
+      "title": "Reflections on the Right Use of School Studies with a View to the Love of God",
+      "year": "1942",
+      "relevance": "Cultivation of attention",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL16047765W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Written c. 1942; first published posthumously in Attente de Dieu (1950), English Waiting for God (1951). Link is the Waiting for God catalog record; no legal free full text found."
+    },
+    {
+      "id": "work-016",
+      "rank": 16,
+      "tier": "S",
+      "branch": "formation",
+      "authors": [
+        "Aristotle"
+      ],
+      "title": "Nicomachean Ethics, Book VI",
+      "year": "c. 350 BCE",
+      "relevance": "Practical wisdom",
+      "links": [
+        {
+          "url": "http://classics.mit.edu/Aristotle/nicomachaen.6.vi.html",
+          "kind": "full",
+          "label": "Internet Classics Archive (W. D. Ross trans.)"
+        }
+      ],
+      "status": "verified",
+      "note": ""
+    },
+    {
+      "id": "work-017",
+      "rank": 17,
+      "tier": "S",
+      "branch": "agents",
+      "authors": [
+        "Yubin Kim",
+        "Ken Gu",
+        "Chanwoo Park",
+        "Chunjong Park",
+        "Samuel Schmidgall",
+        "A. Ali Heydari",
+        "Yao Yan",
+        "Zhihan Zhang",
+        "Yuchen Zhuang",
+        "Yun Liu",
+        "Mark Malhotra",
+        "Paul Pu Liang",
+        "Hae Won Park",
+        "Yuzhe Yang",
+        "Xuhai Xu",
+        "Yilun Du",
+        "Shwetak Patel",
+        "Tim Althoff",
+        "Daniel McDuff",
+        "Xin Liu"
+      ],
+      "title": "Towards a Science of Scaling Agent Systems",
+      "year": "2025",
+      "relevance": "Empirical agent topology and scaling",
+      "links": [
+        {
+          "url": "https://arxiv.org/abs/2512.08296",
+          "kind": "full",
+          "label": "arXiv"
+        }
+      ],
+      "status": "corrected",
+      "note": "Exists (arXiv 2512.08296, 9 Dec 2025). Full author list from arXiv; display may shorten to 'Yubin Kim et al.'"
+    },
+    {
+      "id": "work-018",
+      "rank": 18,
+      "tier": "S",
+      "branch": "agents",
+      "authors": [
+        "Anthropic"
+      ],
+      "title": "Patterns and Problems in Emerging Multiagent Systems",
+      "year": "2026",
+      "relevance": "Emergent collective failures and correlated behavior",
+      "links": [
+        {
+          "url": "https://www.anthropic.com/research/multiagent-systems",
+          "kind": "full",
+          "label": "Anthropic research"
+        }
+      ],
+      "status": "corrected",
+      "note": "Exists; page heading 'Patterns and problems in emerging multiagent systems' (og:title omits 'emerging'), published 13 Aug 2026. Authored as Anthropic (organization)."
+    },
+    {
+      "id": "work-019",
+      "rank": 19,
+      "tier": "S",
+      "branch": "agents",
+      "authors": [
+        "David L. Parnas"
+      ],
+      "title": "On the Criteria To Be Used in Decomposing Systems into Modules",
+      "year": "1972",
+      "relevance": "Information hiding and modularity",
+      "links": [
+        {
+          "url": "https://www.win.tue.nl/~wstomv/edu/2ip30/references/criteria_for_modularization.pdf",
+          "kind": "full",
+          "label": "PDF (TU Eindhoven course copy)"
+        },
+        {
+          "url": "https://doi.org/10.1145/361598.361623",
+          "kind": "publisher",
+          "label": "DOI (CACM 15(12))"
+        }
+      ],
+      "status": "corrected",
+      "note": "Added middle initial. Communications of the ACM 15(12):1053-1058."
+    },
+    {
+      "id": "work-020",
+      "rank": 20,
+      "tier": "A",
+      "branch": "scene",
+      "authors": [
+        "Randall Collins"
+      ],
+      "title": "The Sociology of Philosophies: A Global Theory of Intellectual Change",
+      "year": "1998",
+      "relevance": "Intellectual attention space",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL15050018W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Added subtitle. Harvard University Press."
+    },
+    {
+      "id": "work-021",
+      "rank": 21,
+      "tier": "A",
+      "branch": "judgment",
+      "authors": [
+        "Michael Polanyi"
+      ],
+      "title": "Personal Knowledge: Towards a Post-Critical Philosophy",
+      "year": "1958",
+      "relevance": "Tacit scientific judgment",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL117063W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Added subtitle. (Open Library HTML page served a bot check to curl; work record confirmed via its JSON API.)"
+    },
+    {
+      "id": "work-022",
+      "rank": 22,
+      "tier": "A",
+      "branch": "organization",
+      "authors": [
+        "William Ocasio"
+      ],
+      "title": "Towards an Attention-Based View of the Firm",
+      "year": "1997",
+      "relevance": "Organizational attention allocation",
+      "links": [
+        {
+          "url": "https://doi.org/10.1002/(SICI)1097-0266(199707)18:1+<187::AID-SMJ936>3.0.CO;2-K",
+          "kind": "publisher",
+          "label": "DOI (Strategic Management Journal 18(S1))"
+        }
+      ],
+      "status": "verified",
+      "note": "Strategic Management Journal 18(S1):187-206."
+    },
+    {
+      "id": "work-023",
+      "rank": 23,
+      "tier": "A",
+      "branch": "automation",
+      "authors": [
+        "Mica R. Endsley"
+      ],
+      "title": "Toward a Theory of Situation Awareness in Dynamic Systems",
+      "year": "1995",
+      "relevance": "Perception comprehension projection",
+      "links": [
+        {
+          "url": "https://doi.org/10.1518/001872095779049543",
+          "kind": "publisher",
+          "label": "DOI (Human Factors 37(1))"
+        }
+      ],
+      "status": "corrected",
+      "note": "Added middle initial. Human Factors 37(1):32-64."
+    },
+    {
+      "id": "work-024",
+      "rank": 24,
+      "tier": "A",
+      "branch": "organization",
+      "authors": [
+        "Friedrich A. Hayek"
+      ],
+      "title": "The Use of Knowledge in Society",
+      "year": "1945",
+      "relevance": "Coordination with dispersed knowledge",
+      "links": [
+        {
+          "url": "https://www.econlib.org/library/Essays/hykKnw.html",
+          "kind": "full",
+          "label": "Econlib"
+        }
+      ],
+      "status": "corrected",
+      "note": "Usually F. A. Hayek. American Economic Review 35(4):519-530."
+    },
+    {
+      "id": "work-025",
+      "rank": 25,
+      "tier": "A",
+      "branch": "organization",
+      "authors": [
+        "James G. March"
+      ],
+      "title": "Exploration and Exploitation in Organizational Learning",
+      "year": "1991",
+      "relevance": "Learning versus production",
+      "links": [
+        {
+          "url": "https://doi.org/10.1287/orsc.2.1.71",
+          "kind": "publisher",
+          "label": "DOI (Organization Science 2(1))"
+        }
+      ],
+      "status": "corrected",
+      "note": "Added middle initial. Organization Science 2(1):71-87."
+    },
+    {
+      "id": "work-026",
+      "rank": 26,
+      "tier": "A",
+      "branch": "judgment",
+      "authors": [
+        "Richard W. Hamming"
+      ],
+      "title": "You and Your Research",
+      "year": "1986",
+      "relevance": "Selection of important questions",
+      "links": [
+        {
+          "url": "https://www.cs.virginia.edu/~robins/YouAndYourResearch.html",
+          "kind": "full",
+          "label": "Transcript (U. Virginia)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Talk at Bell Communications Research, 7 March 1986; transcript by J. F. Kaiser."
+    },
+    {
+      "id": "work-027",
+      "rank": 27,
+      "tier": "A",
+      "branch": "cybernetics",
+      "authors": [
+        "Gregory Bateson"
+      ],
+      "title": "Steps to an Ecology of Mind",
+      "year": "1972",
+      "relevance": "Cognition across boundaries",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL486424W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": ""
+    },
+    {
+      "id": "work-028",
+      "rank": 28,
+      "tier": "A",
+      "branch": "attention",
+      "authors": [
+        "Georg Franck"
+      ],
+      "title": "The Economy of Attention",
+      "year": "2019",
+      "relevance": "Attention capital",
+      "links": [
+        {
+          "url": "https://doi.org/10.1177/1440783318811778",
+          "kind": "publisher",
+          "label": "DOI (Journal of Sociology 55(1))"
+        }
+      ],
+      "status": "corrected",
+      "note": "The DOI is Franck's English article in Journal of Sociology 55(1):8-19 (online Nov 2018, issue 2019), not a book. The 1998 work is his German book Ökonomie der Aufmerksamkeit (Hanser), which has no English edition; '1998/2019' conflates the two."
+    },
+    {
+      "id": "work-029",
+      "rank": 29,
+      "tier": "A",
+      "branch": "scene",
+      "authors": [
+        "Lucien Karpik"
+      ],
+      "title": "Valuing the Unique: The Economics of Singularities",
+      "year": "2010",
+      "relevance": "Judgment devices for singular goods",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL15932539W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; Princeton University Press (trans. from French L'économie des singularités, 2007)."
+    },
+    {
+      "id": "work-030",
+      "rank": 30,
+      "tier": "A",
+      "branch": "learning",
+      "authors": [
+        "Gary A. Klein"
+      ],
+      "title": "Sources of Power: How People Make Decisions",
+      "year": "1998",
+      "relevance": "Recognition-primed decisions",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL2731587W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; MIT Press. Publisher page blocks automated fetch."
+    },
+    {
+      "id": "work-031",
+      "rank": 31,
+      "tier": "A",
+      "branch": "organization",
+      "authors": [
+        "Jay R. Galbraith"
+      ],
+      "title": "Organization Design: An Information Processing View",
+      "year": "1974",
+      "relevance": "Information processing requirements",
+      "links": [
+        {
+          "url": "https://doi.org/10.1287/inte.4.3.28",
+          "kind": "publisher",
+          "label": "DOI (Interfaces 4(3))"
+        }
+      ],
+      "status": "corrected",
+      "note": "Interfaces 4(3):28-36. No legal free copy found."
+    },
+    {
+      "id": "work-032",
+      "rank": 32,
+      "tier": "A",
+      "branch": "economics",
+      "authors": [
+        "W. Brian Arthur"
+      ],
+      "title": "Complexity and the Economy",
+      "year": "2014",
+      "relevance": "Endogenous adaptation",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL20010530W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Oxford University Press."
+    },
+    {
+      "id": "work-033",
+      "rank": 33,
+      "tier": "A",
+      "branch": "formation",
+      "authors": [
+        "Friedrich Nietzsche"
+      ],
+      "title": "On the Uses and Disadvantages of History for Life",
+      "year": "1874",
+      "relevance": "Knowledge versus action",
+      "links": [
+        {
+          "url": "https://en.wikisource.org/wiki/On_the_Use_and_Abuse_of_History_for_Life",
+          "kind": "full",
+          "label": "Wikisource (Collins tr., 1909)"
+        },
+        {
+          "url": "https://www.gutenberg.org/ebooks/38226",
+          "kind": "full",
+          "label": "Project Gutenberg (Thoughts Out of Season II)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Second Untimely Meditation. Title is Hollingdale's translation; free links are the public-domain 1909 Adrian Collins translation titled 'The Use and Abuse of History'. Gutenberg was 503 (maintenance) at check time; confirmed via search."
+    },
+    {
+      "id": "work-034",
+      "rank": 34,
+      "tier": "A",
+      "branch": "cognition",
+      "authors": [
+        "Francisco J. Varela",
+        "Evan Thompson",
+        "Eleanor Rosch"
+      ],
+      "title": "The Embodied Mind: Cognitive Science and Human Experience",
+      "year": "1991",
+      "relevance": "Enactive cognition and contemplation",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL15207300W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; MIT Press (revised edition 2016)."
+    },
+    {
+      "id": "work-035",
+      "rank": 35,
+      "tier": "A",
+      "branch": "learning",
+      "authors": [
+        "Robert Kegan"
+      ],
+      "title": "The Evolving Self: Problem and Process in Human Development",
+      "year": "1982",
+      "relevance": "Developmental restructuring of meaning",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL3958801W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; Harvard University Press."
+    },
+    {
+      "id": "work-036",
+      "rank": 36,
+      "tier": "A",
+      "branch": "formation",
+      "authors": [
+        "Pierre Hadot"
+      ],
+      "title": "Philosophy as a Way of Life: Spiritual Exercises from Socrates to Foucault",
+      "year": "1995",
+      "relevance": "Transformative intellectual exercises",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL2743948W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; ed. Arnold I. Davidson, trans. Michael Chase (Blackwell)."
+    },
+    {
+      "id": "work-037",
+      "rank": 37,
+      "tier": "A",
+      "branch": "formation",
+      "authors": [
+        "Ignatius of Loyola"
+      ],
+      "title": "Spiritual Exercises",
+      "year": "1548",
+      "relevance": "Discernment of impulses",
+      "links": [
+        {
+          "url": "https://www.ccel.org/ccel/ignatius/exercises",
+          "kind": "full",
+          "label": "CCEL (Mullan tr., 1914)"
+        }
+      ],
+      "status": "verified",
+      "note": "1548 is the first printed (Latin, Exercitia spiritualia) edition, approved by Paul III."
+    },
+    {
+      "id": "work-038",
+      "rank": 38,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Anthropic"
+      ],
+      "title": "Effective Context Engineering for AI Agents",
+      "year": "2025",
+      "relevance": "Context economics",
+      "links": [
+        {
+          "url": "https://www.anthropic.com/research/effective-context-engineering-for-ai-agents",
+          "kind": "full",
+          "label": "Anthropic"
+        }
+      ],
+      "status": "verified",
+      "note": "Published 2025-09-29 (also reachable at /engineering/, which redirects to this URL)."
+    },
+    {
+      "id": "work-039",
+      "rank": 39,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Anthropic"
+      ],
+      "title": "Effective Harnesses for Long-Running Agents",
+      "year": "2025",
+      "relevance": "Persistent organizational memory",
+      "links": [
+        {
+          "url": "https://www.anthropic.com/research/effective-harnesses-for-long-running-agents",
+          "kind": "full",
+          "label": "Anthropic"
+        }
+      ],
+      "status": "verified",
+      "note": "Published 2025-11-26."
+    },
+    {
+      "id": "work-040",
+      "rank": 40,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Barbara H. Liskov",
+        "Jeannette M. Wing"
+      ],
+      "title": "A Behavioral Notion of Subtyping",
+      "year": "1994",
+      "relevance": "Behavioral contracts",
+      "links": [
+        {
+          "url": "https://www.cs.cmu.edu/~wing/publications/LiskovWing94.pdf",
+          "kind": "full",
+          "label": "PDF (Wing, CMU)"
+        },
+        {
+          "url": "https://doi.org/10.1145/197320.197383",
+          "kind": "publisher",
+          "label": "DOI (ACM TOPLAS)"
+        }
+      ],
+      "status": "corrected",
+      "note": "ACM TOPLAS 16(6). Middle initials added."
+    },
+    {
+      "id": "work-041",
+      "rank": 41,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Leslie Lamport"
+      ],
+      "title": "Time, Clocks, and the Ordering of Events in a Distributed System",
+      "year": "1978",
+      "relevance": "Asynchronous coordination",
+      "links": [
+        {
+          "url": "https://lamport.azurewebsites.net/pubs/time-clocks.pdf",
+          "kind": "full",
+          "label": "PDF (Lamport's site)"
+        },
+        {
+          "url": "https://doi.org/10.1145/359545.359563",
+          "kind": "publisher",
+          "label": "DOI (CACM)"
+        }
+      ],
+      "status": "verified",
+      "note": "Communications of the ACM 21(7)."
+    },
+    {
+      "id": "work-042",
+      "rank": 42,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Reid G. Smith"
+      ],
+      "title": "The Contract Net Protocol: High-Level Communication and Control in a Distributed Problem Solver",
+      "year": "1980",
+      "relevance": "Distributed task allocation",
+      "links": [
+        {
+          "url": "https://www.reidgsmith.com/The_Contract_Net_Protocol_Dec-1980.pdf",
+          "kind": "full",
+          "label": "PDF (author's site)"
+        },
+        {
+          "url": "https://doi.org/10.1109/TC.1980.1675516",
+          "kind": "publisher",
+          "label": "DOI (IEEE Trans. Computers)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Full title; IEEE Trans. Computers C-29(12):1104-1113, Dec 1980 (sometimes cited as 1981)."
+    },
+    {
+      "id": "work-043",
+      "rank": 43,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Victor R. Lesser"
+      ],
+      "title": "Cooperative Multiagent Systems: A Personal View of the State of the Art",
+      "year": "1999",
+      "relevance": "Coordination of partially informed agents",
+      "links": [
+        {
+          "url": "https://doi.org/10.1109/69.755622",
+          "kind": "publisher",
+          "label": "DOI (IEEE TKDE)"
+        }
+      ],
+      "status": "corrected",
+      "note": "IEEE Trans. Knowledge and Data Engineering 11(1). No author/institution-hosted copy found."
+    },
+    {
+      "id": "work-044",
+      "rank": 44,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Michael J. Wooldridge"
+      ],
+      "title": "An Introduction to MultiAgent Systems",
+      "year": "2002",
+      "relevance": "Computational organizational theory",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL12331202W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Wiley; 2nd edition 2009."
+    },
+    {
+      "id": "work-045",
+      "rank": 45,
+      "tier": "A",
+      "branch": "agents",
+      "authors": [
+        "Daniel Jackson"
+      ],
+      "title": "Software Abstractions: Logic, Language, and Analysis",
+      "year": "2006",
+      "relevance": "Formal models and tractable reasoning",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL5852401W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; MIT Press (revised edition 2012)."
+    },
+    {
+      "id": "work-046",
+      "rank": 46,
+      "tier": "A",
+      "branch": "cybernetics",
+      "authors": [
+        "Stafford Beer"
+      ],
+      "title": "Brain of the Firm: The Managerial Cybernetics of Organization",
+      "year": "1972",
+      "relevance": "Cybernetic organizational design",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL3054939W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; Allen Lane (2nd ed. 1981)."
+    },
+    {
+      "id": "work-047",
+      "rank": 47,
+      "tier": "A",
+      "branch": "cognition",
+      "authors": [
+        "James J. Gibson"
+      ],
+      "title": "The Ecological Approach to Visual Perception",
+      "year": "1979",
+      "relevance": "Affordances and action-oriented perception",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL5589051W",
+          "kind": "catalog",
+          "label": "Open Library"
+        },
+        {
+          "url": "https://doi.org/10.4324/9781315740218",
+          "kind": "publisher",
+          "label": "DOI (Psychology Press classic ed., 2014)"
+        }
+      ],
+      "status": "verified",
+      "note": "Houghton Mifflin 1979; DOI is the 2014 classic edition."
+    },
+    {
+      "id": "work-048",
+      "rank": 48,
+      "tier": "A",
+      "branch": "cognition",
+      "authors": [
+        "Eugene T. Gendlin"
+      ],
+      "title": "Experiencing and the Creation of Meaning: A Philosophical and Psychological Approach to the Subjective",
+      "year": "1962",
+      "relevance": "Implicit understanding",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL2682857W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Free Press of Glencoe; subtitle added."
+    },
+    {
+      "id": "work-049",
+      "rank": 49,
+      "tier": "A",
+      "branch": "cognition",
+      "authors": [
+        "William James"
+      ],
+      "title": "The Principles of Psychology, Chapter XI: Attention",
+      "year": "1890",
+      "relevance": "Selective attention",
+      "links": [
+        {
+          "url": "https://psychclassics.yorku.ca/James/Principles/prin11.htm",
+          "kind": "full",
+          "label": "Classics in the History of Psychology"
+        }
+      ],
+      "status": "corrected",
+      "note": "Chapter title 'Attention' added."
+    },
+    {
+      "id": "work-050",
+      "rank": 50,
+      "tier": "A",
+      "branch": "cognition",
+      "authors": [
+        "Antonio R. Damasio"
+      ],
+      "title": "Descartes’ Error: Emotion, Reason, and the Human Brain",
+      "year": "1994",
+      "relevance": "Embodied decision making",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL3499049W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; Putnam."
+    },
+    {
+      "id": "work-051",
+      "rank": 51,
+      "tier": "B",
+      "branch": "organization",
+      "authors": [
+        "David Seidl",
+        "Violetta Splitter",
+        "Richard Whittington"
+      ],
+      "title": "Quality over Quantity of Attention! Towards a Qualitative Attention-Based View",
+      "year": "2026",
+      "relevance": "Heterogeneous attention",
+      "links": [
+        {
+          "url": "https://doi.org/10.1111/joms.70143",
+          "kind": "full",
+          "label": "Journal of Management Studies (open access)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Authors filled from Crossref; published online 2026-07-16. Unpaywall reports it as open access (hybrid). Wiley blocks automated fetch."
+    },
+    {
+      "id": "work-052",
+      "rank": 52,
+      "tier": "B",
+      "branch": "attention",
+      "authors": [
+        "George Loewenstein",
+        "Zachary Wojtowicz"
+      ],
+      "title": "The Economics of Attention",
+      "year": "2025",
+      "relevance": "Economic literature review",
+      "links": [
+        {
+          "url": "https://www.aeaweb.org/articles?id=10.1257/jel.20241665",
+          "kind": "publisher",
+          "label": "Journal of Economic Literature"
+        },
+        {
+          "url": "https://doi.org/10.1257/jel.20241665",
+          "kind": "publisher",
+          "label": "DOI"
+        }
+      ],
+      "status": "corrected",
+      "note": "Co-author's full name added; JEL, Sept 2025. A CESifo working-paper version (WP 10712) exists."
+    },
+    {
+      "id": "work-053",
+      "rank": 53,
+      "tier": "B",
+      "branch": "attention",
+      "authors": [
+        "Herbert A. Simon"
+      ],
+      "title": "Designing Organizations for an Information-Rich World",
+      "year": "1971",
+      "relevance": "Attention scarcity",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL22507855W",
+          "kind": "catalog",
+          "label": "Open Library (Greenberger, ed., Computers, Communications, and the Public Interest)"
+        }
+      ],
+      "status": "verified",
+      "note": "Book chapter, pp. 37-72 in M. Greenberger (ed.), Johns Hopkins Press. A 1969 draft is in CMU's Simon archive but the site did not respond; only unofficial uploads of the published chapter found."
+    },
+    {
+      "id": "work-054",
+      "rank": 54,
+      "tier": "B",
+      "branch": "attention",
+      "authors": [
+        "Richard A. Lanham"
+      ],
+      "title": "The Economics of Attention: Style and Substance in the Age of Information",
+      "year": "2006",
+      "relevance": "Rhetorical and aesthetic competence",
+      "links": [
+        {
+          "url": "https://press.uchicago.edu/ucp/books/book/chicago/E/bo3680280.html",
+          "kind": "publisher",
+          "label": "University of Chicago Press"
+        },
+        {
+          "url": "https://openlibrary.org/works/OL158700W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added."
+    },
+    {
+      "id": "work-055",
+      "rank": 55,
+      "tier": "B",
+      "branch": "organization",
+      "authors": [
+        "Ronald H. Coase"
+      ],
+      "title": "The Nature of the Firm",
+      "year": "1937",
+      "relevance": "Coordination costs",
+      "links": [
+        {
+          "url": "https://doi.org/10.1111/j.1468-0335.1937.tb00002.x",
+          "kind": "publisher",
+          "label": "DOI (Economica)"
+        }
+      ],
+      "status": "verified",
+      "note": "Economica 4(16):386-405."
+    },
+    {
+      "id": "work-056",
+      "rank": 56,
+      "tier": "B",
+      "branch": "learning",
+      "authors": [
+        "Hubert L. Dreyfus",
+        "Stuart E. Dreyfus"
+      ],
+      "title": "Mind Over Machine: The Power of Human Intuition and Expertise in the Era of the Computer",
+      "year": "1986",
+      "relevance": "Stages of expertise",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL4299942W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Subtitle added; written with Tom Athanasiou; Free Press."
+    },
+    {
+      "id": "work-057",
+      "rank": 57,
+      "tier": "B",
+      "branch": "learning",
+      "authors": [
+        "Chris Argyris"
+      ],
+      "title": "Teaching Smart People How to Learn",
+      "year": "1991",
+      "relevance": "Barriers to adaptive learning",
+      "links": [
+        {
+          "url": "https://hbr.org/1991/05/teaching-smart-people-how-to-learn",
+          "kind": "publisher",
+          "label": "Harvard Business Review"
+        }
+      ],
+      "status": "verified",
+      "note": "Harvard Business Review 69(3), May–June 1991; HBR page may be paywalled."
+    },
+    {
+      "id": "work-058",
+      "rank": 58,
+      "tier": "B",
+      "branch": "judgment",
+      "authors": [
+        "Charles Sanders Peirce"
+      ],
+      "title": "The Fixation of Belief",
+      "year": "1877",
+      "relevance": "Methods of inquiry",
+      "links": [
+        {
+          "url": "https://en.wikisource.org/wiki/Popular_Science_Monthly/Volume_12/November_1877/Illustrations_of_the_Logic_of_Science_I",
+          "kind": "full",
+          "label": "Wikisource (Popular Science Monthly)"
+        }
+      ],
+      "status": "verified",
+      "note": "Popular Science Monthly 12 (Nov 1877), first of the 'Illustrations of the Logic of Science'."
+    },
+    {
+      "id": "work-059",
+      "rank": 59,
+      "tier": "B",
+      "branch": "scene",
+      "authors": [
+        "Pierre Bourdieu"
+      ],
+      "title": "The Field of Cultural Production: Essays on Art and Literature",
+      "year": "1993",
+      "relevance": "Symbolic capital",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL527976W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Ed. Randal Johnson; Columbia University Press / Polity, 1993. Full subtitle added."
+    },
+    {
+      "id": "work-060",
+      "rank": 60,
+      "tier": "B",
+      "branch": "scene",
+      "authors": [
+        "Howard S. Becker"
+      ],
+      "title": "Art Worlds",
+      "year": "1982",
+      "relevance": "Collective creative production",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL2674336W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "Full name Howard S. (Saul) Becker; University of California Press. 25th-anniversary edition 2008."
+    },
+    {
+      "id": "work-061",
+      "rank": 61,
+      "tier": "B",
+      "branch": "scene",
+      "authors": [
+        "Randall Collins"
+      ],
+      "title": "Interaction Ritual Chains",
+      "year": "2004",
+      "relevance": "Productive social interaction",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL28947W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Princeton University Press, Princeton Studies in Cultural Sociology."
+    },
+    {
+      "id": "work-062",
+      "rank": 62,
+      "tier": "B",
+      "branch": "attention",
+      "authors": [
+        "Maxi Heitmayer"
+      ],
+      "title": "The Second Wave of Attention Economics: Attention as a Universal Symbolic Currency on Social Media and Beyond",
+      "year": "2025",
+      "relevance": "Attention as currency",
+      "links": [
+        {
+          "url": "https://doi.org/10.1093/iwc/iwae035",
+          "kind": "full",
+          "label": "Open access (DOI, CC BY)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Interacting with Computers 37(1), print Jan 2025; published online 16 Aug 2024. Full subtitle added."
+    },
+    {
+      "id": "work-063",
+      "rank": 63,
+      "tier": "B",
+      "branch": "cognition",
+      "authors": [
+        "Eleanor Rosch"
+      ],
+      "title": "Principles of Categorization",
+      "year": "1978",
+      "relevance": "Perceptual categorization",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL18265470W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Chapter in Rosch & Lloyd (eds.), Cognition and Categorization (Lawrence Erlbaum, 1978), pp. 27–48; link is to the volume. Free PDFs online are course uploads of uncertain authorization, not linked."
+    },
+    {
+      "id": "work-064",
+      "rank": 64,
+      "tier": "B",
+      "branch": "cognition",
+      "authors": [
+        "Carl Gustav Jung"
+      ],
+      "title": "Psychological Types",
+      "year": "1921",
+      "relevance": "Differentiation of psychological faculties",
+      "links": [
+        {
+          "url": "https://psychclassics.yorku.ca/Jung/types.htm",
+          "kind": "full",
+          "label": "Chapter X, Baynes trans. (Classics in the History of Psychology)"
+        }
+      ],
+      "status": "corrected",
+      "note": "German original 1921 (Psychologische Typen); English trans. H. Godwyn Baynes 1923. Link is to Chapter X only (General Description of the Types)."
+    },
+    {
+      "id": "work-065",
+      "rank": 65,
+      "tier": "B",
+      "branch": "cognition",
+      "authors": [
+        "Stephen Grossberg"
+      ],
+      "title": "How Does a Brain Build a Cognitive Code?",
+      "year": "1980",
+      "relevance": "Adaptive resonance",
+      "links": [
+        {
+          "url": "https://sites.bu.edu/steveg/files/2016/06/Gro1980PsychRev.pdf",
+          "kind": "full",
+          "label": "PDF (author's site)"
+        },
+        {
+          "url": "https://doi.org/10.1037/0033-295X.87.1.1",
+          "kind": "publisher",
+          "label": "DOI"
+        }
+      ],
+      "status": "verified",
+      "note": "Psychological Review 87(1), 1–51."
+    },
+    {
+      "id": "work-066",
+      "rank": 66,
+      "tier": "B",
+      "branch": "cognition",
+      "authors": [
+        "Karl Friston"
+      ],
+      "title": "The Free-Energy Principle: A Unified Brain Theory?",
+      "year": "2010",
+      "relevance": "Perception and action under uncertainty",
+      "links": [
+        {
+          "url": "https://www.fil.ion.ucl.ac.uk/~karl/The%20free-energy%20principle%20A%20unified%20brain%20theory.pdf",
+          "kind": "full",
+          "label": "PDF (author's site, UCL)"
+        },
+        {
+          "url": "https://doi.org/10.1038/nrn2787",
+          "kind": "publisher",
+          "label": "DOI"
+        }
+      ],
+      "status": "verified",
+      "note": "Nature Reviews Neuroscience 11, 127–138."
+    },
+    {
+      "id": "work-067",
+      "rank": 67,
+      "tier": "B",
+      "branch": "cognition",
+      "authors": [
+        "Iain McGilchrist"
+      ],
+      "title": "The Master and His Emissary: The Divided Brain and the Making of the Western World",
+      "year": "2009",
+      "relevance": "Modes of attention; contested extrapolations",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL19733362W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Yale University Press. Subtitle added."
+    },
+    {
+      "id": "work-068",
+      "rank": 68,
+      "tier": "B",
+      "branch": "cognition",
+      "authors": [
+        "Andy Clark"
+      ],
+      "title": "Surfing Uncertainty: Prediction, Action, and the Embodied Mind",
+      "year": "2016",
+      "relevance": "Predictive processing",
+      "links": [
+        {
+          "url": "https://doi.org/10.1093/acprof:oso/9780190217013.001.0001",
+          "kind": "publisher",
+          "label": "DOI (Oxford Academic)"
+        },
+        {
+          "url": "https://openlibrary.org/works/OL17725476W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Oxford University Press. Subtitle added."
+    },
+    {
+      "id": "work-069",
+      "rank": 69,
+      "tier": "B",
+      "branch": "formation",
+      "authors": [
+        "Evagrius Ponticus"
+      ],
+      "title": "Praktikos",
+      "year": "4th century",
+      "relevance": "Patterns of thought that capture attention",
+      "links": [
+        {
+          "url": "https://www.ldysinger.com/Evagrius/01_Prak/00a_start.htm",
+          "kind": "full",
+          "label": "Trans. Luke Dysinger (translator's site, with Greek)"
+        }
+      ],
+      "status": "verified",
+      "note": "Written c. 390s. Dysinger's translation is placed by him in the public domain (also mirrored at evagriusponticus.net, which blocked automated fetch). Standard print trans.: Bamberger (1970), Sinkewicz (OUP 2003)."
+    },
+    {
+      "id": "work-070",
+      "rank": 70,
+      "tier": "B",
+      "branch": "cybernetics",
+      "authors": [
+        "Gregory Bateson"
+      ],
+      "title": "Mind and Nature: A Necessary Unity",
+      "year": "1979",
+      "relevance": "Organization of living intelligence",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL486423W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "E. P. Dutton."
+    },
+    {
+      "id": "work-071",
+      "rank": 71,
+      "tier": "B",
+      "branch": "cognition",
+      "authors": [
+        "Douglas R. Hofstadter",
+        "Fluid Analogies Research Group"
+      ],
+      "title": "Fluid Concepts and Creative Analogies: Computer Models of the Fundamental Mechanisms of Thought",
+      "year": "1995",
+      "relevance": "Context-sensitive analogy",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL716837W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "corrected",
+      "note": "'et al.' is the Fluid Analogies Research Group (contributors incl. Melanie Mitchell, Robert French, David Chalmers). Basic Books."
+    },
+    {
+      "id": "work-072",
+      "rank": 72,
+      "tier": "B",
+      "branch": "agents",
+      "authors": [
+        "Cara Phillips (Anthropic)"
+      ],
+      "title": "Building Multi-Agent Systems: When and How to Use Them",
+      "year": "2026",
+      "relevance": "Delegation and context pollution",
+      "links": [
+        {
+          "url": "https://claude.com/resources/articles/building-multi-agent-systems-when-and-how-to-use-them",
+          "kind": "full",
+          "label": "Claude blog (Anthropic)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Published 23 Jan 2026. Page title is 'Building multi-agent systems: When and how to use them' (tab title: 'When to use multi-agent systems (and when not to)'). Byline Cara Phillips, with contributions from Paul Chen, Andy Schumeister, Brad Abrams, Theo Chu."
+    },
+    {
+      "id": "work-073",
+      "rank": 73,
+      "tier": "B",
+      "branch": "agents",
+      "authors": [
+        "Eric von Hippel",
+        "Georg von Krogh"
+      ],
+      "title": "Open Source Software and the “Private-Collective” Innovation Model: Issues for Organization Science",
+      "year": "2003",
+      "relevance": "Distributed innovation",
+      "links": [
+        {
+          "url": "https://doi.org/10.1287/orsc.14.2.209.14992",
+          "kind": "publisher",
+          "label": "DOI"
+        },
+        {
+          "url": "https://web.mit.edu/people/evhippel/papers/PrivateCollectiveWP.pdf",
+          "kind": "full",
+          "label": "PDF working paper (author's site, MIT)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Organization Science 14(2), 209–223. Subtitle added. Linked PDF is the working-paper version."
+    },
+    {
+      "id": "work-074",
+      "rank": 74,
+      "tier": "C",
+      "branch": "scene",
+      "authors": [
+        "Jonathan Beller"
+      ],
+      "title": "The Cinematic Mode of Production: Attention Economy and the Society of the Spectacle",
+      "year": "2006",
+      "relevance": "Spectatorship as labor",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL8947963W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Dartmouth College Press / University Press of New England. Subtitle added."
+    },
+    {
+      "id": "work-075",
+      "rank": 75,
+      "tier": "C",
+      "branch": "attention",
+      "authors": [
+        "Michael H. Goldhaber"
+      ],
+      "title": "The Attention Economy and the Net",
+      "year": "1997",
+      "relevance": "Attention economy genealogy",
+      "links": [
+        {
+          "url": "https://firstmonday.org/ojs/index.php/fm/article/view/519",
+          "kind": "full",
+          "label": "First Monday (open access)"
+        }
+      ],
+      "status": "corrected",
+      "note": "First Monday 2(4), 7 April 1997. Middle initial added."
+    },
+    {
+      "id": "work-076",
+      "rank": 76,
+      "tier": "C",
+      "branch": "judgment",
+      "authors": [
+        "John Dewey"
+      ],
+      "title": "Art as Experience",
+      "year": "1934",
+      "relevance": "Aesthetic experience",
+      "links": [
+        {
+          "url": "https://openlibrary.org/works/OL111349W",
+          "kind": "catalog",
+          "label": "Open Library"
+        }
+      ],
+      "status": "verified",
+      "note": "Minton, Balch & Co. (based on 1931 William James Lectures)."
+    },
+    {
+      "id": "work-077",
+      "rank": 77,
+      "tier": "C",
+      "branch": "judgment",
+      "authors": [
+        "Immanuel Kant"
+      ],
+      "title": "Critique of Judgment",
+      "year": "1790",
+      "relevance": "Aesthetic judgment",
+      "links": [
+        {
+          "url": "https://archive.org/details/kantscritiqueofj00kantuoft",
+          "kind": "full",
+          "label": "Bernard trans., 1914 (Internet Archive)"
+        },
+        {
+          "url": "https://www.gutenberg.org/ebooks/48433",
+          "kind": "full",
+          "label": "Project Gutenberg (Bernard trans.)"
+        }
+      ],
+      "status": "verified",
+      "note": "Kritik der Urteilskraft, 1790. Public-domain English trans. J. H. Bernard (2nd ed., Macmillan 1914). Gutenberg returned 503 to the sandbox but is confirmed by search. Modern trans.: Guyer & Matthews, 'Critique of the Power of Judgment' (Cambridge 2000)."
+    },
+    {
+      "id": "work-078",
+      "rank": 78,
+      "tier": "C",
+      "branch": "scene",
+      "authors": [
+        "Michèle Lamont"
+      ],
+      "title": "Toward a Comparative Sociology of Valuation and Evaluation",
+      "year": "2012",
+      "relevance": "Social processes of valuation",
+      "links": [
+        {
+          "url": "https://dash.harvard.edu/bitstream/handle/1/11177698/Lamont%20ARS%20final%20rev.%202012.pdf",
+          "kind": "full",
+          "label": "PDF (Harvard DASH)"
+        },
+        {
+          "url": "https://doi.org/10.1146/annurev-soc-070308-120022",
+          "kind": "publisher",
+          "label": "DOI"
+        }
+      ],
+      "status": "verified",
+      "note": "Annual Review of Sociology 38, 201–221."
+    },
+    {
+      "id": "work-079",
+      "rank": 79,
+      "tier": "C",
+      "branch": "scene",
+      "authors": [
+        "Guy Debord"
+      ],
+      "title": "The Society of the Spectacle",
+      "year": "1967",
+      "relevance": "Spectacle and social relations",
+      "links": [
+        {
+          "url": "https://www.marxists.org/reference/archive/debord/society.htm",
+          "kind": "full",
+          "label": "Marxists.org"
+        },
+        {
+          "url": "https://www.bopsecrets.org/SI/debord/",
+          "kind": "full",
+          "label": "Ken Knabb trans. (Bureau of Public Secrets)"
+        }
+      ],
+      "status": "verified",
+      "note": "La Société du spectacle (Buchet-Chastel, 1967); both English translations are published without copyright restriction."
+    },
+    {
+      "id": "work-080",
+      "rank": 80,
+      "tier": "C",
+      "branch": "scene",
+      "authors": [
+        "Dallas W. Smythe"
+      ],
+      "title": "Communications: Blindspot of Western Marxism",
+      "year": "1977",
+      "relevance": "Audience labor",
+      "links": [
+        {
+          "url": "https://journals.uvic.ca/index.php/ctheory/article/view/13715",
+          "kind": "full",
+          "label": "Open access (journal archive, UVic)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Canadian Journal of Political and Social Theory 1(3), 1–27 (archived under CTheory). Middle initial added."
+    },
+    {
+      "id": "work-081",
+      "rank": 81,
+      "tier": "C",
+      "branch": "attention",
+      "authors": [
+        "Daniel Chen"
+      ],
+      "title": "A Model of the Attention Economy: Data, Platforms, and Discovery",
+      "year": "2026",
+      "relevance": "Dynamic attention and product markets",
+      "links": [
+        {
+          "url": "https://doi.org/10.1257/aer.20240651",
+          "kind": "publisher",
+          "label": "DOI (American Economic Review)"
+        }
+      ],
+      "status": "corrected",
+      "note": "American Economic Review 116(10), Oct 2026. Subtitle added. Supplied DOI is correct."
+    },
+    {
+      "id": "work-082",
+      "rank": 82,
+      "tier": "C",
+      "branch": "attention",
+      "authors": [
+        "Katharine Browne",
+        "Sebastian Watzl"
+      ],
+      "title": "The Attention Market—and What Is Wrong With It",
+      "year": "2026",
+      "relevance": "Attention ethics",
+      "links": [
+        {
+          "url": "https://doi.org/10.1007/s11098-025-02436-3",
+          "kind": "full",
+          "label": "Open access (DOI, CC BY)"
+        }
+      ],
+      "status": "corrected",
+      "note": "Philosophical Studies 183(1), Jan 2026; online 14 Nov 2025. Authors' first names added."
+    }
+  ]
+}

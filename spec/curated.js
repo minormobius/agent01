@@ -62,7 +62,7 @@ window.SPEC_CURATED = {
     foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games', hopper: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     atlas: 'science',
-    read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',
+    read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading', judgment: 'reading',
     math: 'math', 'ai-edu': 'math', ns: 'math', proofs: 'math', henderhead: 'math', four: 'math',
     cell: 'science',
   },

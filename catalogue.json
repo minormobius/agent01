@@ -5766,6 +5766,21 @@
         "canvas",
         "math"
       ]
+    },
+    {
+      "n": "judgment",
+      "u": "https://judge.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-11-28",
+      "b": "2026-11-28",
+      "surface": "judgment",
+      "d": "A curriculum on judgment for the agentic age: what it takes to keep meaningful agency over work that agents now produce faster than anyone can understand it. It starts with the sources — 82 works from Bainbridge’s Ironies of Automation to Aquinas on prudence, ranked, grouped by branch, and linked to free full text wherever a legal copy exists.",
+      "tags": [
+        "reading",
+        "index"
+      ]
     }
   ],
   "notListed": [
@@ -5773,6 +5788,11 @@
       "glob": "parts/site",
       "kind": "internal",
       "reason": "the served asset root of the parts surface (parts.mino.mobi); parts/ itself is the worker and the index library"
+    },
+    {
+      "glob": "judgment/**",
+      "kind": "content",
+      "reason": "pages inside the judgment curriculum (judge.mino.mobi/sources/ and later lessons); the hub is the listed entry"
     },
     {
       "glob": "imp/vote",

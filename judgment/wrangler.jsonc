@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "judgment",
+  "compatibility_date": "2026-11-01",
+  // Static site: a research programme on the economics and cultivation of judgment.
+  // No build step at deploy time, no worker script, no bindings: the directory IS the site.
+  // (sources/index.html is baked from sources/library.json by sources/build.mjs, committed.)
+  // CLAUDE.md and the build script are kept out of the upload by .assetsignore.
+  "assets": {
+    "directory": "."
+  },
+  // A PLAIN ROUTE, not a custom domain (the zone's custom-domain slots are not to be spent).
+  // A route makes no DNS, so deploy-judgment.yml runs scripts/route-dns.mjs first.
+  // NB: the dir is judgment/, not judge/ — judge/ is the older Bluesky posting-profile
+  // tool bundled into the root at mino.mobi/judge/.
+  "routes": [
+    { "pattern": "judge.mino.mobi/*", "zone_name": "mino.mobi" }
+  ]
+}
